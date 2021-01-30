@@ -12,13 +12,14 @@ abstract class LinkStrategy(
 
   val id = LinkIdentity(from.id, to.id)
 
-  def expectedCompletedCount:Long = to.numWorkers
+  def totalReceiversCount:Long = to.numWorkers
 
   private var currentCompletedCount = 0
 
-  def receiveCompleted(): Unit = currentCompletedCount += 1
+  def incrementCompletedReceiversCount(): Unit = currentCompletedCount += 1
 
-  def isCompleted:Boolean = currentCompletedCount == expectedCompletedCount
+  def isCompleted:Boolean = currentCompletedCount == totalReceiversCount
 
+  // returns Iterable of (sender, sender's sending policy, set of receivers)
   def getPolicies: Iterable[(ActorVirtualIdentity, DataSendingPolicy, Seq[ActorVirtualIdentity])]
 }

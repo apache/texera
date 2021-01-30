@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.controller
 
 import akka.actor.{ActorContext, ActorRef, Cancellable}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.QueryWorkerStatistics
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.{ActivateLinkHandler, AssignBreakpointHandler, ExecutionCompletedHandler, ExecutionStartedHandler, KillWorkflowHandler, LinkCompletedHandler, LocalBreakpointTriggeredHandler, LocalOperatorExceptionHandler, PauseHandler, QueryWorkerStatisticsHandler, ResumeHandler, StartWorkflowHandler}
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.{LinkWorkersHandler, AssignBreakpointHandler, WorkerExecutionCompletedHandler, WorkerExecutionStartedHandler, KillWorkflowHandler, LinkCompletedHandler, LocalBreakpointTriggeredHandler, LocalOperatorExceptionHandler, PauseHandler, QueryWorkerStatisticsHandler, ResumeHandler, StartWorkflowHandler}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlOutputPort
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
@@ -23,10 +23,10 @@ class ControllerAsyncRPCHandlerInitializer(
     source: AsyncRPCClient,
     receiver: AsyncRPCServer
 ) extends AsyncRPCHandlerInitializer(source, receiver)
-    with ActivateLinkHandler
+    with LinkWorkersHandler
     with AssignBreakpointHandler
-    with ExecutionCompletedHandler
-    with ExecutionStartedHandler
+    with WorkerExecutionCompletedHandler
+    with WorkerExecutionStartedHandler
     with LocalBreakpointTriggeredHandler
     with LocalOperatorExceptionHandler
     with PauseHandler

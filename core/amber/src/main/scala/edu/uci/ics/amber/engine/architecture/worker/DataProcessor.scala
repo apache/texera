@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.worker
 
 import java.util.concurrent.Executors
 
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ExecutionCompletedHandler.ExecutionCompleted
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
@@ -140,7 +140,7 @@ class DataProcessor( // dependencies:
     }
     // Send Completed signal to worker actor.
     logger.logInfo(s"${operator.toString} completed")
-    asyncRPCClient.send(ExecutionCompleted(), ActorVirtualIdentity.Controller)
+    asyncRPCClient.send(WorkerExecutionCompleted(), ActorVirtualIdentity.Controller)
   }
 
   private[this] def handleOperatorException(e: Exception): Unit = {

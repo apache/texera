@@ -28,7 +28,7 @@ trait ResumeHandler {
           eventListener.workflowStatusUpdateListener
             .apply(WorkflowStatusUpdate(workflow.getWorkflowStatus))
         }
-        enableStatusUpdate()
+        enableStatusUpdate() //re-enabled it since it is disabled in pause
         actorContext.parent ! ControllerState.Running //for testing
         CommandCompleted()
       }

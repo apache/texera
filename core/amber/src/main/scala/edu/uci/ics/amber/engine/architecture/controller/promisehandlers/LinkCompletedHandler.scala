@@ -19,7 +19,7 @@ trait LinkCompletedHandler {
     (msg:LinkCompleted, sender) =>
       println(s"received link completed from $sender for ${msg.linkID}")
       val link = workflow.getLink(msg.linkID)
-      link.receiveCompleted()
+      link.incrementCompletedReceiversCount()
       if(link.isCompleted){
         val layerWithDependencies = workflow.getAllLayers.filter(l => !l.canStart && l.hasDependency(msg.linkID))
         layerWithDependencies.foreach{

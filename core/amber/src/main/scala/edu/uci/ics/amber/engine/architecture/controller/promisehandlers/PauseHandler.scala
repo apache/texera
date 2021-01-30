@@ -49,7 +49,7 @@ trait PauseHandler {
         if (eventListener.workflowPausedListener != null) {
           eventListener.workflowPausedListener.apply(WorkflowPaused())
         }
-        disableStatusUpdate()
+        disableStatusUpdate() // to be enabled in resume
         actorContext.parent ! ControllerState.Paused // for testing
         CommandCompleted()
       }

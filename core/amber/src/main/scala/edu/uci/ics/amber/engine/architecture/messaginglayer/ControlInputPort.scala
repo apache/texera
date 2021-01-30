@@ -2,6 +2,8 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
+import edu.uci.ics.amber.engine.architecture.worker.WorkerStatistics
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
 import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
@@ -37,18 +39,10 @@ class ControlInputPort(asyncRPCClient: AsyncRPCClient, asyncRPCServer: AsyncRPCS
         iterable.foreach {
           case call: ControlInvocation =>
             assert(msg.from.isInstanceOf[ActorVirtualIdentity])
-            logger.logInfo(
-              s"receive command: ${call.command.getClass.getSimpleName} from ${msg.from}"
-            )
+            logControlInvocation(call, msg.from)
             asyncRPCServer.receive(call, msg.from.asInstanceOf[ActorVirtualIdentity])
           case ret: ReturnPayload =>
-            if (ret.returnValue != null) {
-              logger.logInfo(
-                s"receive reply: ${ret.returnValue.getClass.getSimpleName} from ${msg.from}"
-              )
-            } else {
-              logger.logInfo(s"receive reply: null from ${msg.from}")
-            }
+            logControlReply(ret, msg.from)
             asyncRPCClient.fulfillPromise(ret)
           case other =>
             logger.logError(
@@ -64,4 +58,30 @@ class ControlInputPort(asyncRPCClient: AsyncRPCClient, asyncRPCServer: AsyncRPCS
         logger.logInfo(s"receive duplicated: ${msg.payload}")
     }
   }
+
+  def logControlInvocation(call: ControlInvocation, sender:VirtualIdentity): Unit ={
+    if(call.command.isInstanceOf[QueryStatistics]){
+      // ignore statistics control messages
+      return
+    }
+    logger.logInfo(
+      s"receive command: ${call.command} from ${sender.toString} (controlID: ${call.commandID})"
+    )
+  }
+
+  def logControlReply(ret:ReturnPayload, sender:VirtualIdentity): Unit ={
+    if(ret.returnValue.isInstanceOf[WorkerStatistics]){
+      // ignore statistics control messages
+      return
+    }
+    if (ret.returnValue != null) {
+      logger.logInfo(
+        s"receive reply: ${ret.returnValue.getClass.getSimpleName} from ${sender.toString} (controlID: ${ret.originalCommandID})"
+      )
+    } else {
+      logger.logInfo(s"receive reply: null from ${sender.toString} (controlID: ${ret.originalCommandID})")
+    }
+  }
+
+
 }

@@ -4,10 +4,11 @@ import akka.actor.{ActorRef, Address, Cancellable, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import com.softwaremill.macwire.wire
+import com.twitter.util.Future
 import edu.uci.ics.amber.clustering.ClusterListener.GetAvailableNodeAddresses
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ErrorOccurred
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ActivateLinkHandler.ActivateLink
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.RegisterActorRef
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.WorkflowLogger
@@ -64,17 +65,18 @@ class Controller(
   workflow.build(availableNodes, networkCommunicationActor, context)
 
   // activate all links
-  workflow.getAllLinks.foreach { link =>
-    asyncRPCServer.receive(
-      ControlInvocation(-1, ActivateLink(link)),
+  Future.collect(workflow.getAllLinks.map { link =>
+    asyncRPCClient.send(
+      LinkWorkers(link),
       ActorVirtualIdentity.Controller
     )
+  }.toSeq).onSuccess{
+    ret =>
+      // for testing, report ready state to parent
+      context.parent ! ControllerState.Ready
   }
 
-  // for testing, report ready state to parent
-  context.parent ! ControllerState.Ready
-
-  // query statistics
+  //TODO: transit controller state after the linking finishes and prevent other messages to be executed
 
   def availableNodes: Array[Address] =
     Await

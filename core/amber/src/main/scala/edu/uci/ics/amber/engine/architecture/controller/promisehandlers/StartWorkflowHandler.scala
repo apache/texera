@@ -30,9 +30,10 @@ trait StartWorkflowHandler {
       .map { ret =>
         println("workflow started")
         actorContext.parent ! ControllerState.Running // for testing
-        workflow.getStartOperators.foreach { op =>
-          op.setAllWorkerState(Running)
-        }
+        //TODO: change it to operators which are actually started!!!
+//        workflow.getStartOperators.foreach { op =>
+//          op.setAllWorkerState(Running)
+//        }
         enableStatusUpdate()
         CommandCompleted()
       }

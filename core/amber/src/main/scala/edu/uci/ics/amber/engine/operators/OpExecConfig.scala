@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.operators
 
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{WorkerLayer, WorkerUnit}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{WorkerLayer, WorkerInfo}
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.worker.WorkerStatistics
 import edu.uci.ics.amber.engine.common.tuple.ITuple
@@ -54,7 +54,7 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
 
   def getAllWorkerStates: Iterable[WorkerState] = topology.layers.flatMap(l => l.states)
 
-  def getWorker(id:ActorVirtualIdentity):WorkerUnit = {
+  def getWorker(id:ActorVirtualIdentity):WorkerInfo = {
     val layer = topology.layers.find(l => l.workers.contains(id)).get
     layer.workers(id)
   }

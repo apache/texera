@@ -22,7 +22,7 @@ class WorkerLayer(
     val deployStrategy: DeployStrategy
 ) extends Serializable {
 
-  var workers: Map[ActorVirtualIdentity, WorkerUnit] = _
+  var workers: Map[ActorVirtualIdentity, WorkerInfo] = _
 
   private val startDependencies = mutable.HashSet[LinkIdentity]()
 
@@ -66,7 +66,7 @@ class WorkerLayer(
         )
         parentNetworkCommunicationActorRef ! RegisterActorRef(workerID, ref)
         workerToLayer(workerID) = this
-        workerID -> WorkerUnit(workerID,Uninitialized,WorkerStatistics(Uninitialized, 0, 0))
+        workerID -> WorkerInfo(workerID,Uninitialized,WorkerStatistics(Uninitialized, 0, 0))
     }.toMap
   }
 
