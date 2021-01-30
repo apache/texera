@@ -40,7 +40,6 @@ class WorkerAsyncRPCHandlerInitializer(
     with QueryStatisticsHandler
     with ResumeHandler
     with StartHandler
-    with UpdateInputLinkingHandler
-    with KillWorkerHandler {
+    with UpdateInputLinkingHandler {
   val logger: WorkflowLogger = WorkflowLogger("WorkerControlHandler")
 }

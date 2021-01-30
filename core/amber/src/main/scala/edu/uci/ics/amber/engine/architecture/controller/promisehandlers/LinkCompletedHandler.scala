@@ -7,28 +7,32 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
 import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
 
-object LinkCompletedHandler{
-  final case class LinkCompleted(linkID:LinkIdentity) extends ControlCommand[CommandCompleted]
+object LinkCompletedHandler {
+  final case class LinkCompleted(linkID: LinkIdentity) extends ControlCommand[CommandCompleted]
 }
 
-
 trait LinkCompletedHandler {
-  this:ControllerAsyncRPCHandlerInitializer =>
+  this: ControllerAsyncRPCHandlerInitializer =>
 
-  registerHandler{
-    (msg:LinkCompleted, sender) =>
-      println(s"received link completed from $sender for ${msg.linkID}")
-      val link = workflow.getLink(msg.linkID)
-      link.incrementCompletedReceiversCount()
-      if(link.isCompleted){
-        val layerWithDependencies = workflow.getAllLayers.filter(l => !l.canStart && l.hasDependency(msg.linkID))
-        layerWithDependencies.foreach{
-          layer =>
-            layer.resolveDependency(msg.linkID)
-        }
-        Future.collect(layerWithDependencies.filter(_.canStart).flatMap(l =>l.workers.keys).map(send(StartWorker(),_)).toSeq)
+  registerHandler { (msg: LinkCompleted, sender) =>
+    println(s"received link completed from $sender for ${msg.linkID}")
+    val link = workflow.getLink(msg.linkID)
+    link.incrementCompletedReceiversCount()
+    if (link.isCompleted) {
+      val layerWithDependencies =
+        workflow.getAllLayers.filter(l => !l.canStart && l.hasDependency(msg.linkID))
+      layerWithDependencies.foreach { layer =>
+        layer.resolveDependency(msg.linkID)
       }
-      CommandCompleted()
+      Future.collect(
+        layerWithDependencies
+          .filter(_.canStart)
+          .flatMap(l => l.workers.keys)
+          .map(send(StartWorker(), _))
+          .toSeq
+      )
+    }
+    CommandCompleted()
   }
 
 }

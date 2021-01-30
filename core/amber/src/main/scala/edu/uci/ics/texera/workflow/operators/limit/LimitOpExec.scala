@@ -8,7 +8,10 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 class LimitOpExec(val limit: Int) extends OperatorExecutor {
   var count = 0
 
-  override def processTexeraTuple(tuple: Either[Tuple, InputExhausted], input: LinkIdentity): Iterator[Tuple] = {
+  override def processTexeraTuple(
+      tuple: Either[Tuple, InputExhausted],
+      input: LinkIdentity
+  ): Iterator[Tuple] = {
     tuple match {
       case Left(t) =>
         if (count < limit) {

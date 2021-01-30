@@ -32,7 +32,7 @@ abstract class WorkflowActor(
 ) extends Actor
     with Stash {
 
-  protected val logger: WorkflowLogger = WorkflowLogger(s"$identifier")
+  val logger: WorkflowLogger = WorkflowLogger(s"$identifier")
 
 //  For now, just log it to the console
 //  TODO: enable throwing of the exception when all control messages have been handled properly

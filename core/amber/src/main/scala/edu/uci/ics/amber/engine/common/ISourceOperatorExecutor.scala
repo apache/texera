@@ -5,7 +5,10 @@ import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 
 trait ISourceOperatorExecutor extends IOperatorExecutor {
 
-  override def processTuple(tuple: Either[ITuple, InputExhausted], input: LinkIdentity): Iterator[ITuple] = {
+  override def processTuple(
+      tuple: Either[ITuple, InputExhausted],
+      input: LinkIdentity
+  ): Iterator[ITuple] = {
     // The input Tuple for source operator will always be InputExhausted.
     // Source and other operators can share the same processing logic.
     // produce() will be called only once.

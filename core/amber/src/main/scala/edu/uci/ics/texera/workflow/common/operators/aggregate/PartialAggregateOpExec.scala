@@ -26,7 +26,10 @@ class PartialAggregateOpExec[Partial <: AnyRef](
   override def open(): Unit = {}
   override def close(): Unit = {}
 
-  override def processTexeraTuple(tuple: Either[Tuple, InputExhausted], input: LinkIdentity): scala.Iterator[Tuple] = {
+  override def processTexeraTuple(
+      tuple: Either[Tuple, InputExhausted],
+      input: LinkIdentity
+  ): scala.Iterator[Tuple] = {
     tuple match {
       case Left(t) =>
         val groupByKey = if (aggFunc == null) null else aggFunc.groupByFunc(t)
