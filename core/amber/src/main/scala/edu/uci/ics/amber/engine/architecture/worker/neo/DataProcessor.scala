@@ -53,6 +53,9 @@ class DataProcessor( // dependencies:
     }
   })
 
+  // join-skew research related.
+  def getOperatorExecutor(): IOperatorExecutor = operator
+
   /** provide API for actor to get stats of this operator
     * @return (input tuple count, output tuple count)
     */

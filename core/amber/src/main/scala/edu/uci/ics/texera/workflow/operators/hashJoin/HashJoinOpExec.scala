@@ -26,7 +26,7 @@ class HashJoinOpExec[K](val opDesc: HashJoinOpDesc[K]) extends OperatorExecutor 
   var currentEntry: Iterator[Tuple] = _
   var currentTuple: Tuple = _
 
-  def getBuildHashTable: ArrayBuffer[mutable.HashMap[K, ArrayBuffer[Tuple]]] = {
+  def getBuildHashTable(): ArrayBuffer[mutable.HashMap[K, ArrayBuffer[Tuple]]] = {
     val sendingMap = new ArrayBuffer[mutable.HashMap[K, ArrayBuffer[Tuple]]]
     var count = 1
     var curr = new mutable.HashMap[K, ArrayBuffer[Tuple]]
@@ -43,8 +43,11 @@ class HashJoinOpExec[K](val opDesc: HashJoinOpDesc[K]) extends OperatorExecutor 
   }
 
   def addToHashTable(additionalTable: mutable.HashMap[K, ArrayBuffer[Tuple]]): Unit = {
-    for ((key, tuples) <- additionalTable) {}
-    val tuples = buildTableHashMap.getOrElse()
+    for ((key, tuples) <- additionalTable) {
+      val existingTuples = buildTableHashMap.getOrElse(key, new ArrayBuffer[Tuple]())
+      existingTuples.appendAll(tuples)
+      buildTableHashMap(key) = existingTuples
+    }
   }
 
   // probe attribute removed in the output schema
