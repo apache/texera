@@ -24,6 +24,7 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
       var links: Array[LinkStrategy]
   ) extends Serializable
 
+  val opExecConfigLogger = WorkflowLogger(s"OpExecConfig ${tag.getGlobalIdentity}")
   lazy val topology: Topology = null
   var inputToOrdinalMapping = new mutable.HashMap[LinkIdentity, Int]()
   var attachedBreakpoints = new mutable.HashMap[String, GlobalBreakpoint[_]]()

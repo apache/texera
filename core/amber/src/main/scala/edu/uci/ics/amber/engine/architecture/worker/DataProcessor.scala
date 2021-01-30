@@ -12,6 +12,7 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, WorkflowLogger}
+import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 class DataProcessor( // dependencies:
     operator: IOperatorExecutor, // core logic
@@ -41,6 +42,7 @@ class DataProcessor( // dependencies:
         runDPThreadMainLogic()
       } catch {
         case e: Exception =>
+          logException(e)
           throw new RuntimeException(e)
       }
     }
@@ -74,7 +76,14 @@ class DataProcessor( // dependencies:
     var outputIterator: Iterator[ITuple] = null
     try {
       outputIterator = operator.processTuple(currentInputTuple, currentInputLink)
-      if (currentInputTuple.isLeft) inputTupleCount += 1
+      if (currentInputTuple.isLeft) {
+        inputTupleCount += 1
+      } else {
+        controlOutputChannel.sendTo(
+          VirtualIdentity.Self,
+          ReportWorkerPartialCompleted(currentSenderRef)
+        )
+      }
     } catch {
       case e: Exception =>
         // forward input tuple to the user and pause DP thread
@@ -169,7 +178,7 @@ class DataProcessor( // dependencies:
       // check pause before outputting tuples.
       pauseManager.checkForPause()
       // output loop: take one tuple from iterator at a time.
-      while (currentOutputIterator != null && currentOutputIterator.hasNext) {
+      while (outputAvailable(currentOutputIterator)) {
         // send tuple to downstream.
         outputOneTuple()
         // check pause after one tuple has been outputted.
@@ -180,6 +189,26 @@ class DataProcessor( // dependencies:
 
   def shutdown(): Unit = {
     dpThread.cancel(true)
+  }
+
+  private[this] def outputAvailable(outputIterator: Iterator[ITuple]): Boolean = {
+    try {
+      outputIterator != null && outputIterator.hasNext
+    } catch {
+      case e: Exception =>
+        handleOperatorException(e)
+        false
+    }
+  }
+
+  private[this] def logException(e: Exception): Unit = {
+    logger.logError(
+      WorkflowRuntimeError(
+        s"Exception in operator logic: ${e.getMessage()}",
+        "Dataprocessor",
+        Map("Stacktrace" -> e.getStackTrace().mkString("\n\t"))
+      )
+    )
   }
 
 }

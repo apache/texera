@@ -195,11 +195,15 @@ export class ResultPanelComponent {
     if (resultPaginationInfo && !resultPaginationInfo.newWorkflowExecuted && this.currentResult.length > 0) {
       sessionSetObject(PAGINATION_INFO_STORAGE_KEY, {
         ...resultPaginationInfo,
-        currentResult: this.currentResult,
-        currentPageIndex: this.currentPageIndex,
-        currentPageSize: this.currentPageSize,
-        total: this.total,
-        operatorID: this.operatorID
+        // We have to turn it into array first because JSON.stringfy(someMap) will produce an empty object
+        viewResultOperatorInfoMap: Array.from((new Map(resultPaginationInfo.viewResultOperatorInfoMap).set(this.operatorID, {
+          currentResult: this.currentResult,
+          currentPageIndex: this.currentPageIndex,
+          currentPageSize: this.currentPageSize,
+          total: this.total,
+          columnKeys: this.currentDisplayColumns ?? [],
+          operatorID: this.operatorID
+        })).entries())
       });
     }
 
@@ -317,13 +321,15 @@ export class ResultPanelComponent {
     // if there is no new result
     //   then restore the previous paginated result data from session storage
     let resultPaginationInfo = sessionGetObject<ResultPaginationInfo>(PAGINATION_INFO_STORAGE_KEY);
-    if (resultPaginationInfo && !resultPaginationInfo.newWorkflowExecuted && resultPaginationInfo.operatorID === this.operatorID) {
+    let viewResultOperatorInfoMap;
+    if (resultPaginationInfo && !resultPaginationInfo.newWorkflowExecuted && (viewResultOperatorInfoMap = new Map(resultPaginationInfo.viewResultOperatorInfoMap)).has(this.operatorID)) {
+      let viewResultOperatorInfo = viewResultOperatorInfoMap.get(this.operatorID)!;
       this.isFrontPagination = false;
-      this.currentResult = resultPaginationInfo.currentResult;
-      this.currentPageIndex = resultPaginationInfo.currentPageIndex;
-      this.currentPageSize = resultPaginationInfo.currentPageSize;
-      this.total = resultPaginationInfo.total;
-      this.currentDisplayColumns = resultPaginationInfo.columnKeys;
+      this.currentResult = viewResultOperatorInfo.currentResult;
+      this.currentPageIndex = viewResultOperatorInfo.currentPageIndex;
+      this.currentPageSize = viewResultOperatorInfo.currentPageSize;
+      this.total = viewResultOperatorInfo.total;
+      this.currentDisplayColumns = viewResultOperatorInfo.columnKeys;
       // generate columnDef from first row, column definition is in order
       this.currentColumns = ResultPanelComponent.generateColumns(
         this.currentDisplayColumns.map(v => ({columnKey: v, columnText: v}))
@@ -362,14 +368,29 @@ export class ResultPanelComponent {
     // save paginated result into session storage
     resultPaginationInfo = {
       newWorkflowExecuted: false,
-      currentResult: this.currentResult,
-      currentPageIndex: this.currentPageIndex,
-      currentPageSize: this.currentPageSize,
-      total: this.total,
-      columnKeys: columnKeys,
-      operatorID: this.operatorID
+
+      // just update the map if there's one; otherwise create a map with current view result operator as an entry
+      viewResultOperatorInfoMap: resultPaginationInfo ? (new Map(resultPaginationInfo.viewResultOperatorInfoMap)).set(operatorID, {
+          currentResult: this.currentResult,
+          currentPageIndex: this.currentPageIndex,
+          currentPageSize: this.currentPageSize,
+          total: this.total,
+          columnKeys: columnKeys,
+          operatorID: this.operatorID
+        }) : new Map([[operatorID, {
+          currentResult: this.currentResult,
+          currentPageIndex: this.currentPageIndex,
+          currentPageSize: this.currentPageSize,
+          total: this.total,
+          columnKeys: columnKeys,
+          operatorID: this.operatorID
+        }]])
     };
-    sessionSetObject(PAGINATION_INFO_STORAGE_KEY, resultPaginationInfo);
+    sessionSetObject(PAGINATION_INFO_STORAGE_KEY, {
+      newWorkflowExecuted: resultPaginationInfo.newWorkflowExecuted,
+      // We have to turn it into array first because JSON.stringfy(someMap) will produce an empty object
+      viewResultOperatorInfoMap: Array.from(resultPaginationInfo.viewResultOperatorInfoMap.entries())
+    });
   }
 
   /**

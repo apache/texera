@@ -8,6 +8,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
 import edu.uci.ics.texera.workflow.operators.aggregate.SpecializedAverageOpDesc
 import edu.uci.ics.texera.workflow.operators.filter.SpecializedFilterOpDesc
+import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc
 import edu.uci.ics.texera.workflow.operators.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.texera.workflow.operators.limit.LimitOpDesc
 import edu.uci.ics.texera.workflow.operators.linearregression.LinearRegressionOpDesc
@@ -57,7 +58,8 @@ import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
     new Type(value = classOf[TypeCastingOpDesc], name = "TypeCasting"),
     new Type(value = classOf[LimitOpDesc], name = "Limit"),
     new Type(value = classOf[RandomKSamplingOpDesc], name = "RandomKSampling"),
-    new Type(value = classOf[ReservoirSamplingOpDesc], name = "ReservoirSampling")
+    new Type(value = classOf[ReservoirSamplingOpDesc], name = "ReservoirSampling"),
+    new Type(value = classOf[HashJoinOpDesc[String]], name = "HashJoin")
   )
 )
 abstract class OperatorDescriptor extends Serializable {
