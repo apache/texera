@@ -42,7 +42,8 @@ class DataProcessor( // dependencies:
   private var isCompleted = false
 
   // initialize dp thread upon construction
-  private val dpThread = Executors.newSingleThreadExecutor.submit(new Runnable() {
+  private val dpThreadExecutor = Executors.newSingleThreadExecutor
+  private val dpThread = dpThreadExecutor.submit(new Runnable() {
     def run(): Unit = {
       try {
         // initialize operator
@@ -198,10 +199,12 @@ class DataProcessor( // dependencies:
       pauseManager.pause().onSuccess { ret =>
         dpThread.cancel(true)
         operator.close()
+        dpThreadExecutor.shutdownNow()
       }
     } else {
       dpThread.cancel(true)
       operator.close()
+      dpThreadExecutor.shutdownNow()
     }
   }
 
