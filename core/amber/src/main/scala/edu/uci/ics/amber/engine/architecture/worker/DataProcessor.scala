@@ -17,7 +17,7 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{
 }
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
-import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.Completed
+import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.{Completed, Running}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, WorkflowLogger}
@@ -194,8 +194,11 @@ class DataProcessor( // dependencies:
   }
 
   def shutdown(): Unit = {
-    pauseManager.pause().onSuccess{
-      ret =>
+    if (stateManager.confirmState(Running)) {
+      pauseManager.pause().onSuccess { ret =>
+        dpThread.cancel(true)
+      }
+    } else {
       dpThread.cancel(true)
     }
   }
