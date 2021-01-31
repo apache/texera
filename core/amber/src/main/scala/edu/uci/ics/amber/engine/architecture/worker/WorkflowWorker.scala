@@ -74,7 +74,7 @@ class WorkflowWorker(
     parentNetworkCommunicationActorRef ! RegisterActorRef(identifier, self)
   }
 
-  workerStateManager.confirmState(Uninitialized)
+  workerStateManager.assertState(Uninitialized)
   workerStateManager.transitTo(Ready)
 
   override def receive: Receive = receiveAndProcessMessages

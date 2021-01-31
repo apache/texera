@@ -15,7 +15,7 @@ trait AddOutputPolicyHandler {
   this: WorkerAsyncRPCHandlerInitializer =>
 
   registerHandler { (msg: AddOutputPolicy, sender) =>
-    stateManager.confirmState(Ready)
+    stateManager.assertState(Ready)
     tupleToBatchConverter.addPolicy(msg.policy)
     CommandCompleted()
   }

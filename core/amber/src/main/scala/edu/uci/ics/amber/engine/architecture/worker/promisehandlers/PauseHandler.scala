@@ -24,8 +24,7 @@ trait PauseHandler {
   this: WorkerAsyncRPCHandlerInitializer =>
 
   registerHandler { (pause: PauseWorker, sender) =>
-    if (stateManager.getCurrentState != Completed && stateManager.getCurrentState != Paused) {
-      stateManager.confirmState(Running, Ready)
+    if (stateManager.confirmState(Running, Ready)) {
       val p = pauseManager.pause()
       stateManager.transitTo(Pausing)
       // if dp thread is blocking on waiting for input tuples:

@@ -16,7 +16,7 @@ trait QueryAndRemoveBreakpointsHandler {
   this: WorkerAsyncRPCHandlerInitializer =>
 
   registerHandler { (msg: QueryAndRemoveBreakpoints, sender) =>
-    stateManager.confirmState(Paused)
+    stateManager.assertState(Paused)
     val ret = breakpointManager.getBreakpoints(msg.ids)
     breakpointManager.removeBreakpoints(msg.ids)
     ret

@@ -21,7 +21,7 @@ trait StartHandler {
   this: WorkerAsyncRPCHandlerInitializer =>
 
   registerHandler { (msg: StartWorker, sender) =>
-    stateManager.confirmState(Ready)
+    stateManager.assertState(Ready)
     if (operator.isInstanceOf[ISourceOperatorExecutor]) {
       dataProcessor.appendElement(EndMarker())
       dataProcessor.appendElement(EndOfAllMarker())

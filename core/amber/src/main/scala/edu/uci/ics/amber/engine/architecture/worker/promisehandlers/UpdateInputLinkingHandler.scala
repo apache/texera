@@ -16,7 +16,7 @@ trait UpdateInputLinkingHandler {
   this: WorkerAsyncRPCHandlerInitializer =>
 
   registerHandler { (msg: UpdateInputLinking, sender) =>
-    stateManager.confirmState(Ready)
+    stateManager.assertState(Ready)
     batchToTupleConverter.registerInput(msg.identifier, msg.inputLink)
     CommandCompleted()
   }
