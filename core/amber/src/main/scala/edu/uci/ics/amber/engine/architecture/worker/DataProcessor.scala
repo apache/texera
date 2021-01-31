@@ -49,7 +49,7 @@ class DataProcessor( // dependencies:
         operator.open()
         runDPThreadMainLogic()
       } catch {
-        case e: Exception =>
+        case e @ (_: Exception | _: AssertionError | _: StackOverflowError | _: OutOfMemoryError) =>
           val error = WorkflowRuntimeError(e, "DP Thread internal logic")
           logger.logError(error)
         // dp thread will stop here
@@ -89,7 +89,7 @@ class DataProcessor( // dependencies:
         inputTupleCount += 1
       }
     } catch {
-      case e: Exception =>
+      case e @ (_: Exception | _: AssertionError | _: StackOverflowError | _: OutOfMemoryError) =>
         // forward input tuple to the user and pause DP thread
         handleOperatorException(e)
     }
@@ -104,7 +104,7 @@ class DataProcessor( // dependencies:
     try {
       outputTuple = currentOutputIterator.next
     } catch {
-      case e: Exception =>
+      case e @ (_: Exception | _: AssertionError | _: StackOverflowError | _: OutOfMemoryError) =>
         // invalidate current output tuple
         outputTuple = null
         // also invalidate outputIterator
@@ -157,7 +157,7 @@ class DataProcessor( // dependencies:
     asyncRPCClient.send(WorkerExecutionCompleted(), ActorVirtualIdentity.Controller)
   }
 
-  private[this] def handleOperatorException(e: Exception): Unit = {
+  private[this] def handleOperatorException(e: Throwable): Unit = {
     if (currentInputTuple.isLeft) {
       asyncRPCClient.send(
         LocalOperatorException(currentInputTuple.left.get, e),

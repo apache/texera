@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.error
 
 object WorkflowRuntimeError {
-  def apply(exception: Exception, source: String): WorkflowRuntimeError = {
+  def apply(exception: Throwable, source: String): WorkflowRuntimeError = {
     WorkflowRuntimeError(
       exception.getMessage,
       source,
