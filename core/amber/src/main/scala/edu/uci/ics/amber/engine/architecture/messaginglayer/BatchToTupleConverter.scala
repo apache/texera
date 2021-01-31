@@ -55,11 +55,11 @@ class BatchToTupleConverter(workerInternalQueue: WorkerInternalQueue) {
       case EndOfUpstream() =>
         upstreamMap(link).remove(from)
         if (upstreamMap(link).isEmpty) {
-          workerInternalQueue.appendElement(EndMarker())
+          workerInternalQueue.appendElement(EndMarker)
           upstreamMap.remove(link)
         }
         if (upstreamMap.isEmpty) {
-          workerInternalQueue.appendElement(EndOfAllMarker())
+          workerInternalQueue.appendElement(EndOfAllMarker)
         }
       case other =>
         throw new NotImplementedError()

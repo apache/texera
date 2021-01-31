@@ -30,7 +30,7 @@ trait PauseHandler {
       // if dp thread is blocking on waiting for input tuples:
       if (dataProcessor.isQueueEmpty) {
         // insert dummy batch to unblock dp thread
-        dataProcessor.appendElement(DummyInput())
+        dataProcessor.appendElement(DummyInput)
       }
       p.map { res =>
         logger.logInfo("pause actually returned")

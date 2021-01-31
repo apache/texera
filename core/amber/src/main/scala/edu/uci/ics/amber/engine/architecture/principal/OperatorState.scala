@@ -7,7 +7,7 @@ import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import edu.uci.ics.amber.engine.architecture.principal.OperatorState.OperatorStateJsonSerializer
 
 @JsonSerialize(using = classOf[OperatorStateJsonSerializer])
-sealed abstract class OperatorState extends Product with Serializable
+sealed abstract class OperatorState extends Serializable
 
 object OperatorState {
   case object Uninitialized extends OperatorState

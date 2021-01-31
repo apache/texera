@@ -9,7 +9,7 @@ import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager._
 // https://nrinaudo.github.io/scala-best-practices/adts/product_with_serializable.html
 
 object WorkerStateManager {
-  sealed abstract class WorkerState extends Product with Serializable
+  sealed abstract class WorkerState extends Serializable
   case object Uninitialized extends WorkerState
   case object Ready extends WorkerState
   case object Running extends WorkerState

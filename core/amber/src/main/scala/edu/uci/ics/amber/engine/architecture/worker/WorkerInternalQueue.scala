@@ -7,20 +7,20 @@ import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 
 object WorkerInternalQueue {
   // 4 kinds of elements can be accepted by internal queue
-  trait InternalQueueElement
+  sealed trait InternalQueueElement
 
   //TODO: check if this is creating overhead
   case class InputTuple(tuple: ITuple) extends InternalQueueElement
   case class SenderChangeMarker(newUpstreamLink: LinkIdentity) extends InternalQueueElement
-  case class EndMarker() extends InternalQueueElement
-  case class EndOfAllMarker() extends InternalQueueElement
+  case object EndMarker extends InternalQueueElement
+  case object EndOfAllMarker extends InternalQueueElement
 
   /**
     * Used to unblock the dp thread when pause arrives but
     * dp thread is blocked waiting for the next element in the
     * worker-internal-queue
     */
-  case class DummyInput() extends InternalQueueElement
+  case object DummyInput extends InternalQueueElement
 }
 
 /** Inspired by the mailbox-ed thread, the internal queue should

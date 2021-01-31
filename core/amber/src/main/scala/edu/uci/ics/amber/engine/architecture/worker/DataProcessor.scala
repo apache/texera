@@ -136,17 +136,17 @@ class DataProcessor( // dependencies:
           handleInputTuple()
         case SenderChangeMarker(link) =>
           currentInputLink = link
-        case EndMarker() =>
+        case EndMarker =>
           currentInputTuple = Right(InputExhausted())
           handleInputTuple()
           if (currentInputLink != null) {
             asyncRPCClient.send(LinkCompleted(currentInputLink), ActorVirtualIdentity.Controller)
           }
-        case EndOfAllMarker() =>
+        case EndOfAllMarker =>
           // end of processing, break DP loop
           isCompleted = true
           batchProducer.emitEndOfUpstream()
-        case DummyInput() =>
+        case DummyInput =>
           // do a pause check
           pauseManager.checkForPause()
       }

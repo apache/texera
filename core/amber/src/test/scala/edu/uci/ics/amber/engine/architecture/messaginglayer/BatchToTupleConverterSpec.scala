@@ -28,8 +28,8 @@ class BatchToTupleConverterSpec extends AnyFlatSpec with MockFactory {
       inputBatch.frame.foreach { i =>
         (mockInternalQueue.appendElement _).expects(InputTuple(i))
       }
-      (mockInternalQueue.appendElement _).expects(EndMarker())
-      (mockInternalQueue.appendElement _).expects(EndOfAllMarker())
+      (mockInternalQueue.appendElement _).expects(EndMarker)
+      (mockInternalQueue.appendElement _).expects(EndOfAllMarker)
     }
     batchToTupleConverter.registerInput(fakeID, linkID1)
     batchToTupleConverter.processDataPayload(fakeID, Iterable(inputBatch))
@@ -49,10 +49,10 @@ class BatchToTupleConverterSpec extends AnyFlatSpec with MockFactory {
       inputBatchFromUpstream2.frame.foreach { i =>
         (mockInternalQueue.appendElement _).expects(InputTuple(i))
       }
-      (mockInternalQueue.appendElement _).expects(EndMarker())
+      (mockInternalQueue.appendElement _).expects(EndMarker)
       (mockInternalQueue.appendElement _).expects(SenderChangeMarker(linkID1))
-      (mockInternalQueue.appendElement _).expects(EndMarker())
-      (mockInternalQueue.appendElement _).expects(EndOfAllMarker())
+      (mockInternalQueue.appendElement _).expects(EndMarker)
+      (mockInternalQueue.appendElement _).expects(EndOfAllMarker)
     }
     val first = WorkerActorVirtualIdentity("first upstream")
     val second = WorkerActorVirtualIdentity("second upstream")
