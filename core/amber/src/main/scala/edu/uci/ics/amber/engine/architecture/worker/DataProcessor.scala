@@ -50,7 +50,7 @@ class DataProcessor( // dependencies:
         operator.open()
         runDPThreadMainLogic()
       } catch {
-        case e:InterruptedException =>
+        case e: InterruptedException =>
           logger.logInfo("DP Thread exits")
         case e @ (_: Exception | _: AssertionError | _: StackOverflowError | _: OutOfMemoryError) =>
           val error = WorkflowRuntimeError(e, "DP Thread internal logic")
