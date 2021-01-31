@@ -194,7 +194,10 @@ class DataProcessor( // dependencies:
   }
 
   def shutdown(): Unit = {
-    dpThread.cancel(true)
+    pauseManager.pause().onSuccess{
+      ret =>
+      dpThread.cancel(true)
+    }
   }
 
   private[this] def outputAvailable(outputIterator: Iterator[ITuple]): Boolean = {
