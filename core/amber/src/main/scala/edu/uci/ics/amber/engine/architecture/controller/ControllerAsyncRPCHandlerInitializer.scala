@@ -64,7 +64,7 @@ class ControllerAsyncRPCHandlerInitializer(
         0.milliseconds,
         FiniteDuration.apply(statisticsUpdateIntervalMs.get, MILLISECONDS),
         actorContext.self,
-        ControlInvocation(-1, QueryWorkerStatistics())
+        ControlInvocation(AsyncRPCClient.IgnoreReplyAndDoNotLog, QueryWorkerStatistics())
       )(actorContext.dispatcher)
     }
   }

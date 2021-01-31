@@ -8,6 +8,7 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHa
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerEventListener}
 import edu.uci.ics.amber.engine.architecture.principal.OperatorStatistics
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
@@ -151,14 +152,14 @@ class WorkflowWebsocketResource {
 
   def pauseWorkflow(session: Session): Unit = {
     val controller = WorkflowWebsocketResource.sessionJobs(session.getId)._2
-    controller ! ControlInvocation(-1, PauseWorkflow())
+    controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, PauseWorkflow())
     // workflow paused event will be send after workflow is actually paused
     // the callback function will handle sending the paused event to frontend
   }
 
   def resumeWorkflow(session: Session): Unit = {
     val controller = WorkflowWebsocketResource.sessionJobs(session.getId)._2
-    controller ! ControlInvocation(-1, ResumeWorkflow())
+    controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, ResumeWorkflow())
     send(session, WorkflowResumedEvent())
   }
 
@@ -242,7 +243,7 @@ class WorkflowWebsocketResource {
       Controller.props(workflowTag, workflow, eventListener, 100)
     )
     texeraWorkflowCompiler.initializeBreakpoint(controllerActorRef)
-    controllerActorRef ! ControlInvocation(-1, StartWorkflow())
+    controllerActorRef ! ControlInvocation(AsyncRPCClient.IgnoreReply, StartWorkflow())
 
     WorkflowWebsocketResource.sessionJobs(session.getId) =
       (texeraWorkflowCompiler, controllerActorRef)

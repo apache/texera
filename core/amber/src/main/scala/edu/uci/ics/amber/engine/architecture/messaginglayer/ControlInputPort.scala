@@ -62,8 +62,10 @@ class ControlInputPort(
   }
 
   def logControlInvocation(call: ControlInvocation, sender: VirtualIdentity): Unit = {
-    if (call.command.isInstanceOf[QueryStatistics]) {
-      // ignore statistics control messages
+    if(call.commandID == AsyncRPCClient.IgnoreReplyAndDoNotLog){
+      return
+    }
+    if(call.command.isInstanceOf[QueryStatistics]){
       return
     }
     logger.logInfo(
@@ -72,11 +74,13 @@ class ControlInputPort(
   }
 
   def logControlReply(ret: ReturnPayload, sender: VirtualIdentity): Unit = {
-    if (ret.returnValue.isInstanceOf[WorkerStatistics]) {
-      // ignore statistics control messages
+    if(ret.originalCommandID == AsyncRPCClient.IgnoreReplyAndDoNotLog){
       return
     }
     if (ret.returnValue != null) {
+      if(ret.returnValue.isInstanceOf[WorkerStatistics]){
+        return
+      }
       logger.logInfo(
         s"receive reply: ${ret.returnValue.getClass.getSimpleName} from ${sender.toString} (controlID: ${ret.originalCommandID})"
       )

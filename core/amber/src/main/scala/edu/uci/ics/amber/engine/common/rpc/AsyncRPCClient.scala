@@ -29,6 +29,12 @@ import scala.collection.mutable
   */
 object AsyncRPCClient {
 
+  def noReplyNeeded(id:Long): Boolean = id < 0
+
+  final val IgnoreReply = -1
+
+  final val IgnoreReplyAndDoNotLog = -2
+
   /** The invocation of a control command
     * @param commandID
     * @param command

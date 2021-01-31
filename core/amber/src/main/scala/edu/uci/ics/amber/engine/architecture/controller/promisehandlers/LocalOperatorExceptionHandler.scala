@@ -41,7 +41,7 @@ trait LocalOperatorExceptionHandler {
           BreakpointTriggered(
             mutable.HashMap(
               (sender, FaultedTuple(msg.triggeredTuple, 0)) -> Array(
-                msg.e.getStackTrace.mkString("\n")
+                msg.e.getMessage
               )
             ),
             workflow.getOperator(sender).id.operator
