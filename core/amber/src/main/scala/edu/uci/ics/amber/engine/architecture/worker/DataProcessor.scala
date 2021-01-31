@@ -197,14 +197,23 @@ class DataProcessor( // dependencies:
   def shutdown(): Unit = {
     if (stateManager.confirmState(Running)) {
       pauseManager.pause().onSuccess { ret =>
-        dpThread.cancel(true)
-        operator.close()
-        dpThreadExecutor.shutdownNow()
+        // this block will be executed inside DP Thread
+        dpThread.cancel(true) // try to interrupt the DP Thread
+        operator.close() // close operator
+        dpThreadExecutor.shutdownNow() // destroy thread
+        // ideally, DP thread will block on
+        // PauseManager.dpThreadBlocker.get call
+        // then get interrupted and exit
       }
     } else {
-      dpThread.cancel(true)
-      operator.close()
-      dpThreadExecutor.shutdownNow()
+      // DP thread will be one of the following cases:
+      // 1. blocks on blockingDeque.take() because worker is in ready state
+      // 2. blocks on PauseManager.dpThreadBlocker.get because worker is paused
+      // note that in above cases, an interrupt exception will be thrown
+      // 3. completed
+      dpThread.cancel(true) // interrupt
+      operator.close()// close operator
+      dpThreadExecutor.shutdownNow() // destroy thread
     }
   }
 
