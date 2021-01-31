@@ -5,7 +5,10 @@ import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkMessage
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{ControlOutputPort, TupleToBatchConverter}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{
+  ControlOutputPort,
+  TupleToBatchConverter
+}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.DataSendingPolicy
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddOutputPolicyHandler.AddOutputPolicy
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
@@ -54,15 +57,19 @@ class WorkerSpec
     inSequence {
       (mockOpExecutor.open _).expects()
       (mockTupleToBatchConverter.addPolicy _).expects(mockPolicy)
-      (mockControlOutputPort.sendTo _).expects(ActorVirtualIdentity.Controller, ReturnPayload(0,CommandCompleted()))
+      (mockControlOutputPort.sendTo _)
+        .expects(ActorVirtualIdentity.Controller, ReturnPayload(0, CommandCompleted()))
     }
 
     val worker = TestActorRef(new WorkflowWorker(identifier1, mockOpExecutor, TestProbe().ref) {
       override lazy val batchProducer = mockTupleToBatchConverter
       override lazy val controlOutputPort = mockControlOutputPort
     })
-    val invocation = ControlInvocation(0,AddOutputPolicy(mockPolicy))
-    worker ! NetworkMessage(0,WorkflowControlMessage(ActorVirtualIdentity.Controller,0,invocation))
+    val invocation = ControlInvocation(0, AddOutputPolicy(mockPolicy))
+    worker ! NetworkMessage(
+      0,
+      WorkflowControlMessage(ActorVirtualIdentity.Controller, 0, invocation)
+    )
   }
 
 }
