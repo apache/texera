@@ -2,7 +2,11 @@ package edu.uci.ics.amber.engine.common.rpc
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlOutputPort
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload, noReplyNeeded}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{
+  ControlInvocation,
+  ReturnPayload,
+  noReplyNeeded
+}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
@@ -70,7 +74,7 @@ class AsyncRPCServer(controlOutputPort: ControlOutputPort) {
 
   @inline
   private def returnResult(sender: ActorVirtualIdentity, id: Long, ret: Any): Unit = {
-    if(noReplyNeeded(id)){
+    if (noReplyNeeded(id)) {
       return
     }
     controlOutputPort.sendTo(sender, ReturnPayload(id, ret))
