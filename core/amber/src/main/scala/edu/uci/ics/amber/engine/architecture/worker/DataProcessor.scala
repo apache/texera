@@ -212,7 +212,7 @@ class DataProcessor( // dependencies:
       // note that in above cases, an interrupt exception will be thrown
       // 3. completed
       dpThread.cancel(true) // interrupt
-      operator.close()// close operator
+      operator.close() // close operator
       dpThreadExecutor.shutdownNow() // destroy thread
     }
   }
