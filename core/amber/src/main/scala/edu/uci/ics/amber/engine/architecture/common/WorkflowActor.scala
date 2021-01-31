@@ -78,8 +78,8 @@ abstract class WorkflowActor(
         // use control input port to pass control messages
         controlInputPort.handleControlMessage(cmd)
       } catch {
-        case exception: Exception =>
-          logger.logError(WorkflowRuntimeError(exception, identifier.toString))
+        case e @ (_: Exception | _: AssertionError | _: StackOverflowError | _: OutOfMemoryError) =>
+          logger.logError(WorkflowRuntimeError(e, identifier.toString))
       }
 
   }
