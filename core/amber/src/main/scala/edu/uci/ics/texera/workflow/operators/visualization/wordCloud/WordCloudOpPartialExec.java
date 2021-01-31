@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.visualization.wordCloud;
 
 import edu.uci.ics.amber.engine.common.InputExhausted;
-import edu.uci.ics.amber.engine.common.ambertag.OperatorIdentifier;
+import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity;
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
@@ -87,7 +87,7 @@ public class WordCloudOpPartialExec implements OperatorExecutor {
     }
 
     @Override
-    public Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, OperatorIdentifier input) {
+    public Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, LinkIdentity input) {
         if(tuple.isLeft()) {
             textList.add(tuple.left().get().getField(textColumn));
             return JavaConverters.asScalaIterator(Iterators.emptyIterator());

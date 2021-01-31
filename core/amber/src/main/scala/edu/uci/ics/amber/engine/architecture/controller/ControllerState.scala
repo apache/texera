@@ -1,7 +1,5 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
-import edu.uci.ics.amber.engine.architecture.principal.PrincipalState.{Initializing, Ready}
-
 /*
 Controller State Transition (view from controller side):
 

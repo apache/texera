@@ -1,93 +1,44 @@
 package edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint
-import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.{
-  CountBreakpoint,
+  CountLocalBreakpoint,
   LocalBreakpoint
 }
-import edu.uci.ics.amber.engine.common.AdvancedMessageSending
-import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
-  AssignBreakpoint,
-  QueryBreakpoint,
-  QueryTriggeredBreakpoints,
-  RemoveBreakpoint
-}
-import akka.actor.ActorRef
-import akka.event.LoggingAdapter
-import akka.util.Timeout
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.ExecutionContext
 
-class CountGlobalBreakpoint(id: String, val target: Long) extends GlobalBreakpoint(id) {
+class CountGlobalBreakpoint(id: String, val target: Long)
+    extends GlobalBreakpoint[CountLocalBreakpoint](id) {
 
   var current: Long = 0
-  var localbreakpoints: ArrayBuffer[(ActorRef, LocalBreakpoint)] =
-    new ArrayBuffer[(ActorRef, LocalBreakpoint)]()
 
-  override def acceptImpl(sender: ActorRef, localBreakpoint: LocalBreakpoint): Unit = {
-    current += localBreakpoint.asInstanceOf[CountBreakpoint].current
-    if (localBreakpoint.isTriggered)
-      localbreakpoints.append((sender, localBreakpoint))
-  }
-
-  override def isTriggered: Boolean = current == target
-
-  override def partitionImpl(layer: Array[ActorRef])(implicit
-      timeout: Timeout,
-      ec: ExecutionContext,
-      id: String,
-      version: Long
-  ): Iterable[ActorRef] = {
+  override def partition(
+      workers: Array[ActorVirtualIdentity]
+  ): Array[(ActorVirtualIdentity, LocalBreakpoint)] = {
     val remaining = target - current
     var currentSum = 0L
-    val length = layer.length
+    val length = workers.length
     var i = 0
+    val ret = ArrayBuffer[(ActorVirtualIdentity, LocalBreakpoint)]()
     if (remaining / length > 0) {
       while (i < length - 1) {
-        AdvancedMessageSending.blockingAskWithRetry(
-          layer(i),
-          AssignBreakpoint(new CountBreakpoint(remaining / length)),
-          10
-        )
+        ret.append((workers(i), new CountLocalBreakpoint(id, version, remaining / length)))
         currentSum += remaining / length
         i += 1
       }
-      AdvancedMessageSending.blockingAskWithRetry(
-        layer.last,
-        AssignBreakpoint(new CountBreakpoint(remaining - currentSum)),
-        10
-      )
-      layer
     } else {
-      AdvancedMessageSending.blockingAskWithRetry(
-        layer.last,
-        AssignBreakpoint(new CountBreakpoint(remaining)),
-        10
-      )
-      Array(layer.last)
+      ret.append((workers(i), new CountLocalBreakpoint(id, version, remaining - currentSum)))
+    }
+    ret.toArray
+  }
+
+  override def collect(results: Iterable[CountLocalBreakpoint]): Unit = {
+    results.foreach { bp =>
+      current += bp.localCount
     }
   }
 
-  override def isRepartitionRequired: Boolean = unReportedWorkers.isEmpty && target != current
+  override def isResolved: Boolean = isTriggered
 
-  override def report(map: mutable.HashMap[(ActorRef, FaultedTuple), ArrayBuffer[String]]): Unit = {
-    for (i <- localbreakpoints) {
-      val k = (i._1, new FaultedTuple(i._2.triggeredTuple, i._2.triggeredTupleId, false))
-      if (map.contains(k)) {
-        map(k).append(s"count reached $target")
-      } else {
-        map(k) = ArrayBuffer[String](s"count reached $target")
-      }
-    }
-    localbreakpoints.clear()
-  }
-
-  override def isCompleted: Boolean = isTriggered
-
-  override def reset(): Unit = {
-    super.reset()
-    current = 0
-  }
-
+  override def isTriggered: Boolean = current == target
 }

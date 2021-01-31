@@ -3,9 +3,13 @@ package edu.uci.ics.amber.engine.architecture.common
 import akka.actor.{Actor, ActorLogging, ActorRef, Stash}
 import com.softwaremill.macwire.wire
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
+import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
-  NetworkSenderActorRef,
   GetActorRef,
+  NetworkAck,
+  NetworkMessage,
+  NetworkSenderActorRef,
   RegisterActorRef
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
@@ -14,13 +18,12 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   NetworkCommunicationActor
 }
 import edu.uci.ics.amber.engine.common.WorkflowLogger
-import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.rpc.{
   AsyncRPCClient,
   AsyncRPCHandlerInitializer,
   AsyncRPCServer
 }
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 abstract class WorkflowActor(
@@ -29,13 +32,14 @@ abstract class WorkflowActor(
 ) extends Actor
     with Stash {
 
-  protected val logger: WorkflowLogger = WorkflowLogger(s"$identifier")
+  val logger: WorkflowLogger = WorkflowLogger(s"$identifier")
 
-//  For now, just log it to the console
-//  TODO: enable throwing of the exception when all control messages have been handled properly
-//  logger.setErrorLogAction(err => {
-//    throw new WorkflowRuntimeException(err)
-//  })
+  logger.setErrorLogAction(err => {
+    asyncRPCClient.send(
+      FatalError(err),
+      ActorVirtualIdentity.Controller
+    )
+  })
 
   val networkCommunicationActor: NetworkSenderActorRef = NetworkSenderActorRef(
     context.actorOf(NetworkCommunicationActor.props(parentNetworkCommunicationActorRef))
@@ -65,5 +69,18 @@ abstract class WorkflowActor(
           Map.empty
         )
       )
+  }
+
+  def processControlMessages: Receive = {
+    case msg @ NetworkMessage(id, cmd: WorkflowControlMessage) =>
+      sender ! NetworkAck(id)
+      try {
+        // use control input port to pass control messages
+        controlInputPort.handleControlMessage(cmd)
+      } catch {
+        case exception: Exception =>
+          logger.logError(WorkflowRuntimeError(exception, identifier.toString))
+      }
+
   }
 }

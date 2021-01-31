@@ -2,8 +2,8 @@ package edu.uci.ics.texera.workflow.operators.localscan;
 
 
 import com.google.common.base.Verify;
-import edu.uci.ics.amber.engine.faulttolerance.scanner.BufferedBlockReader;
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor;
+import edu.uci.ics.texera.workflow.common.scanner.BufferedBlockReader;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import org.apache.commons.lang3.ArrayUtils;

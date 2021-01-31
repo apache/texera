@@ -1,8 +1,8 @@
 package edu.uci.ics.texera.workflow.common.operators.mlmodel
 
 import edu.uci.ics.amber.engine.common.InputExhausted
-import edu.uci.ics.amber.engine.common.ambertag.OperatorIdentifier
 import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
@@ -27,7 +27,7 @@ abstract class MLModelOpExec() extends OperatorExecutor with Serializable {
 
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: OperatorIdentifier
+      input: LinkIdentity
   ): Iterator[Tuple] = {
     tuple match {
       case Left(t) =>

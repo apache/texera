@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.common
 
-import edu.uci.ics.amber.engine.common.ambertag.OperatorIdentifier
 import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 
 case class InputExhausted()
 
@@ -11,10 +11,7 @@ trait IOperatorExecutor {
 
   def close(): Unit
 
-  def processTuple(
-      tuple: Either[ITuple, InputExhausted],
-      input: OperatorIdentifier
-  ): Iterator[ITuple]
+  def processTuple(tuple: Either[ITuple, InputExhausted], input: LinkIdentity): Iterator[ITuple]
 
   def getParam(query: String): String = { null }
 

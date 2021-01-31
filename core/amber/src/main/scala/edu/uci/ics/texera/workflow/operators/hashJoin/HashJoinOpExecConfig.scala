@@ -7,11 +7,15 @@ import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.UseAll
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.RoundRobinDeployment
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
-import edu.uci.ics.amber.engine.architecture.worker.WorkerState
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambertag.{AmberTag, LayerTag, OperatorIdentifier}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  LayerIdentity,
+  LinkIdentity,
+  OperatorIdentity
+}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
@@ -20,83 +24,51 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-class HashJoinOpExecConfig(
-    override val tag: OperatorIdentifier,
-    val opExec: Int => OperatorExecutor,
+class HashJoinOpExecConfig[K](
+    id: OperatorIdentity,
     val probeAttributeName: String,
     val buildAttributeName: String
-) extends OpExecConfig(tag) {
+) extends OpExecConfig(id) {
 
-  var buildTableTag: LayerTag = _
+  var buildTable: LinkIdentity = _
 
   override lazy val topology: Topology = {
     new Topology(
       Array(
         new WorkerLayer(
-          LayerTag(tag, "main"),
-          opExec,
+          LayerIdentity(id, "main"),
+          null,
           Constants.defaultNumWorkers,
           UseAll(),
           RoundRobinDeployment()
         )
       ),
-      Array(),
-      Map()
+      Array()
     )
   }
 
-  private def getBuildTableOpIdentifier(): OperatorIdentifier = {
-    var buildOpId: Option[OperatorIdentifier] =
-      inputToOrdinalMapping.keys.find(opId => (inputToOrdinalMapping(opId) == 0))
-    buildOpId match {
-      case Some(opId) => return opId
-      case None =>
-        val error = WorkflowRuntimeError(
-          "No operator identifier has input num 0",
-          "HashJoinOpExecConfig",
-          Map()
-        )
-        opExecConfigLogger.logError(error)
-        throw new WorkflowRuntimeException(error)
+  override def checkStartDependencies(workflow: Workflow): Unit = {
+    val buildLink = inputToOrdinalMapping.find(pair => pair._2 == 0).get._1
+    buildTable = buildLink
+    val probeLink = inputToOrdinalMapping.find(pair => pair._2 == 1).get._1
+    workflow.getSources(probeLink.from.toOperatorIdentity).foreach { source =>
+      workflow.getOperator(source).topology.layers.head.startAfter(buildLink)
     }
-  }
-
-  override def runtimeCheck(
-      workflow: Workflow
-  ): Option[mutable.HashMap[AmberTag, mutable.HashMap[AmberTag, mutable.HashSet[LayerTag]]]] = {
-    assert(workflow.inLinks(tag).nonEmpty)
-    buildTableTag = workflow.operators(getBuildTableOpIdentifier()).topology.layers.last.tag
-    Some(
-      mutable.HashMap[AmberTag, mutable.HashMap[AmberTag, mutable.HashSet[LayerTag]]](
-        workflow
-          .inLinks(tag)
-          .filter(_ != getBuildTableOpIdentifier())
-          .flatMap(x => workflow.getSources(x))
-          .map(x =>
-            x -> mutable
-              .HashMap[AmberTag, mutable.HashSet[LayerTag]](tag -> mutable.HashSet(buildTableTag))
-          )
-          .toSeq: _*
-      )
-    )
+    topology.layers.head.metadata = _ =>
+      new HashJoinOpExec[K](buildTable, buildAttributeName, probeAttributeName)
   }
 
   override def requiredShuffle: Boolean = true
 
-  override def getShuffleHashFunction(layerTag: LayerTag): ITuple => Int = {
-    if (layerTag == buildTableTag) { t: ITuple =>
+  override def getShuffleHashFunction(layer: LayerIdentity): ITuple => Int = {
+    if (layer == buildTable.from) { t: ITuple =>
       t.asInstanceOf[Tuple].getField(buildAttributeName).hashCode()
     } else { t: ITuple =>
       t.asInstanceOf[Tuple].getField(probeAttributeName).hashCode()
     }
   }
 
-  override def assignBreakpoint(
-      topology: Array[WorkerLayer],
-      states: mutable.AnyRefMap[ActorRef, WorkerState.Value],
-      breakpoint: GlobalBreakpoint
-  )(implicit timeout: Timeout, ec: ExecutionContext) = {
-    breakpoint.partition(topology(0).layer.filter(states(_) != WorkerState.Completed))
+  override def assignBreakpoint(breakpoint: GlobalBreakpoint[_]): Array[ActorVirtualIdentity] = {
+    topology.layers(0).identifiers
   }
-
 }

@@ -2,22 +2,23 @@ package edu.uci.ics.texera.workflow.operators.hashJoin
 
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.{InputExhausted, WorkflowLogger}
-import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, OperatorIdentifier}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import org.apache.avro.SchemaBuilder
-
 import java.util
+
+import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
+
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-class HashJoinOpExec[K](val opDesc: HashJoinOpDesc[K]) extends OperatorExecutor {
-
-  var hashJoinOpExecLogger = new WorkflowLogger(
-    s"${opDesc.operatorIdentifier.getGlobalIdentity}-HashJoinOpExec"
-  )
+class HashJoinOpExec[K](
+    val buildTable: LinkIdentity,
+    val buildAttributeName: String,
+    val probeAttributeName: String
+) extends OperatorExecutor {
 
   var isBuildTableFinished: Boolean = false
   var buildTableHashMap: mutable.HashMap[K, ArrayBuffer[Tuple]] = _
@@ -34,7 +35,7 @@ class HashJoinOpExec[K](val opDesc: HashJoinOpDesc[K]) extends OperatorExecutor 
     probeSchema
       .getAttributes()
       .forEach(attr => {
-        if (attr.getName() != opDesc.probeAttributeName) {
+        if (attr.getName() != probeAttributeName) {
           if (buildSchema.containsAttribute(attr.getName())) {
             builder.add(new Attribute(s"${attr.getName()}#@1", attr.getType()))
           } else {
@@ -47,15 +48,15 @@ class HashJoinOpExec[K](val opDesc: HashJoinOpDesc[K]) extends OperatorExecutor 
 
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: OperatorIdentifier
+      input: LinkIdentity
   ): Iterator[Tuple] = {
     tuple match {
       case Left(t) =>
         // The operatorInfo() in HashJoinOpDesc has a inputPorts list. In that the
         // small input port comes first. So, it is assigned the inputNum 0. Similarly
         // the large input is assigned the inputNum 1.
-        if (opDesc.opExecConfig.getInputNum(input) == 0) {
-          val key = t.getField(opDesc.buildAttributeName).asInstanceOf[K]
+        if (input == buildTable) {
+          val key = t.getField(buildAttributeName).asInstanceOf[K]
           var storedTuples = buildTableHashMap.getOrElse(key, new ArrayBuffer[Tuple]())
           storedTuples += t
           buildTableHashMap.put(key, storedTuples)
@@ -67,13 +68,12 @@ class HashJoinOpExec[K](val opDesc: HashJoinOpDesc[K]) extends OperatorExecutor 
               "HashJoinOpExec",
               Map("stacktrace" -> Thread.currentThread().getStackTrace().mkString("\n"))
             )
-            hashJoinOpExecLogger.logError(err)
             throw new WorkflowRuntimeException(err)
           } else {
-            val key = t.getField(opDesc.probeAttributeName).asInstanceOf[K]
+            val key = t.getField(probeAttributeName).asInstanceOf[K]
             val storedTuples = buildTableHashMap.getOrElse(key, new ArrayBuffer[Tuple]())
             var tuplesToOutput: ArrayBuffer[Tuple] = new ArrayBuffer[Tuple]()
-            if (storedTuples.size == 0) {
+            if (storedTuples.isEmpty) {
               Iterator()
             }
             if (outputProbeSchema == null) {
@@ -88,8 +88,8 @@ class HashJoinOpExec[K](val opDesc: HashJoinOpDesc[K]) extends OperatorExecutor 
               var newProbeIdx = 0
               // outputProbeSchema doesnt have "probeAttribute" but t does. The following code
               //  takes that into consideration while creating a tuple.
-              for (i <- 0 to t.getFields().size() - 1) {
-                if (!t.getSchema().getAttributeNames().get(i).equals(opDesc.probeAttributeName)) {
+              for (i <- 0 until t.getFields.size()) {
+                if (!t.getSchema().getAttributeNames().get(i).equals(probeAttributeName)) {
                   builder.add(
                     outputProbeSchema.getAttributes().get(newProbeIdx),
                     t.getFields().get(i)
@@ -104,7 +104,7 @@ class HashJoinOpExec[K](val opDesc: HashJoinOpDesc[K]) extends OperatorExecutor 
           }
         }
       case Right(_) =>
-        if (opDesc.opExecConfig.getInputNum(input) == 0) {
+        if (input == buildTable) {
           isBuildTableFinished = true
         }
         Iterator()
@@ -117,7 +117,6 @@ class HashJoinOpExec[K](val opDesc: HashJoinOpDesc[K]) extends OperatorExecutor 
   }
 
   override def close(): Unit = {
-//    buildTableInputNum = -1
     buildTableHashMap.clear()
   }
 }

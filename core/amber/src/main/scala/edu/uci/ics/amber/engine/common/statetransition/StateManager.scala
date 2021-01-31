@@ -42,19 +42,23 @@ class StateManager[T](stateTransitionGraph: Map[T, Set[T]], initialState: T) {
     stateStack.push(initialState)
   }
 
-  def confirmState(state: T): Unit = {
+  def assertState(state: T): Unit = {
     if (currentState != state) {
       throw InvalidStateException(s"except state = $state but current state = $currentState")
     }
   }
 
-  def confirmState(states: T*): Unit = {
+  def assertState(states: T*): Unit = {
     if (!states.contains(currentState)) {
       throw InvalidStateException(
         s"except state in [${states.mkString(",")}] but current state = $currentState"
       )
     }
   }
+
+  def confirmState(state: T): Boolean = getCurrentState == state
+
+  def confirmState(states: T*): Boolean = states.contains(getCurrentState)
 
   def transitTo(state: T, discardOldStates: Boolean = true): Unit = {
     if (state == currentState) {

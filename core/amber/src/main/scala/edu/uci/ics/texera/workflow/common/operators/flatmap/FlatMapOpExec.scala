@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.common.operators.flatmap
 
 import edu.uci.ics.amber.engine.common.InputExhausted
-import edu.uci.ics.amber.engine.common.ambertag.OperatorIdentifier
+import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
@@ -40,7 +40,7 @@ class FlatMapOpExec(
 
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: OperatorIdentifier
+      input: LinkIdentity
   ): Iterator[Tuple] = {
     tuple match {
       case Left(t)  => flatMapFunc(t)

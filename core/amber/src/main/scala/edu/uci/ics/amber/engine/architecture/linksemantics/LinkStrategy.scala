@@ -1,11 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.linksemantics
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
-import edu.uci.ics.amber.engine.common.ambertag.LinkTag
-import akka.event.LoggingAdapter
-import akka.util.Timeout
-
-import scala.concurrent.ExecutionContext
+import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.DataSendingPolicy
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 
 abstract class LinkStrategy(
     val from: WorkerLayer,
@@ -13,7 +10,16 @@ abstract class LinkStrategy(
     val batchSize: Int
 ) extends Serializable {
 
-  val tag = LinkTag(from.tag, to.tag)
+  val id = LinkIdentity(from.id, to.id)
 
-  def link()(implicit timeout: Timeout, ec: ExecutionContext): Unit
+  def totalReceiversCount: Long = to.numWorkers
+
+  private var currentCompletedCount = 0
+
+  def incrementCompletedReceiversCount(): Unit = currentCompletedCount += 1
+
+  def isCompleted: Boolean = currentCompletedCount == totalReceiversCount
+
+  // returns Iterable of (sender, sender's sending policy, set of receivers)
+  def getPolicies: Iterable[(ActorVirtualIdentity, DataSendingPolicy, Seq[ActorVirtualIdentity])]
 }
