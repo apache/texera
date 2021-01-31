@@ -24,6 +24,7 @@ import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, Workf
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 class DataProcessor( // dependencies:
+    logger: WorkflowLogger, // logger of the worker actor
     operator: IOperatorExecutor, // core logic
     asyncRPCClient: AsyncRPCClient, // to send controls
     batchProducer: TupleToBatchConverter, // to send output tuples
@@ -31,8 +32,6 @@ class DataProcessor( // dependencies:
     breakpointManager: BreakpointManager, // to evaluate breakpoints
     stateManager: WorkerStateManager
 ) extends WorkerInternalQueue {
-
-  protected val logger: WorkflowLogger = WorkflowLogger("DataProcessor")
   // dp thread stats:
   // TODO: add another variable for recovery index instead of using the counts below.
   private var inputTupleCount = 0L
@@ -42,13 +41,12 @@ class DataProcessor( // dependencies:
   private var currentOutputIterator: Iterator[ITuple] = _
   private var isCompleted = false
 
-  // initialize operator
-  operator.open()
-
   // initialize dp thread upon construction
   private val dpThread = Executors.newSingleThreadExecutor.submit(new Runnable() {
     def run(): Unit = {
       try {
+        // initialize operator
+        operator.open()
         runDPThreadMainLogic()
       } catch {
         case e: Exception =>
