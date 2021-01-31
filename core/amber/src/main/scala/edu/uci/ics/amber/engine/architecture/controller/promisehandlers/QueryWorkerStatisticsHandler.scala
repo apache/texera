@@ -15,22 +15,28 @@ object QueryWorkerStatisticsHandler {
   final case class QueryWorkerStatistics() extends ControlCommand[CommandCompleted]
 }
 
+/** Get statistics from all the workers
+  *
+  * possible sender: controller(by statusUpdateAskHandle)
+  */
 trait QueryWorkerStatisticsHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
   registerHandler { (msg: QueryWorkerStatistics, sender) =>
-    Future
-      .collect(workflow.getAllWorkers.map { worker =>
-        send(QueryStatistics(), worker).map { stats =>
-          workflow.getOperator(worker).getWorker(worker).stats = stats
+    {
+      // send all worker QueryStatistics message
+      Future
+        .collect(workflow.getAllWorkers.map { worker =>
+          send(QueryStatistics(), worker).map { stats =>
+            // update worker stats
+            workflow.getOperator(worker).getWorker(worker).stats = stats
+          }
+        }.toSeq)
+        .map { ret =>
+          // update frontend status
+          updateFrontendWorkflowStatus()
+          CommandCompleted()
         }
-      }.toSeq)
-      .map { ret =>
-        if (eventListener.workflowStatusUpdateListener != null) {
-          eventListener.workflowStatusUpdateListener
-            .apply(WorkflowStatusUpdate(workflow.getWorkflowStatus))
-        }
-        CommandCompleted()
-      }
+    }
   }
 }

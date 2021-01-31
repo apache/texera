@@ -15,24 +15,31 @@ object ResumeHandler {
   final case class ResumeWorkflow() extends ControlCommand[CommandCompleted]
 }
 
+/** resume the entire workflow
+  *
+  * possible sender: controller, client
+  */
 trait ResumeHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
   registerHandler { (msg: ResumeWorkflow, sender) =>
-    Future
-      .collect(workflow.getAllWorkers.map { worker =>
-        send(ResumeWorker(), worker).map { ret =>
-          workflow.getWorkerInfo(worker).state = ret
+    {
+
+      // send all workers resume
+      // resume message has no effect on non-paused workers
+      Future
+        .collect(workflow.getAllWorkers.map { worker =>
+          send(ResumeWorker(), worker).map { ret =>
+            workflow.getWorkerInfo(worker).state = ret
+          }
+        }.toSeq)
+        .map { ret =>
+          // update frontend status
+          updateFrontendWorkflowStatus()
+          enableStatusUpdate() //re-enabled it since it is disabled in pause
+          actorContext.parent ! ControllerState.Running //for testing
+          CommandCompleted()
         }
-      }.toSeq)
-      .map { ret =>
-        if (eventListener.workflowStatusUpdateListener != null) {
-          eventListener.workflowStatusUpdateListener
-            .apply(WorkflowStatusUpdate(workflow.getWorkflowStatus))
-        }
-        enableStatusUpdate() //re-enabled it since it is disabled in pause
-        actorContext.parent ! ControllerState.Running //for testing
-        CommandCompleted()
-      }
+    }
   }
 }

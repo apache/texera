@@ -19,7 +19,6 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
   RegisterActorRef
 }
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
-import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.Ready
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
@@ -76,7 +75,7 @@ class Controller(
   // activate all links
   Future
     .collect(workflow.getAllLinks.map { link =>
-      asyncRPCServer.execute(
+      asyncRPCClient.send(
         LinkWorkers(link),
         ActorVirtualIdentity.Controller
       )
@@ -105,8 +104,15 @@ class Controller(
           id,
           cmd @ WorkflowControlMessage(from, sequenceNumber, payload: ReturnPayload)
         ) =>
+      //process reply messages
       sender ! NetworkAck(id)
-      // only process replies
+      controlInputPort.handleControlMessage(cmd)
+    case NetworkMessage(
+          id,
+          cmd @ WorkflowControlMessage(ActorVirtualIdentity.Controller, sequenceNumber, payload)
+        ) =>
+      //process control messages from self
+      sender ! NetworkAck(id)
       controlInputPort.handleControlMessage(cmd)
     case msg =>
       stash() //prevent other messages to be executed until initialized

@@ -6,7 +6,7 @@ import akka.util.Timeout
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerExecutionStarted
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.DataInputPort.WorkflowDataMessage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
@@ -94,7 +94,10 @@ class WorkflowWorker(
     case msg @ NetworkMessage(id, data: WorkflowDataMessage) =>
       if (workerStateManager.getCurrentState == Ready) {
         workerStateManager.transitTo(Running)
-        asyncRPCClient.send(WorkerExecutionStarted(), ActorVirtualIdentity.Controller)
+        asyncRPCClient.send(
+          WorkerStateUpdated(workerStateManager.getCurrentState),
+          ActorVirtualIdentity.Controller
+        )
       }
       sender ! NetworkAck(id)
       dataInputPort.handleDataMessage(data)

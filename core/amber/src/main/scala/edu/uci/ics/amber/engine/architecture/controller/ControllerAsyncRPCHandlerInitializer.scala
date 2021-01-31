@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import akka.actor.{ActorContext, ActorRef, Cancellable}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowStatusUpdate
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.QueryWorkerStatistics
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.{
   AssignBreakpointHandler,
@@ -72,6 +73,13 @@ class ControllerAsyncRPCHandlerInitializer(
     if (statusUpdateAskHandle != null) {
       statusUpdateAskHandle.cancel()
       statusUpdateAskHandle = null
+    }
+  }
+
+  def updateFrontendWorkflowStatus(): Unit = {
+    if (eventListener.workflowStatusUpdateListener != null) {
+      eventListener.workflowStatusUpdateListener
+        .apply(WorkflowStatusUpdate(workflow.getWorkflowStatus))
     }
   }
 

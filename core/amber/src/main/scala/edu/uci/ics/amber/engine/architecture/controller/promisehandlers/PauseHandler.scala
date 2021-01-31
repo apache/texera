@@ -29,46 +29,56 @@ object PauseHandler {
   final case class PauseWorkflow() extends ControlCommand[CommandCompleted]
 }
 
+/** pause the entire workflow
+  *
+  * possible sender: client, controller
+  */
 trait PauseHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
   registerHandler { (msg: PauseWorkflow, sender) =>
-    val buffer = mutable.ArrayBuffer[(ITuple, ActorVirtualIdentity)]()
-    Future
-      .collect(workflow.getAllOperators.map { operator =>
-        Future
-          .collect(
-            operator.getAllWorkers
-              .filter(worker => operator.getWorker(worker).state == Running)
-              .map { worker =>
-                send(PauseWorker(), worker).map { ret =>
-                  operator.getWorker(worker).state = ret
-                  send(QueryCurrentInputTuple(), worker).map { tuple =>
-                    buffer.append((tuple, worker))
+    {
+      Future
+        .collect(workflow.getAllOperators.map { operator =>
+          // create a buffer for the current input tuple
+          // since we need to show them on the frontend
+          val buffer = mutable.ArrayBuffer[(ITuple, ActorVirtualIdentity)]()
+          Future
+            .collect(
+              operator.getAllWorkers
+                // send pause to all workers
+                // pause message has no effect on completed or paused workers
+                .map { worker =>
+                  // send a pause message
+                  send(PauseWorker(), worker).map { ret =>
+                    operator.getWorker(worker).state = ret
+                    // get the current input tuple from the worker
+                    send(QueryCurrentInputTuple(), worker).map { tuple =>
+                      buffer.append((tuple, worker))
+                    }
                   }
-                }
+                }.toSeq
+            )
+            .map { ret =>
+              // for each paused operator, send the input tuple
+              if (eventListener.reportCurrentTuplesListener != null) {
+                eventListener.reportCurrentTuplesListener
+                  .apply(ReportCurrentProcessingTuple(operator.id.operator, buffer.toArray))
               }
-              .toSeq
-          )
-          .map { ret =>
-            if (eventListener.reportCurrentTuplesListener != null) {
-              eventListener.reportCurrentTuplesListener
-                .apply(ReportCurrentProcessingTuple(operator.id.operator, buffer.toArray))
             }
+        }.toSeq)
+        .map { ret =>
+          // update frontend workflow status
+          updateFrontendWorkflowStatus()
+          // send paused to frontend
+          if (eventListener.workflowPausedListener != null) {
+            eventListener.workflowPausedListener.apply(WorkflowPaused())
           }
-      }.toSeq)
-      .map { ret =>
-        if (eventListener.workflowStatusUpdateListener != null) {
-          eventListener.workflowStatusUpdateListener
-            .apply(WorkflowStatusUpdate(workflow.getWorkflowStatus))
+          disableStatusUpdate() // to be enabled in resume
+          actorContext.parent ! ControllerState.Paused // for testing
+          CommandCompleted()
         }
-        if (eventListener.workflowPausedListener != null) {
-          eventListener.workflowPausedListener.apply(WorkflowPaused())
-        }
-        disableStatusUpdate() // to be enabled in resume
-        actorContext.parent ! ControllerState.Paused // for testing
-        CommandCompleted()
-      }
+    }
   }
 
 }

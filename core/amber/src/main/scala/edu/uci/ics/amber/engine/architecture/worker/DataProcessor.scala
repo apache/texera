@@ -52,7 +52,7 @@ class DataProcessor( // dependencies:
         runDPThreadMainLogic()
       } catch {
         case e: Exception =>
-          val error = WorkflowRuntimeError(e,"DP Thread internal logic")
+          val error = WorkflowRuntimeError(e, "DP Thread internal logic")
           logger.logError(error)
         // dp thread will stop here
       }
@@ -208,6 +208,5 @@ class DataProcessor( // dependencies:
         false
     }
   }
-
 
 }

@@ -11,11 +11,19 @@ object FatalErrorHandler {
   final case class FatalError(e: WorkflowRuntimeError) extends ControlCommand[CommandCompleted]
 }
 
+/** Indicate a fatal error has occurred in the workflow
+  *
+  * possible sender: controller, worker
+  */
 trait FatalErrorHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
   registerHandler { (msg: FatalError, sender) =>
-    logger.logError(msg.e)
-    execute(KillWorkflow(), ActorVirtualIdentity.Controller)
+    {
+      // log the error to console
+      logger.logError(msg.e)
+      // shutdown the workflow
+      execute(KillWorkflow(), ActorVirtualIdentity.Controller)
+    }
   }
 }

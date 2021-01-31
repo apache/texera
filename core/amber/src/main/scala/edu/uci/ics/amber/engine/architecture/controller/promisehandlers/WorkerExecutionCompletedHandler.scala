@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
+import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   WorkflowCompleted,
   WorkflowStatusUpdate
@@ -22,53 +23,62 @@ import edu.uci.ics.amber.engine.operators.SinkOpExecConfig
 object WorkerExecutionCompletedHandler {
   final case class WorkerExecutionCompleted() extends ControlCommand[CommandCompleted]
 }
-// TODO: for all handlers write comment about who is sending it and how to handle it
+
+/** indicate a worker has completed its job
+  * i.e. received and processed all data from upstreams
+  * note that this doesn't mean all the output of this worker
+  * has been received by the downstream workers.
+  *
+  * possible sender: worker
+  */
 trait WorkerExecutionCompletedHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
   registerHandler { (msg: WorkerExecutionCompleted, sender) =>
-    assert(sender.isInstanceOf[WorkerActorVirtualIdentity])
-    val operator = workflow.getOperator(sender)
-    val future =
-      if (operator.isInstanceOf[SinkOpExecConfig]) {
-        send(QueryStatistics(), sender).join(send(CollectSinkResults(), sender)).map {
-          case (stats, results) =>
+    {
+      assert(sender.isInstanceOf[WorkerActorVirtualIdentity])
+      // get the corresponding operator of this worker
+      val operator = workflow.getOperator(sender)
+      val future =
+        if (operator.isInstanceOf[SinkOpExecConfig]) {
+          // if the operator is sink, first query stats then collect results of this worker.
+          send(QueryStatistics(), sender).join(send(CollectSinkResults(), sender)).map {
+            case (stats, results) =>
+              val workerInfo = operator.getWorker(sender)
+              workerInfo.stats = stats
+              workerInfo.state = stats.workerState
+              operator.acceptResultTuples(results)
+          }
+        } else {
+          // if the operator is not a sink, just query the stats
+          send(QueryStatistics(), sender).map { stats =>
             val workerInfo = operator.getWorker(sender)
             workerInfo.stats = stats
-            workerInfo.state = Completed
-            operator.acceptResultTuples(results)
+            workerInfo.state = stats.workerState
+          }
         }
-      } else {
-        send(QueryStatistics(), sender).map { stats =>
-          val workerInfo = operator.getWorker(sender)
-          workerInfo.stats = stats
-          workerInfo.state = Completed
-        }
-      }
-    future.map { ret =>
-      if (eventListener.workflowStatusUpdateListener != null) {
-        eventListener.workflowStatusUpdateListener
-          .apply(WorkflowStatusUpdate(workflow.getWorkflowStatus))
-      }
-      if (workflow.isCompleted) {
-        actorContext.parent ! ControllerState.Completed // for testing
-        //send result to frontend
-        if (eventListener.workflowCompletedListener != null) {
-          eventListener.workflowCompletedListener
-            .apply(
-              WorkflowCompleted(
-                workflow.getEndOperators.map(op => op.id.operator -> op.results).toMap
+      future.flatMap { ret =>
+        updateFrontendWorkflowStatus()
+        if (workflow.isCompleted) {
+          actorContext.parent ! ControllerState.Completed // for testing
+          //send result to frontend
+          if (eventListener.workflowCompletedListener != null) {
+            eventListener.workflowCompletedListener
+              .apply(
+                WorkflowCompleted(
+                  workflow.getEndOperators.map(op => op.id.operator -> op.results).toMap
+                )
               )
-            )
+          }
+          disableStatusUpdate()
+          // clean up all workers and terminate self
+          execute(KillWorkflow(), ActorVirtualIdentity.Controller)
+        } else {
+          Future {
+            CommandCompleted()
+          }
         }
-        if (statusUpdateAskHandle != null) {
-          statusUpdateAskHandle.cancel()
-        }
-        // clean up all workers and terminate self
-        execute(KillWorkflow(), ActorVirtualIdentity.Controller)
       }
-      CommandCompleted()
     }
   }
-
 }

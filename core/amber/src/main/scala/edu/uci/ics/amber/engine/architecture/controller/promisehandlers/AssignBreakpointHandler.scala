@@ -15,26 +15,36 @@ object AssignBreakpointHandler {
   ) extends ControlCommand[CommandCompleted]
 }
 
+/** Assign a breakpoint to a specific operator
+  *
+  * possible sender: controller, client
+  */
 trait AssignBreakpointHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
   registerHandler { (msg: AssignGlobalBreakpoint[_], sender) =>
-    val operator = workflow.getOperator(msg.operatorID)
-    operator.attachedBreakpoints(msg.breakpoint.id) = msg.breakpoint
-    val targetWorkers = operator.assignBreakpoint(msg.breakpoint)
-    Future
-      .collect(
-        msg.breakpoint
-          .partition(targetWorkers)
-          .map {
-            case (identity, breakpoint) =>
-              send(AssignLocalBreakpoint(breakpoint), identity)
-          }
-          .toSeq
-      )
-      .map { ret =>
-        CommandCompleted()
-      }
+    {
+      // get target operator
+      val operator = workflow.getOperator(msg.operatorID)
+      // attach the breakpoint
+      operator.attachedBreakpoints(msg.breakpoint.id) = msg.breakpoint
+      // get target workers from the operator given a breakpoint
+      val targetWorkers = operator.assignBreakpoint(msg.breakpoint)
+      // send AssignLocalBreakpoint message to each worker
+      Future
+        .collect(
+          msg.breakpoint
+            .partition(targetWorkers)
+            .map {
+              case (identity, breakpoint) =>
+                send(AssignLocalBreakpoint(breakpoint), identity)
+            }
+            .toSeq
+        )
+        .map { ret =>
+          CommandCompleted()
+        }
+    }
   }
 
 }
