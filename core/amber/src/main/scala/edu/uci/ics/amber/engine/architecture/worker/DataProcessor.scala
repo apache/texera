@@ -197,9 +197,11 @@ class DataProcessor( // dependencies:
     if (stateManager.confirmState(Running)) {
       pauseManager.pause().onSuccess { ret =>
         dpThread.cancel(true)
+        operator.close()
       }
     } else {
       dpThread.cancel(true)
+      operator.close()
     }
   }
 
