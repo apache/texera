@@ -198,6 +198,7 @@ class DataProcessor( // dependencies:
     if (stateManager.confirmState(Running)) {
       pauseManager.pause().onSuccess { ret =>
         // this block will be executed inside DP Thread
+        // when pauseManager.blockDPThread() is called
         dpThread.cancel(true) // try to interrupt the DP Thread
         operator.close() // close operator
         dpThreadExecutor.shutdownNow() // destroy thread
