@@ -56,10 +56,9 @@ class StateManager[T](stateTransitionGraph: Map[T, Set[T]], initialState: T) {
     }
   }
 
-  def confirmState(state: T):Boolean = getCurrentState == state
+  def confirmState(state: T): Boolean = getCurrentState == state
 
-  def confirmState(states: T*):Boolean = states.contains(getCurrentState)
-
+  def confirmState(states: T*): Boolean = states.contains(getCurrentState)
 
   def transitTo(state: T, discardOldStates: Boolean = true): Unit = {
     if (state == currentState) {
