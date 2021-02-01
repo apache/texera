@@ -6,17 +6,18 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, Li
 
 import scala.collection.mutable.ArrayBuffer
 
-abstract class ParallelBatchingPolicy( policyTag: LinkIdentity,
-                                       batchSize: Int,
-                                       receivers: Array[ActorVirtualIdentity]) extends DataSendingPolicy(policyTag, batchSize, receivers) {
-
+abstract class ParallelBatchingPolicy(
+    policyTag: LinkIdentity,
+    batchSize: Int,
+    receivers: Array[ActorVirtualIdentity]
+) extends DataSendingPolicy(policyTag, batchSize, receivers) {
 
   var batches: Array[Array[ITuple]] = _
   var currentSizes: Array[Int] = _
 
   initializeInternalState(receivers)
 
-  def selectBatchingIndex(tuple:ITuple):Int
+  def selectBatchingIndex(tuple: ITuple): Int
 
   override def noMore(): Array[(ActorVirtualIdentity, DataPayload)] = {
     val receiversAndBatches = new ArrayBuffer[(ActorVirtualIdentity, DataPayload)]
@@ -32,8 +33,8 @@ abstract class ParallelBatchingPolicy( policyTag: LinkIdentity,
   }
 
   override def addTupleToBatch(
-                                tuple: ITuple
-                              ): Option[(ActorVirtualIdentity, DataPayload)] = {
+      tuple: ITuple
+  ): Option[(ActorVirtualIdentity, DataPayload)] = {
     val numBuckets = receivers.length
     val index = selectBatchingIndex(tuple)
     batches(index)(currentSizes(index)) = tuple
