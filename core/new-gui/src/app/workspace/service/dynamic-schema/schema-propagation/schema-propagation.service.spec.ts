@@ -126,6 +126,7 @@ describe('SchemaPropagationService', () => {
 
     // verify that after the error response, schema propagation service still reacts to events normally
     workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, {tableName: 'newTable'});
+    tick(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS);
 
     const req2 = httpTestingController.expectOne(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
     expect(req2.request.method).toEqual('POST');
