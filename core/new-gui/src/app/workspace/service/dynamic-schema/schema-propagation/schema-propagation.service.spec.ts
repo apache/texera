@@ -1,17 +1,17 @@
-import { mockKeywordSearchSchema, mockNlpSentimentSchema } from './../../operator-metadata/mock-operator-metadata.data';
-import { AppSettings } from './../../../../common/app-setting';
+import { mockKeywordSearchSchema, mockNlpSentimentSchema } from '../../operator-metadata/mock-operator-metadata.data';
+import { AppSettings } from '../../../../common/app-setting';
 import { TestBed, inject } from '@angular/core/testing';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient} from '@angular/common/http';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { LoggerModule, NgxLoggerLevel } from 'ngx-logger';
+import { LoggerModule} from 'ngx-logger';
 
 import { StubOperatorMetadataService } from '../../operator-metadata/stub-operator-metadata.service';
 import { OperatorMetadataService } from '../../operator-metadata/operator-metadata.service';
-import { DynamicSchemaService } from './../dynamic-schema.service';
-import { JointUIService } from './../../joint-ui/joint-ui.service';
-import { WorkflowActionService } from './../../workflow-graph/model/workflow-action.service';
-import { UndoRedoService } from './../../undo-redo/undo-redo.service';
-import { SchemaPropagationService, SCHEMA_PROPAGATION_ENDPOINT } from './schema-propagation.service';
+import { DynamicSchemaService } from '../dynamic-schema.service';
+import { JointUIService } from '../../joint-ui/joint-ui.service';
+import { WorkflowActionService } from '../../workflow-graph/model/workflow-action.service';
+import { UndoRedoService } from '../../undo-redo/undo-redo.service';
+import { SchemaPropagationService, SCHEMA_PROPAGATION_ENDPOINT, SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS } from './schema-propagation.service';
 import { mockScanPredicate, mockPoint, mockSentimentPredicate, mockScanSentimentLink } from '../../workflow-graph/model/mock-workflow-data';
 import {
   mockSchemaPropagationResponse, mockSchemaPropagationOperatorID, mockEmptySchemaPropagationResponse
@@ -19,7 +19,6 @@ import {
 import { mockAggregationSchema } from '../../operator-metadata/mock-operator-metadata.data';
 import { OperatorPredicate } from '../../../types/workflow-common.interface';
 import { environment } from '../../../../../environments/environment';
-import { Observable } from 'rxjs';
 import { WorkflowUtilService } from '../../workflow-graph/util/workflow-util.service';
 
 /* tslint:disable: no-non-null-assertion */
@@ -211,6 +210,7 @@ describe('SchemaPropagationService', () => {
     // change operator property to trigger invoking schema propagation API
     workflowActionService.setOperatorProperty(mockOperator.operatorID, { testAttr: 'test' });
     // flush mock response, however, this time response is empty, which means input attrs no longer exists
+    waits(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS);
     const req3 = httpTestingController.expectOne(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
     expect(req3.request.method === 'POST');
     expect(req3.request.url).toEqual(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
