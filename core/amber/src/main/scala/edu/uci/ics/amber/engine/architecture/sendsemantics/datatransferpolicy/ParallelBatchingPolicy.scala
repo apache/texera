@@ -35,7 +35,6 @@ abstract class ParallelBatchingPolicy(
   override def addTupleToBatch(
       tuple: ITuple
   ): Option[(ActorVirtualIdentity, DataPayload)] = {
-    val numBuckets = receivers.length
     val index = selectBatchingIndex(tuple)
     batches(index)(currentSizes(index)) = tuple
     currentSizes(index) += 1
