@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { inject, TestBed, tick } from '@angular/core/testing';
+import { fakeAsync, inject, TestBed, tick } from '@angular/core/testing';
 import { LoggerModule } from 'ngx-logger';
 import { environment } from '../../../../../environments/environment';
 import { AppSettings } from '../../../../common/app-setting';
@@ -54,7 +54,7 @@ describe('SchemaPropagationService', () => {
     expect(service).toBeTruthy();
   }));
 
-  it('should invoke schema propagation API when a link is added/deleted', () => {
+  it('should invoke schema propagation API when a link is added/deleted', fakeAsync(() => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const schemaPropagationService: SchemaPropagationService = TestBed.inject(SchemaPropagationService);
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
@@ -92,9 +92,9 @@ describe('SchemaPropagationService', () => {
 
     httpTestingController.verify();
 
-  });
+  }));
 
-  it('should invoke schema propagation API when a operator property is changed', () => {
+  it('should invoke schema propagation API when a operator property is changed', fakeAsync(() => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const schemaPropagationService: SchemaPropagationService = TestBed.inject(SchemaPropagationService);
 
@@ -107,9 +107,9 @@ describe('SchemaPropagationService', () => {
     req1.flush(mockSchemaPropagationResponse);
     httpTestingController.verify();
 
-  });
+  }));
 
-  it('should handle error responses from server gracefully', () => {
+  it('should handle error responses from server gracefully', fakeAsync(() => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const schemaPropagationService: SchemaPropagationService = TestBed.inject(SchemaPropagationService);
 
@@ -132,9 +132,9 @@ describe('SchemaPropagationService', () => {
     req2.flush(mockSchemaPropagationResponse);
     httpTestingController.verify();
 
-  });
+  }));
 
-  it('should modify `attribute` of operator schema', () => {
+  it('should modify `attribute` of operator schema', fakeAsync(() => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const dynamicSchemaService: DynamicSchemaService = TestBed.inject(DynamicSchemaService);
     const schemaPropagationService: SchemaPropagationService = TestBed.inject(SchemaPropagationService);
@@ -173,9 +173,9 @@ describe('SchemaPropagationService', () => {
       uniqueItems: true
     });
 
-  });
+  }));
 
-  it('should restore `attribute` to original schema if input attributes no longer exists', () => {
+  it('should restore `attribute` to original schema if input attributes no longer exists', fakeAsync(() => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const dynamicSchemaService: DynamicSchemaService = TestBed.inject(DynamicSchemaService);
     const schemaPropagationService: SchemaPropagationService = TestBed.inject(SchemaPropagationService);
@@ -242,9 +242,9 @@ describe('SchemaPropagationService', () => {
       enum: undefined, uniqueItems: undefined
     });
 
-  });
+  }));
 
-  it('should modify `attributes` of operator schema', () => {
+  it('should modify `attributes` of operator schema', fakeAsync(() => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const dynamicSchemaService: DynamicSchemaService = TestBed.inject(DynamicSchemaService);
     const schemaPropagationService: SchemaPropagationService = TestBed.inject(SchemaPropagationService);
@@ -293,9 +293,9 @@ describe('SchemaPropagationService', () => {
       }
     });
 
-  });
+  }));
 
-  it('should modify nested deep `attribute` of operator schema', () => {
+  it('should modify nested deep `attribute` of operator schema', fakeAsync(() => {
 
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const dynamicSchemaService: DynamicSchemaService = TestBed.inject(DynamicSchemaService);
@@ -361,6 +361,6 @@ describe('SchemaPropagationService', () => {
       }
     });
 
-  });
+  }));
 
 });
