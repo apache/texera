@@ -191,57 +191,60 @@ describe('SchemaPropagationService', () => {
     // change operator property to trigger invoking schema propagation API
     workflowActionService.setOperatorProperty(mockOperator.operatorID, {testAttr: 'test'});
 
-    // flush mock response
-    const req1 = httpTestingController.expectOne(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
-    expect(req1.request.method === 'POST');
-    expect(req1.request.url).toEqual(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
-    req1.flush(mockSchemaPropagationResponse);
-
-    // const req2 = httpTestingController.match(
-    //   request => request.method === 'POST'
-    // );
-    // expect(req2[0].request.url).toEqual(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
-    // req2[0].flush(mockSchemaPropagationResponse);
-
-    httpTestingController.verify();
-
-    const schema = dynamicSchemaService.getDynamicSchema(mockSentimentPredicate.operatorID);
-    const attributeInSchema = schema.jsonSchema!.properties!['attribute'];
-    const expectedEnum = mockSchemaPropagationResponse.result[mockOperator.operatorID][0]?.map(attr => attr.attributeName);
-
-    expect(attributeInSchema).toEqual({
-      ...(mockNlpSentimentSchema.jsonSchema.properties!['attribute'] as object),
-      enum: expectedEnum,
-      uniqueItems: true
-    });
-
-    // change operator property to trigger invoking schema propagation API
-    workflowActionService.setOperatorProperty(mockOperator.operatorID, {testAttr: 'test'});
-
     setTimeout(_ => {
-      const req3 = httpTestingController.expectOne(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
-      expect(req3.request.method === 'POST');
-      expect(req3.request.url).toEqual(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
 
-      // flush mock response, however, this time response is empty, which means input attrs no longer exists
-      req3.flush(mockEmptySchemaPropagationResponse);
+      const req1 = httpTestingController.expectOne(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
+      expect(req1.request.method === 'POST');
+      expect(req1.request.url).toEqual(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
 
-      // const req4 = httpTestingController.match(
+      // flush mock response
+      req1.flush(mockSchemaPropagationResponse);
+
+      // const req2 = httpTestingController.match(
       //   request => request.method === 'POST'
       // );
-      // expect(req4[0].request.url).toEqual(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
-      // req4[0].flush(mockEmptySchemaPropagationResponse);
+      // expect(req2[0].request.url).toEqual(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
+      // req2[0].flush(mockSchemaPropagationResponse);
 
       httpTestingController.verify();
-      // verify that schema is restored to original value
-      const restoredSchema = dynamicSchemaService.getDynamicSchema(mockSentimentPredicate.operatorID);
-      const restoredAttributeInSchema = restoredSchema.jsonSchema!.properties!['attribute'];
-      expect(restoredAttributeInSchema).toEqual({
-        ...(mockNlpSentimentSchema.jsonSchema.properties!['attribute'] as object),
-        enum: undefined, uniqueItems: undefined
-      });
-    }, SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS);
 
+      const schema = dynamicSchemaService.getDynamicSchema(mockSentimentPredicate.operatorID);
+      const attributeInSchema = schema.jsonSchema!.properties!['attribute'];
+      const expectedEnum = mockSchemaPropagationResponse.result[mockOperator.operatorID][0]?.map(attr => attr.attributeName);
+
+      expect(attributeInSchema).toEqual({
+        ...(mockNlpSentimentSchema.jsonSchema.properties!['attribute'] as object),
+        enum: expectedEnum,
+        uniqueItems: true
+      });
+
+      // change operator property to trigger invoking schema propagation API
+      workflowActionService.setOperatorProperty(mockOperator.operatorID, {testAttr: 'test'});
+
+      setTimeout(_ => {
+        const req3 = httpTestingController.expectOne(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
+        expect(req3.request.method === 'POST');
+        expect(req3.request.url).toEqual(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
+
+        // flush mock response, however, this time response is empty, which means input attrs no longer exists
+        req3.flush(mockEmptySchemaPropagationResponse);
+
+        // const req4 = httpTestingController.match(
+        //   request => request.method === 'POST'
+        // );
+        // expect(req4[0].request.url).toEqual(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
+        // req4[0].flush(mockEmptySchemaPropagationResponse);
+
+        httpTestingController.verify();
+        // verify that schema is restored to original value
+        const restoredSchema = dynamicSchemaService.getDynamicSchema(mockSentimentPredicate.operatorID);
+        const restoredAttributeInSchema = restoredSchema.jsonSchema!.properties!['attribute'];
+        expect(restoredAttributeInSchema).toEqual({
+          ...(mockNlpSentimentSchema.jsonSchema.properties!['attribute'] as object),
+          enum: undefined, uniqueItems: undefined
+        });
+      }, SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS);
+    }, SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS);
   });
 
   it('should modify `attributes` of operator schema', () => {
