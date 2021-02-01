@@ -1,10 +1,16 @@
 package edu.uci.ics.texera.workflow.operators.source.mysql
 
-import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.texera.workflow.common.metadata.{
+  OperatorGroupConstants,
+  OperatorInfo,
+  OutputPort
+}
 import edu.uci.ics.texera.workflow.operators.source.mysql.MySQLConnUtil.connect
 import edu.uci.ics.texera.workflow.operators.source.{SQLSourceOpDesc, SQLSourceOpExecConfig}
 
 import java.sql.{Connection, SQLException}
+import java.util.Collections.singletonList
+import scala.jdk.CollectionConverters.asScalaBuffer
 
 class MySQLSourceOpDesc extends SQLSourceOpDesc {
 
@@ -35,8 +41,8 @@ class MySQLSourceOpDesc extends SQLSourceOpDesc {
       "MySQL Source",
       "Read data from a MySQL instance",
       OperatorGroupConstants.SOURCE_GROUP,
-      0,
-      1
+      List.empty,
+      asScalaBuffer(singletonList(OutputPort(""))).toList
     )
 
   @throws[SQLException]

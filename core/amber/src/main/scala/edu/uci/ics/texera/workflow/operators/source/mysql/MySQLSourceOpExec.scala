@@ -14,12 +14,12 @@ class MySQLSourceOpExec private[mysql] (
     table: String,
     username: String,
     password: String,
-    limit: Long,
-    offset: Long,
-    column: String,
-    keywords: String,
+    limit: Option[Long],
+    offset: Option[Long],
+    column: Option[String],
+    keywords: Option[String],
     progressive: Boolean,
-    batchByColumn: String,
+    batchByColumn: Option[String],
     interval: Long
 ) extends SQLSourceOpExec(
       schema,
@@ -49,7 +49,9 @@ class MySQLSourceOpExec private[mysql] (
     val preparedStatement = connection.prepareStatement(FETCH_TABLE_NAMES_SQL)
     preparedStatement.setString(1, database)
     val resultSet = preparedStatement.executeQuery
-    while ({ resultSet.next }) tableNames.add(resultSet.getString(1))
+    while ({ resultSet.next }) {
+      tableNames += resultSet.getString(1)
+    }
     resultSet.close()
     preparedStatement.close()
   }
