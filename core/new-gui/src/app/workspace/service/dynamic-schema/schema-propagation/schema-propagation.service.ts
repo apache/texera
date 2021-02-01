@@ -11,13 +11,14 @@ import { NGXLogger } from 'ngx-logger';
 
 import { isEqual } from 'lodash';
 import { CustomJSONSchema7 } from 'src/app/workspace/types/custom-json-schema.interface';
-import { JSONSchema7 } from 'json-schema';
 
 // endpoint for schema propagation
 export const SCHEMA_PROPAGATION_ENDPOINT = 'queryplan/autocomplete';
 
+export const SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS = 500;
+
 /**
- * Schema Propagation Service provides autocomplete functionaility for attribute property of operators.
+ * Schema Propagation Service provides autocomplete functionality for attribute property of operators.
  * When user creates and connects operators in workflow, the backend can propagate the schema information,
  * so that an operator knows its input attributes (column names).
  *
@@ -50,7 +51,8 @@ export class SchemaPropagationService {
       .merge(
         this.workflowActionService.getTexeraGraph().getLinkAddStream(),
         this.workflowActionService.getTexeraGraph().getLinkDeleteStream(),
-        this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream())
+        this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream()
+          .debounceTime(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS))
       .flatMap(() => this.invokeSchemaPropagationAPI())
       .filter(response => response.code === 0)
       .subscribe(response => {
@@ -74,7 +76,6 @@ export class SchemaPropagationService {
    * 2. the operator is a source operator. In this case, we need to fill in the attributes using the selected table.
    *
    * @param schemaPropagationResult
-   * @param operatorID
    */
   private _applySchemaPropagationResult(schemaPropagationResult: { [key: string]: OperatorInputSchema }): void {
     // for each operator, try to apply schema propagation result
@@ -136,6 +137,7 @@ export class SchemaPropagationService {
    *  twitter_sample table contains the 'country' attribute
    *  promed table does not contain the 'country' attribute
    *
+   * @param workflowActionService
    * @param operatorID operator that has the changed schema
    */
   public static resetAttributeOfOperator(workflowActionService: WorkflowActionService, operatorID: string): void {
@@ -255,5 +257,3 @@ export interface SchemaPropagationError extends Readonly<{
   code: -1,
   message: string
 }> { }
-
-export type SchemaPropagationResult = SchemaPropagationResponse | SchemaPropagationError;
