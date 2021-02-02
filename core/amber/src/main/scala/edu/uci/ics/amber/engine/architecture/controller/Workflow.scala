@@ -106,9 +106,9 @@ class Workflow(
 
   def isCompleted: Boolean = operators.values.forall(op => op.getState == Completed)
 
-  def cleanupResults(): Unit ={
-    operators.values.foreach{
-      op => op.results = null
+  def cleanupResults(): Unit = {
+    operators.values.foreach { op =>
+      op.results = null
     }
   }
 
