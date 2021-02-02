@@ -42,13 +42,16 @@ class DataProcessor( // dependencies:
   private var isCompleted = false
 
   // initialize dp thread upon construction
-  private val dpThread = Executors.newSingleThreadExecutor.submit(new Runnable() {
+  private val dpThreadExecutor = Executors.newSingleThreadExecutor
+  private val dpThread = dpThreadExecutor.submit(new Runnable() {
     def run(): Unit = {
       try {
         // initialize operator
         operator.open()
         runDPThreadMainLogic()
       } catch {
+        case e: InterruptedException =>
+          logger.logInfo("DP Thread exits")
         case e @ (_: Exception | _: AssertionError | _: StackOverflowError | _: OutOfMemoryError) =>
           val error = WorkflowRuntimeError(e, "DP Thread internal logic")
           logger.logError(error)
@@ -196,12 +199,24 @@ class DataProcessor( // dependencies:
   def shutdown(): Unit = {
     if (stateManager.confirmState(Running)) {
       pauseManager.pause().onSuccess { ret =>
-        dpThread.cancel(true)
-        operator.close()
+        // this block of code will be executed inside DP Thread
+        // when pauseManager.blockDPThread() is called
+        dpThread.cancel(true) // try to interrupt the DP Thread
+        operator.close() // close operator
+        dpThreadExecutor.shutdownNow() // destroy thread
+        // ideally, DP thread will block on
+        // dpThreadBlocker.get (see PauseManager.blockDPThread)
+        // then get interrupted and exit
       }
     } else {
-      dpThread.cancel(true)
-      operator.close()
+      // DP thread will be one of the following cases:
+      // 1. blocks on blockingDeque.take() because worker is in ready state
+      // 2. blocks on PauseManager.dpThreadBlocker.get because worker is paused
+      // note that in above cases, an interrupt exception will be thrown
+      // 3. already completed
+      dpThread.cancel(true) // interrupt
+      operator.close() // close operator
+      dpThreadExecutor.shutdownNow() // destroy thread
     }
   }
 
