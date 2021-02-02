@@ -51,6 +51,9 @@ class CongestionControl {
       }
     } else {
       ssThreshold /= 2
+      if (ssThreshold < 1) {
+        ssThreshold = 1
+      }
       windowSize = ssThreshold
     }
     sentTime.remove(id)

@@ -135,6 +135,7 @@ class Controller(
     if (statusUpdateAskHandle != null) {
       statusUpdateAskHandle.cancel()
     }
+    workflow.cleanupResults()
     logger.logInfo("stopped!")
   }
 
