@@ -2,11 +2,13 @@ package edu.uci.ics.texera.workflow.operators.source.mysql;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
 import edu.uci.ics.amber.engine.operators.OpExecConfig;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
+import edu.uci.ics.texera.workflow.common.metadata.annotations.UIWidget;
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
@@ -42,6 +44,7 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
 
     @JsonProperty(value = "password", required = true)
     @JsonPropertyDescription("mysql user password")
+    @JsonSchemaInject(json = UIWidget.UIWidgetPassword)
     public String password;
 
     @JsonProperty(value = "limit")
@@ -59,6 +62,7 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
 
     @JsonProperty(value = "keywords")
     @JsonPropertyDescription("search terms in boolean expression")
+    @JsonSchemaInject(json = UIWidget.UIWidgetTextArea)
     public String keywords;
 
     @JsonProperty(value = "progressive", defaultValue = "false")

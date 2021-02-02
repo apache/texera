@@ -436,33 +436,20 @@ export class PropertyEditorComponent {
   private setFormlyFormBinding(schema: JSONSchema7) {
     // intercept JsonSchema -> FormlySchema process, adding custom options
     const jsonSchemaMapIntercept = (mappedField: FormlyFieldConfig, mapSource: JSONSchema7): FormlyFieldConfig => {
-      // if the title contains "password", then make the field type also to be password
-      if (mapSource?.title?.toLowerCase()?.includes('password')) {
-        if (mappedField.templateOptions) {
-          mappedField.templateOptions.type = 'password';
-        }
-      }
-      // if the title is boolean expression (for Mysql source), then make the field to textarea with 5 rows
-      if (mapSource?.title?.toLowerCase() === 'boolean expression') {
-        if (mappedField.type) {
-          mappedField.type = 'textarea';
-        }
-        if (mappedField.templateOptions) {
-          mappedField.templateOptions.rows = 5;
-        }
-      }
       // if the title is python script (for Python UDF), then make this field a custom template 'codearea'
       if (mapSource?.description?.toLowerCase() === 'input your code here') {
         if (mappedField.type) {
           mappedField.type = 'codearea';
         }
       }
+      console.log(mappedField);
       return mappedField;
     };
 
     this.formlyFormGroup = new FormGroup({});
     this.formlyOptions = {};
-    const field = this.formlyJsonschema.toFieldConfig(schema, { map: jsonSchemaMapIntercept });
+    // convert the json schema to formly config, pass a copy because formly mutates the schema object
+    const field = this.formlyJsonschema.toFieldConfig(cloneDeep(schema), { map: jsonSchemaMapIntercept });
     field.hooks = {
       onInit: (fieldConfig) => {
         if (!this.interactive) {
