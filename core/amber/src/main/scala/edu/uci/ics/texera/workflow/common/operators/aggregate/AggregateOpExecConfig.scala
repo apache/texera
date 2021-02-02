@@ -15,32 +15,32 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.{
 }
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.linksemantics.{AllToOne, HashBasedShuffle}
-import edu.uci.ics.amber.engine.architecture.worker.WorkerState
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, OperatorIdentifier}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  LayerIdentity,
+  OperatorIdentity
+}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
-import scala.collection.mutable
-import scala.concurrent.ExecutionContext
-
 class AggregateOpExecConfig[P <: AnyRef](
-    tag: OperatorIdentifier,
+    id: OperatorIdentity,
     val aggFunc: DistributedAggregation[P]
-) extends OpExecConfig(tag) {
+) extends OpExecConfig(id) {
 
   override lazy val topology: Topology = {
 
     if (aggFunc.groupByFunc == null) {
       val partialLayer = new WorkerLayer(
-        LayerTag(tag, "localAgg"),
+        LayerIdentity(id, "localAgg"),
         _ => new PartialAggregateOpExec(aggFunc),
         Constants.defaultNumWorkers,
         UseAll(),
         RoundRobinDeployment()
       )
       val finalLayer = new WorkerLayer(
-        LayerTag(tag, "globalAgg"),
+        LayerIdentity(id, "globalAgg"),
         _ => new FinalAggregateOpExec(aggFunc),
         1,
         ForceLocal(),
@@ -52,20 +52,19 @@ class AggregateOpExecConfig[P <: AnyRef](
           finalLayer
         ),
         Array(
-          new AllToOne(partialLayer, finalLayer, Constants.defaultBatchSize, 0)
-        ),
-        Map()
+          new AllToOne(partialLayer, finalLayer, Constants.defaultBatchSize)
+        )
       )
     } else {
       val partialLayer = new WorkerLayer(
-        LayerTag(tag, "localAgg"),
+        LayerIdentity(id, "localAgg"),
         _ => new PartialAggregateOpExec(aggFunc),
         Constants.defaultNumWorkers,
         UseAll(),
         RoundRobinDeployment()
       )
       val finalLayer = new WorkerLayer(
-        LayerTag(tag, "globalAgg"),
+        LayerIdentity(id, "globalAgg"),
         _ => new FinalAggregateOpExec(aggFunc),
         Constants.defaultNumWorkers,
         FollowPrevious(),
@@ -84,21 +83,17 @@ class AggregateOpExecConfig[P <: AnyRef](
             x => {
               val tuple = x.asInstanceOf[Tuple]
               aggFunc.groupByFunc(tuple).hashCode()
-            },
-            0
+            }
           )
-        ),
-        Map()
+        )
       )
     }
   }
+
   override def assignBreakpoint(
-      topology: Array[WorkerLayer],
-      states: mutable.AnyRefMap[ActorRef, WorkerState.Value],
-      breakpoint: GlobalBreakpoint
-  )(implicit timeout: Timeout, ec: ExecutionContext): Unit = {
-    breakpoint.partition(topology(0).layer.filter(states(_) != WorkerState.Completed))
+      breakpoint: GlobalBreakpoint[_]
+  ): Array[ActorVirtualIdentity] = {
+    topology.layers(0).identifiers
   }
 
-  override def getInputNum(from: OperatorIdentifier): Int = 0
 }

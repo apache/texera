@@ -3,13 +3,19 @@ package edu.uci.ics.texera.workflow.operators.visualization.wordCloud;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import edu.uci.ics.amber.engine.common.Constants;
 import edu.uci.ics.amber.engine.operators.OpExecConfig;
+import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
+import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
+
+import static java.util.Collections.singletonList;
+import static scala.collection.JavaConverters.asScalaBuffer;
 
 /**
  * WordCloud is a visualization operator that can be used by the caller to generate data for wordcloud.js in frontend.
@@ -20,6 +26,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator
 
 public class WordCloudOpDesc extends VisualizationOperator {
     @JsonProperty(value = "text column", required = true)
+    @AutofillAttributeName
     public String textColumn;
 
     @Override
@@ -37,7 +44,8 @@ public class WordCloudOpDesc extends VisualizationOperator {
         return new OperatorInfo("Word Cloud",
                 "Generate word cloud for result texts",
                 OperatorGroupConstants.VISUALIZATION_GROUP(),
-                1, 1, false);
+                asScalaBuffer(singletonList(new InputPort("", false))).toList(),
+                asScalaBuffer(singletonList(new OutputPort(""))).toList());
     }
 
     @Override

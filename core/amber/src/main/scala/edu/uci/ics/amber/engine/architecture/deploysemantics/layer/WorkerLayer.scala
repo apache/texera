@@ -2,57 +2,78 @@ package edu.uci.ics.amber.engine.architecture.deploysemantics.layer
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.DeployStrategy
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.DeploymentFilter
-import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, WorkerTag}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import akka.actor.{ActorContext, ActorRef, Address, Deploy}
 import akka.remote.RemoteScope
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.RegisterActorRef
+import edu.uci.ics.amber.engine.architecture.worker.{WorkerStatistics, WorkflowWorker}
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.{
+import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.{
+  Uninitialized,
+  WorkerState
+}
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.WorkerActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
-  WorkerActorVirtualIdentity
+  LayerIdentity,
+  LinkIdentity
 }
 
 import scala.collection.mutable
 
 class WorkerLayer(
-    val tag: LayerTag,
-    val metadata: Int => IOperatorExecutor,
+    val id: LayerIdentity,
+    var metadata: Int => IOperatorExecutor,
     var numWorkers: Int,
     val deploymentFilter: DeploymentFilter,
     val deployStrategy: DeployStrategy
 ) extends Serializable {
 
-  override def clone(): AnyRef = {
-    val res = new WorkerLayer(tag, metadata, numWorkers, deploymentFilter, deployStrategy)
-    res.layer = layer.clone()
-    res.identifiers = identifiers.clone()
-    res
+  var workers: Map[ActorVirtualIdentity, WorkerInfo] = _
+
+  private val startDependencies = mutable.HashSet[LinkIdentity]()
+
+  def startAfter(link: LinkIdentity): Unit = {
+    startDependencies.add(link)
   }
 
-  var layer: Array[ActorRef] = _
+  def resolveDependency(link: LinkIdentity): Unit = {
+    startDependencies.remove(link)
+  }
 
-  var identifiers: Array[ActorVirtualIdentity] = _
+  def hasDependency(link: LinkIdentity): Boolean = startDependencies.contains(link)
 
-  def isBuilt: Boolean = layer != null
+  def canStart: Boolean = startDependencies.isEmpty
 
-  def build(prev: Array[(OpExecConfig, WorkerLayer)], all: Array[Address])(implicit
-      context: ActorContext
+  def isBuilt: Boolean = workers != null
+
+  def identifiers: Array[ActorVirtualIdentity] = workers.values.map(_.id).toArray
+
+  def states: Array[WorkerState] = workers.values.map(_.state).toArray
+
+  def statistics: Array[WorkerStatistics] = workers.values.map(_.stats).toArray
+
+  def build(
+      prev: Array[(OpExecConfig, WorkerLayer)],
+      all: Array[Address],
+      parentNetworkCommunicationActorRef: ActorRef,
+      context: ActorContext,
+      workerToLayer: mutable.HashMap[ActorVirtualIdentity, WorkerLayer]
   ): Unit = {
     deployStrategy.initialize(deploymentFilter.filter(prev, all, context.self.path.address))
-    layer = new Array[ActorRef](numWorkers)
-    identifiers = new Array[ActorVirtualIdentity](numWorkers)
-    for (i <- 0 until numWorkers) {
+    workers = (0 until numWorkers).map { i =>
       val m = metadata(i)
-      val workerTag = WorkerTag(tag, i)
-      val id = WorkerActorVirtualIdentity(workerTag.getGlobalIdentity)
+      val workerID = WorkerActorVirtualIdentity(id.toString + s"[$i]")
       val d = deployStrategy.next()
-      layer(i) =
-        context.actorOf(WorkflowWorker.props(id, m).withDeploy(Deploy(scope = RemoteScope(d))))
-      identifiers(i) = WorkerActorVirtualIdentity(workerTag.getGlobalIdentity)
-    }
+      val ref = context.actorOf(
+        WorkflowWorker
+          .props(workerID, m, parentNetworkCommunicationActorRef)
+          .withDeploy(Deploy(scope = RemoteScope(d)))
+      )
+      parentNetworkCommunicationActorRef ! RegisterActorRef(workerID, ref)
+      workerToLayer(workerID) = this
+      workerID -> WorkerInfo(workerID, Uninitialized, WorkerStatistics(Uninitialized, 0, 0))
+    }.toMap
   }
 
-  override def hashCode(): Int = tag.hashCode()
 }

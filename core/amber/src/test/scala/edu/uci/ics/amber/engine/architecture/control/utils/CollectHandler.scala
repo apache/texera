@@ -2,8 +2,8 @@ package edu.uci.ics.amber.engine.architecture.control.utils
 
 import com.twitter.util.{Future, Promise}
 import edu.uci.ics.amber.engine.architecture.control.utils.CollectHandler.{Collect, GenerateNumber}
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.control.ControlMessageReceiver.ControlCommand
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 import scala.util.Random
 
@@ -13,9 +13,9 @@ object CollectHandler {
 }
 
 trait CollectHandler {
-  this: TesterControlHandlerInitializer =>
+  this: TesterAsyncRPCHandlerInitializer =>
 
-  registerHandler { c: Collect =>
+  registerHandler { (c: Collect, sender) =>
     println(s"start collecting numbers.")
     val p = Future.collect(c.workers.indices.map(i => send(GenerateNumber(), c.workers(i))))
     p.map { res =>
@@ -24,7 +24,7 @@ trait CollectHandler {
     }
   }
 
-  registerHandler { g: GenerateNumber =>
+  registerHandler { (g: GenerateNumber, sender) =>
     Random.nextInt()
   }
 }

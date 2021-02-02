@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.control.utils
 
 import com.twitter.util.Promise
 import edu.uci.ics.amber.engine.architecture.control.utils.NestedHandler.{Nested, Pass}
-import edu.uci.ics.amber.engine.common.control.ControlMessageReceiver.ControlCommand
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 
 object NestedHandler {
   case class Nested(k: Int) extends ControlCommand[String]
@@ -11,15 +11,15 @@ object NestedHandler {
 }
 
 trait NestedHandler {
-  this: TesterControlHandlerInitializer =>
+  this: TesterAsyncRPCHandlerInitializer =>
 
-  registerHandler { n: Nested =>
+  registerHandler { (n: Nested, sender) =>
     send(Pass("Hello"), myID)
       .flatMap(ret => send(Pass(ret + " "), myID))
       .flatMap(ret => send(Pass(ret + "World!"), myID))
   }
 
-  registerHandler { p: Pass =>
+  registerHandler { (p: Pass, sender) =>
     p.value
   }
 }

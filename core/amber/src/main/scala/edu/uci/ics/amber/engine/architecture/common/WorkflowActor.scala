@@ -3,57 +3,84 @@ package edu.uci.ics.amber.engine.architecture.common
 import akka.actor.{Actor, ActorLogging, ActorRef, Stash}
 import com.softwaremill.macwire.wire
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.{
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
+import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
+  GetActorRef,
+  NetworkAck,
+  NetworkMessage,
   NetworkSenderActorRef,
-  QueryActorRef,
   RegisterActorRef
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   ControlInputPort,
   ControlOutputPort,
-  NetworkSenderActor
+  NetworkCommunicationActor
 }
 import edu.uci.ics.amber.engine.common.WorkflowLogger
-import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.control.{
-  ControlMessageSource,
-  ControlHandlerInitializer,
-  ControlMessageReceiver
+import edu.uci.ics.amber.engine.common.rpc.{
+  AsyncRPCClient,
+  AsyncRPCHandlerInitializer,
+  AsyncRPCServer
 }
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
-abstract class WorkflowActor(val identifier: ActorVirtualIdentity) extends Actor with Stash {
+abstract class WorkflowActor(
+    val identifier: ActorVirtualIdentity,
+    parentNetworkCommunicationActorRef: ActorRef
+) extends Actor
+    with Stash {
 
-  protected val logger: WorkflowLogger = WorkflowLogger(s"$identifier")
+  val logger: WorkflowLogger = WorkflowLogger(s"$identifier")
 
-  val networkSenderActor: NetworkSenderActorRef = NetworkSenderActorRef(
-    context.actorOf(NetworkSenderActor.props())
+  logger.setErrorLogAction(err => {
+    asyncRPCClient.send(
+      FatalError(err),
+      ActorVirtualIdentity.Controller
+    )
+  })
+
+  val networkCommunicationActor: NetworkSenderActorRef = NetworkSenderActorRef(
+    context.actorOf(NetworkCommunicationActor.props(parentNetworkCommunicationActorRef))
   )
   lazy val controlInputPort: ControlInputPort = wire[ControlInputPort]
   lazy val controlOutputPort: ControlOutputPort = wire[ControlOutputPort]
-  lazy val ctrlSource: ControlMessageSource = wire[ControlMessageSource]
-  lazy val ctrlReceiver: ControlMessageReceiver = wire[ControlMessageReceiver]
+  lazy val asyncRPCClient: AsyncRPCClient = wire[AsyncRPCClient]
+  lazy val asyncRPCServer: AsyncRPCServer = wire[AsyncRPCServer]
   // this variable cannot be lazy
   // because it should be initialized with the actor itself
-  val rpcHandlerInitializer: ControlHandlerInitializer
+  val rpcHandlerInitializer: AsyncRPCHandlerInitializer
 
-  def routeActorRefRelatedMessages: Receive = {
-    case QueryActorRef(id, replyTo) =>
-      if (replyTo.contains(networkSenderActor.ref)) {
-        context.parent ! QueryActorRef(id, replyTo)
-      } else {
-        // we direct this message to the NetworkSenderActor
-        // because it has the VirtualIdentityToActorRef for each actor.
-        networkSenderActor ! QueryActorRef(id, replyTo)
-      }
+  def disallowActorRefRelatedMessages: Receive = {
+    case GetActorRef(id, replyTo) =>
+      logger.logError(
+        WorkflowRuntimeError(
+          "workflow actor should never receive get actor ref message",
+          identifier.toString,
+          Map.empty
+        )
+      )
     case RegisterActorRef(id, ref) =>
-      throw new WorkflowRuntimeException(
+      logger.logError(
         WorkflowRuntimeError(
           "workflow actor should never receive register actor ref message",
           identifier.toString,
           Map.empty
         )
       )
+  }
+
+  def processControlMessages: Receive = {
+    case msg @ NetworkMessage(id, cmd: WorkflowControlMessage) =>
+      sender ! NetworkAck(id)
+      try {
+        // use control input port to pass control messages
+        controlInputPort.handleControlMessage(cmd)
+      } catch {
+        case e @ (_: Exception | _: AssertionError | _: StackOverflowError | _: OutOfMemoryError) =>
+          logger.logError(WorkflowRuntimeError(e, identifier.toString))
+      }
+
   }
 }

@@ -9,10 +9,10 @@ import com.esotericsoftware.kryo.io.Input
 import com.twitter.util.{FuturePool, Promise}
 import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.{
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
+  GetActorRef,
   NetworkAck,
   NetworkMessage,
-  QueryActorRef,
   RegisterActorRef
 }
 import edu.uci.ics.amber.engine.architecture.control.utils.ChainHandler.Chain
@@ -22,16 +22,10 @@ import edu.uci.ics.amber.engine.architecture.control.utils.NestedHandler.Nested
 import edu.uci.ics.amber.engine.architecture.control.utils.PingPongHandler.Ping
 import edu.uci.ics.amber.engine.architecture.control.utils.TrivialControlTester
 import edu.uci.ics.amber.engine.architecture.control.utils.RecursionHandler.Recursion
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.{
-  ActorVirtualIdentity,
-  WorkerActorVirtualIdentity
-}
-import edu.uci.ics.amber.engine.common.control.ControlMessageSource.{
-  ControlInvocation,
-  ReturnPayload
-}
-import edu.uci.ics.amber.engine.common.control.ControlMessageReceiver.ControlCommand
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.WorkerActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, VirtualIdentity}
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
@@ -56,10 +50,10 @@ class TrivialControlSpec
     val idMap = mutable.HashMap[ActorVirtualIdentity, ActorRef]()
     for (i <- 0 until numActors) {
       val id = WorkerActorVirtualIdentity(s"$i")
-      val ref = probe.childActorOf(Props(new TrivialControlTester(id)))
+      val ref = probe.childActorOf(Props(new TrivialControlTester(id, probe.ref)))
       idMap(id) = ref
     }
-    idMap(VirtualIdentity.Controller) = probe.ref
+    idMap(ActorVirtualIdentity.Controller) = probe.ref
     var seqNum = 0
     cmd.foreach { evt =>
       probe.send(
@@ -67,7 +61,7 @@ class TrivialControlSpec
         NetworkMessage(
           seqNum,
           WorkflowControlMessage(
-            VirtualIdentity.Controller,
+            ActorVirtualIdentity.Controller,
             seqNum,
             ControlInvocation(seqNum, evt)
           )
@@ -83,7 +77,7 @@ class TrivialControlSpec
     val (probe, idMap) = setUp(numActors, events: _*)
     var flag = 0
     probe.receiveWhile(5.minutes, 5.seconds) {
-      case QueryActorRef(id, replyTo) =>
+      case GetActorRef(id, replyTo) =>
         replyTo.foreach { actor =>
           actor ! RegisterActorRef(id, idMap(id))
         }
