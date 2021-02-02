@@ -93,12 +93,21 @@ abstract class SQLSourceOpExec(
                   }
                 })
                 tuple
-              } else null
-            case None =>
-              // close the current resultSet and query
-              curResultSet.foreach(resultSet => resultSet.close())
-              curQuery.foreach(query => query.close())
+              } else {
+                // close the current resultSet and query
+                curResultSet.foreach(resultSet => resultSet.close())
+                curQuery.foreach(query => query.close())
 
+                curQuery = getNextQuery
+                System.out.println(curQuery.toString)
+                curQuery match {
+                  case Some(query) =>
+                    curResultSet = Option(query.executeQuery)
+                    next
+                  case None => null
+                }
+              }
+            case None => {
               curQuery = getNextQuery
               System.out.println(curQuery.toString)
               curQuery match {
@@ -107,6 +116,7 @@ abstract class SQLSourceOpExec(
                   next
                 case None => null
               }
+            }
           }
         } catch {
           case e: SQLException =>
@@ -271,16 +281,11 @@ abstract class SQLSourceOpExec(
     batchByAttribute match {
       case Some(attribute) =>
         attribute.getType match {
-          case AttributeType.LONG    =>
-          case AttributeType.INTEGER =>
-          case AttributeType.DOUBLE =>
+          case AttributeType.LONG | AttributeType.INTEGER | AttributeType.DOUBLE =>
             String.valueOf(value)
           case AttributeType.TIMESTAMP =>
             new Timestamp(value.longValue).toString
-          case AttributeType.BOOLEAN =>
-          case AttributeType.STRING  =>
-          case AttributeType.ANY     =>
-          case _ =>
+          case AttributeType.BOOLEAN | AttributeType.STRING | AttributeType.ANY | _ =>
             throw new IllegalStateException("Unexpected value: " + attribute.getType)
         }
       case None =>
