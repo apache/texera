@@ -442,7 +442,6 @@ export class PropertyEditorComponent {
           mappedField.type = 'codearea';
         }
       }
-      console.log(mappedField);
       return mappedField;
     };
 
