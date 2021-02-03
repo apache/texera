@@ -23,12 +23,7 @@ class MySQLSourceOpExec private[mysql] (
     interval: Long
 ) extends SQLSourceOpExec(
       schema,
-      host,
-      if (port.trim().equals("default")) "3306" else port,
-      database,
       table,
-      username,
-      password,
       limit,
       offset,
       column,

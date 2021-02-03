@@ -23,12 +23,7 @@ class PostgreSQLSourceOpExec private[postgresql] (
     interval: Long
 ) extends SQLSourceOpExec(
       schema,
-      host,
-      if (port.trim().equals("default")) "5432" else port,
-      database,
       table,
-      username,
-      password,
       limit,
       offset,
       column,

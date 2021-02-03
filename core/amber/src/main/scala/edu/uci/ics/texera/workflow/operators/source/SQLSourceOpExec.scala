@@ -2,7 +2,8 @@ package edu.uci.ics.texera.workflow.operators.source
 
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 
 import java.sql._
 import scala.collection.Iterator
@@ -12,12 +13,7 @@ import scala.util.control.Breaks.{break, breakable}
 abstract class SQLSourceOpExec(
     // source configs
     schema: Schema,
-    host: String,
-    port: String,
-    database: String,
     table: String,
-    username: String,
-    password: String,
     var curLimit: Option[Long],
     var curOffset: Option[Long],
     column: Option[String],
@@ -29,18 +25,16 @@ abstract class SQLSourceOpExec(
 ) extends SourceOperatorExecutor {
 
   // connection and query related
-  var tableNames: ArrayBuffer[String] = ArrayBuffer()
-  protected var batchByAttribute: Option[Attribute] =
-    if (progressive && batchByColumn != null && batchByColumn.isDefined)
-      Option(schema.getAttribute(batchByColumn.get))
-    else None
-  protected var connection: Connection = _
-  protected var curQuery: Option[PreparedStatement] = None
-  protected var curResultSet: Option[ResultSet] = None
-  protected var curLowerBound: Number = _
-  protected var upperBound: Number = _
-  protected var cachedTuple: Option[Tuple] = None
-  protected var querySent: Boolean = _
+  val tableNames: ArrayBuffer[String] = ArrayBuffer()
+  protected val batchByAttribute: Option[Attribute] =
+    if (progressive) Option(schema.getAttribute(batchByColumn.get)) else None
+  var connection: Connection = _
+  var curQuery: Option[PreparedStatement] = None
+  var curResultSet: Option[ResultSet] = None
+  var curLowerBound: Number = _
+  var upperBound: Number = _
+  var cachedTuple: Option[Tuple] = None
+  var querySent: Boolean = _
 
   override def produceTexeraTuple(): Iterator[Tuple] =
     new Iterator[Tuple]() {
@@ -63,67 +57,59 @@ abstract class SQLSourceOpExec(
         *
         * @return Texera.Tuple
         */
-      override def next: Tuple = { // if has the next Tuple in cache, return it and clear the cache
+      @throws[SQLException]
+      override def next: Tuple = {
 
+        // if has the next Tuple in cache, return it and clear the cache
         cachedTuple.foreach(tuple => {
           cachedTuple = None
           return tuple
         })
 
         // otherwise, send query to fetch for the next Tuple
-        try {
 
-          curResultSet match {
-            case Some(resultSet) =>
-              if (resultSet.next()) {
+        curResultSet match {
+          case Some(resultSet) =>
+            if (resultSet.next()) {
 
-                // manually skip until the offset position in order to adapt to progressive batches
-                curOffset.fold()(offset => {
-                  if (offset > 0) {
-                    curOffset = Option(offset - 1)
-                    return next
-                  }
-                })
-
-                // construct Texera.Tuple from the next result.
-                val tuple = buildTupleFromRow
-                // update the limit in order to adapt to progressive batches
-                curLimit.fold()(limit => {
-                  if (limit > 0) {
-                    curLimit = Option(limit - 1)
-                  }
-                })
-                tuple
-              } else {
-                // close the current resultSet and query
-                curResultSet.foreach(resultSet => resultSet.close())
-                curResultSet = None
-                curQuery.foreach(query => query.close())
-
-                curQuery = getNextQuery
-                if (curQuery.isDefined) println(curQuery.get)
-                curQuery match {
-                  case Some(query) =>
-                    curResultSet = Option(query.executeQuery)
-                    next
-                  case None => null
+              // manually skip until the offset position in order to adapt to progressive batches
+              curOffset.fold()(offset => {
+                if (offset > 0) {
+                  curOffset = Option(offset - 1)
+                  return next
                 }
-              }
-            case None =>
-              curQuery = getNextQuery
-              System.out.println(curQuery.toString)
-              curQuery match {
-                case Some(query) =>
-                  curResultSet = Option(query.executeQuery)
-                  next
-                case None => null
-              }
-          }
-        } catch {
-          case e: SQLException =>
-            e.printStackTrace()
-            throw new RuntimeException(e)
+              })
+
+              // construct Texera.Tuple from the next result.
+              val tuple = buildTupleFromRow
+
+              // update the limit in order to adapt to progressive batches
+              curLimit.fold()(limit => {
+                if (limit > 0) {
+                  curLimit = Option(limit - 1)
+                }
+              })
+              tuple
+            } else {
+              // close the current resultSet and query
+              curResultSet.foreach(resultSet => resultSet.close())
+              curQuery.foreach(query => query.close())
+              curResultSet = None
+              curQuery = None
+              next
+            }
+          case None =>
+            curQuery = getNextQuery
+            curQuery match {
+              case Some(query) =>
+                curResultSet = Option(query.executeQuery)
+                next
+              case None =>
+                curResultSet = None
+                null
+            }
         }
+
       }
     }
 
@@ -131,8 +117,8 @@ abstract class SQLSourceOpExec(
     * Build a Texera.Tuple from a row of curResultSet
     *
     * @return the new Texera.Tuple
-    * @throws SQLException
-    */ @throws[SQLException]
+    */
+  @throws[SQLException]
   private def buildTupleFromRow: Tuple = {
 
     val tupleBuilder = Tuple.newBuilder
@@ -147,18 +133,19 @@ abstract class SQLSourceOpExec(
           break
         }
         columnType match {
-          case AttributeType.INTEGER =>
-            tupleBuilder.add(attr, Integer.valueOf(value))
-          case AttributeType.LONG | AttributeType.DOUBLE | AttributeType.STRING =>
+          case INTEGER =>
+            tupleBuilder.add(attr, value.toInt)
+          case LONG =>
+            tupleBuilder.add(attr, value.toLong)
+          case DOUBLE =>
+            tupleBuilder.add(attr, value.toDouble)
+          case STRING =>
             tupleBuilder.add(attr, value)
-
-          case AttributeType.BOOLEAN =>
+          case BOOLEAN =>
             tupleBuilder.add(attr, !(value == "0"))
-
-          case AttributeType.TIMESTAMP =>
+          case TIMESTAMP =>
             tupleBuilder.add(attr, Timestamp.valueOf(value))
-
-          case AttributeType.ANY | _ =>
+          case ANY | _ =>
             throw new RuntimeException(
               this.getClass.getSimpleName + ": unhandled attribute type: " + columnType
             )
@@ -186,23 +173,22 @@ abstract class SQLSourceOpExec(
               if (limit > 0) preparedStatement.setLong(curIndex, curLimit.get)
             case None =>
           }
-          println(preparedStatement)
           Option(preparedStatement)
         case None => None
       }
     } else None
 
+  @throws[RuntimeException]
   private def hasNextQuery: Boolean =
     batchByAttribute match {
       case Some(attribute) =>
         attribute.getType match {
-          case AttributeType.INTEGER | AttributeType.LONG | AttributeType.TIMESTAMP =>
+          case INTEGER | LONG | TIMESTAMP =>
             curLowerBound.longValue <= upperBound.longValue
-
-          case AttributeType.DOUBLE =>
+          case DOUBLE =>
             curLowerBound.doubleValue <= upperBound.doubleValue
-          case AttributeType.STRING | AttributeType.ANY | AttributeType.BOOLEAN | _ =>
-            throw new IllegalStateException("Unexpected value: " + attribute.getType)
+          case STRING | ANY | BOOLEAN | _ =>
+            throw new RuntimeException("Unexpected type: " + attribute.getType)
         }
       case None =>
         val hasNextQuery = !querySent
@@ -222,8 +208,9 @@ abstract class SQLSourceOpExec(
     *
     * @return string of sql query
     */
-  private def generateSqlQuery
-      : Option[String] = { // in sql prepared statement, table name cannot be inserted using PreparedStatement.setString
+  @throws[RuntimeException]
+  private def generateSqlQuery: Option[String] = {
+    // in sql prepared statement, table name cannot be inserted using PreparedStatement.setString
     // so it has to be inserted here during sql query generation
     // this.table has to be verified to be existing in the given schema.
     var query = "\n" + "SELECT * FROM " + table + " where 1 = 1"
@@ -237,34 +224,31 @@ abstract class SQLSourceOpExec(
       batchByAttribute match {
         case Some(attribute) =>
           attribute.getType match {
-            case AttributeType.INTEGER | AttributeType.LONG | AttributeType.TIMESTAMP =>
+            case INTEGER | LONG | TIMESTAMP =>
               nextLowerBound = curLowerBound.longValue + interval
               isLastBatch = nextLowerBound.longValue >= upperBound.longValue
-
-            case AttributeType.DOUBLE =>
+            case DOUBLE =>
               nextLowerBound = curLowerBound.doubleValue + interval
               isLastBatch = nextLowerBound.doubleValue >= upperBound.doubleValue
-
-            case AttributeType.BOOLEAN | AttributeType.STRING | AttributeType.ANY | _ =>
-              throw new IllegalStateException("Unexpected value: " + attribute.getType)
+            case BOOLEAN | STRING | ANY | _ =>
+              throw new RuntimeException("Unexpected type: " + attribute.getType)
           }
-          query += " AND " + attribute.getName + " >= '" + batchAttributeToString(
-            curLowerBound
-          ) + "'" + " AND " + attribute.getName + (if (isLastBatch)
-                                                     " <= '" + batchAttributeToString(
-                                                       upperBound
-                                                     )
-                                                   else
-                                                     " < '" + batchAttributeToString(
-                                                       nextLowerBound
-                                                     )) + "'"
-        case None => None
+          query += " AND " + attribute.getName + " >= '" + batchAttributeToString(curLowerBound) +
+            "'" + " AND " + attribute.getName +
+            (if (isLastBatch)
+               " <= '" + batchAttributeToString(upperBound)
+             else
+               " < '" + batchAttributeToString(nextLowerBound)) +
+            "'"
+        case None =>
+          throw new RuntimeException(
+            "no valid batchByColumn to iterate: " + batchByColumn.getOrElse("")
+          )
       }
       curLowerBound = nextLowerBound
     }
 
     if (curLimit.isDefined) {
-      System.out.println("curLimit: " + curLimit.toString)
       if (curLimit.get > 0) query += " LIMIT ?"
       else return None
     }
@@ -277,20 +261,24 @@ abstract class SQLSourceOpExec(
     *
     * @param value a Number, contains the value to be converted.
     * @return a String of that value
-    * @throws IllegalStateException
-    */ @throws[IllegalStateException]
-  private def batchAttributeToString(value: Number) = {
+    * @throws RuntimeException during runtime, the batchByAttribute type might not be supported.
+    */
+  @throws[RuntimeException]
+  private def batchAttributeToString(value: Number): String = {
     batchByAttribute match {
       case Some(attribute) =>
         attribute.getType match {
-          case AttributeType.LONG | AttributeType.INTEGER | AttributeType.DOUBLE =>
+          case LONG | INTEGER | DOUBLE =>
             String.valueOf(value)
-          case AttributeType.TIMESTAMP =>
+          case TIMESTAMP =>
             new Timestamp(value.longValue).toString
-          case AttributeType.BOOLEAN | AttributeType.STRING | AttributeType.ANY | _ =>
-            throw new IllegalStateException("Unexpected value: " + attribute.getType)
+          case BOOLEAN | STRING | ANY | _ =>
+            throw new RuntimeException("Unexpected type: " + attribute.getType)
         }
       case None =>
+        throw new RuntimeException(
+          "no valid batchByColumn to iterate: " + batchByColumn.getOrElse("")
+        )
     }
 
   }
@@ -342,21 +330,21 @@ abstract class SQLSourceOpExec(
         val resultSet = preparedStatement.executeQuery
         resultSet.next
         schema.getAttribute(attribute.getName).getType match {
-          case AttributeType.INTEGER =>
+          case INTEGER =>
             result = resultSet.getInt(1)
 
-          case AttributeType.LONG =>
+          case LONG =>
             result = resultSet.getLong(1)
 
-          case AttributeType.TIMESTAMP =>
+          case TIMESTAMP =>
             result = resultSet.getTimestamp(1).getTime
 
-          case AttributeType.DOUBLE =>
+          case DOUBLE =>
             result = resultSet.getDouble(1)
 
-          case AttributeType.BOOLEAN =>
-          case AttributeType.STRING  =>
-          case AttributeType.ANY     =>
+          case BOOLEAN =>
+          case STRING  =>
+          case ANY     =>
           case _ =>
             throw new IllegalStateException("Unexpected value: " + attribute.getType)
         }
