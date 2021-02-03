@@ -14,8 +14,8 @@ import scala.collection.mutable.ArrayBuffer
 // join-skew research related.
 object AcceptBuildTableHandler {
   final case class AcceptBuildTable(
-                                   buildHashMap:  mutable.HashMap[String, ArrayBuffer[Tuple]]
-                                 ) extends ControlCommand[Unit]
+      buildHashMap: mutable.HashMap[String, ArrayBuffer[Tuple]]
+  ) extends ControlCommand[Unit]
 }
 
 trait AcceptBuildTableHandler {
@@ -23,6 +23,16 @@ trait AcceptBuildTableHandler {
 
   registerHandler { cmd: AcceptBuildTable =>
     // workerStateManager.shouldBe(Running, Ready)
-    dataProcessor.getOperatorExecutor().asInstanceOf[HashJoinOpExec[String]].addToHashTable(cmd.buildHashMap)
+    try {
+      dataProcessor
+        .getOperatorExecutor()
+        .asInstanceOf[HashJoinOpExec[String]]
+        .addToHashTable(cmd.buildHashMap)
+    } catch {
+      case exception: Exception =>
+        println(
+          "Exception happened" + exception.getMessage() + " stacktrace " + exception.getStackTrace()
+        )
+    }
   }
 }

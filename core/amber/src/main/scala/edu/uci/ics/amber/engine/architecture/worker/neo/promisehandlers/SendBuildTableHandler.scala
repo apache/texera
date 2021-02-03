@@ -13,8 +13,8 @@ import scala.collection.mutable.ArrayBuffer
 // join-skew research related.
 object SendBuildTableHandler {
   final case class SendBuildTable(
-                              freeReceiverId: ActorVirtualIdentity
-                            ) extends ControlCommand[Unit]
+      freeReceiverId: ActorVirtualIdentity
+  ) extends ControlCommand[Seq[Unit]]
 }
 
 trait SendBuildTableHandler {
@@ -22,11 +22,16 @@ trait SendBuildTableHandler {
 
   registerHandler { cmd: SendBuildTable =>
     // workerStateManager.shouldBe(Running, Ready)
-    val buildMaps = dataProcessor.getOperatorExecutor().asInstanceOf[HashJoinOpExec[String]].getBuildHashTable()
+    val buildMaps =
+      dataProcessor.getOperatorExecutor().asInstanceOf[HashJoinOpExec[String]].getBuildHashTable()
     val buildSendingFutures = new ArrayBuffer[Future[Unit]]()
     buildMaps.foreach(map => {
       buildSendingFutures.append(send(AcceptBuildTable(map), cmd.freeReceiverId))
     })
-    Future.collect(buildSendingFutures).map(seq => println(s"Replication of all parts of build table done to ${cmd.freeReceiverId}"))
+    Future
+      .collect(buildSendingFutures)
+      .onSuccess(seq =>
+        println(s"Replication of all parts of build table done to ${cmd.freeReceiverId}")
+      )
   }
 }

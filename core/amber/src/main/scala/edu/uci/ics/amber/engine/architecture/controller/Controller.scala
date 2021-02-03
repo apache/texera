@@ -1,27 +1,88 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import edu.uci.ics.amber.clustering.ClusterListener.GetAvailableNodeAddresses
-import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{ExceptionGlobalBreakpoint, GlobalBreakpoint}
+import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{
+  ExceptionGlobalBreakpoint,
+  GlobalBreakpoint
+}
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{BreakpointTriggered, ErrorOccurred, ModifyLogicCompleted, SkipTupleResponse, WorkflowCompleted, WorkflowPaused, WorkflowStatusUpdate}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
+  BreakpointTriggered,
+  ErrorOccurred,
+  ModifyLogicCompleted,
+  SkipTupleResponse,
+  WorkflowCompleted,
+  WorkflowPaused,
+  WorkflowStatusUpdate
+}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.OneOnEach
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.FollowPrevious
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
-import edu.uci.ics.amber.engine.faulttolerance.materializer.{HashBasedMaterializer, OutputMaterializer}
-import edu.uci.ics.amber.engine.architecture.linksemantics.{FullRoundRobin, HashBasedShuffle, LinkStrategy, LocalPartialToOne, OperatorLink}
-import edu.uci.ics.amber.engine.architecture.principal.{Principal, PrincipalState, PrincipalStatistics}
+import edu.uci.ics.amber.engine.faulttolerance.materializer.{
+  HashBasedMaterializer,
+  OutputMaterializer
+}
+import edu.uci.ics.amber.engine.architecture.linksemantics.{
+  FullRoundRobin,
+  HashBasedShuffle,
+  LinkStrategy,
+  LocalPartialToOne,
+  OperatorLink
+}
+import edu.uci.ics.amber.engine.architecture.principal.{
+  Principal,
+  PrincipalState,
+  PrincipalStatistics
+}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.ControllerMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
-import edu.uci.ics.amber.engine.common.ambermessage.{ControllerMessage, PrincipalMessage, WorkerMessage}
-import edu.uci.ics.amber.engine.common.ambermessage.PrincipalMessage.{AckedPrincipalInitialization, AssignBreakpoint, GetOutputLayer, ReportCurrentProcessingTuple, ReportOutputResult, ReportPrincipalPartialCompleted, ReportState}
+import edu.uci.ics.amber.engine.common.ambermessage.{
+  ControllerMessage,
+  PrincipalMessage,
+  WorkerMessage
+}
+import edu.uci.ics.amber.engine.common.ambermessage.PrincipalMessage.{
+  AckedPrincipalInitialization,
+  AssignBreakpoint,
+  GetOutputLayer,
+  ReportCurrentProcessingTuple,
+  ReportOutputResult,
+  ReportPrincipalPartialCompleted,
+  ReportState
+}
 import edu.uci.ics.amber.engine.common.ambermessage.StateMessage.EnforceStateCheck
-import edu.uci.ics.amber.engine.common.ambertag.{AmberTag, LayerTag, LinkTag, OperatorIdentifier, WorkerTag, WorkflowTag}
+import edu.uci.ics.amber.engine.common.ambertag.{
+  AmberTag,
+  LayerTag,
+  LinkTag,
+  OperatorIdentifier,
+  WorkerTag,
+  WorkflowTag
+}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.{AdvancedMessageSending, AmberUtils, Constants, ISourceOperatorExecutor, WorkflowLogger}
+import edu.uci.ics.amber.engine.common.{
+  AdvancedMessageSending,
+  AmberUtils,
+  Constants,
+  ISourceOperatorExecutor,
+  WorkflowLogger
+}
 import edu.uci.ics.amber.engine.faulttolerance.scanner.HDFSFolderScanSourceOperatorExecutor
 import edu.uci.ics.amber.engine.operators.OpExecConfig
-import akka.actor.{Actor, ActorLogging, ActorPath, ActorRef, ActorSelection, Address, Cancellable, Deploy, PoisonPill, Props, Stash}
+import akka.actor.{
+  Actor,
+  ActorLogging,
+  ActorPath,
+  ActorRef,
+  ActorSelection,
+  Address,
+  Cancellable,
+  Deploy,
+  PoisonPill,
+  Props,
+  Stash
+}
 import akka.event.LoggingAdapter
 import akka.pattern.ask
 import akka.remote.RemoteScope
@@ -38,10 +99,24 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
 import edu.uci.ics.amber.engine.architecture.worker.{WorkerState, WorkerStatistics}
-import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{AckedWorkerInitialization, CheckRecovery, CurrentLoadMetrics, FutureLoadMetrics, QueryTriggeredBreakpoints, ReportWorkerPartialCompleted, ReportedQueriedBreakpoint, ReportedTriggeredBreakpoints, Reset}
+import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
+  AckedWorkerInitialization,
+  CheckRecovery,
+  CurrentLoadMetrics,
+  FutureLoadMetrics,
+  QueryTriggeredBreakpoints,
+  ReportWorkerPartialCompleted,
+  ReportedQueriedBreakpoint,
+  ReportedTriggeredBreakpoints,
+  Reset
+}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{NetworkAck, NetworkMessage, RegisterActorRef}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
+  NetworkAck,
+  NetworkMessage,
+  RegisterActorRef
+}
 import edu.uci.ics.amber.engine.architecture.worker.neo.promisehandlers.QueryLoadMetricsHandler.QueryLoadMetrics
 import edu.uci.ics.amber.engine.architecture.worker.neo.promisehandlers.QueryNextOpLoadMetricsHandler.QueryNextOpLoadMetrics
 import edu.uci.ics.amber.engine.architecture.worker.neo.promisehandlers.SendBuildTableHandler.SendBuildTable
@@ -962,20 +1037,19 @@ class Controller(
   ): Unit = {
     val buildReplFuture = asyncRPCClient.send(SendBuildTable(freeReceiverId), skewedReceiverId)
 
-    buildReplFuture.onSuccess(res =>
-      {
-        val networkChangeFutures = new ArrayBuffer[Future[Unit]]()
-        operatorToWorkerLayers(dataSourceOpId)(0).identifiers.foreach(id => {
-          networkChangeFutures.append(
-            asyncRPCClient.send(ShareFlow(skewedReceiverId, freeReceiverId), id)
-          )
-        })
-        val futureOfNetworkChanges = Future.collect(networkChangeFutures)
-        futureOfNetworkChanges.onSuccess(seq =>
-          controllerLogger.logInfo("THE NETWORK CHANGE HAS HAPPENED")
+    buildReplFuture.onSuccess(res => {
+      println("BUILD TABLE COPIED")
+      val networkChangeFutures = new ArrayBuffer[Future[Unit]]()
+      operatorToWorkerLayers(dataSourceOpId)(0).identifiers.foreach(id => {
+        networkChangeFutures.append(
+          asyncRPCClient.send(ShareFlow(skewedReceiverId, freeReceiverId), id)
         )
-      }
-    )
+      })
+      val futureOfNetworkChanges = Future.collect(networkChangeFutures)
+      futureOfNetworkChanges.onSuccess(seq =>
+        controllerLogger.logInfo("THE NETWORK CHANGE HAS HAPPENED")
+      )
+    })
   }
 
   final lazy val allowedStatesOnPausing: Set[WorkerState.Value] =
