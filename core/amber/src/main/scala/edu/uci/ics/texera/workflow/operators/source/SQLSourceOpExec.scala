@@ -150,7 +150,6 @@ abstract class SQLSourceOpExec(
               this.getClass.getSimpleName + ": unhandled attribute type: " + columnType
             )
         }
-
       }
     }
     tupleBuilder.build
@@ -170,9 +169,16 @@ abstract class SQLSourceOpExec(
           }
           curLimit match {
             case Some(limit) =>
-              if (limit > 0) preparedStatement.setLong(curIndex, curLimit.get)
+              if (limit > 0) preparedStatement.setLong(curIndex, limit)
+              curIndex += 1
             case None =>
           }
+          if (!progressive)
+            curOffset match {
+              case Some(offset) =>
+                preparedStatement.setLong(curIndex, offset)
+              case None =>
+            }
           Option(preparedStatement)
         case None => None
       }
@@ -200,11 +206,13 @@ abstract class SQLSourceOpExec(
     * generate sql query string using the info provided by user. One of following
     * select * from TableName where 1 = 1 AND MATCH (ColumnName) AGAINST ( ? IN BOOLEAN MODE) LIMIT ?;
     * select * from TableName where 1 = 1 AND MATCH (ColumnName) AGAINST ( ? IN BOOLEAN MODE);
-    * select * from TableName where 1 = 1 LIMIT ?;
+    * select * from TableName where 1 = 1 LIMIT ? ;
     * select * from TableName where 1 = 1;
-    * <p>
+    *
     * with an optional appropriate batchByColumn sliding window,
     * e.g. create_at >= '2017-01-14 03:47:59.0' AND create_at < '2017-01-15 03:47:59.0'
+    *
+    * Or a fixed offset [OFFSET ?] to be added if not progressive.
     *
     * @return string of sql query
     */
@@ -252,6 +260,9 @@ abstract class SQLSourceOpExec(
       if (curLimit.get > 0) query += " LIMIT ?"
       else return None
     }
+
+    // adding fixed offset if not progressive
+    if (!progressive && curOffset.isDefined) query += " OFFSET ?"
     query += ";"
     Option(query)
   }
