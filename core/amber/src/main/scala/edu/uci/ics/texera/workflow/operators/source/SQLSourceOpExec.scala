@@ -11,20 +11,21 @@ import scala.util.control.Breaks.{break, breakable}
 
 abstract class SQLSourceOpExec(
     // source configs
-    val schema: Schema,
-    val host: String,
-    val port: String,
-    val database: String,
-    val table: String,
-    val username: String,
-    val password: String,
+    schema: Schema,
+    host: String,
+    port: String,
+    database: String,
+    table: String,
+    username: String,
+    password: String,
     var curLimit: Option[Long],
     var curOffset: Option[Long],
-    val column: Option[String],
-    val keywords: Option[String], // progressiveness related
-    val progressive: Boolean,
-    val batchByColumn: Option[String],
-    val interval: Long
+    column: Option[String],
+    keywords: Option[String],
+    // progressiveness related
+    progressive: Boolean,
+    batchByColumn: Option[String],
+    interval: Long
 ) extends SourceOperatorExecutor {
 
   // connection and query related
@@ -89,17 +90,18 @@ abstract class SQLSourceOpExec(
                 // update the limit in order to adapt to progressive batches
                 curLimit.fold()(limit => {
                   if (limit > 0) {
-                    curOffset = Option(limit - 1)
+                    curLimit = Option(limit - 1)
                   }
                 })
                 tuple
               } else {
                 // close the current resultSet and query
                 curResultSet.foreach(resultSet => resultSet.close())
+                curResultSet = None
                 curQuery.foreach(query => query.close())
 
                 curQuery = getNextQuery
-                System.out.println(curQuery.toString)
+                if (curQuery.isDefined) println(curQuery.get)
                 curQuery match {
                   case Some(query) =>
                     curResultSet = Option(query.executeQuery)
@@ -107,7 +109,7 @@ abstract class SQLSourceOpExec(
                   case None => null
                 }
               }
-            case None => {
+            case None =>
               curQuery = getNextQuery
               System.out.println(curQuery.toString)
               curQuery match {
@@ -116,7 +118,6 @@ abstract class SQLSourceOpExec(
                   next
                 case None => null
               }
-            }
           }
         } catch {
           case e: SQLException =>
@@ -185,6 +186,7 @@ abstract class SQLSourceOpExec(
               if (limit > 0) preparedStatement.setLong(curIndex, curLimit.get)
             case None =>
           }
+          println(preparedStatement)
           Option(preparedStatement)
         case None => None
       }
@@ -256,7 +258,7 @@ abstract class SQLSourceOpExec(
                                                      " < '" + batchAttributeToString(
                                                        nextLowerBound
                                                      )) + "'"
-        case None =>
+        case None => None
       }
       curLowerBound = nextLowerBound
     }

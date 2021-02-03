@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.source
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
@@ -34,19 +35,23 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
 
   @JsonProperty(value = "limit")
   @JsonPropertyDescription("query result count upper limit")
+  @JsonDeserialize(contentAs = classOf[java.lang.Long])
   var limit: Option[Long] = None
 
   @JsonProperty(value = "offset")
   @JsonPropertyDescription("query offset")
+  @JsonDeserialize(contentAs = classOf[java.lang.Long])
   var offset: Option[Long] = None
 
   @JsonProperty(value = "column name")
   @JsonPropertyDescription("the column to be keyword-searched")
+  @JsonDeserialize(contentAs = classOf[java.lang.String])
   @AutofillAttributeName
   var column: Option[String] = None
 
   @JsonProperty(value = "keywords")
   @JsonPropertyDescription("search terms in boolean expression")
+  @JsonDeserialize(contentAs = classOf[java.lang.String])
   var keywords: Option[String] = None
 
   @JsonProperty(value = "progressive", defaultValue = "false")
@@ -55,6 +60,7 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
 
   @JsonProperty(value = "batch by column")
   @JsonPropertyDescription("batch by column")
+  @JsonDeserialize(contentAs = classOf[java.lang.String])
   @AutofillAttributeName
   var batchByColumn: Option[String] = None
 
