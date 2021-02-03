@@ -38,6 +38,7 @@ class PostgreSQLSourceOpExec private[postgresql] (
   @throws[SQLException]
   override def establishConn(): Connection = connect(host, port, database, username, password)
 
+  @throws[RuntimeException]
   override def addKeywordSearch(queryBuilder: StringBuilder): Unit = {
     val columnType = schema.getAttribute(column.get).getType
     // TODO: check if index exists (e.g., fulltext index is needed to do fulltext search)
