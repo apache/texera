@@ -37,7 +37,7 @@ class MySQLSourceOpExec private[mysql] (
     "SELECT table_name FROM information_schema.tables WHERE table_schema = ?;"
 
   @throws[SQLException]
-  override def establishConn: Connection = connect(host, port, database, username, password)
+  override def establishConn(): Connection = connect(host, port, database, username, password)
 
   @throws[SQLException]
   override protected def loadTableNames(): Unit = {

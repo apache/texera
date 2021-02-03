@@ -36,7 +36,11 @@ class PostgreSQLSourceOpExec private[postgresql] (
     "SELECT table_name FROM information_schema.tables WHERE table_type='BASE TABLE';"
 
   @throws[SQLException]
-  override def establishConn: Connection = connect(host, port, database, username, password)
+  override def establishConn(): Connection = connect(host, port, database, username, password)
+
+  override def addKeywordSearch(queryBuilder: StringBuilder): Unit = {
+    throw new NotImplementedError()
+  }
 
   @throws[SQLException]
   override protected def loadTableNames(): Unit = {
