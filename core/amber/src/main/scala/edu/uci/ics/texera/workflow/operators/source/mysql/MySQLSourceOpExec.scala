@@ -50,4 +50,9 @@ class MySQLSourceOpExec private[mysql] (
     resultSet.close()
     preparedStatement.close()
   }
+
+  override def addKeywordSearch(queryBuilder: StringBuilder): Unit = {
+    // in sql prepared statement, column name cannot be inserted using PreparedStatement.setString either
+    queryBuilder ++= " AND MATCH(" + column + ") AGAINST (? IN BOOLEAN MODE)"
+  }
 }

@@ -8,6 +8,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import java.sql._
 import scala.collection.Iterator
 import scala.collection.mutable.ArrayBuffer
+import scala.jdk.CollectionConverters._
 import scala.util.control.Breaks.{break, breakable}
 
 abstract class SQLSourceOpExec(
@@ -39,8 +40,8 @@ abstract class SQLSourceOpExec(
   override def produceTexeraTuple(): Iterator[Tuple] =
     new Iterator[Tuple]() {
       override def hasNext: Boolean = {
-        // if existing Tuple in cache, means there exist next Tuple.
         cachedTuple match {
+          // if existing Tuple in cache, means there exist next Tuple.
           case Some(_) => true
           case None    =>
             // cache the next Tuple
@@ -120,18 +121,21 @@ abstract class SQLSourceOpExec(
     */
   @throws[SQLException]
   private def buildTupleFromRow: Tuple = {
-
     val tupleBuilder = Tuple.newBuilder
-    import scala.collection.JavaConversions._
-    for (attr <- schema.getAttributes) {
+
+    for (attr <- schema.getAttributes.asScala) {
       breakable {
         val columnName = attr.getName
         val columnType = attr.getType
         val value = curResultSet.get.getString(columnName)
+
         if (value == null) {
+          // add the field as null
           tupleBuilder.add(attr, null)
           break
         }
+
+        // otherwise, transform the type of the value
         columnType match {
           case INTEGER =>
             tupleBuilder.add(attr, value.toInt)
@@ -146,9 +150,7 @@ abstract class SQLSourceOpExec(
           case TIMESTAMP =>
             tupleBuilder.add(attr, Timestamp.valueOf(value))
           case ANY | _ =>
-            throw new RuntimeException(
-              this.getClass.getSimpleName + ": unhandled attribute type: " + columnType
-            )
+            throw new RuntimeException("Unhandled attribute type: " + columnType)
         }
       }
     }
@@ -163,22 +165,29 @@ abstract class SQLSourceOpExec(
         case Some(query) =>
           val preparedStatement = connection.prepareStatement(query)
           var curIndex = 1
+
+          // fill up the keywords
           if (column.isDefined && keywords.isDefined) {
             preparedStatement.setString(curIndex, keywords.get)
             curIndex += 1
           }
+
+          // fill up limit
           curLimit match {
             case Some(limit) =>
               if (limit > 0) preparedStatement.setLong(curIndex, limit)
               curIndex += 1
             case None =>
           }
+
+          // fill up offset if progressive mode is not enabled
           if (!progressive)
             curOffset match {
               case Some(offset) =>
                 preparedStatement.setLong(curIndex, offset)
               case None =>
             }
+
           Option(preparedStatement)
         case None => None
       }
@@ -220,51 +229,89 @@ abstract class SQLSourceOpExec(
   private def generateSqlQuery: Option[String] = {
     // in sql prepared statement, table name cannot be inserted using PreparedStatement.setString
     // so it has to be inserted here during sql query generation
-    // this.table has to be verified to be existing in the given schema.
-    var query = "\n" + "SELECT * FROM " + table + " where 1 = 1"
-    // in sql prepared statement, column name cannot be inserted using PreparedStatement.setString either
+    // table has to be verified to be existing in the given schema.
+    val queryBuilder = new StringBuilder
+
+    // Add base SELECT * with true condition
+    // TODO: add more selection conditions, including alias
+    addBaseSelect(queryBuilder)
+
+    // add keyword search if applicable
     if (column.isDefined && keywords.isDefined)
-      query += " AND MATCH(" + column + ") AGAINST (? IN BOOLEAN MODE)"
-    if (progressive) {
-      var nextLowerBound: Number = null
-      var isLastBatch = false
+      addKeywordSearch(queryBuilder)
 
-      batchByAttribute match {
-        case Some(attribute) =>
-          attribute.getType match {
-            case INTEGER | LONG | TIMESTAMP =>
-              nextLowerBound = curLowerBound.longValue + interval
-              isLastBatch = nextLowerBound.longValue >= upperBound.longValue
-            case DOUBLE =>
-              nextLowerBound = curLowerBound.doubleValue + interval
-              isLastBatch = nextLowerBound.doubleValue >= upperBound.doubleValue
-            case BOOLEAN | STRING | ANY | _ =>
-              throw new RuntimeException("Unexpected type: " + attribute.getType)
-          }
-          query += " AND " + attribute.getName + " >= '" + batchAttributeToString(curLowerBound) +
-            "'" + " AND " + attribute.getName +
-            (if (isLastBatch)
-               " <= '" + batchAttributeToString(upperBound)
-             else
-               " < '" + batchAttributeToString(nextLowerBound)) +
-            "'"
-        case None =>
-          throw new RuntimeException(
-            "no valid batchByColumn to iterate: " + batchByColumn.getOrElse("")
-          )
-      }
-      curLowerBound = nextLowerBound
-    }
+    // add sliding window if progressive mode is enabled
+    if (progressive) addBatchSlidingWindow(queryBuilder)
 
+    // add limit if provided
     if (curLimit.isDefined) {
-      if (curLimit.get > 0) query += " LIMIT ?"
-      else return None
+      if (curLimit.get > 0) addLimit(queryBuilder)
+      else
+        // there should be no more queries as limit is equal or less than 0
+        return None
     }
 
-    // adding fixed offset if not progressive
-    if (!progressive && curOffset.isDefined) query += " OFFSET ?"
-    query += ";"
-    Option(query)
+    // add fixed offset if not progressive
+    if (!progressive && curOffset.isDefined) addOffset(queryBuilder)
+
+    // end
+    terminateSQL(queryBuilder)
+
+    Option(queryBuilder.result())
+  }
+
+  private def terminateSQL(queryBuilder: StringBuilder): Unit = {
+    queryBuilder ++= ";"
+  }
+
+  private def addOffset(queryBuilder: StringBuilder): Unit = {
+    queryBuilder ++= " OFFSET ?"
+  }
+
+  private def addLimit(queryBuilder: StringBuilder): Unit = {
+    queryBuilder ++= " LIMIT ?"
+  }
+
+  private def addBaseSelect(queryBuilder: StringBuilder): Unit = {
+    queryBuilder ++= "\n" + "SELECT * FROM " + table + " where 1 = 1"
+  }
+
+  def addKeywordSearch(queryBuilder: StringBuilder): Unit = {
+    // in sql prepared statement, column name cannot be inserted using PreparedStatement.setString either
+    queryBuilder ++= " AND MATCH(" + column + ") AGAINST (? IN BOOLEAN MODE)"
+  }
+
+  private def addBatchSlidingWindow(queryBuilder: StringBuilder): Unit = {
+    var nextLowerBound: Number = null
+    var isLastBatch = false
+
+    batchByAttribute match {
+      case Some(attribute) =>
+        attribute.getType match {
+          case INTEGER | LONG | TIMESTAMP =>
+            nextLowerBound = curLowerBound.longValue + interval
+            isLastBatch = nextLowerBound.longValue >= upperBound.longValue
+          case DOUBLE =>
+            nextLowerBound = curLowerBound.doubleValue + interval
+            isLastBatch = nextLowerBound.doubleValue >= upperBound.doubleValue
+          case BOOLEAN | STRING | ANY | _ =>
+            throw new RuntimeException("Unexpected type: " + attribute.getType)
+        }
+        queryBuilder ++= " AND " + attribute.getName + " >= '" + batchAttributeToString(
+          curLowerBound
+        ) +
+          "'" + " AND " + attribute.getName +
+          (if (isLastBatch)
+             " <= '" + batchAttributeToString(upperBound)
+           else
+             " < '" + batchAttributeToString(nextLowerBound)) +
+          "'"
+      case None =>
+        throw new RuntimeException(
+          "no valid batchByColumn to iterate: " + batchByColumn.getOrElse("")
+        )
+    }
+    curLowerBound = nextLowerBound
   }
 
   /**
