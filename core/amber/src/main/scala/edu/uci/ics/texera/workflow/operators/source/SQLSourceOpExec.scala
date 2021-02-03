@@ -288,11 +288,6 @@ abstract class SQLSourceOpExec(
     Option(queryBuilder.result())
   }
 
-  protected def addKeywordSearch(queryBuilder: StringBuilder): Unit = {
-    // in sql prepared statement, column name cannot be inserted using PreparedStatement.setString either
-    queryBuilder ++= " AND MATCH(" + column + ") AGAINST (? IN BOOLEAN MODE)"
-  }
-
   private def terminateSQL(queryBuilder: StringBuilder): Unit = {
     queryBuilder ++= ";"
   }
@@ -497,4 +492,7 @@ abstract class SQLSourceOpExec(
     */
   @throws[SQLException]
   protected def loadTableNames(): Unit
+
+  @throws[RuntimeException]
+  protected def addKeywordSearch(queryBuilder: StringBuilder): Unit
 }

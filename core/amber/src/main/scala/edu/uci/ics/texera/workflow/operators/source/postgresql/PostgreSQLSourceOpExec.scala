@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.postgresql
 
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.source.SQLSourceOpExec
 import edu.uci.ics.texera.workflow.operators.source.postgresql.PostgreSQLConnUtil.connect
 
@@ -39,7 +39,13 @@ class PostgreSQLSourceOpExec private[postgresql] (
   override def establishConn(): Connection = connect(host, port, database, username, password)
 
   override def addKeywordSearch(queryBuilder: StringBuilder): Unit = {
-    throw new NotImplementedError()
+    val columnType = schema.getAttribute(column.get).getType
+    // TODO: check if index exists (e.g., fulltext index is needed to do fulltext search)
+    if (columnType == AttributeType.STRING) {
+      // TODO: implement postgresql's fulltext search
+      throw new NotImplementedError()
+    } else
+      throw new RuntimeException("Can't do keyword search on type " + columnType.toString)
   }
 
   @throws[SQLException]

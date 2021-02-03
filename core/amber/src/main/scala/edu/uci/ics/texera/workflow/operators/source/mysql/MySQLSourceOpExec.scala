@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.mysql
 
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.source.SQLSourceOpExec
 import edu.uci.ics.texera.workflow.operators.source.mysql.MySQLConnUtil.connect
 
@@ -39,9 +39,15 @@ class MySQLSourceOpExec private[mysql] (
   @throws[SQLException]
   override def establishConn(): Connection = connect(host, port, database, username, password)
 
+  @throws[RuntimeException]
   override def addKeywordSearch(queryBuilder: StringBuilder): Unit = {
-    // in sql prepared statement, column name cannot be inserted using PreparedStatement.setString either
-    queryBuilder ++= " AND MATCH(" + column + ") AGAINST (? IN BOOLEAN MODE)"
+    val columnType = schema.getAttribute(column.get).getType
+
+    if (columnType == AttributeType.STRING)
+      // in sql prepared statement, column name cannot be inserted using PreparedStatement.setString either
+      queryBuilder ++= " AND MATCH(" + column.get + ") AGAINST (? IN BOOLEAN MODE)"
+    else
+      throw new RuntimeException("Can't do keyword search on type " + columnType.toString)
   }
 
   @throws[SQLException]
