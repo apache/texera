@@ -39,6 +39,11 @@ class MySQLSourceOpExec private[mysql] (
   @throws[SQLException]
   override def establishConn(): Connection = connect(host, port, database, username, password)
 
+  override def addKeywordSearch(queryBuilder: StringBuilder): Unit = {
+    // in sql prepared statement, column name cannot be inserted using PreparedStatement.setString either
+    queryBuilder ++= " AND MATCH(" + column + ") AGAINST (? IN BOOLEAN MODE)"
+  }
+
   @throws[SQLException]
   override protected def loadTableNames(): Unit = {
     val preparedStatement = connection.prepareStatement(FETCH_TABLE_NAMES_SQL)
@@ -49,10 +54,5 @@ class MySQLSourceOpExec private[mysql] (
     }
     resultSet.close()
     preparedStatement.close()
-  }
-
-  override def addKeywordSearch(queryBuilder: StringBuilder): Unit = {
-    // in sql prepared statement, column name cannot be inserted using PreparedStatement.setString either
-    queryBuilder ++= " AND MATCH(" + column + ") AGAINST (? IN BOOLEAN MODE)"
   }
 }
