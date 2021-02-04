@@ -126,16 +126,6 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     )
   }
 
-  private def getNumericalValue(tuple: Tuple): Option[Double] = {
-    val value: Object = tuple.getField(attribute)
-    if (value == null)
-      return None
-
-    if (tuple.getSchema.getAttribute(attribute).getType == AttributeType.TIMESTAMP)
-      Option(Timestamp.valueOf(value.toString).getTime.toDouble)
-    else Option(value.toString.toDouble)
-  }
-
   def maxAgg(): AggregateOpExecConfig[_] = {
     val aggregation = new DistributedAggregation[java.lang.Double](
       () => Double.MinValue,
@@ -155,6 +145,16 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       operatorIdentifier,
       aggregation
     )
+  }
+
+  private def getNumericalValue(tuple: Tuple): Option[Double] = {
+    val value: Object = tuple.getField(attribute)
+    if (value == null)
+      return None
+
+    if (tuple.getSchema.getAttribute(attribute).getType == AttributeType.TIMESTAMP)
+      Option(Timestamp.valueOf(value.toString).getTime.toDouble)
+    else Option(value.toString.toDouble)
   }
 
   def averageAgg(): AggregateOpExecConfig[_] = {
