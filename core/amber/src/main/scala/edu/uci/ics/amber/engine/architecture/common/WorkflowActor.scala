@@ -78,16 +78,14 @@ abstract class WorkflowActor(
       handleControlMessageWithTryCatch(cmd)
   }
 
-  def handleControlMessageWithTryCatch(cmd: WorkflowControlMessage): Unit ={
+  def handleControlMessageWithTryCatch(cmd: WorkflowControlMessage): Unit = {
     try {
       // use control input port to pass control messages
       controlInputPort.handleControlMessage(cmd)
-    } catch safely{
+    } catch safely {
       case e =>
         logger.logError(WorkflowRuntimeError(e, identifier.toString))
     }
   }
-
-
 
 }

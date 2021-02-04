@@ -4,7 +4,6 @@ import scala.util.control.ControlThrowable
 
 object ErrorUtils {
 
-
   /** A helper function for catching all throwable except some special scala internal throwable.
     * reference: https://www.sumologic.com/blog/why-you-should-never-catch-throwable-in-scala/
     * @param handler
