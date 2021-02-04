@@ -12,23 +12,26 @@ import java.util.Collections.singletonList
 import scala.collection.JavaConverters.asScalaBuffer
 
 class ProjectionOpDesc extends MapOpDesc {
+
   @JsonProperty(value = "attributes", required = true)
   @JsonPropertyDescription("a subset of column to keeps")
   @AutofillAttributeNameList
-  var attributes: List[String] = List[String]()
+  val attributes: List[String] = List[String]()
 
   override def operatorExecutor: OneToOneOpExecConfig = {
-    if (attributes == null) throw new RuntimeException("Projection: attribute is null")
-    new OneToOneOpExecConfig(operatorIdentifier, (i: Any) => new ProjectionOpExec(this))
+    new OneToOneOpExecConfig(operatorIdentifier, (_: Any) => new ProjectionOpExec(this))
   }
-  override def operatorInfo: OperatorInfo =
+
+  override def operatorInfo: OperatorInfo = {
     OperatorInfo(
       "Projection",
       "Keeps the column",
       OperatorGroupConstants.UTILITY_GROUP,
-      asScalaBuffer(singletonList(new InputPort("", false))).toList,
-      asScalaBuffer(singletonList(new OutputPort(""))).toList
+      asScalaBuffer(singletonList(InputPort(""))).toList,
+      asScalaBuffer(singletonList(OutputPort(""))).toList
     )
+  }
+
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Preconditions.checkArgument(schemas.length == 1)
     val builder = Schema.newBuilder
