@@ -79,8 +79,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     val aggregation = new DistributedAggregation[Integer](
       () => 0,
       (partial, tuple) => {
-        val value = getNumericalValue(tuple)
-        partial + (if (value.isDefined) 1 else 0)
+        partial + (if (tuple.getField(attribute) != null) 1 else 0)
       },
       (partial1, partial2) => partial1 + partial2,
       partial => {
@@ -106,16 +105,6 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       }
   }
 
-  private def getNumericalValue(tuple: Tuple): Option[Double] = {
-    val value: Object = tuple.getField(attribute)
-    if (value == null)
-      return None
-
-    if (tuple.getSchema.getAttribute(attribute).getType == AttributeType.TIMESTAMP)
-      Option(Timestamp.valueOf(value.toString).getTime.toDouble)
-    else Option(value.toString.toDouble)
-  }
-
   def minAgg(): AggregateOpExecConfig[_] = {
     val aggregation = new DistributedAggregation[java.lang.Double](
       () => Double.MaxValue,
@@ -135,6 +124,16 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       operatorIdentifier,
       aggregation
     )
+  }
+
+  private def getNumericalValue(tuple: Tuple): Option[Double] = {
+    val value: Object = tuple.getField(attribute)
+    if (value == null)
+      return None
+
+    if (tuple.getSchema.getAttribute(attribute).getType == AttributeType.TIMESTAMP)
+      Option(Timestamp.valueOf(value.toString).getTime.toDouble)
+    else Option(value.toString.toDouble)
   }
 
   def maxAgg(): AggregateOpExecConfig[_] = {
