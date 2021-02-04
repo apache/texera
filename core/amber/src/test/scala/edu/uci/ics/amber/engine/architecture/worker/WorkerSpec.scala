@@ -12,7 +12,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
 import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.DataSendingPolicy
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddOutputPolicyHandler.AddOutputPolicy
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
-import edu.uci.ics.amber.engine.common.IOperatorExecutor
+import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted}
 import edu.uci.ics.amber.engine.common.ambermessage.DataPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.CommandCompleted
@@ -42,7 +42,17 @@ class WorkerSpec
     val mockTupleToBatchConverter = mock[TupleToBatchConverter]
     val identifier1 = WorkerActorVirtualIdentity("worker-1")
     val identifier2 = WorkerActorVirtualIdentity("worker-2")
-    val mockOpExecutor = mock[IOperatorExecutor]
+    val mockOpExecutor = new IOperatorExecutor {
+      override def open(): Unit = println("opened!")
+
+      override def close(): Unit = println("closed!")
+
+      override def processTuple(
+          tuple: Either[ITuple, InputExhausted],
+          input: LinkIdentity
+      ): Iterator[ITuple] = ???
+    }
+
     val mockTag = mock[LinkIdentity]
 
     val mockPolicy = new DataSendingPolicy(mockTag, 10, Array(identifier2)) {
@@ -55,7 +65,6 @@ class WorkerSpec
     }
 
     inSequence {
-      (mockOpExecutor.open _).expects()
       (mockTupleToBatchConverter.addPolicy _).expects(mockPolicy)
       (mockControlOutputPort.sendTo _)
         .expects(ActorVirtualIdentity.Controller, ReturnPayload(0, CommandCompleted()))
