@@ -25,6 +25,7 @@ import edu.uci.ics.amber.engine.common.rpc.{
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.error.WorkflowRuntimeError
+import edu.uci.ics.amber.error.ErrorUtils.safely
 
 abstract class WorkflowActor(
     val identifier: ActorVirtualIdentity,
@@ -74,13 +75,19 @@ abstract class WorkflowActor(
   def processControlMessages: Receive = {
     case msg @ NetworkMessage(id, cmd: WorkflowControlMessage) =>
       sender ! NetworkAck(id)
-      try {
-        // use control input port to pass control messages
-        controlInputPort.handleControlMessage(cmd)
-      } catch {
-        case e @ (_: Exception | _: AssertionError | _: StackOverflowError | _: OutOfMemoryError) =>
-          logger.logError(WorkflowRuntimeError(e, identifier.toString))
-      }
-
+      handleControlMessageWithTryCatch(cmd)
   }
+
+  def handleControlMessageWithTryCatch(cmd: WorkflowControlMessage): Unit ={
+    try {
+      // use control input port to pass control messages
+      controlInputPort.handleControlMessage(cmd)
+    } catch safely{
+      case e =>
+        logger.logError(WorkflowRuntimeError(e, identifier.toString))
+    }
+  }
+
+
+
 }

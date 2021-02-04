@@ -8,13 +8,7 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkComp
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
 import edu.uci.ics.amber.engine.architecture.messaginglayer.TupleToBatchConverter
-import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{
-  DummyInput,
-  EndMarker,
-  EndOfAllMarker,
-  InputTuple,
-  SenderChangeMarker
-}
+import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{DummyInput, EndMarker, EndOfAllMarker, InputTuple, SenderChangeMarker}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.{Completed, Running}
@@ -22,6 +16,9 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, WorkflowLogger}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
+import edu.uci.ics.amber.error.ErrorUtils.safely
+
+import scala.util.control.ControlThrowable
 
 class DataProcessor( // dependencies:
     logger: WorkflowLogger, // logger of the worker actor
@@ -48,8 +45,8 @@ class DataProcessor( // dependencies:
         // initialize operator
         operator.open()
         runDPThreadMainLogic()
-      } catch {
-        case e @ (_: Exception | _: AssertionError | _: StackOverflowError | _: OutOfMemoryError) =>
+      } catch safely {
+        case e =>
           val error = WorkflowRuntimeError(e, "DP Thread internal logic")
           logger.logError(error)
         // dp thread will stop here
@@ -88,8 +85,8 @@ class DataProcessor( // dependencies:
       if (currentInputTuple.isLeft) {
         inputTupleCount += 1
       }
-    } catch {
-      case e @ (_: Exception | _: AssertionError | _: StackOverflowError | _: OutOfMemoryError) =>
+    } catch safely {
+      case e =>
         // forward input tuple to the user and pause DP thread
         handleOperatorException(e)
     }
@@ -103,8 +100,8 @@ class DataProcessor( // dependencies:
     var outputTuple: ITuple = null
     try {
       outputTuple = currentOutputIterator.next
-    } catch {
-      case e @ (_: Exception | _: AssertionError | _: StackOverflowError | _: OutOfMemoryError) =>
+    } catch safely {
+      case e =>
         // invalidate current output tuple
         outputTuple = null
         // also invalidate outputIterator
@@ -208,8 +205,8 @@ class DataProcessor( // dependencies:
   private[this] def outputAvailable(outputIterator: Iterator[ITuple]): Boolean = {
     try {
       outputIterator != null && outputIterator.hasNext
-    } catch {
-      case e: Exception =>
+    } catch safely {
+      case e =>
         handleOperatorException(e)
         false
     }
