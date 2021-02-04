@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.operators.source
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
@@ -9,63 +10,66 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType
 import java.sql._
 
 abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
-  @JsonProperty(value = "host", required = true)
-  @JsonPropertyDescription("host IP address")
+  @JsonProperty(required = true)
+  @JsonSchemaTitle("Host")
   var host: String = _
 
-  @JsonProperty(value = "port", required = true, defaultValue = "default")
-  @JsonPropertyDescription("port")
+  @JsonProperty(required = true, defaultValue = "default")
+  @JsonSchemaTitle("Port")
+  @JsonPropertyDescription("A port number or 'default'")
   var port: String = _
 
-  @JsonProperty(value = "database", required = true)
-  @JsonPropertyDescription("database name")
+  @JsonProperty(required = true)
+  @JsonSchemaTitle("Database")
   var database: String = _
 
-  @JsonProperty(value = "table", required = true)
-  @JsonPropertyDescription("table name")
+  @JsonProperty(required = true)
+  @JsonSchemaTitle("Table Name")
   var table: String = _
 
-  @JsonProperty(value = "username", required = true)
-  @JsonPropertyDescription("username")
+  @JsonProperty(required = true)
+  @JsonSchemaTitle("Username")
   var username: String = _
 
-  @JsonProperty(value = "password", required = true)
-  @JsonPropertyDescription("password")
+  @JsonProperty(required = true)
+  @JsonSchemaTitle("Password")
   var password: String = _
 
-  @JsonProperty(value = "limit")
-  @JsonPropertyDescription("query result count upper limit")
+  @JsonProperty()
+  @JsonSchemaTitle("Limit")
+  @JsonPropertyDescription("max output count")
   @JsonDeserialize(contentAs = classOf[java.lang.Long])
   var limit: Option[Long] = None
 
-  @JsonProperty(value = "offset")
-  @JsonPropertyDescription("query offset")
+  @JsonProperty()
+  @JsonSchemaTitle("Offset")
+  @JsonPropertyDescription("starting point of output")
   @JsonDeserialize(contentAs = classOf[java.lang.Long])
   var offset: Option[Long] = None
 
-  @JsonProperty(value = "column name")
-  @JsonPropertyDescription("the column to be keyword-searched")
+  @JsonProperty()
+  @JsonSchemaTitle("Keyword Search Column Name")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
   @AutofillAttributeName
   var column: Option[String] = None
 
-  @JsonProperty(value = "keywords")
-  @JsonPropertyDescription("search terms in boolean expression")
+  @JsonProperty()
+  @JsonSchemaTitle("Keywords to Search")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
   var keywords: Option[String] = None
 
-  @JsonProperty(value = "progressive", defaultValue = "false")
-  @JsonPropertyDescription("progressively yield outputs")
+  @JsonProperty(defaultValue = "false")
+  @JsonSchemaTitle("Progressively Output")
   var progressive: Boolean = false
 
-  @JsonProperty(value = "batch by column")
-  @JsonPropertyDescription("batch by column")
+  @JsonProperty()
+  @JsonSchemaTitle("Batch by ColumnName")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
   @AutofillAttributeName
   var batchByColumn: Option[String] = None
 
-  @JsonProperty(value = "batch by interval", defaultValue = "1000000000")
-  @JsonPropertyDescription("batch by interval")
+  @JsonProperty(defaultValue = "1000000000")
+  @JsonSchemaTitle("Batch by Interval")
   var interval = 0L
 
   /**
