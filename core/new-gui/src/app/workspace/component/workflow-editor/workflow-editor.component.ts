@@ -86,6 +86,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private translateLimitY: number[] = [];
   private minimapTranslateX: number = 0;
   private minimapTranslateY: number = 0;
+  private tranlsateLimitZ: boolean = false;
 
   // dictionary of {operatorID, CopiedOperator} pairs
   private copiedOperators: Record<string, CopiedOperator> = {};
@@ -242,7 +243,11 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handlePaperZoom(): void {
     this.workflowActionService.getJointGraphWrapper().getWorkflowEditorZoomStream().subscribe(newRatio => {
-      this.getJointPaper().scale(newRatio, newRatio);
+      const elementSize = this.getWrapperElementSize();
+      const elementOffset = this.getWrapperElementOffset();
+      const center = this.getJointPaper().localToPaperPoint(
+        elementOffset.x + elementSize.width / 2, elementOffset.y + elementSize.height / 2);
+      this.getJointPaper().scale(newRatio, newRatio, center.x, center.y);
     });
   }
 
@@ -305,8 +310,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
     // if no operator, set the default limit
     const minX = min(this.translateLimitX) ?? 700;
     const maxX = max(this.translateLimitX) ?? 700;
-    const minY = min(this.translateLimitY) ?? 300;
-    const maxY = max(this.translateLimitY) ?? 300;
+    const minY = min(this.translateLimitY) ?? 120;
+    const maxY = max(this.translateLimitY) ?? 206;
     return {minX, maxX, minY, maxY};
   }
 
@@ -316,7 +321,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private checkBouding(limitx: number[], limity: number[], translateLimit: any): void {
     const elementSize = this.getWrapperElementSize();
     // check if operator out of right bound after WrapperElement changes its size
-    if (this.getJointPaper().translate().tx + translateLimit.minX + 65 > elementSize.width) {
+    if (this.getJointPaper().translate().tx + translateLimit.minX + 60 > elementSize.width) {
       this.getJointPaper().translate(
         limitx[0] - 1, this.getJointPaper().translate().ty
       );
@@ -340,7 +345,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       this.workflowActionService.getJointGraphWrapper().setPanningOffset(this.panOffset);
     }
     // check lower bound
-    if (this.getJointPaper().translate().ty + translateLimit.minY + 70 > elementSize.height) {
+    if (this.getJointPaper().translate().ty + translateLimit.minY + 60 > elementSize.height) {
       this.getJointPaper().translate(
         this.getJointPaper().translate().tx, limity[0] - 1
       );
@@ -365,6 +370,16 @@ export class WorkflowEditorComponent implements AfterViewInit {
     }
   }
 
+  private checkMiniMapNavigatorLimit(): void {
+    // check whether the panning would exceed the mini-map navigator limit
+    this.workflowActionService.getJointGraphWrapper().setPanningOffsetCheck(this.panOffset);
+    Observable.merge(
+      this.workflowActionService.getJointGraphWrapper().getPanReminder(),
+    ).subscribe((condition) => {
+      this.tranlsateLimitZ = condition;
+    });
+  }
+
   /**
    * This method handles user mouse drag events to pan JointJS paper.
    *
@@ -383,9 +398,10 @@ export class WorkflowEditorComponent implements AfterViewInit {
         // calculate the limit of translate
         const translateLimit = this.getTranslateLimit();
         const elementSize = this.getWrapperElementSize();
-        const limitx = [elementSize.width - 65 - translateLimit.minX, -translateLimit.maxX];
-        const limity = [elementSize.height - 70 - translateLimit.minY, -translateLimit.maxY];
+        const limitx = [elementSize.width - 60 - translateLimit.minX, -translateLimit.maxX];
+        const limity = [elementSize.height - 60 - translateLimit.minY, -translateLimit.maxY];
         this.checkBouding(limitx, limity, translateLimit);
+        this.tranlsateLimitZ = false;
 
         // do paper movement
         const translatex = this.getJointPaper().translate().tx - event.deltaX;
@@ -395,10 +411,12 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
         // set panOffset
         this.panOffset = {
-          x : this.getWrapperElementOffset().x + this.getJointPaper().translate().tx,
-          y : this.getWrapperElementOffset().y + this.getJointPaper().translate().ty
+          x : this.getWrapperElementOffset().x + this.getJointPaper().translate().tx - event.deltaX,
+          y : this.getWrapperElementOffset().y + this.getJointPaper().translate().ty - event.deltaY
         };
-        if (conditionx && conditiony) {
+        this.checkMiniMapNavigatorLimit();
+
+        if (conditionx && conditiony && this.tranlsateLimitZ) {
           this.getJointPaper().translate(
             translatex, translatey
           );
@@ -430,24 +448,25 @@ export class WorkflowEditorComponent implements AfterViewInit {
           if (this.mouseDown === undefined) {
             throw new Error('Error: Mouse down is undefined after the filter');
           }
-
+          this.tranlsateLimitZ = false;
           // calculate the pan offset between user click on the mouse and then release the mouse, including zooming value.
           this.panOffset = {
             x : coordinate.x - this.mouseDown.x * this.workflowActionService.getJointGraphWrapper().getZoomRatio(),
             y : coordinate.y - this.mouseDown.y * this.workflowActionService.getJointGraphWrapper().getZoomRatio()
           };
+          this.checkMiniMapNavigatorLimit();
           // calculate the limit of translate
           const translateLimit = this.getTranslateLimit();
           const elementSize = this.getWrapperElementSize();
-          const limitx = [elementSize.width - 65 - translateLimit.minX, -translateLimit.maxX];
-          const limity = [elementSize.height - 70 - translateLimit.minY, -translateLimit.maxY];
+          const limitx = [elementSize.width - 60 - translateLimit.minX, -translateLimit.maxX];
+          const limity = [elementSize.height - 60 - translateLimit.minY, -translateLimit.maxY];
           this.checkBouding(limitx, limity, translateLimit);
           // do paper movement.
           const translatex = - this.getWrapperElementOffset().x + this.panOffset.x;
           const translatey = - this.getWrapperElementOffset().y + this.panOffset.y;
           const conditionx = translatex > limitx[1] && translatex < limitx[0];
           const conditiony = translatey > limity[1] && translatey < limity[0];
-          if (conditionx && conditiony) {
+          if (conditionx && conditiony && this.tranlsateLimitZ) {
             this.getJointPaper().translate(
               (- this.getWrapperElementOffset().x + this.panOffset.x),
               (- this.getWrapperElementOffset().y + this.panOffset.y)
@@ -463,6 +482,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   private handleMinimapTranslate(): void {
+    // record the corresponding paper origin when the mouse down event happens in mini-map navigator
     Observable.merge(
       this.workflowActionService.getJointGraphWrapper().getMousDownReminder(),
     ).subscribe(() => {

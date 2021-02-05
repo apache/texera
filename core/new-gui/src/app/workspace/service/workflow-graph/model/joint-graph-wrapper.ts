@@ -93,9 +93,13 @@ export class JointGraphWrapper {
   // event stream of panning to make mini-map and main workflow paper compatible in offset
   private panPaperOffsetSubject: Subject<Point> = new Subject<Point>();
   // event stream of panning to make mini-map and main workflow paper compatible in offset
+  private panPaperOffsetCheck: Subject<Point> = new Subject<Point>();
+  // event stream of panning to make mini-map and main workflow paper compatible in offset
   private panPaperOffsetSubject2: Subject<Point> = new Subject<Point>();
   // event stream of communicating mini-map and workflow paper
-  private MouseDownReminder: Subject<Boolean> = new Subject<Boolean>();
+  private MouseDownReminder: Subject<boolean> = new Subject<boolean>();
+  // event stream of communicating mini-map and workflow paper panning
+  private PanReminder: Subject<boolean> = new Subject<boolean>();
   // event stream of highlighing a link
   private jointLinkHighlightStream = new Subject<linkIDType>();
   // event stream of unhighlighing a link
@@ -419,12 +423,41 @@ export class JointGraphWrapper {
     this.panPaperOffsetSubject2.next(panOffset);
   }
 
-  public getMousDownReminder(): Observable<Boolean> {
+  public getMousDownReminder(): Observable<boolean> {
     return this.MouseDownReminder.asObservable();
   }
 
-  public setMouseDownReminder(ifMouseDown: Boolean): void {
+  /**
+   * This method is to record the timing of a valid click/mousedown event
+   *  of mini-map navigator. It can notify the workflow-editor to
+   *  would exceed the html layout limit of the navigator.
+   *
+   */
+  public setMouseDownReminder(ifMouseDown: boolean): void {
     this.MouseDownReminder.next(ifMouseDown);
+  }
+
+  public getPanReminder(): Observable<boolean> {
+    return this.PanReminder.asObservable();
+  }
+
+  public setPanReminder(available: boolean): void {
+    this.PanReminder.next(available);
+  }
+
+  public getPanPaperOffsetCheckStream(): Observable<Point> {
+    return this.panPaperOffsetCheck.asObservable();
+  }
+
+  /**
+   * This method will update the panning offset
+   *  Mini-map navigator will first check whether that offset
+   *  would exceed the html layout limit of the navigator.
+   *
+   * @param panOffset new offset from panning
+   */
+  public setPanningOffsetCheck(panOffset: Point): void {
+    this.panPaperOffsetCheck.next(panOffset);
   }
 
   /**
