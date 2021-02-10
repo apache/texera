@@ -1,7 +1,7 @@
 import { Location } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { combineLatest} from 'rxjs';
+import { combineLatest } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Version } from '../../../environments/version';
 import { UserService } from '../../common/service/user/user.service';
@@ -94,7 +94,7 @@ export class WorkspaceComponent implements OnInit {
           this.location.go('/');
         } else {
           // if wid is present in the url, load it from backend
-          combineLatest(this.userService.getUser().filter(user => user !== undefined),
+          combineLatest(this.userService.getUser(),
             this.operatorMetadataService.getOperatorMetadata()
               .filter(metadata => metadata.operators.length !== 0))
             .subscribe(() => this.loadWorkflowWithID(id));
@@ -135,9 +135,7 @@ export class WorkspaceComponent implements OnInit {
           });
         // to sync up with the updated information, such as workflow.wid
       }
-
     });
-
   }
 
   private loadWorkflowWithID(id: number): void {
@@ -151,12 +149,15 @@ export class WorkspaceComponent implements OnInit {
       () => {
         this.workflowCacheService.resetCachedWorkflow();
         this.workflowActionService.reloadWorkflow(this.workflowCacheService.getCachedWorkflow());
-        this.location.go(`/`);
-        // TODO: replace with a proper error message with the framework
-        alert('You don\'t have access to this workflow, please log in with another account');
+        this.noAccessToWorkflow();
 
       }
     );
   }
 
+  private noAccessToWorkflow(): void {
+    this.location.go(`/`);
+    // TODO: replace with a proper error message with the framework
+    alert('You don\'t have access to this workflow, please log in with another account');
+  }
 }
