@@ -43,8 +43,12 @@ class PostgreSQLSourceOpExec private[postgresql] (
     val columnType = schema.getAttribute(column.get).getType
     // TODO: check if index exists (e.g., fulltext index is needed to do fulltext search)
     if (columnType == AttributeType.STRING) {
-      // TODO: implement postgresql's fulltext search
-      throw new NotImplementedError()
+      // in sql prepared statement, column name cannot be inserted using PreparedStatement.setString either
+      queryBuilder ++= " AND " + column.get + "@@ to_tsquery(?)"
+
+      // OPTIMIZE: no full text index is required, requiring a built index can help performance on large dataset.
+
+      // OPTIMIZE: limited support on the default language, english. equivalent `to_tsquery('english', ?)`
     } else
       throw new RuntimeException("Can't do keyword search on type " + columnType.toString)
   }
