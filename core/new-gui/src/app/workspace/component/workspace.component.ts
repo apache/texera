@@ -94,12 +94,10 @@ export class WorkspaceComponent implements OnInit {
           this.location.go('/');
         } else {
           // if wid is present in the url, load it from backend
-          combineLatest(this.userService.getUser(),
-            this.operatorMetadataService.getOperatorMetadata()
+          this.userService.getUser().combineLatest(this.operatorMetadataService.getOperatorMetadata()
               .filter(metadata => metadata.operators.length !== 0))
             .subscribe(() => this.loadWorkflowWithID(id));
         }
-        // }
       } else {
         // load wid from cache
         const workflow = this.workflowCacheService.getCachedWorkflow();
