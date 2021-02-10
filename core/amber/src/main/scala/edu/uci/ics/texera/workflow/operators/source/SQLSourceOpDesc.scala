@@ -106,26 +106,26 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
         val columnName = columns.getString("COLUMN_NAME")
         val datatype = columns.getInt("DATA_TYPE")
         datatype match {
-          case Types.BIT      => // -7 Types.BIT
-          case Types.TINYINT  => // -6 Types.TINYINT
-          case Types.SMALLINT => // 5 Types.SMALLINT
-          case Types.INTEGER => // 4 Types.INTEGER
+          case Types.BIT | // -7 Types.BIT
+              Types.TINYINT | // -6 Types.TINYINT
+              Types.SMALLINT | // 5 Types.SMALLINT
+              Types.INTEGER => // 4 Types.INTEGER
             schemaBuilder.add(new Attribute(columnName, AttributeType.INTEGER))
-          case Types.FLOAT  => // 6 Types.FLOAT
-          case Types.REAL   => // 7 Types.REAL
-          case Types.DOUBLE => // 8 Types.DOUBLE
-          case Types.NUMERIC => // 3 Types.NUMERIC
+          case Types.FLOAT | // 6 Types.FLOAT
+              Types.REAL | // 7 Types.REAL
+              Types.DOUBLE | // 8 Types.DOUBLE
+              Types.NUMERIC => // 3 Types.NUMERIC
             schemaBuilder.add(new Attribute(columnName, AttributeType.DOUBLE))
           case Types.BOOLEAN => // 16 Types.BOOLEAN
             schemaBuilder.add(new Attribute(columnName, AttributeType.BOOLEAN))
-          case Types.BINARY      => //-2 Types.BINARY
-          case Types.DATE        => //91 Types.DATE
-          case Types.TIME        => //92 Types.TIME
-          case Types.LONGVARCHAR => //-1 Types.LONGVARCHAR
-          case Types.CHAR        => //1 Types.CHAR
-          case Types.VARCHAR     => //12 Types.VARCHAR
-          case Types.NULL        => //0 Types.NULL
-          case Types.OTHER => //1111 Types.OTHER
+          case Types.BINARY | //-2 Types.BINARY
+              Types.DATE | //91 Types.DATE
+              Types.TIME | //92 Types.TIME
+              Types.LONGVARCHAR | //-1 Types.LONGVARCHAR
+              Types.CHAR | //1 Types.CHAR
+              Types.VARCHAR | //12 Types.VARCHAR
+              Types.NULL | //0 Types.NULL
+              Types.OTHER => //1111 Types.OTHER
             schemaBuilder.add(new Attribute(columnName, AttributeType.STRING))
           case Types.BIGINT => //-5 Types.BIGINT
             schemaBuilder.add(new Attribute(columnName, AttributeType.LONG))
