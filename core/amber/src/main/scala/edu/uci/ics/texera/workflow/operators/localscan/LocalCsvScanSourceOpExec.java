@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -54,6 +55,7 @@ public class LocalCsvScanSourceOpExec implements SourceOperatorExecutor {
                 try {
                     return reader.hasNext();
                 } catch (IOException e) {
+                    e.printStackTrace();
                     throw new UncheckedIOException(e);
                 }
             }
@@ -73,17 +75,33 @@ public class LocalCsvScanSourceOpExec implements SourceOperatorExecutor {
                                 IntStream.range(0, schema.getAttributes().size() - res.length).mapToObj(i -> null))
                                 .toArray(String[]::new);
                     }
+                    String[] finalRes = res;
+                    Object[] new_res = IntStream.range(0, res.length)
+                            .mapToObj(i->{
+                                if (schema.getAttributeTypes().stream().toArray()[i].equals("integer"))
+                                    return Integer.parseInt(finalRes[i]);
+                                else if (schema.getAttributeTypes().stream().toArray()[i].equals("double"))
+                                    return Double.parseDouble(finalRes[i]);
+                                else if (schema.getAttributeTypes().stream().toArray()[i].equals("boolean"))
+                                    return Boolean.parseBoolean(finalRes[i]);
+                                else
+                                    return finalRes[i];
+                            }).toArray();
 
-                    return Tuple.newBuilder().add(schema, res).build();
+
+                    return Tuple.newBuilder().add(schema, new_res).build();
                 } catch (IOException e) {
+                    e.printStackTrace();
                     throw new UncheckedIOException(e);
                 } catch(Exception e){
+                    e.printStackTrace();
                     throw e;
                 }
             }
 
         };
     }
+
 
     @Override
     public void open() {
@@ -99,6 +117,7 @@ public class LocalCsvScanSourceOpExec implements SourceOperatorExecutor {
                 reader.readLine();
             }
         } catch (IOException e) {
+            e.printStackTrace();
             throw new UncheckedIOException(e);
         }
     }
@@ -108,8 +127,10 @@ public class LocalCsvScanSourceOpExec implements SourceOperatorExecutor {
         try {
             reader.close();
         } catch (IOException e) {
+            e.printStackTrace();
             throw new UncheckedIOException(e);
         }
 
     }
+
 }
