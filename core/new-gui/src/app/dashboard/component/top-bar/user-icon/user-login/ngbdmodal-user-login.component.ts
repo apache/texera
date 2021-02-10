@@ -76,13 +76,7 @@ export class NgbdModalUserLoginComponent implements OnInit {
    * this method will handle the pop up when user successfully login
    */
   private detectUserChange(): void {
-    this.userService.userChanged().subscribe(
-      () => {
-        if (this.userService.getUser()) {
-          // TODO temporary solution, need improvement
-          this.activeModal.close();
-        }
-      }
-    );
+    // TODO temporary solution, need improvement
+    this.userService.userChanged().filter(user => user !== undefined).subscribe(() => this.activeModal.close());
   }
 }

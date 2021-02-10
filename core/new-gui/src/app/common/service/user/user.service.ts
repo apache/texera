@@ -1,5 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
+import { of } from 'rxjs';
 import { Observable } from 'rxjs/Observable';
 import { Subject } from 'rxjs/Subject';
 import { environment } from '../../../../environments/environment';
@@ -66,8 +67,8 @@ export class UserService {
         .subscribe(() => this.changeUser(undefined));
   }
 
-  public getUser(): User|undefined {
-    return this.currentUser;
+  public getUser(): Observable<User|undefined> {
+    return of(this.currentUser);
   }
 
   public isLogin(): boolean {
