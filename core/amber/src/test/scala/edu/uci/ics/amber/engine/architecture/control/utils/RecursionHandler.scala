@@ -11,7 +11,7 @@ object RecursionHandler {
 trait RecursionHandler {
   this: TesterAsyncRPCHandlerInitializer =>
 
-  registerHandler { r: Recursion =>
+  registerHandler { (r: Recursion, sender) =>
     if (r.i < 5) {
       println(r.i)
       send(Recursion(r.i + 1), myID).map { res =>

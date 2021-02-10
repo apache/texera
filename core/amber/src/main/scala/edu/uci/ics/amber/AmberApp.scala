@@ -6,14 +6,11 @@ import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.util.Timeout
 import com.typesafe.config.{Config, ConfigFactory}
 import edu.uci.ics.amber.clustering.ClusterListener
-import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.ConditionalGlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.controller.Controller
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage.{Pause, Resume, Start}
-import edu.uci.ics.amber.engine.common.ambermessage.ControllerMessage.{
-  AckedControllerInitialization,
-  PassBreakpointTo
-}
 import play.api.libs.json.Json
 
 import scala.annotation.tailrec
@@ -252,32 +249,32 @@ object AmberApp {
 //                Controller.props(workflows(current).replace("<arg3>", Constants.dataset.toString))
 //              )
 //            }
-            controller ! AckedControllerInitialization
+//            controller ! AckedControllerInitialization
             //if (countbp.isDefined && current == 2) {
             //  controller ! PassBreakpointTo("Filter", new CountGlobalBreakpoint("CountBreakpoint", countbp.get))
             //}
-            if (conditionalbp.isDefined) {
-              controller ! PassBreakpointTo(
-                "KeywordSearch",
-                new ConditionalGlobalBreakpoint(
-                  "ConditionalBreakpoint",
-                  x => x.getString(15).contains(conditionalbp)
-                )
-              )
-            }
-            controller ! Start
+//            if (conditionalbp.isDefined) {
+//              controller ! PassBreakpointTo(
+//                "KeywordSearch",
+//                new ConditionalGlobalBreakpoint(
+//                  "ConditionalBreakpoint",
+//                  x => x.getString(15).contains(conditionalbp)
+//                )
+//              )
+//            }
+            controller ! StartWorkflow()
             println("workflow started!")
           case "pause" =>
             if (controller == null) {
               println("workflow is not initialized")
             } else {
-              controller ! Pause
+              controller ! PauseWorkflow()
             }
           case "resume" =>
             if (controller == null) {
               println("workflow is not initialized")
             } else {
-              controller ! Resume
+              controller ! ResumeWorkflow()
             }
           case "set tau" =>
             Constants.defaultTau = scala.io.StdIn.readInt().milliseconds

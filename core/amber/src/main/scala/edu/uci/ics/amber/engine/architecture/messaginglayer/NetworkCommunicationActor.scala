@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
-import akka.actor.{Actor, ActorRef, Props, Stash}
+import akka.actor.{Actor, ActorRef, Cancellable, Props, Stash}
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   GetActorRef,
@@ -12,9 +12,8 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
   SendRequest
 }
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.neo.WorkflowMessage
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, VirtualIdentity}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.collection.mutable
@@ -80,10 +79,10 @@ class NetworkCommunicationActor(parentRef: ActorRef) extends Actor with LazyLogg
   val messageIDToIdentity = new mutable.LongMap[ActorVirtualIdentity]
 
   //add parent actor into idMap
-  idToActorRefs(VirtualIdentity.Self) = context.parent
+  idToActorRefs(ActorVirtualIdentity.Self) = context.parent
 
   //register timer for resending messages
-  context.system.scheduler.schedule(
+  val resendHandle: Cancellable = context.system.scheduler.schedule(
     30.seconds,
     30.seconds,
     self,
@@ -180,7 +179,9 @@ class NetworkCommunicationActor(parentRef: ActorRef) extends Actor with LazyLogg
       val actorID = messageIDToIdentity(msg.messageID)
       logger.warn(s"actor for $actorID might have crashed or failed")
       idToActorRefs.remove(actorID)
-      getActorRefMappingFromParent(actorID)
+      if (parentRef != null) {
+        getActorRefMappingFromParent(actorID)
+      }
   }
 
   @inline
@@ -190,7 +191,9 @@ class NetworkCommunicationActor(parentRef: ActorRef) extends Actor with LazyLogg
       idToActorRefs(actorID) ! msg
     } else {
       // otherwise, we ask the parent for the actorRef.
-      getActorRefMappingFromParent(actorID)
+      if (parentRef != null) {
+        getActorRefMappingFromParent(actorID)
+      }
     }
   }
 
@@ -204,5 +207,10 @@ class NetworkCommunicationActor(parentRef: ActorRef) extends Actor with LazyLogg
 
   override def receive: Receive = {
     sendMessagesAndReceiveAcks orElse findActorRefFromVirtualIdentity
+  }
+
+  override def postStop(): Unit = {
+    resendHandle.cancel()
+    logger.info(s"network communication actor for ${context.parent} stopped!")
   }
 }

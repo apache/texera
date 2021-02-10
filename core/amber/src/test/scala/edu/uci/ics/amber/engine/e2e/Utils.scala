@@ -1,8 +1,8 @@
 package edu.uci.ics.amber.engine.e2e
 
-import akka.actor.{Props}
+import akka.actor.Props
 import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerEventListener}
-import edu.uci.ics.amber.engine.common.ambertag.WorkflowTag
+import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.workflow.{
@@ -31,9 +31,8 @@ object Utils {
     )
     texeraWorkflowCompiler.init()
     Controller.props(
-      WorkflowTag.apply(workflowTag),
+      WorkflowIdentity(workflowTag),
       texeraWorkflowCompiler.amberWorkflow,
-      false,
       ControllerEventListener(),
       100
     )

@@ -1,8 +1,8 @@
 package edu.uci.ics.amber.engine.common.rpc
 
 import com.twitter.util.{Future, Promise}
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 import scala.reflect.ClassTag
 
@@ -18,7 +18,7 @@ import scala.reflect.ClassTag
   *    class MyControlHandler{
   *          this: WorkerControlHandlerInitializer =>
   *          registerHandler{
-  *             mycmd:MyControl =>
+  *             (mycmd:MyControl,sender) =>
   *               //do something
   *               val temp = mycmd.param1
   *               //invoke another control command that returns an int
@@ -45,9 +45,9 @@ class AsyncRPCHandlerInitializer(
     * @tparam C control command type
     */
   def registerHandler[B, C: ClassTag](
-      handler: C => B
+      handler: (C, ActorVirtualIdentity) => B
   )(implicit ev: C <:< ControlCommand[B]): Unit = {
-    registerImpl({ case c: C => handler(c) })
+    registerImpl({ case (c: C, s) => Future { handler(c, s) } })
   }
 
   /** register an async handler for one type of control command
@@ -60,17 +60,23 @@ class AsyncRPCHandlerInitializer(
     * @tparam C control command type
     */
   def registerHandler[B, C: ClassTag](
-      handler: C => Future[B]
+      handler: (C, ActorVirtualIdentity) => Future[B]
   )(implicit ev: C <:< ControlCommand[B], d: DummyImplicit): Unit = {
-    registerImpl({ case c: C => handler(c) })
+    registerImpl({ case (c: C, s) => handler(c, s) })
   }
 
-  private def registerImpl(newHandler: PartialFunction[ControlCommand[_], Any]): Unit = {
+  private def registerImpl(
+      newHandler: PartialFunction[(ControlCommand[_], ActorVirtualIdentity), Future[_]]
+  ): Unit = {
     ctrlReceiver.registerHandler(newHandler)
   }
 
   def send[T](cmd: ControlCommand[T], to: ActorVirtualIdentity): Future[T] = {
     ctrlSource.send(cmd, to)
+  }
+
+  def execute[T](cmd: ControlCommand[T], sender: ActorVirtualIdentity): Future[T] = {
+    ctrlReceiver.execute((cmd, sender)).asInstanceOf[Future[T]]
   }
 
 }

@@ -1,30 +1,30 @@
-create table TABLE_NAME
+CREATE TABLE TABLE_NAME
 (
-    id                   varchar(25)                  not null primary key,
-    create_at            varchar(50)                  null,
-    text                 varchar(500) charset utf8mb4 null,
-    in_reply_to_status   varchar(25)                  null,
-    in_reply_to_user     varchar(25)                  null,
-    favourites_count     int                          null,
-    retweet_count        int                          null,
-    lang                 varchar(10)                  null,
-    is_retweet           tinyint(1)                   null,
-    hashtags             varchar(500) charset utf8mb4 null,
-    user_mentions        varchar(500) charset utf8mb4 null,
-    user_id              varchar(25)                  null,
-    user_name            varchar(500) charset utf8mb4 null,
-    user_screen_name     varchar(500) charset utf8mb4 null,
-    user_location        varchar(500)                 null,
-    user_description     varchar(500) charset utf8mb4 null,
-    user_followers_count int                          null,
-    user_friends_count   int                          null,
-    user_statues_count   int                          null,
-    stateName            varchar(100)                 null,
-    countyName           varchar(100)                 null,
-    cityName             varchar(100)                 null,
-    country              varchar(100)                 null,
-    bounding_box         varchar(100)                 null
+    id                    BIGINT                       NOT NULL PRIMARY KEY,
+    created_at            DATETIME                     NULL,
+    text                  VARCHAR(500) CHARSET utf8mb4 NULL,
+    in_reply_to_status_id BIGINT                       NULL,
+    in_reply_to_user_id   BIGINT                       NULL,
+    favourites_count      INT                          NULL,
+    retweet_count         INT                          NULL,
+    lang                  VARCHAR(10)                  NULL,
+    retweeted             BOOLEAN                      NULL,
+    hashtags              VARCHAR(500) CHARSET utf8mb4 NULL,
+    user_mentions         VARCHAR(500) CHARSET utf8mb4 NULL,
+    user_id               BIGINT                       NULL,
+    user_name             VARCHAR(500) CHARSET utf8mb4 NULL,
+    user_screen_name      VARCHAR(500) CHARSET utf8mb4 NULL,
+    user_location         VARCHAR(500)                 NULL,
+    user_description      VARCHAR(500) CHARSET utf8mb4 NULL,
+    user_followers_count  INT                          NULL,
+    user_friends_count    INT                          NULL,
+    user_statues_count    INT                          NULL,
+    stateName             VARCHAR(100)                 NULL,
+    countyName            VARCHAR(100)                 NULL,
+    cityName              VARCHAR(100)                 NULL,
+    country               VARCHAR(100)                 NULL,
+    bounding_box          VARCHAR(500)                 NULL
 );
 
-create fulltext index text on TABLE_NAME (text);
-
+CREATE FULLTEXT INDEX text_index on TABLE_NAME (text);
+CREATE INDEX created_at_index ON TABLE_NAME (created_at);
