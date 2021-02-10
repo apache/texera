@@ -78,10 +78,12 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
     *
     * @return Texera.Tuple.Schema
     */
-  override def sourceSchema: Schema = {
+  override def sourceSchema(): Schema = {
     if (
-      this.host == null || this.port == null || this.database == null || this.table == null || this.username == null || this.password == null
-    ) return null
+      this.host == null || this.port == null || this.database == null
+      || this.table == null || this.username == null || this.password == null
+    )
+      return null
     querySchema
   }
 
@@ -92,7 +94,7 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
     *
     * @return Schema
     */
-  protected def querySchema = {
+  protected def querySchema: Schema = {
     updatePort()
     val schemaBuilder = Schema.newBuilder
     try {
@@ -149,5 +151,5 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
   @throws[SQLException]
   protected def establishConn: Connection
 
-  protected def updatePort()
+  protected def updatePort(): Unit
 }
