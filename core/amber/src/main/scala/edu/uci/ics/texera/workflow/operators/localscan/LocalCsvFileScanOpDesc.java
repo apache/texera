@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.google.common.io.Files;
 import edu.uci.ics.amber.engine.common.Constants;
 import edu.uci.ics.amber.engine.operators.OpExecConfig;
-import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
@@ -17,9 +16,6 @@ import scala.collection.immutable.List;
 
 import java.io.*;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -86,7 +82,7 @@ public class LocalCsvFileScanOpDesc extends SourceOperatorDescriptor {
     }
 
     private Schema inferSchema(String headerLine) {
-        List<AttributeType> attributeType = IntStream
+        java.util.List<AttributeType> attributeType = IntStream
                 .range(0, headerLine.split(delimiter).length).mapToObj(i->AttributeType.INTEGER).collect(Collectors.toList());
 
 
@@ -105,7 +101,7 @@ public class LocalCsvFileScanOpDesc extends SourceOperatorDescriptor {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        List<AttributeType> finalAttributeType = attributeType;
+        java.util.List<AttributeType> finalAttributeType = attributeType;
         System.out.println("a->"+finalAttributeType);
 //        System.out.println(Schema.newBuilder().add(IntStream.range(0, headerLine.split(delimiter).length).
 //                mapToObj(i -> new Attribute(l.get(i), finalAttributeType.get(i)))
@@ -128,7 +124,7 @@ public class LocalCsvFileScanOpDesc extends SourceOperatorDescriptor {
                     .collect(Collectors.toList())).build();
         }
     }
-    private List<AttributeType> inferline (List<AttributeType> attributeType, String[] line) {
+    private java.util.List<AttributeType> inferline (java.util.List<AttributeType> attributeType, String[] line) {
         return IntStream.range(0, line.length).
                 mapToObj(i->inferChar(attributeType.get(i),line[i])).collect(Collectors.toList());
     }
