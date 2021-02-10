@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { NgbModal, NgbModalRef } from '@ng-bootstrap/ng-bootstrap';
 import { UserService } from '../../../../common/service/user/user.service';
 import { User } from '../../../../common/type/user';
+import { isDefined } from '../../../../common/util/predicate';
 import { NgbdModalUserLoginComponent } from './user-login/ngbdmodal-user-login.component';
 
 /**
@@ -24,7 +25,7 @@ export class UserIconComponent {
     private userService: UserService
   ) {
 
-    this.userService.getUser().filter(user => user !== undefined).subscribe(user => this.user = user);
+    this.userService.getUser().filter(isDefined).subscribe(user => this.user = user);
     this.userService.userChanged().subscribe(user => this.user = user);
   }
 
