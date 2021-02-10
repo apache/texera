@@ -41,7 +41,7 @@ class PostgreSQLSourceOpExec private[postgresql] (
   @throws[RuntimeException]
   override def addKeywordSearch(queryBuilder: StringBuilder): Unit = {
     val columnType = schema.getAttribute(column.get).getType
-    // TODO: check if index exists (e.g., fulltext index is needed to do fulltext search)
+
     if (columnType == AttributeType.STRING) {
       // in sql prepared statement, column name cannot be inserted using PreparedStatement.setString either
       queryBuilder ++= " AND " + column.get + "@@ to_tsquery(?)"
