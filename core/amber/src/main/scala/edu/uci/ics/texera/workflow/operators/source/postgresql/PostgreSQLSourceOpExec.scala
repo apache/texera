@@ -44,9 +44,9 @@ class PostgreSQLSourceOpExec private[postgresql] (
 
     if (columnType == AttributeType.STRING) {
       // in sql prepared statement, column name cannot be inserted using PreparedStatement.setString either
-      queryBuilder ++= " AND " + column.get + "@@ to_tsquery(?)"
+      queryBuilder ++= " AND " + column.get + " @@ to_tsquery(?)"
 
-      // OPTIMIZE: no full text index is required, requiring a built index can help performance on large dataset.
+      // OPTIMIZE: no fulltext index is required, having a built fulltext index can help performance on large dataset.
 
       // OPTIMIZE: limited support on the default language, english. equivalent `to_tsquery('english', ?)`
     } else
