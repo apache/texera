@@ -106,8 +106,7 @@ class UDFServer(pyarrow.flight.FlightServerBase):
         elif action.type == "shutdown":
             # to shutdown the server.
             yield self._response(b'Flight Server is shut down!')
-            # Shut down on background thread to avoid blocking current
-            # request
+            # Shut down on background thread to avoid blocking current request
             threading.Thread(target=self._delayed_shutdown).start()
         elif action.type == "open":
             # open UDF
