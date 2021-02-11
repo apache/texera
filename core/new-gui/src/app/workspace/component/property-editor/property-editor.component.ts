@@ -1,24 +1,22 @@
-import { OperatorSchema } from './../../types/operator-schema.interface';
-import { OperatorPredicate, Breakpoint } from '../../types/workflow-common.interface';
-import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
-import { DynamicSchemaService } from '../../service/dynamic-schema/dynamic-schema.service';
 import { Component } from '@angular/core';
 
-import { Subject } from 'rxjs/Subject';
-import { Observable } from 'rxjs/Observable';
-import '../../../common/rxjs-operators';
-
-import { cloneDeep, isEqual } from 'lodash';
-
-import { JSONSchema7 } from 'json-schema';
+import { FormGroup } from '@angular/forms';
+import { FormlyFieldConfig, FormlyFormOptions } from '@ngx-formly/core';
+import { FormlyJsonschema } from '@ngx-formly/core/json-schema';
 import * as Ajv from 'ajv';
 
-import { FormGroup } from '@angular/forms';
-import { FormlyFormOptions, FormlyFieldConfig } from '@ngx-formly/core';
-import { FormlyJsonschema } from '@ngx-formly/core/json-schema';
-import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from '../../service/execute-workflow/execute-workflow.service';
-import { ExecutionState, OperatorState } from '../../types/execute-workflow.interface';
+import { JSONSchema7 } from 'json-schema';
 
+import { cloneDeep, isEqual } from 'lodash';
+import { Observable } from 'rxjs/Observable';
+
+import { Subject } from 'rxjs/Subject';
+import '../../../common/rxjs-operators';
+import { DynamicSchemaService } from '../../service/dynamic-schema/dynamic-schema.service';
+import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from '../../service/execute-workflow/execute-workflow.service';
+import { ExecutionState } from '../../types/execute-workflow.interface';
+import { Breakpoint, OperatorPredicate } from '../../types/workflow-common.interface';
+import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
 
 /**
  * PropertyEditorComponent is the panel that allows user to edit operator properties.
@@ -31,7 +29,7 @@ import { ExecutionState, OperatorState } from '../../types/execute-workflow.inte
  *  }
  * The automatically generated form will show two input boxes, one titled 'attribute' and one titled 'resultAttribute'.
  * More examples of the operator JSON schema can be found in `mock-operator-metadata.data.ts`
- * More about JSON Schema: Understading JSON Schema - https://spacetelescope.github.io/understanding-json-schema/
+ * More about JSON Schema: Understanding JSON Schema - https://spacetelescope.github.io/understanding-json-schema/
  *
  * OperatorMetadataService will fetch metadata about the operators, which includes the JSON Schema, from the backend.
  *
@@ -50,11 +48,11 @@ import { ExecutionState, OperatorState } from '../../types/execute-workflow.inte
 })
 export class PropertyEditorComponent {
 
-  // debounce time for form input in miliseconds
+  // debounce time for form input in milliseconds
   //  please set this to multiples of 10 to make writing tests easy
   public static formInputDebounceTime: number = FORM_DEBOUNCE_TIME_MS;
 
-  // re-delcare enum for angular template to access it
+  // re-declare enum for angular template to access it
   public readonly ExecutionState = ExecutionState;
 
   // operatorID if the component is displaying operator property editor
@@ -72,7 +70,7 @@ export class PropertyEditorComponent {
   // the source event stream of form change triggered by library at each user input
   public sourceFormChangeEventStream = new Subject<object>();
 
-  // the output form change event stream after debouce time and filtering out values
+  // the output form change event stream after debounce time and filtering out values
   public operatorPropertyChangeStream = this.createOutputFormChangeEventStream(
     this.sourceFormChangeEventStream, data => this.checkOperatorProperty(data));
 
@@ -261,7 +259,7 @@ export class PropertyEditorComponent {
    * Handles the form change event stream observable,
    *  which corresponds to every event the json schema form library emits.
    *
-   * Applies rules that transform the event stream to trigger resonably and less frequently ,
+   * Applies rules that transform the event stream to trigger reasonably and less frequently ,
    *  such as debounce time and distince condition.
    *
    * Then modifies the operator property to use the new form data.

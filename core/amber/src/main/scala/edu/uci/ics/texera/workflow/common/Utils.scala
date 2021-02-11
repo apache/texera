@@ -1,15 +1,17 @@
 package edu.uci.ics.texera.workflow.common
 
-import java.nio.file.{Files, Path, Paths}
-
+import com.fasterxml.jackson.annotation.JsonInclude.Include
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 
+import java.nio.file.{Files, Path, Paths}
+
 object Utils {
 
-  val AMBER_HOME_FOLDER_NAME = "amber";
-
-  final val objectMapper = new ObjectMapper().registerModule(DefaultScalaModule)
+  final val objectMapper = new ObjectMapper()
+    .registerModule(DefaultScalaModule)
+    .setSerializationInclusion(Include.NON_NULL)
+    .setSerializationInclusion(Include.NON_ABSENT)
 
   /**
     * Gets the real path of the amber home directory by:
@@ -39,6 +41,7 @@ object Utils {
       )
     }
   }
+  val AMBER_HOME_FOLDER_NAME = "amber";
 
   private def isAmberHomePath(path: Path): Boolean = {
     path.toRealPath().endsWith(AMBER_HOME_FOLDER_NAME)

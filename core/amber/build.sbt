@@ -43,11 +43,11 @@ libraryDependencies ++= Seq(
 
 libraryDependencies += "org.jgrapht" % "jgrapht-core" % "1.4.0"
 
-// dropwizard webframework
+// dropwizard web framework
 val dropwizardVersion = "1.3.23"
 // jersey version should be the same as jersey-server that is contained in dropwizard
 val jerseyMultipartVersion = "2.25.1"
-val jacksonVersion = "2.11.3"
+val jacksonVersion = "2.12.0"
 
 libraryDependencies ++= Seq(
   "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
@@ -89,6 +89,9 @@ libraryDependencies += "org.apache.lucene" % "lucene-memory" % "8.7.0"
 
 // https://mvnrepository.com/artifact/mysql/mysql-connector-java
 libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.19"
+
+// https://mvnrepository.com/artifact/org.postgresql/postgresql
+libraryDependencies += "org.postgresql" % "postgresql" % "42.2.18"
 
 // https://mvnrepository.com/artifact/org.jooq/jooq
 libraryDependencies += "org.jooq" % "jooq" % "3.14.4"

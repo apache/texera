@@ -20,7 +20,8 @@ import edu.uci.ics.texera.workflow.operators.regex.RegexOpDesc
 import edu.uci.ics.texera.workflow.operators.reservoirsampling.ReservoirSamplingOpDesc
 import edu.uci.ics.texera.workflow.operators.sentiment.SentimentAnalysisOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
-import edu.uci.ics.texera.workflow.operators.source.mysql.MysqlSourceOpDesc
+import edu.uci.ics.texera.workflow.operators.source.mysql.MySQLSourceOpDesc
+import edu.uci.ics.texera.workflow.operators.source.postgresql.PostgreSQLSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.typecasting.TypeCastingOpDesc
 import edu.uci.ics.texera.workflow.operators.union.UnionOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.barChart.BarChartOpDesc
@@ -54,7 +55,8 @@ import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
     new Type(value = classOf[PieChartOpDesc], name = "PieChart"),
     new Type(value = classOf[WordCloudOpDesc], name = "WordCloud"),
     new Type(value = classOf[PythonUDFOpDesc], name = "PythonUDF"),
-    new Type(value = classOf[MysqlSourceOpDesc], name = "MysqlSource"),
+    new Type(value = classOf[MySQLSourceOpDesc], name = "MySQLSource"),
+    new Type(value = classOf[PostgreSQLSourceOpDesc], name = "PostgreSQLSource"),
     new Type(value = classOf[TypeCastingOpDesc], name = "TypeCasting"),
     new Type(value = classOf[LimitOpDesc], name = "Limit"),
     new Type(value = classOf[RandomKSamplingOpDesc], name = "RandomKSampling"),

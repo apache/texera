@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.source.mysql
+package edu.uci.ics.texera.workflow.operators.source
 
 import akka.actor.ActorRef
 import akka.util.Timeout
@@ -18,7 +18,7 @@ import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecuto
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-class MysqlSourceOpExecConfig(
+class SQLSourceOpExecConfig(
     tag: OperatorIdentity,
     opExec: Int => SourceOperatorExecutor
 ) extends OpExecConfig(tag) {
