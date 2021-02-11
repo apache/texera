@@ -49,7 +49,6 @@ export class NavigationComponent implements OnInit {
   public runButtonText = 'Run';
   public runIcon = 'play-circle';
   public runDisable = false;
-  public executionResultID: string|undefined;
 
   // whether user dashboard is enabled and accessible from the workspace
   public userSystemEnabled: boolean = environment.userSystemEnabled;
@@ -81,11 +80,6 @@ export class NavigationComponent implements OnInit {
     executeWorkflowService.getExecutionStateStream().subscribe(
       event => {
         this.executionState = event.current.state;
-        switch (event.current.state) {
-          case ExecutionState.Completed:
-            this.executionResultID = event.current.resultID;
-            break;
-        }
         this.applyRunButtonBehavior(this.getRunButtonBehavior(this.executionState, this.isWorkflowValid));
       }
     );
@@ -241,11 +235,18 @@ export class NavigationComponent implements OnInit {
    *  excel format.
    */
   public onClickDownloadExecutionResult(downloadType: string): void {
-    // If there is no valid executionResultID to download from right now, exit immediately
-    if (this.executionResultID === undefined) {
+    // exit if the workflow is not finished
+    if (this.isDownloadDisabled()) {
       return;
     }
-    this.executeWorkflowService.downloadWorkflowExecutionResult(this.executionResultID, downloadType);
+    this.executeWorkflowService.downloadWorkflowExecutionResult(downloadType);
+  }
+
+  /**
+   * enable result downloading only when the workflow completes executing
+   */
+  public isDownloadDisabled(): boolean {
+    return this.executionState !== ExecutionState.Completed;
   }
 
   /**

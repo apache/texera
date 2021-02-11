@@ -81,7 +81,7 @@ export class ExecuteWorkflowService {
         return { state: ExecutionState.Running };
       case 'WorkflowCompletedEvent':
         const resultMap = new Map(event.result.map(r => [r.operatorID, r]));
-        return { state: ExecutionState.Completed, resultID: undefined, resultMap: resultMap };
+        return { state: ExecutionState.Completed, resultID: event.resultID, resultMap: resultMap };
       case 'WorkflowPausedEvent':
         if (this.currentState.state === ExecutionState.BreakpointTriggered ||
           this.currentState.state === ExecutionState.Paused) {
@@ -279,18 +279,19 @@ export class ExecuteWorkflowService {
    * Sends the finished workflow ID to the server to download the excel file using file saver library.
    * @param executionID
    */
-  public downloadWorkflowExecutionResult(executionID: string, downloadType: string): void {
-    const requestURL = `${AppSettings.getApiEndpoint()}/${DOWNLOAD_WORKFLOW_ENDPOINT}`
-      + `?resultID=${executionID}&downloadType=${downloadType}`;
+  public downloadWorkflowExecutionResult(downloadType: string): void {
+    this.workflowWebsocketService.send('ResultDownloadRequest', {downloadType: downloadType});
+    // const requestURL = `${AppSettings.getApiEndpoint()}/${DOWNLOAD_WORKFLOW_ENDPOINT}`
+    //   + `?resultID=${executionID}&downloadType=${downloadType}`;
 
-    this.http.get(
-      requestURL,
-      { responseType: 'blob' }
-    ).subscribe(
-      // response => saveAs(response, downloadName),
-      () => window.location.href = requestURL,
-      error => console.log(error)
-    );
+    // this.http.get(
+    //   requestURL,
+    //   { responseType: 'blob' }
+    // ).subscribe(
+    //   // response => saveAs(response, downloadName),
+    //   () => window.location.href = requestURL,
+    //   error => console.log(error)
+    // );
   }
 
   public getExecutionStateStream(): Observable<{ previous: ExecutionStateInfo, current: ExecutionStateInfo }> {
@@ -320,7 +321,7 @@ export class ExecuteWorkflowService {
     if (isEqual(this.currentState, stateInfo)) {
       return;
     }
-    console.log(stateInfo);
+    console.log('stateInfo', stateInfo);
     console.log(this.clearTimeoutState);
     console.log(this.clearTimeoutState?.includes(stateInfo.state));
     if (this.clearTimeoutState?.includes(stateInfo.state)) {

@@ -98,3 +98,9 @@ libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2"
 libraryDependencies += "org.scalamock" %% "scalamock" % "4.4.0" % Test
 libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.2"
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.2" % Test
+
+libraryDependencies += "com.google.oauth-client" % "google-oauth-client" % "1.31.4"
+libraryDependencies += "com.google.oauth-client" % "google-oauth-client-jetty" % "1.31.4"
+libraryDependencies += "com.google.api-client" % "google-api-client" % "1.31.1"
+libraryDependencies += "com.google.apis" % "google-api-services-sheets" % "v4-rev612-1.25.0"
+

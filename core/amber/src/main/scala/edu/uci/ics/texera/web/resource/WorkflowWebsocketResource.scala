@@ -29,8 +29,13 @@ object WorkflowWebsocketResource {
 
   val nextWorkflowID = new AtomicInteger(0)
 
+  // Map[sessionId, Session]
   val sessionMap = new mutable.HashMap[String, Session]
+
+  // Map[sessionId, (WorkflowCompiler, ActorRef)]
   val sessionJobs = new mutable.HashMap[String, (WorkflowCompiler, ActorRef)]
+  
+  // Map[sessionId, Map[operatorId, List[ITuple]]]
   val sessionResults = new mutable.HashMap[String, Map[String, List[ITuple]]]
 }
 
@@ -71,6 +76,8 @@ class WorkflowWebsocketResource {
           addBreakpoint(session, breakpoint)
         case paginationRequest: ResultPaginationRequest =>
           resultPagination(session, paginationRequest)
+        case resultDownloadRequest: ResultDownloadRequest =>
+          downloadResult(session, resultDownloadRequest)
       }
     } catch {
       case e: Throwable => {
@@ -250,6 +257,11 @@ class WorkflowWebsocketResource {
 
     send(session, WorkflowStartedEvent())
 
+  }
+
+  def downloadResult(session: Session, resultDownloadRequest: ResultDownloadRequest): Unit = {
+    val resultDownloadResponse = ResultDownloadResource.apply(resultDownloadRequest, sessionResults(session.getId))
+    send(session, resultDownloadResponse)
   }
 
 }

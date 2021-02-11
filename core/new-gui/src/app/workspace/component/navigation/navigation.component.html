@@ -45,7 +45,7 @@
         <button (click)="onClickRestoreZoomOffsetDefault()" nz-button title="reset zoom">
           <i nz-icon nzType="fullscreen" nzTheme="outline"></i>
         </button>
-        <button nz-button [disabled]="!executionResultID" [nzDisabled]="!executionResultID" [nzDropdownMenu]="menu"
+        <button nz-button [disabled]="isDownloadDisabled()" [nzDisabled]="isDownloadDisabled()" [nzDropdownMenu]="menu"
                 id="downloadExcelOptions" nz-dropdown title="download execution result">
           <i nz-icon nzType="cloud-download" nzTheme="outline"></i>
         </button>
@@ -59,6 +59,8 @@
             <li nz-menu-item class="drop-down-item" (click)="onClickDownloadExecutionResult('xlsx')">XLSX
               File
               (*.xlsx)
+            </li>
+            <li nz-menu-item class="drop-down-item" (click)="onClickDownloadExecutionResult('google_sheet')">google sheet
             </li>
           </ul>
         </nz-dropdown-menu>

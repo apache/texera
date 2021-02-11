@@ -67,7 +67,8 @@ export type TexeraWebsocketRequestTypeMap = {
   'ModifyLogicRequest': ModifyOperatorLogic,
   'SkipTupleRequest': SkipTuple,
   'AddBreakpointRequest': BreakpointInfo,
-  'ResultPaginationRequest': {pageIndex: number, pageSize: number}
+  'ResultPaginationRequest': {pageIndex: number, pageSize: number},
+  'ResultDownloadRequest': {downloadType: string}
 };
 
 export type TexeraWebsocketEventTypeMap = {
@@ -83,7 +84,8 @@ export type TexeraWebsocketEventTypeMap = {
   'ModifyLogicCompletedEvent': {},
   'OperatorCurrentTuplesUpdateEvent': OperatorCurrentTuples,
   'PaginatedResultEvent': PaginatedResultEvent,
-  'WorkflowExecutionErrorEvent': WorkflowExecutionError
+  'WorkflowExecutionErrorEvent': WorkflowExecutionError,
+  'ResultDownloadResponse': {}
 };
 
 // helper type definitions to generate the request and event types
