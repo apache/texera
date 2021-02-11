@@ -9,6 +9,7 @@ from typing import Dict
 import pandas
 import pyarrow
 import pyarrow.flight
+from pyarrow._flight import FlightDescriptor
 
 import texera_udf_operator_base
 
@@ -22,10 +23,10 @@ class UDFServer(pyarrow.flight.FlightServerBase):
         self.udf_op = udf_op
 
     @classmethod
-    def descriptor_to_key(cls, descriptor):
+    def _descriptor_to_key(cls, descriptor: FlightDescriptor):
         return descriptor.descriptor_type.value, descriptor.command, tuple(descriptor.path or tuple())
 
-    def _make_flight_info(self, key, descriptor, table):
+    def _make_flight_info(self, key, descriptor: FlightDescriptor, table):
         """NOT USED NOW"""
         if self.tls_certificates:
             location = pyarrow.flight.Location.for_grpc_tls(self.host, self.port)
@@ -59,7 +60,7 @@ class UDFServer(pyarrow.flight.FlightServerBase):
 
             yield self._make_flight_info(key, descriptor, table)
 
-    def get_flight_info(self, context, descriptor):
+    def get_flight_info(self, context, descriptor: FlightDescriptor):
         """
 
         NOT USED NOW
@@ -68,20 +69,19 @@ class UDFServer(pyarrow.flight.FlightServerBase):
         This request can accept custom serialized commands containing, for example, your specific
         application parameters.
         """
-        key = UDFServer.descriptor_to_key(descriptor)
+        key = UDFServer._descriptor_to_key(descriptor)
         if key in self.flights:
             table = self.flights[key]
             return self._make_flight_info(key, descriptor, table)
         raise KeyError('Flight not found.')
 
-    def do_put(self, context, descriptor, reader, writer):
+    def do_put(self, context, descriptor: FlightDescriptor, reader, writer):
         """
         Pass Arrow stream from the client to the server. The data must be associated with a `FlightDescriptor`,
         which can be either a path or a command. Here the path is not actually a path on the disk,
         but rather an identifier.
         """
-        key = UDFServer.descriptor_to_key(descriptor)
-        self.flights[key] = reader.read_all()
+        self.flights[UDFServer._descriptor_to_key(descriptor)] = reader.read_all()
 
     def do_get(self, context, ticket):
         """
@@ -111,13 +111,13 @@ class UDFServer(pyarrow.flight.FlightServerBase):
             threading.Thread(target=self._delayed_shutdown).start()
         elif action.type == "open":
             # open UDF
-            user_args_table = self.flights[self.descriptor_to_key(self._accept(b'args'))]
+            user_args_table = self.flights[self._descriptor_to_key(self._accept(b'args'))]
             self.udf_op.open(*user_args_table.to_pydict()['args'])
             yield self._response(b'Success!')
         elif action.type == "compute":
             # execute UDF
             # prepare input data
-            input_key = self.descriptor_to_key(self._accept(b'toPython'))
+            input_key = self._descriptor_to_key(self._accept(b'toPython'))
             try:
                 input_table: pyarrow.Table = self.flights[input_key]
                 input_dataframe: pandas.DataFrame = input_table.to_pandas()
@@ -129,17 +129,17 @@ class UDFServer(pyarrow.flight.FlightServerBase):
                         output_data_list.append(self.udf_op.next())
                 output_dataframe = pandas.DataFrame.from_records(output_data_list)
                 # send output data to Java
-                output_key = self.descriptor_to_key(self._accept(b'fromPython'))
+                output_key = self._descriptor_to_key(self._accept(b'fromPython'))
                 self.flights[output_key] = pyarrow.Table.from_pandas(output_dataframe)
             except:
                 result_buffer = json.dumps({'status': 'Fail', 'errorMessage': traceback.format_exc()})
-                yield self._response(result_buffer.encode(encoding='utf-8'))
+                yield self._response(result_buffer.encode('utf-8'))
 
             # discard this batch of input
             self.flights.pop(input_key)
 
             result_buffer = json.dumps({'status': 'Success'})
-            yield self._response(result_buffer.encode(encoding='utf-8'))
+            yield self._response(result_buffer.encode('utf-8'))
 
         elif action.type == "close":
             # close UDF
@@ -176,7 +176,7 @@ if __name__ == '__main__':
     spec.loader.exec_module(user_module)
 
     # The UDF that will be used in the server. It will be either an inherited operator instance, or created by passing
-    # map_func(filter_func) to a TexeraMapOperator(TexeraFilterOperator) instance.
+    # map_func/filter_func to a TexeraMapOperator/TexeraFilterOperator instance.
     final_UDF = None
 
     if hasattr(user_module, 'operator_instance'):
