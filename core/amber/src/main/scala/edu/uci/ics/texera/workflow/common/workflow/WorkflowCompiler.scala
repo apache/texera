@@ -4,11 +4,11 @@ import akka.actor.ActorRef
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
+import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
-import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 
 import scala.collection.mutable
@@ -38,7 +38,7 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
   def amberWorkflow: Workflow = {
     val amberOperators: mutable.Map[OperatorIdentity, OpExecConfig] = mutable.Map()
     workflowInfo.operators.foreach(o => {
-      val amberOperator = o.operatorExecutor
+      val amberOperator: OpExecConfig = o.operatorExecutor
       amberOperators.put(amberOperator.id, amberOperator)
     })
 

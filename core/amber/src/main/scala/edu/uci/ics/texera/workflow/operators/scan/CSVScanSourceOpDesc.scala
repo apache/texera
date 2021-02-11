@@ -46,7 +46,7 @@ class CSVScanSourceOpDesc extends SourceOperatorDescriptor {
 
     fileName match {
       case Some(path) =>
-        val headerLine =
+        val headerLine: String =
           Files.asCharSource(new File(path), Charset.defaultCharset).readFirstLine
 
         new CSVScanSourceOpExecConfig(
@@ -69,7 +69,7 @@ class CSVScanSourceOpDesc extends SourceOperatorDescriptor {
       "Scan data from a local CSV file",
       OperatorGroupConstants.SOURCE_GROUP,
       List.empty,
-      asScalaBuffer(singletonList(new OutputPort(""))).toList
+      asScalaBuffer(singletonList(OutputPort(""))).toList
     )
   }
 
@@ -77,10 +77,18 @@ class CSVScanSourceOpDesc extends SourceOperatorDescriptor {
   override def sourceSchema(): Schema = {
     if (fileName.isEmpty) return null
 
-    val headerLine =
+    val headerLine: String =
       Files.asCharSource(new File(fileName.get), Charset.defaultCharset).readFirstLine
     inferSchema(headerLine)
 
+  }
+
+  override def setContext(workflowContext: WorkflowContext): Unit = {
+    super.setContext(workflowContext)
+    if (context.userID.isDefined)
+      fileName = Option(
+        UserFileUtils.getFilePath(context.userID.get.toString, fileName.get).toString
+      )
   }
 
   private def inferSchema(headerLine: String): Schema = {
@@ -102,13 +110,5 @@ class CSVScanSourceOpDesc extends SourceOperatorDescriptor {
       )
       .build
 
-  }
-
-  override def setContext(workflowContext: WorkflowContext): Unit = {
-    super.setContext(workflowContext)
-    if (context.userID.isDefined)
-      fileName = Option(
-        UserFileUtils.getFilePath(context.userID.get.toString, fileName.get).toString
-      )
   }
 }

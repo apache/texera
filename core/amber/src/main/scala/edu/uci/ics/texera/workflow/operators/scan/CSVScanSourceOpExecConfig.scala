@@ -29,7 +29,7 @@ class CSVScanSourceOpExecConfig(
         new WorkerLayer(
           LayerIdentity(tag, "main"),
           i => {
-            val endOffset =
+            val endOffset: Long =
               if (i != numWorkers - 1) totalBytes / numWorkers * (i + 1) else totalBytes
             new CSVScanSourceOpExec(
               filePath,
