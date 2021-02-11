@@ -6,15 +6,6 @@ import java.io.Serializable;
 import java.sql.Timestamp;
 
 public enum AttributeType implements Serializable {
-    // A field that is indexed but not tokenized: the entire String
-    // value is indexed as a single token
-    STRING("string", String.class),
-    INTEGER("integer", Integer.class),
-    LONG("long", Long.class),
-    DOUBLE("double", Double.class),
-    BOOLEAN("boolean", Boolean.class),
-    TIMESTAMP("timestamp", Timestamp.class),
-    ANY("ANY", Object.class);
 
     /**
      * To add a new AttributeType, update the following files to handle the new type:
@@ -30,9 +21,22 @@ public enum AttributeType implements Serializable {
      * New AttributeTypes might need to be converted into a numerical value in order to perform
      * aggregations.
      * <p>
-     * 4. TypeCastingOpExec (optional as this stage):
+     * 4. SchemaPropagationService.SchemaAttribute (frontend).
+     * <p>
+     * 5. TypeCastingOpExec (optional as this stage):
      * Typical type casting among internal types, if added also to TypeCastingAttributeType.
      */
+
+
+    // A field that is indexed but not tokenized: the entire String
+    // value is indexed as a single token
+    STRING("string", String.class),
+    INTEGER("integer", Integer.class),
+    LONG("long", Long.class),
+    DOUBLE("double", Double.class),
+    BOOLEAN("boolean", Boolean.class),
+    TIMESTAMP("timestamp", Timestamp.class),
+    ANY("ANY", Object.class);
 
     private final String name;
     private final Class<?> fieldClass;
@@ -56,10 +60,14 @@ public enum AttributeType implements Serializable {
             return STRING;
         } else if (fieldClass.equals(Integer.class)) {
             return INTEGER;
+        } else if (fieldClass.equals(Long.class)) {
+            return LONG;
         } else if (fieldClass.equals(Double.class)) {
             return DOUBLE;
         } else if (fieldClass.equals(Boolean.class)) {
             return BOOLEAN;
+        } else if (fieldClass.equals(Timestamp.class)) {
+            return TIMESTAMP;
         } else {
             return ANY;
         }
