@@ -2,8 +2,8 @@ package edu.uci.ics.texera.workflow.operators.source
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, UIWidget}
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 
@@ -33,6 +33,7 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Password")
+  @JsonSchemaInject(json = UIWidget.UIWidgetPassword)
   var password: String = _
 
   @JsonProperty()
@@ -56,6 +57,7 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
   @JsonProperty()
   @JsonSchemaTitle("Keywords to Search")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
+  @JsonSchemaInject(json = UIWidget.UIWidgetTextArea)
   var keywords: Option[String] = None
 
   @JsonProperty(defaultValue = "false")
