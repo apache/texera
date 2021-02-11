@@ -143,7 +143,7 @@ class UDFServer(pyarrow.flight.FlightServerBase):
         elif action.type == "close":
             # close UDF
             self.udf_op.close()
-            yield pyarrow.flight.Result(pyarrow.py_buffer(b'Success!'))
+            yield self._response(b'Success!')
         else:
             raise ValueError("Unknown action {!r}".format(action.type))
 
