@@ -11,16 +11,18 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.mutable
 
 class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowContext) {
+
+  init()
 
   def init(): Unit = {
     this.workflowInfo.operators.foreach(initOperator)
   }
 
   def initOperator(operator: OperatorDescriptor): Unit = {
-    operator.context = context
+    operator.setContext(context)
   }
 
   def validate: Map[String, Set[ConstraintViolation]] =
@@ -42,8 +44,8 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
 
     val outLinks: mutable.Map[OperatorIdentity, mutable.Set[OperatorIdentity]] = mutable.Map()
     workflowInfo.links.foreach(link => {
-      val origin = OperatorIdentity(this.context.workflowID, link.origin.operatorID)
-      val dest = OperatorIdentity(this.context.workflowID, link.destination.operatorID)
+      val origin = OperatorIdentity(this.context.jobID, link.origin.operatorID)
+      val dest = OperatorIdentity(this.context.jobID, link.destination.operatorID)
       val destSet = outLinks.getOrElse(origin, mutable.Set())
       destSet.add(dest)
       outLinks.update(origin, destSet)
@@ -63,6 +65,12 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
       outLinksImmutableValue.toMap
 
     new Workflow(amberOperators, outLinksImmutable)
+  }
+
+  def initializeBreakpoint(controller: ActorRef): Unit = {
+    for (pair <- this.workflowInfo.breakpoints) {
+      addBreakpoint(controller, pair.operatorID, pair.breakpoint)
+    }
   }
 
   def addBreakpoint(
@@ -110,12 +118,6 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
 //          operatorID,
 //          new CountGlobalBreakpoint("breakpointID", countBp.count)
 //        )
-    }
-  }
-
-  def initializeBreakpoint(controller: ActorRef): Unit = {
-    for (pair <- this.workflowInfo.breakpoints) {
-      addBreakpoint(controller, pair.operatorID, pair.breakpoint)
     }
   }
 

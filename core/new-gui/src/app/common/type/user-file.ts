@@ -4,7 +4,8 @@
  * Corresponds to `/web/src/main/java/edu/uci/ics/texera/web/resource/UserFileResource.java`
  */
 export interface UserFile extends Readonly<{
-  id: number;
+  uid: number;
+  fid: number;
   name: string;
   path: string;
   description: string;

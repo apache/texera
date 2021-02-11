@@ -1,11 +1,14 @@
 package edu.uci.ics.texera.web.resource
 
+import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute
 import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo}
 import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
+import io.dropwizard.jersey.sessions.Session
+
+import javax.servlet.http.HttpSession
 import javax.ws.rs.core.MediaType
 import javax.ws.rs.{Consumes, POST, Path, Produces}
-
 case class SchemaPropagationResponse(
     code: Int,
     result: Map[String, List[Option[List[Attribute]]]],
@@ -20,12 +23,19 @@ class SchemaPropagationResource {
   @POST
   @Path("/autocomplete")
   def suggestAutocompleteSchema(
+      @Session httpSession: HttpSession,
       workflowStr: String
   ): SchemaPropagationResponse = {
-    println(workflowStr)
+
     val workflow = Utils.objectMapper.readValue(workflowStr, classOf[WorkflowInfo])
-    println("workflow", workflow)
+
     val context = new WorkflowContext
+    context.userID = Option(
+      UserResource
+        .getUser(httpSession)
+        .getUid
+    )
+
     val texeraWorkflowCompiler = new WorkflowCompiler(
       WorkflowInfo(workflow.operators, workflow.links, workflow.breakpoints),
       context

@@ -2,8 +2,6 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
 import { AppSettings } from '../../../app-setting';
-
-import { GenericWebResponse } from '../../../type/generic-web-response';
 import { UserFile } from '../../../type/user-file';
 import { UserService } from '../user.service';
 
@@ -15,7 +13,7 @@ export const USER_FILE_DELETE_URL = 'user/file/delete';
 })
 export class UserFileService {
   private userFiles: UserFile[] | undefined;
-  private userFilesChanged = new Subject<ReadonlyArray<UserFile> | undefined>();
+  private userFilesChanged = new Subject<null>();
 
   constructor(
     private http: HttpClient,
@@ -33,7 +31,7 @@ export class UserFileService {
     return this.userFiles;
   }
 
-  public getUserFilesChangedEvent(): Observable<ReadonlyArray<UserFile> | undefined> {
+  public getUserFilesChangedEvent(): Observable<null> {
     return this.userFilesChanged.asObservable();
   }
 
@@ -46,10 +44,10 @@ export class UserFileService {
       return;
     }
 
-    this.getFilesHttpRequest().subscribe(
+    this.fetchFileList().subscribe(
       files => {
         this.userFiles = files;
-        this.userFilesChanged.next(this.userFiles);
+        this.userFilesChanged.next();
       }
     );
   }
@@ -60,8 +58,9 @@ export class UserFileService {
    * @param targetFile
    */
   public deleteFile(targetFile: UserFile): void {
-    this.deleteFileHttpRequest(targetFile.id).subscribe(
-      () => this.refreshFiles()
+    this.http.delete<Response>(`${AppSettings.getApiEndpoint()}/${USER_FILE_DELETE_URL}/${targetFile.fid}`).subscribe(
+      () => this.refreshFiles(),
+      err => alert('Can\'t delete the file: ' + err.error)
     );
   }
 
@@ -84,11 +83,7 @@ export class UserFileService {
     return Math.max(fileSize, 0.1).toFixed(1) + byteUnits[i];
   }
 
-  private deleteFileHttpRequest(fileID: number): Observable<GenericWebResponse> {
-    return this.http.delete<GenericWebResponse>(`${AppSettings.getApiEndpoint()}/${USER_FILE_DELETE_URL}/${fileID}`);
-  }
-
-  private getFilesHttpRequest(): Observable<UserFile[]> {
+  private fetchFileList(): Observable<UserFile[]> {
     return this.http.get<UserFile[]>(`${AppSettings.getApiEndpoint()}/${USER_FILE_LIST_URL}`);
   }
 
@@ -109,7 +104,7 @@ export class UserFileService {
 
   private clearUserFile(): void {
     this.userFiles = [];
-    this.userFilesChanged.next(this.userFiles);
+    this.userFilesChanged.next();
   }
 
 }
