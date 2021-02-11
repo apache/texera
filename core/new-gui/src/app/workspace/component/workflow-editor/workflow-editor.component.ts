@@ -936,13 +936,12 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   /**
    * Deletes currently highlighted operators and groups when user presses the delete key.
-   * When the delete key is clicked to INPUT or TEXTAREA fields, operator should not be deleted
+   * When the focus is not on root document body, operator should not be deleted
    */
   private handleElementDelete(): void {
     Observable.fromEvent<KeyboardEvent>(document, 'keydown')
+      .filter(event => document.activeElement === document.body)
       .filter(event => this.interactive)
-      .filter(event => (<HTMLElement>event.target).nodeName !== 'INPUT')
-      .filter(event => (<HTMLElement>event.target).nodeName !== 'TEXTAREA')
       .filter(event => event.key === 'Backspace' || event.key === 'Delete')
       .subscribe(() => {
         const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
@@ -956,7 +955,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handleElementSelectAll(): void {
     Observable.fromEvent<KeyboardEvent>(document, 'keydown')
-      .filter(event => (<HTMLElement>event.target).nodeName !== 'INPUT')
+      .filter(event => document.activeElement === document.body)
       .filter(event => (event.metaKey || event.ctrlKey) && event.key === 'a')
       .subscribe(event => {
         event.preventDefault();
@@ -976,8 +975,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handleElementCopy(): void {
     Observable.fromEvent<ClipboardEvent>(document, 'copy')
-      .filter(event => (<HTMLElement>event.target).nodeName !== 'INPUT')
-      .subscribe(() => {
+    .filter(event => document.activeElement === document.body)
+    .subscribe(() => {
         const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
         const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
         if (highlightedOperatorIDs.length > 0 || highlightedGroupIDs.length > 0) {
@@ -994,8 +993,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handleOperatorCut(): void {
     Observable.fromEvent<ClipboardEvent>(document, 'cut')
+      .filter(event => document.activeElement === document.body)
       .filter(event => this.interactive)
-      .filter(event => (<HTMLElement>event.target).nodeName !== 'INPUT')
       .subscribe(() => {
         const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
         const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
@@ -1076,8 +1075,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handleOperatorPaste(): void {
     Observable.fromEvent<ClipboardEvent>(document, 'paste')
+      .filter(event => document.activeElement === document.body)
       .filter(event => this.interactive)
-      .filter(event => (<HTMLElement>event.target).nodeName !== 'INPUT')
       .subscribe(() => {
         // if there is something to paste
         if (this.copiedOperators.size > 0 || this.copiedGroups.size > 0) {
