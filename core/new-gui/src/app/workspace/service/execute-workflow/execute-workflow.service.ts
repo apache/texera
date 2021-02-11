@@ -81,7 +81,7 @@ export class ExecuteWorkflowService {
         return { state: ExecutionState.Running };
       case 'WorkflowCompletedEvent':
         const resultMap = new Map(event.result.map(r => [r.operatorID, r]));
-        return { state: ExecutionState.Completed, resultID: event.resultID, resultMap: resultMap };
+        return { state: ExecutionState.Completed, resultID: undefined, resultMap: resultMap };
       case 'WorkflowPausedEvent':
         if (this.currentState.state === ExecutionState.BreakpointTriggered ||
           this.currentState.state === ExecutionState.Paused) {
