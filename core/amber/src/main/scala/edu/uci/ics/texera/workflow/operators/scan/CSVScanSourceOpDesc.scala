@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.scan
 
-import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.google.common.io.Files
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.common.Constants
@@ -23,7 +23,7 @@ import scala.collection.immutable.List
 class CSVScanSourceOpDesc extends SourceOperatorDescriptor {
 
   @JsonProperty(required = true)
-  @JsonSchemaTitle("File")
+  @JsonSchemaTitle("File Name")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
   var fileName: Option[String] = None
 
@@ -38,13 +38,16 @@ class CSVScanSourceOpDesc extends SourceOperatorDescriptor {
   @JsonPropertyDescription("whether the CSV file contains a header line")
   var hasHeader: Boolean = true
 
+  @JsonIgnore
+  var filePath: Option[String] = None
+
   @throws[IOException]
   override def operatorExecutor: CSVScanSourceOpExecConfig = {
     // fill in default values
     if (delimiter.get.isEmpty)
       delimiter = Option(",")
 
-    fileName match {
+    filePath match {
       case Some(path) =>
         val headerLine: String =
           Files.asCharSource(new File(path), Charset.defaultCharset).readFirstLine
@@ -66,7 +69,7 @@ class CSVScanSourceOpDesc extends SourceOperatorDescriptor {
   override def operatorInfo: OperatorInfo = {
     OperatorInfo(
       "CSV File Scan",
-      "Scan data from a local CSV file",
+      "Scan data from a CSV file",
       OperatorGroupConstants.SOURCE_GROUP,
       List.empty,
       asScalaBuffer(singletonList(OutputPort(""))).toList
@@ -75,20 +78,27 @@ class CSVScanSourceOpDesc extends SourceOperatorDescriptor {
 
   @throws[IOException]
   override def sourceSchema(): Schema = {
-    if (fileName.isEmpty) return null
+    if (filePath.isEmpty) return null
 
     val headerLine: String =
-      Files.asCharSource(new File(fileName.get), Charset.defaultCharset).readFirstLine
+      Files.asCharSource(new File(filePath.get), Charset.defaultCharset).readFirstLine
     inferSchema(headerLine)
 
   }
 
   override def setContext(workflowContext: WorkflowContext): Unit = {
     super.setContext(workflowContext)
+
     if (context.userID.isDefined)
-      fileName = Option(
+      // if context has a valid user ID, the fileName will be a file name,
+      // resolve fileName to be the actual file path.
+      filePath = Option(
         UserFileUtils.getFilePath(context.userID.get.toString, fileName.get).toString
       )
+    else
+      // otherwise, the fileName will be inputted by user, which is the filePath.
+      filePath = fileName
+
   }
 
   private def inferSchema(headerLine: String): Schema = {
