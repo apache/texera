@@ -1,8 +1,5 @@
 package edu.uci.ics.texera.workflow.common.operators.aggregate
 
-import akka.actor.ActorRef
-import akka.event.LoggingAdapter
-import akka.util.Timeout
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.{
   FollowPrevious,

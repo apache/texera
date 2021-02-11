@@ -7,6 +7,8 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttribute
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 
+import java.sql.Timestamp;
+
 public class FilterPredicate {
 
     @JsonProperty(value = "attribute", required = true)
@@ -27,46 +29,64 @@ public class FilterPredicate {
             case STRING:
             case ANY:
                 return evaluateFilterString(tuple);
+            case BOOLEAN:
+                return evaluateFilterBoolean(tuple);
+            case LONG:
+                return evaluateFilterLong(tuple);
             case INTEGER:
                 return evaluateFilterInt(tuple);
             case DOUBLE:
                 return evaluateFilterDouble(tuple);
-            case BOOLEAN:
-                return evaluateFilterBoolean(tuple);
+            case TIMESTAMP:
+                return evaluateFilterTimestamp(tuple);
+
             default:
                 throw new RuntimeException("unsupported attribute type: " + type);
         }
     }
 
+    private boolean evaluateFilterBoolean(Tuple inputTuple) {
+        Boolean tupleValue = inputTuple.getField(attribute, Boolean.class);
+        return evaluateFilter(tupleValue.toString().toLowerCase(), value.trim().toLowerCase(), condition);
+    }
 
     private boolean evaluateFilterDouble(Tuple inputTuple) {
-        Double tupleValue = inputTuple.getField(this.attribute, Double.class);
-        Double compareToValue = Double.parseDouble(this.value);
-        return evaluateFilter(tupleValue, compareToValue, this.condition);
+        Double tupleValue = inputTuple.getField(attribute, Double.class);
+        Double compareToValue = Double.parseDouble(value);
+        return evaluateFilter(tupleValue, compareToValue, condition);
     }
 
     private boolean evaluateFilterInt(Tuple inputTuple) {
-        Integer tupleValueInt = inputTuple.getField(this.attribute, Integer.class);
+        Integer tupleValueInt = inputTuple.getField(attribute, Integer.class);
         Double tupleValueDouble = tupleValueInt == null ? null : (double) tupleValueInt;
-        Double compareToValue = Double.parseDouble(this.value);
-        return evaluateFilter(tupleValueDouble, compareToValue, this.condition);
+        Double compareToValue = Double.parseDouble(value);
+        return evaluateFilter(tupleValueDouble, compareToValue, condition);
+    }
+
+    private boolean evaluateFilterLong(Tuple inputTuple) {
+        Long tupleValue = inputTuple.getField(attribute, Long.class);
+        Long compareToValue = Long.valueOf(value.trim());
+        return evaluateFilter(tupleValue, compareToValue, condition);
     }
 
     private boolean evaluateFilterString(Tuple inputTuple) {
-        String tupleValue = inputTuple.getField(this.attribute).toString();
+        String tupleValue = inputTuple.getField(attribute).toString();
         try {
             Double tupleValueDouble = tupleValue == null ? null : Double.parseDouble(tupleValue.trim());
-            Double compareToValueDouble = Double.parseDouble(this.value);
-            return evaluateFilter(tupleValueDouble, compareToValueDouble, this.condition);
+            Double compareToValueDouble = Double.parseDouble(value);
+            return evaluateFilter(tupleValueDouble, compareToValueDouble, condition);
         } catch (NumberFormatException e) {
-            return evaluateFilter(tupleValue, this.value, this.condition);
+            return evaluateFilter(tupleValue, value, condition);
         }
     }
 
-    private boolean evaluateFilterBoolean(Tuple inputTuple) {
-        Boolean tupleValue = inputTuple.getField(this.attribute, Boolean.class);
-        return evaluateFilter(tupleValue.toString().toLowerCase(), this.value.trim().toLowerCase(), this.condition);
+    private boolean evaluateFilterTimestamp(Tuple inputTuple) {
+        Long tupleValue = inputTuple.getField(attribute, Timestamp.class).getTime();
+        Long compareToValue = Timestamp.valueOf(value.trim()).getTime();
+        return evaluateFilter(tupleValue, compareToValue, condition);
+
     }
+
 
     private static <T extends Comparable<T>> boolean evaluateFilter(T value, T compareToValue, ComparisonType comparisonType) {
         if (value == null) {

@@ -30,7 +30,7 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
     public OperatorInfo operatorInfo() {
         return new OperatorInfo(
                 "Filter",
-                "performs a filter operation",
+                "Performs a filter operation",
                 OperatorGroupConstants.SEARCH_GROUP(),
                 asScalaBuffer(singletonList(new InputPort("", false))).toList(),
                 asScalaBuffer(singletonList(new OutputPort(""))).toList());
