@@ -17,6 +17,10 @@ import javax.servlet.http.HttpSession
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
 
+/**
+  * Model `File` corresponds to `core/new-gui/src/app/common/type/user-file.ts` (frontend).
+  */
+
 @Path("/user/file")
 @Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON))
@@ -65,12 +69,6 @@ class UserFileResource {
     getUserFileRecord(user.getUid)
   }
 
-  private def getUserFileRecord(userID: UInteger): util.List[File] = {
-
-    // TODO: verify user in session?
-    fileDao.fetchByUid(userID)
-  }
-
   @DELETE
   @Path("/delete/{fileID}")
   def deleteUserFile(
@@ -100,6 +98,12 @@ class UserFileResource {
     else {
       Response.status(Response.Status.BAD_REQUEST).entity(validationResult.getRight).build()
     }
+  }
+
+  private def getUserFileRecord(userID: UInteger): util.List[File] = {
+
+    // TODO: verify user in session?
+    fileDao.fetchByUid(userID)
   }
 
   private def validateFileName(fileName: String, userID: UInteger): Pair[Boolean, String] = {
