@@ -12,7 +12,7 @@ export const USER_FILE_DELETE_URL = 'user/file/delete';
   providedIn: 'root'
 })
 export class UserFileService {
-  private userFiles: UserFile[] | undefined;
+  private userFiles: UserFile[] = [];
   private userFilesChanged = new Subject<null>();
 
   constructor(
@@ -27,7 +27,7 @@ export class UserFileService {
    * This is required for HTML page since HTML can only loop through collection instead of index number.
    * You can change the UserFile inside the array but do not change the array itself.
    */
-  public getUserFiles(): ReadonlyArray<UserFile> | undefined {
+  public getUserFiles(): ReadonlyArray<UserFile> {
     return this.userFiles;
   }
 

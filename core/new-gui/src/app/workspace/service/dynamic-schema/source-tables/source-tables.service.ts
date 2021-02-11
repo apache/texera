@@ -84,26 +84,25 @@ export class SourceTablesService {
     schema: OperatorSchema, key: string, enumArray: string[] | undefined, title: string = ''
   ): OperatorSchema | undefined {
 
-    console.log('old schema', schema);
     if (!(schema.jsonSchema.properties && key in schema.jsonSchema.properties)) {
       return undefined;
     }
 
     let newDynamicSchema: OperatorSchema;
-    if (enumArray) {
+    if (enumArray && enumArray.length > 0) {
       newDynamicSchema = {
         ...schema,
         jsonSchema: DynamicSchemaService.mutateProperty(
-          schema.jsonSchema, (k, v) => k === key, () => ({type: 'string', enum: enumArray, uniqueItems: true, title}))
+          schema.jsonSchema, (k, v) => k === key,
+          () => ({type: 'string', enum: enumArray, uniqueItems: true, title}))
       };
     } else {
       newDynamicSchema = {
         ...schema,
         jsonSchema: DynamicSchemaService.mutateProperty(
-          schema.jsonSchema, (k, v) => k === key, () => ({type: 'string'}))
+          schema.jsonSchema, (k, v) => k === key, () => ({type: 'string', title}))
       };
     }
-    console.log('new schema', newDynamicSchema);
     return newDynamicSchema;
   }
 
@@ -117,7 +116,7 @@ export class SourceTablesService {
     if (tableScanSchema) {
       return tableScanSchema;
     }
-    const fileSchema = this.changeInputToEnumInJsonSchema(schema, fileNameInJsonSchema, this.userFileNames, 'File Name');
+    const fileSchema = this.changeInputToEnumInJsonSchema(schema, fileNameInJsonSchema, this.userFileNames, 'File');
     if (fileSchema) {
       return fileSchema;
     }
@@ -160,7 +159,7 @@ export class SourceTablesService {
   private registerUpdateUserFileInFileSourceOp(): void {
     this.userFileService.getUserFilesChangedEvent().subscribe(
       _ => {
-        this.userFileNames = this.userFileService.getUserFiles()?.map(file => file.name);
+        this.userFileNames = this.userFileService.getUserFiles().map(file => file.name);
 
         Array.from(this.dynamicSchemaService.getDynamicSchemaMap().keys())
           .forEach(operatorID => {

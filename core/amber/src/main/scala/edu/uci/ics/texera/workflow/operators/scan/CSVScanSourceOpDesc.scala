@@ -23,7 +23,7 @@ import scala.collection.immutable.List
 class CSVScanSourceOpDesc extends SourceOperatorDescriptor {
 
   @JsonProperty(required = true)
-  @JsonSchemaTitle("File Name")
+  @JsonSchemaTitle("File")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
   var fileName: Option[String] = None
 
