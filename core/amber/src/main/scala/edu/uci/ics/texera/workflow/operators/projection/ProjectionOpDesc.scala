@@ -18,7 +18,7 @@ class ProjectionOpDesc extends MapOpDesc {
   val attributes: List[String] = List[String]()
 
   override def operatorExecutor: OneToOneOpExecConfig = {
-    new OneToOneOpExecConfig(operatorIdentifier, _ => new ProjectionOpExec(this))
+    new OneToOneOpExecConfig(operatorIdentifier, _ => new ProjectionOpExec(attributes))
   }
 
   override def operatorInfo: OperatorInfo = {
