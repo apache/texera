@@ -15,7 +15,11 @@ import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.web.TexeraWebApplication
 import edu.uci.ics.texera.web.model.event._
 import edu.uci.ics.texera.web.model.request._
-import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{sessionJobs, sessionResults}
+import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
+  sessionJobs,
+  sessionMap,
+  sessionResults
+}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo}
 import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
@@ -96,6 +100,8 @@ class WorkflowWebsocketResource {
     }
 
     sessionResults.remove(session.getId)
+    sessionJobs.remove(session.getId)
+    sessionMap.remove(session.getId)
   }
 
   def send(session: Session, event: TexeraWebSocketEvent): Unit = {

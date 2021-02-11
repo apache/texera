@@ -106,14 +106,14 @@ class Controller(
         ) =>
       //process reply messages
       sender ! NetworkAck(id)
-      controlInputPort.handleControlMessage(cmd)
+      handleControlMessageWithTryCatch(cmd)
     case NetworkMessage(
           id,
           cmd @ WorkflowControlMessage(ActorVirtualIdentity.Controller, sequenceNumber, payload)
         ) =>
       //process control messages from self
       sender ! NetworkAck(id)
-      controlInputPort.handleControlMessage(cmd)
+      handleControlMessageWithTryCatch(cmd)
     case msg =>
       stash() //prevent other messages to be executed until initialized
   }
@@ -135,6 +135,7 @@ class Controller(
     if (statusUpdateAskHandle != null) {
       statusUpdateAskHandle.cancel()
     }
+    workflow.cleanupResults()
     logger.logInfo("stopped!")
   }
 
