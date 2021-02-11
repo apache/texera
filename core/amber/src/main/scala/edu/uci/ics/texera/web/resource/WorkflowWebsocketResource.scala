@@ -18,6 +18,7 @@ import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
   sessionMap,
   sessionResults
 }
+import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo}
 import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
@@ -90,22 +91,6 @@ class WorkflowWebsocketResource {
 
   }
 
-  @OnClose
-  def myOnClose(session: Session, cr: CloseReason): Unit = {
-    if (WorkflowWebsocketResource.sessionJobs.contains(session.getId)) {
-      println(s"session ${session.getId} disconnected, kill its controller actor")
-      this.killWorkflow(session)
-    }
-
-    sessionResults.remove(session.getId)
-    sessionJobs.remove(session.getId)
-    sessionMap.remove(session.getId)
-  }
-
-  def send(session: Session, event: TexeraWebSocketEvent): Unit = {
-    session.getAsyncRemote.sendText(objectMapper.writeValueAsString(event))
-  }
-
   def resultPagination(session: Session, request: ResultPaginationRequest): Unit = {
     val paginatedResultEvent = PaginatedResultEvent(
       sessionResults(session.getId)
@@ -168,6 +153,10 @@ class WorkflowWebsocketResource {
     val controller = WorkflowWebsocketResource.sessionJobs(session.getId)._2
     controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, ResumeWorkflow())
     send(session, WorkflowResumedEvent())
+  }
+
+  def send(session: Session, event: TexeraWebSocketEvent): Unit = {
+    session.getAsyncRemote.sendText(objectMapper.writeValueAsString(event))
   }
 
   def executeWorkflow(session: Session, request: ExecuteWorkflowRequest): Unit = {
@@ -264,10 +253,6 @@ class WorkflowWebsocketResource {
     println("workflow killed")
   }
 
-  def send(session: Session, event: TexeraWebSocketEvent): Unit = {
-    session.getAsyncRemote.sendText(objectMapper.writeValueAsString(event))
-  }
-
   @OnClose
   def myOnClose(session: Session, cr: CloseReason): Unit = {
     if (WorkflowWebsocketResource.sessionJobs.contains(session.getId)) {
@@ -276,6 +261,8 @@ class WorkflowWebsocketResource {
     }
 
     sessionResults.remove(session.getId)
+    sessionJobs.remove(session.getId)
+    sessionMap.remove(session.getId)
   }
 
   def removeBreakpoint(session: Session, removeBreakpoint: RemoveBreakpointRequest): Unit = {

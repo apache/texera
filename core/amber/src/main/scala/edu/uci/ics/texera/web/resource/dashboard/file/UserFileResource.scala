@@ -20,7 +20,7 @@ import javax.ws.rs.core.{MediaType, Response}
 @Path("/user/file")
 @Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON))
-class UploadedFileResource {
+class UserFileResource {
 
   final private val fileDao = new FileDao(SqlServer.createDSLContext.configuration)
 
