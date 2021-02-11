@@ -26,21 +26,21 @@ class SchemaPropagationResource {
       @Session httpSession: HttpSession,
       workflowStr: String
   ): SchemaPropagationResponse = {
-
-    val workflow = Utils.objectMapper.readValue(workflowStr, classOf[WorkflowInfo])
-
-    val context = new WorkflowContext
-    context.userID = Option(
-      UserResource
-        .getUser(httpSession)
-        .getUid
-    )
-
-    val texeraWorkflowCompiler = new WorkflowCompiler(
-      WorkflowInfo(workflow.operators, workflow.links, workflow.breakpoints),
-      context
-    )
     try {
+      val workflow = Utils.objectMapper.readValue(workflowStr, classOf[WorkflowInfo])
+
+      val context = new WorkflowContext
+      context.userID = Option(
+        UserResource
+          .getUser(httpSession)
+          .getUid
+      )
+
+      val texeraWorkflowCompiler = new WorkflowCompiler(
+        WorkflowInfo(workflow.operators, workflow.links, workflow.breakpoints),
+        context
+      )
+
       val schemaPropagationResult = texeraWorkflowCompiler
         .propagateWorkflowSchema()
         .map(e => (e._1.operatorID, e._2.map(s => s.map(o => o.getAttributesScala))))
