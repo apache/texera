@@ -16,6 +16,24 @@ public enum AttributeType implements Serializable {
     TIMESTAMP("timestamp", Timestamp.class),
     ANY("ANY", Object.class);
 
+    /**
+     * To add a new AttributeType, update the following files to handle the new type:
+     * 1. SourceOp:
+     * Especially SQLSources will need to map the input schema to Texera.Schema. AttributeType
+     * needs to be converted from original source types accordingly.
+     * <p>
+     * 2. FilterPredicate：
+     * FilterPredicate takes in AttributeTypes and converts them into a comparable type, then do
+     * the comparison. New AttributeTypes needs to be mapped to a comparable type there.
+     * <p>
+     * 3. SpecializedAverageOpDesc.getNumericalValue:
+     * New AttributeTypes might need to be converted into a numerical value in order to perform
+     * aggregations.
+     * <p>
+     * 4. TypeCastingOpExec (optional as this stage):
+     * Typical type casting among internal types, if added also to TypeCastingAttributeType.
+     */
+
     private final String name;
     private final Class<?> fieldClass;
 
