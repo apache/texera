@@ -1,12 +1,10 @@
-package edu.uci.ics.texera.workflow.operators.localscan;
-
+package edu.uci.ics.texera.workflow.operators.scan;
 
 import com.google.common.base.Verify;
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor;
 import edu.uci.ics.texera.workflow.common.scanner.BufferedBlockReader;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
-import org.apache.commons.lang3.ArrayUtils;
 import org.tukaani.xz.SeekableFileInputStream;
 import scala.collection.Iterator;
 
@@ -18,32 +16,24 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-
-public class LocalCsvScanSourceOpExec implements SourceOperatorExecutor {
+public class CSVScanSourceOpExec implements SourceOperatorExecutor {
 
     private final String localPath;
     private final char separator;
     private BufferedBlockReader reader = null;
     private final long startOffset;
     private final long endOffset;
-    private Schema schema;
-    private final boolean header;
+    private final Schema schema;
+    private final boolean hasHeader;
 
-
-    private String[] shrinkStringArray(String[] array, int[] indicesToKeep) {
-        String[] res = new String[indicesToKeep.length];
-        for (int i = 0; i < indicesToKeep.length; ++i)
-            res[i] = array[indicesToKeep[i]];
-        return res;
-    }
-
-    LocalCsvScanSourceOpExec(String localPath, long startOffset, long endOffset, char delimiter, Schema schema, boolean header) {
+    CSVScanSourceOpExec(String localPath, long startOffset, long endOffset, char delimiter, Schema schema,
+                        boolean hasHeader) {
         this.localPath = localPath;
         this.separator = delimiter;
         this.startOffset = startOffset;
         this.endOffset = endOffset;
         this.schema = schema;
-        this.header = header;
+        this.hasHeader = hasHeader;
     }
 
     @Override
@@ -95,12 +85,8 @@ public class LocalCsvScanSourceOpExec implements SourceOperatorExecutor {
                 } catch (IOException e) {
                     e.printStackTrace();
                     throw new UncheckedIOException(e);
-                } catch(Exception e){
-                    e.printStackTrace();
-                    throw e;
                 }
             }
-
         };
     }
 
@@ -115,7 +101,7 @@ public class LocalCsvScanSourceOpExec implements SourceOperatorExecutor {
             if (startOffset > 0)
                 reader.readLine();
             // skip line if this worker reads the start of a file, and the file has a header line
-            if (startOffset == 0 && header) {
+            if (startOffset == 0 && hasHeader) {
                 reader.readLine();
             }
         } catch (IOException e) {

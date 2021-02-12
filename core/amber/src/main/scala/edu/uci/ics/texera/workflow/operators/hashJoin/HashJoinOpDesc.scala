@@ -76,7 +76,7 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
         .getAttributes()
         .forEach(attr => {
           if (schemas(0).containsAttribute(attr.getName())) {
-            builder.add(new Attribute(s"${attr.getName()}1", attr.getType()))
+            builder.add(new Attribute(s"${attr.getName()}#@1", attr.getType()))
           } else if (!attr.getName().equalsIgnoreCase(probeAttributeName)) {
             builder.add(attr)
           }
