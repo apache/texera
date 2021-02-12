@@ -20,13 +20,5 @@ export enum ChartType {
  */
 export interface WordCloudTuple extends Readonly<{
   word: string,
-  size: number
+  count: number
 }> {}
-
-/**
- * DialogData defines the data format which passed to VisualizationPanelContent component
- */
-export interface DialogData {
-  table: object[];
-  chartType: ChartType;
-}

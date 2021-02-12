@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.web.resource
 
+import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.sessionMap
 import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute
@@ -7,7 +8,7 @@ import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowIn
 import io.dropwizard.jersey.sessions.Session
 
 import javax.servlet.http.HttpSession
-import javax.ws.rs.{Consumes, Path, POST, Produces}
+import javax.ws.rs.{Consumes, POST, Path, Produces}
 import javax.ws.rs.core.MediaType
 case class SchemaPropagationResponse(
     code: Int,
@@ -30,11 +31,9 @@ class SchemaPropagationResource {
       val workflow = Utils.objectMapper.readValue(workflowStr, classOf[WorkflowInfo])
 
       val context = new WorkflowContext
-      context.userID = Option(
-        UserResource
-          .getUser(httpSession)
-          .getUid
-      )
+      context.userID = UserResource
+        .getUser(httpSession)
+        .map(u => u.getUid)
 
       val texeraWorkflowCompiler = new WorkflowCompiler(
         WorkflowInfo(workflow.operators, workflow.links, workflow.breakpoints),

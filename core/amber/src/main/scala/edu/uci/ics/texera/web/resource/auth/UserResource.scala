@@ -16,8 +16,8 @@ object UserResource {
 
   private val SESSION_USER = "texera-user"
   // TODO: rewrite this
-  def getUser(session: HttpSession): User =
-    session.getAttribute(SESSION_USER).asInstanceOf[User]
+  def getUser(session: HttpSession): Option[User] =
+    Option.apply(session.getAttribute(SESSION_USER)).map(u => u.asInstanceOf[User])
 
   // TODO: rewrite this
   private def validateUsername(userName: String) =
@@ -41,7 +41,7 @@ class UserResource {
   @GET
   @Path("/auth/status")
   def authStatus(@Session session: HttpSession): User = {
-    getUser(session)
+    getUser(session).orNull
 
   }
 

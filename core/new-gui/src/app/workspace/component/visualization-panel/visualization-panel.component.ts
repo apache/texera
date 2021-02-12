@@ -1,8 +1,9 @@
-import { Component, Input, } from '@angular/core';
+import { Component, Input, OnChanges, } from '@angular/core';
 import { NzModalRef, NzModalService } from 'ng-zorro-antd/modal';
 import { VisualizationPanelContentComponent } from '../visualization-panel-content/visualization-panel-content.component';
 import { ChartType } from '../../types/visualization.interface';
 import { assertType } from '../../../common/util/assert';
+import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 
 /**
  * VisualizationPanelComponent displays the button for visualization in ResultPanel when the result type is chart.
@@ -17,27 +18,40 @@ import { assertType } from '../../../common/util/assert';
   templateUrl: './visualization-panel.component.html',
   styleUrls: ['./visualization-panel.component.scss']
 })
-export class VisualizationPanelComponent {
-  @Input() data: Object[];
-  @Input() chartType: ChartType | null;
+export class VisualizationPanelComponent implements OnChanges {
+
+  @Input() operatorID: string | undefined;
+  displayVisualizationPanel: boolean = false;
 
 
-  constructor(private modal: NzModalService) {
-    this.data = [];
-    this.chartType = null;
+  constructor(
+    private modal: NzModalService,
+    private workflowStatusService: WorkflowStatusService
+  ) {
+    this.workflowStatusService.getResultUpdateStream().subscribe(event => {
+      this.updateDisplayVisualizationPanel();
+    });
+  }
+
+  ngOnChanges() {
+    this.updateDisplayVisualizationPanel();
+  }
+
+  updateDisplayVisualizationPanel() {
+    if (! this.operatorID) {
+      this.displayVisualizationPanel = false;
+      return;
+    }
+    this.displayVisualizationPanel = this.workflowStatusService.getCurrentResult()[this.operatorID]?.chartType !== undefined;
   }
 
   onClickVisualize(): void {
-    assertType<ChartType>(this.chartType);
     const dialogRef = this.modal.create({
       nzTitle: 'Visualization',
       nzWidth: 1100,
       nzContent: VisualizationPanelContentComponent,
       nzComponentParams: {
-        data: {
-          table: this.data,
-          chartType: this.chartType,
-        }
+        operatorID: this.operatorID
       }
     });
 

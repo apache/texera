@@ -43,7 +43,7 @@ class WorkflowResource {
       .from(WORKFLOW)
       .join(WORKFLOW_OF_USER)
       .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
-      .where(WORKFLOW_OF_USER.UID.eq(user.getUid))
+      .where(WORKFLOW_OF_USER.UID.eq(user.map(u => u.getUid).orNull))
       .fetchInto(classOf[Workflow])
   }
 
@@ -61,8 +61,8 @@ class WorkflowResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   def retrieveWorkflow(@PathParam("wid") wid: UInteger, @Session session: HttpSession): Response = {
     val user = UserResource.getUser(session)
-    if (user == null) return Response.status(Response.Status.UNAUTHORIZED).build()
-    if (workflowOfUserExists(wid, user.getUid)) {
+    if (user.isEmpty) return Response.status(Response.Status.UNAUTHORIZED).build()
+    if (workflowOfUserExists(wid, user.get.getUid)) {
       Response.ok(workflowDao.fetchOneByWid(wid)).build()
     } else {
       Response.status(Response.Status.BAD_REQUEST).build()
@@ -90,14 +90,14 @@ class WorkflowResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   def persistWorkflow(@Session session: HttpSession, workflow: Workflow): Response = {
     val user = UserResource.getUser(session)
-    if (user == null) return Response.status(Response.Status.UNAUTHORIZED).build()
-    if (workflowOfUserExists(workflow.getWid, user.getUid)) {
+    if (user.isEmpty) return Response.status(Response.Status.UNAUTHORIZED).build()
+    if (workflowOfUserExists(workflow.getWid, user.get.getUid)) {
       // when the wid is provided, update the existing workflow
       workflowDao.update(workflow)
     } else {
       // when the wid is not provided, treat it as a new workflow
       workflowDao.insert(workflow)
-      workflowOfUserDao.insert(new WorkflowOfUser(user.getUid, workflow.getWid))
+      workflowOfUserDao.insert(new WorkflowOfUser(user.get.getUid, workflow.getWid))
     }
     Response.ok(workflowDao.fetchOneByWid(workflow.getWid)).build()
 
@@ -113,8 +113,8 @@ class WorkflowResource {
   @Path("/{wid}")
   def deleteWorkflow(@PathParam("wid") wid: UInteger, @Session session: HttpSession): Response = {
     val user = UserResource.getUser(session)
-    if (user == null) return null
-    if (workflowOfUserExists(wid, user.getUid)) {
+    if (user.isEmpty) return null
+    if (workflowOfUserExists(wid, user.get.getUid)) {
       workflowDao.deleteById(wid)
       Response.ok().build()
     } else {

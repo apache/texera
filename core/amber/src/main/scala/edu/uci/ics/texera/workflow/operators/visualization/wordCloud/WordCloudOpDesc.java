@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.visualization.wordCloud;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.common.Constants;
 import edu.uci.ics.amber.engine.operators.OpExecConfig;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
@@ -25,9 +26,14 @@ import static scala.collection.JavaConverters.asScalaBuffer;
  */
 
 public class WordCloudOpDesc extends VisualizationOperator {
-    @JsonProperty(value = "text column", required = true)
+    @JsonProperty(required = true)
+    @JsonSchemaTitle("Text column")
     @AutofillAttributeName
     public String textColumn;
+
+    @JsonProperty(required = false, defaultValue = "100")
+    @JsonSchemaTitle("Number of most frequent words")
+    public Integer topN;
 
     @Override
     public String chartType() {
@@ -36,7 +42,10 @@ public class WordCloudOpDesc extends VisualizationOperator {
 
     @Override
     public OpExecConfig operatorExecutor() {
-        return new WordCloudOpExecConfig(this.operatorIdentifier(), Constants.defaultNumWorkers(), textColumn);
+        if (topN == null) {
+            topN = 100;
+        }
+        return new WordCloudOpExecConfig(this.operatorIdentifier(), Constants.defaultNumWorkers(), textColumn, topN);
     }
 
     @Override

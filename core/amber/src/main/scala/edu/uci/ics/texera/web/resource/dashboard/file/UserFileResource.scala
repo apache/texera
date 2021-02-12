@@ -41,7 +41,7 @@ class UserFileResource {
       @FormDataParam("description") description: String,
       @Session session: HttpSession
   ): Response = {
-    val userID = UserResource.getUser(session).getUid
+    val userID = UserResource.getUser(session).get.getUid
     val fileName = fileDetail.getFileName
     val validationResult = validateFileName(fileName, userID)
     if (!validationResult.getLeft)
@@ -65,8 +65,8 @@ class UserFileResource {
   @Path("/list")
   def listUserFiles(@Session session: HttpSession): util.List[File] = {
     val user = UserResource.getUser(session)
-    if (user == null) return new util.ArrayList[File]() {}
-    getUserFileRecord(user.getUid)
+    if (user.isEmpty) return new util.ArrayList[File]() {}
+    getUserFileRecord(user.get.getUid)
   }
 
   @DELETE
@@ -75,7 +75,7 @@ class UserFileResource {
       @PathParam("fileID") fileID: UInteger,
       @Session session: HttpSession
   ): Response = {
-    val userID = UserResource.getUser(session).getUid
+    val userID = UserResource.getUser(session).get.getUid
     // TODO: add user check
     val filePath = fileDao.fetchOneByFid(fileID).getPath
     UserFileUtils.deleteFile(Paths.get(filePath))
@@ -91,7 +91,7 @@ class UserFileResource {
       @Session session: HttpSession,
       @FormDataParam("name") fileName: String
   ): Response = {
-    val userID = UserResource.getUser(session).getUid
+    val userID = UserResource.getUser(session).get.getUid
     val validationResult = validateFileName(fileName, userID)
     if (validationResult.getLeft)
       Response.ok().build()

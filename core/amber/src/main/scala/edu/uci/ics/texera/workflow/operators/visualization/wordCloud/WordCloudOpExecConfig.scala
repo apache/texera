@@ -1,8 +1,5 @@
 package edu.uci.ics.texera.workflow.operators.visualization.wordCloud
 
-import akka.actor.ActorRef
-import akka.event.LoggingAdapter
-import akka.util.Timeout
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.{
   FollowPrevious,
@@ -20,13 +17,11 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
-import scala.collection.mutable
-import scala.concurrent.ExecutionContext
-
 class WordCloudOpExecConfig(
     tag: OperatorIdentity,
     val numWorkers: Int,
-    val textColumn: String
+    val textColumn: String,
+    val topN: Int
 ) extends OpExecConfig(tag) {
 
   override lazy val topology: Topology = {
@@ -39,7 +34,7 @@ class WordCloudOpExecConfig(
     )
     val finalLayer = new WorkerLayer(
       LayerIdentity(tag, "globalPieChartProcessor"),
-      _ => new WordCloudOpFinalExec(),
+      _ => new WordCloudOpFinalExec(topN),
       1,
       FollowPrevious(),
       RoundRobinDeployment()

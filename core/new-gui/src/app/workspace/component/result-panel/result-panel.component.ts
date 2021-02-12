@@ -56,6 +56,9 @@ export class ResultPanelComponent {
   public breakpointTriggerInfo: BreakpointTriggerInfo | undefined;
   public breakpointAction: boolean = false;
 
+  // the highlighted operator ID for display result table / visualization / breakpoint
+  public resultPanelOperatorID: string | undefined;
+
   // paginator section, used when displaying rows
 
   // this attribute stores whether front-end should handle pagination
@@ -141,12 +144,13 @@ export class ResultPanelComponent {
 
     const executionState = this.executeWorkflowService.getExecutionState();
     const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    this.resultPanelOperatorID = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
 
     if (executionState.state === ExecutionState.Failed) {
       this.errorMessages = this.executeWorkflowService.getErrorMessages();
     } else if (executionState.state === ExecutionState.BreakpointTriggered) {
       const breakpointTriggerInfo = this.executeWorkflowService.getBreakpointTriggerInfo();
-      if (highlightedOperators.length === 1 && highlightedOperators[0] === breakpointTriggerInfo?.operatorID) {
+      if (this.resultPanelOperatorID && this.resultPanelOperatorID === breakpointTriggerInfo?.operatorID) {
         this.breakpointTriggerInfo = breakpointTriggerInfo;
         this.breakpointAction = true;
         const result = breakpointTriggerInfo.report.map(r => r.faultedTuple.tuple).filter(t => t !== undefined);
@@ -163,8 +167,8 @@ export class ResultPanelComponent {
         this.errorMessages = errorsMessages;
       }
     } else if (executionState.state === ExecutionState.Completed) {
-      if (highlightedOperators.length === 1) {
-        const result = executionState.resultMap.get(highlightedOperators[0]);
+      if (this.resultPanelOperatorID) {
+        const result = executionState.resultMap.get(this.resultPanelOperatorID);
         if (result) {
           this.chartType = result.chartType;
           this.isFrontPagination = false;
@@ -172,8 +176,8 @@ export class ResultPanelComponent {
         }
       }
     } else if (executionState.state === ExecutionState.Paused) {
-      if (highlightedOperators.length === 1) {
-        const result = executionState.currentTuples[(highlightedOperators[0])]?.tuples;
+      if (this.resultPanelOperatorID) {
+        const result = executionState.currentTuples[this.resultPanelOperatorID]?.tuples;
         if (result) {
           const resultTable: string[][] = [];
           result.forEach(workerTuple => {
@@ -213,6 +217,7 @@ export class ResultPanelComponent {
     this.currentDisplayColumns = undefined;
     this.currentResult = [];
 
+    this.resultPanelOperatorID = undefined;
     this.chartType = undefined;
     this.breakpointTriggerInfo = undefined;
     this.breakpointAction = false;
@@ -323,7 +328,7 @@ export class ResultPanelComponent {
     let resultPaginationInfo = sessionGetObject<ResultPaginationInfo>(PAGINATION_INFO_STORAGE_KEY);
     let viewResultOperatorInfoMap;
     if (resultPaginationInfo && !resultPaginationInfo.newWorkflowExecuted && (viewResultOperatorInfoMap = new Map(resultPaginationInfo.viewResultOperatorInfoMap)).has(this.operatorID)) {
-      let viewResultOperatorInfo = viewResultOperatorInfoMap.get(this.operatorID)!;
+      const viewResultOperatorInfo = viewResultOperatorInfoMap.get(this.operatorID)!;
       this.isFrontPagination = false;
       this.currentResult = viewResultOperatorInfo.currentResult;
       this.currentPageIndex = viewResultOperatorInfo.currentPageIndex;

@@ -29,23 +29,6 @@ import { WorkflowWebsocketService } from '../service/workflow-websocket/workflow
   providers: [
     // uncomment this line for manual testing without opening backend server
     // { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-
-    DragDropService,
-    DynamicSchemaService,
-    ExecuteWorkflowService,
-    JointUIService,
-    OperatorMetadataService,
-    ResultPanelToggleService,
-    SchemaPropagationService,
-    SourceTablesService,
-    UndoRedoService,
-    ValidationWorkflowService,
-    WorkflowActionService,
-    WorkflowCacheService,
-    WorkflowPersistService,
-    WorkflowStatusService,
-    WorkflowUtilService,
-    WorkflowWebsocketService
   ]
 })
 export class WorkspaceComponent implements OnInit {

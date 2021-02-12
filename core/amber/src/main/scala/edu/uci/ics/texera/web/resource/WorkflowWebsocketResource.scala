@@ -160,11 +160,9 @@ class WorkflowWebsocketResource {
     val context = new WorkflowContext
     val jobID = Integer.toString(WorkflowWebsocketResource.nextJobID.incrementAndGet)
     context.jobID = jobID
-    context.userID = Option(
-      UserResource
-        .getUser(sessionMap(session.getId)._2)
-        .getUid
-    )
+    context.userID = UserResource
+      .getUser(sessionMap(session.getId)._2)
+      .map(u => u.getUid)
 
     val texeraWorkflowCompiler = new WorkflowCompiler(
       WorkflowInfo(request.operators, request.links, request.breakpoints),

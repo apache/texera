@@ -8,26 +8,33 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import org.apache.curator.shaded.com.google.common.collect.Iterators;
+import scala.Int;
 import scala.collection.Iterator;
 import scala.collection.JavaConverters;
 import scala.util.Either;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Merge word count maps into a single map (termFreqMap), calculate the size of each token based on its count, and
- * output as tuples of (word, size).
+ * output as tuples of (word, count).
  * @author Mingji Han, Xiaozhen Liu
  *
  */
 public class WordCloudOpFinalExec implements OperatorExecutor {
-    private final int MAX_FONT_SIZE = 200;
-    private final int MIN_FONT_SIZE = 50;
+
     private HashMap<String, Integer> termFreqMap;
     private static final Schema resultSchema = Schema.newBuilder().add(
             new Attribute("word", AttributeType.STRING),
-            new Attribute("size", AttributeType.INTEGER)
+            new Attribute("count", AttributeType.INTEGER)
     ).build();
+
+    private int topN;
+
+    public WordCloudOpFinalExec(int topN) {
+        this.topN = topN;
+    }
 
     @Override
     public void open() {
@@ -53,25 +60,16 @@ public class WordCloudOpFinalExec implements OperatorExecutor {
            return JavaConverters.asScalaIterator(Iterators.emptyIterator());
        }
        else {
-           double minValue = Double.MAX_VALUE;
-           double maxValue = Double.MIN_VALUE;
 
-           for (Map.Entry<String, Integer> e : termFreqMap.entrySet()) {
-               int frequency = e.getValue();
-               minValue = Math.min(minValue, frequency);
-               maxValue = Math.max(maxValue, frequency);
-           }
-           // normalize the font size for wordcloud js
-           // https://github.com/timdream/wordcloud2.js/issues/53
+           List<Map.Entry<String, Integer>> topNWordFreqs = termFreqMap.entrySet().stream()
+                   .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+                   .limit(topN).collect(Collectors.toList());
+
            List<Tuple> termFreqTuples = new ArrayList<>();
-           for (Map.Entry<String, Integer> e : termFreqMap.entrySet()) {
+           for (Map.Entry<String, Integer> e : topNWordFreqs) {
                termFreqTuples.add(Tuple.newBuilder().add(
                        resultSchema,
-                       Arrays.asList(
-                               e.getKey(),
-                               (int) ((e.getValue() - minValue) / (maxValue - minValue) *
-                                       (this.MAX_FONT_SIZE - this.MIN_FONT_SIZE) + this.MIN_FONT_SIZE)
-                       )
+                       Arrays.asList(e.getKey(), e.getValue())
                ).build());
            }
            return JavaConverters.asScalaIterator(termFreqTuples.iterator());
