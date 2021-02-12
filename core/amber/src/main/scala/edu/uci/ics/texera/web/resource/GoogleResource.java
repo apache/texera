@@ -40,7 +40,6 @@ public class GoogleResource {
         } catch (IOException | GeneralSecurityException e) {
             e.printStackTrace();
             throw new RuntimeException("fail to create Google Service");
-//            throw new TexeraException("fail to create Google Service");
         }
     }
 
@@ -49,7 +48,6 @@ public class GoogleResource {
      */
     private static Credential createCredentials(NetHttpTransport httpTransport) throws IOException {
         // Load client secrets test
-//        InputStream in = GoogleSheetTest.class.getResourceAsStream(CREDENTIALS_FILE_PATH);
         File initialFile = new File(CREDENTIALS_FILE_PATH);
         InputStream targetStream = new FileInputStream(initialFile);
         if (targetStream == null) {
