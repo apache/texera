@@ -84,6 +84,8 @@ public class LocalCsvScanSourceOpExec implements SourceOperatorExecutor {
                                     return Double.parseDouble(finalRes[i]);
                                 else if (schema.getAttributeTypes().stream().toArray()[i].equals("boolean"))
                                     return Boolean.parseBoolean(finalRes[i]);
+                                else if (schema.getAttributeTypes().stream().toArray()[i].equals("long"))
+                                    return Long.parseLong(finalRes[i]);
                                 else
                                     return finalRes[i];
                             }).toArray();

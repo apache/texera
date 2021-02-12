@@ -37,11 +37,10 @@ public class LocalCsvFileScanOpDesc extends SourceOperatorDescriptor {
     @JsonPropertyDescription("whether the CSV file contains a header line")
     public Boolean header;
 
-    @JsonProperty(value = "Infer Number", defaultValue = "true")
-    @JsonPropertyDescription("Infer how many rows in the csv file")
-    public Integer inferNumber;
 
 
+
+    final int INFERROWS = 100;
 
     @Override
     public OpExecConfig operatorExecutor() {
@@ -52,9 +51,7 @@ public class LocalCsvFileScanOpDesc extends SourceOperatorDescriptor {
         if (this.header == null) {
             this.header = true;
         }
-        if (this.inferNumber==null) {
-            this.inferNumber = 100;
-        }
+
         try {
             String headerLine = Files.asCharSource(new File(filePath), Charset.defaultCharset()).readFirstLine();
             return new LocalCsvFileScanOpExecConfig(this.operatorIdentifier(), Constants.defaultNumWorkers(),
@@ -91,6 +88,7 @@ public class LocalCsvFileScanOpDesc extends SourceOperatorDescriptor {
     }
 
     private Schema inferSchema(String headerLine) {
+
         if (delimiter == null) {
             return null;
         }
@@ -104,7 +102,7 @@ public class LocalCsvFileScanOpDesc extends SourceOperatorDescriptor {
             if (header != null && header)
                 reader.readLine();
             int i = 0;
-            while((line = reader.readLine())!=null && i<=100) {
+            while((line = reader.readLine())!=null && i<=INFERROWS) {
                 attributeTypeList = inferLine(attributeTypeList, line.split(delimiter));
                 i++;
             }
@@ -128,54 +126,54 @@ public class LocalCsvFileScanOpDesc extends SourceOperatorDescriptor {
     }
     private java.util.List<AttributeType> inferLine (java.util.List<AttributeType> attributeTypeList, String[] tokens) {
         return IntStream.range(0, tokens.length).
-                mapToObj(i->inferToken(attributeTypeList.get(i),tokens[i])).collect(Collectors.toList());
+                mapToObj(i->inferToken(attributeTypeList.get(i),(tokens[i]).toLowerCase())).collect(Collectors.toList());
     }
 
     private AttributeType inferToken (AttributeType attributeType, String token) {
         if (attributeType.getName().equals("string")) {
             return AttributeType.STRING;
         } else if (attributeType.getName().equals("boolean")) {
-            try {
-                Double.parseDouble(token);
-                return AttributeType.BOOLEAN;
-            } catch (Exception e2) {
-                if (token.equals("TRUE") || token.equals("FALSE") ||token.equals("1")||token.equals("0") ) {
-                    return AttributeType.BOOLEAN;
-                } else {
-                    return AttributeType.STRING;
-                }
-
-            }
+            return this.tryParseBoolean(token);
         } else if (attributeType.getName().equals("double")) {
-            try {
-                Double.parseDouble(token);
-                return AttributeType.DOUBLE;
-            } catch (Exception e2) {
-                if (token.equals("TRUE") || token.equals("FALSE"))  {
-                    return AttributeType.BOOLEAN;
-                } else {
-                    return AttributeType.STRING;
-                }
-            }
+            return this.tryParseDouble(token);
+        } else if (attributeType.getName().equals("long")) {
+            return this.tryParseLong(token);
         } else if (attributeType.getName().equals("integer")) {
-            try {
-                Integer.parseInt(token);
-                return AttributeType.INTEGER;
-            } catch (Exception e1) {
-                try {
-                    Double.parseDouble(token);
-                    return AttributeType.DOUBLE;
-                } catch (Exception e2) {
-                    if (token.equals("TRUE") || token.equals("FALSE"))  {
-                        return AttributeType.BOOLEAN;
-                    } else {
-                        return AttributeType.STRING;
-                    }
-                }
-            }
+            return this.tryParseInteger(token);
         }
         return AttributeType.STRING;
 
+    }
+    private AttributeType tryParseInteger (String token) {
+        try {
+            Integer.parseInt(token);
+            return AttributeType.INTEGER;
+        } catch (Exception e) {
+            return tryParseLong(token);
+        }
+    }
+    private AttributeType tryParseLong (String token) {
+        try {
+            Long.parseLong(token);
+            return AttributeType.LONG;
+        } catch (Exception e) {
+            return tryParseDouble(token);
+        }
+    }
+    private AttributeType tryParseDouble (String token) {
+        try {
+            Double.parseDouble(token);
+            return AttributeType.DOUBLE;
+        } catch (Exception e) {
+            return tryParseBoolean(token);
+        }
+    }
+    private AttributeType tryParseBoolean (String token) {
+        if (token.equals("true") || token.equals("false") ||token.equals("1")||token.equals("0") ) {
+            return AttributeType.BOOLEAN;
+        } else {
+            return AttributeType.STRING;
+        }
     }
 
 }
