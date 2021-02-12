@@ -1,23 +1,13 @@
 package edu.uci.ics.amber.engine.faulttolerance
 
-import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.engine.architecture.controller.{
-  Controller,
-  ControllerEventListener,
-  ControllerState
-}
-import akka.actor.{ActorSystem, PoisonPill, Props}
-import akka.event.LoggingAdapter
-import akka.testkit.{ImplicitSender, TestKit, TestProbe}
+import akka.actor.{ActorSystem, Props}
+import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
-import edu.uci.ics.amber.engine.e2e.TestOperators
-import edu.uci.ics.texera.web.model.request.ExecuteWorkflowRequest
-import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo}
-import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
-import org.scalatest.flatspec.AnyFlatSpecLike
+import edu.uci.ics.amber.clustering.SingleNodeListener
 import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
 
-import scala.concurrent.{Await, ExecutionContextExecutor}
+import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
 
 class RecoverySpec
@@ -69,7 +59,7 @@ class RecoverySpec
 //  "A controller" should "pause, stop and restart, then pause the execution of the workflow1" in {
 //    val parent = TestProbe()
 //    val context = new WorkflowContext
-//    context.workflowID = "workflow-test"
+//    context.jobID = "workflow-test"
 //    val objectMapper = Utils.objectMapper
 //    val request =
 //      objectMapper.readValue(

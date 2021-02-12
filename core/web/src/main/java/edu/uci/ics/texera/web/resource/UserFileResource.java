@@ -28,7 +28,7 @@ import static org.jooq.impl.DSL.defaultValue;
 @Path("/user/file")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
-public class UploadedFileResource {
+public class UserFileResource {
 
     /**
      * Corresponds to `src/app/common/type/user-file.ts`
@@ -52,9 +52,6 @@ public class UploadedFileResource {
     /**
      * This method will handle the request to upload a single file.
      *
-     * @param uploadedInputStream
-     * @param fileDetail
-     * @return
      */
     @POST
     @Path("/upload")

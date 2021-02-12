@@ -1,13 +1,13 @@
 import { Component, OnInit } from '@angular/core';
+import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { FileUploader } from 'ng2-file-upload';
 import { UserFileUploadService } from '../../../../../common/service/user/user-file/user-file-upload.service';
-import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { FileUploadItem } from '../../../../../common/type/user-file';
 
 @Component({
   selector: 'texera-ngbd-modal-file-add',
   templateUrl: './ngbd-modal-file-add.component.html',
-  styleUrls: ['./ngbd-modal-file-add.component.scss'],
+  styleUrls: ['./ngbd-modal-file-add.component.scss']
 })
 export class NgbdModalFileAddComponent implements OnInit {
 
@@ -16,8 +16,7 @@ export class NgbdModalFileAddComponent implements OnInit {
 
   // uploader is a data type introduced in ng2-uploader library, which can be used to capture files and store them
   //  inside the uploader queue.
-  public uploader: FileUploader = new FileUploader({ url: '' });
-
+  public uploader: FileUploader = new FileUploader({url: ''});
 
   constructor(
     public activeModal: NgbActiveModal,
@@ -53,9 +52,9 @@ export class NgbdModalFileAddComponent implements OnInit {
 
   public getFileDropped(fileDropEvent: FileList): void {
     for (let i = 0; i < fileDropEvent.length; i++) {
-      const fileOrNull: File | null = fileDropEvent.item(i);
-      if (this.isFile(fileOrNull)) {
-        this.userFileUploadService.addFileToUploadArray(fileOrNull);
+      const file: File | null = fileDropEvent.item(i);
+      if (file !== null) {
+        this.userFileUploadService.addFileToUploadArray(file);
       }
     }
 
@@ -72,10 +71,5 @@ export class NgbdModalFileAddComponent implements OnInit {
       this.userFileUploadService.addFileToUploadArray(fileList[i]);
     }
   }
-
-  private isFile(file: File | null): file is File {
-    return file != null;
-  }
-
 
 }

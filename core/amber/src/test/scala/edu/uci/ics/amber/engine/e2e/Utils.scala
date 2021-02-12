@@ -19,11 +19,11 @@ object Utils {
   def getControllerProps(
       operators: mutable.MutableList[OperatorDescriptor],
       links: mutable.MutableList[OperatorLink],
-      workflowId: String = "workflow-test",
+      jobId: String = "workflow-test",
       workflowTag: String = "workflow-test"
   ): Props = {
     val context = new WorkflowContext
-    context.workflowID = workflowId
+    context.jobID = jobId
 
     val texeraWorkflowCompiler = new WorkflowCompiler(
       WorkflowInfo(operators, links, mutable.MutableList[BreakpointInfo]()),
