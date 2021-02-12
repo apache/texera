@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.common.operators
 
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonSubTypes, JsonTypeInfo}
+import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorInfo, PropertyNameConstants}
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
@@ -12,15 +13,16 @@ import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc
 import edu.uci.ics.texera.workflow.operators.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.texera.workflow.operators.limit.LimitOpDesc
 import edu.uci.ics.texera.workflow.operators.linearregression.LinearRegressionOpDesc
-import edu.uci.ics.texera.workflow.operators.localscan.LocalCsvFileScanOpDesc
 import edu.uci.ics.texera.workflow.operators.projection.ProjectionOpDesc
 import edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFOpDesc
 import edu.uci.ics.texera.workflow.operators.randomksampling.RandomKSamplingOpDesc
 import edu.uci.ics.texera.workflow.operators.regex.RegexOpDesc
 import edu.uci.ics.texera.workflow.operators.reservoirsampling.ReservoirSamplingOpDesc
+import edu.uci.ics.texera.workflow.operators.scan.CSVScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.sentiment.SentimentAnalysisOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
-import edu.uci.ics.texera.workflow.operators.source.mysql.MysqlSourceOpDesc
+import edu.uci.ics.texera.workflow.operators.source.mysql.MySQLSourceOpDesc
+import edu.uci.ics.texera.workflow.operators.source.postgresql.PostgreSQLSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.typecasting.TypeCastingOpDesc
 import edu.uci.ics.texera.workflow.operators.union.UnionOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.barChart.BarChartOpDesc
@@ -28,9 +30,8 @@ import edu.uci.ics.texera.workflow.operators.visualization.lineChart.LineChartOp
 import edu.uci.ics.texera.workflow.operators.visualization.pieChart.PieChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.WordCloudOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
-import java.util.UUID
 
-import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
+import java.util.UUID
 
 @JsonTypeInfo(
   use = JsonTypeInfo.Id.NAME,
@@ -39,7 +40,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 )
 @JsonSubTypes(
   Array(
-    new Type(value = classOf[LocalCsvFileScanOpDesc], name = "LocalCsvFileScan"),
+    new Type(value = classOf[CSVScanSourceOpDesc], name = "CSVFileScan"),
     new Type(value = classOf[SimpleSinkOpDesc], name = "SimpleSink"),
     new Type(value = classOf[RegexOpDesc], name = "Regex"),
     new Type(value = classOf[SpecializedFilterOpDesc], name = "Filter"),
@@ -54,7 +55,8 @@ import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
     new Type(value = classOf[PieChartOpDesc], name = "PieChart"),
     new Type(value = classOf[WordCloudOpDesc], name = "WordCloud"),
     new Type(value = classOf[PythonUDFOpDesc], name = "PythonUDF"),
-    new Type(value = classOf[MysqlSourceOpDesc], name = "MysqlSource"),
+    new Type(value = classOf[MySQLSourceOpDesc], name = "MySQLSource"),
+    new Type(value = classOf[PostgreSQLSourceOpDesc], name = "PostgreSQLSource"),
     new Type(value = classOf[TypeCastingOpDesc], name = "TypeCasting"),
     new Type(value = classOf[LimitOpDesc], name = "Limit"),
     new Type(value = classOf[RandomKSamplingOpDesc], name = "RandomKSampling"),
@@ -64,13 +66,13 @@ import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 )
 abstract class OperatorDescriptor extends Serializable {
 
-  @JsonIgnore var context: WorkflowContext = _
+  @JsonIgnore
+  var context: WorkflowContext = _
 
   @JsonProperty(PropertyNameConstants.OPERATOR_ID)
   var operatorID: String = UUID.randomUUID.toString
 
-  def operatorIdentifier: OperatorIdentity =
-    OperatorIdentity(this.context.workflowID, this.operatorID)
+  def operatorIdentifier: OperatorIdentity = OperatorIdentity(context.jobID, operatorID)
 
   def operatorExecutor: OpExecConfig
 
@@ -87,5 +89,9 @@ abstract class OperatorDescriptor extends Serializable {
   override def equals(that: Any): Boolean = EqualsBuilder.reflectionEquals(this, that)
 
   override def toString: String = ToStringBuilder.reflectionToString(this)
+
+  def setContext(workflowContext: WorkflowContext): Unit = {
+    this.context = workflowContext
+  }
 
 }

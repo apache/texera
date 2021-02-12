@@ -1,35 +1,30 @@
 package edu.uci.ics.amber.engine.e2e
 
-import akka.stream.Attributes.Attribute
 import edu.uci.ics.texera.workflow.operators.aggregate.{
   AggregationFunction,
   SpecializedAverageOpDesc
 }
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc
 import edu.uci.ics.texera.workflow.operators.keywordSearch.KeywordSearchOpDesc
-import edu.uci.ics.texera.workflow.operators.localscan.LocalCsvFileScanOpDesc
+import edu.uci.ics.texera.workflow.operators.scan.CSVScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
 
 object TestOperators {
 
-  def getCsvScanOpDesc(fileName: String, header: Boolean): LocalCsvFileScanOpDesc = {
-    val csvHeaderlessOp = new LocalCsvFileScanOpDesc()
-    csvHeaderlessOp.filePath = fileName
-    csvHeaderlessOp.delimiter = ","
-    csvHeaderlessOp.header = header
-    csvHeaderlessOp
-  }
-
-  def headerlessSmallCsvScanOpDesc(): LocalCsvFileScanOpDesc = {
+  def headerlessSmallCsvScanOpDesc(): CSVScanSourceOpDesc = {
     getCsvScanOpDesc("src/test/resources/CountrySalesDataHeaderlessSmall.csv", false)
   }
 
-  def smallCsvScanOpDesc(): LocalCsvFileScanOpDesc = {
+  def smallCsvScanOpDesc(): CSVScanSourceOpDesc = {
     getCsvScanOpDesc("src/test/resources/CountrySalesDataSmall.csv", true)
   }
 
-  def mediumCsvScanOpDesc(): LocalCsvFileScanOpDesc = {
-    getCsvScanOpDesc("src/test/resources/CountrySalesDataMedium.csv", true)
+  def getCsvScanOpDesc(fileName: String, header: Boolean): CSVScanSourceOpDesc = {
+    val csvHeaderlessOp = new CSVScanSourceOpDesc()
+    csvHeaderlessOp.fileName = Option(fileName)
+    csvHeaderlessOp.delimiter = Option(",")
+    csvHeaderlessOp.hasHeader = header
+    csvHeaderlessOp
   }
 
   def joinOpDesc(buildAttrName: String, probeAttrName: String): HashJoinOpDesc[String] = {
@@ -39,6 +34,10 @@ object TestOperators {
     joinOp
   }
 
+  def mediumCsvScanOpDesc(): CSVScanSourceOpDesc = {
+    getCsvScanOpDesc("src/test/resources/CountrySalesDataMedium.csv", true)
+  }
+
   def keywordSearchOpDesc(attribute: String, keywordToSearch: String): KeywordSearchOpDesc = {
     val keywordSearchOp = new KeywordSearchOpDesc()
     keywordSearchOp.attribute = attribute
@@ -46,7 +45,7 @@ object TestOperators {
     keywordSearchOp
   }
 
-  def aggregateAndGroupbyDesc(
+  def aggregateAndGroupByDesc(
       attributeToAggregate: String,
       aggFunction: AggregationFunction,
       groupByAttributes: List[String]
