@@ -37,6 +37,12 @@ public class LocalCsvFileScanOpDesc extends SourceOperatorDescriptor {
     @JsonPropertyDescription("whether the CSV file contains a header line")
     public Boolean header;
 
+    @JsonProperty(value = "Infer Number", defaultValue = "true")
+    @JsonPropertyDescription("Infer how many rows in the csv file")
+    public Integer inferNumber;
+
+
+
     @Override
     public OpExecConfig operatorExecutor() {
         // fill in default values
@@ -45,6 +51,9 @@ public class LocalCsvFileScanOpDesc extends SourceOperatorDescriptor {
         }
         if (this.header == null) {
             this.header = true;
+        }
+        if (this.inferNumber==null) {
+            this.inferNumber = 100;
         }
         try {
             String headerLine = Files.asCharSource(new File(filePath), Charset.defaultCharset()).readFirstLine();
@@ -82,7 +91,11 @@ public class LocalCsvFileScanOpDesc extends SourceOperatorDescriptor {
     }
 
     private Schema inferSchema(String headerLine) {
-        java.util.List<AttributeType> attributeType = IntStream
+        if (delimiter == null) {
+            return null;
+        }
+
+        java.util.List<AttributeType> attributeTypeList = IntStream
                 .range(0, headerLine.split(delimiter).length).mapToObj(i->AttributeType.INTEGER).collect(Collectors.toList());
 
 
@@ -92,68 +105,53 @@ public class LocalCsvFileScanOpDesc extends SourceOperatorDescriptor {
                 reader.readLine();
             int i = 0;
             while((line = reader.readLine())!=null && i<=100) {
-                String[] records = line.split((delimiter));
-                attributeType = inferline(attributeType, records);
+                attributeTypeList = inferLine(attributeTypeList, line.split(delimiter));
                 i++;
             }
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
+        } catch (RuntimeException | IOException e) {
             e.printStackTrace();
         }
-        java.util.List<AttributeType> finalAttributeType = attributeType;
-        System.out.println("a->"+finalAttributeType);
-//        System.out.println(Schema.newBuilder().add(IntStream.range(0, headerLine.split(delimiter).length).
-//                mapToObj(i -> new Attribute(l.get(i), finalAttributeType.get(i)))
-//                .collect(Collectors.toList())).build());
+        final java.util.List<AttributeType> finalattributeTypeList = attributeTypeList;
 
-        if (delimiter == null) {
-            return null;
-        }
+
         if (header != null && header) {
 
 
             return Schema.newBuilder().add(IntStream.range(0, headerLine.split(delimiter).length).
-                    mapToObj(i -> new Attribute(headerLine.split(delimiter)[i], finalAttributeType.get(i)))
+                    mapToObj(i -> new Attribute(headerLine.split(delimiter)[i], finalattributeTypeList.get(i)))
                     .collect(Collectors.toList())).build();
-//            return Schema.newBuilder().add(Arrays.stream(headerLine.split(delimiter)).map(c -> c.trim())
-//                    .map(c -> new Attribute(c, AttributeType.STRING)).collect(Collectors.toList())).build();
         } else {
             return Schema.newBuilder().add(IntStream.range(0, headerLine.split(delimiter).length).
-                    mapToObj(i -> new Attribute("column" + i, finalAttributeType.get(i)))
+                    mapToObj(i -> new Attribute("column" + i, finalattributeTypeList.get(i)))
                     .collect(Collectors.toList())).build();
         }
     }
-    private java.util.List<AttributeType> inferline (java.util.List<AttributeType> attributeType, String[] line) {
-        return IntStream.range(0, line.length).
-                mapToObj(i->inferChar(attributeType.get(i),line[i])).collect(Collectors.toList());
+    private java.util.List<AttributeType> inferLine (java.util.List<AttributeType> attributeTypeList, String[] tokens) {
+        return IntStream.range(0, tokens.length).
+                mapToObj(i->inferToken(attributeTypeList.get(i),tokens[i])).collect(Collectors.toList());
     }
 
-    private AttributeType inferChar (AttributeType attributeType, String c) {
+    private AttributeType inferToken (AttributeType attributeType, String token) {
         if (attributeType.getName().equals("string")) {
             return AttributeType.STRING;
         } else if (attributeType.getName().equals("boolean")) {
             try {
-                Integer.parseInt(c);
+                Double.parseDouble(token);
                 return AttributeType.BOOLEAN;
-            } catch (Exception e1) {
-                try {
-                    Double.parseDouble(c);
+            } catch (Exception e2) {
+                if (token.equals("TRUE") || token.equals("FALSE") ||token.equals("1")||token.equals("0") ) {
                     return AttributeType.BOOLEAN;
-                } catch (Exception e2) {
-                    if (c.equals("TRUE") || c.equals("FALSE"))  {
-                        return AttributeType.BOOLEAN;
-                    } else {
-                        return AttributeType.STRING;
-                    }
+                } else {
+                    return AttributeType.STRING;
                 }
+
             }
         } else if (attributeType.getName().equals("double")) {
             try {
-                Double.parseDouble(c);
+                Double.parseDouble(token);
                 return AttributeType.DOUBLE;
             } catch (Exception e2) {
-                if (c.equals("TRUE") || c.equals("FALSE"))  {
+                if (token.equals("TRUE") || token.equals("FALSE"))  {
                     return AttributeType.BOOLEAN;
                 } else {
                     return AttributeType.STRING;
@@ -161,14 +159,14 @@ public class LocalCsvFileScanOpDesc extends SourceOperatorDescriptor {
             }
         } else if (attributeType.getName().equals("integer")) {
             try {
-                Integer.parseInt(c);
+                Integer.parseInt(token);
                 return AttributeType.INTEGER;
             } catch (Exception e1) {
                 try {
-                    Double.parseDouble(c);
+                    Double.parseDouble(token);
                     return AttributeType.DOUBLE;
                 } catch (Exception e2) {
-                    if (c.equals("TRUE") || c.equals("FALSE"))  {
+                    if (token.equals("TRUE") || token.equals("FALSE"))  {
                         return AttributeType.BOOLEAN;
                     } else {
                         return AttributeType.STRING;
