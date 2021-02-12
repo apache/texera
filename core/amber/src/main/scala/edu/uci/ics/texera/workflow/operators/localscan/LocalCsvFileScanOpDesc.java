@@ -126,7 +126,7 @@ public class LocalCsvFileScanOpDesc extends SourceOperatorDescriptor {
     }
     private java.util.List<AttributeType> inferLine (java.util.List<AttributeType> attributeTypeList, String[] tokens) {
         return IntStream.range(0, tokens.length).
-                mapToObj(i->inferToken(attributeTypeList.get(i),tokens[i].toLowerCase())).collect(Collectors.toList());
+                mapToObj(i->inferToken(attributeTypeList.get(i),tokens[i])).collect(Collectors.toList());
     }
 
     private AttributeType inferToken (AttributeType attributeType, String token) {
@@ -169,7 +169,8 @@ public class LocalCsvFileScanOpDesc extends SourceOperatorDescriptor {
         }
     }
     private AttributeType tryParseBoolean (String token) {
-        if (token.equals("true") || token.equals("false") ||token.equals("1")||token.equals("0") ) {
+        if (token.toLowerCase().equals("true") || token.toLowerCase().equals("false")
+                ||token.equals("1")||token.equals("0") ) {
             return AttributeType.BOOLEAN;
         } else {
             return AttributeType.STRING;
