@@ -55,6 +55,7 @@ export class ExecuteWorkflowService {
 
   private currentState: ExecutionStateInfo = { state: ExecutionState.Uninitialized };
   private executionStateStream = new Subject<{ previous: ExecutionStateInfo, current: ExecutionStateInfo }>();
+  private resultDownloadStream = new Subject<{downloadType: string, message: string}>();
 
   private executionTimeoutID: number | undefined;
   private clearTimeoutState: ExecutionState[] | undefined;
@@ -66,11 +67,19 @@ export class ExecuteWorkflowService {
   ) {
     if (environment.amberEngineEnabled) {
       workflowWebsocketService.websocketEvent().subscribe(event => {
-        if (event.type !== 'WorkflowStatusUpdateEvent') {
-          console.log(event);
+        switch (event.type){
+          case 'ResultDownloadResponse': {
+            this.resultDownloadStream.next(event);
+            break;
+          } default : {
+            // workflow status related event
+            if (event.type !== 'WorkflowStatusUpdateEvent') {
+              console.log(event);
+            }
+            const newState = this.handleExecutionEvent(event);
+            this.updateExecutionState(newState);
+          }
         }
-        const newState = this.handleExecutionEvent(event);
-        this.updateExecutionState(newState);
       });
     }
   }
@@ -276,10 +285,12 @@ export class ExecuteWorkflowService {
   }
 
   /**
-   * Sends the finished workflow ID to the server to download the excel file using file saver library.
-   * @param executionID
+   * download the workflow execution result according the download type
    */
   public downloadWorkflowExecutionResult(downloadType: string): void {
+    if (!environment.downloadExecutionResultEnabled) {
+      return;
+    }
     this.workflowWebsocketService.send('ResultDownloadRequest', {downloadType: downloadType});
     // const requestURL = `${AppSettings.getApiEndpoint()}/${DOWNLOAD_WORKFLOW_ENDPOINT}`
     //   + `?resultID=${executionID}&downloadType=${downloadType}`;
@@ -296,6 +307,10 @@ export class ExecuteWorkflowService {
 
   public getExecutionStateStream(): Observable<{ previous: ExecutionStateInfo, current: ExecutionStateInfo }> {
     return this.executionStateStream.asObservable();
+  }
+
+  public getResultDownloadStream(): Observable<{downloadType: string, message: string}> {
+    return this.resultDownloadStream.asObservable();
   }
 
   private setExecutionTimeout(message: string, ...clearTimeoutState: ExecutionState[]) {

@@ -85,7 +85,7 @@ export type TexeraWebsocketEventTypeMap = {
   'OperatorCurrentTuplesUpdateEvent': OperatorCurrentTuples,
   'PaginatedResultEvent': PaginatedResultEvent,
   'WorkflowExecutionErrorEvent': WorkflowExecutionError,
-  'ResultDownloadResponse': {}
+  'ResultDownloadResponse': {downloadType: string, message: string}
 };
 
 // helper type definitions to generate the request and event types

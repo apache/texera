@@ -17,7 +17,7 @@ object ResultDownloadResource {
     val result = getResult(sessionResults)
     resultDownloadRequest.downloadType match {
       case "google_sheet" =>
-        downloadGoogleSheet(result)
+        downloadGoogleSheet(resultDownloadRequest, result)
     }
   }
 
@@ -27,7 +27,7 @@ object ResultDownloadResource {
   }
 
 
-  private def downloadGoogleSheet(content: Array[ITuple]): ResultDownloadResponse ={
+  private def downloadGoogleSheet(resultDownloadRequest: ResultDownloadRequest, content: Array[ITuple]): ResultDownloadResponse ={
     // TODO change title
     val title: String = String.valueOf(System.currentTimeMillis)
     val sheetService: Sheets = GoogleResource.createGoogleSheetService();
@@ -64,6 +64,6 @@ object ResultDownloadResource {
         throw new RuntimeException("io fail", e)
     }
 
-    ResultDownloadResponse("success")
+    ResultDownloadResponse(resultDownloadRequest.downloadType, s"Results saved to Google Sheet.\nFile name: $title")
   }
 }

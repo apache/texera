@@ -31,7 +31,7 @@ export const defaultEnvironment = {
   /**
    * whether download execution result is supported
    */
-  downloadExecutionResultEnabled: false,
+  downloadExecutionResultEnabled: true,
 
   /**
    * whether user system is enabled

@@ -84,6 +84,12 @@ export class NavigationComponent implements OnInit {
       }
     );
 
+    executeWorkflowService.getResultDownloadStream().subscribe(
+      response => {
+        alert(response.message);
+      }
+    )
+
     // set the map of operatorStatusMap
     validationWorkflowService.getWorkflowValidationErrorStream()
                              .subscribe(value => {
