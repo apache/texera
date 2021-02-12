@@ -17,7 +17,7 @@ import { v4 as uuid } from 'uuid';
 import { environment } from '../../../../environments/environment';
 import { WorkflowWebsocketService } from '../workflow-websocket/workflow-websocket.service';
 import { OperatorPredicate, BreakpointTriggerInfo, BreakpointRequest, Breakpoint } from '../../types/workflow-common.interface';
-import { TexeraWebsocketEvent, WorkerTuples, OperatorCurrentTuples } from '../../types/workflow-websocket.interface';
+import { TexeraWebsocketEvent, WorkerTuples, OperatorCurrentTuples, ResultDownloadResponse } from '../../types/workflow-websocket.interface';
 import { isEqual } from 'lodash';
 import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from '../../types/result-table.interface';
 import { sessionGetObject, sessionSetObject } from 'src/app/common/util/storage';
@@ -55,7 +55,7 @@ export class ExecuteWorkflowService {
 
   private currentState: ExecutionStateInfo = { state: ExecutionState.Uninitialized };
   private executionStateStream = new Subject<{ previous: ExecutionStateInfo, current: ExecutionStateInfo }>();
-  private resultDownloadStream = new Subject<{downloadType: string, message: string}>();
+  private resultDownloadStream = new Subject<ResultDownloadResponse>();
 
   private executionTimeoutID: number | undefined;
   private clearTimeoutState: ExecutionState[] | undefined;
@@ -309,7 +309,7 @@ export class ExecuteWorkflowService {
     return this.executionStateStream.asObservable();
   }
 
-  public getResultDownloadStream(): Observable<{downloadType: string, message: string}> {
+  public getResultDownloadStream(): Observable<ResultDownloadResponse> {
     return this.resultDownloadStream.asObservable();
   }
 

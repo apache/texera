@@ -58,6 +58,12 @@ type PaginatedResultEvent = Readonly<{
   }>
 }>;
 
+export type ResultDownloadResponse = Readonly<{
+  downloadType: string,
+  link: string,
+  message: string
+}>;
+
 export type TexeraWebsocketRequestTypeMap = {
   'HelloWorldRequest': WebSocketHelloWorld,
   'ExecuteWorkflowRequest': LogicalPlan,
@@ -85,7 +91,7 @@ export type TexeraWebsocketEventTypeMap = {
   'OperatorCurrentTuplesUpdateEvent': OperatorCurrentTuples,
   'PaginatedResultEvent': PaginatedResultEvent,
   'WorkflowExecutionErrorEvent': WorkflowExecutionError,
-  'ResultDownloadResponse': {downloadType: string, message: string}
+  'ResultDownloadResponse': ResultDownloadResponse
 };
 
 // helper type definitions to generate the request and event types

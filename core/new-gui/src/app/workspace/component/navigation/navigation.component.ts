@@ -87,6 +87,7 @@ export class NavigationComponent implements OnInit {
     executeWorkflowService.getResultDownloadStream().subscribe(
       response => {
         alert(response.message);
+        console.log('google sheet link: ' + response.link);
       }
     )
 

@@ -53,12 +53,14 @@ object ResultDownloadResource {
         .append(spreadsheetId, range, body)
         .setValueInputOption(valueInputOption)
         .execute
+
+      ResultDownloadResponse(resultDownloadRequest.downloadType,
+        s"https://docs.google.com/spreadsheets/d/$spreadsheetId/edit",
+        s"Results saved to Google Sheet.\nFile name: $title")
     } catch {
       case e: IOException =>
         throw new RuntimeException("io fail", e)
     }
-
-    ResultDownloadResponse(resultDownloadRequest.downloadType, s"Results saved to Google Sheet.\nFile name: $title")
   }
 
   /**
