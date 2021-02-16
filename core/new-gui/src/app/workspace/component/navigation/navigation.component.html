@@ -15,6 +15,10 @@
       <span class="save-state" spellcheck="false">{{autoSaveState}}</span>
     </div>
 
+    <div *ngIf="userSystemEnabled" class="texera-navigation-user-icon">
+      <texera-user-icon></texera-user-icon>
+    </div>
+
     <div class='texera-navigation-dashboard'>
       <nz-button-group nzSize="large">
         <button *ngIf="userSystemEnabled" [routerLink]="'/dashboard'" nz-button title="dashboard">
