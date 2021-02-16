@@ -1,4 +1,4 @@
-def filter_function(row, args):
+def filter_function(row, *args):
 	"""
 	This is a demo filter UDF. Filters tuples whose value of input contains the keyword "virus".
 	This function is automatically recognized as the input of a `TexeraFilterOperator`.
