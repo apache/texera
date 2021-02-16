@@ -10,7 +10,7 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
-import edu.uci.ics.texera.web.{ServletAwareConfigurator, TexeraWebApplication}
+import edu.uci.ics.texera.web.TexeraWebApplication
 import edu.uci.ics.texera.web.model.event._
 import edu.uci.ics.texera.web.model.request._
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
@@ -38,10 +38,7 @@ object WorkflowWebsocketResource {
   val sessionResults = new mutable.HashMap[String, Map[String, List[ITuple]]]
 }
 
-@ServerEndpoint(
-  value = "/wsapi/workflow-websocket",
-  configurator = classOf[ServletAwareConfigurator]
-)
+@ServerEndpoint(value = "/wsapi/workflow-websocket", configurator = classOf[ServletAwareConfig])
 class WorkflowWebsocketResource {
 
   final val objectMapper = Utils.objectMapper
