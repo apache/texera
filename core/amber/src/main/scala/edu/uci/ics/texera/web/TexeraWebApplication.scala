@@ -62,6 +62,9 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
       webSocketUpgradeFilter
     )
 
+    // add HTTPSessionInitializer to create HTTPSession if not presented in Websocket handshake
+    environment.getApplicationContext.addEventListener(new HTTPSessionInitializer)
+
     // register SessionHandler
     environment.jersey.register(classOf[SessionHandler])
     environment.servlets.setSessionHandler(new SessionHandler)
