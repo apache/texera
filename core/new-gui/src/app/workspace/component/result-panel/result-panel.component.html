@@ -13,35 +13,27 @@
     removing the elements, but rather modify their css to make these elements invisible
     to the users-->
   <div [hidden]="chartType">
-    <button class="btn btn-secondary" *ngIf="breakpointTriggerInfo !== undefined"
-            (click)="onClickSkipTuples()" [disabled]="!breakpointAction">
+    <button class="btn btn-secondary" *ngIf="breakpointTriggerInfo !== undefined" (click)="onClickSkipTuples()"
+      [disabled]="!breakpointAction">
       Skip Records
     </button>
     <div class="result-table" [hidden]="!currentColumns">
-      <nz-table
-          #basicTable
-          (nzQueryParams)="onTableQueryParamsChange($event)"
-          [nzData]="currentResult"
-          [nzFrontPagination]="isFrontPagination"
-          [nzLoading]="isLoadingResult"
-          [nzPageIndex]="currentPageIndex"
-          [nzPageSize]="currentPageSize"
-          [nzTotal]="total"
-          nzBordered="true"
-      >
+      <nz-table #basicTable (nzQueryParams)="onTableQueryParamsChange($event)" [nzData]="currentResult"
+        [nzFrontPagination]="isFrontPagination" [nzLoading]="isLoadingResult" [nzPageIndex]="currentPageIndex"
+        [nzPageSize]="currentPageSize" [nzTotal]="total" nzBordered="true">
         <thead>
-        <tr>
-          <th *ngFor="let column of currentColumns">
-            {{column.header}}
-          </th>
-        </tr>
+          <tr>
+            <th *ngFor="let column of currentColumns">
+              {{column.header}}
+            </th>
+          </tr>
         </thead>
         <tbody>
-        <tr *ngFor="let row of basicTable.data; let i=index;">
-          <td (click)="open(row)" *ngFor="let column of currentColumns" class="table-row">
-            {{column.getCell(row)}}
-          </td>
-        </tr>
+          <tr *ngFor="let row of basicTable.data; let i=index;">
+            <td (click)="open(row)" *ngFor="let column of currentColumns" class="table-row">
+              {{column.getCell(row)}}
+            </td>
+          </tr>
         </tbody>
       </nz-table>
     </div>
