@@ -5,24 +5,41 @@ import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { ResultObject } from '../../types/execute-workflow.interface';
+import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
+import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
+import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
+import { UndoRedoService } from '../../service/undo-redo/undo-redo.service';
+import { JointUIService } from '../../service/joint-ui/joint-ui.service';
+import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
+import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
 
 describe('VisualizationPanelComponent', () => {
   let component: VisualizationPanelComponent;
   let fixture: ComponentFixture<VisualizationPanelComponent>;
   let workflowStatusService: WorkflowStatusService;
 
-  const testData: Record<string, ResultObject> = {'operator1': {operatorID: 'operator1', chartType: 'bar', table: [], totalRowCount: 0, }};
+  const testData: Record<string, ResultObject> = {'operator1': { operatorID: 'operator1', chartType: 'bar', table: [], totalRowCount: 0}};
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       imports: [
         NzModalModule,
-        NzButtonModule
+        NzButtonModule,
+        HttpClientTestingModule
       ],
-      declarations: [ VisualizationPanelComponent ],
-      providers: [ WorkflowStatusService ]
+      declarations: [VisualizationPanelComponent],
+      providers: [
+        JointUIService,
+        WorkflowUtilService,
+        UndoRedoService,
+        WorkflowActionService,
+        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+        WorkflowStatusService,
+        ExecuteWorkflowService,
+      ]
     })
-    .compileComponents();
+      .compileComponents();
   }));
 
   beforeEach(() => {
