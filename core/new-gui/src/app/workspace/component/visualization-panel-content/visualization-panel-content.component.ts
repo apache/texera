@@ -1,9 +1,11 @@
-import { Component, Input, OnChanges, OnDestroy } from '@angular/core';
+import { Component, Input, OnDestroy, AfterViewInit } from '@angular/core';
 import * as c3 from 'c3';
 import { PrimitiveArray } from 'c3';
 import * as d3 from 'd3';
 import * as cloud from 'd3-cloud';
 import { ChartType, WordCloudTuple } from '../../types/visualization.interface';
+import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
+import { ResultObject } from '../../types/execute-workflow.interface';
 
 
 /**
@@ -18,27 +20,30 @@ import { ChartType, WordCloudTuple } from '../../types/visualization.interface';
   templateUrl: './visualization-panel-content.component.html',
   styleUrls: ['./visualization-panel-content.component.scss']
 })
-export class VisualizationPanelContentComponent implements OnChanges, OnDestroy {
+export class VisualizationPanelContentComponent implements AfterViewInit, OnDestroy {
   // this readonly variable must be the same as HTML element ID for visualization
   public static readonly CHART_ID = '#texera-result-chart-content';
   public static readonly WORD_CLOUD_ID = 'texera-word-cloud';
   public static readonly WIDTH = 1000;
   public static readonly HEIGHT = 800;
 
-  // public operatorID: string | undefined;
-
   @Input()
-  public chartType: string | undefined;
-  @Input()
-  public data: object[] | undefined;
+  operatorID: string | undefined;
 
-  private columns: string[] = [];
+  data: object[] | undefined;
+  chartType: ChartType | undefined;
+  columns: string[] = [];
 
   private wordCloudElement: d3.Selection<SVGGElement, unknown, HTMLElement, any> | undefined;
   private c3ChartElement: c3.ChartAPI | undefined;
 
   constructor(
+    private workflowStatusService: WorkflowStatusService
   ) {
+  }
+
+  ngAfterViewInit() {
+    this.drawChart();
   }
 
   ngOnDestroy() {
@@ -50,29 +55,17 @@ export class VisualizationPanelContentComponent implements OnChanges, OnDestroy 
     }
   }
 
-  ngOnChanges() {
-    if (!this.data || !this.chartType) {
-      return;
-    }
-    this.columns = Object.keys(this.data).filter(x => x !== '_id');
-    if (this.chartType === ChartType.WORD_CLOUD && this.wordCloudElement === undefined) {
-      this.wordCloudElement =
-        d3.select(`#${VisualizationPanelContentComponent.WORD_CLOUD_ID}`)
-              .append('svg')
-      .attr('width', VisualizationPanelContentComponent.WIDTH)
-      .attr('height', VisualizationPanelContentComponent.HEIGHT)
-      .append('g')
-      .attr('transform',
-        'translate(' + VisualizationPanelContentComponent.WIDTH / 2 + ',' + VisualizationPanelContentComponent.HEIGHT / 2 + ')')
-        ;
-    }
-    this.drawChart();
-  }
-
   drawChart() {
-    if (!this.chartType) {
+    if (!this.operatorID) {
       return;
     }
+    const result: ResultObject | undefined = this.workflowStatusService.getCurrentResult()[this.operatorID];
+    if (! result) {
+      return;
+    }
+    this.data = result.table as object[];
+    this.chartType = result.chartType;
+
     switch (this.chartType) {
       // correspond to WordCloudSink.java
       case ChartType.WORD_CLOUD: this.generateWordCloud(); break;
@@ -91,6 +84,18 @@ export class VisualizationPanelContentComponent implements OnChanges, OnDestroy 
   generateWordCloud() {
     if (!this.data || !this.chartType) {
       return;
+    }
+
+    if (this.wordCloudElement === undefined) {
+      this.wordCloudElement =
+        d3.select(`#${VisualizationPanelContentComponent.WORD_CLOUD_ID}`)
+              .append('svg')
+      .attr('width', VisualizationPanelContentComponent.WIDTH)
+      .attr('height', VisualizationPanelContentComponent.HEIGHT)
+      .append('g')
+      .attr('transform',
+        'translate(' + VisualizationPanelContentComponent.WIDTH / 2 + ',' + VisualizationPanelContentComponent.HEIGHT / 2 + ')')
+        ;
     }
 
     const wordCloudTuples = this.data as ReadonlyArray<WordCloudTuple>;

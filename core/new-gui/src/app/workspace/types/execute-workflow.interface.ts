@@ -6,7 +6,7 @@
 
 import { Breakpoint, BreakpointTriggerInfo, BreakpointRequest, OperatorPort } from './workflow-common.interface';
 import { OperatorCurrentTuples } from './workflow-websocket.interface';
-import { ChartType } from 'c3';
+import { ChartType } from './visualization.interface';
 
 export interface LogicalLink extends Readonly<{
   origin: { operatorID: string, portOrdinal: number },

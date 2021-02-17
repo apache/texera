@@ -1,18 +1,38 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { VisualizationPanelContentComponent } from './visualization-panel-content.component';
 import { MatDialogModule } from '@angular/material/dialog';
+
+import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
+import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
+import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
+import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
+import { UndoRedoService } from '../../service/undo-redo/undo-redo.service';
+import { JointUIService } from '../../service/joint-ui/joint-ui.service';
+import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
+import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { ChartType } from '../../types/visualization.interface';
+import { ResultObject } from '../../types/execute-workflow.interface';
 
 
 describe('VisualizationPanelContentComponent', () => {
   let component: VisualizationPanelContentComponent;
   let fixture: ComponentFixture<VisualizationPanelContentComponent>;
+  let workflowStatusService: WorkflowStatusService;
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      imports: [MatDialogModule],
+      imports: [MatDialogModule, HttpClientTestingModule],
       declarations: [ VisualizationPanelContentComponent ],
-      providers: []
+      providers: [
+        JointUIService,
+        WorkflowUtilService,
+        UndoRedoService,
+        WorkflowActionService,
+        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+        WorkflowStatusService,
+        ExecuteWorkflowService,
+      ]
     })
     .compileComponents();
   }));
@@ -20,31 +40,38 @@ describe('VisualizationPanelContentComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(VisualizationPanelContentComponent);
     component = fixture.componentInstance;
-    component.data = [{'id': 1, 'data': 2}];
-    component.chartType = ChartType.PIE;
-    fixture.detectChanges();
+    workflowStatusService = TestBed.get(WorkflowStatusService);
   });
 
   it('should create', () => {
+    fixture = TestBed.createComponent(VisualizationPanelContentComponent);
     expect(component).toBeTruthy();
   });
 
   it('should draw the figure', () => {
+    const testData: Record<string, ResultObject> = {
+      'operator1': { operatorID: 'operator1', chartType: ChartType.PIE, table: [{'id': 1, 'data': 2}], totalRowCount: 1}
+    };
     spyOn(component, 'generateChart');
-    component.ngOnChanges();
-    fixture.detectChanges();
+    spyOn(workflowStatusService, 'getCurrentResult').and.returnValue(testData);
+
+    component.operatorID = 'operator1';
+    component.ngAfterViewInit();
+
     expect(component.generateChart).toHaveBeenCalled();
   });
 
   it('should draw the wordcloud', () => {
-    const testComponent = fixture.componentInstance;
-    component.data = [{'word': 'foo', 'count': 120}, {'word': 'bar', 'count': 100}];
-    component.chartType = ChartType.WORD_CLOUD;
+    const testData: Record<string, ResultObject> = {
+      'operator1': { operatorID: 'operator1', chartType: ChartType.WORD_CLOUD,
+      table: [{'word': 'foo', 'count': 120}, {'word': 'bar', 'count': 100}], totalRowCount: 2}
+    };
+    spyOn(component, 'generateWordCloud');
+    spyOn(workflowStatusService, 'getCurrentResult').and.returnValue(testData);
 
-    spyOn(testComponent, 'generateWordCloud');
-    component.ngOnChanges();
-    fixture.detectChanges();
+    component.operatorID = 'operator1';
+    component.ngAfterViewInit();
 
-    expect(testComponent.generateWordCloud).toHaveBeenCalled();
+    expect(component.generateWordCloud).toHaveBeenCalled();
   });
 });

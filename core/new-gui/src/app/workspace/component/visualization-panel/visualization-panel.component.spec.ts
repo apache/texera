@@ -13,13 +13,16 @@ import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { ChartType } from '../../types/visualization.interface';
 
 describe('VisualizationPanelComponent', () => {
   let component: VisualizationPanelComponent;
   let fixture: ComponentFixture<VisualizationPanelComponent>;
   let workflowStatusService: WorkflowStatusService;
 
-  const testData: Record<string, ResultObject> = {'operator1': { operatorID: 'operator1', chartType: 'bar', table: [], totalRowCount: 0}};
+  const testData: Record<string, ResultObject> = {
+    'operator1': { operatorID: 'operator1', chartType: ChartType.BAR, table: [], totalRowCount: 0}
+  };
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
