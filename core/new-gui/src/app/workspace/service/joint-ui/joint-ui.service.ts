@@ -132,7 +132,9 @@ class TexeraCustomGroupElement extends joint.shapes.devs.Model {
  * @author Henry Chen
  * @author Zuozhi Wang
  */
-@Injectable()
+@Injectable({
+  providedIn: 'root'
+})
 export class JointUIService {
 
   public static readonly DEFAULT_OPERATOR_WIDTH = 60;

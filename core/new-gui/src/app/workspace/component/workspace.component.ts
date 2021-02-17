@@ -6,20 +6,13 @@ import { Version } from '../../../environments/version';
 import { UserService } from '../../common/service/user/user.service';
 import { WorkflowPersistService } from '../../common/service/user/workflow-persist/workflow-persist.service';
 import { Workflow } from '../../common/type/workflow';
-import { DragDropService } from '../service/drag-drop/drag-drop.service';
-import { DynamicSchemaService } from '../service/dynamic-schema/dynamic-schema.service';
 import { SchemaPropagationService } from '../service/dynamic-schema/schema-propagation/schema-propagation.service';
 import { SourceTablesService } from '../service/dynamic-schema/source-tables/source-tables.service';
-import { ExecuteWorkflowService } from '../service/execute-workflow/execute-workflow.service';
-import { JointUIService } from '../service/joint-ui/joint-ui.service';
 import { OperatorMetadataService } from '../service/operator-metadata/operator-metadata.service';
 import { ResultPanelToggleService } from '../service/result-panel-toggle/result-panel-toggle.service';
 import { UndoRedoService } from '../service/undo-redo/undo-redo.service';
-import { ValidationWorkflowService } from '../service/validation/validation-workflow.service';
 import { WorkflowCacheService } from '../service/workflow-cache/workflow-cache.service';
 import { WorkflowActionService } from '../service/workflow-graph/model/workflow-action.service';
-import { WorkflowUtilService } from '../service/workflow-graph/util/workflow-util.service';
-import { WorkflowStatusService } from '../service/workflow-status/workflow-status.service';
 import { WorkflowWebsocketService } from '../service/workflow-websocket/workflow-websocket.service';
 
 @Component({
@@ -29,23 +22,6 @@ import { WorkflowWebsocketService } from '../service/workflow-websocket/workflow
   providers: [
     // uncomment this line for manual testing without opening backend server
     // { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-
-    DragDropService,
-    DynamicSchemaService,
-    ExecuteWorkflowService,
-    JointUIService,
-    OperatorMetadataService,
-    ResultPanelToggleService,
-    SchemaPropagationService,
-    SourceTablesService,
-    UndoRedoService,
-    ValidationWorkflowService,
-    WorkflowActionService,
-    WorkflowCacheService,
-    WorkflowPersistService,
-    WorkflowStatusService,
-    WorkflowUtilService,
-    WorkflowWebsocketService
   ]
 })
 export class WorkspaceComponent implements OnInit {

@@ -51,7 +51,9 @@ import 'jquery-ui-dist/jquery-ui';
  * @author Zuozhi Wang
  *
  */
-@Injectable()
+@Injectable({
+  providedIn: 'root'
+})
 export class DragDropService {
   // distance threshold for suggesting operators before user dropped an operator
   public static readonly SUGGESTION_DISTANCE_THRESHOLD = 300;

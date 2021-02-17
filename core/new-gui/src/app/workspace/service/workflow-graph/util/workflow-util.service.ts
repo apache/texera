@@ -11,7 +11,9 @@ import { Observable } from 'rxjs/Observable';
 /**
  * WorkflowUtilService provide utilities related to dealing with operator data.
  */
-@Injectable()
+@Injectable({
+  providedIn: 'root'
+})
 export class WorkflowUtilService {
 
   private operatorSchemaList: ReadonlyArray<OperatorSchema> = [];

@@ -48,7 +48,9 @@ type GroupInfo = {
  *
  */
 
-@Injectable()
+@Injectable({
+  providedIn: 'root'
+})
 export class WorkflowActionService {
 
   private static readonly DEFAULT_WORKFLOW_NAME = 'Untitled Workflow';

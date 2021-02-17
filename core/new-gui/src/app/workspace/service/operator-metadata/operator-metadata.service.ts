@@ -37,7 +37,9 @@ export type IOperatorMetadataService = Pick<OperatorMetadataService, keyof Opera
  * @author Zuozhi Wang
  *
  */
-@Injectable()
+@Injectable({
+  providedIn: 'root'
+})
 export class OperatorMetadataService {
 
   // holds the current version of operator metadata
