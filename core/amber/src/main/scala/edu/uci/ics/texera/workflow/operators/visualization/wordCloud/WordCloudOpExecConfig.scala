@@ -26,14 +26,14 @@ class WordCloudOpExecConfig(
 
   override lazy val topology: Topology = {
     val partialLayer = new WorkerLayer(
-      LayerIdentity(tag, "localPieChartProcessor"),
+      LayerIdentity(tag, "local"),
       _ => new WordCloudOpPartialExec(textColumn),
       numWorkers,
       UseAll(),
       RoundRobinDeployment()
     )
     val finalLayer = new WorkerLayer(
-      LayerIdentity(tag, "globalPieChartProcessor"),
+      LayerIdentity(tag, "global"),
       _ => new WordCloudOpFinalExec(topN),
       1,
       FollowPrevious(),

@@ -1,6 +1,8 @@
 package edu.uci.ics.texera.workflow.operators.visualization.wordCloud;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInt;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.common.Constants;
 import edu.uci.ics.amber.engine.operators.OpExecConfig;
@@ -31,8 +33,9 @@ public class WordCloudOpDesc extends VisualizationOperator {
     @AutofillAttributeName
     public String textColumn;
 
-    @JsonProperty(required = false, defaultValue = "100")
+    @JsonProperty(defaultValue = "100")
     @JsonSchemaTitle("Number of most frequent words")
+    @JsonSchemaInject(ints = {@JsonSchemaInt(path = "exclusiveMinimum", value = 0)})
     public Integer topN;
 
     @Override

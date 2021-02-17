@@ -67,7 +67,6 @@
     "rxjs-compat": "^6.5.5",
     "tinyqueue": "^2.0.3",
     "tslib": "^1.10.0",
-    "wordcloud": "^1.1.1",
     "zone.js": "~0.10.2"
   },
   "devDependencies": {
@@ -85,11 +84,10 @@
     "@types/jasmine": "^3.5.10",
     "@types/jasminewd2": "^2.0.8",
     "@types/jquery": "^3.3.34",
-    "@types/jqueryui": "^1.12.10",
+    "@types/jqueryui": "1.12.10",
     "@types/json-schema": "^7.0.4",
     "@types/lodash": "~4.14.149",
     "@types/uuid": "^3.4.8",
-    "@types/wordcloud": "^1.1.2",
     "codelyzer": "^5.2.2",
     "cypress": "^4.3.0",
     "fs-extra": "7.0.1",
