@@ -150,16 +150,13 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
         this.undoRedoService.clearRedoStack();
         this.workflowCacheService.setCacheWorkflow(this.workflowActionService.getWorkflow());
       },
-      () => {
-        this.workflowCacheService.resetCachedWorkflow();
-        this.workflowActionService.reloadWorkflow(this.workflowCacheService.getCachedWorkflow());
-        this.noAccessToWorkflow();
-
-      }
+      () => { this.noAccessToWorkflow(); }
     ));
   }
 
   private noAccessToWorkflow(): void {
+    this.workflowCacheService.resetCachedWorkflow();
+    this.workflowActionService.reloadWorkflow(this.workflowCacheService.getCachedWorkflow());
     this.location.go(`/`);
     // TODO: replace with a proper error message with the framework
     alert('You don\'t have access to this workflow, please log in with another account');
