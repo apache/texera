@@ -1,6 +1,6 @@
 /**
  * This file contains some type declaration for the VisualizationPanelContent component
-*/
+ */
 
 /**
  * ChartType records all supported chart type in the frontend.
@@ -9,7 +9,7 @@ export enum ChartType {
   PIE = 'pie',
   DONUT = 'donut',
   BAR = 'bar',
-  STACKED_BAR =  'stacked bar',
+  STACKED_BAR = 'stacked bar',
   WORD_CLOUD = 'word cloud',
   LINE = 'line',
   SPLINE = 'spline'
@@ -20,13 +20,5 @@ export enum ChartType {
  */
 export interface WordCloudTuple extends Readonly<{
   word: string,
-  size: number
+  count: number
 }> {}
-
-/**
- * DialogData defines the data format which passed to VisualizationPanelContent component
- */
-export interface DialogData {
-  table: object[];
-  chartType: ChartType;
-}

@@ -1,23 +1,21 @@
 import { Component, Input } from '@angular/core';
-import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
-import { Observable } from 'rxjs/Observable';
-
-import { NzModalRef, NzModalService } from 'ng-zorro-antd/modal';
-import { ExecutionState } from './../../types/execute-workflow.interface';
-import { TableColumn, IndexableObject, PAGINATION_INFO_STORAGE_KEY } from './../../types/result-table.interface';
-import { ResultPanelToggleService } from './../../service/result-panel-toggle/result-panel-toggle.service';
 import deepMap from 'deep-map';
 import { isEqual } from 'lodash';
-import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
-import { BreakpointTriggerInfo } from '../../types/workflow-common.interface';
+import { NzModalRef, NzModalService } from 'ng-zorro-antd/modal';
 import { NzTableQueryParams } from 'ng-zorro-antd/table';
-import { WorkflowWebsocketService } from '../../service/workflow-websocket/workflow-websocket.service';
+import { Observable } from 'rxjs/Observable';
 import { assertType } from 'src/app/common/util/assert';
-import { ResultPaginationInfo } from '../../types/result-table.interface';
 import { sessionGetObject, sessionRemoveObject, sessionSetObject } from 'src/app/common/util/storage';
+import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
+import { ResultPanelToggleService } from '../../service/result-panel-toggle/result-panel-toggle.service';
+import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
+import { WorkflowWebsocketService } from '../../service/workflow-websocket/workflow-websocket.service';
+import { ExecutionState } from '../../types/execute-workflow.interface';
+import { IndexableObject, PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo, TableColumn } from '../../types/result-table.interface';
+import { BreakpointTriggerInfo } from '../../types/workflow-common.interface';
 
 /**
- * ResultPanelCompoent is the bottom level area that displays the
+ * ResultPanelComponent is the bottom level area that displays the
  *  execution result of a workflow after the execution finishes.
  *
  * The Component will display the result in an excel table format,
@@ -55,6 +53,9 @@ export class ResultPanelComponent {
   // display breakpoint
   public breakpointTriggerInfo: BreakpointTriggerInfo | undefined;
   public breakpointAction: boolean = false;
+
+  // the highlighted operator ID for display result table / visualization / breakpoint
+  public resultPanelOperatorID: string | undefined;
 
   // paginator section, used when displaying rows
 
@@ -141,12 +142,13 @@ export class ResultPanelComponent {
 
     const executionState = this.executeWorkflowService.getExecutionState();
     const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    this.resultPanelOperatorID = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
 
     if (executionState.state === ExecutionState.Failed) {
       this.errorMessages = this.executeWorkflowService.getErrorMessages();
     } else if (executionState.state === ExecutionState.BreakpointTriggered) {
       const breakpointTriggerInfo = this.executeWorkflowService.getBreakpointTriggerInfo();
-      if (highlightedOperators.length === 1 && highlightedOperators[0] === breakpointTriggerInfo?.operatorID) {
+      if (this.resultPanelOperatorID && this.resultPanelOperatorID === breakpointTriggerInfo?.operatorID) {
         this.breakpointTriggerInfo = breakpointTriggerInfo;
         this.breakpointAction = true;
         const result = breakpointTriggerInfo.report.map(r => r.faultedTuple.tuple).filter(t => t !== undefined);
@@ -163,8 +165,8 @@ export class ResultPanelComponent {
         this.errorMessages = errorsMessages;
       }
     } else if (executionState.state === ExecutionState.Completed) {
-      if (highlightedOperators.length === 1) {
-        const result = executionState.resultMap.get(highlightedOperators[0]);
+      if (this.resultPanelOperatorID) {
+        const result = executionState.resultMap.get(this.resultPanelOperatorID);
         if (result) {
           this.chartType = result.chartType;
           this.isFrontPagination = false;
@@ -172,8 +174,8 @@ export class ResultPanelComponent {
         }
       }
     } else if (executionState.state === ExecutionState.Paused) {
-      if (highlightedOperators.length === 1) {
-        const result = executionState.currentTuples[(highlightedOperators[0])]?.tuples;
+      if (this.resultPanelOperatorID) {
+        const result = executionState.currentTuples[this.resultPanelOperatorID]?.tuples;
         if (result) {
           const resultTable: string[][] = [];
           result.forEach(workerTuple => {
@@ -213,6 +215,7 @@ export class ResultPanelComponent {
     this.currentDisplayColumns = undefined;
     this.currentResult = [];
 
+    this.resultPanelOperatorID = undefined;
     this.chartType = undefined;
     this.breakpointTriggerInfo = undefined;
     this.breakpointAction = false;
@@ -223,7 +226,6 @@ export class ResultPanelComponent {
     this.total = 0;
     this.isLoadingResult = false;
   }
-
 
   /**
    * Opens the ng-bootstrap model to display the row details in
@@ -249,7 +251,7 @@ export class ResultPanelComponent {
         // set the currentDisplayRowData of the modal to be the data of clicked row
         currentDisplayRowData: rowDataCopy,
         // set the index value and page size to the modal for navigation
-        currentDisplayRowIndex: selectedRowIndex,
+        currentDisplayRowIndex: selectedRowIndex
       },
       // prevent browser focusing close button (ugly square highlight)
       nzAutofocus: null,
@@ -273,8 +275,8 @@ export class ResultPanelComponent {
           },
           disabled: () => selectedRowIndex === this.currentResult.length - 1
         },
-        {label: 'OK', onClick: () => {modalRef.destroy(); }, type: 'primary'},
-      ],
+        {label: 'OK', onClick: () => {modalRef.destroy(); }, type: 'primary'}
+      ]
     });
   }
 
@@ -291,7 +293,7 @@ export class ResultPanelComponent {
    * @param params new parameters
    */
   public onTableQueryParamsChange(params: NzTableQueryParams) {
-    const { pageSize: newPageSize, pageIndex: newPageIndex } = params;
+    const {pageSize: newPageSize, pageIndex: newPageIndex} = params;
     this.currentPageSize = newPageSize;
     this.currentPageIndex = newPageIndex;
 
@@ -300,7 +302,7 @@ export class ResultPanelComponent {
     }
 
     this.isLoadingResult = true;
-    this.workflowWebsocketService.send('ResultPaginationRequest', { pageSize: newPageSize, pageIndex: newPageIndex });
+    this.workflowWebsocketService.send('ResultPaginationRequest', {pageSize: newPageSize, pageIndex: newPageIndex});
   }
 
   /**
@@ -322,8 +324,9 @@ export class ResultPanelComponent {
     //   then restore the previous paginated result data from session storage
     let resultPaginationInfo = sessionGetObject<ResultPaginationInfo>(PAGINATION_INFO_STORAGE_KEY);
     let viewResultOperatorInfoMap;
-    if (resultPaginationInfo && !resultPaginationInfo.newWorkflowExecuted && (viewResultOperatorInfoMap = new Map(resultPaginationInfo.viewResultOperatorInfoMap)).has(this.operatorID)) {
-      let viewResultOperatorInfo = viewResultOperatorInfoMap.get(this.operatorID)!;
+    if (resultPaginationInfo && !resultPaginationInfo.newWorkflowExecuted &&
+      (viewResultOperatorInfoMap = new Map(resultPaginationInfo.viewResultOperatorInfoMap)).has(this.operatorID)) {
+      const viewResultOperatorInfo = viewResultOperatorInfoMap.get(this.operatorID)!;
       this.isFrontPagination = false;
       this.currentResult = viewResultOperatorInfo.currentResult;
       this.currentPageIndex = viewResultOperatorInfo.currentPageIndex;
@@ -346,12 +349,12 @@ export class ResultPanelComponent {
     //  1. Get all the column names except '_id', using the first instance of
     //      result data.
     //  2. Use those names to generate a list of display columns, which would
-    //      be used for displaying on angular mateiral table.
+    //      be used for displaying on angular material table.
     //  3. Pass the result data as array to generate a new angular material
     //      data table.
     //  4. Set the newly created data table to our own paginator.
 
-    let columns: {columnKey: any, columnText: string}[];
+    let columns: { columnKey: any, columnText: string }[];
 
     const columnKeys = Object.keys(resultData[0]).filter(x => x !== '_id');
     this.currentDisplayColumns = columnKeys;
@@ -371,20 +374,20 @@ export class ResultPanelComponent {
 
       // just update the map if there's one; otherwise create a map with current view result operator as an entry
       viewResultOperatorInfoMap: resultPaginationInfo ? (new Map(resultPaginationInfo.viewResultOperatorInfoMap)).set(operatorID, {
-          currentResult: this.currentResult,
-          currentPageIndex: this.currentPageIndex,
-          currentPageSize: this.currentPageSize,
-          total: this.total,
-          columnKeys: columnKeys,
-          operatorID: this.operatorID
-        }) : new Map([[operatorID, {
-          currentResult: this.currentResult,
-          currentPageIndex: this.currentPageIndex,
-          currentPageSize: this.currentPageSize,
-          total: this.total,
-          columnKeys: columnKeys,
-          operatorID: this.operatorID
-        }]])
+        currentResult: this.currentResult,
+        currentPageIndex: this.currentPageIndex,
+        currentPageSize: this.currentPageSize,
+        total: this.total,
+        columnKeys: columnKeys,
+        operatorID: this.operatorID
+      }) : new Map([[operatorID, {
+        currentResult: this.currentResult,
+        currentPageIndex: this.currentPageIndex,
+        currentPageSize: this.currentPageSize,
+        total: this.total,
+        columnKeys: columnKeys,
+        operatorID: this.operatorID
+      }]])
     };
     sessionSetObject(PAGINATION_INFO_STORAGE_KEY, {
       newWorkflowExecuted: resultPaginationInfo.newWorkflowExecuted,
@@ -396,9 +399,9 @@ export class ResultPanelComponent {
   /**
    * Generates all the column information for the result data table
    *
-   * @param columnNames
+   * @param columns
    */
-  private static generateColumns(columns: {columnKey: any, columnText: string}[]): TableColumn[] {
+  private static generateColumns(columns: { columnKey: any, columnText: string }[]): TableColumn[] {
     return columns.map(col => ({
       columnDef: col.columnKey,
       header: col.columnText,
@@ -441,7 +444,6 @@ export class ResultPanelComponent {
   }
 
 }
-
 
 /**
  *

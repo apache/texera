@@ -22,8 +22,8 @@ import java.util.*;
 
 /**
  * Calculate word count and output count of each word.
- * @author Mingji Han, Xiaozhen Liu
  *
+ * @author Mingji Han, Xiaozhen Liu
  */
 public class WordCloudOpPartialExec implements OperatorExecutor {
     private final String textColumn;
@@ -59,7 +59,7 @@ public class WordCloudOpPartialExec implements OperatorExecutor {
                 int charEnd = offsetAttribute.endOffset();
                 String termStr = text.substring(charStart, charEnd).toLowerCase();
                 if (!EnglishAnalyzer.ENGLISH_STOP_WORDS_SET.contains(termStr))
-                    termFreqMap.put(termStr, termFreqMap.get(termStr)==null ? 1 : termFreqMap.get(termStr) + 1);
+                    termFreqMap.put(termStr, termFreqMap.get(termStr) == null ? 1 : termFreqMap.get(termStr) + 1);
             }
             tokenStream.close();
         }
@@ -88,13 +88,12 @@ public class WordCloudOpPartialExec implements OperatorExecutor {
 
     @Override
     public Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, LinkIdentity input) {
-        if(tuple.isLeft()) {
+        if (tuple.isLeft()) {
             textList.add(tuple.left().get().getField(textColumn));
             return JavaConverters.asScalaIterator(Iterators.emptyIterator());
-        }
-        else {
+        } else {
             try {
-                return(JavaConverters.asScalaIterator(calculateWordCount(textList, getLuceneAnalyzer()).iterator()));
+                return JavaConverters.asScalaIterator(calculateWordCount(textList, getLuceneAnalyzer()).iterator());
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
