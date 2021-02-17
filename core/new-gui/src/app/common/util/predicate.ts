@@ -1,7 +1,9 @@
 /**
  * checks if the given parameter is undefined or not.
- * @param x
+ * @param val
  * @returns {boolean}
  */
-export function isDefined(x: any): boolean {return x !== undefined; }
+export function isDefined<T>(val: T | undefined | null): val is T {
+  return val !== undefined && val != null;
+}
 
