@@ -6,18 +6,16 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.texera.web.resource.dashboard.file.UserFileUtils
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.metadata.{
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.codehaus.jackson.map.annotate.JsonDeserialize
-
-import java.io.{File, IOException}
+import java.io.{BufferedInputStream, BufferedReader, File, FileInputStream, FileReader, IOException}
 import java.nio.charset.Charset
 import java.util.Collections.singletonList
+import java.util.stream.IntStream
+
+import scala.util.control.Exception._
 import scala.collection.JavaConverters._
 import scala.collection.immutable.List
 class CSVScanSourceOpDesc extends SourceOperatorDescriptor {
@@ -105,20 +103,82 @@ class CSVScanSourceOpDesc extends SourceOperatorDescriptor {
     if (delimiter.isEmpty) return null
 
     val headers: Array[String] = headerLine.split(delimiter.get)
+    var attributeTypeList: Array[AttributeType] = Array.fill[AttributeType](headers.length)(AttributeType.INTEGER)
+
+    val  reader = new BufferedReader(new FileReader(filePath.get))
+    var line:String = null
+    if (hasHeader)
+      reader.readLine()
+    var i = 0
+    line = reader.readLine()
+    while(line!=null && i<100) {
+      attributeTypeList = inferLine(attributeTypeList,line.split(delimiter.get))
+      i+=1
+      line = reader.readLine()
+    }
     Schema.newBuilder
       .add(
         if (hasHeader)
-          headers
-            .map((c: String) => { c.trim })
-            .map((c: String) => new Attribute(c, AttributeType.STRING))
-            .toIterable
+          headers.indices
+            .map((i: Int) => new Attribute(headers.apply(i), attributeTypeList.apply(i)))
             .asJava
         else
           headers.indices
-            .map((i: Int) => new Attribute("column" + i, AttributeType.STRING))
+            .map((i: Int) => new Attribute("column" + i, attributeTypeList.apply(i)))
             .asJava
       )
       .build
-
   }
+
+  private def inferLine(attributeTypeList: Array[AttributeType], tokens: Array[String]): Array[AttributeType] = {
+    tokens.indices
+      .map(i=> inferToken(attributeTypeList.apply(i),tokens.apply(i))).toArray
+  }
+
+  private def inferToken(attributeType:AttributeType, token:String): AttributeType = {
+    if (attributeType.getName().equals("string"))
+      tryParseString()
+    else if (attributeType.getName().equals("boolean"))
+      tryParseBoolean(token)
+    else if (attributeType.getName().equals("double"))
+      tryParseDouble(token)
+    else if (attributeType.getName().equals("long"))
+      tryParseLong(token)
+    else if (attributeType.getName().equals("integer"))
+      tryParseInteger(token)
+    else
+      tryParseString()
+  }
+
+
+  private def tryParseInteger(token: String): AttributeType = if ((allCatch opt token.toInt).isDefined) {
+    AttributeType.INTEGER
+  } else {
+    tryParseLong(token)
+  }
+
+  private def tryParseLong(token: String): AttributeType = if ((allCatch opt token.toLong).isDefined) {
+    AttributeType.LONG
+  } else {
+    tryParseDouble(token)
+  }
+  private def tryParseDouble(token: String): AttributeType = {
+    if ((allCatch opt token.toDouble).isDefined) {
+      AttributeType.DOUBLE
+    } else {
+      tryParseBoolean(token)
+    }
+  }
+  private def tryParseBoolean(token: String): AttributeType = {
+    if ((allCatch opt token.toBoolean).isDefined) {
+      AttributeType.BOOLEAN
+    } else {
+      tryParseString()
+    }
+  }
+
+  private def tryParseString(): AttributeType = {
+    AttributeType.STRING
+  }
+
 }
