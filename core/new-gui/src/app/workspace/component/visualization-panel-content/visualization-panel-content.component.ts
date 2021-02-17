@@ -1,12 +1,11 @@
-import { Component, Input, OnDestroy, AfterViewInit } from '@angular/core';
+import { AfterViewInit, Component, Input, OnDestroy } from '@angular/core';
 import * as c3 from 'c3';
 import { PrimitiveArray } from 'c3';
 import * as d3 from 'd3';
 import * as cloud from 'd3-cloud';
-import { ChartType, WordCloudTuple } from '../../types/visualization.interface';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { ResultObject } from '../../types/execute-workflow.interface';
-
+import { ChartType, WordCloudTuple } from '../../types/visualization.interface';
 
 /**
  * VisualizationPanelContentComponent displays the chart based on the chart type and data in table.
@@ -60,7 +59,7 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
       return;
     }
     const result: ResultObject | undefined = this.workflowStatusService.getCurrentResult()[this.operatorID];
-    if (! result) {
+    if (!result) {
       return;
     }
     this.data = result.table as object[];
@@ -68,7 +67,9 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
 
     switch (this.chartType) {
       // correspond to WordCloudSink.java
-      case ChartType.WORD_CLOUD: this.generateWordCloud(); break;
+      case ChartType.WORD_CLOUD:
+        this.generateWordCloud();
+        break;
       // correspond to TexeraBarChart.java
       case ChartType.BAR:
       case ChartType.STACKED_BAR:
@@ -77,7 +78,9 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
       case ChartType.DONUT:
       // correspond to TexeraLineChart.java
       case ChartType.LINE:
-      case ChartType.SPLINE: this.generateChart(); break;
+      case ChartType.SPLINE:
+        this.generateChart();
+        break;
     }
   }
 
@@ -89,13 +92,13 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
     if (this.wordCloudElement === undefined) {
       this.wordCloudElement =
         d3.select(`#${VisualizationPanelContentComponent.WORD_CLOUD_ID}`)
-              .append('svg')
-      .attr('width', VisualizationPanelContentComponent.WIDTH)
-      .attr('height', VisualizationPanelContentComponent.HEIGHT)
-      .append('g')
-      .attr('transform',
-        'translate(' + VisualizationPanelContentComponent.WIDTH / 2 + ',' + VisualizationPanelContentComponent.HEIGHT / 2 + ')')
-        ;
+          .append('svg')
+          .attr('width', VisualizationPanelContentComponent.WIDTH)
+          .attr('height', VisualizationPanelContentComponent.HEIGHT)
+          .append('g')
+          .attr('transform',
+            'translate(' + VisualizationPanelContentComponent.WIDTH / 2 + ','
+            + VisualizationPanelContentComponent.HEIGHT / 2 + ')');
     }
 
     const wordCloudTuples = this.data as ReadonlyArray<WordCloudTuple>;
@@ -116,8 +119,7 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
         .attr('text-anchor', 'middle')
         .attr('transform', (d) => 'translate(' + [d.x, d.y] + ')rotate(' + d.rotate + ')')
         // this text() call must be at the end or it won't work
-        .text(d => d.text ?? '')
-        ;
+        .text(d => d.text ?? '');
 
       // Entering and existing words
       wordCloudData.transition()
@@ -151,7 +153,7 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
 
     const layout = cloud()
       .size([VisualizationPanelContentComponent.WIDTH, VisualizationPanelContentComponent.HEIGHT])
-      .words(wordCloudTuples.map(t => ({ text: t.word, size: d3Scale(t.count) })))
+      .words(wordCloudTuples.map(t => ({text: t.word, size: d3Scale(t.count)})))
       .text(d => d.text ?? '')
       .padding(5)
       .rotate(() => 0)
@@ -162,7 +164,6 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
 
     layout.start();
   }
-
 
   generateChart() {
     if (!this.data || !this.chartType) {

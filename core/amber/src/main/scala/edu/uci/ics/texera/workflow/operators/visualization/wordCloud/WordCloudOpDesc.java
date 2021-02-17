@@ -23,8 +23,8 @@ import static scala.collection.JavaConverters.asScalaBuffer;
 /**
  * WordCloud is a visualization operator that can be used by the caller to generate data for wordcloud.js in frontend.
  * WordCloud returns tuples with word (String) and its font size (Integer) for frontend.
- * @author Mingji Han, Xiaozhen Liu
  *
+ * @author Mingji Han, Xiaozhen Liu
  */
 
 public class WordCloudOpDesc extends VisualizationOperator {

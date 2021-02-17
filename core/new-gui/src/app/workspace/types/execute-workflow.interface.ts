@@ -2,16 +2,16 @@
  * This file contains some type declaration for the WorkflowGraph interface of the **backend**.
  * The API of the backend is (currently) not the same as the Graph representation in the frontend.
  * These interfaces confronts to the backend API.
-*/
+ */
 
-import { Breakpoint, BreakpointTriggerInfo, BreakpointRequest, OperatorPort } from './workflow-common.interface';
-import { OperatorCurrentTuples } from './workflow-websocket.interface';
 import { ChartType } from './visualization.interface';
+import { BreakpointRequest, BreakpointTriggerInfo } from './workflow-common.interface';
+import { OperatorCurrentTuples } from './workflow-websocket.interface';
 
 export interface LogicalLink extends Readonly<{
   origin: { operatorID: string, portOrdinal: number },
   destination: { operatorID: string, portOrdinal: number },
-}> { }
+}> {}
 
 export interface LogicalOperator extends Readonly<{
   operatorID: string,
@@ -19,7 +19,7 @@ export interface LogicalOperator extends Readonly<{
   // reason for not using `any` in this case is to
   //  prevent types such as `undefined` or `null`
   [uniqueAttributes: string]: string | number | boolean | object
-}> { }
+}> {}
 
 export interface BreakpointInfo extends Readonly<{
   operatorID: string,
@@ -35,7 +35,7 @@ export interface LogicalPlan extends Readonly<{
   operators: LogicalOperator[],
   links: LogicalLink[],
   breakpoints: BreakpointInfo[]
-}> { }
+}> {}
 
 /**
  * The backend interface of the return object of a successful execution
@@ -48,19 +48,20 @@ export interface ResultObject extends Readonly<{
 }> {
 
 }
+
 export interface SuccessExecutionResult extends Readonly<{
   code: 0,
   result: ReadonlyArray<ResultObject>,
   resultID: string
-}> { }
+}> {}
 
 /**
  * The backend interface of the return object of a failed execution
  */
-export interface ErrorExecutionResult extends Readonly< {
+export interface ErrorExecutionResult extends Readonly<{
   code: 1,
   message: string
-}> { }
+}> {}
 
 /**
  * Discriminated Union
@@ -112,7 +113,7 @@ export enum ExecutionState {
 
 export type ExecutionStateInfo = Readonly<{
   state: ExecutionState.Uninitialized | ExecutionState.WaitingToRun | ExecutionState.Running
-  | ExecutionState.Pausing | ExecutionState.Resuming | ExecutionState.Recovering
+    | ExecutionState.Pausing | ExecutionState.Resuming | ExecutionState.Recovering
 } | {
   state: ExecutionState.Paused, currentTuples: Readonly<Record<string, OperatorCurrentTuples>>
 } | {

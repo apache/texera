@@ -1,19 +1,18 @@
+import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
-
-import { VisualizationPanelComponent } from './visualization-panel.component';
-import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
 import { NzButtonModule } from 'ng-zorro-antd/button';
-import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
-import { ResultObject } from '../../types/execute-workflow.interface';
+import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
 import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
-import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
-import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
-import { UndoRedoService } from '../../service/undo-redo/undo-redo.service';
 import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
-import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { UndoRedoService } from '../../service/undo-redo/undo-redo.service';
+import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
+import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
+import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
+import { ResultObject } from '../../types/execute-workflow.interface';
 import { ChartType } from '../../types/visualization.interface';
+import { VisualizationPanelComponent } from './visualization-panel.component';
 
 describe('VisualizationPanelComponent', () => {
   let component: VisualizationPanelComponent;
@@ -21,7 +20,7 @@ describe('VisualizationPanelComponent', () => {
   let workflowStatusService: WorkflowStatusService;
 
   const testData: Record<string, ResultObject> = {
-    'operator1': { operatorID: 'operator1', chartType: ChartType.BAR, table: [], totalRowCount: 0}
+    'operator1': {operatorID: 'operator1', chartType: ChartType.BAR, table: [], totalRowCount: 0}
   };
 
   beforeEach(async(() => {
@@ -37,9 +36,9 @@ describe('VisualizationPanelComponent', () => {
         WorkflowUtilService,
         UndoRedoService,
         WorkflowActionService,
-        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+        {provide: OperatorMetadataService, useClass: StubOperatorMetadataService},
         WorkflowStatusService,
-        ExecuteWorkflowService,
+        ExecuteWorkflowService
       ]
     })
       .compileComponents();
