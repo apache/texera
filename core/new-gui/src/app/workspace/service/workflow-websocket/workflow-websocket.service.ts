@@ -18,15 +18,11 @@ export class WorkflowWebsocketService {
   constructor() {
     this.websocket = webSocket<TexeraWebsocketEvent|TexeraWebsocketRequest>(WorkflowWebsocketService.getWorkflowWebsocketUrl());
     this.webSocketObservable = this.websocket.share() as Observable<TexeraWebsocketEvent>;
-
-    Observable.of(1).delay(500).subscribe(() => {
-      this.webSocketObservable.subscribe(data => {
-        if (data.type === 'HelloWorldResponse') {
-          console.log('hello world works: ' + data.message);
-        }
-      });
+    this.webSocketObservable.subscribe(data => {
+      if (data.type === 'HelloWorldResponse') {
+        console.log('hello world works: ' + data.message);
+      }
     });
-
     this.send('HelloWorldRequest', {message: 'Texera on Amber'});
   }
 
