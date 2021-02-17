@@ -10,7 +10,7 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
-import edu.uci.ics.texera.web.TexeraWebApplication
+import edu.uci.ics.texera.web.{ServletAwareConfigurator, TexeraWebApplication}
 import edu.uci.ics.texera.web.model.event._
 import edu.uci.ics.texera.web.model.request._
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
@@ -38,7 +38,10 @@ object WorkflowWebsocketResource {
   val sessionResults = new mutable.HashMap[String, Map[String, List[ITuple]]]
 }
 
-@ServerEndpoint(value = "/wsapi/workflow-websocket", configurator = classOf[ServletAwareConfig])
+@ServerEndpoint(
+  value = "/wsapi/workflow-websocket",
+  configurator = classOf[ServletAwareConfigurator]
+)
 class WorkflowWebsocketResource {
 
   final val objectMapper = Utils.objectMapper
@@ -160,11 +163,9 @@ class WorkflowWebsocketResource {
     val context = new WorkflowContext
     val jobID = Integer.toString(WorkflowWebsocketResource.nextJobID.incrementAndGet)
     context.jobID = jobID
-    context.userID = Option(
-      UserResource
-        .getUser(sessionMap(session.getId)._2)
-        .getUid
-    )
+    context.userID = UserResource
+      .getUser(sessionMap(session.getId)._2)
+      .map(u => u.getUid)
 
     val texeraWorkflowCompiler = new WorkflowCompiler(
       WorkflowInfo(request.operators, request.links, request.breakpoints),

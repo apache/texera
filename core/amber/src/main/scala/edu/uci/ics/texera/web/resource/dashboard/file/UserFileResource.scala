@@ -41,32 +41,41 @@ class UserFileResource {
       @FormDataParam("description") description: String,
       @Session session: HttpSession
   ): Response = {
-    val userID = UserResource.getUser(session).getUid
-    val fileName = fileDetail.getFileName
-    val validationResult = validateFileName(fileName, userID)
-    if (!validationResult.getLeft)
-      return Response.status(Response.Status.BAD_REQUEST).entity(validationResult.getRight).build()
+    UserResource.getUser(session) match {
+      case Some(user) =>
+        val userID = user.getUid
+        val fileName = fileDetail.getFileName
+        val validationResult = validateFileName(fileName, userID)
+        if (!validationResult.getLeft)
+          return Response
+            .status(Response.Status.BAD_REQUEST)
+            .entity(validationResult.getRight)
+            .build()
 
-    fileDao.insert(
-      new File(
-        userID,
-        null,
-        size,
-        fileName,
-        UserFileUtils.getFilePath(userID.toString, fileName).toString,
-        description
-      )
-    )
-    UserFileUtils.storeFile(uploadedInputStream, fileName, userID.toString)
-    Response.ok().build()
+        fileDao.insert(
+          new File(
+            userID,
+            null,
+            size,
+            fileName,
+            UserFileUtils.getFilePath(userID.toString, fileName).toString,
+            description
+          )
+        )
+        UserFileUtils.storeFile(uploadedInputStream, fileName, userID.toString)
+        Response.ok().build()
+      case None =>
+        Response.status(Response.Status.UNAUTHORIZED).build()
+    }
   }
 
   @GET
   @Path("/list")
   def listUserFiles(@Session session: HttpSession): util.List[File] = {
-    val user = UserResource.getUser(session)
-    if (user == null) return new util.ArrayList[File]() {}
-    getUserFileRecord(user.getUid)
+    UserResource.getUser(session) match {
+      case Some(user) => getUserFileRecord(user.getUid)
+      case None       => new util.ArrayList[File]()
+    }
   }
 
   @DELETE
@@ -75,13 +84,18 @@ class UserFileResource {
       @PathParam("fileID") fileID: UInteger,
       @Session session: HttpSession
   ): Response = {
-    val userID = UserResource.getUser(session).getUid
-    // TODO: add user check
-    val filePath = fileDao.fetchOneByFid(fileID).getPath
-    UserFileUtils.deleteFile(Paths.get(filePath))
-    fileDao.deleteById(fileID)
 
-    Response.ok().build()
+    UserResource.getUser(session) match {
+      case Some(user) =>
+        val userID = user.getUid
+        // TODO: add user check
+        val filePath = fileDao.fetchOneByFid(fileID).getPath
+        UserFileUtils.deleteFile(Paths.get(filePath))
+        fileDao.deleteById(fileID)
+        Response.ok().build()
+      case None =>
+        Response.status(Response.Status.UNAUTHORIZED).build()
+    }
   }
 
   @POST
@@ -91,13 +105,18 @@ class UserFileResource {
       @Session session: HttpSession,
       @FormDataParam("name") fileName: String
   ): Response = {
-    val userID = UserResource.getUser(session).getUid
-    val validationResult = validateFileName(fileName, userID)
-    if (validationResult.getLeft)
-      Response.ok().build()
-    else {
-      Response.status(Response.Status.BAD_REQUEST).entity(validationResult.getRight).build()
+    UserResource.getUser(session) match {
+      case Some(user) =>
+        val validationResult = validateFileName(fileName, user.getUid)
+        if (validationResult.getLeft)
+          Response.ok().build()
+        else {
+          Response.status(Response.Status.BAD_REQUEST).entity(validationResult.getRight).build()
+        }
+      case None =>
+        Response.status(Response.Status.UNAUTHORIZED).build()
     }
+
   }
 
   private def getUserFileRecord(userID: UInteger): util.List[File] = {

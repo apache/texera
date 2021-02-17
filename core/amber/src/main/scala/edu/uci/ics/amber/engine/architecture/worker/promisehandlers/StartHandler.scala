@@ -23,9 +23,9 @@ trait StartHandler {
   registerHandler { (msg: StartWorker, sender) =>
     stateManager.assertState(Ready)
     if (operator.isInstanceOf[ISourceOperatorExecutor]) {
+      stateManager.transitTo(Running)
       dataProcessor.appendElement(EndMarker)
       dataProcessor.appendElement(EndOfAllMarker)
-      stateManager.transitTo(Running)
       stateManager.getCurrentState
     } else {
       throw new WorkflowRuntimeException(

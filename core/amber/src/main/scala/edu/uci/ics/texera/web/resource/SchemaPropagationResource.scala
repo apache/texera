@@ -30,11 +30,9 @@ class SchemaPropagationResource {
       val workflow = Utils.objectMapper.readValue(workflowStr, classOf[WorkflowInfo])
 
       val context = new WorkflowContext
-      context.userID = Option(
-        UserResource
-          .getUser(httpSession)
-          .getUid
-      )
+      context.userID = UserResource
+        .getUser(httpSession)
+        .map(u => u.getUid)
 
       val texeraWorkflowCompiler = new WorkflowCompiler(
         WorkflowInfo(workflow.operators, workflow.links, workflow.breakpoints),
