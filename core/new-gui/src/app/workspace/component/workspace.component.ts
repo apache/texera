@@ -123,9 +123,10 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   }
 
   private registerAutoCacheWorkFlow(): void {
-    this.subscriptions.add(this.workflowActionService.workflowChanged().debounceTime(100).subscribe(() => {
-      this.workflowCacheService.setCacheWorkflow(this.workflowActionService.getWorkflow());
-    }));
+    this.subscriptions.add(this.workflowActionService.workflowChanged().debounceTime(100)
+      .subscribe(() => {
+        this.workflowCacheService.setCacheWorkflow(this.workflowActionService.getWorkflow());
+      }));
   }
 
   private registerAutoPersistWorkflow(): void {
@@ -155,6 +156,8 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
   }
 
   private noAccessToWorkflow(): void {
+    this.undoRedoService.clearUndoStack();
+    this.undoRedoService.clearRedoStack();
     this.workflowCacheService.resetCachedWorkflow();
     this.workflowActionService.reloadWorkflow(this.workflowCacheService.getCachedWorkflow());
     this.location.go(`/`);
