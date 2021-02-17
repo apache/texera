@@ -18,7 +18,7 @@ trait CollectSinkResultsHandler {
   registerHandler { (msg: CollectSinkResults, sender) =>
     operator match {
       case processor: ITupleSinkOperatorExecutor =>
-        processor.getResultTuples().toList
+        processor.getResultTuples()
       case _ =>
         List.empty
     }
