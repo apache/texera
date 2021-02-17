@@ -1,6 +1,5 @@
 import { Component, Input, OnChanges } from '@angular/core';
 import { NzModalRef, NzModalService } from 'ng-zorro-antd/modal';
-
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { ResultObject } from '../../types/execute-workflow.interface';
 import { VisualizationPanelContentComponent } from '../visualization-panel-content/visualization-panel-content.component';
@@ -9,8 +8,8 @@ import { VisualizationPanelContentComponent } from '../visualization-panel-conte
  * VisualizationPanelComponent displays the button for visualization in ResultPanel when the result type is chart.
  *
  * It receives the data for visualization and chart type.
- * When user click on button, this component will open VisualzationPanelContentComponent and display figure.
- * User could click close at the button of VisualzationPanelContentComponent to exit the visualization panel.
+ * When user click on button, this component will open VisualizationPanelContentComponent and display figure.
+ * User could click close at the button of VisualizationPanelContentComponent to exit the visualization panel.
  * @author Mingji Han
  */
 @Component({
@@ -38,7 +37,7 @@ export class VisualizationPanelComponent implements OnChanges {
   }
 
   updateDisplayVisualizationPanel() {
-    if (! this.operatorID) {
+    if (!this.operatorID) {
       this.displayVisualizationPanel = false;
       return;
     }

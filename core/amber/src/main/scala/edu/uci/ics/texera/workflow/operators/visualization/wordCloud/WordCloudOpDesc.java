@@ -21,8 +21,8 @@ import static scala.collection.JavaConverters.asScalaBuffer;
 /**
  * WordCloud is a visualization operator that can be used by the caller to generate data for wordcloud.js in frontend.
  * WordCloud returns tuples with word (String) and its font size (Integer) for frontend.
- * @author Mingji Han, Xiaozhen Liu
  *
+ * @author Mingji Han, Xiaozhen Liu
  */
 
 public class WordCloudOpDesc extends VisualizationOperator {
@@ -31,7 +31,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
     @AutofillAttributeName
     public String textColumn;
 
-    @JsonProperty(required = false, defaultValue = "100")
+    @JsonProperty(defaultValue = "100")
     @JsonSchemaTitle("Number of most frequent words")
     public Integer topN;
 

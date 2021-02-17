@@ -93,7 +93,7 @@ public class WordCloudOpPartialExec implements OperatorExecutor {
             return JavaConverters.asScalaIterator(Iterators.emptyIterator());
         } else {
             try {
-                return (JavaConverters.asScalaIterator(calculateWordCount(textList, getLuceneAnalyzer()).iterator()));
+                return JavaConverters.asScalaIterator(calculateWordCount(textList, getLuceneAnalyzer()).iterator());
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }

@@ -1,18 +1,17 @@
-import { environment } from './../../../../environments/environment';
 import { Injectable } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
-import { OperatorStatistics, ExecutionState, OperatorState, ResultObject } from '../../types/execute-workflow.interface';
-import { WorkflowWebsocketService } from '../workflow-websocket/workflow-websocket.service';
+import { environment } from '../../../../environments/environment';
+import { ExecutionState, OperatorState, OperatorStatistics, ResultObject } from '../../types/execute-workflow.interface';
 import { ExecuteWorkflowService } from '../execute-workflow/execute-workflow.service';
 import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
-
+import { WorkflowWebsocketService } from '../workflow-websocket/workflow-websocket.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class WorkflowStatusService {
   // status is responsible for passing websocket responses to other components
-  private statusSubject  = new Subject<Record<string, OperatorStatistics>>();
+  private statusSubject = new Subject<Record<string, OperatorStatistics>>();
   private currentStatus: Record<string, OperatorStatistics> = {};
 
   private resultSubject = new Subject<Record<string, ResultObject>>();

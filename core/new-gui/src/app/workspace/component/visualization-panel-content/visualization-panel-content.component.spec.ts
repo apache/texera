@@ -1,19 +1,17 @@
+import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
-import { VisualizationPanelContentComponent } from './visualization-panel-content.component';
 import { MatDialogModule } from '@angular/material/dialog';
-
-import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
-import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
-import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
-import { UndoRedoService } from '../../service/undo-redo/undo-redo.service';
 import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
-import { HttpClientTestingModule } from '@angular/common/http/testing';
-import { ChartType } from '../../types/visualization.interface';
+import { UndoRedoService } from '../../service/undo-redo/undo-redo.service';
+import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
+import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
+import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { ResultObject } from '../../types/execute-workflow.interface';
-
+import { ChartType } from '../../types/visualization.interface';
+import { VisualizationPanelContentComponent } from './visualization-panel-content.component';
 
 describe('VisualizationPanelContentComponent', () => {
   let component: VisualizationPanelContentComponent;
@@ -23,18 +21,18 @@ describe('VisualizationPanelContentComponent', () => {
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       imports: [MatDialogModule, HttpClientTestingModule],
-      declarations: [ VisualizationPanelContentComponent ],
+      declarations: [VisualizationPanelContentComponent],
       providers: [
         JointUIService,
         WorkflowUtilService,
         UndoRedoService,
         WorkflowActionService,
-        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+        {provide: OperatorMetadataService, useClass: StubOperatorMetadataService},
         WorkflowStatusService,
-        ExecuteWorkflowService,
+        ExecuteWorkflowService
       ]
     })
-    .compileComponents();
+      .compileComponents();
   }));
 
   beforeEach(() => {
@@ -50,7 +48,7 @@ describe('VisualizationPanelContentComponent', () => {
 
   it('should draw the figure', () => {
     const testData: Record<string, ResultObject> = {
-      'operator1': { operatorID: 'operator1', chartType: ChartType.PIE, table: [{'id': 1, 'data': 2}], totalRowCount: 1}
+      'operator1': {operatorID: 'operator1', chartType: ChartType.PIE, table: [{'id': 1, 'data': 2}], totalRowCount: 1}
     };
     spyOn(component, 'generateChart');
     spyOn(workflowStatusService, 'getCurrentResult').and.returnValue(testData);
@@ -61,10 +59,12 @@ describe('VisualizationPanelContentComponent', () => {
     expect(component.generateChart).toHaveBeenCalled();
   });
 
-  it('should draw the wordcloud', () => {
+  it('should draw the word cloud', () => {
     const testData: Record<string, ResultObject> = {
-      'operator1': { operatorID: 'operator1', chartType: ChartType.WORD_CLOUD,
-      table: [{'word': 'foo', 'count': 120}, {'word': 'bar', 'count': 100}], totalRowCount: 2}
+      'operator1': {
+        operatorID: 'operator1', chartType: ChartType.WORD_CLOUD,
+        table: [{'word': 'foo', 'count': 120}, {'word': 'bar', 'count': 100}], totalRowCount: 2
+      }
     };
     spyOn(component, 'generateWordCloud');
     spyOn(workflowStatusService, 'getCurrentResult').and.returnValue(testData);
