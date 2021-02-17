@@ -6,7 +6,11 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.texera.web.resource.dashboard.file.UserFileUtils
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo, OutputPort}
+import edu.uci.ics.texera.workflow.common.metadata.{
+  OperatorGroupConstants,
+  OperatorInfo,
+  OutputPort
+}
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.codehaus.jackson.map.annotate.JsonDeserialize
@@ -103,17 +107,18 @@ class CSVScanSourceOpDesc extends SourceOperatorDescriptor {
     if (delimiter.isEmpty) return null
 
     val headers: Array[String] = headerLine.split(delimiter.get)
-    var attributeTypeList: Array[AttributeType] = Array.fill[AttributeType](headers.length)(AttributeType.INTEGER)
+    var attributeTypeList: Array[AttributeType] =
+      Array.fill[AttributeType](headers.length)(AttributeType.INTEGER)
 
-    val  reader = new BufferedReader(new FileReader(filePath.get))
-    var line:String = null
+    val reader = new BufferedReader(new FileReader(filePath.get))
+    var line: String = null
     if (hasHeader)
       reader.readLine()
     var i = 0
     line = reader.readLine()
-    while(line!=null && i<100) {
-      attributeTypeList = inferLine(attributeTypeList,line.split(delimiter.get))
-      i+=1
+    while (line != null && i < 100) {
+      attributeTypeList = inferLine(attributeTypeList, line.split(delimiter.get))
+      i += 1
       line = reader.readLine()
     }
     Schema.newBuilder
@@ -130,12 +135,16 @@ class CSVScanSourceOpDesc extends SourceOperatorDescriptor {
       .build
   }
 
-  private def inferLine(attributeTypeList: Array[AttributeType], tokens: Array[String]): Array[AttributeType] = {
+  private def inferLine(
+      attributeTypeList: Array[AttributeType],
+      tokens: Array[String]
+  ): Array[AttributeType] = {
     tokens.indices
-      .map(i=> inferToken(attributeTypeList.apply(i),tokens.apply(i))).toArray
+      .map(i => inferToken(attributeTypeList.apply(i), tokens.apply(i)))
+      .toArray
   }
 
-  private def inferToken(attributeType:AttributeType, token:String): AttributeType = {
+  private def inferToken(attributeType: AttributeType, token: String): AttributeType = {
     if (attributeType.getName().equals("string"))
       tryParseString()
     else if (attributeType.getName().equals("boolean"))
@@ -150,18 +159,19 @@ class CSVScanSourceOpDesc extends SourceOperatorDescriptor {
       tryParseString()
   }
 
+  private def tryParseInteger(token: String): AttributeType =
+    if ((allCatch opt token.toInt).isDefined) {
+      AttributeType.INTEGER
+    } else {
+      tryParseLong(token)
+    }
 
-  private def tryParseInteger(token: String): AttributeType = if ((allCatch opt token.toInt).isDefined) {
-    AttributeType.INTEGER
-  } else {
-    tryParseLong(token)
-  }
-
-  private def tryParseLong(token: String): AttributeType = if ((allCatch opt token.toLong).isDefined) {
-    AttributeType.LONG
-  } else {
-    tryParseDouble(token)
-  }
+  private def tryParseLong(token: String): AttributeType =
+    if ((allCatch opt token.toLong).isDefined) {
+      AttributeType.LONG
+    } else {
+      tryParseDouble(token)
+    }
   private def tryParseDouble(token: String): AttributeType = {
     if ((allCatch opt token.toDouble).isDefined) {
       AttributeType.DOUBLE
