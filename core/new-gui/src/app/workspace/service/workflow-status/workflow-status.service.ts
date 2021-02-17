@@ -20,9 +20,9 @@ export class WorkflowStatusService {
   private currentResult: Record<string, ResultObject> = {};
 
   constructor(
-    private workflowActionService: WorkflowActionService,
+    // private workflowActionService: WorkflowActionService,
     private workflowWebsocketService: WorkflowWebsocketService,
-    private executeWorkflowService: ExecuteWorkflowService
+    // private executeWorkflowService: ExecuteWorkflowService
   ) {
     if (!environment.executionStatusEnabled) {
       return;
@@ -50,19 +50,19 @@ export class WorkflowStatusService {
       }
     });
 
-    this.executeWorkflowService.getExecutionStateStream().subscribe(event => {
-      if (event.current.state === ExecutionState.WaitingToRun) {
-        const initialStatistics: Record<string, OperatorStatistics> = {};
-        this.workflowActionService.getTexeraGraph().getAllOperators().forEach(op => {
-          initialStatistics[op.operatorID] = {
-            operatorState: OperatorState.Initializing,
-            aggregatedInputRowCount: 0,
-            aggregatedOutputRowCount: 0
-          };
-        });
-        this.statusSubject.next(initialStatistics);
-      }
-    });
+    // this.executeWorkflowService.getExecutionStateStream().subscribe(event => {
+    //   if (event.current.state === ExecutionState.WaitingToRun) {
+    //     const initialStatistics: Record<string, OperatorStatistics> = {};
+    //     this.workflowActionService.getTexeraGraph().getAllOperators().forEach(op => {
+    //       initialStatistics[op.operatorID] = {
+    //         operatorState: OperatorState.Initializing,
+    //         aggregatedInputRowCount: 0,
+    //         aggregatedOutputRowCount: 0
+    //       };
+    //     });
+    //     this.statusSubject.next(initialStatistics);
+    //   }
+    // });
   }
 
   public getStatusUpdateStream(): Observable<Record<string, OperatorStatistics>> {

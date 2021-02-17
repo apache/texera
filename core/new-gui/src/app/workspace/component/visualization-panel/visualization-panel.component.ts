@@ -1,9 +1,9 @@
 import { Component, Input, OnChanges, } from '@angular/core';
 import { NzModalRef, NzModalService } from 'ng-zorro-antd/modal';
 import { VisualizationPanelContentComponent } from '../visualization-panel-content/visualization-panel-content.component';
-import { ChartType } from '../../types/visualization.interface';
-import { assertType } from '../../../common/util/assert';
+
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
+import { ResultObject } from '../../types/execute-workflow.interface';
 
 /**
  * VisualizationPanelComponent displays the button for visualization in ResultPanel when the result type is chart.
@@ -22,10 +22,10 @@ export class VisualizationPanelComponent implements OnChanges {
 
   @Input() operatorID: string | undefined;
   displayVisualizationPanel: boolean = false;
-
+  modalRef: NzModalRef | undefined;
 
   constructor(
-    private modal: NzModalService,
+    private modalService: NzModalService,
     private workflowStatusService: WorkflowStatusService
   ) {
     this.workflowStatusService.getResultUpdateStream().subscribe(event => {
@@ -42,20 +42,30 @@ export class VisualizationPanelComponent implements OnChanges {
       this.displayVisualizationPanel = false;
       return;
     }
-    this.displayVisualizationPanel = this.workflowStatusService.getCurrentResult()[this.operatorID]?.chartType !== undefined;
+    const result: ResultObject | undefined = this.workflowStatusService.getCurrentResult()[this.operatorID];
+    console.log(result);
+    this.displayVisualizationPanel = result?.chartType !== undefined;
   }
 
   onClickVisualize(): void {
-    const dialogRef = this.modal.create({
+    if (!this.operatorID) {
+      return;
+    }
+    const result: ResultObject | undefined = this.workflowStatusService.getCurrentResult()[this.operatorID];
+    if (! result) {
+      return;
+    }
+
+    this.modalRef = this.modalService.create({
       nzTitle: 'Visualization',
       nzWidth: 1100,
       nzContent: VisualizationPanelContentComponent,
       nzComponentParams: {
-        operatorID: this.operatorID
+        data: result.table as object[],
+        chartType: result.chartType
       }
     });
 
   }
-
 
 }

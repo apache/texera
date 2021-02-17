@@ -1,8 +1,9 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
-import * as c3 from 'c3';
 import { VisualizationPanelContentComponent } from './visualization-panel-content.component';
-import { MatDialogModule,  MAT_DIALOG_DATA } from '@angular/material/dialog';
-import { ChartType, WordCloudTuple, DialogData } from '../../types/visualization.interface';
+import { MatDialogModule } from '@angular/material/dialog';
+import { ChartType } from '../../types/visualization.interface';
+
+
 describe('VisualizationPanelContentComponent', () => {
   let component: VisualizationPanelContentComponent;
   let fixture: ComponentFixture<VisualizationPanelContentComponent>;
@@ -19,7 +20,8 @@ describe('VisualizationPanelContentComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(VisualizationPanelContentComponent);
     component = fixture.componentInstance;
-    component.data = {table: [['id', 'data'], [1, 2]], chartType: ChartType.PIE};
+    component.data = [{'id': 1, 'data': 2}];
+    component.chartType = ChartType.PIE;
     fixture.detectChanges();
   });
 
@@ -28,17 +30,21 @@ describe('VisualizationPanelContentComponent', () => {
   });
 
   it('should draw the figure', () => {
-    spyOn(component, 'onClickGenerateChart');
-    component.ngAfterViewInit();
-    expect(component.onClickGenerateChart).toHaveBeenCalled();
+    spyOn(component, 'generateChart');
+    component.ngOnChanges();
+    fixture.detectChanges();
+    expect(component.generateChart).toHaveBeenCalled();
   });
 
   it('should draw the wordcloud', () => {
-    const testComponent = new VisualizationPanelContentComponent();
-    testComponent.data = { table: [['word', 'count'], ['foo', 120], ['bar', 100]],
-      chartType: ChartType.WORD_CLOUD };
-    spyOn(testComponent, 'onClickGenerateWordCloud');
-    testComponent.ngAfterViewInit();
-    expect(testComponent.onClickGenerateWordCloud).toHaveBeenCalled();
+    const testComponent = fixture.componentInstance;
+    component.data = [{'word': 'foo', 'count': 120}, {'word': 'bar', 'count': 100}];
+    component.chartType = ChartType.WORD_CLOUD;
+
+    spyOn(testComponent, 'generateWordCloud');
+    component.ngOnChanges();
+    fixture.detectChanges();
+
+    expect(testComponent.generateWordCloud).toHaveBeenCalled();
   });
 });

@@ -1,11 +1,9 @@
-import { Component, Input, OnInit, AfterViewInit } from '@angular/core';
+import { Component, Input, OnChanges, OnDestroy } from '@angular/core';
 import * as c3 from 'c3';
 import { PrimitiveArray } from 'c3';
 import * as d3 from 'd3';
 import * as cloud from 'd3-cloud';
 import { ChartType, WordCloudTuple } from '../../types/visualization.interface';
-import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
-import { ResultObject } from '../../types/execute-workflow.interface';
 
 
 /**
@@ -20,43 +18,44 @@ import { ResultObject } from '../../types/execute-workflow.interface';
   templateUrl: './visualization-panel-content.component.html',
   styleUrls: ['./visualization-panel-content.component.scss']
 })
-export class VisualizationPanelContentComponent implements OnInit, AfterViewInit {
+export class VisualizationPanelContentComponent implements OnChanges, OnDestroy {
   // this readonly variable must be the same as HTML element ID for visualization
   public static readonly CHART_ID = '#texera-result-chart-content';
   public static readonly WORD_CLOUD_ID = 'texera-word-cloud';
   public static readonly WIDTH = 1000;
   public static readonly HEIGHT = 800;
 
-  @Input()
-  public operatorID: string | undefined;
+  // public operatorID: string | undefined;
 
-  private chartType: string | undefined;
+  @Input()
+  public chartType: string | undefined;
+  @Input()
+  public data: object[] | undefined;
+
   private columns: string[] = [];
-  private data: object[] = [];
 
   private wordCloudElement: d3.Selection<SVGGElement, unknown, HTMLElement, any> | undefined;
+  private c3ChartElement: c3.ChartAPI | undefined;
 
   constructor(
-    private workflowStatusService: WorkflowStatusService
   ) {
   }
 
-  ngOnInit() {
+  ngOnDestroy() {
+    if (this.wordCloudElement) {
+      this.wordCloudElement.remove();
+    }
+    if (this.c3ChartElement) {
+      this.c3ChartElement.destroy();
+    }
   }
 
-  ngAfterViewInit() {
-    if (!this.operatorID) {
+  ngOnChanges() {
+    if (!this.data || !this.chartType) {
       return;
     }
-    const currentResult: ResultObject | undefined = this.workflowStatusService.getCurrentResult()[this.operatorID];
-    if (!currentResult || !currentResult.chartType) {
-      return;
-    }
-    this.chartType = currentResult.chartType;
-    this.data = currentResult.table as object[];
-    this.columns = Object.keys(currentResult.table).filter(x => x !== '_id');
-
-    if (this.chartType === ChartType.WORD_CLOUD) {
+    this.columns = Object.keys(this.data).filter(x => x !== '_id');
+    if (this.chartType === ChartType.WORD_CLOUD && this.wordCloudElement === undefined) {
       this.wordCloudElement =
         d3.select(`#${VisualizationPanelContentComponent.WORD_CLOUD_ID}`)
               .append('svg')
@@ -67,7 +66,6 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
         'translate(' + VisualizationPanelContentComponent.WIDTH / 2 + ',' + VisualizationPanelContentComponent.HEIGHT / 2 + ')')
         ;
     }
-
     this.drawChart();
   }
 
@@ -77,7 +75,7 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
     }
     switch (this.chartType) {
       // correspond to WordCloudSink.java
-      case ChartType.WORD_CLOUD: this.onClickGenerateWordCloud(); break;
+      case ChartType.WORD_CLOUD: this.generateWordCloud(); break;
       // correspond to TexeraBarChart.java
       case ChartType.BAR:
       case ChartType.STACKED_BAR:
@@ -86,12 +84,12 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
       case ChartType.DONUT:
       // correspond to TexeraLineChart.java
       case ChartType.LINE:
-      case ChartType.SPLINE: this.onClickGenerateChart(); break;
+      case ChartType.SPLINE: this.generateChart(); break;
     }
   }
 
-  onClickGenerateWordCloud() {
-    if (!this.data) {
+  generateWordCloud() {
+    if (!this.data || !this.chartType) {
       return;
     }
 
@@ -161,8 +159,8 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
   }
 
 
-  onClickGenerateChart() {
-    if (!this.data) {
+  generateChart() {
+    if (!this.data || !this.chartType) {
       return;
     }
 
@@ -182,7 +180,10 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
       dataToDisplay.push(items);
     }
 
-    c3.generate({
+    if (this.c3ChartElement) {
+      this.c3ChartElement.destroy();
+    }
+    this.c3ChartElement = c3.generate({
       size: {
         height: VisualizationPanelContentComponent.HEIGHT,
         width: VisualizationPanelContentComponent.WIDTH
@@ -199,6 +200,7 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
       },
       bindto: VisualizationPanelContentComponent.CHART_ID
     });
+
   }
 
 }
