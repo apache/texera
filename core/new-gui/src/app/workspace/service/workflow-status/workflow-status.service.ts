@@ -6,7 +6,6 @@ import { WorkflowWebsocketService } from '../workflow-websocket/workflow-websock
 import { ExecuteWorkflowService } from '../execute-workflow/execute-workflow.service';
 import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
 
-const Engine_URL = 'ws://localhost:7070/api/websocket';
 
 @Injectable({
   providedIn: 'root'
