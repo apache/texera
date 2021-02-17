@@ -2,13 +2,16 @@ package edu.uci.ics.amber.engine.common.rpc
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlOutputPort
+import edu.uci.ics.amber.engine.architecture.worker.WorkerStatistics
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
+import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{
   ControlInvocation,
   ReturnPayload,
   noReplyNeeded
 }
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, VirtualIdentity}
 
 /** Motivation of having a separate module to handle control messages as RPCs:
   * In the old design, every control message and its response are handled by
@@ -36,7 +39,7 @@ object AsyncRPCServer {
 
 }
 
-class AsyncRPCServer(controlOutputPort: ControlOutputPort) {
+class AsyncRPCServer(controlOutputPort: ControlOutputPort, logger: WorkflowLogger) {
 
   // all handlers
   protected var handlers: PartialFunction[(ControlCommand[_], ActorVirtualIdentity), Future[_]] =
@@ -82,6 +85,18 @@ class AsyncRPCServer(controlOutputPort: ControlOutputPort) {
 
   def execute(cmd: (ControlCommand[_], ActorVirtualIdentity)): Future[_] = {
     handlers(cmd)
+  }
+
+  def logControlInvocation(call: ControlInvocation, sender: VirtualIdentity): Unit = {
+    if (call.commandID == AsyncRPCClient.IgnoreReplyAndDoNotLog) {
+      return
+    }
+    if (call.command.isInstanceOf[QueryStatistics]) {
+      return
+    }
+    logger.logInfo(
+      s"receive command: ${call.command} from ${sender.toString} (controlID: ${call.commandID})"
+    )
   }
 
 }

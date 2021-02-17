@@ -14,26 +14,20 @@ object WorkerStateManager {
   case object Ready extends WorkerState
   case object Running extends WorkerState
   case object Paused extends WorkerState
-  case object Pausing extends WorkerState with IntermediateState
   case object Completed extends WorkerState
   case object Recovering extends WorkerState with IntermediateState
 
 }
 
-class WorkerStateManager
+class WorkerStateManager(initialState: WorkerState = Uninitialized)
     extends StateManager[WorkerState](
       Map(
         Uninitialized -> Set(Ready, Recovering),
-        Ready -> Set(Pausing, Running, Recovering),
-        Running -> Set(Pausing, Completed, Recovering),
-        Pausing -> Set(Paused, Recovering),
+        Ready -> Set(Paused, Running, Recovering),
+        Running -> Set(Paused, Completed, Recovering),
         Paused -> Set(Running, Recovering),
         Completed -> Set(Recovering),
-        Recovering -> Set(Uninitialized, Ready, Running, Pausing, Paused, Completed)
+        Recovering -> Set(Uninitialized, Ready, Running, Paused, Completed)
       ),
-      Uninitialized
-    ) {
-
-  private var isStarted = false
-
-}
+      initialState
+    ) {}

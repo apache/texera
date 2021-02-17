@@ -16,11 +16,19 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   BatchToTupleConverter,
+  ControlInputPort,
   DataInputPort,
   DataOutputPort,
   TupleToBatchConverter
 }
-import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCHandlerInitializer, AsyncRPCServer}
+import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.UnblockForControlCommands
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ShutdownDPThreadHandler.ShutdownDPThread
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
+import edu.uci.ics.amber.engine.common.rpc.{
+  AsyncRPCClient,
+  AsyncRPCHandlerInitializer,
+  AsyncRPCServer
+}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager._
 import edu.uci.ics.amber.engine.common.tuple.ITuple
@@ -55,14 +63,17 @@ class WorkflowWorker(
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
 
+  val workerStateManager: WorkerStateManager = new WorkerStateManager()
+
   lazy val pauseManager: PauseManager = wire[PauseManager]
   lazy val dataProcessor: DataProcessor = wire[DataProcessor]
   lazy val dataInputPort: DataInputPort = wire[DataInputPort]
   lazy val dataOutputPort: DataOutputPort = wire[DataOutputPort]
   lazy val batchProducer: TupleToBatchConverter = wire[TupleToBatchConverter]
   lazy val tupleProducer: BatchToTupleConverter = wire[BatchToTupleConverter]
-  lazy val workerStateManager: WorkerStateManager = wire[WorkerStateManager]
   lazy val breakpointManager: BreakpointManager = wire[BreakpointManager]
+
+  override lazy val controlInputPort: ControlInputPort = wire[WorkerControlInputPort]
 
   val rpcHandlerInitializer: AsyncRPCHandlerInitializer =
     wire[WorkerAsyncRPCHandlerInitializer]
@@ -104,7 +115,11 @@ class WorkflowWorker(
   }
 
   override def postStop(): Unit = {
-    dataProcessor.shutdown()
+    // shutdown dp thread by sending a command
+    dataProcessor.enqueueCommand(
+      ControlInvocation(AsyncRPCClient.IgnoreReply, ShutdownDPThread()),
+      ActorVirtualIdentity.Self
+    )
     logger.logInfo("stopped!")
   }
 

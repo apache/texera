@@ -2,13 +2,12 @@ package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.worker.WorkerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.DummyInput
+import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.UnblockForControlCommands
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.{
   Completed,
   Paused,
-  Pausing,
   Ready,
   Running,
   WorkerState
@@ -25,20 +24,9 @@ trait PauseHandler {
 
   registerHandler { (pause: PauseWorker, sender) =>
     if (stateManager.confirmState(Running, Ready)) {
-      val p = pauseManager.pause()
-      stateManager.transitTo(Pausing)
-      // if dp thread is blocking on waiting for input tuples:
-      if (dataProcessor.isQueueEmpty) {
-        // insert dummy batch to unblock dp thread
-        dataProcessor.appendElement(DummyInput)
-      }
-      p.map { res =>
-        logger.logInfo("pause actually returned")
-        stateManager.transitTo(Paused)
-        stateManager.getCurrentState
-      }
-    } else {
-      Future { stateManager.getCurrentState }
+      pauseManager.pause()
+      stateManager.transitTo(Paused)
     }
+    stateManager.getCurrentState
   }
 }

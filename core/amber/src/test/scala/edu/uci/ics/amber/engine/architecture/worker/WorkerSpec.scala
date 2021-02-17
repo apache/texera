@@ -79,6 +79,9 @@ class WorkerSpec
       0,
       WorkflowControlMessage(ActorVirtualIdentity.Controller, 0, invocation)
     )
+
+    //wait test to finish
+    Thread.sleep(3000)
   }
 
 }
