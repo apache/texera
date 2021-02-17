@@ -1,6 +1,7 @@
 import { Location } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Version } from '../../../environments/version';
 import { UserService } from '../../common/service/user/user.service';
@@ -24,11 +25,13 @@ import { WorkflowWebsocketService } from '../service/workflow-websocket/workflow
     // { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
   ]
 })
-export class WorkspaceComponent implements OnInit {
+export class WorkspaceComponent implements OnInit, OnDestroy {
 
   public gitCommitHash: string = Version.raw;
   public showResultPanel: boolean = false;
   public userSystemEnabled: boolean = environment.userSystemEnabled;
+
+  private subscriptions: Subscription = new Subscription();
 
   constructor(
     private resultPanelToggleService: ResultPanelToggleService,
@@ -45,9 +48,9 @@ export class WorkspaceComponent implements OnInit {
     private route: ActivatedRoute,
     private operatorMetadataService: OperatorMetadataService
   ) {
-    this.resultPanelToggleService.getToggleChangeStream().subscribe(
+    this.subscriptions.add(this.resultPanelToggleService.getToggleChangeStream().subscribe(
       value => this.showResultPanel = value
-    );
+    ));
   }
 
   ngOnInit(): void {
@@ -93,9 +96,9 @@ export class WorkspaceComponent implements OnInit {
           this.location.go('/');
         } else {
           // if wid is present in the url, load it from backend
-          this.userService.userChanged().combineLatest(this.operatorMetadataService.getOperatorMetadata()
+          this.subscriptions.add(this.userService.userChanged().combineLatest(this.operatorMetadataService.getOperatorMetadata()
             .filter(metadata => metadata.operators.length !== 0))
-            .subscribe(() => this.loadWorkflowWithID(id));
+            .subscribe(() => this.loadWorkflowWithID(id)));
         }
       } else {
         // load wid from cache
@@ -109,20 +112,24 @@ export class WorkspaceComponent implements OnInit {
 
   }
 
+  public ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
+  }
+
   private registerAutoReloadWorkflow(): void {
-    this.operatorMetadataService.getOperatorMetadata()
+    this.subscriptions.add(this.operatorMetadataService.getOperatorMetadata()
       .filter(metadata => metadata.operators.length !== 0)
-      .subscribe(() => { this.workflowActionService.reloadWorkflow(this.workflowCacheService.getCachedWorkflow()); });
+      .subscribe(() => { this.workflowActionService.reloadWorkflow(this.workflowCacheService.getCachedWorkflow()); }));
   }
 
   private registerAutoCacheWorkFlow(): void {
-    this.workflowActionService.workflowChanged().debounceTime(100).subscribe(() => {
+    this.subscriptions.add(this.workflowActionService.workflowChanged().debounceTime(100).subscribe(() => {
       this.workflowCacheService.setCacheWorkflow(this.workflowActionService.getWorkflow());
-    });
+    }));
   }
 
   private registerAutoPersistWorkflow(): void {
-    this.workflowActionService.workflowChanged().debounceTime(100).subscribe(() => {
+    this.subscriptions.add(this.workflowActionService.workflowChanged().debounceTime(100).subscribe(() => {
       if (this.userService.isLogin()) {
         this.workflowPersistService.persistWorkflow(this.workflowActionService.getWorkflow())
           .subscribe((updatedWorkflow: Workflow) => {
@@ -132,11 +139,11 @@ export class WorkspaceComponent implements OnInit {
           });
         // to sync up with the updated information, such as workflow.wid
       }
-    });
+    }));
   }
 
   private loadWorkflowWithID(id: number): void {
-    this.workflowPersistService.retrieveWorkflow(id).subscribe(
+    this.subscriptions.add(this.workflowPersistService.retrieveWorkflow(id).subscribe(
       (workflow: Workflow) => {
         this.workflowActionService.reloadWorkflow(workflow);
         this.undoRedoService.clearUndoStack();
@@ -149,7 +156,7 @@ export class WorkspaceComponent implements OnInit {
         this.noAccessToWorkflow();
 
       }
-    );
+    ));
   }
 
   private noAccessToWorkflow(): void {
