@@ -78,6 +78,9 @@ export class NgbdModalUserLoginComponent implements OnInit {
    */
   private detectUserChange(): void {
     // TODO temporary solution, need improvement
-    this.userService.userChanged().filter(isDefined).subscribe(() => this.activeModal.close());
+    this.userService.userChanged().filter(isDefined).subscribe(user => {
+      this.activeModal.close();
+      console.log('getting' + user);
+    });
   }
 }

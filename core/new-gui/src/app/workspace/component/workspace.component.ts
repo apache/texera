@@ -1,7 +1,6 @@
 import { Location } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { combineLatest } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Version } from '../../../environments/version';
 import { UserService } from '../../common/service/user/user.service';
@@ -94,8 +93,8 @@ export class WorkspaceComponent implements OnInit {
           this.location.go('/');
         } else {
           // if wid is present in the url, load it from backend
-          this.userService.getUser().combineLatest(this.operatorMetadataService.getOperatorMetadata()
-              .filter(metadata => metadata.operators.length !== 0))
+          this.userService.userChanged().combineLatest(this.operatorMetadataService.getOperatorMetadata()
+            .filter(metadata => metadata.operators.length !== 0))
             .subscribe(() => this.loadWorkflowWithID(id));
         }
       } else {

@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { of } from 'rxjs';
+import { BehaviorSubject } from 'rxjs';
 import { Observable } from 'rxjs/Observable';
 import { Subject } from 'rxjs/Subject';
 import { environment } from '../../../../environments/environment';
@@ -23,8 +23,8 @@ export class UserService {
   public static readonly REGISTER_ENDPOINT = 'users/register';
   public static readonly LOG_OUT_ENDPOINT = 'users/logout';
 
-  private userChangeSubject: Subject<User|undefined> = new Subject();
-  private currentUser: User|undefined;
+  private userChangeSubject: Subject<User | undefined> = new BehaviorSubject(this.getUser());
+  private currentUser: User | undefined;
 
   constructor(private http: HttpClient) {
     if (environment.userSystemEnabled) {
@@ -64,11 +64,11 @@ export class UserService {
    */
   public logOut(): void {
     this.http.get<Response>(`${AppSettings.getApiEndpoint()}/${UserService.LOG_OUT_ENDPOINT}`)
-        .subscribe(() => this.changeUser(undefined));
+      .subscribe(() => this.changeUser(undefined));
   }
 
-  public getUser(): Observable<User|undefined> {
-    return of(this.currentUser);
+  public getUser(): User | undefined {
+    return this.currentUser;
   }
 
   public isLogin(): boolean {
