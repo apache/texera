@@ -10,8 +10,8 @@ class SimpleSinkOpExec extends ITupleSinkOperatorExecutor {
 
   val results: mutable.MutableList[ITuple] = mutable.MutableList()
 
-  def getResultTuples(): Array[ITuple] = {
-    results.toArray
+  def getResultTuples(): List[ITuple] = {
+    results.toList
   }
 
   override def open(): Unit = {}
