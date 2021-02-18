@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
-import java.util.concurrent.{CompletableFuture, Executors, LinkedBlockingDeque}
+import java.util.concurrent.{Executors, LinkedBlockingDeque}
 
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
@@ -202,7 +202,6 @@ class DataProcessor( // dependencies:
     dpThread.cancel(true) // interrupt
     operator.close() // close operator
     dpThreadExecutor.shutdownNow() // destroy thread
-    new CompletableFuture[Void]().get // wait here to be interrupted
   }
 
   private[this] def outputAvailable(outputIterator: Iterator[ITuple]): Boolean = {
