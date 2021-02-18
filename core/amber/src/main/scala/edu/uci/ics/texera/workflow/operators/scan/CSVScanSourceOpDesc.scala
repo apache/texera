@@ -131,6 +131,7 @@ class CSVScanSourceOpDesc extends SourceOperatorDescriptor {
       i += 1
       line = reader.readLine()
     }
+    reader.close()
 
     // build schema based on inferred AttributeTypes
     Schema.newBuilder
