@@ -14,15 +14,18 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.codehaus.jackson.map.annotate.JsonDeserialize
-import java.io.{BufferedInputStream, BufferedReader, File, FileInputStream, FileReader, IOException}
+
+import java.io.{BufferedReader, File, FileReader, IOException}
 import java.nio.charset.Charset
 import java.util.Collections.singletonList
-import java.util.stream.IntStream
-
-import scala.util.control.Exception._
 import scala.collection.JavaConverters._
 import scala.collection.immutable.List
+import scala.util.control.Exception._
+
 class CSVScanSourceOpDesc extends SourceOperatorDescriptor {
+
+  @JsonIgnore
+  val INFER_READ_LIMIT: Int = 100
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("File")
@@ -107,20 +110,24 @@ class CSVScanSourceOpDesc extends SourceOperatorDescriptor {
     if (delimiter.isEmpty) return null
 
     val headers: Array[String] = headerLine.split(delimiter.get)
-    var attributeTypeList: Array[AttributeType] =
+    val attributeTypeList: Array[AttributeType] =
       Array.fill[AttributeType](headers.length)(AttributeType.INTEGER)
 
     val reader = new BufferedReader(new FileReader(filePath.get))
-    var line: String = null
+
     if (hasHeader)
       reader.readLine()
     var i = 0
-    line = reader.readLine()
-    while (line != null && i < 100) {
-      attributeTypeList = inferLine(attributeTypeList, line.split(delimiter.get))
+
+    // TODO: real CSV may contain multi-line values. Need to handle multi-line values correctly.
+    var line: String = reader.readLine()
+    while (line != null && i < INFER_READ_LIMIT) {
+      inferRow(attributeTypeList, line.split(delimiter.get))
       i += 1
       line = reader.readLine()
     }
+
+    // build schema based on inferred AttributeTypes
     Schema.newBuilder
       .add(
         if (hasHeader)
@@ -129,61 +136,63 @@ class CSVScanSourceOpDesc extends SourceOperatorDescriptor {
             .asJava
         else
           headers.indices
-            .map((i: Int) => new Attribute("column" + i, attributeTypeList.apply(i)))
+            .map((i: Int) => new Attribute("column-" + (i + 1), attributeTypeList.apply(i)))
             .asJava
       )
       .build
   }
 
-  private def inferLine(
+  /**
+    * Infers field types of a given row of data. The given attributeTypeList will be updated
+    * through each iteration of row inference, to contain the must accurate inference.
+    * @param attributeTypeList AttributeTypes that being passed to each iteration.
+    * @param fields data fields to be parsed, originally as String fields
+    * @return
+    */
+  private def inferRow(
       attributeTypeList: Array[AttributeType],
-      tokens: Array[String]
-  ): Array[AttributeType] = {
-    tokens.indices
-      .map(i => inferToken(attributeTypeList.apply(i), tokens.apply(i)))
-      .toArray
-  }
-
-  private def inferToken(attributeType: AttributeType, token: String): AttributeType = {
-    if (attributeType.getName().equals("string"))
-      tryParseString()
-    else if (attributeType.getName().equals("boolean"))
-      tryParseBoolean(token)
-    else if (attributeType.getName().equals("double"))
-      tryParseDouble(token)
-    else if (attributeType.getName().equals("long"))
-      tryParseLong(token)
-    else if (attributeType.getName().equals("integer"))
-      tryParseInteger(token)
-    else
-      tryParseString()
-  }
-
-  private def tryParseInteger(token: String): AttributeType =
-    if ((allCatch opt token.toInt).isDefined) {
-      AttributeType.INTEGER
-    } else {
-      tryParseLong(token)
-    }
-
-  private def tryParseLong(token: String): AttributeType =
-    if ((allCatch opt token.toLong).isDefined) {
-      AttributeType.LONG
-    } else {
-      tryParseDouble(token)
-    }
-  private def tryParseDouble(token: String): AttributeType = {
-    if ((allCatch opt token.toDouble).isDefined) {
-      AttributeType.DOUBLE
-    } else {
-      tryParseBoolean(token)
+      fields: Array[String]
+  ): Unit = {
+    for (i <- fields.indices) {
+      attributeTypeList.update(i, inferField(attributeTypeList.apply(i), fields.apply(i)))
     }
   }
-  private def tryParseBoolean(token: String): AttributeType = {
-    if ((allCatch opt token.toBoolean).isDefined) {
-      AttributeType.BOOLEAN
-    } else {
-      tryParseString()
+
+  private def inferField(attributeType: AttributeType, fieldValue: String): AttributeType = {
+    attributeType match {
+      case AttributeType.STRING  => tryParseString()
+      case AttributeType.BOOLEAN => tryParseBoolean(fieldValue)
+      case AttributeType.DOUBLE  => tryParseDouble(fieldValue)
+      case AttributeType.LONG    => tryParseLong(fieldValue)
+      case AttributeType.INTEGER => tryParseInteger(fieldValue)
+      case _                     => tryParseString()
+    }
+  }
+
+  private def tryParseInteger(fieldValue: String): AttributeType = {
+    allCatch opt fieldValue.toInt match {
+      case Some(_) => AttributeType.INTEGER
+      case None    => tryParseLong(fieldValue)
+    }
+  }
+
+  private def tryParseLong(fieldValue: String): AttributeType = {
+    allCatch opt fieldValue.toLong match {
+      case Some(_) => AttributeType.LONG
+      case None    => tryParseDouble(fieldValue)
+    }
+  }
+
+  private def tryParseDouble(fieldValue: String): AttributeType = {
+    allCatch opt fieldValue.toDouble match {
+      case Some(_) => AttributeType.DOUBLE
+      case None    => tryParseBoolean(fieldValue)
+    }
+  }
+  private def tryParseBoolean(fieldValue: String): AttributeType = {
+    allCatch opt fieldValue.toBoolean match {
+      case Some(_) => AttributeType.BOOLEAN
+      case None    => tryParseString()
     }
   }
 
