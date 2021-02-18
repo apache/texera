@@ -106,6 +106,11 @@ class CSVScanSourceOpDesc extends SourceOperatorDescriptor {
 
   }
 
+  /**
+    * Infer Texera.Schema based on the top few lines of data.
+    * @param headerLine usually the first line of the CSV file which contains table headers.
+    * @return Texera.Schema build for this operator
+    */
   private def inferSchema(headerLine: String): Schema = {
     if (delimiter.isEmpty) return null
 
