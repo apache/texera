@@ -4,12 +4,12 @@ import akka.actor.{ActorSystem, PoisonPill, Props}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import akka.util.Timeout
 import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.{
   Controller,
   ControllerEventListener,
   ControllerState
 }
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
@@ -17,8 +17,8 @@ import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.workflow._
 import edu.uci.ics.texera.workflow.operators.aggregate.AggregationFunction
-import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.flatspec.AnyFlatSpecLike
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContextExecutor
@@ -84,7 +84,7 @@ class DataProcessingSpec
 
   "Engine" should "execute headerlessCsv->keyword->sink workflow normally" in {
     val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
-    val keywordOpDesc = TestOperators.keywordSearchOpDesc("column0", "Asia")
+    val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
     val sink = TestOperators.sinkOpDesc()
     expectCompletedAfterExecution(
       mutable.MutableList[OperatorDescriptor](headerlessCsvOpDesc, keywordOpDesc, sink),
@@ -180,7 +180,7 @@ class DataProcessingSpec
   "Engine" should "execute csv->(csv->)->join->sink workflow normally" in {
     val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
     val headerlessCsvOpDesc2 = TestOperators.headerlessSmallCsvScanOpDesc()
-    val joinOpDesc = TestOperators.joinOpDesc("column0", "column0")
+    val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
     val sink = TestOperators.sinkOpDesc()
     expectCompletedAfterExecution(
       mutable.MutableList[OperatorDescriptor](

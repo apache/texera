@@ -9,7 +9,6 @@ import org.tukaani.xz.SeekableFileInputStream;
 import scala.collection.Iterator;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.stream.IntStream;
@@ -121,7 +120,7 @@ public class CSVScanSourceOpExec implements SourceOperatorExecutor {
             }
         } catch (IOException e) {
             e.printStackTrace();
-            throw new UncheckedIOException(e);
+            throw new RuntimeException(e);
         }
     }
 
