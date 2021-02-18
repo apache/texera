@@ -35,7 +35,7 @@ object StateManager {
 
 class StateManager[T](stateTransitionGraph: Map[T, Set[T]], initialState: T) {
 
-  private var currentState: T = initialState
+  @volatile private var currentState: T = initialState
   private val stateStack = mutable.Stack[T]()
 
   if (!initialState.isInstanceOf[IntermediateState]) {

@@ -1,21 +1,21 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
-import java.util.concurrent.Executors
+import java.util.concurrent.{Executors, LinkedBlockingDeque}
 
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
 import edu.uci.ics.amber.engine.architecture.messaginglayer.TupleToBatchConverter
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{
-  DummyInput,
   EndMarker,
   EndOfAllMarker,
   InputTuple,
-  SenderChangeMarker
+  InternalQueueElement,
+  SenderChangeMarker,
+  UnblockForControlCommands
 }
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
+import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.{Completed, Running}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
@@ -24,8 +24,6 @@ import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, Workf
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.amber.error.ErrorUtils.safely
 
-import scala.util.control.ControlThrowable
-
 class DataProcessor( // dependencies:
     logger: WorkflowLogger, // logger of the worker actor
     operator: IOperatorExecutor, // core logic
@@ -33,7 +31,8 @@ class DataProcessor( // dependencies:
     batchProducer: TupleToBatchConverter, // to send output tuples
     pauseManager: PauseManager, // to pause/resume
     breakpointManager: BreakpointManager, // to evaluate breakpoints
-    stateManager: WorkerStateManager
+    stateManager: WorkerStateManager,
+    asyncRPCServer: AsyncRPCServer
 ) extends WorkerInternalQueue {
   // dp thread stats:
   // TODO: add another variable for recovery index instead of using the counts below.
@@ -136,7 +135,7 @@ class DataProcessor( // dependencies:
     // main DP loop
     while (!isCompleted) {
       // take the next data element from internal queue, blocks if not available.
-      blockingDeque.take() match {
+      dataDeque.take() match {
         case InputTuple(tuple) =>
           currentInputTuple = Left(tuple)
           handleInputTuple()
@@ -152,15 +151,15 @@ class DataProcessor( // dependencies:
           // end of processing, break DP loop
           isCompleted = true
           batchProducer.emitEndOfUpstream()
-        case DummyInput =>
-          // do a pause check
-          pauseManager.checkForPause()
+        case UnblockForControlCommands =>
+          processControlCommandsDuringExecution()
       }
     }
     // Send Completed signal to worker actor.
     logger.logInfo(s"${operator.toString} completed")
-    stateManager.transitTo(Completed)
     asyncRPCClient.send(WorkerExecutionCompleted(), ActorVirtualIdentity.Controller)
+    stateManager.transitTo(Completed)
+    processControlCommandsAfterCompletion()
   }
 
   private[this] def handleOperatorException(e: Throwable): Unit = {
@@ -180,47 +179,29 @@ class DataProcessor( // dependencies:
   }
 
   private[this] def handleInputTuple(): Unit = {
-    // check pause before processing the input tuple.
-    pauseManager.checkForPause()
+    // process controls before processing the input tuple.
+    processControlCommandsDuringExecution()
     // if the input tuple is not a dummy tuple, process it
     // TODO: make sure this dummy batch feature works with fault tolerance
     if (currentInputTuple != null) {
       // pass input tuple to operator logic.
       currentOutputIterator = processInputTuple()
-      // check pause before outputting tuples.
-      pauseManager.checkForPause()
+      // process controls before outputting tuples.
+      processControlCommandsDuringExecution()
       // output loop: take one tuple from iterator at a time.
       while (outputAvailable(currentOutputIterator)) {
         // send tuple to downstream.
         outputOneTuple()
-        // check pause after one tuple has been outputted.
-        pauseManager.checkForPause()
+        // process controls after one tuple has been outputted.
+        processControlCommandsDuringExecution()
       }
     }
   }
 
   def shutdown(): Unit = {
-    if (stateManager.confirmState(Running)) {
-      pauseManager.pause().onSuccess { ret =>
-        // this block of code will be executed inside DP Thread
-        // when pauseManager.blockDPThread() is called
-        dpThread.cancel(true) // try to interrupt the DP Thread
-        operator.close() // close operator
-        dpThreadExecutor.shutdownNow() // destroy thread
-        // ideally, DP thread will block on
-        // dpThreadBlocker.get (see PauseManager.blockDPThread)
-        // then get interrupted and exit
-      }
-    } else {
-      // DP thread will be one of the following cases:
-      // 1. blocks on blockingDeque.take() because worker is in ready state
-      // 2. blocks on PauseManager.dpThreadBlocker.get because worker is paused
-      // note that in above cases, an interrupt exception will be thrown
-      // 3. already completed
-      dpThread.cancel(true) // interrupt
-      operator.close() // close operator
-      dpThreadExecutor.shutdownNow() // destroy thread
-    }
+    dpThread.cancel(true) // interrupt
+    operator.close() // close operator
+    dpThreadExecutor.shutdownNow() // destroy thread
   }
 
   private[this] def outputAvailable(outputIterator: Iterator[ITuple]): Boolean = {
@@ -230,6 +211,31 @@ class DataProcessor( // dependencies:
       case e =>
         handleOperatorException(e)
         false
+    }
+  }
+
+  private[this] def processControlCommandsDuringExecution(): Unit = {
+    while (!controlQueue.isEmpty || pauseManager.isPaused) {
+      // if paused, dp thread will wait for resume control command here.
+      takeOneControlCommandAndProcess()
+    }
+  }
+
+  private[this] def processControlCommandsAfterCompletion(): Unit = {
+    while (true) {
+      takeOneControlCommandAndProcess()
+    }
+  }
+
+  private[this] def takeOneControlCommandAndProcess(): Unit = {
+    val (cmd, from) = controlQueue.take()
+    cmd match {
+      case invocation: ControlInvocation =>
+        asyncRPCServer.logControlInvocation(invocation, from)
+        asyncRPCServer.receive(invocation, from.asInstanceOf[ActorVirtualIdentity])
+      case ret: ReturnPayload =>
+        asyncRPCClient.logControlReply(ret, from)
+        asyncRPCClient.fulfillPromise(ret)
     }
   }
 
