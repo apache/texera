@@ -9,17 +9,21 @@ import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.util.Lists;
 import com.google.api.client.util.store.FileDataStoreFactory;
+import com.google.api.services.drive.Drive;
+import com.google.api.services.drive.DriveScopes;
 import com.google.api.services.sheets.v4.Sheets;
 import com.google.api.services.sheets.v4.SheetsScopes;
 
 import java.io.*;
 import java.security.GeneralSecurityException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
 public class GoogleResource {
-    private static final String APPLICATION_NAME = "Texera-test";
+    private static final String APPLICATION_NAME = "Texera";
     private static final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
     private static final String TOKENS_DIRECTORY_PATH = "C:\\Users\\SuperTaunt\\Desktop\\tokens";
 
@@ -27,14 +31,27 @@ public class GoogleResource {
      * Global instance of the scopes required by this quickstart.
      * If modifying these scopes, delete your previously saved tokens/ folder.
      */
-    private static final List<String> SCOPES = Collections.singletonList(SheetsScopes.SPREADSHEETS);
+    private static final List<String> SCOPES = Arrays.asList(SheetsScopes.SPREADSHEETS, DriveScopes.DRIVE);
     private static final String CREDENTIALS_FILE_PATH = "C:\\Users\\SuperTaunt\\Desktop\\credentials.json";
 
-    public static Sheets createGoogleSheetService(){
+    public static Sheets createSheetService() {
         try {
             NetHttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
-            Credential credential = GoogleResource.createCredentials(httpTransport);
+            Credential credential = getCredentials(httpTransport);
             return new Sheets.Builder(httpTransport, JSON_FACTORY, credential)
+                    .setApplicationName(APPLICATION_NAME)
+                    .build();
+        } catch (IOException | GeneralSecurityException e) {
+            e.printStackTrace();
+            throw new RuntimeException("fail to create Google Service");
+        }
+    }
+
+    public static Drive creatDriveService() {
+        try {
+            NetHttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
+            Credential credential = getCredentials(httpTransport);
+            return new Drive.Builder(httpTransport, JSON_FACTORY, getCredentials(httpTransport))
                     .setApplicationName(APPLICATION_NAME)
                     .build();
         } catch (IOException | GeneralSecurityException e) {
@@ -46,7 +63,7 @@ public class GoogleResource {
     /**
      * Creates an authorized Credential object.
      */
-    private static Credential createCredentials(NetHttpTransport httpTransport) throws IOException {
+    private static Credential getCredentials(NetHttpTransport httpTransport) throws IOException {
         // Load client secrets test
         File initialFile = new File(CREDENTIALS_FILE_PATH);
         InputStream targetStream = new FileInputStream(initialFile);

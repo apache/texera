@@ -4,6 +4,9 @@ import java.io.IOException
 import java.util
 import java.util.stream.Collectors
 
+import com.google.api.services.drive.Drive
+import com.google.api.services.drive.model.Permission
+
 import collection.JavaConverters._
 import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.model.{AppendValuesResponse, Spreadsheet, SpreadsheetProperties, ValueRange}
@@ -18,7 +21,7 @@ object ResultDownloadResource {
     val result = getResult(sessionResults)
     resultDownloadRequest.downloadType match {
       case "google_sheet" =>
-        downloadGoogleSheet(resultDownloadRequest, result)
+        createGoogleSheet(resultDownloadRequest, result)
     }
   }
 
@@ -28,10 +31,10 @@ object ResultDownloadResource {
   }
 
 
-  private def downloadGoogleSheet(resultDownloadRequest: ResultDownloadRequest, content: Array[ITuple]): ResultDownloadResponse = {
+  private def createGoogleSheet(resultDownloadRequest: ResultDownloadRequest, content: Array[ITuple]): ResultDownloadResponse = {
     // TODO change title
     val title: String = String.valueOf(System.currentTimeMillis)
-    val sheetService: Sheets = GoogleResource.createGoogleSheetService();
+    val sheetService: Sheets = GoogleResource.createSheetService();
 
     try {
       // create sheet and get sheetId
@@ -53,6 +56,14 @@ object ResultDownloadResource {
         .append(spreadsheetId, range, body)
         .setValueInputOption(valueInputOption)
         .execute
+
+      val drive:Drive = GoogleResource.creatDriveService()
+      val sharePermission: Permission = new Permission()
+        .setType("anyone")
+        .setRole("reader")
+      drive.permissions()
+        .create(spreadsheetId, sharePermission)
+        .execute()
 
       ResultDownloadResponse(resultDownloadRequest.downloadType,
         s"https://docs.google.com/spreadsheets/d/$spreadsheetId/edit",
