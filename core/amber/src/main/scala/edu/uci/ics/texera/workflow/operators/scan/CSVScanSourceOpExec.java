@@ -9,7 +9,6 @@ import org.tukaani.xz.SeekableFileInputStream;
 import scala.collection.Iterator;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.stream.IntStream;
@@ -44,33 +43,67 @@ public class CSVScanSourceOpExec implements SourceOperatorExecutor {
                 try {
                     return reader.hasNext();
                 } catch (IOException e) {
-                    throw new UncheckedIOException(e);
+                    e.printStackTrace();
+                    throw new RuntimeException(e);
                 }
             }
 
             @Override
             public Tuple next() {
                 try {
-                    String[] res = reader.readLine();
-                    if (res == null || Arrays.stream(res).noneMatch(Objects::nonNull)) {
+
+                    // obtain String representation of each field
+                    // a null value will present if omit in between fields, e.g., ['hello', null, 'world']
+                    String[] fields = reader.readLine();
+                    if (fields == null || Arrays.stream(fields).noneMatch(Objects::nonNull)) {
                         // discard tuple if it's null or it only contains null
                         // which means it will always discard Tuple(null) from readLine()
                         return null;
                     }
+
                     Verify.verify(schema != null);
-                    if (res.length != schema.getAttributes().size()) {
-                        res = Stream.concat(Arrays.stream(res),
-                                IntStream.range(0, schema.getAttributes().size() - res.length).mapToObj(i -> null))
-                                .toArray(String[]::new);
+
+                    // however the null values won't present if omitted in the end, we need to match nulls.
+                    if (fields.length != schema.getAttributes().size()) {
+                        fields = Stream.concat(Arrays.stream(fields),
+                                IntStream.range(0, schema.getAttributes().size() - fields.length)
+                                        .mapToObj(i -> null)).toArray(String[]::new);
                     }
 
-                    return Tuple.newBuilder().add(schema, res).build();
+                    // parse Strings into inferred AttributeTypes
+                    Object[] parsedFields = new Object[fields.length];
+                    for (int i = 0; i < fields.length; i++) {
+                        String field = fields[i];
+                        switch (schema.getAttributes().get(i).getType()) {
+                            case INTEGER:
+                                parsedFields[i] = Integer.valueOf(field);
+                                break;
+                            case DOUBLE:
+                                parsedFields[i] = Double.valueOf(field);
+                                break;
+                            case BOOLEAN:
+                                parsedFields[i] = Boolean.valueOf(field);
+                                break;
+                            case LONG:
+                                parsedFields[i] = Long.valueOf(field);
+                                break;
+                            case STRING:
+                            case TIMESTAMP:
+                            case ANY:
+                            default:
+                                // keep it as a String
+                                parsedFields[i] = field;
+                        }
+                    }
+                    return Tuple.newBuilder().add(schema, parsedFields).build();
                 } catch (IOException e) {
-                    throw new UncheckedIOException(e);
+                    e.printStackTrace();
+                    throw new RuntimeException(e);
                 }
             }
         };
     }
+
 
     @Override
     public void open() {
@@ -86,7 +119,8 @@ public class CSVScanSourceOpExec implements SourceOperatorExecutor {
                 reader.readLine();
             }
         } catch (IOException e) {
-            throw new UncheckedIOException(e);
+            e.printStackTrace();
+            throw new RuntimeException(e);
         }
     }
 
@@ -95,8 +129,10 @@ public class CSVScanSourceOpExec implements SourceOperatorExecutor {
         try {
             reader.close();
         } catch (IOException e) {
-            throw new UncheckedIOException(e);
+            e.printStackTrace();
+            throw new RuntimeException(e);
         }
 
     }
+
 }
