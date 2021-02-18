@@ -23,9 +23,7 @@ export class UserIconComponent {
     private modalService: NgbModal,
     private userService: UserService
   ) {
-    if (userService.isLogin()) {
-      this.user = this.userService.getUser();
-    }
+
     this.userService.userChanged().subscribe(user => this.user = user);
   }
 
@@ -52,7 +50,7 @@ export class UserIconComponent {
 
   /**
    * This method will open the login/register pop up
-   * It will switch to the tab based on the mode numer given
+   * It will switch to the tab based on the mode number given
    * @param mode 0 indicates login and 1 indicates registration
    */
   private openLoginComponent(mode: 0 | 1): void {

@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
+import { ReplaySubject } from 'rxjs';
 import { Observable } from 'rxjs/Observable';
-import { Subject } from 'rxjs/Subject';
 import { environment } from '../../../../environments/environment';
 import { AppSettings } from '../../app-setting';
 import { User } from '../../type/user';
@@ -21,9 +21,8 @@ export class UserService {
   public static readonly LOGIN_ENDPOINT = 'users/login';
   public static readonly REGISTER_ENDPOINT = 'users/register';
   public static readonly LOG_OUT_ENDPOINT = 'users/logout';
-
-  private userChangeSubject: Subject<User|undefined> = new Subject();
-  private currentUser: User|undefined;
+  private currentUser: User | undefined = undefined;
+  private userChangeSubject: ReplaySubject<User | undefined> = new ReplaySubject<User | undefined>(1);
 
   constructor(private http: HttpClient) {
     if (environment.userSystemEnabled) {
@@ -63,10 +62,10 @@ export class UserService {
    */
   public logOut(): void {
     this.http.get<Response>(`${AppSettings.getApiEndpoint()}/${UserService.LOG_OUT_ENDPOINT}`)
-        .subscribe(() => this.changeUser(undefined));
+      .subscribe(() => this.changeUser(undefined));
   }
 
-  public getUser(): User|undefined {
+  public getUser(): User | undefined {
     return this.currentUser;
   }
 
@@ -78,7 +77,7 @@ export class UserService {
    * changes the current user and triggers currentUserSubject
    * @param user
    */
-  public changeUser(user: User|undefined): void {
+  public changeUser(user: User | undefined): void {
     if (this.currentUser !== user) {
       this.currentUser = user;
       this.userChangeSubject.next(this.currentUser);
@@ -96,14 +95,15 @@ export class UserService {
     return {result: true, message: 'userName frontend validation success'};
   }
 
-  public userChanged(): Observable<User|undefined> {
+  public userChanged(): Observable<User | undefined> {
 
     return this.userChangeSubject.asObservable();
   }
 
   private loginFromSession(): void {
-    this.http.get<User>(`${AppSettings.getApiEndpoint()}/${UserService.AUTH_STATUS_ENDPOINT}`).subscribe(user =>
-      this.changeUser(user));
+    this.http.get<User>(`${AppSettings.getApiEndpoint()}/${UserService.AUTH_STATUS_ENDPOINT}`)
+      .filter(user => user != null)
+      .subscribe(user => this.changeUser(user));
   }
 
 }

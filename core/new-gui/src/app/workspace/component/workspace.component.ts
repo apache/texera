@@ -1,6 +1,7 @@
 import { Location } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Version } from '../../../environments/version';
 import { UserService } from '../../common/service/user/user.service';
@@ -24,11 +25,13 @@ import { WorkflowWebsocketService } from '../service/workflow-websocket/workflow
     // { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
   ]
 })
-export class WorkspaceComponent implements OnInit {
+export class WorkspaceComponent implements OnInit, OnDestroy {
 
   public gitCommitHash: string = Version.raw;
   public showResultPanel: boolean = false;
   public userSystemEnabled: boolean = environment.userSystemEnabled;
+
+  private subscriptions: Subscription = new Subscription();
 
   constructor(
     private resultPanelToggleService: ResultPanelToggleService,
@@ -43,11 +46,11 @@ export class WorkspaceComponent implements OnInit {
     private workflowActionService: WorkflowActionService,
     private location: Location,
     private route: ActivatedRoute,
-    private operatorMetadataService: OperatorMetadataService,
+    private operatorMetadataService: OperatorMetadataService
   ) {
-    this.resultPanelToggleService.getToggleChangeStream().subscribe(
+    this.subscriptions.add(this.resultPanelToggleService.getToggleChangeStream().subscribe(
       value => this.showResultPanel = value
-    );
+    ));
   }
 
   ngOnInit(): void {
@@ -76,6 +79,13 @@ export class WorkspaceComponent implements OnInit {
      * WorkflowActionService is the single source of the workflow representation. Both WorkflowCacheService and WorkflowPersistService are
      * reflecting changes from WorkflowActionService.
      */
+
+    // responsible for saving the existing workflow.
+    this.registerAutoCacheWorkFlow();
+
+    // responsible for reloading workflow back to the JointJS paper when the browser refreshes.
+    this.registerAutoReloadWorkflow();
+
     if (environment.userSystemEnabled) {
       if (this.route.snapshot.params.id) {
         const id = this.route.snapshot.params.id;
@@ -86,7 +96,9 @@ export class WorkspaceComponent implements OnInit {
           this.location.go('/');
         } else {
           // if wid is present in the url, load it from backend
-          this.loadWorkflowWithID(id);
+          this.subscriptions.add(this.userService.userChanged().combineLatest(this.operatorMetadataService.getOperatorMetadata()
+            .filter(metadata => metadata.operators.length !== 0))
+            .subscribe(() => this.loadWorkflowWithID(id)));
         }
       } else {
         // load wid from cache
@@ -94,55 +106,62 @@ export class WorkspaceComponent implements OnInit {
         const id = workflow?.wid;
         if (id !== undefined) { this.location.go(`/workflow/${id}`); }
       }
-      if (this.userService.isLogin()) {
-        this.registerAutoPersistWorkflow();
-      }
+
+      this.registerAutoPersistWorkflow();
     }
 
-    // responsible for saving the existing workflow and
-    // reloading back to the JointJS paper when the browser refreshes.
-    this.registerAutoCacheWorkFlow();
-    this.registerAutoReloadWorkflow();
+  }
+
+  public ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
   }
 
   private registerAutoReloadWorkflow(): void {
-    this.operatorMetadataService.getOperatorMetadata()
+    this.subscriptions.add(this.operatorMetadataService.getOperatorMetadata()
       .filter(metadata => metadata.operators.length !== 0)
-      .subscribe(() => { this.workflowActionService.reloadWorkflow(this.workflowCacheService.getCachedWorkflow()); });
+      .subscribe(() => { this.workflowActionService.reloadWorkflow(this.workflowCacheService.getCachedWorkflow()); }));
   }
 
   private registerAutoCacheWorkFlow(): void {
-    this.workflowActionService.workflowChanged().debounceTime(100).subscribe(() => {
-      this.workflowCacheService.setCacheWorkflow(this.workflowActionService.getWorkflow());
-    });
+    this.subscriptions.add(this.workflowActionService.workflowChanged().debounceTime(100)
+      .subscribe(() => {
+        this.workflowCacheService.setCacheWorkflow(this.workflowActionService.getWorkflow());
+      }));
   }
 
   private registerAutoPersistWorkflow(): void {
-    this.workflowActionService.workflowChanged().debounceTime(100).subscribe(() => {
-      this.workflowPersistService.persistWorkflow(this.workflowActionService.getWorkflow())
-        .subscribe((updatedWorkflow: Workflow) => {
-          this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
-          this.workflowCacheService.setCacheWorkflow(this.workflowActionService.getWorkflow());
-          this.location.go(`/workflow/${updatedWorkflow.wid}`);
-        });
-      // to sync up with the updated information, such as workflow.wid
-    });
+    this.subscriptions.add(this.workflowActionService.workflowChanged().debounceTime(100).subscribe(() => {
+      if (this.userService.isLogin()) {
+        this.workflowPersistService.persistWorkflow(this.workflowActionService.getWorkflow())
+          .subscribe((updatedWorkflow: Workflow) => {
+            this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
+            this.workflowCacheService.setCacheWorkflow(this.workflowActionService.getWorkflow());
+            this.location.go(`/workflow/${updatedWorkflow.wid}`);
+          });
+        // to sync up with the updated information, such as workflow.wid
+      }
+    }));
   }
 
   private loadWorkflowWithID(id: number): void {
-    this.workflowPersistService.retrieveWorkflow(id).subscribe(
+    this.subscriptions.add(this.workflowPersistService.retrieveWorkflow(id).subscribe(
       (workflow: Workflow) => {
         this.workflowActionService.reloadWorkflow(workflow);
         this.undoRedoService.clearUndoStack();
         this.undoRedoService.clearRedoStack();
         this.workflowCacheService.setCacheWorkflow(this.workflowActionService.getWorkflow());
       },
-      () => {
-        // TODO: replace with a proper error message with the framework
-        alert('You don\'t have access to this workflow, please log in with another account');
-        this.workflowCacheService.resetCachedWorkflow();
-      }
-    );
+      () => { this.noAccessToWorkflow(); }
+    ));
   }
 
+  private noAccessToWorkflow(): void {
+    this.undoRedoService.clearUndoStack();
+    this.undoRedoService.clearRedoStack();
+    this.workflowCacheService.resetCachedWorkflow();
+    this.workflowActionService.reloadWorkflow(this.workflowCacheService.getCachedWorkflow());
+    this.location.go(`/`);
+    // TODO: replace with a proper error message with the framework
+    alert('You don\'t have access to this workflow, please log in with another account');
+  }
 }
