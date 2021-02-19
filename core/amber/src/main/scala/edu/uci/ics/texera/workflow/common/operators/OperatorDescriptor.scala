@@ -28,9 +28,10 @@ import edu.uci.ics.texera.workflow.operators.visualization.lineChart.LineChartOp
 import edu.uci.ics.texera.workflow.operators.visualization.pieChart.PieChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.WordCloudOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
-import java.util.UUID
 
+import java.util.UUID
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
+import edu.uci.ics.texera.workflow.operators.hdfsscan.HdfsScanOpDesc
 
 @JsonTypeInfo(
   use = JsonTypeInfo.Id.NAME,
@@ -59,7 +60,8 @@ import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
     new Type(value = classOf[LimitOpDesc], name = "Limit"),
     new Type(value = classOf[RandomKSamplingOpDesc], name = "RandomKSampling"),
     new Type(value = classOf[ReservoirSamplingOpDesc], name = "ReservoirSampling"),
-    new Type(value = classOf[HashJoinOpDesc[String]], name = "HashJoin")
+    new Type(value = classOf[HashJoinOpDesc[String]], name = "HashJoin"),
+    new Type(value = classOf[HdfsScanOpDesc], name = "HdfsScan")
   )
 )
 abstract class OperatorDescriptor extends Serializable {

@@ -21,12 +21,14 @@ public class BufferedBlockReader {
     private HashSet<Integer> keptFields = null;
     private char delimiter;
 
-    public BufferedBlockReader(InputStream input, long blockSize, char delimiter, int[] kept){
+    public BufferedBlockReader(InputStream input, long blockSize, char delimiter, ArrayList<Object> kept){
         this.input = input;
         this.blockSize = blockSize;
         this.delimiter = delimiter;
-        if(kept != null){
-            this.keptFields = new HashSet<>(Ints.asList(kept));
+        ArrayList<Integer> keepIdx = new ArrayList<>();
+        kept.stream().forEach(idx->keepIdx.add((Integer)idx));
+        if(kept != null || kept.size()>0){
+            this.keptFields = new HashSet<>(keepIdx);
         }
     }
 
