@@ -74,7 +74,7 @@ export type TexeraWebsocketRequestTypeMap = {
   'SkipTupleRequest': SkipTuple,
   'AddBreakpointRequest': BreakpointInfo,
   'ResultPaginationRequest': {pageIndex: number, pageSize: number},
-  'ResultDownloadRequest': {downloadType: string}
+  'ResultDownloadRequest': {downloadType: string, workflowName: string}
 };
 
 export type TexeraWebsocketEventTypeMap = {

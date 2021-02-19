@@ -287,11 +287,11 @@ export class ExecuteWorkflowService {
   /**
    * download the workflow execution result according the download type
    */
-  public downloadWorkflowExecutionResult(downloadType: string): void {
+  public downloadWorkflowExecutionResult(downloadType: string, workflowName: string): void {
     if (!environment.downloadExecutionResultEnabled) {
       return;
     }
-    this.workflowWebsocketService.send('ResultDownloadRequest', {downloadType: downloadType});
+    this.workflowWebsocketService.send('ResultDownloadRequest', {downloadType: downloadType, workflowName: workflowName});
     // const requestURL = `${AppSettings.getApiEndpoint()}/${DOWNLOAD_WORKFLOW_ENDPOINT}`
     //   + `?resultID=${executionID}&downloadType=${downloadType}`;
 

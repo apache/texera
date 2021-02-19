@@ -32,9 +32,8 @@ object ResultDownloadResource {
 
 
   private def createGoogleSheet(resultDownloadRequest: ResultDownloadRequest, content: Array[ITuple]): ResultDownloadResponse = {
-    // TODO change title
-    val title: String = String.valueOf(System.currentTimeMillis)
-    val sheetService: Sheets = GoogleResource.createSheetService();
+    val sheetService: Sheets = GoogleResource.createSheetService()
+    val title: String = resultDownloadRequest.workflowName
 
     try {
       // create sheet and get sheetId
@@ -50,6 +49,7 @@ object ResultDownloadResource {
       val body: ValueRange = new ValueRange().setValues(convertContent(content))
       val range: String = "A1"
       val valueInputOption: String = "RAW"
+      // create the google sheet in the service account
       val response: AppendValuesResponse = sheetService
         .spreadsheets
         .values
@@ -57,6 +57,7 @@ object ResultDownloadResource {
         .setValueInputOption(valueInputOption)
         .execute
 
+      // allow user to access the file
       val drive:Drive = GoogleResource.creatDriveService()
       val sharePermission: Permission = new Permission()
         .setType("anyone")
@@ -65,12 +66,12 @@ object ResultDownloadResource {
         .create(spreadsheetId, sharePermission)
         .execute()
 
-      ResultDownloadResponse(resultDownloadRequest.downloadType,
-        s"https://docs.google.com/spreadsheets/d/$spreadsheetId/edit",
-        s"Results saved to Google Sheet.\nFile name: $title")
+      val link: String = s"https://docs.google.com/spreadsheets/d/$spreadsheetId/edit"
+      val message: String = s"Results saved to Google Sheet."
+      ResultDownloadResponse(resultDownloadRequest.downloadType, link, message)
     } catch {
       case e: IOException =>
-        throw new RuntimeException("io fail", e)
+        ResultDownloadResponse(resultDownloadRequest.downloadType, "", "Fail to create google sheet: " + e.getMessage)
     }
   }
 

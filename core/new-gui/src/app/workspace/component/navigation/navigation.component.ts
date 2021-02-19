@@ -13,6 +13,32 @@ import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-grap
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { ExecutionState } from '../../types/execute-workflow.interface';
+import { NgbActiveModal, NgbModal, NgbModalRef } from '@ng-bootstrap/ng-bootstrap';
+
+/**
+ * DownloadPopupComponent is the popup when the download finish
+ */
+@Component({
+  template: `
+  <div class="modal-header">
+    <h4 class="modal-title">Download Result</h4>
+  </div>
+  <div class="modal-body">
+    <p>{{message}}</p>
+    <div [hidden]="!link">
+      click <a href="{{link}}"> here </a> to open the file
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button type="button" class="btn btn-outline-dark" (click)="activeModal.close()">Close</button>
+  </div>
+`
+})
+class DownloadPopupComponent {
+  @Input() message: string | undefined;
+  @Input() link: string | undefined;
+  constructor(public activeModal: NgbActiveModal) {}
+}
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -54,6 +80,8 @@ export class NavigationComponent implements OnInit {
   public userSystemEnabled: boolean = environment.userSystemEnabled;
   public onClickRunHandler: () => void;
 
+  public downloadResultPopup: NgbModalRef | undefined;
+
   constructor(
     public executeWorkflowService: ExecuteWorkflowService,
     public tourService: TourService,
@@ -65,7 +93,8 @@ export class NavigationComponent implements OnInit {
     public workflowPersistService: WorkflowPersistService,
     public userService: UserService,
     private workflowCacheService: WorkflowCacheService,
-    private datePipe: DatePipe
+    private datePipe: DatePipe,
+    private modalService: NgbModal
   ) {
     this.executionState = executeWorkflowService.getExecutionState().state;
     // return the run button after the execution is finished, either
@@ -86,8 +115,12 @@ export class NavigationComponent implements OnInit {
 
     executeWorkflowService.getResultDownloadStream().subscribe(
       response => {
-        alert(response.message);
-        console.log('google sheet link: ' + response.link);
+        if (!this.downloadResultPopup) {
+          this.downloadResultPopup = this.modalService.open(DownloadPopupComponent);
+        }
+        this.downloadResultPopup.componentInstance.message = response.message;
+        this.downloadResultPopup.componentInstance.link = response.link;
+        this.openInNewTab(response.link);
       }
     )
 
@@ -246,7 +279,10 @@ export class NavigationComponent implements OnInit {
     if (this.isDownloadDisabled()) {
       return;
     }
-    this.executeWorkflowService.downloadWorkflowExecutionResult(downloadType);
+    this.executeWorkflowService.downloadWorkflowExecutionResult(downloadType, this.currentWorkflowName);
+    this.downloadResultPopup = this.modalService.open(DownloadPopupComponent);
+    this.downloadResultPopup.componentInstance.message = 'Downloading. It may takes a while';
+    this.downloadResultPopup.result.then(() => {this.downloadResultPopup = undefined; });
   }
 
   /**
@@ -353,5 +389,17 @@ export class NavigationComponent implements OnInit {
             'MM/dd/yyyy HH:mm:ss zzz', Intl.DateTimeFormat().resolvedOptions().timeZone, 'en');
 
         });
+  }
+
+
+  /**
+   * open the link in the new tab
+   * @param href the link
+   */
+  private openInNewTab(href: string) {
+    Object.assign(document.createElement('a'), {
+      target: '_blank',
+      href: href,
+    }).click();
   }
 }
