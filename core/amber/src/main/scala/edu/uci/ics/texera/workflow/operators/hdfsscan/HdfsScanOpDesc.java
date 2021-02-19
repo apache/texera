@@ -88,8 +88,8 @@ public class HdfsScanOpDesc extends SourceOperatorDescriptor {
     @Override
     public OperatorInfo operatorInfo() {
         return new OperatorInfo(
-                "CSV File Scan",
-                "Scan data from a local CSV file",
+                "Hdfs File Scan",
+                "Scan data from HDFS file",
                 OperatorGroupConstants.SOURCE_GROUP(),
                 List.empty(),
                 asScalaBuffer(singletonList(new OutputPort(""))).toList());

@@ -27,7 +27,7 @@ public class BufferedBlockReader {
         this.delimiter = delimiter;
         ArrayList<Integer> keepIdx = new ArrayList<>();
         kept.stream().forEach(idx->keepIdx.add((Integer)idx));
-        if(kept != null || kept.size()>0){
+        if(kept != null && kept.size()>0){
             this.keptFields = new HashSet<>(keepIdx);
         }
     }
