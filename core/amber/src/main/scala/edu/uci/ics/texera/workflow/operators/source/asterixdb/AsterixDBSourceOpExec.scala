@@ -1,9 +1,11 @@
 package edu.uci.ics.texera.workflow.operators.source.asterixdb
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.texera.workflow.common.Utils.objectMapper
 import edu.uci.ics.texera.workflow.operators.source.SQLSourceOpExec
-import scalaj.http.Http
+import scalaj.http.{Http, HttpResponse}
 
 import java.sql._
 import scala.collection.Iterator
@@ -38,15 +40,13 @@ class AsterixDBSourceOpExec private[asterixdb] (
   val FETCH_TABLE_NAMES_SQL =
     "SELECT table_name FROM information_schema.tables WHERE table_schema = ?;"
 
-  @throws[SQLException]
   @throws[RuntimeException]
   override def open(): Unit = {
-    val sql = "select count(*) from Metadata.`Dataset`;"
-    val response = queryAsterixDB(sql)
 
-    print(response)
-//    print(objectMapper.readValue(response, classOf[AsterixDBResponse]).results)
-
+    // send a health check request.
+    val response = queryAsterixDB("select count(*) from Metadata.`Dataset`;")
+    if (!objectMapper.readTree(response.body).get("status").textValue.equals("success"))
+      throw new RuntimeException(s"Failed to connect to $host:$port")
   }
 
   override def produceTexeraTuple(): Iterator[Tuple] = {
@@ -72,24 +72,29 @@ class AsterixDBSourceOpExec private[asterixdb] (
 
   override protected def addKeywordSearch(queryBuilder: StringBuilder): Unit = ???
 
-  private def queryAsterixDB(statement: String): String = {
+  private def queryAsterixDB(statement: String): HttpResponse[String] = {
     val asterixAddress = "http://" + host + ":" + port + "/query/service"
 
-    Http(asterixAddress).postForm
-      .param("statement", statement)
-      .header("Content-Type", "application/x-www-form-urlencoded")
-      .header("Charset", "UTF-8")
+    Http(asterixAddress)
+      .postForm(Seq("statement" -> statement))
+      .headers(Seq("Content-Type" -> "application/x-www-form-urlencoded", "Charset" -> "UTF-8"))
       .asString
-      .body
   }
 
 }
 
-abstract class AsterixDBResponse() {
-  val requestID: String
-  val signature: String
-  val results: String
-  val plans: String
-  val status: String
-  val metrics: String
+class AsterixDBResponse() {
+  @JsonProperty
+  val requestID: String = ""
+
+  @JsonProperty
+  val signature: Signature = new Signature()
+//  val results: scala.Array[String] = Array("S")
+//  val plans: String = ""
+
+  @JsonProperty
+  val status: String = ""
+//  val metrics: String = ""
 }
+
+class Signature() {}
