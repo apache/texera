@@ -39,6 +39,14 @@ public class HdfsScanOpDesc extends SourceOperatorDescriptor {
     @JsonPropertyDescription("host")
     public String host;
 
+    @JsonProperty(value = "hdfs port", required = true)
+    @JsonPropertyDescription("hdfs port used with hdfs://")
+    public String hdfsPort;
+
+    @JsonProperty(value = "hdfs restapi port", required = true)
+    @JsonPropertyDescription("hdfs port used with http://")
+    public String hdfsRestApiPort;
+
     @JsonProperty(value = "file path", required = true)
     @JsonPropertyDescription("local file path")
     public String filePath;
@@ -47,7 +55,7 @@ public class HdfsScanOpDesc extends SourceOperatorDescriptor {
     @JsonPropertyDescription("delimiter to separate each line into fields")
     public String delimiter;
 
-    @JsonProperty(value = "indices to keep", required = true)
+    @JsonProperty(value = "indices to keep")
     @JsonPropertyDescription("Indices to keep")
     public String indicesToKeep;
 
@@ -66,11 +74,11 @@ public class HdfsScanOpDesc extends SourceOperatorDescriptor {
             Arrays.stream(indicesToKeep.split(",")).forEach(idx -> idxToKeep.add(Integer.parseInt(idx)));
         }
         try {
-            URL url = new URL("http://"+ host+":9870/webhdfs/v1"+filePath+"?op=OPEN&offset=0");
+            URL url = new URL("http://"+ host+":"+hdfsRestApiPort+"/webhdfs/v1/"+filePath+"?op=OPEN&offset=0");
             InputStream stream = url.openStream();
             BufferedBlockReader reader = new BufferedBlockReader(stream,10000,delimiter.charAt(0),idxToKeep);
             String[] headerLine = reader.readLine();
-            return new HdfsScanOpExecConfig(this.operatorIdentifier(), Constants.defaultNumWorkers(), host,
+            return new HdfsScanOpExecConfig(this.operatorIdentifier(), Constants.defaultNumWorkers(), host, hdfsPort, hdfsRestApiPort,
                     filePath, delimiter.charAt(0), idxToKeep, this.inferSchema(headerLine), header != null && header);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
@@ -97,7 +105,7 @@ public class HdfsScanOpDesc extends SourceOperatorDescriptor {
             if(indicesToKeep!=null && !indicesToKeep.isBlank()) {
                 Arrays.stream(indicesToKeep.split(",")).forEach(idx -> idxToKeep.add(Integer.parseInt(idx)));
             }
-            URL url = new URL("http://"+ host+":9870/webhdfs/v1"+filePath+"?op=OPEN&offset=0");
+            URL url = new URL("http://"+ host+":"+hdfsRestApiPort+"/webhdfs/v1/"+filePath+"?op=OPEN&offset=0");
             InputStream stream = url.openStream();
             BufferedBlockReader reader = new BufferedBlockReader(stream,10000,delimiter.charAt(0),idxToKeep);
             String[] headerLine = reader.readLine();

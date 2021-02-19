@@ -23,6 +23,8 @@ class HdfsScanOpExecConfig(
     tag: OperatorIdentity,
     numWorkers: Int,
     host: String,
+    hdfsPort: String,
+    hdfsRestApiPort: String,
     filePath: String,
     delimiter: Char,
     indicesToKeep: util.ArrayList[Object],
@@ -30,7 +32,10 @@ class HdfsScanOpExecConfig(
     header: Boolean
 ) extends OpExecConfig(tag) {
   val totalBytes: Long =
-    FileSystem.get(new URI(host), new Configuration()).getFileStatus(new Path(filePath)).getLen
+    FileSystem
+      .get(new URI(s"hdfs://${host}:${hdfsPort}"), new Configuration())
+      .getFileStatus(new Path(filePath))
+      .getLen
 
   override lazy val topology: Topology = {
     new Topology(
@@ -42,6 +47,7 @@ class HdfsScanOpExecConfig(
               if (i != numWorkers - 1) totalBytes / numWorkers * (i + 1) else totalBytes
             new HdfsScanSourceOpExec(
               host,
+              hdfsRestApiPort,
               filePath,
               totalBytes / numWorkers * i,
               endOffset,

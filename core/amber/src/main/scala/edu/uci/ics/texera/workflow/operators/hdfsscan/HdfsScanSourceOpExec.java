@@ -24,6 +24,7 @@ import java.util.stream.Stream;
 public class HdfsScanSourceOpExec implements SourceOperatorExecutor {
 
     private String host;
+    private String hdfsRestApiPort;
     private String hdfsPath;
     private ArrayList<Object> indicesToKeep;
     private char separator;
@@ -33,8 +34,9 @@ public class HdfsScanSourceOpExec implements SourceOperatorExecutor {
     private long endOffset;
     private final boolean header;
 
-    HdfsScanSourceOpExec(String host, String hdfsPath, long startOffset, long endOffset, char delimiter, Schema schema, ArrayList<Object> indicesToKeep, boolean header){
+    HdfsScanSourceOpExec(String host, String hdfsRestApiPort, String hdfsPath, long startOffset, long endOffset, char delimiter, Schema schema, ArrayList<Object> indicesToKeep, boolean header){
         this.host = host;
+        this.hdfsRestApiPort = hdfsRestApiPort;
         this.hdfsPath = hdfsPath;
         this.separator = delimiter;
         this.indicesToKeep = indicesToKeep;
@@ -90,7 +92,7 @@ public class HdfsScanSourceOpExec implements SourceOperatorExecutor {
             //FileSystem fs = FileSystem.get(new URI(host),new Configuration());
             //FSDataInputStream stream = fs.open(new Path(hdfsPath));
             //stream.seek(startOffset);
-            URL url = new URL("http://"+ host+":9870/webhdfs/v1"+hdfsPath+"?op=OPEN&offset="+startOffset);
+            URL url = new URL("http://"+ host+":"+hdfsRestApiPort+"/webhdfs/v1/"+hdfsPath+"?op=OPEN&offset="+startOffset);
             InputStream stream = url.openStream();
             reader = new BufferedBlockReader(stream,endOffset-startOffset,separator,indicesToKeep);
             if (startOffset > 0) {
