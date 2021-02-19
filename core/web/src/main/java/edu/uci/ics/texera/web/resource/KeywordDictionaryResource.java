@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.KEYWORD_DICTIONARY;
+import static edu.uci.ics.texera.web.model.jooq.generated.Tables.KEYWORD_DICTIONARY;
 import static org.jooq.impl.DSL.defaultValue;
 
 

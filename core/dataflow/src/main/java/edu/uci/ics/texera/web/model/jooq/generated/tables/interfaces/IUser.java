@@ -35,16 +35,6 @@ public interface IUser extends Serializable {
      */
     public UInteger getUid();
 
-    /**
-     * Setter for <code>texera_db.user.password</code>.
-     */
-    public void setPassword(String value);
-
-    /**
-     * Getter for <code>texera_db.user.password</code>.
-     */
-    public String getPassword();
-
     // -------------------------------------------------------------------------
     // FROM and INTO
     // -------------------------------------------------------------------------

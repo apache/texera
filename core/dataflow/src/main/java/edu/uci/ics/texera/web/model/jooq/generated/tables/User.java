@@ -18,7 +18,7 @@ import org.jooq.Identity;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row3;
+import org.jooq.Row2;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -34,7 +34,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class User extends TableImpl<UserRecord> {
 
-    private static final long serialVersionUID = -1189955308;
+    private static final long serialVersionUID = 716397450;
 
     /**
      * The reference instance of <code>texera_db.user</code>
@@ -58,11 +58,6 @@ public class User extends TableImpl<UserRecord> {
      * The column <code>texera_db.user.uid</code>.
      */
     public final TableField<UserRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
-
-    /**
-     * The column <code>texera_db.user.password</code>.
-     */
-    public final TableField<UserRecord, String> PASSWORD = createField(DSL.name("password"), org.jooq.impl.SQLDataType.VARCHAR(32).nullable(false), this, "");
 
     /**
      * Create a <code>texera_db.user</code> table reference
@@ -149,11 +144,11 @@ public class User extends TableImpl<UserRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row3 type methods
+    // Row2 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row3<String, UInteger, String> fieldsRow() {
-        return (Row3) super.fieldsRow();
+    public Row2<String, UInteger> fieldsRow() {
+        return (Row2) super.fieldsRow();
     }
 }

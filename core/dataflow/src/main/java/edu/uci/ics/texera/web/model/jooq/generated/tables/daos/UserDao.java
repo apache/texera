@@ -80,18 +80,4 @@ public class UserDao extends DAOImpl<UserRecord, edu.uci.ics.texera.web.model.jo
     public edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User fetchOneByUid(UInteger value) {
         return fetchOne(User.USER.UID, value);
     }
-
-    /**
-     * Fetch records that have <code>password BETWEEN lowerInclusive AND upperInclusive</code>
-     */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User> fetchRangeOfPassword(String lowerInclusive, String upperInclusive) {
-        return fetchRange(User.USER.PASSWORD, lowerInclusive, upperInclusive);
-    }
-
-    /**
-     * Fetch records that have <code>password IN (values)</code>
-     */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User> fetchByPassword(String... values) {
-        return fetch(User.USER.PASSWORD, values);
-    }
 }
