@@ -6,7 +6,11 @@ object TexeraRunWorker {
 
   def main(args: Array[String]): Unit = {
     // start actor system worker node
-    AmberUtils.startActorWorker(Option.empty)
+    if (args != null && args.length > 0) {
+      AmberUtils.startActorWorker(Option.apply(args(0)))
+    } else {
+      AmberUtils.startActorWorker(Option.empty)
+    }
   }
 
 }
