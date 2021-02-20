@@ -70,7 +70,7 @@ public class HdfsScanOpDesc extends SourceOperatorDescriptor {
             this.delimiter = ",";
         }
         ArrayList<Object> idxToKeep = new ArrayList<Object>();
-        if(indicesToKeep!=null && !indicesToKeep.isBlank()) {
+        if(indicesToKeep!=null && indicesToKeep.trim().length()>0) {
             Arrays.stream(indicesToKeep.split(",")).forEach(idx -> idxToKeep.add(Integer.parseInt(idx)));
         }
         try {
