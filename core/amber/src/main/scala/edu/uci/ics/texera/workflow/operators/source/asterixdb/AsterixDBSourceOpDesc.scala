@@ -7,6 +7,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 }
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.source.{SQLSourceOpDesc, SQLSourceOpExecConfig}
+import edu.uci.ics.texera.workflow.operators.source.asterixdb.AsterixDBConnUtil.queryAsterixDB
 
 import java.sql.{Connection, SQLException}
 import java.util.Collections.singletonList
@@ -39,8 +40,56 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
   override def sourceSchema(): Schema = {
     updatePort()
 
-    Schema.newBuilder().add(new Attribute("test", AttributeType.STRING)).build()
+    val sb: Schema.Builder = Schema.newBuilder()
+    if (database.equals("twitter") && table.equals("ds_tweet")) {
 
+      // hard code for twitter.ds_tweet
+      sb.add(
+        new Attribute("id", AttributeType.LONG),
+        new Attribute("created_at", AttributeType.STRING),
+        new Attribute("text", AttributeType.STRING),
+        new Attribute("in_reply_to_status_id", AttributeType.LONG),
+        new Attribute("in_reply_to_user_id", AttributeType.LONG),
+        new Attribute("favorite_count", AttributeType.LONG),
+        new Attribute("retweet_count", AttributeType.LONG),
+        new Attribute("lang", AttributeType.STRING),
+        new Attribute("retweeted", AttributeType.BOOLEAN),
+        new Attribute("hashtags", AttributeType.STRING),
+        new Attribute("user_mentions", AttributeType.STRING),
+        new Attribute("user_id", AttributeType.LONG),
+        new Attribute("user_name", AttributeType.STRING),
+        new Attribute("user_screen_name", AttributeType.STRING),
+        new Attribute("user_location", AttributeType.STRING),
+        new Attribute("user_description", AttributeType.STRING),
+        new Attribute("user_followers_count", AttributeType.LONG),
+        new Attribute("user_friends_count", AttributeType.LONG),
+        new Attribute("user_statues_count", AttributeType.LONG),
+        new Attribute("stateName", AttributeType.STRING),
+        new Attribute("countyName", AttributeType.STRING),
+        new Attribute("cityName", AttributeType.STRING),
+        new Attribute("country", AttributeType.STRING),
+        new Attribute("bounding_box", AttributeType.STRING)
+      )
+
+    } else {
+
+      // query and match types from Metadata.`Datatype`
+      val ASTERIXDB_GET_SCHEMA_QUERY: String =
+        "SELECT dt.Derived.Record.Fields FROM Metadata.`Datatype` dt, (SELECT DatatypeName FROM Metadata.`Dataset` ds " +
+          "where ds.`DatasetName`=\"" + table + "\") as dn where dt.DatatypeName =dn.DatatypeName;"
+      val k = queryAsterixDB(host, port, ASTERIXDB_GET_SCHEMA_QUERY, format = "JSON")
+      k.get
+        .next()
+        .get("Fields")
+        .forEach(field => {
+          val fieldName: String = field.get("FieldName").textValue()
+          val fieldType: String = field.get("FieldType").textValue()
+          println(fieldName, fieldType, attributeTypeFromAsterixDBType(fieldType))
+          sb.add(new Attribute(fieldName, AttributeType.STRING)).build()
+        })
+
+    }
+    sb.build()
   }
 
   override def operatorInfo: OperatorInfo =
@@ -56,5 +105,15 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
   override def establishConn: Connection = ???
 
   override def updatePort(): Unit = port = if (port.trim().equals("default")) "19002" else port
+
+  private def attributeTypeFromAsterixDBType(inputType: String): AttributeType =
+    inputType match {
+      case "boolean"          => AttributeType.BOOLEAN
+      case "int32"            => AttributeType.INTEGER
+      case "int64"            => AttributeType.LONG
+      case "float" | "double" => AttributeType.DOUBLE
+      case "datetime"         => AttributeType.STRING
+      case "string" | _       => AttributeType.STRING
+    }
 
 }

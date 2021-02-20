@@ -1,11 +1,20 @@
 package edu.uci.ics.texera.workflow.operators.source.asterixdb
+import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.databind.JsonNode
-import edu.uci.ics.texera.workflow.common.Utils.objectMapper
-import scalaj.http.Http
+import com.fasterxml.jackson.databind.json.JsonMapper
+import scalaj.http.{Http, HttpResponse}
 
 import java.util
 
 object AsterixDBConnUtil {
+  val jsonMapper: JsonMapper = JsonMapper
+    .builder()
+    .enable(
+      JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature(),
+      JsonReadFeature.ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER.mappedFeature()
+    )
+    .build()
+
   def queryAsterixDB(
       host: String,
       port: String,
@@ -14,13 +23,22 @@ object AsterixDBConnUtil {
   ): Option[util.Iterator[JsonNode]] = {
     val asterixAPIEndpoint = "http://" + host + ":" + port + "/query/service"
 
-    val response = Http(asterixAPIEndpoint)
+    val response: HttpResponse[String] = Http(asterixAPIEndpoint)
       .postForm(Seq("statement" -> statement, "format" -> format))
-      .headers(Seq("Content-Type" -> "application/x-www-form-urlencoded", "Charset" -> "UTF-8"))
+      .headers(
+        Seq(
+          "Content-Type" -> "application/x-www-form-urlencoded; charset=UTF-8",
+//          "Charset" -> "UTF-8",
+          "Accept-Language" -> "en-us",
+          "Accept-Encoding" -> "gzip, deflate"
+        )
+      )
       .asString
 
+    println("json result ", response)
     // parse result json from Asterixdb
-    val jsonObject = objectMapper.readTree(response.body)
+
+    val jsonObject = jsonMapper.readTree(response.body)
 
     if (!jsonObject.get("status").textValue.equals("success")) {
       // report error from AsterixDB

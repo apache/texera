@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.source.asterixdb
 
 import com.fasterxml.jackson.databind.JsonNode
+import com.github.tototoshi.csv.CSVParser
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -11,7 +12,6 @@ import java.sql._
 import java.util
 import scala.collection.Iterator
 import scala.collection.mutable.ArrayBuffer
-import scala.jdk.CollectionConverters.asScalaBufferConverter
 import scala.util.control.Breaks.{break, breakable}
 
 class AsterixDBSourceOpExec private[asterixdb] (
@@ -93,6 +93,9 @@ class AsterixDBSourceOpExec private[asterixdb] (
               // construct Texera.Tuple from the next result.
               val tuple = buildTupleFromRow
 
+              if (tuple == null)
+                return next()
+
               // update the limit in order to adapt to progressive batches
               curLimit.fold()(limit => {
                 if (limit > 0) {
@@ -134,13 +137,27 @@ class AsterixDBSourceOpExec private[asterixdb] (
     */
   @throws[SQLException]
   private def buildTupleFromRow: Tuple = {
-    val tupleBuilder = Tuple.newBuilder
 
-    for (attr <- schema.getAttributes.asScala) {
+    val tupleBuilder = Tuple.newBuilder
+    val row = curResultSet.get.next().textValue()
+    var values: Option[List[String]] = None
+
+    try values = CSVParser.parse(row, '\\', ',', '"')
+    catch {
+      case _: Exception => return null
+    }
+
+    for (i <- 0 until schema.getAttributes.size()) {
+
+      val attr = schema.getAttributes.get(i)
       breakable {
-        val columnName = attr.getName
         val columnType = attr.getType
-        val value = curResultSet.get.next().textValue()
+
+        var value: String = null
+        try value = values.get(i)
+        catch {
+          case _: Throwable =>
+        }
 
         if (value == null) {
           // add the field as null
@@ -159,7 +176,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
           case STRING =>
             tupleBuilder.add(attr, value)
           case BOOLEAN =>
-            tupleBuilder.add(attr, !(value == "0"))
+            tupleBuilder.add(attr, !value.equals("0"))
           case TIMESTAMP =>
             tupleBuilder.add(attr, Timestamp.valueOf(value))
           case ANY | _ =>
@@ -182,25 +199,27 @@ class AsterixDBSourceOpExec private[asterixdb] (
   @throws[SQLException]
   private def getNextQuery: Option[String] = {
     if (hasNextQuery) {
-      Option(
-        "select id, create_at created_at, text, in_reply_to_status in_reply_to_status_id, " +
-          "in_reply_to_user in_reply_to_user_id, favorite_count, retweet_count, lang, " +
-          "is_retweet retweeted, string_join(hashtags, \", \") hashtags, " +
-          "user_mentions[0], " +
-          "user.id user_id, user.name user_name, user.screen_name user_screen_name, " +
-          "user.location user_location, user.description user_description, " +
-          "user.followers_count user_followers_count, user.friends_count user_friends_count, " +
-          "user.statues_count user_statues_count, geo_tag.stateName, geo_tag.countyName, " +
-          "geo_tag.cityName, place.country, place.bounding_box " +
-          "" +
-          s"from $database.$table " +
-          "" +
-          "" +
-          "" +
-          "" +
-          s"limit 2;"
-      )
+      val user_mentions_flatten_query = Range(0, 100)
+        .map(i => "if_missing_or_null(to_string(to_array(user_mentions)[" + i + "]), \"\")")
+        .mkString(", ")
 
+      Option(
+        "select id, create_at, text, in_reply_to_status, in_reply_to_user, favorite_count" +
+          ", retweet_count, lang, is_retweet, if_missing(string_join(hashtags, \", \"), \"\") hashtags" +
+          ", rtrim(string_join([" + user_mentions_flatten_query + "], \", \"), \", \")  user_mentions, user.id user_id" +
+          ", user.name" +
+          ", user.screen_name" +
+          ", user.location" +
+          ", user.description" +
+          ", user.followers_count" +
+          ", user.friends_count, user.statues_count, geo_tag.stateName, geo_tag.countyName" +
+          ", geo_tag.cityName, place.country, place.bounding_box " +
+          s" from $database.$table " +
+          "" +
+          "" +
+          "" +
+          s"limit 1000;"
+      )
     } else None
   }
 

@@ -104,3 +104,5 @@ libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.2" % Test
 
 // https://mvnrepository.com/artifact/org.scalaj/scalaj-http
 libraryDependencies += "org.scalaj" %% "scalaj-http" % "2.4.2"
+
+libraryDependencies += "com.github.tototoshi" %% "scala-csv" % "1.3.6"
