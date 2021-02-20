@@ -74,7 +74,7 @@ public class HdfsScanOpDesc extends SourceOperatorDescriptor {
             Arrays.stream(indicesToKeep.split(",")).forEach(idx -> idxToKeep.add(Integer.parseInt(idx)));
         }
         try {
-            URL url = new URL("http://"+ host+":"+hdfsRestApiPort+"/webhdfs/v1/"+filePath+"?op=OPEN&offset=0");
+            URL url = new URL("http://"+ host+":"+hdfsRestApiPort+"/webhdfs/v1"+filePath+"?op=OPEN&offset=0");
             InputStream stream = url.openStream();
             BufferedBlockReader reader = new BufferedBlockReader(stream,10000,delimiter.charAt(0),idxToKeep);
             String[] headerLine = reader.readLine();
@@ -105,7 +105,7 @@ public class HdfsScanOpDesc extends SourceOperatorDescriptor {
             if(indicesToKeep!=null && indicesToKeep.trim().length()>0) {
                 Arrays.stream(indicesToKeep.split(",")).forEach(idx -> idxToKeep.add(Integer.parseInt(idx)));
             }
-            URL url = new URL("http://"+ host+":"+hdfsRestApiPort+"/webhdfs/v1/"+filePath+"?op=OPEN&offset=0");
+            URL url = new URL("http://"+ host+":"+hdfsRestApiPort+"/webhdfs/v1"+filePath+"?op=OPEN&offset=0");
             InputStream stream = url.openStream();
             BufferedBlockReader reader = new BufferedBlockReader(stream,10000,delimiter.charAt(0),idxToKeep);
             String[] headerLine = reader.readLine();
