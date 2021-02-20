@@ -1,12 +1,11 @@
 package edu.uci.ics.texera.workflow.operators.source.asterixdb
 
 import com.fasterxml.jackson.databind.JsonNode
+import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.Utils.objectMapper
-import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
-import scalaj.http.Http
+import edu.uci.ics.texera.workflow.operators.source.asterixdb.AsterixDBConnUtil.queryAsterixDB
 
 import java.sql._
 import java.util
@@ -51,7 +50,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
   override def open(): Unit = {
 
     // fetch for all tables, it is also equivalent to a health check
-    val tables = queryAsterixDB("select `DatasetName` from Metadata.`Dataset`;")
+    val tables = queryAsterixDB(host, port, "select `DatasetName` from Metadata.`Dataset`;")
     tables.get.forEachRemaining(table => {
       tableNames.append(table.toString.stripPrefix("\"\\\"").stripSuffix("\\\"\\r\\n\""))
     })
@@ -111,7 +110,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
             curQuery = getNextQuery
             curQuery match {
               case Some(query) =>
-                curResultSet = queryAsterixDB(query)
+                curResultSet = queryAsterixDB(host, port, query)
                 next()
               case None =>
                 curResultSet = None
@@ -126,39 +125,6 @@ class AsterixDBSourceOpExec private[asterixdb] (
   override def close(): Unit = {
     curResultSet = None
     curQuery = None
-  }
-
-  private def queryAsterixDB(
-      statement: String,
-      format: String = "csv"
-  ): Option[util.Iterator[JsonNode]] = {
-    val asterixAPIEndpoint = "http://" + host + ":" + port + "/query/service"
-
-    val response = Http(asterixAPIEndpoint)
-      .postForm(Seq("statement" -> statement, "format" -> format))
-      .headers(Seq("Content-Type" -> "application/x-www-form-urlencoded", "Charset" -> "UTF-8"))
-      .asString
-
-    // parse result json from Asterixdb
-    val jsonObject = objectMapper.readTree(response.body)
-
-    if (!jsonObject.get("status").textValue.equals("success")) {
-      // report error from AsterixDB
-      val sb: StringBuilder = new StringBuilder()
-      jsonObject
-        .get("errors")
-        .elements()
-        .forEachRemaining((error: JsonNode) => {
-          sb.append(error.get("code").intValue() + error.get("msg").textValue() + "\n")
-        })
-
-      throw new RuntimeException(
-        s"Execution errors against $host:$port {\n" + sb.result() + "}\n"
-      )
-    }
-
-    // return results
-    Option(jsonObject.get("results").elements())
   }
 
   /**
