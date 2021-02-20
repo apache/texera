@@ -23,9 +23,8 @@ object TexeraWebApplication {
 
   def main(args: Array[String]): Unit = {
     // start actor system master node
-    if (args != null && args.length > 0) {
-      val l = args(0).asInstanceOf[Boolean]
-      actorSystem = AmberUtils.startActorMaster(l)
+    if (args != null && args.length > 0 && args(0).trim().toLowerCase() == "false") {
+      actorSystem = AmberUtils.startActorMaster(false)
     } else {
       actorSystem = AmberUtils.startActorMaster(true)
     }
