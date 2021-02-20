@@ -102,7 +102,7 @@ public class HdfsScanOpDesc extends SourceOperatorDescriptor {
         }
         try {
             ArrayList<Object> idxToKeep = new ArrayList<Object>();
-            if(indicesToKeep!=null && !indicesToKeep.isBlank()) {
+            if(indicesToKeep!=null && indicesToKeep.trim().length()>0) {
                 Arrays.stream(indicesToKeep.split(",")).forEach(idx -> idxToKeep.add(Integer.parseInt(idx)));
             }
             URL url = new URL("http://"+ host+":"+hdfsRestApiPort+"/webhdfs/v1/"+filePath+"?op=OPEN&offset=0");
