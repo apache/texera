@@ -38,6 +38,27 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
     )
 
   override def sourceSchema(): Schema = {
+    if (this.host == null || this.port == null || this.database == null || this.table == null)
+      return null
+
+    querySchema
+  }
+
+  override def operatorInfo: OperatorInfo =
+    OperatorInfo(
+      "AsterixDB Source",
+      "Read data from a AsterixDB instance",
+      OperatorGroupConstants.SOURCE_GROUP,
+      List.empty,
+      asScalaBuffer(singletonList(OutputPort(""))).toList
+    )
+
+  @throws[SQLException]
+  override def establishConn: Connection = ???
+
+  override def updatePort(): Unit = port = if (port.trim().equals("default")) "19002" else port
+
+  override def querySchema: Schema = {
     updatePort()
 
     val sb: Schema.Builder = Schema.newBuilder()
@@ -92,20 +113,6 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
     sb.build()
   }
 
-  override def operatorInfo: OperatorInfo =
-    OperatorInfo(
-      "AsterixDB Source",
-      "Read data from a AsterixDB instance",
-      OperatorGroupConstants.SOURCE_GROUP,
-      List.empty,
-      asScalaBuffer(singletonList(OutputPort(""))).toList
-    )
-
-  @throws[SQLException]
-  override def establishConn: Connection = ???
-
-  override def updatePort(): Unit = port = if (port.trim().equals("default")) "19002" else port
-
   private def attributeTypeFromAsterixDBType(inputType: String): AttributeType =
     inputType match {
       case "boolean"          => AttributeType.BOOLEAN
@@ -115,5 +122,4 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
       case "datetime"         => AttributeType.STRING
       case "string" | _       => AttributeType.STRING
     }
-
 }
