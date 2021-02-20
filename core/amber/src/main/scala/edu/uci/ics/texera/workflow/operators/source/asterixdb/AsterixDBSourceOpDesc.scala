@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.asterixdb
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorGroupConstants,
   OperatorInfo,
@@ -13,6 +14,7 @@ import java.sql.{Connection, SQLException}
 import java.util.Collections.singletonList
 import scala.jdk.CollectionConverters.asScalaBuffer
 
+@JsonIgnoreProperties(value = Array("username", "password"))
 class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
 
   override def operatorExecutor =
