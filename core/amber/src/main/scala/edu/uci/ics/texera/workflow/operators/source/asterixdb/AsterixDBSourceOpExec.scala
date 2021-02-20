@@ -123,7 +123,10 @@ class AsterixDBSourceOpExec private[asterixdb] (
     }
   }
 
-  override def close(): Unit = ???
+  override def close(): Unit = {
+    curResultSet = None
+    curQuery = None
+  }
 
   private def queryAsterixDB(
       statement: String,
