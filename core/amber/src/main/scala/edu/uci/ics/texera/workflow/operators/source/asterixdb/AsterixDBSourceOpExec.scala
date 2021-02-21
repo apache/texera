@@ -248,7 +248,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
         s" from $database.$table WHERE 1 = 1 "
 
     } else {
-      queryBuilder ++= "\n" + "SELECT * FROM " + table + " where 1 = 1"
+      queryBuilder ++= "\n" + s"SELECT * FROM $database.$table WHERE 1 = 1 "
     }
   }
 
