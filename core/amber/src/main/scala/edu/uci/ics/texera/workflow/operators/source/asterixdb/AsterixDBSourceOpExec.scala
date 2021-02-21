@@ -9,7 +9,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
 import edu.uci.ics.texera.workflow.operators.source.asterixdb.AsterixDBConnUtil.queryAsterixDB
 
 import java.sql._
-import java.util
 import scala.collection.Iterator
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.Breaks.{break, breakable}
@@ -37,7 +36,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
     if (progressive) Option(schema.getAttribute(batchByColumn.get)) else None
   var connection: Connection = _
   var curQuery: Option[String] = None
-  var curResultSet: Option[util.Iterator[JsonNode]] = None
+  var curResultSet: Option[Iterator[JsonNode]] = None
   var curLowerBound: Number = _
   var upperBound: Number = _
   var cachedTuple: Option[Tuple] = None
@@ -48,9 +47,16 @@ class AsterixDBSourceOpExec private[asterixdb] (
 
     // fetch for all tables, it is also equivalent to a health check
     val tables = queryAsterixDB(host, port, "select `DatasetName` from Metadata.`Dataset`;")
-    tables.get.forEachRemaining(table => {
+    tables.get.foreach(table => {
       tableNames.append(table.toString.stripPrefix("\"\\\"").stripSuffix("\\\"\\r\\n\""))
     })
+
+    // validates the input table name
+    if (!tableNames.contains(table))
+      throw new RuntimeException("Can't find the given table `" + table + "`.")
+
+    // load for batch column value boundaries used to split mini queries
+    if (progressive) loadBatchColumnBoundaries()
 
   }
 
@@ -127,6 +133,21 @@ class AsterixDBSourceOpExec private[asterixdb] (
     curQuery = None
   }
 
+  @throws[RuntimeException]
+  def addKeywordSearch(queryBuilder: StringBuilder): Unit = {
+    val columnType = schema.getAttribute(column.get).getType
+
+    if (columnType == AttributeType.STRING) {
+      // add naive support for full text search.
+      // input is either
+      //      ['a','b','c'], {'mode':'any'}
+      // or
+      //      ['a','b','c'], {'mode':'all'}
+      queryBuilder ++= " AND ftcontains(" + column.get + ", " + keywords.get + ") "
+    } else
+      throw new RuntimeException("Can't do keyword search on type " + columnType.toString)
+  }
+
   /**
     * Build a Texera.Tuple from a row of curResultSet
     *
@@ -176,7 +197,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
           case BOOLEAN =>
             tupleBuilder.add(attr, !value.equals("0"))
           case TIMESTAMP =>
-            tupleBuilder.add(attr, Timestamp.valueOf(value))
+            tupleBuilder.add(attr, new Timestamp(value.toLong))
           case ANY | _ =>
             throw new RuntimeException("Unhandled attribute type: " + columnType)
         }
@@ -185,25 +206,22 @@ class AsterixDBSourceOpExec private[asterixdb] (
     tupleBuilder.build
   }
 
-  @throws[RuntimeException]
-  def addKeywordSearch(queryBuilder: StringBuilder): Unit = {
-    val columnType = schema.getAttribute(column.get).getType
-
-    if (columnType == AttributeType.STRING) {
-      // add naive support for full text search.
-      // input is either
-      //      ['a','b','c'], {'mode':'any'}
-      // or
-      //      ['a','b','c'], {'mode':'all'}
-      queryBuilder ++= " AND ftcontains(" + column.get + ", " + keywords.get + ") "
-    } else
-      throw new RuntimeException("Can't do keyword search on type " + columnType.toString)
-  }
-
   private def hasNextQuery: Boolean = {
-    val result = !querySent
-    querySent = true
-    result
+    batchByAttribute match {
+      case Some(attribute) =>
+        attribute.getType match {
+          case INTEGER | LONG | TIMESTAMP =>
+            curLowerBound.longValue <= upperBound.longValue
+          case DOUBLE =>
+            curLowerBound.doubleValue <= upperBound.doubleValue
+          case STRING | ANY | BOOLEAN | _ =>
+            throw new RuntimeException("Unexpected type: " + attribute.getType)
+        }
+      case None =>
+        val hasNextQuery = !querySent
+        querySent = true
+        hasNextQuery
+    }
   }
 
   /**
@@ -227,6 +245,9 @@ class AsterixDBSourceOpExec private[asterixdb] (
       // add keyword search if applicable
       if (column.isDefined && keywords.isDefined)
         addKeywordSearch(queryBuilder)
+
+      // add sliding window if progressive mode is enabled
+      if (progressive) addBatchSlidingWindow(queryBuilder)
 
       // add limit if provided
       if (curLimit.isDefined) {
@@ -256,7 +277,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
 
       queryBuilder ++= "\n" +
         "SELECT id" +
-        ", create_at" +
+        ", unix_time_from_datetime_in_ms(create_at)" +
         ", text" +
         ", in_reply_to_status" +
         ", in_reply_to_user" +
@@ -297,5 +318,104 @@ class AsterixDBSourceOpExec private[asterixdb] (
 
   private def terminateSQL(queryBuilder: StringBuilder): Unit = {
     queryBuilder ++= ";"
+  }
+
+  @throws[RuntimeException]
+  private def addBatchSlidingWindow(queryBuilder: StringBuilder): Unit = {
+    var nextLowerBound: Number = null
+    var isLastBatch = false
+
+    // FIXME: does not support Timestamp now
+    batchByAttribute match {
+      case Some(attribute) =>
+        attribute.getType match {
+          case INTEGER | LONG | TIMESTAMP =>
+            nextLowerBound = curLowerBound.longValue + interval
+            isLastBatch = nextLowerBound.longValue >= upperBound.longValue
+          case DOUBLE =>
+            nextLowerBound = curLowerBound.doubleValue + interval
+            isLastBatch = nextLowerBound.doubleValue >= upperBound.doubleValue
+          case BOOLEAN | STRING | ANY | _ =>
+            throw new RuntimeException("Unexpected type: " + attribute.getType)
+        }
+        queryBuilder ++= " AND " + attribute.getName + " >= " + batchAttributeToString(
+          curLowerBound
+        ) +
+          " AND " + attribute.getName +
+          (if (isLastBatch)
+             " <= " + batchAttributeToString(upperBound)
+           else
+             " < " + batchAttributeToString(nextLowerBound))
+      case None =>
+        throw new RuntimeException(
+          "no valid batchByColumn to iterate: " + batchByColumn.getOrElse("")
+        )
+    }
+    curLowerBound = nextLowerBound
+  }
+
+  @throws[RuntimeException]
+  private def batchAttributeToString(value: Number): String = {
+    batchByAttribute match {
+      case Some(attribute) =>
+        attribute.getType match {
+          case LONG | INTEGER | DOUBLE =>
+            String.valueOf(value)
+          case TIMESTAMP =>
+            new Timestamp(value.longValue).toString
+          case BOOLEAN | STRING | ANY | _ =>
+            throw new RuntimeException("Unexpected type: " + attribute.getType)
+        }
+      case None =>
+        throw new RuntimeException(
+          "No valid batchByColumn to iterate: " + batchByColumn.getOrElse("")
+        )
+    }
+  }
+  @throws[SQLException]
+  private def loadBatchColumnBoundaries(): Unit = {
+    batchByAttribute match {
+      case Some(attribute) =>
+        if (attribute.getName.nonEmpty) {
+          upperBound = getBatchByBoundary("MAX").getOrElse(0)
+          curLowerBound = getBatchByBoundary("MIN").getOrElse(0)
+        }
+      case None =>
+    }
+  }
+
+  @throws[SQLException]
+  private def getBatchByBoundary(side: String): Option[Number] = {
+    batchByAttribute match {
+      case Some(attribute) =>
+        var result: Number = null
+        val resultString = queryAsterixDB(
+          host,
+          port,
+          "SELECT " + side + "(" + attribute.getName + ") FROM " + database + "." + table + ";"
+        ).get.next().textValue().stripLineEnd
+
+        schema.getAttribute(attribute.getName).getType match {
+          case INTEGER =>
+            result = resultString.toInt
+
+          case LONG =>
+            result = resultString.toLong
+
+          case TIMESTAMP =>
+            result = Timestamp.valueOf(resultString).getTime
+
+          case DOUBLE =>
+            result = resultString.toDouble
+
+          case BOOLEAN =>
+          case STRING  =>
+          case ANY     =>
+          case _ =>
+            throw new IllegalStateException("Unexpected value: " + attribute.getType)
+        }
+        Option(result)
+      case None => None
+    }
   }
 }

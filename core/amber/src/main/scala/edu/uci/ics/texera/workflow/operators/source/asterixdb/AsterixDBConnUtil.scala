@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.json.JsonMapper
 import scalaj.http.{Http, HttpResponse}
 
-import java.util
+import scala.jdk.CollectionConverters.asScalaIteratorConverter
 
 object AsterixDBConnUtil {
 
@@ -22,10 +22,11 @@ object AsterixDBConnUtil {
       port: String,
       statement: String,
       format: String = "csv"
-  ): Option[util.Iterator[JsonNode]] = {
+  ): Option[Iterator[JsonNode]] = {
     val asterixAPIEndpoint = "http://" + host + ":" + port + "/query/service"
 
     val response: HttpResponse[String] = Http(asterixAPIEndpoint)
+      .timeout(connTimeoutMs = 10000, readTimeoutMs = 10000)
       .postForm(Seq("statement" -> statement, "format" -> format))
       .headers(
         Seq(
@@ -57,6 +58,6 @@ object AsterixDBConnUtil {
     }
 
     // return results
-    Option(jsonObject.get("results").elements())
+    Option(jsonObject.get("results").elements().asScala)
   }
 }

@@ -69,7 +69,7 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
       // hard code for twitter.ds_tweet
       sb.add(
         new Attribute("id", AttributeType.LONG),
-        new Attribute("created_at", AttributeType.STRING),
+        new Attribute("created_at", AttributeType.TIMESTAMP),
         new Attribute("text", AttributeType.STRING),
         new Attribute("in_reply_to_status_id", AttributeType.LONG),
         new Attribute("in_reply_to_user_id", AttributeType.LONG),
