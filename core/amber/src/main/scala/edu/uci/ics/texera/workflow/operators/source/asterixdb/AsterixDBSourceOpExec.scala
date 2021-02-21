@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.operators.source.asterixdb
 import com.fasterxml.jackson.databind.JsonNode
 import com.github.tototoshi.csv.CSVParser
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
 import edu.uci.ics.texera.workflow.operators.source.asterixdb.AsterixDBConnUtil.queryAsterixDB
@@ -30,9 +30,6 @@ class AsterixDBSourceOpExec private[asterixdb] (
     batchByColumn: Option[String],
     interval: Long
 ) extends SourceOperatorExecutor {
-
-  val FETCH_TABLE_NAMES_SQL =
-    "SELECT table_name FROM information_schema.tables WHERE table_schema = ?;"
 
   // connection and query related
   val tableNames: ArrayBuffer[String] = ArrayBuffer()
@@ -188,6 +185,27 @@ class AsterixDBSourceOpExec private[asterixdb] (
     tupleBuilder.build
   }
 
+  @throws[RuntimeException]
+  def addKeywordSearch(queryBuilder: StringBuilder): Unit = {
+    val columnType = schema.getAttribute(column.get).getType
+
+    if (columnType == AttributeType.STRING) {
+      // add naive support for full text search.
+      // input is either
+      //      ['a','b','c'], {'mode':'any'}
+      // or
+      //      ['a','b','c'], {'mode':'all'}
+      queryBuilder ++= " AND ftcontains(" + column.get + ", " + keywords.get + ") "
+    } else
+      throw new RuntimeException("Can't do keyword search on type " + columnType.toString)
+  }
+
+  private def hasNextQuery: Boolean = {
+    val result = !querySent
+    querySent = true
+    result
+  }
+
   /**
     * Get the next query.
     * - If progressive mode is enabled, this method will be invoked
@@ -203,9 +221,12 @@ class AsterixDBSourceOpExec private[asterixdb] (
 
       val queryBuilder = new StringBuilder
 
-      // Add base SELECT * with true condition
       // TODO: add more selection conditions, including alias
       addBaseSelect(queryBuilder)
+
+      // add keyword search if applicable
+      if (column.isDefined && keywords.isDefined)
+        addKeywordSearch(queryBuilder)
 
       // add limit if provided
       if (curLimit.isDefined) {
@@ -218,36 +239,50 @@ class AsterixDBSourceOpExec private[asterixdb] (
       // add fixed offset if not progressive
       if (!progressive && curOffset.isDefined) addOffset(queryBuilder)
 
+      // end
+      terminateSQL(queryBuilder)
+
       Option(queryBuilder.result())
     } else None
   }
 
-  private def hasNextQuery: Boolean = {
-    val result = !querySent
-    querySent = true
-    result
-  }
-
   private def addBaseSelect(queryBuilder: StringBuilder): Unit = {
     if (database.equals("twitter") && table.equals("ds_tweet")) {
+      // special case, support flattened twitter.ds_tweet
 
       val user_mentions_flatten_query = Range(0, 100)
         .map(i => "if_missing_or_null(to_string(to_array(user_mentions)[" + i + "]), \"\")")
         .mkString(", ")
 
-      queryBuilder ++= "\n" + "select id, create_at, text, in_reply_to_status, in_reply_to_user, favorite_count" +
-        ", retweet_count, lang, is_retweet, if_missing(string_join(hashtags, \", \"), \"\") hashtags" +
-        ", rtrim(string_join([" + user_mentions_flatten_query + "], \", \"), \", \")  user_mentions, user.id user_id" +
+      queryBuilder ++= "\n" +
+        "SELECT id" +
+        ", create_at" +
+        ", text" +
+        ", in_reply_to_status" +
+        ", in_reply_to_user" +
+        ", favorite_count" +
+        ", retweet_count" +
+        ", lang" +
+        ", is_retweet" +
+        ", if_missing(string_join(hashtags, \", \"), \"\") hashtags" +
+        ", rtrim(string_join([" + user_mentions_flatten_query + "], \", \"), \", \")  user_mentions" +
+        ", user.id user_id" +
         ", user.name" +
         ", user.screen_name" +
         ", user.location" +
         ", user.description" +
         ", user.followers_count" +
-        ", user.friends_count, user.statues_count, geo_tag.stateName, geo_tag.countyName" +
-        ", geo_tag.cityName, place.country, place.bounding_box " +
-        s" from $database.$table WHERE 1 = 1 "
+        ", user.friends_count" +
+        ", user.statues_count" +
+        ", geo_tag.stateName" +
+        ", geo_tag.countyName" +
+        ", geo_tag.cityName" +
+        ", place.country" +
+        ", place.bounding_box " +
+        s" FROM $database.$table WHERE 1 = 1 "
 
     } else {
+      // general case, select everything, assuming the table is flattened.
       queryBuilder ++= "\n" + s"SELECT * FROM $database.$table WHERE 1 = 1 "
     }
   }
@@ -258,5 +293,9 @@ class AsterixDBSourceOpExec private[asterixdb] (
 
   private def addOffset(queryBuilder: StringBuilder): Unit = {
     queryBuilder ++= " OFFSET " + curOffset.get
+  }
+
+  private def terminateSQL(queryBuilder: StringBuilder): Unit = {
+    queryBuilder ++= ";"
   }
 }
