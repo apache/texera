@@ -142,6 +142,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
     val row = curResultSet.get.next().textValue()
     var values: Option[List[String]] = None
 
+    // FIXME: this parser would result some error rows, which has to be skipped.
     try values = CSVParser.parse(row, '\\', ',', '"')
     catch {
       case _: Exception => return null
@@ -199,27 +200,25 @@ class AsterixDBSourceOpExec private[asterixdb] (
   @throws[SQLException]
   private def getNextQuery: Option[String] = {
     if (hasNextQuery) {
-      val user_mentions_flatten_query = Range(0, 100)
-        .map(i => "if_missing_or_null(to_string(to_array(user_mentions)[" + i + "]), \"\")")
-        .mkString(", ")
 
-      Option(
-        "select id, create_at, text, in_reply_to_status, in_reply_to_user, favorite_count" +
-          ", retweet_count, lang, is_retweet, if_missing(string_join(hashtags, \", \"), \"\") hashtags" +
-          ", rtrim(string_join([" + user_mentions_flatten_query + "], \", \"), \", \")  user_mentions, user.id user_id" +
-          ", user.name" +
-          ", user.screen_name" +
-          ", user.location" +
-          ", user.description" +
-          ", user.followers_count" +
-          ", user.friends_count, user.statues_count, geo_tag.stateName, geo_tag.countyName" +
-          ", geo_tag.cityName, place.country, place.bounding_box " +
-          s" from $database.$table " +
-          "" +
-          "" +
-          "" +
-          s"limit 1000;"
-      )
+      val queryBuilder = new StringBuilder
+
+      // Add base SELECT * with true condition
+      // TODO: add more selection conditions, including alias
+      addBaseSelect(queryBuilder)
+
+      // add limit if provided
+      if (curLimit.isDefined) {
+        if (curLimit.get > 0) addLimit(queryBuilder)
+        else
+          // there should be no more queries as limit is equal or less than 0
+          return None
+      }
+
+      // add fixed offset if not progressive
+      if (!progressive && curOffset.isDefined) addOffset(queryBuilder)
+
+      Option(queryBuilder.result())
     } else None
   }
 
@@ -227,5 +226,37 @@ class AsterixDBSourceOpExec private[asterixdb] (
     val result = !querySent
     querySent = true
     result
+  }
+
+  private def addBaseSelect(queryBuilder: StringBuilder): Unit = {
+    if (database.equals("twitter") && table.equals("ds_tweet")) {
+
+      val user_mentions_flatten_query = Range(0, 100)
+        .map(i => "if_missing_or_null(to_string(to_array(user_mentions)[" + i + "]), \"\")")
+        .mkString(", ")
+
+      queryBuilder ++= "\n" + "select id, create_at, text, in_reply_to_status, in_reply_to_user, favorite_count" +
+        ", retweet_count, lang, is_retweet, if_missing(string_join(hashtags, \", \"), \"\") hashtags" +
+        ", rtrim(string_join([" + user_mentions_flatten_query + "], \", \"), \", \")  user_mentions, user.id user_id" +
+        ", user.name" +
+        ", user.screen_name" +
+        ", user.location" +
+        ", user.description" +
+        ", user.followers_count" +
+        ", user.friends_count, user.statues_count, geo_tag.stateName, geo_tag.countyName" +
+        ", geo_tag.cityName, place.country, place.bounding_box " +
+        s" from $database.$table WHERE 1 = 1 "
+
+    } else {
+      queryBuilder ++= "\n" + "SELECT * FROM " + table + " where 1 = 1"
+    }
+  }
+
+  private def addLimit(queryBuilder: StringBuilder): Unit = {
+    queryBuilder ++= " LIMIT " + curLimit.get
+  }
+
+  private def addOffset(queryBuilder: StringBuilder): Unit = {
+    queryBuilder ++= " OFFSET " + curOffset.get
   }
 }
