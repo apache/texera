@@ -7,6 +7,8 @@ import scalaj.http.{Http, HttpResponse}
 import java.util
 
 object AsterixDBConnUtil {
+
+  // cannot use the Util.objectMapper, some special configurations needs to be performed.
   val jsonMapper: JsonMapper = JsonMapper
     .builder()
     .enable(
@@ -28,12 +30,11 @@ object AsterixDBConnUtil {
       .headers(
         Seq(
           "Content-Type" -> "application/x-www-form-urlencoded; charset=UTF-8",
-//          "Charset" -> "UTF-8",
           "Accept-Language" -> "en-us",
           "Accept-Encoding" -> "gzip, deflate"
         )
       )
-      .asString
+      .asString // FIXME: this would result in some encoding errors
 
     println("json result ", response)
     // parse result json from Asterixdb
