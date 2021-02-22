@@ -105,7 +105,6 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
         .forEach(field => {
           val fieldName: String = field.get("FieldName").textValue()
           val fieldType: String = field.get("FieldType").textValue()
-          println(fieldName, fieldType, attributeTypeFromAsterixDBType(fieldType))
           sb.add(new Attribute(fieldName, AttributeType.STRING)).build()
         })
 
