@@ -37,6 +37,7 @@ object AsterixDBConnUtil {
       )
       .asString // FIXME: this would result in some encoding errors
 
+    println("request ", statement)
     println("json result ", response)
     // parse result json from Asterixdb
 

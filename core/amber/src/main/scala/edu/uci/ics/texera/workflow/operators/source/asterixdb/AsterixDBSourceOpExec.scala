@@ -2,15 +2,16 @@ package edu.uci.ics.texera.workflow.operators.source.asterixdb
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.github.tototoshi.csv.CSVParser
-import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
 import edu.uci.ics.texera.workflow.operators.source.asterixdb.AsterixDBConnUtil.queryAsterixDB
+import edu.uci.ics.texera.workflow.operators.source.SQLSourceOpExec
 
 import java.sql._
+import java.time.{Instant, ZoneId, ZoneOffset}
+import java.time.format.DateTimeFormatter
 import scala.collection.Iterator
-import scala.collection.mutable.ArrayBuffer
 import scala.util.control.Breaks.{break, breakable}
 
 class AsterixDBSourceOpExec private[asterixdb] (
@@ -19,47 +20,32 @@ class AsterixDBSourceOpExec private[asterixdb] (
     port: String,
     database: String,
     table: String,
-    username: String,
-    password: String,
-    var curLimit: Option[Long],
-    var curOffset: Option[Long],
+    limit: Option[Long],
+    offset: Option[Long],
     column: Option[String],
     keywords: Option[String],
     progressive: Boolean,
     batchByColumn: Option[String],
     interval: Long
-) extends SourceOperatorExecutor {
+) extends SQLSourceOpExec(
+      schema,
+      table,
+      limit,
+      offset,
+      column,
+      keywords,
+      progressive,
+      batchByColumn,
+      interval
+    ) {
 
-  // connection and query related
-  val tableNames: ArrayBuffer[String] = ArrayBuffer()
-  val batchByAttribute: Option[Attribute] =
-    if (progressive) Option(schema.getAttribute(batchByColumn.get)) else None
-  var connection: Connection = _
-  var curQuery: Option[String] = None
-  var curResultSet: Option[Iterator[JsonNode]] = None
-  var curLowerBound: Number = _
-  var upperBound: Number = _
-  var cachedTuple: Option[Tuple] = None
-  var querySent: Boolean = false
+  var curQueryString: Option[String] = None
+  var curResultIterator: Option[Iterator[JsonNode]] = None
 
-  @throws[RuntimeException]
-  override def open(): Unit = {
-
-    // fetch for all tables, it is also equivalent to a health check
-    val tables = queryAsterixDB(host, port, "select `DatasetName` from Metadata.`Dataset`;")
-    tables.get.foreach(table => {
-      tableNames.append(table.toString.stripPrefix("\"\\\"").stripSuffix("\\\"\\r\\n\""))
-    })
-
-    // validates the input table name
-    if (!tableNames.contains(table))
-      throw new RuntimeException("Can't find the given table `" + table + "`.")
-
-    // load for batch column value boundaries used to split mini queries
-    if (progressive) loadBatchColumnBoundaries()
-
-  }
-
+  /**
+    * A generator of a Texera.Tuple, which converted from a CSV row of fields from AsterixDB
+    * @return Iterator[Tuple]
+    */
   override def produceTexeraTuple(): Iterator[Tuple] = {
     new Iterator[Tuple]() {
       override def hasNext: Boolean = {
@@ -81,7 +67,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
         })
 
         // otherwise, send query to fetch for the next Tuple
-        curResultSet match {
+        curResultIterator match {
           case Some(resultSet) =>
             if (resultSet.hasNext) {
 
@@ -108,18 +94,18 @@ class AsterixDBSourceOpExec private[asterixdb] (
               tuple
             } else {
               // close the current resultSet and query
-              curResultSet = None
-              curQuery = None
+              curResultIterator = None
+              curQueryString = None
               next()
             }
           case None =>
-            curQuery = getNextQuery
-            curQuery match {
+            curQueryString = generateSqlQuery
+            curQueryString match {
               case Some(query) =>
-                curResultSet = queryAsterixDB(host, port, query)
+                curResultIterator = queryAsterixDB(host, port, query)
                 next()
               case None =>
-                curResultSet = None
+                curResultIterator = None
                 null
             }
         }
@@ -128,36 +114,83 @@ class AsterixDBSourceOpExec private[asterixdb] (
     }
   }
 
+  /**
+    * close curResultIterator, curQueryString
+    */
   override def close(): Unit = {
-    curResultSet = None
-    curQuery = None
+    curResultIterator = None
+    curQueryString = None
   }
 
+  /**
+    * add naive support for full text search.
+    * input is either
+    *     ['a','b','c'], {'mode':'any'}
+    * or
+    *     ['a','b','c'], {'mode':'all'}
+    * @param queryBuilder queryBuilder for concatenation
+    * @throws RuntimeException if attribute does not support string based search
+    */
   @throws[RuntimeException]
   def addKeywordSearch(queryBuilder: StringBuilder): Unit = {
+
     val columnType = schema.getAttribute(column.get).getType
 
     if (columnType == AttributeType.STRING) {
-      // add naive support for full text search.
-      // input is either
-      //      ['a','b','c'], {'mode':'any'}
-      // or
-      //      ['a','b','c'], {'mode':'all'}
+
       queryBuilder ++= " AND ftcontains(" + column.get + ", " + keywords.get + ") "
     } else
       throw new RuntimeException("Can't do keyword search on type " + columnType.toString)
   }
 
   /**
-    * Build a Texera.Tuple from a row of curResultSet
+    * Fetch for a numeric value of the boundary of the batchByColumn.
+    * @param side either "MAX" or "MIN" for boundary
+    * @throws RuntimeException all possible exceptions from HTTP connection
+    * @return a numeric value, could be Int, Long or Double
+    */
+  @throws[RuntimeException]
+  override def getBatchByBoundary(side: String): Option[Number] = {
+    batchByAttribute match {
+      case Some(attribute) =>
+        var result: Number = null
+        val resultString = queryAsterixDB(
+          host,
+          port,
+          "SELECT " + side + "(" + attribute.getName + ") FROM " + database + "." + table + ";"
+        ).get.next().textValue().stripLineEnd
+
+        // TODO: move this to some util package
+        schema.getAttribute(attribute.getName).getType match {
+          case INTEGER =>
+            result = resultString.toInt
+          case LONG =>
+            result = resultString.toLong
+          case TIMESTAMP =>
+            result = Instant.parse(resultString.stripSuffix("\"").stripPrefix("\"")).toEpochMilli
+          case DOUBLE =>
+            result = resultString.toDouble
+          case BOOLEAN =>
+          case STRING  =>
+          case ANY     =>
+          case _ =>
+            throw new IllegalStateException("Unexpected value: " + attribute.getType)
+        }
+        Option(result)
+      case None => None
+    }
+  }
+
+  /**
+    * Build a Texera.Tuple from a row of curResultIterator
     *
     * @return the new Texera.Tuple
     */
   @throws[SQLException]
-  private def buildTupleFromRow: Tuple = {
+  override def buildTupleFromRow: Tuple = {
 
     val tupleBuilder = Tuple.newBuilder
-    val row = curResultSet.get.next().textValue()
+    val row = curResultIterator.get.next().textValue()
     var values: Option[List[String]] = None
 
     // FIXME: this parser would result some error rows, which has to be skipped.
@@ -197,6 +230,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
           case BOOLEAN =>
             tupleBuilder.add(attr, !value.equals("0"))
           case TIMESTAMP =>
+            // TODO: change to Instant
             tupleBuilder.add(attr, new Timestamp(value.toLong))
           case ANY | _ =>
             throw new RuntimeException("Unhandled attribute type: " + columnType)
@@ -206,68 +240,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
     tupleBuilder.build
   }
 
-  private def hasNextQuery: Boolean = {
-    batchByAttribute match {
-      case Some(attribute) =>
-        attribute.getType match {
-          case INTEGER | LONG | TIMESTAMP =>
-            curLowerBound.longValue <= upperBound.longValue
-          case DOUBLE =>
-            curLowerBound.doubleValue <= upperBound.doubleValue
-          case STRING | ANY | BOOLEAN | _ =>
-            throw new RuntimeException("Unexpected type: " + attribute.getType)
-        }
-      case None =>
-        val hasNextQuery = !querySent
-        querySent = true
-        hasNextQuery
-    }
-  }
-
-  /**
-    * Get the next query.
-    * - If progressive mode is enabled, this method will be invoked
-    * many times, each yielding the next mini query.
-    * - If progressive mode is not enabled, this method will be invoked
-    * only once, returning the one giant query.
-    * @throws SQLException all possible exceptions from JDBC
-    * @return a PreparedStatement to be filled with values.
-    */
-  @throws[SQLException]
-  private def getNextQuery: Option[String] = {
-    if (hasNextQuery) {
-
-      val queryBuilder = new StringBuilder
-
-      // TODO: add more selection conditions, including alias
-      addBaseSelect(queryBuilder)
-
-      // add keyword search if applicable
-      if (column.isDefined && keywords.isDefined)
-        addKeywordSearch(queryBuilder)
-
-      // add sliding window if progressive mode is enabled
-      if (progressive) addBatchSlidingWindow(queryBuilder)
-
-      // add limit if provided
-      if (curLimit.isDefined) {
-        if (curLimit.get > 0) addLimit(queryBuilder)
-        else
-          // there should be no more queries as limit is equal or less than 0
-          return None
-      }
-
-      // add fixed offset if not progressive
-      if (!progressive && curOffset.isDefined) addOffset(queryBuilder)
-
-      // end
-      terminateSQL(queryBuilder)
-
-      Option(queryBuilder.result())
-    } else None
-  }
-
-  private def addBaseSelect(queryBuilder: StringBuilder): Unit = {
+  override def addBaseSelect(queryBuilder: StringBuilder): Unit = {
     if (database.equals("twitter") && table.equals("ds_tweet")) {
       // special case, support flattened twitter.ds_tweet
 
@@ -308,61 +281,26 @@ class AsterixDBSourceOpExec private[asterixdb] (
     }
   }
 
-  private def addLimit(queryBuilder: StringBuilder): Unit = {
+  override def addLimit(queryBuilder: StringBuilder): Unit = {
     queryBuilder ++= " LIMIT " + curLimit.get
   }
 
-  private def addOffset(queryBuilder: StringBuilder): Unit = {
+  override def addOffset(queryBuilder: StringBuilder): Unit = {
     queryBuilder ++= " OFFSET " + curOffset.get
   }
 
-  private def terminateSQL(queryBuilder: StringBuilder): Unit = {
-    queryBuilder ++= ";"
-  }
-
   @throws[RuntimeException]
-  private def addBatchSlidingWindow(queryBuilder: StringBuilder): Unit = {
-    var nextLowerBound: Number = null
-    var isLastBatch = false
-
-    // FIXME: does not support Timestamp now
-    batchByAttribute match {
-      case Some(attribute) =>
-        attribute.getType match {
-          case INTEGER | LONG | TIMESTAMP =>
-            nextLowerBound = curLowerBound.longValue + interval
-            isLastBatch = nextLowerBound.longValue >= upperBound.longValue
-          case DOUBLE =>
-            nextLowerBound = curLowerBound.doubleValue + interval
-            isLastBatch = nextLowerBound.doubleValue >= upperBound.doubleValue
-          case BOOLEAN | STRING | ANY | _ =>
-            throw new RuntimeException("Unexpected type: " + attribute.getType)
-        }
-        queryBuilder ++= " AND " + attribute.getName + " >= " + batchAttributeToString(
-          curLowerBound
-        ) +
-          " AND " + attribute.getName +
-          (if (isLastBatch)
-             " <= " + batchAttributeToString(upperBound)
-           else
-             " < " + batchAttributeToString(nextLowerBound))
-      case None =>
-        throw new RuntimeException(
-          "no valid batchByColumn to iterate: " + batchByColumn.getOrElse("")
-        )
-    }
-    curLowerBound = nextLowerBound
-  }
-
-  @throws[RuntimeException]
-  private def batchAttributeToString(value: Number): String = {
+  override def batchAttributeToString(value: Number): String = {
     batchByAttribute match {
       case Some(attribute) =>
         attribute.getType match {
           case LONG | INTEGER | DOUBLE =>
             String.valueOf(value)
           case TIMESTAMP =>
-            new Timestamp(value.longValue).toString
+            // TODO: unify with base class
+            val formatter =
+              DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.from(ZoneOffset.UTC))
+            "datetime('" + formatter.format(new Timestamp(value.longValue).toInstant) + "')"
           case BOOLEAN | STRING | ANY | _ =>
             throw new RuntimeException("Unexpected type: " + attribute.getType)
         }
@@ -372,50 +310,19 @@ class AsterixDBSourceOpExec private[asterixdb] (
         )
     }
   }
-  @throws[SQLException]
-  private def loadBatchColumnBoundaries(): Unit = {
-    batchByAttribute match {
-      case Some(attribute) =>
-        if (attribute.getName.nonEmpty) {
-          upperBound = getBatchByBoundary("MAX").getOrElse(0)
-          curLowerBound = getBatchByBoundary("MIN").getOrElse(0)
-        }
-      case None =>
-    }
+
+  /**
+    * Fetch all table names from the given database. This is used to
+    * check the input table name to prevent from SQL injection.
+    * @throws RuntimeException all possible exceptions from HTTP connection
+    */
+  @throws[RuntimeException]
+  override protected def loadTableNames(): Unit = {
+    // fetch for all tables, it is also equivalent to a health check
+    val tables = queryAsterixDB(host, port, "select `DatasetName` from Metadata.`Dataset`;")
+    tables.get.foreach(table => {
+      tableNames.append(table.toString.stripPrefix("\"\\\"").stripSuffix("\\\"\\r\\n\""))
+    })
   }
 
-  @throws[SQLException]
-  private def getBatchByBoundary(side: String): Option[Number] = {
-    batchByAttribute match {
-      case Some(attribute) =>
-        var result: Number = null
-        val resultString = queryAsterixDB(
-          host,
-          port,
-          "SELECT " + side + "(" + attribute.getName + ") FROM " + database + "." + table + ";"
-        ).get.next().textValue().stripLineEnd
-
-        schema.getAttribute(attribute.getName).getType match {
-          case INTEGER =>
-            result = resultString.toInt
-
-          case LONG =>
-            result = resultString.toLong
-
-          case TIMESTAMP =>
-            result = Timestamp.valueOf(resultString).getTime
-
-          case DOUBLE =>
-            result = resultString.toDouble
-
-          case BOOLEAN =>
-          case STRING  =>
-          case ANY     =>
-          case _ =>
-            throw new IllegalStateException("Unexpected value: " + attribute.getType)
-        }
-        Option(result)
-      case None => None
-    }
-  }
 }
