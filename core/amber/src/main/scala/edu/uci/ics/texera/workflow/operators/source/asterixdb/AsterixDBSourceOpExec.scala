@@ -59,7 +59,9 @@ class AsterixDBSourceOpExec private[asterixdb] (
             cachedTuple.isDefined
         }
       }
-      override def next(): Tuple = {
+
+      @throws[RuntimeException]
+      override def next: Tuple = {
         // if has the next Tuple in cache, return it and clear the cache
         cachedTuple.foreach(tuple => {
           cachedTuple = None
@@ -75,7 +77,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
               curOffset.fold()(offset => {
                 if (offset > 0) {
                   curOffset = Option(offset - 1)
-                  return next()
+                  return next
                 }
               })
 
@@ -83,7 +85,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
               val tuple = buildTupleFromRow
 
               if (tuple == null)
-                return next()
+                return next
 
               // update the limit in order to adapt to progressive batches
               curLimit.fold()(limit => {
@@ -96,14 +98,14 @@ class AsterixDBSourceOpExec private[asterixdb] (
               // close the current resultSet and query
               curResultIterator = None
               curQueryString = None
-              next()
+              next
             }
           case None =>
             curQueryString = generateSqlQuery
             curQueryString match {
               case Some(query) =>
                 curResultIterator = queryAsterixDB(host, port, query)
-                next()
+                next
               case None =>
                 curResultIterator = None
                 null
@@ -186,7 +188,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
     *
     * @return the new Texera.Tuple
     */
-  @throws[SQLException]
+  @throws[RuntimeException]
   override def buildTupleFromRow: Tuple = {
 
     val tupleBuilder = Tuple.newBuilder

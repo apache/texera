@@ -88,6 +88,9 @@ abstract class SQLSourceOpExec(
               // construct Texera.Tuple from the next result.
               val tuple = buildTupleFromRow
 
+              if (tuple == null)
+                return next
+
               // update the limit in order to adapt to progressive batches
               curLimit.fold()(limit => {
                 if (limit > 0) {
@@ -156,11 +159,14 @@ abstract class SQLSourceOpExec(
   }
 
   /**
-    * Build a Texera.Tuple from a row of curResultIterator
+    * Build a Texera.Tuple from a row of curResultSet
     *
     * @return the new Texera.Tuple
+    * @throws SQLException all possible exceptions from JDBC
+    * @throws RuntimeException all possible exceptions from HTTP connection
     */
   @throws[SQLException]
+  @throws[RuntimeException]
   protected def buildTupleFromRow: Tuple = {
     val tupleBuilder = Tuple.newBuilder
 
@@ -322,9 +328,11 @@ abstract class SQLSourceOpExec(
     * Fetch for a numeric value of the boundary of the batchByColumn.
     * @param side either "MAX" or "MIN" for boundary
     * @throws SQLException all possible exceptions from JDBC
+    * @throws RuntimeException all possible exceptions from HTTP connection
     * @return a numeric value, could be Int, Long or Double
     */
   @throws[SQLException]
+  @throws[RuntimeException]
   protected def getBatchByBoundary(side: String): Option[Number] = {
     batchByAttribute match {
       case Some(attribute) =>
@@ -337,16 +345,12 @@ abstract class SQLSourceOpExec(
         schema.getAttribute(attribute.getName).getType match {
           case INTEGER =>
             result = resultSet.getInt(1)
-
           case LONG =>
             result = resultSet.getLong(1)
-
           case TIMESTAMP =>
             result = resultSet.getTimestamp(1).getTime
-
           case DOUBLE =>
             result = resultSet.getDouble(1)
-
           case BOOLEAN =>
           case STRING  =>
           case ANY     =>
@@ -372,8 +376,10 @@ abstract class SQLSourceOpExec(
     * Fetch all table names from the given database. This is used to
     * check the input table name to prevent from SQL injection.
     * @throws SQLException all possible exceptions from JDBC
+    * @throws RuntimeException all possible exceptions from HTTP connection
     */
   @throws[SQLException]
+  @throws[RuntimeException]
   protected def loadTableNames(): Unit
 
   @throws[RuntimeException]
@@ -481,8 +487,10 @@ abstract class SQLSourceOpExec(
     * bounds will be used in progressive mode to determine mini-queries.
     *
     * @throws SQLException all possible exceptions from JDBC
+    * @throws RuntimeException all possible exceptions from HTTP connection
     */
   @throws[SQLException]
+  @throws[RuntimeException]
   private def loadBatchColumnBoundaries(): Unit = {
     batchByAttribute match {
       case Some(attribute) =>
