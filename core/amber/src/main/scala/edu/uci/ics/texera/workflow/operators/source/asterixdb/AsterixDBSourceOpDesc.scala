@@ -10,7 +10,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType
 import edu.uci.ics.texera.workflow.operators.source.{SQLSourceOpDesc, SQLSourceOpExecConfig}
 import edu.uci.ics.texera.workflow.operators.source.asterixdb.AsterixDBConnUtil.queryAsterixDB
 
-import java.sql.{Connection, SQLException}
 import java.util.Collections.singletonList
 import scala.jdk.CollectionConverters.asScalaBuffer
 
@@ -52,9 +51,6 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
       List.empty,
       asScalaBuffer(singletonList(OutputPort(""))).toList
     )
-
-  @throws[SQLException]
-  override def establishConn: Connection = ???
 
   override def updatePort(): Unit = port = if (port.trim().equals("default")) "19002" else port
 
@@ -105,7 +101,7 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
         .forEach(field => {
           val fieldName: String = field.get("FieldName").textValue()
           val fieldType: String = field.get("FieldType").textValue()
-          sb.add(new Attribute(fieldName, AttributeType.STRING)).build()
+          sb.add(new Attribute(fieldName, attributeTypeFromAsterixDBType(fieldType))).build()
         })
 
     }

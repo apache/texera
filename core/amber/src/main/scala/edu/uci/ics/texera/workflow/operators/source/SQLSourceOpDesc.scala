@@ -151,7 +151,7 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
   }
 
   @throws[SQLException]
-  protected def establishConn: Connection
+  protected def establishConn: Connection = null
 
   protected def updatePort(): Unit
 }
