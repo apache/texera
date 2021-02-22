@@ -232,8 +232,10 @@ class AsterixDBSourceOpExec private[asterixdb] (
           case BOOLEAN =>
             tupleBuilder.add(attr, !value.equals("0"))
           case TIMESTAMP =>
-            // TODO: change to Instant
-            tupleBuilder.add(attr, new Timestamp(value.toLong))
+            tupleBuilder.add(
+              attr,
+              new Timestamp(Instant.parse(value.stripSuffix("\"").stripPrefix("\"")).toEpochMilli)
+            )
           case ANY | _ =>
             throw new RuntimeException("Unhandled attribute type: " + columnType)
         }
@@ -252,7 +254,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
 
       queryBuilder ++= "\n" +
         "SELECT id" +
-        ", unix_time_from_datetime_in_ms(create_at)" +
+        ", create_at" +
         ", text" +
         ", in_reply_to_status" +
         ", in_reply_to_user" +
