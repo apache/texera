@@ -9,6 +9,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.source.{SQLSourceOpDesc, SQLSourceOpExecConfig}
 import edu.uci.ics.texera.workflow.operators.source.asterixdb.AsterixDBConnUtil.queryAsterixDB
+import kong.unirest.json.JSONObject
 
 import java.util.Collections.singletonList
 import scala.jdk.CollectionConverters.asScalaBuffer
@@ -94,16 +95,16 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
       val ASTERIXDB_GET_SCHEMA_QUERY: String =
         "SELECT dt.Derived.Record.Fields FROM Metadata.`Datatype` dt, (SELECT DatatypeName FROM Metadata.`Dataset` ds " +
           "where ds.`DatasetName`=\"" + table + "\") as dn where dt.DatatypeName =dn.DatatypeName;"
-      val k = queryAsterixDB(host, port, ASTERIXDB_GET_SCHEMA_QUERY, format = "JSON")
-      k.get
+      val fields = queryAsterixDB(host, port, ASTERIXDB_GET_SCHEMA_QUERY, format = "JSON")
+      fields.get
         .next()
-        .get("Fields")
+        .asInstanceOf[JSONObject]
+        .getJSONArray("Fields")
         .forEach(field => {
-          val fieldName: String = field.get("FieldName").textValue()
-          val fieldType: String = field.get("FieldType").textValue()
-          sb.add(new Attribute(fieldName, attributeTypeFromAsterixDBType(fieldType))).build()
+          val fieldName: String = field.asInstanceOf[JSONObject].get("FieldName").toString
+          val fieldType: String = field.asInstanceOf[JSONObject].get("FieldType").toString
+          sb.add(new Attribute(fieldName, attributeTypeFromAsterixDBType(fieldType)))
         })
-
     }
     sb.build()
   }

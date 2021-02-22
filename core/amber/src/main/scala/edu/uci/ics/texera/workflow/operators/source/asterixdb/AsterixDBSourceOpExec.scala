@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.workflow.operators.source.asterixdb
 
-import com.fasterxml.jackson.databind.JsonNode
 import com.github.tototoshi.csv.CSVParser
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -39,8 +38,12 @@ class AsterixDBSourceOpExec private[asterixdb] (
       interval
     ) {
 
+  // format Timestamp. TODO: move to some util package
+  val formatter: DateTimeFormatter =
+    DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.from(ZoneOffset.UTC))
+
   var curQueryString: Option[String] = None
-  var curResultIterator: Option[Iterator[JsonNode]] = None
+  var curResultIterator: Option[Iterator[AnyRef]] = None
 
   /**
     * A generator of a Texera.Tuple, which converted from a CSV row of fields from AsterixDB
@@ -160,7 +163,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
           host,
           port,
           "SELECT " + side + "(" + attribute.getName + ") FROM " + database + "." + table + ";"
-        ).get.next().textValue().stripLineEnd
+        ).get.next().toString.stripLineEnd
 
         // TODO: move this to some util package
         schema.getAttribute(attribute.getName).getType match {
@@ -192,10 +195,9 @@ class AsterixDBSourceOpExec private[asterixdb] (
   override def buildTupleFromRow: Tuple = {
 
     val tupleBuilder = Tuple.newBuilder
-    val row = curResultIterator.get.next().textValue()
-    var values: Option[List[String]] = None
+    val row = curResultIterator.get.next().toString
 
-    // FIXME: this parser would result some error rows, which has to be skipped.
+    var values: Option[List[String]] = None
     try values = CSVParser.parse(row, '\\', ',', '"')
     catch {
       case _: Exception => return null
@@ -301,9 +303,6 @@ class AsterixDBSourceOpExec private[asterixdb] (
           case LONG | INTEGER | DOUBLE =>
             String.valueOf(value)
           case TIMESTAMP =>
-            // TODO: unify with base class
-            val formatter =
-              DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.from(ZoneOffset.UTC))
             "datetime('" + formatter.format(new Timestamp(value.longValue).toInstant) + "')"
           case BOOLEAN | STRING | ANY | _ =>
             throw new RuntimeException("Unexpected type: " + attribute.getType)
@@ -325,7 +324,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
     // fetch for all tables, it is also equivalent to a health check
     val tables = queryAsterixDB(host, port, "select `DatasetName` from Metadata.`Dataset`;")
     tables.get.foreach(table => {
-      tableNames.append(table.toString.stripPrefix("\"\\\"").stripSuffix("\\\"\\r\\n\""))
+      tableNames.append(table.toString.stripPrefix("\"").stripLineEnd.stripSuffix("\""))
     })
   }
 
