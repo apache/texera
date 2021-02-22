@@ -205,6 +205,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       (operator.close _).expects().once()
     }
     dp.appendElement(InputTuple(ITuple(1)))
+    Thread.sleep(500)
     dp.enqueueCommand(ControlInvocation(0, PauseWorker()), ActorVirtualIdentity.Controller)
     dp.appendElement(InputTuple(ITuple(2)))
     dp.enqueueCommand(ControlInvocation(1, QueryStatistics()), ActorVirtualIdentity.Controller)
