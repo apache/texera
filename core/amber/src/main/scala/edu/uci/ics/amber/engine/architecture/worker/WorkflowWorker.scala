@@ -21,7 +21,6 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   DataOutputPort,
   TupleToBatchConverter
 }
-import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.UnblockForControlCommands
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ShutdownDPThreadHandler.ShutdownDPThread
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.{

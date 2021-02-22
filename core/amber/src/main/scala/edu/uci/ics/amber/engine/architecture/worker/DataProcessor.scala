@@ -6,20 +6,14 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerEx
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
 import edu.uci.ics.amber.engine.architecture.messaginglayer.TupleToBatchConverter
-import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{
-  EndMarker,
-  EndOfAllMarker,
-  InputTuple,
-  InternalQueueElement,
-  SenderChangeMarker,
-  UnblockForControlCommands
-}
+import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{ControlElement, EndMarker, EndOfAllMarker, InputTuple, InternalQueueElement, SenderChangeMarker}
+import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.{Completed, Running}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity, VirtualIdentity}
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, WorkflowLogger}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.amber.error.ErrorUtils.safely
@@ -135,7 +129,7 @@ class DataProcessor( // dependencies:
     // main DP loop
     while (!isCompleted) {
       // take the next data element from internal queue, blocks if not available.
-      dataDeque.take() match {
+      getElement match {
         case InputTuple(tuple) =>
           currentInputTuple = Left(tuple)
           handleInputTuple()
@@ -151,14 +145,15 @@ class DataProcessor( // dependencies:
           // end of processing, break DP loop
           isCompleted = true
           batchProducer.emitEndOfUpstream()
-        case UnblockForControlCommands =>
-          processControlCommandsDuringExecution()
+        case ControlElement(cmd, from) =>
+          processControlCommand(cmd, from)
       }
     }
     // Send Completed signal to worker actor.
     logger.logInfo(s"${operator.toString} completed")
     asyncRPCClient.send(WorkerExecutionCompleted(), ActorVirtualIdentity.Controller)
     stateManager.transitTo(Completed)
+    disableDataQueue()
     processControlCommandsAfterCompletion()
   }
 
@@ -181,8 +176,6 @@ class DataProcessor( // dependencies:
   private[this] def handleInputTuple(): Unit = {
     // process controls before processing the input tuple.
     processControlCommandsDuringExecution()
-    // if the input tuple is not a dummy tuple, process it
-    // TODO: make sure this dummy batch feature works with fault tolerance
     if (currentInputTuple != null) {
       // pass input tuple to operator logic.
       currentOutputIterator = processInputTuple()
@@ -215,8 +208,7 @@ class DataProcessor( // dependencies:
   }
 
   private[this] def processControlCommandsDuringExecution(): Unit = {
-    while (!controlQueue.isEmpty || pauseManager.isPaused) {
-      // if paused, dp thread will wait for resume control command here.
+    while (!isControlQueueEmpty) {
       takeOneControlCommandAndProcess()
     }
   }
@@ -228,7 +220,11 @@ class DataProcessor( // dependencies:
   }
 
   private[this] def takeOneControlCommandAndProcess(): Unit = {
-    val (cmd, from) = controlQueue.take()
+    val control = getElement.asInstanceOf[ControlElement]
+    processControlCommand(control.cmd, control.from)
+  }
+
+  private[this] def processControlCommand(cmd:ControlPayload, from:VirtualIdentity): Unit ={
     cmd match {
       case invocation: ControlInvocation =>
         asyncRPCServer.logControlInvocation(invocation, from)
