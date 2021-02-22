@@ -2,12 +2,21 @@ package edu.uci.ics.amber.engine.architecture.worker
 
 import java.util.concurrent.{LinkedBlockingDeque, LinkedBlockingQueue}
 
-import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{CONTROL_QUEUE, ControlElement, DATA_QUEUE, InternalQueueElement}
+import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{
+  CONTROL_QUEUE,
+  ControlElement,
+  DATA_QUEUE,
+  InternalQueueElement
+}
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity, VirtualIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  LinkIdentity,
+  VirtualIdentity
+}
 import lbmq.LinkedBlockingMultiQueue
 
 object WorkerInternalQueue {
@@ -18,7 +27,7 @@ object WorkerInternalQueue {
   case class SenderChangeMarker(newUpstreamLink: LinkIdentity) extends InternalQueueElement
   case object EndMarker extends InternalQueueElement
   case object EndOfAllMarker extends InternalQueueElement
-  case class ControlElement(cmd:ControlPayload, from:VirtualIdentity) extends InternalQueueElement
+  case class ControlElement(cmd: ControlPayload, from: VirtualIdentity) extends InternalQueueElement
 
   final val DATA_QUEUE = 1
   final val CONTROL_QUEUE = 0
@@ -30,10 +39,10 @@ object WorkerInternalQueue {
   */
 trait WorkerInternalQueue {
 
-  private val lbmq = new LinkedBlockingMultiQueue[Int,InternalQueueElement]()
+  private val lbmq = new LinkedBlockingMultiQueue[Int, InternalQueueElement]()
 
-  lbmq.addSubQueue(DATA_QUEUE,DATA_QUEUE)
-  lbmq.addSubQueue(CONTROL_QUEUE,CONTROL_QUEUE)
+  lbmq.addSubQueue(DATA_QUEUE, DATA_QUEUE)
+  lbmq.addSubQueue(CONTROL_QUEUE, CONTROL_QUEUE)
 
   private val dataQueue = lbmq.getSubQueue(DATA_QUEUE)
 
@@ -47,11 +56,11 @@ trait WorkerInternalQueue {
     controlQueue.add(ControlElement(cmd, from))
   }
 
-  def getElement:InternalQueueElement = lbmq.take()
+  def getElement: InternalQueueElement = lbmq.take()
 
   def disableDataQueue(): Unit = dataQueue.enable(false)
 
-  def enableDataQueue():Unit = dataQueue.enable(true)
+  def enableDataQueue(): Unit = dataQueue.enable(true)
 
   def isControlQueueEmpty: Boolean = controlQueue.isEmpty
 

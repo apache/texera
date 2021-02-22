@@ -6,14 +6,25 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerEx
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
 import edu.uci.ics.amber.engine.architecture.messaginglayer.TupleToBatchConverter
-import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{ControlElement, EndMarker, EndOfAllMarker, InputTuple, InternalQueueElement, SenderChangeMarker}
+import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{
+  ControlElement,
+  EndMarker,
+  EndOfAllMarker,
+  InputTuple,
+  InternalQueueElement,
+  SenderChangeMarker
+}
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.{Completed, Running}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity, VirtualIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  LinkIdentity,
+  VirtualIdentity
+}
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, WorkflowLogger}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.amber.error.ErrorUtils.safely
@@ -224,7 +235,7 @@ class DataProcessor( // dependencies:
     processControlCommand(control.cmd, control.from)
   }
 
-  private[this] def processControlCommand(cmd:ControlPayload, from:VirtualIdentity): Unit ={
+  private[this] def processControlCommand(cmd: ControlPayload, from: VirtualIdentity): Unit = {
     cmd match {
       case invocation: ControlInvocation =>
         asyncRPCServer.logControlInvocation(invocation, from)
