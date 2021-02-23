@@ -14,13 +14,23 @@ object AsterixDBConnUtil {
     val asterixAPIEndpoint = "http://" + host + ":" + port + "/query/service"
 
     var response: HttpResponse[JsonNode] = null
+
+    try response = Unirest.get("http://" + host + ":" + port + "/admin/version").asJson()
+    val asterixDBVersion =
+      if (response.getStatus == 200) response.getBody.getObject.getString("git.build.version")
+
+    println(asterixDBVersion)
+    println(asterixAPIEndpoint)
+    println(statement)
+    println(if (asterixDBVersion.equals("0.9.5")) format else ("text/" + format))
     try response = Unirest
       .post(asterixAPIEndpoint)
       .header("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
       .header("Accept-Language", "en-us")
       .header("Accept-Encoding", "gzip, deflate")
       .field("statement", statement)
-      .field("format", format)
+      .field("format", if (asterixDBVersion.equals("0.9.5")) format else ("text/" + format))
+//      .field("output-format", format)
       .asJson()
     catch {
       case e: Exception => e.printStackTrace()
