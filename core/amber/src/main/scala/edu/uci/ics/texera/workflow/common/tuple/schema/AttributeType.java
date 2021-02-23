@@ -13,7 +13,7 @@ public enum AttributeType implements Serializable {
      * Especially SQLSources will need to map the input schema to Texera.Schema. AttributeType
      * needs to be converted from original source types accordingly.
      * <p>
-     * 2. FilterPredicate：
+     * 2. FilterPredicate:
      * FilterPredicate takes in AttributeTypes and converts them into a comparable type, then do
      * the comparison. New AttributeTypes needs to be mapped to a comparable type there.
      * <p>
