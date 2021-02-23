@@ -123,8 +123,8 @@ class UDFServer(pyarrow.flight.FlightServerBase):
                 # execute and get output data
                 for index, row in input_dataframe.iterrows():
                     self.udf_op.accept(row)
-                    while self.udf_op.has_next():
-                        output_data_list.append(self.udf_op.next())
+                while self.udf_op.has_next():
+                    output_data_list.append(self.udf_op.next())
                 output_dataframe = pandas.DataFrame.from_records(output_data_list)
                 # send output data to Java
                 output_key = self._descriptor_to_key(self._accept(b'fromPython'))

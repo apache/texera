@@ -1,4 +1,6 @@
+import pickle
 from abc import ABC
+from enum import Enum
 from typing import Dict, Optional, Tuple, Callable, List
 
 import pandas
@@ -105,6 +107,76 @@ class TexeraFilterOperator(TexeraUDFOperator):
 
     def has_next(self) -> bool:
         return len(self._result_tuples) != 0
+
+    def next(self) -> pandas.Series:
+        return self._result_tuples.pop()
+
+    def close(self) -> None:
+        pass
+
+
+class TexeraBlockingTrainerOperator(TexeraUDFOperator):
+    class STATUS(Enum):
+        IDLE = 0
+        CONSUMING = 1
+        TRAINED = 2
+
+    def __init__(self, training_func: Callable):
+        super().__init__()
+
+        if training_func is None:
+            raise NotImplementedError
+        self._training_func: Callable = training_func
+        self.X_train: List = []
+        self.Y_train: List = []
+        self.X_test: List = []
+        self.Y_test: List = []
+        self.status = TexeraBlockingTrainerOperator.STATUS.IDLE
+        self._result_tuples: List = []
+        self.train_size = None
+        self.test_size = None
+        self.kernel = None
+        self.degree = None
+        self.model = None
+        self.model_filename = None
+        self.vc = None
+        self.vc_filename = None
+        self.report_filename = None
+
+    def accept(self, row: pandas.Series, nth_child: int = 0) -> None:
+
+        self._result_tuples.append(row)
+        if self.train_size > 0:
+            self.status = TexeraBlockingTrainerOperator.STATUS.CONSUMING
+            self.X_train.append(row[0])
+            self.Y_train.append(row[1])
+            self.train_size -= 1
+        elif self.test_size > 0:
+            self.status = TexeraBlockingTrainerOperator.STATUS.CONSUMING
+            self.X_test.append(row[0])
+            self.Y_test.append(row[1])
+            self.test_size -= 1
+        elif self.status == TexeraBlockingTrainerOperator.STATUS.TRAINED:
+            pass
+        else:
+            vc, model = self._training_func(self.X_train, self.Y_train, self.kernel, self.degree)
+            with open(self.model_filename, 'wb') as file:
+                pickle.dump(model, file)
+            with open(self.vc_filename, 'wb') as file:
+                pickle.dump(vc, file)
+            if self.X_test:
+                Y_pred = model.predict(vc.transform(self.X_test))
+
+                from sklearn.metrics import classification_report, confusion_matrix
+                with open(self.report_filename, 'w') as file:
+                    file.write(str(confusion_matrix(self.Y_test, Y_pred)))
+                    file.write("\n\n")
+                    file.write(str(classification_report(self.Y_test, Y_pred)))
+
+            self.status = TexeraBlockingTrainerOperator.STATUS.TRAINED
+
+    def has_next(self) -> bool:
+        return self.status == TexeraBlockingTrainerOperator.STATUS.TRAINED and bool(self._result_tuples)
 
     def next(self) -> pandas.Series:
         return self._result_tuples.pop()
