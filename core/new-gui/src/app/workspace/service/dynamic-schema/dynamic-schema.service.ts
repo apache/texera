@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { JSONSchema7, JSONSchema7Definition } from 'json-schema';
+// import { JSONSchema7, JSONSchema7Definition } from 'json-schema';
 
 import { Observable } from 'rxjs/Observable';
 import { Subject } from 'rxjs/Subject';
@@ -10,7 +10,9 @@ import { OperatorSchema } from '../../types/operator-schema.interface';
 
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
-import { isEqual, cloneDeep} from 'lodash';
+import { isEqual, cloneDeep } from 'lodash';
+import { CustomJSONSchema7 } from '../../types/custom-json-schema.interface';
+import { JSONSchema7 } from 'json-schema';
 
 export type SchemaTransformer = (operator: OperatorPredicate, schema: OperatorSchema) => OperatorSchema;
 
@@ -105,7 +107,7 @@ export class DynamicSchemaService {
    * operatorMetadataService and set it in the map
    */
   public getDynamicBreakpointSchema(linkID: string): BreakpointSchema {
-    if (! this.dynamicBreakpointSchemaMap.has(linkID)) {
+    if (!this.dynamicBreakpointSchemaMap.has(linkID)) {
       this.dynamicBreakpointSchemaMap.set(linkID, this.operatorMetadataService.getBreakpointSchema());
     }
     const dynamicBreakpointSchema = this.dynamicBreakpointSchemaMap.get(linkID);
@@ -170,26 +172,35 @@ export class DynamicSchemaService {
    * Returns a new object containing the new json schema property.
    */
   public static mutateProperty(
-    jsonSchemaToChange: JSONSchema7, propertyName: string, mutationFunc: (arg: any) => JSONSchema7
-  ): JSONSchema7 {
+    jsonSchemaToChange: CustomJSONSchema7,
+    matchFunc: (propertyName: string, propertyValue: CustomJSONSchema7) => boolean,
+    mutationFunc: (propertyValue: CustomJSONSchema7) => CustomJSONSchema7
+  ): CustomJSONSchema7 {
 
     // recursively walks the JSON schema property tree to find the property name
-    const mutatePropertyRecurse = (jsonSchema: any) => {
+    const mutatePropertyRecurse = (jsonSchema: JSONSchema7) => {
       const schemaProperties = jsonSchema.properties;
       const schemaItems = jsonSchema.items;
       // nested JSON schema property can have 2 types: object or array
       if (schemaProperties) {
-        Object.keys(schemaProperties).forEach(property => {
-          if (property === propertyName) {
-            schemaProperties[propertyName] = mutationFunc(schemaProperties[propertyName]);
+        Object.entries(schemaProperties).forEach(([propertyName, propertyValue]) => {
+          if (typeof propertyValue === 'boolean') {
+            return;
+          }
+          if (matchFunc(propertyName, propertyValue as CustomJSONSchema7)) {
+            schemaProperties[propertyName] = mutationFunc(propertyValue as CustomJSONSchema7);
           } else {
-            mutatePropertyRecurse(schemaProperties[property]);
+            mutatePropertyRecurse(propertyValue);
           }
         });
       }
-      if (schemaItems) {
+      if (schemaItems && typeof schemaItems !== 'boolean') {
         if (Array.isArray(schemaItems)) {
-          schemaItems.forEach(item => mutatePropertyRecurse(item));
+          schemaItems.forEach(item => {
+            if (typeof item !== 'boolean') {
+              mutatePropertyRecurse(item);
+            }
+          });
         } else {
           mutatePropertyRecurse(schemaItems);
         }

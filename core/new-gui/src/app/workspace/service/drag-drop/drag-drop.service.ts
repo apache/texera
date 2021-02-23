@@ -51,7 +51,9 @@ import 'jquery-ui-dist/jquery-ui';
  * @author Zuozhi Wang
  *
  */
-@Injectable()
+@Injectable({
+  providedIn: 'root'
+})
 export class DragDropService {
   // distance threshold for suggesting operators before user dropped an operator
   public static readonly SUGGESTION_DISTANCE_THRESHOLD = 300;
@@ -344,10 +346,11 @@ export class DragDropService {
    * @mouseCoordinate is the location of the currentOperator on the JointGraph when dragging ghost operator
    * @currentOperator is the current operator, used to determine how many inputs and outputs to search for
    * @returns [[inputting-ops ...], [output-accepting-ops ...]]
-  */
+   */
   private findClosestOperators(mouseCoordinate: Point, currentOperator: OperatorPredicate): [OperatorPredicate[], OperatorPredicate[]] {
-    const operatorList = this.workflowActionService.getTexeraGraph().getAllOperators();
     const operatorLinks = this.workflowActionService.getTexeraGraph().getAllLinks();
+    const operatorList = this.workflowActionService.getTexeraGraph().getAllOperators().filter(operator =>
+      !this.workflowActionService.getOperatorGroup().getGroupByOperator(operator.operatorID)?.collapsed);
 
     const numInputOps: number = currentOperator.inputPorts.length;
     const numOutputOps: number = currentOperator.outputPorts.length;
@@ -378,7 +381,7 @@ export class DragDropService {
 
     // for each operator, check if in range/has free ports/is on the right side/is closer than prev closest ops/
     operatorList.forEach(operator => {
-      const operatorPosition = this.workflowActionService.getJointGraphWrapper().getOperatorPosition(operator.operatorID);
+      const operatorPosition = this.workflowActionService.getJointGraphWrapper().getElementPosition(operator.operatorID);
       const distanceFromCurrentOperator = Math.sqrt((mouseCoordinate.x - operatorPosition.x) ** 2
         + (mouseCoordinate.y - operatorPosition.y) ** 2);
       if (distanceFromCurrentOperator < DragDropService.SUGGESTION_DISTANCE_THRESHOLD) {
@@ -453,12 +456,12 @@ export class DragDropService {
       .filter(link => link.target.operatorID === targetOperator.operatorID)
       .map(link => link.target.portID);
 
-    const validSourcePortsID = sourceOperator.outputPorts.filter(portID => !allPortsFromSource.includes(portID));
-    const validTargetPortsID = targetOperator.inputPorts.filter(portID => !allPortsFromTarget.includes(portID));
+    const validSourcePortsID = sourceOperator.outputPorts.filter(port => !allPortsFromSource.includes(port.portID));
+    const validTargetPortsID = targetOperator.inputPorts.filter(port => !allPortsFromTarget.includes(port.portID));
 
     const linkID = this.workflowUtilService.getLinkRandomUUID();
-    const source = { operatorID: sourceOperator.operatorID, portID: validSourcePortsID[0] };
-    const target = { operatorID: targetOperator.operatorID, portID: validTargetPortsID[0] };
+    const source = { operatorID: sourceOperator.operatorID, portID: validSourcePortsID[0].portID };
+    const target = { operatorID: targetOperator.operatorID, portID: validTargetPortsID[0].portID };
     return { linkID, source, target };
   }
 
@@ -482,10 +485,10 @@ export class DragDropService {
     // assumes that for an op with multiple input/output ports, ports in op.inputPorts/outPutports are rendered
     //              [first ... last] => [North ... South]
     const heightSortedInputs: OperatorPredicate[] = inputOperators.slice(0).sort((op1, op2) =>
-      graph.getOperatorPosition(op1.operatorID).y - graph.getOperatorPosition(op2.operatorID).y
+      graph.getElementPosition(op1.operatorID).y - graph.getElementPosition(op2.operatorID).y
     );
     const heightSortedOutputs: OperatorPredicate[] = receiverOperators.slice(0).sort((op1, op2) =>
-      graph.getOperatorPosition(op1.operatorID).y - graph.getOperatorPosition(op2.operatorID).y
+      graph.getElementPosition(op1.operatorID).y - graph.getElementPosition(op2.operatorID).y
     );
 
     // if new operator has suggested links, create them

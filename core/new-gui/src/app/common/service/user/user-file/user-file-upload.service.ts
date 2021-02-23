@@ -1,14 +1,14 @@
-import { AppSettings } from '../../../app-setting';
+import { HttpClient, HttpEventType } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { FileUploadItem } from '../../../type/user-file';
-import { GenericWebResponse, GenericWebResponseCode } from '../../../type/generic-web-response';
 import { Observable } from 'rxjs';
+import { AppSettings } from '../../../app-setting';
+import { FileUploadItem } from '../../../type/user-file';
 import { UserService } from '../user.service';
-import { HttpClient, HttpEventType, HttpResponse, HttpEvent } from '@angular/common/http';
 import { UserFileService } from './user-file.service';
 
 export const USER_FILE_UPLOAD_URL = 'user/file/upload';
-export const USER_FILE_VALIDATE_URL = 'user/file/validate';
+
+// export const USER_FILE_VALIDATE_URL = 'user/file/validate';
 
 @Injectable({
   providedIn: 'root'
@@ -17,7 +17,7 @@ export class UserFileUploadService {
 
   // files a user added to the upload list,
   // these files won't be uploaded until the user hits the "upload" button
-  private fileUploadItemArray: FileUploadItem[] = [];
+  private filesToBeUploaded: FileUploadItem[] = [];
 
   constructor(
     private userService: UserService,
@@ -30,7 +30,7 @@ export class UserFileUploadService {
    * returns all pending files to be uploaded.
    */
   public getFilesToBeUploaded(): ReadonlyArray<Readonly<FileUploadItem>> {
-    return this.fileUploadItemArray;
+    return this.filesToBeUploaded;
   }
 
   /**
@@ -38,14 +38,14 @@ export class UserFileUploadService {
    * @param file
    */
   public addFileToUploadArray(file: File): void {
-    this.fileUploadItemArray.push(UserFileUploadService.createFileUploadItem(file));
+    this.filesToBeUploaded.push(UserFileUploadService.createFileUploadItem(file));
   }
 
   /**
    * removes a file from the "to be uploaded" file array.
    */
   public removeFileFromUploadArray(fileUploadItem: FileUploadItem): void {
-    this.fileUploadItemArray = this.fileUploadItemArray.filter(
+    this.filesToBeUploaded = this.filesToBeUploaded.filter(
       file => file !== fileUploadItem
     );
   }
@@ -55,32 +55,18 @@ export class UserFileUploadService {
    * This method will automatically refresh the user-file service when any files finish uploading.
    */
   public uploadAllFiles(): void {
-    this.fileUploadItemArray.filter(fileUploadItem => !fileUploadItem.isUploadingFlag).forEach(
-      fileUploadItem => this.validateAndUploadFile(fileUploadItem).subscribe((response) => {
-        if (response.code === GenericWebResponseCode.SUCCESS) {
-          this.removeFileFromUploadArray(fileUploadItem);
-          this.userFileService.refreshFiles();
-        } else {
-          // TODO: user friendly error message.
-          alert(`Uploading file ${fileUploadItem.name} failed\nMessage: ${response.message}`);
-        }
-      })
-    );
-  }
-
-  private validateAndUploadFile(fileUploadItem: FileUploadItem): Observable<GenericWebResponse> {
-    const formData: FormData = new FormData();
-    formData.append('name', fileUploadItem.name);
-
-    return this.http.post<GenericWebResponse>(
-      `${AppSettings.getApiEndpoint()}/${USER_FILE_VALIDATE_URL}`, formData).flatMap(
-        res => {
-          if (res.code === GenericWebResponseCode.SUCCESS) {
-            return this.uploadFile(fileUploadItem);
-          } else {
-            return Observable.of(res);
-          }
-        }
+    this.filesToBeUploaded
+      .filter(fileUploadItem => !fileUploadItem.isUploadingFlag)
+      .forEach(
+        (fileUploadItem: FileUploadItem) =>
+          this.uploadFile(fileUploadItem)
+            .subscribe(() => {
+              this.removeFileFromUploadArray(fileUploadItem);
+              this.userFileService.refreshFiles();
+            }, err => {
+              // TODO: user friendly error message.
+              alert(`Uploading file ${fileUploadItem.name} failed\nMessage: ${err.error}`);
+            })
       );
   }
 
@@ -89,9 +75,13 @@ export class UserFileUploadService {
    * It will pack the FileUploadItem into formData and upload it to the backend.
    * @param fileUploadItem
    */
-  private uploadFile(fileUploadItem: FileUploadItem): Observable<GenericWebResponse> {
-    if (!this.userService.isLogin()) { throw new Error(`Can not upload files when not login`); }
-    if (fileUploadItem.isUploadingFlag) { throw new Error(`File ${fileUploadItem.file.name} is already uploading`); }
+  private uploadFile(fileUploadItem: FileUploadItem): Observable<Response> {
+    if (!this.userService.isLogin()) {
+      throw new Error(`Can not upload files when not login`);
+    }
+    if (fileUploadItem.isUploadingFlag) {
+      throw new Error(`File ${fileUploadItem.file.name} is already uploading`);
+    }
 
     fileUploadItem.isUploadingFlag = true;
     const formData: FormData = new FormData();
@@ -99,10 +89,11 @@ export class UserFileUploadService {
     formData.append('size', fileUploadItem.file.size.toString());
     formData.append('description', fileUploadItem.description);
 
-    return this.http.post<GenericWebResponse>(
-      `${AppSettings.getApiEndpoint()}/${USER_FILE_UPLOAD_URL}`,
-      formData, { reportProgress: true, observe: 'events' }
-    ).filter(event => { // retrieve and remove upload progress
+    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${USER_FILE_UPLOAD_URL}`, formData,
+      {reportProgress: true, observe: 'events'}
+    ).filter(event => {
+
+      // retrieve and remove upload progress
       if (event.type === HttpEventType.UploadProgress) {
         fileUploadItem.uploadProgress = event.loaded;
         const total = event.total ? event.total : fileUploadItem.file.size;
@@ -115,7 +106,7 @@ export class UserFileUploadService {
     }).map(event => { // convert the type HttpEvent<GenericWebResponse> into GenericWebResponse
       if (event.type === HttpEventType.Response) {
         fileUploadItem.isUploadingFlag = false;
-        return (event.body as GenericWebResponse);
+        return (event.body as Response);
       } else {
         throw new Error(`Error Http Event type in uploading file ${fileUploadItem.name}, the event type is ${event.type}`);
       }
@@ -126,7 +117,7 @@ export class UserFileUploadService {
    * clear the files in the service when user log out.
    */
   private detectUserChanges(): void {
-    this.userService.getUserChangedEvent().subscribe(() => {
+    this.userService.userChanged().subscribe(() => {
       if (!this.userService.isLogin()) {
         this.clearUserFile();
       }
@@ -134,7 +125,7 @@ export class UserFileUploadService {
   }
 
   private clearUserFile(): void {
-    this.fileUploadItemArray = [];
+    this.filesToBeUploaded = [];
   }
 
   private static createFileUploadItem(file: File): FileUploadItem {

@@ -1,29 +1,42 @@
 package edu.uci.ics.texera.workflow.operators.visualization.wordCloud;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInt;
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.common.Constants;
 import edu.uci.ics.amber.engine.operators.OpExecConfig;
+import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
+import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
 
+import static java.util.Collections.singletonList;
+import static scala.collection.JavaConverters.asScalaBuffer;
+
 /**
  * WordCloud is a visualization operator that can be used by the caller to generate data for wordcloud.js in frontend.
  * WordCloud returns tuples with word (String) and its font size (Integer) for frontend.
- * @author Mingji Han, Xiaozhen Liu
  *
+ * @author Mingji Han, Xiaozhen Liu
  */
 
 public class WordCloudOpDesc extends VisualizationOperator {
-    @JsonProperty(value = "text column", required = true)
+    @JsonProperty(required = true)
+    @JsonSchemaTitle("Text column")
+    @AutofillAttributeName
     public String textColumn;
 
-    @JsonProperty(value = "lucene analyzer name", required = true, defaultValue = "standard")
-    public String luceneAnalyzerName;
+    @JsonProperty(defaultValue = "100")
+    @JsonSchemaTitle("Number of most frequent words")
+    @JsonSchemaInject(ints = {@JsonSchemaInt(path = "exclusiveMinimum", value = 0)})
+    public Integer topN;
 
     @Override
     public String chartType() {
@@ -32,7 +45,10 @@ public class WordCloudOpDesc extends VisualizationOperator {
 
     @Override
     public OpExecConfig operatorExecutor() {
-        return new WordCloudOpExecConfig(this.operatorIdentifier(), Constants.defaultNumWorkers(), textColumn, luceneAnalyzerName);
+        if (topN == null) {
+            topN = 100;
+        }
+        return new WordCloudOpExecConfig(this.operatorIdentifier(), Constants.defaultNumWorkers(), textColumn, topN);
     }
 
     @Override
@@ -40,7 +56,8 @@ public class WordCloudOpDesc extends VisualizationOperator {
         return new OperatorInfo("Word Cloud",
                 "Generate word cloud for result texts",
                 OperatorGroupConstants.VISUALIZATION_GROUP(),
-                1, 1);
+                asScalaBuffer(singletonList(new InputPort("", false))).toList(),
+                asScalaBuffer(singletonList(new OutputPort(""))).toList());
     }
 
     @Override

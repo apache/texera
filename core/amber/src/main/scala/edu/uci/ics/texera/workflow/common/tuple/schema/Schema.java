@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import scala.collection.JavaConverters;
 
 import java.io.Serializable;
 import java.util.*;
@@ -15,8 +16,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * A schema is a list of attributes that describe all the columns of a table.
  */
 public class Schema implements Serializable {
-    private final ArrayList<Attribute> attributes;
-    private final HashMap<String, Integer> attributeIndex;
+    private final List<Attribute> attributes;
+    private final Map<String, Integer> attributeIndex;
 
     public Schema(Attribute... attributes) {
         this(Arrays.asList(attributes));
@@ -27,12 +28,12 @@ public class Schema implements Serializable {
             @JsonProperty(value = "attributes", required = true)
                     List<Attribute> attributes) {
         checkNotNull(attributes);
-        this.attributes = new ArrayList<>(attributes);
+        this.attributes = Collections.unmodifiableList(attributes);
         HashMap<String, Integer> attributeIndexTemp = new HashMap<String, Integer>();
         for (int i = 0; i < attributes.size(); i++) {
             attributeIndexTemp.put(attributes.get(i).getName().toLowerCase(), i);
         }
-        this.attributeIndex = new HashMap<>(attributeIndexTemp);
+        this.attributeIndex = Collections.unmodifiableMap(attributeIndexTemp);
     }
 
     @JsonProperty(value = "attributes")
@@ -40,9 +41,16 @@ public class Schema implements Serializable {
         return attributes;
     }
 
+    public scala.collection.immutable.List<Attribute> getAttributesScala() {
+        return JavaConverters.asScalaBuffer(attributes).toList();
+    }
+
     @JsonIgnore
     public List<String> getAttributeNames() {
         return attributes.stream().map(attr -> attr.getName()).collect(Collectors.toList());
+    }
+    public List<String> getAttributeTypes() {
+        return attributes.stream().map(attr -> attr.getType()+"").collect(Collectors.toList());
     }
 
     public Integer getIndex(String attributeName) {

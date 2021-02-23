@@ -11,7 +11,9 @@ import { Observable } from 'rxjs/Observable';
 /**
  * WorkflowUtilService provide utilities related to dealing with operator data.
  */
-@Injectable()
+@Injectable({
+  providedIn: 'root'
+})
 export class WorkflowUtilService {
 
   private operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
@@ -58,27 +60,31 @@ export class WorkflowUtilService {
     const operatorProperties = {};
 
     // Remove the ID field for the schema to prevent warning messages from Ajv
-    const { ...schemaWithoutID} = operatorSchema.jsonSchema;
+    const { ...schemaWithoutID } = operatorSchema.jsonSchema;
 
     // value inserted in the data will be the deep clone of the default in the schema
     const validate = this.ajv.compile(schemaWithoutID);
     validate(operatorProperties);
 
-    const inputPorts: string[] = [];
-    const outputPorts: string[] = [];
+    const inputPorts: {portID: string, displayName?: string}[] = [];
+    const outputPorts: {portID: string, displayName?: string}[] = [];
 
     // by default, the operator will not show advanced option in the properties to the user
     const showAdvanced = false;
 
-    for (let i = 0; i < operatorSchema.additionalMetadata.numInputPorts; i++) {
-      inputPorts.push('input-' + i.toString());
+    for (let i = 0; i < operatorSchema.additionalMetadata.inputPorts.length; i++) {
+      const portID = 'input-' + i.toString();
+      const displayName = operatorSchema.additionalMetadata.inputPorts[i].displayName;
+      inputPorts.push({ portID, displayName });
     }
 
-    for (let i = 0; i < operatorSchema.additionalMetadata.numOutputPorts; i++) {
-      outputPorts.push('output-' + i.toString());
+    for (let i = 0; i < operatorSchema.additionalMetadata.outputPorts.length; i++) {
+      const portID = 'output-' + i.toString();
+      const displayName = operatorSchema.additionalMetadata.outputPorts[i].displayName;
+      outputPorts.push({ portID, displayName });
     }
 
-    return { operatorID, operatorType, operatorProperties, inputPorts, outputPorts, showAdvanced};
+    return { operatorID, operatorType, operatorProperties, inputPorts, outputPorts, showAdvanced };
 
   }
 
@@ -87,5 +93,12 @@ export class WorkflowUtilService {
    */
   public getLinkRandomUUID(): string {
     return 'link-' + uuid();
+  }
+
+  /**
+   * Generates a new UUID for group element
+   */
+  public getGroupRandomUUID(): string {
+    return 'group-' + uuid();
   }
 }

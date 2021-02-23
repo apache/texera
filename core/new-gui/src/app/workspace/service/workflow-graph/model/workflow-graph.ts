@@ -1,6 +1,6 @@
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
-import { OperatorPredicate, OperatorLink, OperatorPort, Breakpoint } from '../../../types/workflow-common.interface';
+import { OperatorPredicate, OperatorLink, OperatorPort, Breakpoint, Point } from '../../../types/workflow-common.interface';
 import { isEqual } from 'lodash';
 
 // define the restricted methods that could change the graph
@@ -24,6 +24,7 @@ export type WorkflowGraphReadonly = Omit<WorkflowGraph, restrictedMethods>;
 export class WorkflowGraph {
 
   private readonly operatorIDMap = new Map<string, OperatorPredicate>();
+  private readonly operatorPositionMap = new Map<string, Point>();
   private readonly operatorLinkMap = new Map<string, OperatorLink>();
   private readonly linkBreakpointMap = new Map<string, Breakpoint>();
 
@@ -32,7 +33,7 @@ export class WorkflowGraph {
   private readonly linkAddSubject = new Subject<OperatorLink>();
   private readonly linkDeleteSubject = new Subject<{ deletedLink: OperatorLink }>();
   private readonly operatorPropertyChangeSubject = new Subject<{ oldProperty: object, operator: OperatorPredicate }>();
-  private readonly breakpointChangeSubject = new Subject<{oldBreakpoint: object | undefined, linkID: string}>();
+  private readonly breakpointChangeSubject = new Subject<{ oldBreakpoint: object | undefined, linkID: string }>();
 
   constructor(
     operatorPredicates: OperatorPredicate[] = [],
@@ -51,6 +52,11 @@ export class WorkflowGraph {
     this.assertOperatorNotExists(operator.operatorID);
     this.operatorIDMap.set(operator.operatorID, operator);
     this.operatorAddSubject.next(operator);
+  }
+
+  public setOperatorPosition(operatorID: string, position: Point): void {
+    this.assertOperatorExists(operatorID);
+    this.operatorPositionMap.set(operatorID, position);
   }
 
   /**
@@ -82,7 +88,7 @@ export class WorkflowGraph {
    */
   public getOperator(operatorID: string): OperatorPredicate {
     const operator = this.operatorIDMap.get(operatorID);
-    if (! operator) {
+    if (!operator) {
       throw new Error(`operator ${operatorID} does not exist`);
     }
     return operator;
@@ -172,7 +178,7 @@ export class WorkflowGraph {
    */
   public getLinkWithID(linkID: string): OperatorLink {
     const link = this.operatorLinkMap.get(linkID);
-    if (! link) {
+    if (!link) {
       throw new Error(`link ${linkID} does not exist`);
     }
     return link;
@@ -260,7 +266,7 @@ export class WorkflowGraph {
     } else {
       this.linkBreakpointMap.set(linkID, breakpoint);
     }
-    this.breakpointChangeSubject.next({oldBreakpoint, linkID});
+    this.breakpointChangeSubject.next({ oldBreakpoint, linkID });
   }
 
   /**
@@ -285,9 +291,9 @@ export class WorkflowGraph {
   }
 
   /**
- * Gets the observable event stream of an operator being deleted from the graph.
- * The observable value is the deleted operator.
- */
+   * Gets the observable event stream of an operator being deleted from the graph.
+   * The observable value is the deleted operator.
+   */
   public getOperatorDeleteStream(): Observable<{ deletedOperator: OperatorPredicate }> {
     return this.operatorDeleteSubject.asObservable();
   }
@@ -318,7 +324,7 @@ export class WorkflowGraph {
   /**
    * Gets the observable event stream of a link breakpoint is changed.
    */
-  public getBreakpointChangeStream(): Observable<{oldBreakpoint: object | undefined, linkID: string}> {
+  public getBreakpointChangeStream(): Observable<{ oldBreakpoint: object | undefined, linkID: string }> {
     return this.breakpointChangeSubject.asObservable();
   }
 
@@ -398,12 +404,12 @@ export class WorkflowGraph {
     }
 
     if (sourceOperator.outputPorts.find(
-      (port) => port === link.source.portID) === undefined) {
+      (port) => port.portID === link.source.portID) === undefined) {
       throw new Error(`link's source port ${link.source.portID} doesn't exist
           on output ports of the source operator ${link.source.operatorID}`);
     }
     if (targetOperator.inputPorts.find(
-      (port) => port === link.target.portID) === undefined) {
+      (port) => port.portID === link.target.portID) === undefined) {
       throw new Error(`link's target port ${link.target.portID} doesn't exist
           on input ports of the target operator ${link.target.operatorID}`);
     }

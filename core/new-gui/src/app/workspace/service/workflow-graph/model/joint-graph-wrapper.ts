@@ -1,6 +1,5 @@
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
-import { debounceTime } from 'rxjs/operators';
 import { Point } from '../../../types/workflow-common.interface';
 import { UndoRedoService } from './../../undo-redo/undo-redo.service';
 import { environment } from './../../../../../environments/environment';
@@ -41,10 +40,21 @@ type JointPositionChangeEvent = [
   { x: number, y: number }
 ];
 
+type JointLayerChangeEvent = [
+  joint.dia.Element | joint.dia.Link,
+  number
+];
+
 type PositionInfo = {
   currPos: Point,
   lastPos: Point | undefined
 };
+
+export type JointHighlights = Readonly<{
+  operators: readonly string[],
+  groups: readonly string[],
+  links: readonly string[]
+}>;
 
 /**
  * JointGraphWrapper wraps jointGraph to provide:
@@ -70,23 +80,39 @@ export class JointGraphWrapper {
   public static readonly ZOOM_CLICK_DIFF: number = 0.05;
   public static readonly ZOOM_MOUSEWHEEL_DIFF: number = 0.01;
   public static readonly INIT_ZOOM_VALUE: number = 1;
-  public static readonly INIT_PAN_OFFSET: Point = {x: 0, y: 0};
+  public static readonly INIT_PAN_OFFSET: Point = { x: 0, y: 0 };
 
   public static readonly ZOOM_MINIMUM: number = 0.70;
   public static readonly ZOOM_MAXIMUM: number = 1.30;
 
-  private operatorPositions: Map<string, PositionInfo> = new Map<string, PositionInfo>();
+  private elementPositions: Map<string, PositionInfo> = new Map<string, PositionInfo>();
   private listenPositionChange: boolean = true;
 
   // flag that indicates whether multiselect mode is on
   private multiSelect: boolean = false;
-  // the current highlighted operators' ID
+
+  private currentHighlights: JointHighlights = {
+    operators: [], groups: [], links: []
+  };
+
+  // the currently highlighted operators' IDs
   private currentHighlightedOperators: string[] = [];
+  // the currently highlighted groups' IDs
+  private currentHighlightedGroups: string[] = [];
   // event stream of highlighting an operator
-  private jointCellHighlightStream = new Subject<operatorIDsType>();
+  private jointOperatorHighlightStream = new Subject<readonly string[]>();
   // event stream of un-highlighting an operator
-  private jointCellUnhighlightStream = new Subject<operatorIDsType>();
-  // event stream of zooming the jointJs paper
+  private jointOperatorUnhighlightStream = new Subject<readonly string[]>();
+  // event stream of highlighting a group
+  private jointGroupHighlightStream = new Subject<readonly string[]>();
+  // event stream of un-highlighting a group
+  private jointGroupUnhighlightStream = new Subject<readonly string[]>();
+  // event stream of highlighing a link
+  private jointLinkHighlightStream = new Subject<readonly string[]>();
+  // event stream of unhighlighing a link
+  private jointLinkUnhighlightStream = new Subject<readonly string[]>();
+
+  // event stream of zooming the jointJS paper
   private workflowEditorZoomSubject: Subject<number> = new Subject<number>();
   // event stream of restoring zoom / offset default of the jointJS paper
   private restorePaperOffsetSubject: Subject<Point> = new Subject<Point>();
@@ -100,10 +126,7 @@ export class JointGraphWrapper {
   private MouseDownReminder: Subject<boolean> = new Subject<boolean>();
   // event stream of communicating mini-map and workflow paper panning
   private PanReminder: Subject<boolean> = new Subject<boolean>();
-  // event stream of highlighing a link
-  private jointLinkHighlightStream = new Subject<linkIDType>();
-  // event stream of unhighlighing a link
-  private jointLinkUnhighlightStream = new Subject<linkIDType>();
+
   // event stream of showing the breakpoint button of a link
   private jointLinkBreakpointShowStream = new Subject<linkIDType>();
   // event stream of hiding the breakpoint button of a link
@@ -143,21 +166,18 @@ export class JointGraphWrapper {
     .map(value => value[0]);
 
 
-  constructor(private jointGraph: joint.dia.Graph, private undoRedoService: UndoRedoService) {
-    // handle if the current highlighted operator is deleted, it should be unhighlighted
-    this.handleOperatorDeleteUnhighlight();
+  constructor(private jointGraph: joint.dia.Graph) {
+    // handle if the currently highlighted operator/group/link is deleted, it should be unhighlighted
+    this.handleElementDeleteUnhighlight();
+
     this.jointCellAddStream.filter(cell => cell.isElement()).subscribe(element => {
       const initPosition = {currPos: (element as joint.dia.Element).position(), lastPos: undefined};
-      this.operatorPositions.set(element.id.toString(), initPosition);
+      this.elementPositions.set(element.id.toString(), initPosition);
     });
 
-    // handle if the current highlighted operator's position is changed,
-    // other highlighted operators should move with it.
-    this.handleHighlightedOperatorPositionChange();
-    if (environment.linkBreakpointEnabled) {
-      // handle if a link is deleted, it should be unhighlighted
-      this.handleLinkDeleteUnhighlight();
-    }
+    this.jointCellDeleteStream.filter(cell => cell.isElement()).subscribe(element =>
+      this.elementPositions.delete(element.id.toString()));
+
   }
 
 
@@ -183,33 +203,60 @@ export class JointGraphWrapper {
    * The returned array is not the original one so that other
    * services/components can't modify it directly.
    */
-  public getCurrentHighlightedOperatorIDs(): string[] {
-    return Object.assign([], this.currentHighlightedOperators);
+  public getCurrentHighlightedOperatorIDs(): readonly string[] {
+    return this.currentHighlightedOperators;
   }
 
   /**
-   * Returns an Observable stream capturing the operator position change event in JointJS graph.
+   * Gets the group ID of the current highlighted groups.
+   * Returns an empty list if there is no highlighted group.
    *
-   * - operatorID: the moved operator's ID
-   * - oldPosition: the operator's position before moving
-   * - newPosition: where the operator is moved to
+   * The returned array is not the original one so that other
+   * services/components can't modify it directly.
    */
-  public getOperatorPositionChangeEvent(): Observable<{ operatorID: string, oldPosition: Point, newPosition: Point }> {
+  public getCurrentHighlightedGroupIDs(): readonly string[] {
+    return this.currentHighlightedGroups;
+  }
+
+  /**
+   * get the ids of all the links that are currently highlighted
+   */
+  public getCurrentHighlightedLinkIDs(): readonly string[] {
+    return this.currentHighlightedLinks;
+  }
+
+  public getCurrentHighlights(): JointHighlights {
+    return {
+      operators: this.currentHighlightedOperators,
+      groups: this.currentHighlightedGroups,
+      links: this.currentHighlightedLinks
+    };
+  }
+
+  /**
+   * Returns an Observable stream capturing the element position change event in JointJS graph.
+   * An element can be an operator or a group.
+   *
+   * - elementID: the moved element's ID
+   * - oldPosition: the element's position before moving
+   * - newPosition: where the element is moved to
+   */
+  public getElementPositionChangeEvent(): Observable<{ elementID: string, oldPosition: Point, newPosition: Point }> {
     return Observable
       .fromEvent<JointPositionChangeEvent>(this.jointGraph, 'change:position').map(e => {
-        const operatorID = e[0].id.toString();
-        const oldPosition = this.operatorPositions.get(operatorID);
-        const newPosition = {x: e[1].x, y: e[1].y};
+        const elementID = e[0].id.toString();
+        const oldPosition = this.elementPositions.get(elementID);
+        const newPosition = { x: e[1].x, y: e[1].y };
         console.log('newPosition:', newPosition);
         if (!oldPosition) {
-          throw new Error(`internal error: cannot find operator position for ${operatorID}`);
+          throw new Error(`internal error: cannot find element position for ${elementID}`);
         }
         if (!oldPosition.lastPos || oldPosition.currPos.x !== newPosition.x || oldPosition.currPos.y !== newPosition.y) {
           oldPosition.lastPos = oldPosition.currPos;
         }
-        this.operatorPositions.set(operatorID, {currPos: newPosition, lastPos: oldPosition.lastPos});
+        this.elementPositions.set(elementID, {currPos: newPosition, lastPos: oldPosition.lastPos});
         return {
-          operatorID: operatorID,
+          elementID: elementID,
           oldPosition: oldPosition.lastPos,
           newPosition: newPosition
         };
@@ -217,23 +264,32 @@ export class JointGraphWrapper {
   }
 
   /**
-   * Highlights the operator with given operatorID.
-   * Emits an event to the operator highlight stream.
-   * @param operatorID
+   * Returns an Observable stream capturing the cell layer change event in JointJS graph.
+   * A cell can be an operator, a link, or a group element.
+   *
+   * - cellID: the moved cell's ID
+   * - newPosition: the cell's new layer
    */
-  public highlightOperator(operatorID: string): void {
-    if (environment.linkBreakpointEnabled) {
-      // if there are highlighed links, unhighlight them
-      if (this.currentHighlightedLinks.length > 0) {
-        const highlightedLinks = Object.assign([], this.currentHighlightedLinks);
-        highlightedLinks.forEach(highlightedLink => this.unhighlightLink(highlightedLink));
-      }
-    }
-    const highlightedOperatorIDs: string[] = [];
-    this.highlightOperatorInternal(operatorID, highlightedOperatorIDs);
-    if (highlightedOperatorIDs.length > 0) {
-      this.jointCellHighlightStream.next({ operatorIDs: highlightedOperatorIDs });
-    }
+  public getCellLayerChangeEvent(): Observable<{ cellID: string, newLayer: number }> {
+    return Observable
+      .fromEvent<JointLayerChangeEvent>(this.jointGraph, 'change:z').map(e => {
+        return {
+          cellID: e[0].id.toString(),
+          newLayer: e[1]
+        };
+      });
+  }
+
+  public highlightElements(elements: JointHighlights): void {
+    this.highlightOperators(...elements.operators);
+    this.highlightGroups(...elements.groups);
+    this.highlightLinks(...elements.links);
+  }
+
+  public unhighlightElements(elements: JointHighlights): void {
+    this.unhighlightOperators(...elements.operators);
+    this.unhighlightGroups(...elements.groups);
+    this.unhighlightLinks(...elements.links);
   }
 
   /**
@@ -244,32 +300,12 @@ export class JointGraphWrapper {
    *
    * @param operatorIDs
    */
-  public highlightOperators(operatorIDs: string[]): void {
-    if (environment.linkBreakpointEnabled) {
-      // if there are highlighed links, unhighlight them
-      if (this.currentHighlightedLinks.length > 0) {
-        const highlightedLinks = Object.assign([], this.currentHighlightedLinks);
-        highlightedLinks.forEach(highlightedLink => this.unhighlightLink(highlightedLink));
-      }
-    }
-    // then
+  public highlightOperators(...operatorIDs: string[]): void {
     const highlightedOperatorIDs: string[] = [];
-    operatorIDs.forEach(operatorID => this.highlightOperatorInternal(operatorID, highlightedOperatorIDs));
+    operatorIDs.forEach(operatorID =>
+      this.highlightElement(operatorID, this.currentHighlightedOperators, highlightedOperatorIDs));
     if (highlightedOperatorIDs.length > 0) {
-      this.jointCellHighlightStream.next({ operatorIDs: highlightedOperatorIDs });
-    }
-  }
-
-  /**
-   * Unhighlights the given highlighted operator.
-   * Emits an event to the operator unhighlight stream.
-   * @param operatorID
-   */
-  public unhighlightOperator(operatorID: string): void {
-    const unhighlightedOperatorIDs: string[] = [];
-    this.unhighlightOperatorInternal(operatorID, unhighlightedOperatorIDs);
-    if (unhighlightedOperatorIDs.length > 0) {
-      this.jointCellUnhighlightStream.next({ operatorIDs: unhighlightedOperatorIDs });
+      this.jointOperatorHighlightStream.next(highlightedOperatorIDs);
     }
   }
 
@@ -281,54 +317,110 @@ export class JointGraphWrapper {
    *
    * @param operatorIDs
    */
-  public unhighlightOperators(operatorIDs: string[]): void {
+  public unhighlightOperators(...operatorIDs: string[]): void {
     const unhighlightedOperatorIDs: string[] = [];
-    operatorIDs.forEach(operatorID => this.unhighlightOperatorInternal(operatorID, unhighlightedOperatorIDs));
+    operatorIDs.forEach(operatorID =>
+      this.unhighlightElement(operatorID, this.currentHighlightedOperators, unhighlightedOperatorIDs));
     if (unhighlightedOperatorIDs.length > 0) {
-      this.jointCellUnhighlightStream.next({ operatorIDs: unhighlightedOperatorIDs });
+      this.jointOperatorUnhighlightStream.next(unhighlightedOperatorIDs);
+    }
+  }
+
+  /**
+   * Highlights groups in the given list.
+   *
+   * Emits an event to the group highlight stream with a list of groupIDs
+   * that are highlighted.
+   *
+   * @param groupIDs
+   */
+  public highlightGroups(...groupIDs: string[]): void {
+    const highlightedGroupIDs: string[] = [];
+    groupIDs.forEach(groupID =>
+      this.highlightElement(groupID, this.currentHighlightedGroups, highlightedGroupIDs));
+    if (highlightedGroupIDs.length > 0) {
+      this.jointGroupHighlightStream.next(highlightedGroupIDs);
+    }
+  }
+
+  /**
+   * Unhighlights groups in the given list.
+   *
+   * Emits an event to the group unhighlight stream with a list of groupIDs
+   * that are unhighlighted.
+   *
+   * @param groupIDs
+   */
+  public unhighlightGroups(...groupIDs: string[]): void {
+    const unhighlightedGroupIDs: string[] = [];
+    groupIDs.forEach(groupID =>
+      this.unhighlightElement(groupID, this.currentHighlightedGroups, unhighlightedGroupIDs));
+    if (unhighlightedGroupIDs.length > 0) {
+      this.jointGroupUnhighlightStream.next(unhighlightedGroupIDs);
+    }
+  }
+
+  /**
+   * Highlights the link with given linkID.
+   * Emits an event to the link highlight stream.
+   * @param linkID
+   */
+  public highlightLinks(...linkIDs: string[]): void {
+    const highlightedLinkIDs: string[] = [];
+    linkIDs.forEach(linkID =>
+      this.highlightElement(linkID, this.currentHighlightedLinks, highlightedLinkIDs));
+    if (highlightedLinkIDs.length > 0) {
+      this.jointLinkHighlightStream.next(highlightedLinkIDs);
+    }
+  }
+
+  /**
+   * Unhighlights the given highlighted link.
+   * Emits an event to the link unhighlight stream.
+   * @param unhighlightedLinkID
+   */
+  public unhighlightLinks(...linkIDs: string[]): void {
+    const unhighlightedLinkIDs: string[] = [];
+    linkIDs.forEach(linkID =>
+      this.unhighlightElement(linkID, this.currentHighlightedLinks, unhighlightedLinkIDs));
+    if (unhighlightedLinkIDs.length > 0) {
+      this.jointLinkUnhighlightStream.next(unhighlightedLinkIDs);
     }
   }
 
   /**
    * Gets the event stream of an operator being highlighted.
    */
-  public getJointCellHighlightStream(): Observable<operatorIDsType> {
-    return this.jointCellHighlightStream.asObservable();
+  public getJointOperatorHighlightStream(): Observable<readonly string[]> {
+    return this.jointOperatorHighlightStream.asObservable();
   }
 
   /**
    * Gets the event stream of an operator being unhighlighted.
    * The operator could be unhighlighted because it's deleted.
    */
-  public getJointCellUnhighlightStream(): Observable<operatorIDsType> {
-    return this.jointCellUnhighlightStream.asObservable();
-  }
-
-  /**
-   * get the ids of all the links that are currently highlighted
-   */
-  public getCurrentHighlightedLinkIDs(): string[] {
-    return Object.assign([], this.currentHighlightedLinks);
+  public getJointOperatorUnhighlightStream(): Observable<readonly string[]> {
+    return this.jointOperatorUnhighlightStream.asObservable();
   }
 
   /**
    * get the ids of all the links that have a breakpoint
    */
-  public getLinkIDsWithBreakpoint(): string[] {
-    return Object.assign([], this.linksWithBreakpoints);
+  public getLinkIDsWithBreakpoint(): readonly string[] {
+    return this.linksWithBreakpoints;
   }
 
   /**
    * get the event stream of a link being highlighted.
    */
-  public getLinkHighlightStream(): Observable<linkIDType> {
+  public getLinkHighlightStream(): Observable<readonly string[]> {
     return this.jointLinkHighlightStream.asObservable();
   }
 
   /**
    * get the event stream of a link being unhighlighted.
    */
-  public getLinkUnhighlightStream(): Observable<linkIDType> {
+  public getLinkUnhighlightStream(): Observable<readonly string[]> {
     return this.jointLinkUnhighlightStream.asObservable();
   }
 
@@ -349,21 +441,37 @@ export class JointGraphWrapper {
   /**
    * Gets the event stream of an operator being dragged.
    */
-  public getJointOperatorCellDragStream(): Observable<joint.dia.Element> {
-    const jointOperatorDragStream = this.jointCellDragStream
-      .filter(cell => cell.isElement())
-      .map(cell => <joint.dia.Element>cell);
-    return jointOperatorDragStream;
+  public getJointGroupHighlightStream(): Observable<readonly string[]> {
+    return this.jointGroupHighlightStream.asObservable();
   }
 
   /**
-   * Returns an Observable stream capturing the operator cell delete event in JointJS graph.
+   * Gets the event stream of a group being unhighlighted.
+   * The group could be unhighlighted because it's deleted.
    */
-  public getJointOperatorCellDeleteStream(): Observable<joint.dia.Element> {
-    const jointOperatorDeleteStream = this.jointCellDeleteStream
+  public getJointGroupUnhighlightStream(): Observable<readonly string[]> {
+    return this.jointGroupUnhighlightStream.asObservable();
+  }
+
+  /**
+   * Gets the event stream of an element being dragged.
+   */
+  public getJointElementCellDragStream(): Observable<joint.dia.Element> {
+    const jointElementDragStream = this.jointCellDragStream
       .filter(cell => cell.isElement())
       .map(cell => <joint.dia.Element>cell);
-    return jointOperatorDeleteStream;
+    return jointElementDragStream;
+  }
+
+  /**
+   * Returns an Observable stream capturing the element cell delete event in JointJS graph.
+   * An element cell can be an operator or an group.
+   */
+  public getJointElementCellDeleteStream(): Observable<joint.dia.Element> {
+    const jointElementDeleteStream = this.jointCellDeleteStream
+      .filter(cell => cell.isElement())
+      .map(cell => <joint.dia.Element>cell);
+    return jointElementDeleteStream;
   }
 
   /**
@@ -467,8 +575,8 @@ export class JointGraphWrapper {
    * @param ratio new ratio from zooming
    */
   public setZoomProperty(ratio: number): void {
-      this.zoomRatio = ratio;
-      this.workflowEditorZoomSubject.next(this.zoomRatio);
+    this.zoomRatio = ratio;
+    this.workflowEditorZoomSubject.next(this.zoomRatio);
   }
 
   /**
@@ -542,33 +650,35 @@ export class JointGraphWrapper {
   }
 
   /**
-   * This method will get the operator position on the JointJS paper.
+   * This method will get the element position on the JointJS paper.
+   * An element can be an operator or a group.
    */
-  public getOperatorPosition(operatorID: string): Point {
-    const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(operatorID);
+  public getElementPosition(elementID: string): Point {
+    const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(elementID);
     if (! cell) {
-      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+      throw new Error(`element with ID ${elementID} doesn't exist`);
     }
     if (! cell.isElement()) {
-      throw new Error(`${operatorID} is not an operator`);
+      throw new Error(`${elementID} is not an element`);
     }
-    const element = <joint.dia.Element> cell;
+    const element = <joint.dia.Element>cell;
     const position = element.position();
     return { x: position.x, y: position.y };
   }
 
   /**
-   * This method repositions the operator according to given offsets.
+   * This method repositions the element according to given offsets.
+   * An element can be an operator or a group.
    */
-  public setOperatorPosition(operatorID: string, offsetX: number, offsetY: number): void {
-    const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(operatorID);
+  public setElementPosition(elementID: string, offsetX: number, offsetY: number): void {
+    const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(elementID);
     if (! cell) {
-      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+      throw new Error(`element with ID ${elementID} doesn't exist`);
     }
     if (! cell.isElement()) {
-      throw new Error(`${operatorID} is not an operator`);
+      throw new Error(`${elementID} is not an element`);
     }
-    const element = <joint.dia.Element> cell;
+    const element = <joint.dia.Element>cell;
     element.translate(offsetX, offsetY);
   }
 
@@ -596,9 +706,9 @@ export class JointGraphWrapper {
       highlightedLinks.forEach(highlightedLink => this.unhighlightLink(highlightedLink));
     }
     this.getCurrentHighlightedOperatorIDs()
-        .forEach(operatorID => this.unhighlightOperator(operatorID));
+      .forEach(operatorID => this.unhighlightOperators(operatorID));
     this.currentHighlightedLinks.push(linkID);
-    this.jointLinkHighlightStream.next({ linkID });
+    this.jointLinkHighlightStream.next([linkID]);
   }
 
   /**
@@ -612,7 +722,7 @@ export class JointGraphWrapper {
     }
     const unhighlightedLinkIndex = this.currentHighlightedLinks.indexOf(linkID);
     this.currentHighlightedLinks.splice(unhighlightedLinkIndex, 1);
-    this.jointLinkUnhighlightStream.next({ linkID });
+    this.jointLinkUnhighlightStream.next([linkID]);
   }
 
   /**
@@ -642,120 +752,117 @@ export class JointGraphWrapper {
   }
 
   /**
-   * This method gets the operator's layer (z attribute) on the JointJS paper.
+   * This method resizes the element according to given width and height.
+   * An element can be an operator or a group.
    */
-  public getOperatorLayer(operatorID: string): number {
-    const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(operatorID);
+  public setElementSize(elementID: string, width: number, height: number): void {
+    const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(elementID);
     if (! cell) {
-      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+      throw new Error(`element with ID ${elementID} doesn't exist`);
     }
     if (! cell.isElement()) {
-      throw new Error(`${operatorID} is not an operator`);
+      throw new Error(`${elementID} is not an element`);
+    }
+    const element = <joint.dia.Element> cell;
+    element.resize(width, height);
+  }
+
+  /**
+   * This method gets the cell's layer (z attribute) on the JointJS paper.
+   * A cell can be an operator, a link, or a group element.
+   */
+  public getCellLayer(cellID: string): number {
+    const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(cellID);
+    if (! cell) {
+      throw new Error(`cell with ID ${cellID} doesn't exist`);
     }
     return cell.attributes.z;
   }
 
   /**
-   * This method sets the operator's layer (z attribute) to the given layer.
+   * This method sets the cell's layer (z attribute) to the given layer.
+   * A cell can be an operator, a link, or a group element.
    */
-  public setOperatorLayer(operatorID: string, layer: number): void {
-    const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(operatorID);
+  public setCellLayer(cellID: string, layer: number): void {
+    const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(cellID);
     if (! cell) {
-      throw new Error(`operator with ID ${operatorID} doesn't exist`);
-    }
-    if (! cell.isElement()) {
-      throw new Error(`${operatorID} is not an operator`);
+      throw new Error(`cell with ID ${cellID} doesn't exist`);
     }
     cell.set('z', layer);
   }
 
   /**
-   * Highlights the operator with given operatorID.
+   * Returns the boolean value that indicates whether
+   * or not listen to operator position change.
+   */
+  public getListenPositionChange(): boolean {
+    return this.listenPositionChange;
+  }
+
+  /**
+   * Sets the boolean value that indicates whether
+   * or not listen to operator position change.
+   */
+  public setListenPositionChange(listenPositionChange: boolean): void {
+    this.listenPositionChange = listenPositionChange;
+  }
+
+  /**
+   * Highlights the element with given elementID.
    *
-   * If the currently highlighted operator is already highlighted, the action will be ignored.
+   * An element can be either an operator or a group. If the element is already
+   * highlighted, the action will be ignored.
    *
    * When the multiselect mode is off:
-   * there is only one operator that could be highlighted at a time, therefore
-   *  if another operator is highlighted, it will be unhighlighted.
+   * there is only one element that could be highlighted at a time, therefore
+   *  if there are other highlighted elements, they will be unhighlighted.
    */
-  private highlightOperatorInternal(operatorID: string, highlightedOperatorIDs: string[]): void {
-    // try to get the operator using operator ID
-    if (!this.jointGraph.getCell(operatorID)) {
-      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+  private highlightElement(elementID: string, currentHighlightedElements: string[], highlightedElements: string[]): void {
+    // try to get the element using element ID
+    if (!this.jointGraph.getCell(elementID)) {
+      throw new Error(`element with ID ${elementID} doesn't exist`);
     }
-    // if the current highlighted operator is already highlighted, don't do anything
-    if (this.currentHighlightedOperators.includes(operatorID)) {
+    // if the element is already highlighted, don't do anything
+    if (currentHighlightedElements.includes(elementID)) {
       return;
     }
-    // if the multiselect mode is off and there are other highlighted operators,
-    // unhighlight them first
-    if (!this.multiSelect && this.currentHighlightedOperators.length > 0) {
-      const highlightedOperators = Object.assign([], this.currentHighlightedOperators);
-      this.unhighlightOperators(highlightedOperators);
+    // if the multiselect mode is off, unhighlight other highlighted elements first
+    if (!this.multiSelect) {
+      this.unhighlightOperators(...this.getCurrentHighlightedOperatorIDs());
+      this.unhighlightGroups(...this.getCurrentHighlightedGroupIDs());
+      this.unhighlightLinks(...this.getCurrentHighlightedLinkIDs());
     }
-    // highlight the operator and add it to the list of highlighted operators
-    this.currentHighlightedOperators.push(operatorID);
-    highlightedOperatorIDs.push(operatorID);
+    // highlight the element and add it to the list of highlighted elements
+    currentHighlightedElements.push(elementID);
+    highlightedElements.push(elementID);
   }
 
   /**
-   * Unhighlights the given highlighted operator.
+   * Unhighlights the given highlighted element (operator or group).
+   * This function fills the unhighlightedElements array to include the unhighlighted elements.
    */
-  private unhighlightOperatorInternal(operatorID: string, unhighlightedOperatorIDs: string[]): void {
-    if (!this.currentHighlightedOperators.includes(operatorID)) {
+  private unhighlightElement(elementID: string, currentHighlightedElements: string[], unhighlightedElements: string[]): void {
+    if (!currentHighlightedElements.includes(elementID)) {
       return;
     }
-    const unhighlightedOperatorIndex = this.currentHighlightedOperators.indexOf(operatorID);
-    this.currentHighlightedOperators.splice(unhighlightedOperatorIndex, 1);
-    unhighlightedOperatorIDs.push(operatorID);
+    currentHighlightedElements.splice(currentHighlightedElements.indexOf(elementID), 1);
+    unhighlightedElements.push(elementID);
   }
 
   /**
-   * Subscribes to operator cell delete event stream,
-   *  checks if the deleted operator is currently highlighted
+   * Subscribes to cell delete event stream,
+   *  checks if the deleted cell (operator, link, or group) is currently highlighted
    *  and unhighlight it if it is.
    */
-  private handleOperatorDeleteUnhighlight(): void {
-    this.getJointOperatorCellDeleteStream().subscribe(deletedOperatorCell => {
-      const deletedOperatorID = deletedOperatorCell.id.toString();
-      if (this.currentHighlightedOperators.includes(deletedOperatorID)) {
-        this.unhighlightOperator(deletedOperatorID);
-      }
-    });
-  }
-
-  /**
-   * Subscribes to operator position change event stream,
-   *  checks if the operator is moved by user and if the moved operator is currently highlighted,
-   *  if it is, move other highlighted operators along with it.
-   */
-  private handleHighlightedOperatorPositionChange(): void {
-    this.getOperatorPositionChangeEvent()
-      .filter(() => this.listenPositionChange)
-      .filter(() => this.undoRedoService.listenJointCommand)
-      .filter(movedOperator => this.currentHighlightedOperators.includes(movedOperator.operatorID))
-      .subscribe(movedOperator => {
-        const offsetX = movedOperator.newPosition.x - movedOperator.oldPosition.x;
-        const offsetY = movedOperator.newPosition.y - movedOperator.oldPosition.y;
-        this.listenPositionChange = false;
-        this.undoRedoService.setListenJointCommand(false);
-        this.currentHighlightedOperators
-          .filter(operatorID => operatorID !== movedOperator.operatorID)
-          .forEach(operatorID => this.setOperatorPosition(operatorID, offsetX, offsetY));
-        this.listenPositionChange = true;
-        this.undoRedoService.setListenJointCommand(true);
-      });
-  }
-
-  /**
-   * Subscribes to link delete event stream,
-   *  unhighlight the removed link if it is currently highlighted
-   */
-  private handleLinkDeleteUnhighlight(): void {
-    this.getJointLinkCellDeleteStream().subscribe(deletedLinkCell => {
-      const deletedLinkID = deletedLinkCell.id.toString();
-      if (this.currentHighlightedLinks.includes(deletedLinkID)) {
-        this.unhighlightLink(deletedLinkID);
+  private handleElementDeleteUnhighlight(): void {
+    this.jointCellDeleteStream.subscribe(deletedCell => {
+      const deletedCellID = deletedCell.id.toString();
+      if (this.currentHighlightedOperators.includes(deletedCellID)) {
+        this.unhighlightOperators(deletedCellID);
+      } else if (this.currentHighlightedGroups.includes(deletedCellID)) {
+        this.unhighlightGroups(deletedCellID);
+      } else if (this.currentHighlightedLinks.includes(deletedCellID)) {
+        this.unhighlightLinks(deletedCellID);
       }
     });
   }

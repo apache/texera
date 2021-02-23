@@ -3,9 +3,16 @@ package edu.uci.ics.texera.workflow.operators.reservoirsampling
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.texera.workflow.common.metadata.{
+  InputPort,
+  OperatorGroupConstants,
+  OperatorInfo,
+  OutputPort
+}
 import edu.uci.ics.texera.workflow.common.operators.{OneToOneOpExecConfig, OperatorDescriptor}
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.texera.workflow.operators.limit.LimitOpDesc
+import edu.uci.ics.texera.workflow.operators.util.OperatorDescriptorUtils.equallyPartitionGoal
 
 import scala.util.Random
 
@@ -28,31 +35,27 @@ class ReservoirSamplingOpDesc extends OperatorDescriptor {
   // In order to make sure the total output is k, each executor should produce (k / n) items
   // (n is the number of the executors)
   @JsonIgnore
-  private lazy val kPerActor: Int = k / Constants.defaultNumWorkers
-
-  @JsonIgnore
-  private lazy val kRemainder: Int = k % Constants.defaultNumWorkers
+  private lazy val kPerActor: List[Int] = equallyPartitionGoal(k, Constants.defaultNumWorkers)
 
   @JsonIgnore
   def getKForActor(actor: Int): Int = {
-    if (actor == Constants.defaultNumWorkers - 1) {
-      kPerActor + kRemainder
-    } else {
-      kPerActor
-    }
+    kPerActor(actor)
   }
 
   override def operatorExecutor: OneToOneOpExecConfig = {
-    new OneToOneOpExecConfig(this.operatorIdentifier, (actor: Int) => new ReservoirSamplingOpExec(actor, this))
+    new OneToOneOpExecConfig(
+      this.operatorIdentifier,
+      (actor: Int) => new ReservoirSamplingOpExec(actor, this)
+    )
   }
 
   override def operatorInfo: OperatorInfo = {
     OperatorInfo(
       userFriendlyName = "Reservoir Sampling",
       operatorDescription = "Reservoir Sampling with k items being kept randomly",
-      operatorGroupName =  OperatorGroupConstants.UTILITY_GROUP,
-      numInputPorts = 1,
-      numOutputPorts = 1
+      operatorGroupName = OperatorGroupConstants.UTILITY_GROUP,
+      inputPorts = List(InputPort()),
+      outputPorts = List(OutputPort())
     )
   }
 

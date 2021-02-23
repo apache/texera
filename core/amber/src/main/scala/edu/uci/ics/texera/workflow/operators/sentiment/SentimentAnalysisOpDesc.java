@@ -4,17 +4,24 @@ package edu.uci.ics.texera.workflow.operators.sentiment;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.google.common.base.Preconditions;
+import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
+import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig;
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 
+import static java.util.Collections.singletonList;
+import static scala.collection.JavaConverters.asScalaBuffer;
+
 public class SentimentAnalysisOpDesc extends MapOpDesc {
 
     @JsonProperty(value = "attribute", required = true)
     @JsonPropertyDescription("column to perform sentiment analysis on")
+    @AutofillAttributeName
     public String attribute;
 
     @JsonProperty(value = "result attribute", required = true, defaultValue = "sentiment")
@@ -35,8 +42,8 @@ public class SentimentAnalysisOpDesc extends MapOpDesc {
                 "Sentiment Analysis",
                 "analysis the sentiment of a text using machine learning",
                 OperatorGroupConstants.ANALYTICS_GROUP(),
-                1, 1
-        );
+                asScalaBuffer(singletonList(new InputPort("", false))).toList(),
+                asScalaBuffer(singletonList(new OutputPort(""))).toList());
     }
 
     @Override
@@ -45,6 +52,6 @@ public class SentimentAnalysisOpDesc extends MapOpDesc {
         if (resultAttribute == null || resultAttribute.trim().isEmpty()) {
             return null;
         }
-        return Schema.newBuilder().add(schemas[0]).add(resultAttribute, AttributeType.STRING).build();
+        return Schema.newBuilder().add(schemas[0]).add(resultAttribute, AttributeType.INTEGER).build();
     }
 }

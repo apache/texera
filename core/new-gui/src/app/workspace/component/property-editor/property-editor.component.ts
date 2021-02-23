@@ -1,24 +1,22 @@
-import { OperatorSchema } from './../../types/operator-schema.interface';
-import { OperatorPredicate, Breakpoint } from '../../types/workflow-common.interface';
-import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
-import { DynamicSchemaService } from '../../service/dynamic-schema/dynamic-schema.service';
 import { Component } from '@angular/core';
 
-import { Subject } from 'rxjs/Subject';
-import { Observable } from 'rxjs/Observable';
-import '../../../common/rxjs-operators';
-
-import { cloneDeep, isEqual } from 'lodash';
-
-import { JSONSchema7 } from 'json-schema';
+import { FormGroup } from '@angular/forms';
+import { FormlyFieldConfig, FormlyFormOptions } from '@ngx-formly/core';
+import { FormlyJsonschema } from '@ngx-formly/core/json-schema';
 import * as Ajv from 'ajv';
 
-import { FormGroup } from '@angular/forms';
-import { FormlyFormOptions, FormlyFieldConfig } from '@ngx-formly/core';
-import { FormlyJsonschema } from '@ngx-formly/core/json-schema';
-import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from '../../service/execute-workflow/execute-workflow.service';
-import { ExecutionState, OperatorState } from '../../types/execute-workflow.interface';
+import { JSONSchema7 } from 'json-schema';
 
+import { cloneDeep, isEqual } from 'lodash';
+import { Observable } from 'rxjs/Observable';
+
+import { Subject } from 'rxjs/Subject';
+import '../../../common/rxjs-operators';
+import { DynamicSchemaService } from '../../service/dynamic-schema/dynamic-schema.service';
+import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from '../../service/execute-workflow/execute-workflow.service';
+import { ExecutionState } from '../../types/execute-workflow.interface';
+import { Breakpoint, OperatorPredicate } from '../../types/workflow-common.interface';
+import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
 
 /**
  * PropertyEditorComponent is the panel that allows user to edit operator properties.
@@ -31,7 +29,7 @@ import { ExecutionState, OperatorState } from '../../types/execute-workflow.inte
  *  }
  * The automatically generated form will show two input boxes, one titled 'attribute' and one titled 'resultAttribute'.
  * More examples of the operator JSON schema can be found in `mock-operator-metadata.data.ts`
- * More about JSON Schema: Understading JSON Schema - https://spacetelescope.github.io/understanding-json-schema/
+ * More about JSON Schema: Understanding JSON Schema - https://spacetelescope.github.io/understanding-json-schema/
  *
  * OperatorMetadataService will fetch metadata about the operators, which includes the JSON Schema, from the backend.
  *
@@ -50,11 +48,11 @@ import { ExecutionState, OperatorState } from '../../types/execute-workflow.inte
 })
 export class PropertyEditorComponent {
 
-  // debounce time for form input in miliseconds
+  // debounce time for form input in milliseconds
   //  please set this to multiples of 10 to make writing tests easy
   public static formInputDebounceTime: number = FORM_DEBOUNCE_TIME_MS;
 
-  // re-delcare enum for angular template to access it
+  // re-declare enum for angular template to access it
   public readonly ExecutionState = ExecutionState;
 
   // operatorID if the component is displaying operator property editor
@@ -72,7 +70,7 @@ export class PropertyEditorComponent {
   // the source event stream of form change triggered by library at each user input
   public sourceFormChangeEventStream = new Subject<object>();
 
-  // the output form change event stream after debouce time and filtering out values
+  // the output form change event stream after debounce time and filtering out values
   public operatorPropertyChangeStream = this.createOutputFormChangeEventStream(
     this.sourceFormChangeEventStream, data => this.checkOperatorProperty(data));
 
@@ -86,8 +84,13 @@ export class PropertyEditorComponent {
   public formlyFields: FormlyFieldConfig[] | undefined;
   public formTitle: string | undefined;
 
+  // show TypeInformation only when operator type is TypeCasting
+  public showTypeCastingTypeInformation = false;
+
   // used to fill in default values in json schema to initialize new operator
   private ajv = new Ajv({ useDefaults: true });
+
+
 
   constructor(
     public formlyJsonschema: FormlyJsonschema,
@@ -148,7 +151,7 @@ export class PropertyEditorComponent {
     if (this.currentLinkID) {
       // remove breakpoint in texera workflow first, then unhighlight it
       this.workflowActionService.removeLinkBreakpoint(this.currentLinkID);
-      this.workflowActionService.getJointGraphWrapper().unhighlightLink(this.currentLinkID);
+      this.workflowActionService.getJointGraphWrapper().unhighlightLinks(this.currentLinkID);
     }
     this.clearPropertyEditor();
   }
@@ -256,7 +259,7 @@ export class PropertyEditorComponent {
    * Handles the form change event stream observable,
    *  which corresponds to every event the json schema form library emits.
    *
-   * Applies rules that transform the event stream to trigger resonably and less frequently ,
+   * Applies rules that transform the event stream to trigger reasonably and less frequently ,
    *  such as debounce time and distince condition.
    *
    * Then modifies the operator property to use the new form data.
@@ -357,7 +360,7 @@ export class PropertyEditorComponent {
    * This method captures the change in operator's property via program instead of user updating the
    *  json schema form in the user interface.
    *
-   * For instance, when the input doesn't matching the new j   son schema and the UI needs to remove the
+   * For instance, when the input doesn't matching the new json schema and the UI needs to remove the
    *  invalid fields, this form will capture those events.
    */
   private handleOperatorPropertyChange(): void {
@@ -367,6 +370,7 @@ export class PropertyEditorComponent {
       .filter(operatorChanged => !isEqual(this.formData, operatorChanged.operator.operatorProperties))
       .subscribe(operatorChanged => {
         this.formData = cloneDeep(operatorChanged.operator.operatorProperties);
+
       });
     this.workflowActionService.getTexeraGraph().getBreakpointChangeStream()
       .filter(event => this.currentLinkID !== undefined)
@@ -374,6 +378,7 @@ export class PropertyEditorComponent {
       .filter(event => !isEqual(this.formData, this.workflowActionService.getTexeraGraph().getLinkBreakpoint(event.linkID)))
       .subscribe(event => {
         this.formData = cloneDeep(this.workflowActionService.getTexeraGraph().getLinkBreakpoint(event.linkID));
+
       });
   }
 
@@ -385,65 +390,50 @@ export class PropertyEditorComponent {
     this.operatorPropertyChangeStream.subscribe(formData => {
       // set the operator property to be the new form data
       if (this.currentOperatorID) {
+        const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorID);
+
         this.workflowActionService.setOperatorProperty(this.currentOperatorID, formData);
+        this.workflowActionService.setOperatorProperty(this.currentOperatorID, cloneDeep(formData));
       }
     });
   }
 
   /**
-   * Handles the operator highlight / unhighlight events.
+   * This method changes the property editor according to how operators are highlighted on the workflow editor.
    *
-   * When operators are highlighted / unhighlighted,
-   *   -> displays the form of the highlighted operator if only one operator is highlighted
-   *   -> hides the form otherwise
+   * Displays the form of the highlighted operator if only one operator is highlighted;
+   * Displays the form of the link breakpoint if only one link is highlighted;
+   * hides the form if no operator/link is highlighted or multiple operators and/or groups and/or links are highlighted.
    */
   private handleHighlightEvents() {
     Observable.merge(
-      this.workflowActionService.getJointGraphWrapper().getJointCellHighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointCellUnhighlightStream()
+      this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointGroupHighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getLinkHighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getLinkUnhighlightStream()
     ).subscribe(() => {
-      // Displays the form of the highlighted operator if only one operator is highlighted;
-      // hides the form if no operator is highlighted or multiple operators are highlighted.
       const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-      if (highlightedOperators.length === 1) {
+      const highlightedGroups = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
+      const highlightLinks = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
+
+      if (highlightedOperators.length === 1 && highlightedGroups.length === 0 && highlightLinks.length === 0) {
         const operator = this.workflowActionService.getTexeraGraph().getOperator(highlightedOperators[0]);
         this.clearPropertyEditor();
         this.showOperatorPropertyEditor(operator);
+      } else if (highlightLinks.length === 1 && highlightedGroups.length === 0 && highlightedOperators.length === 0) {
+        this.clearPropertyEditor();
+        this.showBreakpointEditor(highlightLinks[0]);
       } else {
         this.clearPropertyEditor();
       }
     });
-    this.workflowActionService.getJointGraphWrapper().getLinkHighlightStream()
-      .subscribe(linkID => {
-        // TODO: fix this, this should not be handled here
-        // this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()
-        //       .forEach(operatorID => this.workflowActionService.getJointGraphWrapper().unhighlightOperator(operatorID));
-        this.clearPropertyEditor();
-        this.showBreakpointEditor(linkID.linkID);
-      });
-    this.workflowActionService.getJointGraphWrapper().getLinkUnhighlightStream()
-      .filter(linkID => this.currentLinkID !== undefined && this.currentLinkID === linkID.linkID)
-      .subscribe(linkID => this.clearPropertyEditor());
   }
 
   private setFormlyFormBinding(schema: JSONSchema7) {
     // intercept JsonSchema -> FormlySchema process, adding custom options
     const jsonSchemaMapIntercept = (mappedField: FormlyFieldConfig, mapSource: JSONSchema7): FormlyFieldConfig => {
-      // if the title contains "password", then make the field type also to be password
-      if (mapSource?.title?.toLowerCase()?.includes('password')) {
-        if (mappedField.templateOptions) {
-          mappedField.templateOptions.type = 'password';
-        }
-      }
-      // if the title is boolean expression (for Mysql source), then make the field to textarea with 5 rows
-      if (mapSource?.title?.toLowerCase() === 'boolean expression') {
-        if (mappedField.type) {
-          mappedField.type = 'textarea';
-        }
-        if (mappedField.templateOptions) {
-          mappedField.templateOptions.rows = 5;
-        }
-      }
       // if the title is python script (for Python UDF), then make this field a custom template 'codearea'
       if (mapSource?.description?.toLowerCase() === 'input your code here') {
         if (mappedField.type) {
@@ -455,7 +445,8 @@ export class PropertyEditorComponent {
 
     this.formlyFormGroup = new FormGroup({});
     this.formlyOptions = {};
-    const field = this.formlyJsonschema.toFieldConfig(schema, { map: jsonSchemaMapIntercept });
+    // convert the json schema to formly config, pass a copy because formly mutates the schema object
+    const field = this.formlyJsonschema.toFieldConfig(cloneDeep(schema), { map: jsonSchemaMapIntercept });
     field.hooks = {
       onInit: (fieldConfig) => {
         if (!this.interactive) {
@@ -466,5 +457,6 @@ export class PropertyEditorComponent {
 
     this.formlyFields = [field];
   }
+
 
 }

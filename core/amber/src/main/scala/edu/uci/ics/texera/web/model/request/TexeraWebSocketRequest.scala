@@ -14,7 +14,8 @@ import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
     new Type(value = classOf[ModifyLogicRequest]),
     new Type(value = classOf[AddBreakpointRequest]),
     new Type(value = classOf[RemoveBreakpointRequest]),
-    new Type(value = classOf[SkipTupleRequest])
+    new Type(value = classOf[SkipTupleRequest]),
+    new Type(value = classOf[ResultPaginationRequest])
   )
 )
 trait TexeraWebSocketRequest {}

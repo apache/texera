@@ -1,7 +1,5 @@
 package edu.uci.ics.texera.workflow.common.metadata
 
-import java.util
-
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.introspect.AnnotatedClass
 import com.fasterxml.jackson.databind.jsontype.NamedType
@@ -10,18 +8,27 @@ import com.kjetland.jackson.jsonSchema.JsonSchemaConfig.html5EnabledSchema
 import com.kjetland.jackson.jsonSchema.{JsonSchemaConfig, JsonSchemaDraft, JsonSchemaGenerator}
 import edu.uci.ics.texera.workflow.common.Utils.objectMapper
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
-import edu.uci.ics.texera.workflow.operators.linearregression.LinearRegressionOpDesc
-import edu.uci.ics.texera.workflow.operators.localscan.LocalCsvFileScanOpDesc
+import edu.uci.ics.texera.workflow.operators.scan.CSVScanSourceOpDesc
 
+import java.util
 import scala.collection.JavaConverters
 import scala.collection.JavaConverters.asScalaIterator
+
+case class InputPort(
+    displayName: String = null,
+    allowMultiInputs: Boolean = false
+)
+
+case class OutputPort(
+    displayName: String = null
+)
 
 case class OperatorInfo(
     userFriendlyName: String,
     operatorDescription: String,
     operatorGroupName: String,
-    numInputPorts: Int,
-    numOutputPorts: Int
+    inputPorts: List[InputPort],
+    outputPorts: List[OutputPort]
 )
 
 case class OperatorMetadata(
@@ -46,19 +53,12 @@ case class AllOperatorMetadata(
   */
 object OperatorMetadataGenerator {
 
-  def main(args: Array[String]): Unit = {
-    // run this if you want to check the json schema generated for an operator descriptor
-    // replace the argument with the class of your operator descriptor
-    println(generateOperatorJsonSchema(classOf[LocalCsvFileScanOpDesc]).toPrettyString)
-  }
-
   val texeraSchemaGeneratorConfig: JsonSchemaConfig = html5EnabledSchema.copy(
+    useOneOfForOption = false,
     defaultArrayFormat = None,
     jsonSchemaDraft = JsonSchemaDraft.DRAFT_07
   )
-
   val jsonSchemaGenerator = new JsonSchemaGenerator(objectMapper, texeraSchemaGeneratorConfig)
-
   // a map from a Texera Operator Descriptor's class to its operatorType string value
   val operatorTypeMap: Map[Class[_ <: OperatorDescriptor], String] = {
     // find all the operator type declarations in PredicateBase annotation
@@ -75,8 +75,29 @@ object OperatorMetadataGenerator {
       .map(t => (t.getType.asInstanceOf[Class[_ <: OperatorDescriptor]], t.getName))
       .toMap
   }
-
   val allOperatorMetadata: AllOperatorMetadata = generateAllOperatorMetadata()
+
+  def main(args: Array[String]): Unit = {
+    // run this if you want to check the json schema generated for an operator descriptor
+    // replace the argument with the class of your operator descriptor
+    println(generateOperatorJsonSchema(classOf[CSVScanSourceOpDesc]).toPrettyString)
+  }
+
+  def generateOperatorJsonSchema(opDescClass: Class[_ <: OperatorDescriptor]): JsonNode = {
+    val jsonSchema = jsonSchemaGenerator.generateJsonSchema(opDescClass).asInstanceOf[ObjectNode]
+    // remove operatorID from json schema
+    jsonSchema.get("properties").asInstanceOf[ObjectNode].remove("operatorID")
+    // remove operatorType from json schema
+    jsonSchema.get("properties").asInstanceOf[ObjectNode].remove("operatorType")
+    // remove operatorType from required list
+    val operatorTypeIndex =
+      asScalaIterator(jsonSchema.get("required").asInstanceOf[ArrayNode].elements())
+        .indexWhere(p => p.asText().equals("operatorType"))
+    jsonSchema.get("required").asInstanceOf[ArrayNode].remove(operatorTypeIndex)
+    // remove "title" for the operator - frontend uses userFriendlyName to show operator title
+    jsonSchema.remove("title")
+    jsonSchema
+  }
 
   def generateAllOperatorMetadata(): AllOperatorMetadata = {
     AllOperatorMetadata(
@@ -101,22 +122,6 @@ object OperatorMetadataGenerator {
     val texeraOperatorInfo = opDescClass.getConstructor().newInstance().operatorInfo
 
     OperatorMetadata(operatorType, jsonSchema, texeraOperatorInfo)
-  }
-
-  def generateOperatorJsonSchema(opDescClass: Class[_ <: OperatorDescriptor]): JsonNode = {
-    val jsonSchema = jsonSchemaGenerator.generateJsonSchema(opDescClass).asInstanceOf[ObjectNode]
-    // remove operatorID from json schema
-    jsonSchema.get("properties").asInstanceOf[ObjectNode].remove("operatorID")
-    // remove operatorType from json schema
-    jsonSchema.get("properties").asInstanceOf[ObjectNode].remove("operatorType")
-    // remove operatorType from required list
-    val operatorTypeIndex =
-      asScalaIterator(jsonSchema.get("required").asInstanceOf[ArrayNode].elements())
-        .indexWhere(p => p.asText().equals("operatorType"))
-    jsonSchema.get("required").asInstanceOf[ArrayNode].remove(operatorTypeIndex)
-    // remove "title" for the operator - frontend uses userFriendlyName to show operator title
-    jsonSchema.remove("title")
-    jsonSchema
   }
 
 }

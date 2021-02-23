@@ -1,13 +1,13 @@
 import { Component, OnInit } from '@angular/core';
+import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { FileUploader } from 'ng2-file-upload';
 import { UserFileUploadService } from '../../../../../common/service/user/user-file/user-file-upload.service';
-import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { FileUploadItem } from '../../../../../common/type/user-file';
 
 @Component({
   selector: 'texera-ngbd-modal-file-add',
   templateUrl: './ngbd-modal-file-add.component.html',
-  styleUrls: ['./ngbd-modal-file-add.component.scss'],
+  styleUrls: ['./ngbd-modal-file-add.component.scss']
 })
 export class NgbdModalFileAddComponent implements OnInit {
 
@@ -18,11 +18,10 @@ export class NgbdModalFileAddComponent implements OnInit {
   //  inside the uploader queue.
   public uploader: FileUploader = new FileUploader({url: ''});
 
-
   constructor(
     public activeModal: NgbActiveModal,
     private userFileUploadService: UserFileUploadService
-    ) { }
+  ) { }
 
   ngOnInit() {
   }
@@ -53,16 +52,16 @@ export class NgbdModalFileAddComponent implements OnInit {
 
   public getFileDropped(fileDropEvent: FileList): void {
     for (let i = 0; i < fileDropEvent.length; i++) {
-      const fileOrNull: File | null = fileDropEvent.item(i);
-      if (this.isFile(fileOrNull) ) {
-        this.userFileUploadService.addFileToUploadArray(fileOrNull);
+      const file: File | null = fileDropEvent.item(i);
+      if (file !== null) {
+        this.userFileUploadService.addFileToUploadArray(file);
       }
     }
 
     this.uploader.clearQueue();
   }
 
-  public handleClickUploadFile(clickUploadEvent: {target: HTMLInputElement}): void {
+  public handleClickUploadFile(clickUploadEvent: { target: HTMLInputElement }): void {
     const fileList: FileList | null = clickUploadEvent.target.files;
     if (fileList === null) {
       throw new Error(`browser upload does not work as intended`);
@@ -72,10 +71,5 @@ export class NgbdModalFileAddComponent implements OnInit {
       this.userFileUploadService.addFileToUploadArray(fileList[i]);
     }
   }
-
-  private isFile(file: File | null): file is File {
-    return file != null;
-  }
-
 
 }

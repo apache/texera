@@ -1,24 +1,25 @@
 import { WorkflowGraph } from './../workflow-graph/model/workflow-graph';
-import { mockScanPredicate, mockSentimentPredicate,
+import {
+  mockScanPredicate, mockSentimentPredicate,
   mockResultPredicate, mockScanResultLink,
-  mockScanSentimentLink, mockSentimentResultLink } from './../workflow-graph/model/mock-workflow-data';
+  mockScanSentimentLink, mockSentimentResultLink
+} from './../workflow-graph/model/mock-workflow-data';
 import { LogicalPlan } from '../../types/execute-workflow.interface';
 
 
-// TODO: unify the port handling interface
 export const mockWorkflowPlan_scan_result: WorkflowGraph = new WorkflowGraph(
-    [
-        mockScanPredicate,
-        mockResultPredicate
-    ],
-    [
-        mockScanResultLink
-    ]
+  [
+    mockScanPredicate,
+    mockResultPredicate
+  ],
+  [
+    mockScanResultLink
+  ]
 );
 
 
 export const mockLogicalPlan_scan_result: LogicalPlan = {
-  operators : [
+  operators: [
     {
       ...mockScanPredicate.operatorProperties,
       operatorID: mockScanPredicate.operatorID,
@@ -30,13 +31,13 @@ export const mockLogicalPlan_scan_result: LogicalPlan = {
       operatorType: mockResultPredicate.operatorType
     }
   ],
-  links : [
+  links: [
     {
-      origin: mockScanPredicate.operatorID,
-      destination: mockResultPredicate.operatorID,
+      origin: {operatorID: mockScanPredicate.operatorID, portOrdinal: 0},
+      destination: {operatorID: mockResultPredicate.operatorID, portOrdinal: 0},
     }
   ],
-  breakpoints : []
+  breakpoints: []
 };
 
 export const mockWorkflowPlan_scan_sentiment_result: WorkflowGraph = new WorkflowGraph(
@@ -52,7 +53,7 @@ export const mockWorkflowPlan_scan_sentiment_result: WorkflowGraph = new Workflo
 );
 
 export const mockLogicalPlan_scan_sentiment_result: LogicalPlan = {
-  operators : [
+  operators: [
     {
       ...mockScanPredicate.operatorProperties,
       operatorID: mockScanPredicate.operatorID,
@@ -69,15 +70,15 @@ export const mockLogicalPlan_scan_sentiment_result: LogicalPlan = {
       operatorType: mockResultPredicate.operatorType
     }
   ],
-  links : [
+  links: [
     {
-      origin: mockScanPredicate.operatorID,
-      destination: mockSentimentPredicate.operatorID,
+      origin: {operatorID: mockScanPredicate.operatorID, portOrdinal: 0},
+      destination: {operatorID: mockSentimentPredicate.operatorID, portOrdinal: 0},
     },
     {
-      origin: mockSentimentPredicate.operatorID,
-      destination: mockResultPredicate.operatorID,
+      origin: {operatorID: mockSentimentPredicate.operatorID, portOrdinal: 0},
+      destination: {operatorID: mockResultPredicate.operatorID, portOrdinal: 0},
     }
   ],
-  breakpoints : []
+  breakpoints: []
 };

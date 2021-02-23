@@ -1,41 +1,57 @@
 package edu.uci.ics.texera.web.resource
 
-import java.util.concurrent.atomic.AtomicInteger
-
 import akka.actor.{ActorRef, PoisonPill}
 import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerEventListener}
-import edu.uci.ics.amber.engine.architecture.principal.PrincipalStatistics
-import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
-import edu.uci.ics.amber.engine.common.ambermessage.ControllerMessage.AckedControllerInitialization
-import edu.uci.ics.amber.engine.common.ambertag.WorkflowTag
-import edu.uci.ics.texera.web.TexeraWebApplication
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
+import edu.uci.ics.amber.engine.architecture.principal.OperatorStatistics
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
+import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
+import edu.uci.ics.texera.web.{ServletAwareConfigurator, TexeraWebApplication}
 import edu.uci.ics.texera.web.model.event._
 import edu.uci.ics.texera.web.model.request._
-import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo}
+import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
+  sessionJobs,
+  sessionMap,
+  sessionResults
+}
+import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
+import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo}
 import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
-import javax.websocket._
+
+import java.util.concurrent.atomic.AtomicInteger
+import javax.servlet.http.HttpSession
+import javax.websocket.{EndpointConfig, _}
 import javax.websocket.server.ServerEndpoint
-
 import scala.collection.mutable
-
 object WorkflowWebsocketResource {
 
-  val nextWorkflowID = new AtomicInteger(0)
+  val nextJobID = new AtomicInteger(0)
 
-  val sessionMap = new mutable.HashMap[String, Session]
+  val sessionMap = new mutable.HashMap[String, (Session, HttpSession)]
   val sessionJobs = new mutable.HashMap[String, (WorkflowCompiler, ActorRef)]
-
+  val sessionResults = new mutable.HashMap[String, Map[String, List[ITuple]]]
 }
 
-@ServerEndpoint("/wsapi/workflow-websocket")
+@ServerEndpoint(
+  value = "/wsapi/workflow-websocket",
+  configurator = classOf[ServletAwareConfigurator]
+)
 class WorkflowWebsocketResource {
 
   final val objectMapper = Utils.objectMapper
 
   @OnOpen
-  def myOnOpen(session: Session): Unit = {
-    WorkflowWebsocketResource.sessionMap.update(session.getId, session)
+  def myOnOpen(session: Session, config: EndpointConfig): Unit = {
+    WorkflowWebsocketResource.sessionMap.update(
+      session.getId,
+      (session, config.getUserProperties.get("httpSession").asInstanceOf[HttpSession])
+    )
     println("connection open")
   }
 
@@ -63,6 +79,8 @@ class WorkflowWebsocketResource {
           skipTuple(session, skipTupleMsg)
         case breakpoint: AddBreakpointRequest =>
           addBreakpoint(session, breakpoint)
+        case paginationRequest: ResultPaginationRequest =>
+          resultPagination(session, paginationRequest)
       }
     } catch {
       case e: Throwable => {
@@ -73,16 +91,33 @@ class WorkflowWebsocketResource {
 
   }
 
-  @OnClose
-  def myOnClose(session: Session, cr: CloseReason): Unit = {
-    if (WorkflowWebsocketResource.sessionJobs.contains(session.getId)) {
-      println(s"session ${session.getId} disconnected, kill its controller actor")
-      this.killWorkflow(session)
-    }
-  }
+  def resultPagination(session: Session, request: ResultPaginationRequest): Unit = {
+    val paginatedResultEvent = PaginatedResultEvent(
+      sessionResults(session.getId)
+        .map {
+          case (operatorID, table) =>
+            (
+              operatorID,
+              table
+                .slice(
+                  request.pageSize * (request.pageIndex - 1),
+                  request.pageSize * request.pageIndex
+                )
+                .map(tuple => tuple.asInstanceOf[Tuple].asKeyValuePairJson())
+            )
+        }
+        .map {
+          case (operatorID, objNodes) =>
+            PaginatedOperatorResult(
+              operatorID,
+              objNodes,
+              sessionResults(session.getId)(operatorID).size
+            )
+        }
+        .toList
+    )
 
-  def send(session: Session, event: TexeraWebSocketEvent): Unit = {
-    session.getAsyncRemote.sendText(objectMapper.writeValueAsString(event))
+    send(session, paginatedResultEvent)
   }
 
   def addBreakpoint(session: Session, addBreakpoint: AddBreakpointRequest): Unit = {
@@ -91,15 +126,12 @@ class WorkflowWebsocketResource {
     compiler.addBreakpoint(controller, addBreakpoint.operatorID, addBreakpoint.breakpoint)
   }
 
-  def removeBreakpoint(session: Session, removeBreakpoint: RemoveBreakpointRequest): Unit = {
-    throw new UnsupportedOperationException();
-  }
-
   def skipTuple(session: Session, tupleReq: SkipTupleRequest): Unit = {
-    val actorPath = tupleReq.actorPath
-    val faultedTuple = tupleReq.faultedTuple
-    val controller = WorkflowWebsocketResource.sessionJobs(session.getId)._2
-    controller ! SkipTupleGivenWorkerRef(actorPath, faultedTuple.toFaultedTuple())
+//    val actorPath = tupleReq.actorPath
+//    val faultedTuple = tupleReq.faultedTuple
+//    val controller = WorkflowWebsocketResource.sessionJobs(session.getId)._2
+//    controller ! SkipTupleGivenWorkerRef(actorPath, faultedTuple.toFaultedTuple())
+    throw new RuntimeException("skipping tuple is temporarily disabled")
   }
 
   def modifyLogic(session: Session, newLogic: ModifyLogicRequest): Unit = {
@@ -112,33 +144,35 @@ class WorkflowWebsocketResource {
 
   def pauseWorkflow(session: Session): Unit = {
     val controller = WorkflowWebsocketResource.sessionJobs(session.getId)._2
-    controller ! Pause
+    controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, PauseWorkflow())
     // workflow paused event will be send after workflow is actually paused
     // the callback function will handle sending the paused event to frontend
   }
 
   def resumeWorkflow(session: Session): Unit = {
     val controller = WorkflowWebsocketResource.sessionJobs(session.getId)._2
-    controller ! Resume
+    controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, ResumeWorkflow())
     send(session, WorkflowResumedEvent())
   }
 
-  def killWorkflow(session: Session): Unit = {
-    WorkflowWebsocketResource.sessionJobs(session.getId)._2 ! PoisonPill
-    println("workflow killed")
+  def send(session: Session, event: TexeraWebSocketEvent): Unit = {
+    session.getAsyncRemote.sendText(objectMapper.writeValueAsString(event))
   }
 
   def executeWorkflow(session: Session, request: ExecuteWorkflowRequest): Unit = {
     val context = new WorkflowContext
-    val workflowID = Integer.toString(WorkflowWebsocketResource.nextWorkflowID.incrementAndGet)
-    context.workflowID = workflowID
+    val jobID = Integer.toString(WorkflowWebsocketResource.nextJobID.incrementAndGet)
+    context.jobID = jobID
+    context.userID = UserResource
+      .getUser(sessionMap(session.getId)._2)
+      .map(u => u.getUid)
 
     val texeraWorkflowCompiler = new WorkflowCompiler(
       WorkflowInfo(request.operators, request.links, request.breakpoints),
       context
     )
 
-    texeraWorkflowCompiler.init()
+//    texeraWorkflowCompiler.init()
     val violations = texeraWorkflowCompiler.validate
     if (violations.nonEmpty) {
       send(session, WorkflowErrorEvent(violations))
@@ -146,10 +180,12 @@ class WorkflowWebsocketResource {
     }
 
     val workflow = texeraWorkflowCompiler.amberWorkflow
-    val workflowTag = WorkflowTag.apply(workflowID)
+    val workflowTag = WorkflowIdentity(jobID)
 
     val eventListener = ControllerEventListener(
       workflowCompletedListener = completed => {
+        sessionResults.remove(session.getId)
+        sessionResults.update(session.getId, completed.result)
         send(session, WorkflowCompletedEvent.apply(completed, texeraWorkflowCompiler))
         WorkflowWebsocketResource.sessionJobs.remove(session.getId)
       },
@@ -160,12 +196,12 @@ class WorkflowWebsocketResource {
           .get
           .operatorID
         val sinkInputID = texeraWorkflowCompiler.workflowInfo.links
-          .find(link => link.destination == sinkID)
+          .find(link => link.destination.operatorID == sinkID)
           .get
           .origin
-        if (updateMutable.contains(sinkInputID)) {
-          val inputStatistics = updateMutable(sinkInputID)
-          val sinkStatistics = PrincipalStatistics(
+        if (updateMutable.contains(sinkInputID.operatorID)) {
+          val inputStatistics = updateMutable(sinkInputID.operatorID)
+          val sinkStatistics = OperatorStatistics(
             inputStatistics.operatorState,
             inputStatistics.aggregatedOutputRowCount,
             inputStatistics.aggregatedOutputRowCount
@@ -191,21 +227,44 @@ class WorkflowWebsocketResource {
       },
       recoveryStartedListener = _ => {
         send(session, RecoveryStartedEvent())
+      },
+      workflowExecutionErrorListener = errorOccurred => {
+        send(session, WorkflowExecutionErrorEvent(errorOccurred.error.convertToMap()))
       }
     )
 
     val controllerActorRef = TexeraWebApplication.actorSystem.actorOf(
-      Controller.props(workflowTag, workflow, false, eventListener, 100)
+      Controller.props(workflowTag, workflow, eventListener, 100)
     )
-    controllerActorRef ! AckedControllerInitialization
     texeraWorkflowCompiler.initializeBreakpoint(controllerActorRef)
-    controllerActorRef ! Start
+    controllerActorRef ! ControlInvocation(AsyncRPCClient.IgnoreReply, StartWorkflow())
 
     WorkflowWebsocketResource.sessionJobs(session.getId) =
       (texeraWorkflowCompiler, controllerActorRef)
 
     send(session, WorkflowStartedEvent())
 
+  }
+
+  def killWorkflow(session: Session): Unit = {
+    WorkflowWebsocketResource.sessionJobs(session.getId)._2 ! PoisonPill
+    println("workflow killed")
+  }
+
+  @OnClose
+  def myOnClose(session: Session, cr: CloseReason): Unit = {
+    if (WorkflowWebsocketResource.sessionJobs.contains(session.getId)) {
+      println(s"session ${session.getId} disconnected, kill its controller actor")
+      this.killWorkflow(session)
+    }
+
+    sessionResults.remove(session.getId)
+    sessionJobs.remove(session.getId)
+    sessionMap.remove(session.getId)
+  }
+
+  def removeBreakpoint(session: Session, removeBreakpoint: RemoveBreakpointRequest): Unit = {
+    throw new UnsupportedOperationException();
   }
 
 }

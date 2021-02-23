@@ -27,6 +27,10 @@ export interface WorkflowError extends Readonly<{
   generalErrors: Record<string, string>
 }> { }
 
+export interface WorkflowExecutionError extends Readonly<{
+  errorMap: Record<string, string>
+}> { }
+
 export type ModifyOperatorLogic = Readonly<{
   operator: LogicalOperator
 }>;
@@ -46,6 +50,14 @@ export type OperatorCurrentTuples = Readonly<{
   tuples: ReadonlyArray<WorkerTuples>
 }>;
 
+type PaginatedResultEvent = Readonly<{
+  paginatedResults: ReadonlyArray<{
+    operatorID: string,
+    table: ReadonlyArray<object>,
+    totalRowCount: number
+  }>
+}>;
+
 export type TexeraWebsocketRequestTypeMap = {
   'HelloWorldRequest': WebSocketHelloWorld,
   'ExecuteWorkflowRequest': LogicalPlan,
@@ -54,7 +66,8 @@ export type TexeraWebsocketRequestTypeMap = {
   'KillWorkflowRequest': {},
   'ModifyLogicRequest': ModifyOperatorLogic,
   'SkipTupleRequest': SkipTuple,
-  'AddBreakpointRequest': BreakpointInfo
+  'AddBreakpointRequest': BreakpointInfo,
+  'ResultPaginationRequest': {pageIndex: number, pageSize: number}
 };
 
 export type TexeraWebsocketEventTypeMap = {
@@ -68,7 +81,9 @@ export type TexeraWebsocketEventTypeMap = {
   'RecoveryStartedEvent': {},
   'BreakpointTriggeredEvent': BreakpointTriggerInfo,
   'ModifyLogicCompletedEvent': {},
-  'OperatorCurrentTuplesUpdateEvent': OperatorCurrentTuples
+  'OperatorCurrentTuplesUpdateEvent': OperatorCurrentTuples,
+  'PaginatedResultEvent': PaginatedResultEvent,
+  'WorkflowExecutionErrorEvent': WorkflowExecutionError
 };
 
 // helper type definitions to generate the request and event types

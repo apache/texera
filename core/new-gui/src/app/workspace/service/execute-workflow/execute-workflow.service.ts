@@ -19,6 +19,8 @@ import { WorkflowWebsocketService } from '../workflow-websocket/workflow-websock
 import { OperatorPredicate, BreakpointTriggerInfo, BreakpointRequest, Breakpoint } from '../../types/workflow-common.interface';
 import { TexeraWebsocketEvent, WorkerTuples, OperatorCurrentTuples } from '../../types/workflow-websocket.interface';
 import { isEqual } from 'lodash';
+import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from '../../types/result-table.interface';
+import { sessionGetObject, sessionSetObject } from 'src/app/common/util/storage';
 
 export const FORM_DEBOUNCE_TIME_MS = 150;
 
@@ -48,7 +50,9 @@ export const EXECUTION_TIMEOUT = 3000;
  * @author Zuozhi Wang
  * @author Henry Chen
  */
-@Injectable()
+@Injectable({
+  providedIn: 'root'
+})
 export class ExecuteWorkflowService {
 
   private currentState: ExecutionStateInfo = { state: ExecutionState.Uninitialized };
@@ -119,6 +123,13 @@ export class ExecuteWorkflowService {
           errorMessages[entry[0]] = entry[1];
         });
         return { state: ExecutionState.Failed, errorMessages: errorMessages };
+      // TODO: Merge WorkflowErrorEvent and ErrorEvent
+      case 'WorkflowExecutionErrorEvent':
+        const backendErrorMessages: Record<string, string> = {};
+        Object.entries(event.errorMap).forEach(entry => {
+          backendErrorMessages[entry[0]] = entry[1];
+        });
+        return { state: ExecutionState.Failed, errorMessages: backendErrorMessages };
       default:
         return this.currentState;
     }
@@ -162,7 +173,8 @@ export class ExecuteWorkflowService {
 
   public executeWorkflowAmberTexera(): void {
     // get the current workflow graph
-    const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
+    const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(
+      this.workflowActionService.getTexeraGraph());
     console.log(logicalPlan);
     // wait for the form debounce to complete, then send
     window.setTimeout(() => {
@@ -170,6 +182,14 @@ export class ExecuteWorkflowService {
     }, FORM_DEBOUNCE_TIME_MS);
     this.updateExecutionState({ state: ExecutionState.WaitingToRun });
     this.setExecutionTimeout('submit workflow timeout', ExecutionState.Running, ExecutionState.Failed);
+
+    // add flag for new execution of workflow
+    // so when next time the result panel is displayed, it will use new data
+    // instead of those stored in the session storage
+    const resultPaginationInfo = sessionGetObject<ResultPaginationInfo>(PAGINATION_INFO_STORAGE_KEY);
+    if (resultPaginationInfo) {
+      sessionSetObject(PAGINATION_INFO_STORAGE_KEY, { ...resultPaginationInfo, newWorkflowExecuted: true });
+    }
   }
 
   public pauseWorkflow(): void {
@@ -254,34 +274,7 @@ export class ExecuteWorkflowService {
    *  return workflow id to be used by workflowStatusService
    */
   public executeWorkflowOldTexera(): void {
-    // get the current workflow graph
-    const workflowPlan = this.workflowActionService.getTexeraGraph();
-
-    // create a Logical Plan based on the workflow graph
-    const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(workflowPlan);
-    const body = { operators: logicalPlan.operators, links: logicalPlan.links };
-    const requestURL = `${AppSettings.getApiEndpoint()}/${EXECUTE_WORKFLOW_ENDPOINT}`;
-
-    this.updateExecutionState({ state: ExecutionState.Running });
-
-    // make a http post request to the API endpoint with the logical plan object
-    this.http.post<SuccessExecutionResult>(
-      requestURL,
-      JSON.stringify(body),
-      { headers: { 'Content-Type': 'application/json' } })
-      .subscribe(
-        // backend will either respond an execution result or an error will occur
-        // handle both cases
-        response => {
-          const resultMap = new Map<string, ResultObject>(response.result.map(r => [r.operatorID, r]));
-          this.updateExecutionState({ state: ExecutionState.Completed, resultID: undefined, resultMap: resultMap });
-        },
-        errorResponse => {
-          const errorMessages = ExecuteWorkflowService.processErrorResponse(errorResponse);
-          this.updateExecutionState({ state: ExecutionState.Failed, errorMessages: errorMessages });
-        }
-      );
-
+    throw new Error('no longer support executing workflow on old texera engine');
   }
 
   /**
@@ -379,6 +372,13 @@ export class ExecuteWorkflowService {
    */
   public static getLogicalPlanRequest(workflowGraph: WorkflowGraphReadonly): LogicalPlan {
 
+    const getInputPortOrdinal = (operatorID: string, inputPortID: string): number => {
+      return workflowGraph.getOperator(operatorID).inputPorts.findIndex(port => port.portID === inputPortID);
+    };
+    const getOutputPortOrdinal = (operatorID: string, outputPortID: string): number => {
+      return workflowGraph.getOperator(operatorID).outputPorts.findIndex(port => port.portID === outputPortID);
+    };
+
     const operators: LogicalOperator[] = workflowGraph
       .getAllOperators().map(op => ({
         ...op.operatorProperties,
@@ -388,8 +388,8 @@ export class ExecuteWorkflowService {
 
     const links: LogicalLink[] = workflowGraph
       .getAllLinks().map(link => ({
-        origin: link.source.operatorID,
-        destination: link.target.operatorID,
+        origin: { operatorID: link.source.operatorID, portOrdinal: getOutputPortOrdinal(link.source.operatorID, link.source.portID) },
+        destination: { operatorID: link.target.operatorID, portOrdinal: getInputPortOrdinal(link.target.operatorID, link.target.portID) },
       }));
 
     const breakpoints: BreakpointInfo[] = Array.from(workflowGraph.getAllLinkBreakpoints().entries())

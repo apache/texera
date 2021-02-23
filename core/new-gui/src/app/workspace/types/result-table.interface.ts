@@ -33,3 +33,23 @@ export interface TableColumn extends Readonly<{
   header: string;
   getCell: TableCellMethod;
 }> { }
+
+export const PAGINATION_INFO_STORAGE_KEY = 'result-panel-pagination-info';
+
+export interface ViewResultOperatorInfo extends Readonly<{
+  currentResult: object[];
+  currentPageIndex: number;
+  currentPageSize: number;
+  total: number;
+  columnKeys: string[];
+  operatorID: string
+}> {}
+
+/**
+ * ResultPaginationInfo stores pagination information
+ *   that is needed for status retainment of the result panel
+ */
+export interface ResultPaginationInfo extends Readonly<{
+  newWorkflowExecuted: boolean;
+  viewResultOperatorInfoMap: Map<string, ViewResultOperatorInfo>
+}> {}

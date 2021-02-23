@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.common.operators.mlmodel
 
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
@@ -24,9 +25,12 @@ abstract class MLModelOpExec() extends OperatorExecutor with Serializable {
 
   override def close(): Unit = {}
 
-  override def processTexeraTuple(tuple: Either[Tuple, InputExhausted], input: Int): Iterator[Tuple] = {
+  override def processTexeraTuple(
+      tuple: Either[Tuple, InputExhausted],
+      input: LinkIdentity
+  ): Iterator[Tuple] = {
     tuple match {
-      case Left(t)  =>
+      case Left(t) =>
         allData += t
         Iterator()
       case Right(_) =>
@@ -41,12 +45,13 @@ abstract class MLModelOpExec() extends OperatorExecutor with Serializable {
       }
 
       override def next(): Tuple = {
-        if(nextOperation.equalsIgnoreCase("predict")) {
+        if (nextOperation.equalsIgnoreCase("predict")) {
           // set the miniBatch
-          if(nextMiniBatchStartIdx + MINIBATCH_SIZE <= allData.size) {
-            minibatch = allData.slice(nextMiniBatchStartIdx,nextMiniBatchStartIdx + MINIBATCH_SIZE).toArray
+          if (nextMiniBatchStartIdx + MINIBATCH_SIZE <= allData.size) {
+            minibatch =
+              allData.slice(nextMiniBatchStartIdx, nextMiniBatchStartIdx + MINIBATCH_SIZE).toArray
             nextMiniBatchStartIdx = nextMiniBatchStartIdx + MINIBATCH_SIZE
-          } else if(nextMiniBatchStartIdx < allData.size) {
+          } else if (nextMiniBatchStartIdx < allData.size) {
             // remaining data is less than MINIBATCH_SIZE
             minibatch = allData.slice(nextMiniBatchStartIdx, allData.size).toArray
             nextMiniBatchStartIdx = 0
@@ -58,18 +63,18 @@ abstract class MLModelOpExec() extends OperatorExecutor with Serializable {
 
           predict(minibatch)
           nextOperation = "calculateLossGradient"
-        } else if(nextOperation.equalsIgnoreCase("calculateLossGradient")) {
+        } else if (nextOperation.equalsIgnoreCase("calculateLossGradient")) {
           calculateLossGradient(minibatch)
           nextOperation = "readjustWeight"
-        }else if(nextOperation.equalsIgnoreCase("readjustWeight")) {
+        } else if (nextOperation.equalsIgnoreCase("readjustWeight")) {
           readjustWeight()
           nextOperation = "predict"
 
-          if(nextMiniBatchStartIdx == 0) {
+          if (nextMiniBatchStartIdx == 0) {
             // current epoch is over
             currentEpoch += 1
           }
-          if(currentEpoch == getTotalEpochsCount) {
+          if (currentEpoch == getTotalEpochsCount) {
             hasMoreIterations = false
           }
         }

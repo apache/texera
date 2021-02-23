@@ -4,8 +4,9 @@ import java.io.{BufferedReader, InputStreamReader}
 import java.net.{InetAddress, URL}
 
 import edu.uci.ics.amber.clustering.ClusterListener
-import akka.actor.{ActorSystem, Props}
+import akka.actor.{ActorSystem, DeadLetter, Props}
 import com.typesafe.config.ConfigFactory
+import edu.uci.ics.amber.engine.architecture.messaginglayer.DeadLetterMonitorActor
 
 object AmberUtils {
 
@@ -14,7 +15,6 @@ object AmberUtils {
       .flatMap { case (k, vs) => vs.map((_, k)) }
       .groupBy(_._1)
       .mapValues(_.map(_._2).toSet)
-
 
   def startActorMaster(localhost: Boolean): ActorSystem = {
     var localIpAddress = "localhost"
@@ -30,16 +30,18 @@ object AmberUtils {
 
     val config = ConfigFactory
       .parseString(s"""
-        akka.remote.netty.tcp.hostname = $localIpAddress
-        akka.remote.netty.tcp.port = 2552
         akka.remote.artery.canonical.port = 2552
         akka.remote.artery.canonical.hostname = $localIpAddress
-        akka.cluster.seed-nodes = [ "akka.tcp://Amber@$localIpAddress:2552" ]
+        akka.cluster.seed-nodes = [ "akka://Amber@$localIpAddress:2552" ]
+        akka.actor.serialization-bindings."java.lang.Throwable" = akka-misc
         """)
       .withFallback(ConfigFactory.load("clustered"))
 
     val system = ActorSystem("Amber", config)
     val info = system.actorOf(Props[ClusterListener], "cluster-info")
+    val deadLetterMonitorActor =
+      system.actorOf(Props[DeadLetterMonitorActor], name = "dead-letter-monitor-actor")
+    system.eventStream.subscribe(deadLetterMonitorActor, classOf[DeadLetter])
 
     system
   }
@@ -49,13 +51,17 @@ object AmberUtils {
     val localIpAddress = "localhost"
     val config = ConfigFactory
       .parseString(s"""
-        akka.remote.netty.tcp.hostname = $localIpAddress
         akka.remote.artery.canonical.hostname = $localIpAddress
-        akka.cluster.seed-nodes = [ "akka.tcp://Amber@$addr:2552" ]
+        akka.remote.artery.canonical.port = 0
+        akka.cluster.seed-nodes = [ "akka://Amber@$addr:2552" ]
+        akka.actor.serialization-bindings."java.lang.Throwable" = akka-misc
         """)
       .withFallback(ConfigFactory.load("clustered"))
     val system = ActorSystem("Amber", config)
     val info = system.actorOf(Props[ClusterListener], "cluster-info")
+    val deadLetterMonitorActor =
+      system.actorOf(Props[DeadLetterMonitorActor], name = "dead-letter-monitor-actor")
+    system.eventStream.subscribe(deadLetterMonitorActor, classOf[DeadLetter])
     Constants.masterNodeAddr = addr
     system
   }

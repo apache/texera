@@ -1,8 +1,9 @@
-# Synopsis
-Collaborative big data analytics as cloud services using GUI-based workflows.
+# Texera
+Collaborative big data analytics as cloud services using GUI-based workflows. 
 
-travis-ci
-[![Build Status](https://travis-ci.org/Texera/texera.svg?branch=master)](https://travis-ci.org/Texera/texera)
+To use Texera, follow instructions on the [Getting Started](https://github.com/Texera/texera/wiki/Getting-Started) page
+
+[![Actions Status](https://github.com/Texera/texera/workflows/build/badge.svg)](https://github.com/Texera/texera/actions)
 
 ## Publications:
 

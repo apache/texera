@@ -1,9 +1,9 @@
-import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
-import '../../../common/rxjs-operators';
 
 import { AppSettings } from '../../../common/app-setting';
+import '../../../common/rxjs-operators';
 import { OperatorMetadata, OperatorSchema } from '../../types/operator-schema.interface';
 import { BreakpointSchema } from '../../types/workflow-common.interface';
 import { mockBreakpointSchema } from './mock-operator-metadata.data';
@@ -37,21 +37,25 @@ export type IOperatorMetadataService = Pick<OperatorMetadataService, keyof Opera
  * @author Zuozhi Wang
  *
  */
-@Injectable()
+@Injectable({
+  providedIn: 'root'
+})
 export class OperatorMetadataService {
 
   // holds the current version of operator metadata
-  private currentOperatorMetadata: OperatorMetadata | undefined;
-  private currentBreakpointSchema: BreakpointSchema | undefined;
+  private currentOperatorMetadata: OperatorMetadata|undefined;
+  private currentBreakpointSchema: BreakpointSchema|undefined;
 
   private operatorMetadataObservable = this.httpClient
-    .get<OperatorMetadata>(`${AppSettings.getApiEndpoint()}/${OPERATOR_METADATA_ENDPOINT}`)
-    .startWith(EMPTY_OPERATOR_METADATA)
-    .shareReplay(1);
+                                           .get<OperatorMetadata>(`${AppSettings.getApiEndpoint()}/${OPERATOR_METADATA_ENDPOINT}`)
+                                           .startWith(EMPTY_OPERATOR_METADATA)
+                                           .shareReplay(1);
 
   constructor(private httpClient: HttpClient) {
     this.getOperatorMetadata().subscribe(
-      data => {this.currentOperatorMetadata = data; console.log(this.currentOperatorMetadata); }
+      data => {
+        this.currentOperatorMetadata = data;
+      }
     );
     // At current design, all the links have one fixed breakpoint schema stored in the frontend
     this.currentBreakpointSchema = mockBreakpointSchema;
@@ -71,11 +75,11 @@ export class OperatorMetadataService {
   }
 
   public getOperatorSchema(operatorType: string): OperatorSchema {
-    if (! this.currentOperatorMetadata) {
+    if (!this.currentOperatorMetadata) {
       throw new Error('operator metadata is undefined');
     }
     const operatorSchema = this.currentOperatorMetadata.operators.find(schema => schema.operatorType === operatorType);
-    if (! operatorSchema) {
+    if (!operatorSchema) {
       throw new Error(`can\'t find operator schema of type ${operatorType}`);
     }
     return operatorSchema;
@@ -89,7 +93,7 @@ export class OperatorMetadataService {
    * @param operatorType
    */
   public operatorTypeExists(operatorType: string): boolean {
-    if (! this.currentOperatorMetadata) {
+    if (!this.currentOperatorMetadata) {
       return false;
     }
     const operator = this.currentOperatorMetadata.operators.filter(op => op.operatorType === operatorType);
@@ -103,7 +107,7 @@ export class OperatorMetadataService {
    * At current design, this function returns the fixed schema
    */
   public getBreakpointSchema(): BreakpointSchema {
-    if (! this.currentBreakpointSchema) {
+    if (!this.currentBreakpointSchema) {
       throw new Error('breakpoint schema is undefined');
     }
     return this.currentBreakpointSchema;

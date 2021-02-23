@@ -1,4 +1,5 @@
 import { JSONSchema7 } from 'json-schema';
+import { CustomJSONSchema7 } from './custom-json-schema.interface';
 
 /**
  * This file contains multiple type declarations related to operator schema.
@@ -9,21 +10,26 @@ import { JSONSchema7 } from 'json-schema';
  *
  */
 
+export interface InputPortInfo extends Readonly<{
+  displayName?: string,
+  allowMultiInputs?: boolean,
+}> { }
+
+export interface OutputPortInfo extends Readonly<{
+  displayName?: string,
+}> { }
+
 export interface OperatorAdditionalMetadata extends Readonly<{
   userFriendlyName: string;
-  numInputPorts: number;
-  numOutputPorts: number;
   operatorGroupName: string;
-  advancedOptions?: ReadonlyArray<string>;
   operatorDescription?: string;
-  propertyDescription?: Readonly <{
-    [attribute: string]: string;
-  }>;
+  inputPorts: ReadonlyArray<InputPortInfo>;
+  outputPorts: ReadonlyArray<OutputPortInfo>;
 }> { }
 
 export interface OperatorSchema extends Readonly<{
   operatorType: string;
-  jsonSchema: Readonly<JSONSchema7>;
+  jsonSchema: Readonly<CustomJSONSchema7>;
   additionalMetadata: OperatorAdditionalMetadata;
 }> { }
 

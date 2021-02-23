@@ -1,13 +1,13 @@
 package edu.uci.ics.texera.web.model.event
 
-import edu.uci.ics.amber.engine.common.ambermessage.PrincipalMessage.ReportCurrentProcessingTuple
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ReportCurrentProcessingTuple
 
 object OperatorCurrentTuplesUpdateEvent {
   def apply(report: ReportCurrentProcessingTuple): OperatorCurrentTuplesUpdateEvent = {
     println(report)
     val workerTuples = report.tuple
       .map(p => {
-        val workerName = p._2.name;
+        val workerName = p._2.toString;
         if (p._1 == null) {
           WorkerTuples(workerName, List.empty)
         } else {
