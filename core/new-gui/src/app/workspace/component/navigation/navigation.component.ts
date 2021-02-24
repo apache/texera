@@ -281,7 +281,8 @@ export class NavigationComponent implements OnInit {
     }
     this.executeWorkflowService.downloadWorkflowExecutionResult(downloadType, this.currentWorkflowName);
     this.downloadResultPopup = this.modalService.open(DownloadPopupComponent);
-    this.downloadResultPopup.componentInstance.message = 'Downloading. It may takes a while';
+    this.downloadResultPopup.componentInstance.message = 'Collecting results. It may takes a while';
+    // set the variable to undefined when user closes the popup
     this.downloadResultPopup.result.then(() => {this.downloadResultPopup = undefined; });
   }
 

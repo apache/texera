@@ -11,23 +11,48 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.texera.web.model.event.ResultDownloadResponse
 import edu.uci.ics.texera.web.model.request.ResultDownloadRequest
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import javax.websocket.Session
 
 object ResultDownloadResource {
 
-  def apply(resultDownloadRequest: ResultDownloadRequest, sessionResults: Map[String, List[ITuple]]): ResultDownloadResponse = {
+  private final val SESSION_CACHED_RESULT = "ResultDownloadResource"
+
+  def clearCache(session: Session): Unit ={
+    session.getUserProperties.entrySet().removeIf(entry => entry.getKey.startsWith(SESSION_CACHED_RESULT))
+  }
+
+  def apply(session: Session, request: ResultDownloadRequest, sessionResults: Map[String, List[ITuple]]): ResultDownloadResponse = {
+    // look for the response cached in the session to avoid creating duplicated file
+    if (session.getUserProperties.containsKey(getSessionName(request.downloadType))){
+      return session.getUserProperties.get(getSessionName(request.downloadType)).asInstanceOf[ResultDownloadResponse]
+    }
+
     // By now the workflow should finish running. Only one operator should contain results.
     val count = sessionResults.count(p => !p._2.isEmpty)
     if (count == 0) {
-      return ResultDownloadResponse(resultDownloadRequest.downloadType, "", "The workflow contains no results")
+      return ResultDownloadResponse(request.downloadType, "", "The workflow contains no results")
     } else if (count > 1) {
-      return ResultDownloadResponse(resultDownloadRequest.downloadType, "", "The workflow does not finish running")
+      return ResultDownloadResponse(request.downloadType, "", "The workflow does not finish running")
     }
     val result: List[ITuple] = sessionResults.map(p => p._2).find(p => !p.isEmpty).get
 
-    resultDownloadRequest.downloadType match {
+    var response: ResultDownloadResponse = null
+    request.downloadType match {
       case "google_sheet" =>
-        handleGoogleSheetRequest(resultDownloadRequest, result)
+        response = handleGoogleSheetRequest(request, result)
+      case _ =>
+        response = ResultDownloadResponse(request.downloadType, "", s"Unknown download type: ${request.downloadType}")
     }
+
+    // cached the download response in the session
+    if (!response.link.isBlank){
+      session.getUserProperties.put(getSessionName(request.downloadType), response)
+    }
+    response
+  }
+
+  private def getSessionName(downloadType: String): String = {
+    s"${SESSION_CACHED_RESULT}_${downloadType}"
   }
 
   private def handleGoogleSheetRequest(resultDownloadRequest: ResultDownloadRequest, result: List[ITuple]): ResultDownloadResponse = {
@@ -103,7 +128,7 @@ object ResultDownloadResource {
   }
 
   private class SheetUploadTask(val sheetService: Sheets, val sheetId: String, val result: List[ITuple]) extends Runnable {
-    private val UPLOAD_SIZE = 100;
+    private final val UPLOAD_SIZE = 100;
 
     override def run(): Unit = {
       val content: util.List[util.List[AnyRef]] = Lists.newArrayListWithCapacity(UPLOAD_SIZE)
@@ -125,65 +150,4 @@ object ResultDownloadResource {
       }
     }
   }
-
-  //
-  //  private def createGoogleSheet(resultDownloadRequest: ResultDownloadRequest, content: Array[ITuple]): ResultDownloadResponse = {
-  //    val sheetService: Sheets = GoogleResource.createSheetService()
-  //    val title: String = resultDownloadRequest.workflowName
-  //
-  //    try {
-  //      // create sheet and get sheetId
-  //      val createSheetRequest = new Spreadsheet()
-  //        .setProperties(new SpreadsheetProperties().setTitle(title))
-  //      val targetSheet: Spreadsheet = sheetService
-  //        .spreadsheets
-  //        .create(createSheetRequest)
-  //        .setFields("spreadsheetId")
-  //        .execute
-  //      val spreadsheetId: String = targetSheet.getSpreadsheetId
-  //
-  //      val body: ValueRange = new ValueRange().setValues(convertContent(content))
-  //      val range: String = "A1"
-  //      val valueInputOption: String = "RAW"
-  //      // create the google sheet in the service account
-  //      val response: AppendValuesResponse = sheetService
-  //        .spreadsheets
-  //        .values
-  //        .append(spreadsheetId, range, body)
-  //        .setValueInputOption(valueInputOption)
-  //        .execute
-  //
-  //      // allow user to access the file
-  //      val drive:Drive = GoogleResource.createDriveService()
-  //      val sharePermission: Permission = new Permission()
-  //        .setType("anyone")
-  //        .setRole("reader")
-  //      drive.permissions()
-  //        .create(spreadsheetId, sharePermission)
-  //        .execute()
-  //
-  //      val link: String = s"https://docs.google.com/spreadsheets/d/$spreadsheetId/edit"
-  //      val message: String = s"Results saved to Google Sheet."
-  //      ResultDownloadResponse(resultDownloadRequest.downloadType, link, message)
-  //    } catch {
-  //      case e: IOException =>
-  //        ResultDownloadResponse(resultDownloadRequest.downloadType, "", "Fail to create google sheet: " + e.getMessage)
-  //    }
-  //  }
-  //
-  //  /**
-  //   * convert the tuple content into java list
-  //   * because Google Sheet API is written in Java
-  //   */
-  //  private def convertContent(content: Array[ITuple]): util.List[util.List[AnyRef]] = {
-  //    if (content.isEmpty) {
-  //      return new util.ArrayList[util.List[AnyRef]](0)
-  //    }
-  //
-  //    val schema: util.List[AnyRef] = content(0).asInstanceOf[Tuple].getSchema.getAttributeNames().asInstanceOf[util.List[AnyRef]]
-  //    // add schema at the top, followed by the result data
-  //    val sheetValues: scala.collection.mutable.WrappedArray[util.List[AnyRef]] = schema +:
-  //      content.map(tuple => tuple.asInstanceOf[Tuple].getFields)
-  //    sheetValues.asJava
-  //  }
 }

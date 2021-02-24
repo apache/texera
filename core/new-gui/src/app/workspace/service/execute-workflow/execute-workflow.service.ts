@@ -292,17 +292,6 @@ export class ExecuteWorkflowService {
       return;
     }
     this.workflowWebsocketService.send('ResultDownloadRequest', {downloadType: downloadType, workflowName: workflowName});
-    // const requestURL = `${AppSettings.getApiEndpoint()}/${DOWNLOAD_WORKFLOW_ENDPOINT}`
-    //   + `?resultID=${executionID}&downloadType=${downloadType}`;
-
-    // this.http.get(
-    //   requestURL,
-    //   { responseType: 'blob' }
-    // ).subscribe(
-    //   // response => saveAs(response, downloadName),
-    //   () => window.location.href = requestURL,
-    //   error => console.log(error)
-    // );
   }
 
   public getExecutionStateStream(): Observable<{ previous: ExecutionStateInfo, current: ExecutionStateInfo }> {

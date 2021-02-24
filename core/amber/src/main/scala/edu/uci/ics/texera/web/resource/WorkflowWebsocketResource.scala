@@ -194,12 +194,13 @@ class WorkflowWebsocketResource {
       return
     }
 
+    clearCache(session)
+
     val workflow = texeraWorkflowCompiler.amberWorkflow
     val workflowTag = WorkflowIdentity(workflowID)
 
     val eventListener = ControllerEventListener(
       workflowCompletedListener = completed => {
-        sessionResults.remove(session.getId)
         sessionResults.update(session.getId, completed.result)
         send(session, WorkflowCompletedEvent.apply(completed, texeraWorkflowCompiler))
         WorkflowWebsocketResource.sessionJobs.remove(session.getId)
@@ -261,8 +262,16 @@ class WorkflowWebsocketResource {
 
   }
 
+  /**
+   * clear the cache in the session when execute a new workflow
+   */
+  def clearCache(session: Session): Unit ={
+    sessionResults.remove(session.getId)
+    ResultDownloadResource.clearCache(session)
+  }
+
   def downloadResult(session: Session, resultDownloadRequest: ResultDownloadRequest): Unit = {
-    val resultDownloadResponse = ResultDownloadResource.apply(resultDownloadRequest, sessionResults(session.getId))
+    val resultDownloadResponse = ResultDownloadResource.apply(session, resultDownloadRequest, sessionResults(session.getId))
     send(session, resultDownloadResponse)
   }
 
