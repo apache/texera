@@ -15,11 +15,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.web.TexeraWebApplication
 import edu.uci.ics.texera.web.model.event._
 import edu.uci.ics.texera.web.model.request._
-import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
-  sessionJobs,
-  sessionMap,
-  sessionResults
-}
+import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{sessionJobs, sessionMap, sessionResults}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo}
 import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
@@ -38,7 +34,7 @@ object WorkflowWebsocketResource {
 
   // Map[sessionId, (WorkflowCompiler, ActorRef)]
   val sessionJobs = new mutable.HashMap[String, (WorkflowCompiler, ActorRef)]
-  
+
   // Map[sessionId, Map[operatorId, List[ITuple]]]
   val sessionResults = new mutable.HashMap[String, Map[String, List[ITuple]]]
 }
@@ -148,18 +144,18 @@ class WorkflowWebsocketResource {
   }
 
   def skipTuple(session: Session, tupleReq: SkipTupleRequest): Unit = {
-//    val actorPath = tupleReq.actorPath
-//    val faultedTuple = tupleReq.faultedTuple
-//    val controller = WorkflowWebsocketResource.sessionJobs(session.getId)._2
-//    controller ! SkipTupleGivenWorkerRef(actorPath, faultedTuple.toFaultedTuple())
+    //    val actorPath = tupleReq.actorPath
+    //    val faultedTuple = tupleReq.faultedTuple
+    //    val controller = WorkflowWebsocketResource.sessionJobs(session.getId)._2
+    //    controller ! SkipTupleGivenWorkerRef(actorPath, faultedTuple.toFaultedTuple())
     throw new RuntimeException("skipping tuple is temporarily disabled")
   }
 
   def modifyLogic(session: Session, newLogic: ModifyLogicRequest): Unit = {
-//    val texeraOperator = newLogic.operator
-//    val (compiler, controller) = WorkflowWebsocketResource.sessionJobs(session.getId)
-//    compiler.initOperator(texeraOperator)
-//    controller ! ModifyLogic(texeraOperator.operatorExecutor)
+    //    val texeraOperator = newLogic.operator
+    //    val (compiler, controller) = WorkflowWebsocketResource.sessionJobs(session.getId)
+    //    compiler.initOperator(texeraOperator)
+    //    controller ! ModifyLogic(texeraOperator.operatorExecutor)
     throw new RuntimeException("modify logic is temporarily disabled")
   }
 
@@ -242,7 +238,7 @@ class WorkflowWebsocketResource {
         send(session, SkipTupleResponseEvent())
       },
       reportCurrentTuplesListener = report => {
-//        send(session, OperatorCurrentTuplesUpdateEvent.apply(report))
+        //        send(session, OperatorCurrentTuplesUpdateEvent.apply(report))
       },
       recoveryStartedListener = _ => {
         send(session, RecoveryStartedEvent())

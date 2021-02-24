@@ -23,7 +23,7 @@ import java.util.List;
 public class GoogleResource {
     private static final String APPLICATION_NAME = "Texera";
     // TODO change token path
-    private static final String TOKENS_DIRECTORY_PATH = "";
+    private static final String TOKENS_DIRECTORY_PATH = "C:\\Users\\SuperTaunt\\Desktop\\tokens";
     private static final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
 
     /**
@@ -31,7 +31,7 @@ public class GoogleResource {
      * If modifying these scopes, delete your previously saved tokens/ folder.
      */
     // TODO change credential path
-    private static final String CREDENTIALS_FILE_PATH = "";
+    private static final String CREDENTIALS_FILE_PATH = "C:\\Users\\SuperTaunt\\Desktop\\credentials.json";
     private static final List<String> SCOPES = Arrays.asList(SheetsScopes.SPREADSHEETS, DriveScopes.DRIVE);
 
     public static Sheets createSheetService() throws IOException {
@@ -47,11 +47,11 @@ public class GoogleResource {
         }
     }
 
-    public static Drive creatDriveService() throws IOException {
+    public static Drive createDriveService() throws IOException {
         try {
             NetHttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
             Credential credential = getCredentials(httpTransport);
-            return new Drive.Builder(httpTransport, JSON_FACTORY, getCredentials(httpTransport))
+            return new Drive.Builder(httpTransport, JSON_FACTORY, credential)
                     .setApplicationName(APPLICATION_NAME)
                     .build();
         } catch (GeneralSecurityException e) {
