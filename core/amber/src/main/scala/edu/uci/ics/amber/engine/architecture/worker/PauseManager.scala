@@ -15,7 +15,7 @@ object PauseManager {
   final case class ExecutionPaused()
 }
 
-class PauseManager(controlOutputPort: ControlOutputPort) {
+class PauseManager {
 
   protected val logger: WorkflowLogger = WorkflowLogger("PauseManager")
 

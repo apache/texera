@@ -101,3 +101,7 @@ libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2"
 libraryDependencies += "org.scalamock" %% "scalamock" % "4.4.0" % Test
 libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.2"
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.2" % Test
+
+// https://mvnrepository.com/artifact/com.github.marianobarrios/lbmq
+libraryDependencies += "com.github.marianobarrios" % "lbmq" % "0.5.0"
+

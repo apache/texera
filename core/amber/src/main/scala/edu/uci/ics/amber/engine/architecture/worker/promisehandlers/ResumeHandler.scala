@@ -21,6 +21,7 @@ trait ResumeHandler {
       if (pauseManager.isPaused) {
         pauseManager.resume()
       }
+      dataProcessor.enableDataQueue()
       stateManager.transitTo(Running)
     }
     stateManager.getCurrentState
