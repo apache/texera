@@ -1,7 +1,5 @@
 package edu.uci.ics.texera.web
 
-import java.time.Duration
-
 import akka.actor.ActorSystem
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
@@ -9,6 +7,7 @@ import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.texera.web.resource._
 import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.web.resource.dashboard.WorkflowResource
+import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource
 import edu.uci.ics.texera.workflow.common.Utils
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
@@ -16,6 +15,8 @@ import org.eclipse.jetty.server.session.SessionHandler
 import org.eclipse.jetty.servlet.ErrorPageErrorHandler
 import org.eclipse.jetty.websocket.server.WebSocketUpgradeFilter
 import org.glassfish.jersey.media.multipart.MultiPartFeature
+
+import java.time.Duration
 
 object TexeraWebApplication {
 
@@ -61,6 +62,9 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
       webSocketUpgradeFilter
     )
 
+    // add HTTPSessionInitializer to create HTTPSession if not presented in Websocket handshake
+    environment.getApplicationContext.addEventListener(new HTTPSessionInitializer)
+
     // register SessionHandler
     environment.jersey.register(classOf[SessionHandler])
     environment.servlets.setSessionHandler(new SessionHandler)
@@ -73,6 +77,7 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
     environment.jersey().register(classOf[SchemaPropagationResource])
     environment.jersey().register(classOf[UserResource])
     environment.jersey().register(classOf[WorkflowResource])
+    environment.jersey().register(classOf[UserFileResource])
   }
 
 }

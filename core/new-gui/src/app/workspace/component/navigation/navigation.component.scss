@@ -10,7 +10,6 @@
 .texera-navigation-padded {
   height: 100%;
   width: 100%;
-  overflow: hidden;
   display: grid;
   grid-template-columns: 14% auto auto auto auto;
   grid-template-rows: calc(100% - 56px) 56px;
@@ -70,6 +69,14 @@
     }
   }
 
+  .texera-navigation-user-icon{
+    grid-column: 5/5;
+    grid-row: 1/2;
+    text-align: right;
+    z-index:2;
+    overflow: visible;
+  }
+  
   .texera-navigation-dashboard {
     grid-column: 2/3;
     grid-row: 2/2;
@@ -86,7 +93,6 @@
 
   .texera-navigation-workflow-metadata {
     --left-padding: 10px;
-
     grid-column: 2/6;
     grid-row: 1/2;
     z-index: 1;

@@ -1,3 +1,4 @@
+import { UserIconComponent } from './../../../dashboard/component/top-bar/user-icon/user-icon.component';
 import { DatePipe, Location } from '@angular/common';
 import { Component, ElementRef, Input, OnInit, ViewChild } from '@angular/core';
 import { TourService } from 'ngx-tour-ng-bootstrap';

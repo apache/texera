@@ -1,4 +1,3 @@
-
 <div class="texera-workspace-result-panel-body texera-workflow-component-body" [hidden]="!showResultPanel">
 
   <div class="texera-panel-message" *ngIf="errorMessages !== undefined">
@@ -14,22 +13,14 @@
     removing the elements, but rather modify their css to make these elements invisible
     to the users-->
   <div [hidden]="chartType">
-    <button class="btn btn-secondary" *ngIf="breakpointTriggerInfo !== undefined"
-    [disabled]="!breakpointAction" (click)="onClickSkipTuples()">
+    <button class="btn btn-secondary" *ngIf="breakpointTriggerInfo !== undefined" (click)="onClickSkipTuples()"
+      [disabled]="!breakpointAction">
       Skip Records
     </button>
     <div class="result-table" [hidden]="!currentColumns">
-      <nz-table
-        #basicTable
-        [nzData]="currentResult"
-        nzBordered="true"
-        [nzFrontPagination]="isFrontPagination"
-        [nzLoading]="isLoadingResult"
-        [nzTotal]="total"
-        [nzPageIndex]="currentPageIndex"
-        [nzPageSize]="currentPageSize"
-        (nzQueryParams)="onTableQueryParamsChange($event)"
-      >
+      <nz-table #basicTable (nzQueryParams)="onTableQueryParamsChange($event)" [nzData]="currentResult"
+        [nzFrontPagination]="isFrontPagination" [nzLoading]="isLoadingResult" [nzPageIndex]="currentPageIndex"
+        [nzPageSize]="currentPageSize" [nzTotal]="total" nzBordered="true">
         <thead>
           <tr>
             <th *ngFor="let column of currentColumns">
@@ -39,7 +30,7 @@
         </thead>
         <tbody>
           <tr *ngFor="let row of basicTable.data; let i=index;">
-            <td class = "table-row" *ngFor="let column of currentColumns" (click)="open(row)">
+            <td (click)="open(row)" *ngFor="let column of currentColumns" class="table-row">
               {{column.getCell(row)}}
             </td>
           </tr>
@@ -49,7 +40,7 @@
   </div>
 
   <div [hidden]="!chartType">
-    <texera-visualization-panel [data]="currentResult" [chartType]="chartType"></texera-visualization-panel>
+    <texera-visualization-panel [operatorID]="resultPanelOperatorID"></texera-visualization-panel>
   </div>
 
 </div>

@@ -40,12 +40,9 @@ class ControlInputPort(
       case Some(iterable) =>
         iterable.foreach {
           case call: ControlInvocation =>
-            assert(msg.from.isInstanceOf[ActorVirtualIdentity])
-            logControlInvocation(call, msg.from)
-            asyncRPCServer.receive(call, msg.from.asInstanceOf[ActorVirtualIdentity])
+            processControlInvocation(call, msg.from)
           case ret: ReturnPayload =>
-            logControlReply(ret, msg.from)
-            asyncRPCClient.fulfillPromise(ret)
+            processReturnPayload(ret, msg.from)
           case other =>
             logger.logError(
               WorkflowRuntimeError(
@@ -61,34 +58,17 @@ class ControlInputPort(
     }
   }
 
-  def logControlInvocation(call: ControlInvocation, sender: VirtualIdentity): Unit = {
-    if (call.commandID == AsyncRPCClient.IgnoreReplyAndDoNotLog) {
-      return
-    }
-    if (call.command.isInstanceOf[QueryStatistics]) {
-      return
-    }
-    logger.logInfo(
-      s"receive command: ${call.command} from ${sender.toString} (controlID: ${call.commandID})"
-    )
+  @inline
+  def processControlInvocation(invocation: ControlInvocation, from: VirtualIdentity): Unit = {
+    assert(from.isInstanceOf[ActorVirtualIdentity])
+    asyncRPCServer.logControlInvocation(invocation, from)
+    asyncRPCServer.receive(invocation, from.asInstanceOf[ActorVirtualIdentity])
   }
 
-  def logControlReply(ret: ReturnPayload, sender: VirtualIdentity): Unit = {
-    if (ret.originalCommandID == AsyncRPCClient.IgnoreReplyAndDoNotLog) {
-      return
-    }
-    if (ret.returnValue != null) {
-      if (ret.returnValue.isInstanceOf[WorkerStatistics]) {
-        return
-      }
-      logger.logInfo(
-        s"receive reply: ${ret.returnValue.getClass.getSimpleName} from ${sender.toString} (controlID: ${ret.originalCommandID})"
-      )
-    } else {
-      logger.logInfo(
-        s"receive reply: null from ${sender.toString} (controlID: ${ret.originalCommandID})"
-      )
-    }
+  @inline
+  def processReturnPayload(ret: ReturnPayload, from: VirtualIdentity): Unit = {
+    asyncRPCClient.logControlReply(ret, from)
+    asyncRPCClient.fulfillPromise(ret)
   }
 
 }

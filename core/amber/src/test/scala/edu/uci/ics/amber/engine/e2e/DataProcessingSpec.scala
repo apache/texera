@@ -1,40 +1,28 @@
 package edu.uci.ics.amber.engine.e2e
 
-import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.Constants
-import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
+import akka.actor.{ActorSystem, PoisonPill, Props}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import akka.util.Timeout
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
+import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.engine.architecture.controller.{
   Controller,
   ControllerEventListener,
   ControllerState
 }
-import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkMessage
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
-import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
+import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
-import edu.uci.ics.texera.workflow.common.workflow.{
-  BreakpointInfo,
-  OperatorLink,
-  OperatorPort,
-  WorkflowCompiler,
-  WorkflowInfo
-}
+import edu.uci.ics.texera.workflow.common.workflow._
 import edu.uci.ics.texera.workflow.operators.aggregate.AggregationFunction
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.flatspec.AnyFlatSpecLike
 
 import scala.collection.mutable
-import scala.concurrent.{Await, ExecutionContextExecutor}
+import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
-import scala.util.Random
 
 class DataProcessingSpec
     extends TestKit(ActorSystem("DataProcessingSpec"))
@@ -59,7 +47,7 @@ class DataProcessingSpec
   ): Unit = {
     val parent = TestProbe()
     val context = new WorkflowContext
-    context.workflowID = "workflow-test"
+    context.jobID = "workflow-test"
 
     val texeraWorkflowCompiler = new WorkflowCompiler(
       WorkflowInfo(operators, links, mutable.MutableList[BreakpointInfo]()),
@@ -96,7 +84,7 @@ class DataProcessingSpec
 
   "Engine" should "execute headerlessCsv->keyword->sink workflow normally" in {
     val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
-    val keywordOpDesc = TestOperators.keywordSearchOpDesc("column0", "Asia")
+    val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
     val sink = TestOperators.sinkOpDesc()
     expectCompletedAfterExecution(
       mutable.MutableList[OperatorDescriptor](headerlessCsvOpDesc, keywordOpDesc, sink),
@@ -141,7 +129,7 @@ class DataProcessingSpec
     val csvOpDesc = TestOperators.smallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
     val countOpDesc =
-      TestOperators.aggregateAndGroupbyDesc("Region", AggregationFunction.COUNT, List[String]())
+      TestOperators.aggregateAndGroupByDesc("Region", AggregationFunction.COUNT, List[String]())
     val sink = TestOperators.sinkOpDesc()
     expectCompletedAfterExecution(
       mutable.MutableList[OperatorDescriptor](csvOpDesc, keywordOpDesc, countOpDesc, sink),
@@ -163,7 +151,7 @@ class DataProcessingSpec
     val csvOpDesc = TestOperators.smallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
     val averageAndGroupbyOpDesc =
-      TestOperators.aggregateAndGroupbyDesc(
+      TestOperators.aggregateAndGroupByDesc(
         "Units Sold",
         AggregationFunction.AVERAGE,
         List[String]("Country")
@@ -192,7 +180,7 @@ class DataProcessingSpec
   "Engine" should "execute csv->(csv->)->join->sink workflow normally" in {
     val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
     val headerlessCsvOpDesc2 = TestOperators.headerlessSmallCsvScanOpDesc()
-    val joinOpDesc = TestOperators.joinOpDesc("column0", "column0")
+    val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
     val sink = TestOperators.sinkOpDesc()
     expectCompletedAfterExecution(
       mutable.MutableList[OperatorDescriptor](

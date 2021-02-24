@@ -1,16 +1,16 @@
-import { AppSettings } from '../../../../common/app-setting';
-import { environment } from '../../../../../environments/environment';
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { EMPTY, Observable } from 'rxjs';
-import { OperatorSchema } from '../../../types/operator-schema.interface';
-import { DynamicSchemaService } from '../dynamic-schema.service';
-import { ExecuteWorkflowService } from '../../execute-workflow/execute-workflow.service';
-import { WorkflowActionService } from '../../workflow-graph/model/workflow-action.service';
-import { NGXLogger } from 'ngx-logger';
 
 import { isEqual } from 'lodash';
+import { NGXLogger } from 'ngx-logger';
+import { EMPTY, Observable } from 'rxjs';
 import { CustomJSONSchema7 } from 'src/app/workspace/types/custom-json-schema.interface';
+import { environment } from '../../../../../environments/environment';
+import { AppSettings } from '../../../../common/app-setting';
+import { OperatorSchema } from '../../../types/operator-schema.interface';
+import { ExecuteWorkflowService } from '../../execute-workflow/execute-workflow.service';
+import { WorkflowActionService } from '../../workflow-graph/model/workflow-action.service';
+import { DynamicSchemaService } from '../dynamic-schema.service';
 
 // endpoint for schema propagation
 export const SCHEMA_PROPAGATION_ENDPOINT = 'queryplan/autocomplete';
@@ -66,7 +66,6 @@ export class SchemaPropagationService {
     return this.operatorInputSchemaMap[operatorID];
   }
 
-
   /**
    * Apply the schema propagation result to an operator.
    * The schema propagation result contains the input attributes of operators.
@@ -102,10 +101,8 @@ export class SchemaPropagationService {
         this.dynamicSchemaService.setDynamicSchema(operatorID, newDynamicSchema);
       }
 
-
     });
   }
-
 
   /**
    * Used for automated propagation of input schema in workflow.
@@ -121,7 +118,7 @@ export class SchemaPropagationService {
     return this.httpClient.post<SchemaPropagationResponse>(
       `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`,
       JSON.stringify(body),
-      { headers: { 'Content-Type': 'application/json' } })
+      {headers: {'Content-Type': 'application/json'}})
       .catch(err => {
         this.logger.error('schema propagation API returns error', err);
         return EMPTY;
@@ -150,7 +147,7 @@ export class SchemaPropagationService {
     const walkPropertiesRecurse = (propertyObject: { [key: string]: any }) => {
       Object.keys(propertyObject).forEach(key => {
         if (key === 'attribute' || key === 'attributes') {
-          const { [key]: [], ...removedAttributeProperties } = propertyObject;
+          const {[key]: [], ...removedAttributeProperties} = propertyObject;
           propertyObject = removedAttributeProperties;
         } else if (typeof propertyObject[key] === 'object') {
           propertyObject[key] = walkPropertiesRecurse(propertyObject[key]);
@@ -174,22 +171,24 @@ export class SchemaPropagationService {
 
     const getAttrNames = (v: CustomJSONSchema7): string[] => {
       const i = v.autofillAttributeOnPort;
-      if (i === undefined || i === null || !(typeof i === 'number') || ! Number.isInteger(i) || i >= inputAttributes.length) {
+      if (i === undefined || i === null || !Number.isInteger(i) || i >= inputAttributes.length) {
         return [];
       }
       const inputAttrAtPort = inputAttributes[i];
-      if (! inputAttrAtPort) {
+      if (!inputAttrAtPort) {
         return [];
       }
       return inputAttrAtPort.map(attr => attr.attributeName);
     };
 
     newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, (k, v) => v.autofill === 'attributeName',
-      old => ({ ...old, type: 'string', enum: getAttrNames(old), uniqueItems: true, }));
+      old => ({...old, type: 'string', enum: getAttrNames(old), uniqueItems: true}));
 
     newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, (k, v) => v.autofill === 'attributeNameList',
-      old => ({ ...old, type: 'array', uniqueItems: true,
-        items: { ...(old.items as CustomJSONSchema7), type: 'string', enum: getAttrNames(old), }, }));
+      old => ({
+        ...old, type: 'array', uniqueItems: true,
+        items: {...(old.items as CustomJSONSchema7), type: 'string', enum: getAttrNames(old)}
+      }));
 
     return {
       ...operatorSchema,
@@ -202,11 +201,13 @@ export class SchemaPropagationService {
     let newJsonSchema = operatorSchema.jsonSchema;
 
     newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, (k, v) => v.autofill === 'attributeName',
-    old => ({ ...old, type: 'string', enum: undefined, uniqueItems: undefined, }));
+      old => ({...old, type: 'string', enum: undefined, uniqueItems: undefined}));
 
     newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, (k, v) => v.autofill === 'attributeNameList',
-    old => ({ ...old, type: 'array', uniqueItems: undefined,
-      items: { ...(old.items as CustomJSONSchema7), type: 'string', enum: undefined, }, }));
+      old => ({
+        ...old, type: 'array', uniqueItems: undefined,
+        items: {...(old.items as CustomJSONSchema7), type: 'string', enum: undefined}
+      }));
 
     return {
       ...operatorSchema,
@@ -216,12 +217,11 @@ export class SchemaPropagationService {
 
 }
 
-
 // schema: an array of attribute names and types
 export interface SchemaAttribute extends Readonly<{
   attributeName: string,
-  attributeType: 'string' | 'integer' | 'double' | 'boolean' | 'ANY'
-}> { }
+  attributeType: 'string' | 'integer' | 'double' | 'boolean' | 'long' | 'timestamp' | 'ANY'
+}> {}
 
 // input schema of an operator: an array of schemas at each input port
 export type OperatorInputSchema = ReadonlyArray<ReadonlyArray<SchemaAttribute> | null>;
@@ -230,7 +230,7 @@ export type OperatorInputSchema = ReadonlyArray<ReadonlyArray<SchemaAttribute> |
  * The backend interface of the return object of a successful execution
  * of autocomplete API
  *
- * An example data format for AutocompleteSucessResult will look like:
+ * An example data format for AutocompleteSuccessResult will look like:
  * {
  *  code: 0,
  *  result: {
@@ -247,7 +247,7 @@ export interface SchemaPropagationResponse extends Readonly<{
   result: {
     [key: string]: OperatorInputSchema
   }
-}> { }
+}> {}
 
 /**
  * The backend interface of the return object of a failed execution of
@@ -256,4 +256,4 @@ export interface SchemaPropagationResponse extends Readonly<{
 export interface SchemaPropagationError extends Readonly<{
   code: -1,
   message: string
-}> { }
+}> {}

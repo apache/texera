@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.workflow.operators.aggregate
 
-import java.io.Serializable
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
@@ -17,6 +16,9 @@ import edu.uci.ics.texera.workflow.common.operators.aggregate.{
 }
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
+
+import java.io.Serializable
+import java.sql.Timestamp
 
 case class AveragePartialObj(sum: Double, count: Double) extends Serializable {}
 
@@ -42,39 +44,24 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
   var groupByKeys: List[String] = _
 
   override def operatorExecutor: AggregateOpExecConfig[_] = {
-    if (aggFunction.equals(AggregationFunction.AVERAGE)) {
-      averageAgg()
-    } else if (aggFunction.equals(AggregationFunction.COUNT)) {
-      countAgg()
-    } else if (aggFunction.equals(AggregationFunction.SUM)) {
-      sumAgg()
-    } else if (aggFunction.equals(AggregationFunction.MIN)) {
-      minAgg()
-    } else if (aggFunction.equals(AggregationFunction.MAX)) {
-      maxAgg()
-    } else {
-      throw new UnsupportedOperationException("unknown aggregation function: " + this.aggFunction)
+    aggFunction match {
+      case AggregationFunction.AVERAGE => averageAgg()
+      case AggregationFunction.COUNT   => countAgg()
+      case AggregationFunction.MAX     => maxAgg()
+      case AggregationFunction.MIN     => minAgg()
+      case AggregationFunction.SUM     => sumAgg()
+      case _ =>
+        throw new UnsupportedOperationException("Unknown aggregation function: " + aggFunction)
     }
-  }
-
-  def groupByFunc(): Tuple => Tuple = {
-    if (this.groupByKeys == null) null
-    else
-      tuple => {
-        val builder = Tuple.newBuilder()
-        groupByKeys.foreach(key =>
-          builder.add(tuple.getSchema.getAttribute(key), tuple.getField(key))
-        )
-        builder.build()
-      }
   }
 
   def sumAgg(): AggregateOpExecConfig[_] = {
     val aggregation = new DistributedAggregation[java.lang.Double](
       () => 0,
       (partial, tuple) => {
-        val value = tuple.getField(attribute).toString.toDouble
-        partial + value
+        val value = getNumericalValue(tuple)
+        partial + (if (value.isDefined) value.get else 0)
+
       },
       (partial1, partial2) => partial1 + partial2,
       partial => {
@@ -92,7 +79,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     val aggregation = new DistributedAggregation[Integer](
       () => 0,
       (partial, tuple) => {
-        partial + 1
+        partial + (if (tuple.getField(attribute) != null) 1 else 0)
       },
       (partial1, partial2) => partial1 + partial2,
       partial => {
@@ -106,12 +93,24 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     )
   }
 
+  def groupByFunc(): Tuple => Tuple = {
+    if (this.groupByKeys == null) null
+    else
+      tuple => {
+        val builder = Tuple.newBuilder()
+        groupByKeys.foreach(key =>
+          builder.add(tuple.getSchema.getAttribute(key), tuple.getField(key))
+        )
+        builder.build()
+      }
+  }
+
   def minAgg(): AggregateOpExecConfig[_] = {
     val aggregation = new DistributedAggregation[java.lang.Double](
       () => Double.MaxValue,
       (partial, tuple) => {
-        val value = tuple.getField(attribute).toString.toDouble
-        if (value < partial) value else partial
+        val value = getNumericalValue(tuple)
+        if (value.isDefined && value.get < partial) value.get else partial
       },
       (partial1, partial2) => if (partial1 < partial2) partial1 else partial2,
       partial => {
@@ -131,8 +130,8 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     val aggregation = new DistributedAggregation[java.lang.Double](
       () => Double.MinValue,
       (partial, tuple) => {
-        val value = tuple.getField(attribute).toString.toDouble
-        if (value > partial) value else partial
+        val value = getNumericalValue(tuple)
+        if (value.isDefined && value.get > partial) value.get else partial
       },
       (partial1, partial2) => if (partial1 > partial2) partial1 else partial2,
       partial => {
@@ -148,12 +147,25 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     )
   }
 
+  private def getNumericalValue(tuple: Tuple): Option[Double] = {
+    val value: Object = tuple.getField(attribute)
+    if (value == null)
+      return None
+
+    if (tuple.getSchema.getAttribute(attribute).getType == AttributeType.TIMESTAMP)
+      Option(Timestamp.valueOf(value.toString).getTime.toDouble)
+    else Option(value.toString.toDouble)
+  }
+
   def averageAgg(): AggregateOpExecConfig[_] = {
     val aggregation = new DistributedAggregation[AveragePartialObj](
       () => AveragePartialObj(0, 0),
       (partial, tuple) => {
-        val value = tuple.getField(attribute).toString.toDouble
-        AveragePartialObj(partial.sum + value, partial.count + 1)
+        val value = getNumericalValue(tuple)
+        AveragePartialObj(
+          partial.sum + (if (value.isDefined) value.get else 0),
+          partial.count + (if (value.isDefined) 1 else 0)
+        )
       },
       (partial1, partial2) =>
         AveragePartialObj(partial1.sum + partial2.sum, partial1.count + partial2.count),
@@ -172,7 +184,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "Aggregate",
-      "calculate different types of aggregation values",
+      "Calculate different types of aggregation values",
       OperatorGroupConstants.UTILITY_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())

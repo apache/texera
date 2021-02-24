@@ -13,21 +13,27 @@ import scala.collection.JavaConverters;
 import scala.util.Either;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Merge word count maps into a single map (termFreqMap), calculate the size of each token based on its count, and
- * output as tuples of (word, size).
- * @author Mingji Han, Xiaozhen Liu
+ * output as tuples of (word, count).
  *
+ * @author Mingji Han, Xiaozhen Liu
  */
 public class WordCloudOpFinalExec implements OperatorExecutor {
-    private final int MAX_FONT_SIZE = 200;
-    private final int MIN_FONT_SIZE = 50;
+
     private HashMap<String, Integer> termFreqMap;
+    private final int topN;
     private static final Schema resultSchema = Schema.newBuilder().add(
             new Attribute("word", AttributeType.STRING),
-            new Attribute("size", AttributeType.INTEGER)
+            new Attribute("count", AttributeType.INTEGER)
     ).build();
+
+
+    public WordCloudOpFinalExec(int topN) {
+        this.topN = topN;
+    }
 
     @Override
     public void open() {
@@ -46,35 +52,25 @@ public class WordCloudOpFinalExec implements OperatorExecutor {
 
     @Override
     public Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, LinkIdentity input) {
-       if(tuple.isLeft()) {
-           String term = tuple.left().get().getString(0);
-           int frequency = tuple.left().get().getInt(1);
-           termFreqMap.put(term, termFreqMap.get(term)==null ? frequency : termFreqMap.get(term) + frequency);
-           return JavaConverters.asScalaIterator(Iterators.emptyIterator());
-       }
-       else {
-           double minValue = Double.MAX_VALUE;
-           double maxValue = Double.MIN_VALUE;
+        if (tuple.isLeft()) {
+            String term = tuple.left().get().getString(0);
+            int frequency = tuple.left().get().getInt(1);
+            termFreqMap.put(term, termFreqMap.get(term) == null ? frequency : termFreqMap.get(term) + frequency);
+            return JavaConverters.asScalaIterator(Iterators.emptyIterator());
+        } else {
 
-           for (Map.Entry<String, Integer> e : termFreqMap.entrySet()) {
-               int frequency = e.getValue();
-               minValue = Math.min(minValue, frequency);
-               maxValue = Math.max(maxValue, frequency);
-           }
-           // normalize the font size for wordcloud js
-           // https://github.com/timdream/wordcloud2.js/issues/53
-           List<Tuple> termFreqTuples = new ArrayList<>();
-           for (Map.Entry<String, Integer> e : termFreqMap.entrySet()) {
-               termFreqTuples.add(Tuple.newBuilder().add(
-                       resultSchema,
-                       Arrays.asList(
-                               e.getKey(),
-                               (int) ((e.getValue() - minValue) / (maxValue - minValue) *
-                                       (this.MAX_FONT_SIZE - this.MIN_FONT_SIZE) + this.MIN_FONT_SIZE)
-                       )
-               ).build());
-           }
-           return JavaConverters.asScalaIterator(termFreqTuples.iterator());
-       }
+            List<Map.Entry<String, Integer>> topNWordFreqs = termFreqMap.entrySet().stream()
+                    .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+                    .limit(topN).collect(Collectors.toList());
+
+            List<Tuple> termFreqTuples = new ArrayList<>();
+            for (Map.Entry<String, Integer> e : topNWordFreqs) {
+                termFreqTuples.add(Tuple.newBuilder().add(
+                        resultSchema,
+                        Arrays.asList(e.getKey(), e.getValue())
+                ).build());
+            }
+            return JavaConverters.asScalaIterator(termFreqTuples.iterator());
+        }
     }
 }
