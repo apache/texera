@@ -32,14 +32,15 @@ public class PythonUDFOpExec implements OperatorExecutor {
     private final String pythonScriptText;
     private final ArrayList<String> inputColumns;
     private final ArrayList<Attribute> outputColumns;
-    private static final String PYTHON = "/Users/yicong-huang/IdeaProjects/texera/core/venv/bin/python3";
+    private static final String PYTHON = "python3";
+    private final ArrayList<String> arguments;
     private final ArrayList<String> outerFilePaths;
     private final int batchSize;
     private final boolean isDynamic;
 
     private static final int MAX_TRY_COUNT = 20;
     private static final long WAIT_TIME_MS = 500;
-    private static final String PYTHON = "python3";
+
     private static final String DAEMON_SCRIPT_PATH = getPythonResourcePath("texera_udf_server_main.py");
 
     private static final RootAllocator globalRootAllocator = new RootAllocator();
@@ -160,6 +161,173 @@ public class PythonUDFOpExec implements OperatorExecutor {
     }
 
     /**
+     * Generate the absolute path in the Python UDF folder from a file name.
+     *
+     * @param fileName Input file name, not a path.
+     * @return The absolute path in the Python UDF folder.
+     */
+    private static String getPythonResourcePath(String fileName) {
+        fileName = fileName.trim();
+        if (fileName.startsWith("/")) {
+            fileName = fileName.substring(1);
+        }
+        return Utils.amberHomePath().resolve("src/main/resources/python_udf").resolve(fileName).toString();
+    }
+
+    /**
+     * Get a random free port.
+     *
+     * @return The port number.
+     * @throws IOException,RuntimeException Might happen when getting a free port.
+     */
+    private static int getFreeLocalPort() throws IOException, RuntimeException {
+        ServerSocket s = null;
+        try {
+            // ServerSocket(0) results in availability of a free random port
+            s = new ServerSocket(0);
+            return s.getLocalPort();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } finally {
+            assert s != null;
+            s.close();
+        }
+    }
+
+    /**
+     * Converts an Arrow table schema into Amber schema.
+     *
+     * @param arrowSchema The arrow table schema to be converted.
+     * @return The Amber Schema converted from Arrow Table Schema.
+     */
+    private static Schema convertArrow2AmberSchema(org.apache.arrow.vector.types.pojo.Schema arrowSchema) {
+        List<Attribute> amberAttributes = new ArrayList<>();
+        for (Field f : arrowSchema.getFields()) {
+            AttributeType amberAttributeType;
+            switch (f.getFieldType().getType().getTypeID()) {
+                case Int:
+                    amberAttributeType = AttributeType.INTEGER;
+                    break;
+                case Bool:
+                    amberAttributeType = AttributeType.BOOLEAN;
+                    break;
+                case FloatingPoint:
+                    amberAttributeType = AttributeType.DOUBLE;
+                    break;
+                case Utf8:
+                    amberAttributeType = AttributeType.STRING;
+                    break;
+                default:
+                    throw new IllegalStateException("Unexpected value: " + f.getFieldType().getType().getTypeID());
+            }
+            amberAttributes.add(new Attribute(f.getName(), amberAttributeType));
+        }
+        return new Schema(amberAttributes);
+    }
+
+    @Override
+    public void close() {
+        closeClientAndServer(flightClient, true);
+    }
+
+    private void processOneBatch() {
+        writeArrowStream(flightClient, inputTupleBuffer, globalRootAllocator, globalInputSchema, "toPython", batchSize);
+        executeUDF(flightClient, globalObjectMapper, outputTupleBuffer);
+    }
+
+    @Override
+    public void open() {
+        try {
+            pythonScriptPath = isDynamic ?
+                    getPythonResourcePath(String.valueOf(new Random().nextLong())) + ".py"
+                    : getPythonResourcePath(pythonScriptPath);
+            if (isDynamic) {
+                // dynamic -> create a temp file and write the code into the file
+                File tempScriptFile = new File(pythonScriptPath);
+
+                if (tempScriptFile.createNewFile()) {
+                    FileWriter fileWriter = new FileWriter(pythonScriptPath);
+                    fileWriter.write(pythonScriptText);
+                    fileWriter.close();
+                }
+            } else {
+                // static -> check if the script file exists
+                File scriptFile = new File(pythonScriptPath);
+                if (!scriptFile.exists()) throw new Exception("Script file doest not exist!");
+            }
+
+            int portNumber = getFreeLocalPort();
+            Location location = new Location(URI.create("grpc+tcp://localhost:" + portNumber));
+            List<String> args = new ArrayList<>(
+                    Arrays.asList(PYTHON, DAEMON_SCRIPT_PATH, Integer.toString(portNumber), pythonScriptPath)
+            );
+
+            ProcessBuilder processBuilder = new ProcessBuilder(args).inheritIO();
+            // Start Flight server (Python process)
+            processBuilder.start();
+            // Connect to server
+            boolean connected = false;
+            int tryCount = 0;
+            while (!connected && tryCount < MAX_TRY_COUNT) {
+                try {
+                    Thread.sleep(WAIT_TIME_MS);
+                    flightClient = FlightClient.builder(globalRootAllocator, location).build();
+                    String message = new String(
+                            flightClient.doAction(new Action("healthcheck")).next().getBody(), StandardCharsets.UTF_8);
+                    connected = message.equals("Flight Server is up and running!");
+                } catch (Exception e) {
+                    System.out.println("Flight Client:\tNot connected to the server in this try.");
+                    flightClient.close();
+                    tryCount++;
+                }
+            }
+            if (tryCount == MAX_TRY_COUNT)
+                throw new RuntimeException("Exceeded try limit of " + MAX_TRY_COUNT + " when connecting to Flight Server!");
+        } catch (Exception e) {
+            e.printStackTrace();
+            try {
+                if (isDynamic) deleteTempFile(pythonScriptPath);
+            } catch (Exception innerException) {
+                innerException.printStackTrace();
+            }
+        }
+
+        // Send user args to Server.
+        List<String> userArgs = new ArrayList<>();
+        if (inputColumns != null) userArgs.addAll(inputColumns);
+        if (arguments != null) userArgs.addAll(arguments);
+        if (outputColumns != null) {
+            for (Attribute a : outputColumns) userArgs.add(a.getName());
+        }
+        if (outerFilePaths != null) userArgs.addAll(outerFilePaths);
+
+        Schema argsSchema = new Schema(Collections.singletonList(new Attribute("args", AttributeType.STRING)));
+        Queue<Tuple> argsTuples = new LinkedList<>();
+        for (String arg : userArgs) {
+            argsTuples.add(new Tuple(argsSchema, Collections.singletonList(arg)));
+        }
+
+        try {
+            writeArrowStream(flightClient, argsTuples, globalRootAllocator, convertAmber2ArrowSchema(argsSchema), "args", batchSize);
+            flightClient.doAction(new Action("open")).next().getBody();
+        } catch (Exception e) {
+            e.printStackTrace();
+            try {
+                if (isDynamic) deleteTempFile(pythonScriptPath);
+            } catch (Exception innerException) {
+                innerException.printStackTrace();
+            }
+            closeAndThrow(flightClient, e);
+        }
+        // Finally, delete the temp file because it has been loaded in Python.
+        try {
+            if (isDynamic) deleteTempFile(pythonScriptPath);
+        } catch (Exception e) {
+            closeAndThrow(flightClient, e);
+        }
+    }
+
+    /**
      * Converts an Amber schema into Arrow schema.
      *
      * @param amberSchema The Amber Tuple Schema.
@@ -206,9 +374,22 @@ public class PythonUDFOpExec implements OperatorExecutor {
                     closeAndThrow(flightClient, e);
                 }
             }
-            amberAttributes.add(new Attribute(f.getName(), amberAttributeType));
+            inputTupleBuffer.add(inputTuple);
+            if (inputTupleBuffer.size() == batchSize) {
+                // This batch is full, execute the UDF.
+                outputTupleBuffer = new LinkedList<>();
+                processOneBatch();
+                return JavaConverters.asScalaIterator(outputTupleBuffer.iterator());
+            }
+        } else {
+            if (inputTupleBuffer != null && !inputTupleBuffer.isEmpty()) {
+                // There are some unprocessed tuples, finish them.
+                outputTupleBuffer = new LinkedList<>();
+                processOneBatch();
+                return JavaConverters.asScalaIterator(outputTupleBuffer.iterator());
+            }
         }
-        return new Schema(amberAttributes);
+        return JavaConverters.asScalaIterator(Collections.emptyIterator());
     }
 
     /**
