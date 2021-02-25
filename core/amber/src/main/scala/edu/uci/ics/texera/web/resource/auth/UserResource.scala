@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.resource.auth
 
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.request.auth.{UserLoginRequest, UserRegistrationRequest}
@@ -51,11 +51,11 @@ class UserResource {
 
     // try to fetch the record
     val userUid = SqlServer.createDSLContext
-            .select(USER.UID)
-            .from(USER)
-            .where(USER.NAME.eq(request.userName).and(USER.PASSWORD.eq(request.password)))
-            .fetchAny()
-            .value1()
+          .select(USER.UID)
+          .from(USER)
+          .where(USER.NAME.eq(request.userName).and(USER.PASSWORD.eq(request.password)))
+          .fetchAny()
+          .value1()
 
     if (userUid == null) { // not found
       return Response.status(Response.Status.UNAUTHORIZED).build()
