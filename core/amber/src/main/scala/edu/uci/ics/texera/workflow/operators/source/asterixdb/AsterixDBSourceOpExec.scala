@@ -4,7 +4,10 @@ import com.github.tototoshi.csv.CSVParser
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
-import edu.uci.ics.texera.workflow.operators.source.asterixdb.AsterixDBConnUtil.queryAsterixDB
+import edu.uci.ics.texera.workflow.operators.source.asterixdb.AsterixDBConnUtil.{
+  queryAsterixDB,
+  updateAsterixDBVersionMapping
+}
 import edu.uci.ics.texera.workflow.operators.source.SQLSourceOpExec
 
 import java.sql._
@@ -37,6 +40,8 @@ class AsterixDBSourceOpExec private[asterixdb] (
       batchByColumn,
       interval
     ) {
+  // update AsterixDB API version upon initialization.
+  updateAsterixDBVersionMapping(host, port)
 
   // format Timestamp. TODO: move to some util package
   val formatter: DateTimeFormatter =
