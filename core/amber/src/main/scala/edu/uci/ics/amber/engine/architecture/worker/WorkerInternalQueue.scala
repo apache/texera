@@ -3,8 +3,10 @@ package edu.uci.ics.amber.engine.architecture.worker
 import java.util.concurrent.{LinkedBlockingDeque, LinkedBlockingQueue}
 
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{
-  InternalQueueElement,
-  UnblockForControlCommands
+  CONTROL_QUEUE,
+  ControlElement,
+  DATA_QUEUE,
+  InternalQueueElement
 }
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
@@ -15,56 +17,51 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   LinkIdentity,
   VirtualIdentity
 }
+import lbmq.LinkedBlockingMultiQueue
 
 object WorkerInternalQueue {
   // 4 kinds of elements can be accepted by internal queue
   sealed trait InternalQueueElement
 
-  //TODO: check if this is creating overhead
   case class InputTuple(tuple: ITuple) extends InternalQueueElement
   case class SenderChangeMarker(newUpstreamLink: LinkIdentity) extends InternalQueueElement
   case object EndMarker extends InternalQueueElement
   case object EndOfAllMarker extends InternalQueueElement
+  case class ControlElement(cmd: ControlPayload, from: VirtualIdentity) extends InternalQueueElement
 
-  /**
-    * Used to unblock the dp thread when pause arrives but
-    * dp thread is blocked waiting for the next element in the
-    * worker-internal-queue
-    */
-  case object UnblockForControlCommands extends InternalQueueElement
+  final val DATA_QUEUE = 1
+  final val CONTROL_QUEUE = 0
+
 }
 
 /** Inspired by the mailbox-ed thread, the internal queue should
   * be a part of DP thread.
   */
 trait WorkerInternalQueue {
-  // blocking deque for batches:
-  // main thread put batches into this queue
-  // tuple input (dp thread) take batches from this queue
-  protected val dataDeque = new LinkedBlockingDeque[InternalQueueElement]
 
-  protected val controlQueue = new LinkedBlockingQueue[(ControlPayload, VirtualIdentity)]
+  private val lbmq = new LinkedBlockingMultiQueue[Int, InternalQueueElement]()
 
-  def isDataDequeEmpty: Boolean = dataDeque.isEmpty
+  lbmq.addSubQueue(DATA_QUEUE, DATA_QUEUE)
+  lbmq.addSubQueue(CONTROL_QUEUE, CONTROL_QUEUE)
 
-  def isControlQueueEmpty: Boolean = controlQueue.isEmpty
+  private val dataQueue = lbmq.getSubQueue(DATA_QUEUE)
+
+  private val controlQueue = lbmq.getSubQueue(CONTROL_QUEUE)
 
   def appendElement(elem: InternalQueueElement): Unit = {
-    dataDeque.add(elem)
-  }
-
-  /* called when user want to fix/resume current tuple */
-  def prependElement(elem: InternalQueueElement): Unit = {
-    dataDeque.addFirst(elem)
+    dataQueue.add(elem)
   }
 
   def enqueueCommand(cmd: ControlPayload, from: VirtualIdentity): Unit = {
-    // this enqueue operation MUST happen before checking data queue.
-    controlQueue.add((cmd, from))
-    // enqueue a unblock data message if data queue is empty.
-    if (isDataDequeEmpty) {
-      appendElement(UnblockForControlCommands)
-    }
+    controlQueue.add(ControlElement(cmd, from))
   }
+
+  def getElement: InternalQueueElement = lbmq.take()
+
+  def disableDataQueue(): Unit = dataQueue.enable(false)
+
+  def enableDataQueue(): Unit = dataQueue.enable(true)
+
+  def isControlQueueEmpty: Boolean = controlQueue.isEmpty
 
 }

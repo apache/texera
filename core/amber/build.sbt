@@ -108,4 +108,6 @@ libraryDependencies += "com.google.api-client" % "google-api-client" % "1.31.1"
 libraryDependencies += "com.google.apis" % "google-api-services-sheets" % "v4-rev612-1.25.0"
 libraryDependencies += "com.google.apis" % "google-api-services-drive" % "v3-rev197-1.25.0"
 
+// https://mvnrepository.com/artifact/com.github.marianobarrios/lbmq
+libraryDependencies += "com.github.marianobarrios" % "lbmq" % "0.5.0"
 
