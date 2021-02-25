@@ -2,8 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { UserService } from '../../../../../common/service/user/user.service';
 import { User } from '../../../../../common/type/user';
-import { isDefined } from '../../../../../common/util/predicate';
-
+import {Validators, FormControl, FormGroup, FormBuilder} from '@angular/forms';
 /**
  * NgbdModalUserLoginComponent is the pop up for user login/registration
  *
@@ -16,12 +15,16 @@ import { isDefined } from '../../../../../common/util/predicate';
 })
 export class NgbdModalUserLoginComponent implements OnInit {
   public loginUserName: string = '';
+  public loginPassword = new FormControl('', [Validators.required]);
   public registerUserName: string = '';
+  public registerPassword = new FormControl('', [Validators.required]);
+  public registerConfirmationPassword = new FormControl('', [Validators.required]);
   public selectedTab = 0;
   public loginErrorMessage: string | undefined;
   public registerErrorMessage: string | undefined;
 
   constructor(
+    private fb: FormBuilder,
     public activeModal: NgbActiveModal,
     private userService: UserService) {
   }
@@ -30,6 +33,24 @@ export class NgbdModalUserLoginComponent implements OnInit {
     this.detectUserChange();
   }
 
+  signupForms = new FormGroup(
+    {
+      password: new FormControl('', [Validators.required]),
+      verifyPassword: new FormControl('', [Validators.required]),
+    },
+  )
+
+  public errorMessageLoginPasswordNull(): string{
+    return this.loginPassword.hasError('required') ? "Password required" : "";
+  }
+
+  public errorMessageRegisterPasswordNull(): string{
+    return this.registerPassword.hasError('required') ? "Password required" : "";
+  }
+
+  public errorMessageRegisterConfirmationPasswordNull(): string{
+    return this.registerConfirmationPassword.hasError('required') ? "Confirmation required" : "";
+  }
   /**
    * This method is respond for the sign in button in the pop up
    * It will send data inside the text entry to the user service to login
@@ -44,7 +65,7 @@ export class NgbdModalUserLoginComponent implements OnInit {
     }
 
     // validate the credentials with backend
-    this.userService.login(this.loginUserName).subscribe(
+    this.userService.login(this.loginUserName, this.loginPassword.value).subscribe(
       () => {
         this.userService.changeUser(<User>{name: this.loginUserName});
         this.activeModal.close();
@@ -59,15 +80,23 @@ export class NgbdModalUserLoginComponent implements OnInit {
   public register(): void {
     // validate the credentials format
     this.registerErrorMessage = undefined;
-    const validation = this.userService.validateUsername(this.registerUserName);
+    const validation = this.userService.validateUsername(this.registerUserName.trim());
+    if (this.registerPassword.value.length < 6){
+      this.registerErrorMessage = 'Password length should be greater than 5';
+      return; 
+    }
+    if (this.registerPassword.value !== this.registerConfirmationPassword.value){
+      this.registerErrorMessage = 'Passwords do not match';
+      return; 
+    }
     if (!validation.result) {
       this.registerErrorMessage = validation.message;
       return;
     }
     // register the credentials with backend
-    this.userService.register(this.registerUserName).subscribe(
+    this.userService.register(this.registerUserName.trim(), this.registerPassword.value).subscribe(
       () => {
-        this.userService.changeUser(<User>{name: this.registerUserName});
+        this.userService.changeUser(<User>{name: this.registerUserName.trim()});
         this.activeModal.close();
 
       }, () => this.registerErrorMessage = 'Registration failed. Could due to duplicate username.');
@@ -77,9 +106,15 @@ export class NgbdModalUserLoginComponent implements OnInit {
    * this method will handle the pop up when user successfully login
    */
   private detectUserChange(): void {
-    // TODO temporary solution, need improvement
-    this.userService.userChanged().filter(isDefined).subscribe(() => {
-      this.activeModal.close();
-    });
+    this.userService.userChanged().subscribe(
+      () => {
+        if (this.userService.getUser()) {
+          // TODO temporary solution, need improvement
+          this.activeModal.close();
+        }
+      }
+    );
   }
+
 }
+

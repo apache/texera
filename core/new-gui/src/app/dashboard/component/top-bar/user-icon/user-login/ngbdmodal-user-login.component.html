@@ -12,11 +12,17 @@
       <div class="content">
         <mat-dialog-content>
           <mat-form-field>
-            <input matInput [(ngModel)]="loginUserName" placeholder="Username">
+            <input matInput [(ngModel)]="loginUserName" placeholder="Username" required>
+          </mat-form-field>
+          <br>
+          <mat-form-field>
+            <input matInput placeholder="Password" 
+            type="password" [formControl]="loginPassword" required>
+            <mat-error *ngIf="loginPassword.invalid">{{errorMessageLoginPasswordNull()}}</mat-error>
           </mat-form-field>
         </mat-dialog-content>
         <div><button class="btn btn-info" (click)="login()"> Sign In </button></div>
-        <p *ngIf="loginErrorMessage">{{ loginErrorMessage }}</p>
+        <p *ngIf="loginErrorMessage" style="color:red">{{ loginErrorMessage }}</p>
       </div>
     </mat-tab>
 
@@ -25,11 +31,23 @@
       <div class="content">
         <mat-dialog-content>
           <mat-form-field>
-            <input matInput [(ngModel)]="registerUserName" placeholder="Username">
+            <input matInput [(ngModel)]="registerUserName" placeholder="Username" required>
+          </mat-form-field>
+          <br>
+          <mat-form-field>
+            <input matInput name="password" placeholder="Password" [formControl]="registerPassword"
+            type="password" required>
+            <mat-error *ngIf="registerPassword.invalid">{{errorMessageRegisterPasswordNull()}}</mat-error>
+          </mat-form-field>
+          <br>
+          <mat-form-field>
+            <input matInput placeholder="Password Confirmation"
+            type="password" [formControl]="registerConfirmationPassword" required>
+            <mat-error *ngIf="registerConfirmationPassword.invalid">{{errorMessageRegisterConfirmationPasswordNull()}}</mat-error>
           </mat-form-field>
         </mat-dialog-content>
         <div><button class="btn btn-info" (click)="register()"> Sign Up </button></div>
-        <p *ngIf="registerErrorMessage">{{ registerErrorMessage }}</p>
+        <p *ngIf="registerErrorMessage" style="color:red">{{ registerErrorMessage }}</p>
       </div>
     </mat-tab>
   </mat-tab-group>

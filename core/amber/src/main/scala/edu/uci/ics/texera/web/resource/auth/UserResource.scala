@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.web.resource.auth
 
 import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.request.auth.{UserLoginRequest, UserRegistrationRequest}
@@ -8,7 +9,6 @@ import edu.uci.ics.texera.web.resource.auth.UserResource.{getUser, setUserSessio
 import io.dropwizard.jersey.sessions.Session
 import org.apache.commons.lang3.tuple.Pair
 import org.jooq.exception.DataAccessException
-
 import javax.servlet.http.HttpSession
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
@@ -50,11 +50,17 @@ class UserResource {
   def login(@Session session: HttpSession, request: UserLoginRequest): Response = {
 
     // try to fetch the record
-    val user = this.userDao.fetchOneByName(request.userName)
-    if (user == null) { // not found
+    val userUid = SqlServer.createDSLContext
+            .select(USER.UID)
+            .from(USER)
+            .where(USER.NAME.eq(request.userName).and(USER.PASSWORD.eq(request.password)))
+            .fetchAny()
+            .value1()
+
+    if (userUid == null) { // not found
       return Response.status(Response.Status.UNAUTHORIZED).build()
     }
-    setUserSession(session, new User(request.userName, user.getUid))
+    setUserSession(session, new User(request.userName, userUid, null))
     Response.ok().build()
   }
 
@@ -62,6 +68,7 @@ class UserResource {
   @Path("/register")
   def register(@Session session: HttpSession, request: UserRegistrationRequest): Response = {
     val userName = request.userName
+    val password = request.password
     val validationResult = validateUsername(userName)
     if (!validationResult.getLeft)
       // Using BAD_REQUEST as no other status code is suitable. Better to use 422.
@@ -71,7 +78,9 @@ class UserResource {
     try {
       val user = new User
       user.setName(userName)
+      user.setPassword(password)
       this.userDao.insert(user)
+      user.setPassword(null)
       setUserSession(session, user)
       Response.ok().build()
     } catch {
