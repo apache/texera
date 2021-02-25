@@ -51,11 +51,11 @@ class UserResource {
 
     // try to fetch the record
     val userUid = SqlServer.createDSLContext
-                    .select(USER.UID)
-                    .from(USER)
-                    .where(USER.NAME.eq(request.userName).and(USER.PASSWORD.eq(request.password)))
-                    .fetchAny()
-                    .value1()
+      .select(USER.UID)
+      .from(USER)
+      .where(USER.NAME.eq(request.userName).and(USER.PASSWORD.eq(request.password)))
+      .fetchAny()
+      .value1()
 
     if (userUid == null) { // not found
       return Response.status(Response.Status.UNAUTHORIZED).build()
