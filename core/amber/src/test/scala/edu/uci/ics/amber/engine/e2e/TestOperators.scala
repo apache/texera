@@ -61,7 +61,7 @@ object TestOperators {
 
   def asterixDBSourceOpDesc(): AsterixDBSourceOpDesc = {
     val asterixDBOp = new AsterixDBSourceOpDesc()
-    asterixDBOp.host = "americium.ics.uci.edu" // Big AsterixDB at version 0.9.4
+    asterixDBOp.host = "ipubmed4.ics.uci.edu" // AsterixDB at version 0.9.5
     asterixDBOp.port = "default"
     asterixDBOp.database = "twitter"
     asterixDBOp.table = "ds_tweet"
