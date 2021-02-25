@@ -175,7 +175,6 @@ registerLocaleData(en);
     TourNgBootstrapModule.forRoot(),
 
     FileUploadModule,
-    FormsModule,
     ReactiveFormsModule,
     LoggerModule.forRoot({ level: environment.production ? NgxLoggerLevel.ERROR : NgxLoggerLevel.DEBUG, serverLogLevel: NgxLoggerLevel.OFF }),
     FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),

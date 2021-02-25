@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { UserService } from '../../../../../common/service/user/user.service';
 import { User } from '../../../../../common/type/user';
-import {Validators, FormControl, FormGroup, FormBuilder, ReactiveFormsModule} from '@angular/forms';
+import {Validators, FormControl, FormGroup, FormBuilder} from '@angular/forms';
 /**
  * NgbdModalUserLoginComponent is the pop up for user login/registration
  *
