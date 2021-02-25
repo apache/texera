@@ -6,10 +6,7 @@ import akka.actor.{ActorRef, PoisonPill}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
-import edu.uci.ics.amber.engine.architecture.controller.{
-  Controller,
-  ControllerEventListener
-}
+import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerEventListener}
 import edu.uci.ics.amber.engine.architecture.principal.OperatorStatistics
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
@@ -25,10 +22,7 @@ import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
 import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.web.{ServletAwareConfigurator, TexeraWebApplication}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.workflow.{
-  WorkflowCompiler,
-  WorkflowInfo
-}
+import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo}
 import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
 import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
 import javax.servlet.http.HttpSession
@@ -113,8 +107,7 @@ class WorkflowWebsocketResource {
 
   }
 
-  def resultPagination(session: Session,
-                       request: ResultPaginationRequest): Unit = {
+  def resultPagination(session: Session, request: ResultPaginationRequest): Unit = {
     val paginatedResultEvent = PaginatedResultEvent(
       sessionResults(session.getId)
         .map {
@@ -143,8 +136,7 @@ class WorkflowWebsocketResource {
     send(session, paginatedResultEvent)
   }
 
-  def addBreakpoint(session: Session,
-                    addBreakpoint: AddBreakpointRequest): Unit = {
+  def addBreakpoint(session: Session, addBreakpoint: AddBreakpointRequest): Unit = {
     val compiler = WorkflowWebsocketResource.sessionJobs(session.getId)._1
     val controller = WorkflowWebsocketResource.sessionJobs(session.getId)._2
     compiler.addBreakpoint(
@@ -187,8 +179,7 @@ class WorkflowWebsocketResource {
     session.getAsyncRemote.sendText(objectMapper.writeValueAsString(event))
   }
 
-  def executeWorkflow(session: Session,
-                      request: ExecuteWorkflowRequest): Unit = {
+  def executeWorkflow(session: Session, request: ExecuteWorkflowRequest): Unit = {
     val context = new WorkflowContext
     val jobID =
       Integer.toString(WorkflowWebsocketResource.nextJobID.incrementAndGet)
@@ -295,19 +286,13 @@ class WorkflowWebsocketResource {
     ResultDownloadResource.clearCache(session)
   }
 
-  def downloadResult(session: Session,
-                     resultDownloadRequest: ResultDownloadRequest): Unit = {
+  def downloadResult(session: Session, resultDownloadRequest: ResultDownloadRequest): Unit = {
     val resultDownloadResponse = ResultDownloadResource.apply(
       session,
       resultDownloadRequest,
       sessionResults(session.getId)
     )
     send(session, resultDownloadResponse)
-  }
-
-  def killWorkflow(session: Session): Unit = {
-    WorkflowWebsocketResource.sessionJobs(session.getId)._2 ! PoisonPill
-    println("workflow killed")
   }
 
   @OnClose
@@ -324,8 +309,12 @@ class WorkflowWebsocketResource {
     sessionMap.remove(session.getId)
   }
 
-  def removeBreakpoint(session: Session,
-                       removeBreakpoint: RemoveBreakpointRequest): Unit = {
+  def killWorkflow(session: Session): Unit = {
+    WorkflowWebsocketResource.sessionJobs(session.getId)._2 ! PoisonPill
+    println("workflow killed")
+  }
+
+  def removeBreakpoint(session: Session, removeBreakpoint: RemoveBreakpointRequest): Unit = {
     throw new UnsupportedOperationException();
   }
 

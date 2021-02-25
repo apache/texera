@@ -29,14 +29,16 @@ object ResultDownloadResource {
   }
 
   def apply(
-    session: Session,
-    request: ResultDownloadRequest,
-    sessionResults: Map[String, List[ITuple]]
+      session: Session,
+      request: ResultDownloadRequest,
+      sessionResults: Map[String, List[ITuple]]
   ): ResultDownloadResponse = {
     // look for the response cached in the session to avoid creating duplicated file
-    if (session.getUserProperties.containsKey(
-          getSessionName(request.downloadType)
-        )) {
+    if (
+      session.getUserProperties.containsKey(
+        getSessionName(request.downloadType)
+      )
+    ) {
       return session.getUserProperties
         .get(getSessionName(request.downloadType))
         .asInstanceOf[ResultDownloadResponse]
@@ -85,8 +87,8 @@ object ResultDownloadResource {
   }
 
   private def handleGoogleSheetRequest(
-    resultDownloadRequest: ResultDownloadRequest,
-    result: List[ITuple]
+      resultDownloadRequest: ResultDownloadRequest,
+      result: List[ITuple]
   ): ResultDownloadResponse = {
     // create google sheet
     val sheetService: Sheets = GoogleResource.createSheetService()
@@ -130,8 +132,7 @@ object ResultDownloadResource {
   /**
     * create the google sheet and return the sheet Id
     */
-  private def createGoogleSheet(sheetService: Sheets,
-                                workflowName: String): String = {
+  private def createGoogleSheet(sheetService: Sheets, workflowName: String): String = {
     val createSheetRequest = new Spreadsheet()
       .setProperties(new SpreadsheetProperties().setTitle(workflowName))
     val targetSheet: Spreadsheet = sheetService.spreadsheets
@@ -159,9 +160,9 @@ object ResultDownloadResource {
     * The type of content is java list because the google API is in java
     */
   private def uploadContent(
-    sheetService: Sheets,
-    sheetId: String,
-    content: util.List[util.List[AnyRef]]
+      sheetService: Sheets,
+      sheetId: String,
+      content: util.List[util.List[AnyRef]]
   ): AppendValuesResponse = {
     val body: ValueRange = new ValueRange().setValues(content)
     val range: String = "A1"
@@ -172,10 +173,11 @@ object ResultDownloadResource {
       .execute
   }
 
-  private class SheetUploadTask(val sheetService: Sheets,
-                                val sheetId: String,
-                                val result: List[ITuple])
-      extends Runnable {
+  private class SheetUploadTask(
+      val sheetService: Sheets,
+      val sheetId: String,
+      val result: List[ITuple]
+  ) extends Runnable {
     private final val UPLOAD_SIZE = 100;
 
     override def run(): Unit = {
