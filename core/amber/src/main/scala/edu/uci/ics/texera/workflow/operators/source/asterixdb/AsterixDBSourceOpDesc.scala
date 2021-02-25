@@ -29,7 +29,7 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
   @JsonDeserialize(contentAs = classOf[java.lang.String])
   @JsonSchemaInject(json = UIWidget.UIWidgetTextArea)
   @JsonPropertyDescription(
-    "\"['a','b','c'], {'mode':'any'}\" OR \"['a','b','c'], {'mode':'all'}\""
+    "\"['hello', 'world'], {'mode':'any'}\" OR \"['hello', 'world'], {'mode':'all'}\""
   )
   override val keywords: Option[String] = None
 

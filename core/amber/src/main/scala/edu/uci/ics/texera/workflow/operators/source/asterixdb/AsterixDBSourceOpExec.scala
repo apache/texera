@@ -130,9 +130,9 @@ class AsterixDBSourceOpExec private[asterixdb] (
   /**
     * add naive support for full text search.
     * input is either
-    *     ['a','b','c'], {'mode':'any'}
+    *     ['hello', 'world'], {'mode':'any'}
     * or
-    *     ['a','b','c'], {'mode':'all'}
+    *     ['hello', 'world'], {'mode':'all'}
     * @param queryBuilder queryBuilder for concatenation
     * @throws RuntimeException if attribute does not support string based search
     */
