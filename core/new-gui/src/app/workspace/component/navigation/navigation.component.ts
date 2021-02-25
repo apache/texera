@@ -43,13 +43,13 @@ export class NavigationComponent implements OnInit {
 
   @Input() public autoSaveState: string = '';
   @Input() public currentWorkflowName: string = '';  // reset workflowName
-  @ViewChild('nameInput') nameInputBox: ElementRef<HTMLElement>|undefined;
+  @ViewChild('nameInput') nameInputBox: ElementRef<HTMLElement> | undefined;
 
   // variable bound with HTML to decide if the running spinner should show
   public runButtonText = 'Run';
   public runIcon = 'play-circle';
   public runDisable = false;
-  public executionResultID: string|undefined;
+  public executionResultID: string | undefined;
 
   // whether user dashboard is enabled and accessible from the workspace
   public userSystemEnabled: boolean = environment.userSystemEnabled;
@@ -92,10 +92,10 @@ export class NavigationComponent implements OnInit {
 
     // set the map of operatorStatusMap
     validationWorkflowService.getWorkflowValidationErrorStream()
-                             .subscribe(value => {
-                               this.isWorkflowValid = Object.keys(value.errors).length === 0;
-                               this.applyRunButtonBehavior(this.getRunButtonBehavior(this.executionState, this.isWorkflowValid));
-                             });
+      .subscribe(value => {
+        this.isWorkflowValid = Object.keys(value.errors).length === 0;
+        this.applyRunButtonBehavior(this.getRunButtonBehavior(this.executionState, this.isWorkflowValid));
+      });
 
     this.registerWorkflowMetadataDisplayRefresh();
   }
@@ -185,7 +185,8 @@ export class NavigationComponent implements OnInit {
    *  will disable the zoom out button on the navigation bar.
    */
   public isZoomRatioMin(): boolean {
-    return this.workflowActionService.getJointGraphWrapper().isZoomRatioMin();
+    // return this.workflowActionService.getJointGraphWrapper().isZoomRatioMin();
+    return false;
   }
 
   /**
@@ -193,7 +194,8 @@ export class NavigationComponent implements OnInit {
    *  will disable the zoom in button on the navigation bar.
    */
   public isZoomRatioMax(): boolean {
-    return this.workflowActionService.getJointGraphWrapper().isZoomRatioMax();
+    return false;
+    // return this.workflowActionService.getJointGraphWrapper().isZoomRatioMax();
   }
 
   /**
@@ -211,8 +213,8 @@ export class NavigationComponent implements OnInit {
     }
 
     // make the ratio small.
-    this.workflowActionService.getJointGraphWrapper()
-        .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() - JointGraphWrapper.ZOOM_CLICK_DIFF);
+    // this.workflowActionService.getJointGraphWrapper()
+    //     .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() - JointGraphWrapper.ZOOM_CLICK_DIFF);
   }
 
   /**
@@ -230,8 +232,8 @@ export class NavigationComponent implements OnInit {
     }
 
     // make the ratio big.
-    this.workflowActionService.getJointGraphWrapper()
-        .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_CLICK_DIFF);
+    // this.workflowActionService.getJointGraphWrapper()
+    //     .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_CLICK_DIFF);
   }
 
   /**
@@ -312,13 +314,13 @@ export class NavigationComponent implements OnInit {
   public persistWorkflow(): void {
     this.isSaving = true;
     this.workflowPersistService.persistWorkflow(this.workflowActionService.getWorkflow())
-        .subscribe((updatedWorkflow: Workflow) => {
-          this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
-          this.isSaving = false;
-        }, error => {
-          alert(error);
-          this.isSaving = false;
-        });
+      .subscribe((updatedWorkflow: Workflow) => {
+        this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
+        this.isSaving = false;
+      }, error => {
+        alert(error);
+        this.isSaving = false;
+      });
   }
 
   /**
@@ -338,12 +340,12 @@ export class NavigationComponent implements OnInit {
 
   registerWorkflowMetadataDisplayRefresh() {
     this.workflowActionService.workflowMetaDataChanged().debounceTime(100)
-        .subscribe(() => {
-          this.currentWorkflowName = this.workflowActionService.getWorkflowMetadata()?.name;
-          this.autoSaveState = this.workflowActionService.getWorkflowMetadata().lastModifiedTime === undefined ?
-            '' : 'Saved at ' + this.datePipe.transform(this.workflowActionService.getWorkflowMetadata().lastModifiedTime,
+      .subscribe(() => {
+        this.currentWorkflowName = this.workflowActionService.getWorkflowMetadata()?.name;
+        this.autoSaveState = this.workflowActionService.getWorkflowMetadata().lastModifiedTime === undefined ?
+          '' : 'Saved at ' + this.datePipe.transform(this.workflowActionService.getWorkflowMetadata().lastModifiedTime,
             'MM/dd/yyyy HH:mm:ss zzz', Intl.DateTimeFormat().resolvedOptions().timeZone, 'en');
 
-        });
+      });
   }
 }

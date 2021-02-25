@@ -3,6 +3,7 @@ import { Observable } from 'rxjs/Observable';
 import { Point } from '../../../types/workflow-common.interface';
 import { UndoRedoService } from './../../undo-redo/undo-redo.service';
 import { environment } from './../../../../../environments/environment';
+import * as joint from 'jointjs';
 
 type operatorIDsType = { operatorIDs: string[] };
 type linkIDType = { linkID: string };
@@ -85,6 +86,12 @@ export class JointGraphWrapper {
   public static readonly ZOOM_MINIMUM: number = 0.70;
   public static readonly ZOOM_MAXIMUM: number = 1.30;
 
+  public navigatorMoveDelta: Subject<{deltaX: number, deltaY: number}> = new Subject();
+  public mainCanvasOriginEvent: Subject<Point> = new Subject();
+
+  private mainCanvasPaper: joint.dia.Paper | undefined;
+  private miniMapPaper: joint.dia.Paper | undefined;
+
   private elementPositions: Map<string, PositionInfo> = new Map<string, PositionInfo>();
   private listenPositionChange: boolean = true;
 
@@ -115,17 +122,18 @@ export class JointGraphWrapper {
   // event stream of zooming the jointJS paper
   private workflowEditorZoomSubject: Subject<number> = new Subject<number>();
   // event stream of restoring zoom / offset default of the jointJS paper
-  private restorePaperOffsetSubject: Subject<Point> = new Subject<Point>();
-  // event stream of panning to make mini-map and main workflow paper compatible in offset
-  private panPaperOffsetSubject: Subject<Point> = new Subject<Point>();
-  // event stream of panning to make mini-map and main workflow paper compatible in offset
-  private panPaperOffsetCheck: Subject<Point> = new Subject<Point>();
-  // event stream of panning to make mini-map and main workflow paper compatible in offset
-  private panPaperOffsetSubject2: Subject<Point> = new Subject<Point>();
-  // event stream of communicating mini-map and workflow paper
-  private MouseDownReminder: Subject<boolean> = new Subject<boolean>();
-  // event stream of communicating mini-map and workflow paper panning
-  private PanReminder: Subject<boolean> = new Subject<boolean>();
+  private restorePaperOffsetSubject: Subject<void> = new Subject<void>();
+
+  // // event stream of panning to make mini-map and main workflow paper compatible in offset
+  // private panPaperOffsetSubject: Subject<Point> = new Subject<Point>();
+  // // event stream of panning to make mini-map and main workflow paper compatible in offset
+  // private panPaperOffsetCheck: Subject<Point> = new Subject<Point>();
+  // // event stream of panning to make mini-map and main workflow paper compatible in offset
+  // private panPaperOffsetSubject2: Subject<Point> = new Subject<Point>();
+  // // event stream of communicating mini-map and workflow paper
+  // private MouseDownReminder: Subject<boolean> = new Subject<boolean>();
+  // // event stream of communicating mini-map and workflow paper panning
+  // private PanReminder: Subject<boolean> = new Subject<boolean>();
 
   // event stream of showing the breakpoint button of a link
   private jointLinkBreakpointShowStream = new Subject<linkIDType>();
@@ -137,9 +145,9 @@ export class JointGraphWrapper {
   private linksWithBreakpoints: string[] = [];
 
   // current zoom ratio
-  private zoomRatio: number = JointGraphWrapper.INIT_ZOOM_VALUE;
-  // panOffset, a point of panning offset alongside x and y axis
-  private panOffset: Point = JointGraphWrapper.INIT_PAN_OFFSET;
+  // private zoomRatio: number = JointGraphWrapper.INIT_ZOOM_VALUE;
+  // // panOffset, a point of panning offset alongside x and y axis
+  // private panOffset: Point = JointGraphWrapper.INIT_PAN_OFFSET;
 
   /**
    * This will capture all events in JointJS
@@ -166,7 +174,7 @@ export class JointGraphWrapper {
     .map(value => value[0]);
 
 
-  constructor(private jointGraph: joint.dia.Graph) {
+  constructor(public jointGraph: joint.dia.Graph) {
     // handle if the currently highlighted operator/group/link is deleted, it should be unhighlighted
     this.handleElementDeleteUnhighlight();
 
@@ -180,6 +188,36 @@ export class JointGraphWrapper {
 
   }
 
+
+  /**
+   * Let the JointGraph model be attached to the joint paper (paperOptions will be passed to Joint Paper constructor).
+   *
+   * We don't want to expose JointModel as a public variable, so instead we let JointPaper to pass the constructor options,
+   *  and JointModel can be still attached to it without being publicly accessible by other modules.
+   *
+   * @param paperOptions JointJS paper options
+   */
+  public attachMainJointPaper(paperOptions: joint.dia.Paper.Options): joint.dia.Paper {
+    paperOptions.model = this.jointGraph;
+    const paper = new joint.dia.Paper(paperOptions);
+    this.mainCanvasPaper = paper;
+    return paper;
+  }
+
+  public getmainCanvasPaper(): joint.dia.Paper | undefined {
+    return this.mainCanvasPaper;
+  }
+
+  public attachMinimapJointPaper(paperOptions: joint.dia.Paper.Options): joint.dia.Paper {
+    paperOptions.model = this.jointGraph;
+    const paper = new joint.dia.Paper(paperOptions);
+    this.miniMapPaper = paper;
+    return paper;
+  }
+
+  public getMinimapPaper(): joint.dia.Paper | undefined {
+    return this.miniMapPaper;
+  }
 
   /**
    * This method is used to toggle the multiselect mode.
@@ -247,7 +285,7 @@ export class JointGraphWrapper {
         const elementID = e[0].id.toString();
         const oldPosition = this.elementPositions.get(elementID);
         const newPosition = { x: e[1].x, y: e[1].y };
-        console.log('newPosition:', newPosition);
+        // console.log('newPosition:', newPosition);
         if (!oldPosition) {
           throw new Error(`internal error: cannot find element position for ${elementID}`);
         }
@@ -507,91 +545,91 @@ export class JointGraphWrapper {
     return jointLinkDeleteStream;
   }
 
-  public getPanPaperOffsetStream(): Observable<Point> {
-    return this.panPaperOffsetSubject.asObservable();
-  }
+  // public getPanPaperOffsetStream(): Observable<Point> {
+  //   return this.panPaperOffsetSubject.asObservable();
+  // }
 
-  /**
-   * This method will update the panning offset so that dropping
-   *  a new operator will appear at the correct location on the UI.
-   *
-   * @param panOffset new offset from panning
-   */
-  public setPanningOffset(panOffset: Point): void {
-    this.panOffset = panOffset;
-    this.panPaperOffsetSubject.next(panOffset);
-  }
+  // /**
+  //  * This method will update the panning offset so that dropping
+  //  *  a new operator will appear at the correct location on the UI.
+  //  *
+  //  * @param panOffset new offset from panning
+  //  */
+  // public setPanningOffset(panOffset: Point): void {
+  //   this.panOffset = panOffset;
+  //   this.panPaperOffsetSubject.next(panOffset);
+  // }
 
-  public getPanPaperOffsetStream2(): Observable<Point> {
-    return this.panPaperOffsetSubject2.asObservable();
-  }
+  // public getPanPaperOffsetStream2(): Observable<Point> {
+  //   return this.panPaperOffsetSubject2.asObservable();
+  // }
 
-  public setPanningOffset2(panOffset: Point): void {
-    // this.panOffset = panOffset;
-    this.panPaperOffsetSubject2.next(panOffset);
-  }
+  // public setPanningOffset2(panOffset: Point): void {
+  //   // this.panOffset = panOffset;
+  //   this.panPaperOffsetSubject2.next(panOffset);
+  // }
 
-  public getMousDownReminder(): Observable<boolean> {
-    return this.MouseDownReminder.asObservable();
-  }
+  // public getMousDownReminder(): Observable<boolean> {
+  //   return this.MouseDownReminder.asObservable();
+  // }
 
-  /**
-   * This method is to record the timing of a valid click/mousedown event
-   *  of mini-map navigator. It can notify the workflow-editor to
-   *  would exceed the html layout limit of the navigator.
-   *
-   */
-  public setMouseDownReminder(ifMouseDown: boolean): void {
-    this.MouseDownReminder.next(ifMouseDown);
-  }
+  // /**
+  //  * This method is to record the timing of a valid click/mousedown event
+  //  *  of mini-map navigator. It can notify the workflow-editor to
+  //  *  would exceed the html layout limit of the navigator.
+  //  *
+  //  */
+  // public setMouseDownReminder(ifMouseDown: boolean): void {
+  //   this.MouseDownReminder.next(ifMouseDown);
+  // }
 
-  public getPanReminder(): Observable<boolean> {
-    return this.PanReminder.asObservable();
-  }
+  // public getPanReminder(): Observable<boolean> {
+  //   return this.PanReminder.asObservable();
+  // }
 
-  public setPanReminder(available: boolean): void {
-    this.PanReminder.next(available);
-  }
+  // public setPanReminder(available: boolean): void {
+  //   this.PanReminder.next(available);
+  // }
 
-  public getPanPaperOffsetCheckStream(): Observable<Point> {
-    return this.panPaperOffsetCheck.asObservable();
-  }
+  // public getPanPaperOffsetCheckStream(): Observable<Point> {
+  //   return this.panPaperOffsetCheck.asObservable();
+  // }
 
-  /**
-   * This method will update the panning offset
-   *  Mini-map navigator will first check whether that offset
-   *  would exceed the html layout limit of the navigator.
-   *
-   * @param panOffset new offset from panning
-   */
-  public setPanningOffsetCheck(panOffset: Point): void {
-    this.panPaperOffsetCheck.next(panOffset);
-  }
+  // /**
+  //  * This method will update the panning offset
+  //  *  Mini-map navigator will first check whether that offset
+  //  *  would exceed the html layout limit of the navigator.
+  //  *
+  //  * @param panOffset new offset from panning
+  //  */
+  // public setPanningOffsetCheck(panOffset: Point): void {
+  //   this.panPaperOffsetCheck.next(panOffset);
+  // }
 
-  /**
-   * This method will update the zoom ratio, which will be used
-   *  in calculating the position of the operator dropped on the UI.
-   *
-   * @param ratio new ratio from zooming
-   */
-  public setZoomProperty(ratio: number): void {
-    this.zoomRatio = ratio;
-    this.workflowEditorZoomSubject.next(this.zoomRatio);
-  }
+  // /**
+  //  * This method will update the zoom ratio, which will be used
+  //  *  in calculating the position of the operator dropped on the UI.
+  //  *
+  //  * @param ratio new ratio from zooming
+  //  */
+  // public setZoomProperty(ratio: number): void {
+  //   this.zoomRatio = ratio;
+  //   this.workflowEditorZoomSubject.next(this.zoomRatio);
+  // }
 
-  /**
-   * Check if the zoom ratio reaches the minimum.
-   */
-  public isZoomRatioMin(): boolean {
-    return this.zoomRatio <= JointGraphWrapper.ZOOM_MINIMUM;
-  }
+  // /**
+  //  * Check if the zoom ratio reaches the minimum.
+  //  */
+  // public isZoomRatioMin(): boolean {
+  //   return this.zoomRatio <= JointGraphWrapper.ZOOM_MINIMUM;
+  // }
 
-  /**
-   * Check if the zoom ratio reaches the maximum.
-   */
-  public isZoomRatioMax(): boolean {
-    return this.zoomRatio >= JointGraphWrapper.ZOOM_MAXIMUM;
-  }
+  // /**
+  //  * Check if the zoom ratio reaches the maximum.
+  //  */
+  // public isZoomRatioMax(): boolean {
+  //   return this.zoomRatio >= JointGraphWrapper.ZOOM_MAXIMUM;
+  // }
 
   /**
    * Returns an observable stream containing the new zoom ratio
@@ -601,35 +639,34 @@ export class JointGraphWrapper {
     return this.workflowEditorZoomSubject.asObservable();
   }
 
-  /**
-   * This method will fetch current pan offset of the paper.
-   */
-  public getPanningOffset(): Point {
-    return this.panOffset;
-  }
+  // /**
+  //  * This method will fetch current pan offset of the paper.
+  //  */
+  // public getPanningOffset(): Point {
+  //   return this.panOffset;
+  // }
 
-  /**
-   * This method will fetch current zoom ratio of the paper.
-   */
-  public getZoomRatio(): number {
-    return this.zoomRatio;
-  }
+  // /**
+  //  * This method will fetch current zoom ratio of the paper.
+  //  */
+  // public getZoomRatio(): number {
+  //   return this.zoomRatio;
+  // }
 
   /**
    * This method will restore the default zoom ratio and offset for
    *  the jointjs paper by sending an event to restorePaperSubject.
    */
   public restoreDefaultZoomAndOffset(): void {
-    this.setZoomProperty(JointGraphWrapper.INIT_ZOOM_VALUE);
-    this.panOffset = JointGraphWrapper.INIT_PAN_OFFSET;
-    this.restorePaperOffsetSubject.next(this.panOffset);
+    console.log('restore called');
+    this.restorePaperOffsetSubject.next();
   }
 
   /**
    * Returns an Observable stream capturing the event of restoring
    *  default offset
    */
-  public getRestorePaperOffsetStream(): Observable<Point> {
+  public getRestorePaperOffsetStream(): Observable<void> {
     return this.restorePaperOffsetSubject.asObservable();
   }
 

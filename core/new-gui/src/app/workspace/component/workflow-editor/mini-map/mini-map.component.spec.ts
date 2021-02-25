@@ -3,18 +3,18 @@ import { HttpClientTestingModule } from '@angular/common/http/testing';
 
 import { MiniMapComponent } from './mini-map.component';
 
-import { WorkflowEditorComponent } from '../workflow-editor/workflow-editor.component';
-import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
-import { OperatorMetadataService } from './../../service/operator-metadata/operator-metadata.service';
-import { StubOperatorMetadataService } from './../../service/operator-metadata/stub-operator-metadata.service';
-import { JointUIService } from './../../service/joint-ui/joint-ui.service';
-import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
+import { WorkflowEditorComponent } from '../workflow-editor.component';
+import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
+import { OperatorMetadataService } from '../../../service/operator-metadata/operator-metadata.service';
+import { StubOperatorMetadataService } from '../../../service/operator-metadata/stub-operator-metadata.service';
+import { JointUIService } from '../../../service/joint-ui/joint-ui.service';
+import { UndoRedoService } from '../../../service/undo-redo/undo-redo.service';
 import { Observable } from 'rxjs/Observable';
 
 import { mockScanPredicate, mockPoint,
-  mockResultPredicate, mockSentimentPredicate, mockScanResultLink } from '../../service/workflow-graph/model/mock-workflow-data';
-import { environment } from './../../../../environments/environment';
-import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
+  mockResultPredicate, mockSentimentPredicate, mockScanResultLink } from '../../../service/workflow-graph/model/mock-workflow-data';
+import { environment } from '../../../../../environments/environment';
+import { WorkflowUtilService } from '../../../service/workflow-graph/util/workflow-util.service';
 
 describe('MiniMapComponent', () => {
   let component: MiniMapComponent;

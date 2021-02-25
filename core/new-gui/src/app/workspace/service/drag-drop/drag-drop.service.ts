@@ -102,16 +102,25 @@ export class DragDropService {
       value => {
         // construct the operator from the drop stream value
         const operator = this.workflowUtilService.getNewOperatorPredicate(value.operatorType);
-        /**
-         * get the new drop coordinate of operator, when users drag or zoom the panel, to make sure the operator will
-         drop on the right location.
-         */
-        const newOperatorOffset: Point = {
-          x: (value.offset.x - this.workflowActionService.getJointGraphWrapper().getPanningOffset().x)
-            / this.workflowActionService.getJointGraphWrapper().getZoomRatio(),
-          y: (value.offset.y - this.workflowActionService.getJointGraphWrapper().getPanningOffset().y)
-            / this.workflowActionService.getJointGraphWrapper().getZoomRatio()
+
+        let coordinates: Point | undefined = this.workflowActionService
+          .getJointGraphWrapper().getmainCanvasPaper()?.pageToLocalPoint(value.offset.x, value.offset.y);
+        if (! coordinates) {
+          coordinates = value.offset;
+        }
+
+        let scale: {sx: number, sy: number} | undefined = this.workflowActionService.getJointGraphWrapper().getmainCanvasPaper()?.scale();
+        if (scale === undefined) {
+          scale = {sx: 1, sy: 1};
+        }
+
+        const newOperatorOffset = {
+          x: (coordinates.x)
+            / scale.sx,
+          y: (coordinates.y)
+            / scale.sy
         };
+
 
         const operatorsAndPositions: { op: OperatorPredicate, pos: Point }[] = [{ op: operator, pos: newOperatorOffset }];
         // create new links from suggestions
@@ -316,13 +325,23 @@ export class DragDropService {
       .filter(() => !isOperatorDropped)
       .subscribe(mouseCoordinates => {
         const currentMouseCoordinates = { x: mouseCoordinates[0], y: mouseCoordinates[1] };
-        // scale the current mouse coordinate according to the current offset and zoom ratio
+
+        let coordinates: Point | undefined = this.workflowActionService
+          .getJointGraphWrapper().getmainCanvasPaper()?.pageToLocalPoint(currentMouseCoordinates.x, currentMouseCoordinates.y);
+        if (! coordinates) {
+          coordinates = currentMouseCoordinates;
+        }
+
+        let scale: {sx: number, sy: number} | undefined = this.workflowActionService.getJointGraphWrapper().getmainCanvasPaper()?.scale();
+        if (scale === undefined) {
+          scale = {sx: 1, sy: 1};
+        }
+
         const scaledMouseCoordinates = {
-          x: (currentMouseCoordinates.x - this.workflowActionService.getJointGraphWrapper().getPanningOffset().x)
-            / this.workflowActionService.getJointGraphWrapper().getZoomRatio(),
-          y: (currentMouseCoordinates.y - this.workflowActionService.getJointGraphWrapper().getPanningOffset().y)
-            / this.workflowActionService.getJointGraphWrapper().getZoomRatio()
+          x: (coordinates.x) / scale.sx,
+          y: (coordinates.y) / scale.sy
         };
+
 
         // search for nearby operators as suggested input/output operators
         let newInputs, newOutputs: OperatorPredicate[];
