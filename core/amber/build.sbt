@@ -102,7 +102,11 @@ libraryDependencies += "org.scalamock" %% "scalamock" % "4.4.0" % Test
 libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.2"
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.2" % Test
 
+// https://mvnrepository.com/artifact/com.github.tototoshi/scala-csv
 libraryDependencies += "com.github.tototoshi" %% "scala-csv" % "1.3.6"
 
 // https://mvnrepository.com/artifact/com.konghq/unirest-java
 libraryDependencies += "com.konghq" % "unirest-java" % "3.11.11"
+
+// https://mvnrepository.com/artifact/com.github.marianobarrios/lbmq
+libraryDependencies += "com.github.marianobarrios" % "lbmq" % "0.5.0"
