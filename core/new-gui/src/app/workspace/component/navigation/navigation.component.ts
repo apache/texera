@@ -291,7 +291,7 @@ export class NavigationComponent implements OnInit {
    * enable result downloading only when the workflow completes executing
    */
   public isDownloadDisabled(): boolean {
-    return this.executionState !== ExecutionState.Completed;
+    return !(this.executionState === ExecutionState.Completed && environment.downloadExecutionResultEnabled);
   }
 
   /**

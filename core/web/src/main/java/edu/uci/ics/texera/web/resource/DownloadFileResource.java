@@ -25,14 +25,6 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 
-import com.google.api.client.util.Lists;
-import com.google.api.services.sheets.v4.Sheets;
-import com.google.api.services.sheets.v4.model.AppendValuesResponse;
-import com.google.api.services.sheets.v4.model.Spreadsheet;
-import com.google.api.services.sheets.v4.model.SpreadsheetProperties;
-import com.google.api.services.sheets.v4.model.ValueRange;
-import edu.uci.ics.texera.api.exception.TexeraException;
-import edu.uci.ics.texera.api.field.IField;
 import edu.uci.ics.texera.api.tuple.Tuple;
 import edu.uci.ics.texera.dataflow.sink.csv.CSVSink;
 import edu.uci.ics.texera.dataflow.sink.csv.CSVSinkPredicate;
@@ -66,9 +58,6 @@ public class DownloadFileResource {
             System.out.println(resultFile + " file is empty");
             return Response.status(Status.NOT_FOUND).build();
         }
-
-//        List<Tuple> result = WorkflowWebsocketResource.getResult(resultID);
-//        List<Tuple> result2 = edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.getResult(resultID);
         
         
         TupleSourceOperator tupleSource = new TupleSourceOperator(result, result.get(0).getSchema());
@@ -78,62 +67,11 @@ public class DownloadFileResource {
         	return downloadCSVFile(tupleSource);
         } else if (downloadType.equals("xlsx")) {
         	return downloadExcelFile(tupleSource);
-        } else if (downloadType.equals("google_sheet")){
-            return uploadToGoogleSheet(tupleSource);
         }
         
         System.out.println("Download type " + downloadType + " is unavailable");
         return Response.status(Status.NOT_FOUND).build();
         
-    }
-
-    private Response uploadToGoogleSheet(TupleSourceOperator tupleSource) {
-        ExcelSink excelSink = new ExcelSinkPredicate().newOperator();
-        excelSink.setInputOperator(tupleSource);
-        excelSink.open();
-        List<Tuple> tupleList = excelSink.collectAllTuples();
-        excelSink.close();
-
-        uploadToGoogleSheet0(tupleList);
-
-        return Response.ok()
-                .build();
-    }
-
-    private void uploadToGoogleSheet0(List<Tuple> tupleList){
-        // TODO change title
-        String title = String.valueOf(System.currentTimeMillis());
-        Sheets sheet = GoogleResource.createGoogleSheetService();
-
-        Spreadsheet spreadsheet = new Spreadsheet()
-                .setProperties(new SpreadsheetProperties()
-                        .setTitle(title));
-        try {
-            spreadsheet = sheet.spreadsheets().create(spreadsheet)
-                    .setFields("spreadsheetId")
-                    .execute();
-            String spreadsheetId = spreadsheet.getSpreadsheetId();
-            System.out.println("Spreadsheet ID: " + spreadsheetId);
-
-            List<List<Object>> values = tupleList.stream()
-                    .map(Tuple::getFields)
-                    .map(iFieldList -> iFieldList.stream()
-                            .map(IField::getValue)
-                            .collect(Collectors.toList()))
-                    .collect(Collectors.toList());
-
-            ValueRange body = new ValueRange()
-                    .setValues(values);
-            String range = "A1";
-            String valueInputOption = "RAW";
-            AppendValuesResponse result =
-                    sheet.spreadsheets().values().append(spreadsheetId, range, body)
-                            .setValueInputOption(valueInputOption)
-                            .execute();
-            System.out.printf("%d cells appended.", result.getUpdates().getUpdatedCells());
-        } catch (IOException e){
-            throw new TexeraException("io fail");
-        }
     }
     
     private Response downloadExcelFile(TupleSourceOperator tupleSource) {
