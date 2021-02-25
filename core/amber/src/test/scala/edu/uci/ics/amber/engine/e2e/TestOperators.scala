@@ -8,6 +8,7 @@ import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc
 import edu.uci.ics.texera.workflow.operators.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.texera.workflow.operators.scan.CSVScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
+import edu.uci.ics.texera.workflow.operators.source.asterixdb.AsterixDBSourceOpDesc
 
 object TestOperators {
 
@@ -56,6 +57,16 @@ object TestOperators {
     aggOp.resultAttribute = "aggregate-result"
     aggOp.groupByKeys = groupByAttributes
     aggOp
+  }
+
+  def asterixDBSourceOpDesc(): AsterixDBSourceOpDesc = {
+    val asterixDBOp = new AsterixDBSourceOpDesc()
+    asterixDBOp.host = "americium.ics.uci.edu" // Big AsterixDB at version 0.9.4
+    asterixDBOp.port = "default"
+    asterixDBOp.database = "twitter"
+    asterixDBOp.table = "ds_tweet"
+    asterixDBOp.limit = Option(1000)
+    asterixDBOp
   }
 
   def sinkOpDesc(): SimpleSinkOpDesc = {
