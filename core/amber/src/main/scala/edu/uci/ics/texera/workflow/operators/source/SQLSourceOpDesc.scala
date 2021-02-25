@@ -58,7 +58,7 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
   @JsonSchemaTitle("Keywords to Search")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
   @JsonSchemaInject(json = UIWidget.UIWidgetTextArea)
-  var keywords: Option[String] = None
+  val keywords: Option[String] = None
 
   @JsonProperty(defaultValue = "false")
   @JsonSchemaTitle("Progressively Output")

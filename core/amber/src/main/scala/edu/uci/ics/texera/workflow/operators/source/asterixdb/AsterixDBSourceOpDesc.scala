@@ -1,11 +1,18 @@
 package edu.uci.ics.texera.workflow.operators.source.asterixdb
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.fasterxml.jackson.annotation.{
+  JsonIgnoreProperties,
+  JsonProperty,
+  JsonPropertyDescription
+}
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorGroupConstants,
   OperatorInfo,
   OutputPort
 }
+import edu.uci.ics.texera.workflow.common.metadata.annotations.UIWidget
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.source.{SQLSourceOpDesc, SQLSourceOpExecConfig}
 import edu.uci.ics.texera.workflow.operators.source.asterixdb.AsterixDBConnUtil.queryAsterixDB
@@ -16,6 +23,15 @@ import scala.jdk.CollectionConverters.asScalaBuffer
 
 @JsonIgnoreProperties(value = Array("username", "password"))
 class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
+
+  @JsonProperty()
+  @JsonSchemaTitle("Keywords to Search")
+  @JsonDeserialize(contentAs = classOf[java.lang.String])
+  @JsonSchemaInject(json = UIWidget.UIWidgetTextArea)
+  @JsonPropertyDescription(
+    "\"['a','b','c'], {'mode':'any'}\" OR \"['a','b','c'], {'mode':'all'}\""
+  )
+  override val keywords: Option[String] = None
 
   override def operatorExecutor =
     new SQLSourceOpExecConfig(
