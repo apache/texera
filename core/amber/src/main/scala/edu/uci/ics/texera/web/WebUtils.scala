@@ -9,6 +9,16 @@ import edu.uci.ics.amber.clustering.ClusterListener
 
 object WebUtils {
 
+  // TODO change token path
+  def getTokenPath(): String = {
+    ""
+  }
+
+  // TODO change credential path
+  def getCredentialPath(): String = {
+    ""
+  }
+
   def startActorMaster(localhost: Boolean): ActorSystem = {
     var localIpAddress = "localhost"
     if (!localhost) {

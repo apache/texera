@@ -14,6 +14,7 @@ import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.DriveScopes;
 import com.google.api.services.sheets.v4.Sheets;
 import com.google.api.services.sheets.v4.SheetsScopes;
+import edu.uci.ics.texera.web.WebUtils;
 
 import java.io.*;
 import java.security.GeneralSecurityException;
@@ -22,16 +23,14 @@ import java.util.List;
 
 public class GoogleResource {
     private static final String APPLICATION_NAME = "Texera";
-    // TODO change token path
-    private static final String TOKENS_DIRECTORY_PATH = "C:\\Users\\SuperTaunt\\Desktop\\tokens";
+    private static final String TOKENS_DIRECTORY_PATH = WebUtils.getTokenPath();
     private static final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
 
     /**
      * Global instance of the scopes required by this quickstart.
      * If modifying these scopes, delete your previously saved tokens/ folder.
      */
-    // TODO change credential path
-    private static final String CREDENTIALS_FILE_PATH = "C:\\Users\\SuperTaunt\\Desktop\\credentials.json";
+    private static final String CREDENTIALS_FILE_PATH = WebUtils.getCredentialPath();
     private static final List<String> SCOPES = Arrays.asList(SheetsScopes.SPREADSHEETS, DriveScopes.DRIVE);
 
     public static Sheets createSheetService() throws IOException {
@@ -62,7 +61,6 @@ public class GoogleResource {
 
     /**
      * Creates an authorized Credential object for the service account
-     * TODO: change the service account to the user account
      */
     private static Credential getCredentials(NetHttpTransport httpTransport) throws IOException {
         // Load client secrets test

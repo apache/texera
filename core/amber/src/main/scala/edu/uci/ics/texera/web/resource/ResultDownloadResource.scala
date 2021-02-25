@@ -67,7 +67,6 @@ object ResultDownloadResource {
     val schemaContent: util.List[util.List[AnyRef]] = Lists.newArrayList()
     schemaContent.add(schema)
     val response: AppendValuesResponse = uploadContent(sheetService, sheetId, schemaContent)
-    // TODO handle response
 
     // allow user to access this sheet in the service account
     val drive: Drive = GoogleResource.createDriveService()
@@ -139,14 +138,12 @@ object ResultDownloadResource {
 
         if (content.size() == UPLOAD_SIZE) {
           val response: AppendValuesResponse = uploadContent(sheetService, sheetId, content)
-          // TODO handle response
           content.clear()
         }
       }
 
       if (!content.isEmpty) {
         val response: AppendValuesResponse = uploadContent(sheetService, sheetId, content)
-        // TODO handle response
       }
     }
   }
