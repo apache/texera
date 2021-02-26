@@ -235,29 +235,41 @@ class DataProcessingSpec
 
   "Engine" should "execute mysql->sink workflow normally" in {
     import ch.vorburger.mariadb4j.{DB, DBConfigurationBuilder}
-    val configBuilder = DBConfigurationBuilder.newBuilder
-    configBuilder.setPort(0) // 0 => autom. detect free port
-    val config = configBuilder.build
-    val db = DB.newEmbeddedDB(config)
-    db.start()
-    val dbName: String = "new"
-    db.createDB(dbName)
+
     import java.sql.DriverManager
 
+    val dbName: String = "new"
+    val tableName: String = "test"
+
+    val config = DBConfigurationBuilder.newBuilder
+      .setPort(0) // 0 => automatically detect free port
+      .build()
+
+    val db = DB.newEmbeddedDB(config)
+    db.start()
+    db.createDB(dbName)
+
+    // insert test data
     val conn = DriverManager.getConnection(config.getURL(dbName), "root", "")
     var statement: PreparedStatement = conn.prepareStatement(
-      "create table test (id int primary key , text VARCHAR(512), point FLOAT, created_at DATE default NOW() not null)"
+      s"create table $tableName (id int primary key auto_increment, text VARCHAR(512), " +
+        s"point FLOAT, created_at DATE default NOW() not null)"
     )
     statement.execute()
-    statement = conn.prepareStatement("insert into test values(1, \"hello world\", 1.1, now())")
+    statement = conn.prepareStatement(s"insert into $tableName (text) values ('hello world')")
     statement.execute()
     statement.close()
     conn.close()
 
-    val inMemoryMsSQLSourceOpDesc = TestOperators.inMemoryMySQLSourceOpDesc(config)
+    val inMemoryMsSQLSourceOpDesc = TestOperators.inMemoryMySQLSourceOpDesc(
+      "localhost",
+      config.getPort.toString,
+      dbName,
+      tableName
+    )
 
     val sink = TestOperators.sinkOpDesc()
-    expectCompletedAfterExecution(
+    val (id, workflow) = buildWorkflow(
       mutable.MutableList[OperatorDescriptor](inMemoryMsSQLSourceOpDesc, sink),
       mutable.MutableList[OperatorLink](
         OperatorLink(
@@ -266,6 +278,7 @@ class DataProcessingSpec
         )
       )
     )
+    executeWorkflow(id, workflow)
 
     db.stop()
   }

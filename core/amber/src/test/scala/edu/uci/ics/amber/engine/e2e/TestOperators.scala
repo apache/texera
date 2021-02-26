@@ -1,6 +1,5 @@
 package edu.uci.ics.amber.engine.e2e
 
-import ch.vorburger.mariadb4j.DBConfiguration
 import edu.uci.ics.texera.workflow.operators.aggregate.{
   AggregationFunction,
   SpecializedAverageOpDesc
@@ -15,11 +14,11 @@ import edu.uci.ics.texera.workflow.operators.source.mysql.MySQLSourceOpDesc
 object TestOperators {
 
   def headerlessSmallCsvScanOpDesc(): CSVScanSourceOpDesc = {
-    getCsvScanOpDesc("src/test/resources/CountrySalesDataHeaderlessSmall.csv", false)
+    getCsvScanOpDesc("src/test/resources/CountrySalesDataHeaderlessSmall.csv", header = false)
   }
 
   def smallCsvScanOpDesc(): CSVScanSourceOpDesc = {
-    getCsvScanOpDesc("src/test/resources/CountrySalesDataSmall.csv", true)
+    getCsvScanOpDesc("src/test/resources/CountrySalesDataSmall.csv", header = true)
   }
 
   def getCsvScanOpDesc(fileName: String, header: Boolean): CSVScanSourceOpDesc = {
@@ -38,7 +37,7 @@ object TestOperators {
   }
 
   def mediumCsvScanOpDesc(): CSVScanSourceOpDesc = {
-    getCsvScanOpDesc("src/test/resources/CountrySalesDataMedium.csv", true)
+    getCsvScanOpDesc("src/test/resources/CountrySalesDataMedium.csv", header = true)
   }
 
   def keywordSearchOpDesc(attribute: String, keywordToSearch: String): KeywordSearchOpDesc = {
@@ -61,14 +60,19 @@ object TestOperators {
     aggOp
   }
 
-  def inMemoryMySQLSourceOpDesc(config: DBConfiguration): MySQLSourceOpDesc = {
+  def inMemoryMySQLSourceOpDesc(
+      host: String,
+      port: String,
+      database: String,
+      table: String
+  ): MySQLSourceOpDesc = {
     val inMemoryMySQLSourceOpDesc = new MySQLSourceOpDesc()
-
-    println("socket: ", config.getSocket)
-    inMemoryMySQLSourceOpDesc.host = "localhost"
-    inMemoryMySQLSourceOpDesc.port = config.getPort.toString
-    inMemoryMySQLSourceOpDesc.database = "new"
-    inMemoryMySQLSourceOpDesc.table = "test"
+//
+//    println("socket: ", config.getSocket)
+    inMemoryMySQLSourceOpDesc.host = host
+    inMemoryMySQLSourceOpDesc.port = port
+    inMemoryMySQLSourceOpDesc.database = database
+    inMemoryMySQLSourceOpDesc.table = table
     inMemoryMySQLSourceOpDesc.username = "root"
     inMemoryMySQLSourceOpDesc.password = ""
     inMemoryMySQLSourceOpDesc.limit = Option(1000)
