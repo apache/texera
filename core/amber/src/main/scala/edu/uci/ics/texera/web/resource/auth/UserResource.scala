@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.resource.auth
 
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.request.auth.{UserLoginRequest, UserRegistrationRequest}
@@ -49,7 +49,7 @@ class UserResource {
   @Path("/login")
   def login(@Session session: HttpSession, request: UserLoginRequest): Response = {
 
-    // try to fetch the record
+    // try to fetch the UID given the username and password
     val userUid = SqlServer.createDSLContext
       .select(USER.UID)
       .from(USER)

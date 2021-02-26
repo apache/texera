@@ -5,20 +5,21 @@
   </button>
 </div>
 
-<div class="modal-body">
+<div class="modal-body" [formGroup]="allForms">
   <mat-tab-group mat-stretch-tabs [selectedIndex]="selectedTab" animationDuration="0ms">
     <!-- login tab -->
     <mat-tab label="Sign In">
       <div class="content">
         <mat-dialog-content>
           <mat-form-field>
-            <input matInput [(ngModel)]="loginUserName" placeholder="Username" required>
+            <input matInput formControlName="loginUserName" placeholder="Username" required>
+            <mat-error *ngIf="allForms.controls['loginUserName'].errors?.required">{{errorMessageUsernameNull()}}</mat-error>
           </mat-form-field>
           <br>
           <mat-form-field>
             <input matInput placeholder="Password" 
-            type="password" [formControl]="loginPassword" required>
-            <mat-error *ngIf="loginPassword.invalid">{{errorMessageLoginPasswordNull()}}</mat-error>
+            type="password" formControlName="loginPassword" required>
+            <mat-error *ngIf="allForms.controls['loginPassword'].errors?.required">{{errorMessagePasswordNull()}}</mat-error>
           </mat-form-field>
         </mat-dialog-content>
         <div><button class="btn btn-info" (click)="login()"> Sign In </button></div>
@@ -31,19 +32,20 @@
       <div class="content">
         <mat-dialog-content>
           <mat-form-field>
-            <input matInput [(ngModel)]="registerUserName" placeholder="Username" required>
+            <input matInput formControlName="registerUserName" placeholder="Username" required>
+            <mat-error *ngIf="allForms.controls['registerUserName'].errors?.required">{{errorMessageUsernameNull()}}</mat-error>
           </mat-form-field>
           <br>
           <mat-form-field>
-            <input matInput name="password" placeholder="Password" [formControl]="registerPassword"
+            <input matInput name="password" placeholder="Password" formControlName="registerPassword"
             type="password" required>
-            <mat-error *ngIf="registerPassword.invalid">{{errorMessageRegisterPasswordNull()}}</mat-error>
+            <mat-error *ngIf="allForms.controls['registerPassword'].errors?.required">{{errorMessagePasswordNull()}}</mat-error>
           </mat-form-field>
           <br>
           <mat-form-field>
             <input matInput placeholder="Password Confirmation"
-            type="password" [formControl]="registerConfirmationPassword" required>
-            <mat-error *ngIf="registerConfirmationPassword.invalid">{{errorMessageRegisterConfirmationPasswordNull()}}</mat-error>
+            type="password" formControlName="registerConfirmationPassword" required>
+            <mat-error *ngIf="allForms.controls['registerConfirmationPassword'].errors?.required">{{errorMessagePasswordNull()}}</mat-error>
           </mat-form-field>
         </mat-dialog-content>
         <div><button class="btn btn-info" (click)="register()"> Sign Up </button></div>
