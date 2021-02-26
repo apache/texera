@@ -60,7 +60,6 @@ trait WorkerExecutionCompletedHandler {
       future.flatMap { ret =>
         updateFrontendWorkflowStatus()
         if (workflow.isCompleted) {
-          actorContext.parent ! ControllerState.Completed // for testing
           //send result to frontend
           if (eventListener.workflowCompletedListener != null) {
             eventListener.workflowCompletedListener
@@ -71,6 +70,7 @@ trait WorkerExecutionCompletedHandler {
               )
           }
           disableStatusUpdate()
+          actorContext.parent ! ControllerState.Completed // for testing
           // clean up all workers and terminate self
           execute(KillWorkflow(), ActorVirtualIdentity.Controller)
         } else {

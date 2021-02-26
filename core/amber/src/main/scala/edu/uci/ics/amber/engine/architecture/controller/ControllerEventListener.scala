@@ -12,7 +12,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
 }
 
 case class ControllerEventListener(
-    workflowCompletedListener: WorkflowCompleted => Unit = null,
+    var workflowCompletedListener: WorkflowCompleted => Unit = null,
     workflowStatusUpdateListener: WorkflowStatusUpdate => Unit = null,
     modifyLogicCompletedListener: ModifyLogicCompleted => Unit = null,
     breakpointTriggeredListener: BreakpointTriggered => Unit = null,

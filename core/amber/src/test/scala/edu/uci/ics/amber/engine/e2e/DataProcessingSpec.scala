@@ -7,11 +7,13 @@ import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.engine.architecture.controller.{
   Controller,
   ControllerEventListener,
-  ControllerState
+  ControllerState,
+  Workflow
 }
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
@@ -41,11 +43,10 @@ class DataProcessingSpec
     TestKit.shutdownActorSystem(system)
   }
 
-  def expectCompletedAfterExecution(
+  def buildWorkflow(
       operators: mutable.MutableList[OperatorDescriptor],
       links: mutable.MutableList[OperatorLink]
-  ): Unit = {
-    val parent = TestProbe()
+  ): (WorkflowIdentity, Workflow) = {
     val context = new WorkflowContext
     context.jobID = "workflow-test"
 
@@ -53,25 +54,31 @@ class DataProcessingSpec
       WorkflowInfo(operators, links, mutable.MutableList[BreakpointInfo]()),
       context
     )
-    texeraWorkflowCompiler.init()
     val workflow = texeraWorkflowCompiler.amberWorkflow
     val workflowTag = WorkflowIdentity("workflow-test")
+    (workflowTag, workflow)
+  }
 
+  def executeWorkflow(id: WorkflowIdentity, workflow: Workflow): Map[String, List[ITuple]] = {
+    val parent = TestProbe()
+    var results: Map[String, List[ITuple]] = null
+    val eventListener = ControllerEventListener()
+    eventListener.workflowCompletedListener = evt => results = evt.result
     val controller = parent.childActorOf(
-      Controller.props(workflowTag, workflow, ControllerEventListener(), 100)
+      Controller.props(id, workflow, ControllerEventListener(), 100)
     )
     parent.expectMsg(ControllerState.Ready)
     controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, StartWorkflow())
     parent.expectMsg(ControllerState.Running)
     parent.expectMsg(1.minute, ControllerState.Completed)
     parent.ref ! PoisonPill
+    results
   }
 
   "Engine" should "execute headerlessCsv->sink workflow normally" in {
     val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
     val sink = TestOperators.sinkOpDesc()
-
-    expectCompletedAfterExecution(
+    val (id, workflow) = buildWorkflow(
       mutable.MutableList[OperatorDescriptor](headerlessCsvOpDesc, sink),
       mutable.MutableList[OperatorLink](
         OperatorLink(
@@ -80,13 +87,14 @@ class DataProcessingSpec
         )
       )
     )
+    executeWorkflow(id, workflow)
   }
 
   "Engine" should "execute headerlessCsv->keyword->sink workflow normally" in {
     val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
     val sink = TestOperators.sinkOpDesc()
-    expectCompletedAfterExecution(
+    val (id, workflow) = buildWorkflow(
       mutable.MutableList[OperatorDescriptor](headerlessCsvOpDesc, keywordOpDesc, sink),
       mutable.MutableList[OperatorLink](
         OperatorLink(
@@ -96,24 +104,26 @@ class DataProcessingSpec
         OperatorLink(OperatorPort(keywordOpDesc.operatorID, 0), OperatorPort(sink.operatorID, 0))
       )
     )
+    executeWorkflow(id, workflow)
   }
 
   "Engine" should "execute csv->sink workflow normally" in {
     val csvOpDesc = TestOperators.smallCsvScanOpDesc()
     val sink = TestOperators.sinkOpDesc()
-    expectCompletedAfterExecution(
+    val (id, workflow) = buildWorkflow(
       mutable.MutableList[OperatorDescriptor](csvOpDesc, sink),
       mutable.MutableList[OperatorLink](
         OperatorLink(OperatorPort(csvOpDesc.operatorID, 0), OperatorPort(sink.operatorID, 0))
       )
     )
+    executeWorkflow(id, workflow)
   }
 
   "Engine" should "execute csv->keyword->sink workflow normally" in {
     val csvOpDesc = TestOperators.smallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
     val sink = TestOperators.sinkOpDesc()
-    expectCompletedAfterExecution(
+    val (id, workflow) = buildWorkflow(
       mutable.MutableList[OperatorDescriptor](csvOpDesc, keywordOpDesc, sink),
       mutable.MutableList[OperatorLink](
         OperatorLink(
@@ -123,6 +133,7 @@ class DataProcessingSpec
         OperatorLink(OperatorPort(keywordOpDesc.operatorID, 0), OperatorPort(sink.operatorID, 0))
       )
     )
+    executeWorkflow(id, workflow)
   }
 
   "Engine" should "execute csv->keyword->count->sink workflow normally" in {
@@ -131,7 +142,7 @@ class DataProcessingSpec
     val countOpDesc =
       TestOperators.aggregateAndGroupByDesc("Region", AggregationFunction.COUNT, List[String]())
     val sink = TestOperators.sinkOpDesc()
-    expectCompletedAfterExecution(
+    val (id, workflow) = buildWorkflow(
       mutable.MutableList[OperatorDescriptor](csvOpDesc, keywordOpDesc, countOpDesc, sink),
       mutable.MutableList[OperatorLink](
         OperatorLink(
@@ -145,6 +156,7 @@ class DataProcessingSpec
         OperatorLink(OperatorPort(countOpDesc.operatorID, 0), OperatorPort(sink.operatorID, 0))
       )
     )
+    executeWorkflow(id, workflow)
   }
 
   "Engine" should "execute csv->keyword->averageAndGroupby->sink workflow normally" in {
@@ -157,7 +169,7 @@ class DataProcessingSpec
         List[String]("Country")
       )
     val sink = TestOperators.sinkOpDesc()
-    expectCompletedAfterExecution(
+    val (id, workflow) = buildWorkflow(
       mutable
         .MutableList[OperatorDescriptor](csvOpDesc, keywordOpDesc, averageAndGroupbyOpDesc, sink),
       mutable.MutableList[OperatorLink](
@@ -175,6 +187,7 @@ class DataProcessingSpec
         )
       )
     )
+    executeWorkflow(id, workflow)
   }
 
   "Engine" should "execute csv->(csv->)->join->sink workflow normally" in {
@@ -182,7 +195,7 @@ class DataProcessingSpec
     val headerlessCsvOpDesc2 = TestOperators.headerlessSmallCsvScanOpDesc()
     val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
     val sink = TestOperators.sinkOpDesc()
-    expectCompletedAfterExecution(
+    val (id, workflow) = buildWorkflow(
       mutable.MutableList[OperatorDescriptor](
         headerlessCsvOpDesc1,
         headerlessCsvOpDesc2,
@@ -204,18 +217,19 @@ class DataProcessingSpec
         )
       )
     )
+    executeWorkflow(id, workflow)
   }
 
   "Engine" should "execute asterixdb->sink workflow normally" in {
     val asterixDBOp = TestOperators.asterixDBSourceOpDesc()
-
     val sink = TestOperators.sinkOpDesc()
-    expectCompletedAfterExecution(
+    val (id, workflow) = buildWorkflow(
       mutable.MutableList[OperatorDescriptor](asterixDBOp, sink),
       mutable.MutableList[OperatorLink](
         OperatorLink(OperatorPort(asterixDBOp.operatorID, 0), OperatorPort(sink.operatorID, 0))
       )
     )
+    executeWorkflow(id, workflow)
   }
 
 }
