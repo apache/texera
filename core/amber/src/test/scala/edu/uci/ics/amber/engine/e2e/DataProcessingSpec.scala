@@ -206,4 +206,16 @@ class DataProcessingSpec
     )
   }
 
+  "Engine" should "execute asterixdb->sink workflow normally" in {
+    val asterixDBOp = TestOperators.asterixDBSourceOpDesc()
+
+    val sink = TestOperators.sinkOpDesc()
+    expectCompletedAfterExecution(
+      mutable.MutableList[OperatorDescriptor](asterixDBOp, sink),
+      mutable.MutableList[OperatorLink](
+        OperatorLink(OperatorPort(asterixDBOp.operatorID, 0), OperatorPort(sink.operatorID, 0))
+      )
+    )
+  }
+
 }
