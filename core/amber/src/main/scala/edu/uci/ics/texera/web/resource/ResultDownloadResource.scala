@@ -20,12 +20,14 @@ import javax.websocket.Session
 
 object ResultDownloadResource {
 
-  private final val SESSION_CACHED_RESULT = "ResultDownloadResource"
+  private final val SESSION_CACHED_KEY_NAME = "ResultDownloadResource"
+
+  private final val UPLOAD_SIZE = 100;
 
   def clearCache(session: Session): Unit = {
     session.getUserProperties
       .entrySet()
-      .removeIf(entry => entry.getKey.startsWith(SESSION_CACHED_RESULT))
+      .removeIf(entry => entry.getKey.startsWith(SESSION_CACHED_KEY_NAME))
   }
 
   def apply(
@@ -75,7 +77,7 @@ object ResultDownloadResource {
     }
 
     // cached the download response in the session
-    if (!response.link.isBlank) {
+    if (!response.link.isEmpty) {
       session.getUserProperties
         .put(getSessionName(request.downloadType), response)
     }
@@ -83,7 +85,7 @@ object ResultDownloadResource {
   }
 
   private def getSessionName(downloadType: String): String = {
-    s"${SESSION_CACHED_RESULT}_${downloadType}"
+    s"${SESSION_CACHED_KEY_NAME}_${downloadType}"
   }
 
   private def handleGoogleSheetRequest(
@@ -120,7 +122,7 @@ object ResultDownloadResource {
 
     // upload the content asynchronously to avoid long waiting on the user side.
     // may change to thread pool
-    new Thread(new SheetUploadTask(sheetService, sheetId, result)).start()
+    new Thread(() => uploadResult(sheetService, sheetId, result)).start()
 
     // generate success response
     val link: String = s"https://docs.google.com/spreadsheets/d/$sheetId/edit"
@@ -156,6 +158,31 @@ object ResultDownloadResource {
   }
 
   /**
+    * upload the result body to the google sheet
+    */
+  private def uploadResult(sheetService: Sheets, sheetId: String, result: List[ITuple]): Unit = {
+    val content: util.List[util.List[AnyRef]] =
+      Lists.newArrayListWithCapacity(UPLOAD_SIZE)
+    // use for loop to avoid copying the whole result at the same time
+    for (tuple: ITuple <- result) {
+      val tupleContent: util.List[AnyRef] =
+        tuple.asInstanceOf[Tuple].getFields
+      content.add(tupleContent)
+
+      if (content.size() == UPLOAD_SIZE) {
+        val response: AppendValuesResponse =
+          uploadContent(sheetService, sheetId, content)
+        content.clear()
+      }
+    }
+
+    if (!content.isEmpty) {
+      val response: AppendValuesResponse =
+        uploadContent(sheetService, sheetId, content)
+    }
+  }
+
+  /**
     * upload the content to the google sheet
     * The type of content is java list because the google API is in java
     */
@@ -172,35 +199,4 @@ object ResultDownloadResource {
       .setValueInputOption(valueInputOption)
       .execute
   }
-
-  private class SheetUploadTask(
-      val sheetService: Sheets,
-      val sheetId: String,
-      val result: List[ITuple]
-  ) extends Runnable {
-    private final val UPLOAD_SIZE = 100;
-
-    override def run(): Unit = {
-      val content: util.List[util.List[AnyRef]] =
-        Lists.newArrayListWithCapacity(UPLOAD_SIZE)
-      // use for loop to avoid copying the whole result at the same time
-      for (tuple: ITuple <- result) {
-        val tupleContent: util.List[AnyRef] =
-          tuple.asInstanceOf[Tuple].getFields
-        content.add(tupleContent)
-
-        if (content.size() == UPLOAD_SIZE) {
-          val response: AppendValuesResponse =
-            uploadContent(sheetService, sheetId, content)
-          content.clear()
-        }
-      }
-
-      if (!content.isEmpty) {
-        val response: AppendValuesResponse =
-          uploadContent(sheetService, sheetId, content)
-      }
-    }
-  }
-
 }
