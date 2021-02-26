@@ -12,6 +12,7 @@ import edu.uci.ics.amber.engine.architecture.controller.{
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
@@ -44,7 +45,7 @@ class DataProcessingSpec
   def expectCompletedAfterExecution(
       operators: mutable.MutableList[OperatorDescriptor],
       links: mutable.MutableList[OperatorLink]
-  ): Unit = {
+  ): Map[String, List[ITuple]] = {
     val parent = TestProbe()
     val context = new WorkflowContext
     context.jobID = "workflow-test"
@@ -57,14 +58,18 @@ class DataProcessingSpec
     val workflow = texeraWorkflowCompiler.amberWorkflow
     val workflowTag = WorkflowIdentity("workflow-test")
 
+    val eventListener = ControllerEventListener()
+    var results: Map[String, List[ITuple]] = null
+    eventListener.workflowCompletedListener = evt => results = evt.result
     val controller = parent.childActorOf(
-      Controller.props(workflowTag, workflow, ControllerEventListener(), 100)
+      Controller.props(workflowTag, workflow, eventListener, 100)
     )
     parent.expectMsg(ControllerState.Ready)
     controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, StartWorkflow())
     parent.expectMsg(ControllerState.Running)
     parent.expectMsg(1.minute, ControllerState.Completed)
     parent.ref ! PoisonPill
+    results
   }
 
   "Engine" should "execute headerlessCsv->sink workflow normally" in {
