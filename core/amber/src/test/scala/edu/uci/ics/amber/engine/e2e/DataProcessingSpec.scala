@@ -22,6 +22,7 @@ import edu.uci.ics.texera.workflow.operators.aggregate.AggregationFunction
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.flatspec.AnyFlatSpecLike
 
+import java.sql.PreparedStatement
 import scala.collection.mutable
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
@@ -230,6 +231,43 @@ class DataProcessingSpec
       )
     )
     executeWorkflow(id, workflow)
+  }
+
+  "Engine" should "execute mysql->sink workflow normally" in {
+    import ch.vorburger.mariadb4j.{DB, DBConfigurationBuilder}
+    val configBuilder = DBConfigurationBuilder.newBuilder
+    configBuilder.setPort(0) // 0 => autom. detect free port
+    val config = configBuilder.build
+    val db = DB.newEmbeddedDB(config)
+    db.start()
+    val dbName: String = "new"
+    db.createDB(dbName)
+    import java.sql.DriverManager
+
+    val conn = DriverManager.getConnection(config.getURL(dbName), "root", "")
+    var statement: PreparedStatement = conn.prepareStatement(
+      "create table test (id int primary key , text VARCHAR(512), point FLOAT, created_at DATE default NOW() not null)"
+    )
+    statement.execute()
+    statement = conn.prepareStatement("insert into test values(1, \"hello world\", 1.1, now())")
+    statement.execute()
+    statement.close()
+    conn.close()
+
+    val inMemoryMsSQLSourceOpDesc = TestOperators.inMemoryMySQLSourceOpDesc(config)
+
+    val sink = TestOperators.sinkOpDesc()
+    expectCompletedAfterExecution(
+      mutable.MutableList[OperatorDescriptor](inMemoryMsSQLSourceOpDesc, sink),
+      mutable.MutableList[OperatorLink](
+        OperatorLink(
+          OperatorPort(inMemoryMsSQLSourceOpDesc.operatorID, 0),
+          OperatorPort(sink.operatorID, 0)
+        )
+      )
+    )
+
+    db.stop()
   }
 
 }

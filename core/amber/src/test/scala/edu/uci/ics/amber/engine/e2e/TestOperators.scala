@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.engine.e2e
 
+import ch.vorburger.mariadb4j.DBConfiguration
 import edu.uci.ics.texera.workflow.operators.aggregate.{
   AggregationFunction,
   SpecializedAverageOpDesc
@@ -9,6 +10,7 @@ import edu.uci.ics.texera.workflow.operators.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.texera.workflow.operators.scan.CSVScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.asterixdb.AsterixDBSourceOpDesc
+import edu.uci.ics.texera.workflow.operators.source.mysql.MySQLSourceOpDesc
 
 object TestOperators {
 
@@ -57,6 +59,20 @@ object TestOperators {
     aggOp.resultAttribute = "aggregate-result"
     aggOp.groupByKeys = groupByAttributes
     aggOp
+  }
+
+  def inMemoryMySQLSourceOpDesc(config: DBConfiguration): MySQLSourceOpDesc = {
+    val inMemoryMySQLSourceOpDesc = new MySQLSourceOpDesc()
+
+    println("socket: ", config.getSocket)
+    inMemoryMySQLSourceOpDesc.host = "localhost"
+    inMemoryMySQLSourceOpDesc.port = config.getPort.toString
+    inMemoryMySQLSourceOpDesc.database = "new"
+    inMemoryMySQLSourceOpDesc.table = "test"
+    inMemoryMySQLSourceOpDesc.username = "root"
+    inMemoryMySQLSourceOpDesc.password = ""
+    inMemoryMySQLSourceOpDesc.limit = Option(1000)
+    inMemoryMySQLSourceOpDesc
   }
 
   def asterixDBSourceOpDesc(): AsterixDBSourceOpDesc = {
