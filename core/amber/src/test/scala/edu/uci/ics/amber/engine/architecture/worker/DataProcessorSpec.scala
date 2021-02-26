@@ -29,8 +29,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   LayerIdentity,
   LinkIdentity
 }
-import edu.uci.ics.amber.engine.recovery.mem.InMemorySecondaryLogStorage
-import edu.uci.ics.amber.engine.recovery.{SecondaryLogReplayManager, SecondaryLogStorage}
+import edu.uci.ics.amber.engine.recovery.{DPLogManager, InMemoryLogStorage, LogStorage}
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
@@ -47,8 +46,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   lazy val breakpointManager: BreakpointManager = mock[BreakpointManager]
   lazy val controlInputPort: ControlInputPort = mock[WorkerControlInputPort]
   lazy val controlOutputPort: ControlOutputPort = mock[ControlOutputPort]
-  lazy val logStorage: SecondaryLogStorage = wire[InMemorySecondaryLogStorage]
-  lazy val replayManager: SecondaryLogReplayManager = wire[SecondaryLogReplayManager]
+  lazy val logStorage: LogStorage[Long] = new InMemoryLogStorage[Long]("testDPLog")
+  lazy val replayManager: DPLogManager = wire[DPLogManager]
   val id = WorkerActorVirtualIdentity("testDPActor")
   val linkID: LinkIdentity =
     LinkIdentity(LayerIdentity("testDP", "mockOp", "src"), LayerIdentity("testDP", "mockOp", "dst"))

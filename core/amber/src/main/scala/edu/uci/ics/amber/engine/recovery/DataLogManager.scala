@@ -1,25 +1,26 @@
 package edu.uci.ics.amber.engine.recovery
 
-import com.google.common.collect.{BiMap, HashBiMap}
-import com.twitter.util.{Future, Promise}
-import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort
-import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
+import com.google.common.collect.HashBiMap
 import edu.uci.ics.amber.engine.common.ambermessage.DataPayload
 import edu.uci.ics.amber.engine.common.virtualidentity.VirtualIdentity
-import edu.uci.ics.amber.engine.recovery.MainLogStorage.{FromID, IdentifierMapping}
+import edu.uci.ics.amber.engine.recovery.DataLogManager.{
+  DataLogElement,
+  FromSender,
+  IdentifierMapping
+}
 
 import scala.collection.mutable
 
-class MainLogReplayManager(logStorage: MainLogStorage, controlInputPort: ControlInputPort) {
+object DataLogManager {
+  sealed trait DataLogElement
+  case class IdentifierMapping(virtualId: VirtualIdentity, id: Int) extends DataLogElement
+  case class FromSender(id: Int) extends DataLogElement
+}
 
-  def isReplaying: Boolean = !completion.isDefined
+class DataLogManager(logStorage: LogStorage[DataLogElement]) extends RecoveryComponent {
 
-  def onComplete(callback: () => Unit): Unit = {
-    completion.onSuccess(x => callback())
-  }
-
-  private val completion = new Promise[Void]()
   private val idMappingForRecovery = HashBiMap.create[VirtualIdentity, Int]()
+  private var counter = 0
 
   private val persistedDataOrder =
     logStorage
@@ -28,10 +29,7 @@ class MainLogReplayManager(logStorage: MainLogStorage, controlInputPort: Control
         case msg: IdentifierMapping =>
           idMappingForRecovery.put(msg.virtualId, msg.id)
           None
-        case msg: FromID => Some(msg.id)
-        case msg: WorkflowControlMessage =>
-          controlInputPort.handleControlMessage(msg)
-          None
+        case msg: FromSender => Some(msg.id)
       }
       .to[mutable.Queue]
 
@@ -43,7 +41,8 @@ class MainLogReplayManager(logStorage: MainLogStorage, controlInputPort: Control
       from: VirtualIdentity,
       message: DataPayload
   ): Iterable[(VirtualIdentity, DataPayload)] = {
-    if (completion.isDefined) {
+    if (!isRecovering) {
+      persistDataSender(from)
       return Iterable((from, message))
     }
     if (
@@ -62,9 +61,18 @@ class MainLogReplayManager(logStorage: MainLogStorage, controlInputPort: Control
     }
   }
 
+  private[this] def persistDataSender(vid: VirtualIdentity): Unit = {
+    if (!idMappingForRecovery.containsKey(vid)) {
+      idMappingForRecovery.put(vid, counter)
+      logStorage.persistElement(IdentifierMapping(vid, counter))
+      counter += 1
+    }
+    logStorage.persistElement(FromSender(idMappingForRecovery.get(vid)))
+  }
+
   private[this] def checkIfCompleted(): Unit = {
-    if (persistedDataOrder.isEmpty && !completion.isDefined) {
-      completion.setValue(null)
+    if (persistedDataOrder.isEmpty && isRecovering) {
+      setRecoveryCompleted()
     }
   }
 

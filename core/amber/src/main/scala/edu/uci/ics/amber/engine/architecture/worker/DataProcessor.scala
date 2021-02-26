@@ -23,7 +23,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, Li
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, WorkflowLogger}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.amber.error.ErrorUtils.safely
-import edu.uci.ics.amber.engine.recovery.{SecondaryLogReplayManager, SecondaryLogStorage}
+import edu.uci.ics.amber.engine.recovery.DPLogManager
 
 class DataProcessor( // dependencies:
     logger: WorkflowLogger, // logger of the worker actor
@@ -34,8 +34,7 @@ class DataProcessor( // dependencies:
     breakpointManager: BreakpointManager, // to evaluate breakpoints
     stateManager: WorkerStateManager,
     asyncRPCServer: AsyncRPCServer,
-    secondaryLogStorage: SecondaryLogStorage,
-    secondaryLogReplayManager: SecondaryLogReplayManager
+    dpLogManager: DPLogManager
 ) extends WorkerInternalQueue {
   // dp thread stats:
   // TODO: add another variable for recovery index instead of using the counts below.
@@ -224,7 +223,7 @@ class DataProcessor( // dependencies:
     if (advanceDataCursor) {
       dataCursor += 1
     }
-    if (secondaryLogReplayManager.isReplaying) {
+    if (dpLogManager.isRecovering) {
       replayControlCommands()
     } else {
       while (!controlQueue.isEmpty || pauseManager.isPaused) {
@@ -235,9 +234,9 @@ class DataProcessor( // dependencies:
   }
 
   private[this] def processControlCommandsAfterCompletion(): Unit = {
-    if (secondaryLogReplayManager.isReplaying) {
+    if (dpLogManager.isRecovering) {
       replayControlCommands()
-      assert(!secondaryLogReplayManager.isReplaying)
+      assert(!dpLogManager.isRecovering)
     }
     while (true) {
       takeOneControlCommandAndProcess()
@@ -262,15 +261,15 @@ class DataProcessor( // dependencies:
   }
 
   private[this] def replayControlCommands(): Unit = {
-    while (secondaryLogReplayManager.isCurrentCorrelated(dataCursor)) {
+    while (dpLogManager.isCurrentCorrelated(dataCursor)) {
       takeOneControlCommandAndProcess()
-      secondaryLogReplayManager.advanceCursor()
+      dpLogManager.advanceCursor()
     }
   }
 
   private[this] def persistCurrentDataCursor(): Unit = {
-    if (!secondaryLogReplayManager.isReplaying) {
-      secondaryLogStorage.persistCurrentDataCursor(dataCursor)
+    if (!dpLogManager.isRecovering) {
+      dpLogManager.persistCurrentDataCursor(dataCursor)
     }
   }
 

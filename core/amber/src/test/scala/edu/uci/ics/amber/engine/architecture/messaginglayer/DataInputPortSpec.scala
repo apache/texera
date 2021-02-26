@@ -3,20 +3,21 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import com.softwaremill.macwire.wire
+import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.DataInputPort.WorkflowDataMessage
 import edu.uci.ics.amber.engine.common.ambermessage.DataFrame
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.WorkerActorVirtualIdentity
-import edu.uci.ics.amber.engine.recovery.MainLogReplayManager
-import edu.uci.ics.amber.engine.recovery.empty.EmptyMainLogStorage
+import edu.uci.ics.amber.engine.recovery.DataLogManager.DataLogElement
+import edu.uci.ics.amber.engine.recovery.{ControlLogManager, DataLogManager, EmptyLogStorage}
 
 class DataInputPortSpec extends AnyFlatSpec with MockFactory {
 
   private val mockBatchToTupleConverter = mock[BatchToTupleConverter]
   private val fakeID = WorkerActorVirtualIdentity("testReceiver")
   private val controlInputPort = mock[ControlInputPort]
-  private val storage = wire[EmptyMainLogStorage]
-  private val mainLogReplayManager = wire[MainLogReplayManager]
+  private val storage = new EmptyLogStorage[DataLogElement]
+  private val logManager = wire[DataLogManager]
 
   "data input port" should "output data in FIFO order" in {
     val inputPort = wire[DataInputPort]

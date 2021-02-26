@@ -2,7 +2,6 @@ package edu.uci.ics.amber.engine.architecture.common
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Stash}
 import com.softwaremill.macwire.wire
-import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
@@ -24,19 +23,18 @@ import edu.uci.ics.amber.engine.common.rpc.{
   AsyncRPCServer
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.recovery.empty.EmptyMainLogStorage
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.amber.error.ErrorUtils.safely
-import edu.uci.ics.amber.engine.recovery.{MainLogReplayManager, MainLogStorage}
+import edu.uci.ics.amber.engine.recovery.{ControlLogManager, EmptyLogStorage, LogStorage}
 
 abstract class WorkflowActor(
     val identifier: ActorVirtualIdentity,
     parentNetworkCommunicationActorRef: ActorRef,
-    mainLogStorage: MainLogStorage = new EmptyMainLogStorage()
+    controlLogStorage: LogStorage[WorkflowControlMessage] = new EmptyLogStorage()
 ) extends Actor
     with Stash {
 
-  lazy val mainLogReplayManager: MainLogReplayManager = wire[MainLogReplayManager]
+  lazy val controlLogManager: ControlLogManager = wire[ControlLogManager]
 
   val logger: WorkflowLogger = WorkflowLogger(s"$identifier")
 
@@ -79,7 +77,7 @@ abstract class WorkflowActor(
 
   def processControlMessages: Receive = {
     case msg @ NetworkMessage(id, cmd: WorkflowControlMessage) =>
-      mainLogStorage.persistElement(cmd)
+      controlLogManager.persistControlMessage(cmd)
       sender ! NetworkAck(id)
       handleControlMessageWithTryCatch(cmd)
   }
