@@ -252,28 +252,28 @@ class RecoverySpec
     val sender2 = WorkerActorVirtualIdentity("sender2")
     val sender3 = WorkerActorVirtualIdentity("sender3")
     val messages = Seq(
-      WorkflowControlMessage(
+      WorkflowDataMessage(
         sender1,
         0,
-        ControlInvocation(-1, UpdateInputLinking(sender1, fakeLink))
+        InputLinking(fakeLink)
       ),
-      WorkflowControlMessage(
+      WorkflowDataMessage(
         sender2,
         0,
-        ControlInvocation(-1, UpdateInputLinking(sender2, fakeLink))
+        InputLinking(fakeLink)
       ),
-      WorkflowControlMessage(
+      WorkflowDataMessage(
         sender3,
         0,
-        ControlInvocation(-1, UpdateInputLinking(sender3, fakeLink))
+        InputLinking(fakeLink)
       ),
-      WorkflowDataMessage(sender1, 0, DataFrame(Array.empty)),
-      WorkflowDataMessage(sender2, 0, DataFrame(Array.empty)),
+      WorkflowDataMessage(sender1, 1, DataFrame(Array.empty)),
       WorkflowDataMessage(sender2, 1, DataFrame(Array.empty)),
-      WorkflowControlMessage(sender2, 1, ControlInvocation(-1, QueryStatistics())),
-      WorkflowDataMessage(sender3, 0, DataFrame(Array.empty)),
-      WorkflowControlMessage(sender3, 1, ControlInvocation(-1, QueryStatistics())),
-      WorkflowDataMessage(sender1, 1, DataFrame(Array.empty))
+      WorkflowDataMessage(sender2, 2, DataFrame(Array.empty)),
+      WorkflowControlMessage(sender2, 0, ControlInvocation(-1, QueryStatistics())),
+      WorkflowDataMessage(sender3, 1, DataFrame(Array.empty)),
+      WorkflowControlMessage(sender3, 0, ControlInvocation(-1, QueryStatistics())),
+      WorkflowDataMessage(sender1, 2, DataFrame(Array.empty))
     )
     val op = new SourceOperatorForRecoveryTest()
     val controlLogStorage: LogStorage[WorkflowControlMessage] =
@@ -283,17 +283,13 @@ class RecoverySpec
     val worker = system.actorOf(
       WorkflowWorker.props(id, op, TestProbe().ref, controlLogStorage, dataLogStorage, dpLogStorage)
     )
-    messages.take(3).foreach { x =>
-      worker ! NetworkMessage(0, x)
-    }
-    Thread.sleep(3000)
-    messages.drop(3).foreach { x =>
+    messages.foreach { x =>
       worker ! NetworkMessage(0, x)
     }
     Thread.sleep(10000)
-    assert(InMemoryLogStorage.getLogOf(id.toString + "-control").size == 5)
-    assert(InMemoryLogStorage.getLogOf(id.toString + "-data").size == 8)
-    assert(InMemoryLogStorage.getLogOf(id.toString + "-dp").size == 5)
+    assert(InMemoryLogStorage.getLogOf(id.toString + "-control").size == 2)
+    assert(InMemoryLogStorage.getLogOf(id.toString + "-data").size == 11)
+    assert(InMemoryLogStorage.getLogOf(id.toString + "-dp").size == 2)
     dataLogStorage.clear()
     dpLogStorage.clear()
     controlLogStorage.clear()
