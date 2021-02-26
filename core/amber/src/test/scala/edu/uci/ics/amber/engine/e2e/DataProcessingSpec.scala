@@ -160,10 +160,10 @@ class DataProcessingSpec
     executeWorkflow(id, workflow)
   }
 
-  "Engine" should "execute csv->keyword->averageAndGroupby->sink workflow normally" in {
+  "Engine" should "execute csv->keyword->averageAndGroupBy->sink workflow normally" in {
     val csvOpDesc = TestOperators.smallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
-    val averageAndGroupbyOpDesc =
+    val averageAndGroupByOpDesc =
       TestOperators.aggregateAndGroupByDesc(
         "Units Sold",
         AggregationFunction.AVERAGE,
@@ -172,7 +172,7 @@ class DataProcessingSpec
     val sink = TestOperators.sinkOpDesc()
     val (id, workflow) = buildWorkflow(
       mutable
-        .MutableList[OperatorDescriptor](csvOpDesc, keywordOpDesc, averageAndGroupbyOpDesc, sink),
+        .MutableList[OperatorDescriptor](csvOpDesc, keywordOpDesc, averageAndGroupByOpDesc, sink),
       mutable.MutableList[OperatorLink](
         OperatorLink(
           OperatorPort(csvOpDesc.operatorID, 0),
@@ -180,10 +180,10 @@ class DataProcessingSpec
         ),
         OperatorLink(
           OperatorPort(keywordOpDesc.operatorID, 0),
-          OperatorPort(averageAndGroupbyOpDesc.operatorID, 0)
+          OperatorPort(averageAndGroupByOpDesc.operatorID, 0)
         ),
         OperatorLink(
-          OperatorPort(averageAndGroupbyOpDesc.operatorID, 0),
+          OperatorPort(averageAndGroupByOpDesc.operatorID, 0),
           OperatorPort(sink.operatorID, 0)
         )
       )
