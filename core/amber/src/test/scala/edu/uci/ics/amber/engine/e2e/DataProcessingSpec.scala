@@ -54,7 +54,6 @@ class DataProcessingSpec
       WorkflowInfo(operators, links, mutable.MutableList[BreakpointInfo]()),
       context
     )
-    texeraWorkflowCompiler.init()
     val workflow = texeraWorkflowCompiler.amberWorkflow
     val workflowTag = WorkflowIdentity("workflow-test")
     (workflowTag, workflow)
