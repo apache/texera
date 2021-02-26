@@ -64,17 +64,17 @@ object TestOperators {
       host: String,
       port: String,
       database: String,
-      table: String
+      table: String,
+      username: String,
+      password: String
   ): MySQLSourceOpDesc = {
     val inMemoryMySQLSourceOpDesc = new MySQLSourceOpDesc()
-//
-//    println("socket: ", config.getSocket)
     inMemoryMySQLSourceOpDesc.host = host
     inMemoryMySQLSourceOpDesc.port = port
     inMemoryMySQLSourceOpDesc.database = database
     inMemoryMySQLSourceOpDesc.table = table
-    inMemoryMySQLSourceOpDesc.username = "root"
-    inMemoryMySQLSourceOpDesc.password = ""
+    inMemoryMySQLSourceOpDesc.username = username
+    inMemoryMySQLSourceOpDesc.password = password
     inMemoryMySQLSourceOpDesc.limit = Option(1000)
     inMemoryMySQLSourceOpDesc
   }

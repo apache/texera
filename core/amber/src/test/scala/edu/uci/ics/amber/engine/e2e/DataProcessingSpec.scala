@@ -3,6 +3,7 @@ package edu.uci.ics.amber.engine.e2e
 import akka.actor.{ActorSystem, PoisonPill, Props}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import akka.util.Timeout
+import ch.vorburger.mariadb4j.DB
 import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.engine.architecture.controller.{
   Controller,
@@ -36,6 +37,8 @@ class DataProcessingSpec
 
   implicit val timeout: Timeout = Timeout(5.seconds)
   implicit val executionContext: ExecutionContextExecutor = system.dispatcher
+
+  var inMemoryMySQLInstance: Option[DB] = None
 
   override def beforeAll: Unit = {
     system.actorOf(Props[SingleNodeListener], "cluster-info")
@@ -74,6 +77,38 @@ class DataProcessingSpec
     parent.expectMsg(1.minute, ControllerState.Completed)
     parent.ref ! PoisonPill
     results
+  }
+
+  def initializeInMemoryMySQLInstance(): (String, String, String, String, String, String) = {
+    import ch.vorburger.mariadb4j.{DB, DBConfigurationBuilder}
+
+    import java.sql.DriverManager
+
+    val database: String = "new"
+    val table: String = "test"
+    val username: String = "root"
+    val password: String = ""
+
+    val config = DBConfigurationBuilder.newBuilder
+      .setPort(0) // 0 => automatically detect free port
+      .build()
+
+    inMemoryMySQLInstance = Option(DB.newEmbeddedDB(config))
+    inMemoryMySQLInstance.get.start()
+    inMemoryMySQLInstance.get.createDB(database)
+
+    // insert test data
+    val conn = DriverManager.getConnection(config.getURL(database), username, password)
+    var statement: PreparedStatement = conn.prepareStatement(
+      s"create table $table (id int primary key auto_increment, text VARCHAR(512), " +
+        s"point FLOAT, created_at DATE default NOW() not null)"
+    )
+    statement.execute()
+    statement = conn.prepareStatement(s"insert into $table (text) values ('hello world')")
+    statement.execute()
+    statement.close()
+    conn.close()
+    ("localhost", config.getPort.toString, database, table, username, password)
   }
 
   "Engine" should "execute headerlessCsv->sink workflow normally" in {
@@ -222,6 +257,7 @@ class DataProcessingSpec
   }
 
   "Engine" should "execute asterixdb->sink workflow normally" in {
+
     val asterixDBOp = TestOperators.asterixDBSourceOpDesc()
     val sink = TestOperators.sinkOpDesc()
     val (id, workflow) = buildWorkflow(
@@ -234,38 +270,14 @@ class DataProcessingSpec
   }
 
   "Engine" should "execute mysql->sink workflow normally" in {
-    import ch.vorburger.mariadb4j.{DB, DBConfigurationBuilder}
-
-    import java.sql.DriverManager
-
-    val dbName: String = "new"
-    val tableName: String = "test"
-
-    val config = DBConfigurationBuilder.newBuilder
-      .setPort(0) // 0 => automatically detect free port
-      .build()
-
-    val db = DB.newEmbeddedDB(config)
-    db.start()
-    db.createDB(dbName)
-
-    // insert test data
-    val conn = DriverManager.getConnection(config.getURL(dbName), "root", "")
-    var statement: PreparedStatement = conn.prepareStatement(
-      s"create table $tableName (id int primary key auto_increment, text VARCHAR(512), " +
-        s"point FLOAT, created_at DATE default NOW() not null)"
-    )
-    statement.execute()
-    statement = conn.prepareStatement(s"insert into $tableName (text) values ('hello world')")
-    statement.execute()
-    statement.close()
-    conn.close()
-
+    val (host, port, database, table, username, password) = initializeInMemoryMySQLInstance()
     val inMemoryMsSQLSourceOpDesc = TestOperators.inMemoryMySQLSourceOpDesc(
-      "localhost",
-      config.getPort.toString,
-      dbName,
-      tableName
+      host,
+      port,
+      database,
+      table,
+      username,
+      password
     )
 
     val sink = TestOperators.sinkOpDesc()
@@ -280,7 +292,7 @@ class DataProcessingSpec
     )
     executeWorkflow(id, workflow)
 
-    db.stop()
+    inMemoryMySQLInstance.get.stop()
   }
 
 }
