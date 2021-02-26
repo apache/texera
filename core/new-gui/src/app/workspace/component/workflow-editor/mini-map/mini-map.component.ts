@@ -43,14 +43,14 @@ export class MiniMapComponent implements AfterViewInit {
   private miniMapPaper: joint.dia.Paper | undefined;
 
   // private ifMouseDown: boolean = false;
-  private panOffset: Point = { x: 0, y: 0 };
-  private navigatorElementOffset: Point = { x: 0, y: 0 };
-  private navigatorInitialOffset: Point = { x: 0, y: 0 };
-  private navigatorCoordinate: Point = { x: 0, y: 0 };
-  private navigatorOriginalWidth = 0;
-  private navigatorOriginalHeight = 0;
-  private navigatorTop = 0;
-  private navigatorLeft = 0;
+  // private panOffset: Point = { x: 0, y: 0 };
+  // private navigatorElementOffset: Point = { x: 0, y: 0 };
+  // private navigatorInitialOffset: Point = { x: 0, y: 0 };
+  // private navigatorCoordinate: Point = { x: 0, y: 0 };
+  // private navigatorOriginalWidth = 0;
+  // private navigatorOriginalHeight = 0;
+  // private navigatorTop = 0;
+  // private navigatorLeft = 0;
 
 
 
@@ -60,9 +60,9 @@ export class MiniMapComponent implements AfterViewInit {
     this.initializeMapPaper();
     this.setMiniMapNavigatorDimension();
     this.handleMouseEvents();
-    // this.handleWindowResize();
+    this.handleWindowResize();
     // this.handleMinimapTranslate();
-    // this.handlePaperZoom();
+    this.handlePaperZoom();
   }
 
   public handleMouseEvents() {
@@ -130,19 +130,17 @@ export class MiniMapComponent implements AfterViewInit {
     this.miniMapPaper.translate(origin.x, origin.y);
     this.miniMapPaper.scale(MINI_MAP_ZOOM_SCALE);
 
-    console.log(origin);
-
     // this.navigatorElementOffset = this.getNavigatorElementOffset();
     // this.setMiniPaperOriginOffset();
+    this.setMiniMapNavigatorInitialOffset();
     this.setMiniMapNavigatorDimension();
-    this.setMapPaperDimensions();
+    // this.setMapPaperDimensions();
+
+
 
     this.workflowActionService.getJointGraphWrapper().mainCanvasOriginEvent.subscribe(event => {
       // set navigator position in the component
       const point = this.canvasToMinimapPoint({ x: -event.x, y: -event.y });
-
-      // const marginTop = (miniMapHeight - mainPaperHeight * MINI_MAP_ZOOM_SCALE) / 2;
-      // const marginLeft = (miniMapWidth - mainPaperWidth * MINI_MAP_ZOOM_SCALE) / 2;
       jQuery('#' + this.MINI_MAP_NAVIGATOR_ID).css({ left: point.x + 'px', top: point.y + 'px' });
     });
 
@@ -195,57 +193,53 @@ export class MiniMapComponent implements AfterViewInit {
    */
   private handlePaperZoom(): void {
     this.workflowActionService.getJointGraphWrapper().getWorkflowEditorZoomStream().subscribe(newRatio => {
+      this.setMiniMapNavigatorDimension();
       // this.getMiniMapPaper().scale(newRatio * MINI_MAP_ZOOM_SCALE, newRatio * MINI_MAP_ZOOM_SCALE);
-      const e = jQuery('#' + this.MINI_MAP_NAVIGATOR_ID);
-      const prevWidth = e.width() ?? 150;
-      const prevHeight = e.height() ?? 150;
-      const width = this.navigatorOriginalWidth * (1 / newRatio);
-      const height = this.navigatorOriginalHeight * (1 / newRatio);
-      e.css('width', width);
-      e.css('height', height);
-      e.css('top', e.position().top - (height - prevHeight) / 2 + 'px');
-      e.css('left', e.position().left - (width - prevWidth) / 2 + 'px');
+      // const e = jQuery('#' + this.MINI_MAP_NAVIGATOR_ID);
+      // const prevWidth = e.width() ?? 150;
+      // const prevHeight = e.height() ?? 150;
+      // const width = this.navigatorOriginalWidth * (1 / newRatio);
+      // const height = this.navigatorOriginalHeight * (1 / newRatio);
+      // e.css('width', width);
+      // e.css('height', height);
+      // e.css('top', e.position().top - (height - prevHeight) / 2 + 'px');
+      // e.css('left', e.position().left - (width - prevWidth) / 2 + 'px');
     });
   }
 
-  // /**
-  //  * When window is resized, recalculate navigatorOffset, reset mini-map's dimensions,
-  //  *  recompute navigator dimension, and reset mini-map origin offset (introduce
-  //  *  a delay to limit only one event every 30ms)
-  //  */
-  // private handleWindowResize(): void {
-  //   Observable.fromEvent(window, 'resize').auditTime(30).subscribe(
-  //     () => {
-  //       // get navigatorElementOffset here to prevent recomputing everytime
-  //       this.navigatorElementOffset = this.getNavigatorElementOffset();
-  //       this.setMapPaperDimensions();
-  //       this.setMiniMapNavigatorDimension();
-  //       this.setMiniPaperOriginOffset();
-  //     }
-  //   );
-  // }
+  /**
+   * When window is resized, recalculate navigatorOffset, reset mini-map's dimensions,
+   *  recompute navigator dimension, and reset mini-map origin offset (introduce
+   *  a delay to limit only one event every 30ms)
+   */
+  private handleWindowResize(): void {
+    Observable.fromEvent(window, 'resize').auditTime(30).subscribe(
+      () => {
+        this.setMiniMapNavigatorDimension();
+      }
+    );
+  }
+
+  private setMiniMapNavigatorInitialOffset(): void {
+      // set navigator position in the component
+      const point = this.canvasToMinimapPoint({ x: 0, y: 0 });
+      jQuery('#' + this.MINI_MAP_NAVIGATOR_ID).css({ left: point.x + 'px', top: point.y + 'px' });
+  }
 
   /**
    * This method sets the dimension of the navigator based on the browser size.
    */
   private setMiniMapNavigatorDimension(): void {
     const { width: mainPaperWidth, height: mainPaperHeight } = this.getOriginalWrapperElementSize();
-    const { width: miniMapWidth, height: miniMapHeight } = this.getWrapperElementSize();
+    const zoomRatio = this.workflowActionService.getJointGraphWrapper().getZoomRatio();
 
     // set navigator dimension size, mainPaperDimension * MINI_MAP_ZOOM_SCALE is the
     //  main paper's size in the mini-map
-    this.navigatorOriginalWidth = mainPaperWidth * MINI_MAP_ZOOM_SCALE;
-    this.navigatorOriginalHeight = mainPaperHeight * MINI_MAP_ZOOM_SCALE;
-    jQuery('#' + this.MINI_MAP_NAVIGATOR_ID).width(mainPaperWidth * MINI_MAP_ZOOM_SCALE);
-    jQuery('#' + this.MINI_MAP_NAVIGATOR_ID).height(mainPaperHeight * MINI_MAP_ZOOM_SCALE);
+    const width = (mainPaperWidth / zoomRatio) * MINI_MAP_ZOOM_SCALE;
+    const height = (mainPaperHeight / zoomRatio) * MINI_MAP_ZOOM_SCALE;
+    jQuery('#' + this.MINI_MAP_NAVIGATOR_ID).width(width);
+    jQuery('#' + this.MINI_MAP_NAVIGATOR_ID).height(height);
 
-    // set navigator position in the component
-    const point = this.canvasToMinimapPoint({ x: 0, y: 0 });
-    console.log(point);
-
-    // const marginTop = (miniMapHeight - mainPaperHeight * MINI_MAP_ZOOM_SCALE) / 2;
-    // const marginLeft = (miniMapWidth - mainPaperWidth * MINI_MAP_ZOOM_SCALE) / 2;
-    jQuery('#' + this.MINI_MAP_NAVIGATOR_ID).css({ left: point.x + 'px', top: point.y + 'px' });
   }
 
 
@@ -278,12 +272,12 @@ export class MiniMapComponent implements AfterViewInit {
     return { width, height };
   }
 
-  /**
-   * This method sets the mini-map paper width and height.
-   */
-  private setMapPaperDimensions(): void {
-    const size = this.getWrapperElementSize();
-    this.getMiniMapPaper().setDimensions(size.width, size.height);
-  }
+  // /**
+  //  * This method sets the mini-map paper width and height.
+  //  */
+  // private setMapPaperDimensions(): void {
+  //   const size = this.getWrapperElementSize();
+  //   this.getMiniMapPaper().setDimensions(size.width, size.height);
+  // }
 
 }

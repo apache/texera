@@ -213,8 +213,8 @@ export class NavigationComponent implements OnInit {
     }
 
     // make the ratio small.
-    // this.workflowActionService.getJointGraphWrapper()
-    //     .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() - JointGraphWrapper.ZOOM_CLICK_DIFF);
+    this.workflowActionService.getJointGraphWrapper()
+        .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() - JointGraphWrapper.ZOOM_CLICK_DIFF);
   }
 
   /**
@@ -232,8 +232,8 @@ export class NavigationComponent implements OnInit {
     }
 
     // make the ratio big.
-    // this.workflowActionService.getJointGraphWrapper()
-    //     .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_CLICK_DIFF);
+    this.workflowActionService.getJointGraphWrapper()
+        .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_CLICK_DIFF);
   }
 
   /**

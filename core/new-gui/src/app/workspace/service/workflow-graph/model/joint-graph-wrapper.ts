@@ -81,7 +81,7 @@ export class JointGraphWrapper {
   public static readonly ZOOM_CLICK_DIFF: number = 0.05;
   public static readonly ZOOM_MOUSEWHEEL_DIFF: number = 0.01;
   public static readonly INIT_ZOOM_VALUE: number = 1;
-  public static readonly INIT_PAN_OFFSET: Point = { x: 0, y: 0 };
+  // public static readonly INIT_PAN_OFFSET: Point = { x: 0, y: 0 };
 
   public static readonly ZOOM_MINIMUM: number = 0.70;
   public static readonly ZOOM_MAXIMUM: number = 1.30;
@@ -145,8 +145,8 @@ export class JointGraphWrapper {
   private linksWithBreakpoints: string[] = [];
 
   // current zoom ratio
-  // private zoomRatio: number = JointGraphWrapper.INIT_ZOOM_VALUE;
-  // // panOffset, a point of panning offset alongside x and y axis
+  private zoomRatio: number = JointGraphWrapper.INIT_ZOOM_VALUE;
+  // panOffset, a point of panning offset alongside x and y axis
   // private panOffset: Point = JointGraphWrapper.INIT_PAN_OFFSET;
 
   /**
@@ -606,30 +606,30 @@ export class JointGraphWrapper {
   //   this.panPaperOffsetCheck.next(panOffset);
   // }
 
-  // /**
-  //  * This method will update the zoom ratio, which will be used
-  //  *  in calculating the position of the operator dropped on the UI.
-  //  *
-  //  * @param ratio new ratio from zooming
-  //  */
-  // public setZoomProperty(ratio: number): void {
-  //   this.zoomRatio = ratio;
-  //   this.workflowEditorZoomSubject.next(this.zoomRatio);
-  // }
+  /**
+   * This method will update the zoom ratio, which will be used
+   *  in calculating the position of the operator dropped on the UI.
+   *
+   * @param ratio new ratio from zooming
+   */
+  public setZoomProperty(ratio: number): void {
+    this.zoomRatio = ratio;
+    this.workflowEditorZoomSubject.next(this.zoomRatio);
+  }
 
-  // /**
-  //  * Check if the zoom ratio reaches the minimum.
-  //  */
-  // public isZoomRatioMin(): boolean {
-  //   return this.zoomRatio <= JointGraphWrapper.ZOOM_MINIMUM;
-  // }
+  /**
+   * Check if the zoom ratio reaches the minimum.
+   */
+  public isZoomRatioMin(): boolean {
+    return this.zoomRatio <= JointGraphWrapper.ZOOM_MINIMUM;
+  }
 
-  // /**
-  //  * Check if the zoom ratio reaches the maximum.
-  //  */
-  // public isZoomRatioMax(): boolean {
-  //   return this.zoomRatio >= JointGraphWrapper.ZOOM_MAXIMUM;
-  // }
+  /**
+   * Check if the zoom ratio reaches the maximum.
+   */
+  public isZoomRatioMax(): boolean {
+    return this.zoomRatio >= JointGraphWrapper.ZOOM_MAXIMUM;
+  }
 
   /**
    * Returns an observable stream containing the new zoom ratio
@@ -646,19 +646,19 @@ export class JointGraphWrapper {
   //   return this.panOffset;
   // }
 
-  // /**
-  //  * This method will fetch current zoom ratio of the paper.
-  //  */
-  // public getZoomRatio(): number {
-  //   return this.zoomRatio;
-  // }
+  /**
+   * This method will fetch current zoom ratio of the paper.
+   */
+  public getZoomRatio(): number {
+    return this.zoomRatio;
+  }
 
   /**
    * This method will restore the default zoom ratio and offset for
    *  the jointjs paper by sending an event to restorePaperSubject.
    */
   public restoreDefaultZoomAndOffset(): void {
-    console.log('restore called');
+    this.setZoomProperty(JointGraphWrapper.INIT_ZOOM_VALUE);
     this.restorePaperOffsetSubject.next();
   }
 

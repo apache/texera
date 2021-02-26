@@ -271,9 +271,10 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private handlePaperRestoreDefaultOffset(): void {
     this.workflowActionService.getJointGraphWrapper().getRestorePaperOffsetStream()
       .subscribe(() => {
-        console.log('restore!');
         this.getJointPaper().scale(1, 1);
+        this.workflowActionService.getJointGraphWrapper().setZoomProperty(1);
         this.getJointPaper().translate(0, 0);
+        this.workflowActionService.getJointGraphWrapper().mainCanvasOriginEvent.next({x: 0, y: 0});
       });
   }
 
@@ -282,10 +283,12 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handlePaperZoom(): void {
     this.workflowActionService.getJointGraphWrapper().getWorkflowEditorZoomStream().subscribe(newRatio => {
-      const elementSize = this.getWrapperElementSize();
-      const center = this.getJointPaper().localToPaperPoint(
-        elementSize.width / 2, elementSize.height / 2);
-      this.getJointPaper().scale(newRatio, newRatio, center.x, center.y);
+      // const elementSize = this.getWrapperElementSize();
+      // const center = this.getJointPaper().localToPaperPoint(
+      //   elementSize.width / 2, elementSize.height / 2);
+      const centerX = MAIN_CANVAS_LIMIT.xMax - MAIN_CANVAS_LIMIT.xMin;
+      const centerY = MAIN_CANVAS_LIMIT.yMax - MAIN_CANVAS_LIMIT.yMin;
+      this.getJointPaper().scale(newRatio, newRatio, 0, 0);
     });
   }
 
@@ -303,28 +306,28 @@ export class WorkflowEditorComponent implements AfterViewInit {
    *      jointJS paper will zoom out.
    */
   private handlePaperMouseZoom(): void {
-    // Observable.fromEvent<WheelEvent>(document, 'mousewheel')
-    //   .filter(event => event !== undefined)
-    //   .filter(event => this.elementRef.nativeElement.contains(event.target))
-    //   .forEach(event => {
-    //     if (event.metaKey || event.ctrlKey) {
-    //       if (event.deltaY < 0) {
-    //         // if zoom ratio already at minimum, do not zoom out.
-    //         if (this.workflowActionService.getJointGraphWrapper().isZoomRatioMin()) {
-    //           return;
-    //         }
-    //         this.workflowActionService.getJointGraphWrapper()
-    //           .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() - JointGraphWrapper.ZOOM_MOUSEWHEEL_DIFF);
-    //       } else {
-    //         // if zoom ratio already at maximum, do not zoom in.
-    //         if (this.workflowActionService.getJointGraphWrapper().isZoomRatioMax()) {
-    //           return;
-    //         }
-    //         this.workflowActionService.getJointGraphWrapper()
-    //           .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_MOUSEWHEEL_DIFF);
-    //       }
-    //     }
-    //   });
+    Observable.fromEvent<WheelEvent>(document, 'mousewheel')
+      .filter(event => event !== undefined)
+      .filter(event => this.elementRef.nativeElement.contains(event.target))
+      .forEach(event => {
+        if (event.metaKey || event.ctrlKey) {
+          if (event.deltaY < 0) {
+            // if zoom ratio already at minimum, do not zoom out.
+            if (this.workflowActionService.getJointGraphWrapper().isZoomRatioMin()) {
+              return;
+            }
+            this.workflowActionService.getJointGraphWrapper()
+              .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() - JointGraphWrapper.ZOOM_MOUSEWHEEL_DIFF);
+          } else {
+            // if zoom ratio already at maximum, do not zoom in.
+            if (this.workflowActionService.getJointGraphWrapper().isZoomRatioMax()) {
+              return;
+            }
+            this.workflowActionService.getJointGraphWrapper()
+              .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_MOUSEWHEEL_DIFF);
+          }
+        }
+      });
   }
 
   // /**
@@ -443,7 +446,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
         const y = event[0].screenY;
         if (x !== undefined && y !== undefined) {
           this.mouseDown = { x, y };
-          console.log(this.mouseDown);
+          // console.log(this.mouseDown);
         }
         event[0].preventDefault();
       });
@@ -462,7 +465,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
      */
     const mousePanEvent = Observable.fromEvent<MouseEvent>(document, 'mousemove')
       .filter(() => this.mouseDown !== undefined)
-      // .throttleTime(50)
       .map(event => {
         event.preventDefault();
         if (this.mouseDown === undefined) {
@@ -475,18 +477,17 @@ export class WorkflowEditorComponent implements AfterViewInit {
       });
 
     const mouseWheelEvent = Observable.fromEvent<WheelEvent>(document, 'mousewheel')
-      .filter(event => this.elementRef.nativeElement.contains(event.target));
+      .filter(event => this.elementRef.nativeElement.contains(event.target))
+      .filter(event => !(event.metaKey || event.ctrlKey));
 
 
-    // const minimapMousePanEvent =
-
-    Observable.merge(mousePanEvent, mouseWheelEvent, this.workflowActionService.getJointGraphWrapper().navigatorMoveDelta)
-      // .filter(() => this.ifMouseDown === true)
-      // .filter(() => this.mouseDown !== undefined)
-      .map(event => {
+    Observable.merge(
+      mousePanEvent,
+      mouseWheelEvent,
+      this.workflowActionService.getJointGraphWrapper().navigatorMoveDelta.map(event => {
         const scale = this.getJointPaper().scale();
         return { deltaX: event.deltaX * scale.sx, deltaY: event.deltaY * scale.sy };
-      })
+      }))
       .forEach(event => {
 
         const oldOrigin = this.getJointPaper().translate();
@@ -494,14 +495,17 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
         const scale = this.getJointPaper().scale();
 
-        if (-newOrigin.x < MAIN_CANVAS_LIMIT.xMin) {
+        if (-newOrigin.x <= MAIN_CANVAS_LIMIT.xMin) {
           newOrigin.x = -MAIN_CANVAS_LIMIT.xMin;
-        } else if (-newOrigin.y < MAIN_CANVAS_LIMIT.yMin) {
+        }
+        if (-newOrigin.y <= MAIN_CANVAS_LIMIT.yMin) {
           newOrigin.y = -MAIN_CANVAS_LIMIT.yMin;
-        } else if (-newOrigin.x > MAIN_CANVAS_LIMIT.xMax - this.getWrapperElementSize().width * scale.sx) {
-          newOrigin.x = - (MAIN_CANVAS_LIMIT.xMax - this.getWrapperElementSize().width * scale.sx);
-        } else if (-newOrigin.y > MAIN_CANVAS_LIMIT.yMax - this.getWrapperElementSize().height * scale.sy) {
-          newOrigin.y = - (MAIN_CANVAS_LIMIT.yMax - this.getWrapperElementSize().height * scale.sy);
+        }
+        if (-newOrigin.x >= MAIN_CANVAS_LIMIT.xMax - this.getWrapperElementSize().width / scale.sx) {
+          newOrigin.x = - (MAIN_CANVAS_LIMIT.xMax - this.getWrapperElementSize().width / scale.sx);
+        }
+        if (-newOrigin.y >= MAIN_CANVAS_LIMIT.yMax - this.getWrapperElementSize().height / scale.sy) {
+          newOrigin.y = - (MAIN_CANVAS_LIMIT.yMax - this.getWrapperElementSize().height / scale.sy);
         }
 
         this.getJointPaper().translate(newOrigin.x, newOrigin.y);
@@ -543,24 +547,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   }
 
-  // private handleMinimapTranslate(): void {
-  //   // record the corresponding paper origin when the mouse down event happens in mini-map navigator
-  //   Observable.merge(
-  //     this.workflowActionService.getJointGraphWrapper().getMousDownReminder(),
-  //   ).subscribe(() => {
-  //     this.minimapTranslateX = this.getJointPaper().translate().tx;
-  //     this.minimapTranslateY = this.getJointPaper().translate().ty;
-  //   });
-  //   Observable.merge(
-  //     this.workflowActionService.getJointGraphWrapper().getPanPaperOffsetStream2(),
-  //   ).subscribe(newOffset => {
-  //     this.getJointPaper().translate(
-  //       this.minimapTranslateX - newOffset.x * this.workflowActionService.getJointGraphWrapper().getZoomRatio(),
-  //       this.minimapTranslateY - newOffset.y * this.workflowActionService.getJointGraphWrapper().getZoomRatio()
-  //     );
-  //   }
-  //   );
-  // }
 
   /**
    * This is the handler for window resize event
@@ -578,13 +564,10 @@ export class WorkflowEditorComponent implements AfterViewInit {
       this.resultPanelToggleService.getToggleChangeStream().auditTime(30)
     ).subscribe(
       () => {
-        // reset the origin cooredinates
-        this.setJointPaperOriginOffset();
         // resize the JointJS paper dimensions
         this.setJointPaperDimensions();
       }
     );
-
   }
 
   private handleCellHighlight(): void {
@@ -714,8 +697,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
    *  function `translate` does the same thing
    */
   private setJointPaperOriginOffset(): void {
-    const elementOffset = this.getWrapperElementOffset();
-    this.getJointPaper().translate(-elementOffset.x + this.panOffset.x, -elementOffset.y + this.panOffset.y);
+    this.getJointPaper().translate(0, 0);
+    this.workflowActionService.getJointGraphWrapper().mainCanvasOriginEvent.next({x: 0, y: 0});
+
   }
 
   /**
