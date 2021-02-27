@@ -24,7 +24,8 @@ class AsterixDBSourceOpExec private[asterixdb] (
     table: String,
     limit: Option[Long],
     offset: Option[Long],
-    column: Option[String],
+    search: Boolean,
+    searchByColumn: Option[String],
     keywords: Option[String],
     progressive: Boolean,
     batchByColumn: Option[String],
@@ -34,7 +35,8 @@ class AsterixDBSourceOpExec private[asterixdb] (
       table,
       limit,
       offset,
-      column,
+      search,
+      searchByColumn,
       keywords,
       progressive,
       batchByColumn,
@@ -144,11 +146,11 @@ class AsterixDBSourceOpExec private[asterixdb] (
   @throws[RuntimeException]
   def addKeywordSearch(queryBuilder: StringBuilder): Unit = {
 
-    val columnType = schema.getAttribute(column.get).getType
+    val columnType = schema.getAttribute(searchByColumn.get).getType
 
     if (columnType == AttributeType.STRING) {
 
-      queryBuilder ++= " AND ftcontains(" + column.get + ", " + keywords.get + ") "
+      queryBuilder ++= " AND ftcontains(" + searchByColumn.get + ", " + keywords.get + ") "
     } else
       throw new RuntimeException("Can't do keyword search on type " + columnType.toString)
   }

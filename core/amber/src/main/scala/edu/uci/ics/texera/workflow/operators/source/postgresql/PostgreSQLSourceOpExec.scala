@@ -16,7 +16,8 @@ class PostgreSQLSourceOpExec private[postgresql] (
     password: String,
     limit: Option[Long],
     offset: Option[Long],
-    column: Option[String],
+    search: Boolean,
+    searchByColumn: Option[String],
     keywords: Option[String],
     progressive: Boolean,
     batchByColumn: Option[String],
@@ -26,7 +27,8 @@ class PostgreSQLSourceOpExec private[postgresql] (
       table,
       limit,
       offset,
-      column,
+      search,
+      searchByColumn,
       keywords,
       progressive,
       batchByColumn,
@@ -40,11 +42,11 @@ class PostgreSQLSourceOpExec private[postgresql] (
 
   @throws[RuntimeException]
   override def addKeywordSearch(queryBuilder: StringBuilder): Unit = {
-    val columnType = schema.getAttribute(column.get).getType
+    val columnType = schema.getAttribute(searchByColumn.get).getType
 
     if (columnType == AttributeType.STRING) {
       // in sql prepared statement, column name cannot be inserted using PreparedStatement.setString either
-      queryBuilder ++= " AND " + column.get + " @@ to_tsquery(?)"
+      queryBuilder ++= " AND " + searchByColumn.get + " @@ to_tsquery(?)"
 
       // OPTIMIZE: no fulltext index is required, having a built fulltext index can help performance on large dataset.
 

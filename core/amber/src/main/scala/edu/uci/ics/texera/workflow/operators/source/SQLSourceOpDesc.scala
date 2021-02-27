@@ -49,11 +49,16 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
   @JsonDeserialize(contentAs = classOf[java.lang.Long])
   var offset: Option[Long] = None
 
+  @JsonProperty(defaultValue = "false")
+  @JsonSchemaTitle("Keyword Search?")
+  @JsonSchemaInject(json = """{"toggleHidden" : ["searchByColumn", "keywords"]}""")
+  var search: Boolean = false
+
   @JsonProperty()
-  @JsonSchemaTitle("Keyword Search Column Name")
+  @JsonSchemaTitle("Keyword Search Column")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
   @AutofillAttributeName
-  var column: Option[String] = None
+  var searchByColumn: Option[String] = None
 
   @JsonProperty()
   @JsonSchemaTitle("Keywords to Search")
@@ -62,11 +67,12 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
   var keywords: Option[String] = None
 
   @JsonProperty(defaultValue = "false")
-  @JsonSchemaTitle("Progressively Output")
+  @JsonSchemaTitle("Progressive?")
+  @JsonSchemaInject(json = """{"toggleHidden" : ["batchByColumn", "interval"]}""")
   var progressive: Boolean = false
 
   @JsonProperty()
-  @JsonSchemaTitle("Batch by ColumnName")
+  @JsonSchemaTitle("Batch by Column")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
   @AutofillAttributeName
   var batchByColumn: Option[String] = None

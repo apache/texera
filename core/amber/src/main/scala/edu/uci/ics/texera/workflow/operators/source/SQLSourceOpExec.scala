@@ -17,7 +17,8 @@ abstract class SQLSourceOpExec(
     table: String,
     var curLimit: Option[Long],
     var curOffset: Option[Long],
-    column: Option[String],
+    search: Boolean,
+    searchByColumn: Option[String],
     keywords: Option[String],
     // progressiveness related
     progressive: Boolean,
@@ -140,7 +141,7 @@ abstract class SQLSourceOpExec(
     // validates the input table name
     if (!tableNames.contains(table))
       throw new RuntimeException("Can't find the given table `" + table + "`.")
-    // load for batch column value boundaries used to split mini queries
+    // load for batch searchByColumn value boundaries used to split mini queries
     if (progressive) loadBatchColumnBoundaries()
   }
 
@@ -413,11 +414,12 @@ abstract class SQLSourceOpExec(
     addBaseSelect(queryBuilder)
 
     // add keyword search if applicable
-    if (column.isDefined && keywords.isDefined)
+    if (search && searchByColumn.isDefined && keywords.isDefined)
       addKeywordSearch(queryBuilder)
 
     // add sliding window if progressive mode is enabled
-    if (progressive) addBatchSlidingWindow(queryBuilder)
+    if (progressive && batchByColumn.isDefined && interval > 0L)
+      addBatchSlidingWindow(queryBuilder)
 
     // add limit if provided
     if (curLimit.isDefined) {
@@ -455,7 +457,7 @@ abstract class SQLSourceOpExec(
           var curIndex = 1
 
           // fill up the keywords
-          if (column.isDefined && keywords.isDefined) {
+          if (search && searchByColumn.isDefined && keywords.isDefined) {
             preparedStatement.setString(curIndex, keywords.get)
             curIndex += 1
           }

@@ -1,22 +1,19 @@
 import { Component } from '@angular/core';
-
 import { FormGroup } from '@angular/forms';
 import { FormlyFieldConfig, FormlyFormOptions } from '@ngx-formly/core';
 import { FormlyJsonschema } from '@ngx-formly/core/json-schema';
 import * as Ajv from 'ajv';
-
 import { JSONSchema7 } from 'json-schema';
-
 import { cloneDeep, isEqual } from 'lodash';
 import { Observable } from 'rxjs/Observable';
-
 import { Subject } from 'rxjs/Subject';
 import '../../../common/rxjs-operators';
 import { DynamicSchemaService } from '../../service/dynamic-schema/dynamic-schema.service';
 import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from '../../service/execute-workflow/execute-workflow.service';
+import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
+import { CustomJSONSchema7 } from '../../types/custom-json-schema.interface';
 import { ExecutionState } from '../../types/execute-workflow.interface';
 import { Breakpoint, OperatorPredicate } from '../../types/workflow-common.interface';
-import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
 
 /**
  * PropertyEditorComponent is the panel that allows user to edit operator properties.
@@ -44,7 +41,7 @@ import { WorkflowActionService } from './../../service/workflow-graph/model/work
 @Component({
   selector: 'texera-property-editor',
   templateUrl: './property-editor.component.html',
-  styleUrls: ['./property-editor.component.scss'],
+  styleUrls: ['./property-editor.component.scss']
 })
 export class PropertyEditorComponent {
 
@@ -88,15 +85,13 @@ export class PropertyEditorComponent {
   public showTypeCastingTypeInformation = false;
 
   // used to fill in default values in json schema to initialize new operator
-  private ajv = new Ajv({ useDefaults: true });
-
-
+  private ajv = new Ajv({useDefaults: true});
 
   constructor(
     public formlyJsonschema: FormlyJsonschema,
     public workflowActionService: WorkflowActionService,
     public autocompleteService: DynamicSchemaService,
-    public executeWorkflowService: ExecuteWorkflowService,
+    public executeWorkflowService: ExecuteWorkflowService
   ) {
     // listen to the autocomplete event, remove invalid properties, and update the schema displayed on the form
     this.handleOperatorSchemaChange();
@@ -126,7 +121,7 @@ export class PropertyEditorComponent {
   }
 
   public hasBreakpoint(): boolean {
-    if (! this.currentLinkID) {
+    if (!this.currentLinkID) {
       return false;
     }
     return this.workflowActionService.getTexeraGraph().getLinkBreakpoint(this.currentLinkID) !== undefined;
@@ -136,7 +131,7 @@ export class PropertyEditorComponent {
     if (this.currentLinkID && this.workflowActionService.getTexeraGraph().hasLinkWithID(this.currentLinkID)) {
       this.workflowActionService.setLinkBreakpoint(this.currentLinkID, this.formData);
       if (this.executeWorkflowService.getExecutionState().state === ExecutionState.Paused ||
-      this.executeWorkflowService.getExecutionState().state === ExecutionState.BreakpointTriggered) {
+        this.executeWorkflowService.getExecutionState().state === ExecutionState.BreakpointTriggered) {
         this.executeWorkflowService.addBreakpointRuntime(this.currentLinkID, this.formData);
       }
     }
@@ -431,7 +426,7 @@ export class PropertyEditorComponent {
     });
   }
 
-  private setFormlyFormBinding(schema: JSONSchema7) {
+  private setFormlyFormBinding(schema: CustomJSONSchema7) {
     // intercept JsonSchema -> FormlySchema process, adding custom options
     const jsonSchemaMapIntercept = (mappedField: FormlyFieldConfig, mapSource: JSONSchema7): FormlyFieldConfig => {
       // if the title is python script (for Python UDF), then make this field a custom template 'codearea'
@@ -446,7 +441,7 @@ export class PropertyEditorComponent {
     this.formlyFormGroup = new FormGroup({});
     this.formlyOptions = {};
     // convert the json schema to formly config, pass a copy because formly mutates the schema object
-    const field = this.formlyJsonschema.toFieldConfig(cloneDeep(schema), { map: jsonSchemaMapIntercept });
+    const field = this.formlyJsonschema.toFieldConfig(cloneDeep(schema), {map: jsonSchemaMapIntercept});
     field.hooks = {
       onInit: (fieldConfig) => {
         if (!this.interactive) {
@@ -455,8 +450,36 @@ export class PropertyEditorComponent {
       }
     };
 
-    this.formlyFields = [field];
+    const schemaProperties = schema.properties;
+    const fields = field.fieldGroup;
+
+    if (schemaProperties && fields) {
+      Object.entries(schemaProperties).forEach(([propertyName, propertyValue]) => {
+        if (typeof propertyValue === 'boolean') {
+          return;
+        }
+        if (propertyValue.toggleHidden) {
+          this.setHideExpression(propertyValue.toggleHidden, schemaProperties, fields, propertyName);
+        }
+      });
+    }
+    this.formlyFields = fields;
+
   }
 
+  private setHideExpression(toggleHidden: string[], properties: boolean | CustomJSONSchema7,
+                            fields: FormlyFieldConfig[], hiddenBy: string): void {
+    toggleHidden.forEach((hiddenField) => {
+      Object.entries(properties).forEach(([propertyName, propertyValue]) => {
+        if (typeof propertyValue === 'boolean') {
+          return;
+        }
+        if (propertyName === hiddenField) {
+          fields[propertyValue.propertyOrder - 1]['hideExpression'] = '!model.' + hiddenBy;
+        }
+      });
+    });
+
+  }
 
 }
