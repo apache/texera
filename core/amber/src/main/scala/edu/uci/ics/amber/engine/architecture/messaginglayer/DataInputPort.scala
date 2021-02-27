@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import edu.uci.ics.amber.engine.architecture.messaginglayer.DataInputPort.WorkflowDataMessage
-import edu.uci.ics.amber.engine.common.ambermessage.{DataPayload, WorkflowMessage}
+import edu.uci.ics.amber.engine.common.ambermessage.{DataPayload, WorkflowMessage, WorkflowMessageGeneric}
 import edu.uci.ics.amber.engine.common.virtualidentity.VirtualIdentity
 
 import scala.collection.mutable
@@ -11,7 +11,7 @@ object DataInputPort {
       from: VirtualIdentity,
       sequenceNumber: Long,
       payload: DataPayload
-  ) extends WorkflowMessage
+  ) extends WorkflowMessageGeneric[DataPayload]
 }
 
 class DataInputPort(tupleProducer: BatchToTupleConverter) {

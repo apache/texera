@@ -5,24 +5,10 @@ import com.softwaremill.macwire.wire
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
-  GetActorRef,
-  NetworkAck,
-  NetworkMessage,
-  NetworkSenderActorRef,
-  RegisterActorRef
-}
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{
-  ControlInputPort,
-  ControlOutputPort,
-  NetworkCommunicationActor
-}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{GetActorRef, NetworkAck, NetworkMessage, NetworkMessageGeneric, NetworkSenderActorRef, RegisterActorRef}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{ControlInputPort, ControlOutputPort, NetworkCommunicationActor}
 import edu.uci.ics.amber.engine.common.WorkflowLogger
-import edu.uci.ics.amber.engine.common.rpc.{
-  AsyncRPCClient,
-  AsyncRPCHandlerInitializer,
-  AsyncRPCServer
-}
+import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCHandlerInitializer, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.amber.error.ErrorUtils.safely
@@ -73,7 +59,7 @@ abstract class WorkflowActor(
   }
 
   def processControlMessages: Receive = {
-    case msg @ NetworkMessage(id, cmd: WorkflowControlMessage) =>
+    case msg @ NetworkMessageGeneric(id, cmd: WorkflowControlMessage) =>
       sender ! NetworkAck(id)
       handleControlMessageWithTryCatch(cmd)
   }

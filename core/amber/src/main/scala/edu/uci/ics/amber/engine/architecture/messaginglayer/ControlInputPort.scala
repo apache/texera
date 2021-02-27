@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.Wor
 import edu.uci.ics.amber.engine.architecture.worker.WorkerStatistics
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
 import edu.uci.ics.amber.engine.common.WorkflowLogger
-import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowMessage}
+import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowMessage, WorkflowMessageGeneric}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, VirtualIdentity}
@@ -18,7 +18,7 @@ object ControlInputPort {
       from: VirtualIdentity,
       sequenceNumber: Long,
       payload: ControlPayload
-  ) extends WorkflowMessage
+  ) extends WorkflowMessageGeneric[ControlPayload]
 }
 
 class ControlInputPort(
