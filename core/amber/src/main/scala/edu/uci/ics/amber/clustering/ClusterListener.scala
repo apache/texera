@@ -1,15 +1,9 @@
 package edu.uci.ics.amber.clustering
 
-import edu.uci.ics.amber.engine.common.Constants
 import akka.actor.{Actor, ActorLogging, Address, ExtendedActorSystem}
 import akka.cluster.Cluster
-import akka.cluster.ClusterEvent.{
-  InitialStateAsEvents,
-  MemberEvent,
-  MemberRemoved,
-  MemberUp,
-  UnreachableMember
-}
+import akka.cluster.ClusterEvent._
+import edu.uci.ics.amber.engine.common.Constants
 
 import scala.collection.mutable
 
@@ -53,10 +47,10 @@ class ClusterListener extends Actor with ActorLogging {
           Constants.defaultNumWorkers += Constants.numWorkerPerNode
         }
       }
-      println(
+      log.info(
         "---------Now we have " + availableNodeAddresses.size + " nodes in the cluster---------"
       )
-      println("dataset: " + Constants.dataset + " numWorkers: " + Constants.defaultNumWorkers)
+      log.info("dataset: " + Constants.dataset + " numWorkers: " + Constants.defaultNumWorkers)
     case UnreachableMember(member) =>
       if (
         context.system
