@@ -4,7 +4,6 @@ import en from '@angular/common/locales/en';
 import { NgModule } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatDialogModule } from '@angular/material/dialog';
-
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { BrowserModule } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
@@ -15,7 +14,6 @@ import { FormlyMaterialModule } from '@ngx-formly/material';
 import { FormlyMatDatepickerModule } from '@ngx-formly/material/datepicker';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzCollapseModule } from 'ng-zorro-antd/collapse';
-
 import { NzDatePickerModule } from 'ng-zorro-antd/date-picker';
 import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
 import { NzFormModule } from 'ng-zorro-antd/form';
@@ -27,20 +25,15 @@ import { NzMenuModule } from 'ng-zorro-antd/menu';
 import { NzModalModule } from 'ng-zorro-antd/modal';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
-
 import { FileUploadModule } from 'ng2-file-upload';
 import { NgxAceModule } from 'ngx-ace-icy';
-
 import { NgxJsonViewerModule } from 'ngx-json-viewer';
 import { LoggerModule, NgxLoggerLevel } from 'ngx-logger';
 import { TourNgBootstrapModule } from 'ngx-tour-ng-bootstrap';
 import { environment } from '../environments/environment';
 import { AppRoutingModule } from './app-routing.module';
-
 import { AppComponent } from './app.component';
-
 import { CustomNgMaterialModule } from './common/custom-ng-material.module';
-
 import { ArrayTypeComponent } from './common/formly/array.type';
 import { TEXERA_FORMLY_CONFIG } from './common/formly/formly-config';
 import { MultiSchemaTypeComponent } from './common/formly/multischema.type';
@@ -50,15 +43,11 @@ import { UserDictionaryUploadService } from './common/service/user/user-dictiona
 import { UserDictionaryService } from './common/service/user/user-dictionary/user-dictionary.service';
 import { UserFileUploadService } from './common/service/user/user-file/user-file-upload.service';
 import { UserFileService } from './common/service/user/user-file/user-file.service';
-
 import { UserService } from './common/service/user/user.service';
-
 import { DashboardComponent } from './dashboard/component/dashboard.component';
 import { FeatureBarComponent } from './dashboard/component/feature-bar/feature-bar.component';
 import { FeatureContainerComponent } from './dashboard/component/feature-container/feature-container.component';
-
 import { ResourceSectionComponent } from './dashboard/component/feature-container/resource-section/resource-section.component';
-
 import { RunningJobSectionComponent } from './dashboard/component/feature-container/running-job-section/running-job-section.component';
 import { NgbdModalAddWorkflowComponent } from './dashboard/component/feature-container/saved-workflow-section/ngbd-modal-add-workflow/ngbd-modal-add-workflow.component';
 import { NgbdModalDeleteWorkflowComponent } from './dashboard/component/feature-container/saved-workflow-section/ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component';
@@ -77,12 +66,10 @@ import { CodeareaCustomTemplateComponent } from './workspace/component/codearea-
 import { MiniMapComponent } from './workspace/component/mini-map/mini-map.component';
 import { NavigationComponent } from './workspace/component/navigation/navigation.component';
 import { OperatorLabelComponent } from './workspace/component/operator-panel/operator-label/operator-label.component';
-
 import { OperatorPanelComponent } from './workspace/component/operator-panel/operator-panel.component';
 import { ProductTourComponent } from './workspace/component/product-tour/product-tour.component';
 import { PropertyEditorComponent } from './workspace/component/property-editor/property-editor.component';
 import { TypecastingDisplayComponent } from './workspace/component/property-editor/typecasting-display/typecasting-display.component';
-
 import { ResultPanelToggleComponent } from './workspace/component/result-panel-toggle/result-panel-toggle.component';
 import { ResultPanelComponent, RowModalComponent } from './workspace/component/result-panel/result-panel.component';
 import { VisualizationPanelContentComponent } from './workspace/component/visualization-panel-content/visualization-panel-content.component';
@@ -102,17 +89,14 @@ registerLocaleData(en);
     WorkflowEditorComponent,
     ResultPanelComponent,
     OperatorLabelComponent,
-
     DashboardComponent,
     TopBarComponent,
     UserIconComponent,
     FeatureBarComponent,
     FeatureContainerComponent,
-
     SavedWorkflowSectionComponent,
     NgbdModalAddWorkflowComponent,
     NgbdModalDeleteWorkflowComponent,
-
     RunningJobSectionComponent,
     UserDictionarySectionComponent,
     NgbdModalResourceViewComponent,
@@ -121,15 +105,12 @@ registerLocaleData(en);
     NgbdModalUserLoginComponent,
     UserFileSectionComponent,
     NgbdModalFileAddComponent,
-
     ResourceSectionComponent,
-
     RowModalComponent,
     OperatorLabelComponent,
     ProductTourComponent,
     MiniMapComponent,
     ResultPanelToggleComponent,
-
     ArrayTypeComponent,
     ObjectTypeComponent,
     MultiSchemaTypeComponent,
@@ -138,13 +119,12 @@ registerLocaleData(en);
     VisualizationPanelContentComponent,
     CodeareaCustomTemplateComponent,
     CodeEditorDialogComponent,
-    TypecastingDisplayComponent,
+    TypecastingDisplayComponent
   ],
   imports: [
     BrowserModule,
     AppRoutingModule,
     HttpClientModule,
-
     MatTooltipModule,
     NgxJsonViewerModule,
     CustomNgMaterialModule,
@@ -153,7 +133,6 @@ registerLocaleData(en);
     NgbPopoverModule,
     RouterModule.forRoot([]),
     TourNgBootstrapModule.forRoot(),
-
     FileUploadModule,
     FormsModule,
     ReactiveFormsModule,
@@ -164,7 +143,6 @@ registerLocaleData(en);
     FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
     FormlyMaterialModule,
     FormlyMatDatepickerModule,
-
     NzDatePickerModule,
     NzDropDownModule,
     NzButtonModule,
@@ -178,7 +156,7 @@ registerLocaleData(en);
     NzTableModule,
     NzModalModule,
     NgxAceModule,
-    MatDialogModule,
+    MatDialogModule
   ],
   entryComponents: [
     NgbdModalAddWorkflowComponent,
@@ -197,9 +175,9 @@ registerLocaleData(en);
     UserFileUploadService,
     UserDictionaryService,
     UserDictionaryUploadService,
-    { provide: NZ_I18N, useValue: en_US }
+    {provide: NZ_I18N, useValue: en_US}
   ],
-  bootstrap: [AppComponent],
+  bootstrap: [AppComponent]
   // dynamically created component must be placed in the entryComponents attribute
 })
 export class AppModule {
