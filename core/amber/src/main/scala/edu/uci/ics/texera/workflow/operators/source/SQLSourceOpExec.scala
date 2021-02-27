@@ -17,11 +17,11 @@ abstract class SQLSourceOpExec(
     table: String,
     var curLimit: Option[Long],
     var curOffset: Option[Long],
-    search: Boolean,
+    search: Option[Boolean],
     searchByColumn: Option[String],
     keywords: Option[String],
     // progressiveness related
-    progressive: Boolean,
+    progressive: Option[Boolean],
     batchByColumn: Option[String],
     interval: Long
 ) extends SourceOperatorExecutor {
@@ -29,7 +29,7 @@ abstract class SQLSourceOpExec(
   // connection and query related
   val tableNames: ArrayBuffer[String] = ArrayBuffer()
   val batchByAttribute: Option[Attribute] =
-    if (progressive) Option(schema.getAttribute(batchByColumn.get)) else None
+    if (progressive.getOrElse(false)) Option(schema.getAttribute(batchByColumn.get)) else None
   var connection: Connection = _
   var curQuery: Option[PreparedStatement] = None
   var curResultSet: Option[ResultSet] = None
@@ -142,7 +142,7 @@ abstract class SQLSourceOpExec(
     if (!tableNames.contains(table))
       throw new RuntimeException("Can't find the given table `" + table + "`.")
     // load for batch column value boundaries used to split mini queries
-    if (progressive) loadBatchColumnBoundaries()
+    if (progressive.getOrElse(false)) loadBatchColumnBoundaries()
   }
 
   /**
@@ -414,11 +414,11 @@ abstract class SQLSourceOpExec(
     addBaseSelect(queryBuilder)
 
     // add keyword search if applicable
-    if (search && searchByColumn.isDefined && keywords.isDefined)
+    if (search.getOrElse(false) && searchByColumn.isDefined && keywords.isDefined)
       addKeywordSearch(queryBuilder)
 
     // add sliding window if progressive mode is enabled
-    if (progressive && batchByColumn.isDefined && interval > 0L)
+    if (progressive.getOrElse(false) && batchByColumn.isDefined && interval > 0L)
       addBatchSlidingWindow(queryBuilder)
 
     // add limit if provided
@@ -430,7 +430,7 @@ abstract class SQLSourceOpExec(
     }
 
     // add fixed offset if not progressive
-    if (!progressive && curOffset.isDefined) addOffset(queryBuilder)
+    if (!progressive.getOrElse(false) && curOffset.isDefined) addOffset(queryBuilder)
 
     // end
     terminateSQL(queryBuilder)
@@ -457,7 +457,7 @@ abstract class SQLSourceOpExec(
           var curIndex = 1
 
           // fill up the keywords
-          if (search && searchByColumn.isDefined && keywords.isDefined) {
+          if (search.getOrElse(false) && searchByColumn.isDefined && keywords.isDefined) {
             preparedStatement.setString(curIndex, keywords.get)
             curIndex += 1
           }
@@ -471,7 +471,7 @@ abstract class SQLSourceOpExec(
           }
 
           // fill up offset if progressive mode is not enabled
-          if (!progressive)
+          if (!progressive.getOrElse(false))
             curOffset match {
               case Some(offset) =>
                 preparedStatement.setLong(curIndex, offset)

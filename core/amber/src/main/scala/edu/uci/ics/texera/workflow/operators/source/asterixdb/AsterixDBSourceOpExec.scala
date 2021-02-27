@@ -24,10 +24,10 @@ class AsterixDBSourceOpExec private[asterixdb] (
     table: String,
     limit: Option[Long],
     offset: Option[Long],
-    search: Boolean,
+    search: Option[Boolean],
     searchByColumn: Option[String],
     keywords: Option[String],
-    progressive: Boolean,
+    progressive: Option[Boolean],
     batchByColumn: Option[String],
     interval: Long
 ) extends SQLSourceOpExec(
