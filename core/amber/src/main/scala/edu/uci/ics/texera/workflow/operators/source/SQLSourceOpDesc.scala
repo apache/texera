@@ -73,6 +73,7 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
 
   @JsonProperty(defaultValue = "1000000000")
   @JsonSchemaTitle("Batch by Interval")
+  @JsonSchemaInject(json = """{"dependOn" : "batchByColumn"}""")
   var interval = 0L
 
   /**
