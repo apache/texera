@@ -428,6 +428,8 @@ export class PropertyEditorComponent {
 
   private setFormlyFormBinding(schema: CustomJSONSchema7) {
     // intercept JsonSchema -> FormlySchema process, adding custom options
+    // this requires a one-to-one mapping.
+    // for relational custom options, have to do it after FormlySchema is generated.
     const jsonSchemaMapIntercept = (mappedField: FormlyFieldConfig, mapSource: JSONSchema7): FormlyFieldConfig => {
       // if the title is python script (for Python UDF), then make this field a custom template 'codearea'
       if (mapSource?.description?.toLowerCase() === 'input your code here') {
@@ -453,6 +455,7 @@ export class PropertyEditorComponent {
     const schemaProperties = schema.properties;
     const fields = field.fieldGroup;
 
+    // adding custom options, relational N-to-M mapping.
     if (schemaProperties && fields) {
       Object.entries(schemaProperties).forEach(([propertyName, propertyValue]) => {
         if (typeof propertyValue === 'boolean') {
