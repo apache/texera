@@ -141,7 +141,7 @@ abstract class SQLSourceOpExec(
     // validates the input table name
     if (!tableNames.contains(table))
       throw new RuntimeException("Can't find the given table `" + table + "`.")
-    // load for batch searchByColumn value boundaries used to split mini queries
+    // load for batch column value boundaries used to split mini queries
     if (progressive) loadBatchColumnBoundaries()
   }
 
