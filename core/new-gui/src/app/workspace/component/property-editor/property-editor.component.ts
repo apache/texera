@@ -7,6 +7,7 @@ import { cloneDeep, isEqual } from 'lodash';
 import { Observable } from 'rxjs/Observable';
 import { Subject } from 'rxjs/Subject';
 import '../../../common/rxjs-operators';
+import { isDefined } from '../../../common/util/predicate';
 import { DynamicSchemaService } from '../../service/dynamic-schema/dynamic-schema.service';
 import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from '../../service/execute-workflow/execute-workflow.service';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
@@ -461,27 +462,45 @@ export class PropertyEditorComponent {
           return;
         }
         if (propertyValue.toggleHidden) {
-          this.setHideExpression(propertyValue.toggleHidden, schemaProperties, fields, propertyName);
+          this.setHideExpression(propertyValue.toggleHidden, fields, propertyName);
+        }
+
+        if (propertyValue.dependOn) {
+          this.childDependency(propertyValue.dependOn, schemaProperties, fields, propertyName, propertyValue);
         }
       });
     }
+
+    console.log('new fields ', fields);
     this.formlyFields = fields;
 
   }
 
-  private setHideExpression(toggleHidden: string[], properties: boolean | CustomJSONSchema7,
-                            fields: FormlyFieldConfig[], hiddenBy: string): void {
-    toggleHidden.forEach((hiddenField) => {
-      Object.entries(properties).forEach(([propertyName, propertyValue]) => {
-        if (typeof propertyValue === 'boolean') {
-          return;
-        }
-        if (propertyName === hiddenField) {
-          fields[propertyValue.propertyOrder - 1].hideExpression = '!model.' + hiddenBy;
-        }
-      });
+  private setHideExpression(toggleHidden: string[], fields: FormlyFieldConfig[], hiddenBy: string): void {
+
+    toggleHidden.forEach((hiddenFieldName) => {
+      const fieldToBeHidden = this.getFieldByName(hiddenFieldName, fields);
+      if (isDefined(fieldToBeHidden)) {
+        fieldToBeHidden.hideExpression = '!model.' + hiddenBy;
+      }
     });
 
   }
 
+  private getFieldByName(fieldName: string, fields: FormlyFieldConfig[])
+    : FormlyFieldConfig | undefined {
+    return fields.filter((field, _, __) => field.key === fieldName)[0];
+  }
+
+  private childDependency(parentName: string, schemaProperties: CustomJSONSchema7, fields: FormlyFieldConfig[],
+                          childName: string, childValue: CustomJSONSchema7): void {
+    const parentField = this.getFieldByName(parentName, fields);
+    const childField = this.getFieldByName(childName, fields);
+    console.log('parent', parentName, parentField);
+    console.log('child', childName, childField);
+    if (isDefined(childField)) {
+      // @ts-ignore
+      childField?.expressionProperties = {'templateOptions.type': 'model.' + parentName + ' === \'create_at\'? \'string\' : \'number\''};
+    }
+  }
 }

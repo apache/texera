@@ -1,6 +1,7 @@
 import { JSONSchema7, JSONSchema7Definition } from 'json-schema';
 
 export interface CustomJSONSchema7 extends JSONSchema7 {
+  propertyOrder?: number;
   properties?: {
     [key: string]: CustomJSONSchema7 | boolean;
   };
