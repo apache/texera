@@ -4,11 +4,11 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.introspect.AnnotatedClass
 import com.fasterxml.jackson.databind.jsontype.NamedType
 import com.fasterxml.jackson.databind.node.{ArrayNode, ObjectNode}
-import com.kjetland.jackson.jsonSchema.JsonSchemaConfig.html5EnabledSchema
 import com.kjetland.jackson.jsonSchema.{JsonSchemaConfig, JsonSchemaDraft, JsonSchemaGenerator}
+import com.kjetland.jackson.jsonSchema.JsonSchemaConfig.html5EnabledSchema
 import edu.uci.ics.texera.workflow.common.Utils.objectMapper
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
-import edu.uci.ics.texera.workflow.operators.scan.CSVScanSourceOpDesc
+import edu.uci.ics.texera.workflow.operators.source.asterixdb.AsterixDBSourceOpDesc
 
 import java.util
 import scala.collection.JavaConverters
@@ -80,7 +80,7 @@ object OperatorMetadataGenerator {
   def main(args: Array[String]): Unit = {
     // run this if you want to check the json schema generated for an operator descriptor
     // replace the argument with the class of your operator descriptor
-    println(generateOperatorJsonSchema(classOf[CSVScanSourceOpDesc]).toPrettyString)
+    println(generateOperatorJsonSchema(classOf[AsterixDBSourceOpDesc]).toPrettyString)
   }
 
   def generateOperatorJsonSchema(opDescClass: Class[_ <: OperatorDescriptor]): JsonNode = {

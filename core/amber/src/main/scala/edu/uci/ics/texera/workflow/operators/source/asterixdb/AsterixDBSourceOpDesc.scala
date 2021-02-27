@@ -31,7 +31,7 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
   @JsonPropertyDescription(
     "\"['hello', 'world'], {'mode':'any'}\" OR \"['hello', 'world'], {'mode':'all'}\""
   )
-  override val keywords: Option[String] = None
+  override def getKeywords: Option[String] = super.getKeywords
 
   override def operatorExecutor =
     new SQLSourceOpExecConfig(

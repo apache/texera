@@ -10,6 +10,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType
 import java.sql._
 
 abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
+
   @JsonProperty(required = true)
   @JsonSchemaTitle("Host")
   var host: String = _
@@ -58,7 +59,7 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
   @JsonSchemaTitle("Keywords to Search")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
   @JsonSchemaInject(json = UIWidget.UIWidgetTextArea)
-  val keywords: Option[String] = None
+  var keywords: Option[String] = None
 
   @JsonProperty(defaultValue = "false")
   @JsonSchemaTitle("Progressively Output")
@@ -88,6 +89,9 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
       return null
     querySchema
   }
+
+  // needs to define getters for sub classes to override Jackson Annotations
+  def getKeywords: Option[String] = keywords
 
   /**
     * Establish a connection with the database server base on the info provided by the user
