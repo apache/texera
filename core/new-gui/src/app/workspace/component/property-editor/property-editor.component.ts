@@ -3,7 +3,6 @@ import { FormGroup } from '@angular/forms';
 import { FormlyFieldConfig, FormlyFormOptions } from '@ngx-formly/core';
 import { FormlyJsonschema } from '@ngx-formly/core/json-schema';
 import * as Ajv from 'ajv';
-import { JSONSchema7 } from 'json-schema';
 import { cloneDeep, isEqual } from 'lodash';
 import { Observable } from 'rxjs/Observable';
 import { Subject } from 'rxjs/Subject';
@@ -430,7 +429,7 @@ export class PropertyEditorComponent {
     // intercept JsonSchema -> FormlySchema process, adding custom options
     // this requires a one-to-one mapping.
     // for relational custom options, have to do it after FormlySchema is generated.
-    const jsonSchemaMapIntercept = (mappedField: FormlyFieldConfig, mapSource: JSONSchema7): FormlyFieldConfig => {
+    const jsonSchemaMapIntercept = (mappedField: FormlyFieldConfig, mapSource: CustomJSONSchema7): FormlyFieldConfig => {
       // if the title is python script (for Python UDF), then make this field a custom template 'codearea'
       if (mapSource?.description?.toLowerCase() === 'input your code here') {
         if (mappedField.type) {
@@ -478,7 +477,7 @@ export class PropertyEditorComponent {
           return;
         }
         if (propertyName === hiddenField) {
-          fields[propertyValue.propertyOrder - 1]['hideExpression'] = '!model.' + hiddenBy;
+          fields[propertyValue.propertyOrder - 1].hideExpression = '!model.' + hiddenBy;
         }
       });
     });
