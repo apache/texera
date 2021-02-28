@@ -53,7 +53,6 @@ describe('PropertyEditorComponent', () => {
   let fixture: ComponentFixture<PropertyEditorComponent>;
   let workflowActionService: WorkflowActionService;
   let dynamicSchemaService: DynamicSchemaService;
-  let schemaPropagationService: SchemaPropagationService;
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
@@ -72,7 +71,8 @@ describe('PropertyEditorComponent', () => {
         {provide: OperatorMetadataService, useClass: StubOperatorMetadataService},
         DynamicSchemaService,
         ExecuteWorkflowService,
-        FormlyJsonschema
+        FormlyJsonschema,
+        SchemaPropagationService
         // { provide: HttpClient, useClass: {} }
       ],
       imports: [
@@ -98,7 +98,6 @@ describe('PropertyEditorComponent', () => {
     component = fixture.componentInstance;
     workflowActionService = TestBed.inject(WorkflowActionService);
     dynamicSchemaService = TestBed.inject(DynamicSchemaService);
-    schemaPropagationService = TestBed.inject(SchemaPropagationService);
     fixture.detectChanges();
 
   });
