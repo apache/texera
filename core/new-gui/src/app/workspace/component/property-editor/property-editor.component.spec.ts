@@ -43,7 +43,7 @@ import { cloneDeep } from 'lodash';
 import { assertType } from 'src/app/common/util/assert';
 import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
 import { SchemaPropagationService } from '../../service/dynamic-schema/schema-propagation/schema-propagation.service';
-import { NGXLogger } from 'ngx-logger';
+import { NGXLogger, NGXMapperService } from 'ngx-logger';
 
 const {marbles} = configure({run: false});
 
@@ -74,7 +74,8 @@ describe('PropertyEditorComponent', () => {
         ExecuteWorkflowService,
         FormlyJsonschema,
         SchemaPropagationService,
-        NGXLogger
+        NGXLogger,
+        NGXMapperService
         // { provide: HttpClient, useClass: {} }
       ],
       imports: [
