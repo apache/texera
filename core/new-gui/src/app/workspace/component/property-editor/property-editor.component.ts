@@ -30,8 +30,8 @@ import { Breakpoint, OperatorPredicate } from '../../types/workflow-common.inter
  *
  * OperatorMetadataService will fetch metadata about the operators, which includes the JSON Schema, from the backend.
  *
- * We use library `angular2-json-schema-form` to generate form from json schema
- * https://github.com/dschnelldavis/angular2-json-schema-form
+ * We use library `@ngx-formly` to generate form from json schema
+ * https://github.com/ngx-formly/ngx-formly
  *
  * For more details of comparing different libraries, and the problems of the current library,
  *  see `json-schema-library.md`
@@ -114,7 +114,7 @@ export class PropertyEditorComponent {
    * Callback function provided to the Angular Json Schema Form library,
    *  whenever the form data is changed, this function is called.
    * It only serves as a bridge from a callback function to RxJS Observable
-   * @param formData
+   * @param event
    */
   public onFormChanges(event: object): void {
     this.sourceFormChangeEventStream.next(event);
@@ -285,16 +285,13 @@ export class PropertyEditorComponent {
     if (this.currentOperatorID === undefined) {
       return false;
     }
-    // check if the operator still exists, it might be deleted during deboucne time
+    // check if the operator still exists, it might be deleted during debounce time
     const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorID);
     if (!operator) {
       return false;
     }
     // only emit change event if the form data actually changes
-    if (isEqual(formData, operator.operatorProperties)) {
-      return false;
-    }
-    return true;
+    return !isEqual(formData, operator.operatorProperties);
   }
 
   private checkBreakpoint(formData: object): boolean {
@@ -308,10 +305,7 @@ export class PropertyEditorComponent {
       return false;
     }
     // only emit change event if the form data actually changes
-    if (isEqual(formData, this.workflowActionService.getTexeraGraph().getLinkBreakpoint(link.linkID))) {
-      return false;
-    }
-    return true;
+    return !isEqual(formData, this.workflowActionService.getTexeraGraph().getLinkBreakpoint(link.linkID));
   }
 
   private handleDisableEditorInteractivity(): void {
