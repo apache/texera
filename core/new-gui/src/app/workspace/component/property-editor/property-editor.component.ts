@@ -14,6 +14,7 @@ import { WorkflowActionService } from '../../service/workflow-graph/model/workfl
 import { CustomJSONSchema7 } from '../../types/custom-json-schema.interface';
 import { ExecutionState } from '../../types/execute-workflow.interface';
 import { Breakpoint, OperatorPredicate } from '../../types/workflow-common.interface';
+import { SchemaPropagationService } from '../../service/dynamic-schema/schema-propagation/schema-propagation.service';
 
 /**
  * PropertyEditorComponent is the panel that allows user to edit operator properties.
@@ -91,7 +92,8 @@ export class PropertyEditorComponent {
     public formlyJsonschema: FormlyJsonschema,
     public workflowActionService: WorkflowActionService,
     public autocompleteService: DynamicSchemaService,
-    public executeWorkflowService: ExecuteWorkflowService
+    public executeWorkflowService: ExecuteWorkflowService,
+    private schemaPropagationService: SchemaPropagationService
   ) {
     // listen to the autocomplete event, remove invalid properties, and update the schema displayed on the form
     this.handleOperatorSchemaChange();
@@ -460,14 +462,32 @@ export class PropertyEditorComponent {
         }
 
         if (propertyValue.dependOn) {
-          this.childDependency(propertyValue.dependOn, schemaProperties, fields, propertyName, propertyValue);
+          this.setChildTypeDependency(propertyValue.dependOn, fields, propertyName);
         }
       });
     }
 
-    console.log('new fields ', fields);
     this.formlyFields = fields;
 
+  }
+
+  private setChildTypeDependency(parentName: string, fields: FormlyFieldConfig[], childName: string): void {
+    let attributes;
+    if (isDefined(this.currentOperatorID)) {
+      attributes = this.schemaPropagationService.getOperatorInputSchema(this.currentOperatorID);
+    }
+    const timestampFieldNames = attributes?.flat().filter((attribute) => {
+      return attribute.attributeType === 'timestamp';
+    }).map(attribute => attribute.attributeName);
+
+    const childField = this.getFieldByName(childName, fields);
+    if (isDefined(childField)) {
+      childField.expressionProperties = {
+        'templateOptions.type': JSON.stringify(timestampFieldNames) + '.includes(model.' + parentName + ')? \'string\' : \'number\'',
+        'templateOptions.description': JSON.stringify(timestampFieldNames) + '.includes(model.' + parentName
+          + ')? \'Input a datetime string\' : \'Input a positive number\''
+      };
+    }
   }
 
   private setHideExpression(toggleHidden: string[], fields: FormlyFieldConfig[], hiddenBy: string): void {
@@ -486,15 +506,4 @@ export class PropertyEditorComponent {
     return fields.filter((field, _, __) => field.key === fieldName)[0];
   }
 
-  private childDependency(parentName: string, schemaProperties: CustomJSONSchema7, fields: FormlyFieldConfig[],
-                          childName: string, childValue: CustomJSONSchema7): void {
-    const parentField = this.getFieldByName(parentName, fields);
-    const childField = this.getFieldByName(childName, fields);
-    console.log('parent', parentName, parentField);
-    console.log('child', childName, childField);
-    if (isDefined(childField)) {
-      // @ts-ignore
-      childField?.expressionProperties = {'templateOptions.type': 'model.' + parentName + ' === \'create_at\'? \'string\' : \'number\''};
-    }
-  }
 }

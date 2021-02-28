@@ -70,7 +70,7 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
   @JsonProperty(defaultValue = "false")
   @JsonSchemaTitle("Progressive?")
   @JsonDeserialize(contentAs = classOf[java.lang.Boolean])
-  @JsonSchemaInject(json = """{"toggleHidden" : ["batchByColumn", "interval"]}""")
+  @JsonSchemaInject(json = """{"toggleHidden" : ["batchByColumn", "min", "max", "interval"]}""")
   var progressive: Option[Boolean] = Option(false)
 
   @JsonProperty()
@@ -78,6 +78,18 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
   @JsonDeserialize(contentAs = classOf[java.lang.String])
   @AutofillAttributeName
   var batchByColumn: Option[String] = None
+
+  @JsonProperty(defaultValue = "0")
+  @JsonSchemaTitle("Min")
+  @JsonDeserialize(contentAs = classOf[java.lang.String])
+  @JsonSchemaInject(json = """{"dependOn" : "batchByColumn"}""")
+  var min: Option[String] = None
+
+  @JsonProperty(defaultValue = "9999999999999999")
+  @JsonSchemaTitle("Max")
+  @JsonDeserialize(contentAs = classOf[java.lang.String])
+  @JsonSchemaInject(json = """{"dependOn" : "batchByColumn"}""")
+  var max: Option[String] = None
 
   @JsonProperty(defaultValue = "1000000000")
   @JsonSchemaTitle("Batch by Interval")
