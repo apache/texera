@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { ResultDownloadComponent } from './result-download.component';
+import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 
 describe('ResultDownloadComponent', () => {
   let component: ResultDownloadComponent;
@@ -8,7 +9,8 @@ describe('ResultDownloadComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ ResultDownloadComponent ]
+      declarations: [ ResultDownloadComponent ],
+      providers: [NgbActiveModal]
     })
     .compileComponents();
   });
