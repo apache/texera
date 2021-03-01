@@ -104,12 +104,12 @@ export class DragDropService {
         const operator = this.workflowUtilService.getNewOperatorPredicate(value.operatorType);
 
         let coordinates: Point | undefined = this.workflowActionService
-          .getJointGraphWrapper().getmainCanvasPaper()?.pageToLocalPoint(value.offset.x, value.offset.y);
+          .getJointGraphWrapper().getMainJointPaper()?.pageToLocalPoint(value.offset.x, value.offset.y);
         if (! coordinates) {
           coordinates = value.offset;
         }
 
-        let scale: {sx: number, sy: number} | undefined = this.workflowActionService.getJointGraphWrapper().getmainCanvasPaper()?.scale();
+        let scale: {sx: number, sy: number} | undefined = this.workflowActionService.getJointGraphWrapper().getMainJointPaper()?.scale();
         if (scale === undefined) {
           scale = {sx: 1, sy: 1};
         }
@@ -327,12 +327,12 @@ export class DragDropService {
         const currentMouseCoordinates = { x: mouseCoordinates[0], y: mouseCoordinates[1] };
 
         let coordinates: Point | undefined = this.workflowActionService
-          .getJointGraphWrapper().getmainCanvasPaper()?.pageToLocalPoint(currentMouseCoordinates.x, currentMouseCoordinates.y);
+          .getJointGraphWrapper().getMainJointPaper()?.pageToLocalPoint(currentMouseCoordinates.x, currentMouseCoordinates.y);
         if (! coordinates) {
           coordinates = currentMouseCoordinates;
         }
 
-        let scale: {sx: number, sy: number} | undefined = this.workflowActionService.getJointGraphWrapper().getmainCanvasPaper()?.scale();
+        let scale: {sx: number, sy: number} | undefined = this.workflowActionService.getJointGraphWrapper().getMainJointPaper()?.scale();
         if (scale === undefined) {
           scale = {sx: 1, sy: 1};
         }

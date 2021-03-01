@@ -1,9 +1,8 @@
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
 import { Point } from '../../../types/workflow-common.interface';
-import { UndoRedoService } from './../../undo-redo/undo-redo.service';
-import { environment } from './../../../../../environments/environment';
 import * as joint from 'jointjs';
+import { ReplaySubject } from 'rxjs';
 
 type operatorIDsType = { operatorIDs: string[] };
 type linkIDType = { linkID: string };
@@ -81,15 +80,14 @@ export class JointGraphWrapper {
   public static readonly ZOOM_CLICK_DIFF: number = 0.05;
   public static readonly ZOOM_MOUSEWHEEL_DIFF: number = 0.01;
   public static readonly INIT_ZOOM_VALUE: number = 1;
-  // public static readonly INIT_PAN_OFFSET: Point = { x: 0, y: 0 };
 
   public static readonly ZOOM_MINIMUM: number = 0.70;
   public static readonly ZOOM_MAXIMUM: number = 1.30;
 
-  public navigatorMoveDelta: Subject<{deltaX: number, deltaY: number}> = new Subject();
-  public mainCanvasOriginEvent: Subject<Point> = new Subject();
+  public navigatorMoveDelta: Subject<{ deltaX: number, deltaY: number }> = new Subject();
 
-  private mainCanvasPaper: joint.dia.Paper | undefined;
+  private mainJointPaper: joint.dia.Paper | undefined;
+  private mainJointPaperAttachedStream: Subject<void> = new ReplaySubject(1);
   private miniMapPaper: joint.dia.Paper | undefined;
 
   private elementPositions: Map<string, PositionInfo> = new Map<string, PositionInfo>();
@@ -124,17 +122,6 @@ export class JointGraphWrapper {
   // event stream of restoring zoom / offset default of the jointJS paper
   private restorePaperOffsetSubject: Subject<void> = new Subject<void>();
 
-  // // event stream of panning to make mini-map and main workflow paper compatible in offset
-  // private panPaperOffsetSubject: Subject<Point> = new Subject<Point>();
-  // // event stream of panning to make mini-map and main workflow paper compatible in offset
-  // private panPaperOffsetCheck: Subject<Point> = new Subject<Point>();
-  // // event stream of panning to make mini-map and main workflow paper compatible in offset
-  // private panPaperOffsetSubject2: Subject<Point> = new Subject<Point>();
-  // // event stream of communicating mini-map and workflow paper
-  // private MouseDownReminder: Subject<boolean> = new Subject<boolean>();
-  // // event stream of communicating mini-map and workflow paper panning
-  // private PanReminder: Subject<boolean> = new Subject<boolean>();
-
   // event stream of showing the breakpoint button of a link
   private jointLinkBreakpointShowStream = new Subject<linkIDType>();
   // event stream of hiding the breakpoint button of a link
@@ -146,8 +133,6 @@ export class JointGraphWrapper {
 
   // current zoom ratio
   private zoomRatio: number = JointGraphWrapper.INIT_ZOOM_VALUE;
-  // panOffset, a point of panning offset alongside x and y axis
-  // private panOffset: Point = JointGraphWrapper.INIT_PAN_OFFSET;
 
   /**
    * This will capture all events in JointJS
@@ -179,7 +164,7 @@ export class JointGraphWrapper {
     this.handleElementDeleteUnhighlight();
 
     this.jointCellAddStream.filter(cell => cell.isElement()).subscribe(element => {
-      const initPosition = {currPos: (element as joint.dia.Element).position(), lastPos: undefined};
+      const initPosition = { currPos: (element as joint.dia.Element).position(), lastPos: undefined };
       this.elementPositions.set(element.id.toString(), initPosition);
     });
 
@@ -200,23 +185,35 @@ export class JointGraphWrapper {
   public attachMainJointPaper(paperOptions: joint.dia.Paper.Options): joint.dia.Paper {
     paperOptions.model = this.jointGraph;
     const paper = new joint.dia.Paper(paperOptions);
-    this.mainCanvasPaper = paper;
+    this.mainJointPaper = paper;
+    this.mainJointPaperAttachedStream.next();
     return paper;
   }
 
-  public getmainCanvasPaper(): joint.dia.Paper | undefined {
-    return this.mainCanvasPaper;
+  public getMainJointPaper(): joint.dia.Paper {
+    if (! this.mainJointPaper) {
+      throw new Error('jointJS main paper is not initialized yet');
+    }
+    return this.mainJointPaper;
   }
 
-  public attachMinimapJointPaper(paperOptions: joint.dia.Paper.Options): joint.dia.Paper {
+  public getMainJointPaperAttachedStream(): Observable<void> {
+    return this.mainJointPaperAttachedStream;
+  }
+
+  public attachMiniMapJointPaper(paperOptions: joint.dia.Paper.Options): joint.dia.Paper {
     paperOptions.model = this.jointGraph;
     const paper = new joint.dia.Paper(paperOptions);
     this.miniMapPaper = paper;
     return paper;
   }
 
-  public getMinimapPaper(): joint.dia.Paper | undefined {
-    return this.miniMapPaper;
+  public pageToJointLocalCoordinate(point: Point): Point {
+    if (!this.mainJointPaper) {
+      throw new Error('jointJS main paper is not initialized yet');
+    }
+    const jointLocalPoint = this.mainJointPaper.pageToLocalPoint(point);
+    return { x: jointLocalPoint.x, y: jointLocalPoint.y };
   }
 
   /**
@@ -292,7 +289,7 @@ export class JointGraphWrapper {
         if (!oldPosition.lastPos || oldPosition.currPos.x !== newPosition.x || oldPosition.currPos.y !== newPosition.y) {
           oldPosition.lastPos = oldPosition.currPos;
         }
-        this.elementPositions.set(elementID, {currPos: newPosition, lastPos: oldPosition.lastPos});
+        this.elementPositions.set(elementID, { currPos: newPosition, lastPos: oldPosition.lastPos });
         return {
           elementID: elementID,
           oldPosition: oldPosition.lastPos,
@@ -545,67 +542,6 @@ export class JointGraphWrapper {
     return jointLinkDeleteStream;
   }
 
-  // public getPanPaperOffsetStream(): Observable<Point> {
-  //   return this.panPaperOffsetSubject.asObservable();
-  // }
-
-  // /**
-  //  * This method will update the panning offset so that dropping
-  //  *  a new operator will appear at the correct location on the UI.
-  //  *
-  //  * @param panOffset new offset from panning
-  //  */
-  // public setPanningOffset(panOffset: Point): void {
-  //   this.panOffset = panOffset;
-  //   this.panPaperOffsetSubject.next(panOffset);
-  // }
-
-  // public getPanPaperOffsetStream2(): Observable<Point> {
-  //   return this.panPaperOffsetSubject2.asObservable();
-  // }
-
-  // public setPanningOffset2(panOffset: Point): void {
-  //   // this.panOffset = panOffset;
-  //   this.panPaperOffsetSubject2.next(panOffset);
-  // }
-
-  // public getMousDownReminder(): Observable<boolean> {
-  //   return this.MouseDownReminder.asObservable();
-  // }
-
-  // /**
-  //  * This method is to record the timing of a valid click/mousedown event
-  //  *  of mini-map navigator. It can notify the workflow-editor to
-  //  *  would exceed the html layout limit of the navigator.
-  //  *
-  //  */
-  // public setMouseDownReminder(ifMouseDown: boolean): void {
-  //   this.MouseDownReminder.next(ifMouseDown);
-  // }
-
-  // public getPanReminder(): Observable<boolean> {
-  //   return this.PanReminder.asObservable();
-  // }
-
-  // public setPanReminder(available: boolean): void {
-  //   this.PanReminder.next(available);
-  // }
-
-  // public getPanPaperOffsetCheckStream(): Observable<Point> {
-  //   return this.panPaperOffsetCheck.asObservable();
-  // }
-
-  // /**
-  //  * This method will update the panning offset
-  //  *  Mini-map navigator will first check whether that offset
-  //  *  would exceed the html layout limit of the navigator.
-  //  *
-  //  * @param panOffset new offset from panning
-  //  */
-  // public setPanningOffsetCheck(panOffset: Point): void {
-  //   this.panPaperOffsetCheck.next(panOffset);
-  // }
-
   /**
    * This method will update the zoom ratio, which will be used
    *  in calculating the position of the operator dropped on the UI.
@@ -638,13 +574,6 @@ export class JointGraphWrapper {
   public getWorkflowEditorZoomStream(): Observable<number> {
     return this.workflowEditorZoomSubject.asObservable();
   }
-
-  // /**
-  //  * This method will fetch current pan offset of the paper.
-  //  */
-  // public getPanningOffset(): Point {
-  //   return this.panOffset;
-  // }
 
   /**
    * This method will fetch current zoom ratio of the paper.
@@ -692,10 +621,10 @@ export class JointGraphWrapper {
    */
   public getElementPosition(elementID: string): Point {
     const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(elementID);
-    if (! cell) {
+    if (!cell) {
       throw new Error(`element with ID ${elementID} doesn't exist`);
     }
-    if (! cell.isElement()) {
+    if (!cell.isElement()) {
       throw new Error(`${elementID} is not an element`);
     }
     const element = <joint.dia.Element>cell;
@@ -709,10 +638,10 @@ export class JointGraphWrapper {
    */
   public setElementPosition(elementID: string, offsetX: number, offsetY: number): void {
     const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(elementID);
-    if (! cell) {
+    if (!cell) {
       throw new Error(`element with ID ${elementID} doesn't exist`);
     }
-    if (! cell.isElement()) {
+    if (!cell.isElement()) {
       throw new Error(`${elementID} is not an element`);
     }
     const element = <joint.dia.Element>cell;
@@ -794,13 +723,13 @@ export class JointGraphWrapper {
    */
   public setElementSize(elementID: string, width: number, height: number): void {
     const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(elementID);
-    if (! cell) {
+    if (!cell) {
       throw new Error(`element with ID ${elementID} doesn't exist`);
     }
-    if (! cell.isElement()) {
+    if (!cell.isElement()) {
       throw new Error(`${elementID} is not an element`);
     }
-    const element = <joint.dia.Element> cell;
+    const element = <joint.dia.Element>cell;
     element.resize(width, height);
   }
 
@@ -810,7 +739,7 @@ export class JointGraphWrapper {
    */
   public getCellLayer(cellID: string): number {
     const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(cellID);
-    if (! cell) {
+    if (!cell) {
       throw new Error(`cell with ID ${cellID} doesn't exist`);
     }
     return cell.attributes.z;
@@ -822,7 +751,7 @@ export class JointGraphWrapper {
    */
   public setCellLayer(cellID: string, layer: number): void {
     const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(cellID);
-    if (! cell) {
+    if (!cell) {
       throw new Error(`cell with ID ${cellID} doesn't exist`);
     }
     cell.set('z', layer);

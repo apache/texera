@@ -92,12 +92,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   // private ifMouseDown: boolean = false;
   private mouseDown: Point | undefined;
-  private panOffset: Point = { x: 0, y: 0 };
-  private translateLimitX: number[] = [];
-  private translateLimitY: number[] = [];
-  private minimapTranslateX: number = 0;
-  private minimapTranslateY: number = 0;
-  private tranlsateLimitZ: boolean = false;
 
 
   // dictionary of {operatorID, CopiedOperator} pairs
@@ -145,7 +139,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleViewCollapseGroup();
     this.handleViewExpandGroup();
     this.handlePaperPan();
-    // this.handleMinimapTranslate();
     this.handleGroupResize();
 
     if (environment.executionStatusEnabled) {
@@ -271,10 +264,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private handlePaperRestoreDefaultOffset(): void {
     this.workflowActionService.getJointGraphWrapper().getRestorePaperOffsetStream()
       .subscribe(() => {
-        this.getJointPaper().scale(1, 1);
         this.workflowActionService.getJointGraphWrapper().setZoomProperty(1);
         this.getJointPaper().translate(0, 0);
-        this.workflowActionService.getJointGraphWrapper().mainCanvasOriginEvent.next({x: 0, y: 0});
       });
   }
 
@@ -508,8 +499,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
           newOrigin.y = - (MAIN_CANVAS_LIMIT.yMax - this.getWrapperElementSize().height / scale.sy);
         }
 
-        this.getJointPaper().translate(newOrigin.x, newOrigin.y);
-        this.workflowActionService.getJointGraphWrapper().mainCanvasOriginEvent.next(newOrigin);
+        if (newOrigin.x !== oldOrigin.tx || newOrigin.y !== oldOrigin.ty) {
+          this.getJointPaper().translate(newOrigin.x, newOrigin.y);
+        }
 
         // console.log(newOrigin);
 
@@ -698,8 +690,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private setJointPaperOriginOffset(): void {
     this.getJointPaper().translate(0, 0);
-    this.workflowActionService.getJointGraphWrapper().mainCanvasOriginEvent.next({x: 0, y: 0});
-
   }
 
   /**
@@ -842,18 +832,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     }
 
     return { width, height };
-  }
-
-  /**
-   * Gets the document offset coordinates of the wrapper element's top-left corner.
-   */
-  private getWrapperElementOffset(): { x: number, y: number } {
-    // const offset = jQuery('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).offset();
-    // if (offset === undefined) {
-    //   throw new Error('fail to get Workflow Editor wrapper element offset');
-    // }
-    // return { x: offset.left, y: offset.top };
-    return { x: 0, y: 0 };
   }
 
 
