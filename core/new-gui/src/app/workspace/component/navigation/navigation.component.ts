@@ -15,31 +15,7 @@ import { WorkflowActionService } from '../../service/workflow-graph/model/workfl
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { ExecutionState } from '../../types/execute-workflow.interface';
 import { NgbActiveModal, NgbModal, NgbModalRef } from '@ng-bootstrap/ng-bootstrap';
-
-/**
- * DownloadPopupComponent is the popup when the download finish
- */
-@Component({
-  template: `
-  <div class="modal-header">
-    <h4 class="modal-title">Download Result</h4>
-  </div>
-  <div class="modal-body">
-    <p>{{message}}</p>
-    <div [hidden]="!link">
-      click <a href="{{link}}"> here </a> to open the file
-    </div>
-  </div>
-  <div class="modal-footer">
-    <button type="button" class="btn btn-outline-dark" (click)="activeModal.close()">Close</button>
-  </div>
-`
-})
-class DownloadPopupComponent {
-  @Input() message: string | undefined;
-  @Input() link: string | undefined;
-  constructor(public activeModal: NgbActiveModal) {}
-}
+import { ResultDownloadComponent } from './result-download/result-download.component';
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -117,11 +93,11 @@ export class NavigationComponent implements OnInit {
     executeWorkflowService.getResultDownloadStream().subscribe(
       response => {
         if (!this.downloadResultPopup) {
-          this.downloadResultPopup = this.modalService.open(DownloadPopupComponent);
+          this.downloadResultPopup = this.modalService.open(ResultDownloadComponent);
         }
         this.downloadResultPopup.componentInstance.message = response.message;
         this.downloadResultPopup.componentInstance.link = response.link;
-        this.openInNewTab(response.link);
+        this.downloadResultPopup.componentInstance.openInNewTab();
       }
     )
 
@@ -281,7 +257,7 @@ export class NavigationComponent implements OnInit {
       return;
     }
     this.executeWorkflowService.downloadWorkflowExecutionResult(downloadType, this.currentWorkflowName);
-    this.downloadResultPopup = this.modalService.open(DownloadPopupComponent);
+    this.downloadResultPopup = this.modalService.open(ResultDownloadComponent);
     this.downloadResultPopup.componentInstance.message = 'Collecting results. It may takes a while';
     // set the variable to undefined when user closes the popup
     this.downloadResultPopup.result.then(() => {this.downloadResultPopup = undefined; });
@@ -393,15 +369,4 @@ export class NavigationComponent implements OnInit {
         });
   }
 
-
-  /**
-   * open the link in the new tab
-   * @param href the link
-   */
-  private openInNewTab(href: string) {
-    Object.assign(document.createElement('a'), {
-      target: '_blank',
-      href: href,
-    }).click();
-  }
 }

@@ -47,14 +47,15 @@ object ResultDownloadResource {
     }
 
     // By now the workflow should finish running. Only one operator should contain results.
-    val count = sessionResults.count(p => !p._2.isEmpty)
-    if (count == 0) {
+    val OperatorWithResult = sessionResults.count(p => !p._2.isEmpty)
+    if (OperatorWithResult == 0) {
       return ResultDownloadResponse(
         request.downloadType,
         "",
         "The workflow contains no results"
       )
-    } else if (count > 1) {
+    } else if (OperatorWithResult > 1) {
+      // more than one operator contains results means the workflow does not finish running.
       return ResultDownloadResponse(
         request.downloadType,
         "",
@@ -93,7 +94,7 @@ object ResultDownloadResource {
       result: List[ITuple]
   ): ResultDownloadResponse = {
     // create google sheet
-    val sheetService: Sheets = GoogleResource.createSheetService()
+    val sheetService: Sheets = GoogleResource.getSheetService()
     val sheetId: String =
       createGoogleSheet(sheetService, resultDownloadRequest.workflowName)
     if (sheetId == null)
@@ -111,7 +112,7 @@ object ResultDownloadResource {
       uploadContent(sheetService, sheetId, schemaContent)
 
     // allow user to access this sheet in the service account
-    val drive: Drive = GoogleResource.createDriveService()
+    val drive: Drive = GoogleResource.getDriveService()
     val sharePermission: Permission = new Permission()
       .setType("anyone")
       .setRole("reader")

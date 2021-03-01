@@ -6,17 +6,20 @@ import java.net.URL
 import akka.actor.{ActorSystem, Props}
 import com.typesafe.config.ConfigFactory
 import edu.uci.ics.amber.clustering.ClusterListener
+import edu.uci.ics.texera.workflow.common.Utils
 
 object WebUtils {
 
-  // TODO change token path
-  def getTokenPath(): String = {
-    ""
-  }
+  var googleTokenPath: String = "";
 
-  // TODO change credential path
-  def getCredentialPath(): String = {
-    ""
+  var googleCredentialPath: String = "";
+
+  def config(): Unit = {
+    val configPath = Utils.amberHomePath.resolve("../conf").resolve("web.conf")
+    val configuration = ConfigFactory.parseFile(configPath.toFile)
+    // set configuration for google service
+    WebUtils.googleTokenPath = configuration.getString("google.tokenPath");
+    WebUtils.googleCredentialPath = configuration.getString("google.credentialPath");
   }
 
   def startActorMaster(localhost: Boolean): ActorSystem = {

@@ -1,5 +1,7 @@
 package edu.uci.ics.texera.web
 
+import java.nio.file.Path
+
 import akka.actor.ActorSystem
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
@@ -15,8 +17,9 @@ import org.eclipse.jetty.server.session.SessionHandler
 import org.eclipse.jetty.servlet.ErrorPageErrorHandler
 import org.eclipse.jetty.websocket.server.WebSocketUpgradeFilter
 import org.glassfish.jersey.media.multipart.MultiPartFeature
-
 import java.time.Duration
+
+import com.typesafe.config.{Config, ConfigFactory}
 
 object TexeraWebApplication {
 
@@ -78,6 +81,8 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
     environment.jersey().register(classOf[UserResource])
     environment.jersey().register(classOf[WorkflowResource])
     environment.jersey().register(classOf[UserFileResource])
+
+    WebUtils.config();
   }
 
 }

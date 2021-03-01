@@ -109,6 +109,7 @@ import { registerLocaleData } from '@angular/common';
 import en from '@angular/common/locales/en';
 import { FormlyMaterialModule } from '@ngx-formly/material';
 import { TypecastingDisplayComponent } from './workspace/component/property-editor/typecasting-display/typecasting-display.component';
+import { ResultDownloadComponent } from './workspace/component/navigation/result-download/result-download.component';
 
 registerLocaleData(en);
 
@@ -159,6 +160,7 @@ registerLocaleData(en);
     CodeareaCustomTemplateComponent,
     CodeEditorDialogComponent,
     TypecastingDisplayComponent,
+    ResultDownloadComponent,
   ],
   imports: [
     BrowserModule,

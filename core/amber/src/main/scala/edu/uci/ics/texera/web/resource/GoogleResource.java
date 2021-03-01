@@ -23,47 +23,87 @@ import java.util.List;
 
 public class GoogleResource {
     private static final String APPLICATION_NAME = "Texera";
-    private static final String TOKENS_DIRECTORY_PATH = WebUtils.getTokenPath();
+    private static final String TOKENS_DIRECTORY_PATH = WebUtils.googleTokenPath();
     private static final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
 
     /**
      * Global instance of the scopes required by this quickstart.
      * If modifying these scopes, delete your previously saved tokens/ folder.
      */
-    private static final String CREDENTIALS_FILE_PATH = WebUtils.getCredentialPath();
+    private static final String CREDENTIALS_FILE_PATH = WebUtils.googleCredentialPath();
     private static final List<String> SCOPES = Arrays.asList(SheetsScopes.SPREADSHEETS, DriveScopes.DRIVE);
 
-    public static Sheets createSheetService() throws IOException {
-        try {
-            NetHttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
-            Credential credential = getCredentials(httpTransport);
-            return new Sheets.Builder(httpTransport, JSON_FACTORY, credential)
-                    .setApplicationName(APPLICATION_NAME)
-                    .build();
-        } catch (GeneralSecurityException e) {
-            e.printStackTrace();
-            return null;
+    // singleton service
+    private static Sheets sheetService;
+    private static Drive driveService;
+    private static Credential serviceAccountCredential;
+    private static NetHttpTransport httpTransport;
+
+    /**
+     * create a google sheet service to the service account
+     */
+    public static Sheets getSheetService() throws IOException, GeneralSecurityException {
+        if (sheetService == null){
+            synchronized (GoogleResource.class){
+                if (sheetService == null){
+                    sheetService = new Sheets.Builder(getHttpTransport(), JSON_FACTORY, getCredentials())
+                            .setApplicationName(APPLICATION_NAME)
+                            .build();
+                }
+            }
         }
+        return sheetService;
     }
 
-    public static Drive createDriveService() throws IOException {
-        try {
-            NetHttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
-            Credential credential = getCredentials(httpTransport);
-            return new Drive.Builder(httpTransport, JSON_FACTORY, credential)
-                    .setApplicationName(APPLICATION_NAME)
-                    .build();
-        } catch (GeneralSecurityException e) {
-            e.printStackTrace();
-            return null;
+    /**
+     * create a google drive service to the service account
+     */
+    public static Drive getDriveService() throws IOException, GeneralSecurityException {
+        if (driveService == null){
+            synchronized (GoogleResource.class){
+                if (driveService == null){
+                    driveService = new Drive.Builder(getHttpTransport(), JSON_FACTORY, getCredentials())
+                            .setApplicationName(APPLICATION_NAME)
+                            .build();
+                }
+            }
         }
+        return driveService;
+    }
+
+    /**
+     * get the service account's credential
+     * rewrite this part when migrate to user account
+     */
+    private static Credential getCredentials() throws IOException, GeneralSecurityException {
+        if (serviceAccountCredential == null){
+            synchronized (GoogleResource.class){
+                if (serviceAccountCredential == null){
+                    serviceAccountCredential = createCredential();
+                }
+            }
+        }
+        return serviceAccountCredential;
+    }
+
+    private static NetHttpTransport getHttpTransport() throws GeneralSecurityException, IOException {
+        if (httpTransport == null){
+            synchronized (GoogleResource.class){
+                if (httpTransport == null){
+                    httpTransport = GoogleNetHttpTransport.newTrustedTransport();
+                }
+            }
+        }
+        return httpTransport;
     }
 
     /**
      * Creates an authorized Credential object for the service account
+     * Copied from google sheet API (https://developers.google.com/sheets/api/quickstart/java)
+     * rewrite this part when migrate to user's account
      */
-    private static Credential getCredentials(NetHttpTransport httpTransport) throws IOException {
-        // Load client secrets test
+    private static Credential createCredential() throws IOException, GeneralSecurityException {
+        // Load client secrets
         File initialFile = new File(CREDENTIALS_FILE_PATH);
         InputStream targetStream = new FileInputStream(initialFile);
         if (targetStream == null) {
@@ -73,7 +113,7 @@ public class GoogleResource {
 
         // Build flow and trigger user authorization request.
         GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
-                httpTransport, JSON_FACTORY, clientSecrets, SCOPES)
+                getHttpTransport(), JSON_FACTORY, clientSecrets, SCOPES)
                 .setDataStoreFactory(new FileDataStoreFactory(new File(TOKENS_DIRECTORY_PATH)))
                 .setAccessType("offline")
                 .build();

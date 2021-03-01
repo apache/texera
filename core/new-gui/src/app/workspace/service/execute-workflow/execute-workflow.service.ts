@@ -69,11 +69,11 @@ export class ExecuteWorkflowService {
   ) {
     if (environment.amberEngineEnabled) {
       workflowWebsocketService.websocketEvent().subscribe(event => {
-        switch (event.type){
+        switch (event.type) {
           case 'ResultDownloadResponse': {
             this.resultDownloadStream.next(event);
             break;
-          } default : {
+          } default: {
             // workflow status related event
             if (event.type !== 'WorkflowStatusUpdateEvent') {
               console.log(event);
