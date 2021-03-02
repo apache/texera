@@ -31,7 +31,7 @@ import { FormlyMaterialModule } from '@ngx-formly/material';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DatePipe } from '@angular/common';
 import { FormlyJsonschema } from '@ngx-formly/core/json-schema';
 import { ArrayTypeComponent } from 'src/app/common/formly/array.type';
 import { ObjectTypeComponent } from 'src/app/common/formly/object.type';
@@ -43,7 +43,7 @@ import { cloneDeep } from 'lodash';
 import { assertType } from 'src/app/common/util/assert';
 import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
 import { SchemaPropagationService } from '../../service/dynamic-schema/schema-propagation/schema-propagation.service';
-import { NGXLogger, NGXMapperService } from 'ngx-logger';
+import { LoggerConfig, NGXLogger, NGXLoggerHttpService, NGXMapperService } from 'ngx-logger';
 
 const {marbles} = configure({run: false});
 
@@ -75,6 +75,9 @@ describe('PropertyEditorComponent', () => {
         FormlyJsonschema,
         SchemaPropagationService,
         NGXLogger,
+        NGXLoggerHttpService,
+        LoggerConfig,
+        DatePipe,
         NGXMapperService
         // { provide: HttpClient, useClass: {} }
       ],
@@ -586,7 +589,7 @@ describe('PropertyEditorComponent', () => {
     // xit('should change Texera graph link-breakpoint property correctly when the breakpoint form is edited by the user', fakeAsync(() => {
     //   const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
-    //   // add a link and highligh the link so that the
+    //   // add a link and highlight the link so that the
     //   //  variables in property editor component is set correctly
     //   workflowActionService.addOperator(mockScanPredicate, mockPoint);
     //   workflowActionService.addOperator(mockResultPredicate, mockPoint);
@@ -605,7 +608,7 @@ describe('PropertyEditorComponent', () => {
     //   // fakeAsync enables tick, which waits for the set property debounce time to finish
     //   tick(PropertyEditorComponent.formInputDebounceTime + 10);
 
-    //   // then get the opeator, because operator is immutable, the operator before the tick
+    //   // then get the operator, because operator is immutable, the operator before the tick
     //   //   is a different object reference from the operator after the tick
     //   const link = workflowActionService.getTexeraGraph().getLinkWithID(mockScanResultLink.linkID);
     //   if (!link) {
@@ -653,7 +656,7 @@ describe('PropertyEditorComponent', () => {
     // xit('should debounce the user breakpoint form input to avoid emitting event too frequently', marbles(m => {
     //   const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
-    //   // add a link and highligh the link so that the
+    //   // add a link and highlight the link so that the
     //   //  variables in property editor component is set correctly
     //   workflowActionService.addOperator(mockScanPredicate, mockPoint);
     //   workflowActionService.addOperator(mockResultPredicate, mockPoint);
