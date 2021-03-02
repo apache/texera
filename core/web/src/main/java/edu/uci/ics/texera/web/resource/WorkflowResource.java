@@ -1,9 +1,9 @@
 package edu.uci.ics.texera.web.resource;
 
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowDao;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowOfUserDao;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Workflow;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowOfUser;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.daos.WorkflowDao;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.daos.WorkflowOfUserDao;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.pojos.Workflow;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.pojos.WorkflowOfUser;
 import edu.uci.ics.texera.dataflow.sqlServerInfo.SqlServer;
 import io.dropwizard.jersey.sessions.Session;
 import org.glassfish.jersey.media.multipart.FormDataParam;
@@ -15,8 +15,8 @@ import javax.ws.rs.core.MediaType;
 import java.util.ArrayList;
 import java.util.List;
 
-import static edu.uci.ics.texera.web.model.jooq.generated.Tables.WORKFLOW;
-import static edu.uci.ics.texera.web.model.jooq.generated.Tables.WORKFLOW_OF_USER;
+import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.WORKFLOW;
+import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.WORKFLOW_OF_USER;
 
 /**
  * This file handles various request related to saved-workflows.

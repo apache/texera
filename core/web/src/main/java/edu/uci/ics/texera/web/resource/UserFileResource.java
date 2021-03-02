@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static edu.uci.ics.texera.web.model.jooq.generated.Tables.FILE;
+import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.FILE;
 import static org.jooq.impl.DSL.defaultValue;
 
 @Path("/user/file")

@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.web.resource;
 
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.UserRecord;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.UserRecord;
 import edu.uci.ics.texera.dataflow.sqlServerInfo.SqlServer;
 import edu.uci.ics.texera.web.response.GenericWebResponse;
 import io.dropwizard.jersey.sessions.Session;
@@ -13,7 +13,7 @@ import javax.servlet.http.HttpSession;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 
-import static edu.uci.ics.texera.web.model.jooq.generated.Tables.USER;
+import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.USER;
 import static org.jooq.impl.DSL.defaultValue;
 
 
