@@ -1,6 +1,6 @@
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { BrowserModule, By } from '@angular/platform-browser';
-import { async, ComponentFixture, fakeAsync, TestBed, tick } from '@angular/core/testing';
+import { async, ComponentFixture, discardPeriodicTasks, fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { PropertyEditorComponent } from './property-editor.component';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 import { UndoRedoService } from '../../service/undo-redo/undo-redo.service';
@@ -323,14 +323,18 @@ describe('PropertyEditorComponent', () => {
     // fakeAsync enables tick, which waits for the set property debounce time to finish
     tick(PropertyEditorComponent.formInputDebounceTime + 10);
 
-    // then get the opeator, because operator is immutable, the operator before the tick
+    // then get the operator, because operator is immutable, the operator before the tick
     //   is a different object reference from the operator after the tick
     const operator = workflowActionService.getTexeraGraph().getOperator(mockScanPredicate.operatorID);
     if (!operator) {
       throw new Error(`operator ${mockScanPredicate.operatorID} is undefined`);
     }
+
+    discardPeriodicTasks();
+
     expect(operator.operatorProperties).toEqual(formChangeValue);
     expect(emitEventCounter).toEqual(1);
+
   }));
 
   xit('should debounce the user form input to avoid emitting event too frequently', marbles(m => {
@@ -395,6 +399,8 @@ describe('PropertyEditorComponent', () => {
 
     // fakeAsync enables tick, which waits for the set property debounce time to finish
     tick(PropertyEditorComponent.formInputDebounceTime + 10);
+
+    discardPeriodicTasks();
 
     // assert that the form change event doesn't emit any time
     // because the form change value is the same
