@@ -1,11 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
-import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
-import edu.uci.ics.amber.engine.architecture.worker.WorkerStatistics
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
 import edu.uci.ics.amber.engine.common.WorkflowLogger
-import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowMessage, WorkflowMessageGeneric}
+import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, VirtualIdentity}
@@ -18,7 +15,7 @@ object ControlInputPort {
       from: VirtualIdentity,
       sequenceNumber: Long,
       payload: ControlPayload
-  ) extends WorkflowMessageGeneric[ControlPayload]
+  ) extends WorkflowMessage
 }
 
 class ControlInputPort(

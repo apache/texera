@@ -4,7 +4,7 @@ import akka.actor.ActorRef
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{NetworkAck, NetworkMessage, NetworkMessageGeneric}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{NetworkAck, NetworkMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
@@ -15,7 +15,7 @@ class TrivialControlTester(id: ActorVirtualIdentity, parentNetworkCommunicationA
 
   override def receive: Receive = {
     disallowActorRefRelatedMessages orElse {
-      case msg @ NetworkMessageGeneric(id, cmd: WorkflowControlMessage) =>
+      case msg @ NetworkMessage(id, cmd: WorkflowControlMessage) =>
         logger.logInfo(s"received ${msg.internalMessage}")
         sender ! NetworkAck(id)
         // use promise manager to handle control messages

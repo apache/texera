@@ -9,10 +9,10 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.DataInputPort.WorkflowDataMessage
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{NetworkAck, NetworkMessage, NetworkMessageGeneric, RegisterActorRef}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{NetworkMessage, RegisterActorRef}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{BatchToTupleConverter, ControlInputPort, DataInputPort, DataOutputPort, NetworkInputPort, TupleToBatchConverter}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ShutdownDPThreadHandler.ShutdownDPThread
-import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, DataPayload}
+import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, DataPayload, WorkflowMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCHandlerInitializer, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
@@ -56,8 +56,7 @@ class WorkflowWorker(
   lazy val breakpointManager: BreakpointManager = wire[BreakpointManager]
 
   lazy val newDataInputPort: NetworkInputPort[DataPayload] = new NetworkInputPort[DataPayload](this.logger, this.handleDataPayload)
-  lazy val controlInputPortNew: NetworkInputPort[ControlPayload] = new NetworkInputPort[ControlPayload](this.logger, this.handleControlPayload)
-
+  lazy val newControlInputPort: NetworkInputPort[ControlPayload] = new NetworkInputPort[ControlPayload](this.logger, this.handleControlPayload)
 
   override lazy val controlInputPort: ControlInputPort = wire[WorkerControlInputPort]
 
@@ -88,25 +87,14 @@ class WorkflowWorker(
   }
 
   final def receiveDataMessages: Receive = {
-//    case msg @ NetworkMessageGeneric(_, _) =>
-//      msg.internalMessage.payload match {
-//        case c: DataPayload => newDataInputPort.handleMessage(this.sender(), msg)
-//      }
-//    case msg @ NetworkMessageGeneric(id, data: WorkflowDataMessage) =>
-//      if (workerStateManager.getCurrentState == Ready) {
-//        workerStateManager.transitTo(Running)
-//        asyncRPCClient.send(
-//          WorkerStateUpdated(workerStateManager.getCurrentState),
-//          ActorVirtualIdentity.Controller
-//        )
-//      }
-//      newDataInputPort.handleMessage(this.sender(), msg)
+    case NetworkMessage(messageID, WorkflowDataMessage(from, sequenceNumber, payload)) =>
+      newDataInputPort.handleMessage(this.sender(), messageID, from, sequenceNumber, payload)
   }
 
 
   override def processControlMessages: Receive = {
-    case msg @ NetworkMessageGeneric(id, cmd: WorkflowControlMessage) =>
-      newDataInputPort.handleMessage(this.sender(), msg)
+    case NetworkMessage(messageID, WorkflowControlMessage(from, sequenceNumber, payload)) =>
+      newControlInputPort.handleMessage(this.sender(), messageID, from, sequenceNumber, payload)
   }
 
   final def handleDataPayload(from: VirtualIdentity, dataPayload: DataPayload): Unit = {

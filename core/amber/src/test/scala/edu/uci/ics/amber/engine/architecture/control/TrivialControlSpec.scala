@@ -8,7 +8,7 @@ import com.esotericsoftware.kryo.io.Input
 import com.twitter.util.{FuturePool, Promise}
 import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{GetActorRef, NetworkAck, NetworkMessage, NetworkMessageGeneric, RegisterActorRef}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{GetActorRef, NetworkAck, NetworkMessage, RegisterActorRef}
 import edu.uci.ics.amber.engine.architecture.control.utils.ChainHandler.Chain
 import edu.uci.ics.amber.engine.architecture.control.utils.CollectHandler.Collect
 import edu.uci.ics.amber.engine.architecture.control.utils.MultiCallHandler.MultiCall
@@ -52,7 +52,7 @@ class TrivialControlSpec
     cmd.foreach { evt =>
       probe.send(
         idMap(WorkerActorVirtualIdentity("0")),
-        NetworkMessageGeneric(
+        NetworkMessage(
           seqNum,
           WorkflowControlMessage(
             ActorVirtualIdentity.Controller,
@@ -75,7 +75,7 @@ class TrivialControlSpec
         replyTo.foreach { actor =>
           actor ! RegisterActorRef(id, idMap(id))
         }
-      case NetworkMessageGeneric(msgID, WorkflowControlMessage(_, _, ReturnPayload(id, returnValue))) =>
+      case NetworkMessage(msgID, WorkflowControlMessage(_, _, ReturnPayload(id, returnValue))) =>
         probe.sender() ! NetworkAck(msgID)
         assert(returnValue.asInstanceOf[T] == expectedValues(id.toInt))
         flag += 1

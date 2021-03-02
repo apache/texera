@@ -22,9 +22,10 @@ class DataInputPortSpec extends AnyFlatSpec with MockFactory {
       WorkflowDataMessage(fakeID, i, payloads(i))
     }.toArray
     inSequence {
-      (mockBatchToTupleConverter.processDataPayload _)
-        .expects(fakeID, payloads.slice(0, 3).toIterable)
-      (mockBatchToTupleConverter.processDataPayload _).expects(fakeID, Iterable(payloads(3)))
+      (mockBatchToTupleConverter.processDataPayload _).expects(fakeID, payloads(0))
+      (mockBatchToTupleConverter.processDataPayload _).expects(fakeID, payloads(1))
+      (mockBatchToTupleConverter.processDataPayload _).expects(fakeID, payloads(2))
+      (mockBatchToTupleConverter.processDataPayload _).expects(fakeID, payloads(3))
     }
 
     inputPort.handleDataMessage(messages(2))
@@ -38,7 +39,7 @@ class DataInputPortSpec extends AnyFlatSpec with MockFactory {
     val payload = DataFrame(Array(ITuple(0)))
     val message = WorkflowDataMessage(fakeID, 0, payload)
     inSequence {
-      (mockBatchToTupleConverter.processDataPayload _).expects(fakeID, Iterable(payload))
+      (mockBatchToTupleConverter.processDataPayload _).expects(fakeID, payload)
       (mockBatchToTupleConverter.processDataPayload _).expects(*, *).never
     }
     inputPort.handleDataMessage(message)

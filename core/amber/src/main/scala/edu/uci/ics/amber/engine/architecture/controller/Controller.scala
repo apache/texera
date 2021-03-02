@@ -10,7 +10,7 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{ErrorOccurred, WorkflowStatusUpdate}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{NetworkAck, NetworkMessage, NetworkMessageGeneric, RegisterActorRef}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{NetworkAck, NetworkMessage, RegisterActorRef}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.Ready
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, WorkflowIdentity}
@@ -93,14 +93,14 @@ class Controller(
   override def receive: Receive = initializing
 
   def initializing: Receive = {
-    case NetworkMessageGeneric(
+    case NetworkMessage(
           id,
           cmd @ WorkflowControlMessage(from, sequenceNumber, payload: ReturnPayload)
         ) =>
       //process reply messages
       sender ! NetworkAck(id)
       handleControlMessageWithTryCatch(cmd)
-    case NetworkMessageGeneric(
+    case NetworkMessage(
           id,
           cmd @ WorkflowControlMessage(ActorVirtualIdentity.Controller, sequenceNumber, payload)
         ) =>

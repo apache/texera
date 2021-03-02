@@ -1,11 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.common
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Stash}
+import akka.actor.{Actor, ActorRef, Stash}
 import com.softwaremill.macwire.wire
-import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{GetActorRef, NetworkAck, NetworkMessage, NetworkMessageGeneric, NetworkSenderActorRef, RegisterActorRef}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{GetActorRef, NetworkAck, NetworkMessage, NetworkSenderActorRef, RegisterActorRef}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{ControlInputPort, ControlOutputPort, NetworkCommunicationActor}
 import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCHandlerInitializer, AsyncRPCServer}
@@ -59,7 +58,7 @@ abstract class WorkflowActor(
   }
 
   def processControlMessages: Receive = {
-    case msg @ NetworkMessageGeneric(id, cmd: WorkflowControlMessage) =>
+    case msg @ NetworkMessage(id, cmd: WorkflowControlMessage) =>
       sender ! NetworkAck(id)
       handleControlMessageWithTryCatch(cmd)
   }

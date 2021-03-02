@@ -1,12 +1,11 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
-import akka.actor.{Actor, ActorRef, Cancellable, Props, Stash}
+import akka.actor.{Actor, ActorRef, Cancellable, Props}
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{GetActorRef, MessageBecomesDeadLetter, NetworkAck, NetworkMessage, NetworkMessageGeneric, RegisterActorRef, ResendMessages, SendRequest}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{GetActorRef, MessageBecomesDeadLetter, NetworkAck, NetworkMessage, RegisterActorRef, ResendMessages, SendRequest}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.WorkflowMessage
-import edu.uci.ics.amber.engine.common.ambermessage.{WorkflowMessage, WorkflowMessageGeneric}
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, VirtualIdentity}
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.collection.mutable
@@ -36,9 +35,7 @@ object NetworkCommunicationActor {
     * @param messageID
     * @param internalMessage
     */
-  final case class NetworkMessageGeneric[+T](messageID: Long, internalMessage: WorkflowMessageGeneric[T])
-
-  type NetworkMessage = NetworkMessageGeneric[_]
+  final case class NetworkMessage(messageID: Long, internalMessage: WorkflowMessage)
 
   /** Ack for NetworkMessage
     * note that it should NEVER be handled by the main thread
@@ -117,7 +114,7 @@ class NetworkCommunicationActor(parentRef: ActorRef) extends Actor with LazyLogg
     */
   def forwardMessage(to: ActorVirtualIdentity, msg: WorkflowMessage): Unit = {
     val congestionControl = idToCongestionControls.getOrElseUpdate(to, new CongestionControl())
-    val data = NetworkMessageGeneric(networkMessageID, msg)
+    val data = NetworkMessage(networkMessageID, msg)
     messageIDToIdentity(networkMessageID) = to
     if (congestionControl.canSend) {
       congestionControl.markMessageInTransit(data)
