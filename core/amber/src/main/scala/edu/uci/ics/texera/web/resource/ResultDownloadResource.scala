@@ -15,39 +15,39 @@ import com.google.api.services.sheets.v4.model.{
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.texera.web.model.event.ResultDownloadResponse
 import edu.uci.ics.texera.web.model.request.ResultDownloadRequest
+import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
+  sessionDownloadCache,
+  sessionResults
+}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import javax.websocket.Session
+
+import scala.collection.mutable
 
 object ResultDownloadResource {
 
-  private final val SESSION_CACHED_KEY_NAME = "ResultDownloadResource"
-
   private final val UPLOAD_SIZE = 100;
 
-  def clearCache(session: Session): Unit = {
-    session.getUserProperties
-      .entrySet()
-      .removeIf(entry => entry.getKey.startsWith(SESSION_CACHED_KEY_NAME))
-  }
-
   def apply(
-      session: Session,
-      request: ResultDownloadRequest,
-      sessionResults: Map[String, List[ITuple]]
+      sessionId: String,
+      request: ResultDownloadRequest
   ): ResultDownloadResponse = {
-    // look for the response cached in the session to avoid creating duplicated file
+    // retrieve the file link saved in the session if exists
     if (
-      session.getUserProperties.containsKey(
-        getSessionName(request.downloadType)
+      sessionDownloadCache.contains(sessionId) && sessionDownloadCache(sessionId).contains(
+        request.downloadType
       )
     ) {
-      return session.getUserProperties
-        .get(getSessionName(request.downloadType))
-        .asInstanceOf[ResultDownloadResponse]
+      return ResultDownloadResponse(
+        request.downloadType,
+        sessionDownloadCache(sessionId)(request.downloadType),
+        "File retrieved from cache."
+      )
     }
 
-    // By now the workflow should finish running. Only one operator should contain results.
-    val OperatorWithResult = sessionResults.count(p => !p._2.isEmpty)
+    // By now the workflow should finish running. Only one operator should contain results
+    // TODO currently assume only one operator should contains the result
+    // TODO change status checking of the workflow
+    val OperatorWithResult = sessionResults(sessionId).count(p => !p._2.isEmpty)
     if (OperatorWithResult == 0) {
       return ResultDownloadResponse(
         request.downloadType,
@@ -62,13 +62,22 @@ object ResultDownloadResource {
         "The workflow does not finish running"
       )
     }
-    val result: List[ITuple] =
-      sessionResults.map(p => p._2).find(p => !p.isEmpty).get
 
+    // convert the Ituple into tuple
+    // TODO currently only accept the tuple as input
+    val results: List[Tuple] =
+      sessionResults(sessionId)
+        .map(p => p._2)
+        .find(p => !p.isEmpty)
+        .get
+        .map(ituple => ituple.asInstanceOf[Tuple])
+    val schema = getSchema(results(0))
+
+    // handle the request according to download type
     var response: ResultDownloadResponse = null
     request.downloadType match {
       case "google_sheet" =>
-        response = handleGoogleSheetRequest(request, result)
+        response = handleGoogleSheetRequest(request, results, schema)
       case _ =>
         response = ResultDownloadResponse(
           request.downloadType,
@@ -77,21 +86,31 @@ object ResultDownloadResource {
         )
     }
 
-    // cached the download response in the session
-    if (!response.link.isEmpty) {
-      session.getUserProperties
-        .put(getSessionName(request.downloadType), response)
+    // save the file link in the session cache
+    if (!sessionDownloadCache.contains(sessionId)) {
+      sessionDownloadCache.put(
+        sessionId,
+        mutable.HashMap(request.downloadType -> response.link)
+      )
+    } else {
+      sessionDownloadCache(sessionId)
+        .put(request.downloadType, response.link)
     }
+
     response
   }
 
-  private def getSessionName(downloadType: String): String = {
-    s"${SESSION_CACHED_KEY_NAME}_${downloadType}"
+  // get the schema from the sample tuple
+  private def getSchema(tuple: Tuple): util.List[AnyRef] = {
+    tuple.getSchema
+      .getAttributeNames()
+      .asInstanceOf[util.List[AnyRef]]
   }
 
   private def handleGoogleSheetRequest(
       resultDownloadRequest: ResultDownloadRequest,
-      result: List[ITuple]
+      result: List[ITuple],
+      schema: util.List[AnyRef]
   ): ResultDownloadResponse = {
     // create google sheet
     val sheetService: Sheets = GoogleResource.getSheetService()
@@ -105,7 +124,6 @@ object ResultDownloadResource {
       )
 
     // upload the schema
-    val schema: util.List[AnyRef] = getSchema(result)
     val schemaContent: util.List[util.List[AnyRef]] = Lists.newArrayList()
     schemaContent.add(schema)
     val response: AppendValuesResponse =
@@ -145,19 +163,6 @@ object ResultDownloadResource {
     targetSheet.getSpreadsheetId
   }
 
-  private def getSchema(result: List[ITuple]): util.List[AnyRef] = {
-    if (result.isEmpty) {
-      // should not reach here. Empty check should be done before calling this function
-      return Lists.newArrayList()
-    }
-    // get first ITuple result and get schema from it.
-    result(0)
-      .asInstanceOf[Tuple]
-      .getSchema
-      .getAttributeNames()
-      .asInstanceOf[util.List[AnyRef]]
-  }
-
   /**
     * upload the result body to the google sheet
     */
@@ -171,6 +176,8 @@ object ResultDownloadResource {
       content.add(tupleContent)
 
       if (content.size() == UPLOAD_SIZE) {
+        // TODO the response is from uploading is not checked. The design for the response seems not to be designed for error handling
+        // it will throw error and stop if encounter error during uploading
         val response: AppendValuesResponse =
           uploadContent(sheetService, sheetId, content)
         content.clear()

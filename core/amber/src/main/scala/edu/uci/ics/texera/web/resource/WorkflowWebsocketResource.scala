@@ -1,8 +1,10 @@
 package edu.uci.ics.texera.web.resource
 
+import java.util
 import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.{ActorRef, PoisonPill}
+import com.google.api.client.util.Lists
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
@@ -15,6 +17,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.web.model.event._
 import edu.uci.ics.texera.web.model.request._
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
+  sessionDownloadCache,
   sessionJobs,
   sessionMap,
   sessionResults
@@ -32,6 +35,7 @@ import javax.websocket.{EndpointConfig, _}
 import scala.collection.mutable
 
 object WorkflowWebsocketResource {
+  // TODO should reorganize this resource.
 
   val nextJobID = new AtomicInteger(0)
 
@@ -43,6 +47,9 @@ object WorkflowWebsocketResource {
 
   // Map[sessionId, Map[operatorId, List[ITuple]]]
   val sessionResults = new mutable.HashMap[String, Map[String, List[ITuple]]]
+
+  // Map[sessionId, Map[downloadType, googleSheetLink]
+  val sessionDownloadCache = new mutable.HashMap[String, mutable.HashMap[String, String]]
 }
 
 @ServerEndpoint(
@@ -188,13 +195,13 @@ class WorkflowWebsocketResource {
       return
     }
 
-    clearCache(session)
-
     val workflow = texeraWorkflowCompiler.amberWorkflow
     val workflowTag = WorkflowIdentity(jobID)
 
     val eventListener = ControllerEventListener(
       workflowCompletedListener = completed => {
+        sessionResults.remove(session.getId)
+        sessionDownloadCache.remove(session.getId)
         sessionResults.update(session.getId, completed.result)
         send(
           session,
@@ -259,17 +266,8 @@ class WorkflowWebsocketResource {
 
   }
 
-  /**
-    * clear the cache in the session when execute a new workflow
-    */
-  def clearCache(session: Session): Unit = {
-    sessionResults.remove(session.getId)
-    ResultDownloadResource.clearCache(session)
-  }
-
-  def downloadResult(session: Session, resultDownloadRequest: ResultDownloadRequest): Unit = {
-    val resultDownloadResponse =
-      ResultDownloadResource.apply(session, resultDownloadRequest, sessionResults(session.getId))
+  def downloadResult(session: Session, request: ResultDownloadRequest): Unit = {
+    val resultDownloadResponse = ResultDownloadResource.apply(session.getId, request)
     send(session, resultDownloadResponse)
   }
 
@@ -288,6 +286,7 @@ class WorkflowWebsocketResource {
     sessionResults.remove(session.getId)
     sessionJobs.remove(session.getId)
     sessionMap.remove(session.getId)
+    sessionDownloadCache.remove(session.getId)
   }
 
   def removeBreakpoint(session: Session, removeBreakpoint: RemoveBreakpointRequest): Unit = {

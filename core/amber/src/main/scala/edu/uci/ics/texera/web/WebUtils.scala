@@ -14,7 +14,7 @@ object WebUtils {
 
   var googleCredentialPath: String = "";
 
-  def config(): Unit = {
+  {
     val configPath = Utils.amberHomePath.resolve("../conf").resolve("web.conf")
     val configuration = ConfigFactory.parseFile(configPath.toFile)
     // set configuration for google service
