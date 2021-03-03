@@ -110,19 +110,19 @@ class Controller(
   override def receive: Receive = initializing
 
   def initializing: Receive = {
-    case NetworkMessage(id, WorkflowControlMessage(from, sequenceNumber, payload: ReturnPayload)) =>
+    case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload: ReturnPayload)) =>
       //process reply messages
-      this.controlInputPort.handleMessage(Option(this.sender()), id, from, sequenceNumber, payload)
+      controlInputPort.handleMessage(Option(this.sender()), id, from, sequenceNumber, payload)
     case NetworkMessage(
           id,
-          WorkflowControlMessage(ActorVirtualIdentity.Controller, sequenceNumber, payload)
+          WorkflowControlMessage(ActorVirtualIdentity.Controller, seqNum, payload)
         ) =>
       //process control messages from self
-      this.controlInputPort.handleMessage(
+      controlInputPort.handleMessage(
         Option(this.sender()),
         id,
         ActorVirtualIdentity.Controller,
-        sequenceNumber,
+        seqNum,
         payload
       )
     case _ =>
@@ -131,14 +131,8 @@ class Controller(
 
   def running: Receive = {
     acceptDirectInvocations orElse {
-      case NetworkMessage(id, WorkflowControlMessage(from, sequenceNumber, payload)) =>
-        this.controlInputPort.handleMessage(
-          Option(this.sender()),
-          id,
-          from,
-          sequenceNumber,
-          payload
-        )
+      case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload)) =>
+        controlInputPort.handleMessage(Option(this.sender()), id, from, seqNum, payload)
       case other =>
         logger.logInfo(s"unhandled message: $other")
     }

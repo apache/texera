@@ -55,18 +55,14 @@ class WorkflowWorker(
 
   lazy val pauseManager: PauseManager = wire[PauseManager]
   lazy val dataProcessor: DataProcessor = wire[DataProcessor]
-//  lazy val dataInputPort: DataInputPort = wire[DataInputPort]
-  lazy val dataOutputPort: DataOutputPort = wire[DataOutputPort]
-  lazy val batchProducer: TupleToBatchConverter = wire[TupleToBatchConverter]
-  lazy val tupleProducer: BatchToTupleConverter = wire[BatchToTupleConverter]
-  lazy val breakpointManager: BreakpointManager = wire[BreakpointManager]
-
   lazy val dataInputPort: NetworkInputPort[DataPayload] =
     new NetworkInputPort[DataPayload](this.logger, this.handleDataPayload)
   lazy val controlInputPort: NetworkInputPort[ControlPayload] =
     new NetworkInputPort[ControlPayload](this.logger, this.handleControlPayload)
-
-//  override lazy val controlInputPort: ControlInputPort = wire[WorkerControlInputPort]
+  lazy val dataOutputPort: DataOutputPort = wire[DataOutputPort]
+  lazy val batchProducer: TupleToBatchConverter = wire[TupleToBatchConverter]
+  lazy val tupleProducer: BatchToTupleConverter = wire[BatchToTupleConverter]
+  lazy val breakpointManager: BreakpointManager = wire[BreakpointManager]
 
   val rpcHandlerInitializer: AsyncRPCHandlerInitializer =
     wire[WorkerAsyncRPCHandlerInitializer]
