@@ -9,17 +9,35 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowControlMessage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowDataMessage
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{NetworkMessage, RegisterActorRef}
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{BatchToTupleConverter, ControlInputPort, DataInputPort, DataOutputPort, NetworkInputPort, TupleToBatchConverter}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
+  NetworkMessage,
+  RegisterActorRef
+}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{
+  BatchToTupleConverter,
+  ControlInputPort,
+  DataInputPort,
+  DataOutputPort,
+  NetworkInputPort,
+  TupleToBatchConverter
+}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ShutdownDPThreadHandler.ShutdownDPThread
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, DataPayload, WorkflowMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
-import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCHandlerInitializer, AsyncRPCServer}
+import edu.uci.ics.amber.engine.common.rpc.{
+  AsyncRPCClient,
+  AsyncRPCHandlerInitializer,
+  AsyncRPCServer
+}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager._
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, VirtualIdentity}
-import edu.uci.ics.amber.engine.common.{IOperatorExecutor, ISourceOperatorExecutor, ITupleSinkOperatorExecutor}
+import edu.uci.ics.amber.engine.common.{
+  IOperatorExecutor,
+  ISourceOperatorExecutor,
+  ITupleSinkOperatorExecutor
+}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.annotation.elidable
@@ -55,8 +73,10 @@ class WorkflowWorker(
   lazy val tupleProducer: BatchToTupleConverter = wire[BatchToTupleConverter]
   lazy val breakpointManager: BreakpointManager = wire[BreakpointManager]
 
-  lazy val dataInputPort: NetworkInputPort[DataPayload] = new NetworkInputPort[DataPayload](this.logger, this.handleDataPayload)
-  lazy val controlInputPort: NetworkInputPort[ControlPayload] = new NetworkInputPort[ControlPayload](this.logger, this.handleControlPayload)
+  lazy val dataInputPort: NetworkInputPort[DataPayload] =
+    new NetworkInputPort[DataPayload](this.logger, this.handleDataPayload)
+  lazy val controlInputPort: NetworkInputPort[ControlPayload] =
+    new NetworkInputPort[ControlPayload](this.logger, this.handleControlPayload)
 
 //  override lazy val controlInputPort: ControlInputPort = wire[WorkerControlInputPort]
 
@@ -93,7 +113,13 @@ class WorkflowWorker(
 
   def processControlMessages: Receive = {
     case NetworkMessage(messageID, WorkflowControlMessage(from, sequenceNumber, payload)) =>
-      controlInputPort.handleMessage(Option(this.sender()), messageID, from, sequenceNumber, payload)
+      controlInputPort.handleMessage(
+        Option(this.sender()),
+        messageID,
+        from,
+        sequenceNumber,
+        payload
+      )
   }
 
   final def handleDataPayload(from: VirtualIdentity, dataPayload: DataPayload): Unit = {
@@ -108,7 +134,11 @@ class WorkflowWorker(
         dataProcessor.enqueueCommand(controlCommand, from)
       case _ =>
         logger.logError(
-          WorkflowRuntimeError(s"unhandled control payload: $controlPayload", identifier.toString, Map.empty)
+          WorkflowRuntimeError(
+            s"unhandled control payload: $controlPayload",
+            identifier.toString,
+            Map.empty
+          )
         )
     }
   }

@@ -9,13 +9,19 @@ import scala.collection.mutable
 
 class NetworkInputPort[T](
     val logger: WorkflowLogger,
-    val handler: (VirtualIdentity, T) => Unit,
+    val handler: (VirtualIdentity, T) => Unit
 ) {
 
   private val idToOrderingEnforcers =
     new mutable.AnyRefMap[VirtualIdentity, OrderingEnforcer[T]]()
 
-  def handleMessage(sender: Option[ActorRef], messageID: Long, from: VirtualIdentity, sequenceNumber: Long, payload: T): Unit = {
+  def handleMessage(
+      sender: Option[ActorRef],
+      messageID: Long,
+      from: VirtualIdentity,
+      sequenceNumber: Long,
+      payload: T
+  ): Unit = {
     if (sender.isDefined) {
       sender.get ! NetworkAck(messageID)
     }

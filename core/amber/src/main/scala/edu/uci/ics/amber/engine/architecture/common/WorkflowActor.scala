@@ -3,14 +3,23 @@ package edu.uci.ics.amber.engine.architecture.common
 import akka.actor.{Actor, ActorRef, Stash}
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
-import edu.uci.ics.amber.engine.common.ambermessage.WorkflowControlMessage
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{GetActorRef, NetworkAck, NetworkMessage, NetworkSenderActorRef, RegisterActorRef}
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{ControlOutputPort, NetworkCommunicationActor}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
+  GetActorRef,
+  NetworkSenderActorRef,
+  RegisterActorRef
+}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{
+  ControlOutputPort,
+  NetworkCommunicationActor
+}
 import edu.uci.ics.amber.engine.common.WorkflowLogger
-import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCHandlerInitializer, AsyncRPCServer}
+import edu.uci.ics.amber.engine.common.rpc.{
+  AsyncRPCClient,
+  AsyncRPCHandlerInitializer,
+  AsyncRPCServer
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.error.WorkflowRuntimeError
-import edu.uci.ics.amber.error.ErrorUtils.safely
 
 abstract class WorkflowActor(
     val identifier: ActorVirtualIdentity,
@@ -55,21 +64,5 @@ abstract class WorkflowActor(
         )
       )
   }
-
-//  def processControlMessages: Receive = {
-//    case msg @ NetworkMessage(id, cmd: WorkflowControlMessage) =>
-//      sender ! NetworkAck(id)
-//      handleControlMessageWithTryCatch(cmd)
-//  }
-//
-//  def handleControlMessageWithTryCatch(cmd: WorkflowControlMessage): Unit = {
-//    try {
-//      // use control input port to pass control messages
-//      controlInputPort.handleControlMessage(cmd)
-//    } catch safely {
-//      case e =>
-//        logger.logError(WorkflowRuntimeError(e, identifier.toString))
-//    }
-//  }
 
 }

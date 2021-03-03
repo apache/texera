@@ -33,7 +33,13 @@ class NetworkInputPortSpec extends AnyFlatSpec with MockFactory {
     }
 
     List(2, 1, 0, 3).foreach(id => {
-      inputPort.handleMessage(Option.empty, id, messages(id).from, messages(id).sequenceNumber, messages(id).payload)
+      inputPort.handleMessage(
+        Option.empty,
+        id,
+        messages(id).from,
+        messages(id).sequenceNumber,
+        messages(id).payload
+      )
     })
   }
 
@@ -49,7 +55,13 @@ class NetworkInputPortSpec extends AnyFlatSpec with MockFactory {
     }
 
     (0 until 10).foreach(_ => {
-      inputPort.handleMessage(Option.empty, 0, message.from, message.sequenceNumber, message.payload)
+      inputPort.handleMessage(
+        Option.empty,
+        0,
+        message.from,
+        message.sequenceNumber,
+        message.payload
+      )
     })
   }
 
@@ -62,7 +74,13 @@ class NetworkInputPortSpec extends AnyFlatSpec with MockFactory {
     val message = WorkflowDataMessage(fakeID, 0, payload)
     val messageID = 0
 
-    inputPort.handleMessage(Option(a.ref), messageID, message.from, message.sequenceNumber, message.payload)
+    inputPort.handleMessage(
+      Option(a.ref),
+      messageID,
+      message.from,
+      message.sequenceNumber,
+      message.payload
+    )
     a.expectMsg(NetworkAck(0))
   }
 

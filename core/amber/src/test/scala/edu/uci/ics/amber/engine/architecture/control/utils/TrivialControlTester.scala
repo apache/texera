@@ -4,7 +4,10 @@ import akka.actor.ActorRef
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowControlMessage
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{NetworkAck, NetworkMessage}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
+  NetworkAck,
+  NetworkMessage
+}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputPort
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
@@ -16,22 +19,34 @@ import edu.uci.ics.amber.error.WorkflowRuntimeError
 class TrivialControlTester(id: ActorVirtualIdentity, parentNetworkCommunicationActorRef: ActorRef)
     extends WorkflowActor(id, parentNetworkCommunicationActorRef) {
 
-  lazy val controlInputPort: NetworkInputPort[ControlPayload] = new NetworkInputPort[ControlPayload](
-    this.logger, this.handleControlPayloadWithTryCatch)
+  lazy val controlInputPort: NetworkInputPort[ControlPayload] =
+    new NetworkInputPort[ControlPayload](this.logger, this.handleControlPayloadWithTryCatch)
   override val rpcHandlerInitializer: AsyncRPCHandlerInitializer =
     wire[TesterAsyncRPCHandlerInitializer]
 
   override def receive: Receive = {
     disallowActorRefRelatedMessages orElse {
-      case NetworkMessage(id, internalMessage@ WorkflowControlMessage(from, sequenceNumber, payload)) =>
+      case NetworkMessage(
+            id,
+            internalMessage @ WorkflowControlMessage(from, sequenceNumber, payload)
+          ) =>
         logger.logInfo(s"received ${internalMessage}")
-        this.controlInputPort.handleMessage(Option(this.sender()), id, from, sequenceNumber, payload)
+        this.controlInputPort.handleMessage(
+          Option(this.sender()),
+          id,
+          from,
+          sequenceNumber,
+          payload
+        )
       case other =>
         logger.logInfo(s"unhandled message: $other")
     }
   }
 
-  def handleControlPayloadWithTryCatch(from: VirtualIdentity, controlPayload: ControlPayload): Unit = {
+  def handleControlPayloadWithTryCatch(
+      from: VirtualIdentity,
+      controlPayload: ControlPayload
+  ): Unit = {
     try {
       controlPayload match {
         // use control input port to pass control messages
