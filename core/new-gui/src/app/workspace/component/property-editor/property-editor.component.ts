@@ -480,14 +480,17 @@ export class PropertyEditorComponent {
       return attribute.attributeType === 'timestamp';
     }).map(attribute => attribute.attributeName);
 
-    const childField = this.getFieldByName(childName, fields);
-    if (isDefined(childField)) {
-      childField.expressionProperties = {
-        'templateOptions.type': JSON.stringify(timestampFieldNames) + '.includes(model.' + parentName + ')? \'string\' : \'number\'',
-        'templateOptions.description': JSON.stringify(timestampFieldNames) + '.includes(model.' + parentName
-          + ')? \'Input a datetime string\' : \'Input a positive number\''
-      };
+    if (timestampFieldNames) {
+      const childField = this.getFieldByName(childName, fields);
+      if (isDefined(childField)) {
+        childField.expressionProperties = {
+          'templateOptions.type': JSON.stringify(timestampFieldNames) + '.includes(model.' + parentName + ')? \'string\' : \'number\'',
+          'templateOptions.description': JSON.stringify(timestampFieldNames) + '.includes(model.' + parentName
+            + ')? \'Input a datetime string\' : \'Input a positive number\''
+        };
+      }
     }
+
   }
 
   private setHideExpression(toggleHidden: string[], fields: FormlyFieldConfig[], hiddenBy: string): void {

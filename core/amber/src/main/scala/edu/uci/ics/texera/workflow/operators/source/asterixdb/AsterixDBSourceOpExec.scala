@@ -29,6 +29,8 @@ class AsterixDBSourceOpExec private[asterixdb] (
     keywords: Option[String],
     progressive: Option[Boolean],
     batchByColumn: Option[String],
+    min: Option[String],
+    max: Option[String],
     interval: Long
 ) extends SQLSourceOpExec(
       schema,
@@ -40,6 +42,8 @@ class AsterixDBSourceOpExec private[asterixdb] (
       keywords,
       progressive,
       batchByColumn,
+      min,
+      max,
       interval
     ) {
   // update AsterixDB API version upon initialization.

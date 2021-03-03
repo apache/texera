@@ -50,6 +50,8 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
           keywords,
           progressive,
           batchByColumn,
+          min,
+          max,
           interval
         )
     )

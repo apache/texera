@@ -23,6 +23,8 @@ abstract class SQLSourceOpExec(
     // progressiveness related
     progressive: Option[Boolean],
     batchByColumn: Option[String],
+    min: Option[String],
+    max: Option[String],
     interval: Long
 ) extends SourceOperatorExecutor {
 
@@ -497,8 +499,9 @@ abstract class SQLSourceOpExec(
     batchByAttribute match {
       case Some(attribute) =>
         if (attribute.getName.nonEmpty) {
-          upperBound = getBatchByBoundary("MAX").getOrElse(0)
-          curLowerBound = getBatchByBoundary("MIN").getOrElse(0)
+          curLowerBound =
+            if (min.isDefined) max.get.toLong else getBatchByBoundary("MIN").getOrElse(0)
+          upperBound = if (max.isDefined) max.get.toLong else getBatchByBoundary("MAX").getOrElse(0)
         }
       case None =>
     }

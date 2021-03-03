@@ -21,6 +21,8 @@ class PostgreSQLSourceOpExec private[postgresql] (
     keywords: Option[String],
     progressive: Option[Boolean],
     batchByColumn: Option[String],
+    min: Option[String],
+    max: Option[String],
     interval: Long
 ) extends SQLSourceOpExec(
       schema,
@@ -32,6 +34,8 @@ class PostgreSQLSourceOpExec private[postgresql] (
       keywords,
       progressive,
       batchByColumn,
+      min,
+      max,
       interval
     ) {
   val FETCH_TABLE_NAMES_SQL =
