@@ -4,6 +4,7 @@ import akka.actor.{ActorRef, Props}
 import akka.util.Timeout
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   NetworkMessage,
   RegisterActorRef
@@ -83,9 +84,11 @@ class WorkflowWorker(
   override def receive: Receive = receiveAndProcessMessages
 
   def receiveAndProcessMessages: Receive = {
-    disallowActorRefRelatedMessages orElse
-      processControlMessages orElse
-      receiveDataMessages orElse {
+    disallowActorRefRelatedMessages orElse {
+      case NetworkMessage(id, WorkflowDataMessage(from, seqNum, payload)) =>
+        dataInputPort.handleMessage(Option(this.sender()), id, from, seqNum, payload)
+      case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload)) =>
+        controlInputPort.handleMessage(Option(this.sender()), id, from, seqNum, payload)
       case other =>
         logger.logError(
           WorkflowRuntimeError(s"unhandled message: $other", identifier.toString, Map.empty)
@@ -93,17 +96,14 @@ class WorkflowWorker(
     }
   }
 
-  final def receiveDataMessages: Receive = {
-    case NetworkMessage(id, WorkflowDataMessage(from, seqNum, payload)) =>
-      dataInputPort.handleMessage(Option(this.sender()), id, from, seqNum, payload)
-  }
-
-  def processControlMessages: Receive = {
-    case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload)) =>
-      controlInputPort.handleMessage(Option(this.sender()), id, from, seqNum, payload)
-  }
-
   final def handleDataPayload(from: VirtualIdentity, dataPayload: DataPayload): Unit = {
+    if (workerStateManager.getCurrentState == Ready) {
+      workerStateManager.transitTo(Running)
+      asyncRPCClient.send(
+        WorkerStateUpdated(workerStateManager.getCurrentState),
+        ActorVirtualIdentity.Controller
+      )
+    }
     tupleProducer.processDataPayload(from, dataPayload)
   }
 
