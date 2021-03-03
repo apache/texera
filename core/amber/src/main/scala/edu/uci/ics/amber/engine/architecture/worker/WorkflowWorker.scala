@@ -7,8 +7,8 @@ import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
-import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
-import edu.uci.ics.amber.engine.architecture.messaginglayer.DataInputPort.WorkflowDataMessage
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowControlMessage
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowDataMessage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{NetworkMessage, RegisterActorRef}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{BatchToTupleConverter, ControlInputPort, DataInputPort, DataOutputPort, NetworkInputPort, TupleToBatchConverter}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ShutdownDPThreadHandler.ShutdownDPThread
@@ -49,16 +49,16 @@ class WorkflowWorker(
 
   lazy val pauseManager: PauseManager = wire[PauseManager]
   lazy val dataProcessor: DataProcessor = wire[DataProcessor]
-  lazy val dataInputPort: DataInputPort = wire[DataInputPort]
+//  lazy val dataInputPort: DataInputPort = wire[DataInputPort]
   lazy val dataOutputPort: DataOutputPort = wire[DataOutputPort]
   lazy val batchProducer: TupleToBatchConverter = wire[TupleToBatchConverter]
   lazy val tupleProducer: BatchToTupleConverter = wire[BatchToTupleConverter]
   lazy val breakpointManager: BreakpointManager = wire[BreakpointManager]
 
-  lazy val newDataInputPort: NetworkInputPort[DataPayload] = new NetworkInputPort[DataPayload](this.logger, this.handleDataPayload)
-  lazy val newControlInputPort: NetworkInputPort[ControlPayload] = new NetworkInputPort[ControlPayload](this.logger, this.handleControlPayload)
+  lazy val dataInputPort: NetworkInputPort[DataPayload] = new NetworkInputPort[DataPayload](this.logger, this.handleDataPayload)
+  lazy val controlInputPort: NetworkInputPort[ControlPayload] = new NetworkInputPort[ControlPayload](this.logger, this.handleControlPayload)
 
-  override lazy val controlInputPort: ControlInputPort = wire[WorkerControlInputPort]
+//  override lazy val controlInputPort: ControlInputPort = wire[WorkerControlInputPort]
 
   val rpcHandlerInitializer: AsyncRPCHandlerInitializer =
     wire[WorkerAsyncRPCHandlerInitializer]
@@ -88,13 +88,12 @@ class WorkflowWorker(
 
   final def receiveDataMessages: Receive = {
     case NetworkMessage(messageID, WorkflowDataMessage(from, sequenceNumber, payload)) =>
-      newDataInputPort.handleMessage(this.sender(), messageID, from, sequenceNumber, payload)
+      dataInputPort.handleMessage(Option(this.sender()), messageID, from, sequenceNumber, payload)
   }
 
-
-  override def processControlMessages: Receive = {
+  def processControlMessages: Receive = {
     case NetworkMessage(messageID, WorkflowControlMessage(from, sequenceNumber, payload)) =>
-      newControlInputPort.handleMessage(this.sender(), messageID, from, sequenceNumber, payload)
+      controlInputPort.handleMessage(Option(this.sender()), messageID, from, sequenceNumber, payload)
   }
 
   final def handleDataPayload(from: VirtualIdentity, dataPayload: DataPayload): Unit = {

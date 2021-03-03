@@ -15,8 +15,10 @@ class NetworkInputPort[T](
   private val idToOrderingEnforcers =
     new mutable.AnyRefMap[VirtualIdentity, OrderingEnforcer[T]]()
 
-  def handleMessage(sender: ActorRef, messageID: Long, from: VirtualIdentity, sequenceNumber: Long, payload: T): Unit = {
-    sender ! NetworkAck(messageID)
+  def handleMessage(sender: Option[ActorRef], messageID: Long, from: VirtualIdentity, sequenceNumber: Long, payload: T): Unit = {
+    if (sender.isDefined) {
+      sender.get ! NetworkAck(messageID)
+    }
     OrderingEnforcer.reorderMessage[T](
       idToOrderingEnforcers,
       from,

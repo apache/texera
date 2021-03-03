@@ -9,11 +9,14 @@ import edu.uci.ics.amber.clustering.ClusterListener.GetAvailableNodeAddresses
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{ErrorOccurred, WorkflowStatusUpdate}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
-import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowControlMessage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{NetworkAck, NetworkMessage, RegisterActorRef}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputPort
+import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.Ready
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, VirtualIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.error.ErrorUtils.safely
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.concurrent.duration._
@@ -49,10 +52,14 @@ class Controller(
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
 
-  val rpcHandlerInitializer = wire[ControllerAsyncRPCHandlerInitializer]
+  lazy val controlInputPort: NetworkInputPort[ControlPayload] = new NetworkInputPort[ControlPayload](
+    this.logger, this.handleControlPayloadWithTryCatch)
+  val rpcHandlerInitializer: ControllerAsyncRPCHandlerInitializer = wire[ControllerAsyncRPCHandlerInitializer]
 
   private def errorLogAction(err: WorkflowRuntimeError): Unit = {
-    eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
+    if (eventListener.workflowExecutionErrorListener != null) {
+      eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
+    }
   }
 
   logger.setErrorLogAction(errorLogAction)
@@ -93,27 +100,20 @@ class Controller(
   override def receive: Receive = initializing
 
   def initializing: Receive = {
-    case NetworkMessage(
-          id,
-          cmd @ WorkflowControlMessage(from, sequenceNumber, payload: ReturnPayload)
-        ) =>
+    case NetworkMessage(id, WorkflowControlMessage(from, sequenceNumber, payload: ReturnPayload)) =>
       //process reply messages
-      sender ! NetworkAck(id)
-      handleControlMessageWithTryCatch(cmd)
-    case NetworkMessage(
-          id,
-          cmd @ WorkflowControlMessage(ActorVirtualIdentity.Controller, sequenceNumber, payload)
-        ) =>
+      this.controlInputPort.handleMessage(Option(this.sender()), id, from, sequenceNumber, payload)
+    case NetworkMessage(id, WorkflowControlMessage(ActorVirtualIdentity.Controller, sequenceNumber, payload)) =>
       //process control messages from self
-      sender ! NetworkAck(id)
-      handleControlMessageWithTryCatch(cmd)
-    case msg =>
+      this.controlInputPort.handleMessage(Option(this.sender()), id, ActorVirtualIdentity.Controller, sequenceNumber, payload)
+    case _ =>
       stash() //prevent other messages to be executed until initialized
   }
 
   def running: Receive = {
-    acceptDirectInvocations orElse
-      processControlMessages orElse {
+    acceptDirectInvocations orElse {
+      case NetworkMessage(id, WorkflowControlMessage(from, sequenceNumber, payload)) =>
+        this.controlInputPort.handleMessage(Option(this.sender()), id, from, sequenceNumber, payload)
       case other =>
         logger.logInfo(s"unhandled message: $other")
     }
@@ -121,7 +121,33 @@ class Controller(
 
   def acceptDirectInvocations: Receive = {
     case invocation: ControlInvocation =>
-      asyncRPCServer.receive(invocation, ActorVirtualIdentity.Controller)
+      this.handleControlPayloadWithTryCatch(ActorVirtualIdentity.Controller, invocation)
+  }
+
+  def handleControlPayloadWithTryCatch(from: VirtualIdentity, controlPayload: ControlPayload): Unit = {
+    try {
+      controlPayload match {
+        // use control input port to pass control messages
+        case invocation: ControlInvocation =>
+          assert(from.isInstanceOf[ActorVirtualIdentity])
+          asyncRPCServer.logControlInvocation(invocation, from)
+          asyncRPCServer.receive(invocation, from.asInstanceOf[ActorVirtualIdentity])
+        case ret: ReturnPayload =>
+          asyncRPCClient.logControlReply(ret, from)
+          asyncRPCClient.fulfillPromise(ret)
+        case other =>
+          logger.logError(
+            WorkflowRuntimeError(
+              s"unhandled control message: $other",
+              "ControlInputPort",
+              Map.empty
+            )
+          )
+      }
+    } catch safely {
+      case e =>
+        logger.logError(WorkflowRuntimeError(e, identifier.toString))
+    }
   }
 
   override def postStop(): Unit = {
