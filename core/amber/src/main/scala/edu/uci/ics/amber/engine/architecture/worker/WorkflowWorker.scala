@@ -1,47 +1,34 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
-import akka.actor.AbstractActor.ActorContext
 import akka.actor.{ActorRef, Props}
 import akka.util.Timeout
 import com.softwaremill.macwire.wire
-import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
-import edu.uci.ics.amber.engine.common.ambermessage.WorkflowControlMessage
-import edu.uci.ics.amber.engine.common.ambermessage.WorkflowDataMessage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   NetworkMessage,
   RegisterActorRef
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   BatchToTupleConverter,
-  ControlInputPort,
-  DataInputPort,
   DataOutputPort,
   NetworkInputPort,
   TupleToBatchConverter
 }
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ShutdownDPThreadHandler.ShutdownDPThread
-import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, DataPayload, WorkflowMessage}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
-import edu.uci.ics.amber.engine.common.rpc.{
-  AsyncRPCClient,
-  AsyncRPCHandlerInitializer,
-  AsyncRPCServer
+import edu.uci.ics.amber.engine.common.IOperatorExecutor
+import edu.uci.ics.amber.engine.common.ambermessage.{
+  ControlPayload,
+  DataPayload,
+  WorkflowControlMessage,
+  WorkflowDataMessage
 }
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
+import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCHandlerInitializer}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager._
-import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, VirtualIdentity}
-import edu.uci.ics.amber.engine.common.{
-  IOperatorExecutor,
-  ISourceOperatorExecutor,
-  ITupleSinkOperatorExecutor
-}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
-import scala.annotation.elidable
-import scala.annotation.elidable.INFO
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -107,19 +94,13 @@ class WorkflowWorker(
   }
 
   final def receiveDataMessages: Receive = {
-    case NetworkMessage(messageID, WorkflowDataMessage(from, sequenceNumber, payload)) =>
-      dataInputPort.handleMessage(Option(this.sender()), messageID, from, sequenceNumber, payload)
+    case NetworkMessage(id, WorkflowDataMessage(from, seqNum, payload)) =>
+      dataInputPort.handleMessage(Option(this.sender()), id, from, seqNum, payload)
   }
 
   def processControlMessages: Receive = {
-    case NetworkMessage(messageID, WorkflowControlMessage(from, sequenceNumber, payload)) =>
-      controlInputPort.handleMessage(
-        Option(this.sender()),
-        messageID,
-        from,
-        sequenceNumber,
-        payload
-      )
+    case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload)) =>
+      controlInputPort.handleMessage(Option(this.sender()), id, from, seqNum, payload)
   }
 
   final def handleDataPayload(from: VirtualIdentity, dataPayload: DataPayload): Unit = {
