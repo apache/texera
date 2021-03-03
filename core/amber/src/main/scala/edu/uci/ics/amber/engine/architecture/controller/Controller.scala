@@ -112,7 +112,7 @@ class Controller(
   def initializing: Receive = {
     case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload: ReturnPayload)) =>
       //process reply messages
-      controlInputPort.handleMessage(Option(this.sender()), id, from, sequenceNumber, payload)
+      controlInputPort.handleMessage(Option(this.sender()), id, from, seqNum, payload)
     case NetworkMessage(
           id,
           WorkflowControlMessage(ActorVirtualIdentity.Controller, seqNum, payload)
