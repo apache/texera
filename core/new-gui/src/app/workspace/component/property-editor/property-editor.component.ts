@@ -484,7 +484,9 @@ export class PropertyEditorComponent {
       const childField = this.getFieldByName(childName, fields);
       if (isDefined(childField)) {
         childField.expressionProperties = {
-          'templateOptions.type': JSON.stringify(timestampFieldNames) + '.includes(model.' + parentName + ')? \'string\' : \'number\'',
+          // 'type': 'string',
+          // 'templateOptions.type': JSON.stringify(timestampFieldNames) + '.includes(model.' + parentName + ')? \'string\' : \'number\'',
+
           'templateOptions.description': JSON.stringify(timestampFieldNames) + '.includes(model.' + parentName
             + ')? \'Input a datetime string\' : \'Input a positive number\''
         };
