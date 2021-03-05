@@ -79,13 +79,13 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
   @AutofillAttributeName
   var batchByColumn: Option[String] = None
 
-  @JsonProperty(defaultValue = "0")
+  @JsonProperty(defaultValue = "auto")
   @JsonSchemaTitle("Min")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
   @JsonSchemaInject(json = """{"dependOn" : "batchByColumn"}""")
   var min: Option[String] = None
 
-  @JsonProperty(defaultValue = "9999999999999999")
+  @JsonProperty(defaultValue = "auto")
   @JsonSchemaTitle("Max")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
   @JsonSchemaInject(json = """{"dependOn" : "batchByColumn"}""")
