@@ -501,7 +501,7 @@ abstract class SQLSourceOpExec(
     if (batchByAttribute.isDefined && min.isDefined && max.isDefined) {
       import java.text.SimpleDateFormat
       val utcFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
-      if (min.get.equalsIgnoreCase("auto")) getBatchByBoundary("MIN").getOrElse(0)
+      if (min.get.equalsIgnoreCase("auto")) curLowerBound = getBatchByBoundary("MIN").getOrElse(0)
       else
         batchByAttribute.get.getType match {
           case TIMESTAMP => curLowerBound = utcFormat.parse(min.get).toInstant.toEpochMilli
@@ -510,7 +510,7 @@ abstract class SQLSourceOpExec(
           case _ => throw new RuntimeException()
         }
 
-      if (max.get.equalsIgnoreCase("auto")) getBatchByBoundary("MAX").getOrElse(0)
+      if (max.get.equalsIgnoreCase("auto")) upperBound = getBatchByBoundary("MAX").getOrElse(0)
       else
         batchByAttribute.get.getType match {
           case TIMESTAMP => upperBound = utcFormat.parse(max.get).toInstant.toEpochMilli
