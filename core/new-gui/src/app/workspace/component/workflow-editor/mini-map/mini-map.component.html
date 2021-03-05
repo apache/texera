@@ -4,10 +4,18 @@
 </div>
 
 
-
+<div [hidden]="!show">
 <div class="texera-mini-map-square-container" [attr.id]="MINI_MAP_JOINTJS_MAP_WRAPPER_ID">
-  <div class="texera-mini-map-body texera-mini-map-component-body" >
+  <div  class="texera-mini-map-body texera-mini-map-component-body" >
     <div class ="texera-workspace-mini-map-jointjs" [attr.id]="MINI_MAP_JOINTJS_MAP_ID">
     </div>
   </div>
 </div>
+</div>
+
+<button nz-button (click)="show = !show"  title="mini-map" nzSize="large">
+<i nz-icon [nzType]="show ? 'shrink' : 'arrows-alt'"></i>
+</button>
+
+<!--{{show ? 'hide' : 'show'}}
+-->

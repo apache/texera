@@ -38,6 +38,7 @@ export class MiniMapComponent implements AfterViewInit {
 
   @Input()
   public mainPaperWrapperElementID: string | undefined;
+  public show: boolean = true;
 
   private mouseDownPosition: Point | undefined;
   private miniMapPaper: joint.dia.Paper | undefined;
