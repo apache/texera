@@ -53,8 +53,6 @@ export class NgbdModalUserLoginComponent implements OnInit {
    * It will send data inside the text entry to the user service to login
    */
   public login(): void {
-    console.log(this.allForms.get("loginUserName")!.value);
-    console.log(this.allForms.get("loginPassword")!.value)
     // validate the credentials format
     this.loginErrorMessage = undefined;
     const validation = this.userService.validateUsername(this.allForms.get("loginUserName")!.value);
