@@ -223,6 +223,7 @@ abstract class SQLSourceOpExec(
       case Some(attribute) =>
         attribute.getType match {
           case INTEGER | LONG | TIMESTAMP =>
+            println("low", curLowerBound.longValue(), "high", upperBound.longValue())
             curLowerBound.longValue <= upperBound.longValue
           case DOUBLE =>
             curLowerBound.doubleValue <= upperBound.doubleValue
@@ -496,14 +497,26 @@ abstract class SQLSourceOpExec(
   @throws[SQLException]
   @throws[RuntimeException]
   private def loadBatchColumnBoundaries(): Unit = {
-    batchByAttribute match {
-      case Some(attribute) =>
-        if (attribute.getName.nonEmpty) {
-          curLowerBound =
-            if (min.isDefined) max.get.toLong else getBatchByBoundary("MIN").getOrElse(0)
-          upperBound = if (max.isDefined) max.get.toLong else getBatchByBoundary("MAX").getOrElse(0)
+    // TODO: add interval
+    if (batchByAttribute.isDefined && min.isDefined && max.isDefined) {
+      import java.text.SimpleDateFormat
+      val utcFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+      if (min.get.equalsIgnoreCase("auto")) getBatchByBoundary("MIN").getOrElse(0)
+      else
+        batchByAttribute.get.getType match {
+          case TIMESTAMP => curLowerBound = utcFormat.parse(min.get).toInstant.toEpochMilli
+          case LONG      => curLowerBound = min.get.toLong
+
+          case _ => throw new RuntimeException()
         }
-      case None =>
+
+      if (max.get.equalsIgnoreCase("auto")) getBatchByBoundary("MAX").getOrElse(0)
+      else
+        batchByAttribute.get.getType match {
+          case TIMESTAMP => upperBound = utcFormat.parse(max.get).toInstant.toEpochMilli
+          case LONG      => upperBound = max.get.toLong
+          case _         => throw new RuntimeException()
+        }
     }
   }
 }

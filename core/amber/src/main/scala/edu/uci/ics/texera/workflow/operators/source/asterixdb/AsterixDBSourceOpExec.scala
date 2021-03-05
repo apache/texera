@@ -115,7 +115,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
               next
             }
           case None =>
-            curQueryString = generateSqlQuery
+            curQueryString = if (hasNextQuery) generateSqlQuery else None
             curQueryString match {
               case Some(query) =>
                 curResultIterator = queryAsterixDB(host, port, query)
