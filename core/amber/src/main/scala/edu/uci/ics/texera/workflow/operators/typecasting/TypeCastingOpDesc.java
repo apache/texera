@@ -60,18 +60,28 @@ public class TypeCastingOpDesc extends MapOpDesc {
         List<String> attributeNames = schemas[0].getAttributeNames();
         List<AttributeType> attributeTypes = attributes.stream().map(attr -> attr.getType()).collect(toList());
         Schema.Builder builder = Schema.newBuilder();
+        // this loop check whether the current attribute in the array is the attribute for casting,
+        // if it is, change it to result type
+        // if it's not, remain the same type
+        // we need this loop to keep the order the same as the original
         for (int i=0;i<attributes.size();i++) {
             if (attributeNames.get(i).equals(attribute)) {
                 if (this.resultType != null){
                     switch (this.resultType) {
                         case STRING:
                             builder.add(this.attribute, AttributeType.STRING);
+                            break;
                         case BOOLEAN:
                             builder.add(this.attribute, AttributeType.BOOLEAN);
+                            break;
                         case DOUBLE:
                             builder.add(this.attribute, AttributeType.DOUBLE);
+                            break;
                         case INTEGER:
                             builder.add(this.attribute, AttributeType.INTEGER);
+                            break;
+                        default:
+                            throw new RuntimeException("Fail to change current AttributeType to result AttributeType in the schema");
                     }
                 }
 
