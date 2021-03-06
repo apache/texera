@@ -81,7 +81,7 @@ public class TypeCastingOpDesc extends MapOpDesc {
                             builder.add(this.attribute, AttributeType.INTEGER);
                             break;
                         default:
-                            throw new RuntimeException();
+                            throw new RuntimeException("Fail to change current AttributeType to result AttributeType in the schema");
                     }
                 }
 
