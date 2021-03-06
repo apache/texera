@@ -16,8 +16,8 @@ import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import scala.collection.Iterator;
-import scala.util.Either;
 import scala.collection.JavaConverters;
+import scala.util.Either;
 
 import java.io.File;
 import java.io.FileWriter;
