@@ -482,7 +482,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
             client.doAction(new Action("shutdown")).next();
             globalRootAllocator.close();
             client.close();
-        } catch (Exception e) {
+        } catch (InterruptedException e) {
             e.printStackTrace();
         }
     }
