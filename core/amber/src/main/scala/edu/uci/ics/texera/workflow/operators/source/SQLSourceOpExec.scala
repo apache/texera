@@ -6,6 +6,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
 
 import java.sql._
+import java.text.SimpleDateFormat
 import scala.collection.Iterator
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters._
@@ -144,7 +145,7 @@ abstract class SQLSourceOpExec(
     if (!tableNames.contains(table))
       throw new RuntimeException("Can't find the given table `" + table + "`.")
     // load for batch column value boundaries used to split mini queries
-    if (progressive.getOrElse(false)) loadBatchColumnBoundaries()
+    if (progressive.getOrElse(false)) initBatchColumnBoundaries()
   }
 
   /**
@@ -337,7 +338,7 @@ abstract class SQLSourceOpExec(
     */
   @throws[SQLException]
   @throws[RuntimeException]
-  protected def getBatchByBoundary(side: String): Option[Number] = {
+  protected def fetchBatchByBoundary(side: String): Option[Number] = {
     batchByAttribute match {
       case Some(attribute) =>
         var result: Number = null
@@ -496,27 +497,30 @@ abstract class SQLSourceOpExec(
     */
   @throws[SQLException]
   @throws[RuntimeException]
-  private def loadBatchColumnBoundaries(): Unit = {
+  private def initBatchColumnBoundaries(): Unit = {
     // TODO: add interval
     if (batchByAttribute.isDefined && min.isDefined && max.isDefined) {
-      import java.text.SimpleDateFormat
+
       val utcFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
-      if (min.get.equalsIgnoreCase("auto")) curLowerBound = getBatchByBoundary("MIN").getOrElse(0)
+      if (min.get.equalsIgnoreCase("auto")) curLowerBound = fetchBatchByBoundary("MIN").getOrElse(0)
       else
         batchByAttribute.get.getType match {
           case TIMESTAMP => curLowerBound = utcFormat.parse(min.get).toInstant.toEpochMilli
           case LONG      => curLowerBound = min.get.toLong
-
-          case _ => throw new RuntimeException()
+          case _         => throw new RuntimeException(s"Unsupported type ${batchByAttribute.get.getType}")
         }
 
-      if (max.get.equalsIgnoreCase("auto")) upperBound = getBatchByBoundary("MAX").getOrElse(0)
+      if (max.get.equalsIgnoreCase("auto")) upperBound = fetchBatchByBoundary("MAX").getOrElse(0)
       else
         batchByAttribute.get.getType match {
           case TIMESTAMP => upperBound = utcFormat.parse(max.get).toInstant.toEpochMilli
           case LONG      => upperBound = max.get.toLong
-          case _         => throw new RuntimeException()
+          case _         => throw new RuntimeException(s"Unsupported type ${batchByAttribute.get.getType}")
         }
+    } else {
+      throw new RuntimeException(
+        s"Missing required progressive configuration, $batchByAttribute, $min or $max."
+      )
     }
   }
 }

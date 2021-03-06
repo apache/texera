@@ -166,7 +166,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
     * @return a numeric value, could be Int, Long or Double
     */
   @throws[RuntimeException]
-  override def getBatchByBoundary(side: String): Option[Number] = {
+  override def fetchBatchByBoundary(side: String): Option[Number] = {
     batchByAttribute match {
       case Some(attribute) =>
         var result: Number = null
