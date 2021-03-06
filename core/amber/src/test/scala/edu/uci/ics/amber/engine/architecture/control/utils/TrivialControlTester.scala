@@ -32,7 +32,7 @@ class TrivialControlTester(id: ActorVirtualIdentity, parentNetworkCommunicationA
           ) =>
         logger.logInfo(s"received ${internalMessage}")
         this.controlInputPort.handleMessage(
-          Option(this.sender()),
+          this.sender(),
           id,
           from,
           sequenceNumber,

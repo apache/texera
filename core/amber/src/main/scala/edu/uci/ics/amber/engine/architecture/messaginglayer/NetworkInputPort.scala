@@ -16,15 +16,14 @@ class NetworkInputPort[T](
     new mutable.AnyRefMap[VirtualIdentity, OrderingEnforcer[T]]()
 
   def handleMessage(
-      sender: Option[ActorRef],
+      sender: ActorRef,
       messageID: Long,
       from: VirtualIdentity,
       sequenceNumber: Long,
       payload: T
   ): Unit = {
-    if (sender.isDefined) {
-      sender.get ! NetworkAck(messageID)
-    }
+    sender ! NetworkAck(messageID)
+
     OrderingEnforcer.reorderMessage[T](
       idToOrderingEnforcers,
       from,

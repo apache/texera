@@ -18,6 +18,7 @@ class NetworkInputPortSpec extends AnyFlatSpec with MockFactory {
   private val logger: WorkflowLogger = WorkflowLogger("NetworkInputPortSpec")
 
   "network input port" should "output payload in FIFO order" in {
+    val testActor = TestProbe.apply("test")(ActorSystem())
     val inputPort = new NetworkInputPort[DataPayload](logger, mockHandler)
     val payloads = (0 until 4).map { i =>
       DataFrame(Array(ITuple(i)))
@@ -34,7 +35,7 @@ class NetworkInputPortSpec extends AnyFlatSpec with MockFactory {
 
     List(2, 1, 0, 3).foreach(id => {
       inputPort.handleMessage(
-        Option.empty,
+        testActor.ref,
         id,
         messages(id).from,
         messages(id).sequenceNumber,
@@ -44,6 +45,7 @@ class NetworkInputPortSpec extends AnyFlatSpec with MockFactory {
   }
 
   "network input port" should "de-duplicate payload" in {
+    val testActor = TestProbe.apply("test")(ActorSystem())
     val inputPort = new NetworkInputPort[DataPayload](logger, mockHandler)
 
     val payload = DataFrame(Array(ITuple(0)))
@@ -54,10 +56,10 @@ class NetworkInputPortSpec extends AnyFlatSpec with MockFactory {
       (mockHandler.apply _).expects(*, *).never
     }
 
-    (0 until 10).foreach(_ => {
+    (0 until 10).foreach(i => {
       inputPort.handleMessage(
-        Option.empty,
-        0,
+        testActor.ref,
+        i,
         message.from,
         message.sequenceNumber,
         message.payload
@@ -66,22 +68,21 @@ class NetworkInputPortSpec extends AnyFlatSpec with MockFactory {
   }
 
   "network input port" should "send ack to the sender actor ref" in {
+    val testActor = TestProbe.apply("test")(ActorSystem())
     val inputPort = new NetworkInputPort[DataPayload](logger, (_, _) => {})
-
-    val a = TestProbe.apply("test")(ActorSystem())
 
     val payload = DataFrame(Array(ITuple(0)))
     val message = WorkflowDataMessage(fakeID, 0, payload)
     val messageID = 0
 
     inputPort.handleMessage(
-      Option(a.ref),
+      testActor.ref,
       messageID,
       message.from,
       message.sequenceNumber,
       message.payload
     )
-    a.expectMsg(NetworkAck(0))
+    testActor.expectMsg(NetworkAck(messageID))
   }
 
 }
