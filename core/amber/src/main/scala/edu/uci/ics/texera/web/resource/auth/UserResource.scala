@@ -53,7 +53,7 @@ class UserResource {
     val userUid = SqlServer.createDSLContext
       .select(USER.UID)
       .from(USER)
-      .where(USER.NAME.eq(request.userName).and(USER.PASSWORD.eq(request.password)))
+      .where(USER.NAME.eq(request.userName).and(USER.PASSWORD.eq(PasswordEncryption.EncoderByMd5(request.password))))
       .fetchAny()
       .value1()
 
@@ -68,11 +68,14 @@ class UserResource {
   @Path("/register")
   def register(@Session session: HttpSession, request: UserRegistrationRequest): Response = {
     val userName = request.userName
-    val password = request.password
+    var password = request.password
     val validationResult = validateUsername(userName)
     if (!validationResult.getLeft)
       // Using BAD_REQUEST as no other status code is suitable. Better to use 422.
       return Response.status(Response.Status.BAD_REQUEST).build()
+
+    // hash the plain text password
+    password = PasswordEncryption.EncoderByMd5(password);
 
     // try to insert a new record
     try {
