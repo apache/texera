@@ -53,7 +53,11 @@ class UserResource {
     val userUid = SqlServer.createDSLContext
       .select(USER.UID)
       .from(USER)
-      .where(USER.NAME.eq(request.userName).and(USER.PASSWORD.eq(PasswordEncryption.EncoderByMd5(request.password))))
+      .where(
+        USER.NAME
+          .eq(request.userName)
+          .and(USER.PASSWORD.eq(PasswordEncryption.EncoderByMd5(request.password)))
+      )
       .fetchAny()
       .value1()
 
