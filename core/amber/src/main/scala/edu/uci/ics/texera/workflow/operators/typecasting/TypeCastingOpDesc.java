@@ -57,7 +57,6 @@ public class TypeCastingOpDesc extends MapOpDesc {
     @Override
     public Schema getOutputSchema(Schema[] schemas) {
         Preconditions.checkArgument(schemas.length == 1);
-
         if (this.resultType != null){
             return AttributeTypeUtils.SchemaCasting(schemas[0], this.attribute, this.resultType);
         }
