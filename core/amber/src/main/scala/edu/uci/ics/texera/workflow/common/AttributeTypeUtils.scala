@@ -24,8 +24,10 @@ object AttributeTypeUtils {
                    attribute: String,
                    resultType: AttributeType
                    ): Schema= {
+    // need a builder to maintain the order of original schema
     val builder = Schema.newBuilder
     val attributes: List[Attribute] = schema.getAttributesScala
+    // change the schema when meet selected attribute else remain the same
     for (i <- attributes.indices) {
       if (attributes.apply(i).getName.equals(attribute)) {
         (resultType) match {
@@ -57,8 +59,10 @@ object AttributeTypeUtils {
                     attribute: String,
                     resultType: AttributeType
                   ): Tuple = {
+    // need a builder to maintain the order of original tuple
     val builder: Tuple.Builder = Tuple.newBuilder
     val attributes: List[Attribute] = t.getSchema.getAttributesScala
+    // change the tuple when meet selected attribute else remain the same
     for (i <-attributes.indices) {
       if (attributes.apply(i).getName.equals(attribute)) {
         val field: String = t.get(i).toString
