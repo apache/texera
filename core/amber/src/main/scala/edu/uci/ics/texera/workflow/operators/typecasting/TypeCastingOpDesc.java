@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.google.common.base.Preconditions;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
+import edu.uci.ics.texera.workflow.common.AttributeTypeUtils;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
@@ -56,40 +57,11 @@ public class TypeCastingOpDesc extends MapOpDesc {
     @Override
     public Schema getOutputSchema(Schema[] schemas) {
         Preconditions.checkArgument(schemas.length == 1);
-        List<Attribute> attributes = schemas[0].getAttributes();
-        List<String> attributeNames = schemas[0].getAttributeNames();
-        List<AttributeType> attributeTypes = attributes.stream().map(attr -> attr.getType()).collect(toList());
-        Schema.Builder builder = Schema.newBuilder();
-        // this loop check whether the current attribute in the array is the attribute for casting,
-        // if it is, change it to result type
-        // if it's not, remain the same type
-        // we need this loop to keep the order the same as the original
-        for (int i=0;i<attributes.size();i++) {
-            if (attributeNames.get(i).equals(attribute)) {
-                if (this.resultType != null){
-                    switch (this.resultType) {
-                        case STRING:
-                            builder.add(this.attribute, AttributeType.STRING);
-                            break;
-                        case BOOLEAN:
-                            builder.add(this.attribute, AttributeType.BOOLEAN);
-                            break;
-                        case DOUBLE:
-                            builder.add(this.attribute, AttributeType.DOUBLE);
-                            break;
-                        case INTEGER:
-                            builder.add(this.attribute, AttributeType.INTEGER);
-                            break;
-                        default:
-                            throw new RuntimeException("Fail to change current AttributeType to result AttributeType in the schema");
-                    }
-                }
 
-            } else {
-                builder.add(attributeNames.get(i), attributeTypes.get(i));
-            }
+        if (this.resultType != null){
+            return AttributeTypeUtils.SchemaCasting(schemas[0], this.attribute, this.resultType);
         }
 
-        return builder.build();
+        return schemas[0];
     }
 }

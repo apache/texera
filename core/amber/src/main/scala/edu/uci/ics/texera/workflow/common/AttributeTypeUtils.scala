@@ -1,41 +1,79 @@
 package edu.uci.ics.texera.workflow.common
 
-import java.util
-import java.util.stream.Collectors.toList
+
 
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
-import edu.uci.ics.texera.workflow.operators.typecasting.TypeCastingAttributeType
 
-import scala.collection.JavaConverters
 import scala.util.control.Exception.allCatch
-import scala.collection.JavaConverters._
 
 
 object AttributeTypeUtils {
+  /**
+    * this loop check whether the current attribute in the array is the attribute for casting,
+    * if it is, change it to result type
+    * if it's not, remain the same type
+    * we need this loop to keep the order the same as the original
+    * @param schema schema of data
+    * @param attribute selected attribute
+    * @param resultType casting type
+    * @return schema of data
+    */
+  def SchemaCasting(
+                   schema: Schema,
+                   attribute: String,
+                   resultType: AttributeType
+                   ): Schema= {
+    val builder = Schema.newBuilder
+    val attributes: List[Attribute] = schema.getAttributesScala
+    for (i <- attributes.indices) {
+      if (attributes.apply(i).getName.equals(attribute)) {
+        (resultType) match {
+          case AttributeType.STRING => builder.add(attribute, resultType)
+          case AttributeType.INTEGER => builder.add(attribute, resultType)
+          case AttributeType.DOUBLE => builder.add(attribute, resultType)
+          case AttributeType.LONG => builder.add(attribute, resultType)
+          case AttributeType.BOOLEAN => builder.add(attribute, resultType)
+          case AttributeType.TIMESTAMP => builder.add(attribute, AttributeType.STRING)
+          case AttributeType.ANY => builder.add(attribute, AttributeType.STRING)
+          case _ => builder.add(attribute, AttributeType.STRING)
+        }
+      } else {
+        builder.add(attributes.apply(i).getName, attributes.apply(i).getType)
+      }
+    }
+    builder.build()
+  }
+
+  /**
+    * Casting the tuple and return a new tuple with casted type
+    * @param t tuple to be processed
+    * @param attribute selected attribute
+    * @param resultType casting type
+    * @return casted tuple
+    */
   def TupleCasting(
                     t: Tuple,
                     attribute: String,
                     resultType: AttributeType
                   ): Tuple = {
     val builder: Tuple.Builder = Tuple.newBuilder
-    val attribute: List[Attribute] = t.getSchema.getAttributesScala
-    for (i <-attribute.indices) {
-      if (attribute.apply(i).getName.equals(attribute)) {
+    val attributes: List[Attribute] = t.getSchema.getAttributesScala
+    for (i <-attributes.indices) {
+      if (attributes.apply(i).getName.equals(attribute)) {
         val field: String = t.get(i).toString
-        println(field)
         (resultType) match {
-          case AttributeType.STRING => builder.add(attribute.apply(i).getName, resultType, field)
-          case AttributeType.INTEGER => builder.add(attribute.apply(i).getName, resultType, field.toInt)
-          case AttributeType.DOUBLE => builder.add(attribute.apply(i).getName, resultType, field.toDouble)
-          case AttributeType.LONG => builder.add(attribute.apply(i).getName, resultType, field.toLong)
-          case AttributeType.BOOLEAN => builder.add(attribute.apply(i).getName, resultType, field.toBoolean)
-          case AttributeType.TIMESTAMP => builder.add(attribute.apply(i).getName, resultType, field)
-          case AttributeType.ANY => builder.add(attribute.apply(i).getName, resultType, field)
-          case _ => builder.add(attribute.apply(i).getName, resultType, field)
+          case AttributeType.STRING => builder.add(attribute, resultType, field)
+          case AttributeType.INTEGER => builder.add(attribute, resultType, field.toInt)
+          case AttributeType.DOUBLE => builder.add(attribute, resultType, field.toDouble)
+          case AttributeType.LONG => builder.add(attribute, resultType, field.toLong)
+          case AttributeType.BOOLEAN => builder.add(attribute, resultType, field.toBoolean)
+          case AttributeType.TIMESTAMP => builder.add(attribute, AttributeType.STRING, field)
+          case AttributeType.ANY => builder.add(attribute, AttributeType.STRING, field)
+          case _ => builder.add(attribute, resultType, field)
         }
       } else {
-        builder.add(attribute.apply(i).getName, attribute.apply(i).getType,t.get(i))
+        builder.add(attributes.apply(i).getName, attributes.apply(i).getType,t.get(i))
       }
     }
     builder.build()

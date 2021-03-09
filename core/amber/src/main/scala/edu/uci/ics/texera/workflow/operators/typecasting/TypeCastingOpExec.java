@@ -1,17 +1,12 @@
 package edu.uci.ics.texera.workflow.operators.typecasting;
 
+import edu.uci.ics.texera.workflow.common.AttributeTypeUtils;
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
-import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
-import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import scala.Function1;
 
 import java.io.Serializable;
-import java.util.List;
-import java.util.stream.Collectors;
 
-
-import static java.util.stream.Collectors.toList;
 
 public class TypeCastingOpExec extends  MapOpExec{
     private final TypeCastingOpDesc opDesc;
@@ -21,49 +16,7 @@ public class TypeCastingOpExec extends  MapOpExec{
     }
 
     public Tuple processTuple(Tuple t) {
-        String attribute = opDesc.attribute;
-        AttributeType resultType = opDesc.resultType;
-        List<Attribute> attributes = t.getSchema().getAttributes();
-        List<String> attributeNames = t.getSchema().getAttributeNames();
-        List<AttributeType> attributeTypes = attributes.stream().map(attr -> attr.getType()).collect(toList());
-        List<Object> fields = t.getFields();
-        Tuple.Builder builder = Tuple.newBuilder();
-        for (int i=0; i<attributeNames.size();i++) {
-            if (attributeNames.get(i).equals(attribute)) {
-                builder = casting(builder, attribute, attributeTypes.get(i), resultType, t);
-            } else {
-                builder.add(attributeNames.get(i), attributeTypes.get(i), fields.get(i));
-            }
-        }
-
-
-        return builder.build();
+        return AttributeTypeUtils.TupleCasting(t, opDesc.attribute, opDesc.resultType);
     }
-    private Tuple.Builder casting(Tuple.Builder builder, String attribute, AttributeType type, AttributeType resultType,  Tuple t) {
-        String field;
-        switch (type) {
-            case STRING:
-                field = t.getField(attribute);
-                break;
-            case INTEGER:
-                field = Integer.toString(t.getField(attribute));
-                break;
-            default:
-                field = String.valueOf(t.getField(attribute));
-        }
 
-        switch (resultType) {
-            case STRING:
-                return builder.add(attribute, AttributeType.STRING, field);
-            case BOOLEAN:
-                return builder.add(attribute, AttributeType.BOOLEAN, Boolean.valueOf(field));
-            case DOUBLE:
-                return builder.add(attribute, AttributeType.DOUBLE, Double.valueOf(field));
-            case INTEGER:
-                return builder.add(attribute, AttributeType.INTEGER, Integer.valueOf(field));
-            default:
-                return builder;
-        }
-
-    }
 }
