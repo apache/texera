@@ -148,5 +148,4 @@ class CSVScanSourceOpDesc extends SourceOperatorDescriptor {
       .build
   }
 
-
 }
