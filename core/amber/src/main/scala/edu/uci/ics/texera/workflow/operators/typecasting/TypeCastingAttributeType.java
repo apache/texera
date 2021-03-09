@@ -5,7 +5,8 @@ public enum TypeCastingAttributeType {
     STRING("string"),
     INTEGER("integer"),
     DOUBLE("double"),
-    BOOLEAN("boolean");
+    BOOLEAN("boolean"),
+    LONG("long");
 
     private final String name;
 

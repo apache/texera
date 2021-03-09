@@ -1,9 +1,11 @@
 package edu.uci.ics.texera.workflow.operators.scan;
 
 import com.google.common.base.Verify;
+import edu.uci.ics.texera.workflow.common.AttributeTypeUtils;
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor;
 import edu.uci.ics.texera.workflow.common.scanner.BufferedBlockReader;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
+import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import org.tukaani.xz.SeekableFileInputStream;
 import scala.collection.Iterator;
@@ -11,6 +13,7 @@ import scala.collection.Iterator;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -71,30 +74,12 @@ public class CSVScanSourceOpExec implements SourceOperatorExecutor {
                     }
 
                     // parse Strings into inferred AttributeTypes
-                    Object[] parsedFields = new Object[fields.length];
-                    for (int i = 0; i < fields.length; i++) {
-                        String field = fields[i];
-                        switch (schema.getAttributes().get(i).getType()) {
-                            case INTEGER:
-                                parsedFields[i] = Integer.valueOf(field);
-                                break;
-                            case DOUBLE:
-                                parsedFields[i] = Double.valueOf(field);
-                                break;
-                            case BOOLEAN:
-                                parsedFields[i] = Boolean.valueOf(field);
-                                break;
-                            case LONG:
-                                parsedFields[i] = Long.valueOf(field);
-                                break;
-                            case STRING:
-                            case TIMESTAMP:
-                            case ANY:
-                            default:
-                                // keep it as a String
-                                parsedFields[i] = field;
-                        }
-                    }
+
+                    Object[] parsedFields = AttributeTypeUtils.parseField(
+                            schema.getAttributes().stream().map(i -> i.getType()).toArray(AttributeType[]::new),
+                            fields
+                            );
+                    
                     return Tuple.newBuilder().add(schema, parsedFields).build();
                 } catch (IOException e) {
                     e.printStackTrace();

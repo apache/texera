@@ -10,6 +10,7 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.stream.Collectors;
 
+
 import static java.util.stream.Collectors.toList;
 
 public class TypeCastingOpExec extends  MapOpExec{
@@ -21,7 +22,7 @@ public class TypeCastingOpExec extends  MapOpExec{
 
     public Tuple processTuple(Tuple t) {
         String attribute = opDesc.attribute;
-        TypeCastingAttributeType resultType = opDesc.resultType;
+        AttributeType resultType = opDesc.resultType;
         List<Attribute> attributes = t.getSchema().getAttributes();
         List<String> attributeNames = t.getSchema().getAttributeNames();
         List<AttributeType> attributeTypes = attributes.stream().map(attr -> attr.getType()).collect(toList());
@@ -38,54 +39,31 @@ public class TypeCastingOpExec extends  MapOpExec{
 
         return builder.build();
     }
-    private Tuple.Builder casting(Tuple.Builder builder, String attribute, AttributeType type, TypeCastingAttributeType resultType,  Tuple t) {
-        if (type == AttributeType.STRING) {
-            switch (resultType) {
-                case STRING:
-                    return builder.add(attribute, AttributeType.STRING, t.getField(attribute));
-                case BOOLEAN:
-                    return builder.add(attribute, AttributeType.BOOLEAN, Boolean.parseBoolean(t.getField(attribute)));
-                case DOUBLE:
-                    return builder.add(attribute, AttributeType.DOUBLE, Double.parseDouble(t.getField(attribute)));
-                case INTEGER:
-                    return builder.add(attribute, AttributeType.INTEGER, Integer.parseInt(t.getField(attribute)));
-            }
-        } else if(type == AttributeType.INTEGER) {
-
-            switch (resultType) {
-                case STRING:
-                    return builder.add(attribute, AttributeType.STRING, Integer.toString(t.getField(attribute)));
-                case BOOLEAN:
-                    return builder.add(attribute, AttributeType.BOOLEAN, ((Integer)t.getField(attribute))!=0 );
-                case DOUBLE:
-                    return builder.add(attribute, AttributeType.DOUBLE, new Double((Integer)t.getField(attribute)));
-                case INTEGER:
-                    return builder.add(attribute, AttributeType.INTEGER, t.getField(attribute));
-            }
-        } else if(type == AttributeType.DOUBLE) {
-            switch (resultType) {
-                case STRING:
-                    return builder.add(attribute, AttributeType.STRING, Double.toString(t.getField(attribute)));
-                case BOOLEAN:
-                    return builder.add(attribute, AttributeType.BOOLEAN, ((Double)t.getField(attribute))!=0 );
-                case DOUBLE:
-                    return builder.add(attribute, AttributeType.DOUBLE,  t.getField(attribute));
-                case INTEGER:
-                    return builder.add(attribute, AttributeType.INTEGER, new Integer(((Double)t.getField(attribute)).intValue()));
-            }
-        } else if(type == AttributeType.BOOLEAN) {
-            switch (resultType) {
-                case STRING:
-                    return builder.add(attribute, AttributeType.STRING, Boolean.toString(t.getField(attribute)));
-                case BOOLEAN:
-                    return builder.add(attribute, AttributeType.BOOLEAN, t.getField(attribute));
-                case DOUBLE:
-                    return builder.add(attribute, AttributeType.DOUBLE, new Double( t.getField(attribute)));
-                case INTEGER:
-                    return builder.add(attribute, AttributeType.INTEGER, new Integer( t.getField(attribute)));
-            }
-
+    private Tuple.Builder casting(Tuple.Builder builder, String attribute, AttributeType type, AttributeType resultType,  Tuple t) {
+        String field;
+        switch (type) {
+            case STRING:
+                field = t.getField(attribute);
+                break;
+            case INTEGER:
+                field = Integer.toString(t.getField(attribute));
+                break;
+            default:
+                field = String.valueOf(t.getField(attribute));
         }
-        return builder;
+
+        switch (resultType) {
+            case STRING:
+                return builder.add(attribute, AttributeType.STRING, field);
+            case BOOLEAN:
+                return builder.add(attribute, AttributeType.BOOLEAN, Boolean.valueOf(field));
+            case DOUBLE:
+                return builder.add(attribute, AttributeType.DOUBLE, Double.valueOf(field));
+            case INTEGER:
+                return builder.add(attribute, AttributeType.INTEGER, Integer.valueOf(field));
+            default:
+                return builder;
+        }
+
     }
 }

@@ -32,7 +32,7 @@ public class TypeCastingOpDesc extends MapOpDesc {
     @JsonProperty(required = true)
     @JsonSchemaTitle("cast type")
     @JsonPropertyDescription("Result type after type casting")
-    public TypeCastingAttributeType resultType;
+    public AttributeType resultType;
 
 
     @Override
