@@ -39,15 +39,15 @@ class BatchToTupleConverter(workerInternalQueue: WorkerInternalQueue) {
     *    when ALL upstreams exhausts.
     *
     * @param from
-    * @param dataPayloads
+    * @param dataPayload
     */
-  def processDataPayload(from: VirtualIdentity, dataPayloads: Iterable[DataPayload]): Unit = {
+  def processDataPayload(from: VirtualIdentity, dataPayload: DataPayload): Unit = {
     val link = inputMap(from)
     if (currentLink == null || currentLink != link) {
       workerInternalQueue.appendElement(SenderChangeMarker(link))
       currentLink = link
     }
-    dataPayloads.foreach {
+    dataPayload match {
       case DataFrame(payload) =>
         payload.foreach { i =>
           workerInternalQueue.appendElement(InputTuple(i))

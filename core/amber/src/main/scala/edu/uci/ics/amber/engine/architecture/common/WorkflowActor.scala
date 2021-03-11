@@ -1,19 +1,14 @@
 package edu.uci.ics.amber.engine.architecture.common
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Stash}
+import akka.actor.{Actor, ActorRef, Stash}
 import com.softwaremill.macwire.wire
-import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
-import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   GetActorRef,
-  NetworkAck,
-  NetworkMessage,
   NetworkSenderActorRef,
   RegisterActorRef
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
-  ControlInputPort,
   ControlOutputPort,
   NetworkCommunicationActor
 }
@@ -25,7 +20,6 @@ import edu.uci.ics.amber.engine.common.rpc.{
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.error.WorkflowRuntimeError
-import edu.uci.ics.amber.error.ErrorUtils.safely
 
 abstract class WorkflowActor(
     val identifier: ActorVirtualIdentity,
@@ -45,7 +39,6 @@ abstract class WorkflowActor(
   val networkCommunicationActor: NetworkSenderActorRef = NetworkSenderActorRef(
     context.actorOf(NetworkCommunicationActor.props(parentNetworkCommunicationActorRef))
   )
-  lazy val controlInputPort: ControlInputPort = wire[ControlInputPort]
   lazy val controlOutputPort: ControlOutputPort = wire[ControlOutputPort]
   lazy val asyncRPCClient: AsyncRPCClient = wire[AsyncRPCClient]
   lazy val asyncRPCServer: AsyncRPCServer = wire[AsyncRPCServer]
@@ -70,22 +63,6 @@ abstract class WorkflowActor(
           Map.empty
         )
       )
-  }
-
-  def processControlMessages: Receive = {
-    case msg @ NetworkMessage(id, cmd: WorkflowControlMessage) =>
-      sender ! NetworkAck(id)
-      handleControlMessageWithTryCatch(cmd)
-  }
-
-  def handleControlMessageWithTryCatch(cmd: WorkflowControlMessage): Unit = {
-    try {
-      // use control input port to pass control messages
-      controlInputPort.handleControlMessage(cmd)
-    } catch safely {
-      case e =>
-        logger.logError(WorkflowRuntimeError(e, identifier.toString))
-    }
   }
 
 }

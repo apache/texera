@@ -5,9 +5,7 @@ import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   BatchToTupleConverter,
-  ControlInputPort,
   ControlOutputPort,
-  DataInputPort,
   DataOutputPort,
   TupleToBatchConverter
 }
