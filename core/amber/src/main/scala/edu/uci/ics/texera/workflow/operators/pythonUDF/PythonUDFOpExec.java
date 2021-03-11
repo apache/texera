@@ -16,8 +16,8 @@ import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import scala.collection.Iterator;
-import scala.util.Either;
 import scala.collection.JavaConverters;
+import scala.util.Either;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -482,7 +482,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
             client.doAction(new Action("shutdown")).next();
             globalRootAllocator.close();
             client.close();
-        } catch (Exception e) {
+        } catch (InterruptedException e) {
             e.printStackTrace();
         }
     }
