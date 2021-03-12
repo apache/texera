@@ -28,15 +28,12 @@ object AttributeTypeUtils {
     // change the schema when meet selected attribute else remain the same
     for (i <- attributes.indices) {
       if (attributes.apply(i).getName.equals(attribute)) {
-        (resultType) match {
-          case AttributeType.STRING    => builder.add(attribute, resultType)
-          case AttributeType.INTEGER   => builder.add(attribute, resultType)
-          case AttributeType.DOUBLE    => builder.add(attribute, resultType)
-          case AttributeType.LONG      => builder.add(attribute, resultType)
-          case AttributeType.BOOLEAN   => builder.add(attribute, resultType)
-          case AttributeType.TIMESTAMP => builder.add(attribute, AttributeType.STRING)
-          case AttributeType.ANY       => builder.add(attribute, AttributeType.STRING)
-          case _                       => builder.add(attribute, AttributeType.STRING)
+        resultType match {
+          case AttributeType.STRING | AttributeType.INTEGER | AttributeType.DOUBLE |
+              AttributeType.LONG | AttributeType.BOOLEAN =>
+            builder.add(attribute, resultType)
+          case AttributeType.TIMESTAMP ｜ AttributeType.ANY ｜ _ =>
+            builder.add(attribute, AttributeType.STRING)
         }
       } else {
         builder.add(attributes.apply(i).getName, attributes.apply(i).getType)
@@ -47,24 +44,24 @@ object AttributeTypeUtils {
 
   /**
     * Casting the tuple and return a new tuple with casted type
-    * @param t tuple to be processed
+    * @param tuple tuple to be processed
     * @param attribute selected attribute
     * @param resultType casting type
     * @return casted tuple
     */
   def TupleCasting(
-      t: Tuple,
+      tuple: Tuple,
       attribute: String,
       resultType: AttributeType
   ): Tuple = {
     // need a builder to maintain the order of original tuple
     val builder: Tuple.Builder = Tuple.newBuilder
-    val attributes: List[Attribute] = t.getSchema.getAttributesScala
+    val attributes: List[Attribute] = tuple.getSchema.getAttributesScala
     // change the tuple when meet selected attribute else remain the same
     for (i <- attributes.indices) {
       if (attributes.apply(i).getName.equals(attribute)) {
-        val field: String = t.get(i).toString
-        (resultType) match {
+        val field: String = tuple.get(i).toString
+        resultType match {
           case AttributeType.STRING    => builder.add(attribute, resultType, field)
           case AttributeType.INTEGER   => builder.add(attribute, resultType, field.toInt)
           case AttributeType.DOUBLE    => builder.add(attribute, resultType, field.toDouble)
@@ -75,25 +72,25 @@ object AttributeTypeUtils {
           case _                       => builder.add(attribute, resultType, field)
         }
       } else {
-        builder.add(attributes.apply(i).getName, attributes.apply(i).getType, t.get(i))
+        builder.add(attributes.apply(i).getName, attributes.apply(i).getType, tuple.get(i))
       }
     }
     builder.build()
   }
 
   /**
-    * parse Field to corresponding Java object Type base on given Schema AttributeType
-    * @param attributeTypeList Schema AttributeTypeList
+    * parse Field to a corresponding Java object base on the given Schema AttributeType
+    * @param attributeTypes Schema AttributeTypeList
     * @param fields fields value, originally is String
     * @return parsedFields
     */
   def parseField(
-      attributeTypeList: Array[AttributeType],
+      attributeTypes: Array[AttributeType],
       fields: Array[String]
   ): Array[Object] = {
     val parsedFields: Array[Object] = new Array[Object](fields.length)
     for (i <- fields.indices) {
-      attributeTypeList.apply(i) match {
+      attributeTypes.apply(i) match {
         case AttributeType.INTEGER => parsedFields.update(i, Integer.valueOf(fields.apply(i)))
         case AttributeType.LONG    => parsedFields.update(i, java.lang.Long.valueOf(fields.apply(i)))
         case AttributeType.DOUBLE =>
@@ -110,18 +107,18 @@ object AttributeTypeUtils {
   }
 
   /**
-    * Infers field types of a given row of data. The given attributeTypeList will be updated
+    * Infers field types of a given row of data. The given attributeTypes will be updated
     * through each iteration of row inference, to contain the must accurate inference.
-    * @param attributeTypeList AttributeTypes that being passed to each iteration.
+    * @param attributeTypes AttributeTypes that being passed to each iteration.
     * @param fields data fields to be parsed, originally as String fields
     * @return
     */
   def inferRow(
-      attributeTypeList: Array[AttributeType],
+      attributeTypes: Array[AttributeType],
       fields: Array[String]
   ): Unit = {
     for (i <- fields.indices) {
-      attributeTypeList.update(i, inferField(attributeTypeList.apply(i), fields.apply(i)))
+      attributeTypes.update(i, inferField(attributeTypes.apply(i), fields.apply(i)))
     }
   }
 
@@ -131,12 +128,12 @@ object AttributeTypeUtils {
     * @return AttributeType array
     */
   def inferRow(fields: Array[String]): Array[AttributeType] = {
-    val attributeTypeList: Array[AttributeType] =
+    val attributeTypes: Array[AttributeType] =
       Array.fill[AttributeType](fields.length)(AttributeType.INTEGER)
     for (i <- fields.indices) {
-      attributeTypeList.update(i, inferField(fields.apply(i)))
+      attributeTypes.update(i, inferField(fields.apply(i)))
     }
-    attributeTypeList
+    attributeTypes
   }
 
   /**
