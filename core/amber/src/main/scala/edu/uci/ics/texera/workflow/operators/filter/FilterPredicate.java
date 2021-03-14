@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.operators.filter;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import edu.uci.ics.texera.workflow.common.AttributeTypeUtils;
 import edu.uci.ics.texera.workflow.common.WorkflowContext;
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
@@ -82,7 +83,7 @@ public class FilterPredicate {
 
     private boolean evaluateFilterTimestamp(Tuple inputTuple) {
         Long tupleValue = inputTuple.getField(attribute, Timestamp.class).getTime();
-        Long compareToValue = Timestamp.valueOf(value.trim()).getTime();
+        Long compareToValue = AttributeTypeUtils.parseTimestamp(value.trim()).getTime();
         return evaluateFilter(tupleValue, compareToValue, condition);
 
     }

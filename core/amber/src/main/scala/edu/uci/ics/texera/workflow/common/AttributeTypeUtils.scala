@@ -5,6 +5,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
 
 import java.sql.Timestamp
+import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.format.DateTimeParseException
 import scala.util.control.Exception.allCatch
@@ -210,7 +211,11 @@ object AttributeTypeUtils extends Serializable {
   @throws[AttributeTypeException]
   def parseLong(fieldValue: Object): java.lang.Long = {
     fieldValue match {
-      case str: String                => str.toLong
+      case str: String =>
+        try str.toLong
+        catch {
+          case _: NumberFormatException => parseTimestamp(fieldValue).getTime
+        }
       case int: Integer               => int.toLong
       case long: java.lang.Long       => long
       case double: java.lang.Double   => double.toLong
@@ -243,7 +248,14 @@ object AttributeTypeUtils extends Serializable {
       case str: String =>
         try new Timestamp(Instant.parse(str).toEpochMilli)
         catch {
-          case _: DateTimeParseException => Timestamp.valueOf(str)
+          case _: DateTimeParseException =>
+            try Timestamp.valueOf(str)
+            catch {
+              case _: IllegalArgumentException =>
+                val utcFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+                new Timestamp(utcFormat.parse(fieldValue.toString).getTime)
+
+            }
         }
       case long: java.lang.Long => new Timestamp(long)
       // Integer, Long, Double and Boolean are considered to be illegal here.

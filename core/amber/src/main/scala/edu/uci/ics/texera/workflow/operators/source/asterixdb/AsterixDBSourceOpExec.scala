@@ -4,6 +4,7 @@ import com.github.tototoshi.csv.CSVParser
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
+import edu.uci.ics.texera.workflow.common.AttributeTypeUtils.parseField
 import edu.uci.ics.texera.workflow.operators.source.asterixdb.AsterixDBConnUtil.{
   queryAsterixDB,
   updateAsterixDBVersionMapping
@@ -169,30 +170,18 @@ class AsterixDBSourceOpExec private[asterixdb] (
   override def fetchBatchByBoundary(side: String): Option[Number] = {
     batchByAttribute match {
       case Some(attribute) =>
-        var result: Number = null
         val resultString = queryAsterixDB(
           host,
           port,
           "SELECT " + side + "(" + attribute.getName + ") FROM " + database + "." + table + ";"
         ).get.next().toString.stripLineEnd
 
-        // TODO: move this to some util package
-        schema.getAttribute(attribute.getName).getType match {
-          case INTEGER =>
-            result = resultString.toInt
-          case LONG =>
-            result = resultString.toLong
-          case TIMESTAMP =>
-            result = Instant.parse(resultString.stripSuffix("\"").stripPrefix("\"")).toEpochMilli
-          case DOUBLE =>
-            result = resultString.toDouble
-          case BOOLEAN =>
-          case STRING  =>
-          case ANY     =>
-          case _ =>
-            throw new IllegalStateException("Unexpected value: " + attribute.getType)
-        }
-        Option(result)
+        Option(
+          parseField(
+            resultString.stripSuffix("\"").stripPrefix("\""),
+            LONG
+          ).asInstanceOf[Number]
+        )
       case None => None
     }
   }
