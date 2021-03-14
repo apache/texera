@@ -1,6 +1,5 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-
 import { isEqual } from 'lodash';
 import { NGXLogger } from 'ngx-logger';
 import { EMPTY, Observable } from 'rxjs';

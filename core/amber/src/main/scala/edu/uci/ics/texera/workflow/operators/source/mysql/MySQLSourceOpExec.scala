@@ -16,20 +16,26 @@ class MySQLSourceOpExec private[mysql] (
     password: String,
     limit: Option[Long],
     offset: Option[Long],
-    column: Option[String],
+    search: Option[Boolean],
+    searchByColumn: Option[String],
     keywords: Option[String],
-    progressive: Boolean,
+    progressive: Option[Boolean],
     batchByColumn: Option[String],
+    min: Option[String],
+    max: Option[String],
     interval: Long
 ) extends SQLSourceOpExec(
       schema,
       table,
       limit,
       offset,
-      column,
+      search,
+      searchByColumn,
       keywords,
       progressive,
       batchByColumn,
+      min,
+      max,
       interval
     ) {
 
@@ -41,11 +47,11 @@ class MySQLSourceOpExec private[mysql] (
 
   @throws[RuntimeException]
   override def addKeywordSearch(queryBuilder: StringBuilder): Unit = {
-    val columnType = schema.getAttribute(column.get).getType
+    val columnType = schema.getAttribute(searchByColumn.get).getType
 
     if (columnType == AttributeType.STRING)
       // in sql prepared statement, column name cannot be inserted using PreparedStatement.setString either
-      queryBuilder ++= " AND MATCH(" + column.get + ") AGAINST (? IN BOOLEAN MODE)"
+      queryBuilder ++= " AND MATCH(" + searchByColumn.get + ") AGAINST (? IN BOOLEAN MODE)"
     else
       throw new RuntimeException("Can't do keyword search on type " + columnType.toString)
   }
