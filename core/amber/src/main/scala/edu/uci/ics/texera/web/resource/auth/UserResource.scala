@@ -57,7 +57,10 @@ class UserResource {
       return Response.status(Response.Status.UNAUTHORIZED).build()
     }
 
-    setUserSession(session, new User(request.userName, this.userDao.fetchOneByName(request.userName).getUid, null))
+    setUserSession(
+      session,
+      new User(request.userName, this.userDao.fetchOneByName(request.userName).getUid, null)
+    )
     Response.ok().build()
   }
 
