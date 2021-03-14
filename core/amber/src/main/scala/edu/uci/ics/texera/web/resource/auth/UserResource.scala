@@ -49,22 +49,15 @@ class UserResource {
   @Path("/login")
   def login(@Session session: HttpSession, request: UserLoginRequest): Response = {
 
-    // try to fetch the UID given the username and password
-    val userUid = SqlServer.createDSLContext
-      .select(USER.UID)
-      .from(USER)
-      .where(
-        USER.NAME
-          .eq(request.userName)
-          .and(USER.PASSWORD.eq(PasswordEncryption.EncoderByMd5(request.password)))
-      )
-      .fetchAny()
-      .value1()
+    // try to fetch the password given the username
+    val userPassword = this.userDao.fetchOneByName(request.userName).getPassword
 
-    if (userUid == null) { // not found
+    // not found or password incorrect
+    if (userPassword == null || !PasswordEncryption.checkPassword(userPassword, request.password)) {
       return Response.status(Response.Status.UNAUTHORIZED).build()
     }
-    setUserSession(session, new User(request.userName, userUid, null))
+
+    setUserSession(session, new User(request.userName, this.userDao.fetchOneByName(request.userName).getUid, null))
     Response.ok().build()
   }
 
@@ -79,7 +72,7 @@ class UserResource {
       return Response.status(Response.Status.BAD_REQUEST).build()
 
     // hash the plain text password
-    password = PasswordEncryption.EncoderByMd5(password);
+    password = PasswordEncryption.encrypt(password);
 
     // try to insert a new record
     try {
