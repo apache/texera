@@ -91,6 +91,7 @@ class DataProcessingSpec
 
     val config = DBConfigurationBuilder.newBuilder
       .setPort(0) // 0 => automatically detect free port
+      .addArg("--default-time-zone=+0:00")
       .build()
 
     inMemoryMySQLInstance = Option(DB.newEmbeddedDB(config))
