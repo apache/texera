@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.common
 
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
 
 import scala.util.control.Exception.allCatch
 
@@ -29,11 +30,10 @@ object AttributeTypeUtils {
     for (i <- attributes.indices) {
       if (attributes.apply(i).getName.equals(attribute)) {
         resultType match {
-          case AttributeType.STRING | AttributeType.INTEGER | AttributeType.DOUBLE |
-              AttributeType.LONG | AttributeType.BOOLEAN =>
+          case STRING | INTEGER | DOUBLE | LONG | BOOLEAN =>
             builder.add(attribute, resultType)
-          case AttributeType.TIMESTAMP ｜ AttributeType.ANY ｜ _ =>
-            builder.add(attribute, AttributeType.STRING)
+          case TIMESTAMP | ANY | _ =>
+            builder.add(attribute, STRING)
         }
       } else {
         builder.add(attributes.apply(i).getName, attributes.apply(i).getType)
@@ -62,14 +62,14 @@ object AttributeTypeUtils {
       if (attributes.apply(i).getName.equals(attribute)) {
         val field: String = tuple.get(i).toString
         resultType match {
-          case AttributeType.STRING    => builder.add(attribute, resultType, field)
-          case AttributeType.INTEGER   => builder.add(attribute, resultType, field.toInt)
-          case AttributeType.DOUBLE    => builder.add(attribute, resultType, field.toDouble)
-          case AttributeType.LONG      => builder.add(attribute, resultType, field.toLong)
-          case AttributeType.BOOLEAN   => builder.add(attribute, resultType, field.toBoolean)
-          case AttributeType.TIMESTAMP => builder.add(attribute, AttributeType.STRING, field)
-          case AttributeType.ANY       => builder.add(attribute, AttributeType.STRING, field)
-          case _                       => builder.add(attribute, resultType, field)
+          case STRING    => builder.add(attribute, resultType, field)
+          case INTEGER   => builder.add(attribute, resultType, field.toInt)
+          case DOUBLE    => builder.add(attribute, resultType, field.toDouble)
+          case LONG      => builder.add(attribute, resultType, field.toLong)
+          case BOOLEAN   => builder.add(attribute, resultType, field.toBoolean)
+          case TIMESTAMP => builder.add(attribute, STRING, field)
+          case ANY       => builder.add(attribute, STRING, field)
+          case _         => builder.add(attribute, resultType, field)
         }
       } else {
         builder.add(attributes.apply(i).getName, attributes.apply(i).getType, tuple.get(i))
@@ -91,16 +91,16 @@ object AttributeTypeUtils {
     val parsedFields: Array[Object] = new Array[Object](fields.length)
     for (i <- fields.indices) {
       attributeTypes.apply(i) match {
-        case AttributeType.INTEGER => parsedFields.update(i, Integer.valueOf(fields.apply(i)))
-        case AttributeType.LONG    => parsedFields.update(i, java.lang.Long.valueOf(fields.apply(i)))
-        case AttributeType.DOUBLE =>
+        case INTEGER => parsedFields.update(i, Integer.valueOf(fields.apply(i)))
+        case LONG    => parsedFields.update(i, java.lang.Long.valueOf(fields.apply(i)))
+        case DOUBLE =>
           parsedFields.update(i, java.lang.Double.valueOf(fields.apply(i)))
-        case AttributeType.BOOLEAN =>
+        case BOOLEAN =>
           parsedFields.update(i, java.lang.Boolean.valueOf(fields.apply(i)))
-        case AttributeType.STRING    => parsedFields.update(i, fields.apply(i))
-        case AttributeType.TIMESTAMP =>
-        case AttributeType.ANY       =>
-        case _                       => parsedFields.update(i, fields.apply(i))
+        case STRING    => parsedFields.update(i, fields.apply(i))
+        case TIMESTAMP =>
+        case ANY       =>
+        case _         => parsedFields.update(i, fields.apply(i))
       }
     }
     parsedFields
@@ -129,7 +129,7 @@ object AttributeTypeUtils {
     */
   def inferRow(fields: Array[String]): Array[AttributeType] = {
     val attributeTypes: Array[AttributeType] =
-      Array.fill[AttributeType](fields.length)(AttributeType.INTEGER)
+      Array.fill[AttributeType](fields.length)(INTEGER)
     for (i <- fields.indices) {
       attributeTypes.update(i, inferField(fields.apply(i)))
     }
@@ -153,43 +153,43 @@ object AttributeTypeUtils {
     */
   def inferField(attributeType: AttributeType, fieldValue: String): AttributeType = {
     attributeType match {
-      case AttributeType.STRING  => tryParseString()
-      case AttributeType.BOOLEAN => tryParseBoolean(fieldValue)
-      case AttributeType.DOUBLE  => tryParseDouble(fieldValue)
-      case AttributeType.LONG    => tryParseLong(fieldValue)
-      case AttributeType.INTEGER => tryParseInteger(fieldValue)
-      case _                     => tryParseString()
+      case STRING  => tryParseString()
+      case BOOLEAN => tryParseBoolean(fieldValue)
+      case DOUBLE  => tryParseDouble(fieldValue)
+      case LONG    => tryParseLong(fieldValue)
+      case INTEGER => tryParseInteger(fieldValue)
+      case _       => tryParseString()
     }
   }
 
   private def tryParseInteger(fieldValue: String): AttributeType = {
     allCatch opt fieldValue.toInt match {
-      case Some(_) => AttributeType.INTEGER
+      case Some(_) => INTEGER
       case None    => tryParseLong(fieldValue)
     }
   }
 
   private def tryParseLong(fieldValue: String): AttributeType = {
     allCatch opt fieldValue.toLong match {
-      case Some(_) => AttributeType.LONG
+      case Some(_) => LONG
       case None    => tryParseDouble(fieldValue)
     }
   }
 
   private def tryParseDouble(fieldValue: String): AttributeType = {
     allCatch opt fieldValue.toDouble match {
-      case Some(_) => AttributeType.DOUBLE
+      case Some(_) => DOUBLE
       case None    => tryParseBoolean(fieldValue)
     }
   }
   private def tryParseBoolean(fieldValue: String): AttributeType = {
     allCatch opt fieldValue.toBoolean match {
-      case Some(_) => AttributeType.BOOLEAN
+      case Some(_) => BOOLEAN
       case None    => tryParseString()
     }
   }
   private def tryParseString(): AttributeType = {
-    AttributeType.STRING
+    STRING
   }
 
 }
