@@ -9,7 +9,7 @@ import java.time.Instant
 import java.time.format.DateTimeParseException
 import scala.util.control.Exception.allCatch
 
-object AttributeTypeUtils {
+object AttributeTypeUtils extends Serializable {
 
   /**
     * this loop check whether the current attribute in the array is the attribute for casting,

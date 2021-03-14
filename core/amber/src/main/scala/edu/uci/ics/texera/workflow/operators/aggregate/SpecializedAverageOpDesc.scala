@@ -2,13 +2,13 @@ package edu.uci.ics.texera.workflow.operators.aggregate
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
   OperatorInfo,
   OutputPort
 }
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.operators.aggregate.{
   AggregateOpDesc,
   AggregateOpExecConfig,
@@ -16,9 +16,9 @@ import edu.uci.ics.texera.workflow.common.operators.aggregate.{
 }
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
+import edu.uci.ics.texera.workflow.common.AttributeTypeUtils
 
 import java.io.Serializable
-import java.sql.Timestamp
 
 case class AveragePartialObj(sum: Double, count: Double) extends Serializable {}
 
@@ -153,7 +153,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       return None
 
     if (tuple.getSchema.getAttribute(attribute).getType == AttributeType.TIMESTAMP)
-      Option(Timestamp.valueOf(value.toString).getTime.toDouble)
+      Option(AttributeTypeUtils.parseTimestamp(value.toString).getTime.toDouble)
     else Option(value.toString.toDouble)
   }
 
