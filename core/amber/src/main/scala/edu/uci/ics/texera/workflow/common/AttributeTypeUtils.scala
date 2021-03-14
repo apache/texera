@@ -82,31 +82,41 @@ object AttributeTypeUtils extends Serializable {
   }
 
   /**
-    * parse Field to a corresponding Java object base on the given Schema AttributeType
+    * parse Fields to corresponding Java objects base on the given Schema AttributeTypes
     * @param attributeTypes Schema AttributeTypeList
-    * @param fields fields value, originally is String
-    * @return parsedFields
+    * @param fields fields value
+    * @return parsedFields in the target AttributeTypes
     */
-  def parseField(
-      attributeTypes: Array[AttributeType],
-      fields: Array[String]
+  @throws[AttributeTypeException]
+  def parseFields(
+      fields: Array[Object],
+      attributeTypes: Array[AttributeType]
   ): Array[Object] = {
-    val parsedFields: Array[Object] = new Array[Object](fields.length)
-    for (i <- fields.indices) {
-      attributeTypes.apply(i) match {
-        case INTEGER => parsedFields.update(i, Integer.valueOf(fields.apply(i)))
-        case LONG    => parsedFields.update(i, java.lang.Long.valueOf(fields.apply(i)))
-        case DOUBLE =>
-          parsedFields.update(i, java.lang.Double.valueOf(fields.apply(i)))
-        case BOOLEAN =>
-          parsedFields.update(i, java.lang.Boolean.valueOf(fields.apply(i)))
-        case STRING    => parsedFields.update(i, fields.apply(i))
-        case TIMESTAMP =>
-        case ANY       =>
-        case _         => parsedFields.update(i, fields.apply(i))
-      }
+    fields.indices.map(i => parseField(fields.apply(i), attributeTypes.apply(i))).toArray
+  }
+
+  /**
+    * parse Field to a corresponding Java object base on the given Schema AttributeType
+    * @param field fields value
+    * @param attributeType target AttributeType
+    *
+    * @return parsedField in the target AttributeType
+    */
+  @throws[AttributeTypeException]
+  def parseField(
+      field: Object,
+      attributeType: AttributeType
+  ): Object = {
+
+    attributeType match {
+      case INTEGER   => parseInteger(field)
+      case LONG      => parseLong(field)
+      case DOUBLE    => parseDouble(field)
+      case BOOLEAN   => parseBoolean(field)
+      case TIMESTAMP => parseTimestamp(field)
+      case STRING    => field.toString
+      case ANY | _   => field
     }
-    parsedFields
   }
 
   /**

@@ -4,6 +4,7 @@ import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecuto
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
+import edu.uci.ics.texera.workflow.common.AttributeTypeUtils.parseField
 
 import java.sql._
 import java.text.SimpleDateFormat
@@ -175,6 +176,7 @@ abstract class SQLSourceOpExec(
     val tupleBuilder = Tuple.newBuilder
 
     for (attr <- schema.getAttributes.asScala) {
+
       breakable {
         val columnName = attr.getName
         val columnType = attr.getType
@@ -187,22 +189,8 @@ abstract class SQLSourceOpExec(
         }
 
         // otherwise, transform the type of the value
-        columnType match {
-          case INTEGER =>
-            tupleBuilder.add(attr, value.toInt)
-          case LONG =>
-            tupleBuilder.add(attr, value.toLong)
-          case DOUBLE =>
-            tupleBuilder.add(attr, value.toDouble)
-          case STRING =>
-            tupleBuilder.add(attr, value)
-          case BOOLEAN =>
-            tupleBuilder.add(attr, !(value == "0"))
-          case TIMESTAMP =>
-            tupleBuilder.add(attr, Timestamp.valueOf(value))
-          case ANY | _ =>
-            throw new RuntimeException("Unhandled attribute type: " + columnType)
-        }
+        tupleBuilder.add(attr, parseField(value, columnType))
+
       }
     }
     tupleBuilder.build
