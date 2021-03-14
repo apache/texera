@@ -4,6 +4,9 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
 
+import java.sql.Timestamp
+import java.time.Instant
+import java.time.format.DateTimeParseException
 import scala.util.control.Exception.allCatch
 
 object AttributeTypeUtils {
@@ -162,34 +165,116 @@ object AttributeTypeUtils {
     }
   }
 
+  @throws[AttributeTypeException]
+  def parseInteger(fieldValue: Object): Integer = {
+    fieldValue match {
+      case str: String                => str.toInt
+      case int: Integer               => int
+      case long: java.lang.Long       => long.toInt
+      case double: java.lang.Double   => double.toInt
+      case boolean: java.lang.Boolean => if (boolean) 1 else 0
+      // Timestamp is considered to be illegal here.
+      case _ =>
+        throw new AttributeTypeException(
+          s"not able to parse type ${fieldValue.getClass} to Integer."
+        )
+    }
+  }
+
+  @throws[AttributeTypeException]
+  def parseBoolean(fieldValue: Object): java.lang.Boolean = {
+    fieldValue match {
+      case str: String                => str.toBoolean
+      case int: Integer               => int != 0
+      case long: java.lang.Long       => long != 0
+      case double: java.lang.Double   => double != 0
+      case boolean: java.lang.Boolean => boolean
+      // Timestamp is considered to be illegal here.
+      case _ =>
+        throw new AttributeTypeException(
+          s"not able to parse type ${fieldValue.getClass} to Boolean."
+        )
+    }
+  }
+
+  @throws[AttributeTypeException]
+  def parseLong(fieldValue: Object): java.lang.Long = {
+    fieldValue match {
+      case str: String                => str.toLong
+      case int: Integer               => int.toLong
+      case long: java.lang.Long       => long
+      case double: java.lang.Double   => double.toLong
+      case boolean: java.lang.Boolean => if (boolean) 1L else 0L
+      case timestamp: Timestamp       => timestamp.toInstant.toEpochMilli
+      case _ =>
+        throw new AttributeTypeException(s"not able to parse type ${fieldValue.getClass} to Long.")
+    }
+  }
+
+  @throws[AttributeTypeException]
+  def parseDouble(fieldValue: Object): java.lang.Double = {
+    fieldValue match {
+      case str: String                => str.toDouble
+      case int: Integer               => int.toDouble
+      case long: java.lang.Long       => long.toDouble
+      case double: java.lang.Double   => double
+      case boolean: java.lang.Boolean => if (boolean) 1 else 0
+      // Timestamp is considered to be illegal here.
+      case _ =>
+        throw new AttributeTypeException(
+          s"not able to parse type ${fieldValue.getClass} to Double."
+        )
+    }
+  }
+
+  @throws[AttributeTypeException]
+  def parseTimestamp(fieldValue: Object): Timestamp = {
+    fieldValue match {
+      case str: String =>
+        try new Timestamp(Instant.parse(str).toEpochMilli)
+        catch {
+          case _: DateTimeParseException => Timestamp.valueOf(str)
+        }
+      case long: java.lang.Long => new Timestamp(long)
+      // Integer, Long, Double and Boolean are considered to be illegal here.
+      case _ =>
+        throw new AttributeTypeException(
+          s"not able to parse type ${fieldValue.getClass} to Timestamp."
+        )
+    }
+  }
+
   private def tryParseInteger(fieldValue: String): AttributeType = {
-    allCatch opt fieldValue.toInt match {
+    allCatch opt parseInteger(fieldValue) match {
       case Some(_) => INTEGER
       case None    => tryParseLong(fieldValue)
     }
   }
 
   private def tryParseLong(fieldValue: String): AttributeType = {
-    allCatch opt fieldValue.toLong match {
+    allCatch opt parseLong(fieldValue) match {
       case Some(_) => LONG
       case None    => tryParseDouble(fieldValue)
     }
   }
 
   private def tryParseDouble(fieldValue: String): AttributeType = {
-    allCatch opt fieldValue.toDouble match {
+    allCatch opt parseDouble(fieldValue) match {
       case Some(_) => DOUBLE
       case None    => tryParseBoolean(fieldValue)
     }
   }
+
   private def tryParseBoolean(fieldValue: String): AttributeType = {
-    allCatch opt fieldValue.toBoolean match {
+    allCatch opt parseBoolean(fieldValue) match {
       case Some(_) => BOOLEAN
       case None    => tryParseString()
     }
   }
+
   private def tryParseString(): AttributeType = {
     STRING
   }
 
+  class AttributeTypeException(msg: String) extends IllegalArgumentException(msg) {}
 }
