@@ -3,14 +3,15 @@ package edu.uci.ics.amber.engine.e2e
 import akka.actor.{ActorSystem, PoisonPill, Props}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import akka.util.Timeout
+import ch.vorburger.mariadb4j.DB
 import edu.uci.ics.amber.clustering.SingleNodeListener
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.{
   Controller,
   ControllerEventListener,
   ControllerState,
   Workflow
 }
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.tuple.ITuple
@@ -19,9 +20,10 @@ import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.workflow._
 import edu.uci.ics.texera.workflow.operators.aggregate.AggregationFunction
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
+import java.sql.PreparedStatement
 import scala.collection.mutable
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
@@ -35,6 +37,8 @@ class DataProcessingSpec
 
   implicit val timeout: Timeout = Timeout(5.seconds)
   implicit val executionContext: ExecutionContextExecutor = system.dispatcher
+
+  var inMemoryMySQLInstance: Option[DB] = None
 
   override def beforeAll: Unit = {
     system.actorOf(Props[SingleNodeListener], "cluster-info")
@@ -73,6 +77,38 @@ class DataProcessingSpec
     parent.expectMsg(1.minute, ControllerState.Completed)
     parent.ref ! PoisonPill
     results
+  }
+
+  def initializeInMemoryMySQLInstance(): (String, String, String, String, String, String) = {
+    import ch.vorburger.mariadb4j.{DB, DBConfigurationBuilder}
+
+    import java.sql.DriverManager
+
+    val database: String = "new"
+    val table: String = "test"
+    val username: String = "root"
+    val password: String = ""
+
+    val config = DBConfigurationBuilder.newBuilder
+      .setPort(0) // 0 => automatically detect free port
+      .build()
+
+    inMemoryMySQLInstance = Option(DB.newEmbeddedDB(config))
+    inMemoryMySQLInstance.get.start()
+    inMemoryMySQLInstance.get.createDB(database)
+
+    // insert test data
+    val conn = DriverManager.getConnection(config.getURL(database), username, password)
+    var statement: PreparedStatement = conn.prepareStatement(
+      s"create table $table (id int primary key auto_increment, text VARCHAR(512), " +
+        s"point FLOAT, created_at DATE default NOW() not null)"
+    )
+    statement.execute()
+    statement = conn.prepareStatement(s"insert into $table (text) values ('hello world')")
+    statement.execute()
+    statement.close()
+    conn.close()
+    ("localhost", config.getPort.toString, database, table, username, password)
   }
 
   "Engine" should "execute headerlessCsv->sink workflow normally" in {
@@ -159,10 +195,10 @@ class DataProcessingSpec
     executeWorkflow(id, workflow)
   }
 
-  "Engine" should "execute csv->keyword->averageAndGroupby->sink workflow normally" in {
+  "Engine" should "execute csv->keyword->averageAndGroupBy->sink workflow normally" in {
     val csvOpDesc = TestOperators.smallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
-    val averageAndGroupbyOpDesc =
+    val averageAndGroupByOpDesc =
       TestOperators.aggregateAndGroupByDesc(
         "Units Sold",
         AggregationFunction.AVERAGE,
@@ -171,7 +207,7 @@ class DataProcessingSpec
     val sink = TestOperators.sinkOpDesc()
     val (id, workflow) = buildWorkflow(
       mutable
-        .MutableList[OperatorDescriptor](csvOpDesc, keywordOpDesc, averageAndGroupbyOpDesc, sink),
+        .MutableList[OperatorDescriptor](csvOpDesc, keywordOpDesc, averageAndGroupByOpDesc, sink),
       mutable.MutableList[OperatorLink](
         OperatorLink(
           OperatorPort(csvOpDesc.operatorID, 0),
@@ -179,10 +215,10 @@ class DataProcessingSpec
         ),
         OperatorLink(
           OperatorPort(keywordOpDesc.operatorID, 0),
-          OperatorPort(averageAndGroupbyOpDesc.operatorID, 0)
+          OperatorPort(averageAndGroupByOpDesc.operatorID, 0)
         ),
         OperatorLink(
-          OperatorPort(averageAndGroupbyOpDesc.operatorID, 0),
+          OperatorPort(averageAndGroupByOpDesc.operatorID, 0),
           OperatorPort(sink.operatorID, 0)
         )
       )
@@ -221,6 +257,7 @@ class DataProcessingSpec
   }
 
   "Engine" should "execute asterixdb->sink workflow normally" in {
+
     val asterixDBOp = TestOperators.asterixDBSourceOpDesc()
     val sink = TestOperators.sinkOpDesc()
     val (id, workflow) = buildWorkflow(
@@ -230,6 +267,32 @@ class DataProcessingSpec
       )
     )
     executeWorkflow(id, workflow)
+  }
+
+  "Engine" should "execute mysql->sink workflow normally" in {
+    val (host, port, database, table, username, password) = initializeInMemoryMySQLInstance()
+    val inMemoryMsSQLSourceOpDesc = TestOperators.inMemoryMySQLSourceOpDesc(
+      host,
+      port,
+      database,
+      table,
+      username,
+      password
+    )
+
+    val sink = TestOperators.sinkOpDesc()
+    val (id, workflow) = buildWorkflow(
+      mutable.MutableList[OperatorDescriptor](inMemoryMsSQLSourceOpDesc, sink),
+      mutable.MutableList[OperatorLink](
+        OperatorLink(
+          OperatorPort(inMemoryMsSQLSourceOpDesc.operatorID, 0),
+          OperatorPort(sink.operatorID, 0)
+        )
+      )
+    )
+    executeWorkflow(id, workflow)
+
+    inMemoryMySQLInstance.get.stop()
   }
 
 }

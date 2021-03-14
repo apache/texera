@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.common.ambermessage
 
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 
-trait DataPayload extends Serializable {}
+sealed trait DataPayload extends Serializable {}
 
 final case class EndOfUpstream() extends DataPayload
 

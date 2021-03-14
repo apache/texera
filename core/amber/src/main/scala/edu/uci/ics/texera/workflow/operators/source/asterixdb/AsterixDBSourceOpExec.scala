@@ -24,20 +24,26 @@ class AsterixDBSourceOpExec private[asterixdb] (
     table: String,
     limit: Option[Long],
     offset: Option[Long],
-    column: Option[String],
+    search: Option[Boolean],
+    searchByColumn: Option[String],
     keywords: Option[String],
-    progressive: Boolean,
+    progressive: Option[Boolean],
     batchByColumn: Option[String],
+    min: Option[String],
+    max: Option[String],
     interval: Long
 ) extends SQLSourceOpExec(
       schema,
       table,
       limit,
       offset,
-      column,
+      search,
+      searchByColumn,
       keywords,
       progressive,
       batchByColumn,
+      min,
+      max,
       interval
     ) {
   // update AsterixDB API version upon initialization.
@@ -109,7 +115,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
               next
             }
           case None =>
-            curQueryString = generateSqlQuery
+            curQueryString = if (hasNextQuery) generateSqlQuery else None
             curQueryString match {
               case Some(query) =>
                 curResultIterator = queryAsterixDB(host, port, query)
@@ -144,11 +150,11 @@ class AsterixDBSourceOpExec private[asterixdb] (
   @throws[RuntimeException]
   def addKeywordSearch(queryBuilder: StringBuilder): Unit = {
 
-    val columnType = schema.getAttribute(column.get).getType
+    val columnType = schema.getAttribute(searchByColumn.get).getType
 
     if (columnType == AttributeType.STRING) {
 
-      queryBuilder ++= " AND ftcontains(" + column.get + ", " + keywords.get + ") "
+      queryBuilder ++= " AND ftcontains(" + searchByColumn.get + ", " + keywords.get + ") "
     } else
       throw new RuntimeException("Can't do keyword search on type " + columnType.toString)
   }
@@ -160,7 +166,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
     * @return a numeric value, could be Int, Long or Double
     */
   @throws[RuntimeException]
-  override def getBatchByBoundary(side: String): Option[Number] = {
+  override def fetchBatchByBoundary(side: String): Option[Number] = {
     batchByAttribute match {
       case Some(attribute) =>
         var result: Number = null

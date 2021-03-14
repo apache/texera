@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
-import akka.actor.{Actor, ActorRef, Cancellable, Props, Stash}
+import akka.actor.{Actor, ActorRef, Cancellable, Props}
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   GetActorRef,
@@ -13,7 +13,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
 }
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, VirtualIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.collection.mutable

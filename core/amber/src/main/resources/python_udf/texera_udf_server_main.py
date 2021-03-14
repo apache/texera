@@ -2,7 +2,6 @@ import ast
 import importlib.util
 import json
 import sys
-import threading
 import traceback
 from typing import Dict
 
@@ -105,9 +104,9 @@ class UDFServer(pyarrow.flight.FlightServerBase):
             yield self._response(b'Flight Server is up and running!')
         elif action.type == "shutdown":
             # to shutdown the server.
+            self.shutdown()
+            self.wait()
             yield self._response(b'Flight Server is shut down!')
-            # Shut down on background thread to avoid blocking current request
-            threading.Thread(target=self._delayed_shutdown).start()
         elif action.type == "open":
             # open UDF
             user_args_table = self.flights[self._descriptor_to_key(self._accept(b'args'))]
@@ -146,13 +145,6 @@ class UDFServer(pyarrow.flight.FlightServerBase):
             yield self._response(b'Success!')
         else:
             raise ValueError("Unknown action {!r}".format(action.type))
-
-    def _delayed_shutdown(self):
-        """Shut down after a delay."""
-        # print("Flight Server:\tServer is shutting down...")
-
-        self.shutdown()
-        self.wait()
 
     @staticmethod
     def _response(message: bytes):
