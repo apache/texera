@@ -1,15 +1,14 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
-import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerInternalQueue
-import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerInternalQueue.{
+import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue
+import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{
   EndMarker,
   EndOfAllMarker,
   InputTuple,
   SenderChangeMarker
 }
-import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{DataFrame, EndOfUpstream}
-import edu.uci.ics.amber.engine.common.ambermessage.neo.DataPayload
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
+import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, DataPayload, EndOfUpstream}
+import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, VirtualIdentity}
 
 import scala.collection.mutable
 
@@ -21,11 +20,11 @@ class BatchToTupleConverter(workerInternalQueue: WorkerInternalQueue) {
     * We also keep track of the upstream actors so that we can emit
     * EndOfAllMarker when all upstream actors complete their job
     */
-  private val inputMap = new mutable.HashMap[VirtualIdentity, Int]
-  private val upstreamMap = new mutable.HashMap[Int, mutable.HashSet[VirtualIdentity]]
-  private var currentSender = -1
+  private val inputMap = new mutable.HashMap[VirtualIdentity, LinkIdentity]
+  private val upstreamMap = new mutable.HashMap[LinkIdentity, mutable.HashSet[VirtualIdentity]]
+  private var currentLink: LinkIdentity = _
 
-  def registerInput(identifier: VirtualIdentity, input: Int): Unit = {
+  def registerInput(identifier: VirtualIdentity, input: LinkIdentity): Unit = {
     upstreamMap.getOrElseUpdate(input, new mutable.HashSet[VirtualIdentity]()).add(identifier)
     inputMap(identifier) = input
   }
@@ -40,27 +39,27 @@ class BatchToTupleConverter(workerInternalQueue: WorkerInternalQueue) {
     *    when ALL upstreams exhausts.
     *
     * @param from
-    * @param dataPayloads
+    * @param dataPayload
     */
-  def processDataPayload(from: VirtualIdentity, dataPayloads: Iterable[DataPayload]): Unit = {
-    val sender = inputMap(from)
-    if (currentSender != sender) {
-      workerInternalQueue.appendElement(SenderChangeMarker(sender))
-      currentSender = sender
+  def processDataPayload(from: VirtualIdentity, dataPayload: DataPayload): Unit = {
+    val link = inputMap(from)
+    if (currentLink == null || currentLink != link) {
+      workerInternalQueue.appendElement(SenderChangeMarker(link))
+      currentLink = link
     }
-    dataPayloads.foreach {
+    dataPayload match {
       case DataFrame(payload) =>
         payload.foreach { i =>
           workerInternalQueue.appendElement(InputTuple(i))
         }
       case EndOfUpstream() =>
-        upstreamMap(sender).remove(from)
-        if (upstreamMap(sender).isEmpty) {
-          workerInternalQueue.appendElement(EndMarker())
-          upstreamMap.remove(sender)
+        upstreamMap(link).remove(from)
+        if (upstreamMap(link).isEmpty) {
+          workerInternalQueue.appendElement(EndMarker)
+          upstreamMap.remove(link)
         }
         if (upstreamMap.isEmpty) {
-          workerInternalQueue.appendElement(EndOfAllMarker())
+          workerInternalQueue.appendElement(EndOfAllMarker)
         }
       case other =>
         throw new NotImplementedError()

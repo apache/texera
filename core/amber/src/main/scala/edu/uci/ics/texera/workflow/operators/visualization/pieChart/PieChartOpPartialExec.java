@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.visualization.pieChart;
 
 import edu.uci.ics.amber.engine.common.InputExhausted;
+import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity;
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
@@ -42,7 +43,7 @@ public class PieChartOpPartialExec implements OperatorExecutor {
     }
 
     @Override
-    public Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, int input) {
+    public Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, LinkIdentity input) {
         if (tuple.isLeft()) {
             Tuple inputTuple = tuple.left().get();
             String name = inputTuple.getField(nameColumn);

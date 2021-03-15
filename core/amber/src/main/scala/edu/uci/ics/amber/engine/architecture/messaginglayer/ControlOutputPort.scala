@@ -1,17 +1,14 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import java.util.concurrent.atomic.AtomicLong
-
-import akka.actor.ActorRef
-import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.{
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowControlMessage
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   NetworkSenderActorRef,
   SendRequest
 }
 import edu.uci.ics.amber.engine.common.WorkflowLogger
-import edu.uci.ics.amber.engine.common.ambermessage.neo.ControlPayload
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 import scala.collection.mutable
 
@@ -26,9 +23,13 @@ class ControlOutputPort(selfID: ActorVirtualIdentity, networkSenderActor: Networ
   private val idToSequenceNums = new mutable.AnyRefMap[ActorVirtualIdentity, AtomicLong]()
 
   def sendTo(to: ActorVirtualIdentity, payload: ControlPayload): Unit = {
-    val seqNum = idToSequenceNums.getOrElseUpdate(to, new AtomicLong()).getAndIncrement()
+    var receiverId = to
+    if (to == ActorVirtualIdentity.Self) {
+      // selfID and VirtualIdentity.Self should be one key
+      receiverId = selfID
+    }
+    val seqNum = idToSequenceNums.getOrElseUpdate(receiverId, new AtomicLong()).getAndIncrement()
     val msg = WorkflowControlMessage(selfID, seqNum, payload)
-    logger.logInfo(s"send $msg to $to")
     networkSenderActor ! SendRequest(to, msg)
   }
 

@@ -1,16 +1,16 @@
-import { OperatorLabelComponent } from './operator-label/operator-label.component';
-import { DragDropService } from './../../service/drag-drop/drag-drop.service';
-import { WorkflowUtilService } from './../../service/workflow-graph/util/workflow-util.service';
-import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
 import { Component, OnInit } from '@angular/core';
 import { FormControl } from '@angular/forms';
-import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
+import { MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
+import * as Fuse from 'fuse.js';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import * as Fuse from 'fuse.js';
-import {MatAutocompleteSelectedEvent} from '@angular/material/autocomplete';
+import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
 
-import { OperatorSchema, OperatorMetadata, GroupInfo } from '../../types/operator-schema.interface';
+import { GroupInfo, OperatorMetadata, OperatorSchema } from '../../types/operator-schema.interface';
+import { DragDropService } from './../../service/drag-drop/drag-drop.service';
+import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
+import { WorkflowUtilService } from './../../service/workflow-graph/util/workflow-util.service';
+import { OperatorLabelComponent } from './operator-label/operator-label.component';
 
 /**
  * OperatorPanelComponent is the left-side panel that shows the operators.
@@ -126,7 +126,7 @@ export class OperatorPanelComponent implements OnInit {
 
 }
 
-// generates a list of group names sorted by the orde
+// generates a list of group names sorted by the order
 // slice() will make a copy of the list, because we don't want to sort the orignal list
 export function getGroupNamesSorted(groupInfoList: ReadonlyArray<GroupInfo>): string[] {
   return groupInfoList.slice()

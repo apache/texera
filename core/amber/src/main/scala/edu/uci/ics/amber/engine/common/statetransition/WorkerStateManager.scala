@@ -9,31 +9,25 @@ import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager._
 // https://nrinaudo.github.io/scala-best-practices/adts/product_with_serializable.html
 
 object WorkerStateManager {
-  sealed abstract class WorkerState extends Product with Serializable
-  case object UnInitialized extends WorkerState
+  sealed abstract class WorkerState extends Serializable
+  case object Uninitialized extends WorkerState
   case object Ready extends WorkerState
   case object Running extends WorkerState
   case object Paused extends WorkerState
-  case object Pausing extends WorkerState with IntermediateState
   case object Completed extends WorkerState
   case object Recovering extends WorkerState with IntermediateState
 
 }
 
-class WorkerStateManager
+class WorkerStateManager(initialState: WorkerState = Uninitialized)
     extends StateManager[WorkerState](
       Map(
-        UnInitialized -> Set(Ready, Recovering),
-        Ready -> Set(Pausing, Running, Recovering),
-        Running -> Set(Pausing, Completed, Recovering),
-        Pausing -> Set(Paused, Recovering),
+        Uninitialized -> Set(Ready, Recovering),
+        Ready -> Set(Paused, Running, Recovering),
+        Running -> Set(Paused, Completed, Recovering),
         Paused -> Set(Running, Recovering),
         Completed -> Set(Recovering),
-        Recovering -> Set(UnInitialized, Ready, Running, Pausing, Paused, Completed)
+        Recovering -> Set(Uninitialized, Ready, Running, Paused, Completed)
       ),
-      UnInitialized
-    ) {
-
-  private var isStarted = false
-
-}
+      initialState
+    ) {}

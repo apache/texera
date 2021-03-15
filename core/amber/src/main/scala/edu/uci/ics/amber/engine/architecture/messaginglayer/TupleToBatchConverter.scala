@@ -1,11 +1,9 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
-import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.DataTransferPolicy
-import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.UpdateInputLinking
-import edu.uci.ics.amber.engine.common.ambermessage.neo.DataPayload
-import edu.uci.ics.amber.engine.common.ambertag.LinkTag
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.DataSendingPolicy
+import edu.uci.ics.amber.engine.common.ambermessage.DataPayload
 import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 import scala.util.control.Breaks
 
@@ -16,10 +14,9 @@ import scala.util.control.Breaks
   */
 class TupleToBatchConverter(
     selfID: ActorVirtualIdentity,
-    dataOutputPort: DataOutputPort,
-    controlOutputPort: ControlOutputPort
+    dataOutputPort: DataOutputPort
 ) {
-  private var policies = new Array[DataTransferPolicy](0)
+  private var policies = new Array[DataSendingPolicy](0)
 
   /** Add down stream operator and its transfer policy
     * @param policy
@@ -27,18 +24,12 @@ class TupleToBatchConverter(
     * @param receivers
     */
   def addPolicy(
-      policy: DataTransferPolicy,
-      linkTag: LinkTag,
-      receivers: Array[ActorVirtualIdentity]
+      policy: DataSendingPolicy
   ): Unit = {
     var i = 0
-    receivers.foreach { x =>
-      controlOutputPort.sendTo(x, UpdateInputLinking(selfID, linkTag.inputNum))
-    }
-    policy.initialize(linkTag, receivers)
     Breaks.breakable {
       while (i < policies.length) {
-        if (policies(i).tag == policy.tag) {
+        if (policies(i).policyTag == policy.policyTag) {
           policies(i) = policy
           Breaks.break()
         }

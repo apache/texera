@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { UserService } from '../../../../../common/service/user/user.service';
 import { User } from '../../../../../common/type/user';
+import { isDefined } from '../../../../../common/util/predicate';
 
 /**
  * NgbdModalUserLoginComponent is the pop up for user login/registration
@@ -76,13 +77,9 @@ export class NgbdModalUserLoginComponent implements OnInit {
    * this method will handle the pop up when user successfully login
    */
   private detectUserChange(): void {
-    this.userService.userChanged().subscribe(
-      () => {
-        if (this.userService.getUser()) {
-          // TODO temporary solution, need improvement
-          this.activeModal.close();
-        }
-      }
-    );
+    // TODO temporary solution, need improvement
+    this.userService.userChanged().filter(isDefined).subscribe(() => {
+      this.activeModal.close();
+    });
   }
 }

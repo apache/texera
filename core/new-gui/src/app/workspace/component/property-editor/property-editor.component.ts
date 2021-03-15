@@ -1,24 +1,20 @@
-import { OperatorSchema } from './../../types/operator-schema.interface';
-import { OperatorPredicate, Breakpoint } from '../../types/workflow-common.interface';
-import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
-import { DynamicSchemaService } from '../../service/dynamic-schema/dynamic-schema.service';
 import { Component } from '@angular/core';
-
-import { Subject } from 'rxjs/Subject';
-import { Observable } from 'rxjs/Observable';
-import '../../../common/rxjs-operators';
-
-import { cloneDeep, isEqual } from 'lodash';
-
-import { JSONSchema7 } from 'json-schema';
-import * as Ajv from 'ajv';
-
 import { FormGroup } from '@angular/forms';
-import { FormlyFormOptions, FormlyFieldConfig } from '@ngx-formly/core';
+import { FormlyFieldConfig, FormlyFormOptions } from '@ngx-formly/core';
 import { FormlyJsonschema } from '@ngx-formly/core/json-schema';
+import * as Ajv from 'ajv';
+import { cloneDeep, isEqual } from 'lodash';
+import { Observable } from 'rxjs/Observable';
+import { Subject } from 'rxjs/Subject';
+import '../../../common/rxjs-operators';
+import { isDefined } from '../../../common/util/predicate';
+import { DynamicSchemaService } from '../../service/dynamic-schema/dynamic-schema.service';
 import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from '../../service/execute-workflow/execute-workflow.service';
-import { ExecutionState, OperatorState } from '../../types/execute-workflow.interface';
-
+import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
+import { CustomJSONSchema7 } from '../../types/custom-json-schema.interface';
+import { ExecutionState } from '../../types/execute-workflow.interface';
+import { Breakpoint, OperatorPredicate } from '../../types/workflow-common.interface';
+import { SchemaPropagationService } from '../../service/dynamic-schema/schema-propagation/schema-propagation.service';
 
 /**
  * PropertyEditorComponent is the panel that allows user to edit operator properties.
@@ -31,12 +27,12 @@ import { ExecutionState, OperatorState } from '../../types/execute-workflow.inte
  *  }
  * The automatically generated form will show two input boxes, one titled 'attribute' and one titled 'resultAttribute'.
  * More examples of the operator JSON schema can be found in `mock-operator-metadata.data.ts`
- * More about JSON Schema: Understading JSON Schema - https://spacetelescope.github.io/understanding-json-schema/
+ * More about JSON Schema: Understanding JSON Schema - https://spacetelescope.github.io/understanding-json-schema/
  *
  * OperatorMetadataService will fetch metadata about the operators, which includes the JSON Schema, from the backend.
  *
- * We use library `angular2-json-schema-form` to generate form from json schema
- * https://github.com/dschnelldavis/angular2-json-schema-form
+ * We use library `@ngx-formly` to generate form from json schema
+ * https://github.com/ngx-formly/ngx-formly
  *
  * For more details of comparing different libraries, and the problems of the current library,
  *  see `json-schema-library.md`
@@ -46,15 +42,15 @@ import { ExecutionState, OperatorState } from '../../types/execute-workflow.inte
 @Component({
   selector: 'texera-property-editor',
   templateUrl: './property-editor.component.html',
-  styleUrls: ['./property-editor.component.scss'],
+  styleUrls: ['./property-editor.component.scss']
 })
 export class PropertyEditorComponent {
 
-  // debounce time for form input in miliseconds
+  // debounce time for form input in milliseconds
   //  please set this to multiples of 10 to make writing tests easy
   public static formInputDebounceTime: number = FORM_DEBOUNCE_TIME_MS;
 
-  // re-delcare enum for angular template to access it
+  // re-declare enum for angular template to access it
   public readonly ExecutionState = ExecutionState;
 
   // operatorID if the component is displaying operator property editor
@@ -72,7 +68,7 @@ export class PropertyEditorComponent {
   // the source event stream of form change triggered by library at each user input
   public sourceFormChangeEventStream = new Subject<object>();
 
-  // the output form change event stream after debouce time and filtering out values
+  // the output form change event stream after debounce time and filtering out values
   public operatorPropertyChangeStream = this.createOutputFormChangeEventStream(
     this.sourceFormChangeEventStream, data => this.checkOperatorProperty(data));
 
@@ -90,15 +86,14 @@ export class PropertyEditorComponent {
   public showTypeCastingTypeInformation = false;
 
   // used to fill in default values in json schema to initialize new operator
-  private ajv = new Ajv({ useDefaults: true });
-
-
+  private ajv = new Ajv({useDefaults: true});
 
   constructor(
     public formlyJsonschema: FormlyJsonschema,
     public workflowActionService: WorkflowActionService,
     public autocompleteService: DynamicSchemaService,
     public executeWorkflowService: ExecuteWorkflowService,
+    private schemaPropagationService: SchemaPropagationService
   ) {
     // listen to the autocomplete event, remove invalid properties, and update the schema displayed on the form
     this.handleOperatorSchemaChange();
@@ -121,14 +116,14 @@ export class PropertyEditorComponent {
    * Callback function provided to the Angular Json Schema Form library,
    *  whenever the form data is changed, this function is called.
    * It only serves as a bridge from a callback function to RxJS Observable
-   * @param formData
+   * @param event
    */
   public onFormChanges(event: object): void {
     this.sourceFormChangeEventStream.next(event);
   }
 
   public hasBreakpoint(): boolean {
-    if (! this.currentLinkID) {
+    if (!this.currentLinkID) {
       return false;
     }
     return this.workflowActionService.getTexeraGraph().getLinkBreakpoint(this.currentLinkID) !== undefined;
@@ -138,7 +133,7 @@ export class PropertyEditorComponent {
     if (this.currentLinkID && this.workflowActionService.getTexeraGraph().hasLinkWithID(this.currentLinkID)) {
       this.workflowActionService.setLinkBreakpoint(this.currentLinkID, this.formData);
       if (this.executeWorkflowService.getExecutionState().state === ExecutionState.Paused ||
-      this.executeWorkflowService.getExecutionState().state === ExecutionState.BreakpointTriggered) {
+        this.executeWorkflowService.getExecutionState().state === ExecutionState.BreakpointTriggered) {
         this.executeWorkflowService.addBreakpointRuntime(this.currentLinkID, this.formData);
       }
     }
@@ -261,7 +256,7 @@ export class PropertyEditorComponent {
    * Handles the form change event stream observable,
    *  which corresponds to every event the json schema form library emits.
    *
-   * Applies rules that transform the event stream to trigger resonably and less frequently ,
+   * Applies rules that transform the event stream to trigger reasonably and less frequently ,
    *  such as debounce time and distince condition.
    *
    * Then modifies the operator property to use the new form data.
@@ -292,16 +287,13 @@ export class PropertyEditorComponent {
     if (this.currentOperatorID === undefined) {
       return false;
     }
-    // check if the operator still exists, it might be deleted during deboucne time
+    // check if the operator still exists, it might be deleted during debounce time
     const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorID);
     if (!operator) {
       return false;
     }
     // only emit change event if the form data actually changes
-    if (isEqual(formData, operator.operatorProperties)) {
-      return false;
-    }
-    return true;
+    return !isEqual(formData, operator.operatorProperties);
   }
 
   private checkBreakpoint(formData: object): boolean {
@@ -315,10 +307,7 @@ export class PropertyEditorComponent {
       return false;
     }
     // only emit change event if the form data actually changes
-    if (isEqual(formData, this.workflowActionService.getTexeraGraph().getLinkBreakpoint(link.linkID))) {
-      return false;
-    }
-    return true;
+    return !isEqual(formData, this.workflowActionService.getTexeraGraph().getLinkBreakpoint(link.linkID));
   }
 
   private handleDisableEditorInteractivity(): void {
@@ -433,24 +422,11 @@ export class PropertyEditorComponent {
     });
   }
 
-  private setFormlyFormBinding(schema: JSONSchema7) {
+  private setFormlyFormBinding(schema: CustomJSONSchema7) {
     // intercept JsonSchema -> FormlySchema process, adding custom options
-    const jsonSchemaMapIntercept = (mappedField: FormlyFieldConfig, mapSource: JSONSchema7): FormlyFieldConfig => {
-      // if the title contains "password", then make the field type also to be password
-      if (mapSource?.title?.toLowerCase()?.includes('password')) {
-        if (mappedField.templateOptions) {
-          mappedField.templateOptions.type = 'password';
-        }
-      }
-      // if the title is boolean expression (for Mysql source), then make the field to textarea with 5 rows
-      if (mapSource?.title?.toLowerCase() === 'boolean expression') {
-        if (mappedField.type) {
-          mappedField.type = 'textarea';
-        }
-        if (mappedField.templateOptions) {
-          mappedField.templateOptions.rows = 5;
-        }
-      }
+    // this requires a one-to-one mapping.
+    // for relational custom options, have to do it after FormlySchema is generated.
+    const jsonSchemaMapIntercept = (mappedField: FormlyFieldConfig, mapSource: CustomJSONSchema7): FormlyFieldConfig => {
       // if the title is python script (for Python UDF), then make this field a custom template 'codearea'
       if (mapSource?.description?.toLowerCase() === 'input your code here') {
         if (mappedField.type) {
@@ -462,7 +438,8 @@ export class PropertyEditorComponent {
 
     this.formlyFormGroup = new FormGroup({});
     this.formlyOptions = {};
-    const field = this.formlyJsonschema.toFieldConfig(schema, { map: jsonSchemaMapIntercept });
+    // convert the json schema to formly config, pass a copy because formly mutates the schema object
+    const field = this.formlyJsonschema.toFieldConfig(cloneDeep(schema), {map: jsonSchemaMapIntercept});
     field.hooks = {
       onInit: (fieldConfig) => {
         if (!this.interactive) {
@@ -471,8 +448,67 @@ export class PropertyEditorComponent {
       }
     };
 
-    this.formlyFields = [field];
+    const schemaProperties = schema.properties;
+    const fields = field.fieldGroup;
+
+    // adding custom options, relational N-to-M mapping.
+    if (schemaProperties && fields) {
+      Object.entries(schemaProperties).forEach(([propertyName, propertyValue]) => {
+        if (typeof propertyValue === 'boolean') {
+          return;
+        }
+        if (propertyValue.toggleHidden) {
+          this.setHideExpression(propertyValue.toggleHidden, fields, propertyName);
+        }
+
+        if (propertyValue.dependOn) {
+          this.setChildTypeDependency(propertyValue.dependOn, fields, propertyName);
+        }
+      });
+    }
+
+    this.formlyFields = fields;
+
   }
 
+  private setChildTypeDependency(parentName: string, fields: FormlyFieldConfig[], childName: string): void {
+    let attributes;
+    if (isDefined(this.currentOperatorID)) {
+      attributes = this.schemaPropagationService.getOperatorInputSchema(this.currentOperatorID);
+    }
+    const timestampFieldNames = attributes?.flat().filter((attribute) => {
+      return attribute.attributeType === 'timestamp';
+    }).map(attribute => attribute.attributeName);
+
+    if (timestampFieldNames) {
+      const childField = this.getFieldByName(childName, fields);
+      if (isDefined(childField)) {
+        childField.expressionProperties = {
+          // 'type': 'string',
+          // 'templateOptions.type': JSON.stringify(timestampFieldNames) + '.includes(model.' + parentName + ')? \'string\' : \'number\'',
+
+          'templateOptions.description': JSON.stringify(timestampFieldNames) + '.includes(model.' + parentName
+            + ')? \'Input a datetime string\' : \'Input a positive number\''
+        };
+      }
+    }
+
+  }
+
+  private setHideExpression(toggleHidden: string[], fields: FormlyFieldConfig[], hiddenBy: string): void {
+
+    toggleHidden.forEach((hiddenFieldName) => {
+      const fieldToBeHidden = this.getFieldByName(hiddenFieldName, fields);
+      if (isDefined(fieldToBeHidden)) {
+        fieldToBeHidden.hideExpression = '!model.' + hiddenBy;
+      }
+    });
+
+  }
+
+  private getFieldByName(fieldName: string, fields: FormlyFieldConfig[])
+    : FormlyFieldConfig | undefined {
+    return fields.filter((field, _, __) => field.key === fieldName)[0];
+  }
 
 }

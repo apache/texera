@@ -1,50 +1,41 @@
 package edu.uci.ics.texera.workflow.common.operators
 
-import akka.actor.ActorRef
-import akka.event.LoggingAdapter
-import akka.util.Timeout
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.FollowPrevious
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.RoundRobinDeployment
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
-import edu.uci.ics.amber.engine.architecture.worker.WorkerState
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, OperatorIdentifier}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  LayerIdentity,
+  OperatorIdentity
+}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 
-import scala.collection.mutable
-import scala.concurrent.ExecutionContext
-
 class OneToOneOpExecConfig(
-    override val tag: OperatorIdentifier,
+    override val id: OperatorIdentity,
     val opExec: Int => OperatorExecutor
-) extends OpExecConfig(tag) {
+) extends OpExecConfig(id) {
 
   override lazy val topology: Topology = {
     new Topology(
       Array(
         new WorkerLayer(
-          LayerTag(tag, "main"),
+          LayerIdentity(id, "main"),
           opExec,
           Constants.defaultNumWorkers,
           FollowPrevious(),
           RoundRobinDeployment()
         )
       ),
-      Array(),
-      Map()
+      Array()
     )
   }
 
-  override def getInputNum(from: OperatorIdentifier): Int = 0
-
   override def assignBreakpoint(
-      topology: Array[WorkerLayer],
-      states: mutable.AnyRefMap[ActorRef, WorkerState.Value],
-      breakpoint: GlobalBreakpoint
-  )(implicit timeout: Timeout, ec: ExecutionContext): Unit = {
-    breakpoint.partition(
-      topology(0).layer.filter(states(_) != WorkerState.Completed)
-    )
+      breakpoint: GlobalBreakpoint[_]
+  ): Array[ActorVirtualIdentity] = {
+    // TODO: take worker states into account
+    topology.layers(0).identifiers
   }
 }

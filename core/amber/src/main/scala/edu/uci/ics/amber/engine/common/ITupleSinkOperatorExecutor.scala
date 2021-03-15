@@ -4,6 +4,6 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 
 trait ITupleSinkOperatorExecutor extends IOperatorExecutor {
 
-  def getResultTuples(): Array[ITuple]
+  def getResultTuples(): List[ITuple]
 
 }

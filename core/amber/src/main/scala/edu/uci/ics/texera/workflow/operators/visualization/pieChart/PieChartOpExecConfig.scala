@@ -11,9 +11,12 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.{
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.RoundRobinDeployment
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.linksemantics.HashBasedShuffle
-import edu.uci.ics.amber.engine.architecture.worker.WorkerState
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, OperatorIdentifier}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  LayerIdentity,
+  OperatorIdentity
+}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
@@ -21,7 +24,7 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
 class PieChartOpExecConfig(
-    tag: OperatorIdentifier,
+    tag: OperatorIdentity,
     val numWorkers: Int,
     val nameColumn: String,
     val dataColumn: String,
@@ -30,14 +33,14 @@ class PieChartOpExecConfig(
 
   override lazy val topology: Topology = {
     val partialLayer = new WorkerLayer(
-      LayerTag(tag, "localPieChartProcessor"),
+      LayerIdentity(tag, "localPieChartProcessor"),
       _ => new PieChartOpPartialExec(nameColumn, dataColumn),
       numWorkers,
       UseAll(),
       RoundRobinDeployment()
     )
     val finalLayer = new WorkerLayer(
-      LayerTag(tag, "globalPieChartProcessor"),
+      LayerIdentity(tag, "globalPieChartProcessor"),
       _ => new PieChartOpFinalExec(pruneRatio),
       1,
       FollowPrevious(),
@@ -53,21 +56,16 @@ class PieChartOpExecConfig(
           partialLayer,
           finalLayer,
           Constants.defaultBatchSize,
-          x => x.asInstanceOf[Tuple].hashCode(),
-          0
+          x => x.asInstanceOf[Tuple].hashCode()
         )
-      ),
-      Map()
+      )
     )
   }
 
   override def assignBreakpoint(
-      topology: Array[WorkerLayer],
-      states: mutable.AnyRefMap[ActorRef, WorkerState.Value],
-      breakpoint: GlobalBreakpoint
-  )(implicit timeout: Timeout, ec: ExecutionContext): Unit = {
-    breakpoint.partition(topology(0).layer.filter(states(_) != WorkerState.Completed))
+      breakpoint: GlobalBreakpoint[_]
+  ): Array[ActorVirtualIdentity] = {
+    topology.layers(0).identifiers
   }
 
-  override def getInputNum(from: OperatorIdentifier): Int = 0
 }
