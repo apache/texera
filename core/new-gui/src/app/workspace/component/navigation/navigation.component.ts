@@ -1,3 +1,4 @@
+import { UserIconComponent } from './../../../dashboard/component/top-bar/user-icon/user-icon.component';
 import { DatePipe, Location } from '@angular/common';
 import { Component, ElementRef, Input, OnInit, ViewChild } from '@angular/core';
 import { TourService } from 'ngx-tour-ng-bootstrap';
@@ -13,7 +14,6 @@ import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-grap
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { ExecutionState } from '../../types/execute-workflow.interface';
-
 /**
  * NavigationComponent is the top level navigation bar that shows
  *  the Texera title and workflow execution button

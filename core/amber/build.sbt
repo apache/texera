@@ -12,7 +12,7 @@ scalacOptions ++= Seq("-feature")
 // ensuring no parallel execution of multiple tasks
 concurrentRestrictions in Global += Tags.limit(Tags.Test, 1)
 
-val akkaVersion = "2.5.24"
+val akkaVersion = "2.6.12"
 val hadoopVersion = "3.2.0"
 
 libraryDependencies ++= Seq(
@@ -43,11 +43,11 @@ libraryDependencies ++= Seq(
 
 libraryDependencies += "org.jgrapht" % "jgrapht-core" % "1.4.0"
 
-// dropwizard webframework
+// dropwizard web framework
 val dropwizardVersion = "1.3.23"
 // jersey version should be the same as jersey-server that is contained in dropwizard
 val jerseyMultipartVersion = "2.25.1"
-val jacksonVersion = "2.11.3"
+val jacksonVersion = "2.12.0"
 
 libraryDependencies ++= Seq(
   "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
@@ -90,6 +90,9 @@ libraryDependencies += "org.apache.lucene" % "lucene-memory" % "8.7.0"
 // https://mvnrepository.com/artifact/mysql/mysql-connector-java
 libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.19"
 
+// https://mvnrepository.com/artifact/org.postgresql/postgresql
+libraryDependencies += "org.postgresql" % "postgresql" % "42.2.18"
+
 // https://mvnrepository.com/artifact/org.jooq/jooq
 libraryDependencies += "org.jooq" % "jooq" % "3.14.4"
 
@@ -98,3 +101,15 @@ libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2"
 libraryDependencies += "org.scalamock" %% "scalamock" % "4.4.0" % Test
 libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.2"
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.2" % Test
+
+// https://mvnrepository.com/artifact/com.github.tototoshi/scala-csv
+libraryDependencies += "com.github.tototoshi" %% "scala-csv" % "1.3.6"
+
+// https://mvnrepository.com/artifact/com.konghq/unirest-java
+libraryDependencies += "com.konghq" % "unirest-java" % "3.11.11"
+
+// https://mvnrepository.com/artifact/com.github.marianobarrios/lbmq
+libraryDependencies += "com.github.marianobarrios" % "lbmq" % "0.5.0"
+
+// https://mvnrepository.com/artifact/ch.vorburger.mariaDB4j/mariaDB4j
+libraryDependencies += "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.4.0" % Test

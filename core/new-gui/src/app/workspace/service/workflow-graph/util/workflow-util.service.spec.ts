@@ -33,8 +33,8 @@ describe('WorkflowUtilService', () => {
     expect(operatorPredicate).toBeTruthy();
     expect(operatorPredicate.operatorType).toEqual(operatorSchema.operatorType);
     // assert num of input ports and output ports are correct
-    expect(operatorPredicate.inputPorts.length).toEqual(operatorSchema.additionalMetadata.numInputPorts);
-    expect(operatorPredicate.outputPorts.length).toEqual(operatorSchema.additionalMetadata.numOutputPorts);
+    expect(operatorPredicate.inputPorts.length).toEqual(operatorSchema.additionalMetadata.inputPorts.length);
+    expect(operatorPredicate.outputPorts.length).toEqual(operatorSchema.additionalMetadata.outputPorts.length);
     // asssert that the portID of input and output ports are all distinct
     expect(new Set(operatorPredicate.inputPorts).size).toEqual(operatorPredicate.inputPorts.length);
     expect(new Set(operatorPredicate.outputPorts).size).toEqual(operatorPredicate.outputPorts.length);

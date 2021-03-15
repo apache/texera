@@ -132,7 +132,9 @@ class TexeraCustomGroupElement extends joint.shapes.devs.Model {
  * @author Henry Chen
  * @author Zuozhi Wang
  */
-@Injectable()
+@Injectable({
+  providedIn: 'root'
+})
 export class JointUIService {
 
   public static readonly DEFAULT_OPERATOR_WIDTH = 60;
@@ -204,10 +206,24 @@ export class JointUIService {
 
     // set the input ports and output ports based on operator predicate
     operator.inputPorts.forEach(
-      port => operatorElement.addInPort(port)
+      port => operatorElement.addPort({
+        group: 'in',
+        id: port.portID,
+        attrs: {
+          '.port-label': {
+              text: port.displayName ?? ''
+          }
+      }})
     );
     operator.outputPorts.forEach(
-      port => operatorElement.addOutPort(port)
+      port => operatorElement.addPort({
+        group: 'out',
+        id: port.portID,
+        attrs: {
+          '.port-label': {
+              text: port.displayName ?? ''
+          }
+      }})
     );
 
     return operatorElement;
@@ -470,7 +486,6 @@ export class JointUIService {
         stroke: 'none'
       },
       '.port-label': {
-        display: 'none'
       }
     };
     return portStyleAttrs;

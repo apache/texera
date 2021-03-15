@@ -1,16 +1,14 @@
 import { Injectable } from '@angular/core';
-import { JSONSchema7, JSONSchema7Definition } from 'json-schema';
-
+import { JSONSchema7 } from 'json-schema';
+import { cloneDeep, isEqual } from 'lodash';
 import { Observable } from 'rxjs/Observable';
 import { Subject } from 'rxjs/Subject';
 import '../../../common/rxjs-operators';
-
-import { OperatorPredicate, BreakpointSchema } from '../../types/workflow-common.interface';
+import { CustomJSONSchema7 } from '../../types/custom-json-schema.interface';
 import { OperatorSchema } from '../../types/operator-schema.interface';
-
+import { BreakpointSchema, OperatorPredicate } from '../../types/workflow-common.interface';
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
-import { isEqual, cloneDeep } from 'lodash';
 
 export type SchemaTransformer = (operator: OperatorPredicate, schema: OperatorSchema) => OperatorSchema;
 
@@ -36,7 +34,7 @@ export class DynamicSchemaService {
   // directly calling `set()` is prohibited, it must go through `setDynamicSchema()`
   private dynamicSchemaMap = new Map<string, OperatorSchema>();
 
-  // dynamic shcema of link breakpoints in the current workflow
+  // dynamic schema of link breakpoints in the current workflow
   private dynamicBreakpointSchemaMap = new Map<string, BreakpointSchema>();
 
   private initialSchemaTransformers: SchemaTransformer[] = [];
@@ -141,25 +139,22 @@ export class DynamicSchemaService {
     this.dynamicSchemaMap.set(operatorID, dynamicSchema);
     // only emit event if the old dynamic schema is not present
     if (currentDynamicSchema) {
-      this.operatorDynamicSchemaChangedStream.next({ operatorID });
+      this.operatorDynamicSchemaChangedStream.next({operatorID});
     }
   }
 
   /**
-   * Gets the inital dynamic schema of an operator type, which might be different from its static schema.
+   * Gets the initial dynamic schema of an operator type, which might be different from its static schema.
    * Currently, the only case is to change the source operators to have autocomplete of available tablenames.
    *
-   * @param operatorType
+   * @param operator
    */
   private getInitialDynamicSchema(operator: OperatorPredicate): OperatorSchema {
-    const staticSchema = this.operatorMetadataService.getOperatorSchema(operator.operatorType);
-
-    let initialSchema = staticSchema;
+    let initialSchema = this.operatorMetadataService.getOperatorSchema(operator.operatorType);
     this.initialSchemaTransformers.forEach(transformer => initialSchema = transformer(operator, initialSchema));
 
     return initialSchema;
   }
-
 
   /**
    * Helper function to change a property in a json schema of an operator schema.
@@ -170,26 +165,35 @@ export class DynamicSchemaService {
    * Returns a new object containing the new json schema property.
    */
   public static mutateProperty(
-    jsonSchemaToChange: JSONSchema7, propertyName: string, mutationFunc: (arg: any) => JSONSchema7
-  ): JSONSchema7 {
+    jsonSchemaToChange: CustomJSONSchema7,
+    matchFunc: (propertyName: string, propertyValue: CustomJSONSchema7) => boolean,
+    mutationFunc: (propertyValue: CustomJSONSchema7) => CustomJSONSchema7
+  ): CustomJSONSchema7 {
 
     // recursively walks the JSON schema property tree to find the property name
-    const mutatePropertyRecurse = (jsonSchema: any) => {
+    const mutatePropertyRecurse = (jsonSchema: JSONSchema7) => {
       const schemaProperties = jsonSchema.properties;
       const schemaItems = jsonSchema.items;
       // nested JSON schema property can have 2 types: object or array
       if (schemaProperties) {
-        Object.keys(schemaProperties).forEach(property => {
-          if (property === propertyName) {
-            schemaProperties[propertyName] = mutationFunc(schemaProperties[propertyName]);
+        Object.entries(schemaProperties).forEach(([propertyName, propertyValue]) => {
+          if (typeof propertyValue === 'boolean') {
+            return;
+          }
+          if (matchFunc(propertyName, propertyValue as CustomJSONSchema7)) {
+            schemaProperties[propertyName] = mutationFunc(propertyValue as CustomJSONSchema7);
           } else {
-            mutatePropertyRecurse(schemaProperties[property]);
+            mutatePropertyRecurse(propertyValue);
           }
         });
       }
-      if (schemaItems) {
+      if (schemaItems && typeof schemaItems !== 'boolean') {
         if (Array.isArray(schemaItems)) {
-          schemaItems.forEach(item => mutatePropertyRecurse(item));
+          schemaItems.forEach(item => {
+            if (typeof item !== 'boolean') {
+              mutatePropertyRecurse(item);
+            }
+          });
         } else {
           mutatePropertyRecurse(schemaItems);
         }

@@ -51,7 +51,9 @@ import 'jquery-ui-dist/jquery-ui';
  * @author Zuozhi Wang
  *
  */
-@Injectable()
+@Injectable({
+  providedIn: 'root'
+})
 export class DragDropService {
   // distance threshold for suggesting operators before user dropped an operator
   public static readonly SUGGESTION_DISTANCE_THRESHOLD = 300;
@@ -454,12 +456,12 @@ export class DragDropService {
       .filter(link => link.target.operatorID === targetOperator.operatorID)
       .map(link => link.target.portID);
 
-    const validSourcePortsID = sourceOperator.outputPorts.filter(portID => !allPortsFromSource.includes(portID));
-    const validTargetPortsID = targetOperator.inputPorts.filter(portID => !allPortsFromTarget.includes(portID));
+    const validSourcePortsID = sourceOperator.outputPorts.filter(port => !allPortsFromSource.includes(port.portID));
+    const validTargetPortsID = targetOperator.inputPorts.filter(port => !allPortsFromTarget.includes(port.portID));
 
     const linkID = this.workflowUtilService.getLinkRandomUUID();
-    const source = { operatorID: sourceOperator.operatorID, portID: validSourcePortsID[0] };
-    const target = { operatorID: targetOperator.operatorID, portID: validTargetPortsID[0] };
+    const source = { operatorID: sourceOperator.operatorID, portID: validSourcePortsID[0].portID };
+    const target = { operatorID: targetOperator.operatorID, portID: validTargetPortsID[0].portID };
     return { linkID, source, target };
   }
 

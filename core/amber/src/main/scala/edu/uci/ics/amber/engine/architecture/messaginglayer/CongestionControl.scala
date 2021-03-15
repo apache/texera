@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.NetworkMessage
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkMessage
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -51,8 +51,12 @@ class CongestionControl {
       }
     } else {
       ssThreshold /= 2
+      if (ssThreshold < 1) {
+        ssThreshold = 1
+      }
       windowSize = ssThreshold
     }
+    sentTime.remove(id)
   }
 
   def getBufferedMessagesToSend: Array[NetworkMessage] = {

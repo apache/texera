@@ -85,11 +85,11 @@ export function multipleOfValidationMessage(err: any, field: FormlyFieldConfig) 
 }
 
 export function exclusiveMinimumValidationMessage(err: any, field: FormlyFieldConfig) {
-  return `should be > ${field.templateOptions?.step}`;
+  return `should be > ${field.templateOptions?.exclusiveMinimum}`;
 }
 
 export function exclusiveMaximumValidationMessage(err: any, field: FormlyFieldConfig) {
-  return `should be < ${field.templateOptions?.step}`;
+  return `should be < ${field.templateOptions?.exclusiveMaximum}`;
 }
 
 export function constValidationMessage(err: any, field: FormlyFieldConfig) {

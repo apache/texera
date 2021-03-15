@@ -1,60 +1,44 @@
 package edu.uci.ics.amber.engine.e2e
 
-import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{
-  ConditionalGlobalBreakpoint,
-  CountGlobalBreakpoint
-}
-import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage.{
-  Ack,
-  ModifyLogic,
-  Pause,
-  Resume,
-  Start
-}
-import edu.uci.ics.amber.engine.common.ambermessage.ControllerMessage.{
-  AckedControllerInitialization,
-  PassBreakpointTo,
-  ReportState
-}
-import edu.uci.ics.amber.engine.common.ambertag.{OperatorIdentifier, WorkflowTag}
-import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.Constants
 import akka.actor.{ActorSystem, PoisonPill, Props}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import akka.util.Timeout
+import ch.vorburger.mariadb4j.DB
+import edu.uci.ics.amber.clustering.SingleNodeListener
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.{
   Controller,
   ControllerEventListener,
-  ControllerState
+  ControllerState,
+  Workflow
 }
-import edu.uci.ics.texera.web.model.request.{ExecuteWorkflowRequest, TexeraWebSocketRequest}
-import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource
-import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
+import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
+import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
-import edu.uci.ics.texera.workflow.common.workflow.{
-  BreakpointInfo,
-  OperatorLink,
-  WorkflowCompiler,
-  WorkflowInfo
-}
+import edu.uci.ics.texera.workflow.common.workflow._
 import edu.uci.ics.texera.workflow.operators.aggregate.AggregationFunction
-import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
+import java.sql.PreparedStatement
 import scala.collection.mutable
-import scala.concurrent.{Await, ExecutionContextExecutor}
+import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
-import scala.util.Random
 
 class DataProcessingSpec
     extends TestKit(ActorSystem("DataProcessingSpec"))
     with ImplicitSender
     with AnyFlatSpecLike
-    with BeforeAndAfterAll {
+    with BeforeAndAfterAll
+    with BeforeAndAfterEach {
 
   implicit val timeout: Timeout = Timeout(5.seconds)
   implicit val executionContext: ExecutionContextExecutor = system.dispatcher
+
+  var inMemoryMySQLInstance: Option[DB] = None
 
   override def beforeAll: Unit = {
     system.actorOf(Props[SingleNodeListener], "cluster-info")
@@ -63,117 +47,252 @@ class DataProcessingSpec
     TestKit.shutdownActorSystem(system)
   }
 
-  def expectCompletedAfterExecution(
+  def buildWorkflow(
       operators: mutable.MutableList[OperatorDescriptor],
       links: mutable.MutableList[OperatorLink]
-  ): Unit = {
-    val parent = TestProbe()
+  ): (WorkflowIdentity, Workflow) = {
     val context = new WorkflowContext
-    context.workflowID = "workflow-test"
+    context.jobID = "workflow-test"
 
     val texeraWorkflowCompiler = new WorkflowCompiler(
       WorkflowInfo(operators, links, mutable.MutableList[BreakpointInfo]()),
       context
     )
-    texeraWorkflowCompiler.init()
     val workflow = texeraWorkflowCompiler.amberWorkflow
-    val workflowTag = WorkflowTag.apply("workflow-test")
+    val workflowTag = WorkflowIdentity("workflow-test")
+    (workflowTag, workflow)
+  }
 
+  def executeWorkflow(id: WorkflowIdentity, workflow: Workflow): Map[String, List[ITuple]] = {
+    val parent = TestProbe()
+    var results: Map[String, List[ITuple]] = null
+    val eventListener = ControllerEventListener()
+    eventListener.workflowCompletedListener = evt => results = evt.result
     val controller = parent.childActorOf(
-      Controller.props(workflowTag, workflow, false, ControllerEventListener(), 100)
+      Controller.props(id, workflow, ControllerEventListener(), 100)
     )
-    controller ! AckedControllerInitialization
-    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
-    controller ! Start
-    parent.expectMsg(ReportState(ControllerState.Running))
-    parent.expectMsg(1.minute, ReportState(ControllerState.Completed))
+    parent.expectMsg(ControllerState.Ready)
+    controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, StartWorkflow())
+    parent.expectMsg(ControllerState.Running)
+    parent.expectMsg(1.minute, ControllerState.Completed)
     parent.ref ! PoisonPill
+    results
+  }
+
+  def initializeInMemoryMySQLInstance(): (String, String, String, String, String, String) = {
+    import ch.vorburger.mariadb4j.{DB, DBConfigurationBuilder}
+
+    import java.sql.DriverManager
+
+    val database: String = "new"
+    val table: String = "test"
+    val username: String = "root"
+    val password: String = ""
+
+    val config = DBConfigurationBuilder.newBuilder
+      .setPort(0) // 0 => automatically detect free port
+      .build()
+
+    inMemoryMySQLInstance = Option(DB.newEmbeddedDB(config))
+    inMemoryMySQLInstance.get.start()
+    inMemoryMySQLInstance.get.createDB(database)
+
+    // insert test data
+    val conn = DriverManager.getConnection(config.getURL(database), username, password)
+    var statement: PreparedStatement = conn.prepareStatement(
+      s"create table $table (id int primary key auto_increment, text VARCHAR(512), " +
+        s"point FLOAT, created_at DATE default NOW() not null)"
+    )
+    statement.execute()
+    statement = conn.prepareStatement(s"insert into $table (text) values ('hello world')")
+    statement.execute()
+    statement.close()
+    conn.close()
+    ("localhost", config.getPort.toString, database, table, username, password)
   }
 
   "Engine" should "execute headerlessCsv->sink workflow normally" in {
     val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
     val sink = TestOperators.sinkOpDesc()
-
-    expectCompletedAfterExecution(
+    val (id, workflow) = buildWorkflow(
       mutable.MutableList[OperatorDescriptor](headerlessCsvOpDesc, sink),
       mutable.MutableList[OperatorLink](
-        OperatorLink(headerlessCsvOpDesc.operatorID, sink.operatorID)
+        OperatorLink(
+          OperatorPort(headerlessCsvOpDesc.operatorID, 0),
+          OperatorPort(sink.operatorID, 0)
+        )
       )
     )
+    executeWorkflow(id, workflow)
   }
 
   "Engine" should "execute headerlessCsv->keyword->sink workflow normally" in {
     val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
-    val keywordOpDesc = TestOperators.keywordSearchOpDesc("column0", "Asia")
+    val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
     val sink = TestOperators.sinkOpDesc()
-    expectCompletedAfterExecution(
+    val (id, workflow) = buildWorkflow(
       mutable.MutableList[OperatorDescriptor](headerlessCsvOpDesc, keywordOpDesc, sink),
       mutable.MutableList[OperatorLink](
-        OperatorLink(headerlessCsvOpDesc.operatorID, keywordOpDesc.operatorID),
-        OperatorLink(keywordOpDesc.operatorID, sink.operatorID)
+        OperatorLink(
+          OperatorPort(headerlessCsvOpDesc.operatorID, 0),
+          OperatorPort(keywordOpDesc.operatorID, 0)
+        ),
+        OperatorLink(OperatorPort(keywordOpDesc.operatorID, 0), OperatorPort(sink.operatorID, 0))
       )
     )
+    executeWorkflow(id, workflow)
   }
 
   "Engine" should "execute csv->sink workflow normally" in {
     val csvOpDesc = TestOperators.smallCsvScanOpDesc()
     val sink = TestOperators.sinkOpDesc()
-    expectCompletedAfterExecution(
+    val (id, workflow) = buildWorkflow(
       mutable.MutableList[OperatorDescriptor](csvOpDesc, sink),
       mutable.MutableList[OperatorLink](
-        OperatorLink(csvOpDesc.operatorID, sink.operatorID)
+        OperatorLink(OperatorPort(csvOpDesc.operatorID, 0), OperatorPort(sink.operatorID, 0))
       )
     )
+    executeWorkflow(id, workflow)
   }
 
   "Engine" should "execute csv->keyword->sink workflow normally" in {
     val csvOpDesc = TestOperators.smallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
     val sink = TestOperators.sinkOpDesc()
-    expectCompletedAfterExecution(
+    val (id, workflow) = buildWorkflow(
       mutable.MutableList[OperatorDescriptor](csvOpDesc, keywordOpDesc, sink),
       mutable.MutableList[OperatorLink](
-        OperatorLink(csvOpDesc.operatorID, keywordOpDesc.operatorID),
-        OperatorLink(keywordOpDesc.operatorID, sink.operatorID)
+        OperatorLink(
+          OperatorPort(csvOpDesc.operatorID, 0),
+          OperatorPort(keywordOpDesc.operatorID, 0)
+        ),
+        OperatorLink(OperatorPort(keywordOpDesc.operatorID, 0), OperatorPort(sink.operatorID, 0))
       )
     )
+    executeWorkflow(id, workflow)
   }
 
   "Engine" should "execute csv->keyword->count->sink workflow normally" in {
     val csvOpDesc = TestOperators.smallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
     val countOpDesc =
-      TestOperators.aggregateAndGroupbyDesc("Region", AggregationFunction.COUNT, List[String]())
+      TestOperators.aggregateAndGroupByDesc("Region", AggregationFunction.COUNT, List[String]())
     val sink = TestOperators.sinkOpDesc()
-    expectCompletedAfterExecution(
+    val (id, workflow) = buildWorkflow(
       mutable.MutableList[OperatorDescriptor](csvOpDesc, keywordOpDesc, countOpDesc, sink),
       mutable.MutableList[OperatorLink](
-        OperatorLink(csvOpDesc.operatorID, keywordOpDesc.operatorID),
-        OperatorLink(keywordOpDesc.operatorID, countOpDesc.operatorID),
-        OperatorLink(countOpDesc.operatorID, sink.operatorID)
+        OperatorLink(
+          OperatorPort(csvOpDesc.operatorID, 0),
+          OperatorPort(keywordOpDesc.operatorID, 0)
+        ),
+        OperatorLink(
+          OperatorPort(keywordOpDesc.operatorID, 0),
+          OperatorPort(countOpDesc.operatorID, 0)
+        ),
+        OperatorLink(OperatorPort(countOpDesc.operatorID, 0), OperatorPort(sink.operatorID, 0))
       )
     )
+    executeWorkflow(id, workflow)
   }
 
-  "Engine" should "execute csv->keyword->averageAndGroupby->sink workflow normally" in {
+  "Engine" should "execute csv->keyword->averageAndGroupBy->sink workflow normally" in {
     val csvOpDesc = TestOperators.smallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
-    val averageAndGroupbyOpDesc =
-      TestOperators.aggregateAndGroupbyDesc(
+    val averageAndGroupByOpDesc =
+      TestOperators.aggregateAndGroupByDesc(
         "Units Sold",
         AggregationFunction.AVERAGE,
         List[String]("Country")
       )
     val sink = TestOperators.sinkOpDesc()
-    expectCompletedAfterExecution(
+    val (id, workflow) = buildWorkflow(
       mutable
-        .MutableList[OperatorDescriptor](csvOpDesc, keywordOpDesc, averageAndGroupbyOpDesc, sink),
+        .MutableList[OperatorDescriptor](csvOpDesc, keywordOpDesc, averageAndGroupByOpDesc, sink),
       mutable.MutableList[OperatorLink](
-        OperatorLink(csvOpDesc.operatorID, keywordOpDesc.operatorID),
-        OperatorLink(keywordOpDesc.operatorID, averageAndGroupbyOpDesc.operatorID),
-        OperatorLink(averageAndGroupbyOpDesc.operatorID, sink.operatorID)
+        OperatorLink(
+          OperatorPort(csvOpDesc.operatorID, 0),
+          OperatorPort(keywordOpDesc.operatorID, 0)
+        ),
+        OperatorLink(
+          OperatorPort(keywordOpDesc.operatorID, 0),
+          OperatorPort(averageAndGroupByOpDesc.operatorID, 0)
+        ),
+        OperatorLink(
+          OperatorPort(averageAndGroupByOpDesc.operatorID, 0),
+          OperatorPort(sink.operatorID, 0)
+        )
       )
     )
+    executeWorkflow(id, workflow)
+  }
+
+  "Engine" should "execute csv->(csv->)->join->sink workflow normally" in {
+    val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
+    val headerlessCsvOpDesc2 = TestOperators.headerlessSmallCsvScanOpDesc()
+    val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
+    val sink = TestOperators.sinkOpDesc()
+    val (id, workflow) = buildWorkflow(
+      mutable.MutableList[OperatorDescriptor](
+        headerlessCsvOpDesc1,
+        headerlessCsvOpDesc2,
+        joinOpDesc,
+        sink
+      ),
+      mutable.MutableList[OperatorLink](
+        OperatorLink(
+          OperatorPort(headerlessCsvOpDesc1.operatorID, 0),
+          OperatorPort(joinOpDesc.operatorID, 0)
+        ),
+        OperatorLink(
+          OperatorPort(headerlessCsvOpDesc2.operatorID, 0),
+          OperatorPort(joinOpDesc.operatorID, 1)
+        ),
+        OperatorLink(
+          OperatorPort(joinOpDesc.operatorID, 0),
+          OperatorPort(sink.operatorID, 0)
+        )
+      )
+    )
+    executeWorkflow(id, workflow)
+  }
+
+  "Engine" should "execute asterixdb->sink workflow normally" in {
+
+    val asterixDBOp = TestOperators.asterixDBSourceOpDesc()
+    val sink = TestOperators.sinkOpDesc()
+    val (id, workflow) = buildWorkflow(
+      mutable.MutableList[OperatorDescriptor](asterixDBOp, sink),
+      mutable.MutableList[OperatorLink](
+        OperatorLink(OperatorPort(asterixDBOp.operatorID, 0), OperatorPort(sink.operatorID, 0))
+      )
+    )
+    executeWorkflow(id, workflow)
+  }
+
+  "Engine" should "execute mysql->sink workflow normally" in {
+    val (host, port, database, table, username, password) = initializeInMemoryMySQLInstance()
+    val inMemoryMsSQLSourceOpDesc = TestOperators.inMemoryMySQLSourceOpDesc(
+      host,
+      port,
+      database,
+      table,
+      username,
+      password
+    )
+
+    val sink = TestOperators.sinkOpDesc()
+    val (id, workflow) = buildWorkflow(
+      mutable.MutableList[OperatorDescriptor](inMemoryMsSQLSourceOpDesc, sink),
+      mutable.MutableList[OperatorLink](
+        OperatorLink(
+          OperatorPort(inMemoryMsSQLSourceOpDesc.operatorID, 0),
+          OperatorPort(sink.operatorID, 0)
+        )
+      )
+    )
+    executeWorkflow(id, workflow)
+
+    inMemoryMySQLInstance.get.stop()
   }
 
 }

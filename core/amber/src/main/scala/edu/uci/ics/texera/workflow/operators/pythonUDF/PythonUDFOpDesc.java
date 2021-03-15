@@ -4,14 +4,19 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import edu.uci.ics.amber.engine.common.Constants;
 import edu.uci.ics.amber.engine.operators.OpExecConfig;
+import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
+import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import scala.collection.JavaConverters;
 
 import java.util.List;
+
+import static java.util.Collections.singletonList;
+import static scala.collection.JavaConverters.asScalaBuffer;
 
 
 public class PythonUDFOpDesc extends OperatorDescriptor {
@@ -57,7 +62,8 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
                 "Python UDF",
                 "User-defined function operator in Python script",
                 OperatorGroupConstants.UDF_GROUP(),
-                1, 1, false);
+                asScalaBuffer(singletonList(new InputPort("", false))).toList(),
+                asScalaBuffer(singletonList(new OutputPort(""))).toList());
     }
 
     @Override

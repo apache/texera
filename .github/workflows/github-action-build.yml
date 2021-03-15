@@ -11,6 +11,8 @@ on:
       - '**.md'
       - '**.csv'
       - '**.txt'
+  workflow_dispatch:
+  
 jobs:
   gui:
     runs-on: ubuntu-latest

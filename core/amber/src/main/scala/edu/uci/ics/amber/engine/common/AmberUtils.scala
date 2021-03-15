@@ -30,11 +30,9 @@ object AmberUtils {
 
     val config = ConfigFactory
       .parseString(s"""
-        akka.remote.netty.tcp.hostname = $localIpAddress
-        akka.remote.netty.tcp.port = 2552
         akka.remote.artery.canonical.port = 2552
         akka.remote.artery.canonical.hostname = $localIpAddress
-        akka.cluster.seed-nodes = [ "akka.tcp://Amber@$localIpAddress:2552" ]
+        akka.cluster.seed-nodes = [ "akka://Amber@$localIpAddress:2552" ]
         akka.actor.serialization-bindings."java.lang.Throwable" = akka-misc
         """)
       .withFallback(ConfigFactory.load("clustered"))
@@ -53,9 +51,9 @@ object AmberUtils {
     val localIpAddress = "localhost"
     val config = ConfigFactory
       .parseString(s"""
-        akka.remote.netty.tcp.hostname = $localIpAddress
         akka.remote.artery.canonical.hostname = $localIpAddress
-        akka.cluster.seed-nodes = [ "akka.tcp://Amber@$addr:2552" ]
+        akka.remote.artery.canonical.port = 0
+        akka.cluster.seed-nodes = [ "akka://Amber@$addr:2552" ]
         akka.actor.serialization-bindings."java.lang.Throwable" = akka-misc
         """)
       .withFallback(ConfigFactory.load("clustered"))

@@ -404,12 +404,12 @@ export class WorkflowGraph {
     }
 
     if (sourceOperator.outputPorts.find(
-      (port) => port === link.source.portID) === undefined) {
+      (port) => port.portID === link.source.portID) === undefined) {
       throw new Error(`link's source port ${link.source.portID} doesn't exist
           on output ports of the source operator ${link.source.operatorID}`);
     }
     if (targetOperator.inputPorts.find(
-      (port) => port === link.target.portID) === undefined) {
+      (port) => port.portID === link.target.portID) === undefined) {
       throw new Error(`link's target port ${link.target.portID} doesn't exist
           on input ports of the target operator ${link.target.operatorID}`);
     }

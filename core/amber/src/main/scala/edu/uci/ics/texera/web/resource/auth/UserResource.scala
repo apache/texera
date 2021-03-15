@@ -6,21 +6,22 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.request.auth.{UserLoginRequest, UserRegistrationRequest}
 import edu.uci.ics.texera.web.resource.auth.UserResource.{getUser, setUserSession, validateUsername}
 import io.dropwizard.jersey.sessions.Session
+import org.apache.commons.lang3.tuple.Pair
+import org.jooq.exception.DataAccessException
+
 import javax.servlet.http.HttpSession
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
-import org.apache.commons.lang3.tuple.Pair
-import org.jooq.exception.DataAccessException
 
 object UserResource {
 
   private val SESSION_USER = "texera-user"
   // TODO: rewrite this
-  def getUser(session: HttpSession): User =
-    session.getAttribute(SESSION_USER).asInstanceOf[User]
+  def getUser(session: HttpSession): Option[User] =
+    Option.apply(session.getAttribute(SESSION_USER)).map(u => u.asInstanceOf[User])
 
   // TODO: rewrite this
-  private def validateUsername(userName: String) =
+  private def validateUsername(userName: String): Pair[Boolean, String] =
     if (userName == null) Pair.of(false, "username cannot be null")
     else if (userName.trim.isEmpty) Pair.of(false, "username cannot be empty")
     else Pair.of(true, "username validation success")
@@ -40,9 +41,8 @@ class UserResource {
 
   @GET
   @Path("/auth/status")
-  def authStatus(@Session session: HttpSession): User = {
+  def authStatus(@Session session: HttpSession): Option[User] = {
     getUser(session)
-
   }
 
   @POST

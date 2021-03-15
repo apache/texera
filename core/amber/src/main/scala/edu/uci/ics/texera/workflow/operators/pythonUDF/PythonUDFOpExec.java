@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.operators.pythonUDF;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.uci.ics.amber.engine.common.InputExhausted;
+import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity;
 import edu.uci.ics.texera.workflow.common.Utils;
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
@@ -15,8 +16,8 @@ import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import scala.collection.Iterator;
-import scala.util.Either;
 import scala.collection.JavaConverters;
+import scala.util.Either;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -158,7 +159,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
     }
 
     @Override
-    public Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, int input) {
+    public Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, LinkIdentity input) {
         if (tuple.isLeft()) {
             Tuple inputTuple = tuple.left().get();
             if (inputTupleBuffer == null) {
@@ -481,7 +482,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
             client.doAction(new Action("shutdown")).next();
             globalRootAllocator.close();
             client.close();
-        } catch (Exception e) {
+        } catch (InterruptedException e) {
             e.printStackTrace();
         }
     }
