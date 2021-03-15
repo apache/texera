@@ -25,6 +25,8 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 
 public class PythonUDFOpExec implements OperatorExecutor {
@@ -32,7 +34,9 @@ public class PythonUDFOpExec implements OperatorExecutor {
     private final String pythonScriptText;
     private final ArrayList<String> inputColumns;
     private final ArrayList<Attribute> outputColumns;
-    private static final String PYTHON = "python3";
+    private String PYTHON;
+
+
     private final ArrayList<String> arguments;
     private final ArrayList<String> outerFilePaths;
     private final int batchSize;
@@ -62,6 +66,15 @@ public class PythonUDFOpExec implements OperatorExecutor {
         for (String s : outerFiles) outerFilePaths.add(getPythonResourcePath(s));
         this.batchSize = batchSize;
         isDynamic = pythonScriptFile == null || pythonScriptFile.isEmpty();
+        try {
+            PYTHON = Files.walk(Utils.amberHomePath().resolve("../"), 5)
+                    .filter((path) -> path.getFileName().toString().equals("python3")).map(Path::toString)
+                    .findFirst().orElse("python3");
+            System.out.println(PYTHON);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
     /**
@@ -258,6 +271,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
 
             int portNumber = getFreeLocalPort();
             Location location = new Location(URI.create("grpc+tcp://localhost:" + portNumber));
+            System.out.println(PYTHON);
             List<String> args = new ArrayList<>(
                     Arrays.asList(PYTHON, DAEMON_SCRIPT_PATH, Integer.toString(portNumber), pythonScriptPath)
             );
