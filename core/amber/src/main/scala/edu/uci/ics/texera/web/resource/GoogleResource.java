@@ -15,6 +15,7 @@ import com.google.api.services.drive.DriveScopes;
 import com.google.api.services.sheets.v4.Sheets;
 import com.google.api.services.sheets.v4.SheetsScopes;
 import edu.uci.ics.texera.web.WebUtils;
+import edu.uci.ics.texera.workflow.common.Utils;
 
 import java.io.*;
 import java.security.GeneralSecurityException;
@@ -23,14 +24,16 @@ import java.util.List;
 
 public class GoogleResource {
     private static final String APPLICATION_NAME = "Texera";
-    private static final String TOKENS_DIRECTORY_PATH = WebUtils.googleTokenPath();
+    private static final String TOKENS_DIRECTORY_PATH = Utils.amberHomePath()
+            .resolve("../conf").resolve(WebUtils.config().getString("google.tokenPath")).toString();
     private static final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
 
     /**
      * Global instance of the scopes required by this quickstart.
      * If modifying these scopes, delete your previously saved tokens/ folder.
      */
-    private static final String CREDENTIALS_FILE_PATH = WebUtils.googleCredentialPath();
+    private static final String CREDENTIALS_FILE_PATH = Utils.amberHomePath()
+            .resolve("../conf").resolve(WebUtils.config().getString("google.credentialPath")).toString();
     private static final List<String> SCOPES = Arrays.asList(SheetsScopes.SPREADSHEETS, DriveScopes.DRIVE);
 
     // singleton service
@@ -43,9 +46,9 @@ public class GoogleResource {
      * create a google sheet service to the service account
      */
     public static Sheets getSheetService() throws IOException, GeneralSecurityException {
-        if (sheetService == null){
-            synchronized (GoogleResource.class){
-                if (sheetService == null){
+        if (sheetService == null) {
+            synchronized (GoogleResource.class) {
+                if (sheetService == null) {
                     sheetService = new Sheets.Builder(getHttpTransport(), JSON_FACTORY, getCredentials())
                             .setApplicationName(APPLICATION_NAME)
                             .build();
@@ -59,9 +62,9 @@ public class GoogleResource {
      * create a google drive service to the service account
      */
     public static Drive getDriveService() throws IOException, GeneralSecurityException {
-        if (driveService == null){
-            synchronized (GoogleResource.class){
-                if (driveService == null){
+        if (driveService == null) {
+            synchronized (GoogleResource.class) {
+                if (driveService == null) {
                     driveService = new Drive.Builder(getHttpTransport(), JSON_FACTORY, getCredentials())
                             .setApplicationName(APPLICATION_NAME)
                             .build();
@@ -76,9 +79,9 @@ public class GoogleResource {
      * rewrite this part when migrate to user account
      */
     private static Credential getCredentials() throws IOException, GeneralSecurityException {
-        if (serviceAccountCredential == null){
-            synchronized (GoogleResource.class){
-                if (serviceAccountCredential == null){
+        if (serviceAccountCredential == null) {
+            synchronized (GoogleResource.class) {
+                if (serviceAccountCredential == null) {
                     serviceAccountCredential = createCredential();
                 }
             }
@@ -87,9 +90,9 @@ public class GoogleResource {
     }
 
     private static NetHttpTransport getHttpTransport() throws GeneralSecurityException, IOException {
-        if (httpTransport == null){
-            synchronized (GoogleResource.class){
-                if (httpTransport == null){
+        if (httpTransport == null) {
+            synchronized (GoogleResource.class) {
+                if (httpTransport == null) {
                     httpTransport = GoogleNetHttpTransport.newTrustedTransport();
                 }
             }

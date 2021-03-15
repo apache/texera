@@ -1,26 +1,16 @@
 package edu.uci.ics.texera.web
 
-import java.io.{BufferedReader, InputStreamReader}
-import java.net.URL
-
 import akka.actor.{ActorSystem, Props}
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import edu.uci.ics.amber.clustering.ClusterListener
 import edu.uci.ics.texera.workflow.common.Utils
 
+import java.io.{BufferedReader, InputStreamReader}
+import java.net.URL
+
 object WebUtils {
-
-  var googleTokenPath: String = "";
-
-  var googleCredentialPath: String = "";
-
-  {
-    val configPath = Utils.amberHomePath.resolve("../conf").resolve("web.conf")
-    val configuration = ConfigFactory.parseFile(configPath.toFile)
-    // set configuration for google service
-    WebUtils.googleTokenPath = configuration.getString("google.tokenPath");
-    WebUtils.googleCredentialPath = configuration.getString("google.credentialPath");
-  }
+  val config: Config =
+    ConfigFactory.parseFile(Utils.amberHomePath.resolve("../conf").resolve("web.conf").toFile)
 
   def startActorMaster(localhost: Boolean): ActorSystem = {
     var localIpAddress = "localhost"
