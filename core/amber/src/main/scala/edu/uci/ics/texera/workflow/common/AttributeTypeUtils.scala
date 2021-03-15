@@ -34,10 +34,10 @@ object AttributeTypeUtils extends Serializable {
     for (i <- attributes.indices) {
       if (attributes.apply(i).getName.equals(attribute)) {
         resultType match {
-          case STRING | INTEGER | DOUBLE | LONG | BOOLEAN =>
+          case STRING | INTEGER | DOUBLE | LONG | BOOLEAN | TIMESTAMP  =>
             builder.add(attribute, resultType)
-          case TIMESTAMP | ANY | _ =>
-            builder.add(attribute, STRING)
+          case  ANY | _ =>
+            builder.add(attribute, attributes.apply(i).getType)
         }
       } else {
         builder.add(attributes.apply(i).getName, attributes.apply(i).getType)
@@ -64,16 +64,11 @@ object AttributeTypeUtils extends Serializable {
     // change the tuple when meet selected attribute else remain the same
     for (i <- attributes.indices) {
       if (attributes.apply(i).getName.equals(attribute)) {
-        val field: String = tuple.get(i).toString
+        val field: Object = tuple.get(i)
         resultType match {
-          case STRING    => builder.add(attribute, resultType, field)
-          case INTEGER   => builder.add(attribute, resultType, field.toInt)
-          case DOUBLE    => builder.add(attribute, resultType, field.toDouble)
-          case LONG      => builder.add(attribute, resultType, field.toLong)
-          case BOOLEAN   => builder.add(attribute, resultType, field.toBoolean)
-          case TIMESTAMP => builder.add(attribute, STRING, field)
-          case ANY       => builder.add(attribute, STRING, field)
-          case _         => builder.add(attribute, resultType, field)
+          case STRING | INTEGER | DOUBLE | LONG | BOOLEAN | TIMESTAMP    =>
+            builder.add(attribute, resultType, parseField(field,resultType))
+          case ANY | _     => builder.add(attribute, attributes.apply(i).getType, tuple.get(i))
         }
       } else {
         builder.add(attributes.apply(i).getName, attributes.apply(i).getType, tuple.get(i))
