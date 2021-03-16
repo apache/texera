@@ -475,7 +475,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
         int portNumber = getFreeLocalPort();
         Location location = new Location(URI.create("grpc+tcp://localhost:" + portNumber));
         // Start Flight server (Python process)
-        new ProcessBuilder(PYTHON, DAEMON_SCRIPT_PATH, Integer.toString(portNumber), pythonScriptPath)
+        new ProcessBuilder(PYTHON, "-u", DAEMON_SCRIPT_PATH, Integer.toString(portNumber), pythonScriptPath)
                 .inheritIO()
                 .start();
         return location;
