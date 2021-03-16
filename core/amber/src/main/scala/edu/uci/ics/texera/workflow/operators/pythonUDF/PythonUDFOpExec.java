@@ -92,7 +92,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
      * @param index            Index of the input tuple in the table (buffer).
      * @param vectorSchemaRoot This should store the Arrow schema, which should already been converted from Amber.
      */
-    private static void convertAmber2ArrowTuple(Tuple tuple, int index, VectorSchemaRoot vectorSchemaRoot) {
+    private static void convertAmber2ArrowTuple(Tuple tuple, int index, VectorSchemaRoot vectorSchemaRoot) throws ClassCastException {
 
         List<Field> preDefinedFields = vectorSchemaRoot.getSchema().getFields();
         for (int i = 0; i < preDefinedFields.size(); i++) {
@@ -102,7 +102,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
                     ((IntVector) vector).set(index, (int) tuple.get(i));
                     break;
                 case Bool:
-                    ((BitVector) vector).set(index, (int) tuple.get(i));
+                    ((BitVector) vector).set(index, (Boolean) tuple.get(i) ? 1 : 0);
                     break;
                 case FloatingPoint:
                     ((Float8Vector) vector).set(index, (double) tuple.get(i));
@@ -119,10 +119,10 @@ public class PythonUDFOpExec implements OperatorExecutor {
      *
      * @param vectorSchemaRoot This should contain the data buffer.
      * @param resultQueue      This should be empty before input.
-     * @throws Exception Whatever might happen during this conversion, but especially when tuples have unexpected type.
+     * @throws RuntimeException Whatever might happen during this conversion, but especially when tuples have unexpected type.
      */
     private static void convertArrow2AmberTableBuffer(VectorSchemaRoot vectorSchemaRoot, Queue<Tuple> resultQueue)
-            throws Exception {
+            throws RuntimeException {
         List<FieldVector> fieldVectors = vectorSchemaRoot.getFieldVectors();
         Schema amberSchema = convertArrow2AmberSchema(vectorSchemaRoot.getSchema());
         for (int i = 0; i < vectorSchemaRoot.getRowCount(); i++) {
@@ -152,7 +152,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
                         case FloatingPoint:
                             switch (((ArrowType.FloatingPoint) (vector.getField().getFieldType().getType())).getPrecision()) {
                                 case HALF:
-                                    throw new Exception("HALF floating point number is not supported.");
+                                    throw new RuntimeException("HALF floating point number is not supported.");
                                 case SINGLE:
                                     content = (double) ((Float4Vector) vector).get(i);
                                     break;
@@ -164,12 +164,12 @@ public class PythonUDFOpExec implements OperatorExecutor {
                             content = new String(((VarCharVector) vector).get(i), StandardCharsets.UTF_8);
                             break;
                         default:
-                            throw new Exception("Unsupported type when converting tuples from Arrow to Amber.");
+                            throw new RuntimeException("Unsupported type when converting tuples from Arrow to Amber.");
                     }
                     contents.add(content);
                 } catch (Exception e) {
                     if (!e.getMessage().contains("Value at index is null")) {
-                        throw new Exception(e.getMessage(), e);
+                        throw new RuntimeException(e.getMessage(), e);
                     } else {
                         contents.add(null);
                     }
@@ -261,20 +261,18 @@ public class PythonUDFOpExec implements OperatorExecutor {
      *
      * @param client         The FlightClient that manages this.
      * @param values         The input queue that holds tuples, its contents will be consumed in this method.
-     * @param root           Root allocator that manages memory issues in Arrow.
      * @param arrowSchema    Input Arrow table schema. This should already have been defined (converted).
      * @param descriptorPath The predefined path that specifies where to store the data in Flight Serve.
      * @param chunkSize      The chunk size of the arrow stream. This is different than the batch size of the operator,
      *                       although they may seem similar. This doesn't actually affect serialization speed that much,
      *                       so in general it can be the same as {@code batchSize}.
      */
-    private static void writeArrowStream(FlightClient client, Queue<Tuple> values, RootAllocator root,
+    private static void writeArrowStream(FlightClient client, Queue<Tuple> values,
                                          org.apache.arrow.vector.types.pojo.Schema arrowSchema,
                                          String descriptorPath, int chunkSize) throws RuntimeException {
         SyncPutListener flightListener = new SyncPutListener();
-        VectorSchemaRoot schemaRoot = VectorSchemaRoot.create(arrowSchema, root);
-        FlightClient.ClientStreamListener streamWriter = client.startPut(
-                FlightDescriptor.path(Collections.singletonList(descriptorPath)), schemaRoot, flightListener);
+        VectorSchemaRoot schemaRoot = VectorSchemaRoot.create(arrowSchema, PythonUDFOpExec.globalRootAllocator);
+        FlightClient.ClientStreamListener streamWriter = client.startPut(FlightDescriptor.path(Collections.singletonList(descriptorPath)), schemaRoot, flightListener);
         try {
             while (!values.isEmpty()) {
                 schemaRoot.allocateNew();
@@ -335,47 +333,35 @@ public class PythonUDFOpExec implements OperatorExecutor {
         }
     }
 
-    private void processOneBatch() throws RuntimeException {
-        writeArrowStream(flightClient, inputTupleBuffer, globalRootAllocator, globalInputSchema, "toPython", batchSize);
-        executeUDF(flightClient, outputTupleBuffer);
+    /**
+     * For every batch, the operator gets the computed sentiment result by calling
+     * {@link FlightClient#getStream(Ticket, CallOption...)}.
+     * The reading and conversion process is the same as what it does when using Arrow file.
+     * {@code getStream} is a non-blocking call, but this method is a blocking call because it waits until the stream
+     * is finished.
+     *
+     * @param client         The FlightClient that manages this.
+     * @param descriptorPath The predefined path that specifies where to read the data in Flight Serve.
+     * @param resultQueue    resultQueue To store the results. Must be empty when it is passed here.
+     */
+    private static void readArrowStream(FlightClient client, String descriptorPath, Queue<Tuple> resultQueue) {
+        try {
+            FlightInfo info = client.getInfo(FlightDescriptor.path(Collections.singletonList(descriptorPath)));
+            Ticket ticket = info.getEndpoints().get(0).getTicket();
+            FlightStream stream = client.getStream(ticket);
+            while (stream.next()) {
+                VectorSchemaRoot root = stream.getRoot(); // get root
+                convertArrow2AmberTableBuffer(root, resultQueue);
+                root.clear();
+            }
+        } catch (RuntimeException e) {
+            closeAndThrow(client, e);
+        }
     }
 
-    @Override
-    public void open() {
-
-        try {
-            preparePythonScriptFile();
-            Location flightServerURL = startFlightServer();
-            connectToServer(flightServerURL);
-        } catch (IOException | InterruptedException e) {
-            cleanTerminationWithThrow(e);
-        }
-
-        // Send user args to Server.
-        List<String> userArgs = new ArrayList<>();
-        if (inputColumns != null) userArgs.addAll(inputColumns);
-        if (arguments != null) userArgs.addAll(arguments);
-        if (outputColumns != null) {
-            for (Attribute a : outputColumns) userArgs.add(a.getName());
-        }
-        if (outerFilePaths != null) userArgs.addAll(outerFilePaths);
-
-        Schema argsSchema = new Schema(Collections.singletonList(new Attribute("args", AttributeType.STRING)));
-        Queue<Tuple> argsTuples = new LinkedList<>();
-        for (String arg : userArgs) {
-            argsTuples.add(new Tuple(argsSchema, Collections.singletonList(arg)));
-        }
-
-        try {
-            writeArrowStream(flightClient, argsTuples, globalRootAllocator, convertAmber2ArrowSchema(argsSchema), "args", batchSize);
-            communicate(flightClient, "open");
-        } catch (RuntimeException e) {
-            cleanTerminationWithThrow(e);
-        }
-
-        // Finally, delete the temp file because it has been loaded in Python.
-        if (isDynamic) safeDeleteTempFile(pythonScriptPath);
-
+    private void processOneBatch() throws RuntimeException {
+        writeArrowStream(flightClient, inputTupleBuffer, globalInputSchema, "toPython", batchSize);
+        executeUDF(flightClient, outputTupleBuffer);
     }
 
     private void safeDeleteTempFile(String fileName) {
@@ -495,30 +481,38 @@ public class PythonUDFOpExec implements OperatorExecutor {
         return location;
     }
 
-    /**
-     * For every batch, the operator gets the computed sentiment result by calling
-     * {@link FlightClient#getStream(Ticket, CallOption...)}.
-     * The reading and conversion process is the same as what it does when using Arrow file.
-     * {@code getStream} is a non-blocking call, but this method is a blocking call because it waits until the stream
-     * is finished.
-     *
-     * @param client         The FlightClient that manages this.
-     * @param descriptorPath The predefined path that specifies where to read the data in Flight Serve.
-     * @param resultQueue    resultQueue To store the results. Must be empty when it is passed here.
-     */
-    private static void readArrowStream(FlightClient client, String descriptorPath, Queue<Tuple> resultQueue) {
+    @Override
+    public void open() {
+
         try {
-            FlightInfo info = client.getInfo(FlightDescriptor.path(Collections.singletonList(descriptorPath)));
-            Ticket ticket = info.getEndpoints().get(0).getTicket();
-            FlightStream stream = client.getStream(ticket);
-            while (stream.next()) {
-                VectorSchemaRoot root = stream.getRoot(); // get root
-                convertArrow2AmberTableBuffer(root, resultQueue);
-                root.clear();
+            preparePythonScriptFile();
+            Location flightServerURL = startFlightServer();
+            connectToServer(flightServerURL);
+
+            // Send user args to Server.
+            List<String> userArgs = new ArrayList<>();
+            if (inputColumns != null) userArgs.addAll(inputColumns);
+            if (arguments != null) userArgs.addAll(arguments);
+            if (outputColumns != null) {
+                for (Attribute a : outputColumns) userArgs.add(a.getName());
             }
-        } catch (Exception e) {
-            closeAndThrow(client, e);
+            if (outerFilePaths != null) userArgs.addAll(outerFilePaths);
+
+            Schema argsSchema = new Schema(Collections.singletonList(new Attribute("args", AttributeType.STRING)));
+            Queue<Tuple> argsTuples = new LinkedList<>();
+            for (String arg : userArgs) {
+                argsTuples.add(new Tuple(argsSchema, Collections.singletonList(arg)));
+            }
+
+            writeArrowStream(flightClient, argsTuples, convertAmber2ArrowSchema(argsSchema), "args", batchSize);
+            communicate(flightClient, "open");
+        } catch (IOException | InterruptedException | RuntimeException e) {
+            cleanTerminationWithThrow(e);
         }
+
+        // Finally, delete the temp file because it has been loaded in Python.
+        if (isDynamic) safeDeleteTempFile(pythonScriptPath);
+
     }
 
     private void writeTempPythonFile() throws IOException {
