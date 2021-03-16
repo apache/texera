@@ -72,7 +72,11 @@ class WorkerLayer(
       )
       parentNetworkCommunicationActorRef ! RegisterActorRef(workerID, ref)
       workerToLayer(workerID) = this
-      workerID -> WorkerInfo(workerID, Uninitialized, WorkerStatistics(Uninitialized, 0, 0, Option.empty))
+      workerID -> WorkerInfo(
+        workerID,
+        Uninitialized,
+        WorkerStatistics(Uninitialized, 0, 0, Option.empty)
+      )
     }.toMap
   }
 
