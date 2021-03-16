@@ -34,9 +34,9 @@ object AttributeTypeUtils extends Serializable {
     for (i <- attributes.indices) {
       if (attributes.apply(i).getName.equals(attribute)) {
         resultType match {
-          case STRING | INTEGER | DOUBLE | LONG | BOOLEAN | TIMESTAMP  =>
+          case STRING | INTEGER | DOUBLE | LONG | BOOLEAN | TIMESTAMP =>
             builder.add(attribute, resultType)
-          case  ANY | _ =>
+          case ANY | _ =>
             builder.add(attribute, attributes.apply(i).getType)
         }
       } else {
@@ -66,9 +66,9 @@ object AttributeTypeUtils extends Serializable {
       if (attributes.apply(i).getName.equals(attribute)) {
         val field: Object = tuple.get(i)
         resultType match {
-          case STRING | INTEGER | DOUBLE | LONG | BOOLEAN | TIMESTAMP    =>
-            builder.add(attribute, resultType, parseField(field,resultType))
-          case ANY | _     => builder.add(attribute, attributes.apply(i).getType, tuple.get(i))
+          case STRING | INTEGER | DOUBLE | LONG | BOOLEAN | TIMESTAMP =>
+            builder.add(attribute, resultType, parseField(field, resultType))
+          case ANY | _ => builder.add(attribute, attributes.apply(i).getType, tuple.get(i))
         }
       } else {
         builder.add(attributes.apply(i).getName, attributes.apply(i).getType, tuple.get(i))
