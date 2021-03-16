@@ -4,29 +4,18 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalB
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{WorkerInfo, WorkerLayer}
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
-import edu.uci.ics.amber.engine.architecture.worker.WorkerStatistics
-import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.architecture.principal.{OperatorState, OperatorStatistics}
-import edu.uci.ics.amber.engine.architecture.principal.OperatorState
 import edu.uci.ics.amber.engine.common.WorkflowLogger
-import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.{
-  Completed,
-  Paused,
-  Ready,
-  Running,
-  Uninitialized,
-  WorkerState
-}
+import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager._
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   LayerIdentity,
   LinkIdentity,
-  OperatorIdentity,
-  VirtualIdentity
+  OperatorIdentity
 }
 
 import scala.collection.mutable
-import scala.concurrent.ExecutionContext
 
 /**
   * @param id
@@ -90,8 +79,17 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
 
   def getOutputRowCount: Long = topology.layers.last.statistics.map(_.outputRowCount).sum
 
+  def getOutputResults: Option[List[ITuple]] = {
+    val allEmpty = topology.layers.last.statistics.forall(e => e.outputResults.isEmpty)
+    if (allEmpty) {
+      Option.empty
+    } else {
+      Option(topology.layers.last.statistics.flatMap(e => e.outputResults).flatten.toList)
+    }
+  }
+
   def getOperatorStatistics: OperatorStatistics =
-    OperatorStatistics(getState, getInputRowCount, getOutputRowCount)
+    OperatorStatistics(getState, getInputRowCount, getOutputRowCount, getOutputResults)
 
   def checkStartDependencies(workflow: Workflow): Unit = {
     //do nothing by default

@@ -5,6 +5,7 @@ import edu.uci.ics.amber.engine.architecture.worker.{
   WorkerStatistics
 }
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
+import edu.uci.ics.amber.engine.common.ITupleSinkOperatorExecutor
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
 
 object QueryStatisticsHandler {
@@ -17,7 +18,13 @@ trait QueryStatisticsHandler {
   registerHandler { (msg: QueryStatistics, sender) =>
     val (in, out) = dataProcessor.collectStatistics()
     val state = stateManager.getCurrentState
-    WorkerStatistics(state, in, out)
+    val result = operator match {
+      case sink: ITupleSinkOperatorExecutor =>
+        Option(sink.getResultTuples())
+      case _ =>
+        Option.empty
+    }
+    WorkerStatistics(state, in, out, result)
   }
 
 }
