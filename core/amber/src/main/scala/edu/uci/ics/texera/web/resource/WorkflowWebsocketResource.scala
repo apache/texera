@@ -224,7 +224,8 @@ class WorkflowWebsocketResource {
           val sinkStatistics = OperatorStatistics(
             inputStatistics.operatorState,
             inputStatistics.aggregatedOutputRowCount,
-            inputStatistics.aggregatedOutputRowCount
+            inputStatistics.aggregatedOutputRowCount,
+            inputStatistics.aggregatedOutputResults
           )
           updateMutable(sinkID) = sinkStatistics
         }

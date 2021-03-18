@@ -10,6 +10,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType
 import java.sql._
 
 abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
+
   @JsonProperty(required = true)
   @JsonSchemaTitle("Host")
   var host: String = _
@@ -48,30 +49,51 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
   @JsonDeserialize(contentAs = classOf[java.lang.Long])
   var offset: Option[Long] = None
 
+  @JsonProperty(defaultValue = "false")
+  @JsonSchemaTitle("Keyword Search?")
+  @JsonDeserialize(contentAs = classOf[java.lang.Boolean])
+  @JsonSchemaInject(json = """{"toggleHidden" : ["searchByColumn", "keywords"]}""")
+  var search: Option[Boolean] = Option(false)
+
   @JsonProperty()
-  @JsonSchemaTitle("Keyword Search Column Name")
+  @JsonSchemaTitle("Keyword Search Column")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
   @AutofillAttributeName
-  var column: Option[String] = None
+  var searchByColumn: Option[String] = None
 
   @JsonProperty()
   @JsonSchemaTitle("Keywords to Search")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
   @JsonSchemaInject(json = UIWidget.UIWidgetTextArea)
-  val keywords: Option[String] = None
+  var keywords: Option[String] = None
 
   @JsonProperty(defaultValue = "false")
-  @JsonSchemaTitle("Progressively Output")
-  var progressive: Boolean = false
+  @JsonSchemaTitle("Progressive?")
+  @JsonDeserialize(contentAs = classOf[java.lang.Boolean])
+  @JsonSchemaInject(json = """{"toggleHidden" : ["batchByColumn", "min", "max", "interval"]}""")
+  var progressive: Option[Boolean] = Option(false)
 
   @JsonProperty()
-  @JsonSchemaTitle("Batch by ColumnName")
+  @JsonSchemaTitle("Batch by Column")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
   @AutofillAttributeName
   var batchByColumn: Option[String] = None
 
+  @JsonProperty(defaultValue = "auto")
+  @JsonSchemaTitle("Min")
+  @JsonDeserialize(contentAs = classOf[java.lang.String])
+  @JsonSchemaInject(json = """{"dependOn" : "batchByColumn"}""")
+  var min: Option[String] = None
+
+  @JsonProperty(defaultValue = "auto")
+  @JsonSchemaTitle("Max")
+  @JsonDeserialize(contentAs = classOf[java.lang.String])
+  @JsonSchemaInject(json = """{"dependOn" : "batchByColumn"}""")
+  var max: Option[String] = None
+
   @JsonProperty(defaultValue = "1000000000")
   @JsonSchemaTitle("Batch by Interval")
+  @JsonSchemaInject(json = """{"dependOn" : "batchByColumn"}""")
   var interval = 0L
 
   /**
@@ -88,6 +110,9 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
       return null
     querySchema
   }
+
+  // needs to define getters for sub classes to override Jackson Annotations
+  def getKeywords: Option[String] = keywords
 
   /**
     * Establish a connection with the database server base on the info provided by the user

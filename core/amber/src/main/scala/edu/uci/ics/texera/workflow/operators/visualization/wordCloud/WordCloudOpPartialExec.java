@@ -30,6 +30,10 @@ public class WordCloudOpPartialExec implements OperatorExecutor {
     private Analyzer luceneAnalyzer;
     private List<String> textList;
 
+    // for incremental computation
+    public static final int UPDATE_INTERVAL_MS = 500;
+    private long lastUpdatedTime = 0;
+
     private static final Schema resultSchema = Schema.newBuilder().add(
             new Attribute("word", AttributeType.STRING),
             new Attribute("size", AttributeType.INTEGER)
@@ -90,13 +94,27 @@ public class WordCloudOpPartialExec implements OperatorExecutor {
     public Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, LinkIdentity input) {
         if (tuple.isLeft()) {
             textList.add(tuple.left().get().getField(textColumn));
-            return JavaConverters.asScalaIterator(Iterators.emptyIterator());
-        } else {
-            try {
-                return JavaConverters.asScalaIterator(calculateWordCount(textList, getLuceneAnalyzer()).iterator());
-            } catch (Exception e) {
-                throw new RuntimeException(e);
+            boolean condition = System.currentTimeMillis() - lastUpdatedTime > UPDATE_INTERVAL_MS;
+            if (condition) {
+                lastUpdatedTime = System.currentTimeMillis();
+                return computeResultIteratorForOneBatch();
+            } else {
+                return JavaConverters.asScalaIterator(Iterators.emptyIterator());
             }
+        } else { // input exhausted
+            lastUpdatedTime = System.currentTimeMillis();
+            return computeResultIteratorForOneBatch();
+        }
+    }
+
+    public Iterator<Tuple> computeResultIteratorForOneBatch() {
+        try {
+            Iterator<Tuple> resultIterator = JavaConverters.asScalaIterator(
+                    calculateWordCount(textList, getLuceneAnalyzer()).iterator());
+            textList.clear();
+            return resultIterator;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 }

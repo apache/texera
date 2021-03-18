@@ -116,3 +116,6 @@ libraryDependencies += "com.konghq" % "unirest-java" % "3.11.11"
 
 // https://mvnrepository.com/artifact/com.github.marianobarrios/lbmq
 libraryDependencies += "com.github.marianobarrios" % "lbmq" % "0.5.0"
+
+// https://mvnrepository.com/artifact/ch.vorburger.mariaDB4j/mariaDB4j
+libraryDependencies += "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.4.0" % Test

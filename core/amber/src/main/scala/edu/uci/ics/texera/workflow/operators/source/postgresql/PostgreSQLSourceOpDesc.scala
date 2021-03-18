@@ -5,8 +5,8 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.operators.source.postgresql.PostgreSQLConnUtil.connect
 import edu.uci.ics.texera.workflow.operators.source.{SQLSourceOpDesc, SQLSourceOpExecConfig}
+import edu.uci.ics.texera.workflow.operators.source.postgresql.PostgreSQLConnUtil.connect
 
 import java.sql.{Connection, SQLException}
 import java.util.Collections.singletonList
@@ -28,10 +28,13 @@ class PostgreSQLSourceOpDesc extends SQLSourceOpDesc {
           password,
           limit,
           offset,
-          column,
+          search,
+          searchByColumn,
           keywords,
           progressive,
           batchByColumn,
+          min,
+          max,
           interval
         )
     )
