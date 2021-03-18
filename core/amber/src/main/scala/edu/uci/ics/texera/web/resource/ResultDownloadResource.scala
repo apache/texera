@@ -1,7 +1,5 @@
 package edu.uci.ics.texera.web.resource
 
-import java.util
-
 import com.google.api.client.util.Lists
 import com.google.api.services.drive.Drive
 import com.google.api.services.drive.model.Permission
@@ -21,6 +19,7 @@ import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
 }
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
+import java.util
 import scala.collection.mutable
 
 object ResultDownloadResource {
@@ -47,7 +46,7 @@ object ResultDownloadResource {
     // By now the workflow should finish running. Only one operator should contain results
     // TODO currently assume only one operator should contains the result
     // TODO change status checking of the workflow
-    val OperatorWithResult = sessionResults(sessionId).count(p => !p._2.isEmpty)
+    val OperatorWithResult = sessionResults(sessionId).count(p => p._2.nonEmpty)
     if (OperatorWithResult == 0) {
       return ResultDownloadResponse(
         request.downloadType,
@@ -63,15 +62,14 @@ object ResultDownloadResource {
       )
     }
 
-    // convert the Ituple into tuple
+    // convert the ITuple into tuple
     // TODO currently only accept the tuple as input
     val results: List[Tuple] =
-      sessionResults(sessionId)
-        .map(p => p._2)
-        .find(p => !p.isEmpty)
+      sessionResults(sessionId).values
+        .find(p => p.nonEmpty)
         .get
         .map(ituple => ituple.asInstanceOf[Tuple])
-    val schema = getSchema(results(0))
+    val schema = getSchema(results.head)
 
     // handle the request according to download type
     var response: ResultDownloadResponse = null
@@ -102,8 +100,7 @@ object ResultDownloadResource {
 
   // get the schema from the sample tuple
   private def getSchema(tuple: Tuple): util.List[AnyRef] = {
-    tuple.getSchema
-      .getAttributeNames()
+    tuple.getSchema.getAttributeNames
       .asInstanceOf[util.List[AnyRef]]
   }
 
@@ -113,7 +110,7 @@ object ResultDownloadResource {
       schema: util.List[AnyRef]
   ): ResultDownloadResponse = {
     // create google sheet
-    val sheetService: Sheets = GoogleResource.getSheetService()
+    val sheetService: Sheets = GoogleResource.getSheetService
     val sheetId: String =
       createGoogleSheet(sheetService, resultDownloadRequest.workflowName)
     if (sheetId == null)
@@ -130,7 +127,7 @@ object ResultDownloadResource {
       uploadContent(sheetService, sheetId, schemaContent)
 
     // allow user to access this sheet in the service account
-    val drive: Drive = GoogleResource.getDriveService()
+    val drive: Drive = GoogleResource.getDriveService
     val sharePermission: Permission = new Permission()
       .setType("anyone")
       .setRole("reader")
@@ -176,7 +173,8 @@ object ResultDownloadResource {
       content.add(tupleContent)
 
       if (content.size() == UPLOAD_SIZE) {
-        // TODO the response is from uploading is not checked. The design for the response seems not to be designed for error handling
+        // TODO the response is from uploading is not checked.
+        //  The design for the response seems not to be designed for error handling
         // it will throw error and stop if encounter error during uploading
         val response: AppendValuesResponse =
           uploadContent(sheetService, sheetId, content)
