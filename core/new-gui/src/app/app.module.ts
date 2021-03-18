@@ -76,6 +76,7 @@ import { VisualizationPanelContentComponent } from './workspace/component/visual
 import { VisualizationPanelComponent } from './workspace/component/visualization-panel/visualization-panel.component';
 import { WorkflowEditorComponent } from './workspace/component/workflow-editor/workflow-editor.component';
 import { WorkspaceComponent } from './workspace/component/workspace.component';
+import { ResultDownloadComponent } from './workspace/component/navigation/result-download/result-download.component';
 
 registerLocaleData(en);
 
@@ -119,7 +120,8 @@ registerLocaleData(en);
     VisualizationPanelContentComponent,
     CodeareaCustomTemplateComponent,
     CodeEditorDialogComponent,
-    TypecastingDisplayComponent
+    TypecastingDisplayComponent,
+    ResultDownloadComponent
   ],
   imports: [
     BrowserModule,

@@ -102,6 +102,12 @@ libraryDependencies += "org.scalamock" %% "scalamock" % "4.4.0" % Test
 libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.2"
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.2" % Test
 
+libraryDependencies += "com.google.oauth-client" % "google-oauth-client" % "1.31.4" exclude ("com.google.guava", "guava")
+libraryDependencies += "com.google.oauth-client" % "google-oauth-client-jetty" % "1.31.4" exclude ("com.google.guava", "guava")
+libraryDependencies += "com.google.api-client" % "google-api-client" % "1.31.1" exclude ("com.google.guava", "guava")
+libraryDependencies += "com.google.apis" % "google-api-services-sheets" % "v4-rev612-1.25.0" exclude ("com.google.guava", "guava")
+libraryDependencies += "com.google.apis" % "google-api-services-drive" % "v3-rev197-1.25.0" exclude ("com.google.guava", "guava")
+
 // https://mvnrepository.com/artifact/com.github.tototoshi/scala-csv
 libraryDependencies += "com.github.tototoshi" %% "scala-csv" % "1.3.6"
 

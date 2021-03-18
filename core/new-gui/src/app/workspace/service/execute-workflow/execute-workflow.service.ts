@@ -21,8 +21,8 @@ import {
 } from '../../types/execute-workflow.interface';
 import { environment } from '../../../../environments/environment';
 import { WorkflowWebsocketService } from '../workflow-websocket/workflow-websocket.service';
-import { Breakpoint, BreakpointRequest, BreakpointTriggerInfo } from '../../types/workflow-common.interface';
-import { OperatorCurrentTuples, TexeraWebsocketEvent } from '../../types/workflow-websocket.interface';
+import { BreakpointTriggerInfo, BreakpointRequest, Breakpoint } from '../../types/workflow-common.interface';
+import { TexeraWebsocketEvent, OperatorCurrentTuples, ResultDownloadResponse } from '../../types/workflow-websocket.interface';
 import { isEqual } from 'lodash';
 import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from '../../types/result-table.interface';
 import { sessionGetObject, sessionSetObject } from '../../../common/util/storage';
@@ -62,6 +62,7 @@ export class ExecuteWorkflowService {
 
   private currentState: ExecutionStateInfo = {state: ExecutionState.Uninitialized};
   private executionStateStream = new Subject<{ previous: ExecutionStateInfo, current: ExecutionStateInfo }>();
+  private resultDownloadStream = new Subject<ResultDownloadResponse>();
 
   private executionTimeoutID: number | undefined;
   private clearTimeoutState: ExecutionState[] | undefined;
@@ -73,11 +74,19 @@ export class ExecuteWorkflowService {
   ) {
     if (environment.amberEngineEnabled) {
       workflowWebsocketService.websocketEvent().subscribe(event => {
-        if (event.type !== 'WorkflowStatusUpdateEvent') {
-          console.log(event);
+        switch (event.type) {
+          case 'ResultDownloadResponse': {
+            this.resultDownloadStream.next(event);
+            break;
+          } default: {
+            // workflow status related event
+            if (event.type !== 'WorkflowStatusUpdateEvent') {
+              console.log(event);
+            }
+            const newState = this.handleExecutionEvent(event);
+            this.updateExecutionState(newState);
+          }
         }
-        const newState = this.handleExecutionEvent(event);
-        this.updateExecutionState(newState);
       });
     }
   }
@@ -283,25 +292,21 @@ export class ExecuteWorkflowService {
   }
 
   /**
-   * Sends the finished workflow ID to the server to download the excel file using file saver library.
-   * @param executionID
+   * download the workflow execution result according the download type
    */
-  public downloadWorkflowExecutionResult(executionID: string, downloadType: string): void {
-    const requestURL = `${AppSettings.getApiEndpoint()}/${DOWNLOAD_WORKFLOW_ENDPOINT}`
-      + `?resultID=${executionID}&downloadType=${downloadType}`;
-
-    this.http.get(
-      requestURL,
-      {responseType: 'blob'}
-    ).subscribe(
-      // response => saveAs(response, downloadName),
-      () => window.location.href = requestURL,
-      error => console.log(error)
-    );
+  public downloadWorkflowExecutionResult(downloadType: string, workflowName: string): void {
+    if (!environment.downloadExecutionResultEnabled) {
+      return;
+    }
+    this.workflowWebsocketService.send('ResultDownloadRequest', {downloadType: downloadType, workflowName: workflowName});
   }
 
   public getExecutionStateStream(): Observable<{ previous: ExecutionStateInfo, current: ExecutionStateInfo }> {
     return this.executionStateStream.asObservable();
+  }
+
+  public getResultDownloadStream(): Observable<ResultDownloadResponse> {
+    return this.resultDownloadStream.asObservable();
   }
 
   private setExecutionTimeout(message: string, ...clearTimeoutState: ExecutionState[]) {
@@ -327,7 +332,7 @@ export class ExecuteWorkflowService {
     if (isEqual(this.currentState, stateInfo)) {
       return;
     }
-    console.log(stateInfo);
+    console.log('stateInfo', stateInfo);
     console.log(this.clearTimeoutState);
     console.log(this.clearTimeoutState?.includes(stateInfo.state));
     if (this.clearTimeoutState?.includes(stateInfo.state)) {
