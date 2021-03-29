@@ -88,7 +88,7 @@ libraryDependencies += "org.apache.lucene" % "lucene-queries" % "8.7.0"
 libraryDependencies += "org.apache.lucene" % "lucene-memory" % "8.7.0"
 
 // https://mvnrepository.com/artifact/mysql/mysql-connector-java
-libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.19"
+libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.23"
 
 // https://mvnrepository.com/artifact/org.postgresql/postgresql
 libraryDependencies += "org.postgresql" % "postgresql" % "42.2.18"
