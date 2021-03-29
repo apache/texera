@@ -4,6 +4,7 @@ import com.github.tototoshi.csv.CSVParser
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
+import edu.uci.ics.texera.workflow.common.AttributeTypeUtils
 import edu.uci.ics.texera.workflow.common.AttributeTypeUtils.parseField
 import edu.uci.ics.texera.workflow.operators.source.asterixdb.AsterixDBConnUtil.{
   queryAsterixDB,
@@ -12,7 +13,7 @@ import edu.uci.ics.texera.workflow.operators.source.asterixdb.AsterixDBConnUtil.
 import edu.uci.ics.texera.workflow.operators.source.SQLSourceOpExec
 
 import java.sql._
-import java.time.{Instant, ZoneId, ZoneOffset}
+import java.time.{ZoneId, ZoneOffset}
 import java.time.format.DateTimeFormatter
 import scala.collection.Iterator
 import scala.util.control.Breaks.{break, breakable}
@@ -222,25 +223,10 @@ class AsterixDBSourceOpExec private[asterixdb] (
         }
 
         // otherwise, transform the type of the value
-        columnType match {
-          case INTEGER =>
-            tupleBuilder.add(attr, value.toInt)
-          case LONG =>
-            tupleBuilder.add(attr, value.toLong)
-          case DOUBLE =>
-            tupleBuilder.add(attr, value.toDouble)
-          case STRING =>
-            tupleBuilder.add(attr, value)
-          case BOOLEAN =>
-            tupleBuilder.add(attr, !value.equals("0"))
-          case TIMESTAMP =>
-            tupleBuilder.add(
-              attr,
-              new Timestamp(Instant.parse(value.stripSuffix("\"").stripPrefix("\"")).toEpochMilli)
-            )
-          case ANY | _ =>
-            throw new RuntimeException("Unhandled attribute type: " + columnType)
-        }
+        tupleBuilder.add(
+          attr,
+          AttributeTypeUtils.parseField(value.stripSuffix("\"").stripPrefix("\""), columnType)
+        )
       }
     }
     tupleBuilder.build
