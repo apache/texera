@@ -342,10 +342,7 @@ abstract class SQLSourceOpExec(
             result = resultSet.getTimestamp(1).getTime
           case DOUBLE =>
             result = resultSet.getDouble(1)
-          case BOOLEAN =>
-          case STRING  =>
-          case ANY     =>
-          case _ =>
+          case BOOLEAN | STRING | ANY | _ =>
             throw new IllegalStateException("Unexpected value: " + attribute.getType)
         }
         resultSet.close()
