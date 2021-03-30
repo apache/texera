@@ -10,11 +10,13 @@ import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
+import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import scala.collection.JavaConverters;
 
 import java.util.List;
 
+import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFType.Training;
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
 
@@ -36,8 +38,13 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
     @JsonPropertyDescription("name of the input column(s) that the UDF will use, if any")
     public List<String> inputColumns;
 
+    @JsonProperty(required = true)
+    @JsonSchemaTitle("pythonUDFType")
+    @JsonPropertyDescription("output columns depends on choice of type")
+    public PythonUDFType pythonUDFType;
+
     @JsonProperty()
-    @JsonSchemaTitle("Output column(s)")
+    @JsonSchemaTitle("Extra output column(s)")
     @JsonPropertyDescription("name of the newly added output columns that the UDF will produce, if any")
     public List<Attribute> outputColumns;
 
@@ -57,6 +64,7 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
     @JsonSchemaTitle("Batch size")
     @JsonPropertyDescription("size of every batch of tuples to pass to python")
     public int batchSize;
+
 
     @Override
     public OpExecConfig operatorExecutor() {
@@ -84,21 +92,32 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
     @Override
     public Schema getOutputSchema(Schema[] schemas) {
         Schema inputSchema = schemas[0];
-        if (inputColumns != null && !inputColumns.isEmpty()) {
+
+        // check if inputColumns are presented in inputSchema.
+        if (inputColumns != null) {
             for (String s : inputColumns) {
                 if (!inputSchema.containsAttribute(s)) throw new RuntimeException("No such column:" + s + ".");
             }
         }
 
-        Schema outputSchema = inputSchema;
-        if (outputColumns != null && !outputColumns.isEmpty()) {
+        Schema.Builder outputSchemaBuilder = Schema.newBuilder();
+        if (pythonUDFType != Training) {
+            outputSchemaBuilder.add(inputSchema);
+        } else {
+            outputSchemaBuilder.add("class", AttributeType.STRING);
+            outputSchemaBuilder.add("precision", AttributeType.STRING);
+            outputSchemaBuilder.add("recall", AttributeType.STRING);
+            outputSchemaBuilder.add("f1-score", AttributeType.STRING);
+            outputSchemaBuilder.add("support", AttributeType.STRING);
+        }
+
+        if (outputColumns != null) {
             for (Attribute a : outputColumns) {
                 if (inputSchema.containsAttribute(a.getName())) throw new RuntimeException("Column name " + a.getName()
                         + " already exists!");
             }
-            outputSchema = Schema.newBuilder().add(inputSchema).add(outputColumns).build();
+            outputSchemaBuilder.add(outputColumns).build();
         }
-        return outputSchema;
+        return outputSchemaBuilder.build();
     }
-
 }

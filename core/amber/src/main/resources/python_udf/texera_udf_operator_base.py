@@ -121,65 +121,66 @@ class TexeraBlockingTrainerOperator(TexeraUDFOperator):
         CONSUMING = 1
         TRAINED = 2
 
-    def __init__(self, training_func: Callable):
+    def __init__(self):
         super().__init__()
-
-        if training_func is None:
-            raise NotImplementedError
-        self._training_func: Callable = training_func
-        self.X_train: List = []
-        self.Y_train: List = []
-        self.X_test: List = []
-        self.Y_test: List = []
-        self.status = TexeraBlockingTrainerOperator.STATUS.IDLE
+        self._X_train: List = []
+        self._Y_train: List = []
+        self._X_test: List = []
+        self._Y_test: List = []
+        self._status = TexeraBlockingTrainerOperator.STATUS.IDLE
         self._result_tuples: List = []
-        self.train_size = None
-        self.test_size = None
-        self.kernel = None
-        self.degree = None
-        self.model = None
+        self._train_size = None
+        self._test_size = None
+        self._train_args = dict()
         self.model_filename = None
-        self.vc = None
         self.vc_filename = None
-        self.report_filename = None
 
     def accept(self, row: pandas.Series, nth_child: int = 0) -> None:
-
-        self._result_tuples.append(row)
-        if self.train_size > 0:
-            self.status = TexeraBlockingTrainerOperator.STATUS.CONSUMING
-            self.X_train.append(row[0])
-            self.Y_train.append(row[1])
-            self.train_size -= 1
-        elif self.test_size > 0:
-            self.status = TexeraBlockingTrainerOperator.STATUS.CONSUMING
-            self.X_test.append(row[0])
-            self.Y_test.append(row[1])
-            self.test_size -= 1
-        elif self.status == TexeraBlockingTrainerOperator.STATUS.TRAINED:
+        if self._train_size > 0:
+            self._status = TexeraBlockingTrainerOperator.STATUS.CONSUMING
+            self._X_train.append(row[0])
+            self._Y_train.append(row[1])
+            self._train_size -= 1
+        elif self._test_size > 0:
+            self._status = TexeraBlockingTrainerOperator.STATUS.CONSUMING
+            self._X_test.append(row[0])
+            self._Y_test.append(row[1])
+            self._test_size -= 1
+        elif self._status == TexeraBlockingTrainerOperator.STATUS.TRAINED:
+            # consumes the input and do nothing.
             pass
-        else:
-            vc, model = self._training_func(self.X_train, self.Y_train, self.kernel, self.degree)
+        if self._train_size == 0 and self._test_size == 0 and self._status != TexeraBlockingTrainerOperator.STATUS.TRAINED:
+            vc, model = self.train(self._X_train, self._Y_train, **self._train_args)
             with open(self.model_filename, 'wb') as file:
                 pickle.dump(model, file)
             with open(self.vc_filename, 'wb') as file:
                 pickle.dump(vc, file)
-            if self.X_test:
-                Y_pred = model.predict(vc.transform(self.X_test))
+            if self._X_test:
+                Y_pred = model.predict(vc.transform(self._X_test))
+                self.report_matrix(self._Y_test, Y_pred)
 
-                from sklearn.metrics import classification_report, confusion_matrix
-                with open(self.report_filename, 'w') as file:
-                    file.write(str(confusion_matrix(self.Y_test, Y_pred)))
-                    file.write("\n\n")
-                    file.write(str(classification_report(self.Y_test, Y_pred)))
-
-            self.status = TexeraBlockingTrainerOperator.STATUS.TRAINED
+            self._status = TexeraBlockingTrainerOperator.STATUS.TRAINED
 
     def has_next(self) -> bool:
-        return self.status == TexeraBlockingTrainerOperator.STATUS.TRAINED and bool(self._result_tuples)
+        return self._status == TexeraBlockingTrainerOperator.STATUS.TRAINED and bool(self._result_tuples)
 
     def next(self) -> pandas.Series:
         return self._result_tuples.pop()
 
     def close(self) -> None:
         pass
+
+    @staticmethod
+    def train(X_train, Y_train, **kwargs):
+        raise NotImplementedError
+
+    def report_matrix(self, Y_test, Y_pred, *args):
+        from sklearn.metrics import classification_report
+        matrix = pandas.DataFrame(classification_report(Y_test, Y_pred, output_dict=True)).transpose()
+        matrix['class'] = [label for label, row in matrix.iterrows()]
+        cols = matrix.columns.to_list()
+        cols = [cols[-1]] + cols[:-1]
+        matrix = matrix[cols]
+        for index, row in list(matrix.iterrows())[::-1]:
+            if index != 1:
+                self._result_tuples.append(row)
