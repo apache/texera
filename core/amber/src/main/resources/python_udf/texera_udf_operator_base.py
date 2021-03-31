@@ -1,9 +1,9 @@
 import pickle
 from abc import ABC
-from enum import Enum
 from typing import Dict, Optional, Tuple, Callable, List
 
 import pandas
+from sklearn.model_selection import train_test_split
 
 
 class TexeraUDFOperator(ABC):
@@ -53,6 +53,9 @@ class TexeraUDFOperator(ABC):
         """
         Close this operator, releasing any resources. For example, you might want to close a model file.
         """
+        pass
+
+    def input_exhausted(self, *args):
         pass
 
 
@@ -116,53 +119,34 @@ class TexeraFilterOperator(TexeraUDFOperator):
 
 
 class TexeraBlockingTrainerOperator(TexeraUDFOperator):
-    class STATUS(Enum):
-        IDLE = 0
-        CONSUMING = 1
-        TRAINED = 2
 
     def __init__(self):
         super().__init__()
-        self._X_train: List = []
-        self._Y_train: List = []
-        self._X_test: List = []
-        self._Y_test: List = []
-        self._status = TexeraBlockingTrainerOperator.STATUS.IDLE
+        self._x = []
+        self._y = []
         self._result_tuples: List = []
-        self._train_size = None
         self._test_size = None
         self._train_args = dict()
         self.model_filename = None
         self.vc_filename = None
 
-    def accept(self, row: pandas.Series, nth_child: int = 0) -> None:
-        if self._train_size > 0:
-            self._status = TexeraBlockingTrainerOperator.STATUS.CONSUMING
-            self._X_train.append(row[0])
-            self._Y_train.append(row[1])
-            self._train_size -= 1
-        elif self._test_size > 0:
-            self._status = TexeraBlockingTrainerOperator.STATUS.CONSUMING
-            self._X_test.append(row[0])
-            self._Y_test.append(row[1])
-            self._test_size -= 1
-        elif self._status == TexeraBlockingTrainerOperator.STATUS.TRAINED:
-            # consumes the input and do nothing.
-            pass
-        if self._train_size == 0 and self._test_size == 0 and self._status != TexeraBlockingTrainerOperator.STATUS.TRAINED:
-            vc, model = self.train(self._X_train, self._Y_train, **self._train_args)
-            with open(self.model_filename, 'wb') as file:
-                pickle.dump(model, file)
-            with open(self.vc_filename, 'wb') as file:
-                pickle.dump(vc, file)
-            if self._X_test:
-                Y_pred = model.predict(vc.transform(self._X_test))
-                self.report_matrix(self._Y_test, Y_pred)
+    def input_exhausted(self, *args):
+        x_train, x_test, y_train, y_test = train_test_split(self._x, self._y, test_size=self._test_size, random_state=1)
+        vc, model = self.train(x_train, y_train, **self._train_args)
+        with open(self.model_filename, 'wb') as file:
+            pickle.dump(model, file)
+        with open(self.vc_filename, 'wb') as file:
+            pickle.dump(vc, file)
+        if x_test:
+            y_pred = model.predict(vc.transform(x_test))
+            self.report_matrix(y_test, y_pred)
 
-            self._status = TexeraBlockingTrainerOperator.STATUS.TRAINED
+    def accept(self, row: pandas.Series, nth_child: int = 0) -> None:
+        self._x.append(row[0])
+        self._y.append(row[1])
 
     def has_next(self) -> bool:
-        return (self._status == TexeraBlockingTrainerOperator.STATUS.TRAINED) and bool(self._result_tuples)
+        return bool(self._result_tuples)
 
     def next(self) -> pandas.Series:
         return self._result_tuples.pop()
@@ -175,6 +159,7 @@ class TexeraBlockingTrainerOperator(TexeraUDFOperator):
         raise NotImplementedError
 
     def report_matrix(self, Y_test, Y_pred, *args):
+        print("what ")
         from sklearn.metrics import classification_report
         matrix = pandas.DataFrame(classification_report(Y_test, Y_pred, output_dict=True)).transpose()
         matrix['class'] = [label for label, row in matrix.iterrows()]
@@ -182,5 +167,6 @@ class TexeraBlockingTrainerOperator(TexeraUDFOperator):
         cols = [cols[-1]] + cols[:-1]
         matrix = matrix[cols]
         for index, row in list(matrix.iterrows())[::-1]:
+            print(index, row)
             if index != 1:
                 self._result_tuples.append(row)

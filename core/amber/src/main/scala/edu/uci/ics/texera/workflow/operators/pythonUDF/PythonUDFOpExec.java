@@ -294,13 +294,12 @@ public class PythonUDFOpExec implements OperatorExecutor {
     }
 
     /**
-     * Make the execution of the UDF in Python and read the results that are passed back. This should only be called
+     * Make the execution of the UDF in Python. This should only be called
      * after input data is passed to Python. This is a blocking call.
      *
-     * @param client      The FlightClient that manages this.
-     * @param resultQueue To store the results. Must be empty when it is passed here.
+     * @param client The FlightClient that manages this.
      */
-    private static void executeUDF(FlightClient client, Queue<Tuple> resultQueue) {
+    private static void executeUDF(FlightClient client) {
         try {
             FlightResponseMap result = PythonUDFOpExec.objectMapper.readValue(communicate(client, "compute"),
                     FlightResponseMap.class);
@@ -308,7 +307,6 @@ public class PythonUDFOpExec implements OperatorExecutor {
                 String errorMessage = result.get("errorMessage");
                 throw new Exception(errorMessage);
             }
-            readArrowStream(client, "fromPython", resultQueue);
         } catch (Exception e) {
             closeAndThrow(client, e);
         }
@@ -359,9 +357,13 @@ public class PythonUDFOpExec implements OperatorExecutor {
         }
     }
 
-    private void processOneBatch() throws RuntimeException {
+    private void processOneBatch(boolean inputExhausted) throws RuntimeException {
         writeArrowStream(flightClient, inputTupleBuffer, globalInputSchema, "toPython", batchSize);
-        executeUDF(flightClient, outputTupleBuffer);
+        executeUDF(flightClient);
+        if (inputExhausted) {
+            communicate(flightClient, "input_exhausted");
+        }
+        readArrowStream(flightClient, "fromPython", outputTupleBuffer);
     }
 
     private static void safeDeleteTempFile(String fileName) {
@@ -456,14 +458,14 @@ public class PythonUDFOpExec implements OperatorExecutor {
             if (inputTupleBuffer.size() == batchSize) {
                 // This batch is full, execute the UDF.
                 outputTupleBuffer = new LinkedList<>();
-                processOneBatch();
+                processOneBatch(false);
                 return JavaConverters.asScalaIterator(outputTupleBuffer.iterator());
             }
         } else {
             if (inputTupleBuffer != null && !inputTupleBuffer.isEmpty()) {
                 // There are some unprocessed tuples, finish them.
                 outputTupleBuffer = new LinkedList<>();
-                processOneBatch();
+                processOneBatch(true);
                 return JavaConverters.asScalaIterator(outputTupleBuffer.iterator());
             }
         }

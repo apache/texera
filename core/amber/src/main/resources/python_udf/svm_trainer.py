@@ -10,11 +10,10 @@ class SVMTrainer(texera_udf_operator_base.TexeraBlockingTrainerOperator):
 
     def open(self, *args):
         super(SVMTrainer, self).open(*args)
-        self._train_size = int(args[2])
-        self._test_size = int(args[3])
-        self._train_args = {'kernel': args[4], 'degree': int(args[5])}
-        self.model_filename = args[6]
-        self.vc_filename = args[7]
+        self._test_size = float(args[2])
+        self._train_args = {'kernel': args[3], 'degree': int(args[4])}
+        self.model_filename = args[5]
+        self.vc_filename = args[6]
 
     @staticmethod
     def train(X_train, Y_train, **train_args):

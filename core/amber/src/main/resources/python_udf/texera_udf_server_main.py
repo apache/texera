@@ -114,16 +114,11 @@ class UDFServer(pyarrow.flight.FlightServerBase):
             try:
                 input_table: pyarrow.Table = self.flights[input_key]
                 input_dataframe: pandas.DataFrame = input_table.to_pandas()
-                output_data_list = []
+
                 # execute and get output data
                 for index, row in input_dataframe.iterrows():
                     self.udf_op.accept(row)
-                while self.udf_op.has_next():
-                    output_data_list.append(self.udf_op.next())
-                output_dataframe = pandas.DataFrame.from_records(output_data_list)
-                # send output data to Java
-                output_key = self._descriptor_to_key(self._accept(b'fromPython'))
-                self.flights[output_key] = pyarrow.Table.from_pandas(output_dataframe)
+                self._output_data()
                 result_buffer = json.dumps({'status': 'Success'})
             except:
                 result_buffer = json.dumps({'status': 'Fail', 'errorMessage': traceback.format_exc()})
@@ -134,6 +129,10 @@ class UDFServer(pyarrow.flight.FlightServerBase):
 
             result_buffer = json.dumps({'status': 'Success'})
             yield self._response(result_buffer.encode('utf-8'))
+        elif action.type == "input_exhausted":
+            self.udf_op.input_exhausted()
+            self._output_data()
+            yield self._response(b'Success!')
 
         elif action.type == "close":
             # close UDF
@@ -141,6 +140,15 @@ class UDFServer(pyarrow.flight.FlightServerBase):
             yield self._response(b'Success!')
         else:
             raise ValueError("Unknown action {!r}".format(action.type))
+
+    def _output_data(self):
+        output_data_list = []
+        while self.udf_op.has_next():
+            output_data_list.append(self.udf_op.next())
+        output_dataframe = pandas.DataFrame.from_records(output_data_list)
+        # send output data to Java
+        output_key = self._descriptor_to_key(self._accept(b'fromPython'))
+        self.flights[output_key] = pyarrow.Table.from_pandas(output_dataframe)
 
     @staticmethod
     def _response(message: bytes):
