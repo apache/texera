@@ -162,7 +162,7 @@ class TexeraBlockingTrainerOperator(TexeraUDFOperator):
             self._status = TexeraBlockingTrainerOperator.STATUS.TRAINED
 
     def has_next(self) -> bool:
-        return self._status == TexeraBlockingTrainerOperator.STATUS.TRAINED and bool(self._result_tuples)
+        return (self._status == TexeraBlockingTrainerOperator.STATUS.TRAINED) and bool(self._result_tuples)
 
     def next(self) -> pandas.Series:
         return self._result_tuples.pop()

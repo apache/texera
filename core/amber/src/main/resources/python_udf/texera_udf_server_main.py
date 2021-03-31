@@ -102,11 +102,6 @@ class UDFServer(pyarrow.flight.FlightServerBase):
         if action.type == "healthcheck":
             # to check the status of the server to see if it is running.
             yield self._response(b'Flight Server is up and running!')
-        elif action.type == "shutdown":
-            # to shutdown the server.
-            self.shutdown()
-            self.wait()
-            yield self._response(b'Flight Server is shut down!')
         elif action.type == "open":
             # open UDF
             user_args_table = self.flights[self._descriptor_to_key(self._accept(b'args'))]
@@ -129,9 +124,10 @@ class UDFServer(pyarrow.flight.FlightServerBase):
                 # send output data to Java
                 output_key = self._descriptor_to_key(self._accept(b'fromPython'))
                 self.flights[output_key] = pyarrow.Table.from_pandas(output_dataframe)
+                result_buffer = json.dumps({'status': 'Success'})
             except:
                 result_buffer = json.dumps({'status': 'Fail', 'errorMessage': traceback.format_exc()})
-                yield self._response(result_buffer.encode('utf-8'))
+            yield self._response(result_buffer.encode('utf-8'))
 
             # discard this batch of input
             self.flights.pop(input_key)

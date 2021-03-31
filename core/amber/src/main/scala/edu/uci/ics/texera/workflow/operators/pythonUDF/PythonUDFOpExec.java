@@ -32,28 +32,25 @@ import java.nio.file.Path;
 import java.util.*;
 
 public class PythonUDFOpExec implements OperatorExecutor {
+    private static final int MAX_TRY_COUNT = 20;
+    private static final long WAIT_TIME_MS = 500;
     private String pythonScriptPath;
     private final String pythonScriptText;
     private final ArrayList<String> inputColumns;
     private final ArrayList<Attribute> outputColumns;
     private String PYTHON;
-
+    private static final String DAEMON_SCRIPT_PATH = getPythonResourcePath("texera_udf_server_main.py");
+    private static final RootAllocator memoryAllocator = new RootAllocator();
+    private static final ObjectMapper objectMapper = Utils.objectMapper();
 
     private final ArrayList<String> arguments;
     private final ArrayList<String> outerFilePaths;
     private final int batchSize;
     private final boolean isDynamic;
 
-    private static final int MAX_TRY_COUNT = 20;
-    private static final long WAIT_TIME_MS = 500;
-
-    private static final String DAEMON_SCRIPT_PATH = getPythonResourcePath("texera_udf_server_main.py");
-
-    private static final RootAllocator globalRootAllocator = new RootAllocator();
-    private static final ObjectMapper globalObjectMapper = Utils.objectMapper();
+    private Process pythonServerProcess;
     private FlightClient flightClient;
     private org.apache.arrow.vector.types.pojo.Schema globalInputSchema;
-
     private Queue<Tuple> inputTupleBuffer;
     private Queue<Tuple> outputTupleBuffer;
 
@@ -267,11 +264,11 @@ public class PythonUDFOpExec implements OperatorExecutor {
      *                       although they may seem similar. This doesn't actually affect serialization speed that much,
      *                       so in general it can be the same as {@code batchSize}.
      */
-    private static void writeArrowStream(FlightClient client, Queue<Tuple> values,
-                                         org.apache.arrow.vector.types.pojo.Schema arrowSchema,
-                                         String descriptorPath, int chunkSize) throws RuntimeException {
+    private void writeArrowStream(FlightClient client, Queue<Tuple> values,
+                                  org.apache.arrow.vector.types.pojo.Schema arrowSchema,
+                                  String descriptorPath, int chunkSize) throws RuntimeException {
         SyncPutListener flightListener = new SyncPutListener();
-        VectorSchemaRoot schemaRoot = VectorSchemaRoot.create(arrowSchema, PythonUDFOpExec.globalRootAllocator);
+        VectorSchemaRoot schemaRoot = VectorSchemaRoot.create(arrowSchema, PythonUDFOpExec.memoryAllocator);
         FlightClient.ClientStreamListener streamWriter = client.startPut(FlightDescriptor.path(Collections.singletonList(descriptorPath)), schemaRoot, flightListener);
         try {
             while (!values.isEmpty()) {
@@ -301,9 +298,9 @@ public class PythonUDFOpExec implements OperatorExecutor {
      * @param client      The FlightClient that manages this.
      * @param resultQueue To store the results. Must be empty when it is passed here.
      */
-    private static void executeUDF(FlightClient client, Queue<Tuple> resultQueue) {
+    private void executeUDF(FlightClient client, Queue<Tuple> resultQueue) {
         try {
-            FlightResponseMap result = PythonUDFOpExec.globalObjectMapper.readValue(communicate(client, "compute"), FlightResponseMap.class);
+            FlightResponseMap result = PythonUDFOpExec.objectMapper.readValue(communicate(client, "compute"), FlightResponseMap.class);
             if (result.get("status").equals("Fail")) {
                 String errorMessage = result.get("errorMessage");
                 throw new Exception(errorMessage);
@@ -318,12 +315,12 @@ public class PythonUDFOpExec implements OperatorExecutor {
      * Close everything and throw an exception. This should only be called when an exception occurs and needs to be
      * thrown, but the Arrow Flight Client is still running.
      *
-     * @param client FlightClient.
-     * @param e      the exception to be wrapped into Amber Exception.
+     * @param client    FlightClient.
+     * @param exception the exception to be wrapped into Amber Exception.
      */
-    private static void closeAndThrow(FlightClient client, Exception e) throws RuntimeException {
+    private void closeAndThrow(FlightClient client, Exception exception) throws RuntimeException {
         closeClientAndServer(client, false);
-        throw new RuntimeException(e.getMessage());
+        throw new RuntimeException(exception.getMessage());
     }
 
     private static void deleteTempFile(String filePath) throws IOException {
@@ -344,7 +341,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
      * @param descriptorPath The predefined path that specifies where to read the data in Flight Serve.
      * @param resultQueue    resultQueue To store the results. Must be empty when it is passed here.
      */
-    private static void readArrowStream(FlightClient client, String descriptorPath, Queue<Tuple> resultQueue) {
+    private void readArrowStream(FlightClient client, String descriptorPath, Queue<Tuple> resultQueue) {
         try {
             FlightInfo info = client.getInfo(FlightDescriptor.path(Collections.singletonList(descriptorPath)));
             Ticket ticket = info.getEndpoints().get(0).getTicket();
@@ -378,7 +375,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
         while (!connected && tryCount < MAX_TRY_COUNT) {
 
             try {
-                flightClient = FlightClient.builder(globalRootAllocator, flightServerURI).build();
+                flightClient = FlightClient.builder(memoryAllocator, flightServerURI).build();
                 connected = new String(communicate(flightClient, "healthcheck"), StandardCharsets.UTF_8).equals("Flight Server is up and running!");
                 if (!connected) Thread.sleep(WAIT_TIME_MS);
             } catch (FlightRuntimeException e) {
@@ -475,7 +472,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
         int portNumber = getFreeLocalPort();
         Location location = new Location(URI.create("grpc+tcp://localhost:" + portNumber));
         // Start Flight server (Python process)
-        new ProcessBuilder(PYTHON, "-u", DAEMON_SCRIPT_PATH, Integer.toString(portNumber), pythonScriptPath)
+        this.pythonServerProcess = new ProcessBuilder(PYTHON, "-u", DAEMON_SCRIPT_PATH, Integer.toString(portNumber), pythonScriptPath)
                 .inheritIO()
                 .start();
         return location;
@@ -533,12 +530,20 @@ public class PythonUDFOpExec implements OperatorExecutor {
      *
      * @param client The client to close that is still connected to the Arrow Flight server.
      */
-    private static void closeClientAndServer(FlightClient client, boolean closeUDF) {
+    private void closeClientAndServer(FlightClient client, boolean closeUDF) {
         try {
-            if (closeUDF) client.doAction(new Action("close")).next().getBody();
-            client.doAction(new Action("shutdown")).next();
-            globalRootAllocator.close();
+            // close context on the Python end.
+            if (closeUDF) client.doAction(new Action("close")).next();
+
+            // clean memory allocation.
+            memoryAllocator.close();
+
+            // close client socket.
             client.close();
+
+            // destroy Python server process.
+            pythonServerProcess.destroy();
+
         } catch (InterruptedException e) {
             e.printStackTrace();
         }

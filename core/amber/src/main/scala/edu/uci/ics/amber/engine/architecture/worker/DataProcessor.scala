@@ -1,33 +1,26 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
-import java.util.concurrent.{Executors, LinkedBlockingDeque}
-
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.messaginglayer.TupleToBatchConverter
-import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{
-  ControlElement,
-  EndMarker,
-  EndOfAllMarker,
-  InputTuple,
-  InternalQueueElement,
-  SenderChangeMarker
-}
+import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue._
+import edu.uci.ics.amber.engine.common.{InputExhausted, IOperatorExecutor, WorkflowLogger}
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
-import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.{Completed, Running}
+import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.Completed
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   LinkIdentity,
   VirtualIdentity
 }
-import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, WorkflowLogger}
-import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.amber.error.ErrorUtils.safely
+import edu.uci.ics.amber.error.WorkflowRuntimeError
+
+import java.util.concurrent.Executors
 
 class DataProcessor( // dependencies:
     logger: WorkflowLogger, // logger of the worker actor
@@ -203,8 +196,8 @@ class DataProcessor( // dependencies:
   }
 
   def shutdown(): Unit = {
-    dpThread.cancel(true) // interrupt
     operator.close() // close operator
+    dpThread.cancel(true) // interrupt
     dpThreadExecutor.shutdownNow() // destroy thread
   }
 
