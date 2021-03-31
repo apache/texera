@@ -51,8 +51,8 @@ public class PythonUDFOpExec implements OperatorExecutor {
 
     private FlightClient flightClient;
     private org.apache.arrow.vector.types.pojo.Schema globalInputSchema;
-    private Queue<Tuple> inputTupleBuffer;
-    private Queue<Tuple> outputTupleBuffer;
+    private final Queue<Tuple> inputTupleBuffer = new LinkedList<>();
+    private final Queue<Tuple> outputTupleBuffer = new LinkedList<>();
 
     PythonUDFOpExec(String pythonScriptText, String pythonScriptFile, ArrayList<String> inputColumns,
                     ArrayList<Attribute> outputColumns, ArrayList<String> arguments,
@@ -445,9 +445,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
     public Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, LinkIdentity input) {
         if (tuple.isLeft()) {
             Tuple inputTuple = tuple.left().get();
-            if (inputTupleBuffer == null) {
-                // The first time, initialize this buffer.
-                inputTupleBuffer = new LinkedList<>();
+            if (globalInputSchema == null) {
                 try {
                     globalInputSchema = convertAmber2ArrowSchema(inputTuple.getSchema());
                 } catch (Exception e) {
@@ -457,14 +455,14 @@ public class PythonUDFOpExec implements OperatorExecutor {
             inputTupleBuffer.add(inputTuple);
             if (inputTupleBuffer.size() == batchSize) {
                 // This batch is full, execute the UDF.
-                outputTupleBuffer = new LinkedList<>();
+                outputTupleBuffer.clear();
                 processOneBatch(false);
                 return JavaConverters.asScalaIterator(outputTupleBuffer.iterator());
             }
         } else {
-            if (inputTupleBuffer != null && !inputTupleBuffer.isEmpty()) {
+            if (!inputTupleBuffer.isEmpty()) {
                 // There are some unprocessed tuples, finish them.
-                outputTupleBuffer = new LinkedList<>();
+                outputTupleBuffer.clear();
                 processOneBatch(true);
                 return JavaConverters.asScalaIterator(outputTupleBuffer.iterator());
             }
