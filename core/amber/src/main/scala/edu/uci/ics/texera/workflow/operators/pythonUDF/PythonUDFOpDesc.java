@@ -40,7 +40,6 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
 
     @JsonProperty(required = true)
     @JsonSchemaTitle("pythonUDFType")
-    @JsonPropertyDescription("output columns depends on choice of type")
     public PythonUDFType pythonUDFType;
 
     @JsonProperty()
