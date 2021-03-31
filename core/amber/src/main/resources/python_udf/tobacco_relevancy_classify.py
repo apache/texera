@@ -69,4 +69,5 @@ class TobaccoRelevancyOperator(texera_udf_operator_base.TexeraMapOperator):
         row[output_col] = self._classifier.predict(row, input_col)[0]
 
 
-operator_instance = TobaccoRelevancyOperator()
+if __name__ == '__main__':
+    operator_instance = TobaccoRelevancyOperator()

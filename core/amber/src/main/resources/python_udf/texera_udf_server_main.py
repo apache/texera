@@ -126,6 +126,7 @@ class UDFServer(pyarrow.flight.FlightServerBase):
             # discard this batch of input
             self.flights.pop(input_key)
             yield self._response(result_buffer.encode('utf-8'))
+
         elif action.type == "input_exhausted":
             self.udf_op.input_exhausted()
             self._output_data()

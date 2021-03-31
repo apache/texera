@@ -155,12 +155,12 @@ class TexeraBlockingTrainerOperator(TexeraUDFOperator):
         pass
 
     @staticmethod
-    def train(X_train, Y_train, **kwargs):
+    def train(x_train, y_train, **kwargs):
         raise NotImplementedError
 
-    def report_matrix(self, Y_test, Y_pred, *args):
+    def report_matrix(self, y_test, y_pred, *args):
         from sklearn.metrics import classification_report
-        matrix = pandas.DataFrame(classification_report(Y_test, Y_pred, output_dict=True)).transpose()
+        matrix = pandas.DataFrame(classification_report(y_test, y_pred, output_dict=True)).transpose()
         matrix['class'] = [label for label, row in matrix.iterrows()]
         cols = matrix.columns.to_list()
         cols = [cols[-1]] + cols[:-1]

@@ -27,4 +27,5 @@ class NLTKSentimentOperator(texera_udf_operator_base.TexeraMapOperator):
         return row
 
 
-operator_instance = NLTKSentimentOperator()
+if __name__ == '__main__':
+    operator_instance = NLTKSentimentOperator()
