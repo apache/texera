@@ -27,13 +27,12 @@ class SVMTrainer(texera_udf_operator_base.TexeraBlockingTrainerOperator):
         return vectorizer, svclassifier
 
 
-
-
+operator_instance = SVMTrainer()
 if __name__ == '__main__':
     df = df_from_mysql("select text from texera_db.test_tweets")
     df['label'] = np.random.randint(-1, 2, df.shape[0])
     print(df)
-    operator_instance = SVMTrainer()
+
     operator_instance.open(None, None, "300", "50", "linear", "20", "model.pickle", "vc.pickle")
     for index, row in df.iterrows():
         operator_instance.accept(row)

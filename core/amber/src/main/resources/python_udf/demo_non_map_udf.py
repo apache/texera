@@ -20,5 +20,4 @@ class DemoOperator(texera_udf_operator_base.TexeraUDFOperator):
         pass
 
 
-if __name__ == '__main__':
-    operator_instance = DemoOperator()
+operator_instance = DemoOperator()

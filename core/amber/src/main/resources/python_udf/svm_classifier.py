@@ -33,10 +33,11 @@ class SVMClassifier(texera_udf_operator_base.TexeraMapOperator):
         return row
 
 
+operator_instance = SVMClassifier()
 if __name__ == '__main__':
     df = df_from_mysql("select text from texera_db.test_tweets")
     print(df)
-    operator_instance = SVMClassifier()
+
     operator_instance.open("text", "inferred_output", "tobacco_model.pickle", "tobacco_vc.pickle")
     for index, row in df.iterrows():
         operator_instance.accept(row)
