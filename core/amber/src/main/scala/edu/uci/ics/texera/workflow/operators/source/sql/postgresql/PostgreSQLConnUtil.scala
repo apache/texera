@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.source.postgresql
+package edu.uci.ics.texera.workflow.operators.source.sql.postgresql
 
 import java.sql.{Connection, DriverManager, SQLException}
 

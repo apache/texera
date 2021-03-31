@@ -6,10 +6,10 @@ import edu.uci.ics.texera.workflow.operators.aggregate.{
 }
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc
 import edu.uci.ics.texera.workflow.operators.keywordSearch.KeywordSearchOpDesc
-import edu.uci.ics.texera.workflow.operators.scan.CSVScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
-import edu.uci.ics.texera.workflow.operators.source.asterixdb.AsterixDBSourceOpDesc
-import edu.uci.ics.texera.workflow.operators.source.mysql.MySQLSourceOpDesc
+import edu.uci.ics.texera.workflow.operators.source.scan.csv.CSVScanSourceOpDesc
+import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBSourceOpDesc
+import edu.uci.ics.texera.workflow.operators.source.sql.mysql.MySQLSourceOpDesc
 
 object TestOperators {
 

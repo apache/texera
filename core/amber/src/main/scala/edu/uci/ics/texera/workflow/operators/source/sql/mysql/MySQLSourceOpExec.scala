@@ -1,8 +1,8 @@
-package edu.uci.ics.texera.workflow.operators.source.mysql
+package edu.uci.ics.texera.workflow.operators.source.sql.mysql
 
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
-import edu.uci.ics.texera.workflow.operators.source.SQLSourceOpExec
-import edu.uci.ics.texera.workflow.operators.source.mysql.MySQLConnUtil.connect
+import edu.uci.ics.texera.workflow.operators.source.sql.mysql.MySQLConnUtil.connect
+import edu.uci.ics.texera.workflow.operators.source.sql.SQLSourceOpExec
 
 import java.sql._
 

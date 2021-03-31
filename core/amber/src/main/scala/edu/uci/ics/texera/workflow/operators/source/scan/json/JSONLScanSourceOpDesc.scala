@@ -1,6 +1,6 @@
-package edu.uci.ics.texera.workflow.operators.scan
+package edu.uci.ics.texera.workflow.operators.source.scan.json
 
-import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty}
 import com.google.common.io.Files
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.common.Constants
@@ -13,7 +13,6 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 }
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
-import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
 import org.codehaus.jackson.map.annotate.JsonDeserialize
 
 import java.io.{BufferedReader, File, FileReader, IOException}
@@ -21,8 +20,9 @@ import java.nio.charset.Charset
 import java.util.Collections.singletonList
 import scala.collection.JavaConverters._
 import scala.collection.immutable.List
+import scala.util.control.Exception._
 
-class CSVScanSourceOpDesc extends SourceOperatorDescriptor {
+class JSONLScanSourceOpDesc extends SourceOperatorDescriptor {
 
   @JsonIgnore
   val INFER_READ_LIMIT: Int = 100
@@ -32,38 +32,23 @@ class CSVScanSourceOpDesc extends SourceOperatorDescriptor {
   @JsonDeserialize(contentAs = classOf[java.lang.String])
   var fileName: Option[String] = None
 
-  @JsonProperty(defaultValue = ",")
-  @JsonSchemaTitle("Delimiter")
-  @JsonPropertyDescription("delimiter to separate each line into fields")
-  @JsonDeserialize(contentAs = classOf[java.lang.String])
-  var delimiter: Option[String] = None
-
-  @JsonProperty(defaultValue = "true")
-  @JsonSchemaTitle("Header")
-  @JsonPropertyDescription("whether the CSV file contains a header line")
-  var hasHeader: Boolean = true
-
   @JsonIgnore
   var filePath: Option[String] = None
 
   @throws[IOException]
-  override def operatorExecutor: CSVScanSourceOpExecConfig = {
+  override def operatorExecutor: JSONLScanSourceOpExecConfig = {
     // fill in default values
-    if (delimiter.get.isEmpty)
-      delimiter = Option(",")
 
     filePath match {
       case Some(path) =>
         val headerLine: String =
           Files.asCharSource(new File(path), Charset.defaultCharset).readFirstLine
 
-        new CSVScanSourceOpExecConfig(
+        new JSONLScanSourceOpExecConfig(
           this.operatorIdentifier,
           Constants.defaultNumWorkers,
           path,
-          delimiter.get.charAt(0),
-          this.inferSchema(headerLine),
-          hasHeader
+          this.inferSchema()
         )
       case None =>
         throw new RuntimeException("File path is not provided.")
@@ -115,22 +100,22 @@ class CSVScanSourceOpDesc extends SourceOperatorDescriptor {
     if (delimiter.isEmpty) return null
 
     val headers: Array[String] = headerLine.split(delimiter.get)
+    val attributeTypeList: Array[AttributeType] =
+      Array.fill[AttributeType](headers.length)(AttributeType.INTEGER)
 
     val reader = new BufferedReader(new FileReader(filePath.get))
+
     if (hasHeader)
       reader.readLine()
+    var i = 0
 
     // TODO: real CSV may contain multi-line values. Need to handle multi-line values correctly.
-
-    val attributeTypeList: Array[AttributeType] = inferSchemaFromRows(
-      reader
-        .lines()
-        .iterator
-        .asScala
-        .take(INFER_READ_LIMIT)
-        .map(line => line.split(delimiter.get).asInstanceOf[Array[Object]])
-    )
-
+    var line: String = reader.readLine()
+    while (line != null && i < INFER_READ_LIMIT) {
+      inferRow(attributeTypeList, line.split(delimiter.get))
+      i += 1
+      line = reader.readLine()
+    }
     reader.close()
 
     // build schema based on inferred AttributeTypes
@@ -146,6 +131,64 @@ class CSVScanSourceOpDesc extends SourceOperatorDescriptor {
             .asJava
       )
       .build
+  }
+
+  /**
+    * Infers field types of a given row of data. The given attributeTypeList will be updated
+    * through each iteration of row inference, to contain the must accurate inference.
+    * @param attributeTypeList AttributeTypes that being passed to each iteration.
+    * @param fields data fields to be parsed, originally as String fields
+    * @return
+    */
+  private def inferRow(
+      attributeTypeList: Array[AttributeType],
+      fields: Array[String]
+  ): Unit = {
+    for (i <- fields.indices) {
+      attributeTypeList.update(i, inferField(attributeTypeList.apply(i), fields.apply(i)))
+    }
+  }
+
+  private def inferField(attributeType: AttributeType, fieldValue: String): AttributeType = {
+    attributeType match {
+      case AttributeType.STRING  => tryParseString()
+      case AttributeType.BOOLEAN => tryParseBoolean(fieldValue)
+      case AttributeType.DOUBLE  => tryParseDouble(fieldValue)
+      case AttributeType.LONG    => tryParseLong(fieldValue)
+      case AttributeType.INTEGER => tryParseInteger(fieldValue)
+      case _                     => tryParseString()
+    }
+  }
+
+  private def tryParseInteger(fieldValue: String): AttributeType = {
+    allCatch opt fieldValue.toInt match {
+      case Some(_) => AttributeType.INTEGER
+      case None    => tryParseLong(fieldValue)
+    }
+  }
+
+  private def tryParseLong(fieldValue: String): AttributeType = {
+    allCatch opt fieldValue.toLong match {
+      case Some(_) => AttributeType.LONG
+      case None    => tryParseDouble(fieldValue)
+    }
+  }
+
+  private def tryParseDouble(fieldValue: String): AttributeType = {
+    allCatch opt fieldValue.toDouble match {
+      case Some(_) => AttributeType.DOUBLE
+      case None    => tryParseBoolean(fieldValue)
+    }
+  }
+  private def tryParseBoolean(fieldValue: String): AttributeType = {
+    allCatch opt fieldValue.toBoolean match {
+      case Some(_) => AttributeType.BOOLEAN
+      case None    => tryParseString()
+    }
+  }
+
+  private def tryParseString(): AttributeType = {
+    AttributeType.STRING
   }
 
 }

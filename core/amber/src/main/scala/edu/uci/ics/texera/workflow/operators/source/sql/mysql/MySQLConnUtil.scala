@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.source.mysql
+package edu.uci.ics.texera.workflow.operators.source.sql.mysql
 import java.sql.{Connection, DriverManager, SQLException}
 
 object MySQLConnUtil {

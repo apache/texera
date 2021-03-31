@@ -8,7 +8,7 @@ import com.kjetland.jackson.jsonSchema.{JsonSchemaConfig, JsonSchemaDraft, JsonS
 import com.kjetland.jackson.jsonSchema.JsonSchemaConfig.html5EnabledSchema
 import edu.uci.ics.texera.workflow.common.Utils.objectMapper
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
-import edu.uci.ics.texera.workflow.operators.scan.CSVScanSourceOpDesc
+import edu.uci.ics.texera.workflow.operators.source.scan.csv.CSVScanSourceOpDesc
 
 import java.util
 import scala.collection.JavaConverters

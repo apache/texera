@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.scan
+package edu.uci.ics.texera.workflow.operators.source.scan.csv
 
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.UseAll
