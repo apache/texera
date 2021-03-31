@@ -79,7 +79,7 @@ class TexeraMapOperator(TexeraUDFOperator):
         self._result_tuples.append(self._map_function(row, *self._args))  # must take args
 
     def has_next(self) -> bool:
-        return len(self._result_tuples) != 0
+        return bool(self._result_tuples)
 
     def next(self) -> pandas.Series:
         return self._result_tuples.pop()
@@ -159,7 +159,6 @@ class TexeraBlockingTrainerOperator(TexeraUDFOperator):
         raise NotImplementedError
 
     def report_matrix(self, Y_test, Y_pred, *args):
-        print("what ")
         from sklearn.metrics import classification_report
         matrix = pandas.DataFrame(classification_report(Y_test, Y_pred, output_dict=True)).transpose()
         matrix['class'] = [label for label, row in matrix.iterrows()]
@@ -167,6 +166,5 @@ class TexeraBlockingTrainerOperator(TexeraUDFOperator):
         cols = [cols[-1]] + cols[:-1]
         matrix = matrix[cols]
         for index, row in list(matrix.iterrows())[::-1]:
-            print(index, row)
             if index != 1:
                 self._result_tuples.append(row)

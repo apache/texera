@@ -115,19 +115,16 @@ class UDFServer(pyarrow.flight.FlightServerBase):
                 input_table: pyarrow.Table = self.flights[input_key]
                 input_dataframe: pandas.DataFrame = input_table.to_pandas()
 
-                # execute and get output data
+                # execute and output data
                 for index, row in input_dataframe.iterrows():
                     self.udf_op.accept(row)
                 self._output_data()
                 result_buffer = json.dumps({'status': 'Success'})
             except:
                 result_buffer = json.dumps({'status': 'Fail', 'errorMessage': traceback.format_exc()})
-            yield self._response(result_buffer.encode('utf-8'))
 
             # discard this batch of input
             self.flights.pop(input_key)
-
-            result_buffer = json.dumps({'status': 'Success'})
             yield self._response(result_buffer.encode('utf-8'))
         elif action.type == "input_exhausted":
             self.udf_op.input_exhausted()

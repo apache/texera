@@ -21,9 +21,6 @@ class SVMClassifier(texera_udf_operator_base.TexeraMapOperator):
         self._model = None
         self._vc = None
 
-    def close(self):
-        pass
-
     def predict(self, row: pandas.Series, *args):
         if not self._model:
             with open(self.model_file_path, 'rb') as file:
@@ -40,10 +37,10 @@ operator_instance = SVMClassifier()
 if __name__ == '__main__':
     df = df_from_mysql("select text from texera_db.test_tweets")
     print(df)
-    operator_instance.open("text", "inferred_output", "model.pickle", "vc.pickle")
+    operator_instance.open("text", "inferred_output", "tobacco_model.pickle", "tobacco_vc.pickle")
     for index, row in df.iterrows():
         operator_instance.accept(row)
-        if operator_instance.has_next():
+        while operator_instance.has_next():
             print(operator_instance.next())
 
     operator_instance.close()

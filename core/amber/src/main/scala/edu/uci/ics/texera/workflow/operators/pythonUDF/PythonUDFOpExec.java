@@ -52,7 +52,6 @@ public class PythonUDFOpExec implements OperatorExecutor {
     private FlightClient flightClient;
     private org.apache.arrow.vector.types.pojo.Schema globalInputSchema;
     private final Queue<Tuple> inputTupleBuffer = new LinkedList<>();
-    private final Queue<Tuple> outputTupleBuffer = new LinkedList<>();
 
     PythonUDFOpExec(String pythonScriptText, String pythonScriptFile, ArrayList<String> inputColumns,
                     ArrayList<Attribute> outputColumns, ArrayList<String> arguments,
@@ -357,13 +356,42 @@ public class PythonUDFOpExec implements OperatorExecutor {
         }
     }
 
-    private void processOneBatch(boolean inputExhausted) throws RuntimeException {
-        writeArrowStream(flightClient, inputTupleBuffer, globalInputSchema, "toPython", batchSize);
-        executeUDF(flightClient);
-        if (inputExhausted) {
-            communicate(flightClient, "input_exhausted");
+    /**
+     * Converts an Amber schema into Arrow schema.
+     *
+     * @param amberSchema The Amber Tuple Schema.
+     * @return An Arrow {@link org.apache.arrow.vector.types.pojo.Schema}.
+     */
+    private static org.apache.arrow.vector.types.pojo.Schema convertAmber2ArrowSchema(Schema amberSchema)
+            throws RuntimeException {
+        List<Field> arrowFields = new ArrayList<>();
+        for (Attribute amberAttribute : amberSchema.getAttributes()) {
+            String name = amberAttribute.getName();
+            Field field;
+            switch (amberAttribute.getType()) {
+                case INTEGER:
+                    field = Field.nullablePrimitive(name, new ArrowType.Int(32, true));
+                    break;
+                case LONG:
+                    field = Field.nullablePrimitive(name, new ArrowType.Int(64, true));
+                    break;
+                case DOUBLE:
+                    field = Field.nullablePrimitive(name, new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE));
+                    break;
+                case BOOLEAN:
+                    field = Field.nullablePrimitive(name, ArrowType.Bool.INSTANCE);
+                    break;
+                case STRING:
+                case ANY:
+                    field = Field.nullablePrimitive(name, ArrowType.Utf8.INSTANCE);
+                    break;
+                default:
+                    throw new RuntimeException("Unexpected value: " + amberAttribute.getType());
+            }
+            arrowFields.add(field);
+
         }
-        readArrowStream(flightClient, "fromPython", outputTupleBuffer);
+        return new org.apache.arrow.vector.types.pojo.Schema(arrowFields);
     }
 
     private static void safeDeleteTempFile(String fileName) {
@@ -407,67 +435,46 @@ public class PythonUDFOpExec implements OperatorExecutor {
         }
     }
 
-    /**
-     * Converts an Amber schema into Arrow schema.
-     *
-     * @param amberSchema The Amber Tuple Schema.
-     * @return An Arrow {@link org.apache.arrow.vector.types.pojo.Schema}.
-     */
-    private static org.apache.arrow.vector.types.pojo.Schema convertAmber2ArrowSchema(Schema amberSchema) {
-        List<Field> arrowFields = new ArrayList<>();
-        for (Attribute amberAttribute : amberSchema.getAttributes()) {
-            String name = amberAttribute.getName();
-            Field field;
-            switch (amberAttribute.getType()) {
-                case INTEGER:
-                    field = Field.nullablePrimitive(name, new ArrowType.Int(32, true));
-                    break;
-                case DOUBLE:
-                    field = Field.nullablePrimitive(name, new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE));
-                    break;
-                case BOOLEAN:
-                    field = Field.nullablePrimitive(name, ArrowType.Bool.INSTANCE);
-                    break;
-                case STRING:
-                case ANY:
-                    field = Field.nullablePrimitive(name, ArrowType.Utf8.INSTANCE);
-                    break;
-                default:
-                    throw new IllegalStateException("Unexpected value: " + amberAttribute.getType());
-            }
-            arrowFields.add(field);
+    private Iterator<Tuple> processOneBatch(boolean inputExhausted) throws RuntimeException {
+        writeArrowStream(flightClient, inputTupleBuffer, globalInputSchema, "toPython", batchSize);
+        executeUDF(flightClient);
+        Queue<Tuple> outputTupleBuffer = new LinkedList<>();
+        readArrowStream(flightClient, "fromPython", outputTupleBuffer);
 
+        if (inputExhausted) {
+            Queue<Tuple> extraTupleBuffer = new LinkedList<>();
+            communicate(flightClient, "input_exhausted");
+            readArrowStream(flightClient, "fromPython", extraTupleBuffer);
+            outputTupleBuffer.addAll(extraTupleBuffer);
         }
-        return new org.apache.arrow.vector.types.pojo.Schema(arrowFields);
+
+        inputTupleBuffer.clear();
+        return JavaConverters.asScalaIterator(outputTupleBuffer.iterator());
     }
 
     @Override
     public Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, LinkIdentity input) {
+
         if (tuple.isLeft()) {
             Tuple inputTuple = tuple.left().get();
             if (globalInputSchema == null) {
                 try {
                     globalInputSchema = convertAmber2ArrowSchema(inputTuple.getSchema());
-                } catch (Exception e) {
-                    closeAndThrow(flightClient, e);
+                } catch (RuntimeException exception) {
+                    closeAndThrow(flightClient, exception);
                 }
             }
             inputTupleBuffer.add(inputTuple);
             if (inputTupleBuffer.size() == batchSize) {
                 // This batch is full, execute the UDF.
-                outputTupleBuffer.clear();
-                processOneBatch(false);
-                return JavaConverters.asScalaIterator(outputTupleBuffer.iterator());
+                return processOneBatch(false);
+            } else {
+                return JavaConverters.asScalaIterator(Collections.emptyIterator());
             }
         } else {
-            if (!inputTupleBuffer.isEmpty()) {
-                // There are some unprocessed tuples, finish them.
-                outputTupleBuffer.clear();
-                processOneBatch(true);
-                return JavaConverters.asScalaIterator(outputTupleBuffer.iterator());
-            }
+            // There might be some unprocessed tuples, finish them.
+            return processOneBatch(true);
         }
-        return JavaConverters.asScalaIterator(Collections.emptyIterator());
     }
 
     /**
