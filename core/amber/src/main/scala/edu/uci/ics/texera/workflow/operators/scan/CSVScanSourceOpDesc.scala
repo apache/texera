@@ -127,7 +127,7 @@ class CSVScanSourceOpDesc extends SourceOperatorDescriptor {
     // TODO: real CSV may contain multi-line values. Need to handle multi-line values correctly.
     var line: String = reader.readLine()
     while (line != null && i < INFER_READ_LIMIT) {
-      AttributeTypeUtils.inferRow(attributeTypeList, line.split(delimiter.get))
+      AttributeTypeUtils.inferRow(attributeTypeList, line.split(delimiter.get).toStream.toArray)
       i += 1
       line = reader.readLine()
     }
