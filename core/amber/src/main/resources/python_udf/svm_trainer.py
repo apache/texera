@@ -44,7 +44,7 @@ if __name__ == '__main__':
     df['label'] = np.random.randint(-1, 2, df.shape[0])
     print(df)
 
-    operator_instance.open(None, None, "300", "50", "linear", "20", "model.pickle", "vc.pickle")
+    operator_instance.open(None, None, ".33", "svm.model")
     for index, row in df.iterrows():
         operator_instance.accept(row)
     while operator_instance.has_next():

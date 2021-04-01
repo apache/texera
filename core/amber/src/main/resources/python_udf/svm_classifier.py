@@ -32,7 +32,7 @@ if __name__ == '__main__':
     df = df_from_mysql("select text from texera_db.test_tweets")
     print(df)
 
-    operator_instance.open("text", "inferred_output", "tobacco_model.pickle", "tobacco_vc.pickle")
+    operator_instance.open("text", "inferred_output", "tobacco_svm.model")
     for index, row in df.iterrows():
         operator_instance.accept(row)
         while operator_instance.has_next():
