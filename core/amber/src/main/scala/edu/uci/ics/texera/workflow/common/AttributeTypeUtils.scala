@@ -124,7 +124,7 @@ object AttributeTypeUtils extends Serializable {
     */
   def inferRow(
       attributeTypes: Array[AttributeType],
-      fields: Array[String]
+      fields: Array[Object]
   ): Unit = {
     for (i <- fields.indices) {
       attributeTypes.update(i, inferField(attributeTypes.apply(i), fields.apply(i)))
@@ -136,7 +136,7 @@ object AttributeTypeUtils extends Serializable {
     * @param fields data fields to be parsed, originally as String fields
     * @return AttributeType array
     */
-  def inferRow(fields: Array[String]): Array[AttributeType] = {
+  def inferRow(fields: Array[Object]): Array[AttributeType] = {
     val attributeTypes: Array[AttributeType] =
       Array.fill[AttributeType](fields.length)(INTEGER)
     for (i <- fields.indices) {
@@ -150,7 +150,7 @@ object AttributeTypeUtils extends Serializable {
     * @param fieldValue data field to be parsed, original as String field
     * @return inferred AttributeType
     */
-  def inferField(fieldValue: String): AttributeType = {
+  def inferField(fieldValue: Object): AttributeType = {
     tryParseInteger(fieldValue)
   }
 
@@ -160,7 +160,7 @@ object AttributeTypeUtils extends Serializable {
     * @param fieldValue data field to be parsed, original as String field
     * @return inferred AttributeType
     */
-  def inferField(attributeType: AttributeType, fieldValue: String): AttributeType = {
+  def inferField(attributeType: AttributeType, fieldValue: Object): AttributeType = {
     attributeType match {
       case STRING  => tryParseString()
       case BOOLEAN => tryParseBoolean(fieldValue)
@@ -261,28 +261,28 @@ object AttributeTypeUtils extends Serializable {
     }
   }
 
-  private def tryParseInteger(fieldValue: String): AttributeType = {
+  private def tryParseInteger(fieldValue: Object): AttributeType = {
     allCatch opt parseInteger(fieldValue) match {
       case Some(_) => INTEGER
       case None    => tryParseLong(fieldValue)
     }
   }
 
-  private def tryParseLong(fieldValue: String): AttributeType = {
+  private def tryParseLong(fieldValue: Object): AttributeType = {
     allCatch opt parseLong(fieldValue) match {
       case Some(_) => LONG
       case None    => tryParseDouble(fieldValue)
     }
   }
 
-  private def tryParseDouble(fieldValue: String): AttributeType = {
+  private def tryParseDouble(fieldValue: Object): AttributeType = {
     allCatch opt parseDouble(fieldValue) match {
       case Some(_) => DOUBLE
       case None    => tryParseBoolean(fieldValue)
     }
   }
 
-  private def tryParseBoolean(fieldValue: String): AttributeType = {
+  private def tryParseBoolean(fieldValue: Object): AttributeType = {
     allCatch opt parseBoolean(fieldValue) match {
       case Some(_) => BOOLEAN
       case None    => tryParseString()
