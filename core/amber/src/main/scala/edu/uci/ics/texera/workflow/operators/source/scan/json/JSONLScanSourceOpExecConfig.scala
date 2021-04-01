@@ -18,9 +18,7 @@ class JSONLScanSourceOpExecConfig(
     tag: OperatorIdentity,
     numWorkers: Int,
     filePath: String,
-    delimiter: Char,
-    schema: Schema,
-    hasHeader: Boolean
+    schema: Schema
 ) extends OpExecConfig(tag) {
   override lazy val topology: Topology = {
     val totalBytes: Long = new File(filePath).length()
@@ -33,11 +31,7 @@ class JSONLScanSourceOpExecConfig(
               if (i != numWorkers - 1) totalBytes / numWorkers * (i + 1) else totalBytes
             new JSONLScanSourceOpExec(
               filePath,
-              totalBytes / numWorkers * i,
-              endOffset,
-              delimiter,
-              schema,
-              hasHeader
+              schema
             )
           },
           numWorkers,

@@ -21,6 +21,7 @@ import edu.uci.ics.texera.workflow.operators.reservoirsampling.ReservoirSampling
 import edu.uci.ics.texera.workflow.operators.sentiment.SentimentAnalysisOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.csv.CSVScanSourceOpDesc
+import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONLScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.mysql.MySQLSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.postgresql.PostgreSQLSourceOpDesc
@@ -42,6 +43,7 @@ import java.util.UUID
 @JsonSubTypes(
   Array(
     new Type(value = classOf[CSVScanSourceOpDesc], name = "CSVFileScan"),
+    new Type(value = classOf[JSONLScanSourceOpDesc], name = "JSONLFileScan"),
     new Type(value = classOf[SimpleSinkOpDesc], name = "SimpleSink"),
     new Type(value = classOf[RegexOpDesc], name = "Regex"),
     new Type(value = classOf[SpecializedFilterOpDesc], name = "Filter"),
