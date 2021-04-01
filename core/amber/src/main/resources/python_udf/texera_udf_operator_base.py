@@ -1,4 +1,4 @@
-import pickle
+import shelve
 from abc import ABC
 from typing import Dict, Optional, Tuple, Callable, List
 
@@ -127,16 +127,15 @@ class TexeraBlockingTrainerOperator(TexeraUDFOperator):
         self._result_tuples: List = []
         self._test_size = None
         self._train_args = dict()
-        self.model_filename = None
-        self.vc_filename = None
+        self._model_file_path = None
 
     def input_exhausted(self, *args):
         x_train, x_test, y_train, y_test = train_test_split(self._x, self._y, test_size=self._test_size, random_state=1)
         vc, model = self.train(x_train, y_train, **self._train_args)
-        with open(self.model_filename, 'wb') as file:
-            pickle.dump(model, file)
-        with open(self.vc_filename, 'wb') as file:
-            pickle.dump(vc, file)
+
+        with shelve.open(self._model_file_path) as db:
+            db['model'] = model
+            db['vc'] = vc
         if x_test:
             y_pred = model.predict(vc.transform(x_test))
             self.report_matrix(y_test, y_pred)

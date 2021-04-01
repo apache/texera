@@ -15,8 +15,7 @@ class SVMTrainer(texera_udf_operator_base.TexeraBlockingTrainerOperator):
 
         # TODO: _train_args from user input args
         self._train_args = {}
-        self.model_filename = args[-2]
-        self.vc_filename = args[-1]
+        self._model_file_path = args[-1]
 
     @staticmethod
     def train(x_train, y_train, **train_args):

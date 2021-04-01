@@ -1,4 +1,4 @@
-import pickle
+import shelve
 
 import pandas
 
@@ -10,25 +10,19 @@ class SVMClassifier(texera_udf_operator_base.TexeraMapOperator):
 
     def __init__(self):
         super(SVMClassifier, self).__init__(self.predict)
-        self._model_file = None
-        self._sentiment_model = None
         self._model_file_path = None
-        self._vc_file_path = None
         self._model = None
         self._vc = None
 
     def open(self, *args):
         super(SVMClassifier, self).open(*args)
-        self._model_file_path = args[2]
-        self._vc_file_path = args[3]
+        self._model_file_path = args[-1]
 
     def predict(self, row: pandas.Series, *args):
-        if not self._model:
-            with open(self._model_file_path, 'rb') as file:
-                self._model = pickle.load(file)
-        if not self._vc:
-            with open(self._vc_file_path, 'rb') as file:
-                self._vc = pickle.load(file)
+        if not self._model and not self._vc:
+            with shelve.open(self._model_file_path) as db:
+                self._model = db['model']
+                self._vc = db['vc']
         row[args[1]] = self._model.predict(self._vc.transform([row[args[0]]]))[0]
         return row
 
