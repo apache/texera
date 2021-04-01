@@ -1,5 +1,6 @@
 import numpy as np
 from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.model_selection import GridSearchCV
 from sklearn.svm import SVC
 
 import texera_udf_operator_base
@@ -11,20 +12,31 @@ class SVMTrainer(texera_udf_operator_base.TexeraBlockingTrainerOperator):
     def open(self, *args):
         super(SVMTrainer, self).open(*args)
         self._test_size = float(args[2])
-        self._train_args = {'kernel': args[3], 'degree': int(args[4])}
-        self.model_filename = args[5]
-        self.vc_filename = args[6]
+
+        # TODO: _train_args from user input args
+        self._train_args = {}
+        self.model_filename = args[-2]
+        self.vc_filename = args[-1]
 
     @staticmethod
-    def train(X_train, Y_train, **train_args):
+    def train(x_train, y_train, **train_args):
         vectorizer = CountVectorizer()
 
-        X_train = vectorizer.fit_transform(X_train)
-        Y_train = Y_train
+        x_train = vectorizer.fit_transform(x_train)
 
-        svclassifier = SVC(**train_args)
-        svclassifier.fit(X_train, Y_train)
-        return vectorizer, svclassifier
+        # TODO: find a way to overwrite by user input args
+        # clf = SVC(**train_args)
+        # clf.fit(x_train, y_train)
+
+        tuned_parameters = [{'kernel': ['rbf'], 'gamma': [1e-3, 1e-4],
+                             'C': [1, 10, 100, 1000]},
+                            {'kernel': ['linear'], 'C': [1, 10, 100, 1000]}]
+
+        clf = GridSearchCV(
+            SVC(), tuned_parameters, scoring='%s_macro' % "precision"
+        )
+        clf.fit(x_train, y_train)
+        return vectorizer, clf
 
 
 operator_instance = SVMTrainer()
