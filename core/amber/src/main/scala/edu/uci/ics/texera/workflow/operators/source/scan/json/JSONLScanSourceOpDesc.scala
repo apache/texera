@@ -3,13 +3,15 @@ package edu.uci.ics.texera.workflow.operators.source.scan.json
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.JsonNode
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
+import edu.uci.ics.texera.workflow.common.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.texera.workflow.common.Utils.objectMapper
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.parseJSON
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 
 import java.io.{BufferedReader, FileReader, IOException}
-import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
+import scala.jdk.CollectionConverters.asJavaIterableConverter
 
 class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
 
@@ -20,8 +22,6 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
 
   @throws[IOException]
   override def operatorExecutor: JSONLScanSourceOpExecConfig = {
-    // fill in default values
-
     filePath match {
       case Some(path) =>
         new JSONLScanSourceOpExecConfig(
@@ -44,8 +44,9 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
   @Override
   def inferSchema(): Schema = {
     val reader = new BufferedReader(new FileReader(filePath.get))
-    var fields = Set[String]()
-
+    var fieldNames = Set[String]()
+    var fields: Map[String, String] = null
+    val allFields: ArrayBuffer[Map[String, String]] = ArrayBuffer()
     var line: String = null
     var count: Int = 0
     while ({
@@ -55,15 +56,29 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
     } != null && count < INFER_READ_LIMIT) {
       val root: JsonNode = objectMapper.readTree(line)
       if (root.isObject) {
-        fields = fields.++(parseJSON(root, flatten = flatten).keySet)
+        fields = parseJSON(root, flatten = flatten)
+        fieldNames = fieldNames.++(fields.keySet)
+        allFields += fields
       }
     }
+    val sortedFieldNames = fieldNames.toList.sorted
     reader.close()
 
-    // TODO: use actual infer schema.
+    val attributeTypes = inferSchemaFromRows(allFields.iterator.map(fields => {
+      val result = ArrayBuffer[Object]()
+      for (fieldName <- sortedFieldNames)
+        if (fields.contains(fieldName))
+          result += fields(fieldName)
+        else
+          result += null
+      result.toArray
+    }))
+
     Schema.newBuilder
       .add(
-        fields.toList.sorted.map((field: String) => new Attribute(field, AttributeType.ANY)).asJava
+        sortedFieldNames.indices
+          .map(i => new Attribute(sortedFieldNames(i), attributeTypes(i)))
+          .asJava
       )
       .build
   }
