@@ -1,40 +1,27 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.json
 
-import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty}
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.JsonNode
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorGroupConstants,
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.common.Utils.objectMapper
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.parseJSON
-import org.codehaus.jackson.map.annotate.JsonDeserialize
+import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 
 import java.io.{BufferedReader, FileReader, IOException}
 import java.util.Collections.singletonList
 import scala.collection.JavaConverters._
 import scala.collection.immutable.List
 
-class JSONLScanSourceOpDesc extends SourceOperatorDescriptor {
-
-  @JsonIgnore
-  val INFER_READ_LIMIT: Int = 100
-
-  @JsonProperty(required = true)
-  @JsonSchemaTitle("File")
-  @JsonDeserialize(contentAs = classOf[java.lang.String])
-  var fileName: Option[String] = None
+class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
 
   @JsonProperty(required = true)
   var flatten: Boolean = false
-
-  @JsonIgnore
-  var filePath: Option[String] = None
 
   @throws[IOException]
   override def operatorExecutor: JSONLScanSourceOpExecConfig = {
@@ -65,19 +52,12 @@ class JSONLScanSourceOpDesc extends SourceOperatorDescriptor {
     )
   }
 
-  @throws[IOException]
-  override def sourceSchema(): Schema = {
-    if (filePath.isEmpty) return null
-    else println("This is " + filePath)
-    inferSchema()
-
-  }
-
   /**
     * Infer Texera.Schema based on the top few lines of data.
     * @return Texera.Schema build for this operator
     */
-  private def inferSchema(): Schema = {
+  @Override
+  def inferSchema(): Schema = {
     val reader = new BufferedReader(new FileReader(filePath.get))
     var fields = Set[String]()
 
