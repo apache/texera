@@ -12,7 +12,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
-import java.io.File
+import java.io.{BufferedReader, FileReader}
 
 class JSONLScanSourceOpExecConfig(
     tag: OperatorIdentity,
@@ -21,17 +21,25 @@ class JSONLScanSourceOpExecConfig(
     schema: Schema
 ) extends OpExecConfig(tag) {
   override lazy val topology: Topology = {
-    val totalBytes: Long = new File(filePath).length()
+
+    val reader = new BufferedReader(new FileReader(filePath))
+    var totalLines = 0
+    while ({ reader.readLine != null }) totalLines += 1
+    reader.close()
+
     new Topology(
       Array(
         new WorkerLayer(
           LayerIdentity(tag, "main"),
           i => {
+            val startOffset: Long = totalLines / numWorkers * i
             val endOffset: Long =
-              if (i != numWorkers - 1) totalBytes / numWorkers * (i + 1) else totalBytes
+              if (i != numWorkers - 1) totalLines / numWorkers * (i + 1) else totalLines
             new JSONLScanSourceOpExec(
               filePath,
-              schema
+              schema,
+              startOffset,
+              endOffset
             )
           },
           numWorkers,
@@ -42,7 +50,6 @@ class JSONLScanSourceOpExecConfig(
       Array()
     )
   }
-  val totalBytes: Long = new File(filePath).length()
 
   override def assignBreakpoint(
       breakpoint: GlobalBreakpoint[_]

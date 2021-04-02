@@ -9,14 +9,19 @@ import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.flattenJS
 import java.io.{BufferedReader, FileReader, IOException}
 import scala.collection.Iterator
 import scala.collection.JavaConverters._
-class JSONLScanSourceOpExec private[json] (val localPath: String, val schema: Schema)
-    extends SourceOperatorExecutor {
+class JSONLScanSourceOpExec private[json] (
+    val localPath: String,
+    val schema: Schema,
+    val startOffset: Long,
+    val endOffset: Long
+) extends SourceOperatorExecutor {
   private var reader: BufferedReader = _
+  private var curLineCount: Long = 0;
 
-  override def produceTexeraTuple =
+  override def produceTexeraTuple(): Iterator[Tuple] =
     new Iterator[Tuple]() {
       override def hasNext: Boolean =
-        try reader.ready
+        try curLineCount <= endOffset && reader.ready
         catch {
           case e: IOException =>
             e.printStackTrace()
@@ -24,17 +29,24 @@ class JSONLScanSourceOpExec private[json] (val localPath: String, val schema: Sc
         }
 
       override def next: Tuple =
-        try { // obtain String representation of each field
-          // a null value will present if omit in between fields, e.g., ['hello', null, 'world']
+        try {
+          while (curLineCount < startOffset) {
+            curLineCount += 1
+            reader.readLine
+          }
           val line = reader.readLine
-
+          curLineCount += 1
           val fields = scala.collection.mutable.ArrayBuffer.empty[Object]
           val data = flattenJSON(objectMapper.readTree(line))
 
           for (fieldName <- schema.getAttributeNames.asScala) {
-
-            fields += data.get(fieldName)
+            if (data.contains(fieldName))
+              fields += data(fieldName)
+            else {
+              fields += null
+            }
           }
+
           Tuple.newBuilder.add(schema, fields.toArray).build
         } catch {
           case e: IOException =>
@@ -43,7 +55,7 @@ class JSONLScanSourceOpExec private[json] (val localPath: String, val schema: Sc
         }
     }
 
-  override def open() =
+  override def open(): Unit =
     try this.reader = new BufferedReader(new FileReader(this.localPath))
     catch {
       case e: IOException =>
@@ -51,7 +63,7 @@ class JSONLScanSourceOpExec private[json] (val localPath: String, val schema: Sc
         throw new RuntimeException(e)
     }
 
-  override def close() =
+  override def close(): Unit =
     try reader.close()
     catch {
       case e: IOException =>

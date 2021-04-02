@@ -95,17 +95,24 @@ class JSONLScanSourceOpDesc extends SourceOperatorDescriptor {
     var fields = Set[String]()
 
     var line: String = null
+    var count: Int = 0
     while ({
       line = reader.readLine()
+      count += 1
       line
-    } != null) {
+    } != null && count < INFER_READ_LIMIT) {
       val root: JsonNode = objectMapper.readTree(line)
       if (root.isObject) {
         fields = fields.++(flattenJSON(root).keySet)
       }
     }
+    reader.close()
+
+    // TODO: use actual infer schema.
     Schema.newBuilder
-      .add(fields.map((field: String) => new Attribute(field, AttributeType.ANY)).asJava)
+      .add(
+        fields.toList.sorted.map((field: String) => new Attribute(field, AttributeType.ANY)).asJava
+      )
       .build
   }
 
