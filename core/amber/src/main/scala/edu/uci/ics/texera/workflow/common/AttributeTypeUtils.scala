@@ -166,12 +166,13 @@ object AttributeTypeUtils extends Serializable {
     */
   def inferField(attributeType: AttributeType, fieldValue: Object): AttributeType = {
     attributeType match {
-      case STRING  => tryParseString()
-      case BOOLEAN => tryParseBoolean(fieldValue)
-      case DOUBLE  => tryParseDouble(fieldValue)
-      case LONG    => tryParseLong(fieldValue)
-      case INTEGER => tryParseInteger(fieldValue)
-      case _       => tryParseString()
+      case STRING    => tryParseString()
+      case BOOLEAN   => tryParseBoolean(fieldValue)
+      case DOUBLE    => tryParseDouble(fieldValue)
+      case LONG      => tryParseLong(fieldValue)
+      case INTEGER   => tryParseInteger(fieldValue)
+      case TIMESTAMP => tryParseTimestamp(fieldValue)
+      case _         => tryParseString()
     }
   }
 
@@ -295,12 +296,19 @@ object AttributeTypeUtils extends Serializable {
   private def tryParseBoolean(fieldValue: Object): AttributeType = {
     allCatch opt parseBoolean(fieldValue) match {
       case Some(_) => BOOLEAN
-      case None    => tryParseString()
+      case None    => tryParseTimestamp(fieldValue)
     }
   }
 
   private def tryParseString(): AttributeType = {
     STRING
+  }
+
+  private def tryParseTimestamp(fieldValue: Object): AttributeType = {
+    allCatch opt parseTimestamp(fieldValue) match {
+      case Some(_) => TIMESTAMP
+      case None    => tryParseString()
+    }
   }
 
   class AttributeTypeException(msg: String) extends IllegalArgumentException(msg) {}
