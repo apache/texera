@@ -4,8 +4,6 @@ import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty}
 import com.fasterxml.jackson.databind.JsonNode
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.texera.web.resource.dashboard.file.UserFileUtils
-import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorGroupConstants,
   OperatorInfo,
@@ -72,21 +70,6 @@ class JSONLScanSourceOpDesc extends SourceOperatorDescriptor {
     if (filePath.isEmpty) return null
     else println("This is " + filePath)
     inferSchema()
-
-  }
-
-  override def setContext(workflowContext: WorkflowContext): Unit = {
-    super.setContext(workflowContext)
-
-    if (context.userID.isDefined)
-      // if context has a valid user ID, the fileName will be a file name,
-      // resolve fileName to be the actual file path.
-      filePath = Option(
-        UserFileUtils.getFilePath(context.userID.get.toString, fileName.get).toString
-      )
-    else
-      // otherwise, the fileName will be inputted by user, which is the filePath.
-      filePath = fileName
 
   }
 
