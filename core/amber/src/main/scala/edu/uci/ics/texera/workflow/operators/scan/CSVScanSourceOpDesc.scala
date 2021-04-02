@@ -5,8 +5,7 @@ import com.google.common.io.Files
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.texera.web.resource.dashboard.file.UserFileUtils
-import edu.uci.ics.texera.workflow.common.AttributeTypeUtils
-import edu.uci.ics.texera.workflow.common.WorkflowContext
+import edu.uci.ics.texera.workflow.common.{AttributeTypeUtils, WorkflowContext}
 import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorGroupConstants,
   OperatorInfo,
@@ -21,7 +20,6 @@ import java.nio.charset.Charset
 import java.util.Collections.singletonList
 import scala.collection.JavaConverters._
 import scala.collection.immutable.List
-import scala.util.control.Exception._
 
 class CSVScanSourceOpDesc extends SourceOperatorDescriptor {
 
@@ -116,21 +114,22 @@ class CSVScanSourceOpDesc extends SourceOperatorDescriptor {
     if (delimiter.isEmpty) return null
 
     val headers: Array[String] = headerLine.split(delimiter.get)
-    val attributeTypeList: Array[AttributeType] =
-      Array.fill[AttributeType](headers.length)(AttributeType.INTEGER)
 
     val reader = new BufferedReader(new FileReader(filePath.get))
     if (hasHeader)
       reader.readLine()
-    var i = 0
 
     // TODO: real CSV may contain multi-line values. Need to handle multi-line values correctly.
-    var line: String = reader.readLine()
-    while (line != null && i < INFER_READ_LIMIT) {
-      AttributeTypeUtils.inferRow(attributeTypeList, line.split(delimiter.get).toStream.toArray)
-      i += 1
-      line = reader.readLine()
-    }
+
+    val attributeTypeList: Array[AttributeType] = AttributeTypeUtils.inferSchemaFromRows(
+      reader
+        .lines()
+        .iterator
+        .asScala
+        .take(INFER_READ_LIMIT)
+        .map(line => line.split(delimiter.get).asInstanceOf[Array[Object]])
+    )
+
     reader.close()
 
     // build schema based on inferred AttributeTypes

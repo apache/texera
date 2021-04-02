@@ -117,9 +117,9 @@ object AttributeTypeUtils extends Serializable {
 
   /**
     * Infers field types of a given row of data. The given attributeTypes will be updated
-    * through each iteration of row inference, to contain the must accurate inference.
+    * through each iteration of row inference, to contain the most accurate inference.
     * @param attributeTypes AttributeTypes that being passed to each iteration.
-    * @param fields data fields to be parsed, originally as String fields
+    * @param fields data fields to be parsed
     * @return
     */
   def inferRow(
@@ -133,14 +133,18 @@ object AttributeTypeUtils extends Serializable {
 
   /**
     * Infers field types of a given row of data.
-    * @param fields data fields to be parsed, originally as String fields
+    * @param fieldsIterator iterator of field arrays to be parsed.
+    *                       each field array should have exact same order and length.
     * @return AttributeType array
     */
-  def inferRow(fields: Array[Object]): Array[AttributeType] = {
-    val attributeTypes: Array[AttributeType] =
-      Array.fill[AttributeType](fields.length)(INTEGER)
-    for (i <- fields.indices) {
-      attributeTypes.update(i, inferField(fields.apply(i)))
+  def inferSchemaFromRows(fieldsIterator: Iterator[Array[Object]]): Array[AttributeType] = {
+    var attributeTypes: Array[AttributeType] = Array()
+
+    for (fields <- fieldsIterator) {
+      if (attributeTypes.isEmpty) {
+        attributeTypes = Array.fill[AttributeType](fields.length)(INTEGER)
+      }
+      inferRow(attributeTypes, fields)
     }
     attributeTypes
   }
@@ -190,7 +194,13 @@ object AttributeTypeUtils extends Serializable {
   @throws[AttributeTypeException]
   def parseBoolean(fieldValue: Object): java.lang.Boolean = {
     fieldValue match {
-      case str: String                => str.toBoolean
+      case str: String =>
+        if (str.trim.equalsIgnoreCase("true"))
+          true
+        else if (str.trim.equalsIgnoreCase("false"))
+          false
+        else
+          str.trim.toBoolean
       case int: Integer               => int != 0
       case long: java.lang.Long       => long != 0
       case double: java.lang.Double   => double != 0
