@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.operators.source.scan.json
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.texera.workflow.common.AttributeTypeUtils.parseField
 import edu.uci.ics.texera.workflow.common.Utils.objectMapper
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.parseJSON
 
@@ -36,7 +37,7 @@ class JSONLScanSourceOpExec private[json] (
 
         for (fieldName <- schema.getAttributeNames.asScala) {
           if (data.contains(fieldName))
-            fields += data(fieldName)
+            fields += parseField(data(fieldName), schema.getAttribute(fieldName).getType)
           else {
             fields += null
           }
