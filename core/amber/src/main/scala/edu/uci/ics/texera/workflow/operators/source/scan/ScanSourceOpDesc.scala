@@ -20,10 +20,12 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
 
   @JsonIgnore
   val INFER_READ_LIMIT: Int = 100
+
   @JsonProperty(required = true)
   @JsonSchemaTitle("File")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
   var fileName: Option[String] = None
+
   @JsonIgnore
   var filePath: Option[String] = None
 

@@ -157,7 +157,6 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
             Option.apply(op.getOutputSchema(inputSchemaMap(op).map(s => s.get).toArray))
           } catch {
             case e: Throwable =>
-              e.printStackTrace()
               Option.empty
           }
         }

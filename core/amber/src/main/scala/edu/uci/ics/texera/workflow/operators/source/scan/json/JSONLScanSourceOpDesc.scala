@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.json
 
-import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.JsonNode
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
@@ -16,6 +16,7 @@ import scala.jdk.CollectionConverters.asJavaIterableConverter
 class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
 
   @JsonProperty(required = true)
+  @JsonPropertyDescription("flatten nested objects and arrays")
   var flatten: Boolean = false
 
   fileTypeName = Option("JSONL")
