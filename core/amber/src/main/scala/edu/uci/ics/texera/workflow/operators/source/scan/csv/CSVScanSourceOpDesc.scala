@@ -4,11 +4,6 @@ import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyD
 import com.google.common.io.Files
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.texera.workflow.common.metadata.{
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
@@ -16,14 +11,12 @@ import org.codehaus.jackson.map.annotate.JsonDeserialize
 
 import java.io.{BufferedReader, File, FileReader, IOException}
 import java.nio.charset.Charset
-import java.util.Collections.singletonList
 import scala.collection.JavaConverters._
-import scala.collection.immutable.List
 
 class CSVScanSourceOpDesc extends ScanSourceOpDesc {
 
   @JsonIgnore
-  var headerLine: String = _
+  var headerLine: Option[String] = None
 
   @JsonProperty(defaultValue = ",")
   @JsonSchemaTitle("Delimiter")
@@ -36,6 +29,8 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
   @JsonPropertyDescription("whether the CSV file contains a header line")
   var hasHeader: Boolean = true
 
+  fileTypeName = Option("CSV")
+
   @throws[IOException]
   override def operatorExecutor: CSVScanSourceOpExecConfig = {
     // fill in default values
@@ -44,8 +39,11 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
 
     filePath match {
       case Some(path) =>
-        headerLine = Files.asCharSource(new File(path), Charset.defaultCharset).readFirstLine
-
+        if (headerLine.isEmpty) {
+          headerLine = Option(
+            Files.asCharSource(new File(path), Charset.defaultCharset).readFirstLine
+          )
+        }
         new CSVScanSourceOpExecConfig(
           operatorIdentifier,
           Constants.defaultNumWorkers,
@@ -60,16 +58,6 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
 
   }
 
-  override def operatorInfo: OperatorInfo = {
-    OperatorInfo(
-      "CSV File Scan",
-      "Scan data from a CSV file",
-      OperatorGroupConstants.SOURCE_GROUP,
-      List.empty,
-      asScalaBuffer(singletonList(OutputPort(""))).toList
-    )
-  }
-
   /**
     * Infer Texera.Schema based on the top few lines of data.
     * @return Texera.Schema build for this operator
@@ -77,8 +65,12 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
   @Override
   def inferSchema(): Schema = {
     if (delimiter.isEmpty) return null
-
-    val headers: Array[String] = headerLine.split(delimiter.get)
+    if (headerLine.isEmpty) {
+      headerLine = Option(
+        Files.asCharSource(new File(filePath.get), Charset.defaultCharset).readFirstLine
+      )
+    }
+    val headers: Array[String] = headerLine.get.split(delimiter.get)
 
     val reader = new BufferedReader(new FileReader(filePath.get))
     if (hasHeader)

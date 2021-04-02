@@ -4,8 +4,17 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.texera.web.resource.dashboard.file.UserFileUtils
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.WorkflowContext
+import edu.uci.ics.texera.workflow.common.metadata.{
+  OperatorGroupConstants,
+  OperatorInfo,
+  OutputPort
+}
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import org.codehaus.jackson.map.annotate.JsonDeserialize
+
+import java.util.Collections.singletonList
+import scala.collection.JavaConverters.asScalaBuffer
+import scala.collection.immutable.List
 
 abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
 
@@ -17,6 +26,9 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   var fileName: Option[String] = None
   @JsonIgnore
   var filePath: Option[String] = None
+
+  @JsonIgnore
+  var fileTypeName: Option[String] = None
 
   override def sourceSchema(): Schema = {
     if (filePath.isEmpty) return null
@@ -37,6 +49,16 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
       // otherwise, the fileName will be inputted by user, which is the filePath.
       filePath = fileName
 
+  }
+
+  override def operatorInfo: OperatorInfo = {
+    OperatorInfo(
+      userFriendlyName = s"${fileTypeName.get} File Scan",
+      operatorDescription = s"Scan data from a ${fileTypeName.get} file",
+      OperatorGroupConstants.SOURCE_GROUP,
+      List.empty,
+      asScalaBuffer(singletonList(OutputPort(""))).toList
+    )
   }
 
   def inferSchema(): Schema

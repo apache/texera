@@ -3,25 +3,20 @@ package edu.uci.ics.texera.workflow.operators.source.scan.json
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.JsonNode
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.texera.workflow.common.metadata.{
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.common.Utils.objectMapper
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.parseJSON
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 
 import java.io.{BufferedReader, FileReader, IOException}
-import java.util.Collections.singletonList
 import scala.collection.JavaConverters._
-import scala.collection.immutable.List
 
 class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
 
   @JsonProperty(required = true)
   var flatten: Boolean = false
+
+  fileTypeName = Option("JSONL")
 
   @throws[IOException]
   override def operatorExecutor: JSONLScanSourceOpExecConfig = {
@@ -40,16 +35,6 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
         throw new RuntimeException("File path is not provided.")
     }
 
-  }
-
-  override def operatorInfo: OperatorInfo = {
-    OperatorInfo(
-      "JSONL File Scan",
-      "Scan data from a JSONL file",
-      OperatorGroupConstants.SOURCE_GROUP,
-      List.empty,
-      asScalaBuffer(singletonList(OutputPort(""))).toList
-    )
   }
 
   /**

@@ -18,8 +18,8 @@ class CSVScanSourceOpExecConfig(
     tag: OperatorIdentity,
     numWorkers: Int,
     filePath: String,
-    delimiter: Char,
     schema: Schema,
+    delimiter: Char,
     hasHeader: Boolean
 ) extends OpExecConfig(tag) {
   override lazy val topology: Topology = {
@@ -29,15 +29,16 @@ class CSVScanSourceOpExecConfig(
         new WorkerLayer(
           LayerIdentity(tag, "main"),
           i => {
+            val startOffset: Long = totalBytes / numWorkers * i
             val endOffset: Long =
               if (i != numWorkers - 1) totalBytes / numWorkers * (i + 1) else totalBytes
             new CSVScanSourceOpExec(
               filePath,
-              totalBytes / numWorkers * i,
-              endOffset,
-              delimiter,
               schema,
-              hasHeader
+              delimiter,
+              hasHeader,
+              startOffset,
+              endOffset
             )
           },
           numWorkers,

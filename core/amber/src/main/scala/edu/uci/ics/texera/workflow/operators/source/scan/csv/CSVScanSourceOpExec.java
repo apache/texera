@@ -20,21 +20,21 @@ import java.util.stream.Stream;
 public class CSVScanSourceOpExec implements SourceOperatorExecutor {
 
     private final String localPath;
-    private final char separator;
+    private final char delimiter;
     private BufferedBlockReader reader = null;
     private final long startOffset;
     private final long endOffset;
     private final Schema schema;
     private final boolean hasHeader;
 
-    CSVScanSourceOpExec(String localPath, long startOffset, long endOffset, char delimiter, Schema schema,
-                        boolean hasHeader) {
+    CSVScanSourceOpExec(String localPath, Schema schema, char delimiter,
+                        boolean hasHeader, long startOffset, long endOffset) {
         this.localPath = localPath;
-        this.separator = delimiter;
-        this.startOffset = startOffset;
-        this.endOffset = endOffset;
+        this.delimiter = delimiter;
         this.schema = schema;
         this.hasHeader = hasHeader;
+        this.startOffset = startOffset;
+        this.endOffset = endOffset;
     }
 
     @Override
@@ -95,7 +95,7 @@ public class CSVScanSourceOpExec implements SourceOperatorExecutor {
         try {
             SeekableFileInputStream stream = new SeekableFileInputStream(localPath);
             stream.seek(startOffset);
-            reader = new BufferedBlockReader(stream, endOffset - startOffset, separator, null);
+            reader = new BufferedBlockReader(stream, endOffset - startOffset, delimiter, null);
             // skip line if this worker reads from middle of a file
             if (startOffset > 0)
                 reader.readLine();
