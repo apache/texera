@@ -173,7 +173,7 @@ class DataProcessor( // dependencies:
         ActorVirtualIdentity.Controller
       )
     }
-    e.printStackTrace()
+    logger.logWarning(e.getLocalizedMessage+"\n"+e.getStackTrace.mkString("\n"))
     pauseManager.pause()
   }
 

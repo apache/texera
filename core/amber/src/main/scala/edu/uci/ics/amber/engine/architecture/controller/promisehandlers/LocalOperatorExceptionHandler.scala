@@ -48,7 +48,6 @@ trait LocalOperatorExceptionHandler {
           )
         )
       }
-      logger.logWarning(msg.e.getLocalizedMessage+"\n"+msg.e.getStackTrace.mkString("\n"))
       // then pause the workflow
       execute(PauseWorkflow(), ActorVirtualIdentity.Controller)
     }
