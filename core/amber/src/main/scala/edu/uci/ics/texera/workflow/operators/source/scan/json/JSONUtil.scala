@@ -5,24 +5,27 @@ import scala.jdk.CollectionConverters.asScalaIteratorConverter;
 
 object JSONUtil {
   @throws[RuntimeException]
-  def flattenJSON(node: JsonNode, parentName: String = ""): Map[String, String] = {
+  def parseJSON(
+      node: JsonNode,
+      flatten: Boolean,
+      parentName: String = ""
+  ): Map[String, String] = {
     var result = Map[String, String]()
     if (node.isObject)
       for (key <- node.fieldNames().asScala) {
         val child: JsonNode = node.get(key)
         val absoluteKey = (if (parentName.nonEmpty) parentName + "." else "") + key
-        if (child.isObject || child.isArray) {
-          result = result ++ flattenJSON(child, absoluteKey)
+        if (flatten && (child.isObject || child.isArray)) {
+          result = result ++ parseJSON(child, flatten, absoluteKey)
         } else if (child.isValueNode) {
           result = result + (absoluteKey -> child.asText())
         } else {
-          // should never reach here
-          throw new RuntimeException("Unexpected type of JSONNode")
+          // do nothing
         }
       }
     else if (node.isArray) {
       for ((child, i) <- node.elements().asScala.zipWithIndex) {
-        result = result ++ flattenJSON(child, parentName + (i + 1))
+        result = result ++ parseJSON(child, flatten, parentName + (i + 1))
       }
     }
     result

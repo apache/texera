@@ -18,7 +18,8 @@ class JSONLScanSourceOpExecConfig(
     tag: OperatorIdentity,
     numWorkers: Int,
     filePath: String,
-    schema: Schema
+    schema: Schema,
+    flatten: Boolean
 ) extends OpExecConfig(tag) {
   override lazy val topology: Topology = {
 
@@ -38,6 +39,7 @@ class JSONLScanSourceOpExecConfig(
             new JSONLScanSourceOpExec(
               filePath,
               schema,
+              flatten,
               startOffset,
               endOffset
             )

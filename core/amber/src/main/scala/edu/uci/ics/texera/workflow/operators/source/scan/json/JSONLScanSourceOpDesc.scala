@@ -14,7 +14,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.common.Utils.objectMapper
-import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.flattenJSON
+import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.parseJSON
 import org.codehaus.jackson.map.annotate.JsonDeserialize
 
 import java.io.{BufferedReader, FileReader, IOException}
@@ -32,6 +32,9 @@ class JSONLScanSourceOpDesc extends SourceOperatorDescriptor {
   @JsonDeserialize(contentAs = classOf[java.lang.String])
   var fileName: Option[String] = None
 
+  @JsonProperty(required = true)
+  var flatten: Boolean = false
+
   @JsonIgnore
   var filePath: Option[String] = None
 
@@ -42,10 +45,11 @@ class JSONLScanSourceOpDesc extends SourceOperatorDescriptor {
     filePath match {
       case Some(path) =>
         new JSONLScanSourceOpExecConfig(
-          this.operatorIdentifier,
+          operatorIdentifier,
           Constants.defaultNumWorkers,
           path,
-          this.inferSchema()
+          inferSchema(),
+          flatten
         )
       case None =>
         throw new RuntimeException("File path is not provided.")
@@ -103,7 +107,7 @@ class JSONLScanSourceOpDesc extends SourceOperatorDescriptor {
     } != null && count < INFER_READ_LIMIT) {
       val root: JsonNode = objectMapper.readTree(line)
       if (root.isObject) {
-        fields = fields.++(flattenJSON(root).keySet)
+        fields = fields.++(parseJSON(root, flatten = flatten).keySet)
       }
     }
     reader.close()
