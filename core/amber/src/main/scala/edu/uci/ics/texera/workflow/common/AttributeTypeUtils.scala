@@ -282,7 +282,7 @@ object AttributeTypeUtils extends Serializable {
   private def tryParseLong(fieldValue: Object): AttributeType = {
     allCatch opt parseLong(fieldValue) match {
       case Some(_) => LONG
-      case None    => tryParseDouble(fieldValue)
+      case None    => tryParseTimestamp(fieldValue)
     }
   }
 
@@ -296,7 +296,7 @@ object AttributeTypeUtils extends Serializable {
   private def tryParseBoolean(fieldValue: Object): AttributeType = {
     allCatch opt parseBoolean(fieldValue) match {
       case Some(_) => BOOLEAN
-      case None    => tryParseTimestamp(fieldValue)
+      case None    => tryParseString()
     }
   }
 
@@ -307,7 +307,7 @@ object AttributeTypeUtils extends Serializable {
   private def tryParseTimestamp(fieldValue: Object): AttributeType = {
     allCatch opt parseTimestamp(fieldValue) match {
       case Some(_) => TIMESTAMP
-      case None    => tryParseString()
+      case None    => tryParseDouble(fieldValue)
     }
   }
 
