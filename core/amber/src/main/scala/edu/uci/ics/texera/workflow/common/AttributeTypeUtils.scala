@@ -217,11 +217,7 @@ object AttributeTypeUtils extends Serializable {
   @throws[AttributeTypeException]
   def parseLong(fieldValue: Object): java.lang.Long = {
     fieldValue match {
-      case str: String =>
-        try str.toLong
-        catch {
-          case _: NumberFormatException => parseTimestamp(fieldValue).getTime
-        }
+      case str: String                => str.toLong
       case int: Integer               => int.toLong
       case long: java.lang.Long       => long
       case double: java.lang.Double   => double.toLong
@@ -273,6 +269,8 @@ object AttributeTypeUtils extends Serializable {
   }
 
   private def tryParseInteger(fieldValue: Object): AttributeType = {
+    if (fieldValue == null)
+      return INTEGER
     allCatch opt parseInteger(fieldValue) match {
       case Some(_) => INTEGER
       case None    => tryParseLong(fieldValue)
@@ -280,6 +278,8 @@ object AttributeTypeUtils extends Serializable {
   }
 
   private def tryParseLong(fieldValue: Object): AttributeType = {
+    if (fieldValue == null)
+      return LONG
     allCatch opt parseLong(fieldValue) match {
       case Some(_) => LONG
       case None    => tryParseTimestamp(fieldValue)
@@ -287,6 +287,8 @@ object AttributeTypeUtils extends Serializable {
   }
 
   private def tryParseDouble(fieldValue: Object): AttributeType = {
+    if (fieldValue == null)
+      return DOUBLE
     allCatch opt parseDouble(fieldValue) match {
       case Some(_) => DOUBLE
       case None    => tryParseBoolean(fieldValue)
@@ -294,6 +296,8 @@ object AttributeTypeUtils extends Serializable {
   }
 
   private def tryParseBoolean(fieldValue: Object): AttributeType = {
+    if (fieldValue == null)
+      return BOOLEAN
     allCatch opt parseBoolean(fieldValue) match {
       case Some(_) => BOOLEAN
       case None    => tryParseString()
@@ -305,6 +309,8 @@ object AttributeTypeUtils extends Serializable {
   }
 
   private def tryParseTimestamp(fieldValue: Object): AttributeType = {
+    if (fieldValue == null)
+      return TIMESTAMP
     allCatch opt parseTimestamp(fieldValue) match {
       case Some(_) => TIMESTAMP
       case None    => tryParseDouble(fieldValue)
