@@ -6,6 +6,7 @@ import edu.uci.ics.texera.workflow.common.WorkflowContext;
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
+import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils;
 
 import java.sql.Timestamp;
 
@@ -82,7 +83,7 @@ public class FilterPredicate {
 
     private boolean evaluateFilterTimestamp(Tuple inputTuple) {
         Long tupleValue = inputTuple.getField(attribute, Timestamp.class).getTime();
-        Long compareToValue = Timestamp.valueOf(value.trim()).getTime();
+        Long compareToValue = AttributeTypeUtils.parseTimestamp(value.trim()).getTime();
         return evaluateFilter(tupleValue, compareToValue, condition);
 
     }

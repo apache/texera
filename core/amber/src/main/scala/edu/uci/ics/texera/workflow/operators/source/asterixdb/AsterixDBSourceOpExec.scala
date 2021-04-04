@@ -4,6 +4,7 @@ import com.github.tototoshi.csv.CSVParser
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
+import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseField
 import edu.uci.ics.texera.workflow.operators.source.asterixdb.AsterixDBConnUtil.{
   queryAsterixDB,
   updateAsterixDBVersionMapping
@@ -11,7 +12,7 @@ import edu.uci.ics.texera.workflow.operators.source.asterixdb.AsterixDBConnUtil.
 import edu.uci.ics.texera.workflow.operators.source.SQLSourceOpExec
 
 import java.sql._
-import java.time.{Instant, ZoneId, ZoneOffset}
+import java.time.{ZoneId, ZoneOffset}
 import java.time.format.DateTimeFormatter
 import scala.collection.Iterator
 import scala.util.control.Breaks.{break, breakable}
@@ -169,30 +170,18 @@ class AsterixDBSourceOpExec private[asterixdb] (
   override def fetchBatchByBoundary(side: String): Option[Number] = {
     batchByAttribute match {
       case Some(attribute) =>
-        var result: Number = null
         val resultString = queryAsterixDB(
           host,
           port,
           "SELECT " + side + "(" + attribute.getName + ") FROM " + database + "." + table + ";"
         ).get.next().toString.stripLineEnd
 
-        // TODO: move this to some util package
-        schema.getAttribute(attribute.getName).getType match {
-          case INTEGER =>
-            result = resultString.toInt
-          case LONG =>
-            result = resultString.toLong
-          case TIMESTAMP =>
-            result = Instant.parse(resultString.stripSuffix("\"").stripPrefix("\"")).toEpochMilli
-          case DOUBLE =>
-            result = resultString.toDouble
-          case BOOLEAN =>
-          case STRING  =>
-          case ANY     =>
-          case _ =>
-            throw new IllegalStateException("Unexpected value: " + attribute.getType)
-        }
-        Option(result)
+        Option(
+          parseField(
+            resultString.stripSuffix("\"").stripPrefix("\""),
+            LONG
+          ).asInstanceOf[Number]
+        )
       case None => None
     }
   }
@@ -233,25 +222,10 @@ class AsterixDBSourceOpExec private[asterixdb] (
         }
 
         // otherwise, transform the type of the value
-        columnType match {
-          case INTEGER =>
-            tupleBuilder.add(attr, value.toInt)
-          case LONG =>
-            tupleBuilder.add(attr, value.toLong)
-          case DOUBLE =>
-            tupleBuilder.add(attr, value.toDouble)
-          case STRING =>
-            tupleBuilder.add(attr, value)
-          case BOOLEAN =>
-            tupleBuilder.add(attr, !value.equals("0"))
-          case TIMESTAMP =>
-            tupleBuilder.add(
-              attr,
-              new Timestamp(Instant.parse(value.stripSuffix("\"").stripPrefix("\"")).toEpochMilli)
-            )
-          case ANY | _ =>
-            throw new RuntimeException("Unhandled attribute type: " + columnType)
-        }
+        tupleBuilder.add(
+          attr,
+          parseField(value.stripSuffix("\"").stripPrefix("\""), columnType)
+        )
       }
     }
     tupleBuilder.build

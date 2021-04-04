@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 
 import java.nio.file.{Files, Path, Paths}
+import java.text.SimpleDateFormat
 
 object Utils {
 
@@ -12,6 +13,7 @@ object Utils {
     .registerModule(DefaultScalaModule)
     .setSerializationInclusion(Include.NON_NULL)
     .setSerializationInclusion(Include.NON_ABSENT)
+    .setDateFormat(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"))
 
   /**
     * Gets the real path of the amber home directory by:

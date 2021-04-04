@@ -4,9 +4,12 @@ import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecuto
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
+import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.{
+  parseField,
+  parseTimestamp
+}
 
 import java.sql._
-import java.text.SimpleDateFormat
 import scala.collection.Iterator
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters._
@@ -175,6 +178,7 @@ abstract class SQLSourceOpExec(
     val tupleBuilder = Tuple.newBuilder
 
     for (attr <- schema.getAttributes.asScala) {
+
       breakable {
         val columnName = attr.getName
         val columnType = attr.getType
@@ -187,22 +191,8 @@ abstract class SQLSourceOpExec(
         }
 
         // otherwise, transform the type of the value
-        columnType match {
-          case INTEGER =>
-            tupleBuilder.add(attr, value.toInt)
-          case LONG =>
-            tupleBuilder.add(attr, value.toLong)
-          case DOUBLE =>
-            tupleBuilder.add(attr, value.toDouble)
-          case STRING =>
-            tupleBuilder.add(attr, value)
-          case BOOLEAN =>
-            tupleBuilder.add(attr, !(value == "0"))
-          case TIMESTAMP =>
-            tupleBuilder.add(attr, Timestamp.valueOf(value))
-          case ANY | _ =>
-            throw new RuntimeException("Unhandled attribute type: " + columnType)
-        }
+        tupleBuilder.add(attr, parseField(value, columnType))
+
       }
     }
     tupleBuilder.build
@@ -224,7 +214,6 @@ abstract class SQLSourceOpExec(
       case Some(attribute) =>
         attribute.getType match {
           case INTEGER | LONG | TIMESTAMP =>
-            println("low", curLowerBound.longValue(), "high", upperBound.longValue())
             curLowerBound.longValue <= upperBound.longValue
           case DOUBLE =>
             curLowerBound.doubleValue <= upperBound.doubleValue
@@ -356,10 +345,7 @@ abstract class SQLSourceOpExec(
             result = resultSet.getTimestamp(1).getTime
           case DOUBLE =>
             result = resultSet.getDouble(1)
-          case BOOLEAN =>
-          case STRING  =>
-          case ANY     =>
-          case _ =>
+          case BOOLEAN | STRING | ANY | _ =>
             throw new IllegalStateException("Unexpected value: " + attribute.getType)
         }
         resultSet.close()
@@ -501,11 +487,10 @@ abstract class SQLSourceOpExec(
     // TODO: add interval
     if (batchByAttribute.isDefined && min.isDefined && max.isDefined) {
 
-      val utcFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
       if (min.get.equalsIgnoreCase("auto")) curLowerBound = fetchBatchByBoundary("MIN").getOrElse(0)
       else
         batchByAttribute.get.getType match {
-          case TIMESTAMP => curLowerBound = utcFormat.parse(min.get).toInstant.toEpochMilli
+          case TIMESTAMP => curLowerBound = parseTimestamp(min.get).getTime
           case LONG      => curLowerBound = min.get.toLong
           case _         => throw new RuntimeException(s"Unsupported type ${batchByAttribute.get.getType}")
         }
@@ -513,7 +498,7 @@ abstract class SQLSourceOpExec(
       if (max.get.equalsIgnoreCase("auto")) upperBound = fetchBatchByBoundary("MAX").getOrElse(0)
       else
         batchByAttribute.get.getType match {
-          case TIMESTAMP => upperBound = utcFormat.parse(max.get).toInstant.toEpochMilli
+          case TIMESTAMP => upperBound = parseTimestamp(max.get).getTime
           case LONG      => upperBound = max.get.toLong
           case _         => throw new RuntimeException(s"Unsupported type ${batchByAttribute.get.getType}")
         }

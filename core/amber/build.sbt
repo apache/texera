@@ -88,7 +88,7 @@ libraryDependencies += "org.apache.lucene" % "lucene-queries" % "8.7.0"
 libraryDependencies += "org.apache.lucene" % "lucene-memory" % "8.7.0"
 
 // https://mvnrepository.com/artifact/mysql/mysql-connector-java
-libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.19"
+libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.23"
 
 // https://mvnrepository.com/artifact/org.postgresql/postgresql
 libraryDependencies += "org.postgresql" % "postgresql" % "42.2.18"
@@ -119,3 +119,6 @@ libraryDependencies += "com.github.marianobarrios" % "lbmq" % "0.5.0"
 
 // https://mvnrepository.com/artifact/ch.vorburger.mariaDB4j/mariaDB4j
 libraryDependencies += "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.4.0" % Test
+
+// https://www.scalatest.org/getting_started_with_fun_suite
+libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.5" % "test"
