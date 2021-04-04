@@ -182,7 +182,7 @@ object ResultDownloadResource {
         .execute()
     } catch {
       case e: GoogleJsonResponseException => {
-        // This exception maybe caused the deletion of the target folder and the folder id cache is not updated yet.
+        // This exception maybe caused by the deletion of the target folder and the folder id cache is not updated yet.
         // try again to update the cache
         WORKFLOW_RESULT_FOLDER_ID = null;
         val targetFolderId: String = retrieveResultFolderId(driveService)
