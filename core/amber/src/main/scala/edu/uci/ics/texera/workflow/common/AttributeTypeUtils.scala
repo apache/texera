@@ -7,8 +7,8 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
 import java.sql.Timestamp
 import java.text.SimpleDateFormat
 import java.time.Instant
-import java.time.format.DateTimeParseException
 import scala.util.control.Exception.allCatch
+import scala.util.Try
 
 object AttributeTypeUtils extends Serializable {
 
@@ -179,7 +179,7 @@ object AttributeTypeUtils extends Serializable {
   @throws[AttributeTypeException]
   def parseInteger(fieldValue: Object): Integer = {
     fieldValue match {
-      case str: String                => str.toInt
+      case str: String                => str.trim.toInt
       case int: Integer               => int
       case long: java.lang.Long       => long.toInt
       case double: java.lang.Double   => double.toInt
@@ -194,30 +194,27 @@ object AttributeTypeUtils extends Serializable {
 
   @throws[AttributeTypeException]
   def parseBoolean(fieldValue: Object): java.lang.Boolean = {
+    val parseError = new AttributeTypeException(
+      s"not able to parse type ${fieldValue.getClass} to Boolean."
+    )
     fieldValue match {
       case str: String =>
-        if (str.trim.equalsIgnoreCase("true"))
-          true
-        else if (str.trim.equalsIgnoreCase("false"))
-          false
-        else
-          str.trim.toBoolean
+        (Try(str.trim.toBoolean) orElse Try(str.trim.toInt == 1))
+          .getOrElse(throw parseError)
       case int: Integer               => int != 0
       case long: java.lang.Long       => long != 0
       case double: java.lang.Double   => double != 0
       case boolean: java.lang.Boolean => boolean
       // Timestamp is considered to be illegal here.
       case _ =>
-        throw new AttributeTypeException(
-          s"not able to parse type ${fieldValue.getClass} to Boolean."
-        )
+        throw parseError
     }
   }
 
   @throws[AttributeTypeException]
   def parseLong(fieldValue: Object): java.lang.Long = {
     fieldValue match {
-      case str: String                => str.toLong
+      case str: String                => str.trim.toLong
       case int: Integer               => int.toLong
       case long: java.lang.Long       => long
       case double: java.lang.Double   => double.toLong
@@ -231,7 +228,7 @@ object AttributeTypeUtils extends Serializable {
   @throws[AttributeTypeException]
   def parseDouble(fieldValue: Object): java.lang.Double = {
     fieldValue match {
-      case str: String                => str.toDouble
+      case str: String                => str.trim.toDouble
       case int: Integer               => int.toDouble
       case long: java.lang.Long       => long.toDouble
       case double: java.lang.Double   => double
@@ -246,25 +243,27 @@ object AttributeTypeUtils extends Serializable {
 
   @throws[AttributeTypeException]
   def parseTimestamp(fieldValue: Object): Timestamp = {
+    val parseError = new AttributeTypeException(
+      s"not able to parse type ${fieldValue.getClass} to Timestamp."
+    )
+    val utcFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
     fieldValue match {
       case str: String =>
-        try new Timestamp(Instant.parse(str).toEpochMilli)
-        catch {
-          case _: DateTimeParseException =>
-            try Timestamp.valueOf(str)
-            catch {
-              case _: IllegalArgumentException =>
-                val utcFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
-                new Timestamp(utcFormat.parse(fieldValue.toString).getTime)
+        (
+          // support ISO format with UTC {@code 2007-12-03T10:15:30.00Z}
+          Try(new Timestamp(Instant.parse(str.trim).toEpochMilli))
+            orElse
+              // support {@code yyyy-[m]m-[d]d hh:mm:ss[.f...]}
+              Try(Timestamp.valueOf(str.trim))
+            orElse
+              // support ISO format with timezone {@code 2007-12-03T10:15:30.00.000Z}
+              Try(new Timestamp(utcFormat.parse(fieldValue.toString.trim).getTime))
+        ).getOrElse(throw parseError)
 
-            }
-        }
       case long: java.lang.Long => new Timestamp(long)
-      // Integer, Long, Double and Boolean are considered to be illegal here.
+      // Integer, Double and Boolean are considered to be illegal here.
       case _ =>
-        throw new AttributeTypeException(
-          s"not able to parse type ${fieldValue.getClass} to Timestamp."
-        )
+        throw parseError
     }
   }
 
