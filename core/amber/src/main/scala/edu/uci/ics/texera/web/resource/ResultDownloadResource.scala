@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web.resource
 
 import com.google.api.client.util.Lists
 import com.google.api.services.drive.Drive
-import com.google.api.services.drive.model.Permission
+import com.google.api.services.drive.model.{File, FileList, Permission}
 import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.model.{
   AppendValuesResponse,
@@ -19,14 +19,19 @@ import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
 }
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import java.util
-import java.util.stream.Collectors
-import scala.collection.JavaConverters._
 
+import com.google.api.client.googleapis.json.GoogleJsonResponseException
+
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 object ResultDownloadResource {
 
   private final val UPLOAD_SIZE = 100;
+
+  private final val WORKFLOW_RESULT_FOLDER_NAME = "workflow_results"
+
+  @volatile private var WORKFLOW_RESULT_FOLDER_ID: String = null;
 
   def apply(
       sessionId: String,
@@ -122,6 +127,9 @@ object ResultDownloadResource {
         "Fail to create google sheet"
       )
 
+    val driveService: Drive = GoogleResource.getDriveService
+    moveToResultFolder(driveService, sheetId)
+
     // upload the schema
     val schemaContent: util.List[util.List[AnyRef]] = Lists.newArrayList()
     schemaContent.add(schema)
@@ -129,11 +137,10 @@ object ResultDownloadResource {
       uploadContent(sheetService, sheetId, schemaContent)
 
     // allow user to access this sheet in the service account
-    val drive: Drive = GoogleResource.getDriveService
     val sharePermission: Permission = new Permission()
       .setType("anyone")
       .setRole("reader")
-    drive
+    driveService
       .permissions()
       .create(sheetId, sharePermission)
       .execute()
@@ -161,6 +168,58 @@ object ResultDownloadResource {
       .execute
     targetSheet.getSpreadsheetId
   }
+
+  /**
+    * move the workflow results to a specific folder
+    */
+  private def moveToResultFolder(driveService: Drive, sheetId: String): Unit = {
+    val targetFolderId: String = retrieveResultFolderId(driveService)
+    try {
+      driveService
+        .files()
+        .update(sheetId, null)
+        .setAddParents(targetFolderId)
+        .execute()
+    } catch {
+      case e: GoogleJsonResponseException => {
+        // This exception maybe caused the deletion of the target folder and the folder id cache is not updated yet.
+        // try again to update the cache
+        WORKFLOW_RESULT_FOLDER_ID = null;
+        val targetFolderId: String = retrieveResultFolderId(driveService)
+        // if the exception continues to show up then just throw it normally.
+        driveService
+          .files()
+          .update(sheetId, null)
+          .setAddParents(targetFolderId)
+          .execute()
+      }
+    }
+  }
+
+  private def retrieveResultFolderId(driveService: Drive): String =
+    synchronized {
+      if (WORKFLOW_RESULT_FOLDER_ID != null) return WORKFLOW_RESULT_FOLDER_ID
+
+      val folderResult: FileList = driveService
+        .files()
+        .list()
+        .setQ(
+          s"mimeType = 'application/vnd.google-apps.folder' and name='${WORKFLOW_RESULT_FOLDER_NAME}'"
+        )
+        .setSpaces("drive")
+        .execute()
+
+      if (folderResult.getFiles.isEmpty()) {
+        val fileMetadata: File = new File()
+        fileMetadata.setName(WORKFLOW_RESULT_FOLDER_NAME)
+        fileMetadata.setMimeType("application/vnd.google-apps.folder")
+        val targetFolder: File = driveService.files.create(fileMetadata).setFields("id").execute
+        WORKFLOW_RESULT_FOLDER_ID = targetFolder.getId
+      } else {
+        WORKFLOW_RESULT_FOLDER_ID = folderResult.getFiles.get(0).getId
+      }
+      WORKFLOW_RESULT_FOLDER_ID
+    }
 
   /**
     * upload the result body to the google sheet
