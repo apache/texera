@@ -1,12 +1,12 @@
 package edu.uci.ics.texera.workflow.operators.scan;
 
 import com.google.common.base.Verify;
-import edu.uci.ics.texera.workflow.common.AttributeTypeUtils;
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor;
 import edu.uci.ics.texera.workflow.common.scanner.BufferedBlockReader;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
+import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import org.tukaani.xz.SeekableFileInputStream;
 import scala.collection.Iterator;

@@ -5,7 +5,7 @@ import com.google.common.io.Files
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.texera.web.resource.dashboard.file.UserFileUtils
-import edu.uci.ics.texera.workflow.common.{AttributeTypeUtils, WorkflowContext}
+import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorGroupConstants,
   OperatorInfo,
@@ -13,6 +13,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 }
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
 import org.codehaus.jackson.map.annotate.JsonDeserialize
 
 import java.io.{BufferedReader, File, FileReader, IOException}
@@ -121,7 +122,7 @@ class CSVScanSourceOpDesc extends SourceOperatorDescriptor {
 
     // TODO: real CSV may contain multi-line values. Need to handle multi-line values correctly.
 
-    val attributeTypeList: Array[AttributeType] = AttributeTypeUtils.inferSchemaFromRows(
+    val attributeTypeList: Array[AttributeType] = inferSchemaFromRows(
       reader
         .lines()
         .iterator

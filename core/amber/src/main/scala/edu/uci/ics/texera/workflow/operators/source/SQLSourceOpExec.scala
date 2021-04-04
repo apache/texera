@@ -4,7 +4,10 @@ import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecuto
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
-import edu.uci.ics.texera.workflow.common.AttributeTypeUtils.{parseField, parseTimestamp}
+import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.{
+  parseField,
+  parseTimestamp
+}
 
 import java.sql._
 import scala.collection.Iterator

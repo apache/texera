@@ -1,7 +1,5 @@
-package edu.uci.ics.texera.workflow.common
-
+package edu.uci.ics.texera.workflow.common.tuple.schema
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
 
 import java.sql.Timestamp

@@ -16,7 +16,7 @@ import edu.uci.ics.texera.workflow.common.operators.aggregate.{
 }
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
-import edu.uci.ics.texera.workflow.common.AttributeTypeUtils
+import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseTimestamp
 
 import java.io.Serializable
 
@@ -147,16 +147,6 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     )
   }
 
-  private def getNumericalValue(tuple: Tuple): Option[Double] = {
-    val value: Object = tuple.getField(attribute)
-    if (value == null)
-      return None
-
-    if (tuple.getSchema.getAttribute(attribute).getType == AttributeType.TIMESTAMP)
-      Option(AttributeTypeUtils.parseTimestamp(value.toString).getTime.toDouble)
-    else Option(value.toString.toDouble)
-  }
-
   def averageAgg(): AggregateOpExecConfig[_] = {
     val aggregation = new DistributedAggregation[AveragePartialObj](
       () => AveragePartialObj(0, 0),
@@ -214,6 +204,16 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
         .add(resultAttribute, AttributeType.DOUBLE)
         .build()
     }
+  }
+
+  private def getNumericalValue(tuple: Tuple): Option[Double] = {
+    val value: Object = tuple.getField(attribute)
+    if (value == null)
+      return None
+
+    if (tuple.getSchema.getAttribute(attribute).getType == AttributeType.TIMESTAMP)
+      Option(parseTimestamp(value.toString).getTime.toDouble)
+    else Option(value.toString.toDouble)
   }
 
 }

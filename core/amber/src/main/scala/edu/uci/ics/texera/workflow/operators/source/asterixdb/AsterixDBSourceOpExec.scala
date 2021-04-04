@@ -4,8 +4,7 @@ import com.github.tototoshi.csv.CSVParser
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
-import edu.uci.ics.texera.workflow.common.AttributeTypeUtils
-import edu.uci.ics.texera.workflow.common.AttributeTypeUtils.parseField
+import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseField
 import edu.uci.ics.texera.workflow.operators.source.asterixdb.AsterixDBConnUtil.{
   queryAsterixDB,
   updateAsterixDBVersionMapping
@@ -225,7 +224,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
         // otherwise, transform the type of the value
         tupleBuilder.add(
           attr,
-          AttributeTypeUtils.parseField(value.stripSuffix("\"").stripPrefix("\""), columnType)
+          parseField(value.stripSuffix("\"").stripPrefix("\""), columnType)
         )
       }
     }
