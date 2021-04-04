@@ -18,8 +18,10 @@ import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
   sessionResults
 }
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-
 import java.util
+import java.util.stream.Collectors
+import scala.collection.JavaConverters._
+
 import scala.collection.mutable
 
 object ResultDownloadResource {
@@ -169,7 +171,14 @@ object ResultDownloadResource {
     // use for loop to avoid copying the whole result at the same time
     for (tuple: ITuple <- result) {
       val tupleContent: util.List[AnyRef] =
-        tuple.asInstanceOf[Tuple].getFields
+        tuple
+          .asInstanceOf[Tuple]
+          .getFields
+          .stream()
+          .map(tuple => convertUnsupported(tuple))
+          .toArray
+          .toList
+          .asJava
       content.add(tupleContent)
 
       if (content.size() == UPLOAD_SIZE) {
@@ -186,6 +195,18 @@ object ResultDownloadResource {
       val response: AppendValuesResponse =
         uploadContent(sheetService, sheetId, content)
     }
+  }
+
+  /**
+    * convert the tuple content into the type the Google Sheet API supports
+    */
+  private def convertUnsupported(content: AnyRef): AnyRef = {
+    // Google Sheet API supports String and number(long, int, double and so on)
+    if (content.isInstanceOf[String] || content.isInstanceOf[Number]) {
+      return content
+    }
+    // convert all the other type into String
+    content.toString
   }
 
   /**
