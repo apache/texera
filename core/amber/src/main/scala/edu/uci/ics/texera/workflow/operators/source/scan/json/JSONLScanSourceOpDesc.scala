@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.JsonNode
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
-import edu.uci.ics.texera.workflow.common.AttributeTypeUtils.inferSchemaFromRows
+import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.texera.workflow.common.Utils.objectMapper
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.parseJSON
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
