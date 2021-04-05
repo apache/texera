@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.web.resource
 
+import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.util.Lists
 import com.google.api.services.drive.Drive
 import com.google.api.services.drive.model.{File, FileList, Permission}
@@ -18,10 +19,8 @@ import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
   sessionResults
 }
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
+
 import java.util
-
-import com.google.api.client.googleapis.json.GoogleJsonResponseException
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
@@ -234,7 +233,7 @@ object ResultDownloadResource {
           .asInstanceOf[Tuple]
           .getFields
           .stream()
-          .map(tuple => convertUnsupported(tuple))
+          .map(convertUnsupported)
           .toArray
           .toList
           .asJava
@@ -260,12 +259,18 @@ object ResultDownloadResource {
     * convert the tuple content into the type the Google Sheet API supports
     */
   private def convertUnsupported(content: AnyRef): AnyRef = {
-    // Google Sheet API supports String and number(long, int, double and so on)
-    if (content.isInstanceOf[String] || content.isInstanceOf[Number]) {
-      return content
+    content match {
+
+      // if null, use empty string to represent.
+      case null => ""
+
+      // Google Sheet API supports String and number(long, int, double and so on)
+      case _: String | _: Number => content
+
+      // convert all the other type into String
+      case _ => content.toString
     }
-    // convert all the other type into String
-    content.toString
+
   }
 
   /**
