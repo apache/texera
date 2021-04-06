@@ -321,13 +321,10 @@ abstract class SQLSourceOpExec(
   /**
     * Fetch for a numeric value of the boundary of the batchByColumn.
     * @param side either "MAX" or "MIN" for boundary
-    * @throws SQLException all possible exceptions from JDBC
-    * @throws RuntimeException all possible exceptions from HTTP connection
     * @return a numeric value, could be Int, Long or Double
     */
-  @throws[SQLException]
-  @throws[RuntimeException]
-  protected def fetchBatchByBoundary(side: String): Option[Number] = {
+
+  protected def fetchBatchByBoundary(side: String): Number = {
     batchByAttribute match {
       case Some(attribute) =>
         var result: Number = null
@@ -350,8 +347,9 @@ abstract class SQLSourceOpExec(
         }
         resultSet.close()
         preparedStatement.close()
-        Option(result)
-      case None => None
+        result
+
+      case None => 0
     }
   }
 
@@ -487,7 +485,7 @@ abstract class SQLSourceOpExec(
     // TODO: add interval
     if (batchByAttribute.isDefined && min.isDefined && max.isDefined) {
 
-      if (min.get.equalsIgnoreCase("auto")) curLowerBound = fetchBatchByBoundary("MIN").getOrElse(0)
+      if (min.get.equalsIgnoreCase("auto")) curLowerBound = fetchBatchByBoundary("MIN")
       else
         batchByAttribute.get.getType match {
           case TIMESTAMP => curLowerBound = parseTimestamp(min.get).getTime
@@ -495,7 +493,7 @@ abstract class SQLSourceOpExec(
           case _         => throw new RuntimeException(s"Unsupported type ${batchByAttribute.get.getType}")
         }
 
-      if (max.get.equalsIgnoreCase("auto")) upperBound = fetchBatchByBoundary("MAX").getOrElse(0)
+      if (max.get.equalsIgnoreCase("auto")) upperBound = fetchBatchByBoundary("MAX")
       else
         batchByAttribute.get.getType match {
           case TIMESTAMP => upperBound = parseTimestamp(max.get).getTime
