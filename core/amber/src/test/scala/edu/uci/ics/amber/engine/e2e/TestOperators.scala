@@ -8,6 +8,7 @@ import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc
 import edu.uci.ics.texera.workflow.operators.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.csv.CSVScanSourceOpDesc
+import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONLScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.mysql.MySQLSourceOpDesc
 
@@ -21,12 +22,30 @@ object TestOperators {
     getCsvScanOpDesc("src/test/resources/CountrySalesDataSmall.csv", header = true)
   }
 
+  def smallJSONLScanOpDesc(): JSONLScanSourceOpDesc = {
+    getJSONLScanOpDesc("src/test/resources/100.jsonl")
+  }
+
+  def largeFlattenJSONLScanOpDesc(): JSONLScanSourceOpDesc = {
+    getJSONLScanOpDesc("src/test/resources/10000.jsonl", flatten = true)
+  }
+
+  def mediumFlattenJSONLScanOpDesc(): JSONLScanSourceOpDesc = {
+    getJSONLScanOpDesc("src/test/resources/1000.jsonl", flatten = true)
+  }
   def getCsvScanOpDesc(fileName: String, header: Boolean): CSVScanSourceOpDesc = {
     val csvHeaderlessOp = new CSVScanSourceOpDesc()
     csvHeaderlessOp.fileName = Option(fileName)
     csvHeaderlessOp.delimiter = Option(",")
     csvHeaderlessOp.hasHeader = header
     csvHeaderlessOp
+  }
+
+  def getJSONLScanOpDesc(fileName: String, flatten: Boolean = false): JSONLScanSourceOpDesc = {
+    val jsonlOp = new JSONLScanSourceOpDesc
+    jsonlOp.fileName = Option(fileName)
+    jsonlOp.flatten = flatten
+    jsonlOp
   }
 
   def joinOpDesc(buildAttrName: String, probeAttrName: String): HashJoinOpDesc[String] = {

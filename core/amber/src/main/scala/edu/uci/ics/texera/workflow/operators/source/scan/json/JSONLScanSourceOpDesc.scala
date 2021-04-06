@@ -54,7 +54,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
       line = reader.readLine()
       count += 1
       line
-    } != null && count < INFER_READ_LIMIT) {
+    } != null && count <= INFER_READ_LIMIT) {
       val root: JsonNode = objectMapper.readTree(line)
       if (root.isObject) {
         fields = parseJSON(root, flatten = flatten)

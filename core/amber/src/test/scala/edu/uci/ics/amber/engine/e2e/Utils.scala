@@ -29,7 +29,7 @@ object Utils {
       WorkflowInfo(operators, links, mutable.MutableList[BreakpointInfo]()),
       context
     )
-    texeraWorkflowCompiler.init()
+
     Controller.props(
       WorkflowIdentity(workflowTag),
       texeraWorkflowCompiler.amberWorkflow,
