@@ -178,9 +178,13 @@ class AsterixDBSourceOpExec private[asterixdb] (
 
         Option(
           parseField(
-            resultString.stripSuffix("\"").stripPrefix("\""),
+            parseField(
+              resultString.stripSuffix("\"").stripPrefix("\""),
+              TIMESTAMP
+            ),
             LONG
-          ).asInstanceOf[Number]
+          )
+            .asInstanceOf[Number]
         )
       case None => None
     }
