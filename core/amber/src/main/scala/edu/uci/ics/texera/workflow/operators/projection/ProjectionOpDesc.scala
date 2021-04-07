@@ -33,6 +33,8 @@ class ProjectionOpDesc extends MapOpDesc {
     )
   }
 
+  @throws[IllegalArgumentException]
+  @throws[RuntimeException]
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Preconditions.checkArgument(schemas.length == 1)
     Preconditions.checkArgument(attributes.nonEmpty)
