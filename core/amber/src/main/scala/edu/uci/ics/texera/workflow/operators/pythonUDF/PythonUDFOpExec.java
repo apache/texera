@@ -91,7 +91,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
     private static final RootAllocator memoryAllocator = new RootAllocator();
     private static final ObjectMapper objectMapper = Utils.objectMapper();
     private static Process pythonServerProcess;
-    private final String PYTHON = WebUtils.config().getString("python.path");
+    private final String PYTHON = WebUtils.config().getString("python.path").trim();
     private String pythonScriptPath;
     private final String pythonScriptText;
     private final ArrayList<String> inputColumns;
@@ -584,7 +584,8 @@ public class PythonUDFOpExec implements OperatorExecutor {
 
         // Start Flight server (Python process)
         pythonServerProcess =
-                new ProcessBuilder(PYTHON, "-u", DAEMON_SCRIPT_PATH,
+                new ProcessBuilder(PYTHON.isEmpty() ? "python3" : PYTHON, // add fall back in case empty
+                        "-u", DAEMON_SCRIPT_PATH,
                         Integer.toString(portNumber), pythonScriptPath)
                         .inheritIO()
                         .start();
