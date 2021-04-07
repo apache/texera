@@ -554,12 +554,12 @@ public class PythonUDFOpExec implements OperatorExecutor {
     }
 
     enum MSG {
-        INPUT_EXHAUSTED("input_exhausted"),
-        HEALTH_CHECK("health_check"),
-        CLOSE("close"),
-        TERMINATE("terminate"),
         OPEN("open"),
-        COMPUTE("compute");
+        HEALTH_CHECK("health_check"),
+        COMPUTE("compute"),
+        INPUT_EXHAUSTED("input_exhausted"),
+        CLOSE("close");
+
         String content;
 
         MSG(String content) {
