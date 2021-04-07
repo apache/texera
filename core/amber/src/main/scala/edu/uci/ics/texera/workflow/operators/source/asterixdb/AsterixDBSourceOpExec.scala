@@ -15,6 +15,7 @@ import java.sql._
 import java.time.{ZoneId, ZoneOffset}
 import java.time.format.DateTimeFormatter
 import scala.collection.Iterator
+import scala.util.{Failure, Success, Try}
 import scala.util.control.Breaks.{break, breakable}
 
 class AsterixDBSourceOpExec private[asterixdb] (
@@ -163,11 +164,10 @@ class AsterixDBSourceOpExec private[asterixdb] (
   /**
     * Fetch for a numeric value of the boundary of the batchByColumn.
     * @param side either "MAX" or "MIN" for boundary
-    * @throws RuntimeException all possible exceptions from HTTP connection
     * @return a numeric value, could be Int, Long or Double
     */
   @throws[RuntimeException]
-  override def fetchBatchByBoundary(side: String): Option[Number] = {
+  override def fetchBatchByBoundary(side: String): Number = {
     batchByAttribute match {
       case Some(attribute) =>
         val resultString = queryAsterixDB(
@@ -175,14 +175,18 @@ class AsterixDBSourceOpExec private[asterixdb] (
           port,
           "SELECT " + side + "(" + attribute.getName + ") FROM " + database + "." + table + ";"
         ).get.next().toString.stripLineEnd
-
-        Option(
+        Try(
           parseField(
             resultString.stripSuffix("\"").stripPrefix("\""),
-            LONG
-          ).asInstanceOf[Number]
-        )
-      case None => None
+            attribute.getType
+          )
+        ) match {
+          case Success(timestamp: Timestamp) => parseField(timestamp, LONG).asInstanceOf[Number]
+          case Success(otherTypes)           => otherTypes.asInstanceOf[Number]
+          case Failure(_)                    => 0
+        }
+
+      case None => 0
     }
   }
 
