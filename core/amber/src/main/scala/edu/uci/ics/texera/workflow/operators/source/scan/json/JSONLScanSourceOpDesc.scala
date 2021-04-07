@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.texera.workflow.common.Utils.objectMapper
-import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.parseJSON
+import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 
 import java.io.{BufferedReader, FileReader, IOException}
@@ -57,7 +57,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
     } != null && count <= INFER_READ_LIMIT) {
       val root: JsonNode = objectMapper.readTree(line)
       if (root.isObject) {
-        fields = parseJSON(root, flatten = flatten)
+        fields = JSONToMap(root, flatten = flatten)
         fieldNames = fieldNames.++(fields.keySet)
         allFields += fields
       }

@@ -180,31 +180,6 @@ class DataProcessingSpec
     }
   }
 
-  "Engine" should "execute largeFlattenJsonl->sink workflow normally" in {
-    val jsonlOp = TestOperators.largeFlattenJSONLScanOpDesc()
-    val sink = TestOperators.sinkOpDesc()
-    val (id, workflow) = buildWorkflow(
-      mutable.MutableList[OperatorDescriptor](jsonlOp, sink),
-      mutable.MutableList[OperatorLink](
-        OperatorLink(
-          OperatorPort(jsonlOp.operatorID, 0),
-          OperatorPort(sink.operatorID, 0)
-        )
-      )
-    )
-    val results = executeWorkflow(id, workflow)(sink.operatorID)
-
-    assert(results.size == 10000)
-
-    for (result <- results) {
-      val schema = result.asInstanceOf[Tuple].getSchema
-      assert(schema.getAttribute("text").getType == AttributeType.STRING)
-      assert(schema.getAttribute("id").getType == AttributeType.LONG)
-      assert(schema.getAttribute("created_at").getType == AttributeType.TIMESTAMP)
-      assert(schema.getAttributes.size() == 142)
-    }
-  }
-
   "Engine" should "execute headerlessCsv->keyword->sink workflow normally" in {
     val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")

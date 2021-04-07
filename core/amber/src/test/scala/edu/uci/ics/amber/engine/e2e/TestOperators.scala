@@ -26,10 +26,6 @@ object TestOperators {
     getJSONLScanOpDesc("src/test/resources/100.jsonl")
   }
 
-  def largeFlattenJSONLScanOpDesc(): JSONLScanSourceOpDesc = {
-    getJSONLScanOpDesc("src/test/resources/10000.jsonl", flatten = true)
-  }
-
   def mediumFlattenJSONLScanOpDesc(): JSONLScanSourceOpDesc = {
     getJSONLScanOpDesc("src/test/resources/1000.jsonl", flatten = true)
   }

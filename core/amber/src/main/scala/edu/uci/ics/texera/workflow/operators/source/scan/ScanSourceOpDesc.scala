@@ -18,8 +18,11 @@ import scala.collection.immutable.List
 
 abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
 
+  /** in the case we do not want to read the entire large file, but only
+    * the first a few lines of it to do the type inference.
+    */
   @JsonIgnore
-  val INFER_READ_LIMIT: Int = 100
+  var INFER_READ_LIMIT: Int = 100
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("File")
