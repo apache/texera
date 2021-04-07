@@ -6,8 +6,6 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 class ProjectionOpExec(var attributes: List[String]) extends MapOpExec {
 
-  @throws[IllegalArgumentException]
-  @throws[RuntimeException]
   def project(tuple: Tuple): Tuple = {
     Preconditions.checkArgument(attributes.nonEmpty)
     val builder = Tuple.newBuilder()
