@@ -1,4 +1,5 @@
-package edu.uci.ics.texera.unit
+package edu.uci.ics.texera.unittest.workflow.operators.projection
+
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.projection.ProjectionOpDesc
 import org.scalatest.flatspec.AnyFlatSpec
