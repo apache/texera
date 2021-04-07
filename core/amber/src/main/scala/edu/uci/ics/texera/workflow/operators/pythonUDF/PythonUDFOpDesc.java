@@ -100,16 +100,18 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
         }
 
         Schema.Builder outputSchemaBuilder = Schema.newBuilder();
-        if (pythonUDFType != Training) {
-            outputSchemaBuilder.add(inputSchema);
-        } else {
+        if (pythonUDFType == Training) {
             outputSchemaBuilder.add("class", AttributeType.STRING);
             outputSchemaBuilder.add("precision", AttributeType.STRING);
             outputSchemaBuilder.add("recall", AttributeType.STRING);
             outputSchemaBuilder.add("f1-score", AttributeType.STRING);
             outputSchemaBuilder.add("support", AttributeType.STRING);
+        } else {
+            // for pythonUDFType with map and filter, keep the same schema from input
+            outputSchemaBuilder.add(inputSchema);
         }
 
+        // for any pythonUDFType, it can add custom output columns (attributes).
         if (outputColumns != null) {
             for (Attribute a : outputColumns) {
                 if (inputSchema.containsAttribute(a.getName())) throw new RuntimeException("Column name " + a.getName()
