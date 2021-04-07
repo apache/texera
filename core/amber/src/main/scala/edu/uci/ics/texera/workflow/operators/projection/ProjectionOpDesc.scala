@@ -36,9 +36,8 @@ class ProjectionOpDesc extends MapOpDesc {
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Preconditions.checkArgument(schemas.length == 1)
-
-    Schema.newBuilder
-      .add(schemas(0).getAttributes.filter(attr => attributes.contains(attr.getName)).asJava)
-      .build
+    val attributesToRemove =
+      schemas(0).getAttributeNames.filter(item => !attributes.contains(item)).asJava
+    Schema.newBuilder.add(schemas(0)).removeIfExists(attributesToRemove).build
   }
 }
