@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.unit
+package edu.uci.ics.texera.unittest
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.{
   inferField,
