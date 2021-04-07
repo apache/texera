@@ -99,7 +99,7 @@ class UDFServer(pyarrow.flight.FlightServerBase):
         available actions. When a specific action is called, the server executes the corresponding action and
         maybe will return any results, i.e. a generalized function call.
         """
-        if action.type == "healthcheck":
+        if action.type == "health_check":
             # to check the status of the server to see if it is running.
             yield self._response(b'Flight Server is up and running!')
         elif action.type == "open":

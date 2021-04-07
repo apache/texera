@@ -30,7 +30,61 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
+import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFOpExec.Channel.FROM_PYTHON;
+import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFOpExec.Channel.TO_PYTHON;
+import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFOpExec.MSG.CLOSE;
+import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFOpExec.MSG.INPUT_EXHAUSTED;
+
 public class PythonUDFOpExec implements OperatorExecutor {
+    @NotNull
+    private static byte[] communicate(@NotNull FlightClient client, @NotNull MSG message) {
+        return client.doAction(new Action(message.content)).next().getBody();
+    }
+
+    /**
+     * For every batch, the operator converts list of {@code Tuple}s into Arrow stream data in almost the exact same
+     * way as it would when using Arrow file, except now it sends stream to the server with
+     * {@link FlightClient#startPut(FlightDescriptor, VectorSchemaRoot, FlightClient.PutListener, CallOption...)} and
+     * {@link FlightClient.ClientStreamListener#putNext()}. The server uses {@code do_put()} to receive data stream
+     * and convert it into a {@code pyarrow.Table} and store it in the server.
+     * {@code startPut} is a non-blocking call, but this method in general is a blocking call, it waits until all the
+     * data are sent.
+     *
+     * @param client      The FlightClient that manages this.
+     * @param values      The input queue that holds tuples, its contents will be consumed in this method.
+     * @param arrowSchema Input Arrow table schema. This should already have been defined (converted).
+     * @param channel     The predefined path that specifies where to store the data in Flight Serve.
+     * @param chunkSize   The chunk size of the arrow stream. This is different than the batch size of the operator,
+     *                    although they may seem similar. This doesn't actually affect serialization speed that much,
+     *                    so in general it can be the same as {@code batchSize}.
+     */
+    private static void writeArrowStream(FlightClient client, Queue<Tuple> values,
+                                         org.apache.arrow.vector.types.pojo.Schema arrowSchema,
+                                         Channel channel, int chunkSize) throws RuntimeException {
+        SyncPutListener flightListener = new SyncPutListener();
+        VectorSchemaRoot schemaRoot = VectorSchemaRoot.create(arrowSchema, PythonUDFOpExec.memoryAllocator);
+        FlightClient.ClientStreamListener streamWriter = client.startPut(FlightDescriptor.path(Collections.singletonList(channel.name)), schemaRoot, flightListener);
+        try {
+            while (!values.isEmpty()) {
+                schemaRoot.allocateNew();
+                int indexThisChunk = 0;
+                while (indexThisChunk < chunkSize && !values.isEmpty()) {
+                    convertAmber2ArrowTuple(values.remove(), indexThisChunk, schemaRoot);
+                    indexThisChunk++;
+                }
+                schemaRoot.setRowCount(indexThisChunk);
+                streamWriter.putNext();
+                schemaRoot.clear();
+            }
+            streamWriter.completed();
+            flightListener.getResult();
+            flightListener.close();
+            schemaRoot.clear();
+        } catch (Exception e) {
+            closeAndThrow(client, e);
+        }
+    }
+
     private static final int MAX_TRY_COUNT = 20;
     private static final long WAIT_TIME_MS = 500;
     private static final String DAEMON_SCRIPT_PATH = getPythonResourcePath("texera_udf_server_main.py");
@@ -67,9 +121,23 @@ public class PythonUDFOpExec implements OperatorExecutor {
 
     }
 
-    @NotNull
-    private static byte[] communicate(@NotNull FlightClient client, @NotNull String message) {
-        return client.doAction(new Action(message)).next().getBody();
+    /**
+     * Make the execution of the UDF in Python. This should only be called
+     * after input data is passed to Python. This is a blocking call.
+     *
+     * @param client The FlightClient that manages this.
+     */
+    private static void executeUDF(FlightClient client) {
+        try {
+            FlightResponseMap result = PythonUDFOpExec.objectMapper.readValue(communicate(client, MSG.COMPUTE),
+                    FlightResponseMap.class);
+            if (result.get("status").equals("Fail")) {
+                String errorMessage = result.get("errorMessage");
+                throw new Exception(errorMessage);
+            }
+        } catch (Exception e) {
+            closeAndThrow(client, e);
+        }
     }
 
     /**
@@ -240,65 +308,62 @@ public class PythonUDFOpExec implements OperatorExecutor {
     }
 
     /**
-     * For every batch, the operator converts list of {@code Tuple}s into Arrow stream data in almost the exact same
-     * way as it would when using Arrow file, except now it sends stream to the server with
-     * {@link FlightClient#startPut(FlightDescriptor, VectorSchemaRoot, FlightClient.PutListener, CallOption...)} and
-     * {@link FlightClient.ClientStreamListener#putNext()}. The server uses {@code do_put()} to receive data stream
-     * and convert it into a {@code pyarrow.Table} and store it in the server.
-     * {@code startPut} is a non-blocking call, but this method in general is a blocking call, it waits until all the
-     * data are sent.
+     * For every batch, the operator gets the computed sentiment result by calling
+     * {@link FlightClient#getStream(Ticket, CallOption...)}.
+     * The reading and conversion process is the same as what it does when using Arrow file.
+     * {@code getStream} is a non-blocking call, but this method is a blocking call because it waits until the stream
+     * is finished.
      *
-     * @param client         The FlightClient that manages this.
-     * @param values         The input queue that holds tuples, its contents will be consumed in this method.
-     * @param arrowSchema    Input Arrow table schema. This should already have been defined (converted).
-     * @param descriptorPath The predefined path that specifies where to store the data in Flight Serve.
-     * @param chunkSize      The chunk size of the arrow stream. This is different than the batch size of the operator,
-     *                       although they may seem similar. This doesn't actually affect serialization speed that much,
-     *                       so in general it can be the same as {@code batchSize}.
+     * @param client      The FlightClient that manages this.
+     * @param channel     The predefined path that specifies where to read the data in Flight Serve.
+     * @param resultQueue resultQueue To store the results. Must be empty when it is passed here.
      */
-    private static void writeArrowStream(FlightClient client, Queue<Tuple> values,
-                                         org.apache.arrow.vector.types.pojo.Schema arrowSchema,
-                                         String descriptorPath, int chunkSize) throws RuntimeException {
-        SyncPutListener flightListener = new SyncPutListener();
-        VectorSchemaRoot schemaRoot = VectorSchemaRoot.create(arrowSchema, PythonUDFOpExec.memoryAllocator);
-        FlightClient.ClientStreamListener streamWriter = client.startPut(FlightDescriptor.path(Collections.singletonList(descriptorPath)), schemaRoot, flightListener);
+    private static void readArrowStream(FlightClient client, Channel channel, Queue<Tuple> resultQueue) {
         try {
-            while (!values.isEmpty()) {
-                schemaRoot.allocateNew();
-                int indexThisChunk = 0;
-                while (indexThisChunk < chunkSize && !values.isEmpty()) {
-                    convertAmber2ArrowTuple(values.remove(), indexThisChunk, schemaRoot);
-                    indexThisChunk++;
-                }
-                schemaRoot.setRowCount(indexThisChunk);
-                streamWriter.putNext();
-                schemaRoot.clear();
+            FlightInfo info = client.getInfo(FlightDescriptor.path(Collections.singletonList(channel.name)));
+            Ticket ticket = info.getEndpoints().get(0).getTicket();
+            FlightStream stream = client.getStream(ticket);
+            while (stream.next()) {
+                VectorSchemaRoot root = stream.getRoot(); // get root
+                convertArrow2AmberTableBuffer(root, resultQueue);
+                root.clear();
             }
-            streamWriter.completed();
-            flightListener.getResult();
-            flightListener.close();
-            schemaRoot.clear();
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             closeAndThrow(client, e);
         }
     }
 
     /**
-     * Make the execution of the UDF in Python. This should only be called
-     * after input data is passed to Python. This is a blocking call.
+     * Manages the disposal of this operator.
+     * <p>
+     * There are two possible scenarios this method will be invoked:
+     * 1. An exception was caught, the connection needs to be terminated safely before throw the exception.
+     * 2. All the batches are finished, the operator terminates peacefully.
+     * <p>
+     * When invoked, it first close the context on the Python end, then closes the memory
+     * allocator and the client socket. Eventually, it will destroy the Python server process.
+     * <p>
+     * Since all the Flight RPC methods used here are intrinsically blocking calls, this is
+     * also a blocking call.
      *
-     * @param client The FlightClient that manages this.
+     * @param client The client to close that is still connected to the Arrow Flight server.
      */
-    private static void executeUDF(FlightClient client) {
+    private static void closeClientAndServer(FlightClient client, boolean sendClose) {
         try {
-            FlightResponseMap result = PythonUDFOpExec.objectMapper.readValue(communicate(client, "compute"),
-                    FlightResponseMap.class);
-            if (result.get("status").equals("Fail")) {
-                String errorMessage = result.get("errorMessage");
-                throw new Exception(errorMessage);
-            }
-        } catch (Exception e) {
-            closeAndThrow(client, e);
+            // close context on the Python end.
+            if (sendClose) communicate(client, CLOSE);
+
+            // clean memory allocation.
+            memoryAllocator.close();
+
+            // close client socket.
+            client.close();
+
+            // destroy Python server process.
+            pythonServerProcess.destroy();
+
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
 
@@ -321,30 +386,24 @@ public class PythonUDFOpExec implements OperatorExecutor {
         }
     }
 
-    /**
-     * For every batch, the operator gets the computed sentiment result by calling
-     * {@link FlightClient#getStream(Ticket, CallOption...)}.
-     * The reading and conversion process is the same as what it does when using Arrow file.
-     * {@code getStream} is a non-blocking call, but this method is a blocking call because it waits until the stream
-     * is finished.
-     *
-     * @param client         The FlightClient that manages this.
-     * @param descriptorPath The predefined path that specifies where to read the data in Flight Serve.
-     * @param resultQueue    resultQueue To store the results. Must be empty when it is passed here.
-     */
-    private static void readArrowStream(FlightClient client, String descriptorPath, Queue<Tuple> resultQueue) {
-        try {
-            FlightInfo info = client.getInfo(FlightDescriptor.path(Collections.singletonList(descriptorPath)));
-            Ticket ticket = info.getEndpoints().get(0).getTicket();
-            FlightStream stream = client.getStream(ticket);
-            while (stream.next()) {
-                VectorSchemaRoot root = stream.getRoot(); // get root
-                convertArrow2AmberTableBuffer(root, resultQueue);
-                root.clear();
+    private void connectToServer(Location flightServerURI) throws InterruptedException {
+        boolean connected = false;
+        int tryCount = 0;
+        while (!connected && tryCount < MAX_TRY_COUNT) {
+
+            try {
+                flightClient = FlightClient.builder(memoryAllocator, flightServerURI).build();
+                connected = new String(communicate(flightClient, MSG.HEALTH_CHECK), StandardCharsets.UTF_8).equals("Flight Server is up and running!");
+                if (!connected) Thread.sleep(WAIT_TIME_MS);
+            } catch (FlightRuntimeException e) {
+                System.out.println("Flight Client:\tNot connected to the server in this try.");
+                flightClient.close();
+                Thread.sleep(WAIT_TIME_MS);
+                tryCount++;
             }
-        } catch (RuntimeException e) {
-            closeAndThrow(client, e);
         }
+        if (tryCount == MAX_TRY_COUNT)
+            throw new RuntimeException("Exceeded try limit of " + MAX_TRY_COUNT + " when connecting to Flight Server!");
     }
 
     /**
@@ -393,24 +452,21 @@ public class PythonUDFOpExec implements OperatorExecutor {
         }
     }
 
-    private void connectToServer(Location flightServerURI) throws InterruptedException {
-        boolean connected = false;
-        int tryCount = 0;
-        while (!connected && tryCount < MAX_TRY_COUNT) {
+    private Iterator<Tuple> processOneBatch(boolean inputExhausted) throws RuntimeException {
+        writeArrowStream(flightClient, inputTupleBuffer, globalInputSchema, TO_PYTHON, batchSize);
+        executeUDF(flightClient);
+        Queue<Tuple> outputTupleBuffer = new LinkedList<>();
+        readArrowStream(flightClient, FROM_PYTHON, outputTupleBuffer);
 
-            try {
-                flightClient = FlightClient.builder(memoryAllocator, flightServerURI).build();
-                connected = new String(communicate(flightClient, "healthcheck"), StandardCharsets.UTF_8).equals("Flight Server is up and running!");
-                if (!connected) Thread.sleep(WAIT_TIME_MS);
-            } catch (FlightRuntimeException e) {
-                System.out.println("Flight Client:\tNot connected to the server in this try.");
-                flightClient.close();
-                Thread.sleep(WAIT_TIME_MS);
-                tryCount++;
-            }
+        if (inputExhausted) {
+            Queue<Tuple> extraTupleBuffer = new LinkedList<>();
+            communicate(flightClient, INPUT_EXHAUSTED);
+            readArrowStream(flightClient, FROM_PYTHON, extraTupleBuffer);
+            outputTupleBuffer.addAll(extraTupleBuffer);
         }
-        if (tryCount == MAX_TRY_COUNT)
-            throw new RuntimeException("Exceeded try limit of " + MAX_TRY_COUNT + " when connecting to Flight Server!");
+
+        inputTupleBuffer.clear();
+        return JavaConverters.asScalaIterator(outputTupleBuffer.iterator());
     }
 
     private void preparePythonScriptFile() throws IOException {
@@ -427,21 +483,38 @@ public class PythonUDFOpExec implements OperatorExecutor {
         }
     }
 
-    private Iterator<Tuple> processOneBatch(boolean inputExhausted) throws RuntimeException {
-        writeArrowStream(flightClient, inputTupleBuffer, globalInputSchema, "toPython", batchSize);
-        executeUDF(flightClient);
-        Queue<Tuple> outputTupleBuffer = new LinkedList<>();
-        readArrowStream(flightClient, "fromPython", outputTupleBuffer);
+    @Override
+    public void open() {
 
-        if (inputExhausted) {
-            Queue<Tuple> extraTupleBuffer = new LinkedList<>();
-            communicate(flightClient, "input_exhausted");
-            readArrowStream(flightClient, "fromPython", extraTupleBuffer);
-            outputTupleBuffer.addAll(extraTupleBuffer);
+        try {
+            preparePythonScriptFile();
+            Location flightServerURL = startFlightServer();
+            connectToServer(flightServerURL);
+
+            // Send user args to Server.
+            List<String> userArgs = new ArrayList<>();
+            if (inputColumns != null) userArgs.addAll(inputColumns);
+            if (arguments != null) userArgs.addAll(arguments);
+            if (outputColumns != null) {
+                for (Attribute a : outputColumns) userArgs.add(a.getName());
+            }
+            if (outerFilePaths != null) userArgs.addAll(outerFilePaths);
+
+            Schema argsSchema = new Schema(Collections.singletonList(new Attribute("args", AttributeType.STRING)));
+            Queue<Tuple> argsTuples = new LinkedList<>();
+            for (String arg : userArgs) {
+                argsTuples.add(new Tuple(argsSchema, Collections.singletonList(arg)));
+            }
+
+            writeArrowStream(flightClient, argsTuples, convertAmber2ArrowSchema(argsSchema), Channel.ARGS, batchSize);
+            communicate(flightClient, MSG.OPEN);
+        } catch (IOException | InterruptedException | RuntimeException e) {
+            cleanTerminationWithThrow(e);
         }
 
-        inputTupleBuffer.clear();
-        return JavaConverters.asScalaIterator(outputTupleBuffer.iterator());
+        // Finally, delete the temp file because it has been loaded in Python.
+        if (isDynamic) safeDeleteTempFile(pythonScriptPath);
+
     }
 
     @Override
@@ -469,72 +542,29 @@ public class PythonUDFOpExec implements OperatorExecutor {
         }
     }
 
-    /**
-     * Manages the disposal of this operator.
-     * <p>
-     * There are two possible scenarios this method will be invoked:
-     * 1. An exception was caught, the connection needs to be terminated safely before throw the exception.
-     * 2. All the batches are finished, the operator terminates peacefully.
-     * <p>
-     * When invoked, it first close the context on the Python end, then closes the memory
-     * allocator and the client socket. Eventually, it will destroy the Python server process.
-     * <p>
-     * Since all the Flight RPC methods used here are intrinsically blocking calls, this is
-     * also a blocking call.
-     *
-     * @param client The client to close that is still connected to the Arrow Flight server.
-     */
-    private static void closeClientAndServer(FlightClient client, boolean sendClose) {
-        try {
-            // close context on the Python end.
-            if (sendClose) communicate(client, "close");
+    enum Channel {
+        TO_PYTHON("toPython"),
+        FROM_PYTHON("fromPython"),
+        ARGS("args");
+        String name;
 
-            // clean memory allocation.
-            memoryAllocator.close();
-
-            // close client socket.
-            client.close();
-
-            // destroy Python server process.
-            pythonServerProcess.destroy();
-
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        Channel(String name) {
+            this.name = name;
         }
     }
 
-    @Override
-    public void open() {
+    enum MSG {
+        INPUT_EXHAUSTED("input_exhausted"),
+        HEALTH_CHECK("health_check"),
+        CLOSE("close"),
+        TERMINATE("terminate"),
+        OPEN("open"),
+        COMPUTE("compute");
+        String content;
 
-        try {
-            preparePythonScriptFile();
-            Location flightServerURL = startFlightServer();
-            connectToServer(flightServerURL);
-
-            // Send user args to Server.
-            List<String> userArgs = new ArrayList<>();
-            if (inputColumns != null) userArgs.addAll(inputColumns);
-            if (arguments != null) userArgs.addAll(arguments);
-            if (outputColumns != null) {
-                for (Attribute a : outputColumns) userArgs.add(a.getName());
-            }
-            if (outerFilePaths != null) userArgs.addAll(outerFilePaths);
-
-            Schema argsSchema = new Schema(Collections.singletonList(new Attribute("args", AttributeType.STRING)));
-            Queue<Tuple> argsTuples = new LinkedList<>();
-            for (String arg : userArgs) {
-                argsTuples.add(new Tuple(argsSchema, Collections.singletonList(arg)));
-            }
-
-            writeArrowStream(flightClient, argsTuples, convertAmber2ArrowSchema(argsSchema), "args", batchSize);
-            communicate(flightClient, "open");
-        } catch (IOException | InterruptedException | RuntimeException e) {
-            cleanTerminationWithThrow(e);
+        MSG(String content) {
+            this.content = content;
         }
-
-        // Finally, delete the temp file because it has been loaded in Python.
-        if (isDynamic) safeDeleteTempFile(pythonScriptPath);
-
     }
 
     private void writeTempPythonFile() throws IOException {
