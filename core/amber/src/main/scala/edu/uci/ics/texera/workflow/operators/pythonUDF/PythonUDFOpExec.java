@@ -414,6 +414,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
             } catch (FlightRuntimeException e) {
                 System.out.println("Flight Client:\tNot connected to the server in this try.");
                 flightClient.close();
+                Thread.sleep(WAIT_TIME_MS);
                 tryCount++;
             }
         }
