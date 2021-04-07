@@ -1,16 +1,21 @@
 package edu.uci.ics.texera.workflow.operators.projection
 
+import com.google.common.base.Preconditions
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
-class ProjectionOpExec(val attributes: List[String]) extends MapOpExec {
+class ProjectionOpExec(var attributes: List[String]) extends MapOpExec {
 
   setMapFunc((tuple: Tuple) => {
+    Preconditions.checkArgument(attributes.nonEmpty)
     val builder = Tuple.newBuilder()
-    val schema = tuple.getSchema
-    schema.getAttributeNames.forEach((attrName: String) => {
-      if (attributes.contains(attrName))
-        builder.add(attrName, schema.getAttribute(attrName).getType, tuple.getField(attrName))
+
+    attributes.foreach(attrName => {
+      builder.add(
+        attrName,
+        tuple.getSchema.getAttribute(attrName).getType,
+        tuple.getField(attrName)
+      )
     })
     builder.build()
   })

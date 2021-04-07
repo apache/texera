@@ -17,7 +17,7 @@ class ProjectionOpDesc extends MapOpDesc {
   @JsonSchemaTitle("Attributes")
   @JsonPropertyDescription("a subset of column to keeps")
   @AutofillAttributeNameList
-  val attributes: List[String] = List()
+  var attributes: List[String] = List()
 
   override def operatorExecutor: OneToOneOpExecConfig = {
     new OneToOneOpExecConfig(operatorIdentifier, _ => new ProjectionOpExec(attributes))
@@ -35,6 +35,7 @@ class ProjectionOpDesc extends MapOpDesc {
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Preconditions.checkArgument(schemas.length == 1)
+    Preconditions.checkArgument(attributes.nonEmpty)
     Schema.newBuilder
       .add(attributes.map(attribute => schemas(0).getAttribute(attribute)).asJava)
       .build()
