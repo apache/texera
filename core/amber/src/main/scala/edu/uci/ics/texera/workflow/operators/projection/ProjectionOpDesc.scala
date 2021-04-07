@@ -9,6 +9,9 @@ import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
+import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
+import scala.jdk.CollectionConverters.asJavaIterableConverter
+
 class ProjectionOpDesc extends MapOpDesc {
 
   @JsonProperty(required = true)
@@ -33,10 +36,8 @@ class ProjectionOpDesc extends MapOpDesc {
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Preconditions.checkArgument(schemas.length == 1)
-    val builder = Schema.newBuilder
-    for (attribute <- attributes) {
-      builder.add(schemas(0).getAttribute(attribute))
-    }
-    builder.build()
+    val attributesToRemove =
+      schemas(0).getAttributeNames.filter(item => !attributes.contains(item)).asJava
+    Schema.newBuilder.add(schemas(0)).removeIfExists(attributesToRemove).build
   }
 }
