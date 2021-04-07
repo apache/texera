@@ -20,6 +20,7 @@ import kong.unirest.json.JSONObject
 
 import java.util.Collections.singletonList
 import scala.jdk.CollectionConverters.asScalaBuffer
+import scala.util.{Failure, Success, Try}
 
 @JsonIgnoreProperties(value = Array("username", "password"))
 class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
@@ -38,7 +39,7 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
       this.operatorIdentifier,
       (worker: Any) =>
         new AsterixDBSourceOpExec(
-          this.sourceSchema(),
+          sourceSchema(),
           host,
           port,
           database,
@@ -74,11 +75,47 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
 
   override def updatePort(): Unit = port = if (port.trim().equals("default")) "19002" else port
 
+  def getA(datatypeName: String, parentName: String): Map[String, String] = {
+    var result: Map[String, String] = Map()
+    val response = queryAsterixDB(
+      host,
+      port,
+      s"SELECT dt.Derived.Record.Fields FROM Metadata.`Datatype` dt where dt.DatatypeName = '$datatypeName';",
+      format = "JSON"
+    )
+
+    Try(
+      response.get
+        .next()
+        .asInstanceOf[JSONObject]
+        .getJSONArray("Fields")
+    ) match {
+      case Success(fields) =>
+        fields.forEach(field => {
+          println(s"processing $field")
+          val fieldName: String = field.asInstanceOf[JSONObject].get("FieldName").toString
+          val fieldType: String = field.asInstanceOf[JSONObject].get("FieldType").toString
+          if (fieldType.contains("type")) {
+            println(s"recursion on $parentName.$fieldName")
+            val childMap =
+              getA(fieldType, (if (parentName.nonEmpty) parentName + "." else "") + fieldName)
+            result ++= childMap
+
+          } else {
+            result += (if (parentName.nonEmpty) parentName + "." else "") + fieldName -> fieldType
+            println(s"adding $parentName.$fieldName -> $fieldType")
+          }
+        })
+      case Failure(exception) =>
+    }
+    result
+  }
+
   override def querySchema: Schema = {
     updatePort()
 
     val sb: Schema.Builder = Schema.newBuilder()
-    if (database.equals("twitter") && table.equals("ds_tweet")) {
+    if (database.equals("twitter") && table.equals("ds_tweet1")) {
 
       // hard code for twitter.ds_tweet
       sb.add(
@@ -111,19 +148,19 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
     } else {
 
       // query and match types from Metadata.`Datatype`
-      val ASTERIXDB_GET_SCHEMA_QUERY: String =
-        "SELECT dt.Derived.Record.Fields FROM Metadata.`Datatype` dt, (SELECT DatatypeName FROM Metadata.`Dataset` ds " +
-          "where ds.`DatasetName`=\"" + table + "\") as dn where dt.DatatypeName =dn.DatatypeName;"
-      val fields = queryAsterixDB(host, port, ASTERIXDB_GET_SCHEMA_QUERY, format = "JSON")
-      fields.get
-        .next()
-        .asInstanceOf[JSONObject]
-        .getJSONArray("Fields")
-        .forEach(field => {
-          val fieldName: String = field.asInstanceOf[JSONObject].get("FieldName").toString
-          val fieldType: String = field.asInstanceOf[JSONObject].get("FieldType").toString
-          sb.add(new Attribute(fieldName, attributeTypeFromAsterixDBType(fieldType)))
-        })
+
+      val dbDataType = queryAsterixDB(
+        host,
+        port,
+        "SELECT DatatypeName FROM Metadata.`Dataset` ds where ds.`DatasetName`='" + table + "';",
+        format = "JSON"
+      ).get.next().asInstanceOf[JSONObject].getString("DatatypeName")
+      println(dbDataType)
+
+      val fields = getA(dbDataType, "")
+      for (key <- fields.keys.toList.sorted) {
+        sb.add(new Attribute(key, attributeTypeFromAsterixDBType(fields(key))))
+      }
     }
     sb.build()
   }

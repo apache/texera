@@ -15,7 +15,7 @@ object AsterixDBConnUtil {
       statement: String,
       format: String = "csv"
   ): Option[Iterator[AnyRef]] = {
-
+    println(statement)
     if (!asterixDBVersionMapping.contains(host)) updateAsterixDBVersionMapping(host, port)
 
     val asterixAPIEndpoint = "http://" + host + ":" + port + "/query/service"
@@ -32,10 +32,11 @@ object AsterixDBConnUtil {
       .asJson()
 
     // if status is 200 OK, store the results
-    if (response.getStatus == 200)
+    if (response.getStatus == 200) {
       // return results
+      println("response " + response.getBody.getObject.getJSONArray("results").toString())
       Option(response.getBody.getObject.getJSONArray("results").iterator().asScala)
-    else
+    } else
       throw new RuntimeException(
         "Send query to asterix failed: " + "error status: " + response.getStatusText + ", " +
           "error body: " + response.getBody.toString

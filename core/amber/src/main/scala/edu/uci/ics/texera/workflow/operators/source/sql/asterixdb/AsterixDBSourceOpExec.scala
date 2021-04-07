@@ -15,6 +15,7 @@ import java.sql._
 import java.time.{ZoneId, ZoneOffset}
 import java.time.format.DateTimeFormatter
 import scala.collection.Iterator
+import scala.jdk.CollectionConverters.asScalaBufferConverter
 import scala.util.{Failure, Success, Try}
 import scala.util.control.Breaks.{break, breakable}
 
@@ -204,7 +205,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
     var values: Option[List[String]] = None
     try values = CSVParser.parse(row, '\\', ',', '"')
     catch {
-      case _: Exception => return null
+      case e: Exception => e.printStackTrace()
     }
 
     for (i <- 0 until schema.getAttributes.size()) {
@@ -236,7 +237,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
   }
 
   override def addBaseSelect(queryBuilder: StringBuilder): Unit = {
-    if (database.equals("twitter") && table.equals("ds_tweet")) {
+    if (database.equals("twitter") && table.equals("ds_tweet1")) {
       // special case, support flattened twitter.ds_tweet
 
       val user_mentions_flatten_query = Range(0, 100)
@@ -272,7 +273,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
 
     } else {
       // general case, select everything, assuming the table is flattened.
-      queryBuilder ++= "\n" + s"SELECT * FROM $database.$table WHERE 1 = 1 "
+      queryBuilder ++= "\n" + s"SELECT ${schema.getAttributeNames.asScala.mkString(", ")} FROM $database.$table WHERE 1 = 1 "
     }
   }
 
