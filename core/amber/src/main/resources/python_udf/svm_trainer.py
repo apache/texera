@@ -11,7 +11,7 @@ class SVMTrainer(texera_udf_operator_base.TexeraBlockingTrainerOperator):
 
     def open(self, *args):
         super(SVMTrainer, self).open(*args)
-        self._test_size = float(args[2])
+        self._test_ratio = float(args[2])
 
         # TODO: _train_args from user input args
         self._train_args = {}

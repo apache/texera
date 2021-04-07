@@ -125,12 +125,12 @@ class TexeraBlockingTrainerOperator(TexeraUDFOperator):
         self._x = []
         self._y = []
         self._result_tuples: List = []
-        self._test_size = None
+        self._test_ratio = None
         self._train_args = dict()
         self._model_file_path = None
 
     def input_exhausted(self, *args):
-        x_train, x_test, y_train, y_test = train_test_split(self._x, self._y, test_size=self._test_size, random_state=1)
+        x_train, x_test, y_train, y_test = train_test_split(self._x, self._y, test_size=self._test_ratio, random_state=1)
         vc, model = self.train(x_train, y_train, **self._train_args)
 
         with shelve.open(self._model_file_path) as db:
@@ -163,7 +163,7 @@ class TexeraBlockingTrainerOperator(TexeraUDFOperator):
         matrix['class'] = [label for label, row in matrix.iterrows()]
         cols = matrix.columns.to_list()
         cols = [cols[-1]] + cols[:-1]
-        matrix = matrix[cols]
+        matrix = matrix[cols].round(3)
         for index, row in list(matrix.iterrows())[::-1]:
             if index != 1:
                 self._result_tuples.append(row)
