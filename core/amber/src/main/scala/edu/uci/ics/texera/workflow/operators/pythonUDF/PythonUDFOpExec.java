@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.operators.pythonUDF;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.uci.ics.amber.engine.common.InputExhausted;
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity;
+import edu.uci.ics.texera.web.WebUtils;
 import edu.uci.ics.texera.workflow.common.Utils;
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
@@ -27,8 +28,6 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.*;
 
 public class PythonUDFOpExec implements OperatorExecutor {
@@ -38,7 +37,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
     private static final RootAllocator memoryAllocator = new RootAllocator();
     private static final ObjectMapper objectMapper = Utils.objectMapper();
     private static Process pythonServerProcess;
-    private String PYTHON;
+    private final String PYTHON = WebUtils.config().getString("python.path");
     private String pythonScriptPath;
     private final String pythonScriptText;
     private final ArrayList<String> inputColumns;
@@ -65,14 +64,6 @@ public class PythonUDFOpExec implements OperatorExecutor {
         for (String s : outerFiles) outerFilePaths.add(getPythonResourcePath(s));
         this.batchSize = batchSize;
         isDynamic = pythonScriptFile == null || pythonScriptFile.isEmpty();
-        try {
-            PYTHON = Files.walk(Utils.amberHomePath().resolve("../"), 5)
-                    .filter((path) -> path.getFileName().toString().equals("python3")).map(Path::toString)
-                    .findFirst().orElse("python3");
-            System.out.println(PYTHON);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
 
     }
 
