@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.source
+package edu.uci.ics.texera.workflow.operators.source.sql
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize

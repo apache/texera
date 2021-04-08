@@ -1,12 +1,12 @@
-package edu.uci.ics.texera.workflow.operators.source.postgresql
+package edu.uci.ics.texera.workflow.operators.source.sql.postgresql
 
 import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorGroupConstants,
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.operators.source.{SQLSourceOpDesc, SQLSourceOpExecConfig}
-import edu.uci.ics.texera.workflow.operators.source.postgresql.PostgreSQLConnUtil.connect
+import edu.uci.ics.texera.workflow.operators.source.sql.{SQLSourceOpDesc, SQLSourceOpExecConfig}
+import edu.uci.ics.texera.workflow.operators.source.sql.postgresql.PostgreSQLConnUtil.connect
 
 import java.sql.{Connection, SQLException}
 import java.util.Collections.singletonList

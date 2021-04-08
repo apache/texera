@@ -18,6 +18,8 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
+import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType
 import edu.uci.ics.texera.workflow.common.workflow._
 import edu.uci.ics.texera.workflow.operators.aggregate.AggregationFunction
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
@@ -69,7 +71,7 @@ class DataProcessingSpec
     val eventListener = ControllerEventListener()
     eventListener.workflowCompletedListener = evt => results = evt.result
     val controller = parent.childActorOf(
-      Controller.props(id, workflow, ControllerEventListener(), 100)
+      Controller.props(id, workflow, eventListener, 100)
     )
     parent.expectMsg(ControllerState.Ready)
     controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, StartWorkflow())
@@ -125,6 +127,62 @@ class DataProcessingSpec
       )
     )
     executeWorkflow(id, workflow)
+  }
+
+  "Engine" should "execute jsonl->sink workflow normally" in {
+    val jsonlOp = TestOperators.smallJSONLScanOpDesc()
+    val sink = TestOperators.sinkOpDesc()
+    val (id, workflow) = buildWorkflow(
+      mutable.MutableList[OperatorDescriptor](jsonlOp, sink),
+      mutable.MutableList[OperatorLink](
+        OperatorLink(
+          OperatorPort(jsonlOp.operatorID, 0),
+          OperatorPort(sink.operatorID, 0)
+        )
+      )
+    )
+    val results = executeWorkflow(id, workflow)(sink.operatorID)
+
+    assert(results.size == 100)
+
+    for (result <- results) {
+      val schema = result.asInstanceOf[Tuple].getSchema
+      assert(schema.getAttribute("id").getType == AttributeType.LONG)
+      assert(schema.getAttribute("first_name").getType == AttributeType.STRING)
+      assert(schema.getAttribute("flagged").getType == AttributeType.BOOLEAN)
+      assert(schema.getAttribute("year").getType == AttributeType.INTEGER)
+      assert(schema.getAttribute("created_at").getType == AttributeType.TIMESTAMP)
+      assert(schema.getAttributes.size() == 9)
+    }
+
+  }
+
+  "Engine" should "execute mediumFlattenJsonl->sink workflow normally" in {
+    val jsonlOp = TestOperators.mediumFlattenJSONLScanOpDesc()
+    val sink = TestOperators.sinkOpDesc()
+    val (id, workflow) = buildWorkflow(
+      mutable.MutableList[OperatorDescriptor](jsonlOp, sink),
+      mutable.MutableList[OperatorLink](
+        OperatorLink(
+          OperatorPort(jsonlOp.operatorID, 0),
+          OperatorPort(sink.operatorID, 0)
+        )
+      )
+    )
+    val results = executeWorkflow(id, workflow)(sink.operatorID)
+
+    assert(results.size == 1000)
+
+    for (result <- results) {
+      val schema = result.asInstanceOf[Tuple].getSchema
+      assert(schema.getAttribute("id").getType == AttributeType.LONG)
+      assert(schema.getAttribute("first_name").getType == AttributeType.STRING)
+      assert(schema.getAttribute("flagged").getType == AttributeType.BOOLEAN)
+      assert(schema.getAttribute("year").getType == AttributeType.INTEGER)
+      assert(schema.getAttribute("created_at").getType == AttributeType.TIMESTAMP)
+      assert(schema.getAttribute("test_object.array2.another").getType == AttributeType.INTEGER)
+      assert(schema.getAttributes.size() == 13)
+    }
   }
 
   "Engine" should "execute headerlessCsv->keyword->sink workflow normally" in {

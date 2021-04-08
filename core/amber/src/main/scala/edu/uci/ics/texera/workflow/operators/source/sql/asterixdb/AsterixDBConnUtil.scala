@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.source.asterixdb
+package edu.uci.ics.texera.workflow.operators.source.sql.asterixdb
 import kong.unirest.{HttpResponse, JsonNode, Unirest}
 
 import scala.jdk.CollectionConverters.asScalaIteratorConverter

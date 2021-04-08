@@ -1,15 +1,15 @@
-package edu.uci.ics.texera.workflow.operators.source.asterixdb
+package edu.uci.ics.texera.workflow.operators.source.sql.asterixdb
 
 import com.github.tototoshi.csv.CSVParser
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseField
-import edu.uci.ics.texera.workflow.operators.source.asterixdb.AsterixDBConnUtil.{
+import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBConnUtil.{
   queryAsterixDB,
   updateAsterixDBVersionMapping
 }
-import edu.uci.ics.texera.workflow.operators.source.SQLSourceOpExec
+import edu.uci.ics.texera.workflow.operators.source.sql.SQLSourceOpExec
 
 import java.sql._
 import java.time.{ZoneId, ZoneOffset}

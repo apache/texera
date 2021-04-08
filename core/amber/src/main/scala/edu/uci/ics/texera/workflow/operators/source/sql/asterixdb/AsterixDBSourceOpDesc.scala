@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.source.asterixdb
+package edu.uci.ics.texera.workflow.operators.source.sql.asterixdb
 
 import com.fasterxml.jackson.annotation.{
   JsonIgnoreProperties,
@@ -14,8 +14,8 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 }
 import edu.uci.ics.texera.workflow.common.metadata.annotations.UIWidget
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
-import edu.uci.ics.texera.workflow.operators.source.{SQLSourceOpDesc, SQLSourceOpExecConfig}
-import edu.uci.ics.texera.workflow.operators.source.asterixdb.AsterixDBConnUtil.queryAsterixDB
+import edu.uci.ics.texera.workflow.operators.source.sql.{SQLSourceOpDesc, SQLSourceOpExecConfig}
+import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBConnUtil.queryAsterixDB
 import kong.unirest.json.JSONObject
 
 import java.util.Collections.singletonList
