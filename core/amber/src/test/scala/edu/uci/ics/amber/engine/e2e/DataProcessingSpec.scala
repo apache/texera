@@ -147,10 +147,12 @@ class DataProcessingSpec
 
     for (result <- results) {
       val schema = result.asInstanceOf[Tuple].getSchema
-      assert(schema.getAttribute("text").getType == AttributeType.STRING)
       assert(schema.getAttribute("id").getType == AttributeType.LONG)
+      assert(schema.getAttribute("first_name").getType == AttributeType.STRING)
+      assert(schema.getAttribute("flagged").getType == AttributeType.BOOLEAN)
+      assert(schema.getAttribute("year").getType == AttributeType.INTEGER)
       assert(schema.getAttribute("created_at").getType == AttributeType.TIMESTAMP)
-      assert(schema.getAttributes.size() == 10)
+      assert(schema.getAttributes.size() == 9)
     }
 
   }
@@ -173,10 +175,13 @@ class DataProcessingSpec
 
     for (result <- results) {
       val schema = result.asInstanceOf[Tuple].getSchema
-      assert(schema.getAttribute("text").getType == AttributeType.STRING)
       assert(schema.getAttribute("id").getType == AttributeType.LONG)
+      assert(schema.getAttribute("first_name").getType == AttributeType.STRING)
+      assert(schema.getAttribute("flagged").getType == AttributeType.BOOLEAN)
+      assert(schema.getAttribute("year").getType == AttributeType.INTEGER)
       assert(schema.getAttribute("created_at").getType == AttributeType.TIMESTAMP)
-      assert(schema.getAttributes.size() == 142)
+      assert(schema.getAttribute("test_object.array2.another").getType == AttributeType.INTEGER)
+      assert(schema.getAttributes.size() == 13)
     }
   }
 
