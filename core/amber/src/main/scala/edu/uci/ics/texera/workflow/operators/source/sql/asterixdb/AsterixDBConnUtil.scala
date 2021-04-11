@@ -1,7 +1,9 @@
 package edu.uci.ics.texera.workflow.operators.source.sql.asterixdb
 import kong.unirest.{HttpResponse, JsonNode, Unirest}
+import kong.unirest.json.JSONObject
 
 import scala.jdk.CollectionConverters.asScalaIteratorConverter
+import scala.util.{Failure, Success, Try}
 
 object AsterixDBConnUtil {
 
@@ -15,7 +17,6 @@ object AsterixDBConnUtil {
       statement: String,
       format: String = "csv"
   ): Option[Iterator[AnyRef]] = {
-    println(statement)
     if (!asterixDBVersionMapping.contains(host)) updateAsterixDBVersionMapping(host, port)
 
     val asterixAPIEndpoint = "http://" + host + ":" + port + "/query/service"
@@ -34,7 +35,6 @@ object AsterixDBConnUtil {
     // if status is 200 OK, store the results
     if (response.getStatus == 200) {
       // return results
-      println("response " + response.getBody.getObject.getJSONArray("results").toString())
       Option(response.getBody.getObject.getJSONArray("results").iterator().asScala)
     } else
       throw new RuntimeException(
@@ -53,6 +53,48 @@ object AsterixDBConnUtil {
       asterixDBVersionMapping += (host -> response.getBody.getObject.getString(
         "git.build.version"
       ))
+  }
+
+  def fetchDataTypeFields(
+      datatypeName: String,
+      parentName: String,
+      host: String,
+      port: String
+  ): Map[String, String] = {
+    var result: Map[String, String] = Map()
+    val response = queryAsterixDB(
+      host,
+      port,
+      s"SELECT dt.Derived.Record.Fields FROM Metadata.`Datatype` dt where dt.DatatypeName = '$datatypeName';",
+      format = "JSON"
+    )
+
+    Try(
+      response.get
+        .next()
+        .asInstanceOf[JSONObject]
+        .getJSONArray("Fields")
+    ) match {
+      case Success(fields) =>
+        fields.forEach(field => {
+          val fieldName: String = field.asInstanceOf[JSONObject].get("FieldName").toString
+          val fieldType: String = field.asInstanceOf[JSONObject].get("FieldType").toString
+          if (fieldType.contains("type")) {
+            val childMap =
+              fetchDataTypeFields(
+                fieldType,
+                (if (parentName.nonEmpty) parentName + "." else "") + fieldName,
+                host,
+                port
+              )
+            result ++= childMap
+          } else {
+            result += (if (parentName.nonEmpty) parentName + "." else "") + fieldName -> fieldType
+          }
+        })
+      case Failure(_) =>
+    }
+    result
   }
 
 }

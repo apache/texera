@@ -203,9 +203,11 @@ class AsterixDBSourceOpExec private[asterixdb] (
     val row = curResultIterator.get.next().toString
 
     var values: Option[List[String]] = None
-    try values = CSVParser.parse(row, '\\', ',', '"')
-    catch {
-      case e: Exception => e.printStackTrace()
+    Try(values = CSVParser.parse(row, '\\', ',', '"')) match {
+      case Failure(e) =>
+//        e.printStackTrace()
+        return null
+      case Success(_) =>
     }
 
     for (i <- 0 until schema.getAttributes.size()) {
@@ -220,7 +222,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
           case _: Throwable =>
         }
 
-        if (value == null) {
+        if (value == null || value.equals("null")) {
           // add the field as null
           tupleBuilder.add(attr, null)
           break
@@ -237,44 +239,9 @@ class AsterixDBSourceOpExec private[asterixdb] (
   }
 
   override def addBaseSelect(queryBuilder: StringBuilder): Unit = {
-    if (database.equals("twitter") && table.equals("ds_tweet1")) {
-      // special case, support flattened twitter.ds_tweet
-
-      val user_mentions_flatten_query = Range(0, 100)
-        .map(i => "if_missing_or_null(to_string(to_array(user_mentions)[" + i + "]), \"\")")
-        .mkString(", ")
-
-      queryBuilder ++= "\n" +
-        "SELECT id" +
-        ", create_at" +
-        ", text" +
-        ", in_reply_to_status" +
-        ", in_reply_to_user" +
-        ", favorite_count" +
-        ", retweet_count" +
-        ", lang" +
-        ", is_retweet" +
-        ", if_missing(string_join(hashtags, \", \"), \"\") hashtags" +
-        ", rtrim(string_join([" + user_mentions_flatten_query + "], \", \"), \", \")  user_mentions" +
-        ", user.id user_id" +
-        ", user.name" +
-        ", user.screen_name" +
-        ", user.location" +
-        ", user.description" +
-        ", user.followers_count" +
-        ", user.friends_count" +
-        ", user.statues_count" +
-        ", geo_tag.stateName" +
-        ", geo_tag.countyName" +
-        ", geo_tag.cityName" +
-        ", place.country" +
-        ", place.bounding_box " +
-        s" FROM $database.$table WHERE 1 = 1 "
-
-    } else {
-      // general case, select everything, assuming the table is flattened.
-      queryBuilder ++= "\n" + s"SELECT ${schema.getAttributeNames.asScala.mkString(", ")} FROM $database.$table WHERE 1 = 1 "
-    }
+    queryBuilder ++= "\n" + s"SELECT ${schema.getAttributeNames.asScala.zipWithIndex
+      .map((entry: (String, Int)) => { s"if_missing(${entry._1},null) field_${entry._2}" })
+      .mkString(", ")} FROM $database.$table WHERE 1 = 1 "
   }
 
   override def addLimit(queryBuilder: StringBuilder): Unit = {
