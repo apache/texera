@@ -80,52 +80,59 @@ abstract class SQLSourceOpExec(
 
         // otherwise, send query to fetch for the next Tuple
 
-        curResultSet match {
-          case Some(resultSet) =>
-            if (resultSet.next()) {
+        while (true) {
+          breakable {
 
-              // manually skip until the offset position in order to adapt to progressive batches
-              curOffset.fold()(offset => {
-                if (offset > 0) {
-                  curOffset = Option(offset - 1)
-                  return next
+            curResultSet match {
+              case Some(resultSet) =>
+                if (resultSet.next()) {
+
+                  // manually skip until the offset position in order to adapt to progressive batches
+                  curOffset.fold()(offset => {
+                    if (offset > 0) {
+                      curOffset = Option(offset - 1)
+                      break
+                    }
+                  })
+
+                  // construct Texera.Tuple from the next result.
+                  val tuple = buildTupleFromRow
+
+                  if (tuple == null)
+                    break
+
+                  // update the limit in order to adapt to progressive batches
+                  curLimit.fold()(limit => {
+                    if (limit > 0) {
+                      curLimit = Option(limit - 1)
+                    }
+                  })
+                  return tuple
+                } else {
+                  // close the current resultSet and query
+                  curResultSet.foreach(resultSet => resultSet.close())
+                  curQuery.foreach(query => query.close())
+                  curResultSet = None
+                  curQuery = None
+                  break
                 }
-              })
-
-              // construct Texera.Tuple from the next result.
-              val tuple = buildTupleFromRow
-
-              if (tuple == null)
-                return next
-
-              // update the limit in order to adapt to progressive batches
-              curLimit.fold()(limit => {
-                if (limit > 0) {
-                  curLimit = Option(limit - 1)
-                }
-              })
-              tuple
-            } else {
-              // close the current resultSet and query
-              curResultSet.foreach(resultSet => resultSet.close())
-              curQuery.foreach(query => query.close())
-              curResultSet = None
-              curQuery = None
-              next
-            }
-          case None =>
-            curQuery = getNextQuery
-            curQuery match {
-              case Some(query) =>
-                curResultSet = Option(query.executeQuery)
-                next
               case None =>
-                curResultSet = None
-                null
+                curQuery = getNextQuery
+                curQuery match {
+                  case Some(query) =>
+                    curResultSet = Option(query.executeQuery)
+                    break
+                  case None =>
+                    curResultSet = None
+                    return null
+                }
             }
-        }
 
+          }
+        }
+        null
       }
+
     }
   }
 

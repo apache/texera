@@ -86,48 +86,54 @@ class AsterixDBSourceOpExec private[asterixdb] (
         })
 
         // otherwise, send query to fetch for the next Tuple
-        curResultIterator match {
-          case Some(resultSet) =>
-            if (resultSet.hasNext) {
 
-              // manually skip until the offset position in order to adapt to progressive batches
-              curOffset.fold()(offset => {
-                if (offset > 0) {
-                  curOffset = Option(offset - 1)
-                  return next
+        while (true) {
+          breakable {
+            curResultIterator match {
+              case Some(resultSet) =>
+                if (resultSet.hasNext) {
+
+                  // manually skip until the offset position in order to adapt to progressive batches
+                  curOffset.fold()(offset => {
+                    if (offset > 0) {
+                      curOffset = Option(offset - 1)
+                      break
+                    }
+                  })
+
+                  // construct Texera.Tuple from the next result.
+                  val tuple = buildTupleFromRow
+
+                  if (tuple == null)
+                    break
+
+                  // update the limit in order to adapt to progressive batches
+                  curLimit.fold()(limit => {
+                    if (limit > 0) {
+                      curLimit = Option(limit - 1)
+                    }
+                  })
+                  return tuple
+                } else {
+                  // close the current resultSet and query
+                  curResultIterator = None
+                  curQueryString = None
+                  break
                 }
-              })
-
-              // construct Texera.Tuple from the next result.
-              val tuple = buildTupleFromRow
-
-              if (tuple == null)
-                return next
-
-              // update the limit in order to adapt to progressive batches
-              curLimit.fold()(limit => {
-                if (limit > 0) {
-                  curLimit = Option(limit - 1)
-                }
-              })
-              tuple
-            } else {
-              // close the current resultSet and query
-              curResultIterator = None
-              curQueryString = None
-              next
-            }
-          case None =>
-            curQueryString = if (hasNextQuery) generateSqlQuery else None
-            curQueryString match {
-              case Some(query) =>
-                curResultIterator = queryAsterixDB(host, port, query)
-                next
               case None =>
-                curResultIterator = None
-                null
+                curQueryString = if (hasNextQuery) generateSqlQuery else None
+                curQueryString match {
+                  case Some(query) =>
+                    curResultIterator = queryAsterixDB(host, port, query)
+                    break
+                  case None =>
+                    curResultIterator = None
+                    return null
+                }
             }
+          }
         }
+        null
 
       }
     }
