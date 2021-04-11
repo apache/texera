@@ -77,7 +77,6 @@ class AsterixDBSourceOpExec private[asterixdb] (
         }
       }
 
-      @throws[RuntimeException]
       override def next: Tuple = {
         // if has the next Tuple in cache, return it and clear the cache
         cachedTuple.foreach(tuple => {
@@ -154,9 +153,9 @@ class AsterixDBSourceOpExec private[asterixdb] (
     * or
     *     ['hello', 'world'], {'mode':'all'}
     * @param queryBuilder queryBuilder for concatenation
-    * @throws RuntimeException if attribute does not support string based search
+    * @throws IllegalArgumentException if attribute does not support string based search
     */
-  @throws[RuntimeException]
+  @throws[IllegalArgumentException]
   def addKeywordSearch(queryBuilder: StringBuilder): Unit = {
 
     val columnType = schema.getAttribute(searchByColumn.get).getType
@@ -165,7 +164,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
 
       queryBuilder ++= " AND ftcontains(" + searchByColumn.get + ", " + keywords.get + ") "
     } else
-      throw new RuntimeException("Can't do keyword search on type " + columnType.toString)
+      throw new IllegalArgumentException("Can't do keyword search on type " + columnType.toString)
   }
 
   /**
@@ -173,7 +172,6 @@ class AsterixDBSourceOpExec private[asterixdb] (
     * @param side either "MAX" or "MIN" for boundary
     * @return a numeric value, could be Int, Long or Double
     */
-  @throws[RuntimeException]
   override def fetchBatchByBoundary(side: String): Number = {
     batchByAttribute match {
       case Some(attribute) =>
@@ -202,19 +200,14 @@ class AsterixDBSourceOpExec private[asterixdb] (
     *
     * @return the new Texera.Tuple
     */
-  @throws[RuntimeException]
   override def buildTupleFromRow: Tuple = {
 
     val tupleBuilder = Tuple.newBuilder
     val row = curResultIterator.get.next().toString
 
     var values: Option[List[String]] = None
-    Try(values = CSVParser.parse(row, '\\', ',', '"')) match {
-      case Failure(e) =>
-//        e.printStackTrace()
-        return null
-      case Success(_) =>
-    }
+    Try(values = CSVParser.parse(row, '\\', ',', '"'))
+    if (values.isEmpty) return null
 
     for (i <- 0 until schema.getAttributes.size()) {
 
@@ -223,10 +216,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
         val columnType = attr.getType
 
         var value: String = null
-        try value = values.get(i)
-        catch {
-          case _: Throwable =>
-        }
+        Try(value = values.get(i))
 
         if (value == null || value.equals("null")) {
           // add the field as null
@@ -258,7 +248,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
     queryBuilder ++= " OFFSET " + curOffset.get
   }
 
-  @throws[RuntimeException]
+  @throws[IllegalArgumentException]
   override def batchAttributeToString(value: Number): String = {
     batchByAttribute match {
       case Some(attribute) =>
@@ -268,10 +258,10 @@ class AsterixDBSourceOpExec private[asterixdb] (
           case TIMESTAMP =>
             "datetime('" + formatter.format(new Timestamp(value.longValue).toInstant) + "')"
           case BOOLEAN | STRING | ANY | _ =>
-            throw new RuntimeException("Unexpected type: " + attribute.getType)
+            throw new IllegalArgumentException("Unexpected type: " + attribute.getType)
         }
       case None =>
-        throw new RuntimeException(
+        throw new IllegalArgumentException(
           "No valid batchByColumn to iterate: " + batchByColumn.getOrElse("")
         )
     }
@@ -280,9 +270,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
   /**
     * Fetch all table names from the given database. This is used to
     * check the input table name to prevent from SQL injection.
-    * @throws RuntimeException all possible exceptions from HTTP connection
     */
-  @throws[RuntimeException]
   override protected def loadTableNames(): Unit = {
     // fetch for all tables, it is also equivalent to a health check
     val tables = queryAsterixDB(host, port, "select `DatasetName` from Metadata.`Dataset`;")
