@@ -187,6 +187,10 @@ public class Tuple implements ITuple, Serializable {
         return new Tuple.Builder();
     }
 
+    public static Tuple.Builder newBuilder(Schema schema) {
+        return new Tuple.Builder(schema);
+    }
+
     /**
      * Tuple.Builder is a helper class for creating immutable Tuple instances.
      * <p>
@@ -199,6 +203,7 @@ public class Tuple implements ITuple, Serializable {
      */
     public static class Builder {
 
+        private final Schema schema;
         private final Schema.Builder schemaBuilder;
         private final HashMap<String, Object> fieldNameMap;
 
@@ -206,7 +211,14 @@ public class Tuple implements ITuple, Serializable {
          * Creates a new Tuple Builder.
          */
         public Builder() {
+            this.schema = null;
             this.schemaBuilder = new Schema.Builder();
+            this.fieldNameMap = new HashMap<>();
+        }
+
+        public Builder(Schema schema) {
+            this.schema = schema;
+            this.schemaBuilder = null;
             this.fieldNameMap = new HashMap<>();
         }
 
@@ -219,6 +231,7 @@ public class Tuple implements ITuple, Serializable {
             checkNotNull(tuple);
             checkNotNull(tuple.getFields());
 
+            this.schema = null; // FIXME Only for compilation error
             this.schemaBuilder = new Schema.Builder(tuple.getSchema());
             this.fieldNameMap = new HashMap<>();
             for (int i = 0; i < tuple.getFields().size(); i++) {
@@ -234,7 +247,7 @@ public class Tuple implements ITuple, Serializable {
          * @return
          */
         public Tuple build() {
-            Schema schema = schemaBuilder.build();
+            Schema schema = this.schema != null ? this.schema : schemaBuilder.build();
             ArrayList<Object> fields = new ArrayList<>();
             for (int i = 0; i < schema.getAttributes().size(); i++) {
                 fields.add(fieldNameMap.get(schema.getAttributes().get(i).getName().toLowerCase()));
@@ -262,7 +275,7 @@ public class Tuple implements ITuple, Serializable {
             checkAttributeMatchesField(attribute, field);
 
             // schema builder will check if the attribute already exists
-            schemaBuilder.add(attribute);
+            if (schema == null) schemaBuilder.add(attribute);
             fieldNameMap.put(attribute.getName().toLowerCase(), field);
             return this;
         }
@@ -289,6 +302,10 @@ public class Tuple implements ITuple, Serializable {
         }
 
         public Builder add(Schema schema, Object[] fields) {
+            return add(schema.getAttributes(), Lists.newArrayList(fields));
+        }
+
+        public Builder add(Object[] fields) {
             return add(schema.getAttributes(), Lists.newArrayList(fields));
         }
 

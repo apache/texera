@@ -37,6 +37,7 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
 
   override def operatorExecutor: OpExecConfig = {
     opExecConfig = new HashJoinOpExecConfig[K](
+      this.getCachedOutputSchema,
       this.operatorIdentifier,
       probeAttributeName,
       buildAttributeName
@@ -66,7 +67,7 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
             schemas(0).containsAttribute(attr.getName()) && attr.getName() != probeAttributeName
           ) {
             // appending 1 to the output of Join schema in case of duplicate attributes in probe and build table
-            builder.add(new Attribute(s"${attr.getName()}1", attr.getType()))
+            builder.add(new Attribute(s"${attr.getName()}#@1", attr.getType()))
           } else {
             builder.add(attr)
           }

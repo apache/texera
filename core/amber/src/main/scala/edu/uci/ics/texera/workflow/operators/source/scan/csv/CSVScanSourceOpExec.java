@@ -80,7 +80,7 @@ public class CSVScanSourceOpExec implements SourceOperatorExecutor {
 
                     );
 
-                    return Tuple.newBuilder().add(schema, parsedFields).build();
+                    return Tuple.newBuilder(schema).add(parsedFields).build();
                 } catch (IOException e) {
                     e.printStackTrace();
                     throw new RuntimeException(e);

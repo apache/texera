@@ -15,6 +15,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 class HashJoinOpExec[K](
+    val outputSchema: Schema,
     val buildTable: LinkIdentity,
     val buildAttributeName: String,
     val probeAttributeName: String
@@ -82,7 +83,7 @@ class HashJoinOpExec[K](
 
             storedTuples.foreach(buildTuple => {
               val builder = Tuple
-                .newBuilder()
+                .newBuilder(outputSchema)
                 .add(buildTuple)
 
               var newProbeIdx = 0
