@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.csv
 
-import com.github.tototoshi.csv.CSVReader
+import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeTypeUtils, Schema}
@@ -10,7 +10,7 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 class CSVScanSourceOpExec private[csv] (
     val localPath: String,
     val schema: Schema,
-    val delimiter: Char,
+    val customDelimiter: Char,
     val hasHeader: Boolean
 ) extends SourceOperatorExecutor {
   var rows: Iterator[Seq[String]] = _
@@ -36,11 +36,15 @@ class CSVScanSourceOpExec private[csv] (
     }
 
   override def open(): Unit = {
-    rows = CSVReader.open(localPath).iterator
+    println(customDelimiter)
+    implicit object CustomFormat extends DefaultCSVFormat {
+      override val delimiter: Char = customDelimiter
+    }
+    rows = CSVReader.open(localPath)(CustomFormat).iterator
     // skip line if this worker reads the start of a file, and the file has a header line
     if (hasHeader) rows.next()
   }
 
-  override def close(): Unit = {}
+  override def close(): Unit = reader.close()
 
 }

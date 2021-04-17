@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.csv
 
-import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
-import com.google.common.io.Files
+import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.operators.OpExecConfig
@@ -10,20 +10,16 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferS
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 import org.codehaus.jackson.map.annotate.JsonDeserialize
 
-import java.io.{BufferedReader, File, FileReader, IOException}
-import java.nio.charset.Charset
-import scala.collection.JavaConverters._
+import java.io.IOException
+import scala.jdk.CollectionConverters.asJavaIterableConverter
 
 class CSVScanSourceOpDesc extends ScanSourceOpDesc {
-
-  @JsonIgnore
-  var headerLine: Option[String] = None
 
   @JsonProperty(defaultValue = ",")
   @JsonSchemaTitle("Delimiter")
   @JsonPropertyDescription("delimiter to separate each line into fields")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
-  var delimiter: Option[String] = None
+  var customDelimiter: Option[String] = None
 
   @JsonProperty(defaultValue = "true")
   @JsonSchemaTitle("Header")
@@ -40,24 +36,18 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
   @throws[IOException]
   override def operatorExecutor: OpExecConfig = {
     // fill in default values
-    if (delimiter.get.isEmpty)
-      delimiter = Option(",")
+    if (customDelimiter.get.isEmpty)
+      customDelimiter = Option(",")
 
     filePath match {
       case Some(path) =>
-        if (headerLine.isEmpty) {
-          headerLine = Option(
-            Files.asCharSource(new File(path), Charset.defaultCharset).readFirstLine
-          )
-        }
-
         if (!hasMultilineData) {
           new ParallelCSVScanSourceOpExecConfig(
             operatorIdentifier,
             Constants.defaultNumWorkers,
             path,
             inferSchema(),
-            delimiter.get.charAt(0),
+            customDelimiter.get.charAt(0),
             hasHeader
           )
         } else {
@@ -66,7 +56,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
             1,
             path,
             inferSchema(),
-            delimiter.get.charAt(0),
+            customDelimiter.get.charAt(0),
             hasHeader
           )
         }
@@ -82,27 +72,24 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
     */
   @Override
   def inferSchema(): Schema = {
-    if (delimiter.isEmpty) return null
-    if (headerLine.isEmpty) {
-      headerLine = Option(
-        Files.asCharSource(new File(filePath.get), Charset.defaultCharset).readFirstLine
-      )
+    if (customDelimiter.isEmpty) return null
+    implicit object CustomFormat extends DefaultCSVFormat {
+      override val delimiter: Char = customDelimiter.get.charAt(0)
+
     }
-    val headers: Array[String] = headerLine.get.split(delimiter.get)
+    var reader: CSVReader = CSVReader.open(filePath.get)(CustomFormat)
+    val firstRow: Array[String] = reader.iterator.next().toArray
+    reader.close()
 
-    val reader = new BufferedReader(new FileReader(filePath.get))
+    // reopen the file to read from the beginning
+    reader = CSVReader.open(filePath.get)(CustomFormat)
     if (hasHeader)
-      reader.readLine()
-
-    // TODO: real CSV may contain multi-line values. Need to handle multi-line values correctly.
+      reader.readNext()
 
     val attributeTypeList: Array[AttributeType] = inferSchemaFromRows(
-      reader
-        .lines()
-        .iterator
-        .asScala
+      reader.iterator
         .take(INFER_READ_LIMIT)
-        .map(line => line.split(delimiter.get).asInstanceOf[Array[Object]])
+        .map(seq => seq.toArray)
     )
 
     reader.close()
@@ -111,11 +98,11 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
     Schema.newBuilder
       .add(
         if (hasHeader)
-          headers.indices
-            .map((i: Int) => new Attribute(headers.apply(i), attributeTypeList.apply(i)))
+          firstRow.indices
+            .map((i: Int) => new Attribute(firstRow.apply(i), attributeTypeList.apply(i)))
             .asJava
         else
-          headers.indices
+          firstRow.indices
             .map((i: Int) => new Attribute("column-" + (i + 1), attributeTypeList.apply(i)))
             .asJava
       )

@@ -32,7 +32,7 @@ object TestOperators {
   def getCsvScanOpDesc(fileName: String, header: Boolean): CSVScanSourceOpDesc = {
     val csvHeaderlessOp = new CSVScanSourceOpDesc()
     csvHeaderlessOp.fileName = Option(fileName)
-    csvHeaderlessOp.delimiter = Option(",")
+    csvHeaderlessOp.customDelimiter = Option(",")
     csvHeaderlessOp.hasHeader = header
     csvHeaderlessOp
   }
