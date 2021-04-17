@@ -15,11 +15,11 @@ import edu.uci.ics.texera.workflow.operators.source.sql.mysql.MySQLSourceOpDesc
 object TestOperators {
 
   def headerlessSmallCsvScanOpDesc(): CSVScanSourceOpDesc = {
-    getCsvScanOpDesc("src/test/resources/CountrySalesDataHeaderlessSmall.csv", header = false)
+    getCsvScanOpDesc("src/test/resources/country_sales_headerless_small.csv", header = false)
   }
 
   def smallCsvScanOpDesc(): CSVScanSourceOpDesc = {
-    getCsvScanOpDesc("src/test/resources/CountrySalesDataSmall.csv", header = true)
+    getCsvScanOpDesc("src/test/resources/country_sales_small.csv", header = true)
   }
 
   def smallJSONLScanOpDesc(): JSONLScanSourceOpDesc = {
@@ -52,7 +52,7 @@ object TestOperators {
   }
 
   def mediumCsvScanOpDesc(): CSVScanSourceOpDesc = {
-    getCsvScanOpDesc("src/test/resources/CountrySalesDataMedium.csv", header = true)
+    getCsvScanOpDesc("src/test/resources/country_sales_medium.csv", header = true)
   }
 
   def keywordSearchOpDesc(attribute: String, keywordToSearch: String): KeywordSearchOpDesc = {
