@@ -33,7 +33,7 @@ class CSVScanSourceOpExecConfig(
               hasHeader
             )
           },
-          numWorkers,
+          numWorkers, // here using 1 since there is no easy way to split the task for multi-line csv.
           UseAll(), // it's source operator
           RoundRobinDeployment()
         )

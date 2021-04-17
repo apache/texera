@@ -21,7 +21,6 @@ class CSVScanSourceOpExec private[csv] (
 
       override def next: Tuple = {
         // obtain String representation of each field
-        // a null value will present if omit in between fields, e.g., ['hello', null, 'world']
         val fields: Seq[String] = rows.next
         // parse Strings into inferred AttributeTypes
         val parsedFields: Array[Object] = AttributeTypeUtils.parseFields(

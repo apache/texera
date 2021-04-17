@@ -97,14 +97,14 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
     // build schema based on inferred AttributeTypes
     Schema.newBuilder
       .add(
-        if (hasHeader)
-          firstRow.indices
-            .map((i: Int) => new Attribute(firstRow.apply(i), attributeTypeList.apply(i)))
-            .asJava
-        else
-          firstRow.indices
-            .map((i: Int) => new Attribute("column-" + (i + 1), attributeTypeList.apply(i)))
-            .asJava
+        firstRow.indices
+          .map((i: Int) =>
+            new Attribute(
+              if (hasHeader) firstRow.apply(i) else "column-" + (i + 1),
+              attributeTypeList.apply(i)
+            )
+          )
+          .asJava
       )
       .build
   }
