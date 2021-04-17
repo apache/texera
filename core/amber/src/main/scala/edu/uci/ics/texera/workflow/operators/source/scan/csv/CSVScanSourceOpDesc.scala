@@ -32,7 +32,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
 
   @JsonProperty(defaultValue = "false")
   @JsonSchemaTitle("Multiline data?")
-  @JsonPropertyDescription("whether the CSV file contains multiple data")
+  @JsonPropertyDescription("whether the CSV file contains data that span multi-lines")
   var hasMultilineData: Boolean = false
 
   fileTypeName = Option("CSV")
