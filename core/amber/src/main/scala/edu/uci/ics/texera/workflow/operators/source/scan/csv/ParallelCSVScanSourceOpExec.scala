@@ -28,7 +28,11 @@ class ParallelCSVScanSourceOpExec private[csv] (
       override def next: Tuple = {
         // obtain String representation of each field
         // a null value will present if omit in between fields, e.g., ['hello', null, 'world']
-        var fields: Array[Object] = reader.readLine.toArray
+        val line = reader.readLine
+        if (line == null) {
+          return null
+        }
+        var fields: Array[Object] = line.toArray
 
         if (fields == null || util.Arrays.stream(fields).noneMatch(s => s != null)) {
           // discard tuple if it's null or it only contains null

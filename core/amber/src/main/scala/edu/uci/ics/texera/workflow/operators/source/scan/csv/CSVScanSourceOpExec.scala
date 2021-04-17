@@ -35,7 +35,6 @@ class CSVScanSourceOpExec private[csv] (
     }
 
   override def open(): Unit = {
-    println(customDelimiter)
     implicit object CustomFormat extends DefaultCSVFormat {
       override val delimiter: Char = customDelimiter
     }
