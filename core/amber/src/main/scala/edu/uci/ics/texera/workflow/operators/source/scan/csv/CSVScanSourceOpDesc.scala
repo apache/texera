@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyD
 import com.google.common.io.Files
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
@@ -29,10 +30,15 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
   @JsonPropertyDescription("whether the CSV file contains a header line")
   var hasHeader: Boolean = true
 
+  @JsonProperty(defaultValue = "false")
+  @JsonSchemaTitle("Multiline data?")
+  @JsonPropertyDescription("whether the CSV file contains multiple data")
+  var hasMultilineData: Boolean = false
+
   fileTypeName = Option("CSV")
 
   @throws[IOException]
-  override def operatorExecutor: CSVScanSourceOpExecConfig = {
+  override def operatorExecutor: OpExecConfig = {
     // fill in default values
     if (delimiter.get.isEmpty)
       delimiter = Option(",")
@@ -44,14 +50,26 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
             Files.asCharSource(new File(path), Charset.defaultCharset).readFirstLine
           )
         }
-        new CSVScanSourceOpExecConfig(
-          operatorIdentifier,
-          Constants.defaultNumWorkers,
-          path,
-          inferSchema(),
-          delimiter.get.charAt(0),
-          hasHeader
-        )
+
+        if (!hasMultilineData) {
+          new ParallelCSVScanSourceOpExecConfig(
+            operatorIdentifier,
+            Constants.defaultNumWorkers,
+            path,
+            inferSchema(),
+            delimiter.get.charAt(0),
+            hasHeader
+          )
+        } else {
+          new CSVScanSourceOpExecConfig(
+            operatorIdentifier,
+            1,
+            path,
+            inferSchema(),
+            delimiter.get.charAt(0),
+            hasHeader
+          )
+        }
       case None =>
         throw new RuntimeException("File path is not provided.")
     }
