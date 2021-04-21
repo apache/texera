@@ -91,7 +91,8 @@ export enum OperatorState {
 export interface OperatorStatistics extends Readonly<{
   operatorState: OperatorState,
   aggregatedInputRowCount: number,
-  aggregatedOutputRowCount: number
+  aggregatedOutputRowCount: number,
+  aggregatedOutputResults: ResultObject | undefined | null
 }> { }
 
 export interface WorkflowStatusUpdate extends Readonly<{

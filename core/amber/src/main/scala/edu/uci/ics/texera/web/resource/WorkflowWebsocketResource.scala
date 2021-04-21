@@ -1,10 +1,8 @@
 package edu.uci.ics.texera.web.resource
 
-import java.util
 import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.{ActorRef, PoisonPill}
-import com.google.api.client.util.Lists
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
@@ -210,26 +208,7 @@ class WorkflowWebsocketResource {
         WorkflowWebsocketResource.sessionJobs.remove(session.getId)
       },
       workflowStatusUpdateListener = statusUpdate => {
-        val updateMutable = mutable.HashMap(statusUpdate.operatorStatistics.toSeq: _*)
-        val sinkID = texeraWorkflowCompiler.workflowInfo.operators
-          .find(p => p.isInstanceOf[SimpleSinkOpDesc])
-          .get
-          .operatorID
-        val sinkInputID = texeraWorkflowCompiler.workflowInfo.links
-          .find(link => link.destination.operatorID == sinkID)
-          .get
-          .origin
-        if (updateMutable.contains(sinkInputID.operatorID)) {
-          val inputStatistics = updateMutable(sinkInputID.operatorID)
-          val sinkStatistics = OperatorStatistics(
-            inputStatistics.operatorState,
-            inputStatistics.aggregatedOutputRowCount,
-            inputStatistics.aggregatedOutputRowCount,
-            inputStatistics.aggregatedOutputResults
-          )
-          updateMutable(sinkID) = sinkStatistics
-        }
-        send(session, WorkflowStatusUpdateEvent(updateMutable.toMap))
+        send(session, WebWorkflowStatusUpdateEvent.apply(statusUpdate, texeraWorkflowCompiler))
       },
       modifyLogicCompletedListener = _ => {
         send(session, ModifyLogicCompletedEvent())
