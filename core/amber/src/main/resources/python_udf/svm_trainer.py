@@ -7,7 +7,7 @@ import texera_udf_operator_base
 from mock_data import df_from_mysql
 
 
-class SVMTrainer(texera_udf_operator_base.TexeraBlockingTrainerOperator):
+class SVMTrainer(texera_udf_operator_base.TexeraBlockingSupervisedTrainerOperator):
 
     def open(self, *args):
         super(SVMTrainer, self).open(*args)
