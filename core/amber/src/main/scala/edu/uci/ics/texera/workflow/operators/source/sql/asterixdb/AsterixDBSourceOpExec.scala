@@ -208,30 +208,34 @@ class AsterixDBSourceOpExec private[asterixdb] (
     var values: Option[List[String]] = None
     Try(values = CSVParser.parse(row, '\\', ',', '"'))
     if (values.isEmpty) return null
+    Try(
+      for (i <- 0 until schema.getAttributes.size()) {
 
-    for (i <- 0 until schema.getAttributes.size()) {
+        val attr = schema.getAttributes.get(i)
+        breakable {
+          val columnType = attr.getType
 
-      val attr = schema.getAttributes.get(i)
-      breakable {
-        val columnType = attr.getType
+          var value: String = null
+          Try(value = values.get(i))
 
-        var value: String = null
-        Try(value = values.get(i))
+          if (value == null || value.equals("null")) {
+            // add the field as null
+            tupleBuilder.add(attr, null)
+            break
+          }
 
-        if (value == null || value.equals("null")) {
-          // add the field as null
-          tupleBuilder.add(attr, null)
-          break
+          // otherwise, transform the type of the value
+          tupleBuilder.add(
+            attr,
+            parseField(value.stripSuffix("\"").stripPrefix("\""), columnType)
+          )
         }
-
-        // otherwise, transform the type of the value
-        tupleBuilder.add(
-          attr,
-          parseField(value.stripSuffix("\"").stripPrefix("\""), columnType)
-        )
       }
+    ) match {
+      case Success(_) => tupleBuilder.build
+      case Failure(_) => null
     }
-    tupleBuilder.build
+
   }
 
   override def addBaseSelect(queryBuilder: StringBuilder): Unit = {
