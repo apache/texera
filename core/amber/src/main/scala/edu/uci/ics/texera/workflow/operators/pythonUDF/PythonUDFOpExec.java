@@ -453,10 +453,13 @@ public class PythonUDFOpExec implements OperatorExecutor {
     }
 
     private Iterator<Tuple> processOneBatch(boolean inputExhausted) throws RuntimeException {
-        writeArrowStream(flightClient, inputTupleBuffer, globalInputSchema, TO_PYTHON, batchSize);
-        executeUDF(flightClient);
         Queue<Tuple> outputTupleBuffer = new LinkedList<>();
-        readArrowStream(flightClient, FROM_PYTHON, outputTupleBuffer);
+        if (inputTupleBuffer.size() != 0) {
+            writeArrowStream(flightClient, inputTupleBuffer, globalInputSchema, TO_PYTHON, batchSize);
+            executeUDF(flightClient);
+            readArrowStream(flightClient, FROM_PYTHON, outputTupleBuffer);
+            inputTupleBuffer.clear();
+        }
 
         if (inputExhausted) {
             Queue<Tuple> extraTupleBuffer = new LinkedList<>();
@@ -464,8 +467,6 @@ public class PythonUDFOpExec implements OperatorExecutor {
             readArrowStream(flightClient, FROM_PYTHON, extraTupleBuffer);
             outputTupleBuffer.addAll(extraTupleBuffer);
         }
-
-        inputTupleBuffer.clear();
         return JavaConverters.asScalaIterator(outputTupleBuffer.iterator());
     }
 
@@ -519,7 +520,6 @@ public class PythonUDFOpExec implements OperatorExecutor {
 
     @Override
     public Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, LinkIdentity input) {
-
         if (tuple.isLeft()) {
             Tuple inputTuple = tuple.left().get();
             if (globalInputSchema == null) {
