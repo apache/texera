@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.operators.pythonUDF;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
+import edu.uci.ics.amber.engine.common.Constants;
 import edu.uci.ics.amber.engine.operators.OpExecConfig;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
@@ -16,7 +17,7 @@ import scala.collection.JavaConverters;
 
 import java.util.List;
 
-import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFType.Training;
+import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFType.*;
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
 
@@ -68,7 +69,7 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
     @Override
     public OpExecConfig operatorExecutor() {
         return new PythonUDFOpExecConfig(this.operatorIdentifier(),
-                1, // changed it to 1 because training with python needs all data in one node.
+                PythonUDFType.supportsParallel.contains(pythonUDFType) ? Constants.defaultNumWorkers(): 1, // changed it to 1 because training with python needs all data in one node.
                 this.pythonScriptText,
                 this.pythonScriptFile,
                 JavaConverters.asScalaIteratorConverter(this.inputColumns.iterator()).asScala().toBuffer(),
@@ -100,12 +101,14 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
         }
 
         Schema.Builder outputSchemaBuilder = Schema.newBuilder();
-        if (pythonUDFType == Training) {
+        if (pythonUDFType == SupervisedTraining) {
             outputSchemaBuilder.add("class", AttributeType.STRING);
             outputSchemaBuilder.add("precision", AttributeType.STRING);
             outputSchemaBuilder.add("recall", AttributeType.STRING);
             outputSchemaBuilder.add("f1-score", AttributeType.STRING);
             outputSchemaBuilder.add("support", AttributeType.STRING);
+        } else if (pythonUDFType == UnsupervisedTraining) {
+            outputSchemaBuilder.add("output", AttributeType.STRING);
         } else {
             // for pythonUDFType with map and filter, keep the same schema from input
             outputSchemaBuilder.add(inputSchema);

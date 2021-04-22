@@ -118,7 +118,7 @@ class TexeraFilterOperator(TexeraUDFOperator):
         pass
 
 
-class TexeraBlockingTrainerOperator(TexeraUDFOperator):
+class TexeraBlockingSupervisedTrainerOperator(TexeraUDFOperator):
 
     def __init__(self):
         super().__init__()
@@ -167,3 +167,35 @@ class TexeraBlockingTrainerOperator(TexeraUDFOperator):
         for index, row in list(matrix.iterrows())[::-1]:
             if index != 1:
                 self._result_tuples.append(row)
+
+class TexeraBlockingUnsupervisedTrainerOperator(TexeraUDFOperator):
+
+    def __init__(self):
+        super().__init__()
+        self._data = []
+        self._result_tuples: List = []
+        self._train_args = dict()
+
+    def input_exhausted(self, *args):
+        model = self.train(self._data, **self._train_args)
+        self.report(model)
+
+    def accept(self, row: pandas.Series, nth_child: int = 0) -> None:
+        self._data.append(row[0])
+
+    def has_next(self) -> bool:
+        return bool(self._result_tuples)
+
+    def next(self) -> pandas.Series:
+        return self._result_tuples.pop(0)
+
+    def close(self) -> None:
+        pass
+
+    @staticmethod
+    def train(data, **kwargs):
+        raise NotImplementedError
+
+    def report(self, model) -> None:
+        pass
+
