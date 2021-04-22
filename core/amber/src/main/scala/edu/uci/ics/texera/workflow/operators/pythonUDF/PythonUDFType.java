@@ -7,7 +7,7 @@ import java.util.Arrays;
 import java.util.List;
 
 public enum PythonUDFType {
-    MAP("map"),
+    Map("map"),
 
     Filter("filter"),
 
@@ -15,7 +15,7 @@ public enum PythonUDFType {
 
     UnsupervisedTraining("unsupervised_training");
 
-    public static List<PythonUDFType> supportsParallel = Arrays.asList(MAP, Filter);
+    public static List<PythonUDFType> supportsParallel = Arrays.asList(Map, Filter);
 
     private final String name;
 

@@ -187,7 +187,7 @@ class TexeraBlockingUnsupervisedTrainerOperator(TexeraUDFOperator):
         return bool(self._result_tuples)
 
     def next(self) -> pandas.Series:
-        return self._result_tuples.pop()
+        return self._result_tuples.pop(0)
 
     def close(self) -> None:
         pass

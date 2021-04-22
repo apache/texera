@@ -73,4 +73,5 @@ if __name__ == '__main__':
     while operator_instance.has_next():
         print(operator_instance.next())
 
+    file1.close()
     operator_instance.close()
