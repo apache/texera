@@ -353,11 +353,11 @@ public class PythonUDFOpExec implements OperatorExecutor {
             // close context on the Python end.
             if (sendClose) communicate(client, CLOSE);
 
-            // clean memory allocation.
-            memoryAllocator.close();
-
             // terminate the python server.
             communicate(client, TERMINATE);
+
+            // clean memory allocation.
+            memoryAllocator.close();
 
             // close client socket.
             client.close();
