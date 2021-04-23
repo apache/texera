@@ -15,6 +15,7 @@ class TexeraUDFOperator(ABC):
     def __init__(self):
         self._args: Tuple = tuple()
         self._kwargs: Optional[Dict] = None
+        self._result_tuples: List = []
 
     def open(self, *args) -> None:
         """
@@ -41,13 +42,13 @@ class TexeraUDFOperator(ABC):
         """
         Return a boolean value that indicates whether there will be a next result.
         """
-        pass
+        return bool(self._result_tuples)
 
     def next(self) -> pandas.Series:
         """
         Get the next result row. This will be called after accept(), so result should be prepared.
         """
-        pass
+        return self._result_tuples.pop(0)
 
     def close(self) -> None:
         """
@@ -55,7 +56,10 @@ class TexeraUDFOperator(ABC):
         """
         pass
 
-    def input_exhausted(self, *args):
+    def input_exhausted(self, *args, **kwargs):
+        """
+        Executes when the input is exhausted, useful for some blocking execution like training.
+        """
         pass
 
 
@@ -73,19 +77,9 @@ class TexeraMapOperator(TexeraUDFOperator):
         if map_function is None:
             raise NotImplementedError
         self._map_function: Callable = map_function
-        self._result_tuples: List = []
 
     def accept(self, row: pandas.Series, nth_child: int = 0) -> None:
         self._result_tuples.append(self._map_function(row, *self._args))  # must take args
-
-    def has_next(self) -> bool:
-        return bool(self._result_tuples)
-
-    def next(self) -> pandas.Series:
-        return self._result_tuples.pop(0)
-
-    def close(self) -> None:
-        pass
 
 
 class TexeraFilterOperator(TexeraUDFOperator):
@@ -107,15 +101,6 @@ class TexeraFilterOperator(TexeraUDFOperator):
     def accept(self, row: pandas.Series, nth_child: int = 0) -> None:
         if self._filter_function(row, *self._args):
             self._result_tuples.append(row)
-
-    def has_next(self) -> bool:
-        return len(self._result_tuples) != 0
-
-    def next(self) -> pandas.Series:
-        return self._result_tuples.pop()
-
-    def close(self) -> None:
-        pass
 
 
 class TexeraBlockingSupervisedTrainerOperator(TexeraUDFOperator):
@@ -143,17 +128,8 @@ class TexeraBlockingSupervisedTrainerOperator(TexeraUDFOperator):
         self._x.append(row[0])
         self._y.append(row[1])
 
-    def has_next(self) -> bool:
-        return bool(self._result_tuples)
-
-    def next(self) -> pandas.Series:
-        return self._result_tuples.pop(0)
-
-    def close(self) -> None:
-        pass
-
     @staticmethod
-    def train(x_train, y_train, **kwargs):
+    def train(x_train, y_train, *args, **kwargs):
         raise NotImplementedError
 
     @staticmethod
@@ -180,25 +156,19 @@ class TexeraBlockingUnsupervisedTrainerOperator(TexeraUDFOperator):
         self._result_tuples: List = []
         self._train_args = dict()
 
-    def input_exhausted(self, *args):
-        model = self.train(self._data, **self._train_args)
-        self.report(model)
-
     def accept(self, row: pandas.Series, nth_child: int = 0) -> None:
         self._data.append(row[0])
-
-    def has_next(self) -> bool:
-        return bool(self._result_tuples)
-
-    def next(self) -> pandas.Series:
-        return self._result_tuples.pop(0)
 
     def close(self) -> None:
         pass
 
     @staticmethod
-    def train(data, **kwargs):
+    def train(data, *args, **kwargs):
         raise NotImplementedError
 
     def report(self, model) -> None:
         pass
+
+    def input_exhausted(self, *args):
+        model = self.train(self._data, **self._train_args)
+        self.report(model)
