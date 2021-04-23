@@ -37,6 +37,11 @@ class SVMTrainer(texera_udf_operator_base.TexeraBlockingSupervisedTrainerOperato
         clf.fit(x_train, y_train)
         return vectorizer, clf
 
+    @staticmethod
+    def test(model, x_test, y_test, **kwargs):
+        vc, clf = model
+        return clf.predict(vc.transform(x_test))
+
 
 operator_instance = SVMTrainer()
 if __name__ == '__main__':

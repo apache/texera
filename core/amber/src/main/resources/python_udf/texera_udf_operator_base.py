@@ -1,4 +1,4 @@
-import shelve
+import pickle
 from abc import ABC
 from typing import Dict, Optional, Tuple, Callable, List
 
@@ -82,7 +82,7 @@ class TexeraMapOperator(TexeraUDFOperator):
         return bool(self._result_tuples)
 
     def next(self) -> pandas.Series:
-        return self._result_tuples.pop()
+        return self._result_tuples.pop(0)
 
     def close(self) -> None:
         pass
@@ -129,16 +129,15 @@ class TexeraBlockingSupervisedTrainerOperator(TexeraUDFOperator):
         self._train_args = dict()
         self._model_file_path = None
 
-    def input_exhausted(self, *args):
+    def input_exhausted(self, *args, **kwargs):
         x_train, x_test, y_train, y_test = train_test_split(self._x, self._y, test_size=self._test_ratio, random_state=1)
-        vc, model = self.train(x_train, y_train, **self._train_args)
+        model = self.train(x_train, y_train, **self._train_args)
+        with open(self._model_file_path, "wb") as file:
+            pickle.dump(model, file)
 
-        with shelve.open(self._model_file_path) as db:
-            db['model'] = model
-            db['vc'] = vc
         if x_test:
-            y_pred = model.predict(vc.transform(x_test))
-            self.report_matrix(y_test, y_pred)
+            y_pred = self.test(model, x_test, y_test)
+            self.report(y_test, y_pred)
 
     def accept(self, row: pandas.Series, nth_child: int = 0) -> None:
         self._x.append(row[0])
@@ -148,7 +147,7 @@ class TexeraBlockingSupervisedTrainerOperator(TexeraUDFOperator):
         return bool(self._result_tuples)
 
     def next(self) -> pandas.Series:
-        return self._result_tuples.pop()
+        return self._result_tuples.pop(0)
 
     def close(self) -> None:
         pass
@@ -157,16 +156,21 @@ class TexeraBlockingSupervisedTrainerOperator(TexeraUDFOperator):
     def train(x_train, y_train, **kwargs):
         raise NotImplementedError
 
-    def report_matrix(self, y_test, y_pred, *args):
+    @staticmethod
+    def test(model, x_test, y_test, *args, **kwargs):
+        pass
+
+    def report(self, y_test, y_pred, *args, **kwargs):
         from sklearn.metrics import classification_report
         matrix = pandas.DataFrame(classification_report(y_test, y_pred, output_dict=True)).transpose()
         matrix['class'] = [label for label, row in matrix.iterrows()]
         cols = matrix.columns.to_list()
         cols = [cols[-1]] + cols[:-1]
         matrix = matrix[cols].round(3)
-        for index, row in list(matrix.iterrows())[::-1]:
+        for index, row in matrix.iterrows():
             if index != 1:
                 self._result_tuples.append(row)
+
 
 class TexeraBlockingUnsupervisedTrainerOperator(TexeraUDFOperator):
 
@@ -198,4 +202,3 @@ class TexeraBlockingUnsupervisedTrainerOperator(TexeraUDFOperator):
 
     def report(self, model) -> None:
         pass
-
