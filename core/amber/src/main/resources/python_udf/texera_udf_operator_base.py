@@ -96,7 +96,6 @@ class TexeraFilterOperator(TexeraUDFOperator):
         if filter_function is None:
             raise NotImplementedError
         self._filter_function: Callable = filter_function
-        self._result_tuples: List = []
 
     def accept(self, row: pandas.Series, nth_child: int = 0) -> None:
         if self._filter_function(row, *self._args):
@@ -109,7 +108,6 @@ class TexeraBlockingSupervisedTrainerOperator(TexeraUDFOperator):
         super().__init__()
         self._x = []
         self._y = []
-        self._result_tuples: List = []
         self._test_ratio = None
         self._train_args = dict()
         self._model_file_path = None
@@ -153,7 +151,6 @@ class TexeraBlockingUnsupervisedTrainerOperator(TexeraUDFOperator):
     def __init__(self):
         super().__init__()
         self._data = []
-        self._result_tuples: List = []
         self._train_args = dict()
 
     def accept(self, row: pandas.Series, nth_child: int = 0) -> None:
