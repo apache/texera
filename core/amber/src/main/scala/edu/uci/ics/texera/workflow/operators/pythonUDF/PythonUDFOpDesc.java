@@ -17,7 +17,8 @@ import scala.collection.JavaConverters;
 
 import java.util.List;
 
-import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFType.*;
+import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFType.SupervisedTraining;
+import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFType.UnsupervisedTraining;
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
 
@@ -69,14 +70,15 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
     @Override
     public OpExecConfig operatorExecutor() {
         return new PythonUDFOpExecConfig(this.operatorIdentifier(),
-                PythonUDFType.supportsParallel.contains(pythonUDFType) ? Constants.defaultNumWorkers(): 1, // changed it to 1 because training with python needs all data in one node.
-                this.pythonScriptText,
-                this.pythonScriptFile,
+                // changed it to 1 because training with python needs all data in one node.
+                PythonUDFType.supportsParallel.contains(pythonUDFType) ? Constants.defaultNumWorkers() : 1,
+                pythonScriptText,
+                pythonScriptFile,
                 JavaConverters.asScalaIteratorConverter(this.inputColumns.iterator()).asScala().toBuffer(),
                 JavaConverters.asScalaIteratorConverter(this.outputColumns.iterator()).asScala().toBuffer(),
                 JavaConverters.asScalaIteratorConverter(this.arguments.iterator()).asScala().toBuffer(),
                 JavaConverters.asScalaIteratorConverter(this.outerFiles.iterator()).asScala().toBuffer(),
-                this.batchSize);
+                batchSize);
     }
 
     @Override
