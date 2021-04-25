@@ -297,7 +297,7 @@ object ResultDownloadResource {
     val valueInputOption: String = "RAW"
 
     // using retry logic here, to handle possible API errors, i.e., rate limit exceeded.
-    retry(n = 7, baseBackoffTimeInMS = 1000) {
+    retry(attempts = 7, baseBackoffTimeInMS = 1000) {
       val a = sheetService.spreadsheets.values
         .append(sheetId, range, body)
         .setValueInputOption(valueInputOption)
