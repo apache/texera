@@ -30,3 +30,5 @@ query-results/
 # Ignoring jenv-related files
 **/.java-version
 
+**/venv
+**/*.pyc

@@ -1,41 +1,55 @@
 package edu.uci.ics.texera.web.resource
 
+import java.util
+import java.util.concurrent.atomic.AtomicInteger
+
 import akka.actor.{ActorRef, PoisonPill}
-import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerEventListener}
+import com.google.api.client.util.Lists
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
+import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerEventListener}
 import edu.uci.ics.amber.engine.architecture.principal.OperatorStatistics
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
-import edu.uci.ics.texera.web.{ServletAwareConfigurator, TexeraWebApplication}
 import edu.uci.ics.texera.web.model.event._
 import edu.uci.ics.texera.web.model.request._
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
+  sessionDownloadCache,
   sessionJobs,
   sessionMap,
   sessionResults
 }
 import edu.uci.ics.texera.web.resource.auth.UserResource
-import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
+import edu.uci.ics.texera.web.{ServletAwareConfigurator, TexeraWebApplication}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo}
+import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
 import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
-
-import java.util.concurrent.atomic.AtomicInteger
 import javax.servlet.http.HttpSession
-import javax.websocket.{EndpointConfig, _}
 import javax.websocket.server.ServerEndpoint
+import javax.websocket.{EndpointConfig, _}
+
 import scala.collection.mutable
+
 object WorkflowWebsocketResource {
+  // TODO should reorganize this resource.
 
   val nextJobID = new AtomicInteger(0)
 
+  // Map[sessionId, (Session, HttpSession)]
   val sessionMap = new mutable.HashMap[String, (Session, HttpSession)]
+
+  // Map[sessionId, (WorkflowCompiler, ActorRef)]
   val sessionJobs = new mutable.HashMap[String, (WorkflowCompiler, ActorRef)]
+
+  // Map[sessionId, Map[operatorId, List[ITuple]]]
   val sessionResults = new mutable.HashMap[String, Map[String, List[ITuple]]]
+
+  // Map[sessionId, Map[downloadType, googleSheetLink]
+  val sessionDownloadCache = new mutable.HashMap[String, mutable.HashMap[String, String]]
 }
 
 @ServerEndpoint(
@@ -81,6 +95,8 @@ class WorkflowWebsocketResource {
           addBreakpoint(session, breakpoint)
         case paginationRequest: ResultPaginationRequest =>
           resultPagination(session, paginationRequest)
+        case resultDownloadRequest: ResultDownloadRequest =>
+          downloadResult(session, resultDownloadRequest)
       }
     } catch {
       case e: Throwable => {
@@ -185,8 +201,12 @@ class WorkflowWebsocketResource {
     val eventListener = ControllerEventListener(
       workflowCompletedListener = completed => {
         sessionResults.remove(session.getId)
+        sessionDownloadCache.remove(session.getId)
         sessionResults.update(session.getId, completed.result)
-        send(session, WorkflowCompletedEvent.apply(completed, texeraWorkflowCompiler))
+        send(
+          session,
+          WorkflowCompletedEvent.apply(completed, texeraWorkflowCompiler)
+        )
         WorkflowWebsocketResource.sessionJobs.remove(session.getId)
       },
       workflowStatusUpdateListener = statusUpdate => {
@@ -204,7 +224,8 @@ class WorkflowWebsocketResource {
           val sinkStatistics = OperatorStatistics(
             inputStatistics.operatorState,
             inputStatistics.aggregatedOutputRowCount,
-            inputStatistics.aggregatedOutputRowCount
+            inputStatistics.aggregatedOutputRowCount,
+            inputStatistics.aggregatedOutputResults
           )
           updateMutable(sinkID) = sinkStatistics
         }
@@ -246,6 +267,11 @@ class WorkflowWebsocketResource {
 
   }
 
+  def downloadResult(session: Session, request: ResultDownloadRequest): Unit = {
+    val resultDownloadResponse = ResultDownloadResource.apply(session.getId, request)
+    send(session, resultDownloadResponse)
+  }
+
   def killWorkflow(session: Session): Unit = {
     WorkflowWebsocketResource.sessionJobs(session.getId)._2 ! PoisonPill
     println("workflow killed")
@@ -261,6 +287,7 @@ class WorkflowWebsocketResource {
     sessionResults.remove(session.getId)
     sessionJobs.remove(session.getId)
     sessionMap.remove(session.getId)
+    sessionDownloadCache.remove(session.getId)
   }
 
   def removeBreakpoint(session: Session, removeBreakpoint: RemoveBreakpointRequest): Unit = {

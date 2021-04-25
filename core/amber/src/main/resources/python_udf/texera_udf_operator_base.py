@@ -1,7 +1,9 @@
+import shelve
 from abc import ABC
 from typing import Dict, Optional, Tuple, Callable, List
 
 import pandas
+from sklearn.model_selection import train_test_split
 
 
 class TexeraUDFOperator(ABC):
@@ -53,6 +55,9 @@ class TexeraUDFOperator(ABC):
         """
         pass
 
+    def input_exhausted(self, *args):
+        pass
+
 
 class TexeraMapOperator(TexeraUDFOperator):
     """
@@ -74,7 +79,7 @@ class TexeraMapOperator(TexeraUDFOperator):
         self._result_tuples.append(self._map_function(row, *self._args))  # must take args
 
     def has_next(self) -> bool:
-        return len(self._result_tuples) != 0
+        return bool(self._result_tuples)
 
     def next(self) -> pandas.Series:
         return self._result_tuples.pop()
@@ -111,3 +116,86 @@ class TexeraFilterOperator(TexeraUDFOperator):
 
     def close(self) -> None:
         pass
+
+
+class TexeraBlockingSupervisedTrainerOperator(TexeraUDFOperator):
+
+    def __init__(self):
+        super().__init__()
+        self._x = []
+        self._y = []
+        self._result_tuples: List = []
+        self._test_ratio = None
+        self._train_args = dict()
+        self._model_file_path = None
+
+    def input_exhausted(self, *args):
+        x_train, x_test, y_train, y_test = train_test_split(self._x, self._y, test_size=self._test_ratio, random_state=1)
+        vc, model = self.train(x_train, y_train, **self._train_args)
+
+        with shelve.open(self._model_file_path) as db:
+            db['model'] = model
+            db['vc'] = vc
+        if x_test:
+            y_pred = model.predict(vc.transform(x_test))
+            self.report_matrix(y_test, y_pred)
+
+    def accept(self, row: pandas.Series, nth_child: int = 0) -> None:
+        self._x.append(row[0])
+        self._y.append(row[1])
+
+    def has_next(self) -> bool:
+        return bool(self._result_tuples)
+
+    def next(self) -> pandas.Series:
+        return self._result_tuples.pop()
+
+    def close(self) -> None:
+        pass
+
+    @staticmethod
+    def train(x_train, y_train, **kwargs):
+        raise NotImplementedError
+
+    def report_matrix(self, y_test, y_pred, *args):
+        from sklearn.metrics import classification_report
+        matrix = pandas.DataFrame(classification_report(y_test, y_pred, output_dict=True)).transpose()
+        matrix['class'] = [label for label, row in matrix.iterrows()]
+        cols = matrix.columns.to_list()
+        cols = [cols[-1]] + cols[:-1]
+        matrix = matrix[cols].round(3)
+        for index, row in list(matrix.iterrows())[::-1]:
+            if index != 1:
+                self._result_tuples.append(row)
+
+class TexeraBlockingUnsupervisedTrainerOperator(TexeraUDFOperator):
+
+    def __init__(self):
+        super().__init__()
+        self._data = []
+        self._result_tuples: List = []
+        self._train_args = dict()
+
+    def input_exhausted(self, *args):
+        model = self.train(self._data, **self._train_args)
+        self.report(model)
+
+    def accept(self, row: pandas.Series, nth_child: int = 0) -> None:
+        self._data.append(row[0])
+
+    def has_next(self) -> bool:
+        return bool(self._result_tuples)
+
+    def next(self) -> pandas.Series:
+        return self._result_tuples.pop(0)
+
+    def close(self) -> None:
+        pass
+
+    @staticmethod
+    def train(data, **kwargs):
+        raise NotImplementedError
+
+    def report(self, model) -> None:
+        pass
+

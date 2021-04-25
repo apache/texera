@@ -2,17 +2,12 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowStatusUpdate
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.QueryWorkerStatistics
-import edu.uci.ics.amber.engine.architecture.principal.OperatorStatistics
-import edu.uci.ics.amber.engine.architecture.worker.WorkerStatistics
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
 
-import scala.collection.mutable
-
 object QueryWorkerStatisticsHandler {
-  final case class QueryWorkerStatistics() extends ControlCommand[CommandCompleted]
+  final case class QueryWorkerStatistics() extends ControlCommand[Unit]
 }
 
 /** Get statistics from all the workers
@@ -35,7 +30,6 @@ trait QueryWorkerStatisticsHandler {
         .map { ret =>
           // update frontend status
           updateFrontendWorkflowStatus()
-          CommandCompleted()
         }
     }
   }

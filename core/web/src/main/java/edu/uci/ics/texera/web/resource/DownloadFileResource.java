@@ -3,7 +3,11 @@ package edu.uci.ics.texera.web.resource;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
@@ -39,17 +43,17 @@ public class DownloadFileResource {
     @Path("/result")
     public Response downloadFile(@QueryParam("resultID") String resultID, @QueryParam("downloadType") String downloadType) 
     		throws JsonParseException, JsonMappingException, IOException {        
-        java.nio.file.Path resultFile = QueryPlanResource.resultDirectory.resolve(resultID + ".json");        
+        java.nio.file.Path resultFile = QueryPlanResource.resultDirectory.resolve(resultID + ".json");
 
         if (Files.notExists(resultFile)) {
             System.out.println(resultFile + " file does not found");
             return Response.status(Status.NOT_FOUND).build();
         }
-        
-        
-        ArrayList<Tuple> result = new ObjectMapper().readValue(Files.readAllBytes(resultFile), 
+
+
+        ArrayList<Tuple> result = new ObjectMapper().readValue(Files.readAllBytes(resultFile),
                 TypeFactory.defaultInstance().constructCollectionLikeType(ArrayList.class, Tuple.class));
-        
+
         if (result.size() == 0) {
             System.out.println(resultFile + " file is empty");
             return Response.status(Status.NOT_FOUND).build();
@@ -69,7 +73,6 @@ public class DownloadFileResource {
         return Response.status(Status.NOT_FOUND).build();
         
     }
-    
     
     private Response downloadExcelFile(TupleSourceOperator tupleSource) {
       ExcelSink excelSink = new ExcelSinkPredicate().newOperator();

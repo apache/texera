@@ -2,13 +2,13 @@ package edu.uci.ics.texera.workflow.operators.aggregate
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
   OperatorInfo,
   OutputPort
 }
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.operators.aggregate.{
   AggregateOpDesc,
   AggregateOpExecConfig,
@@ -16,9 +16,9 @@ import edu.uci.ics.texera.workflow.common.operators.aggregate.{
 }
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseTimestamp
 
 import java.io.Serializable
-import java.sql.Timestamp
 
 case class AveragePartialObj(sum: Double, count: Double) extends Serializable {}
 
@@ -147,16 +147,6 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     )
   }
 
-  private def getNumericalValue(tuple: Tuple): Option[Double] = {
-    val value: Object = tuple.getField(attribute)
-    if (value == null)
-      return None
-
-    if (tuple.getSchema.getAttribute(attribute).getType == AttributeType.TIMESTAMP)
-      Option(Timestamp.valueOf(value.toString).getTime.toDouble)
-    else Option(value.toString.toDouble)
-  }
-
   def averageAgg(): AggregateOpExecConfig[_] = {
     val aggregation = new DistributedAggregation[AveragePartialObj](
       () => AveragePartialObj(0, 0),
@@ -214,6 +204,16 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
         .add(resultAttribute, AttributeType.DOUBLE)
         .build()
     }
+  }
+
+  private def getNumericalValue(tuple: Tuple): Option[Double] = {
+    val value: Object = tuple.getField(attribute)
+    if (value == null)
+      return None
+
+    if (tuple.getSchema.getAttribute(attribute).getType == AttributeType.TIMESTAMP)
+      Option(parseTimestamp(value.toString).getTime.toDouble)
+    else Option(value.toString.toDouble)
   }
 
 }
