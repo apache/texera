@@ -6,6 +6,7 @@ import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
@@ -21,6 +22,7 @@ import java.io.*;
 import java.security.GeneralSecurityException;
 import java.util.Arrays;
 import java.util.List;
+
 
 public class GoogleResource {
     private static final String APPLICATION_NAME = "Texera";
@@ -42,14 +44,24 @@ public class GoogleResource {
     private static Credential serviceAccountCredential;
     private static NetHttpTransport httpTransport;
 
+    private static HttpRequestInitializer createHttpRequestInitializer(final HttpRequestInitializer requestInitializer) {
+        // gives a 2 seconds timeout on Google APIs.
+        return httpRequest -> {
+            requestInitializer.initialize(httpRequest);
+            httpRequest.setConnectTimeout(2000); // 2 seconds connect timeout
+            httpRequest.setReadTimeout(2000); // 2 seconds read timeout
+        };
+    }
+
     /**
      * create a google sheet service to the service account
      */
     public static Sheets getSheetService() throws IOException, GeneralSecurityException {
+
         if (sheetService == null) {
             synchronized (GoogleResource.class) {
                 if (sheetService == null) {
-                    sheetService = new Sheets.Builder(getHttpTransport(), JSON_FACTORY, getCredentials())
+                    sheetService = new Sheets.Builder(getHttpTransport(), JSON_FACTORY, createHttpRequestInitializer(getCredentials()))
                             .setApplicationName(APPLICATION_NAME)
                             .build();
                 }
@@ -109,9 +121,6 @@ public class GoogleResource {
         // Load client secrets
         File initialFile = new File(CREDENTIALS_FILE_PATH);
         InputStream targetStream = new FileInputStream(initialFile);
-        if (targetStream == null) {
-            throw new FileNotFoundException("Resource not found: " + CREDENTIALS_FILE_PATH);
-        }
         GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(targetStream));
 
         // Build flow and trigger user authorization request.

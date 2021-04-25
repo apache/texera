@@ -5,12 +5,7 @@ import com.google.api.client.util.Lists
 import com.google.api.services.drive.Drive
 import com.google.api.services.drive.model.{File, FileList, Permission}
 import com.google.api.services.sheets.v4.Sheets
-import com.google.api.services.sheets.v4.model.{
-  AppendValuesResponse,
-  Spreadsheet,
-  SpreadsheetProperties,
-  ValueRange
-}
+import com.google.api.services.sheets.v4.model.{Spreadsheet, SpreadsheetProperties, ValueRange}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.texera.web.model.event.ResultDownloadResponse
 import edu.uci.ics.texera.web.model.request.ResultDownloadRequest
@@ -19,6 +14,7 @@ import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
   sessionResults
 }
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.texera.workflow.common.Utils.retry
 
 import java.util
 import scala.annotation.tailrec
@@ -132,10 +128,6 @@ object ResultDownloadResource {
     moveToResultFolder(driveService, sheetId)
 
     // upload the schema
-    val schemaContent: util.List[util.List[AnyRef]] = Lists.newArrayList()
-    schemaContent.add(schema)
-    val response: AppendValuesResponse =
-      uploadContent(sheetService, sheetId, schemaContent)
 
     // allow user to access this sheet in the service account
     val sharePermission: Permission = new Permission()
@@ -148,7 +140,10 @@ object ResultDownloadResource {
 
     // upload the content asynchronously to avoid long waiting on the user side.
     // may change to thread pool
-    new Thread(() => uploadResult(sheetService, sheetId, result)).start()
+    new Thread(() => {
+      uploadHeader(sheetService, sheetId, schema)
+      uploadResult(sheetService, sheetId, result)
+    }).start()
 
     // generate success response
     val link: String = s"https://docs.google.com/spreadsheets/d/$sheetId/edit"
@@ -227,6 +222,19 @@ object ResultDownloadResource {
     }
 
   /**
+    * upload the result header to the google sheet
+    */
+  private def uploadHeader(
+      sheetService: Sheets,
+      sheetId: String,
+      schema: util.List[AnyRef]
+  ): Unit = {
+    val schemaContent: util.List[util.List[AnyRef]] = Lists.newArrayList()
+    schemaContent.add(schema)
+    uploadContent(sheetService, sheetId, schemaContent)
+  }
+
+  /**
     * upload the result body to the google sheet
     */
   private def uploadResult(sheetService: Sheets, sheetId: String, result: List[ITuple]): Unit = {
@@ -234,6 +242,7 @@ object ResultDownloadResource {
       Lists.newArrayListWithCapacity(UPLOAD_BATCH_SIZE)
     // use for loop to avoid copying the whole result at the same time
     for (tuple: ITuple <- result) {
+
       val tupleContent: util.List[AnyRef] =
         tuple
           .asInstanceOf[Tuple]
@@ -246,18 +255,13 @@ object ResultDownloadResource {
       content.add(tupleContent)
 
       if (content.size() == UPLOAD_BATCH_SIZE) {
-        // TODO: the response is from uploading is not checked.
-        //  The design for the response seems not to be designed for error handling
-        // it will throw error and stop if encounter error during uploading
-        val response: AppendValuesResponse =
-          uploadContent(sheetService, sheetId, content)
+        uploadContent(sheetService, sheetId, content)
         content.clear()
       }
     }
 
     if (!content.isEmpty) {
-      val response: AppendValuesResponse =
-        uploadContent(sheetService, sheetId, content)
+      uploadContent(sheetService, sheetId, content)
     }
   }
 
@@ -287,13 +291,20 @@ object ResultDownloadResource {
       sheetService: Sheets,
       sheetId: String,
       content: util.List[util.List[AnyRef]]
-  ): AppendValuesResponse = {
+  ): Unit = {
     val body: ValueRange = new ValueRange().setValues(content)
     val range: String = "A1"
     val valueInputOption: String = "RAW"
-    sheetService.spreadsheets.values
-      .append(sheetId, range, body)
-      .setValueInputOption(valueInputOption)
-      .execute
+
+    // using retry logic here, to handle possible API errors, i.e., rate limit exceeded.
+    retry(n = 7, baseBackoffTimeInMS = 1000) {
+      val a = sheetService.spreadsheets.values
+        .append(sheetId, range, body)
+        .setValueInputOption(valueInputOption)
+        .execute
+      for (b <- a.asScala) {
+        println(b)
+      }
+    }
   }
 }
