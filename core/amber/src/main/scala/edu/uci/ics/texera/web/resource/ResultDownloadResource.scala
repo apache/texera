@@ -24,7 +24,7 @@ import scala.util.{Failure, Success, Try}
 
 object ResultDownloadResource {
 
-  private final val UPLOAD_BATCH_SIZE = 100
+  private final val UPLOAD_BATCH_SIZE = 10000
 
   private final val WORKFLOW_RESULT_FOLDER_NAME = "workflow_results"
 
