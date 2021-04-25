@@ -185,7 +185,7 @@ object AttributeTypeUtils extends Serializable {
       // Timestamp is considered to be illegal here.
       case _ =>
         throw new AttributeTypeException(
-          s"not able to parse type ${fieldValue.getClass} to Integer."
+          s"not able to parse type ${fieldValue.getClass} to Integer: ${fieldValue.toString}"
         )
     }
   }
@@ -193,7 +193,7 @@ object AttributeTypeUtils extends Serializable {
   @throws[AttributeTypeException]
   def parseBoolean(fieldValue: Object): java.lang.Boolean = {
     val parseError = new AttributeTypeException(
-      s"not able to parse type ${fieldValue.getClass} to Boolean."
+      s"not able to parse type ${fieldValue.getClass} to Boolean: ${fieldValue.toString}"
     )
     fieldValue match {
       case str: String =>
@@ -219,7 +219,9 @@ object AttributeTypeUtils extends Serializable {
       case boolean: java.lang.Boolean => if (boolean) 1L else 0L
       case timestamp: Timestamp       => timestamp.toInstant.toEpochMilli
       case _ =>
-        throw new AttributeTypeException(s"not able to parse type ${fieldValue.getClass} to Long.")
+        throw new AttributeTypeException(
+          s"not able to parse type ${fieldValue.getClass} to Long: ${fieldValue.toString}"
+        )
     }
   }
 
@@ -234,7 +236,7 @@ object AttributeTypeUtils extends Serializable {
       // Timestamp is considered to be illegal here.
       case _ =>
         throw new AttributeTypeException(
-          s"not able to parse type ${fieldValue.getClass} to Double."
+          s"not able to parse type ${fieldValue.getClass} to Double: ${fieldValue.toString}"
         )
     }
   }
@@ -242,9 +244,10 @@ object AttributeTypeUtils extends Serializable {
   @throws[AttributeTypeException]
   def parseTimestamp(fieldValue: Object): Timestamp = {
     val parseError = new AttributeTypeException(
-      s"not able to parse type ${fieldValue.getClass} to Timestamp."
+      s"not able to parse type ${fieldValue.getClass} to Timestamp: ${fieldValue.toString}"
     )
-    val utcFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+    val datetimeISOFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+    val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
     fieldValue match {
       case str: String =>
         (
@@ -255,7 +258,10 @@ object AttributeTypeUtils extends Serializable {
               Try(Timestamp.valueOf(str.trim))
             orElse
               // support ISO format with timezone {@code 2007-12-03T10:15:30.00.000Z}
-              Try(new Timestamp(utcFormat.parse(fieldValue.toString.trim).getTime))
+              Try(new Timestamp(datetimeISOFormat.parse(fieldValue.toString.trim).getTime))
+            orElse
+              // support date format with timezone {@code 2007-12-03}
+              Try(new Timestamp(dateFormat.parse(fieldValue.toString.trim).getTime))
         ).getOrElse(throw parseError)
 
       case long: java.lang.Long => new Timestamp(long)

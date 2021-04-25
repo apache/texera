@@ -67,6 +67,7 @@ abstract class SQLSourceOpExec(
         * - If resultSet is exhausted, send the next query until no more queries are available.
         * - If no more queries, return null.
         *
+        * @throws SQLException all possible exceptions from JDBC
         * @return Texera.Tuple
         */
       @throws[SQLException]
@@ -80,52 +81,59 @@ abstract class SQLSourceOpExec(
 
         // otherwise, send query to fetch for the next Tuple
 
-        curResultSet match {
-          case Some(resultSet) =>
-            if (resultSet.next()) {
+        while (true) {
+          breakable {
 
-              // manually skip until the offset position in order to adapt to progressive batches
-              curOffset.fold()(offset => {
-                if (offset > 0) {
-                  curOffset = Option(offset - 1)
-                  return next
+            curResultSet match {
+              case Some(resultSet) =>
+                if (resultSet.next()) {
+
+                  // manually skip until the offset position in order to adapt to progressive batches
+                  curOffset.fold()(offset => {
+                    if (offset > 0) {
+                      curOffset = Option(offset - 1)
+                      break
+                    }
+                  })
+
+                  // construct Texera.Tuple from the next result.
+                  val tuple = buildTupleFromRow
+
+                  if (tuple == null)
+                    break
+
+                  // update the limit in order to adapt to progressive batches
+                  curLimit.fold()(limit => {
+                    if (limit > 0) {
+                      curLimit = Option(limit - 1)
+                    }
+                  })
+                  return tuple
+                } else {
+                  // close the current resultSet and query
+                  curResultSet.foreach(resultSet => resultSet.close())
+                  curQuery.foreach(query => query.close())
+                  curResultSet = None
+                  curQuery = None
+                  break
                 }
-              })
-
-              // construct Texera.Tuple from the next result.
-              val tuple = buildTupleFromRow
-
-              if (tuple == null)
-                return next
-
-              // update the limit in order to adapt to progressive batches
-              curLimit.fold()(limit => {
-                if (limit > 0) {
-                  curLimit = Option(limit - 1)
-                }
-              })
-              tuple
-            } else {
-              // close the current resultSet and query
-              curResultSet.foreach(resultSet => resultSet.close())
-              curQuery.foreach(query => query.close())
-              curResultSet = None
-              curQuery = None
-              next
-            }
-          case None =>
-            curQuery = getNextQuery
-            curQuery match {
-              case Some(query) =>
-                curResultSet = Option(query.executeQuery)
-                next
               case None =>
-                curResultSet = None
-                null
+                curQuery = getNextQuery
+                curQuery match {
+                  case Some(query) =>
+                    curResultSet = Option(query.executeQuery)
+                    break
+                  case None =>
+                    curResultSet = None
+                    return null
+                }
             }
-        }
 
+          }
+        }
+        null
       }
+
     }
   }
 
@@ -135,10 +143,8 @@ abstract class SQLSourceOpExec(
     * - batchColumnBoundaries, to be used to split mini queries, if progressive mode is enabled.
     *
     * @throws SQLException all possible exceptions from JDBC
-    * @throws RuntimeException if the provided table does not exist.
     */
   @throws[SQLException]
-  @throws[RuntimeException]
   override def open(): Unit = {
     connection = establishConn()
 
@@ -170,10 +176,8 @@ abstract class SQLSourceOpExec(
     *
     * @return the new Texera.Tuple
     * @throws SQLException all possible exceptions from JDBC
-    * @throws RuntimeException all possible exceptions from HTTP connection
     */
   @throws[SQLException]
-  @throws[RuntimeException]
   protected def buildTupleFromRow: Tuple = {
     val tupleBuilder = Tuple.newBuilder
 
@@ -204,11 +208,11 @@ abstract class SQLSourceOpExec(
     * not yet reached upper bound, it will have next query.
     * - If it is not progressive mode, this method will return false when
     * invoked the second time. Which means there is only one query.
-    * @throws RuntimeException if the given batchByAttribute's type is
+    * @throws IllegalArgumentException if the given batchByAttribute's type is
     *                          not supported to be incremental.
     * @return A boolean value whether there exists the next query or not.
     */
-  @throws[RuntimeException]
+  @throws[IllegalArgumentException]
   protected def hasNextQuery: Boolean = {
     batchByAttribute match {
       case Some(attribute) =>
@@ -218,7 +222,7 @@ abstract class SQLSourceOpExec(
           case DOUBLE =>
             curLowerBound.doubleValue <= upperBound.doubleValue
           case STRING | ANY | BOOLEAN | _ =>
-            throw new RuntimeException("Unexpected type: " + attribute.getType)
+            throw new IllegalArgumentException("Unexpected type: " + attribute.getType)
         }
       case None =>
         val hasNextQuery = !querySent
@@ -256,10 +260,10 @@ abstract class SQLSourceOpExec(
     * be [lower, nextLower)
     *
     * @param queryBuilder the target query builder
-    * @throws RuntimeException if the given batchByAttribute's type is
+    * @throws IllegalArgumentException if the given batchByAttribute's type is
     *                          not supported to be incremental.
     */
-  @throws[RuntimeException]
+  @throws[IllegalArgumentException]
   protected def addBatchSlidingWindow(queryBuilder: StringBuilder): Unit = {
     var nextLowerBound: Number = null
     var isLastBatch = false
@@ -274,7 +278,7 @@ abstract class SQLSourceOpExec(
             nextLowerBound = curLowerBound.doubleValue + interval
             isLastBatch = nextLowerBound.doubleValue >= upperBound.doubleValue
           case BOOLEAN | STRING | ANY | _ =>
-            throw new RuntimeException("Unexpected type: " + attribute.getType)
+            throw new IllegalArgumentException("Unexpected type: " + attribute.getType)
         }
         queryBuilder ++= " AND " + attribute.getName +
           " >= " + batchAttributeToString(curLowerBound) +
@@ -284,7 +288,7 @@ abstract class SQLSourceOpExec(
            else
              " < " + batchAttributeToString(nextLowerBound))
       case None =>
-        throw new RuntimeException(
+        throw new IllegalArgumentException(
           "no valid batchByColumn to iterate: " + batchByColumn.getOrElse("")
         )
     }
@@ -295,10 +299,10 @@ abstract class SQLSourceOpExec(
     * Convert the Number value to a String to be concatenate to SQL.
     *
     * @param value a Number, contains the value to be converted.
-    * @throws RuntimeException if the given batchByAttribute's type is not supported.
+    * @throws IllegalArgumentException when the batchByAttribute is missing or the type is unexpected
     * @return a String of that value
     */
-  @throws[RuntimeException]
+  @throws[IllegalArgumentException]
   protected def batchAttributeToString(value: Number): String = {
     batchByAttribute match {
       case Some(attribute) =>
@@ -308,10 +312,10 @@ abstract class SQLSourceOpExec(
           case TIMESTAMP =>
             "'" + new Timestamp(value.longValue).toString + "'"
           case BOOLEAN | STRING | ANY | _ =>
-            throw new RuntimeException("Unexpected type: " + attribute.getType)
+            throw new IllegalArgumentException("Unexpected type: " + attribute.getType)
         }
       case None =>
-        throw new RuntimeException(
+        throw new IllegalArgumentException(
           "No valid batchByColumn to iterate: " + batchByColumn.getOrElse("")
         )
     }
@@ -321,9 +325,10 @@ abstract class SQLSourceOpExec(
   /**
     * Fetch for a numeric value of the boundary of the batchByColumn.
     * @param side either "MAX" or "MIN" for boundary
+    * @throws IllegalArgumentException if the batchByAttribute type is unexpected
     * @return a numeric value, could be Int, Long or Double
     */
-
+  @throws[IllegalArgumentException]
   protected def fetchBatchByBoundary(side: String): Number = {
     batchByAttribute match {
       case Some(attribute) =>
@@ -365,13 +370,10 @@ abstract class SQLSourceOpExec(
     * Fetch all table names from the given database. This is used to
     * check the input table name to prevent from SQL injection.
     * @throws SQLException all possible exceptions from JDBC
-    * @throws RuntimeException all possible exceptions from HTTP connection
     */
   @throws[SQLException]
-  @throws[RuntimeException]
   protected def loadTableNames(): Unit
 
-  @throws[RuntimeException]
   protected def addKeywordSearch(queryBuilder: StringBuilder): Unit
 
   /**
@@ -386,11 +388,11 @@ abstract class SQLSourceOpExec(
     *
     * Or a fixed offset [OFFSET ?] to be added if not progressive.
     *
-    * @throws RuntimeException if the given batchByAttribute's type is
+    * @throws IllegalArgumentException if the given batchByAttribute's type is
     *                          not supported to be incremental.
     * @return string of sql query
     */
-  @throws[RuntimeException]
+  @throws[IllegalArgumentException]
   protected def generateSqlQuery: Option[String] = {
     // in sql prepared statement, table name cannot be inserted using PreparedStatement.setString
     // so it has to be inserted here during sql query generation
@@ -477,10 +479,10 @@ abstract class SQLSourceOpExec(
     * bounds will be used in progressive mode to determine mini-queries.
     *
     * @throws SQLException all possible exceptions from JDBC
-    * @throws RuntimeException all possible exceptions from HTTP connection
+    * @throws IllegalArgumentException if the batchByAttribute is missing or the type is unexpected
     */
   @throws[SQLException]
-  @throws[RuntimeException]
+  @throws[IllegalArgumentException]
   private def initBatchColumnBoundaries(): Unit = {
     // TODO: add interval
     if (batchByAttribute.isDefined && min.isDefined && max.isDefined) {
@@ -490,7 +492,8 @@ abstract class SQLSourceOpExec(
         batchByAttribute.get.getType match {
           case TIMESTAMP => curLowerBound = parseTimestamp(min.get).getTime
           case LONG      => curLowerBound = min.get.toLong
-          case _         => throw new RuntimeException(s"Unsupported type ${batchByAttribute.get.getType}")
+          case _ =>
+            throw new IllegalArgumentException(s"Unsupported type ${batchByAttribute.get.getType}")
         }
 
       if (max.get.equalsIgnoreCase("auto")) upperBound = fetchBatchByBoundary("MAX")
@@ -498,10 +501,11 @@ abstract class SQLSourceOpExec(
         batchByAttribute.get.getType match {
           case TIMESTAMP => upperBound = parseTimestamp(max.get).getTime
           case LONG      => upperBound = max.get.toLong
-          case _         => throw new RuntimeException(s"Unsupported type ${batchByAttribute.get.getType}")
+          case _ =>
+            throw new IllegalArgumentException(s"Unsupported type ${batchByAttribute.get.getType}")
         }
     } else {
-      throw new RuntimeException(
+      throw new IllegalArgumentException(
         s"Missing required progressive configuration, $batchByAttribute, $min or $max."
       )
     }
