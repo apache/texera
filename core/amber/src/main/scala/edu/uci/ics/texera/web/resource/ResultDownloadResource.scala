@@ -127,8 +127,6 @@ object ResultDownloadResource {
     val driveService: Drive = GoogleResource.getDriveService
     moveToResultFolder(driveService, sheetId)
 
-    // upload the schema
-
     // allow user to access this sheet in the service account
     val sharePermission: Permission = new Permission()
       .setType("anyone")
