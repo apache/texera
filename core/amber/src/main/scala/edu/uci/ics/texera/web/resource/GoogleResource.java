@@ -25,6 +25,7 @@ import java.util.List;
 
 
 public class GoogleResource {
+    private static final int GOOGLE_TIMEOUT_IN_MS = 2000;
     private static final String APPLICATION_NAME = "Texera";
     private static final String TOKENS_DIRECTORY_PATH = Utils.amberHomePath()
             .resolve("../conf").resolve(WebUtils.config().getString("google.tokenPath")).toString();
@@ -45,11 +46,11 @@ public class GoogleResource {
     private static NetHttpTransport httpTransport;
 
     private static HttpRequestInitializer createHttpRequestInitializer(final HttpRequestInitializer requestInitializer) {
-        // gives a 2 seconds timeout on Google APIs.
+        // gives timeout on Google APIs.
         return httpRequest -> {
             requestInitializer.initialize(httpRequest);
-            httpRequest.setConnectTimeout(2000); // 2 seconds connect timeout
-            httpRequest.setReadTimeout(2000); // 2 seconds read timeout
+            httpRequest.setConnectTimeout(GOOGLE_TIMEOUT_IN_MS);
+            httpRequest.setReadTimeout(GOOGLE_TIMEOUT_IN_MS);
         };
     }
 
