@@ -96,7 +96,7 @@ class DataProcessingSpec
       .addArg("--default-time-zone=+0:00")
       .build()
 
-    inMemoryMySQLInstance = Some(DB.newEmbeddedDB(config))
+    inMemoryMySQLInstance = Option(DB.newEmbeddedDB(config))
     inMemoryMySQLInstance.get.start()
     inMemoryMySQLInstance.get.createDB(database)
 

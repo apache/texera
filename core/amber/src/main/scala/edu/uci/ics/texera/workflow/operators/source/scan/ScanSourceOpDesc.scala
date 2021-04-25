@@ -47,7 +47,7 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
     if (context.userID.isDefined)
       // if context has a valid user ID, the fileName will be a file name,
       // resolve fileName to be the actual file path.
-      filePath = Some(
+      filePath = Option(
         UserFileUtils.getFilePath(context.userID.get.toString, fileName.get).toString
       )
     else
