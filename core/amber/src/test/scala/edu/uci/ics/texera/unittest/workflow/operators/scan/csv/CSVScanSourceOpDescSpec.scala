@@ -26,7 +26,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
     parallelCsvScanSourceOpDesc.hasHeader = true
     parallelCsvScanSourceOpDesc.setContext(workflowContext)
-    val inferredSchema: Schema = csvScanSourceOpDesc.inferSchema()
+    val inferredSchema: Schema = parallelCsvScanSourceOpDesc.inferSchema()
 
     assert(inferredSchema.getAttributes.length == 14)
     assert(inferredSchema.getAttribute("Order ID").getType == AttributeType.INTEGER)
