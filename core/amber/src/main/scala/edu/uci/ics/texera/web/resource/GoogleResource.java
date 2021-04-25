@@ -25,7 +25,7 @@ import java.util.List;
 
 
 public class GoogleResource {
-    private static final int GOOGLE_TIMEOUT_IN_MS = 2000;
+    private static final int GOOGLE_TIMEOUT_IN_MS = 10000;
     private static final String APPLICATION_NAME = "Texera";
     private static final String TOKENS_DIRECTORY_PATH = Utils.amberHomePath()
             .resolve("../conf").resolve(WebUtils.config().getString("google.tokenPath")).toString();
