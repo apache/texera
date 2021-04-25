@@ -296,13 +296,10 @@ object ResultDownloadResource {
 
     // using retry logic here, to handle possible API errors, i.e., rate limit exceeded.
     retry(attempts = 7, baseBackoffTimeInMS = 1000) {
-      val a = sheetService.spreadsheets.values
+      sheetService.spreadsheets.values
         .append(sheetId, range, body)
         .setValueInputOption(valueInputOption)
         .execute
-      for (b <- a.asScala) {
-        println(b)
-      }
     }
   }
 }
