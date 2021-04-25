@@ -2,7 +2,10 @@ package edu.uci.ics.texera.unittest.workflow.operators.scan.csv
 
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.operators.source.scan.csv.CSVScanSourceOpDesc
+import edu.uci.ics.texera.workflow.operators.source.scan.csv.{
+  CSVScanSourceOpDesc,
+  ParallelCSVScanSourceOpDesc
+}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.BeforeAndAfter
 
@@ -11,17 +14,18 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   val workflowContext = new WorkflowContext()
   var csvScanSourceOpDesc: CSVScanSourceOpDesc = _
-
+  var parallelCsvScanSourceOpDesc: ParallelCSVScanSourceOpDesc = _
   before {
     csvScanSourceOpDesc = new CSVScanSourceOpDesc()
+    parallelCsvScanSourceOpDesc = new ParallelCSVScanSourceOpDesc()
   }
 
   it should "infer schema from single-line-data csv" in {
 
-    csvScanSourceOpDesc.fileName = Some("src/test/resources/country_sales_small.csv")
-    csvScanSourceOpDesc.customDelimiter = Some(",")
-    csvScanSourceOpDesc.hasHeader = true
-    csvScanSourceOpDesc.setContext(workflowContext)
+    parallelCsvScanSourceOpDesc.fileName = Some("src/test/resources/country_sales_small.csv")
+    parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
+    parallelCsvScanSourceOpDesc.hasHeader = true
+    parallelCsvScanSourceOpDesc.setContext(workflowContext)
     val inferredSchema: Schema = csvScanSourceOpDesc.inferSchema()
 
     assert(inferredSchema.getAttributes.length == 14)
@@ -32,12 +36,13 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "infer schema from headerless single-line-data csv" in {
 
-    csvScanSourceOpDesc.fileName = Some("src/test/resources/country_sales_headerless_small.csv")
-    csvScanSourceOpDesc.customDelimiter = Some(",")
-    csvScanSourceOpDesc.hasHeader = false
-    csvScanSourceOpDesc.setContext(workflowContext)
+    parallelCsvScanSourceOpDesc.fileName =
+      Some("src/test/resources/country_sales_headerless_small.csv")
+    parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
+    parallelCsvScanSourceOpDesc.hasHeader = false
+    parallelCsvScanSourceOpDesc.setContext(workflowContext)
 
-    val inferredSchema: Schema = csvScanSourceOpDesc.inferSchema()
+    val inferredSchema: Schema = parallelCsvScanSourceOpDesc.inferSchema()
 
     assert(inferredSchema.getAttributes.length == 14)
     assert(inferredSchema.getAttribute("column-10").getType == AttributeType.DOUBLE)
@@ -49,7 +54,6 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     csvScanSourceOpDesc.fileName = Some("src/test/resources/country_sales_small_multi_line.csv")
     csvScanSourceOpDesc.customDelimiter = Some(",")
     csvScanSourceOpDesc.hasHeader = true
-    csvScanSourceOpDesc.hasMultilineData = true
     csvScanSourceOpDesc.setContext(workflowContext)
 
     val inferredSchema: Schema = csvScanSourceOpDesc.inferSchema()
@@ -64,7 +68,6 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     csvScanSourceOpDesc.fileName = Some("src/test/resources/country_sales_headerless_small.csv")
     csvScanSourceOpDesc.customDelimiter = Some(",")
     csvScanSourceOpDesc.hasHeader = false
-    csvScanSourceOpDesc.hasMultilineData = true
     csvScanSourceOpDesc.setContext(workflowContext)
 
     val inferredSchema: Schema = csvScanSourceOpDesc.inferSchema()
@@ -80,7 +83,6 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       Some("src/test/resources/country_sales_headerless_small_multi_line_custom_delimiter.csv")
     csvScanSourceOpDesc.customDelimiter = Some(";")
     csvScanSourceOpDesc.hasHeader = false
-    csvScanSourceOpDesc.hasMultilineData = true
     csvScanSourceOpDesc.setContext(workflowContext)
 
     val inferredSchema: Schema = csvScanSourceOpDesc.inferSchema()
@@ -96,7 +98,6 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       Some("src/test/resources/country_sales_headerless_small_multi_line_custom_delimiter.csv")
     csvScanSourceOpDesc.customDelimiter = Some(";")
     csvScanSourceOpDesc.hasHeader = false
-    csvScanSourceOpDesc.hasMultilineData = true
     csvScanSourceOpDesc.setContext(workflowContext)
 
     assert(csvScanSourceOpDesc.operatorExecutor.topology.layers.length == 1)
