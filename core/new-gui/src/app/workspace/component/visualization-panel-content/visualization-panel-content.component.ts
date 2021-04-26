@@ -23,8 +23,14 @@ import { Subscription } from 'rxjs';
 export class VisualizationPanelContentComponent implements AfterViewInit, OnDestroy {
   // this readonly variable must be the same as HTML element ID for visualization
   public static readonly CHART_ID = '#texera-result-chart-content';
+
+  // width and height of the canvas in px
   public static readonly WIDTH = 1000;
   public static readonly HEIGHT = 800;
+
+  // progressive visualization update and redraw interval in miliseconds
+  public static readonly UPDATE_INTERVAL_MS = 2000;
+
 
   @Input()
   operatorID: string | undefined;
@@ -49,9 +55,11 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
 
     // setup an event lister that re-draws the chart content every (n) miliseconds
     // auditTime makes sure the first re-draw happens after (n) miliseconds has elapsed
-    this.updateSubscription = this.workflowStatusService.getResultUpdateStream().auditTime(2000).subscribe(update => {
-      this.drawChart();
-    });
+    this.updateSubscription = this.workflowStatusService.getResultUpdateStream()
+      .auditTime(VisualizationPanelContentComponent.UPDATE_INTERVAL_MS)
+      .subscribe(() => {
+        this.drawChart();
+      });
   }
 
   ngOnDestroy() {
@@ -166,7 +174,7 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
 
     const layout = cloud()
       .size([VisualizationPanelContentComponent.WIDTH, VisualizationPanelContentComponent.HEIGHT])
-      .words(wordCloudTuples.map(t => ({text: t.word, size: d3Scale(t.count)})))
+      .words(wordCloudTuples.map(t => ({ text: t.word, size: d3Scale(t.count) })))
       .text(d => d.text ?? '')
       .padding(5)
       .rotate(() => 0)
