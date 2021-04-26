@@ -92,7 +92,7 @@ export interface OperatorStatistics extends Readonly<{
   operatorState: OperatorState,
   aggregatedInputRowCount: number,
   aggregatedOutputRowCount: number,
-  aggregatedOutputResults: ResultObject | undefined | null
+  aggregatedOutputResults: ResultObject | undefined | null // undefined/null if operator is not sink
 }> { }
 
 export interface WorkflowStatusUpdate extends Readonly<{
