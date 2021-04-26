@@ -6,6 +6,7 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 
 import java.nio.file.{Files, Path, Paths}
 import java.text.SimpleDateFormat
+import scala.annotation.tailrec
 
 object Utils {
 
@@ -45,8 +46,34 @@ object Utils {
   }
   val AMBER_HOME_FOLDER_NAME = "amber";
 
+  /**
+    * Retry the given logic with a backoff time interval. The attempts are executed sequentially, thus blocking the thread.
+    * Backoff time is doubled after each attempt.
+    * @param attempts total number of attempts. if n <= 1 then it will not retry at all, decreased by 1 for each recursion.
+    * @param baseBackoffTimeInMS time to wait before next attempt, started with the base time, and doubled after each attempt.
+    * @param fn the target function to execute.
+    * @tparam T any return type from the provided function fn.
+    * @return the provided function fn's return, or any exception that still being raised after n attempts.
+    */
+  @tailrec
+  def retry[T](attempts: Int, baseBackoffTimeInMS: Long)(fn: => T): T = {
+    try {
+      fn
+    } catch {
+      case e: Throwable =>
+        if (attempts > 1) {
+          // TODO: change the following to logger
+          e.printStackTrace()
+          println(
+            "retrying after " + baseBackoffTimeInMS + "ms, number of attempts left: " + (attempts - 1)
+          )
+          Thread.sleep(baseBackoffTimeInMS)
+          retry(attempts - 1, baseBackoffTimeInMS * 2)(fn)
+        } else throw e
+    }
+  }
+
   private def isAmberHomePath(path: Path): Boolean = {
     path.toRealPath().endsWith(AMBER_HOME_FOLDER_NAME)
   }
-
 }
