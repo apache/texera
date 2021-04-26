@@ -16,7 +16,18 @@ trait QueryStatisticsHandler {
   this: WorkerAsyncRPCHandlerInitializer =>
 
   registerHandler { (msg: QueryStatistics, sender) =>
+    // collect input and output row count
     val (in, out) = dataProcessor.collectStatistics()
+
+    // sink operator doesn't output to downstream so internal count is 0
+    // but for user-friendliness we show its input count as output count
+    val displayOut = operator match {
+      case sink: ITupleSinkOperatorExecutor =>
+        in
+      case _ =>
+        out
+    }
+
     val state = stateManager.getCurrentState
     val result = operator match {
       case sink: ITupleSinkOperatorExecutor =>
@@ -24,7 +35,8 @@ trait QueryStatisticsHandler {
       case _ =>
         Option.empty
     }
-    WorkerStatistics(state, in, out, result)
+
+    WorkerStatistics(state, in, displayOut, result)
   }
 
 }

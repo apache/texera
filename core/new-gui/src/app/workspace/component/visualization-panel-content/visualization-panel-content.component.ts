@@ -6,6 +6,7 @@ import * as cloud from 'd3-cloud';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { ResultObject } from '../../types/execute-workflow.interface';
 import { ChartType, WordCloudTuple } from '../../types/visualization.interface';
+import { Subscription } from 'rxjs';
 
 /**
  * VisualizationPanelContentComponent displays the chart based on the chart type and data in table.
@@ -22,9 +23,14 @@ import { ChartType, WordCloudTuple } from '../../types/visualization.interface';
 export class VisualizationPanelContentComponent implements AfterViewInit, OnDestroy {
   // this readonly variable must be the same as HTML element ID for visualization
   public static readonly CHART_ID = '#texera-result-chart-content';
-  public static readonly WORD_CLOUD_ID = 'texera-word-cloud';
+
+  // width and height of the canvas in px
   public static readonly WIDTH = 1000;
   public static readonly HEIGHT = 800;
+
+  // progressive visualization update and redraw interval in miliseconds
+  public static readonly UPDATE_INTERVAL_MS = 2000;
+
 
   @Input()
   operatorID: string | undefined;
@@ -36,13 +42,24 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
   private wordCloudElement: d3.Selection<SVGGElement, unknown, HTMLElement, any> | undefined;
   private c3ChartElement: c3.ChartAPI | undefined;
 
+  private updateSubscription: Subscription | undefined;
+
   constructor(
     private workflowStatusService: WorkflowStatusService
   ) {
   }
 
   ngAfterViewInit() {
+    // attempt to draw chart immediately
     this.drawChart();
+
+    // setup an event lister that re-draws the chart content every (n) miliseconds
+    // auditTime makes sure the first re-draw happens after (n) miliseconds has elapsed
+    this.updateSubscription = this.workflowStatusService.getResultUpdateStream()
+      .auditTime(VisualizationPanelContentComponent.UPDATE_INTERVAL_MS)
+      .subscribe(() => {
+        this.drawChart();
+      });
   }
 
   ngOnDestroy() {
@@ -51,6 +68,9 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
     }
     if (this.c3ChartElement) {
       this.c3ChartElement.destroy();
+    }
+    if (this.updateSubscription) {
+      this.updateSubscription.unsubscribe();
     }
   }
 
@@ -62,6 +82,7 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
     if (!result) {
       return;
     }
+
     this.data = result.table as object[];
     this.chartType = result.chartType;
 
@@ -91,7 +112,7 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
 
     if (this.wordCloudElement === undefined) {
       this.wordCloudElement =
-        d3.select(`#${VisualizationPanelContentComponent.WORD_CLOUD_ID}`)
+        d3.select(VisualizationPanelContentComponent.CHART_ID)
           .append('svg')
           .attr('width', VisualizationPanelContentComponent.WIDTH)
           .attr('height', VisualizationPanelContentComponent.HEIGHT)
@@ -153,7 +174,7 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
 
     const layout = cloud()
       .size([VisualizationPanelContentComponent.WIDTH, VisualizationPanelContentComponent.HEIGHT])
-      .words(wordCloudTuples.map(t => ({text: t.word, size: d3Scale(t.count)})))
+      .words(wordCloudTuples.map(t => ({ text: t.word, size: d3Scale(t.count) })))
       .text(d => d.text ?? '')
       .padding(5)
       .rotate(() => 0)

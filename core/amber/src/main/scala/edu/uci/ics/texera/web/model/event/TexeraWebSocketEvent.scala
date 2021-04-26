@@ -10,7 +10,7 @@ import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
     new Type(value = classOf[WorkflowErrorEvent]),
     new Type(value = classOf[WorkflowStartedEvent]),
     new Type(value = classOf[WorkflowCompletedEvent]),
-    new Type(value = classOf[WorkflowStatusUpdateEvent]),
+    new Type(value = classOf[WebWorkflowStatusUpdateEvent]),
     new Type(value = classOf[WorkflowPausedEvent]),
     new Type(value = classOf[WorkflowResumedEvent]),
     new Type(value = classOf[RecoveryStartedEvent]),

@@ -99,7 +99,7 @@ export class ResultPanelComponent {
       if (event.current.state === ExecutionState.Failed) {
         this.resultPanelToggleService.openResultPanel();
       }
-      if (event.current.state === ExecutionState.Completed) {
+      if (event.current.state === ExecutionState.Completed || event.current.state === ExecutionState.Running) {
         const sinkOperators = this.workflowActionService.getTexeraGraph().getAllOperators()
           .filter(op => op.operatorType.toLowerCase().includes('sink'));
         if (sinkOperators.length > 0) {
