@@ -32,14 +32,21 @@ import java.util.*;
 
 import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFOpExec.Channel.FROM_PYTHON;
 import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFOpExec.Channel.TO_PYTHON;
-import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFOpExec.MSG.CLOSE;
-import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFOpExec.MSG.INPUT_EXHAUSTED;
+import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFOpExec.MSG.*;
 
 public class PythonUDFOpExec implements OperatorExecutor {
     @NotNull
     private static byte[] communicate(@NotNull FlightClient client, @NotNull MSG message) {
         return client.doAction(new Action(message.content)).next().getBody();
     }
+
+    private Process pythonServerProcess;
+
+    private static final int MAX_TRY_COUNT = 20;
+    private static final long WAIT_TIME_MS = 500;
+    private static final String DAEMON_SCRIPT_PATH = getPythonResourcePath("texera_udf_server_main.py");
+    private static final RootAllocator memoryAllocator = new RootAllocator();
+    private static final ObjectMapper objectMapper = Utils.objectMapper();
 
     /**
      * For every batch, the operator converts list of {@code Tuple}s into Arrow stream data in almost the exact same
@@ -58,9 +65,9 @@ public class PythonUDFOpExec implements OperatorExecutor {
      *                    although they may seem similar. This doesn't actually affect serialization speed that much,
      *                    so in general it can be the same as {@code batchSize}.
      */
-    private static void writeArrowStream(FlightClient client, Queue<Tuple> values,
-                                         org.apache.arrow.vector.types.pojo.Schema arrowSchema,
-                                         Channel channel, int chunkSize) throws RuntimeException {
+    private void writeArrowStream(FlightClient client, Queue<Tuple> values,
+                                  org.apache.arrow.vector.types.pojo.Schema arrowSchema,
+                                  Channel channel, int chunkSize) throws RuntimeException {
         SyncPutListener flightListener = new SyncPutListener();
         VectorSchemaRoot schemaRoot = VectorSchemaRoot.create(arrowSchema, PythonUDFOpExec.memoryAllocator);
         FlightClient.ClientStreamListener streamWriter = client.startPut(FlightDescriptor.path(Collections.singletonList(channel.name)), schemaRoot, flightListener);
@@ -84,13 +91,6 @@ public class PythonUDFOpExec implements OperatorExecutor {
             closeAndThrow(client, e);
         }
     }
-
-    private static final int MAX_TRY_COUNT = 20;
-    private static final long WAIT_TIME_MS = 500;
-    private static final String DAEMON_SCRIPT_PATH = getPythonResourcePath("texera_udf_server_main.py");
-    private static final RootAllocator memoryAllocator = new RootAllocator();
-    private static final ObjectMapper objectMapper = Utils.objectMapper();
-    private static Process pythonServerProcess;
     private final String PYTHON = WebUtils.config().getString("python.path").trim();
     private String pythonScriptPath;
     private final String pythonScriptText;
@@ -127,7 +127,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
      *
      * @param client The FlightClient that manages this.
      */
-    private static void executeUDF(FlightClient client) {
+    private void executeUDF(FlightClient client) {
         try {
             FlightResponseMap result = PythonUDFOpExec.objectMapper.readValue(communicate(client, MSG.COMPUTE),
                     FlightResponseMap.class);
@@ -318,7 +318,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
      * @param channel     The predefined path that specifies where to read the data in Flight Serve.
      * @param resultQueue resultQueue To store the results. Must be empty when it is passed here.
      */
-    private static void readArrowStream(FlightClient client, Channel channel, Queue<Tuple> resultQueue) {
+    private void readArrowStream(FlightClient client, Channel channel, Queue<Tuple> resultQueue) {
         try {
             FlightInfo info = client.getInfo(FlightDescriptor.path(Collections.singletonList(channel.name)));
             Ticket ticket = info.getEndpoints().get(0).getTicket();
@@ -348,10 +348,13 @@ public class PythonUDFOpExec implements OperatorExecutor {
      *
      * @param client The client to close that is still connected to the Arrow Flight server.
      */
-    private static void closeClientAndServer(FlightClient client, boolean sendClose) {
+    private void closeClientAndServer(FlightClient client, boolean sendClose) {
         try {
             // close context on the Python end.
             if (sendClose) communicate(client, CLOSE);
+
+            // terminate the python server.
+            communicate(client, TERMINATE);
 
             // clean memory allocation.
             memoryAllocator.close();
@@ -359,11 +362,14 @@ public class PythonUDFOpExec implements OperatorExecutor {
             // close client socket.
             client.close();
 
-            // destroy Python server process.
-            pythonServerProcess.destroy();
-
         } catch (InterruptedException e) {
             e.printStackTrace();
+        } finally {
+            // python server should terminate by itself peacefully, this is to ensure it gets terminated
+            // even in error cases.
+
+            // destroy Python server process
+            pythonServerProcess.destroy();
         }
     }
 
@@ -374,7 +380,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
      * @param client    FlightClient.
      * @param exception the exception to be wrapped into Amber Exception.
      */
-    private static void closeAndThrow(FlightClient client, Exception exception) throws RuntimeException {
+    private void closeAndThrow(FlightClient client, Exception exception) throws RuntimeException {
         closeClientAndServer(client, false);
         throw new RuntimeException(exception.getMessage());
     }
@@ -558,7 +564,8 @@ public class PythonUDFOpExec implements OperatorExecutor {
         HEALTH_CHECK("health_check"),
         COMPUTE("compute"),
         INPUT_EXHAUSTED("input_exhausted"),
-        CLOSE("close");
+        CLOSE("close"),
+        TERMINATE("terminate");
 
         String content;
 
