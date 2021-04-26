@@ -62,7 +62,11 @@ object Utils {
     } catch {
       case e: Throwable =>
         if (attempts > 1) {
-          println("retrying after " + baseBackoffTimeInMS + "ms")
+          // TODO: change the following to logger
+          e.printStackTrace()
+          println(
+            "retrying after " + baseBackoffTimeInMS + "ms, number of attempts left: " + (attempts - 1)
+          )
           Thread.sleep(baseBackoffTimeInMS)
           retry(attempts - 1, baseBackoffTimeInMS * 2)(fn)
         } else throw e
