@@ -140,6 +140,7 @@ class UDFServer(pyarrow.flight.FlightServerBase):
 
         elif action.type == "terminate":
             # Shut down on background thread to avoid blocking current request
+            # this is to be invoked by java end whenever it needs to terminate the server on python end
             threading.Thread(target=self._delayed_shutdown).start()
 
         else:
