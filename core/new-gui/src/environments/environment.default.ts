@@ -36,7 +36,7 @@ export const defaultEnvironment = {
   /**
    * whether user system is enabled
    */
-  userSystemEnabled: true,
+  userSystemEnabled: false,
 
   amberEngineEnabled: true,
 
