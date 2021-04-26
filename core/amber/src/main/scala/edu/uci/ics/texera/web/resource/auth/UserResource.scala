@@ -8,7 +8,6 @@ import edu.uci.ics.texera.web.resource.auth.UserResource.{getUser, setUserSessio
 import io.dropwizard.jersey.sessions.Session
 import org.apache.commons.lang3.tuple.Pair
 import org.jooq.exception.DataAccessException
-
 import javax.servlet.http.HttpSession
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
@@ -49,12 +48,18 @@ class UserResource {
   @Path("/login")
   def login(@Session session: HttpSession, request: UserLoginRequest): Response = {
 
-    // try to fetch the record
-    val user = this.userDao.fetchOneByName(request.userName)
-    if (user == null) { // not found
+    // try to fetch the password given the username
+    val userPassword = this.userDao.fetchOneByName(request.userName).getPassword
+
+    // not found or password incorrect
+    if (userPassword == null || !PasswordEncryption.checkPassword(userPassword, request.password)) {
       return Response.status(Response.Status.UNAUTHORIZED).build()
     }
-    setUserSession(session, new User(request.userName, user.getUid))
+
+    setUserSession(
+      session,
+      new User(request.userName, this.userDao.fetchOneByName(request.userName).getUid, null)
+    )
     Response.ok().build()
   }
 
@@ -62,16 +67,22 @@ class UserResource {
   @Path("/register")
   def register(@Session session: HttpSession, request: UserRegistrationRequest): Response = {
     val userName = request.userName
+    var password = request.password
     val validationResult = validateUsername(userName)
     if (!validationResult.getLeft)
       // Using BAD_REQUEST as no other status code is suitable. Better to use 422.
       return Response.status(Response.Status.BAD_REQUEST).build()
 
+    // hash the plain text password
+    password = PasswordEncryption.encrypt(password);
+
     // try to insert a new record
     try {
       val user = new User
       user.setName(userName)
+      user.setPassword(password)
       this.userDao.insert(user)
+      user.setPassword(null)
       setUserSession(session, user)
       Response.ok().build()
     } catch {

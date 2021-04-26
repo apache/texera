@@ -76,6 +76,7 @@ libraryDependencies += "com.google.guava" % "guava" % "29.0-jre"
 
 // https://mvnrepository.com/artifact/org.tukaani/xz
 libraryDependencies += "org.tukaani" % "xz" % "1.5"
+libraryDependencies += "org.jasypt" % "jasypt" % "1.9.3"
 
 libraryDependencies += "org.apache.arrow" % "flight-core" % "1.0.1"
 libraryDependencies += "org.apache.arrow" % "flight-grpc" % "1.0.1"
