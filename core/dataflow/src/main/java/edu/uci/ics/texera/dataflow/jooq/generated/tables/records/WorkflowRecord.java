@@ -6,14 +6,15 @@ package edu.uci.ics.texera.dataflow.jooq.generated.tables.records;
 
 import edu.uci.ics.texera.dataflow.jooq.generated.tables.Workflow;
 import edu.uci.ics.texera.dataflow.jooq.generated.tables.interfaces.IWorkflow;
+
+import java.sql.Timestamp;
+
 import org.jooq.Field;
 import org.jooq.Record1;
 import org.jooq.Record5;
 import org.jooq.Row5;
 import org.jooq.impl.UpdatableRecordImpl;
 import org.jooq.types.UInteger;
-
-import java.sql.Timestamp;
 
 
 /**

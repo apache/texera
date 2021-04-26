@@ -5,9 +5,10 @@ package edu.uci.ics.texera.dataflow.jooq.generated.tables.pojos;
 
 
 import edu.uci.ics.texera.dataflow.jooq.generated.tables.interfaces.IWorkflow;
-import org.jooq.types.UInteger;
 
 import java.sql.Timestamp;
+
+import org.jooq.types.UInteger;
 
 
 /**

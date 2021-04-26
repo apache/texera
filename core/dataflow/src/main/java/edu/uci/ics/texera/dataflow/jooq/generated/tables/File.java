@@ -8,13 +8,24 @@ import edu.uci.ics.texera.dataflow.jooq.generated.Indexes;
 import edu.uci.ics.texera.dataflow.jooq.generated.Keys;
 import edu.uci.ics.texera.dataflow.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.FileRecord;
-import org.jooq.*;
-import org.jooq.impl.DSL;
-import org.jooq.impl.TableImpl;
-import org.jooq.types.UInteger;
 
 import java.util.Arrays;
 import java.util.List;
+
+import org.jooq.Field;
+import org.jooq.ForeignKey;
+import org.jooq.Identity;
+import org.jooq.Index;
+import org.jooq.Name;
+import org.jooq.Record;
+import org.jooq.Row6;
+import org.jooq.Schema;
+import org.jooq.Table;
+import org.jooq.TableField;
+import org.jooq.UniqueKey;
+import org.jooq.impl.DSL;
+import org.jooq.impl.TableImpl;
+import org.jooq.types.UInteger;
 
 
 /**

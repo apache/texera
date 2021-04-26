@@ -6,12 +6,13 @@ package edu.uci.ics.texera.dataflow.jooq.generated.tables.daos;
 
 import edu.uci.ics.texera.dataflow.jooq.generated.tables.WorkflowOfUser;
 import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.WorkflowOfUserRecord;
+
+import java.util.List;
+
 import org.jooq.Configuration;
 import org.jooq.Record2;
 import org.jooq.impl.DAOImpl;
 import org.jooq.types.UInteger;
-
-import java.util.List;
 
 
 /**

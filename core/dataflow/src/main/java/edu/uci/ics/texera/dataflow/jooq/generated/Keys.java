@@ -4,8 +4,17 @@
 package edu.uci.ics.texera.dataflow.jooq.generated;
 
 
-import edu.uci.ics.texera.dataflow.jooq.generated.tables.*;
-import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.*;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.File;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.KeywordDictionary;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.User;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.Workflow;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.WorkflowOfUser;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.FileRecord;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.KeywordDictionaryRecord;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.UserRecord;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.WorkflowOfUserRecord;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.WorkflowRecord;
+
 import org.jooq.ForeignKey;
 import org.jooq.Identity;
 import org.jooq.UniqueKey;

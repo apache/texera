@@ -4,9 +4,9 @@
 package edu.uci.ics.texera.dataflow.jooq.generated.tables.interfaces;
 
 
-import org.jooq.types.UInteger;
-
 import java.io.Serializable;
+
+import org.jooq.types.UInteger;
 
 
 /**

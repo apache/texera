@@ -6,6 +6,7 @@ package edu.uci.ics.texera.dataflow.jooq.generated.tables.records;
 
 import edu.uci.ics.texera.dataflow.jooq.generated.tables.WorkflowOfUser;
 import edu.uci.ics.texera.dataflow.jooq.generated.tables.interfaces.IWorkflowOfUser;
+
 import org.jooq.Field;
 import org.jooq.Record2;
 import org.jooq.Row2;

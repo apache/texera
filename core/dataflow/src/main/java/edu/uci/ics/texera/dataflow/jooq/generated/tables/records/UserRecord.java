@@ -6,6 +6,7 @@ package edu.uci.ics.texera.dataflow.jooq.generated.tables.records;
 
 import edu.uci.ics.texera.dataflow.jooq.generated.tables.User;
 import edu.uci.ics.texera.dataflow.jooq.generated.tables.interfaces.IUser;
+
 import org.jooq.Field;
 import org.jooq.Record1;
 import org.jooq.Record2;

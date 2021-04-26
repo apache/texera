@@ -4,14 +4,19 @@
 package edu.uci.ics.texera.dataflow.jooq.generated;
 
 
-import edu.uci.ics.texera.dataflow.jooq.generated.tables.*;
-import org.jooq.Catalog;
-import org.jooq.Table;
-import org.jooq.impl.SchemaImpl;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.File;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.KeywordDictionary;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.User;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.Workflow;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.WorkflowOfUser;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
+import org.jooq.Catalog;
+import org.jooq.Table;
+import org.jooq.impl.SchemaImpl;
 
 
 /**

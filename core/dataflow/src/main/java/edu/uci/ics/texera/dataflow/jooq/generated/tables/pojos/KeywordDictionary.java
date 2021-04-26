@@ -5,6 +5,7 @@ package edu.uci.ics.texera.dataflow.jooq.generated.tables.pojos;
 
 
 import edu.uci.ics.texera.dataflow.jooq.generated.tables.interfaces.IKeywordDictionary;
+
 import org.jooq.types.UInteger;
 
 
