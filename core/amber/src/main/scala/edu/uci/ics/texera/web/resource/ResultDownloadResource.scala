@@ -24,7 +24,7 @@ import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 object ResultDownloadResource {
 
-  private final val UPLOAD_BATCH_SIZE = 10000
+  private final val UPLOAD_BATCH_ROW_COUNT = 10000
   private final val RETRY_ATTEMPTS = 7
   private final val BASE_BACK_OOF_TIME_IN_MS = 1000
   private final val WORKFLOW_RESULT_FOLDER_NAME = "workflow_results"
@@ -241,7 +241,7 @@ object ResultDownloadResource {
     */
   private def uploadResult(sheetService: Sheets, sheetId: String, result: List[ITuple]): Unit = {
     val content: util.List[util.List[AnyRef]] =
-      Lists.newArrayListWithCapacity(UPLOAD_BATCH_SIZE)
+      Lists.newArrayListWithCapacity(UPLOAD_BATCH_ROW_COUNT)
     // use for loop to avoid copying the whole result at the same time
     for (tuple: ITuple <- result) {
 
@@ -256,7 +256,7 @@ object ResultDownloadResource {
           .asJava
       content.add(tupleContent)
 
-      if (content.size() == UPLOAD_BATCH_SIZE) {
+      if (content.size() == UPLOAD_BATCH_ROW_COUNT) {
         uploadContent(sheetService, sheetId, content)
         content.clear()
       }
