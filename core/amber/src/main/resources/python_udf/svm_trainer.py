@@ -18,7 +18,7 @@ class SVMTrainer(texera_udf_operator_base.TexeraBlockingSupervisedTrainerOperato
         self._model_file_path = args[-1]
 
     @staticmethod
-    def train(x_train, y_train, **train_args):
+    def train(x_train, y_train, *args, **kwargs):
         vectorizer = CountVectorizer()
 
         x_train = vectorizer.fit_transform(x_train)
@@ -36,6 +36,11 @@ class SVMTrainer(texera_udf_operator_base.TexeraBlockingSupervisedTrainerOperato
         )
         clf.fit(x_train, y_train)
         return vectorizer, clf
+
+    @staticmethod
+    def test(model, x_test, y_test, *args, **kwargs):
+        vc, clf = model
+        return clf.predict(vc.transform(x_test))
 
 
 operator_instance = SVMTrainer()
