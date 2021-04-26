@@ -9,6 +9,7 @@ import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeNameList;
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
@@ -38,6 +39,7 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
     @JsonProperty()
     @JsonSchemaTitle("Input column(s)")
     @JsonPropertyDescription("name of the input column(s) that the UDF will use, if any")
+    @AutofillAttributeNameList
     public List<String> inputColumns;
 
     @JsonProperty(required = true)

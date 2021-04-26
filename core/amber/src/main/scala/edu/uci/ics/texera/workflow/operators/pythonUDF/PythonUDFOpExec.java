@@ -35,10 +35,7 @@ import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFOpExec.Ch
 import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFOpExec.MSG.*;
 
 public class PythonUDFOpExec implements OperatorExecutor {
-    @NotNull
-    private static byte[] communicate(@NotNull FlightClient client, @NotNull MSG message) {
-        return client.doAction(new Action(message.content)).next().getBody();
-    }
+
 
     private Process pythonServerProcess;
 
@@ -47,6 +44,25 @@ public class PythonUDFOpExec implements OperatorExecutor {
     private static final String DAEMON_SCRIPT_PATH = getPythonResourcePath("texera_udf_server_main.py");
     private static final RootAllocator memoryAllocator = new RootAllocator();
     private static final ObjectMapper objectMapper = Utils.objectMapper();
+
+    private final String PYTHON = WebUtils.config().getString("python.path").trim();
+    private final String pythonScriptText;
+    private final ArrayList<String> inputColumns;
+    private final ArrayList<Attribute> outputColumns;
+    private final ArrayList<String> arguments;
+    private final ArrayList<String> outerFilePaths;
+    private final int batchSize;
+    private final boolean isDynamic;
+    private final Queue<Tuple> inputTupleBuffer = new LinkedList<>();
+    private String pythonScriptPath;
+    private FlightClient flightClient;
+    private org.apache.arrow.vector.types.pojo.Schema arrowInputSchema;
+    private Schema texeraInputSchema;
+
+    @NotNull
+    private static byte[] communicate(@NotNull FlightClient client, @NotNull MSG message) {
+        return client.doAction(new Action(message.content)).next().getBody();
+    }
 
     /**
      * For every batch, the operator converts list of {@code Tuple}s into Arrow stream data in almost the exact same
@@ -91,20 +107,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
             closeAndThrow(client, e);
         }
     }
-    private final String PYTHON = WebUtils.config().getString("python.path").trim();
-    private String pythonScriptPath;
-    private final String pythonScriptText;
-    private final ArrayList<String> inputColumns;
-    private final ArrayList<Attribute> outputColumns;
 
-    private final ArrayList<String> arguments;
-    private final ArrayList<String> outerFilePaths;
-    private final int batchSize;
-    private final boolean isDynamic;
-
-    private FlightClient flightClient;
-    private org.apache.arrow.vector.types.pojo.Schema globalInputSchema;
-    private final Queue<Tuple> inputTupleBuffer = new LinkedList<>();
 
     PythonUDFOpExec(String pythonScriptText, String pythonScriptFile, ArrayList<String> inputColumns,
                     ArrayList<Attribute> outputColumns, ArrayList<String> arguments,
@@ -461,7 +464,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
     private Iterator<Tuple> processOneBatch(boolean inputExhausted) throws RuntimeException {
         Queue<Tuple> outputTupleBuffer = new LinkedList<>();
         if (inputTupleBuffer.size() != 0) {
-            writeArrowStream(flightClient, inputTupleBuffer, globalInputSchema, TO_PYTHON, batchSize);
+            writeArrowStream(flightClient, inputTupleBuffer, arrowInputSchema, TO_PYTHON, batchSize);
             executeUDF(flightClient);
             readArrowStream(flightClient, FROM_PYTHON, outputTupleBuffer);
             inputTupleBuffer.clear();
@@ -525,17 +528,26 @@ public class PythonUDFOpExec implements OperatorExecutor {
     }
 
     @Override
-    public Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, LinkIdentity input) {
+    public scala.collection.Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, LinkIdentity input) {
         if (tuple.isLeft()) {
             Tuple inputTuple = tuple.left().get();
-            if (globalInputSchema == null) {
+            if (arrowInputSchema == null) {
                 try {
-                    globalInputSchema = convertAmber2ArrowSchema(inputTuple.getSchema());
+                    texeraInputSchema = Schema.newBuilder().add(
+                            () -> inputTuple.getSchema()
+                                    .getAttributes()
+                                    .stream()
+                                    .filter(attribute -> inputColumns.contains(attribute.getName()))
+                                    .iterator()
+                    ).build();
+                    arrowInputSchema = convertAmber2ArrowSchema(texeraInputSchema);
                 } catch (RuntimeException exception) {
                     closeAndThrow(flightClient, exception);
                 }
             }
-            inputTupleBuffer.add(inputTuple);
+            inputTupleBuffer.add(Tuple.newBuilder().add(texeraInputSchema,
+                    () -> texeraInputSchema.getAttributeNames().stream().map(inputTuple::getField).iterator()
+            ).build());
             if (inputTupleBuffer.size() == batchSize) {
                 // This batch is full, execute the UDF.
                 return processOneBatch(false);
