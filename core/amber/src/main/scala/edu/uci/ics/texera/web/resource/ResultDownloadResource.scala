@@ -25,7 +25,8 @@ import scala.util.{Failure, Success, Try}
 object ResultDownloadResource {
 
   private final val UPLOAD_BATCH_SIZE = 10000
-
+  private final val RETRY_ATTEMPTS = 7
+  private final val BASE_BACK_OOF_TIME_IN_MS = 1000
   private final val WORKFLOW_RESULT_FOLDER_NAME = "workflow_results"
   private final val pool: ThreadPoolExecutor =
     Executors.newFixedThreadPool(3).asInstanceOf[ThreadPoolExecutor]
@@ -298,11 +299,12 @@ object ResultDownloadResource {
     val valueInputOption: String = "RAW"
 
     // using retry logic here, to handle possible API errors, i.e., rate limit exceeded.
-    retry(attempts = 7, baseBackoffTimeInMS = 1000) {
+    retry(attempts = RETRY_ATTEMPTS, baseBackoffTimeInMS = BASE_BACK_OOF_TIME_IN_MS) {
       sheetService.spreadsheets.values
         .append(sheetId, range, body)
         .setValueInputOption(valueInputOption)
         .execute
     }
+
   }
 }
