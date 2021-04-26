@@ -12,7 +12,9 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
-class CSVScanSourceOpExecConfig(
+import java.io.File
+
+class ParallelCSVScanSourceOpExecConfig(
     tag: OperatorIdentity,
     numWorkers: Int,
     filePath: String,
@@ -21,16 +23,22 @@ class CSVScanSourceOpExecConfig(
     hasHeader: Boolean
 ) extends OpExecConfig(tag) {
   override lazy val topology: Topology = {
+    val totalBytes: Long = new File(filePath).length()
     new Topology(
       Array(
         new WorkerLayer(
           LayerIdentity(tag, "main"),
-          _ => {
-            new CSVScanSourceOpExec(
+          i => {
+            val startOffset: Long = totalBytes / numWorkers * i
+            val endOffset: Long =
+              if (i != numWorkers - 1) totalBytes / numWorkers * (i + 1) else totalBytes
+            new ParallelCSVScanSourceOpExec(
               filePath,
               schema,
               delimiter,
-              hasHeader
+              hasHeader,
+              startOffset,
+              endOffset
             )
           },
           numWorkers,
@@ -41,6 +49,7 @@ class CSVScanSourceOpExecConfig(
       Array()
     )
   }
+  val totalBytes: Long = new File(filePath).length()
 
   override def assignBreakpoint(
       breakpoint: GlobalBreakpoint[_]
