@@ -66,19 +66,17 @@ object WorkflowCompletedEvent {
       workflowCompiler: WorkflowCompiler
   ): WorkflowCompletedEvent = {
     val resultList = new mutable.MutableList[OperatorResult]
-    workflowCompleted.result.foreach(pair => {
-      val operatorID = pair._1
+    for ((operatorID, resultTuples) <- workflowCompleted.result) {
       val chartType = OperatorResult.getChartType(operatorID, workflowCompiler)
 
-      val table = chartType match {
-        case Some(_) =>
-          pair._2
-        case None =>
-          pair._2.slice(0, defaultPageSize)
+      var table = resultTuples
+      // if not visualization result, then only return first page results
+      if (chartType.isEmpty) {
+        table = resultTuples.slice(0, defaultPageSize)
       }
 
-      resultList += OperatorResult.fromTuple(operatorID, table, chartType, pair._2.length)
-    })
+      resultList += OperatorResult.fromTuple(operatorID, table, chartType, resultTuples.length)
+    }
     WorkflowCompletedEvent(resultList.toList)
   }
 }
