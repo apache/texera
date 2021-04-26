@@ -17,17 +17,18 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.Utils.retry
 
 import java.util
+import java.util.concurrent.{Executors, ThreadPoolExecutor}
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
-
 object ResultDownloadResource {
 
   private final val UPLOAD_BATCH_SIZE = 10000
 
   private final val WORKFLOW_RESULT_FOLDER_NAME = "workflow_results"
-
+  private final val pool: ThreadPoolExecutor =
+    Executors.newFixedThreadPool(3).asInstanceOf[ThreadPoolExecutor]
   @volatile private var WORKFLOW_RESULT_FOLDER_ID: String = _
 
   def apply(
@@ -137,11 +138,13 @@ object ResultDownloadResource {
       .execute()
 
     // upload the content asynchronously to avoid long waiting on the user side.
-    // may change to thread pool
-    new Thread(() => {
-      uploadHeader(sheetService, sheetId, schema)
-      uploadResult(sheetService, sheetId, result)
-    }).start()
+    pool
+      .submit(() =>
+        {
+          uploadHeader(sheetService, sheetId, schema)
+          uploadResult(sheetService, sheetId, result)
+        }.asInstanceOf[Runnable]
+      )
 
     // generate success response
     val link: String = s"https://docs.google.com/spreadsheets/d/$sheetId/edit"
