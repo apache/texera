@@ -6,7 +6,13 @@ import * as cloud from 'd3-cloud';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { ResultObject } from '../../types/execute-workflow.interface';
 import { ChartType, WordCloudTuple } from '../../types/visualization.interface';
-import { Subscription } from 'rxjs';
+import { Subscription, Subject, Observable } from 'rxjs';
+
+
+export const wordCloudScaleOptions = ['linear', 'square root', 'log'] as const;
+type WordCloudControlsType = {
+  scale: typeof wordCloudScaleOptions[number]
+};
 
 /**
  * VisualizationPanelContentComponent displays the chart based on the chart type and data in table.
@@ -26,10 +32,19 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
 
   // width and height of the canvas in px
   public static readonly WIDTH = 1000;
-  public static readonly HEIGHT = 800;
+  public static readonly HEIGHT = 600;
 
   // progressive visualization update and redraw interval in miliseconds
   public static readonly UPDATE_INTERVAL_MS = 2000;
+  public static readonly WORD_CLOUD_CONTROL_UPDATE_INTERVAL_MS = 50;
+
+  wordCloudScaleOptions = wordCloudScaleOptions; // make this a class variable so template can access it
+  // word cloud related controls
+  wordCloudControls: WordCloudControlsType = {
+    scale: 'linear',
+  };
+
+  wordCloudControlUpdateObservable = new Subject<WordCloudControlsType>();
 
 
   @Input()
@@ -55,8 +70,12 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
 
     // setup an event lister that re-draws the chart content every (n) miliseconds
     // auditTime makes sure the first re-draw happens after (n) miliseconds has elapsed
-    this.updateSubscription = this.workflowStatusService.getResultUpdateStream()
-      .auditTime(VisualizationPanelContentComponent.UPDATE_INTERVAL_MS)
+    const resultUpdate = this.workflowStatusService.getResultUpdateStream()
+      .auditTime(VisualizationPanelContentComponent.UPDATE_INTERVAL_MS);
+    const controlUpdate = this.wordCloudControlUpdateObservable
+      .debounceTime(VisualizationPanelContentComponent.WORD_CLOUD_CONTROL_UPDATE_INTERVAL_MS);
+
+    this.updateSubscription = Observable.merge(resultUpdate, controlUpdate)
       .subscribe(() => {
         this.drawChart();
       });
@@ -82,6 +101,7 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
     if (!result) {
       return;
     }
+    console.log('redraw');
 
     this.data = result.table as object[];
     this.chartType = result.chartType;
@@ -102,6 +122,14 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
       case ChartType.SPLINE:
         this.generateChart();
         break;
+    }
+  }
+
+
+  updateWordCloudScale(scale: typeof wordCloudScaleOptions[number]) {
+    if (this.wordCloudControls.scale !== scale) {
+      this.wordCloudControls.scale = scale;
+      this.wordCloudControlUpdateObservable.next(this.wordCloudControls);
     }
   }
 
@@ -144,7 +172,7 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
 
       // Entering and existing words
       wordCloudData.transition()
-        .duration(600)
+        .duration(300)
         .attr('font-family', 'Impact')
         .style('font-size', d => d.size + 'px')
         .attr('transform', d => 'translate(' + [d.x, d.y] + ')rotate(' + d.rotate + ')')
@@ -153,7 +181,7 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
       // Exiting words
       wordCloudData.exit()
         .transition()
-        .duration(200)
+        .duration(100)
         .attr('font-family', 'Impact')
         .style('fill-opacity', 1e-6)
         .attr('font-size', 1)
@@ -166,10 +194,17 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
     const minFontSize = 50;
     const maxFontSize = 150;
 
-    const d3Scale = d3.scaleLinear();
-    // const d3Scale = d3.scaleSqrt();
-    // const d3Scale = d3.scaleLog();
-
+    const getScale: () => d3.ScaleContinuousNumeric<number, number> = () => {
+      switch (this.wordCloudControls.scale) {
+        case 'linear':
+          return d3.scaleLinear();
+        case 'log':
+          return d3.scaleLog();
+        case 'square root':
+          return d3.scaleSqrt();
+      }
+    };
+    const d3Scale = getScale();
     d3Scale.domain([minCount, maxCount]).range([minFontSize, maxFontSize]);
 
     const layout = cloud()

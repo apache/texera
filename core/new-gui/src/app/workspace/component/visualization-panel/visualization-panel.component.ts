@@ -52,6 +52,7 @@ export class VisualizationPanelComponent implements OnChanges {
 
     this.modalRef = this.modalService.create({
       nzTitle: 'Visualization',
+      nzStyle: {top: '20px'},
       nzWidth: 1100,
       nzContent: VisualizationPanelContentComponent,
       nzComponentParams: {

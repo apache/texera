@@ -1,6 +1,18 @@
 <meta charset="utf-8">
 
 <div>
+
+  <div id="texera-word-cloud-control">
+
+    <nz-space>
+      <nz-form-label>Normalization Scale</nz-form-label>
+      <nz-select [ngModel]="wordCloudControls.scale" (ngModelChange)="updateWordCloudScale($event)"
+        [nzDropdownMatchSelectWidth]="false">
+        <nz-option *ngFor="let p of wordCloudScaleOptions" [nzValue]="p" [nzLabel]="p"></nz-option>
+      </nz-select>
+    </nz-space>
+  </div>
+
   <!-- this id should be identical to VisualizationPanelContentComponent.CHART_ID -->
   <div id="texera-result-chart-content">
   </div>
