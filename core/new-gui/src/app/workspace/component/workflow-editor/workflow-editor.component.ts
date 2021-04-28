@@ -358,7 +358,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   /**
    * This method checks whether the operator is out of bound.
    */
-  private checkBouding(limitx: number[], limity: number[]): void {
+  private checkBounding(limitx: number[], limity: number[]): void {
     // check if operator out of right bound after WrapperElement changes its size
     if (this.getJointPaper().translate().tx  > limitx[0]) {
       this.getJointPaper().translate(
@@ -461,7 +461,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
         const elementSize = this.getWrapperElementSize();
         const limitx = [elementSize.width - (60 + translateLimit.minX) * scale.sx, -translateLimit.maxX * scale.sx];
         const limity = [elementSize.height - (60 + translateLimit.minY) * scale.sy, -translateLimit.maxY * scale.sy];
-        this.checkBouding(limitx, limity);
 
         // Check canvas limit
         if (-newOrigin.x <= MAIN_CANVAS_LIMIT.xMin) {
