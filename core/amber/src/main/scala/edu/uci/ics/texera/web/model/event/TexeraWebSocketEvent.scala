@@ -7,6 +7,7 @@ import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 @JsonSubTypes(
   Array(
     new Type(value = classOf[HelloWorldResponse]),
+    new Type(value = classOf[HeartBeatResponse]),
     new Type(value = classOf[WorkflowErrorEvent]),
     new Type(value = classOf[WorkflowStartedEvent]),
     new Type(value = classOf[WorkflowCompletedEvent]),

@@ -75,6 +75,8 @@ class WorkflowWebsocketResource {
       request match {
         case helloWorld: HelloWorldRequest =>
           send(session, HelloWorldResponse("hello from texera web server"))
+        case helloWorld: HelloWorldRequest =>
+          send(session, HelloWorldResponse("hello from texera web server"))
         case execute: ExecuteWorkflowRequest =>
           println(execute)
           executeWorkflow(session, execute)
