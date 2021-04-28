@@ -101,7 +101,6 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
     if (!result) {
       return;
     }
-    console.log('redraw');
 
     this.data = result.table as object[];
     this.chartType = result.chartType;
