@@ -22,9 +22,8 @@ class NLTKSentimentOperator(texera_udf_operator_base.TexeraMapOperator):
         self._model_file.close()
 
     def predict(self, row: pandas.Series, *args):
-        p = 1 if self._sentiment_model.classify(row[args[0]]) == 'pos' else 0
-        row[args[1]] = p
-        return row
+        input_col, output_col, *_ = args
+        return {output_col: int(self._sentiment_model.classify(row[input_col]) == 'pos')}
 
 
 operator_instance = NLTKSentimentOperator()

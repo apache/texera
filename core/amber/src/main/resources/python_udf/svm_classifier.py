@@ -20,10 +20,9 @@ class SVMClassifier(texera_udf_operator_base.TexeraMapOperator):
         with open(self._model_file_path, 'rb') as file:
             self._vc, self._clf = pickle.load(file)
 
-    def predict(self, row: pandas.Series, *args) -> pandas.Series:
+    def predict(self, row: pandas.Series, *args) -> dict:
         input_col, output_col, *_ = args
-        row[output_col] = self._clf.predict(self._vc.transform([row[input_col]]))[0]
-        return row
+        return {output_col: self._clf.predict(self._vc.transform([row[input_col]]))[0]}
 
 
 operator_instance = SVMClassifier()

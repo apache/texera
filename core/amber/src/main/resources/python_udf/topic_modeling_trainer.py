@@ -45,12 +45,12 @@ class TopicModeling(texera_udf_operator_base.TexeraBlockingUnsupervisedTrainerOp
 
     def report(self, model):
         for id, topic in model.print_topics(num_topics=self._train_args["num_topics"]):
-            self._result_tuples.append(pandas.Series({"output": topic}))
+            self._result_tuples.append({"output": topic})
 
 
 operator_instance = TopicModeling()
 if __name__ == '__main__':
-    '''
+    """
     The following lines can be put in the file and name it tokenized.txt:
 
     yes unfortunately use tobacco wrap
@@ -59,7 +59,7 @@ if __name__ == '__main__':
     dutch backwoods hemp wrap
     damn need wrap hemparillo cali fire please
 
-    '''
+    """
 
     file1 = open("tokenized.txt", "r+")
     df = file1.readlines()
