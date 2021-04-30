@@ -468,7 +468,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
             writeArrowStream(flightClient, inputTupleProjectedBuffer, arrowInputSchema, TO_PYTHON, batchSize);
             executeUDF(flightClient);
             readArrowStream(flightClient, FROM_PYTHON, outputTupleBuffer);
-            appendInputTuple(inputTupleProjectedBuffer, outputTupleBuffer);
+            appendInputTuple(inputTupleFullBuffer, outputTupleBuffer);
             inputTupleProjectedBuffer.clear();
         }
 
@@ -476,15 +476,15 @@ public class PythonUDFOpExec implements OperatorExecutor {
             Queue<Tuple> extraTupleBuffer = new LinkedList<>();
             communicate(flightClient, INPUT_EXHAUSTED);
             readArrowStream(flightClient, FROM_PYTHON, extraTupleBuffer);
-            appendInputTuple(inputTupleProjectedBuffer, outputTupleBuffer);
+            appendInputTuple(inputTupleFullBuffer, outputTupleBuffer);
             outputTupleBuffer.addAll(extraTupleBuffer);
         }
         return JavaConverters.asScalaIterator(outputTupleBuffer.iterator());
     }
 
-    private void appendInputTuple(Queue<Tuple> inputTupleNewBuffer, Queue<Tuple> outputTupleBuffer) {
-        for (Tuple tuple : inputTupleNewBuffer) {
-            Tuple outputTuple = Tuple.newBuilder().add(Objects.requireNonNull(outputTupleBuffer.poll())).removeIfExists(inputColumns).build();
+    private void appendInputTuple(Queue<Tuple> inputTupleBuffer, Queue<Tuple> outputTupleBuffer) {
+        for (Tuple tuple : inputTupleBuffer) {
+            Tuple outputTuple = Tuple.newBuilder().add(Objects.requireNonNull(outputTupleBuffer.poll())).removeIfExists(tuple.getSchema().getAttributeNames()).build();
             outputTupleBuffer.add(Tuple.newBuilder().add(tuple).add(outputTuple).build());
         }
     }
