@@ -82,7 +82,7 @@ export type TexeraWebsocketEventTypeMap = {
   'WorkflowErrorEvent': WorkflowError,
   'WorkflowStartedEvent': {},
   'WorkflowCompletedEvent': {result: ReadonlyArray<ResultObject>},
-  'WorkflowStatusUpdateEvent': WorkflowStatusUpdate,
+  'WebWorkflowStatusUpdateEvent': WorkflowStatusUpdate,
   'WorkflowPausedEvent': {},
   'WorkflowResumedEvent': {},
   'RecoveryStartedEvent': {},

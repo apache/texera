@@ -11,7 +11,7 @@ class TopicModeling(texera_udf_operator_base.TexeraBlockingUnsupervisedTrainerOp
         super(TopicModeling, self).open(*args)
 
         # TODO: _train_args from user input args
-        if len(args) >= 3:
+        if len(args) >= 2:
             self._train_args = {"num_topics": int(args[1])}
         else:
             self._train_args = {"num_topics": 5}
