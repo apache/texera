@@ -80,7 +80,8 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
                 JavaConverters.asScalaIteratorConverter(this.outputColumns.iterator()).asScala().toBuffer(),
                 JavaConverters.asScalaIteratorConverter(this.arguments.iterator()).asScala().toBuffer(),
                 JavaConverters.asScalaIteratorConverter(this.outerFiles.iterator()).asScala().toBuffer(),
-                batchSize);
+                batchSize,
+                pythonUDFType);
     }
 
     @Override

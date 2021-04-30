@@ -25,7 +25,8 @@ class PythonUDFOpExecConfig(
     outputColumns: mutable.Buffer[Attribute],
     arguments: mutable.Buffer[String],
     outerFiles: mutable.Buffer[String],
-    batchSize: Int
+    batchSize: Int,
+    pythonUDFType: PythonUDFType
 ) extends OpExecConfig(tag) {
   override lazy val topology: Topology = {
     new Topology(
@@ -40,7 +41,8 @@ class PythonUDFOpExecConfig(
               new util.ArrayList[Attribute](outputColumns.asJava),
               new util.ArrayList[String](arguments.asJava),
               new util.ArrayList[String](outerFiles.asJava),
-              batchSize
+              batchSize,
+              pythonUDFType
             ),
           numWorkers,
           FollowPrevious(),
