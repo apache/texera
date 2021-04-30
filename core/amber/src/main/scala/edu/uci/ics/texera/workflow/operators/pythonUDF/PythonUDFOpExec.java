@@ -53,7 +53,8 @@ public class PythonUDFOpExec implements OperatorExecutor {
     private final ArrayList<String> outerFilePaths;
     private final int batchSize;
     private final boolean isDynamic;
-    private final Queue<Tuple> inputTupleBuffer = new LinkedList<>();
+    private final Queue<Tuple> inputTupleProjectedBuffer = new LinkedList<>();
+    private final Queue<Tuple> inputTupleFullBuffer = new LinkedList<>();
     private String pythonScriptPath;
     private FlightClient flightClient;
     private org.apache.arrow.vector.types.pojo.Schema arrowInputSchema;
@@ -463,20 +464,29 @@ public class PythonUDFOpExec implements OperatorExecutor {
 
     private Iterator<Tuple> processOneBatch(boolean inputExhausted) throws RuntimeException {
         Queue<Tuple> outputTupleBuffer = new LinkedList<>();
-        if (inputTupleBuffer.size() != 0) {
-            writeArrowStream(flightClient, inputTupleBuffer, arrowInputSchema, TO_PYTHON, batchSize);
+        if (inputTupleProjectedBuffer.size() != 0) {
+            writeArrowStream(flightClient, inputTupleProjectedBuffer, arrowInputSchema, TO_PYTHON, batchSize);
             executeUDF(flightClient);
             readArrowStream(flightClient, FROM_PYTHON, outputTupleBuffer);
-            inputTupleBuffer.clear();
+            appendInputTuple(inputTupleProjectedBuffer, outputTupleBuffer);
+            inputTupleProjectedBuffer.clear();
         }
 
         if (inputExhausted) {
             Queue<Tuple> extraTupleBuffer = new LinkedList<>();
             communicate(flightClient, INPUT_EXHAUSTED);
             readArrowStream(flightClient, FROM_PYTHON, extraTupleBuffer);
+            appendInputTuple(inputTupleProjectedBuffer, outputTupleBuffer);
             outputTupleBuffer.addAll(extraTupleBuffer);
         }
         return JavaConverters.asScalaIterator(outputTupleBuffer.iterator());
+    }
+
+    private void appendInputTuple(Queue<Tuple> inputTupleNewBuffer, Queue<Tuple> outputTupleBuffer) {
+        for (Tuple tuple : inputTupleNewBuffer) {
+            Tuple outputTuple = Tuple.newBuilder().add(Objects.requireNonNull(outputTupleBuffer.poll())).removeIfExists(inputColumns).build();
+            outputTupleBuffer.add(Tuple.newBuilder().add(tuple).add(outputTuple).build());
+        }
     }
 
     private void preparePythonScriptFile() throws IOException {
@@ -545,10 +555,11 @@ public class PythonUDFOpExec implements OperatorExecutor {
                     closeAndThrow(flightClient, exception);
                 }
             }
-            inputTupleBuffer.add(Tuple.newBuilder().add(texeraInputSchema,
+            inputTupleFullBuffer.add(inputTuple);
+            inputTupleProjectedBuffer.add(Tuple.newBuilder().add(texeraInputSchema,
                     () -> texeraInputSchema.getAttributeNames().stream().map(inputTuple::getField).iterator()
             ).build());
-            if (inputTupleBuffer.size() == batchSize) {
+            if (inputTupleProjectedBuffer.size() == batchSize) {
                 // This batch is full, execute the UDF.
                 return processOneBatch(false);
             } else {
