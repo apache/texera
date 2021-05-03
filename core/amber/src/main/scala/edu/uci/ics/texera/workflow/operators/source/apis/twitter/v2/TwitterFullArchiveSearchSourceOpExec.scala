@@ -17,38 +17,35 @@ class TwitterFullArchiveSearchSourceOpExec(
     apiSecretKey: String,
     searchQuery: String,
     fromDateTime: String,
-    toDateTime: String
+    toDateTime: String,
+    var limit: Int
 ) extends TwitterSourceOpExec(accessToken, accessTokenSecret, apiKey, apiSecretKey) {
 
   var nextToken: String = _
   var tweetCache: mutable.Queue[Tweet] = mutable.Queue()
-  var limit = 10
-  var current = 0
 
   override def produceTexeraTuple(): Iterator[Tuple] =
     new Iterator[Tuple]() {
-      override def hasNext: Boolean = current < limit
+      override def hasNext: Boolean = limit > 0
 
       override def next: Tuple = {
         if (tweetCache.isEmpty) {
-
-          val query = searchQuery
           queryForNextBatch(
-            query,
+            searchQuery,
             AttributeTypeUtils.parseTimestamp(fromDateTime).toLocalDateTime,
             AttributeTypeUtils.parseTimestamp(toDateTime).toLocalDateTime,
-            100
+            limit.min(TWITTER_API_BATCH_SIZE)
           )
         }
         val tweet: Tweet = tweetCache.dequeue()
-        current += 1
+
+        limit -= 1
+
         val fields = AttributeTypeUtils.parseFields(
           Array[Object](tweet.getId, tweet.getText),
           schema.getAttributes.map((attribute: Attribute) => { attribute.getType }).toArray
         )
-        Tuple.newBuilder
-          .add(schema, fields)
-          .build
+        Tuple.newBuilder.add(schema, fields).build
       }
 
     }

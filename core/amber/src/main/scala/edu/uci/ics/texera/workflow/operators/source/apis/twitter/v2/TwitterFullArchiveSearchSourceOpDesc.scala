@@ -23,6 +23,10 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
   @JsonSchemaTitle("To Datetime")
   var toDateTime: String = _
 
+  @JsonProperty(required = true, defaultValue = "10")
+  @JsonSchemaTitle("Limit")
+  var limit: Int = _
+
   override def operatorExecutor: OpExecConfig =
     new TwitterFullArchiveSearchSourceOpExecConfig(
       operatorIdentifier,
@@ -34,7 +38,8 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
       apiSecretKey,
       searchQuery,
       fromDateTime,
-      toDateTime
+      toDateTime,
+      limit
     )
 
   override def sourceSchema(): Schema =
