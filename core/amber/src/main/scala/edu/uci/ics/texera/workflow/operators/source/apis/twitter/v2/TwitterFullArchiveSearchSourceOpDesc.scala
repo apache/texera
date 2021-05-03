@@ -1,8 +1,10 @@
-package edu.uci.ics.texera.workflow.operators.source.apis
+package edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2
+
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
+import edu.uci.ics.texera.workflow.operators.source.apis.twitter.TwitterSourceOpDesc
 
 class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
 

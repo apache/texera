@@ -1,4 +1,5 @@
-package edu.uci.ics.texera.workflow.operators.source.apis
+package edu.uci.ics.texera.workflow.operators.source.apis.twitter
+
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.texera.workflow.common.metadata.{

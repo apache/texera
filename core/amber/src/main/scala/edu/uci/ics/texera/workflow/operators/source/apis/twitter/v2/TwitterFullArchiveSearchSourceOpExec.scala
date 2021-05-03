@@ -1,10 +1,9 @@
-package edu.uci.ics.texera.workflow.operators.source.apis
-import com.github.redouane59.twitter.TwitterClient
+package edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2
+
 import com.github.redouane59.twitter.dto.tweet.Tweet
-import com.github.redouane59.twitter.signature.TwitterCredentials
-import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeTypeUtils, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.texera.workflow.operators.source.apis.twitter.TwitterSourceOpExec
 
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -18,24 +17,13 @@ class TwitterFullArchiveSearchSourceOpExec(
     apiKey: String,
     apiSecretKey: String,
     searchQuery: String
-) extends SourceOperatorExecutor {
-  var twitterClient: TwitterClient = null
-  var nextToken: String = null
+) extends TwitterSourceOpExec(accessToken, accessTokenSecret, apiKey, apiSecretKey) {
+
+  var nextToken: String = _
   var tweetCache: mutable.Queue[Tweet] = mutable.Queue()
   var limit = 10
   var current = 0
-  override def open(): Unit = {
-    twitterClient = new TwitterClient(
-      TwitterCredentials
-        .builder()
-        .accessToken(accessToken)
-        .accessTokenSecret(accessTokenSecret)
-        .apiKey(apiKey)
-        .apiSecretKey(apiSecretKey)
-        .build()
-    )
-  }
-  override def close(): Unit = {}
+
   override def produceTexeraTuple(): Iterator[Tuple] =
     new Iterator[Tuple]() {
       override def hasNext: Boolean = current < limit
@@ -61,7 +49,7 @@ class TwitterFullArchiveSearchSourceOpExec(
 
     }
 
-  def queryForNextBatch(
+  private def queryForNextBatch(
       query: String,
       startDateTime: LocalDateTime,
       endDateTime: LocalDateTime,
