@@ -15,6 +15,14 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
   @JsonSchemaTitle("Search Query")
   var searchQuery: String = _
 
+  @JsonProperty(required = true, defaultValue = "2021-04-01T00:00:00Z")
+  @JsonSchemaTitle("From Datetime")
+  var fromDateTime: String = _
+
+  @JsonProperty(required = true, defaultValue = "2021-05-01T00:00:00Z")
+  @JsonSchemaTitle("To Datetime")
+  var toDateTime: String = _
+
   override def operatorExecutor: OpExecConfig =
     new TwitterFullArchiveSearchSourceOpExecConfig(
       operatorIdentifier,
@@ -24,7 +32,9 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
       accessTokenSecret,
       apiKey,
       apiSecretKey,
-      searchQuery
+      searchQuery,
+      fromDateTime,
+      toDateTime
     )
 
   override def sourceSchema(): Schema =

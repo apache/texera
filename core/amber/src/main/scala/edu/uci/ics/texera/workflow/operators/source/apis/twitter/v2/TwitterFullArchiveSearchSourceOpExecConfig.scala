@@ -15,7 +15,9 @@ class TwitterFullArchiveSearchSourceOpExecConfig(
     accessTokenSecret: String,
     apiKey: String,
     apiSecretKey: String,
-    searchQuery: String
+    searchQuery: String,
+    fromDateTime: String,
+    toDateTime: String
 ) extends TwitterSourceOpExecConfig(operatorIdentifier) {
 
   override lazy val topology: Topology = {
@@ -30,7 +32,9 @@ class TwitterFullArchiveSearchSourceOpExecConfig(
               accessTokenSecret,
               apiKey,
               apiSecretKey,
-              searchQuery
+              searchQuery,
+              fromDateTime,
+              toDateTime
             )
           },
           numWorkers,

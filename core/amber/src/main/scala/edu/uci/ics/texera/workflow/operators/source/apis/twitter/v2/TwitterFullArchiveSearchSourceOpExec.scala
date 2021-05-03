@@ -6,7 +6,6 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.operators.source.apis.twitter.TwitterSourceOpExec
 
 import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 import scala.collection.{mutable, Iterator}
 import scala.collection.JavaConverters._
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
@@ -16,7 +15,9 @@ class TwitterFullArchiveSearchSourceOpExec(
     accessTokenSecret: String,
     apiKey: String,
     apiSecretKey: String,
-    searchQuery: String
+    searchQuery: String,
+    fromDateTime: String,
+    toDateTime: String
 ) extends TwitterSourceOpExec(accessToken, accessTokenSecret, apiKey, apiSecretKey) {
 
   var nextToken: String = _
@@ -30,11 +31,14 @@ class TwitterFullArchiveSearchSourceOpExec(
 
       override def next: Tuple = {
         if (tweetCache.isEmpty) {
-          val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
-          val startDateTime = LocalDateTime.parse("2021-04-08 00:00", formatter)
-          val endDateTime = LocalDateTime.parse("2021-04-09 00:00", formatter)
+
           val query = searchQuery
-          queryForNextBatch(query, startDateTime, endDateTime, 100)
+          queryForNextBatch(
+            query,
+            AttributeTypeUtils.parseTimestamp(fromDateTime).toLocalDateTime,
+            AttributeTypeUtils.parseTimestamp(toDateTime).toLocalDateTime,
+            100
+          )
         }
         val tweet: Tweet = tweetCache.dequeue()
         current += 1
