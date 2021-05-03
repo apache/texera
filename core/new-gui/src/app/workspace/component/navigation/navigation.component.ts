@@ -16,6 +16,7 @@ import { WorkflowStatusService } from '../../service/workflow-status/workflow-st
 import { ExecutionState } from '../../types/execute-workflow.interface';
 import { NgbActiveModal, NgbModal, NgbModalRef } from '@ng-bootstrap/ng-bootstrap';
 import { ResultDownloadComponent } from './result-download/result-download.component';
+import { WorkflowWebsocketService } from '../../service/workflow-websocket/workflow-websocket.service';
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -64,6 +65,7 @@ export class NavigationComponent implements OnInit {
     public tourService: TourService,
     public workflowActionService: WorkflowActionService,
     public workflowStatusService: WorkflowStatusService,
+    public workflowWebsocketService: WorkflowWebsocketService,
     private location: Location,
     public undoRedoService: UndoRedoService,
     public validationWorkflowService: ValidationWorkflowService,
@@ -99,7 +101,7 @@ export class NavigationComponent implements OnInit {
         this.downloadResultPopup.componentInstance.link = response.link;
         this.downloadResultPopup.componentInstance.openInNewTab();
       }
-    )
+    );
 
     // set the map of operatorStatusMap
     validationWorkflowService.getWorkflowValidationErrorStream()

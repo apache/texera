@@ -1,9 +1,13 @@
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, Subject, timer, interval } from 'rxjs';
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
 import {
   TexeraWebsocketEvent, TexeraWebsocketRequest, TexeraWebsocketRequestTypeMap, TexeraWebsocketRequestTypes
 } from '../../types/workflow-websocket.interface';
+
+
+export const WS_HEARTBEAT_INTERVAL_MS = 10000;
+export const WS_RECONNECT_INTERVAL_MS = 3000;
 
 @Injectable({
   providedIn: 'root'
@@ -12,22 +16,39 @@ export class WorkflowWebsocketService {
 
   private static readonly TEXERA_WEBSOCKET_ENDPOINT = 'wsapi/workflow-websocket';
 
-  private readonly websocket: WebSocketSubject<TexeraWebsocketEvent|TexeraWebsocketRequest>;
-  private readonly webSocketObservable: Observable<TexeraWebsocketEvent>;
+  public isConnected: boolean = false;
+
+  private readonly websocket: WebSocketSubject<TexeraWebsocketEvent | TexeraWebsocketRequest>;
+  private readonly webSocketResponseSubject: Subject<TexeraWebsocketEvent> = new Subject();
+
 
   constructor() {
-    this.websocket = webSocket<TexeraWebsocketEvent|TexeraWebsocketRequest>(WorkflowWebsocketService.getWorkflowWebsocketUrl());
-    this.webSocketObservable = this.websocket.share() as Observable<TexeraWebsocketEvent>;
-    this.webSocketObservable.subscribe(data => {
-      if (data.type === 'HelloWorldResponse') {
-        console.log('hello world works: ' + data.message);
-      }
-    });
-    this.send('HelloWorldRequest', {message: 'Texera on Amber'});
+    this.websocket = webSocket<TexeraWebsocketEvent | TexeraWebsocketRequest>(WorkflowWebsocketService.getWorkflowWebsocketUrl());
+
+    // setup reconnection logic
+    const wsWithReconnect = this.websocket.retryWhen(error =>
+      error
+        .do(_ => this.isConnected = false) // update connection status
+        .do(_ => console.log(`websocket connection lost, reconnecting in ${WS_RECONNECT_INTERVAL_MS / 1000} seconds`))
+        .delayWhen(_ => timer(WS_RECONNECT_INTERVAL_MS)) // reconnect after delay
+        .do(_ => this.send('HeartBeatRequest', {}) // try to send heartbeat immediately after reconnect
+        ));
+
+    // set up heartbeat
+    interval(WS_HEARTBEAT_INTERVAL_MS).subscribe(_ => this.send('HeartBeatRequest', {}));
+
+    // refresh connection status
+    this.websocketEvent().subscribe(_ => this.isConnected = true);
+
+    // set up event listener on reconnectable websocket observable
+    wsWithReconnect.subscribe(event => this.webSocketResponseSubject.next(event as TexeraWebsocketEvent));
+
+    // send hello world
+    this.send('HelloWorldRequest', { message: 'Texera on Amber' });
   }
 
   public websocketEvent(): Observable<TexeraWebsocketEvent> {
-    return this.webSocketObservable;
+    return this.webSocketResponseSubject;
   }
 
   public send<T extends TexeraWebsocketRequestTypes>(type: T, payload: TexeraWebsocketRequestTypeMap[T]): void {

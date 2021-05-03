@@ -67,11 +67,12 @@ class WorkflowWebsocketResource {
   @OnMessage
   def myOnMsg(session: Session, message: String): Unit = {
     val request = objectMapper.readValue(message, classOf[TexeraWebSocketRequest])
-    println(request)
     try {
       request match {
         case helloWorld: HelloWorldRequest =>
           send(session, HelloWorldResponse("hello from texera web server"))
+        case heartbeat: HeartBeatRequest =>
+          send(session, HeartBeatResponse())
         case execute: ExecuteWorkflowRequest =>
           println(execute)
           executeWorkflow(session, execute)

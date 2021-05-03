@@ -66,6 +66,7 @@ export type ResultDownloadResponse = Readonly<{
 
 export type TexeraWebsocketRequestTypeMap = {
   'HelloWorldRequest': WebSocketHelloWorld,
+  'HeartBeatRequest': {},
   'ExecuteWorkflowRequest': LogicalPlan,
   'PauseWorkflowRequest': {},
   'ResumeWorkflowRequest': {},
@@ -79,6 +80,7 @@ export type TexeraWebsocketRequestTypeMap = {
 
 export type TexeraWebsocketEventTypeMap = {
   'HelloWorldResponse': WebSocketHelloWorld,
+  'HeartBeatResponse': {},
   'WorkflowErrorEvent': WorkflowError,
   'WorkflowStartedEvent': {},
   'WorkflowCompletedEvent': {result: ReadonlyArray<ResultObject>},
