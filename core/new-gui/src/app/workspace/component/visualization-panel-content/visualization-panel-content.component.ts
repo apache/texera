@@ -9,7 +9,7 @@ import { ChartType, WordCloudTuple } from '../../types/visualization.interface';
 import { Subscription, Subject, Observable } from 'rxjs';
 
 
-export const wordCloudScaleOptions = ['linear', 'square root', 'log'] as const;
+export const wordCloudScaleOptions = ['linear', 'square root', 'logarithmic'] as const;
 type WordCloudControlsType = {
   scale: typeof wordCloudScaleOptions[number]
 };
@@ -197,7 +197,7 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
       switch (this.wordCloudControls.scale) {
         case 'linear':
           return d3.scaleLinear();
-        case 'log':
+        case 'logarithmic':
           return d3.scaleLog();
         case 'square root':
           return d3.scaleSqrt();
