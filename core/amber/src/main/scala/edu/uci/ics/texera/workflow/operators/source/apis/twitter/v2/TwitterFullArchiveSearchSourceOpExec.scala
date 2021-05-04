@@ -5,7 +5,8 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.operators.source.apis.twitter.TwitterSourceOpExec
 
-import java.time.{LocalDateTime, ZoneOffset}
+import java.time.{LocalDateTime, ZoneId, ZoneOffset}
+import java.time.format.DateTimeFormatter
 import scala.collection.{mutable, Iterator}
 import scala.collection.JavaConverters._
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
@@ -35,11 +36,12 @@ class TwitterFullArchiveSearchSourceOpExec(
 
       override def next: Tuple = {
         // if the current cache is exhausted, query for the next response
+        println("from date: " + LocalDateTime.parse(fromDateTime, DateTimeFormatter.ISO_DATE_TIME))
         if (tweetCache.isEmpty && hasNextRequest) {
           queryForNextBatch(
             searchQuery,
-            AttributeTypeUtils.parseTimestamp(fromDateTime).toLocalDateTime,
-            AttributeTypeUtils.parseTimestamp(toDateTime).toLocalDateTime,
+            LocalDateTime.parse(fromDateTime, DateTimeFormatter.ISO_DATE_TIME),
+            LocalDateTime.parse(toDateTime, DateTimeFormatter.ISO_DATE_TIME),
             curLimit.min(TWITTER_API_BATCH_SIZE)
           )
         }
@@ -61,7 +63,14 @@ class TwitterFullArchiveSearchSourceOpExec(
           Array[Object](
             tweet.getId,
             tweet.getText,
-            tweet.getCreatedAt.toInstant(ZoneOffset.UTC).toString,
+            // given the fact that the twittered library is using LocalDateTime as the API parameter,
+            // we have to fix it to UTC time zone to normalize the time.
+            tweet.getCreatedAt
+              .atZone(ZoneId.systemDefault())
+              .withZoneSameInstant(ZoneId.of("UTC"))
+              .toLocalDateTime
+              .atOffset(ZoneOffset.UTC)
+              .format(DateTimeFormatter.ISO_DATE_TIME),
             tweet.getAuthorId,
             // tweet.getUser, // currently unsupported by the twittered library
             // TODO: add user information
