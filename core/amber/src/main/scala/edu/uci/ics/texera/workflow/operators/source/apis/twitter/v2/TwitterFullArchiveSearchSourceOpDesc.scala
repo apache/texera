@@ -13,22 +13,22 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Search Query")
-  @JsonSchemaDescription("One query for matching Tweets, up to 1024 characters")
+  @JsonSchemaDescription("Up to 1024 characters")
   var searchQuery: String = _
 
   @JsonProperty(required = true, defaultValue = "2021-04-01T00:00:00Z")
   @JsonSchemaTitle("From Datetime")
-  @JsonSchemaDescription("Retrieve tweets with timestamp bigger than this time, ISO 8601 format")
+  @JsonSchemaDescription("ISO 8601 format")
   var fromDateTime: String = _
 
   @JsonProperty(required = true, defaultValue = "2021-05-01T00:00:00Z")
   @JsonSchemaTitle("To Datetime")
-  @JsonSchemaDescription("Retrieve tweets with timestamp smaller than this time, ISO 8601 format")
+  @JsonSchemaDescription("ISO 8601 format")
   var toDateTime: String = _
 
   @JsonProperty(required = true, defaultValue = "10")
   @JsonSchemaTitle("Limit")
-  @JsonSchemaDescription("Maximum tweets to retrieve")
+  @JsonSchemaDescription("Maximum number of tweets to retrieve")
   var limit: Int = _
 
   override def operatorExecutor: OpExecConfig =
