@@ -45,6 +45,21 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
   override def sourceSchema(): Schema =
     Schema
       .newBuilder()
-      .add(new Attribute("id", AttributeType.LONG), new Attribute("text", AttributeType.STRING))
+      .add(
+        new Attribute("id", AttributeType.LONG),
+        new Attribute("text", AttributeType.STRING),
+        new Attribute("created_at", AttributeType.TIMESTAMP),
+        new Attribute("author_id", AttributeType.LONG),
+        new Attribute("lang", AttributeType.STRING),
+        new Attribute("tweet_type", AttributeType.STRING),
+        new Attribute("place_id", AttributeType.STRING),
+        new Attribute("place_coordinate", AttributeType.STRING),
+        new Attribute("in_reply_to_status_id", AttributeType.LONG),
+        new Attribute("in_reply_to_user_id", AttributeType.LONG),
+        new Attribute("like_count", AttributeType.LONG),
+        new Attribute("quote_count", AttributeType.LONG),
+        new Attribute("reply_count", AttributeType.LONG),
+        new Attribute("retweet_count", AttributeType.LONG)
+      )
       .build()
 }

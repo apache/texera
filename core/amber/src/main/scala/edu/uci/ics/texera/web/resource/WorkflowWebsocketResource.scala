@@ -95,7 +95,12 @@ class WorkflowWebsocketResource {
       }
     } catch {
       case e: Throwable =>
-        send(session, WorkflowErrorEvent(generalErrors = Map("exception" -> e.getMessage)))
+        send(
+          session,
+          WorkflowErrorEvent(generalErrors =
+            Map("exception" -> (e.getMessage + "\n" + e.getStackTrace.mkString("\n")))
+          )
+        )
         throw e
     }
 
