@@ -36,7 +36,6 @@ class TwitterFullArchiveSearchSourceOpExec(
 
       override def next: Tuple = {
         // if the current cache is exhausted, query for the next response
-        println("from date: " + LocalDateTime.parse(fromDateTime, DateTimeFormatter.ISO_DATE_TIME))
         if (tweetCache.isEmpty && hasNextRequest) {
           queryForNextBatch(
             searchQuery,
