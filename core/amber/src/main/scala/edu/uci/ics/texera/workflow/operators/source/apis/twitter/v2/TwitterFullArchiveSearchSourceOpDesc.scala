@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaDescription, JsonSchemaTitle}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.source.apis.twitter.TwitterSourceOpDesc
@@ -13,18 +13,22 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Search Query")
+  @JsonSchemaDescription("One query for matching Tweets, up to 1024 characters")
   var searchQuery: String = _
 
   @JsonProperty(required = true, defaultValue = "2021-04-01T00:00:00Z")
   @JsonSchemaTitle("From Datetime")
+  @JsonSchemaDescription("Retrieve tweets with timestamp bigger than this time, ISO 8601 format")
   var fromDateTime: String = _
 
   @JsonProperty(required = true, defaultValue = "2021-05-01T00:00:00Z")
   @JsonSchemaTitle("To Datetime")
+  @JsonSchemaDescription("Retrieve tweets with timestamp smaller than this time, ISO 8601 format")
   var toDateTime: String = _
 
   @JsonProperty(required = true, defaultValue = "10")
   @JsonSchemaTitle("Limit")
+  @JsonSchemaDescription("Maximum tweets to retrieve")
   var limit: Int = _
 
   override def operatorExecutor: OpExecConfig =
@@ -42,7 +46,11 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
       limit
     )
 
-  override def sourceSchema(): Schema =
+  override def sourceSchema(): Schema = {
+
+    // twitter schema is hard coded for now. V2 API has changed many fields of the Tweet object.
+    // we are also currently depending on redouane59/twittered client library to parse tweet fields.
+
     Schema
       .newBuilder()
       .add(
@@ -62,4 +70,5 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
         new Attribute("retweet_count", AttributeType.LONG)
       )
       .build()
+  }
 }

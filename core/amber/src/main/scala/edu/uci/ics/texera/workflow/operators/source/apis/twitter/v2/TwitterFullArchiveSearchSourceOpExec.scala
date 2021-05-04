@@ -63,7 +63,7 @@ class TwitterFullArchiveSearchSourceOpExec(
           Array[Object](
             tweet.getId,
             tweet.getText,
-            // given the fact that the twittered library is using LocalDateTime as the API parameter,
+            // given the fact that the redouane59/twittered library is using LocalDateTime as the API parameter,
             // we have to fix it to UTC time zone to normalize the time.
             tweet.getCreatedAt
               .atZone(ZoneId.systemDefault())
@@ -72,7 +72,7 @@ class TwitterFullArchiveSearchSourceOpExec(
               .atOffset(ZoneOffset.UTC)
               .format(DateTimeFormatter.ISO_DATE_TIME),
             tweet.getAuthorId,
-            // tweet.getUser, // currently unsupported by the twittered library
+            // tweet.getUser, // currently unsupported by the redouane59/twittered library
             // TODO: add user information
             tweet.getLang,
             tweet.getTweetType.toString,
