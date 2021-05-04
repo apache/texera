@@ -34,7 +34,7 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
   override def operatorExecutor: OpExecConfig =
     new TwitterFullArchiveSearchSourceOpExecConfig(
       operatorIdentifier,
-      1, // here using 1 since there is no easy way to split the task for multi-line csv.
+      1, // TODO: use multiple workers
       sourceSchema(),
       accessToken,
       accessTokenSecret,
