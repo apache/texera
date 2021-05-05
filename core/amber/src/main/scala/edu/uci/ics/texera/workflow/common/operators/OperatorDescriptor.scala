@@ -71,9 +71,6 @@ import java.util.UUID
 abstract class OperatorDescriptor extends Serializable {
 
   @JsonIgnore
-  var cachedOutputSchema: Schema = _
-
-  @JsonIgnore
   var context: WorkflowContext = _
 
   @JsonProperty(PropertyNameConstants.OPERATOR_ID)
@@ -81,19 +78,11 @@ abstract class OperatorDescriptor extends Serializable {
 
   def operatorIdentifier: OperatorIdentity = OperatorIdentity(context.jobID, operatorID)
 
-  def operatorExecutor: OpExecConfig
+  def operatorExecutor(inputSchemas: Array[Schema], outputSchema: Schema): OpExecConfig
 
   def operatorInfo: OperatorInfo
 
   def getOutputSchema(schemas: Array[Schema]): Schema
-
-  def getCachedOutputSchema: Schema = {
-    cachedOutputSchema
-  }
-
-  def setCachedOutputSchema(cachedOutputSchema: Schema): Unit = {
-    this.cachedOutputSchema = cachedOutputSchema
-  }
 
   def validate(): Array[ConstraintViolation] = {
     Array()

@@ -43,7 +43,7 @@ public class BarChartOpDesc extends VisualizationOperator {
     }
 
     @Override
-    public OneToOneOpExecConfig operatorExecutor() {
+    public OneToOneOpExecConfig operatorExecutor(Schema[] inputSchemas, Schema outputSchema) {
         if (nameColumn == null) {
             throw new RuntimeException("bar chart: name column is null");
         }

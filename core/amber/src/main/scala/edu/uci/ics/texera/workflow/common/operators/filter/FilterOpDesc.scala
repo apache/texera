@@ -11,6 +11,6 @@ abstract class FilterOpDesc extends OperatorDescriptor {
     schemas(0)
   }
 
-  override def operatorExecutor: OneToOneOpExecConfig
+  override def operatorExecutor(inputSchemas: Array[Schema], outputSchema: Schema): OneToOneOpExecConfig
 
 }

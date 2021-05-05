@@ -35,9 +35,9 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
   @JsonIgnore
   var opExecConfig: HashJoinOpExecConfig[K] = _
 
-  override def operatorExecutor: OpExecConfig = {
+  override def operatorExecutor(inputSchemas: Array[Schema], outputSchema: Schema): OpExecConfig = {
     opExecConfig = new HashJoinOpExecConfig[K](
-      this.getCachedOutputSchema,
+      outputSchema,
       this.operatorIdentifier,
       probeAttributeName,
       buildAttributeName

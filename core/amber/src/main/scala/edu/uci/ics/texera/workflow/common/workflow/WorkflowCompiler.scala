@@ -36,10 +36,13 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
       .filter(pair => pair._2.nonEmpty)
 
   def amberWorkflow: Workflow = {
-    propagateWorkflowSchema()
+    val inputSchemaMap = propagateWorkflowSchema()
     val amberOperators: mutable.Map[OperatorIdentity, OpExecConfig] = mutable.Map()
     workflowInfo.operators.foreach(o => {
-      val amberOperator: OpExecConfig = o.operatorExecutor
+      // TODO Can inputSchemaMap have empty entries at this point? Surely this is not OK?
+      val inputSchemas = inputSchemaMap(o).map(s => s.get).toArray
+      val outputSchema = if (o.isInstanceOf[SourceOperatorDescriptor]) o.getOutputSchema(Array()) else o.getOutputSchema(inputSchemas)
+      val amberOperator: OpExecConfig = o.operatorExecutor(inputSchemas, outputSchema)
       amberOperators.put(amberOperator.id, amberOperator)
     })
 
@@ -166,10 +169,6 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
       // exception: if op is a source operator, use its output schema as input schema for autocomplete
       if (op.isInstanceOf[SourceOperatorDescriptor]) {
         inputSchemaMap.update(op, mutable.MutableList(outputSchema))
-      }
-
-      if (outputSchema.isDefined) {
-        op.setCachedOutputSchema(outputSchema.get)
       }
 
       // update input schema of all outgoing links

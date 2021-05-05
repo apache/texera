@@ -44,7 +44,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
     }
 
     @Override
-    public OpExecConfig operatorExecutor() {
+    public OpExecConfig operatorExecutor(Schema[] inputSchemas, Schema outputSchema) {
         if (topN == null) {
             topN = 100;
         }

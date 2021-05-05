@@ -1,14 +1,11 @@
 package edu.uci.ics.texera.workflow.operators.linearregression
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.operators.mlmodel.{MLModelOpDesc, MLModelOpExecConfig}
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
 class LinearRegressionOpDesc extends MLModelOpDesc {
 
@@ -26,7 +23,7 @@ class LinearRegressionOpDesc extends MLModelOpDesc {
   @JsonPropertyDescription("Learning Rate")
   var learningRate: Double = _
 
-  override def operatorExecutor =
+  override def operatorExecutor(inputSchemas: Array[Schema], outputSchema: Schema): OpExecConfig =
     new MLModelOpExecConfig(
       this.operatorIdentifier,
       1,

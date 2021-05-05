@@ -29,7 +29,7 @@ public class SentimentAnalysisOpDesc extends MapOpDesc {
     public String resultAttribute;
 
     @Override
-    public OneToOneOpExecConfig operatorExecutor() {
+    public OneToOneOpExecConfig operatorExecutor(Schema[] inputSchemas, Schema outputSchema) {
         if (attribute == null) {
             throw new RuntimeException("sentiment analysis: attribute is null");
         }

@@ -7,7 +7,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
 abstract class SourceOperatorDescriptor extends OperatorDescriptor {
 
-  override def operatorExecutor: OpExecConfig
+  override def operatorExecutor(inputSchemas: Array[Schema], outputSchema: Schema): OpExecConfig
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Preconditions.checkArgument(schemas.isEmpty)

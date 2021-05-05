@@ -66,7 +66,7 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
 
 
     @Override
-    public OpExecConfig operatorExecutor() {
+    public OpExecConfig operatorExecutor(Schema[] inputSchemas, Schema outputSchema) {
         return new PythonUDFOpExecConfig(this.operatorIdentifier(),
                 1, // changed it to 1 because training with python needs all data in one node.
                 this.pythonScriptText,

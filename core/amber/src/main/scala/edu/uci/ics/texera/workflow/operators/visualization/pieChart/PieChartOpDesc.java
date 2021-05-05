@@ -2,7 +2,6 @@ package edu.uci.ics.texera.workflow.operators.visualization.pieChart;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import edu.uci.ics.amber.engine.common.Constants;
-import edu.uci.ics.amber.engine.operators.OpExecConfig;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
@@ -45,7 +44,7 @@ public class PieChartOpDesc extends VisualizationOperator {
     }
 
     @Override
-    public PieChartOpExecConfig operatorExecutor() {
+    public PieChartOpExecConfig operatorExecutor(Schema[] inputSchemas, Schema outputSchema) {
         if (nameColumn == null) {
             throw new RuntimeException("pie chart: name column is null");
         }

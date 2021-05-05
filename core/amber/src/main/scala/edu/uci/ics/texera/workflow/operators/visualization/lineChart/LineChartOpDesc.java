@@ -45,7 +45,7 @@ public class LineChartOpDesc extends VisualizationOperator {
     }
 
     @Override
-    public OneToOneOpExecConfig operatorExecutor() {
+    public OneToOneOpExecConfig operatorExecutor(Schema[] inputSchemas, Schema outputSchema) {
         if (nameColumn == null) {
             throw new RuntimeException("line chart: name column is null");
         }
