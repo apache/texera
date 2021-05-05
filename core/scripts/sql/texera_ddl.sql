@@ -20,6 +20,14 @@ CREATE TABLE IF NOT EXISTS user
 -- start auto increment userID from 1 because userID 0 means user not exists
   AUTO_INCREMENT = 1;
 
+
+CREATE TABLE IF NOT EXISTS google_user
+(
+    `uid` INT                          NOT NULL,
+    PRIMARY KEY (`uid`)
+) ENGINE = INNODB;
+
+
 CREATE TABLE IF NOT EXISTS file
 (
     `uid`         INT UNSIGNED                NOT NULL,
