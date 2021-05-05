@@ -1,10 +1,18 @@
 package edu.uci.ics.texera.workflow.operators.source.sql.asterixdb
 
-import com.fasterxml.jackson.annotation.{JsonIgnoreProperties, JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.annotation.{
+  JsonIgnoreProperties,
+  JsonProperty,
+  JsonPropertyDescription
+}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
-import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo, OutputPort}
+import edu.uci.ics.texera.workflow.common.metadata.{
+  OperatorGroupConstants,
+  OperatorInfo,
+  OutputPort
+}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.UIWidget
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.source.sql.{SQLSourceOpDesc, SQLSourceOpExecConfig}

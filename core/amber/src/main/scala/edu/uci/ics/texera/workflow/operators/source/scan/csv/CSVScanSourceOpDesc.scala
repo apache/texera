@@ -32,7 +32,10 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
   fileTypeName = Option("CSV")
 
   @throws[IOException]
-  override def operatorExecutor(inputSchemas: Array[Schema], outputSchema: Schema): CSVScanSourceOpExecConfig = {
+  override def operatorExecutor(
+      inputSchemas: Array[Schema],
+      outputSchema: Schema
+  ): CSVScanSourceOpExecConfig = {
     // fill in default values
     if (delimiter.get.isEmpty)
       delimiter = Option(",")

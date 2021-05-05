@@ -41,7 +41,9 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
     workflowInfo.operators.foreach(o => {
       // TODO Can inputSchemaMap have empty entries at this point? Surely this is not OK?
       val inputSchemas = inputSchemaMap(o).map(s => s.get).toArray
-      val outputSchema = if (o.isInstanceOf[SourceOperatorDescriptor]) o.getOutputSchema(Array()) else o.getOutputSchema(inputSchemas)
+      val outputSchema =
+        if (o.isInstanceOf[SourceOperatorDescriptor]) o.getOutputSchema(Array())
+        else o.getOutputSchema(inputSchemas)
       val amberOperator: OpExecConfig = o.operatorExecutor(inputSchemas, outputSchema)
       amberOperators.put(amberOperator.id, amberOperator)
     })
