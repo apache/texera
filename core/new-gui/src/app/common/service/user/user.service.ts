@@ -21,6 +21,8 @@ export class UserService {
   public static readonly LOGIN_ENDPOINT = 'users/login';
   public static readonly REGISTER_ENDPOINT = 'users/register';
   public static readonly LOG_OUT_ENDPOINT = 'users/logout';
+  public static readonly GOOGLE_LOGIN_ENDPOINT = 'users/google-login';
+
   private currentUser: User | undefined = undefined;
   private userChangeSubject: ReplaySubject<User | undefined> = new ReplaySubject<User | undefined>(1);
 
@@ -44,6 +46,19 @@ export class UserService {
 
     return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`, {userName, password});
 
+  }
+
+  /**
+   * This method will handle the request for Google login.
+   * It will automatically login, save the user account inside and trigger userChangeEvent when success
+   * @param userName
+   * @param password
+   */
+  public googleLogin(authoCode: string): Observable<Response>{
+    if (this.currentUser) {
+      throw new Error('Already logged in when login in.');
+    }
+    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${UserService.GOOGLE_LOGIN_ENDPOINT}`, {authoCode});
   }
 
   /**

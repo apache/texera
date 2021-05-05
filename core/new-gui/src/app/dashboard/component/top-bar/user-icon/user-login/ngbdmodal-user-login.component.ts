@@ -19,6 +19,12 @@ export class NgbdModalUserLoginComponent implements OnInit {
   public loginErrorMessage: string | undefined;
   public registerErrorMessage: string | undefined;
   public allForms: FormGroup;
+  public oauthInstance!: gapi.auth2.GoogleAuth;
+  public user!: gapi.auth2.GoogleUser;
+  public authCode!: string ;
+  public gapiSetUp: boolean = false;
+  public userName!: string | undefined;
+  public error!: string;
 
   constructor(
     private formBuilder: FormBuilder,
@@ -98,6 +104,61 @@ export class NgbdModalUserLoginComponent implements OnInit {
 
       }, () => this.registerErrorMessage = 'Registration failed. Could due to duplicate username.');
   }
+
+  /**
+   * this method will init A Google Oauth instance and gapi
+   */
+  public async initGoogleOauth(): Promise<void> {
+    // load gapi
+    const gapiLoad = new Promise((resolve) => {
+      gapi.load('auth2', resolve);
+    });
+    // call gapi.auth2 init
+    return gapiLoad.then(async () => {
+      await gapi.auth2
+        .init({ client_id: '256268030075-jl765kbkpbu2j4am3cjbtlrr973kqgdp.apps.googleusercontent.com' })
+        .then(auth => {
+          this.oauthInstance = auth;
+          this.gapiSetUp = true;
+        });
+    });
+  }
+
+  /**
+   * this method will return the authorization code
+   */
+  //  Promise<string>
+  public async authenticate(): Promise<void> {
+    // initialize gapi if not done yet
+    if (!this.gapiSetUp) {
+      await this.initGoogleOauth();
+    }
+    await this.oauthInstance.signIn().then(
+      user => this.user = user,
+      error => this.error = error
+    )
+    await this.oauthInstance.grantOfflineAccess().then(
+      code => this.authCode = code['code']
+    )
+    
+    // set the user name
+    this.userName = this.user?.getBasicProfile().getName()
+
+    this.userService.googleLogin(this.authCode).subscribe(
+      () => {
+        this.userService.changeUser(<User>{name: this.userName});
+        this.activeModal.close();
+      }, () => this.loginErrorMessage = 'Incorrect credentials');
+  }
+
+    
+    // get the authorization code
+    // return new Promise(async () => {
+    //   await this.oauthInstance.grantOfflineAccess().then(
+    //     code => this.authCode = code['code']
+    //   )
+    // });
+  
 
   /**
    * this method will handle the pop up when user successfully login

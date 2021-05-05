@@ -1,9 +1,10 @@
 package edu.uci.ics.texera.web.resource.auth
 
+import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeTokenRequest
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
-import edu.uci.ics.texera.web.model.request.auth.{UserLoginRequest, UserRegistrationRequest}
+import edu.uci.ics.texera.web.model.request.auth.{GoogleUserLoginRequest, UserLoginRequest, UserRegistrationRequest}
 import edu.uci.ics.texera.web.resource.auth.UserResource.{getUser, setUserSession, validateUsername}
 import io.dropwizard.jersey.sessions.Session
 import org.apache.commons.lang3.tuple.Pair
@@ -11,6 +12,14 @@ import org.jooq.exception.DataAccessException
 import javax.servlet.http.HttpSession
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
+import com.google.api.client.http.HttpTransport
+import com.google.api.client.http.javanet.NetHttpTransport
+import com.google.api.client.json.jackson2.JacksonFactory
+import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken
+import com.google.api.client.googleapis.auth.oauth2._
+import org.jooq.types.UInteger
+
 
 object UserResource {
 
@@ -38,6 +47,11 @@ class UserResource {
 
   final private val userDao = new UserDao(SqlServer.createDSLContext.configuration)
 
+  private val TRANSPORT = new NetHttpTransport
+  private val JSON_FACTORY = new JacksonFactory
+  private val CLIENT_ID = "256268030075-jl765kbkpbu2j4am3cjbtlrr973kqgdp.apps.googleusercontent.com"
+  private val CLIENT_SECRET = "vSJ3DjZ9_Bf4WsM0-MxpZgfV"
+
   @GET
   @Path("/auth/status")
   def authStatus(@Session session: HttpSession): Option[User] = {
@@ -62,6 +76,34 @@ class UserResource {
     )
     Response.ok().build()
   }
+
+  @POST
+  @Path("/google-login")
+  def googleLogin(@Session session: HttpSession, request: GoogleUserLoginRequest): Response = {
+    // get authorization code from request
+    var code = request.authoCode
+
+    // use authorization code to get tokens
+    try
+      {
+        val tokenResponse = new GoogleAuthorizationCodeTokenRequest(TRANSPORT, JSON_FACTORY, CLIENT_ID, CLIENT_SECRET, code, "postmessage").execute();
+        // get id token
+        var idToken: GoogleIdToken = tokenResponse.parseIdToken()
+        // get the payload of id token
+        val payload = idToken.getPayload()
+        // get the subject of the payload, use this value as a key to identify a user.
+        val userId = payload.getSubject().toInt
+        // get the name of the user
+        val userName = payload.get("name").asInstanceOf[String]
+        setUserSession(
+          session,
+          new User(userName, userId.asInstanceOf[UInteger], null)
+        )
+
+      }
+      Response.ok().build()
+  }
+
 
   @POST
   @Path("/register")
