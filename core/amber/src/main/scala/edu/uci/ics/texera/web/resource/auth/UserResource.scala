@@ -20,6 +20,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken
 import com.google.api.client.googleapis.auth.oauth2._
 import org.jooq.types.UInteger
 
+
 object UserResource {
 
   private val SESSION_USER = "texera-user"
@@ -85,9 +86,9 @@ class UserResource {
     // use authorization code to get tokens
     try
       {
-        val tokenResponse = new GoogleAuthorizationCodeTokenV4Request(TRANSPORT, JSON_FACTORY, CLIENT_ID, CLIENT_SECRET, code, "postmessage").execute();
+        val tokenResponse = new GoogleAuthorizationCodeTokenRequest(TRANSPORT, JSON_FACTORY, CLIENT_ID, CLIENT_SECRET, code, "postmessage").execute();
         // get id token
-        val idToken: GoogleIdToken = tokenResponse.parseIdToken()
+        var idToken: GoogleIdToken = tokenResponse.parseIdToken()
         // get the payload of id token
         val payload = idToken.getPayload()
         // get the subject of the payload, use this value as a key to identify a user.
