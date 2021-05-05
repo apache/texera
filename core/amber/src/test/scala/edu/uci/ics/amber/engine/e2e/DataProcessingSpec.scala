@@ -126,7 +126,26 @@ class DataProcessingSpec
         )
       )
     )
-    executeWorkflow(id, workflow)
+    val results = executeWorkflow(id, workflow)(sink.operatorID)
+
+    assert(results.size == 100)
+  }
+
+  "Engine" should "execute headerlessMultiLineDataCsv-->sink workflow normally" in {
+    val headerlessCsvOpDesc = TestOperators.headerlessSmallMultiLineDataCsvScanOpDesc()
+    val sink = TestOperators.sinkOpDesc()
+    val (id, workflow) = buildWorkflow(
+      mutable.MutableList[OperatorDescriptor](headerlessCsvOpDesc, sink),
+      mutable.MutableList[OperatorLink](
+        OperatorLink(
+          OperatorPort(headerlessCsvOpDesc.operatorID, 0),
+          OperatorPort(sink.operatorID, 0)
+        )
+      )
+    )
+    val results = executeWorkflow(id, workflow)(sink.operatorID)
+
+    assert(results.size == 100)
   }
 
   "Engine" should "execute jsonl->sink workflow normally" in {

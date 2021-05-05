@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.operators.source.scan.csv
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
@@ -12,7 +13,7 @@ import org.codehaus.jackson.map.annotate.JsonDeserialize
 import java.io.IOException
 import scala.jdk.CollectionConverters.asJavaIterableConverter
 
-class CSVScanSourceOpDesc extends ScanSourceOpDesc {
+class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
 
   @JsonProperty(defaultValue = ",")
   @JsonSchemaTitle("Delimiter")
@@ -28,19 +29,16 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
   fileTypeName = Option("CSV")
 
   @throws[IOException]
-  override def operatorExecutor(
-      inputSchemas: Array[Schema],
-      outputSchema: Schema
-  ): CSVScanSourceOpExecConfig = {
+  override def operatorExecutor: OpExecConfig = {
     // fill in default values
     if (customDelimiter.get.isEmpty)
       customDelimiter = Option(",")
 
     filePath match {
       case Some(path) =>
-        new CSVScanSourceOpExecConfig(
+        new ParallelCSVScanSourceOpExecConfig(
           operatorIdentifier,
-          1, // here using 1 since there is no easy way to split the task for multi-line csv.
+          Constants.defaultNumWorkers,
           path,
           inferSchema(),
           customDelimiter.get.charAt(0),

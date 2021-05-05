@@ -94,18 +94,22 @@
         <button (click)="tourService.toggle()" class="animate-to-reveal-stop-button" nz-button nzType="default">
           <i nz-icon nzType="question-circle" nzTheme="outline"></i>
         </button>
-        <button nz-button (click)="onClickRunHandler()" [disabled]="runDisable"
+        <button nz-button #runStopButton (click)="handleKill()"
+                [disabled]="executionState == ExecutionState.Uninitialized || executionState == ExecutionState.Completed || executionState == ExecutionState.Failed"
+                class="texera-navigation-stop-button" nzDanger nzType='primary' title="Force Stop">
+          <i nz-icon nzTheme="outline" nzType="exclamation-circle"></i>
+        </button>
+        <button nz-button (click)="onClickRunHandler()" [disabled]="runDisable || ! workflowWebsocketService.isConnected"
                 class="texera-navigation-run-button animate-to-reveal-stop-button" nzType='primary'>
           <i class="texera-navigation-run-button-icon" nz-icon nzType="{{runIcon}}" nzTheme="outline"></i>
           <span>
             {{ runButtonText }}
           </span>
         </button>
-        <button nz-button #runStopButton (click)="handleKill()"
-                [disabled]="executionState == ExecutionState.Uninitialized || executionState == ExecutionState.Completed || executionState == ExecutionState.Failed"
-                class="texera-navigation-stop-button" nzDanger nzType='primary' title="Force Stop">
-          <i nz-icon nzTheme="outline" nzType="exclamation-circle"></i>
-        </button>
+        <div [ngStyle]="{'margin-left': '5px'}">
+          <nz-badge *ngIf="workflowWebsocketService.isConnected" nzStatus="success" nz-tooltip nzTooltipTitle="connected" nzTooltipPlacement="bottom"></nz-badge>
+          <nz-badge *ngIf="! workflowWebsocketService.isConnected" nzStatus="error" nz-tooltip nzTooltipTitle="disconnected" nzTooltipPlacement="bottom"></nz-badge>
+        </div>
       </nz-button-group>
     </div>
   </div>

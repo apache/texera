@@ -7,7 +7,7 @@ import { MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatTabsModule } from '@angular/material/tabs';
-import { FormsModule } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
@@ -20,7 +20,8 @@ describe('UserLoginComponent', () => {
       declarations: [NgbdModalUserLoginComponent],
       providers: [
         NgbActiveModal,
-        UserService
+        UserService,
+        FormBuilder
       ],
       imports: [
         BrowserAnimationsModule,
@@ -30,6 +31,7 @@ describe('UserLoginComponent', () => {
         MatInputModule,
         NgbModule,
         FormsModule,
+        ReactiveFormsModule,  
         MatDialogModule
       ]
     })

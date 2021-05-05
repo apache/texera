@@ -5,12 +5,7 @@ import com.google.api.client.util.Lists
 import com.google.api.services.drive.Drive
 import com.google.api.services.drive.model.{File, FileList, Permission}
 import com.google.api.services.sheets.v4.Sheets
-import com.google.api.services.sheets.v4.model.{
-  AppendValuesResponse,
-  Spreadsheet,
-  SpreadsheetProperties,
-  ValueRange
-}
+import com.google.api.services.sheets.v4.model.{Spreadsheet, SpreadsheetProperties, ValueRange}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.texera.web.model.event.ResultDownloadResponse
 import edu.uci.ics.texera.web.model.request.ResultDownloadRequest
@@ -19,19 +14,22 @@ import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
   sessionResults
 }
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.texera.workflow.common.Utils.retry
 
 import java.util
+import java.util.concurrent.{Executors, ThreadPoolExecutor}
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
-
 object ResultDownloadResource {
 
-  private final val UPLOAD_BATCH_SIZE = 100
-
+  private final val UPLOAD_BATCH_ROW_COUNT = 10000
+  private final val RETRY_ATTEMPTS = 7
+  private final val BASE_BACK_OOF_TIME_IN_MS = 1000
   private final val WORKFLOW_RESULT_FOLDER_NAME = "workflow_results"
-
+  private final val pool: ThreadPoolExecutor =
+    Executors.newFixedThreadPool(3).asInstanceOf[ThreadPoolExecutor]
   @volatile private var WORKFLOW_RESULT_FOLDER_ID: String = _
 
   def apply(
@@ -131,12 +129,6 @@ object ResultDownloadResource {
     val driveService: Drive = GoogleResource.getDriveService
     moveToResultFolder(driveService, sheetId)
 
-    // upload the schema
-    val schemaContent: util.List[util.List[AnyRef]] = Lists.newArrayList()
-    schemaContent.add(schema)
-    val response: AppendValuesResponse =
-      uploadContent(sheetService, sheetId, schemaContent)
-
     // allow user to access this sheet in the service account
     val sharePermission: Permission = new Permission()
       .setType("anyone")
@@ -147,8 +139,13 @@ object ResultDownloadResource {
       .execute()
 
     // upload the content asynchronously to avoid long waiting on the user side.
-    // may change to thread pool
-    new Thread(() => uploadResult(sheetService, sheetId, result)).start()
+    pool
+      .submit(() =>
+        {
+          uploadHeader(sheetService, sheetId, schema)
+          uploadResult(sheetService, sheetId, result)
+        }.asInstanceOf[Runnable]
+      )
 
     // generate success response
     val link: String = s"https://docs.google.com/spreadsheets/d/$sheetId/edit"
@@ -227,13 +224,27 @@ object ResultDownloadResource {
     }
 
   /**
+    * upload the result header to the google sheet
+    */
+  private def uploadHeader(
+      sheetService: Sheets,
+      sheetId: String,
+      schema: util.List[AnyRef]
+  ): Unit = {
+    val schemaContent: util.List[util.List[AnyRef]] = Lists.newArrayList()
+    schemaContent.add(schema)
+    uploadContent(sheetService, sheetId, schemaContent)
+  }
+
+  /**
     * upload the result body to the google sheet
     */
   private def uploadResult(sheetService: Sheets, sheetId: String, result: List[ITuple]): Unit = {
     val content: util.List[util.List[AnyRef]] =
-      Lists.newArrayListWithCapacity(UPLOAD_BATCH_SIZE)
+      Lists.newArrayListWithCapacity(UPLOAD_BATCH_ROW_COUNT)
     // use for loop to avoid copying the whole result at the same time
     for (tuple: ITuple <- result) {
+
       val tupleContent: util.List[AnyRef] =
         tuple
           .asInstanceOf[Tuple]
@@ -245,19 +256,14 @@ object ResultDownloadResource {
           .asJava
       content.add(tupleContent)
 
-      if (content.size() == UPLOAD_BATCH_SIZE) {
-        // TODO: the response is from uploading is not checked.
-        //  The design for the response seems not to be designed for error handling
-        // it will throw error and stop if encounter error during uploading
-        val response: AppendValuesResponse =
-          uploadContent(sheetService, sheetId, content)
+      if (content.size() == UPLOAD_BATCH_ROW_COUNT) {
+        uploadContent(sheetService, sheetId, content)
         content.clear()
       }
     }
 
     if (!content.isEmpty) {
-      val response: AppendValuesResponse =
-        uploadContent(sheetService, sheetId, content)
+      uploadContent(sheetService, sheetId, content)
     }
   }
 
@@ -287,13 +293,18 @@ object ResultDownloadResource {
       sheetService: Sheets,
       sheetId: String,
       content: util.List[util.List[AnyRef]]
-  ): AppendValuesResponse = {
+  ): Unit = {
     val body: ValueRange = new ValueRange().setValues(content)
     val range: String = "A1"
     val valueInputOption: String = "RAW"
-    sheetService.spreadsheets.values
-      .append(sheetId, range, body)
-      .setValueInputOption(valueInputOption)
-      .execute
+
+    // using retry logic here, to handle possible API errors, i.e., rate limit exceeded.
+    retry(attempts = RETRY_ATTEMPTS, baseBackoffTimeInMS = BASE_BACK_OOF_TIME_IN_MS) {
+      sheetService.spreadsheets.values
+        .append(sheetId, range, body)
+        .setValueInputOption(valueInputOption)
+        .execute
+    }
+
   }
 }

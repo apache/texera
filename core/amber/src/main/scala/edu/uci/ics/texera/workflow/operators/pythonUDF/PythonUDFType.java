@@ -2,13 +2,20 @@ package edu.uci.ics.texera.workflow.operators.pythonUDF;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 public enum PythonUDFType {
-    MAP("map"),
+    Map("map"),
 
     Filter("filter"),
 
-    Training("training");
+    SupervisedTraining("supervised_training"),
 
+    UnsupervisedTraining("unsupervised_training");
+
+    public static List<PythonUDFType> supportsParallel = Arrays.asList(Map, Filter);
 
     private final String name;
 
