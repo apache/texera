@@ -4,6 +4,7 @@ import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
+import edu.uci.ics.texera.workflow.common.tuple.schema.SchemaInfo;
 import scala.Function1;
 import scala.Serializable;
 
@@ -13,9 +14,11 @@ import java.util.List;
 public class LineChartOpExec extends MapOpExec {
 
     private final LineChartOpDesc opDesc;
+    private final SchemaInfo schemaInfo;
 
-    public LineChartOpExec(LineChartOpDesc opDesc) {
+    public LineChartOpExec(LineChartOpDesc opDesc, SchemaInfo schemaInfo) {
         this.opDesc = opDesc;
+        this.schemaInfo = schemaInfo;
         this.setMapFunc((Function1<Tuple, Tuple> & Serializable) this::processTuple);
     }
 
@@ -32,6 +35,6 @@ public class LineChartOpExec extends MapOpExec {
             resultObjects.add(t.getField(s));
             resultAttributes.add(inputSchema.getAttribute(s));
         }
-        return Tuple.newBuilder().add(resultAttributes, resultObjects).build();
+        return Tuple.newBuilder(schemaInfo.outputSchema()).add(resultAttributes, resultObjects).build();
     }
 }

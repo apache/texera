@@ -29,6 +29,7 @@ public class WordCloudOpFinalExec implements OperatorExecutor {
     private HashMap<String, Integer> termFreqMap;
     private final int topN;
 
+    // FIXME The descriptor returns (word, size) as schema, but there is (word, count) here. Typo?
     private static final Schema resultSchema = Schema.newBuilder().add(
             new Attribute("word", AttributeType.STRING),
             new Attribute("count", AttributeType.INTEGER)
@@ -59,7 +60,7 @@ public class WordCloudOpFinalExec implements OperatorExecutor {
 
         List<Tuple> termFreqTuples = new ArrayList<>();
         for (Map.Entry<String, Integer> e : topNWordFreqs) {
-            termFreqTuples.add(Tuple.newBuilder().add(
+            termFreqTuples.add(Tuple.newBuilder(resultSchema).add(
                     resultSchema,
                     Arrays.asList(e.getKey(), e.getValue())
             ).build());

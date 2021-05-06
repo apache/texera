@@ -55,8 +55,9 @@ public class PieChartOpPartialExec implements OperatorExecutor {
             }
             Schema oldSchema = tuple.left().get().getSchema();
             Attribute dataAttribute = new Attribute(oldSchema.getAttribute(dataColumn).getName(), AttributeType.DOUBLE);
+            // FIXME Understand what this is doing, and can it be made per operator and not per tuple
             Schema newSchema = new Schema(Arrays.asList(oldSchema.getAttribute(nameColumn), dataAttribute));
-            result.add(Tuple.newBuilder().add(newSchema, Arrays.asList(name, data)).build());
+            result.add(Tuple.newBuilder(newSchema).add(newSchema, Arrays.asList(name, data)).build());
             return JavaConverters.asScalaIterator(Iterators.emptyIterator());
         }
         else {

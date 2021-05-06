@@ -297,10 +297,12 @@ public class Tuple implements ITuple, Serializable {
             return this;
         }
 
+        // FIXME Might not be necessary anymore
         public Builder add(Schema schema, Iterable<Object> fields) {
             return add(schema.getAttributes(), fields);
         }
 
+        // FIXME Might not be necessary anymore
         public Builder add(Schema schema, Object[] fields) {
             return add(schema.getAttributes(), Lists.newArrayList(fields));
         }

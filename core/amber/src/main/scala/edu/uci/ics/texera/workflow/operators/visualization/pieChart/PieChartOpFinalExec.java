@@ -70,7 +70,7 @@ public class PieChartOpFinalExec implements OperatorExecutor {
                 resultList.add(t);
                 if (total / sum > pruneRatio) {
                     Double otherDataField = sum - total;
-                    resultList.add(Tuple.newBuilder().add(resultSchema, Arrays.asList("Other", otherDataField)).build());
+                    resultList.add(Tuple.newBuilder(resultSchema).add(resultSchema, Arrays.asList("Other", otherDataField)).build());
                     break;
                 }
             }
