@@ -100,8 +100,11 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     csvScanSourceOpDesc.hasHeader = false
     csvScanSourceOpDesc.setContext(workflowContext)
 
-    assert(csvScanSourceOpDesc.operatorExecutor.topology.layers.length == 1)
-    assert(csvScanSourceOpDesc.operatorExecutor.topology.layers.apply(0).numWorkers == 1)
+    // FIXME Maybe a better mocked schema?
+    assert(csvScanSourceOpDesc.operatorExecutor(null, null).topology.layers.length == 1)
+    assert(
+      csvScanSourceOpDesc.operatorExecutor(null, null).topology.layers.apply(0).numWorkers == 1
+    )
   }
 
 }
