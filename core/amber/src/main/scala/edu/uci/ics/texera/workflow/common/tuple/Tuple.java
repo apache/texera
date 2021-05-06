@@ -395,21 +395,6 @@ public class Tuple implements ITuple, Serializable {
             return this;
         }
 
-        /**
-         * Removes a list of attributes (and their corresponding field) from the tuple builder
-         * if the attributes exist.
-         *
-         * @param attributes, the names of the attributes
-         * @return this builder object
-         */
-        public Builder removeIfExists(Iterable<String> attributes) {
-            checkNotNull(attributes);
-            attributes.forEach(attr -> checkNotNull(attr));
-
-            attributes.forEach(attr -> this.removeIfExists(attr));
-            return this;
-        }
-
         /*********************
          * public static helper functions to handle a list of tuples
          *********************/
@@ -528,27 +513,6 @@ public class Tuple implements ITuple, Serializable {
          */
         public static List<Tuple> remove(Iterable<Tuple> tuples, String... attributes) {
             return (remove(tuples, Arrays.asList(attributes)));
-        }
-
-        /**
-         * Removes a list of attributes (and their corresponding fields) from each tuple in the list.
-         * if the attributes exist
-         *
-         * @param tuples
-         * @param attributes
-         * @return a list of newly created tuples, with the attributes removed (if they exist)
-         */
-        public static List<Tuple> removeIfExists(Iterable<Tuple> tuples, Iterable<String> attributes) {
-            checkNotNull(tuples);
-            tuples.forEach(tuple -> checkNotNull(tuple));
-            checkNotNull(attributes);
-            attributes.forEach(attr -> checkNotNull(attr));
-
-            return Streams.stream(tuples)
-                    .map(tuple -> new Tuple.Builder(tuple))
-                    .map(builder -> builder.removeIfExists(attributes))
-                    .map(builder -> builder.build())
-                    .collect(Collectors.toList());
         }
 
     }
