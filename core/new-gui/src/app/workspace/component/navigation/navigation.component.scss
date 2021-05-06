@@ -183,7 +183,6 @@
     }
 
     .animate-to-reveal-stop-button {
-      translate: 40px;
       transition: translate 0.3s ease-out;
       transition-delay: 0.1s;
     }
@@ -191,7 +190,6 @@
 
   .reveal-stop-button {
     .animate-to-reveal-stop-button {
-      translate: 0px;
     }
   }
 }
