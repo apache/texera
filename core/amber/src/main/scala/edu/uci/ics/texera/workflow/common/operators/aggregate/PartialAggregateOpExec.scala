@@ -53,7 +53,8 @@ class PartialAggregateOpExec[Partial <: AnyRef](
       case Right(_) =>
         partialObjectPerKey.iterator.map(pair => {
           val fields: Array[Object] = (pair._1 :+ pair._2).toArray
-          Tuple.newBuilder().add(schema, fields).build()
+          // FIXME This is doing schema caching by itself. Let it be?
+          Tuple.newBuilder(schema).add(schema, fields).build()
         })
     }
   }

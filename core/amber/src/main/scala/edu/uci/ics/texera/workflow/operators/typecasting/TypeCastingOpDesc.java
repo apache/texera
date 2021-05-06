@@ -37,7 +37,7 @@ public class TypeCastingOpDesc extends MapOpDesc {
         if (attribute == null) {
             throw new RuntimeException("TypeCasting: attribute is null");
         }
-        return new OneToOneOpExecConfig(operatorIdentifier(), worker -> new TypeCastingOpExec(this));
+        return new OneToOneOpExecConfig(operatorIdentifier(), worker -> new TypeCastingOpExec(this, schemaInfo));
     }
 
     @Override

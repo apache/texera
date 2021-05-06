@@ -43,7 +43,7 @@ class JSONLScanSourceOpExec private[json] (
           }
         }
 
-        Tuple.newBuilder.add(schema, fields.toArray).build
+        Tuple.newBuilder(schema).add(schema, fields.toArray).build
 
       }
     }

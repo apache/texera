@@ -53,11 +53,12 @@ object AttributeTypeUtils extends Serializable {
     */
   def TupleCasting(
       tuple: Tuple,
+      outputSchema: Schema,
       attribute: String,
       resultType: AttributeType
   ): Tuple = {
     // need a builder to maintain the order of original tuple
-    val builder: Tuple.Builder = Tuple.newBuilder
+    val builder: Tuple.Builder = Tuple.newBuilder(outputSchema)
     val attributes: List[Attribute] = tuple.getSchema.getAttributesScala
     // change the tuple when meet selected attribute else remain the same
     for (i <- attributes.indices) {

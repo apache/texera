@@ -57,7 +57,8 @@ class FinalAggregateOpExec[Partial <: AnyRef](
           }
           val fields: Array[Object] =
             (pair._1 ++ JavaConverters.asScalaBuffer(finalObject.getFields)).toArray
-          Tuple.newBuilder().add(schema, fields).build()
+          // FIXME This is doing schema caching by itself. Let it be?
+          Tuple.newBuilder(schema).add(schema, fields).build()
         })
     }
   }

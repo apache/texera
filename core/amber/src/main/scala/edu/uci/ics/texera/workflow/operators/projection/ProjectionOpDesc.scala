@@ -20,7 +20,7 @@ class ProjectionOpDesc extends MapOpDesc {
   var attributes: List[String] = List()
 
   override def operatorExecutor(schemaInfo: SchemaInfo): OneToOneOpExecConfig = {
-    new OneToOneOpExecConfig(operatorIdentifier, _ => new ProjectionOpExec(attributes))
+    new OneToOneOpExecConfig(operatorIdentifier, _ => new ProjectionOpExec(schemaInfo, attributes))
   }
 
   override def operatorInfo: OperatorInfo = {
