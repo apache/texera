@@ -7,6 +7,7 @@ import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
+import edu.uci.ics.texera.workflow.common.tuple.schema.SchemaInfo;
 import scala.collection.immutable.List;
 
 import static java.util.Collections.singletonList;
@@ -15,7 +16,7 @@ import static scala.collection.JavaConverters.asScalaBuffer;
 public class SimpleSinkOpDesc extends OperatorDescriptor {
 
     @Override
-    public OpExecConfig operatorExecutor(Schema[] inputSchemas, Schema outputSchema) {
+    public OpExecConfig operatorExecutor(SchemaInfo schemaInfo) {
         return new SimpleSinkOpExecConfig(this.operatorIdentifier());
     }
 

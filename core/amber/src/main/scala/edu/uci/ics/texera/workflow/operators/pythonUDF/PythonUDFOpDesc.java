@@ -13,6 +13,7 @@ import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
+import edu.uci.ics.texera.workflow.common.tuple.schema.SchemaInfo;
 import scala.collection.JavaConverters;
 
 import java.util.List;
@@ -68,7 +69,7 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
 
 
     @Override
-    public OpExecConfig operatorExecutor(Schema[] inputSchemas, Schema outputSchema) {
+    public OpExecConfig operatorExecutor(SchemaInfo schemaInfo) {
         return new PythonUDFOpExecConfig(this.operatorIdentifier(),
                 // changed it to 1 because training with python needs all data in one node.
                 PythonUDFType.supportsParallel.contains(pythonUDFType) ? Constants.defaultNumWorkers() : 1,

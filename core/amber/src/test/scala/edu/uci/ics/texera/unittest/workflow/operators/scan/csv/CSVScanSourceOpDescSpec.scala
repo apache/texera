@@ -1,11 +1,8 @@
 package edu.uci.ics.texera.unittest.workflow.operators.scan.csv
 
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema, SchemaInfo}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.operators.source.scan.csv.{
-  CSVScanSourceOpDesc,
-  ParallelCSVScanSourceOpDesc
-}
+import edu.uci.ics.texera.workflow.operators.source.scan.csv.{CSVScanSourceOpDesc, ParallelCSVScanSourceOpDesc}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.BeforeAndAfter
 
@@ -101,9 +98,9 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     csvScanSourceOpDesc.setContext(workflowContext)
 
     // FIXME Maybe a better mocked schema?
-    assert(csvScanSourceOpDesc.operatorExecutor(null, null).topology.layers.length == 1)
+    assert(csvScanSourceOpDesc.operatorExecutor(null).topology.layers.length == 1)
     assert(
-      csvScanSourceOpDesc.operatorExecutor(null, null).topology.layers.apply(0).numWorkers == 1
+      csvScanSourceOpDesc.operatorExecutor(null).topology.layers.apply(0).numWorkers == 1
     )
   }
 

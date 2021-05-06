@@ -9,6 +9,7 @@ import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
+import edu.uci.ics.texera.workflow.common.tuple.schema.SchemaInfo;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
 
 import static java.util.Collections.singletonList;
@@ -44,7 +45,7 @@ public class PieChartOpDesc extends VisualizationOperator {
     }
 
     @Override
-    public PieChartOpExecConfig operatorExecutor(Schema[] inputSchemas, Schema outputSchema) {
+    public PieChartOpExecConfig operatorExecutor(SchemaInfo schemaInfo) {
         if (nameColumn == null) {
             throw new RuntimeException("pie chart: name column is null");
         }

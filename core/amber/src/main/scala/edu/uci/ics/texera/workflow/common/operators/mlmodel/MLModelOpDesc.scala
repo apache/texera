@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.common.operators.mlmodel
 import com.google.common.base.Preconditions
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.{OneToOneOpExecConfig, OperatorDescriptor}
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Schema, SchemaInfo}
 
 abstract class MLModelOpDesc extends OperatorDescriptor {
 
@@ -13,6 +13,6 @@ abstract class MLModelOpDesc extends OperatorDescriptor {
     schemas(0)
   }
 
-  override def operatorExecutor(inputSchemas: Array[Schema], outputSchema: Schema): OpExecConfig
+  override def operatorExecutor(schemaInfo: SchemaInfo): OpExecConfig
 
 }
