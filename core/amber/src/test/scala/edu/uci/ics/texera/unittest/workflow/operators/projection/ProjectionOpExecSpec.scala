@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.unittest.workflow.operators.projection
 
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema, SchemaInfo}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.operators.projection.ProjectionOpExec
 import org.scalatest.flatspec.AnyFlatSpec
@@ -23,7 +23,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     .build()
   var projectionOpExec: ProjectionOpExec = _
   before {
-    projectionOpExec = new ProjectionOpExec(, List())
+    projectionOpExec = new ProjectionOpExec(SchemaInfo(null, outputSchema), List())
   }
 
   it should "open" in {
