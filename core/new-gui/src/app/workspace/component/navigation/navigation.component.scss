@@ -25,47 +25,18 @@
     $medium-font-limit: 1270px;
     $small-font-limit: 850px;
     $only-title-limit: 710px;
-
     $margin: 10px;
 
     grid-column: 1/1;
     grid-row: 1/3;
-    margin-left: $margin;
+    margin-left: calc(#{$margin} + 12% - 0.854ch);
     margin-right: $margin;
     width: max-content;
+    font-size: calc(1vw + 12px);
 
-    display: grid;
-    overflow: hidden;
-    column-gap: 4px;
-
-    .title-link {
-      align-items: baseline;
-      margin-bottom: -3px;
-
-      .title {
-        font-size: 32px;
-
-        @media screen and (max-width: $medium-font-limit) {
-          font-size: 24px;
-        }
-        @media screen and (max-width: $small-font-limit) {
-          font-size: 20px;
-        }
-      }
-
-      .version-number {
-        font-size: 12px;
-
-        @media screen and (max-width: $medium-font-limit) {
-          font-size: 10px;
-        }
-        @media screen and (max-width: $small-font-limit) {
-          font-size: 8px;
-        }
-        @media screen and (max-width: $only-title-limit) {
-          display: none;
-        }
-      }
+    &.user-system-enabled {
+      font-size: calc(1.4vw + 10px);
+      margin-left: calc(#{$margin} + 12% - 0.863ch);
     }
   }
 
@@ -76,7 +47,7 @@
     z-index:2;
     overflow: visible;
   }
-  
+
   .texera-navigation-dashboard {
     grid-column: 2/3;
     grid-row: 2/2;
