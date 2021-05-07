@@ -36,17 +36,17 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
 
   override def operatorExecutor(schemaInfo: SchemaInfo): AggregateOpExecConfig[_] = {
     aggFunction match {
-      case AggregationFunction.AVERAGE => averageAgg()
-      case AggregationFunction.COUNT   => countAgg()
-      case AggregationFunction.MAX     => maxAgg()
-      case AggregationFunction.MIN     => minAgg()
-      case AggregationFunction.SUM     => sumAgg()
+      case AggregationFunction.AVERAGE => averageAgg(schemaInfo)
+      case AggregationFunction.COUNT   => countAgg(schemaInfo)
+      case AggregationFunction.MAX     => maxAgg(schemaInfo)
+      case AggregationFunction.MIN     => minAgg(schemaInfo)
+      case AggregationFunction.SUM     => sumAgg(schemaInfo)
       case _ =>
         throw new UnsupportedOperationException("Unknown aggregation function: " + aggFunction)
     }
   }
 
-  def sumAgg(): AggregateOpExecConfig[_] = {
+  def sumAgg(schemaInfo: SchemaInfo): AggregateOpExecConfig[_] = {
     val aggregation = new DistributedAggregation[java.lang.Double](
       () => 0,
       (partial, tuple) => {
@@ -56,9 +56,9 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       },
       (partial1, partial2) => partial1 + partial2,
       partial => {
-        Tuple.newBuilder.add(resultAttribute, AttributeType.DOUBLE, partial).build
+        Tuple.newBuilder(schemaInfo.outputSchema).add(resultAttribute, AttributeType.DOUBLE, partial).build
       },
-      groupByFunc()
+      groupByFunc(schemaInfo)
     )
     new AggregateOpExecConfig[java.lang.Double](
       operatorIdentifier,
@@ -66,7 +66,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     )
   }
 
-  def countAgg(): AggregateOpExecConfig[_] = {
+  def countAgg(schemaInfo: SchemaInfo): AggregateOpExecConfig[_] = {
     val aggregation = new DistributedAggregation[Integer](
       () => 0,
       (partial, tuple) => {
@@ -74,9 +74,9 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       },
       (partial1, partial2) => partial1 + partial2,
       partial => {
-        Tuple.newBuilder.add(resultAttribute, AttributeType.INTEGER, partial).build
+        Tuple.newBuilder(schemaInfo.outputSchema).add(resultAttribute, AttributeType.INTEGER, partial).build
       },
-      groupByFunc()
+      groupByFunc(schemaInfo)
     )
     new AggregateOpExecConfig[Integer](
       operatorIdentifier,
@@ -84,11 +84,11 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     )
   }
 
-  def groupByFunc(): Tuple => Tuple = {
+  def groupByFunc(schemaInfo: SchemaInfo): Tuple => Tuple = {
     if (this.groupByKeys == null) null
     else
       tuple => {
-        val builder = Tuple.newBuilder()
+        val builder = Tuple.newBuilder(schemaInfo.outputSchema)
         groupByKeys.foreach(key =>
           builder.add(tuple.getSchema.getAttribute(key), tuple.getField(key))
         )
@@ -96,7 +96,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       }
   }
 
-  def minAgg(): AggregateOpExecConfig[_] = {
+  def minAgg(schemaInfo: SchemaInfo): AggregateOpExecConfig[_] = {
     val aggregation = new DistributedAggregation[java.lang.Double](
       () => Double.MaxValue,
       (partial, tuple) => {
@@ -107,9 +107,9 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       partial => {
         if (partial == Double.MaxValue) null
         else
-          Tuple.newBuilder.add(resultAttribute, AttributeType.DOUBLE, partial).build
+          Tuple.newBuilder(schemaInfo.outputSchema).add(resultAttribute, AttributeType.DOUBLE, partial).build
       },
-      groupByFunc()
+      groupByFunc(schemaInfo)
     )
     new AggregateOpExecConfig[java.lang.Double](
       operatorIdentifier,
@@ -117,7 +117,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     )
   }
 
-  def maxAgg(): AggregateOpExecConfig[_] = {
+  def maxAgg(schemaInfo: SchemaInfo): AggregateOpExecConfig[_] = {
     val aggregation = new DistributedAggregation[java.lang.Double](
       () => Double.MinValue,
       (partial, tuple) => {
@@ -128,9 +128,9 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       partial => {
         if (partial == Double.MinValue) null
         else
-          Tuple.newBuilder.add(resultAttribute, AttributeType.DOUBLE, partial).build
+          Tuple.newBuilder(schemaInfo.outputSchema).add(resultAttribute, AttributeType.DOUBLE, partial).build
       },
-      groupByFunc()
+      groupByFunc(schemaInfo)
     )
     new AggregateOpExecConfig[java.lang.Double](
       operatorIdentifier,
@@ -138,7 +138,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     )
   }
 
-  def averageAgg(): AggregateOpExecConfig[_] = {
+  def averageAgg(schemaInfo: SchemaInfo): AggregateOpExecConfig[_] = {
     val aggregation = new DistributedAggregation[AveragePartialObj](
       () => AveragePartialObj(0, 0),
       (partial, tuple) => {
@@ -152,9 +152,9 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
         AveragePartialObj(partial1.sum + partial2.sum, partial1.count + partial2.count),
       partial => {
         val value = if (partial.count == 0) null else partial.sum / partial.count
-        Tuple.newBuilder.add(resultAttribute, AttributeType.DOUBLE, value).build
+        Tuple.newBuilder(schemaInfo.outputSchema).add(resultAttribute, AttributeType.DOUBLE, value).build
       },
-      groupByFunc()
+      groupByFunc(schemaInfo)
     )
     new AggregateOpExecConfig[AveragePartialObj](
       operatorIdentifier,

@@ -35,6 +35,12 @@ public class WordCloudOpFinalExec implements OperatorExecutor {
             new Attribute("count", AttributeType.INTEGER)
     ).build();
 
+    private static final Schema internalSchemaForInsertions = Schema.newBuilder().add(
+            ProgressiveUtils.insertRetractFlagAttr(),
+            new Attribute("word", AttributeType.STRING),
+            new Attribute("count", AttributeType.INTEGER)
+    ).build();
+
     public static final int UPDATE_INTERVAL_MS = 500;
     private long lastUpdatedTime = 0;
     private long counterSinceLastUpdate = 0;
@@ -76,8 +82,8 @@ public class WordCloudOpFinalExec implements OperatorExecutor {
         insertions.removeAll(prevWordCloudTuples);
 
         List<Tuple> results = new ArrayList<>();
-        retractions.forEach(tuple -> results.add(ProgressiveUtils.addRetractionFlag(tuple)));
-        insertions.forEach(tuple -> results.add(ProgressiveUtils.addInsertionFlag(tuple)));
+        retractions.forEach(tuple -> results.add(ProgressiveUtils.addRetractionFlag(internalSchemaForInsertions, tuple)));
+        insertions.forEach(tuple -> results.add(ProgressiveUtils.addInsertionFlag(internalSchemaForInsertions, tuple)));
         return results;
     }
 

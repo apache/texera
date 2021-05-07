@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.common
 
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 
 object ProgressiveUtils {
 
@@ -10,14 +10,14 @@ object ProgressiveUtils {
   // false indicates retraction (-)
   val insertRetractFlagAttr = new Attribute("__internal_is_insertion", AttributeType.BOOLEAN)
 
-  def addInsertionFlag(tuple: Tuple): Tuple = {
+  def addInsertionFlag(schema: Schema, tuple: Tuple): Tuple = {
     assert(!tuple.getSchema.containsAttribute(insertRetractFlagAttr.getName))
-    Tuple.newBuilder.add(insertRetractFlagAttr, true).add(tuple).build
+    Tuple.newBuilder(schema).add(insertRetractFlagAttr, true).add(tuple).build
   }
 
-  def addRetractionFlag(tuple: Tuple): Tuple = {
+  def addRetractionFlag(schema: Schema, tuple: Tuple): Tuple = {
     assert(!tuple.getSchema.containsAttribute(insertRetractFlagAttr.getName))
-    Tuple.newBuilder.add(insertRetractFlagAttr, false).add(tuple).build
+    Tuple.newBuilder(schema).add(insertRetractFlagAttr, false).add(tuple).build
   }
 
   def isInsertion(tuple: Tuple): Boolean = {
@@ -31,7 +31,7 @@ object ProgressiveUtils {
   def getTupleFlagAndValue(tuple: Tuple): (Boolean, Tuple) = {
     (
       isInsertion(tuple),
-      Tuple.newBuilder().add(tuple).removeIfExists(insertRetractFlagAttr.getName).build()
+      Tuple.newBuilder(tuple.getSchema).add(tuple).removeIfExists(insertRetractFlagAttr.getName).build()
     )
   }
 

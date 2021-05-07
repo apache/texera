@@ -183,10 +183,6 @@ public class Tuple implements ITuple, Serializable {
         }
     }
 
-    public static Tuple.Builder newBuilder() {
-        return new Tuple.Builder();
-    }
-
     public static Tuple.Builder newBuilder(Schema schema) {
         return new Tuple.Builder(schema);
     }
