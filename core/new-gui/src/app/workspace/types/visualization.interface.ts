@@ -12,7 +12,9 @@ export enum ChartType {
   STACKED_BAR = 'stacked bar',
   WORD_CLOUD = 'word cloud',
   LINE = 'line',
-  SPLINE = 'spline'
+  SPLINE = 'spline',
+  SCATTERPLOT = 'scatter',
+  SPATIAL_SCATTERPLOT = 'spatial scatterplot'
 }
 
 /**

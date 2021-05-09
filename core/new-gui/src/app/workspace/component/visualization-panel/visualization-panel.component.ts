@@ -53,6 +53,7 @@ export class VisualizationPanelComponent implements OnChanges {
     this.modalRef = this.modalService.create({
       nzTitle: 'Visualization',
       nzWidth: 1100,
+      nzFooter: null,
       nzContent: VisualizationPanelContentComponent,
       nzComponentParams: {
         operatorID: this.operatorID

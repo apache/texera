@@ -1,12 +1,19 @@
 import { AfterViewInit, Component, Input, OnDestroy } from '@angular/core';
 import * as c3 from 'c3';
-import { PrimitiveArray } from 'c3';
+import {Primitive, PrimitiveArray} from 'c3';
 import * as d3 from 'd3';
 import * as cloud from 'd3-cloud';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { ResultObject } from '../../types/execute-workflow.interface';
 import { ChartType, WordCloudTuple } from '../../types/visualization.interface';
 import { Subscription } from 'rxjs';
+import {environment} from 'src/environments/environment';
+import * as mapboxgl from 'mapbox-gl';
+import {MapboxLayer} from '@deck.gl/mapbox';
+import {ScatterplotLayer} from '@deck.gl/layers';
+import {ScatterplotLayerProps} from '@deck.gl/layers/scatterplot-layer/scatterplot-layer';
+
+(mapboxgl as any).accessToken = environment.mapbox.accessToken;
 
 /**
  * VisualizationPanelContentComponent displays the chart based on the chart type and data in table.
@@ -23,6 +30,7 @@ import { Subscription } from 'rxjs';
 export class VisualizationPanelContentComponent implements AfterViewInit, OnDestroy {
   // this readonly variable must be the same as HTML element ID for visualization
   public static readonly CHART_ID = '#texera-result-chart-content';
+  public static readonly MAP_CONTAINER = 'texera-result-map-container';
 
   // width and height of the canvas in px
   public static readonly WIDTH = 1000;
@@ -41,6 +49,7 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
 
   private wordCloudElement: d3.Selection<SVGGElement, unknown, HTMLElement, any> | undefined;
   private c3ChartElement: c3.ChartAPI | undefined;
+  private map: mapboxgl.Map | undefined;
 
   private updateSubscription: Subscription | undefined;
 
@@ -69,6 +78,9 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
     if (this.c3ChartElement) {
       this.c3ChartElement.destroy();
     }
+    if (this.map) {
+      this.map.remove();
+    }
     if (this.updateSubscription) {
       this.updateSubscription.unsubscribe();
     }
@@ -85,7 +97,12 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
 
     this.data = result.table as object[];
     this.chartType = result.chartType;
-
+    if (!this.data || !this.chartType) {
+      return;
+    }
+    if (this.data?.length < 1) {
+      return;
+    }
     switch (this.chartType) {
       // correspond to WordCloudSink.java
       case ChartType.WORD_CLOUD:
@@ -102,6 +119,95 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
       case ChartType.SPLINE:
         this.generateChart();
         break;
+      case ChartType.SPATIAL_SCATTERPLOT:
+        this.generateSpatialScatterplot();
+        break;
+      case ChartType.SCATTERPLOT:
+        this.generateSimpleScatterplot();
+        break;
+    }
+  }
+
+  generateSimpleScatterplot() {
+    if (this.c3ChartElement) {
+      this.c3ChartElement.destroy();
+    }
+    const result = this.data as Array<Record<string, Primitive>>;
+    const xLabel: string = Object.keys(result[0])[0];
+    const yLabel: string = Object.keys(result[0])[1];
+
+    this.c3ChartElement = c3.generate({
+      size: {
+        height: VisualizationPanelContentComponent.HEIGHT,
+        width: VisualizationPanelContentComponent.WIDTH
+      },
+      data: {
+        json: result,
+        keys: {
+          x: xLabel,
+          value: [yLabel]
+        },
+        type: this.chartType as c3.ChartType
+      },
+      axis: {
+        x: {
+          label: xLabel,
+          tick: {
+            fit: true
+          }
+        },
+        y: {
+          label: yLabel
+        }
+      },
+      bindto: VisualizationPanelContentComponent.CHART_ID
+    });
+  }
+
+  generateSpatialScatterplot() {
+    if (this.map === undefined) {
+      this.initMap();
+    }
+    this.map?.on('styledata', () => {
+      this.addScatterLayer();
+    });
+  }
+
+  initMap() {
+    /* mapbox object with default configuration */
+    this.map = new mapboxgl.Map({
+      container: VisualizationPanelContentComponent.MAP_CONTAINER,
+      style: 'mapbox://styles/mapbox/light-v9',
+      center: [-96.35, 39.5],
+      zoom: 3,
+      maxZoom: 17,
+      minZoom: 0
+    });
+  }
+
+  addScatterLayer() {
+    if (this.map !== undefined) {
+      if (this.map?.getLayer('scatter')) {
+        this.map?.removeLayer('scatter');
+      }
+      const props: ScatterplotLayerProps<any> = {
+        opacity: 0.8,
+        filled: true,
+        radiusScale: 100,
+        radiusMinPixels: 1,
+        radiusMaxPixels: 25,
+        getPosition: (d: { longitude: any; latitude: any; }) => [d.longitude, d.latitude],
+        getFillColor: [57, 73, 171]
+      };
+
+      const clusterLayer = new MapboxLayer({
+        id: 'scatter',
+        type: ScatterplotLayer,
+        data: this.data,
+        pickable: true,
+      });
+      clusterLayer.setProps(props);
+      this.map.addLayer(clusterLayer);
     }
   }
 
