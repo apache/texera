@@ -13,7 +13,7 @@ export enum ChartType {
   WORD_CLOUD = 'word cloud',
   LINE = 'line',
   SPLINE = 'spline',
-  SCATTERPLOT = 'scatter',
+  SIMPLE_SCATTERPLOT = 'scatter',
   SPATIAL_SCATTERPLOT = 'spatial scatterplot'
 }
 

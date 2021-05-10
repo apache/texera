@@ -40,7 +40,7 @@ public class ScatterplotOpDesc extends VisualizationOperator {
     public String chartType() {
         if(isGeometric)
             return VisualizationConstants.SPATIAL_SCATTERPLOT;
-        return VisualizationConstants.SCATTERPLOT;
+        return VisualizationConstants.SIMPLE_SCATTERPLOT;
     }
 
     @Override

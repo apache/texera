@@ -27,8 +27,8 @@ public class ScatterplotOpExec extends MapOpExec {
         Schema resultSchema;
         if(opDesc.isGeometric)
             resultSchema = Schema.newBuilder().add(
-                    new Attribute("longitude", t.getSchema().getAttribute(opDesc.xColumn).getType()),
-                    new Attribute("latitude", t.getSchema().getAttribute(opDesc.yColumn).getType())
+                    new Attribute("xColumn", t.getSchema().getAttribute(opDesc.xColumn).getType()),
+                    new Attribute("yColumn", t.getSchema().getAttribute(opDesc.yColumn).getType())
             ).build();
 
         else

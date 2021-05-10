@@ -1,17 +1,17 @@
 import { AfterViewInit, Component, Input, OnDestroy } from '@angular/core';
 import * as c3 from 'c3';
-import {Primitive, PrimitiveArray} from 'c3';
+import { Primitive, PrimitiveArray } from 'c3';
 import * as d3 from 'd3';
 import * as cloud from 'd3-cloud';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { ResultObject } from '../../types/execute-workflow.interface';
 import { ChartType, WordCloudTuple } from '../../types/visualization.interface';
 import { Subscription } from 'rxjs';
-import {environment} from 'src/environments/environment';
+import { environment } from 'src/environments/environment';
 import * as mapboxgl from 'mapbox-gl';
-import {MapboxLayer} from '@deck.gl/mapbox';
-import {ScatterplotLayer} from '@deck.gl/layers';
-import {ScatterplotLayerProps} from '@deck.gl/layers/scatterplot-layer/scatterplot-layer';
+import { MapboxLayer } from '@deck.gl/mapbox';
+import { ScatterplotLayer } from '@deck.gl/layers';
+import { ScatterplotLayerProps } from '@deck.gl/layers/scatterplot-layer/scatterplot-layer';
 
 (mapboxgl as any).accessToken = environment.mapbox.accessToken;
 
@@ -39,6 +39,15 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
   // progressive visualization update and redraw interval in miliseconds
   public static readonly UPDATE_INTERVAL_MS = 2000;
 
+  private static readonly props: ScatterplotLayerProps<any> = {
+    opacity: 0.8,
+    filled: true,
+    radiusScale: 100,
+    radiusMinPixels: 1,
+    radiusMaxPixels: 25,
+    getPosition: (d: { xColumn: number; yColumn: number; }) => [d.xColumn, d.yColumn],
+    getFillColor: [57, 73, 171]
+  };
 
   @Input()
   operatorID: string | undefined;
@@ -122,7 +131,7 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
       case ChartType.SPATIAL_SCATTERPLOT:
         this.generateSpatialScatterplot();
         break;
-      case ChartType.SCATTERPLOT:
+      case ChartType.SIMPLE_SCATTERPLOT:
         this.generateSimpleScatterplot();
         break;
     }
@@ -169,7 +178,7 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
       this.initMap();
     }
     this.map?.on('styledata', () => {
-      this.addScatterLayer();
+      this.addNeworReplaceExistingLayer();
     });
   }
 
@@ -185,20 +194,11 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
     });
   }
 
-  addScatterLayer() {
+  addNeworReplaceExistingLayer() {
     if (this.map !== undefined) {
       if (this.map?.getLayer('scatter')) {
         this.map?.removeLayer('scatter');
       }
-      const props: ScatterplotLayerProps<any> = {
-        opacity: 0.8,
-        filled: true,
-        radiusScale: 100,
-        radiusMinPixels: 1,
-        radiusMaxPixels: 25,
-        getPosition: (d: { longitude: any; latitude: any; }) => [d.longitude, d.latitude],
-        getFillColor: [57, 73, 171]
-      };
 
       const clusterLayer = new MapboxLayer({
         id: 'scatter',
@@ -206,7 +206,7 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
         data: this.data,
         pickable: true,
       });
-      clusterLayer.setProps(props);
+      clusterLayer.setProps(VisualizationPanelContentComponent.props);
       this.map.addLayer(clusterLayer);
     }
   }
