@@ -1,6 +1,6 @@
 import logging
 
-from texera_udf_operator_base import TexeraUDFOperator, exception
+from operators.texera_udf_operator_base import TexeraUDFOperator, exception
 
 
 class DemoOperator(TexeraUDFOperator):

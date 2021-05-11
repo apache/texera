@@ -4,7 +4,7 @@ import gensim
 import gensim.corpora as corpora
 import pandas
 
-from texera_udf_operator_base import TexeraBlockingUnsupervisedTrainerOperator, exception
+from operators.texera_udf_operator_base import TexeraBlockingUnsupervisedTrainerOperator, exception
 
 
 class TopicModeling(TexeraBlockingUnsupervisedTrainerOperator):

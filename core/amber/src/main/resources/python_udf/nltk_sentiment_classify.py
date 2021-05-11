@@ -3,7 +3,8 @@ import pickle
 
 import pandas
 
-from texera_udf_operator_base import TexeraMapOperator, exception
+from operators.texera_map_operator import TexeraMapOperator
+from operators.texera_udf_operator_base import exception
 
 
 class NLTKSentimentOperator(TexeraMapOperator):

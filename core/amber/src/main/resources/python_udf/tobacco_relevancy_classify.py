@@ -5,7 +5,8 @@ import pandas
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 
-from texera_udf_operator_base import TexeraMapOperator, exception
+from operators.texera_map_operator import TexeraMapOperator
+from operators.texera_udf_operator_base import exception
 
 
 def lower_case(text):

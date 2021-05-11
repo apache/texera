@@ -15,7 +15,8 @@ import pyarrow
 import pyarrow.flight
 from pyarrow._flight import FlightDescriptor, Action
 
-import texera_udf_operator_base
+from operators import texera_udf_operator_base
+from operators.texera_map_operator import TexeraMapOperator
 
 
 class UDFServer(pyarrow.flight.FlightServerBase):
@@ -255,7 +256,7 @@ if __name__ == '__main__':
     if hasattr(user_module, 'operator_instance'):
         final_UDF = user_module.operator_instance
     elif hasattr(user_module, 'map_function'):
-        final_UDF = texera_udf_operator_base.TexeraMapOperator(user_module.map_function)
+        final_UDF = TexeraMapOperator(user_module.map_function)
     elif hasattr(user_module, 'filter_function'):
         final_UDF = texera_udf_operator_base.TexeraFilterOperator(user_module.filter_function)
     else:

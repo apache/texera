@@ -4,7 +4,8 @@ import pickle
 import pandas
 
 from mock_data import df_from_mysql
-from texera_udf_operator_base import TexeraMapOperator, exception
+from operators.texera_map_operator import TexeraMapOperator
+from operators.texera_udf_operator_base import exception
 
 
 class SVMClassifier(TexeraMapOperator):
