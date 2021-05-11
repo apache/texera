@@ -38,6 +38,7 @@ class TexeraUDFOperator(ABC):
 
     logger = logging.getLogger("PythonUDF.TexeraUDFOperator")
 
+    @exception(logger)
     def __init__(self):
         self._args: Tuple = tuple()
         self._kwargs: Optional[Dict] = None
@@ -105,6 +106,7 @@ class TexeraMapOperator(TexeraUDFOperator):
     """
     logger = logging.getLogger("PythonUDF.TexeraMapOperator")
 
+    @exception(logger)
     def __init__(self, map_function: Callable):
         super().__init__()
         if map_function is None:
