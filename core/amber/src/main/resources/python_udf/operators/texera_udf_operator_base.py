@@ -1,27 +1,8 @@
 import functools
-import inspect
 import logging
 from typing import Dict, Optional, Tuple, List
 
 import pandas
-
-
-def get_class_that_defined_method(meth):
-    if isinstance(meth, functools.partial):
-        return get_class_that_defined_method(meth.func)
-    if inspect.ismethod(meth) or (
-            inspect.isbuiltin(meth) and getattr(meth, '__self__', None) is not None and getattr(meth.__self__, '__class__', None)):
-        for cls in inspect.getmro(meth.__self__.__class__):
-            if meth.__name__ in cls.__dict__:
-                return cls
-        meth = getattr(meth, '__func__', meth)  # fallback to __qualname__ parsing
-    if inspect.isfunction(meth):
-        cls = getattr(inspect.getmodule(meth),
-                      meth.__qualname__.split('.<locals>', 1)[0].rsplit('.', 1)[0],
-                      None)
-        if isinstance(cls, type):
-            return cls
-    return getattr(meth, '__objclass__', None)  # handle special descriptor objects
 
 
 class exception:
@@ -35,11 +16,16 @@ class exception:
         self.fn = fn
 
     def __set_name__(self, owner, name):
-        # do something with owner, i.e.
-        print(f"decorating {self.fn} and using {owner}")
-        self.fn.class_name = owner.__name__
+        """
+        to set class name to the given method
+        :param owner:
+        :param name:
+        :return:
+        """
+        # bind class name to the method
+        self.fn.__class_name = owner.__name__
 
-        # then replace ourself with the original method
+        # then overwrite the original method
         setattr(owner, name, self.fn)
 
     def __call__(self, *args, **kwargs):
@@ -48,11 +34,11 @@ class exception:
         except Exception:
             err = "exception in " + self.fn.__name__ + "\n"
             err += "-------------------------------------------------------------------------\n"
-            self.fn.class_name.__logger.exception(err)
+            self.fn.__class_name.__logger.exception(err)
             raise
 
 
-class MetaBase(type):
+class ClassLoggerMetal(type):
     def __init__(cls, *args):
         super().__init__(*args)
 
@@ -62,7 +48,7 @@ class MetaBase(type):
         setattr(cls, logger_attribute_name, logging.getLogger(cls.__name__))
 
 
-class TexeraUDFOperator(metaclass=MetaBase):
+class TexeraUDFOperator(metaclass=ClassLoggerMetal):
     """
     Base class for row-oriented one-table input, one-table output user-defined operators. This must be implemented
     before using.
