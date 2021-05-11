@@ -201,7 +201,8 @@ class UDFServer(pyarrow.flight.FlightServerBase):
     def _configure(self, *args):
         self._setup_logger(*args)
 
-    def _setup_logger(self, *args):
+    @staticmethod
+    def _setup_logger(*args):
         # TODO: make it kwargs
         # create a file handler
 
