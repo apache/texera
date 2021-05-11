@@ -109,18 +109,18 @@ class UDFServer(pyarrow.flight.FlightServerBase):
         self.logger.debug(f"Flight Server on Action {action.type}")
         if action.type == "health_check":
             # to check the status of the server to see if it is running.
-            yield self._response(b'Flight Server is up and running!')
+            yield self._response('Flight Server is up and running!')
         elif action.type == "open":
 
             # set up user configurations
-            user_conf_table = self.flights[self._descriptor_to_key(self._to_descriptor(b'conf'))]
+            user_conf_table = self.flights[self._descriptor_to_key(self._to_descriptor('conf'))]
             self._configure(*user_conf_table.to_pydict()['conf'])
 
             # open UDF
-            user_args_table = self.flights[self._descriptor_to_key(self._to_descriptor(b'args'))]
+            user_args_table = self.flights[self._descriptor_to_key(self._to_descriptor('args'))]
             self.udf_op.open(*user_args_table.to_pydict()['args'])
 
-            yield self._response(b'Success!')
+            yield self._response('Success!')
         elif action.type == "compute":
             # execute UDF
             # prepare input data
@@ -140,17 +140,17 @@ class UDFServer(pyarrow.flight.FlightServerBase):
             # discard this batch of input
             self._remove_flight("toPython")
 
-            yield self._response(result_buffer.encode('utf-8'))
+            yield self._response(result_buffer)
 
         elif action.type == "input_exhausted":
             self.udf_op.input_exhausted()
             self._output_data()
-            yield self._response(b'Success!')
+            yield self._response('Success!')
 
         elif action.type == "close":
             # close UDF
             self.udf_op.close()
-            yield self._response(b'Success!')
+            yield self._response('Success!')
 
         elif action.type == "terminate":
             # Shut down on background thread to avoid blocking current request
@@ -191,12 +191,12 @@ class UDFServer(pyarrow.flight.FlightServerBase):
         self.flights[output_key] = pyarrow.Table.from_pandas(output_dataframe)
 
     @staticmethod
-    def _response(message: bytes):
-        return pyarrow.flight.Result(pyarrow.py_buffer(message))
+    def _response(message: str):
+        return pyarrow.flight.Result(pyarrow.py_buffer(message.encode()))
 
     @staticmethod
-    def _to_descriptor(channel: bytes) -> FlightDescriptor:
-        return pyarrow.flight.FlightDescriptor.for_path(channel)
+    def _to_descriptor(channel: str) -> FlightDescriptor:
+        return pyarrow.flight.FlightDescriptor.for_path(channel.encode())
 
     def _configure(self, *args):
         self._setup_logger(*args)
