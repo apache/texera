@@ -6,7 +6,8 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.svm import SVC
 
 from mock_data import df_from_mysql
-from operators.texera_udf_operator_base import TexeraBlockingSupervisedTrainerOperator, exception
+from operators.texera_blocking_supervised_trainer_operator import TexeraBlockingSupervisedTrainerOperator
+from operators.texera_udf_operator_base import exception
 
 
 class SVMTrainer(TexeraBlockingSupervisedTrainerOperator):
