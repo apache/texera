@@ -61,8 +61,8 @@ public class ScatterplotOpDesc extends VisualizationOperator {
     @Override
     public Schema getOutputSchema(Schema[] schemas) {
         return Schema.newBuilder().add(
-                new Attribute("xColumn", AttributeType.STRING),
-                new Attribute("yColumn", AttributeType.STRING)
+                new Attribute("xColumn", AttributeType.DOUBLE),
+                new Attribute("yColumn", AttributeType.DOUBLE)
         ).build();
     }
 }
