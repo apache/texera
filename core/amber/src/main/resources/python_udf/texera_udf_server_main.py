@@ -211,8 +211,11 @@ class UDFServer(pyarrow.flight.FlightServerBase):
         file_path = Path(log_dir).joinpath(file_name)
         file_handler = logging.FileHandler(file_path)
 
-        # hacky way to parse for log level
-        log_level = eval(f"logging.{args[1]}")
+        # get log level
+        if len(args) >= 2:
+            log_level = args[1]
+        else:
+            log_level = logging.DEBUG
 
         file_handler.setLevel(log_level)
         file_handler.setFormatter(formatter)

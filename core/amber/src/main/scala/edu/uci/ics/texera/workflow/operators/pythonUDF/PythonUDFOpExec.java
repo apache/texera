@@ -546,6 +546,10 @@ public class PythonUDFOpExec implements OperatorExecutor {
 
 
         String pythonLogLevel = WebUtils.config().getString("python.log.level");
+        // by default, if configuration omitted, use DEBUG level
+        if (pythonLogLevel.isEmpty()) {
+            pythonLogLevel = "DEBUG";
+        }
 
         confTuples.add(new Tuple(confSchema, Collections.singletonList(pythonLogLevel)));
         writeArrowStream(flightClient, confTuples, convertAmber2ArrowSchema(confSchema), Channel.CONF, batchSize);
