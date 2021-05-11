@@ -17,13 +17,13 @@ class TexeraMapOperator(TexeraUDFOperator):
     `map_function` in the script.
     """
 
-    @exception(logger)
+    @exception
     def __init__(self, map_function: Callable):
         super().__init__()
         if map_function is None:
             raise NotImplementedError
         self._map_function: Callable = map_function
 
-    @exception(logger)
+    @exception
     def accept(self, row: pandas.Series, nth_child: int = 0) -> None:
         self._result_tuples.append(self._map_function(row, *self._args))  # must take args

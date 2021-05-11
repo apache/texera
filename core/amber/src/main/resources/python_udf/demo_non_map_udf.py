@@ -1,30 +1,26 @@
-import logging
-
 from operators.texera_udf_operator_base import TexeraUDFOperator, exception
 
 
 class DemoOperator(TexeraUDFOperator):
-    logger = logging.getLogger("PythonUDF.DemoOperator")
-
-    @exception(logger)
+    @exception
     def __init__(self):
         super().__init__()
         self._result_tuples = []
 
-    @exception(logger)
+    @exception
     def accept(self, row, nth_child=0):
         self._result_tuples.append(row)  # must take args
         self._result_tuples.append(row)
 
-    @exception(logger)
+    @exception
     def has_next(self):
         return len(self._result_tuples) != 0
 
-    @exception(logger)
+    @exception
     def next(self):
         return self._result_tuples.pop()
 
-    @exception(logger)
+    @exception
     def close(self):
         pass
 

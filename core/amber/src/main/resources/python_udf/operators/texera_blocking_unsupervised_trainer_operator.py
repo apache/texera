@@ -9,30 +9,30 @@ logger = logging.getLogger(__name__)
 
 class TexeraBlockingUnsupervisedTrainerOperator(TexeraUDFOperator):
 
-    @exception(logger)
+    @exception
     def __init__(self):
         super().__init__()
         self._data = []
         self._train_args = dict()
 
-    @exception(logger)
+    @exception
     def accept(self, row: pandas.Series, nth_child: int = 0) -> None:
         self._data.append(row[0])
 
-    @exception(logger)
+    @exception
     def close(self) -> None:
         pass
 
     @staticmethod
-    @exception(logger)
+    @exception
     def train(data, *args, **kwargs):
         raise NotImplementedError
 
-    @exception(logger)
+    @exception
     def report(self, model) -> None:
         pass
 
-    @exception(logger)
+    @exception
     def input_exhausted(self, *args):
         model = self.train(self._data, **self._train_args)
         self.report(model)

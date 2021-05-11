@@ -1,4 +1,3 @@
-import logging
 import pickle
 
 import pandas
@@ -9,16 +8,15 @@ from operators.texera_udf_operator_base import exception
 
 
 class SVMClassifier(TexeraMapOperator):
-    logger = logging.getLogger("PythonUDF.SVMClassifier")
 
-    @exception(logger)
+    @exception
     def __init__(self):
         super(SVMClassifier, self).__init__(self.predict)
         self._model_file_path = None
         self._vc = None
         self._clf = None
 
-    @exception(logger)
+    @exception
     def open(self, *args):
         super(SVMClassifier, self).open(*args)
         self._model_file_path = args[-1]

@@ -1,5 +1,3 @@
-import logging
-
 import gensim
 import gensim.corpora as corpora
 import pandas
@@ -7,12 +5,10 @@ import pandas
 from operators.texera_blocking_unsupervised_trainer_operator import TexeraBlockingUnsupervisedTrainerOperator
 from operators.texera_udf_operator_base import exception
 
-logger = logging.getLogger(__name__)
-
 
 class TopicModelingTrainer(TexeraBlockingUnsupervisedTrainerOperator):
 
-    @exception(logger)
+    @exception
     def open(self, *args):
         super(TopicModelingTrainer, self).open(*args)
 
@@ -22,18 +18,18 @@ class TopicModelingTrainer(TexeraBlockingUnsupervisedTrainerOperator):
         else:
             self._train_args = {"num_topics": 5}
 
-        self.logger.debug(f"getting args {args}")
-        self.logger.debug(f"parsed training args {self._train_args}")
+        self.__logger.debug(f"getting args {args}")
+        self.__logger.debug(f"parsed training args {self._train_args}")
 
-    @exception(logger)
+    @exception
     def accept(self, row: pandas.Series, nth_child: int = 0) -> None:
         # override accept to accept rows as lists
         self._data.append(row[0].strip().split())
 
     @staticmethod
-    @exception(logger)
+    @exception
     def train(data, *args, **kwargs):
-        TopicModelingTrainer.logger.debug(f"start training, args:{args}, kwargs:{kwargs}")
+        TopicModelingTrainer.__logger.debug(f"start training, args:{args}, kwargs:{kwargs}")
 
         # Create Dictionary
         id2word = corpora.Dictionary(data)
@@ -56,9 +52,9 @@ class TopicModelingTrainer(TexeraBlockingUnsupervisedTrainerOperator):
 
         return lda_model
 
-    @exception(logger)
+    @exception
     def report(self, model):
-        self.logger.debug(f"reporting trained results")
+        self.__logger.debug(f"reporting trained results")
         for id, topic in model.print_topics(num_topics=self._train_args["num_topics"]):
             self._result_tuples.append(pandas.Series({"output": topic}))
 

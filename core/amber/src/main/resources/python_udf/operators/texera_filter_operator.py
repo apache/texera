@@ -17,14 +17,14 @@ class TexeraFilterOperator(TexeraUDFOperator):
     inherited class; If only use filter function, simply define a `filter_function` in the script.
     """
 
-    @exception(logger)
+    @exception
     def __init__(self, filter_function: Callable):
         super().__init__()
         if filter_function is None:
             raise NotImplementedError
         self._filter_function: Callable = filter_function
 
-    @exception(logger)
+    @exception
     def accept(self, row: pandas.Series, nth_child: int = 0) -> None:
         if self._filter_function(row, *self._args):
             self._result_tuples.append(row)

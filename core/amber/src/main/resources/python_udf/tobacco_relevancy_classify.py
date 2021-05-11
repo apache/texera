@@ -55,14 +55,14 @@ class TobaccoClassifier(object):
 class TobaccoRelevancyOperator(TexeraMapOperator):
     logger = logging.getLogger("PythonUDF.TobaccoRelevancyOperator")
 
-    @exception(logger)
+    @exception
     def __init__(self):
         super(TobaccoRelevancyOperator, self).__init__(self.predict)
         self._cv_model_path = None
         self._classifier_model_path = None
         self._classifier = None
 
-    @exception(logger)
+    @exception
     def open(self, *args):
         super(TobaccoRelevancyOperator, self).open(*args)
         self._cv_model_path = args[2]

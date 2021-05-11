@@ -1,5 +1,3 @@
-import logging
-
 import numpy as np
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.model_selection import GridSearchCV
@@ -11,9 +9,7 @@ from operators.texera_udf_operator_base import exception
 
 
 class SVMTrainer(TexeraBlockingSupervisedTrainerOperator):
-    logger = logging.getLogger("PythonUDF.SVMTrainer")
-
-    @exception(logger)
+    @exception
     def open(self, *args):
         super(SVMTrainer, self).open(*args)
         self._test_ratio = float(args[2])
@@ -23,7 +19,7 @@ class SVMTrainer(TexeraBlockingSupervisedTrainerOperator):
         self._model_file_path = args[-1]
 
     @staticmethod
-    @exception(logger)
+    @exception
     def train(x_train, y_train, *args, **kwargs):
         vectorizer = CountVectorizer()
 
@@ -44,7 +40,7 @@ class SVMTrainer(TexeraBlockingSupervisedTrainerOperator):
         return vectorizer, clf
 
     @staticmethod
-    @exception(logger)
+    @exception
     def test(model, x_test, y_test, *args, **kwargs):
         vc, clf = model
         return clf.predict(vc.transform(x_test))

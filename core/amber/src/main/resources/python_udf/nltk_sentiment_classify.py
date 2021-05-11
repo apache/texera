@@ -1,4 +1,3 @@
-import logging
 import pickle
 
 import pandas
@@ -8,22 +7,20 @@ from operators.texera_udf_operator_base import exception
 
 
 class NLTKSentimentOperator(TexeraMapOperator):
-    logger = logging.getLogger("PythonUDF.NLTKSentimentOperator")
-
-    @exception(logger)
+    @exception
     def __init__(self):
         super(NLTKSentimentOperator, self).__init__(self.predict)
         self._model_file = None
         self._sentiment_model = None
 
-    @exception(logger)
+    @exception
     def open(self, *args):
         super(NLTKSentimentOperator, self).open(*args)
         model_file_path = args[2]
         self._model_file = open(model_file_path, 'rb')
         self._sentiment_model = pickle.load(self._model_file)
 
-    @exception(logger)
+    @exception
     def close(self):
         self._model_file.close()
 
