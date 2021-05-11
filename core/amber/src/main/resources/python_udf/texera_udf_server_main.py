@@ -235,7 +235,7 @@ if __name__ == '__main__':
     formatter = logging.Formatter("[%(asctime)s.%(msecs)03d] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s",
                                   datefmt="%m-%d-%Y %H:%M:%S")
 
-    stream_handler.setLevel(logging.INFO)
+    stream_handler.setLevel(logging.DEBUG)
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
 
