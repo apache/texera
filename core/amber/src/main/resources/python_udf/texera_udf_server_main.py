@@ -207,7 +207,7 @@ class UDFServer(pyarrow.flight.FlightServerBase):
         # create a file handler
 
         log_dir = args[0]
-        file_name = f"{datetime.utcnow().isoformat()}-{os.getpid()}"
+        file_name = f"texera-python_udf-{datetime.utcnow().isoformat()}-{os.getpid()}.log"
         file_path = Path(log_dir).joinpath(file_name)
         file_handler = logging.FileHandler(file_path)
 
