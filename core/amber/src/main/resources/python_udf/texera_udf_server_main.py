@@ -15,7 +15,7 @@ import pyarrow
 import pyarrow.flight
 from pyarrow._flight import FlightDescriptor, Action
 
-from operators import texera_udf_operator_base
+from operators.texera_filter_operator import TexeraFilterOperator
 from operators.texera_map_operator import TexeraMapOperator
 
 
@@ -258,7 +258,7 @@ if __name__ == '__main__':
     elif hasattr(user_module, 'map_function'):
         final_UDF = TexeraMapOperator(user_module.map_function)
     elif hasattr(user_module, 'filter_function'):
-        final_UDF = texera_udf_operator_base.TexeraFilterOperator(user_module.filter_function)
+        final_UDF = TexeraFilterOperator(user_module.filter_function)
     else:
         raise ValueError("Unsupported UDF definition!")
 
