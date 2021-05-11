@@ -176,16 +176,16 @@ class UDFServer(pyarrow.flight.FlightServerBase):
 
     def _get_flight(self, channel: str) -> pandas.DataFrame:
         self.logger.debug(f"transforming flight {channel.__repr__()}")
-        df = self.flights[self._descriptor_to_key(self._to_descriptor(channel.encode()))].to_pandas()
+        df = self.flights[self._descriptor_to_key(self._to_descriptor(channel))].to_pandas()
         self.logger.debug(f"got {len(df)} rows in this flight")
         return df
 
     def _remove_flight(self, channel: str) -> None:
         self.logger.debug(f"removing flight {channel.__repr__()}")
-        self.flights.pop(self._descriptor_to_key(self._to_descriptor(channel.encode())))
+        self.flights.pop(self._descriptor_to_key(self._to_descriptor(channel)))
 
     def _send_flight(self, channel: str, output_dataframe: pandas.DataFrame) -> None:
-        output_key = self._descriptor_to_key(self._to_descriptor(channel.encode()))
+        output_key = self._descriptor_to_key(self._to_descriptor(channel))
         self.logger.debug(f"prepared {len(output_dataframe)} rows in this flight")
         self.logger.debug(f"sending flight {channel.__repr__()}")
         self.flights[output_key] = pyarrow.Table.from_pandas(output_dataframe)
@@ -196,7 +196,7 @@ class UDFServer(pyarrow.flight.FlightServerBase):
 
     @staticmethod
     def _to_descriptor(channel: str) -> FlightDescriptor:
-        return pyarrow.flight.FlightDescriptor.for_path(channel.encode())
+        return pyarrow.flight.FlightDescriptor.for_path(channel)
 
     def _configure(self, *args):
         self._setup_logger(*args)

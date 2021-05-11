@@ -128,6 +128,7 @@ class TexeraFilterOperator(TexeraUDFOperator):
     """
     logger = logging.getLogger("PythonUDF.TexeraFilterOperator")
 
+    @exception(logger)
     def __init__(self, filter_function: Callable):
         super().__init__()
         if filter_function is None:
@@ -143,6 +144,7 @@ class TexeraFilterOperator(TexeraUDFOperator):
 class TexeraBlockingSupervisedTrainerOperator(TexeraUDFOperator):
     logger = logging.getLogger("PythonUDF.TexeraBlockingSupervisedTrainerOperator")
 
+    @exception(logger)
     def __init__(self):
         super().__init__()
         self._x = []
@@ -193,6 +195,7 @@ class TexeraBlockingSupervisedTrainerOperator(TexeraUDFOperator):
 class TexeraBlockingUnsupervisedTrainerOperator(TexeraUDFOperator):
     logger = logging.getLogger("PythonUDF.TexeraBlockingUnsupervisedTrainerOperator")
 
+    @exception(logger)
     def __init__(self):
         super().__init__()
         self._data = []
