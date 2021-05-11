@@ -13,7 +13,7 @@
     "e2e": "ng e2e",
     "preinstall": "cd multi-target && npm install && npm run build",
     "multi-target-updater": "cd multi-target && npm run build && cd .. && npm install ./multi-target -D",
-    "postinstall": "node git-version.js && ngcc"
+    "postinstall": "node git-version.js && ngcc && npm explore @danmarshall/deckgl-typings -- npm run postinstall"
   },
   "private": true,
   "dependencies": {
@@ -36,7 +36,6 @@
     "@ngx-formly/material": "^5.10.13",
     "@ngx-formly/ng-zorro-antd": "0.0.1",
     "@ngx-formly/schematics": "^5.10.13",
-    "@types/mapbox-gl": "^2.1.2",
     "ajv": "^6.12.0",
     "backbone": "~1.4.0",
     "bootstrap": "^4.4.1",
@@ -91,6 +90,7 @@
     "@types/jqueryui": "1.12.10",
     "@types/json-schema": "^7.0.4",
     "@types/lodash": "~4.14.149",
+    "@types/mapbox-gl": "^2.1.2",
     "@types/uuid": "^3.4.8",
     "codelyzer": "^5.2.2",
     "cypress": "^4.3.0",
