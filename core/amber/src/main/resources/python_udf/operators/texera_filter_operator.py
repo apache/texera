@@ -5,6 +5,8 @@ import pandas
 
 from operators.texera_udf_operator_base import TexeraUDFOperator, exception
 
+logger = logging.getLogger(__name__)
+
 
 class TexeraFilterOperator(TexeraUDFOperator):
     """
@@ -14,7 +16,6 @@ class TexeraFilterOperator(TexeraUDFOperator):
     If use inherit, then script should have an attribute named `operator_instance` that is an instance of the
     inherited class; If only use filter function, simply define a `filter_function` in the script.
     """
-    logger = logging.getLogger("PythonUDF.TexeraFilterOperator")
 
     @exception(logger)
     def __init__(self, filter_function: Callable):

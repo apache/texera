@@ -5,6 +5,8 @@ import pandas
 
 from operators.texera_udf_operator_base import TexeraUDFOperator, exception
 
+logger = logging.getLogger(__name__)
+
 
 class TexeraMapOperator(TexeraUDFOperator):
     """
@@ -14,7 +16,6 @@ class TexeraMapOperator(TexeraUDFOperator):
     `operator_instance` that is an instance of the inherited class; If only use filter function, simply define a
     `map_function` in the script.
     """
-    logger = logging.getLogger("PythonUDF.TexeraMapOperator")
 
     @exception(logger)
     def __init__(self, map_function: Callable):

@@ -6,9 +6,10 @@ import pandas
 
 from operators.texera_udf_operator_base import TexeraBlockingUnsupervisedTrainerOperator, exception
 
+logger = logging.getLogger(__name__)
+
 
 class TopicModeling(TexeraBlockingUnsupervisedTrainerOperator):
-    logger = logging.getLogger("PythonUDF.TopicModelingTrainer")
 
     @exception(logger)
     def open(self, *args):
