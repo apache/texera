@@ -4,16 +4,17 @@ import gensim
 import gensim.corpora as corpora
 import pandas
 
-from operators.texera_udf_operator_base import TexeraBlockingUnsupervisedTrainerOperator, exception
+from operators.texera_blocking_unsupervised_trainer_operator import TexeraBlockingUnsupervisedTrainerOperator
+from operators.texera_udf_operator_base import exception
 
 logger = logging.getLogger(__name__)
 
 
-class TopicModeling(TexeraBlockingUnsupervisedTrainerOperator):
+class TopicModelingTrainer(TexeraBlockingUnsupervisedTrainerOperator):
 
     @exception(logger)
     def open(self, *args):
-        super(TopicModeling, self).open(*args)
+        super(TopicModelingTrainer, self).open(*args)
 
         # TODO: _train_args from user input args
         if len(args) >= 2:
@@ -32,7 +33,7 @@ class TopicModeling(TexeraBlockingUnsupervisedTrainerOperator):
     @staticmethod
     @exception(logger)
     def train(data, *args, **kwargs):
-        TopicModeling.logger.debug(f"start training, args:{args}, kwargs:{kwargs}")
+        TopicModelingTrainer.logger.debug(f"start training, args:{args}, kwargs:{kwargs}")
 
         # Create Dictionary
         id2word = corpora.Dictionary(data)
@@ -62,7 +63,7 @@ class TopicModeling(TexeraBlockingUnsupervisedTrainerOperator):
             self._result_tuples.append(pandas.Series({"output": topic}))
 
 
-operator_instance = TopicModeling()
+operator_instance = TopicModelingTrainer()
 if __name__ == '__main__':
     """
     The following lines can be put in the file and name it tokenized.txt:
