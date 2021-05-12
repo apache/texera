@@ -6,7 +6,7 @@ from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 
 from operators.texera_map_operator import TexeraMapOperator
-from operators.texera_udf_operator_base import exception
+from operators.texera_udf_operator_base import log_exception
 
 
 def lower_case(text):
@@ -55,14 +55,14 @@ class TobaccoClassifier(object):
 class TobaccoRelevancyOperator(TexeraMapOperator):
     logger = logging.getLogger("PythonUDF.TobaccoRelevancyOperator")
 
-    @exception
+    @log_exception
     def __init__(self):
         super(TobaccoRelevancyOperator, self).__init__(self.predict)
         self._cv_model_path = None
         self._classifier_model_path = None
         self._classifier = None
 
-    @exception
+    @log_exception
     def open(self, *args):
         super(TobaccoRelevancyOperator, self).open(*args)
         self._cv_model_path = args[2]

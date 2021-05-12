@@ -4,19 +4,19 @@ import pandas
 
 from mock_data import df_from_mysql
 from operators.texera_map_operator import TexeraMapOperator
-from operators.texera_udf_operator_base import exception
+from operators.texera_udf_operator_base import log_exception
 
 
 class SVMClassifier(TexeraMapOperator):
 
-    @exception
+    @log_exception
     def __init__(self):
         super(SVMClassifier, self).__init__(self.predict)
         self._model_file_path = None
         self._vc = None
         self._clf = None
 
-    @exception
+    @log_exception
     def open(self, *args):
         super(SVMClassifier, self).open(*args)
         self._model_file_path = args[-1]

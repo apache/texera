@@ -5,7 +5,7 @@ from typing import Dict, Optional, Tuple, List
 import pandas
 
 
-class exception:
+class log_exception:
     """
     a decorator to log the exception and re-raise the exception.
 
@@ -55,13 +55,13 @@ class TexeraUDFOperator(metaclass=ClassLoggerMetal):
     """
     __logger = None
 
-    @exception
+    @log_exception
     def __init__(self):
         self._args: Tuple = tuple()
         self._kwargs: Optional[Dict] = None
         self._result_tuples: List = []
 
-    @exception
+    @log_exception
     def open(self, *args) -> None:
         """
         Specify here what the UDF should do before executing on tuples. For example, you may want to open a model file
@@ -73,7 +73,7 @@ class TexeraUDFOperator(metaclass=ClassLoggerMetal):
         """
         self._args = args
 
-    @exception
+    @log_exception
     def accept(self, row: pandas.Series, nth_child: int = 0) -> None:
         """
         This is what the UDF operator should do for every row. Do not return anything here, just accept it. The result
@@ -84,28 +84,28 @@ class TexeraUDFOperator(metaclass=ClassLoggerMetal):
         """
         pass
 
-    @exception
+    @log_exception
     def has_next(self) -> bool:
         """
         Return a boolean value that indicates whether there will be a next result.
         """
         return bool(self._result_tuples)
 
-    @exception
+    @log_exception
     def next(self) -> pandas.Series:
         """
         Get the next result row. This will be called after accept(), so result should be prepared.
         """
         return self._result_tuples.pop(0)
 
-    @exception
+    @log_exception
     def close(self) -> None:
         """
         Close this operator, releasing any resources. For example, you might want to close a model file.
         """
         pass
 
-    @exception
+    @log_exception
     def input_exhausted(self, *args, **kwargs):
         """
         Executes when the input is exhausted, useful for some blocking execution like training.
