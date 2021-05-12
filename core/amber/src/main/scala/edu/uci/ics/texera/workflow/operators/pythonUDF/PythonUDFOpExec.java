@@ -44,7 +44,6 @@ public class PythonUDFOpExec implements OperatorExecutor {
 
     private static final int MAX_TRY_COUNT = 20;
     private static final long WAIT_TIME_MS = 500;
-    private static final String DAEMON_SCRIPT_PATH = getPythonResourcePath("texera_udf_server_main.py");
     private static final RootAllocator memoryAllocator = new RootAllocator();
     private static final ObjectMapper objectMapper = Utils.objectMapper();
 
@@ -92,7 +91,6 @@ public class PythonUDFOpExec implements OperatorExecutor {
         }
     }
 
-    private final String PYTHON = WebUtils.config().getString("python.path").trim();
     private String pythonScriptPath;
     private final String pythonScriptText;
     private final ArrayList<String> inputColumns;
@@ -536,22 +534,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
         Schema confSchema = new Schema(Collections.singletonList(new Attribute("conf", AttributeType.STRING)));
         Queue<Tuple> confTuples = new LinkedList<>();
 
-        String pythonLogDir = WebUtils.config().getString("python.log.dir");
-
-        // by default, if configuration omitted, output logs to /tmp/
-        if (pythonLogDir.isEmpty()) {
-            pythonLogDir = "/tmp/";
-        }
-        confTuples.add(new Tuple(confSchema, Collections.singletonList(pythonLogDir)));
-
-
-        String pythonLogLevel = WebUtils.config().getString("python.log.level");
-        // by default, if configuration omitted, use DEBUG level
-        if (pythonLogLevel.isEmpty()) {
-            pythonLogLevel = "DEBUG";
-        }
-
-        confTuples.add(new Tuple(confSchema, Collections.singletonList(pythonLogLevel)));
+        // TODO: add configurations to be sent
         writeArrowStream(flightClient, confTuples, convertAmber2ArrowSchema(confSchema), Channel.CONF, batchSize);
 
     }
@@ -624,10 +607,20 @@ public class PythonUDFOpExec implements OperatorExecutor {
         Location location = new Location(URI.create("grpc+tcp://localhost:" + portNumber));
 
         // Start Flight server (Python process)
+        String udfMainScriptPath = getPythonResourcePath("texera_udf_main.py");
+        String pythonPath = WebUtils.config().getString("python.path").trim();
+        String logLevel = WebUtils.config().getString("python.log.level").trim();
+        String logDir = WebUtils.config().getString("python.log.dir").trim();
+
+
         pythonServerProcess =
-                new ProcessBuilder(PYTHON.isEmpty() ? "python3" : PYTHON, // add fall back in case empty
-                        "-u", DAEMON_SCRIPT_PATH,
-                        Integer.toString(portNumber), pythonScriptPath)
+                new ProcessBuilder(pythonPath.isEmpty() ? "python3" : pythonPath, // add fall back in case of empty
+                        "-u",
+                        udfMainScriptPath,
+                        Integer.toString(portNumber),
+                        logLevel.isEmpty() ? "INFO" : logLevel,
+                        logDir.isEmpty() ? "/tmp/" : logDir,
+                        pythonScriptPath)
                         .inheritIO()
                         .start();
         return location;

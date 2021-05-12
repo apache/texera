@@ -1,26 +1,18 @@
 import ast
-import importlib.util
 import json
 import logging
-import os
-import sys
 import threading
 import traceback
-from datetime import datetime
-from pathlib import Path
 from typing import Dict
 
 import pandas
 import pyarrow
-import pyarrow.flight
-from pyarrow._flight import FlightDescriptor, Action
+from pyarrow.flight import FlightDescriptor, Action, FlightServerBase, Result, FlightInfo, Location, FlightEndpoint, RecordBatchStream
 
-from operators.texera_filter_operator import TexeraFilterOperator
-from operators.texera_map_operator import TexeraMapOperator
+logger = logging.getLogger(__name__)
 
 
-class UDFServer(pyarrow.flight.FlightServerBase):
-    logger = logging.getLogger("PythonUDF.UDFServer")
+class UDFServer(FlightServerBase):
 
     def __init__(self, udf_op, host: str = "localhost", location=None, tls_certificates=None, auth_handler=None):
         super(UDFServer, self).__init__(location, auth_handler, tls_certificates)
@@ -36,10 +28,10 @@ class UDFServer(pyarrow.flight.FlightServerBase):
     def _make_flight_info(self, key, descriptor: FlightDescriptor, table):
         """NOT USED NOW"""
         if self.tls_certificates:
-            location = pyarrow.flight.Location.for_grpc_tls(self.host, self.port)
+            location = Location.for_grpc_tls(self.host, self.port)
         else:
-            location = pyarrow.flight.Location.for_grpc_tcp(self.host, self.port)
-        endpoints = [pyarrow.flight.FlightEndpoint(repr(key), [location]), ]
+            location = Location.for_grpc_tcp(self.host, self.port)
+        endpoints = [FlightEndpoint(repr(key), [location]), ]
 
         mock_sink = pyarrow.MockOutputStream()
         stream_writer = pyarrow.RecordBatchStreamWriter(mock_sink, table.schema)
@@ -47,9 +39,9 @@ class UDFServer(pyarrow.flight.FlightServerBase):
         stream_writer.close()
         data_size = mock_sink.size()
 
-        return pyarrow.flight.FlightInfo(table.schema,
-                                         descriptor, endpoints,
-                                         table.num_rows, data_size)
+        return FlightInfo(table.schema,
+                          descriptor, endpoints,
+                          table.num_rows, data_size)
 
     def list_flights(self, context, criteria):
         """
@@ -61,9 +53,9 @@ class UDFServer(pyarrow.flight.FlightServerBase):
         """
         for key, table in self.flights.items():
             if key[1] is not None:
-                descriptor = pyarrow.flight.FlightDescriptor.for_command(key[1])
+                descriptor = FlightDescriptor.for_command(key[1])
             else:
-                descriptor = pyarrow.flight.FlightDescriptor.for_path(*key[2])
+                descriptor = FlightDescriptor.for_path(*key[2])
 
             yield self._make_flight_info(key, descriptor, table)
 
@@ -99,7 +91,7 @@ class UDFServer(pyarrow.flight.FlightServerBase):
         if key not in self.flights:
             logger.warning("Flight Server:\tNOT IN")
             return None
-        return pyarrow.flight.RecordBatchStream(self.flights[key])
+        return RecordBatchStream(self.flights[key])
 
     def do_action(self, context, action: Action):
         """
@@ -107,7 +99,7 @@ class UDFServer(pyarrow.flight.FlightServerBase):
         available actions. When a specific action is called, the server executes the corresponding action and
         maybe will return any results, i.e. a generalized function call.
         """
-        self.logger.debug(f"Flight Server on Action {action.type}")
+        logger.debug(f"Flight Server on Action {action.type}")
         if action.type == "health_check":
             # to check the status of the server to see if it is running.
             yield self._response('Flight Server is up and running!')
@@ -163,7 +155,7 @@ class UDFServer(pyarrow.flight.FlightServerBase):
 
     def _delayed_shutdown(self):
         """Shut down after a delay."""
-        self.logger.debug("Bye bye!")
+        logger.debug("Bye bye!")
         self.shutdown()
         self.wait()
 
@@ -176,92 +168,29 @@ class UDFServer(pyarrow.flight.FlightServerBase):
         self._send_flight("fromPython", output_dataframe)
 
     def _get_flight(self, channel: str) -> pandas.DataFrame:
-        self.logger.debug(f"transforming flight {channel.__repr__()}")
+        logger.debug(f"transforming flight {channel.__repr__()}")
         df = self.flights[self._descriptor_to_key(self._to_descriptor(channel))].to_pandas()
-        self.logger.debug(f"got {len(df)} rows in this flight")
+        logger.debug(f"got {len(df)} rows in this flight")
         return df
 
     def _remove_flight(self, channel: str) -> None:
-        self.logger.debug(f"removing flight {channel.__repr__()}")
+        logger.debug(f"removing flight {channel.__repr__()}")
         self.flights.pop(self._descriptor_to_key(self._to_descriptor(channel)))
 
     def _send_flight(self, channel: str, output_dataframe: pandas.DataFrame) -> None:
         output_key = self._descriptor_to_key(self._to_descriptor(channel))
-        self.logger.debug(f"prepared {len(output_dataframe)} rows in this flight")
-        self.logger.debug(f"sending flight {channel.__repr__()}")
+        logger.debug(f"prepared {len(output_dataframe)} rows in this flight")
+        logger.debug(f"sending flight {channel.__repr__()}")
         self.flights[output_key] = pyarrow.Table.from_pandas(output_dataframe)
 
     @staticmethod
     def _response(message: str):
-        return pyarrow.flight.Result(pyarrow.py_buffer(message.encode()))
+        return Result(pyarrow.py_buffer(message.encode()))
 
     @staticmethod
     def _to_descriptor(channel: str) -> FlightDescriptor:
-        return pyarrow.flight.FlightDescriptor.for_path(channel)
+        return FlightDescriptor.for_path(channel)
 
     def _configure(self, *args):
-        self._setup_logger(*args)
-
-    @staticmethod
-    def _setup_logger(*args):
-        # TODO: make it kwargs
-        # create a file handler
-
-        log_dir = args[0]
-        file_name = f"texera-python_udf-{datetime.utcnow().isoformat()}-{os.getpid()}.log"
-        file_path = Path(log_dir).joinpath(file_name)
-        file_handler = logging.FileHandler(file_path)
-
-        # get log level
-        if len(args) >= 2:
-            log_level = args[1]
-        else:
-            log_level = logging.DEBUG
-
-        file_handler.setLevel(log_level)
-        file_handler.setFormatter(formatter)
-        logger.info(f"Attaching a FileHandler to logger, file path: {file_path}")
-        logger.addHandler(file_handler)
-        logger.info(f"Logger FileHandler is now attached, previous logs are in StreamHandler only.")
-
-
-if __name__ == '__main__':
-
-    # configure root logger
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
-
-    stream_handler = logging.StreamHandler()
-    formatter = logging.Formatter("[%(asctime)s.%(msecs)03d] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s",
-                                  datefmt="%m-%d-%Y %H:%M:%S")
-
-    stream_handler.setLevel(logging.DEBUG)
-    stream_handler.setFormatter(formatter)
-    logger.addHandler(stream_handler)
-
-    _, port, UDF_operator_script_path, *__ = sys.argv
-    # Dynamically import operator from user-defined script.
-
-    # Spec is used to load a spec based on a file location (the UDF script)
-    spec = importlib.util.spec_from_file_location('user_module', UDF_operator_script_path)
-    # Dynamically load the user script as module
-    user_module = importlib.util.module_from_spec(spec)
-    # Execute the module so that its attributes can be loaded.
-    spec.loader.exec_module(user_module)
-
-    # The UDF that will be used in the server. It will be either an inherited operator instance, or created by passing
-    # map_func/filter_func to a TexeraMapOperator/TexeraFilterOperator instance.
-    final_UDF = None
-
-    if hasattr(user_module, 'operator_instance'):
-        final_UDF = user_module.operator_instance
-    elif hasattr(user_module, 'map_function'):
-        final_UDF = TexeraMapOperator(user_module.map_function)
-    elif hasattr(user_module, 'filter_function'):
-        final_UDF = TexeraFilterOperator(user_module.filter_function)
-    else:
-        raise ValueError("Unsupported UDF definition!")
-
-    location = "grpc+tcp://localhost:" + port
-
-    UDFServer(final_UDF, "localhost", location).serve()
+        # TODO: add server related configurations here
+        pass
