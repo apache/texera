@@ -53,7 +53,7 @@
     "jointjs": "^3.1.1",
     "jquery": "~3.4.1",
     "jquery-ui-dist": "^1.12.1",
-    "lodash": "~4.17.14",
+    "lodash": "~4.17.21",
     "lodash-es": "~4.17.14",
     "mapbox-gl": "^2.2.0",
     "ng-zorro-antd": "^10.0.0",
