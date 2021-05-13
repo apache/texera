@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.pythonUDF;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.typesafe.config.Config;
 import edu.uci.ics.amber.engine.common.InputExhausted;
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity;
 import edu.uci.ics.texera.web.WebUtils;
@@ -608,11 +609,13 @@ public class PythonUDFOpExec implements OperatorExecutor {
 
         // Start Flight server (Python process)
         String udfMainScriptPath = getPythonResourcePath("texera_udf_main.py");
-        String pythonPath = WebUtils.config().getString("python.path").trim();
-        String logLevel = WebUtils.config().getString("python.log.level").trim();
-        String logDir = WebUtils.config().getString("python.log.dir").trim();
-        String logFormat = WebUtils.config().getString("python.log.format");
-        String logDateFormat = WebUtils.config().getString("python.log.datefmt");
+
+        Config config = WebUtils.config();
+        String pythonPath = config.getString("python.path").trim();
+        String logLevel = config.getString("python.log.level").trim();
+        String logDir = config.getString("python.log.dir").trim();
+        String logFormat = config.getString("python.log.format").trim();
+        String logDateFormat = config.getString("python.log.datefmt").trim();
 
 
         pythonServerProcess =
