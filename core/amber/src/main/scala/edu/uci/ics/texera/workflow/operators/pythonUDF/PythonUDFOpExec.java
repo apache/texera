@@ -611,6 +611,8 @@ public class PythonUDFOpExec implements OperatorExecutor {
         String pythonPath = WebUtils.config().getString("python.path").trim();
         String logLevel = WebUtils.config().getString("python.log.level").trim();
         String logDir = WebUtils.config().getString("python.log.dir").trim();
+        String logFormat = WebUtils.config().getString("python.log.format");
+        String logDateFormat = WebUtils.config().getString("python.log.datefmt");
 
 
         pythonServerProcess =
@@ -620,6 +622,9 @@ public class PythonUDFOpExec implements OperatorExecutor {
                         Integer.toString(portNumber),
                         logLevel.isEmpty() ? "INFO" : logLevel,
                         logDir.isEmpty() ? "/tmp/" : logDir,
+                        logFormat.isEmpty() ? "[%(asctime)s.%(msecs)03d] %(processName)s %(threadName)s " +
+                                "%(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s" : logFormat,
+                        logDateFormat.isEmpty() ? "%m-%d-%Y %H:%M:%S" : logDateFormat,
                         pythonScriptPath)
                         .inheritIO()
                         .start();

@@ -10,7 +10,7 @@ from operators.texera_map_operator import TexeraMapOperator
 from server.udf_server import UDFServer
 
 
-def init_root_logger(log_level: str, log_dir: str) -> None:
+def init_root_logger(log_level: str, log_dir: str, log_fmt: str, datefmt: str) -> None:
     """
     initialize root logger with the given configurations
     :param log_level: lowest log level to be outputted
@@ -21,8 +21,9 @@ def init_root_logger(log_level: str, log_dir: str) -> None:
     logger.setLevel(log_level)
 
     stream_handler = logging.StreamHandler()
-    formatter = logging.Formatter("[%(asctime)s.%(msecs)03d] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s",
-                                  datefmt="%m-%d-%Y %H:%M:%S")
+    formatter = logging.Formatter(
+        log_fmt,
+        datefmt=datefmt)
 
     stream_handler.setLevel(log_level)
     stream_handler.setFormatter(formatter)
@@ -40,10 +41,10 @@ def init_root_logger(log_level: str, log_dir: str) -> None:
 
 if __name__ == '__main__':
 
-    _, port, log_level, log_dir, UDF_operator_script_path, *__ = sys.argv
+    _, port, log_level, log_dir, log_fmt, datefmt, UDF_operator_script_path, *__ = sys.argv
 
     # initialize root logger before doing anything
-    init_root_logger(log_level, log_dir)
+    init_root_logger(log_level, log_dir, log_fmt, datefmt)
 
     # Dynamically import operator from user-defined script.
 
