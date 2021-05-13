@@ -610,24 +610,38 @@ public class PythonUDFOpExec implements OperatorExecutor {
         // Start Flight server (Python process)
         String udfMainScriptPath = getPythonResourcePath("texera_udf_main.py");
 
+        // TODO: find a better way to do default conf values.
+
         Config config = WebUtils.config();
         String pythonPath = config.getString("python.path").trim();
-        String logLevel = config.getString("python.log.level").trim();
-        String logDir = config.getString("python.log.dir").trim();
-        String logFormat = config.getString("python.log.format").trim();
-        String logDateFormat = config.getString("python.log.datefmt").trim();
+        String logInputLevel = config.getString("python.log.level").trim();
 
+        String logStreamHandlerLevel = config.getString("python.log.streamHandler.level").trim();
+        String logStreamHandlerFormat = config.getString("python.log.streamHandler.format").trim();
+        String logStreamHandlerDateFormat = config.getString("python.log.streamHandler.datefmt").trim();
+
+        String logFileHandlerDir = config.getString("python.log.fileHandler.dir").trim();
+        String logFileHandlerLevel = config.getString("python.log.fileHandler.level").trim();
+        String logFileHandlerFormat = config.getString("python.log.fileHandler.format").trim();
+        String logFileHandlerDateFormat = config.getString("python.log.fileHandler.datefmt").trim();
 
         pythonServerProcess =
                 new ProcessBuilder(pythonPath.isEmpty() ? "python3" : pythonPath, // add fall back in case of empty
                         "-u",
                         udfMainScriptPath,
                         Integer.toString(portNumber),
-                        logLevel.isEmpty() ? "INFO" : logLevel,
-                        logDir.isEmpty() ? "/tmp/" : logDir,
-                        logFormat.isEmpty() ? "[%(asctime)s.%(msecs)03d] %(processName)s %(threadName)s " +
-                                "%(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s" : logFormat,
-                        logDateFormat.isEmpty() ? "%m-%d-%Y %H:%M:%S" : logDateFormat,
+                        logInputLevel.isEmpty() ? "INFO" : logInputLevel,
+
+                        logStreamHandlerLevel.isEmpty() ? "INFO" : logStreamHandlerLevel,
+                        logStreamHandlerFormat.isEmpty() ? "[%(asctime)s.%(msecs)03d] %(processName)s %(threadName)s " +
+                                "%(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s" : logStreamHandlerFormat,
+                        logStreamHandlerDateFormat.isEmpty() ? "%m-%d-%Y %H:%M:%S" : logStreamHandlerDateFormat,
+
+                        logFileHandlerDir.isEmpty() ? "/tmp/" : logFileHandlerDir,
+                        logFileHandlerLevel.isEmpty() ? "INFO" : logFileHandlerLevel,
+                        logFileHandlerFormat.isEmpty() ? "[%(asctime)s.%(msecs)03d] %(processName)s %(threadName)s " +
+                                "%(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s" : logFileHandlerFormat,
+                        logFileHandlerDateFormat.isEmpty() ? "%m-%d-%Y %H:%M:%S" : logFileHandlerDateFormat,
                         pythonScriptPath)
                         .inheritIO()
                         .start();
