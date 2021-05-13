@@ -49,7 +49,7 @@ export const defaultEnvironment = {
    * the access code for mapbox
    */
   mapbox: {
-    accessToken: ''
+    accessToken: 'pk.eyJ1IjoiamVyZW15bGkiLCJhIjoiY2lrZ2U4MWI4MDA4bHVjajc1am1weTM2aSJ9.JHiBmawEKGsn3jiRK_d0Gw'
   }
 
 };
