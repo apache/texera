@@ -9,7 +9,7 @@ import java.io.{BufferedReader, InputStreamReader}
 import java.net.URL
 
 object WebUtils {
-  val config: Config =
+  def config: Config =
     ConfigFactory.parseFile(Utils.amberHomePath.resolve("../conf").resolve("web.conf").toFile)
 
   def startActorMaster(localhost: Boolean): ActorSystem = {
