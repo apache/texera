@@ -53,6 +53,7 @@ export class VisualizationPanelComponent implements OnChanges {
     this.modalRef = this.modalService.create({
       nzTitle: 'Visualization',
       nzWidth: 1100,
+      nzFooter: null, // null indicates that the footer of the window would be hidden
       nzContent: VisualizationPanelContentComponent,
       nzComponentParams: {
         operatorID: this.operatorID

@@ -45,6 +45,13 @@ export const defaultEnvironment = {
    */
   linkBreakpointEnabled: true,
 
+  /**
+   * the access code for mapbox
+   */
+  mapbox: {
+    accessToken: ''
+  }
+
 };
 
 export type AppEnv = typeof defaultEnvironment;
