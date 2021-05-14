@@ -127,7 +127,6 @@ export class NgbdModalUserLoginComponent implements OnInit {
   /**
    * this method will return the authorization code
    */
-  //  Promise<string>
   public async authenticate(): Promise<void> {
     // initialize gapi if not done yet
     if (!this.gapiSetUp) {
@@ -150,15 +149,6 @@ export class NgbdModalUserLoginComponent implements OnInit {
         this.activeModal.close();
       }, () => this.loginErrorMessage = 'Incorrect credentials');
   }
-
-    
-    // get the authorization code
-    // return new Promise(async () => {
-    //   await this.oauthInstance.grantOfflineAccess().then(
-    //     code => this.authCode = code['code']
-    //   )
-    // });
-  
 
   /**
    * this method will handle the pop up when user successfully login

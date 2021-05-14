@@ -3,9 +3,11 @@ package edu.uci.ics.texera.web.resource.auth
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeTokenRequest
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.GoogleUserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.GoogleUser
 import edu.uci.ics.texera.web.model.request.auth.{GoogleUserLoginRequest, UserLoginRequest, UserRegistrationRequest}
-import edu.uci.ics.texera.web.resource.auth.UserResource.{getUser, setUserSession, validateUsername}
+import edu.uci.ics.texera.web.resource.auth.UserResource.{getUser, setUserSession, validateUsername, getGoogleUser, setGoogleUserSession, isGoogleUser}
 import io.dropwizard.jersey.sessions.Session
 import org.apache.commons.lang3.tuple.Pair
 import org.jooq.exception.DataAccessException
@@ -23,9 +25,17 @@ import org.jooq.types.UInteger
 object UserResource {
 
   private val SESSION_USER = "texera-user"
+  private val SESSION_GOOGLE_USER = "texera-google-user"
   // TODO: rewrite this
   def getUser(session: HttpSession): Option[User] =
     Option.apply(session.getAttribute(SESSION_USER)).map(u => u.asInstanceOf[User])
+
+  def getGoogleUser(session: HttpSession): Option[GoogleUser] =
+    Option.apply(session.getAttribute(SESSION_GOOGLE_USER)).map(u => u.asInstanceOf[GoogleUser])
+
+  def isGoogleUser(session: HttpSession): Boolean = {
+    session.getAttribute(SESSION_GOOGLE_USER) != null
+  }
 
   // TODO: rewrite this
   private def validateUsername(userName: String): Pair[Boolean, String] =
@@ -35,8 +45,12 @@ object UserResource {
 
   private def setUserSession(session: HttpSession, user: User): Unit = {
     session.setAttribute(SESSION_USER, user)
-
   }
+
+  private def setGoogleUserSession(session: HttpSession, Googleuser: GoogleUser): Unit = {
+    session.setAttribute(SESSION_GOOGLE_USER, Googleuser)
+  }
+
 }
 
 @Path("/users/")
@@ -45,17 +59,21 @@ object UserResource {
 class UserResource {
 
   final private val userDao = new UserDao(SqlServer.createDSLContext.configuration)
+  final private val googleUserDao = new GoogleUserDao(SqlServer.createDSLContext.configuration)
 
   private val TRANSPORT = new NetHttpTransport
   private val JSON_FACTORY = new JacksonFactory
   private val CLIENT_ID = "256268030075-jl765kbkpbu2j4am3cjbtlrr973kqgdp.apps.googleusercontent.com"
   private val CLIENT_SECRET = "vSJ3DjZ9_Bf4WsM0-MxpZgfV"
 
-  //either
   @GET
   @Path("/auth/status")
-  def authStatus(@Session session: HttpSession): Option[User] = {
-    getUser(session)
+  def authStatus(@Session session: HttpSession) = {
+    if (isGoogleUser(session)) {
+      getGoogleUser(session)
+    }else{
+      getUser(session)
+    }
   }
 
   @POST
@@ -77,6 +95,7 @@ class UserResource {
     Response.ok().build()
   }
 
+
   @POST
   @Path("/google-login")
   def googleLogin(@Session session: HttpSession, request: GoogleUserLoginRequest): Response = {
@@ -88,25 +107,27 @@ class UserResource {
         val tokenResponse = new GoogleAuthorizationCodeTokenV4Request(TRANSPORT, JSON_FACTORY, CLIENT_ID, CLIENT_SECRET, code, "postmessage").execute();
         // get id token
         val idToken: GoogleIdToken = tokenResponse.parseIdToken()
-        print("id Token is" + idToken)
         // get the payload of id token
         val payload = idToken.getPayload
-        print("payload is " + payload)
         // get the subject of the payload, use this value as a key to identify a user.
         val userId = payload.getSubject
-        print("sub is" + userId)
         // get the name of the user
         val userName = payload.get("name").asInstanceOf[String]
-        print("name is " + userName)
+
+        // store Google user id in database it it does not exist
+        if (this.googleUserDao.fetchOneByUid(userId) == null){
+          val googleUser = new GoogleUser(userId)
+          this.googleUserDao.insert(googleUser)
+        }
 
         // get access token and refresh token
         val access_token = tokenResponse.getAccessToken
         val refresh_token = tokenResponse.getRefreshToken
 
         // set session
-        setUserSession(
+        setGoogleUserSession(
           session,
-          new User(userName, userId.asInstanceOf[UInteger], null)
+          new GoogleUser(userId)
         )
       }
       Response.ok().build()
@@ -147,7 +168,11 @@ class UserResource {
   @GET
   @Path("/logout")
   def logOut(@Session session: HttpSession): Response = {
-    setUserSession(session, null)
+    if (isGoogleUser(session)){
+      setGoogleUserSession(session, null )
+    }else{
+      setUserSession(session, null)
+    }
     Response.ok().build()
   }
 
