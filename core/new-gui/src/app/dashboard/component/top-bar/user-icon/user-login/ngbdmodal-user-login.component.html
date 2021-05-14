@@ -24,10 +24,6 @@
         </mat-dialog-content>
         <div><button class="btn btn-info" (click)="login()"> Sign In </button></div>
         <p *ngIf="loginErrorMessage" style="color:red">{{ loginErrorMessage }}</p>
-        <!-- <button (click)="authenticate()" class="g-signin2">Google Sign in</button>
-        {{this.authCode}}
-        <br>
-        user name:  {{this.userName}} -->
         <div class='g-sign-in-button' (click) = "authenticate()">
           <div class=content-wrapper >
               <div class='logo-wrapper' >
