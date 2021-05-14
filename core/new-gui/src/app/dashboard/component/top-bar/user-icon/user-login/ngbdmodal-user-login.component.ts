@@ -44,7 +44,7 @@ export class NgbdModalUserLoginComponent implements OnInit {
   }
 
   public errorMessageUsernameNull(): string{
-    return "Username required"; 
+    return "Username required";
   }
 
   public errorMessagePasswordNull(): string{
@@ -86,11 +86,11 @@ export class NgbdModalUserLoginComponent implements OnInit {
     const validation = this.userService.validateUsername(this.allForms.get("registerUserName")!.value.trim());
     if (this.allForms.get("registerPassword")!.value.length < 6){
       this.registerErrorMessage = 'Password length should be greater than 5';
-      return; 
+      return;
     }
     if (this.allForms.get("registerPassword")!.value !== this.allForms.get("registerConfirmationPassword")!.value){
       this.registerErrorMessage = 'Passwords do not match';
-      return; 
+      return;
     }
     if (!validation.result) {
       this.registerErrorMessage = validation.message;
@@ -116,7 +116,7 @@ export class NgbdModalUserLoginComponent implements OnInit {
     // call gapi.auth2 init
     return gapiLoad.then(async () => {
       await gapi.auth2
-        .init({ client_id: '256268030075-jl765kbkpbu2j4am3cjbtlrr973kqgdp.apps.googleusercontent.com' })
+        .init({ client_id: '' })
         .then(auth => {
           this.oauthInstance = auth;
           this.gapiSetUp = true;
@@ -139,7 +139,7 @@ export class NgbdModalUserLoginComponent implements OnInit {
     await this.oauthInstance.grantOfflineAccess().then(
       code => this.authCode = code['code']
     )
-    
+
     // set the user name
     this.userName = this.user?.getBasicProfile().getName()
 

@@ -63,8 +63,8 @@ class UserResource {
 
   private val TRANSPORT = new NetHttpTransport
   private val JSON_FACTORY = new JacksonFactory
-  private val CLIENT_ID = "256268030075-jl765kbkpbu2j4am3cjbtlrr973kqgdp.apps.googleusercontent.com"
-  private val CLIENT_SECRET = "vSJ3DjZ9_Bf4WsM0-MxpZgfV"
+  private val CLIENT_ID = ""
+  private val CLIENT_SECRET = ""
 
   @GET
   @Path("/auth/status")
