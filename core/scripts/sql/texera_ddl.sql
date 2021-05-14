@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS user
 
 CREATE TABLE IF NOT EXISTS google_user
 (
-    `uid` INT                          NOT NULL,
+    `uid` VARCHAR(256)                 NOT NULL,
     PRIMARY KEY (`uid`)
 ) ENGINE = INNODB;
 

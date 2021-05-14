@@ -24,10 +24,20 @@
         </mat-dialog-content>
         <div><button class="btn btn-info" (click)="login()"> Sign In </button></div>
         <p *ngIf="loginErrorMessage" style="color:red">{{ loginErrorMessage }}</p>
-        <button (click)="authenticate()" class="g-signin2">Google Sign in</button>
+        <!-- <button (click)="authenticate()" class="g-signin2">Google Sign in</button>
         {{this.authCode}}
         <br>
-        user name:  {{this.userName}}
+        user name:  {{this.userName}} -->
+        <div class='g-sign-in-button' (click) = "authenticate()">
+          <div class=content-wrapper >
+              <div class='logo-wrapper' >
+                  <img src='https://developers.google.com/identity/images/g-logo.png' style="margin-bottom: 10px;">
+              </div>
+              <span class='text-container'>
+            <span>Sign in with Google</span>
+          </span>
+          </div>
+      </div>
          
       </div>
     </mat-tab>
