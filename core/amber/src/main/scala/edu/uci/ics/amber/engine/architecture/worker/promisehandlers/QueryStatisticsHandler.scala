@@ -18,8 +18,10 @@ trait QueryStatisticsHandler {
   registerHandler { (msg: QueryStatistics, sender) =>
     // report internal queue length if the gap > 30s
     val now = System.currentTimeMillis()
-    if(now - lastReportTime > 30000){
-      logger.logInfo(s"Data Queue Length = ${dataProcessor.getDataQueueLength} Control Queue Length = ${dataProcessor.getControlQueueLength}")
+    if (now - lastReportTime > 30000) {
+      logger.logInfo(
+        s"Data Queue Length = ${dataProcessor.getDataQueueLength} Control Queue Length = ${dataProcessor.getControlQueueLength}"
+      )
       lastReportTime = now
     }
 

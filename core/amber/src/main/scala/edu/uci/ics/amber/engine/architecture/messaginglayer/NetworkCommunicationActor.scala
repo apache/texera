@@ -2,7 +2,15 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import akka.actor.{Actor, ActorRef, Cancellable, Props}
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{GetActorRef, MessageBecomesDeadLetter, NetworkAck, NetworkMessage, RegisterActorRef, ResendMessages, SendRequest}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
+  GetActorRef,
+  MessageBecomesDeadLetter,
+  NetworkAck,
+  NetworkMessage,
+  RegisterActorRef,
+  ResendMessages,
+  SendRequest
+}
 import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage
@@ -56,7 +64,7 @@ object NetworkCommunicationActor {
   * and also sends message to other actors. This is the most outer part of
   * the messaging layer.
   */
-class NetworkCommunicationActor(parentRef: ActorRef, workerLogger:WorkflowLogger) extends Actor{
+class NetworkCommunicationActor(parentRef: ActorRef, workerLogger: WorkflowLogger) extends Actor {
 
   val idToActorRefs = new mutable.HashMap[ActorVirtualIdentity, ActorRef]()
   val idToCongestionControls = new mutable.HashMap[ActorVirtualIdentity, CongestionControl]()
@@ -101,7 +109,8 @@ class NetworkCommunicationActor(parentRef: ActorRef, workerLogger:WorkflowLogger
             s"unknown identifier: $actorID",
             actorID.toString,
             Map.empty
-          ))
+          )
+        )
       }
     case RegisterActorRef(actorID, ref) =>
       registerActorRef(actorID, ref)
@@ -162,7 +171,7 @@ class NetworkCommunicationActor(parentRef: ActorRef, workerLogger:WorkflowLogger
       idToCongestionControls.foreach {
         case (actorID, ctrl) =>
           val msgsNeedResend = ctrl.getTimedOutInTransitMessages
-          if(msgsNeedResend.nonEmpty){
+          if (msgsNeedResend.nonEmpty) {
             workerLogger.logInfo(s"output channel for $actorID: ${ctrl.getStatusReport}")
           }
           msgsNeedResend.foreach { msg =>

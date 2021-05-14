@@ -86,7 +86,7 @@ class CongestionControl {
     inTransit.values
   }
 
-  def getStatusReport:String = {
+  def getStatusReport: String = {
     s"current window size = ${windowSize} \t in transit = ${inTransit.size} \t waiting = ${toBeSent.size}"
   }
 
