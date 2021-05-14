@@ -30,10 +30,10 @@ public interface IGoogleUser extends Serializable {
     /**
      * Load data from another generated Record/POJO implementing the common interface IGoogleUser
      */
-    public void from(edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IGoogleUser from);
+    public void from(IGoogleUser from);
 
     /**
      * Copy data into another generated Record/POJO implementing the common interface IGoogleUser
      */
-    public <E extends edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IGoogleUser> E into(E into);
+    public <E extends IGoogleUser> E into(E into);
 }

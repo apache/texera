@@ -4,17 +4,8 @@
 package edu.uci.ics.texera.web.model.jooq.generated;
 
 
-import edu.uci.ics.texera.web.model.jooq.generated.tables.File;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.KeywordDictionary;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.Workflow;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfUser;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.FileRecord;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.KeywordDictionaryRecord;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.UserRecord;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowOfUserRecord;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowRecord;
-
+import edu.uci.ics.texera.web.model.jooq.generated.tables.*;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.records.*;
 import org.jooq.ForeignKey;
 import org.jooq.Identity;
 import org.jooq.UniqueKey;
@@ -44,6 +35,7 @@ public class Keys {
 
     public static final UniqueKey<FileRecord> KEY_FILE_UID = UniqueKeys0.KEY_FILE_UID;
     public static final UniqueKey<FileRecord> KEY_FILE_PRIMARY = UniqueKeys0.KEY_FILE_PRIMARY;
+    public static final UniqueKey<GoogleUserRecord> KEY_GOOGLE_USER_PRIMARY = UniqueKeys0.KEY_GOOGLE_USER_PRIMARY;
     public static final UniqueKey<KeywordDictionaryRecord> KEY_KEYWORD_DICTIONARY_UID = UniqueKeys0.KEY_KEYWORD_DICTIONARY_UID;
     public static final UniqueKey<KeywordDictionaryRecord> KEY_KEYWORD_DICTIONARY_PRIMARY = UniqueKeys0.KEY_KEYWORD_DICTIONARY_PRIMARY;
     public static final UniqueKey<UserRecord> KEY_USER_NAME = UniqueKeys0.KEY_USER_NAME;
@@ -74,6 +66,7 @@ public class Keys {
     private static class UniqueKeys0 {
         public static final UniqueKey<FileRecord> KEY_FILE_UID = Internal.createUniqueKey(File.FILE, "KEY_file_uid", File.FILE.UID, File.FILE.NAME);
         public static final UniqueKey<FileRecord> KEY_FILE_PRIMARY = Internal.createUniqueKey(File.FILE, "KEY_file_PRIMARY", File.FILE.FID);
+        public static final UniqueKey<GoogleUserRecord> KEY_GOOGLE_USER_PRIMARY = Internal.createUniqueKey(GoogleUser.GOOGLE_USER, "KEY_google_user_PRIMARY", GoogleUser.GOOGLE_USER.UID);
         public static final UniqueKey<KeywordDictionaryRecord> KEY_KEYWORD_DICTIONARY_UID = Internal.createUniqueKey(KeywordDictionary.KEYWORD_DICTIONARY, "KEY_keyword_dictionary_uid", KeywordDictionary.KEYWORD_DICTIONARY.UID, KeywordDictionary.KEYWORD_DICTIONARY.NAME);
         public static final UniqueKey<KeywordDictionaryRecord> KEY_KEYWORD_DICTIONARY_PRIMARY = Internal.createUniqueKey(KeywordDictionary.KEYWORD_DICTIONARY, "KEY_keyword_dictionary_PRIMARY", KeywordDictionary.KEYWORD_DICTIONARY.KID);
         public static final UniqueKey<UserRecord> KEY_USER_NAME = Internal.createUniqueKey(User.USER, "KEY_user_name", User.USER.NAME);
@@ -83,9 +76,9 @@ public class Keys {
     }
 
     private static class ForeignKeys0 {
-        public static final ForeignKey<FileRecord, UserRecord> FILE_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, File.FILE, "file_ibfk_1", File.FILE.UID);
-        public static final ForeignKey<KeywordDictionaryRecord, UserRecord> KEYWORD_DICTIONARY_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, KeywordDictionary.KEYWORD_DICTIONARY, "keyword_dictionary_ibfk_1", KeywordDictionary.KEYWORD_DICTIONARY.UID);
-        public static final ForeignKey<WorkflowOfUserRecord, UserRecord> WORKFLOW_OF_USER_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, WorkflowOfUser.WORKFLOW_OF_USER, "workflow_of_user_ibfk_1", WorkflowOfUser.WORKFLOW_OF_USER.UID);
-        public static final ForeignKey<WorkflowOfUserRecord, WorkflowRecord> WORKFLOW_OF_USER_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_WORKFLOW_PRIMARY, WorkflowOfUser.WORKFLOW_OF_USER, "workflow_of_user_ibfk_2", WorkflowOfUser.WORKFLOW_OF_USER.WID);
+        public static final ForeignKey<FileRecord, UserRecord> FILE_IBFK_1 = Internal.createForeignKey(Keys.KEY_USER_PRIMARY, File.FILE, "file_ibfk_1", File.FILE.UID);
+        public static final ForeignKey<KeywordDictionaryRecord, UserRecord> KEYWORD_DICTIONARY_IBFK_1 = Internal.createForeignKey(Keys.KEY_USER_PRIMARY, KeywordDictionary.KEYWORD_DICTIONARY, "keyword_dictionary_ibfk_1", KeywordDictionary.KEYWORD_DICTIONARY.UID);
+        public static final ForeignKey<WorkflowOfUserRecord, UserRecord> WORKFLOW_OF_USER_IBFK_1 = Internal.createForeignKey(Keys.KEY_USER_PRIMARY, WorkflowOfUser.WORKFLOW_OF_USER, "workflow_of_user_ibfk_1", WorkflowOfUser.WORKFLOW_OF_USER.UID);
+        public static final ForeignKey<WorkflowOfUserRecord, WorkflowRecord> WORKFLOW_OF_USER_IBFK_2 = Internal.createForeignKey(Keys.KEY_WORKFLOW_PRIMARY, WorkflowOfUser.WORKFLOW_OF_USER, "workflow_of_user_ibfk_2", WorkflowOfUser.WORKFLOW_OF_USER.WID);
     }
 }

@@ -6,11 +6,10 @@ package edu.uci.ics.texera.web.model.jooq.generated.tables.daos;
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.GoogleUser;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.GoogleUserRecord;
-
-import java.util.List;
-
 import org.jooq.Configuration;
 import org.jooq.impl.DAOImpl;
+
+import java.util.List;
 
 
 /**
