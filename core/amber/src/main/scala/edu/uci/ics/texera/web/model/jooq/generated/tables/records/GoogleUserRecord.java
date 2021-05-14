@@ -6,7 +6,6 @@ package edu.uci.ics.texera.web.model.jooq.generated.tables.records;
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.GoogleUser;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IGoogleUser;
-
 import org.jooq.Field;
 import org.jooq.Record1;
 import org.jooq.Row1;
