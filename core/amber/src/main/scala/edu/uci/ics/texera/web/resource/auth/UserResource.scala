@@ -51,6 +51,7 @@ class UserResource {
   private val CLIENT_ID = "256268030075-jl765kbkpbu2j4am3cjbtlrr973kqgdp.apps.googleusercontent.com"
   private val CLIENT_SECRET = "vSJ3DjZ9_Bf4WsM0-MxpZgfV"
 
+  //either
   @GET
   @Path("/auth/status")
   def authStatus(@Session session: HttpSession): Option[User] = {
@@ -83,22 +84,30 @@ class UserResource {
     var code = request.authoCode
 
     // use authorization code to get tokens
-    try
-      {
+    try {
         val tokenResponse = new GoogleAuthorizationCodeTokenV4Request(TRANSPORT, JSON_FACTORY, CLIENT_ID, CLIENT_SECRET, code, "postmessage").execute();
         // get id token
         val idToken: GoogleIdToken = tokenResponse.parseIdToken()
+        print("id Token is" + idToken)
         // get the payload of id token
-        val payload = idToken.getPayload()
+        val payload = idToken.getPayload
+        print("payload is " + payload)
         // get the subject of the payload, use this value as a key to identify a user.
-        val userId = payload.getSubject().toInt
+        val userId = payload.getSubject
+        print("sub is" + userId)
         // get the name of the user
         val userName = payload.get("name").asInstanceOf[String]
+        print("name is " + userName)
+
+        // get access token and refresh token
+        val access_token = tokenResponse.getAccessToken
+        val refresh_token = tokenResponse.getRefreshToken
+
+        // set session
         setUserSession(
           session,
           new User(userName, userId.asInstanceOf[UInteger], null)
         )
-
       }
       Response.ok().build()
   }
