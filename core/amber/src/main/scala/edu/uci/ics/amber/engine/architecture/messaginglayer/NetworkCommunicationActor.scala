@@ -2,15 +2,8 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import akka.actor.{Actor, ActorRef, Cancellable, Props}
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
-  GetActorRef,
-  MessageBecomesDeadLetter,
-  NetworkAck,
-  NetworkMessage,
-  RegisterActorRef,
-  ResendMessages,
-  SendRequest
-}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{GetActorRef, MessageBecomesDeadLetter, NetworkAck, NetworkMessage, RegisterActorRef, ResendMessages, SendRequest}
+import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
@@ -63,7 +56,7 @@ object NetworkCommunicationActor {
   * and also sends message to other actors. This is the most outer part of
   * the messaging layer.
   */
-class NetworkCommunicationActor(parentRef: ActorRef) extends Actor with LazyLogging {
+class NetworkCommunicationActor(parentRef: ActorRef, workerLogger:WorkflowLogger) extends Actor{
 
   val idToActorRefs = new mutable.HashMap[ActorVirtualIdentity, ActorRef]()
   val idToCongestionControls = new mutable.HashMap[ActorVirtualIdentity, CongestionControl]()
@@ -103,13 +96,12 @@ class NetworkCommunicationActor(parentRef: ActorRef) extends Actor with LazyLogg
       } else if (parentRef != null) {
         parentRef ! GetActorRef(actorID, replyTo + self)
       } else {
-        throw new WorkflowRuntimeException(
+        workerLogger.logError(
           WorkflowRuntimeError(
             s"unknown identifier: $actorID",
             actorID.toString,
             Map.empty
-          )
-        )
+          ))
       }
     case RegisterActorRef(actorID, ref) =>
       registerActorRef(actorID, ref)
@@ -169,7 +161,11 @@ class NetworkCommunicationActor(parentRef: ActorRef) extends Actor with LazyLogg
       queriedActorVirtualIdentities.clear()
       idToCongestionControls.foreach {
         case (actorID, ctrl) =>
-          ctrl.getTimedOutInTransitMessages.foreach { msg =>
+          val msgsNeedResend = ctrl.getTimedOutInTransitMessages
+          if(msgsNeedResend.nonEmpty){
+            workerLogger.logInfo(s"output channel for $actorID: ${ctrl.getStatusReport}")
+          }
+          msgsNeedResend.foreach { msg =>
             sendOrGetActorRef(actorID, msg)
           }
       }
@@ -177,7 +173,7 @@ class NetworkCommunicationActor(parentRef: ActorRef) extends Actor with LazyLogg
       // only remove the mapping from id to actorRef
       // to trigger discover mechanism
       val actorID = messageIDToIdentity(msg.messageID)
-      logger.warn(s"actor for $actorID might have crashed or failed")
+      workerLogger.logWarning(s"actor for $actorID might have crashed or failed")
       idToActorRefs.remove(actorID)
       if (parentRef != null) {
         getActorRefMappingFromParent(actorID)
@@ -211,6 +207,6 @@ class NetworkCommunicationActor(parentRef: ActorRef) extends Actor with LazyLogg
 
   override def postStop(): Unit = {
     resendHandle.cancel()
-    logger.info(s"network communication actor for ${context.parent} stopped!")
+    workerLogger.logInfo(s"network communication actor stopped!")
   }
 }
