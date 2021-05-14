@@ -23,11 +23,13 @@ import static scala.collection.JavaConverters.asScalaBuffer;
  */
 
 public class ScatterplotOpDesc extends VisualizationOperator {
-    @JsonProperty(value = "X-Column", required = true)
+    @JsonProperty(required = true)
+    @JsonSchemaTitle("X-Column")
     @AutofillAttributeName
     public String xColumn;
 
-    @JsonProperty(value = "Y-Column", required = true)
+    @JsonProperty(required = true)
+    @JsonSchemaTitle("Y-Column")
     @AutofillAttributeName
     public String yColumn;
 
@@ -38,8 +40,9 @@ public class ScatterplotOpDesc extends VisualizationOperator {
 
     @Override
     public String chartType() {
-        if(isGeometric)
+        if(isGeometric) {
             return VisualizationConstants.SPATIAL_SCATTERPLOT;
+        }
         return VisualizationConstants.SIMPLE_SCATTERPLOT;
     }
 

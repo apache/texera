@@ -15,6 +15,7 @@ import { ScatterplotLayerProps } from '@deck.gl/layers/scatterplot-layer/scatter
 
 (mapboxgl as any).accessToken = environment.mapbox.accessToken;
 
+// TODO: The current design doesn't decouple the visualization types into different modules
 /**
  * VisualizationPanelContentComponent displays the chart based on the chart type and data in table.
  *
@@ -177,6 +178,8 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
     if (this.map === undefined) {
       this.initMap();
     }
+    /* after the map is defined and the base
+    style is loaded, we add a layer of the data points */
     this.map?.on('styledata', () => {
       this.addNeworReplaceExistingLayer();
     });
@@ -195,7 +198,9 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
   }
 
   addNeworReplaceExistingLayer() {
-    if (this.map !== undefined) {
+    if (! this.map) {
+      return;
+    }
       if (this.map?.getLayer('scatter')) {
         this.map?.removeLayer('scatter');
       }
@@ -208,7 +213,6 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
       });
       clusterLayer.setProps(VisualizationPanelContentComponent.props);
       this.map.addLayer(clusterLayer);
-    }
   }
 
   generateWordCloud() {
