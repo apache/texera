@@ -37,7 +37,7 @@ abstract class WorkflowActor(
   })
 
   val networkCommunicationActor: NetworkSenderActorRef = NetworkSenderActorRef(
-    context.actorOf(NetworkCommunicationActor.props(parentNetworkCommunicationActorRef))
+    context.actorOf(NetworkCommunicationActor.props(parentNetworkCommunicationActorRef, logger))
   )
   lazy val controlOutputPort: ControlOutputPort = wire[ControlOutputPort]
   lazy val asyncRPCClient: AsyncRPCClient = wire[AsyncRPCClient]

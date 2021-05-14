@@ -56,8 +56,8 @@ object NetworkCommunicationActor {
 
   final case class MessageBecomesDeadLetter(message: NetworkMessage)
 
-  def props(parentSender: ActorRef): Props =
-    Props(new NetworkCommunicationActor(parentSender))
+  def props(parentSender: ActorRef, workerLogger: WorkflowLogger): Props =
+    Props(new NetworkCommunicationActor(parentSender, workerLogger))
 }
 
 /** This actor handles the transformation from identifier to actorRef
