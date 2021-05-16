@@ -1,16 +1,12 @@
 import ast
 import json
-import os
 import threading
-from datetime import datetime
 from typing import Dict
 
 import pandas
 import pyarrow
 from loguru import logger
 from pyarrow.flight import FlightDescriptor, Action, FlightServerBase, Result, FlightInfo, Location, FlightEndpoint, RecordBatchStream
-
-logger.add(f"texera-python_udf-{datetime.utcnow().isoformat()}-{os.getpid()}.log", rotation="500 MB")
 
 
 class UDFServer(FlightServerBase):
@@ -180,7 +176,7 @@ class UDFServer(FlightServerBase):
         # TODO: add server related configurations here
         pass
 
-    @logger.catch(reraise=False, default=json.dumps({'status': 'Fail'}))
+    @logger.catch(default=json.dumps({'status': 'Fail'}))
     def compute(self):
 
         # execute UDF

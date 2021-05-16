@@ -5,6 +5,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from loguru import logger
+
 from operators.texera_filter_operator import TexeraFilterOperator
 from operators.texera_map_operator import TexeraMapOperator
 from server.udf_server import UDFServer
@@ -26,14 +28,11 @@ def init_root_logger(log_input_level: str,
     :return:
     """
 
-    logger = logging.getLogger()
-    logger.setLevel(log_input_level)
-
     # set up stream handler, which outputs to stdout and stderr
     stream_handler = logging.StreamHandler()
     stream_handler.setLevel(stream_log_level)
-    stream_handler.setFormatter(logging.Formatter(stream_log_fmt, datefmt=stream_datefmt))
-    logger.addHandler(stream_handler)
+    # stream_handler.setFormatter(logging.Formatter(stream_log_fmt, datefmt=stream_datefmt))
+    logger.add(stream_handler)
 
     # set up file handler, which outputs log file
     file_name = f"texera-python_udf-{datetime.utcnow().isoformat()}-{os.getpid()}.log"
@@ -41,9 +40,9 @@ def init_root_logger(log_input_level: str,
     file_handler = logging.FileHandler(file_path)
 
     file_handler.setLevel(file_log_level)
-    file_handler.setFormatter(logging.Formatter(file_log_fmt, datefmt=file_datefmt))
+    # file_handler.setFormatter(logging.Formatter(file_log_fmt, datefmt=file_datefmt))
     logger.info(f"Attaching a FileHandler to logger, file path: {file_path}")
-    logger.addHandler(file_handler)
+    logger.add(file_handler)
     logger.info(f"Logger FileHandler is now attached, previous logs are in StreamHandler only.")
 
 
