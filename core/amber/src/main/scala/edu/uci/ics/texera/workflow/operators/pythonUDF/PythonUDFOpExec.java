@@ -131,10 +131,10 @@ public class PythonUDFOpExec implements OperatorExecutor {
         try {
             FlightResponseMap result = PythonUDFOpExec.objectMapper.readValue(communicate(client, MSG.COMPUTE),
                     FlightResponseMap.class);
-            if (result.get("status").equals("Fail")) {
-                String errorMessage = result.get("errorMessage");
-                throw new Exception(errorMessage);
-            }
+//            if (result.get("status").equals("Fail")) {
+//                String errorMessage = result.get("errorMessage");
+//                throw new Exception(errorMessage);
+//            }
         } catch (Exception e) {
             closeAndThrow(client, e);
         }
@@ -329,6 +329,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
                 root.clear();
             }
         } catch (RuntimeException e) {
+            System.out.println("NO SUCH FLIGHT!!");
             closeAndThrow(client, e);
         }
     }

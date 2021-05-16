@@ -1,15 +1,16 @@
 import ast
 import json
-import logging
+import os
 import threading
-import traceback
+from datetime import datetime
 from typing import Dict
 
 import pandas
 import pyarrow
+from loguru import logger
 from pyarrow.flight import FlightDescriptor, Action, FlightServerBase, Result, FlightInfo, Location, FlightEndpoint, RecordBatchStream
 
-logger = logging.getLogger(__name__)
+logger.add(f"texera-python_udf-{datetime.utcnow().isoformat()}-{os.getpid()}.log", rotation="500 MB")
 
 
 class UDFServer(FlightServerBase):
@@ -115,25 +116,9 @@ class UDFServer(FlightServerBase):
 
             yield self._response('Success!')
         elif action.type == "compute":
-            # execute UDF
-            # prepare input data
 
-            try:
-                input_dataframe: pandas.DataFrame = self._get_flight("toPython")
+            yield self._response(self.compute())
 
-                # execute and output data
-                for index, row in input_dataframe.iterrows():
-                    self.udf_op.accept(row)
-
-                self._output_data()
-                result_buffer = json.dumps({'status': 'Success'})
-            except:
-                result_buffer = json.dumps({'status': 'Fail', 'errorMessage': traceback.format_exc()})
-
-            # discard this batch of input
-            self._remove_flight("toPython")
-
-            yield self._response(result_buffer)
 
         elif action.type == "input_exhausted":
             self.udf_op.input_exhausted()
@@ -194,3 +179,21 @@ class UDFServer(FlightServerBase):
     def _configure(self, *args):
         # TODO: add server related configurations here
         pass
+
+    @logger.catch(reraise=False, default=json.dumps({'status': 'Fail'}))
+    def compute(self):
+
+        # execute UDF
+        # prepare input data
+        input_dataframe: pandas.DataFrame = self._get_flight("toPython")
+
+        # execute and output data
+        for index, row in input_dataframe.iterrows():
+            self.udf_op.accept(row)
+
+        result_buffer = json.dumps({'status': 'Success'})
+
+        self._output_data()
+        # discard this batch of input
+        self._remove_flight("toPython")
+        return result_buffer
