@@ -330,7 +330,32 @@ public class Tuple implements ITuple, Serializable {
             this.fieldNameMap = new HashMap<>();
         }
 
+        public BuilderV2 fill(Tuple tuple) {
+            checkNotNull(tuple);
+
+            for (int i = 0; i < tuple.size(); i++) {
+                // TODO There is scope here to be "loose" in the schema matching, so that we don't need a "remove" ever
+                fill(tuple.getSchema().getAttributes().get(i), tuple.getFields().get(i));
+            }
+
+            return this;
+        }
+
+        public BuilderV2 fill(Attribute attribute, Object field) {
+            checkNotNull(attribute);
+            checkAttributeMatchesField(attribute, field);
+
+            if (!schema.containsAttribute(attribute.getName())) {
+                // TODO Create custom exception for Tuple.Builder stuff?
+                throw new RuntimeException(String.format("%s doesn't exist in the expected schema.", attribute.getName()));
+            }
+
+            fieldNameMap.put(attribute.getName().toLowerCase(), field);
+            return this;
+        }
+
         public BuilderV2 fillSequentially(Object[] fields) {
+            checkNotNull(fields);
             checkSchemaMatchesFields(schema.getAttributes(), Lists.newArrayList(fields));
 
             for (int i = 0; i < fields.length; i++) {
