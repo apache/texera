@@ -82,15 +82,15 @@ class HashJoinOpExec[K](
 
             storedTuples.foreach(buildTuple => {
               val builder = Tuple
-                .newBuilder(outputProbeSchema)
-                .fill(buildTuple)
+                .newBuilder()
+                .add(buildTuple)
 
               var newProbeIdx = 0
               // outputProbeSchema doesnt have "probeAttribute" but t does. The following code
               //  takes that into consideration while creating a tuple.
               for (i <- 0 until t.getFields.size()) {
                 if (!t.getSchema().getAttributeNames().get(i).equals(probeAttributeName)) {
-                  builder.fill(
+                  builder.add(
                     outputProbeSchema.getAttributes().get(newProbeIdx),
                     t.getFields().get(i)
                   )
