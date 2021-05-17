@@ -187,6 +187,10 @@ public class Tuple implements ITuple, Serializable {
         return new Tuple.Builder();
     }
 
+    public static Tuple.BuilderV2 newBuilder(Schema schema) {
+        return new Tuple.BuilderV2(schema);
+    }
+
     /**
      * Tuple.Builder is a helper class for creating immutable Tuple instances.
      * <p>
@@ -315,5 +319,32 @@ public class Tuple implements ITuple, Serializable {
             return this;
         }
 
+    }
+
+    public static class BuilderV2 {
+        private final Schema schema;
+        private final Map<String, Object> fieldNameMap;
+
+        public BuilderV2(Schema schema) {
+            this.schema = schema;
+            this.fieldNameMap = new HashMap<>();
+        }
+
+        public BuilderV2 fillSequentially(Object[] fields) {
+            checkSchemaMatchesFields(schema.getAttributes(), Lists.newArrayList(fields));
+
+            for (int i = 0; i < fields.length; i++) {
+                fieldNameMap.put(schema.getAttributes().get(i).getName(), fields[i]);
+            }
+
+            return this;
+        }
+
+        public Tuple build() {
+            List<Object> fields = schema.getAttributes().stream()
+                    .map(attribute -> fieldNameMap.get(attribute.getName()))
+                    .collect(Collectors.toList());
+            return new Tuple(schema, fields);
+        }
     }
 }

@@ -57,7 +57,7 @@ class ParallelCSVScanSourceOpExec private[csv] (
             .map((attr: Attribute) => attr.getType)
             .toArray
         )
-        Tuple.newBuilder.add(schema, parsedFields).build
+        Tuple.newBuilder(schema).fillSequentially(parsedFields).build
       }
 
     }
