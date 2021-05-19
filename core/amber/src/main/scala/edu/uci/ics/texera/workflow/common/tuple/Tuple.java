@@ -634,6 +634,13 @@ public class Tuple implements ITuple, Serializable {
         }
 
         public Tuple build() {
+            if (schema.getAttributes().size() != fieldNameMap.size()) {
+                throw new TupleBuildingException(
+                        String.format("Tuple does not have same number of fields as schema. Has %d, required %d.",
+                                fieldNameMap.size(), schema.getAttributes().size())
+                );
+            }
+
             List<Object> fields = schema.getAttributes().stream()
                     .map(attribute -> fieldNameMap.get(attribute.getName()))
                     .collect(Collectors.toList());
