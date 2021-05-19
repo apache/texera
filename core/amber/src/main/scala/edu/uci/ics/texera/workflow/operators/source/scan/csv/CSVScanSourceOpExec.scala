@@ -29,7 +29,7 @@ class CSVScanSourceOpExec private[csv] (
             .map((attr: Attribute) => attr.getType)
             .toArray
         )
-        Tuple.newBuilder(schema).fillSequentially(parsedFields).build
+        Tuple.newBuilder(schema).addSequentially(parsedFields).build
       }
 
     }

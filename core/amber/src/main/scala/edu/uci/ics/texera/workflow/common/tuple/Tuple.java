@@ -10,6 +10,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Streams;
 import edu.uci.ics.amber.engine.common.tuple.ITuple;
 import edu.uci.ics.texera.workflow.common.Utils;
+import edu.uci.ics.texera.workflow.common.tuple.exception.TupleBuildingException;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
@@ -594,31 +595,34 @@ public class Tuple implements ITuple, Serializable {
             this.fieldNameMap = new HashMap<>();
         }
 
-        public BuilderV2 fill(Tuple tuple) {
+        /**
+         * The tuple argument here is expected to conform to the exact same schema as the
+         * the schema passed in the constructor. Failure to do so will result in an exception.
+         */
+        public BuilderV2 add(Tuple tuple) {
             checkNotNull(tuple);
 
             for (int i = 0; i < tuple.size(); i++) {
                 // TODO There is scope here to be "loose" in the schema matching, so that we don't need a "remove" ever
-                fill(tuple.getSchema().getAttributes().get(i), tuple.getFields().get(i));
+                add(tuple.getSchema().getAttributes().get(i), tuple.getFields().get(i));
             }
 
             return this;
         }
 
-        public BuilderV2 fill(Attribute attribute, Object field) {
+        public BuilderV2 add(Attribute attribute, Object field) {
             checkNotNull(attribute);
             checkAttributeMatchesField(attribute, field);
 
             if (!schema.containsAttribute(attribute.getName())) {
-                // TODO Create custom exception for Tuple.Builder stuff?
-                throw new RuntimeException(String.format("%s doesn't exist in the expected schema.", attribute.getName()));
+                throw new TupleBuildingException(String.format("%s doesn't exist in the expected schema.", attribute.getName()));
             }
 
             fieldNameMap.put(attribute.getName().toLowerCase(), field);
             return this;
         }
 
-        public BuilderV2 fillSequentially(Object[] fields) {
+        public BuilderV2 addSequentially(Object[] fields) {
             checkNotNull(fields);
             checkSchemaMatchesFields(schema.getAttributes(), Lists.newArrayList(fields));
 
