@@ -6,6 +6,7 @@ from typing import Dict
 import pandas
 import pyarrow
 from loguru import logger
+from pyarrow import py_buffer
 from pyarrow.flight import FlightDescriptor, Action, FlightServerBase, Result, FlightInfo, Location, FlightEndpoint, RecordBatchStream
 
 
@@ -115,7 +116,6 @@ class UDFServer(FlightServerBase):
 
             yield self._response(self.compute())
 
-
         elif action.type == "input_exhausted":
             self.udf_op.input_exhausted()
             self._output_data()
@@ -130,6 +130,7 @@ class UDFServer(FlightServerBase):
             # Shut down on background thread to avoid blocking current request
             # this is to be invoked by java end whenever it needs to terminate the server on python end
             threading.Thread(target=self._delayed_shutdown).start()
+            yield self._response('Success!')
 
         else:
             raise ValueError("Unknown action {!r}".format(action.type))
@@ -166,7 +167,7 @@ class UDFServer(FlightServerBase):
 
     @staticmethod
     def _response(message: str):
-        return Result(pyarrow.py_buffer(message.encode()))
+        return Result(py_buffer(message.encode()))
 
     @staticmethod
     def _to_descriptor(channel: str) -> FlightDescriptor:
@@ -176,7 +177,7 @@ class UDFServer(FlightServerBase):
         # TODO: add server related configurations here
         pass
 
-    @logger.catch(default=json.dumps({'status': 'Fail'}))
+    @logger.catch(reraise=True)
     def compute(self):
 
         # execute UDF

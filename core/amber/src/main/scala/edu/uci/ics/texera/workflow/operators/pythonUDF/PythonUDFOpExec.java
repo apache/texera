@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.workflow.operators.pythonUDF;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.typesafe.config.Config;
 import edu.uci.ics.amber.engine.common.InputExhausted;
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity;
@@ -38,7 +37,12 @@ import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFOpExec.MS
 public class PythonUDFOpExec implements OperatorExecutor {
     @NotNull
     private static byte[] communicate(@NotNull FlightClient client, @NotNull MSG message) {
-        return client.doAction(new Action(message.content)).next().getBody();
+
+        return client.doAction(new Action(message.content))
+                .next()
+                .getBody();
+
+
     }
 
     private Process pythonServerProcess;
@@ -46,7 +50,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
     private static final int MAX_TRY_COUNT = 20;
     private static final long WAIT_TIME_MS = 500;
     private static final RootAllocator memoryAllocator = new RootAllocator();
-    private static final ObjectMapper objectMapper = Utils.objectMapper();
+
 
     /**
      * For every batch, the operator converts list of {@code Tuple}s into Arrow stream data in almost the exact same
@@ -129,12 +133,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
      */
     private void executeUDF(FlightClient client) {
         try {
-            FlightResponseMap result = PythonUDFOpExec.objectMapper.readValue(communicate(client, MSG.COMPUTE),
-                    FlightResponseMap.class);
-//            if (result.get("status").equals("Fail")) {
-//                String errorMessage = result.get("errorMessage");
-//                throw new Exception(errorMessage);
-//            }
+            communicate(client, MSG.COMPUTE);
         } catch (Exception e) {
             closeAndThrow(client, e);
         }
@@ -382,8 +381,9 @@ public class PythonUDFOpExec implements OperatorExecutor {
      * @param exception the exception to be wrapped into Amber Exception.
      */
     private void closeAndThrow(FlightClient client, Exception exception) throws RuntimeException {
+        exception.printStackTrace();
         closeClientAndServer(client, false);
-        throw new RuntimeException(exception.getMessage());
+        throw new RuntimeException(exception);
     }
 
     private static void deleteTempFile(String filePath) throws IOException {
@@ -644,17 +644,14 @@ public class PythonUDFOpExec implements OperatorExecutor {
                                 "%(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s" : logFileHandlerFormat,
                         logFileHandlerDateFormat.isEmpty() ? "%m-%d-%Y %H:%M:%S" : logFileHandlerDateFormat,
                         pythonScriptPath)
-                        .inheritIO()
+//                        .inheritIO()
                         .start();
         return location;
     }
 
     private void cleanTerminationWithThrow(@NotNull Exception e) {
-        e.printStackTrace();
         if (isDynamic) safeDeleteTempFile(pythonScriptPath);
         closeAndThrow(flightClient, e);
     }
 
-    static class FlightResponseMap extends HashMap<String, String> {
-    }
 }
