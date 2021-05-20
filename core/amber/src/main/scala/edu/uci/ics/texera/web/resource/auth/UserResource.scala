@@ -114,10 +114,12 @@ class UserResource {
         // get the name of the user
         val userName = payload.get("name").asInstanceOf[String]
 
-        // store Google user id in database it it does not exist
+        // store Google user id in database if it does not exist
         if (this.googleUserDao.fetchOneByUid(userId) == null){
           val googleUser = new GoogleUser(userId, userName)
           this.googleUserDao.insert(googleUser)
+        }else if (this.googleUserDao.fetchOneByUid(userId).getName != userName){
+          this.googleUserDao.fetchOneByUid(userId).setName(userName)
         }
 
         // get access token and refresh token
