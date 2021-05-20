@@ -4,7 +4,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeToken
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 
-//referenced from https://stackoverflow.com/questions/36496308/get-user-profile-from-googleidtoken
+//reference from https://stackoverflow.com/questions/36496308/get-user-profile-from-googleidtoken
 public class GoogleAuthorizationCodeTokenV4Request extends GoogleAuthorizationCodeTokenRequest {
     public GoogleAuthorizationCodeTokenV4Request(HttpTransport transport, JsonFactory jsonFactory, String clientId, String
             clientSecret, String code, String redirectUri) {
