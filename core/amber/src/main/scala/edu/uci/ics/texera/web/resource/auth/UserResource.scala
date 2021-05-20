@@ -63,8 +63,8 @@ class UserResource {
 
   private val TRANSPORT = new NetHttpTransport
   private val JSON_FACTORY = new JacksonFactory
-  private val CLIENT_ID = ""
-  private val CLIENT_SECRET = ""
+  private val CLIENT_ID = GoogleClientIdSecret.CLIENT_ID
+  private val CLIENT_SECRET = GoogleClientIdSecret.CLIENT_SECRETE
 
   @GET
   @Path("/auth/status")
@@ -116,7 +116,7 @@ class UserResource {
 
         // store Google user id in database it it does not exist
         if (this.googleUserDao.fetchOneByUid(userId) == null){
-          val googleUser = new GoogleUser(userId)
+          val googleUser = new GoogleUser(userId, userName)
           this.googleUserDao.insert(googleUser)
         }
 
@@ -127,7 +127,7 @@ class UserResource {
         // set session
         setGoogleUserSession(
           session,
-          new GoogleUser(userId)
+          new GoogleUser(userId, userName)
         )
       }
       Response.ok().build()

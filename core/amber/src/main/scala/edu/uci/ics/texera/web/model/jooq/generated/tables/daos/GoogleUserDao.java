@@ -6,10 +6,11 @@ package edu.uci.ics.texera.web.model.jooq.generated.tables.daos;
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.GoogleUser;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.GoogleUserRecord;
-import org.jooq.Configuration;
-import org.jooq.impl.DAOImpl;
 
 import java.util.List;
+
+import org.jooq.Configuration;
+import org.jooq.impl.DAOImpl;
 
 
 /**
@@ -56,5 +57,19 @@ public class GoogleUserDao extends DAOImpl<GoogleUserRecord, edu.uci.ics.texera.
      */
     public edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.GoogleUser fetchOneByUid(String value) {
         return fetchOne(GoogleUser.GOOGLE_USER.UID, value);
+    }
+
+    /**
+     * Fetch records that have <code>name BETWEEN lowerInclusive AND upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.GoogleUser> fetchRangeOfName(String lowerInclusive, String upperInclusive) {
+        return fetchRange(GoogleUser.GOOGLE_USER.NAME, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>name IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.GoogleUser> fetchByName(String... values) {
+        return fetch(GoogleUser.GOOGLE_USER.NAME, values);
     }
 }

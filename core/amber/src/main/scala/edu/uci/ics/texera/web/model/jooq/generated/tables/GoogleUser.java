@@ -8,12 +8,22 @@ import edu.uci.ics.texera.web.model.jooq.generated.Indexes;
 import edu.uci.ics.texera.web.model.jooq.generated.Keys;
 import edu.uci.ics.texera.web.model.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.GoogleUserRecord;
-import org.jooq.*;
-import org.jooq.impl.DSL;
-import org.jooq.impl.TableImpl;
 
 import java.util.Arrays;
 import java.util.List;
+
+import org.jooq.Field;
+import org.jooq.ForeignKey;
+import org.jooq.Index;
+import org.jooq.Name;
+import org.jooq.Record;
+import org.jooq.Row2;
+import org.jooq.Schema;
+import org.jooq.Table;
+import org.jooq.TableField;
+import org.jooq.UniqueKey;
+import org.jooq.impl.DSL;
+import org.jooq.impl.TableImpl;
 
 
 /**
@@ -22,7 +32,7 @@ import java.util.List;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class GoogleUser extends TableImpl<GoogleUserRecord> {
 
-    private static final long serialVersionUID = 482040628;
+    private static final long serialVersionUID = 1995689025;
 
     /**
      * The reference instance of <code>texera_db.google_user</code>
@@ -41,6 +51,11 @@ public class GoogleUser extends TableImpl<GoogleUserRecord> {
      * The column <code>texera_db.google_user.uid</code>.
      */
     public final TableField<GoogleUserRecord, String> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.VARCHAR(256).nullable(false), this, "");
+
+    /**
+     * The column <code>texera_db.google_user.name</code>.
+     */
+    public final TableField<GoogleUserRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(32).nullable(false), this, "");
 
     /**
      * Create a <code>texera_db.google_user</code> table reference
@@ -122,11 +137,11 @@ public class GoogleUser extends TableImpl<GoogleUserRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row1 type methods
+    // Row2 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row1<String> fieldsRow() {
-        return (Row1) super.fieldsRow();
+    public Row2<String, String> fieldsRow() {
+        return (Row2) super.fieldsRow();
     }
 }

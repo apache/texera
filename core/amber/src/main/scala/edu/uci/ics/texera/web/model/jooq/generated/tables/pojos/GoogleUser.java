@@ -13,20 +13,24 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IGoogleUser
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class GoogleUser implements IGoogleUser {
 
-    private static final long serialVersionUID = -656946252;
+    private static final long serialVersionUID = 1931720513;
 
     private String uid;
+    private String name;
 
     public GoogleUser() {}
 
     public GoogleUser(IGoogleUser value) {
         this.uid = value.getUid();
+        this.name = value.getName();
     }
 
     public GoogleUser(
-        String uid
+        String uid,
+        String name
     ) {
         this.uid = uid;
+        this.name = name;
     }
 
     @Override
@@ -40,10 +44,21 @@ public class GoogleUser implements IGoogleUser {
     }
 
     @Override
+    public String getName() {
+        return this.name;
+    }
+
+    @Override
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("GoogleUser (");
 
         sb.append(uid);
+        sb.append(", ").append(name);
 
         sb.append(")");
         return sb.toString();
@@ -56,6 +71,7 @@ public class GoogleUser implements IGoogleUser {
     @Override
     public void from(IGoogleUser from) {
         setUid(from.getUid());
+        setName(from.getName());
     }
 
     @Override
