@@ -23,6 +23,16 @@ public interface IGoogleUser extends Serializable {
      */
     public String getUid();
 
+    /**
+     * Setter for <code>texera_db.google_user.name</code>.
+     */
+    public void setName(String value);
+
+    /**
+     * Getter for <code>texera_db.google_user.name</code>.
+     */
+    public String getName();
+
     // -------------------------------------------------------------------------
     // FROM and INTO
     // -------------------------------------------------------------------------
@@ -30,10 +40,10 @@ public interface IGoogleUser extends Serializable {
     /**
      * Load data from another generated Record/POJO implementing the common interface IGoogleUser
      */
-    public void from(IGoogleUser from);
+    public void from(edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IGoogleUser from);
 
     /**
      * Copy data into another generated Record/POJO implementing the common interface IGoogleUser
      */
-    public <E extends IGoogleUser> E into(E into);
+    public <E extends edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IGoogleUser> E into(E into);
 }

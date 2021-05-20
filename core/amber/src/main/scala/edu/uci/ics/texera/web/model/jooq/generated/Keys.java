@@ -4,8 +4,19 @@
 package edu.uci.ics.texera.web.model.jooq.generated;
 
 
-import edu.uci.ics.texera.web.model.jooq.generated.tables.*;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.*;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.File;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.GoogleUser;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.KeywordDictionary;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.Workflow;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfUser;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.records.FileRecord;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.records.GoogleUserRecord;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.records.KeywordDictionaryRecord;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.records.UserRecord;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowOfUserRecord;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowRecord;
+
 import org.jooq.ForeignKey;
 import org.jooq.Identity;
 import org.jooq.UniqueKey;
@@ -76,9 +87,9 @@ public class Keys {
     }
 
     private static class ForeignKeys0 {
-        public static final ForeignKey<FileRecord, UserRecord> FILE_IBFK_1 = Internal.createForeignKey(Keys.KEY_USER_PRIMARY, File.FILE, "file_ibfk_1", File.FILE.UID);
-        public static final ForeignKey<KeywordDictionaryRecord, UserRecord> KEYWORD_DICTIONARY_IBFK_1 = Internal.createForeignKey(Keys.KEY_USER_PRIMARY, KeywordDictionary.KEYWORD_DICTIONARY, "keyword_dictionary_ibfk_1", KeywordDictionary.KEYWORD_DICTIONARY.UID);
-        public static final ForeignKey<WorkflowOfUserRecord, UserRecord> WORKFLOW_OF_USER_IBFK_1 = Internal.createForeignKey(Keys.KEY_USER_PRIMARY, WorkflowOfUser.WORKFLOW_OF_USER, "workflow_of_user_ibfk_1", WorkflowOfUser.WORKFLOW_OF_USER.UID);
-        public static final ForeignKey<WorkflowOfUserRecord, WorkflowRecord> WORKFLOW_OF_USER_IBFK_2 = Internal.createForeignKey(Keys.KEY_WORKFLOW_PRIMARY, WorkflowOfUser.WORKFLOW_OF_USER, "workflow_of_user_ibfk_2", WorkflowOfUser.WORKFLOW_OF_USER.WID);
+        public static final ForeignKey<FileRecord, UserRecord> FILE_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, File.FILE, "file_ibfk_1", File.FILE.UID);
+        public static final ForeignKey<KeywordDictionaryRecord, UserRecord> KEYWORD_DICTIONARY_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, KeywordDictionary.KEYWORD_DICTIONARY, "keyword_dictionary_ibfk_1", KeywordDictionary.KEYWORD_DICTIONARY.UID);
+        public static final ForeignKey<WorkflowOfUserRecord, UserRecord> WORKFLOW_OF_USER_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_USER_PRIMARY, WorkflowOfUser.WORKFLOW_OF_USER, "workflow_of_user_ibfk_1", WorkflowOfUser.WORKFLOW_OF_USER.UID);
+        public static final ForeignKey<WorkflowOfUserRecord, WorkflowRecord> WORKFLOW_OF_USER_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.web.model.jooq.generated.Keys.KEY_WORKFLOW_PRIMARY, WorkflowOfUser.WORKFLOW_OF_USER, "workflow_of_user_ibfk_2", WorkflowOfUser.WORKFLOW_OF_USER.WID);
     }
 }

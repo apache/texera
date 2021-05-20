@@ -34,7 +34,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class KeywordDictionary extends TableImpl<KeywordDictionaryRecord> {
 
-    private static final long serialVersionUID = -1509040930;
+    private static final long serialVersionUID = -1063079191;
 
     /**
      * The reference instance of <code>texera_db.keyword_dictionary</code>

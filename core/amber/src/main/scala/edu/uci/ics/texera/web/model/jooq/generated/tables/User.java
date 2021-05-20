@@ -34,7 +34,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class User extends TableImpl<UserRecord> {
 
-    private static final long serialVersionUID = 2077338662;
+    private static final long serialVersionUID = -1375933903;
 
     /**
      * The reference instance of <code>texera_db.user</code>

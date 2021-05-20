@@ -4,12 +4,12 @@
 package edu.uci.ics.texera.web.model.jooq.generated;
 
 
-import org.jooq.Schema;
-import org.jooq.impl.CatalogImpl;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
+import org.jooq.Schema;
+import org.jooq.impl.CatalogImpl;
 
 
 /**
@@ -28,7 +28,7 @@ public class DefaultCatalog extends CatalogImpl {
     /**
      * The schema <code>texera_db</code>.
      */
-    public final TexeraDb TEXERA_DB = TexeraDb.TEXERA_DB;
+    public final TexeraDb TEXERA_DB = edu.uci.ics.texera.web.model.jooq.generated.TexeraDb.TEXERA_DB;
 
     /**
      * No further instances allowed
