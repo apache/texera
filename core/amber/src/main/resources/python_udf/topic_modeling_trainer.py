@@ -16,7 +16,8 @@ class TopicModelingTrainer(TexeraBlockingUnsupervisedTrainerOperator):
         if len(args) >= 2:
             self._train_args = {"num_topics": int(args[1])}
         else:
-            self._train_args = {"num_topics": 5}
+            self.logger.exception("Not enough arguments in topic modeling operator.")
+            raise RuntimeError("Not enough arguments in topic modeling operator.")
 
         self.__logger.debug(f"getting args {args}")
         self.__logger.debug(f"parsed training args {self._train_args}")
