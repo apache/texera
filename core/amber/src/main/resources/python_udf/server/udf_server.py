@@ -1,5 +1,4 @@
 import ast
-import json
 import threading
 from typing import Dict
 
@@ -99,41 +98,28 @@ class UDFServer(FlightServerBase):
         """
         logger.debug(f"Flight Server on Action {action.type}")
         if action.type == "health_check":
-            # to check the status of the server to see if it is running.
-            yield self._response('Flight Server is up and running!')
+            # do nothing, do a heart beat
+            pass
         elif action.type == "open":
+            self._udf_open()
 
-            # set up user configurations
-            user_conf_table = self.flights[self._descriptor_to_key(self._to_descriptor('conf'))]
-            self._configure(*user_conf_table.to_pydict()['conf'])
-
-            # open UDF
-            user_args_table = self.flights[self._descriptor_to_key(self._to_descriptor('args'))]
-            self.udf_op.open(*user_args_table.to_pydict()['args'])
-
-            yield self._response('Success!')
         elif action.type == "compute":
-
-            yield self._response(self.compute())
+            self._udf_compute()
 
         elif action.type == "input_exhausted":
-            self.udf_op.input_exhausted()
-            self._output_data()
-            yield self._response('Success!')
+            self._udf_input_exhausted()
 
         elif action.type == "close":
-            # close UDF
-            self.udf_op.close()
-            yield self._response('Success!')
+            self._udf_close()
 
         elif action.type == "terminate":
             # Shut down on background thread to avoid blocking current request
             # this is to be invoked by java end whenever it needs to terminate the server on python end
             threading.Thread(target=self._delayed_shutdown).start()
-            yield self._response('Success!')
 
         else:
             raise ValueError("Unknown action {!r}".format(action.type))
+        yield self._response('success')
 
     def _delayed_shutdown(self):
         """Shut down after a delay."""
@@ -178,8 +164,7 @@ class UDFServer(FlightServerBase):
         pass
 
     @logger.catch(reraise=True)
-    def compute(self):
-
+    def _udf_compute(self):
         # execute UDF
         # prepare input data
         input_dataframe: pandas.DataFrame = self._get_flight("toPython")
@@ -188,9 +173,25 @@ class UDFServer(FlightServerBase):
         for index, row in input_dataframe.iterrows():
             self.udf_op.accept(row)
 
-        result_buffer = json.dumps({'status': 'Success'})
-
         self._output_data()
         # discard this batch of input
         self._remove_flight("toPython")
-        return result_buffer
+
+    @logger.catch(reraise=True)
+    def _udf_open(self):
+        # set up user configurations
+        user_conf_table = self.flights[self._descriptor_to_key(self._to_descriptor('conf'))]
+        self._configure(*user_conf_table.to_pydict()['conf'])
+
+        # open UDF
+        user_args_table = self.flights[self._descriptor_to_key(self._to_descriptor('args'))]
+        self.udf_op.open(*user_args_table.to_pydict()['args'])
+
+    @logger.catch(reraise=True)
+    def _udf_input_exhausted(self):
+        self.udf_op.input_exhausted()
+        self._output_data()
+
+    @logger.catch(reraise=True)
+    def _udf_close(self):
+        self.udf_op.close()

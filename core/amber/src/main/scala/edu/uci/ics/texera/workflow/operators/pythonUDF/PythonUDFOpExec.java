@@ -400,7 +400,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
 
             try {
                 flightClient = FlightClient.builder(memoryAllocator, flightServerURI).build();
-                connected = new String(communicate(flightClient, MSG.HEALTH_CHECK), StandardCharsets.UTF_8).equals("Flight Server is up and running!");
+                connected = new String(communicate(flightClient, MSG.HEALTH_CHECK), StandardCharsets.UTF_8).equals("success");
                 if (!connected) Thread.sleep(WAIT_TIME_MS);
             } catch (FlightRuntimeException e) {
                 System.out.println("Flight Client:\tNot connected to the server in this try.");
