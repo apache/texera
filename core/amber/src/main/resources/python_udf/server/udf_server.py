@@ -98,7 +98,7 @@ class UDFServer(FlightServerBase):
         """
         logger.debug(f"Flight Server on Action {action.type}")
         if action.type == "health_check":
-            # do nothing, do a heart beat
+            # do nothing but a heart beat
             pass
         elif action.type == "open":
             self._udf_open()
