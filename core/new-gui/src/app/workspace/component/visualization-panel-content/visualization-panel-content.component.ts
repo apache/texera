@@ -102,6 +102,9 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
       case ChartType.SPLINE:
         this.generateChart();
         break;
+      case ChartType.HTML_VIZ:
+        this.generateHTML();
+        break;
     }
   }
 
@@ -230,4 +233,7 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
 
   }
 
+  generateHTML() {
+    console.log(this.data);
+  }
 }

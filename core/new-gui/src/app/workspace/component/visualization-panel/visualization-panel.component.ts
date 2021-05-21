@@ -3,6 +3,7 @@ import { NzModalRef, NzModalService } from 'ng-zorro-antd/modal';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { ResultObject } from '../../types/execute-workflow.interface';
 import { VisualizationPanelContentComponent } from '../visualization-panel-content/visualization-panel-content.component';
+import {ChartType} from "../../types/visualization.interface";
 
 /**
  * VisualizationPanelComponent displays the button for visualization in ResultPanel when the result type is chart.
@@ -22,7 +23,8 @@ export class VisualizationPanelComponent implements OnChanges {
   @Input() operatorID: string | undefined;
   displayVisualizationPanel: boolean = false;
   modalRef: NzModalRef | undefined;
-
+  data: object[] | undefined;
+  chartType: ChartType | undefined;
   constructor(
     private modalService: NzModalService,
     private workflowStatusService: WorkflowStatusService
@@ -49,7 +51,51 @@ export class VisualizationPanelComponent implements OnChanges {
     if (!this.operatorID) {
       return;
     }
+    const result: ResultObject | undefined = this.workflowStatusService.getCurrentResult()[this.operatorID];
+    if (!result) {
+      return;
+    }
 
+    this.data = result.table as object[];
+    this.chartType = result.chartType;
+
+    switch (this.chartType) {
+      // correspond to WordCloudSink.java
+      case ChartType.WORD_CLOUD:
+      // correspond to TexeraBarChart.java
+      case ChartType.BAR:
+      case ChartType.STACKED_BAR:
+      // correspond to PieChartSink.java
+      case ChartType.PIE:
+      case ChartType.DONUT:
+      // correspond to TexeraLineChart.java
+      case ChartType.LINE:
+      case ChartType.SPLINE:
+        this.generateSeparateComponent();
+        break;
+      case ChartType.HTML_VIZ:
+        this.generateHTMLContent();
+        break;
+    }
+  }
+
+  generateHTMLContent() {
+    if (! this.data) {
+      return;
+    }
+    console.log(this.data[0]['HTML_content']);
+    // @ts-ignore
+    this.modalRef = this.modalService.create({
+      nzTitle: 'Visualization',
+      nzWidth: 1100,
+      nzFooter: null,
+      nzContent: this.data[0]['HTML_content'],
+      nzComponentParams: {
+        operatorID: this.operatorID
+      }
+    });
+  }
+  generateSeparateComponent() {
     this.modalRef = this.modalService.create({
       nzTitle: 'Visualization',
       nzWidth: 1100,
@@ -59,5 +105,4 @@ export class VisualizationPanelComponent implements OnChanges {
       }
     });
   }
-
 }
