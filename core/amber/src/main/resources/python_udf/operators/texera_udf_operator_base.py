@@ -1,25 +1,14 @@
-import logging
+from abc import ABC
 from typing import Dict, Optional, Tuple, List
 
 import pandas
 
 
-class ClassLoggerMeta(type):
-    def __init__(cls, *args):
-        super().__init__(*args)
-
-        # Explicit name mangling
-        logger_attribute_name = '_' + cls.__name__ + '__logger'
-
-        setattr(cls, logger_attribute_name, logging.getLogger(cls.__name__))
-
-
-class TexeraUDFOperator(metaclass=ClassLoggerMeta):
+class TexeraUDFOperator(ABC):
     """
     Base class for row-oriented one-table input, one-table output user-defined operators. This must be implemented
     before using.
     """
-    __logger = None
 
     def __init__(self):
         self._args: Tuple = tuple()

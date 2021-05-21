@@ -3,9 +3,11 @@ import logging
 import gensim
 import gensim.corpora as corpora
 import pandas
+from loguru import logger
 
 from operators.texera_blocking_unsupervised_trainer_operator import TexeraBlockingUnsupervisedTrainerOperator
 
+# to change library's logger setting
 logging.getLogger("gensim").setLevel(logging.ERROR)
 
 
@@ -20,8 +22,8 @@ class TopicModelingTrainer(TexeraBlockingUnsupervisedTrainerOperator):
         else:
             raise RuntimeError("Not enough arguments in topic modeling operator.")
 
-        self.__logger.debug(f"getting args {args}")
-        self.__logger.debug(f"parsed training args {self._train_args}")
+        logger.debug(f"getting args {args}")
+        logger.debug(f"parsed training args {self._train_args}")
 
     def accept(self, row: pandas.Series, nth_child: int = 0) -> None:
         # override accept to accept rows as lists
@@ -29,7 +31,7 @@ class TopicModelingTrainer(TexeraBlockingUnsupervisedTrainerOperator):
 
     @staticmethod
     def train(data, *args, **kwargs):
-        TopicModelingTrainer.__logger.debug(f"start training, args:{args}, kwargs:{kwargs}")
+        logger.debug(f"start training, args:{args}, kwargs:{kwargs}")
 
         # Create Dictionary
         id2word = corpora.Dictionary(data)
@@ -53,7 +55,7 @@ class TopicModelingTrainer(TexeraBlockingUnsupervisedTrainerOperator):
         return lda_model
 
     def report(self, model):
-        self.__logger.debug(f"reporting trained results")
+        logger.debug(f"reporting trained results")
         for id, topic in model.print_topics(num_topics=self._train_args["num_topics"]):
             self._result_tuples.append(pandas.Series({"output": topic}))
 
