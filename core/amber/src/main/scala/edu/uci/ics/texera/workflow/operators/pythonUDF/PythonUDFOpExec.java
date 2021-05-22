@@ -579,35 +579,28 @@ public class PythonUDFOpExec implements OperatorExecutor {
 
         Config config = WebUtils.config();
         String pythonPath = config.getString("python.path").trim();
-        String logInputLevel = config.getString("python.log.level").trim();
 
         String logStreamHandlerLevel = config.getString("python.log.streamHandler.level").trim();
         String logStreamHandlerFormat = config.getString("python.log.streamHandler.format").trim();
-        String logStreamHandlerDateFormat = config.getString("python.log.streamHandler.datefmt").trim();
 
         String logFileHandlerDir = config.getString("python.log.fileHandler.dir").trim();
         String logFileHandlerLevel = config.getString("python.log.fileHandler.level").trim();
         String logFileHandlerFormat = config.getString("python.log.fileHandler.format").trim();
-        String logFileHandlerDateFormat = config.getString("python.log.fileHandler.datefmt").trim();
 
         pythonServerProcess =
                 new ProcessBuilder(pythonPath.isEmpty() ? "python3" : pythonPath, // add fall back in case of empty
                         "-u",
                         udfMainScriptPath,
                         Integer.toString(portNumber),
-                        logInputLevel.isEmpty() ? "INFO" : logInputLevel,
 
                         logStreamHandlerLevel.isEmpty() ? "INFO" : logStreamHandlerLevel,
-                        logStreamHandlerFormat.isEmpty() ? "[%(asctime)s.%(msecs)03d] %(processName)s %(threadName)s " +
-                                "%(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s" : logStreamHandlerFormat,
-                        logStreamHandlerDateFormat.isEmpty() ? "%m-%d-%Y %H:%M:%S" : logStreamHandlerDateFormat,
+                        logStreamHandlerFormat.isEmpty() ? "{time} {level} {message}" : logStreamHandlerFormat,
 
                         logFileHandlerDir.isEmpty() ? "/tmp/" : logFileHandlerDir,
                         logFileHandlerLevel.isEmpty() ? "INFO" : logFileHandlerLevel,
-                        logFileHandlerFormat.isEmpty() ? "[%(asctime)s.%(msecs)03d] %(processName)s %(threadName)s " +
-                                "%(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s" : logFileHandlerFormat,
-                        logFileHandlerDateFormat.isEmpty() ? "%m-%d-%Y %H:%M:%S" : logFileHandlerDateFormat,
+                        logFileHandlerFormat.isEmpty() ? "{time} {level} {message}" : logFileHandlerFormat,
                         pythonScriptPath)
+                        .inheritIO()
                         .start();
         return location;
     }

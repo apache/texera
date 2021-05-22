@@ -12,37 +12,26 @@ from operators.texera_map_operator import TexeraMapOperator
 from server.udf_server import UDFServer
 
 
-def init_root_logger(log_input_level: str,
-                     stream_log_level: str, stream_log_fmt: str, stream_datefmt: str,
-                     file_log_dir: str, file_log_level: str, file_log_fmt: str, file_datefmt: str) -> None:
+def init_root_logger(stream_log_level: str, stream_log_fmt: str,
+                     file_log_dir: str, file_log_level: str, file_log_fmt: str) -> None:
     """
     initialize root logger with the given configurations
-    :param log_input_level: level to be captured by the root logger
     :param stream_log_level: level to be output to stdout/stderr
     :param stream_log_fmt: log format to stdout/stderr
-    :param stream_datefmt: log datefmt to stdout/stderr
     :param file_log_dir: log file directory
     :param file_log_level: level to be output to file
-    :param file_log_fmt: log format to file
-    :param file_datefmt: log datefmt to file
+    :param file_log_fmt: log format to fil
     :return:
     """
 
     # set up stream handler, which outputs to stdout and stderr
-    stream_handler = logging.StreamHandler()
-    stream_handler.setLevel(stream_log_level)
-    # stream_handler.setFormatter(logging.Formatter(stream_log_fmt, datefmt=stream_datefmt))
-    logger.add(stream_handler)
+    logger.add(sys.stderr, format=stream_log_fmt, level=stream_log_level)
 
     # set up file handler, which outputs log file
     file_name = f"texera-python_udf-{datetime.utcnow().isoformat()}-{os.getpid()}.log"
     file_path = Path(file_log_dir).joinpath(file_name)
-    file_handler = logging.FileHandler(file_path)
-
-    file_handler.setLevel(file_log_level)
-    # file_handler.setFormatter(logging.Formatter(file_log_fmt, datefmt=file_datefmt))
     logger.info(f"Attaching a FileHandler to logger, file path: {file_path}")
-    logger.add(file_handler)
+    logger.add(file_name, format=file_log_fmt, level=file_log_level)
     logger.info(f"Logger FileHandler is now attached, previous logs are in StreamHandler only.")
 
     class InterceptHandler(logging.Handler):
@@ -61,6 +50,7 @@ def init_root_logger(log_input_level: str,
 
             logger.opt(depth=depth, exception=record.exc_info).log(level, record.getMessage())
 
+    # intercept standard logging module to loguru
     logging.basicConfig(handlers=[InterceptHandler()], level=0)
 
 
@@ -68,15 +58,13 @@ if __name__ == '__main__':
 
     # TODO: find a better way to pass arguments
     _, port, \
-    log_input_level, \
-    stream_log_level, stream_log_fmt, stream_datefmt, \
-    file_log_dir, file_log_level, file_log_fmt, file_datefmt, \
+    stream_log_level, stream_log_fmt, \
+    file_log_dir, file_log_level, file_log_fmt, \
     UDF_operator_script_path, *__ = sys.argv
 
     # initialize root logger before doing anything
-    init_root_logger(log_input_level,
-                     stream_log_level, stream_log_fmt, stream_datefmt,
-                     file_log_dir, file_log_level, file_log_fmt, file_datefmt)
+    init_root_logger(stream_log_level, stream_log_fmt,
+                     file_log_dir, file_log_level, file_log_fmt)
 
     # Dynamically import operator from user-defined script.
 
