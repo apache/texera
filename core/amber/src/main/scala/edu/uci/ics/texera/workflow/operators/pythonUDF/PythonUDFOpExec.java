@@ -594,11 +594,15 @@ public class PythonUDFOpExec implements OperatorExecutor {
                         Integer.toString(portNumber),
 
                         logStreamHandlerLevel.isEmpty() ? "INFO" : logStreamHandlerLevel,
-                        logStreamHandlerFormat.isEmpty() ? "{time} {level} {message}" : logStreamHandlerFormat,
+                        logStreamHandlerFormat.isEmpty() ? "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | " +
+                                "<level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - " +
+                                "<level>{message}</level>" : logStreamHandlerFormat,
 
                         logFileHandlerDir.isEmpty() ? "/tmp/" : logFileHandlerDir,
                         logFileHandlerLevel.isEmpty() ? "INFO" : logFileHandlerLevel,
-                        logFileHandlerFormat.isEmpty() ? "{time} {level} {message}" : logFileHandlerFormat,
+                        logFileHandlerFormat.isEmpty() ? "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | " +
+                                "<level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - " +
+                                "<level>{message}</level>" : logFileHandlerFormat,
                         pythonScriptPath)
                         .inheritIO()
                         .start();
