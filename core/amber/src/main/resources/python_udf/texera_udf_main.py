@@ -105,6 +105,6 @@ if __name__ == '__main__':
 
     location = "grpc+tcp://localhost:" + port
 
-    # rediect user's print into logger
+    # redirect user's print into logger
     with contextlib.redirect_stdout(StreamToLogger()):
         UDFServer(final_UDF, "localhost", location).serve()
