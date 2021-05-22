@@ -124,8 +124,8 @@ class UDFServer(FlightServerBase):
 
     def _delayed_shutdown(self):
         """Shut down after a delay."""
-        logger.debug("Bye bye!")
         sleep(0.1)
+        logger.debug("Bye bye!")
         self.shutdown()
         self.wait()
 
