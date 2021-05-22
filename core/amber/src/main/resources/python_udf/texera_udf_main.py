@@ -1,3 +1,4 @@
+import contextlib
 import importlib.util
 import logging
 import os
@@ -12,6 +13,36 @@ from operators.texera_map_operator import TexeraMapOperator
 from server.udf_server import UDFServer
 
 
+class InterceptHandler(logging.Handler):
+    def emit(self, record):
+        # Get corresponding Loguru level if it exists
+        try:
+            level = logger.level(record.levelname).name
+        except ValueError:
+            level = record.levelno
+
+        # Find caller from where originated the logged message
+        frame, depth = logging.currentframe(), 2
+        while frame.f_code.co_filename == logging.__file__:
+            frame = frame.f_back
+            depth += 1
+
+        logger.opt(depth=depth, exception=record.exc_info).log(level, record.getMessage())
+
+
+class StreamToLogger(object):
+
+    def __init__(self, level="INFO"):
+        self._level = level
+
+    def write(self, buffer):
+        for line in buffer.rstrip().splitlines():
+            logger.opt(depth=1).log(self._level, "[print] " + line.rstrip())
+
+    def flush(self):
+        pass
+
+
 def init_root_logger(stream_log_level: str, stream_log_fmt: str,
                      file_log_dir: str, file_log_level: str, file_log_fmt: str) -> None:
     """
@@ -23,7 +54,7 @@ def init_root_logger(stream_log_level: str, stream_log_fmt: str,
     :param file_log_fmt: log format to fil
     :return:
     """
-
+    logger.remove()
     # set up stream handler, which outputs to stdout and stderr
     logger.add(sys.stderr, format=stream_log_fmt, level=stream_log_level)
 
@@ -33,22 +64,6 @@ def init_root_logger(stream_log_level: str, stream_log_fmt: str,
     logger.info(f"Attaching a FileHandler to logger, file path: {file_path}")
     logger.add(file_name, format=file_log_fmt, level=file_log_level)
     logger.info(f"Logger FileHandler is now attached, previous logs are in StreamHandler only.")
-
-    class InterceptHandler(logging.Handler):
-        def emit(self, record):
-            # Get corresponding Loguru level if it exists
-            try:
-                level = logger.level(record.levelname).name
-            except ValueError:
-                level = record.levelno
-
-            # Find caller from where originated the logged message
-            frame, depth = logging.currentframe(), 2
-            while frame.f_code.co_filename == logging.__file__:
-                frame = frame.f_back
-                depth += 1
-
-            logger.opt(depth=depth, exception=record.exc_info).log(level, record.getMessage())
 
     # intercept standard logging module to loguru
     logging.basicConfig(handlers=[InterceptHandler()], level=0)
@@ -90,4 +105,5 @@ if __name__ == '__main__':
 
     location = "grpc+tcp://localhost:" + port
 
-    UDFServer(final_UDF, "localhost", location).serve()
+    with contextlib.redirect_stdout(StreamToLogger()):
+        UDFServer(final_UDF, "localhost", location).serve()
