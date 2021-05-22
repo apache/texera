@@ -1,5 +1,6 @@
 import ast
 import threading
+from time import sleep
 from typing import Dict
 
 import pandas
@@ -124,6 +125,7 @@ class UDFServer(FlightServerBase):
     def _delayed_shutdown(self):
         """Shut down after a delay."""
         logger.debug("Bye bye!")
+        sleep(0.1)
         self.shutdown()
         self.wait()
 
