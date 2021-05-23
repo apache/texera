@@ -895,7 +895,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     if (this.workflowActionService.getTexeraGraph().hasOperator(targetCellID)) {
       const portIndex = this.workflowActionService.getTexeraGraph().getOperator(targetCellID)
         .inputPorts.findIndex(p => p.portID === targetPortID);
-      if (portIndex > 0) {
+      if (portIndex >= 0) {
         const portInfo = this.dynamicSchemaService.getDynamicSchema(targetCellID).additionalMetadata.inputPorts[portIndex];
         allowMultiInput = portInfo.allowMultiInputs ?? false;
       }
