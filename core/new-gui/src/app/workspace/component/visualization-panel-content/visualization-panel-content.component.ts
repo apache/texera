@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, Input, OnDestroy } from '@angular/core';
+import {AfterContentInit, Component, Input, OnDestroy} from '@angular/core';
 import * as c3 from 'c3';
 import { Primitive, PrimitiveArray } from 'c3';
 import * as d3 from 'd3';
@@ -12,7 +12,7 @@ import * as mapboxgl from 'mapbox-gl';
 import { MapboxLayer } from '@deck.gl/mapbox';
 import { ScatterplotLayer } from '@deck.gl/layers';
 import { ScatterplotLayerProps } from '@deck.gl/layers/scatterplot-layer/scatterplot-layer';
-import {DomSanitizer, SafeHtml} from '@angular/platform-browser';
+import {DomSanitizer} from '@angular/platform-browser';
 
 (mapboxgl as any).accessToken = environment.mapbox.accessToken;
 
@@ -29,7 +29,7 @@ import {DomSanitizer, SafeHtml} from '@angular/platform-browser';
   templateUrl: './visualization-panel-content.component.html',
   styleUrls: ['./visualization-panel-content.component.scss']
 })
-export class VisualizationPanelContentComponent implements AfterViewInit, OnDestroy {
+export class VisualizationPanelContentComponent implements AfterContentInit, OnDestroy {
   // this readonly variable must be the same as HTML element ID for visualization
   public static readonly CHART_ID = '#texera-result-chart-content';
   public static readonly MAP_CONTAINER = 'texera-result-map-container';
@@ -38,7 +38,7 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
   public static readonly WIDTH = 1000;
   public static readonly HEIGHT = 800;
 
-  // progressive visualization update and redraw interval in miliseconds
+  // progressive visualization update and redraw interval in milliseconds
   public static readonly UPDATE_INTERVAL_MS = 2000;
 
   private static readonly props: ScatterplotLayerProps<any> = {
@@ -54,6 +54,8 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
 
   @Input()
   operatorID: string | undefined;
+  displayHTML: boolean = false; // variable to decide whether to display the container to display the HTML container(iFrame)
+  displayMap: boolean = false; // variable to decide whether to display the container to display the map
 
   data: object[] | undefined;
   chartType: ChartType | undefined;
@@ -71,12 +73,12 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
   ) {
   }
 
-  ngAfterViewInit() {
+  ngAfterContentInit() {
     // attempt to draw chart immediately
     this.drawChart();
 
-    // setup an event lister that re-draws the chart content every (n) miliseconds
-    // auditTime makes sure the first re-draw happens after (n) miliseconds has elapsed
+    // setup an event lister that re-draws the chart content every (n) milliseconds
+    // auditTime makes sure the first re-draw happens after (n) milliseconds has elapsed
     this.updateSubscription = this.workflowStatusService.getResultUpdateStream()
       .auditTime(VisualizationPanelContentComponent.UPDATE_INTERVAL_MS)
       .subscribe(() => {
@@ -116,6 +118,8 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
     if (this.data?.length < 1) {
       return;
     }
+    this.displayHTML = false;
+    this.displayMap = false;
     switch (this.chartType) {
       // correspond to WordCloudSink.java
       case ChartType.WORD_CLOUD:
@@ -133,12 +137,14 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
         this.generateChart();
         break;
       case ChartType.SPATIAL_SCATTERPLOT:
+        this.displayMap = true;
         this.generateSpatialScatterplot();
         break;
       case ChartType.SIMPLE_SCATTERPLOT:
         this.generateSimpleScatterplot();
         break;
       case ChartType.HTML_VIZ:
+        this.displayHTML = true;
         this.generateHTML();
         break;
     }
@@ -350,8 +356,6 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
     if (!this.data) {
       return;
     }
-    console.log(Object.values(this.data[0])[0]);
     this.htmlData = this.sanitizer.bypassSecurityTrustHtml(Object.values(this.data[0])[0]); // this line bypasses angular security
-
   }
 }
