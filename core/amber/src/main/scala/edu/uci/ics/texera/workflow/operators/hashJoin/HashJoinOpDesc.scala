@@ -4,18 +4,17 @@ import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyD
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.operators.OpExecConfig
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{
-  AutofillAttributeName,
-  AutofillAttributeNameOnPort1
-}
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.operators.{OneToOneOpExecConfig, OperatorDescriptor}
-import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{
+  AutofillAttributeName,
+  AutofillAttributeNameOnPort1
+}
+import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 
 class HashJoinOpDesc[K] extends OperatorDescriptor {
@@ -37,7 +36,7 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
 
   override def operatorExecutor: OpExecConfig = {
     opExecConfig = new HashJoinOpExecConfig[K](
-      this.operatorIdentifier,
+      operatorIdentifier,
       probeAttributeName,
       buildAttributeName
     )

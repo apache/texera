@@ -45,7 +45,7 @@ public class PieChartOpDesc extends VisualizationOperator {
     }
 
     @Override
-    public PieChartOpExecConfig operatorExecutor() {
+    public OpExecConfig operatorExecutor() {
         if (nameColumn == null) {
             throw new RuntimeException("pie chart: name column is null");
         }
