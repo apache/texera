@@ -13,7 +13,9 @@ export enum ChartType {
   WORD_CLOUD = 'word cloud',
   LINE = 'line',
   SPLINE = 'spline',
-  HTML_VIZ = 'HTML visualizer'
+  HTML_VIZ = 'HTML visualizer',
+  SIMPLE_SCATTERPLOT = 'scatter',
+  SPATIAL_SCATTERPLOT = 'spatial scatterplot'
 }
 
 /**
