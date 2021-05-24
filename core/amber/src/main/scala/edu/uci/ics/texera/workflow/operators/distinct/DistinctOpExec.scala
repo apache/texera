@@ -8,7 +8,7 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import scala.collection.mutable
 
 class DistinctOpExec extends OperatorExecutor {
-  private val hashset: mutable.HashSet[Tuple] = mutable.HashSet()
+  private val hashset: mutable.LinkedHashSet[Tuple] = mutable.LinkedHashSet()
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
       input: LinkIdentity
