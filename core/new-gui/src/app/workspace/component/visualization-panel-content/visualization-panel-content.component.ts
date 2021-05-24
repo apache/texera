@@ -7,6 +7,7 @@ import { WorkflowStatusService } from '../../service/workflow-status/workflow-st
 import { ResultObject } from '../../types/execute-workflow.interface';
 import { ChartType, WordCloudTuple } from '../../types/visualization.interface';
 import { Subscription } from 'rxjs';
+import {DomSanitizer, SafeHtml} from '@angular/platform-browser';
 
 /**
  * VisualizationPanelContentComponent displays the chart based on the chart type and data in table.
@@ -30,7 +31,7 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
 
   // progressive visualization update and redraw interval in miliseconds
   public static readonly UPDATE_INTERVAL_MS = 2000;
-
+  htmlData: any = '';
 
   @Input()
   operatorID: string | undefined;
@@ -45,7 +46,8 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
   private updateSubscription: Subscription | undefined;
 
   constructor(
-    private workflowStatusService: WorkflowStatusService
+    private workflowStatusService: WorkflowStatusService,
+    private sanitizer: DomSanitizer
   ) {
   }
 
@@ -234,6 +236,11 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
   }
 
   generateHTML() {
-    console.log(this.data);
+    if (!this.data) {
+      return;
+    }
+    console.log(Object.values(this.data[0])[0]);
+    this.htmlData = this.sanitizer.bypassSecurityTrustHtml(Object.values(this.data[0])[0]); // this line bypasses angular security
+
   }
 }
