@@ -20,7 +20,7 @@ class DistinctOpDesc extends OperatorDescriptor {
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "Distinct",
-      "Remove duplicate tuples based on certain column(s)",
+      "Remove duplicate tuples",
       OperatorGroupConstants.UTILITY_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
