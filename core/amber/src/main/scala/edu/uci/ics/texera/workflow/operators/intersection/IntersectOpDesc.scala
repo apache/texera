@@ -11,16 +11,16 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 import edu.uci.ics.texera.workflow.common.operators.{ManyToOneOpExecConfig, OperatorDescriptor}
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
-class IntersectionOpDesc extends OperatorDescriptor {
+class IntersectOpDesc extends OperatorDescriptor {
 
   override def operatorExecutor: OpExecConfig = {
-    new ManyToOneOpExecConfig(operatorIdentifier, _ => new IntersectionOpExec())
+    new ManyToOneOpExecConfig(operatorIdentifier, _ => new IntersectOpExec())
   }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "Intersection",
-      "Take the intersection of multiple inputs",
+      "Intersect",
+      "Take the intersection of two inputs",
       OperatorGroupConstants.UTILITY_GROUP,
       inputPorts = List(InputPort(), InputPort()),
       outputPorts = List(OutputPort())

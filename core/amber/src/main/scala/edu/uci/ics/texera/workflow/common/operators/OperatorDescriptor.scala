@@ -11,7 +11,7 @@ import edu.uci.ics.texera.workflow.operators.aggregate.SpecializedAverageOpDesc
 import edu.uci.ics.texera.workflow.operators.distinct.DistinctOpDesc
 import edu.uci.ics.texera.workflow.operators.filter.SpecializedFilterOpDesc
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc
-import edu.uci.ics.texera.workflow.operators.intersection.IntersectionOpDesc
+import edu.uci.ics.texera.workflow.operators.intersection.IntersectOpDesc
 import edu.uci.ics.texera.workflow.operators.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.texera.workflow.operators.limit.LimitOpDesc
 import edu.uci.ics.texera.workflow.operators.linearregression.LinearRegressionOpDesc
@@ -80,7 +80,7 @@ import java.util.UUID
     new Type(value = classOf[ReservoirSamplingOpDesc], name = "ReservoirSampling"),
     new Type(value = classOf[HashJoinOpDesc[String]], name = "HashJoin"),
     new Type(value = classOf[DistinctOpDesc], name = "Distinct"),
-    new Type(value = classOf[IntersectionOpDesc], name = "Intersection")
+    new Type(value = classOf[IntersectOpDesc], name = "Intersect")
   )
 )
 abstract class OperatorDescriptor extends Serializable {

@@ -9,7 +9,7 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import scala.collection.convert.ImplicitConversions.`mutableSet AsJavaSet`
 import scala.collection.mutable
 
-class IntersectionOpExec extends OperatorExecutor {
+class IntersectOpExec extends OperatorExecutor {
   private val hashMap: mutable.HashMap[LinkIdentity, mutable.LinkedHashSet[Tuple]] =
     new mutable.HashMap()
 
