@@ -123,7 +123,15 @@ class UDFServer(FlightServerBase):
         yield self._response('success')
 
     def _delayed_shutdown(self):
-        """Shut down after a delay."""
+        """
+        Shut down after a delay.
+
+        This is used to allow client to send a terminate command to server. The server would
+        start a shutdown thread, with a short delay, during which allows the client to close the connection.
+
+        The short delay is set to be 100 ms, though it does not matter since it is on another thread.
+
+        """
         sleep(0.1)
         logger.debug("Bye bye!")
         self.shutdown()

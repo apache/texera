@@ -14,6 +14,18 @@ from server.udf_server import UDFServer
 
 
 class InterceptHandler(logging.Handler):
+    """
+    This class intercepts the standard logging module's handlers, by forwarding any
+    log messages to loguru's singleton logger
+
+    With this InterceptHandler, one can use standard logging module just as normal,
+    and the log messages will be outputted through loguru:
+    ```
+    import logging
+    logging.getLogger(name).info("some log")
+    ```
+    """
+
     def emit(self, record):
         # Get corresponding Loguru level if it exists
         try:
@@ -31,6 +43,9 @@ class InterceptHandler(logging.Handler):
 
 
 class StreamToLogger(object):
+    """
+    This class is used to redirect `print` to loguru's logger, instead of stdout.
+    """
 
     def __init__(self, level="INFO"):
         self._level = level
@@ -43,10 +58,10 @@ class StreamToLogger(object):
         pass
 
 
-def init_root_logger(stream_log_level: str, stream_log_fmt: str,
-                     file_log_dir: str, file_log_level: str, file_log_fmt: str) -> None:
+def init_loguru_logger(stream_log_level: str, stream_log_fmt: str,
+                       file_log_dir: str, file_log_level: str, file_log_fmt: str) -> None:
     """
-    initialize root logger with the given configurations
+    initialize the loguru's logger with the given configurations
     :param stream_log_level: level to be output to stdout/stderr
     :param stream_log_fmt: log format to stdout/stderr
     :param file_log_dir: log file directory
@@ -54,7 +69,12 @@ def init_root_logger(stream_log_level: str, stream_log_fmt: str,
     :param file_log_fmt: log format to fil
     :return:
     """
+
+    # loguru has default configuration which includes stderr as the handler. In order to
+    # change the configuration, the easiest way is to remove any existing handlers and
+    # re-configure them.
     logger.remove()
+
     # set up stream handler, which outputs to stdout and stderr
     logger.add(sys.stderr, format=stream_log_fmt, level=stream_log_level)
 
@@ -65,7 +85,8 @@ def init_root_logger(stream_log_level: str, stream_log_fmt: str,
     logger.add(file_name, format=file_log_fmt, level=file_log_level)
     logger.info(f"Logger FileHandler is now attached, previous logs are in StreamHandler only.")
 
-    # intercept standard logging module to loguru
+    # intercept standard logging module to loguru, so that standard logging module will be
+    # handled by the loguru as well.
     logging.basicConfig(handlers=[InterceptHandler()], level=0)
 
 
@@ -78,8 +99,8 @@ if __name__ == '__main__':
     UDF_operator_script_path, *__ = sys.argv
 
     # initialize root logger before doing anything
-    init_root_logger(stream_log_level, stream_log_fmt,
-                     file_log_dir, file_log_level, file_log_fmt)
+    init_loguru_logger(stream_log_level, stream_log_fmt,
+                       file_log_dir, file_log_level, file_log_fmt)
 
     # Dynamically import operator from user-defined script.
 
