@@ -116,6 +116,7 @@ export class NgbdModalUserLoginComponent implements OnInit {
     // call gapi.auth2 init
     return gapiLoad.then(async () => {
       await gapi.auth2
+        // Google Client ID should be filled in here 
         .init({ client_id: '' })
         .then(auth => {
           this.oauthInstance = auth;
