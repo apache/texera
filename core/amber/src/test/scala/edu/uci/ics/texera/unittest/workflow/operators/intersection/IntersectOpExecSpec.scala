@@ -43,20 +43,6 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   }
 
-  it should "raise RuntimeException when intersect with only one input upstream" in {
-    val linkID1 = linkID()
-    opExec.open()
-    assertThrows[IllegalArgumentException] {
-      (1 to 1000).map(_ => {
-        opExec.processTexeraTuple(Left(tuple()), linkID1)
-      })
-
-      opExec.processTexeraTuple(Right(InputExhausted()), null).toList
-    }
-
-    opExec.close()
-  }
-
   it should "work with basic two input streams with no duplicates" in {
     val linkID1 = linkID()
     val linkID2 = linkID()
@@ -109,17 +95,18 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opExec.open()
     counter = 0
     val commonTuples = (1 to 10).map(_ => tuple()).toList
+    assertThrows[IllegalArgumentException] {
+      (1 to 100).map(_ => {
+        opExec.processTexeraTuple(Left(tuple()), linkID())
+        opExec.processTexeraTuple(Left(commonTuples(Random.nextInt(commonTuples.size))), linkID())
+      })
 
-    (1 to 100).map(_ => {
-      opExec.processTexeraTuple(Left(tuple()), linkID())
-      opExec.processTexeraTuple(Left(commonTuples(Random.nextInt(commonTuples.size))), linkID())
-    })
-
-    val outputTuples: Set[Tuple] = opExec.processTexeraTuple(Right(InputExhausted()), null).toSet
-    assert(outputTuples.size <= 10)
-    assert(outputTuples.subsetOf(commonTuples.toSet))
-    outputTuples.foreach(tuple => assert(tuple.getField[Int]("field2") < 10))
-    opExec.close()
+      val outputTuples: Set[Tuple] = opExec.processTexeraTuple(Right(InputExhausted()), null).toSet
+      assert(outputTuples.size <= 10)
+      assert(outputTuples.subsetOf(commonTuples.toSet))
+      outputTuples.foreach(tuple => assert(tuple.getField[Int]("field2") < 10))
+      opExec.close()
+    }
   }
 
   it should "work with one empty input upstream after a data stream" in {
