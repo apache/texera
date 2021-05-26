@@ -6,13 +6,16 @@ import gensim.corpora as corpora
 import pandas
 import os
 
-import texera_udf_operator_base
+from operators.texera_blocking_unsupervised_trainer_operator import TexeraBlockingUnsupervisedTrainerOperator
+from operators.texera_udf_operator_base import log_exception
 
+# to change library's logger setting
+logging.getLogger("gensim").setLevel(logging.ERROR)
 
-class TopicModeling(texera_udf_operator_base.TexeraBlockingUnsupervisedTrainerOperator):
-    logger = logging.getLogger("PythonUDF.TopicModelingTrainer")
+class TopicModeling(TexeraBlockingUnsupervisedTrainerOperator):
+    logger = logging.getLogger("PythonUDF.TopicModelingMalletTrainer")
 
-    @texera_udf_operator_base.exception(logger)
+    @log_exception
     def open(self, *args):
         super(TopicModeling, self).open(*args)
 
@@ -21,7 +24,7 @@ class TopicModeling(texera_udf_operator_base.TexeraBlockingUnsupervisedTrainerOp
             MALLET_HOME = str(args[1])
             NUM_TOPICS = int(args[2])
         else:
-            raise RuntimeError("Not enough arguments in topic modeling operator")
+            raise RuntimeError("Not enough arguments in topic modeling mallet operator")
 
         MALLET_PATH = os.path.join(MALLET_HOME,"bin","mallet")
         # We need to fix a seed value so that the output of LDA is deterministic i.e. same output every time.
@@ -34,14 +37,14 @@ class TopicModeling(texera_udf_operator_base.TexeraBlockingUnsupervisedTrainerOp
         self.logger.debug(f"getting args {args}")
         self.logger.debug(f"parsed training args {self._train_args}")
 
-    @texera_udf_operator_base.exception(logger)
+    @log_exception
     def accept(self, row: pandas.Series, nth_child: int = 0) -> None:
         # override accept to accept rows as lists
         self._data.append(row[0].strip().split())
 
     @staticmethod
-    @texera_udf_operator_base.exception(logger)
-    def train(data, *args, **kwargs):
+    @log_exception
+    def train(data, mallet_path: str, random_seed: int, num_topics: int, *args, **kwargs):
         TopicModeling.logger.debug(f"start training, args:{args}, kwargs:{kwargs}")
 
         # Create Dictionary
@@ -53,11 +56,11 @@ class TopicModeling(texera_udf_operator_base.TexeraBlockingUnsupervisedTrainerOp
         # Term Document Frequency
         corpus = [id2word.doc2bow(text1) for text1 in texts]
 
-        lda_mallet_model = gensim.models.wrappers.LdaMallet(kwargs["mallet_path"], corpus=corpus, num_topics=kwargs["num_topics"], id2word=id2word, random_seed = kwargs["random_seed"])
+        lda_mallet_model = gensim.models.wrappers.LdaMallet(mallet_path, corpus=corpus, num_topics=num_topics, id2word=id2word, random_seed = random_seed)
 
         return lda_mallet_model
 
-    @texera_udf_operator_base.exception(logger)
+    @log_exception
     def report(self, model):
         self.logger.debug(f"reporting trained results")
         for id, topic in model.print_topics(num_topics=self._train_args["num_topics"]):
