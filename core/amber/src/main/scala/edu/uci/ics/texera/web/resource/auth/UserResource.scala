@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.web.resource.auth
 
-import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeTokenRequest
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.GoogleUserDao
@@ -14,13 +13,9 @@ import org.jooq.exception.DataAccessException
 import javax.servlet.http.HttpSession
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
-import com.google.api.client.http.HttpTransport
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.jackson2.JacksonFactory
-import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken
-import com.google.api.client.googleapis.auth.oauth2._
-import org.jooq.types.UInteger
 
 object UserResource {
 
@@ -105,7 +100,7 @@ class UserResource {
     // use authorization code to get tokens
     try {
         val tokenResponse = new GoogleAuthorizationCodeTokenV4Request(TRANSPORT, JSON_FACTORY, CLIENT_ID, CLIENT_SECRET, code, "postmessage").execute();
-        // get id token
+        // get the id token
         val idToken: GoogleIdToken = tokenResponse.parseIdToken()
         // get the payload of id token
         val payload = idToken.getPayload
@@ -122,7 +117,7 @@ class UserResource {
           this.googleUserDao.fetchOneByUid(userId).setName(userName)
         }
 
-        // get access token and refresh token
+        // get access token and refresh token (used foe access Google API Service)
         val access_token = tokenResponse.getAccessToken
         val refresh_token = tokenResponse.getRefreshToken
 
