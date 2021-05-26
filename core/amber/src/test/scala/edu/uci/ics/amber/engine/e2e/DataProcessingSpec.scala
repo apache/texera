@@ -334,18 +334,19 @@ class DataProcessingSpec
     executeWorkflow(id, workflow)
   }
 
-  "Engine" should "execute asterixdb->sink workflow normally" in {
-
-    val asterixDBOp = TestOperators.asterixDBSourceOpDesc()
-    val sink = TestOperators.sinkOpDesc()
-    val (id, workflow) = buildWorkflow(
-      mutable.MutableList[OperatorDescriptor](asterixDBOp, sink),
-      mutable.MutableList[OperatorLink](
-        OperatorLink(OperatorPort(asterixDBOp.operatorID, 0), OperatorPort(sink.operatorID, 0))
-      )
-    )
-    executeWorkflow(id, workflow)
-  }
+  // TODO: use mock data to perform the test, remove dependency on the real AsterixDB
+//  "Engine" should "execute asterixdb->sink workflow normally" in {
+//
+//    val asterixDBOp = TestOperators.asterixDBSourceOpDesc()
+//    val sink = TestOperators.sinkOpDesc()
+//    val (id, workflow) = buildWorkflow(
+//      mutable.MutableList[OperatorDescriptor](asterixDBOp, sink),
+//      mutable.MutableList[OperatorLink](
+//        OperatorLink(OperatorPort(asterixDBOp.operatorID, 0), OperatorPort(sink.operatorID, 0))
+//      )
+//    )
+//    executeWorkflow(id, workflow)
+//  }
 
   "Engine" should "execute mysql->sink workflow normally" in {
     val (host, port, database, table, username, password) = initializeInMemoryMySQLInstance()

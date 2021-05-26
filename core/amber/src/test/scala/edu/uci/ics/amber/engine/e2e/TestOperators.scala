@@ -106,6 +106,7 @@ object TestOperators {
     inMemoryMySQLSourceOpDesc
   }
 
+  // TODO: use mock data to perform the test, remove dependency on the real AsterixDB
   def asterixDBSourceOpDesc(): AsterixDBSourceOpDesc = {
     val asterixDBOp = new AsterixDBSourceOpDesc()
     asterixDBOp.host = "ipubmed4.ics.uci.edu" // AsterixDB at version 0.9.5

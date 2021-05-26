@@ -101,7 +101,7 @@ object AttributeTypeUtils extends Serializable {
       field: Object,
       attributeType: AttributeType
   ): Object = {
-
+    if (field == null) return null
     attributeType match {
       case INTEGER   => parseInteger(field)
       case LONG      => parseLong(field)

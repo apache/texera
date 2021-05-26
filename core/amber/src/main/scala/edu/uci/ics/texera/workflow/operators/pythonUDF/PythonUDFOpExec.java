@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.pythonUDF;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.typesafe.config.Config;
 import edu.uci.ics.amber.engine.common.InputExhausted;
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity;
 import edu.uci.ics.texera.web.WebUtils;
@@ -44,7 +45,6 @@ public class PythonUDFOpExec implements OperatorExecutor {
 
     private static final int MAX_TRY_COUNT = 20;
     private static final long WAIT_TIME_MS = 500;
-    private static final String DAEMON_SCRIPT_PATH = getPythonResourcePath("texera_udf_server_main.py");
     private static final RootAllocator memoryAllocator = new RootAllocator();
     private static final ObjectMapper objectMapper = Utils.objectMapper();
 
@@ -91,7 +91,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
             closeAndThrow(client, e);
         }
     }
-    private final String PYTHON = WebUtils.config().getString("python.path").trim();
+
     private String pythonScriptPath;
     private final String pythonScriptText;
     private final ArrayList<String> inputColumns;
@@ -498,22 +498,9 @@ public class PythonUDFOpExec implements OperatorExecutor {
             Location flightServerURL = startFlightServer();
             connectToServer(flightServerURL);
 
-            // Send user args to Server.
-            List<String> userArgs = new ArrayList<>();
-            if (inputColumns != null) userArgs.addAll(inputColumns);
-            if (arguments != null) userArgs.addAll(arguments);
-            if (outputColumns != null) {
-                for (Attribute a : outputColumns) userArgs.add(a.getName());
-            }
-            if (outerFilePaths != null) userArgs.addAll(outerFilePaths);
+            sendArgs();
+            sendConf();
 
-            Schema argsSchema = new Schema(Collections.singletonList(new Attribute("args", AttributeType.STRING)));
-            Queue<Tuple> argsTuples = new LinkedList<>();
-            for (String arg : userArgs) {
-                argsTuples.add(new Tuple(argsSchema, Collections.singletonList(arg)));
-            }
-
-            writeArrowStream(flightClient, argsTuples, convertAmber2ArrowSchema(argsSchema), Channel.ARGS, batchSize);
             communicate(flightClient, MSG.OPEN);
         } catch (IOException | InterruptedException | RuntimeException e) {
             cleanTerminationWithThrow(e);
@@ -521,6 +508,35 @@ public class PythonUDFOpExec implements OperatorExecutor {
 
         // Finally, delete the temp file because it has been loaded in Python.
         if (isDynamic) safeDeleteTempFile(pythonScriptPath);
+
+    }
+
+    private void sendArgs() {
+        // Send user args to Server.
+        List<String> userArgs = new ArrayList<>();
+        if (inputColumns != null) userArgs.addAll(inputColumns);
+        if (arguments != null) userArgs.addAll(arguments);
+        if (outputColumns != null) {
+            for (Attribute a : outputColumns) userArgs.add(a.getName());
+        }
+        if (outerFilePaths != null) userArgs.addAll(outerFilePaths);
+
+        Schema argsSchema = new Schema(Collections.singletonList(new Attribute("args", AttributeType.STRING)));
+        Queue<Tuple> argsTuples = new LinkedList<>();
+        for (String arg : userArgs) {
+            argsTuples.add(new Tuple(argsSchema, Collections.singletonList(arg)));
+        }
+
+        writeArrowStream(flightClient, argsTuples, convertAmber2ArrowSchema(argsSchema), Channel.ARGS, batchSize);
+    }
+
+    private void sendConf() {
+
+        Schema confSchema = new Schema(Collections.singletonList(new Attribute("conf", AttributeType.STRING)));
+        Queue<Tuple> confTuples = new LinkedList<>();
+
+        // TODO: add configurations to be sent
+        writeArrowStream(flightClient, confTuples, convertAmber2ArrowSchema(confSchema), Channel.CONF, batchSize);
 
     }
 
@@ -551,7 +567,9 @@ public class PythonUDFOpExec implements OperatorExecutor {
     enum Channel {
         TO_PYTHON("toPython"),
         FROM_PYTHON("fromPython"),
-        ARGS("args");
+        ARGS("args"),
+        CONF("conf");
+
         String name;
 
         Channel(String name) {
@@ -590,10 +608,41 @@ public class PythonUDFOpExec implements OperatorExecutor {
         Location location = new Location(URI.create("grpc+tcp://localhost:" + portNumber));
 
         // Start Flight server (Python process)
+        String udfMainScriptPath = getPythonResourcePath("texera_udf_main.py");
+
+        // TODO: find a better way to do default conf values.
+
+        Config config = WebUtils.config();
+        String pythonPath = config.getString("python.path").trim();
+        String logInputLevel = config.getString("python.log.level").trim();
+
+        String logStreamHandlerLevel = config.getString("python.log.streamHandler.level").trim();
+        String logStreamHandlerFormat = config.getString("python.log.streamHandler.format").trim();
+        String logStreamHandlerDateFormat = config.getString("python.log.streamHandler.datefmt").trim();
+
+        String logFileHandlerDir = config.getString("python.log.fileHandler.dir").trim();
+        String logFileHandlerLevel = config.getString("python.log.fileHandler.level").trim();
+        String logFileHandlerFormat = config.getString("python.log.fileHandler.format").trim();
+        String logFileHandlerDateFormat = config.getString("python.log.fileHandler.datefmt").trim();
+
         pythonServerProcess =
-                new ProcessBuilder(PYTHON.isEmpty() ? "python3" : PYTHON, // add fall back in case empty
-                        "-u", DAEMON_SCRIPT_PATH,
-                        Integer.toString(portNumber), pythonScriptPath)
+                new ProcessBuilder(pythonPath.isEmpty() ? "python3" : pythonPath, // add fall back in case of empty
+                        "-u",
+                        udfMainScriptPath,
+                        Integer.toString(portNumber),
+                        logInputLevel.isEmpty() ? "INFO" : logInputLevel,
+
+                        logStreamHandlerLevel.isEmpty() ? "INFO" : logStreamHandlerLevel,
+                        logStreamHandlerFormat.isEmpty() ? "[%(asctime)s.%(msecs)03d] %(processName)s %(threadName)s " +
+                                "%(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s" : logStreamHandlerFormat,
+                        logStreamHandlerDateFormat.isEmpty() ? "%m-%d-%Y %H:%M:%S" : logStreamHandlerDateFormat,
+
+                        logFileHandlerDir.isEmpty() ? "/tmp/" : logFileHandlerDir,
+                        logFileHandlerLevel.isEmpty() ? "INFO" : logFileHandlerLevel,
+                        logFileHandlerFormat.isEmpty() ? "[%(asctime)s.%(msecs)03d] %(processName)s %(threadName)s " +
+                                "%(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s" : logFileHandlerFormat,
+                        logFileHandlerDateFormat.isEmpty() ? "%m-%d-%Y %H:%M:%S" : logFileHandlerDateFormat,
+                        pythonScriptPath)
                         .inheritIO()
                         .start();
         return location;
