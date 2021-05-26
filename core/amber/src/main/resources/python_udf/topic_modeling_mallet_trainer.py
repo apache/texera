@@ -21,10 +21,11 @@ class TopicModeling(texera_udf_operator_base.TexeraBlockingUnsupervisedTrainerOp
             MALLET_HOME = str(args[1])
             NUM_TOPICS = int(args[2])
         else:
-            self.logger.exception("Not enough arguments in topic modeling operator")
             raise RuntimeError("Not enough arguments in topic modeling operator")
 
-        MALLET_PATH = MALLET_HOME+"/bin/mallet"
+        MALLET_PATH = os.path.join(MALLET_HOME,"bin","mallet")
+        # We need to fix a seed value so that the output of LDA is deterministic i.e. same output every time.
+        # The below value is just an arbitrarily chosen value.
         RANDOM_SEED = 41
         os.environ['MALLET_HOME'] = MALLET_HOME
 
