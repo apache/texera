@@ -6,7 +6,6 @@ import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
-import scala.collection.convert.ImplicitConversions.`mutableSet AsJavaSet`
 import scala.collection.mutable
 
 class IntersectOpExec extends OperatorExecutor {
@@ -43,11 +42,7 @@ class IntersectOpExec extends OperatorExecutor {
           // both streams are exhausted, take the intersection and return the results
 
           hashMap.valuesIterator
-            .reduce((set1, set2) => {
-              print("set1.size: ", set1.size)
-              print("set2 size: ", set2.size)
-              set1.retainAll(set2); set1
-            })
+            .reduce((set1, set2) => { set1.intersect(set2) })
             .iterator
         } else {
           // only one of the stream is exhausted, continue accepting tuples
