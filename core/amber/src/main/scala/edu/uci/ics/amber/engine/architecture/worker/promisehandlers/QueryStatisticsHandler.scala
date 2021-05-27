@@ -20,7 +20,7 @@ trait QueryStatisticsHandler {
     val now = System.currentTimeMillis()
     if (now - lastReportTime > 30000) {
       logger.logInfo(
-        s"Data Queue Length = ${dataProcessor.getDataQueueLength} Control Queue Length = ${dataProcessor.getControlQueueLength}"
+        s"Data Queue Length = ${dataProcessor.getDataQueueLength}, Control Queue Length = ${dataProcessor.getControlQueueLength}"
       )
       lastReportTime = now
     }
