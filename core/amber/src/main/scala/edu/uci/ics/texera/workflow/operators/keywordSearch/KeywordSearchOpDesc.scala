@@ -11,6 +11,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 }
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc
+import edu.uci.ics.texera.workflow.common.tuple.schema.SchemaInfo
 
 class KeywordSearchOpDesc extends FilterOpDesc {
 
@@ -25,7 +26,7 @@ class KeywordSearchOpDesc extends FilterOpDesc {
   @JsonPropertyDescription("keywords")
   var keyword: String = _
 
-  override def operatorExecutor: OneToOneOpExecConfig = {
+  override def operatorExecutor(schemaInfo: SchemaInfo): OneToOneOpExecConfig = {
     new OneToOneOpExecConfig(
       this.operatorIdentifier,
       (counter: Int) => new KeywordSearchOpExec(counter, this)

@@ -16,7 +16,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 }
 import edu.uci.ics.texera.workflow.common.operators.{OneToOneOpExecConfig, OperatorDescriptor}
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema, SchemaInfo}
 
 class HashJoinOpDesc[K] extends OperatorDescriptor {
 
@@ -35,7 +35,7 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
   @JsonIgnore
   var opExecConfig: HashJoinOpExecConfig[K] = _
 
-  override def operatorExecutor: OpExecConfig = {
+  override def operatorExecutor(schemaInfo: SchemaInfo): OpExecConfig = {
     opExecConfig = new HashJoinOpExecConfig[K](
       this.operatorIdentifier,
       probeAttributeName,

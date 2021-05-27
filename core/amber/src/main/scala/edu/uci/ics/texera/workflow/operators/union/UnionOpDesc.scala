@@ -10,11 +10,11 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OutputPort
 }
 import edu.uci.ics.texera.workflow.common.operators.{OneToOneOpExecConfig, OperatorDescriptor}
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Schema, SchemaInfo}
 
 class UnionOpDesc extends OperatorDescriptor {
 
-  override def operatorExecutor: OpExecConfig = {
+  override def operatorExecutor(schemaInfo: SchemaInfo): OpExecConfig = {
     new OneToOneOpExecConfig(this.operatorIdentifier, _ => new UnionOpExec())
   }
 

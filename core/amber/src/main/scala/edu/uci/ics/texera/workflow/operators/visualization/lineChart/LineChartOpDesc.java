@@ -11,6 +11,7 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttribute
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
+import edu.uci.ics.texera.workflow.common.tuple.schema.SchemaInfo;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
 
 import java.util.ArrayList;
@@ -45,7 +46,7 @@ public class LineChartOpDesc extends VisualizationOperator {
     }
 
     @Override
-    public OneToOneOpExecConfig operatorExecutor() {
+    public OneToOneOpExecConfig operatorExecutor(SchemaInfo schemaInfo) {
         if (nameColumn == null) {
             throw new RuntimeException("line chart: name column is null");
         }
