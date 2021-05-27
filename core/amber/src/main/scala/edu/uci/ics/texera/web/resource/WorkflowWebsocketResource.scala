@@ -44,7 +44,6 @@ object WorkflowWebsocketResource {
   // Map[sessionId, Map[operatorId, List[ITuple]]]
   val sessionResults = new mutable.HashMap[String, Map[String, List[ITuple]]]
 
-
   // Map[sessionId, Map[downloadType, googleSheetLink]
   val sessionDownloadCache = new mutable.HashMap[String, mutable.HashMap[String, String]]
 

@@ -100,11 +100,6 @@ export class ResultPanelComponent {
         this.resultPanelToggleService.openResultPanel();
       }
       if (event.current.state === ExecutionState.Completed || event.current.state === ExecutionState.Running) {
-        if (event.current.state === ExecutionState.Completed) {
-          // remove previously stored partial result
-          sessionRemoveObject(PAGINATION_INFO_STORAGE_KEY);
-        }
-
         const sinkOperators = this.workflowActionService.getTexeraGraph().getAllOperators()
           .filter(op => op.operatorType.toLowerCase().includes('sink'));
         if (sinkOperators.length > 0) {
@@ -114,49 +109,56 @@ export class ResultPanelComponent {
       }
     });
 
+    this.executeWorkflowService.getExecutionStateStream().subscribe(event => {
+      if (event.current.state === ExecutionState.Completed) {
+        // remove previously stored partial result
+        sessionRemoveObject(PAGINATION_INFO_STORAGE_KEY);
+      }
+    });
+
     this.workflowWebsocketService.websocketEvent().subscribe(websocketEvent => {
       if (websocketEvent.type !== 'PaginatedResultEvent') {
         return;
       }
 
-      const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-
-      for (const result of websocketEvent.paginatedResults) {
-        if (result.operatorID === highlightedOperators[0]) {
-          this.total = result.totalRowCount;
-          this.currentResult = result.table.slice();
-
-          // When there is a result data from the backend,
-          //  1. Get all the column names except '_id', using the first instance of
-          //      result data.
-          //  2. Use those names to generate a list of display columns, which would
-          //      be used for displaying on angular mateiral table.
-          //  3. Pass the result data as array to generate a new angular material
-          //      data table.
-          //  4. Set the newly created data table to our own paginator.
-
-          let columns: {columnKey: any, columnText: string}[];
-
-          const columnKeys = Object.keys(this.currentResult[0]).filter(x => x !== '_id');
-          this.currentDisplayColumns = columnKeys;
-          columns = columnKeys.map(v => ({columnKey: v, columnText: v}));
-
-          // generate columnDef from first row, column definition is in order
-          this.currentColumns = ResultPanelComponent.generateColumns(columns);
-
-          // save result
-          const resultPaginationInfo = {
-            newWorkflowExecuted: false,
-            currentResult: this.currentResult,
-            currentPageIndex: this.currentPageIndex,
-            total: this.total,
-            columnKeys: columnKeys,
-            operatorID: this.resultPanelOperatorID
-          };
-          sessionSetObject(PAGINATION_INFO_STORAGE_KEY, resultPaginationInfo);
-          return;
-        }
+      const paginatedResults = websocketEvent.paginatedResults.filter(r => r.operatorID === this.resultPanelOperatorID);
+      if (paginatedResults.length === 0) {
+        return;
       }
+      const result = paginatedResults[0];
+
+      this.total = result.totalRowCount;
+      this.currentResult = result.table.slice();
+
+      // When there is a result data from the backend,
+      //  1. Get all the column names except '_id', using the first instance of
+      //      result data.
+      //  2. Use those names to generate a list of display columns, which would
+      //      be used for displaying on angular mateiral table.
+      //  3. Pass the result data as array to generate a new angular material
+      //      data table.
+      //  4. Set the newly created data table to our own paginator.
+
+      let columns: {columnKey: any, columnText: string}[];
+
+      const columnKeys = Object.keys(this.currentResult[0]).filter(x => x !== '_id');
+      this.currentDisplayColumns = columnKeys;
+      columns = columnKeys.map(v => ({columnKey: v, columnText: v}));
+
+      // generate columnDef from first row, column definition is in order
+      this.currentColumns = ResultPanelComponent.generateColumns(columns);
+
+      // save result
+      const resultPaginationInfo = {
+        newWorkflowExecuted: false,
+        currentResult: this.currentResult,
+        currentPageIndex: this.currentPageIndex,
+        total: this.total,
+        columnKeys: columnKeys,
+        operatorID: this.resultPanelOperatorID
+      };
+      sessionSetObject(PAGINATION_INFO_STORAGE_KEY, resultPaginationInfo);
+      return;
     });
 
     this.workflowStatusService.getResultUpdateStream().subscribe(_ => {
@@ -169,36 +171,42 @@ export class ResultPanelComponent {
 
       // Don't update if the state is already in Completed
       //  because our result may conflict with the more recent result from WorkflowCompletedEvent
-      if (result && this.executeWorkflowService.getExecutionState().state !== ExecutionState.Completed) {
-        this.chartType = result.chartType;
-        this.isFrontPagination = false;
+      if (! result || this.executeWorkflowService.getExecutionState().state === ExecutionState.Completed) {
+        return;
+      }
 
-        const previousTotal = this.total;
-        this.total = result.totalRowCount;
+      this.chartType = result.chartType;
+      this.isFrontPagination = false;
 
-        // if there are new results and we need them
-        if ((currentSinkStats.aggregatedOutputResultDirtyPageIndices ?? []).includes(this.currentPageIndex) ||
-        (previousTotal !== this.total && this.currentResult.length < ResultPanelComponent.DEFAULT_PAGE_SIZE)) {
+      const previousTotal = this.total;
+      this.total = result.totalRowCount;
 
-          if (this.total < previousTotal &&  // less row count
-            this.currentPageIndex === Math.ceil(previousTotal / ResultPanelComponent.DEFAULT_PAGE_SIZE) && // on the last page
-            Math.ceil(this.total / ResultPanelComponent.DEFAULT_PAGE_SIZE) < this.currentPageIndex) {  // less page
-              this.currentPageIndex = Math.ceil(this.total / ResultPanelComponent.DEFAULT_PAGE_SIZE);  // decrease page index
-          }
+      // if there are new results and we need them
+      if (
+        (currentSinkStats.aggregatedOutputResultDirtyPageIndices ?? []).includes(this.currentPageIndex) ||
+        (previousTotal !== this.total && this.currentResult.length < ResultPanelComponent.DEFAULT_PAGE_SIZE)
+      ) {
 
-          this.workflowWebsocketService.send('ResultPaginationRequest',
-            { pageSize: ResultPanelComponent.DEFAULT_PAGE_SIZE, pageIndex: this.currentPageIndex });
-        } else {
-          const resultPaginationInfo = {
-            newWorkflowExecuted: false,
-            currentResult: this.currentResult,
-            currentPageIndex: this.currentPageIndex,
-            total: this.total,
-            columnKeys: this.currentColumns,
-            operatorID: this.resultPanelOperatorID
-          };
-          sessionSetObject(PAGINATION_INFO_STORAGE_KEY, resultPaginationInfo);
+        if (this.total < previousTotal &&  // less row count
+          this.currentPageIndex === Math.ceil(previousTotal / ResultPanelComponent.DEFAULT_PAGE_SIZE) && // on the last page
+          Math.ceil(this.total / ResultPanelComponent.DEFAULT_PAGE_SIZE) < this.currentPageIndex         // less page
+        ) {
+            this.currentPageIndex = Math.ceil(this.total / ResultPanelComponent.DEFAULT_PAGE_SIZE);  // decrease page index
         }
+
+        console.log('sending result pagination request');
+        this.workflowWebsocketService.send('ResultPaginationRequest',
+          { pageSize: ResultPanelComponent.DEFAULT_PAGE_SIZE, pageIndex: this.currentPageIndex });
+      } else {
+        const resultPaginationInfo = {
+          newWorkflowExecuted: false,
+          currentResult: this.currentResult,
+          currentPageIndex: this.currentPageIndex,
+          total: this.total,
+          columnKeys: this.currentColumns,
+          operatorID: this.resultPanelOperatorID
+        };
+        sessionSetObject(PAGINATION_INFO_STORAGE_KEY, resultPaginationInfo);
       }
     });
 

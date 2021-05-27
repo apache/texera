@@ -14,9 +14,9 @@ object WebOperatorStatistics {
   ): WebOperatorStatistics = {
     val chartType = OperatorResult.getChartType(operatorID, workflowCompiler)
     val results = operatorStatistics.aggregatedOutputResults
-      // if chartType is null (normal sink), don't send results as well
-      .flatMap(r => chartType.map(_ => r))
-      // convert tuple format
+      // if chartType is present, then send all results
+      // else (normal view result table), then send empty list
+      //   (pagination will take care of sending actual result)
       .map(r =>
         chartType match {
           case Some(_) => OperatorResult.fromTuple(operatorID, r, chartType, r.size)
