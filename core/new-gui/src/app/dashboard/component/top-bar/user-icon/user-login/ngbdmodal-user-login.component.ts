@@ -4,6 +4,7 @@ import { UserService } from '../../../../../common/service/user/user.service';
 import { User } from '../../../../../common/type/user';
 import { Validators, FormControl, FormGroup, FormBuilder} from '@angular/forms';
 import { isDefined } from '../../../../../common/util/predicate';
+import { environment } from '../../../../../../environments/environment'
 /**
  * NgbdModalUserLoginComponent is the pop up for user login/registration
  *
@@ -116,8 +117,7 @@ export class NgbdModalUserLoginComponent implements OnInit {
     // call gapi.auth2 init
     return gapiLoad.then(async () => {
       await gapi.auth2
-        // Google Client ID should be filled in here 
-        .init({ client_id: '' })
+        .init({ client_id: environment.google.clientID })
         .then(auth => {
           this.oauthInstance = auth;
           this.gapiSetUp = true;
