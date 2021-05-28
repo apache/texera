@@ -98,7 +98,7 @@ class TwitterFullArchiveSearchSourceOpExec(
       maxResults: Int
   ): Unit = {
 
-    var response: Option[TweetSearchResponse] = None
+    var response: TweetSearchResponse = null
 
     // There is bug in the library twittered that it returns null although there exists
     // more pages.
@@ -109,23 +109,21 @@ class TwitterFullArchiveSearchSourceOpExec(
     // TODO: replace with newer version library twittered when the bug is fixed.
     var retry = 5
     do {
-      response = Some(
-        twitterClient.searchForTweetsFullArchive(
-          query,
-          startDateTime,
-          endDateTime,
-          maxResults.max(10), // a request needs at least 10 results
-          nextToken
-        )
+      response = twitterClient.searchForTweetsFullArchive(
+        query,
+        startDateTime,
+        endDateTime,
+        maxResults.max(10), // a request needs at least 10 results
+        nextToken
       )
       retry -= 1
-    } while (response.get.getNextToken == null && retry > 0)
+    } while (response.getNextToken == null && retry > 0)
 
-    nextToken = response.get.getNextToken
+    nextToken = response.getNextToken
 
     // when there is no more pages left, no need to request any more
     hasNextRequest = nextToken != null
 
-    tweetCache = response.get.getTweets.asScala
+    tweetCache = response.getTweets.asScala
   }
 }
