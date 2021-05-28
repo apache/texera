@@ -37,6 +37,7 @@ abstract class WorkflowActor(
   })
 
   val networkCommunicationActor: NetworkSenderActorRef = NetworkSenderActorRef(
+    // create a network communication actor on the same machine as the WorkflowActor itself
     context.actorOf(NetworkCommunicationActor.props(parentNetworkCommunicationActorRef, logger))
   )
   lazy val controlOutputPort: ControlOutputPort = wire[ControlOutputPort]
