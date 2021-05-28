@@ -622,6 +622,14 @@ public class Tuple implements ITuple, Serializable {
             return this;
         }
 
+        public BuilderV2 add(String attributeName, AttributeType attributeType, Object field) {
+            checkNotNull(attributeName);
+            checkNotNull(attributeType);
+
+            this.add(new Attribute(attributeName, attributeType), field);
+            return this;
+        }
+
         public BuilderV2 addSequentially(Object[] fields) {
             checkNotNull(fields);
             checkSchemaMatchesFields(schema.getAttributes(), Lists.newArrayList(fields));
