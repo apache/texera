@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2
 
-import com.github.redouane59.twitter.dto.tweet.Tweet
+import com.github.redouane59.twitter.dto.tweet.{Tweet, TweetSearchResponse}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeTypeUtils, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.operators.source.apis.twitter.TwitterSourceOpExec
@@ -8,8 +8,8 @@ import edu.uci.ics.texera.workflow.operators.source.apis.twitter.TwitterSourceOp
 import java.time.{LocalDateTime, ZoneId, ZoneOffset}
 import java.time.format.DateTimeFormatter
 import scala.collection.{mutable, Iterator}
-import scala.collection.JavaConverters._
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
+import scala.jdk.CollectionConverters.asScalaBufferConverter
 class TwitterFullArchiveSearchSourceOpExec(
     schema: Schema,
     accessToken: String,
@@ -98,13 +98,26 @@ class TwitterFullArchiveSearchSourceOpExec(
       maxResults: Int
   ): Unit = {
 
-    val response = twitterClient.searchForTweetsFullArchive(
-      query,
-      startDateTime,
-      endDateTime,
-      maxResults.max(10), // a request needs at least 10 results
-      nextToken
-    )
+    var response: TweetSearchResponse = null
+
+    // There is bug in the library twittered that it returns null although there exists
+    // more pages.
+    // Below is a temporary patch to make sure the query stops when there are actually
+    // no more pages. The strategy is to repeat the last request multiple times to ensure
+    // it returns the nextToken as null. The solution is not ideal but should do job in
+    // the most cases.
+    // TODO: replace with newer version library twittered when the bug is fixed.
+    var retry = 5
+    do {
+      response = twitterClient.searchForTweetsFullArchive(
+        query,
+        startDateTime,
+        endDateTime,
+        maxResults.max(10), // a request needs at least 10 results
+        nextToken
+      )
+      retry -= 1
+    } while (response.getNextToken == null && retry > 0)
 
     nextToken = response.getNextToken
 
