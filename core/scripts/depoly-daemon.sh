@@ -8,7 +8,7 @@ echo "${green}Amber compiled.${reset}"
 echo
 
 echo "${green}Compiling GUI...${reset}"
-cd ../new-gui && ng build --prod  --deploy-url=/ --base-href=/ 
+cd ../new-gui && npm install && ng build --prod  --deploy-url=/ --base-href=/ 
 echo "${green}GUI compiled.${reset}"
 echo
 
