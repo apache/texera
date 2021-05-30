@@ -1,6 +1,8 @@
 import gensim
 import gensim.corpora as corpora
 import pandas
+import pyLDAvis
+import pyLDAvis.gensim_models
 
 from operators.texera_blocking_unsupervised_trainer_operator import TexeraBlockingUnsupervisedTrainerOperator
 from operators.texera_udf_operator_base import log_exception
@@ -50,14 +52,14 @@ class TopicModelingTrainer(TexeraBlockingUnsupervisedTrainerOperator):
                                                     alpha='auto',
                                                     per_word_topics=True)
 
-        return lda_model
+        pyldaVis_prepared_model = pyLDAvis.gensim_models.prepare(lda_model, corpus, id2word)
+        return pyldaVis_prepared_model
 
     @log_exception
     def report(self, model):
         self.__logger.debug(f"reporting trained results")
-        for id, topic in model.print_topics(num_topics=self._train_args["num_topics"]):
-            self._result_tuples.append(pandas.Series({"output": topic}))
-
+        html_output = pyLDAvis.prepared_data_to_html(model)
+        self._result_tuples.append(pandas.Series({"output": html_output}))
 
 operator_instance = TopicModelingTrainer()
 if __name__ == '__main__':

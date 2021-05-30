@@ -4,6 +4,8 @@ import logging
 import gensim
 import gensim.corpora as corpora
 import pandas
+import pyLDAvis
+import pyLDAvis.gensim_models
 import os
 
 from operators.texera_blocking_unsupervised_trainer_operator import TexeraBlockingUnsupervisedTrainerOperator
@@ -11,6 +13,7 @@ from operators.texera_udf_operator_base import log_exception
 
 # to change library's logger setting
 logging.getLogger("gensim").setLevel(logging.ERROR)
+logging.getLogger("pyLDAvis").setLevel(logging.ERROR)
 
 class TopicModeling(TexeraBlockingUnsupervisedTrainerOperator):
     logger = logging.getLogger("PythonUDF.TopicModelingMalletTrainer")
@@ -55,16 +58,28 @@ class TopicModeling(TexeraBlockingUnsupervisedTrainerOperator):
 
         # Term Document Frequency
         corpus = [id2word.doc2bow(text1) for text1 in texts]
-
+        self.logger.debug(f"converting mallet model1")
         lda_mallet_model = gensim.models.wrappers.LdaMallet(mallet_path, corpus=corpus, num_topics=num_topics, id2word=id2word, random_seed = random_seed)
-
-        return lda_mallet_model
+        self.logger.debug(f"converting mallet model")
+        gensim_model = convertMalletModelToGensimFormat(lda_mallet_model)
+        self.logger.debug(f"converted mallet model")
+        pyldaVis_prepared_model = pyLDAvis.gensim_models.prepare(gensim_model, corpus, id2word)
+        return pyldaVis_prepared_model
 
     @log_exception
     def report(self, model):
         self.logger.debug(f"reporting trained results")
-        for id, topic in model.print_topics(num_topics=self._train_args["num_topics"]):
-            self._result_tuples.append(pandas.Series({"output": topic}))
+        html_output = pyLDAvis.prepared_data_to_html(model)
+        self._result_tuples.append(pandas.Series({"output": html_output}))
+
+    def convertMalletModelToGensimFormat(mallet_model):
+        model_gensim = gensim.models.ldamodel.LdaModel(
+            id2word=mallet_model.id2word, num_topics=mallet_model.num_topics,
+            alpha=mallet_model.alpha, eta=0,
+        )
+        model_gensim.state.sstats[...] = mallet_model.wordtopics
+        model_gensim.sync_state()
+        return model_gensim
 
 
 operator_instance = TopicModeling()
