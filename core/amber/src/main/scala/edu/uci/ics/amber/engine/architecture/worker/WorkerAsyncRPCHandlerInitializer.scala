@@ -43,4 +43,5 @@ class WorkerAsyncRPCHandlerInitializer(
     with UpdateInputLinkingHandler
     with ShutdownDPThreadHandler {
   val logger: WorkflowLogger = WorkflowLogger("WorkerControlHandler")
+  var lastReportTime = 0L
 }
