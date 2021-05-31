@@ -16,11 +16,10 @@ import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator
 import java.util.Collections.singletonList
 import scala.collection.JavaConverters.asScalaBuffer
 
-
 /**
- * HTML Visualization operator to render any given HTML code
- * This is the description of the operator
- */
+  * HTML Visualization operator to render any given HTML code
+  * This is the description of the operator
+  */
 class HtmlVizOpDesc extends VisualizationOperator {
   @JsonProperty(required = true)
   @JsonSchemaTitle("HTML content")
@@ -29,7 +28,16 @@ class HtmlVizOpDesc extends VisualizationOperator {
   override def chartType: String = VisualizationConstants.HTML_VIZ
 
   override def operatorExecutor = new HtmlVizOpExecConfig(this.operatorIdentifier, htmlContent)
-  override def operatorInfo = new OperatorInfo("HTML visualizer", "Render the result of HTML content", OperatorGroupConstants.VISUALIZATION_GROUP, asScalaBuffer(singletonList(new InputPort("", false))).toList, asScalaBuffer(singletonList(new OutputPort(""))).toList)
 
-  override def getOutputSchema(schemas: Array[Schema]): Schema = Schema.newBuilder.add(new Attribute("HTML_content", AttributeType.STRING)).build
+  override def operatorInfo =
+    new OperatorInfo(
+      "HTML visualizer",
+      "Render the result of HTML content",
+      OperatorGroupConstants.VISUALIZATION_GROUP,
+      asScalaBuffer(singletonList(new InputPort("", false))).toList,
+      asScalaBuffer(singletonList(new OutputPort(""))).toList
+    )
+
+  override def getOutputSchema(schemas: Array[Schema]): Schema =
+    Schema.newBuilder.add(new Attribute("HTML_content", AttributeType.STRING)).build
 }

@@ -10,21 +10,24 @@ import scala.collection.Iterator
 import scala.util.Either
 
 /**
- * HTML Visualization operator to render any given HTML code
- *
- */
+  * HTML Visualization operator to render any given HTML code
+  */
 class HtmlVizOpExec(htmlContentColumnName: String) extends OperatorExecutor {
 
-  override def open(): Unit = {
-  }
+  override def open(): Unit = {}
 
-  override def close(): Unit = {
-  }
+  override def close(): Unit = {}
 
-  override def processTexeraTuple(tuple: Either[Tuple, InputExhausted], input: LinkIdentity): Iterator[Tuple] =
+  override def processTexeraTuple(
+      tuple: Either[Tuple, InputExhausted],
+      input: LinkIdentity
+  ): Iterator[Tuple] =
     tuple match {
       case Left(t) =>
-        val result = Tuple.newBuilder().add("HTML_content", AttributeType.STRING, t.getField(htmlContentColumnName)).build()
+        val result = Tuple
+          .newBuilder()
+          .add("HTML_content", AttributeType.STRING, t.getField(htmlContentColumnName))
+          .build()
         Iterator(result)
       case Right(_) => Iterator()
     }

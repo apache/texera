@@ -5,10 +5,15 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.Us
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.RoundRobinDeployment
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, OperatorIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  LayerIdentity,
+  OperatorIdentity
+}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 
-class HtmlVizOpExecConfig(id: OperatorIdentity, htmlContentColName: String) extends OpExecConfig(id){
+class HtmlVizOpExecConfig(id: OperatorIdentity, htmlContentColName: String)
+    extends OpExecConfig(id) {
 
   override lazy val topology: Topology = {
     new Topology(
@@ -26,8 +31,8 @@ class HtmlVizOpExecConfig(id: OperatorIdentity, htmlContentColName: String) exte
   }
 
   override def assignBreakpoint(
-                                 breakpoint: GlobalBreakpoint[_]
-                               ): Array[ActorVirtualIdentity] = {
+      breakpoint: GlobalBreakpoint[_]
+  ): Array[ActorVirtualIdentity] = {
     topology.layers(0).identifiers
   }
 
