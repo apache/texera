@@ -13,7 +13,7 @@ import scala.util.Either
  * HTML Visualization operator to render any given HTML code
  *
  */
-class HtmlVizOpExec extends OperatorExecutor {
+class HtmlVizOpExec(htmlContentColumnName: String) extends OperatorExecutor {
 
   override def open(): Unit = {
   }
@@ -23,17 +23,9 @@ class HtmlVizOpExec extends OperatorExecutor {
 
   override def processTexeraTuple(tuple: Either[Tuple, InputExhausted], input: LinkIdentity): Iterator[Tuple] =
     tuple match {
-      case Left(t) => Iterator()
-      case Right(_) =>
-        //read file
-        val file = scala.io.Source.fromFile("/Users/sadeem/Downloads/50topics.html")
-        val content = try file.mkString finally file.close()
-        //then build a tuple
-
-        val t = Tuple
-          .newBuilder()
-          .add( "HTML_content", AttributeType.STRING, content).build()
-        //then return iterator t
-        Iterator(t)
+      case Left(t) =>
+        val result = Tuple.newBuilder().add("HTML_content", AttributeType.STRING, t.getField(htmlContentColumnName)).build()
+        Iterator(result)
+      case Right(_) => Iterator()
     }
 }

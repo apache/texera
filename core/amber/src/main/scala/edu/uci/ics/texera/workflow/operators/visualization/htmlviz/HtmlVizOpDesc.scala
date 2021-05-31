@@ -24,11 +24,11 @@ import scala.collection.JavaConverters.asScalaBuffer
 class HtmlVizOpDesc extends VisualizationOperator {
   @JsonProperty(required = true)
   @JsonSchemaTitle("HTML content")
-  @AutofillAttributeName var htmlContent: String = null
+  @AutofillAttributeName var htmlContent: String = _
 
   override def chartType: String = VisualizationConstants.HTML_VIZ
 
-  override def operatorExecutor = new HtmlVizOpExecConfig(this.operatorIdentifier)
+  override def operatorExecutor = new HtmlVizOpExecConfig(this.operatorIdentifier, htmlContent)
   override def operatorInfo = new OperatorInfo("HTML visualizer", "Render the result of HTML content", OperatorGroupConstants.VISUALIZATION_GROUP, asScalaBuffer(singletonList(new InputPort("", false))).toList, asScalaBuffer(singletonList(new OutputPort(""))).toList)
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = Schema.newBuilder.add(new Attribute("HTML_content", AttributeType.STRING)).build
