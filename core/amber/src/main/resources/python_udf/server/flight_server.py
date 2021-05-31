@@ -107,6 +107,14 @@ class FlightServer(FlightServerBase):
         return map(lambda x: (x[0], x[1][1]), self.callbacks.items())
 
     def do_action(self, context: ServerCallContext, action: Action):
+
+        """
+        perform an action that previously registered with a callback procedure,
+        return a result in bytes.
+        :param context:
+        :param action:
+        :return:
+        """
         callback, _ = self.callbacks.get(action.type)
         if not callback:
             raise KeyError("Unknown action {!r}".format(action.type))
@@ -128,11 +136,20 @@ class FlightServer(FlightServerBase):
         self.shutdown()
 
     def register(self, name: str, procedure: callable, description: str = "") -> None:
+        """
+        register a callback procedure with an action name.
+        :param name: the name of the procedure, it should be matching Action's type.
+        :param procedure: a callable, could be class, function, or lambda.
+        :param description: describes the procedure.
+        :return:
+        """
 
+        # wrap the given procedure so that its error can be logged.
         @logger.catch(reraise=True)
         def wrapper(*args, **kwargs):
             return procedure(*args, **kwargs)
 
+        # update the callbacks, which overwrites the previous registration.
         self.callbacks[name] = (wrapper, description)
         logger.info("registered procedure " + name)
 
