@@ -22,7 +22,6 @@ def launch_server(args):
 
 
 def server(*funcs):
-    print(funcs)
     host: str = "localhost"
     port: int = 5005
     scheme: str = "grpc+tcp"
