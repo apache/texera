@@ -356,6 +356,6 @@ export class VisualizationPanelContentComponent implements AfterContentInit, OnD
     if (!this.data) {
       return;
     }
-    this.htmlData = this.sanitizer.bypassSecurityTrustHtml(Object.values(this.data[0])[0]); // this line bypasses angular security
+    this.htmlData = this.sanitizer.bypassSecurityTrustHtml(Object(this.data[0])['HTML-content']); // this line bypasses angular security
   }
 }

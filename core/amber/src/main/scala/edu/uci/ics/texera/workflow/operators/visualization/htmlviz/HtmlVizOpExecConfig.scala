@@ -12,7 +12,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 }
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 
-class HtmlVizOpExecConfig(id: OperatorIdentity, htmlContentColName: String)
+class HtmlVizOpExecConfig(id: OperatorIdentity, htmlContentAttrName: String)
     extends OpExecConfig(id) {
 
   override lazy val topology: Topology = {
@@ -20,7 +20,7 @@ class HtmlVizOpExecConfig(id: OperatorIdentity, htmlContentColName: String)
       Array(
         new WorkerLayer(
           LayerIdentity(id, "main"),
-          _ => new HtmlVizOpExec(htmlContentColName),
+          _ => new HtmlVizOpExec(htmlContentAttrName),
           Constants.defaultNumWorkers,
           UseAll(),
           RoundRobinDeployment()

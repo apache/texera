@@ -60,4 +60,5 @@ export class VisualizationPanelComponent implements OnChanges {
       }
     });
   }
+
 }

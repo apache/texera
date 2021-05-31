@@ -113,7 +113,7 @@ describe('VisualizationPanelContentComponent', () => {
     const testData: Record<string, ResultObject> = {
       'operator1': {
         operatorID: 'operator1', chartType: ChartType.HTML_VIZ,
-        table: [{'HTML_content': '<div>sample</div>'}], totalRowCount: 1
+        table: [{'HTML-content': '<div>sample</div>'}], totalRowCount: 1
       }
     };
     spyOn(component, 'generateHTML');

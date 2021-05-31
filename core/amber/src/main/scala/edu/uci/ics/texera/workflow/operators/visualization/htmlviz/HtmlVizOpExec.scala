@@ -12,7 +12,7 @@ import scala.util.Either
 /**
   * HTML Visualization operator to render any given HTML code
   */
-class HtmlVizOpExec(htmlContentColumnName: String) extends OperatorExecutor {
+class HtmlVizOpExec(htmlContentAttrName: String) extends OperatorExecutor {
 
   override def open(): Unit = {}
 
@@ -26,7 +26,7 @@ class HtmlVizOpExec(htmlContentColumnName: String) extends OperatorExecutor {
       case Left(t) =>
         val result = Tuple
           .newBuilder()
-          .add("HTML_content", AttributeType.STRING, t.getField(htmlContentColumnName))
+          .add("HTML-content", AttributeType.STRING, t.getField(htmlContentAttrName))
           .build()
         Iterator(result)
       case Right(_) => Iterator()
