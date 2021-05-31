@@ -1,67 +1,20 @@
-import functools
-import logging
+from abc import ABC
 from typing import Dict, Optional, Tuple, List
 
 import pandas
 
 
-class log_exception:
-    """
-    a decorator to log the exception and re-raise the exception.
-
-    """
-
-    def __init__(self, fn):
-        functools.update_wrapper(self, fn)
-        self.fn = fn
-
-    def __set_name__(self, owner, name):
-        """
-        to set class name to the given method
-        :param owner:
-        :param name:
-        :return:
-        """
-        # bind class name to the method
-        self.fn.__class_name = owner.__name__
-
-        # then overwrite the original method
-        setattr(owner, name, self.fn)
-
-    def __call__(self, *args, **kwargs):
-        try:
-            return self.fn(*args, **kwargs)
-        except Exception:
-            err = "exception in " + self.fn.__name__ + "\n"
-            err += "-------------------------------------------------------------------------\n"
-            self.fn.__class_name.__logger.exception(err)
-            raise
-
-
-class ClassLoggerMetal(type):
-    def __init__(cls, *args):
-        super().__init__(*args)
-
-        # Explicit name mangling
-        logger_attribute_name = '_' + cls.__name__ + '__logger'
-
-        setattr(cls, logger_attribute_name, logging.getLogger(cls.__name__))
-
-
-class TexeraUDFOperator(metaclass=ClassLoggerMetal):
+class TexeraUDFOperator(ABC):
     """
     Base class for row-oriented one-table input, one-table output user-defined operators. This must be implemented
     before using.
     """
-    __logger = None
 
-    @log_exception
     def __init__(self):
         self._args: Tuple = tuple()
         self._kwargs: Optional[Dict] = None
         self._result_tuples: List = []
 
-    @log_exception
     def open(self, *args) -> None:
         """
         Specify here what the UDF should do before executing on tuples. For example, you may want to open a model file
@@ -73,7 +26,6 @@ class TexeraUDFOperator(metaclass=ClassLoggerMetal):
         """
         self._args = args
 
-    @log_exception
     def accept(self, row: pandas.Series, nth_child: int = 0) -> None:
         """
         This is what the UDF operator should do for every row. Do not return anything here, just accept it. The result
@@ -84,28 +36,24 @@ class TexeraUDFOperator(metaclass=ClassLoggerMetal):
         """
         pass
 
-    @log_exception
     def has_next(self) -> bool:
         """
         Return a boolean value that indicates whether there will be a next result.
         """
         return bool(self._result_tuples)
 
-    @log_exception
     def next(self) -> pandas.Series:
         """
         Get the next result row. This will be called after accept(), so result should be prepared.
         """
         return self._result_tuples.pop(0)
 
-    @log_exception
     def close(self) -> None:
         """
         Close this operator, releasing any resources. For example, you might want to close a model file.
         """
         pass
 
-    @log_exception
     def input_exhausted(self, *args, **kwargs):
         """
         Executes when the input is exhausted, useful for some blocking execution like training.
