@@ -1,4 +1,4 @@
-import {AfterContentInit, Component, Input, OnDestroy} from '@angular/core';
+import { AfterContentInit, Component, Input, OnDestroy } from '@angular/core';
 import * as c3 from 'c3';
 import { Primitive, PrimitiveArray } from 'c3';
 import * as d3 from 'd3';
@@ -12,7 +12,7 @@ import * as mapboxgl from 'mapbox-gl';
 import { MapboxLayer } from '@deck.gl/mapbox';
 import { ScatterplotLayer } from '@deck.gl/layers';
 import { ScatterplotLayerProps } from '@deck.gl/layers/scatterplot-layer/scatterplot-layer';
-import {DomSanitizer} from '@angular/platform-browser';
+import { DomSanitizer } from '@angular/platform-browser';
 
 (mapboxgl as any).accessToken = environment.mapbox.accessToken;
 
