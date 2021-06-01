@@ -50,9 +50,9 @@ class TestSeverIntegration:
     @pytest.mark.parametrize('args', [tuple()])
     def test_server_can_start(self, launch_server):
         client = UDFMockClient()
-        # should by default only have shutdown
-        assert len(client.list_actions()) == 1
-        action = client.list_actions()[0]
+        # should by default only have shutdown and process_data
+        assert len(client.list_actions()) == 2
+        action = sorted(client.list_actions(), key=lambda x: x.type)[1]
         assert action.type == "shutdown"
         assert action.description == "Shut down this server."
 
@@ -64,7 +64,7 @@ class TestSeverIntegration:
     @pytest.mark.parametrize('args', [("hello", "this is another call")])
     def test_server_call_registered_lambdas(self, launch_server):
         client = UDFMockClient()
-        assert len(client.list_actions()) == 3
+        assert len(client.list_actions()) == 4
         assert client.call("hello") == b'hello'
         assert client.call("this is another call") == b'ack!!!'
         assert client.call("shutdown") == b''
@@ -72,14 +72,14 @@ class TestSeverIntegration:
     @pytest.mark.parametrize('args', [("hello-function",)])
     def test_server_call_registered_function(self, launch_server):
         client = UDFMockClient()
-        assert len(client.list_actions()) == 2
+        assert len(client.list_actions()) == 3
         assert client.call("hello-function") == b'hello-function'
         assert client.call("shutdown") == b''
 
     @pytest.mark.parametrize('args', [("hello-class",)])
     def test_server_call_registered_callable_class(self, launch_server):
         client = UDFMockClient()
-        assert len(client.list_actions()) == 2
+        assert len(client.list_actions()) == 3
         assert client.call("hello-class") == b'hello-class'
         assert client.call("shutdown") == b''
 

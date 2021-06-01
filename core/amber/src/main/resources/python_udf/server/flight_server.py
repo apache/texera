@@ -48,6 +48,7 @@ class FlightServer(FlightServerBase):
         self.callbacks = dict()
 
         self.register("shutdown", lambda: threading.Thread(target=self._shutdown).start(), description="Shut down this server.")
+        self.register("process_data", lambda: None, description="Process the current batch of data.")
 
     ###########################
     # Flights related methods #
@@ -93,6 +94,7 @@ class FlightServer(FlightServerBase):
         logger.info(key)
         self.flights[key] = reader.read_all()
         logger.info(self.flights[key])
+        self.do_action(context, Action("process_data", b""))
 
     def do_get(self, context, ticket):
         key = ast.literal_eval(ticket.ticket.decode())
