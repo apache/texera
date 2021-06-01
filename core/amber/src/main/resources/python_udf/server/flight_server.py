@@ -36,7 +36,7 @@ from pyarrow.flight import ServerCallContext
 
 
 class FlightServer(FlightServerBase):
-    def __init__(self, host="localhost", location=None,
+    def __init__(self, host="localhost", location="grpc+tcp://localhost:5005",
                  tls_certificates=None, verify_client=False,
                  root_certificates=None, auth_handler=None):
         super(FlightServer, self).__init__(
@@ -90,9 +90,9 @@ class FlightServer(FlightServerBase):
 
     def do_put(self, context, descriptor, reader, writer):
         key = FlightServer.descriptor_to_key(descriptor)
-        print(key)
+        logger.info(key)
         self.flights[key] = reader.read_all()
-        print(self.flights[key])
+        logger.info(self.flights[key])
 
     def do_get(self, context, ticket):
         key = ast.literal_eval(ticket.ticket.decode())
