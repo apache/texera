@@ -19,7 +19,7 @@ class UDFMockClient(FlightClient):
         :param timeout: in seconds
         :return: exactly one result in bytes
         """
-        action = Action(procedure_name, b'')
+        action = Action(procedure_name, b'1')
         options = FlightCallOptions(timeout=timeout, headers=procedure_kwargs)
         return next(self.do_action(action, options)).body.to_pybytes()
 
