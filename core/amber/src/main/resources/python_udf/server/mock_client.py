@@ -1,5 +1,8 @@
+import pandas as pd
 from loguru import logger
+from pyarrow import Schema, Table
 from pyarrow.flight import Action, FlightCallOptions, FlightClient
+from pyarrow.flight import FlightDescriptor
 
 
 class UDFMockClient(FlightClient):
@@ -20,70 +23,34 @@ class UDFMockClient(FlightClient):
         options = FlightCallOptions(timeout=timeout, headers=procedure_kwargs)
         return next(self.do_action(action, options)).body.to_pybytes()
 
-    def list_flights(args, client, connection_args={}):
-        pass
-        # print('Flights\n=======')
-        # for flight in client.list_flights():
-        #     descriptor = flight.descriptor
-        #     if descriptor.descriptor_type == DescriptorType.PATH:
-        #         print("Path:", descriptor.path)
-        #     elif descriptor.descriptor_type == DescriptorType.CMD:
-        #         print("Command:", descriptor.command)
-        #     else:
-        #         print("Unknown descriptor type")
-        #
-        #     print("Total records:", end=" ")
-        #     if flight.total_records >= 0:
-        #         print(flight.total_records)
-        #     else:
-        #         print("Unknown")
-        #
-        #     print("Total bytes:", end=" ")
-        #     if flight.total_bytes >= 0:
-        #         print(flight.total_bytes)
-        #     else:
-        #         print("Unknown")
-        #
-        #     print("Number of endpoints:", len(flight.endpoints))
-        #     print("Schema:")
-        #     print(flight.schema)
-        #     print('---')
-        #
-        # print('\nActions\n=======')
-        # for action in client.list_actions():
-        #     print("Type:", action.type)
-        #     print("Description:", action.description)
-        #     print('---')
+    def push_data(self, connection_args={}):
 
-    def push_data(args, client, connection_args={}):
-        pass
-        # print('File Name:', args.file)
-        # my_table = csv.read_csv(args.file)
-        # print('Table rows=', str(len(my_table)))
-        # df = my_table.to_pandas()
-        # print(df.head())
-        # writer, _ = client.do_put(
-        #     FlightDescriptor.for_path(args.file), my_table.schema)
-        # writer.write_table(my_table)
-        # writer.close()
+        cars = {'Brand': ['Honda Civic', 'Toyota Corolla', 'Ford Focus', 'Audi A4'],
+                'Price': [22000, 25000, 27000, 35000]
+                }
+        df = pd.DataFrame(cars, columns=['Brand', 'Price'])
+        writer, _ = self.do_put(FlightDescriptor.for_path("fromClient"), Schema.from_pandas(df))
+        table = Table.from_pandas(df)
+        writer.write_table(table)
+        writer.close()
 
     def get_flight(args, client, connection_args={}):
-        pass
-        # if args.path:
-        #     descriptor = FlightDescriptor.for_path(*args.path)
-        # else:
-        #     descriptor = FlightDescriptor.for_command(args.command)
-        #
-        # info = client.get_flight_info(descriptor)
-        # for endpoint in info.endpoints:
-        #     print('Ticket:', endpoint.ticket)
-        #     for location in endpoint.locations:
-        #         print(location)
-        #         get_client = FlightClient(location,
-        #                                                  **connection_args)
-        #         reader = get_client.do_get(endpoint.ticket)
-        #         df = reader.read_pandas()
-        #         print(df)
+
+        if args.path:
+            descriptor = FlightDescriptor.for_path(*args.path)
+        else:
+            descriptor = FlightDescriptor.for_command(args.command)
+
+        info = client.get_flight_info(descriptor)
+        for endpoint in info.endpoints:
+            print('Ticket:', endpoint.ticket)
+            for location in endpoint.locations:
+                print(location)
+                get_client = FlightClient(location,
+                                          **connection_args)
+                reader = get_client.do_get(endpoint.ticket)
+                df = reader.read_pandas()
+                print(df)
 
 
 if __name__ == '__main__':

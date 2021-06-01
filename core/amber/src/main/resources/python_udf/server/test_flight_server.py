@@ -21,7 +21,8 @@ test_funcs = {
     "hello": lambda: "hello",
     "this is another call": lambda: "ack!!!",
     "hello-function": hello,
-    "hello-class": HelloClass()
+    "hello-class": HelloClass(),
+    "echo-data": lambda x: x.get
 }
 
 
@@ -31,7 +32,7 @@ class TestSeverIntegration:
     def launch_server(self, args):
         p1 = Process(target=self.start_flight_server, args=args)
         p1.start()
-        time.sleep(0.5)
+        time.sleep(1)
         yield
         p1.kill()
 
@@ -81,3 +82,24 @@ class TestSeverIntegration:
         assert len(client.list_actions()) == 2
         assert client.call("hello-class") == b'hello-class'
         assert client.call("shutdown") == b''
+
+    @pytest.mark.parametrize('args', [tuple()])
+    def test_server_receive_flights(self, launch_server):
+        client = UDFMockClient()
+        client.push_data()
+        client.push_data()
+        flight_infos = list(client.list_flights())
+        # assert len(flight_infos) == 2
+
+        info = flight_infos[0]
+
+        # assert info.total_records == 4
+        #
+        # assert info.total_bytes == 1096
+
+        for endpoint in info.endpoints:
+            print('Ticket:', endpoint.ticket)
+            for location in endpoint.locations:
+                reader = client.do_get(endpoint.ticket)
+                df = reader.read_pandas()
+                print(df)
