@@ -1,9 +1,9 @@
-import json
-
 from loguru import logger
 from pyarrow import Table
 from pyarrow.flight import Action, FlightCallOptions, FlightClient
 from pyarrow.flight import FlightDescriptor
+
+from server.common import serialize_arguments
 
 
 class PythonRPCClient(FlightClient):
@@ -20,7 +20,7 @@ class PythonRPCClient(FlightClient):
         :param timeout: in seconds
         :return: exactly one result in bytes
         """
-        payload = json.dumps({"args": procedure_args, "kwargs": procedure_kwargs})
+        payload = serialize_arguments(*procedure_args, **procedure_kwargs)
         action = Action(procedure_name, payload)
         options = FlightCallOptions(timeout=timeout)
         return next(self.do_action(action, options)).body.to_pybytes()

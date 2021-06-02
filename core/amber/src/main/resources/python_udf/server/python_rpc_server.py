@@ -1,19 +1,20 @@
 import argparse
 import ast
-import json
 import threading
 import time
 from functools import wraps
 
 from loguru import logger
 from pyarrow import py_buffer, MockOutputStream, RecordBatchStreamWriter, Table
-from pyarrow._flight import FlightServerBase, ServerCallContext, Action
 from pyarrow.flight import FlightDescriptor
 from pyarrow.flight import FlightEndpoint
 from pyarrow.flight import FlightInfo
+from pyarrow.flight import FlightServerBase, ServerCallContext, Action
 from pyarrow.flight import Location
 from pyarrow.flight import RecordBatchStream
 from pyarrow.flight import Result
+
+from server.common import deserialize_arguments
 
 
 class PythonRPCServer(FlightServerBase):
@@ -31,13 +32,9 @@ class PythonRPCServer(FlightServerBase):
             return ack_decorator(original_func)
         return ack_decorator
 
-    def __init__(self, host="localhost", location="grpc+tcp://localhost:5005",
-                 tls_certificates=None, verify_client=False,
-                 root_certificates=None, auth_handler=None):
-        super(PythonRPCServer, self).__init__(
-            location, auth_handler, tls_certificates, verify_client,
-            root_certificates)
-        logger.info("Serving on " + location)
+    def __init__(self, host="localhost", location="grpc+tcp://localhost:5005"):
+        super(PythonRPCServer, self).__init__(location)
+        logger.debug("Serving on " + location)
         self.host = host
         self.flights = {}
         self._procedures = dict()
@@ -120,7 +117,7 @@ class PythonRPCServer(FlightServerBase):
         if not procedure:
             raise KeyError("Unknown action {!r}".format(action.type))
 
-        arguments = self.deserialize_arguments(action.body.to_pybytes())
+        arguments = deserialize_arguments(action.body.to_pybytes())
         logger.debug(f"calling {action.type} with args {arguments} along with context {context}")
 
         result = procedure(*arguments["args"], **arguments["kwargs"])
@@ -133,7 +130,7 @@ class PythonRPCServer(FlightServerBase):
 
     def _shutdown(self):
         """Shut down after a delay."""
-        logger.info("Server is shutting down...")
+        logger.debug("Server is shutting down...")
         time.sleep(1)
         self.shutdown()
 
@@ -153,18 +150,12 @@ class PythonRPCServer(FlightServerBase):
 
         # update the procedures, which overwrites the previous registration.
         self._procedures[name] = (wrapper, description)
-        logger.info("registered procedure " + name)
+        logger.debug("registered procedure " + name)
 
     def register_data_handler(self, handler: callable):
         self.process_data = handler
 
-    @staticmethod
-    def serialize_arguments(*args, **kwargs):
-        return json.dumps({"args": args, "kwargs": kwargs}).encode("utf-8")
 
-    @staticmethod
-    def deserialize_arguments(argument_bytes: bytes):
-        return json.loads(argument_bytes) if argument_bytes else {"args": [], "kwargs": {}}
 
 
 def main():
