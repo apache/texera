@@ -48,6 +48,10 @@ jobs:
   amber:
     runs-on: ubuntu-latest
     steps:
+      - name: Cancel Previous Runs  # add cancel here since this stage is the fastest one.
+        uses: styfle/cancel-workflow-action@0.6.0
+        with:
+          access_token: ${{ github.token }}
       - name: Checkout Texera
         uses: actions/checkout@v2
       - name: Lint with scalafmt
@@ -64,10 +68,6 @@ jobs:
         python-version: [ 3.6, 3.7, 3.8, 3.9 ]
 
     steps:
-      - name: Cancel Previous Runs  # add cancel here since this stage is the fastest one.
-        uses: styfle/cancel-workflow-action@0.6.0
-        with:
-          access_token: ${{ github.token }}
       - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
