@@ -75,6 +75,9 @@ class TestFlightClient:
         dp_thread = threading.Thread(target=_start_dp, args=(shared_queue,))
         dp_thread.start()
 
+        dp_thread.join()
+        network_thread.join()
+
     @pytest.mark.parametrize('args', [tuple()])
     def test_client_can_connect_to_server(self, launch_server):
         client = PythonRPCClient()
