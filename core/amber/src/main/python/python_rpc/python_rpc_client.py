@@ -29,8 +29,9 @@ class PythonRPCClient(FlightClient):
         try:
             writer, reader = self.do_put(FlightDescriptor.for_path("fromClient"), table.schema)
             logger.debug("start writing")
-            writer.write_table(table)
-            writer.close()
+            with writer:
+                writer.write_table(table)
+
             logger.debug("finish writing")
 
             # invoke success handler
