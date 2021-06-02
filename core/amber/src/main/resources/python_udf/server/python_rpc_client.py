@@ -36,7 +36,7 @@ class PythonRPCClient(FlightClient):
             # invoke success handler
             on_success()
         except Exception as e:
-            logger.exception(e)
+            logger.warning(e)
 
             # invoke error handler
             on_error()

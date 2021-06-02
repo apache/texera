@@ -144,7 +144,7 @@ class PythonRPCServer(FlightServerBase):
         """
 
         # wrap the given procedure so that its error can be logged.
-        @logger.catch(reraise=True)
+        @logger.catch(level="WARNING", reraise=True)
         def wrapper(*args, **kwargs):
             return procedure(*args, **kwargs)
 
@@ -154,8 +154,6 @@ class PythonRPCServer(FlightServerBase):
 
     def register_data_handler(self, handler: callable):
         self.process_data = handler
-
-
 
 
 def main():
