@@ -23,7 +23,7 @@ import threading
 import time
 
 from loguru import logger
-from pyarrow import py_buffer, MockOutputStream, RecordBatchStreamWriter
+from pyarrow import py_buffer, MockOutputStream, RecordBatchStreamWriter, Table
 from pyarrow._flight import Action
 from pyarrow.flight import FlightDescriptor
 from pyarrow.flight import FlightEndpoint
@@ -47,18 +47,18 @@ class FlightServer(FlightServerBase):
         self.flights = {}
         self.callbacks = dict()
 
-        self.register("shutdown", lambda: threading.Thread(target=self._shutdown).start(), description="Shut down this server.")
-        self.register("process_data", lambda: None, description="Process the current batch of data.")
+        self.register("shutdown", lambda _: threading.Thread(target=self._shutdown).start(), description="Shut down this server.")
+        self.register_data_handler(lambda _: (_ for _ in ()).throw(NotImplementedError))
 
     ###########################
     # Flights related methods #
     ###########################
     @classmethod
-    def descriptor_to_key(self, descriptor):
+    def descriptor_to_key(cls, descriptor):
         return (descriptor.descriptor_type.value, descriptor.command,
                 tuple(descriptor.path or tuple()))
 
-    def _make_flight_info(self, key, descriptor, table):
+    def _make_flight_info(self, key, descriptor, table: Table):
         location = Location.for_grpc_tcp(self.host, self.port)
         endpoints = [FlightEndpoint(repr(key), [location]), ]
 
@@ -91,10 +91,9 @@ class FlightServer(FlightServerBase):
 
     def do_put(self, context, descriptor, reader, writer):
         key = FlightServer.descriptor_to_key(descriptor)
-        logger.info(key)
+        logger.debug(f"putting flight with key={key}")
         self.flights[key] = reader.read_all()
-        logger.info(self.flights[key])
-        self.do_action(context, Action("process_data", b""))
+        self.process_data(self.flights[key])
 
     def do_get(self, context, ticket):
         key = ast.literal_eval(ticket.ticket.decode())
@@ -117,6 +116,7 @@ class FlightServer(FlightServerBase):
         :param action:
         :return:
         """
+        logger.debug(f"calling {action.type}")
         callback, _ = self.callbacks.get(action.type)
         if not callback:
             raise KeyError("Unknown action {!r}".format(action.type))
@@ -149,11 +149,14 @@ class FlightServer(FlightServerBase):
         # wrap the given procedure so that its error can be logged.
         @logger.catch(reraise=True)
         def wrapper(*args, **kwargs):
-            return procedure(*args, **kwargs)
+            return procedure(self, *args, **kwargs)
 
         # update the callbacks, which overwrites the previous registration.
         self.callbacks[name] = (wrapper, description)
         logger.info("registered procedure " + name)
+
+    def register_data_handler(self, handler: callable):
+        self.process_data = handler
 
 
 def main():
