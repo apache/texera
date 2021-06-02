@@ -1,6 +1,7 @@
 import pytest
 from pyarrow._flight import Action
 
+from server.common import serialize_arguments
 from server.python_rpc_server import PythonRPCServer
 
 
@@ -56,7 +57,7 @@ class TestFlightServer:
     def test_server_can_invoke_registered_control_actions_with_args(self, server):
         name = "echo"
         result = b"hello"
-        serialized_args = PythonRPCServer.serialize_arguments("hello")
+        serialized_args = serialize_arguments("hello")
         server.register(name, lambda x: x)
         assert name in server._procedures
         assert next(server.do_action(None, Action(name, serialized_args))).body.to_pybytes() \
@@ -65,7 +66,7 @@ class TestFlightServer:
     def test_server_can_invoke_registered_control_actions_with_args2(self, server):
         name = "add"
         result = b"3"
-        serialized_args = PythonRPCServer.serialize_arguments(1, 2)
+        serialized_args = serialize_arguments(1, 2)
         server.register(name, lambda a, b: a + b)
         assert name in server._procedures
         assert next(server.do_action(None, Action(name, serialized_args))).body.to_pybytes() \
@@ -73,7 +74,7 @@ class TestFlightServer:
 
     def test_server_can_invoke_registered_control_actions_with_args_exception(self, server):
         name = "div"
-        serialized_args = PythonRPCServer.serialize_arguments(1, 0)
+        serialized_args = serialize_arguments(1, 0)
         server.register(name, lambda a, b: a / b)
         assert name in server._procedures
         with pytest.raises(ZeroDivisionError):
@@ -81,7 +82,7 @@ class TestFlightServer:
 
     def test_server_can_invoke_registered_lambda_with_args_and_ack(self, server):
         name = "i need an ack"
-        serialized_args = PythonRPCServer.serialize_arguments("some input for lambda")
+        serialized_args = serialize_arguments("some input for lambda")
 
         server.register(name, PythonRPCServer.ack()(lambda _: "random output"))
         assert name in server._procedures
@@ -90,7 +91,7 @@ class TestFlightServer:
 
     def test_server_can_invoke_registered_function_with_args_and_ack(self, server):
         name = "i need an ack"
-        serialized_args = PythonRPCServer.serialize_arguments("some input for function")
+        serialized_args = serialize_arguments("some input for function")
 
         @PythonRPCServer.ack
         def handler(_):
@@ -103,7 +104,7 @@ class TestFlightServer:
 
     def test_server_can_invoke_registered_callable_class_with_args_and_ack(self, server):
         name = "i need an ack"
-        serialized_args = PythonRPCServer.serialize_arguments("some input for callable class")
+        serialized_args = serialize_arguments("some input for callable class")
 
         class Handler:
             @PythonRPCServer.ack
