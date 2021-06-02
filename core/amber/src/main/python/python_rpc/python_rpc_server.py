@@ -32,7 +32,8 @@ class PythonRPCServer(FlightServerBase):
             return ack_decorator(original_func)
         return ack_decorator
 
-    def __init__(self, host="localhost", location="grpc+tcp://localhost:5005"):
+    def __init__(self, schema: str = "grpc+tcp", host: str = "localhost", port: int = 5005):
+        location = f"{schema}://{host}:{port}"
         super(PythonRPCServer, self).__init__(location)
         logger.debug("Serving on " + location)
         self.host = host
@@ -162,29 +163,11 @@ def main():
                         help="Address or hostname to listen on")
     parser.add_argument("--port", type=int, default=5005,
                         help="Port number to listen on")
-    parser.add_argument("--tls", nargs=2, default=None,
-                        metavar=('CERTFILE', 'KEYFILE'),
-                        help="Enable transport-level security")
-    parser.add_argument("--verify_client", type=bool, default=False,
-                        help="enable mutual TLS and verify the client if True")
 
     args = parser.parse_args()
-    tls_certificates = []
     scheme = "grpc+tcp"
-    if args.tls:
-        scheme = "grpc+tls"
-        with open(args.tls[0], "rb") as cert_file:
-            tls_cert_chain = cert_file.read()
-        with open(args.tls[1], "rb") as key_file:
-            tls_private_key = key_file.read()
-        tls_certificates.append((tls_cert_chain, tls_private_key))
 
-    location = "{}://{}:{}".format(scheme, args.host, args.port)
-
-    server = PythonRPCServer(args.host, location,
-                             tls_certificates=tls_certificates,
-                             verify_client=args.verify_client)
-    print("Serving on", location)
+    server = PythonRPCServer(scheme, args.host, args.port)
     server.serve()
 
 

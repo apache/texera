@@ -50,11 +50,7 @@ class TestFlightClient:
 
     @staticmethod
     def start_flight_server(*func_names):
-        host: str = "localhost"
-        port: int = 5005
-        scheme: str = "grpc+tcp"
-        location = f"{scheme}://{host}:{port}"
-        server = PythonRPCServer(host, location)
+        server = PythonRPCServer()
         for name in func_names:
             server.register(name, test_funcs[name])
         server.serve()
@@ -62,10 +58,7 @@ class TestFlightClient:
     @staticmethod
     def start_flight_server_with_dp(*func_names):
         shared_queue = Queue()
-
-        host: str = "localhost"
-        location = f"grpc+tcp://{host}:5005"
-        server = PythonRPCServer(host, location)
+        server = PythonRPCServer()
         for name in func_names:
             server.register(name, test_funcs[name])
 

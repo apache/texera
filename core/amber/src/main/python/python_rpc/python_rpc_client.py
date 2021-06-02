@@ -8,7 +8,7 @@ from common import serialize_arguments
 
 class PythonRPCClient(FlightClient):
 
-    def __init__(self, host: str = "localhost", port: int = 5005, scheme: str = "grpc+tcp", *args, **kwargs):
+    def __init__(self, scheme: str = "grpc+tcp", host: str = "localhost", port: int = 5005, *args, **kwargs):
         location = f"{scheme}://{host}:{port}"
         super().__init__(location, *args, **kwargs)
         logger.debug("Connected to server at " + location)

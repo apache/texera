@@ -10,10 +10,8 @@ class TestFlightServer:
 
     @pytest.fixture()
     def server(self):
-        host: str = "localhost"
-        location = f"grpc+tcp://{host}:{TestFlightServer.port}"
+        server = PythonRPCServer(port=TestFlightServer.port)
         TestFlightServer.port += 1
-        server = PythonRPCServer(host, location)
         return server
 
     def test_server_can_register_control_actions_with_lambda(self, server):
