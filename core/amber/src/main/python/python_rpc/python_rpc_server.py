@@ -14,7 +14,7 @@ from pyarrow.flight import Location
 from pyarrow.flight import RecordBatchStream
 from pyarrow.flight import Result
 
-from server.common import deserialize_arguments
+from common import deserialize_arguments
 
 
 class PythonRPCServer(FlightServerBase):
