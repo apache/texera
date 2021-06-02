@@ -7,7 +7,7 @@ import pytest
 from loguru import logger
 from pandas import DataFrame
 from pyarrow import Table, ArrowNotImplementedError
-from pyarrow._flight import FlightServerError
+from pyarrow.flight import FlightServerError
 
 from python_rpc_client import PythonRPCClient
 from python_rpc_server import PythonRPCServer

@@ -1,5 +1,5 @@
 import pytest
-from pyarrow._flight import Action
+from pyarrow.flight import Action
 
 from common import serialize_arguments
 from python_rpc_server import PythonRPCServer
