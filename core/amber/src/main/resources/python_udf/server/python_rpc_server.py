@@ -1,54 +1,55 @@
-# Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
-# distributed with this work for additional information
-# regarding copyright ownership.  The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License.
-
-"""An example Flight Python server."""
-
 import argparse
 import ast
+import json
 import threading
 import time
+from functools import wraps
 
 from loguru import logger
 from pyarrow import py_buffer, MockOutputStream, RecordBatchStreamWriter, Table
-from pyarrow._flight import Action
+from pyarrow._flight import FlightServerBase, ServerCallContext, Action
 from pyarrow.flight import FlightDescriptor
 from pyarrow.flight import FlightEndpoint
 from pyarrow.flight import FlightInfo
-from pyarrow.flight import FlightServerBase
 from pyarrow.flight import Location
 from pyarrow.flight import RecordBatchStream
 from pyarrow.flight import Result
-from pyarrow.flight import ServerCallContext
 
 
-class FlightServer(FlightServerBase):
+class PythonRPCServer(FlightServerBase):
+    @staticmethod
+    def ack(original_func=None, msg="ack"):
+        def ack_decorator(func: callable):
+            @wraps(func)
+            def wrapper(*args, **kwargs):
+                func(*args, **kwargs)
+                return msg
+
+            return wrapper
+
+        if original_func:
+            return ack_decorator(original_func)
+        return ack_decorator
+
     def __init__(self, host="localhost", location="grpc+tcp://localhost:5005",
                  tls_certificates=None, verify_client=False,
                  root_certificates=None, auth_handler=None):
-        super(FlightServer, self).__init__(
+        super(PythonRPCServer, self).__init__(
             location, auth_handler, tls_certificates, verify_client,
             root_certificates)
         logger.info("Serving on " + location)
         self.host = host
         self.flights = {}
-        self.callbacks = dict()
+        self._procedures = dict()
 
-        self.register("shutdown", lambda _: threading.Thread(target=self._shutdown).start(), description="Shut down this server.")
-        self.register_data_handler(lambda _: (_ for _ in ()).throw(NotImplementedError))
+        # register shutdown, this is the default action for client to terminate server.
+        self.register("shutdown",
+                      PythonRPCServer.ack(msg="Bye bye!")
+                      (lambda: threading.Thread(target=self._shutdown).start()),
+                      description="Shut down this server.")
+
+        # the data message handlers for each batch, needs to be implemented during runtime.
+        self.register_data_handler(lambda *args, **kwargs: (_ for _ in ()).throw(NotImplementedError))
 
     ###########################
     # Flights related methods #
@@ -83,14 +84,14 @@ class FlightServer(FlightServerBase):
             yield self._make_flight_info(key, descriptor, table)
 
     def get_flight_info(self, context, descriptor):
-        key = FlightServer.descriptor_to_key(descriptor)
+        key = PythonRPCServer.descriptor_to_key(descriptor)
         if key in self.flights:
             table = self.flights[key]
             return self._make_flight_info(key, descriptor, table)
         raise KeyError('Flight not found.')
 
     def do_put(self, context, descriptor, reader, writer):
-        key = FlightServer.descriptor_to_key(descriptor)
+        key = PythonRPCServer.descriptor_to_key(descriptor)
         logger.debug(f"putting flight with key={key}")
         self.flights[key] = reader.read_all()
         self.process_data(self.flights[key])
@@ -105,31 +106,30 @@ class FlightServer(FlightServerBase):
     # RPC actions related methods #
     ###############################
     def list_actions(self, context):
-        return map(lambda x: (x[0], x[1][1]), self.callbacks.items())
+        return map(lambda x: (x[0], x[1][1]), self._procedures.items())
 
     def do_action(self, context: ServerCallContext, action: Action):
-
         """
-        perform an action that previously registered with a callback procedure,
+        perform an action that previously registered with a procedure,
         return a result in bytes.
         :param context:
         :param action:
         :return:
         """
-        logger.debug(f"calling {action.type}")
-        callback, _ = self.callbacks.get(action.type)
-        if not callback:
+        procedure, _ = self._procedures.get(action.type)
+        if not procedure:
             raise KeyError("Unknown action {!r}".format(action.type))
-        else:
-            result = callback()
-            if isinstance(result, str):
-                encoded = result.encode('utf-8')
-            elif isinstance(result, bytes):
-                encoded = result
-            else:
-                encoded = b''
 
-            yield Result(py_buffer(encoded))
+        arguments = self.deserialize_arguments(action.body.to_pybytes())
+        logger.debug(f"calling {action.type} with args {arguments} along with context {context}")
+
+        result = procedure(*arguments["args"], **arguments["kwargs"])
+        if isinstance(result, bytes):
+            encoded = result
+        else:
+            encoded = str(result).encode('utf-8')
+
+        yield Result(py_buffer(encoded))
 
     def _shutdown(self):
         """Shut down after a delay."""
@@ -139,7 +139,7 @@ class FlightServer(FlightServerBase):
 
     def register(self, name: str, procedure: callable, description: str = "") -> None:
         """
-        register a callback procedure with an action name.
+        register a procedure with an action name.
         :param name: the name of the procedure, it should be matching Action's type.
         :param procedure: a callable, could be class, function, or lambda.
         :param description: describes the procedure.
@@ -149,14 +149,22 @@ class FlightServer(FlightServerBase):
         # wrap the given procedure so that its error can be logged.
         @logger.catch(reraise=True)
         def wrapper(*args, **kwargs):
-            return procedure(self, *args, **kwargs)
+            return procedure(*args, **kwargs)
 
-        # update the callbacks, which overwrites the previous registration.
-        self.callbacks[name] = (wrapper, description)
+        # update the procedures, which overwrites the previous registration.
+        self._procedures[name] = (wrapper, description)
         logger.info("registered procedure " + name)
 
     def register_data_handler(self, handler: callable):
         self.process_data = handler
+
+    @staticmethod
+    def serialize_arguments(*args, **kwargs):
+        return json.dumps({"args": args, "kwargs": kwargs}).encode("utf-8")
+
+    @staticmethod
+    def deserialize_arguments(argument_bytes: bytes):
+        return json.loads(argument_bytes) if argument_bytes else {"args": [], "kwargs": {}}
 
 
 def main():
@@ -184,9 +192,9 @@ def main():
 
     location = "{}://{}:{}".format(scheme, args.host, args.port)
 
-    server = FlightServer(args.host, location,
-                          tls_certificates=tls_certificates,
-                          verify_client=args.verify_client)
+    server = PythonRPCServer(args.host, location,
+                             tls_certificates=tls_certificates,
+                             verify_client=args.verify_client)
     print("Serving on", location)
     server.serve()
 
