@@ -7,6 +7,7 @@ import pytest
 from loguru import logger
 from pandas import DataFrame
 from pyarrow import Table, ArrowNotImplementedError
+from pyarrow._flight import FlightServerError
 
 from python_rpc_client import PythonRPCClient
 from python_rpc_server import PythonRPCServer
@@ -27,6 +28,9 @@ test_funcs = {
     "this is another call": lambda: "ack!!!",
     "hello-function": hello,
     "hello-class": HelloClass(),
+    "echo": lambda x: x,
+    "add": lambda a, b: a + b,
+    "div": lambda a, b: a / b
 }
 
 
@@ -148,3 +152,21 @@ class TestFlightClient:
         # send the pyarrow table to server as a flight
         client = PythonRPCClient()
         client.send_data(table)
+
+    @pytest.mark.parametrize('args', [("add",)])
+    def test_client_can_call_registered_lambdas_with_args(self, launch_server):
+        client = PythonRPCClient()
+        assert len(client.list_actions()) == 2
+        assert client.call("add", a=5, b=4) == b'9'
+        assert client.call("add", a=1.1, b=2.3) == b'3.4'
+        assert client.call("add", a=[1, 2, 3], b=[5]) == b'[1, 2, 3, 5]'
+        assert client.call("shutdown") == b'Bye bye!'
+
+    @pytest.mark.parametrize('args', [("div",)])
+    def test_client_can_call_registered_lambdas_with_args_and_exceptions(self, launch_server):
+        client = PythonRPCClient()
+        assert len(client.list_actions()) == 2
+        assert client.call("div", a=5, b=2) == b'2.5'
+        with pytest.raises(FlightServerError):
+            client.call("div", a=1, b=0)
+        assert client.call("shutdown") == b'Bye bye!'
