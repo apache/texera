@@ -1,157 +1,116 @@
-import threading
-import time
-from multiprocessing import Process
-from queue import Queue
-
 import pytest
-from loguru import logger
-from pandas import DataFrame
-from pyarrow import Table
+from pyarrow._flight import Action
 
-from server.flight_server import FlightServer
-from server.mock_client import UDFMockClient
+from server.python_rpc_server import PythonRPCServer
 
 
-def hello(_):
-    return "hello-function"
+class TestFlightServer:
+    port = 50005
 
-
-class HelloClass:
-    def __call__(self, _):
-        return "hello-class"
-
-
-# prepare some functions to be test for registration
-test_funcs = {
-    "hello": lambda _: "hello",
-    "this is another call": lambda _: "ack!!!",
-    "hello-function": hello,
-    "hello-class": HelloClass(),
-}
-
-
-class TestSeverIntegration:
-
-    @pytest.fixture
-    def launch_server(self, args):
-        p1 = Process(target=self.start_flight_server, args=args)
-        p1.start()
-        time.sleep(1)
-        yield
-        p1.kill()
-
-    @pytest.fixture
-    def launch_server_with_dp(self, args):
-        p1 = Process(target=self.start_flight_server_with_dp, args=args)
-        p1.start()
-        time.sleep(1)
-        yield
-        p1.kill()
-
-    @staticmethod
-    def start_flight_server(*func_names):
+    @pytest.fixture()
+    def server(self):
         host: str = "localhost"
-        port: int = 5005
-        scheme: str = "grpc+tcp"
-        location = f"{scheme}://{host}:{port}"
-        server = FlightServer(host, location)
-        for name in func_names:
-            server.register(name, test_funcs[name])
-        server.serve()
+        location = f"grpc+tcp://{host}:{TestFlightServer.port}"
+        TestFlightServer.port += 1
+        server = PythonRPCServer(host, location)
+        return server
 
-    @staticmethod
-    def start_flight_server_with_dp(*func_names):
-        shared_queue = Queue()
+    def test_server_can_register_control_actions_with_lambda(self, server):
+        assert "hello" not in server._procedures
+        server.register("hello", lambda: None)
+        assert "hello" in server._procedures
 
-        host: str = "localhost"
-        location = f"grpc+tcp://{host}:5005"
-        server = FlightServer(host, location)
-        for name in func_names:
-            server.register(name, test_funcs[name])
+    def test_server_can_register_control_actions_with_function(self, server):
+        def hello():
+            return None
 
-        def _start_server(q):
-            server.register_data_handler(lambda batch: list(map(q.put, batch.to_pandas().iterrows())))
+        assert "hello" not in server._procedures
+        server.register("hello", hello)
+        assert "hello" in server._procedures
 
-        network_thread = threading.Thread(target=_start_server, args=(shared_queue,))
-        network_thread.start()
+    def test_server_can_register_control_actions_with_callable_class(self, server):
+        class Hello:
+            def __call__(self, ):
+                return None
 
-        def _start_dp(q):
-            while True:
-                logger.info(q.get())
+        assert "hello" not in server._procedures
+        server.register("hello", Hello())
+        assert "hello" in server._procedures
 
-        dp_thread = threading.Thread(target=_start_dp, args=(shared_queue,))
-        dp_thread.start()
+    def test_server_can_invoke_registered_control_actions(self, server):
+        procedure_contents = {
+            "hello": "hello world",
+            "get an int": 12,
+            "get a float": 1.23,
+            "get a tuple": (5, None, 123.4),
+            "get a list": [5, (None, 123.4)],
+            "get a dict": {"entry": [5, (None, 123.4)]}
+        }
 
-    @pytest.mark.parametrize('args', [tuple()])
-    def test_server_can_start(self, launch_server):
-        client = UDFMockClient()
-        # should by default only have shutdown
-        assert len(client.list_actions()) == 1
-        action = client.list_actions()[0]
-        assert action.type == "shutdown"
-        assert action.description == "Shut down this server."
+        for name, result in procedure_contents.items():
+            server.register(name, lambda: result)
+            assert name in server._procedures
+            assert next(server.do_action(None, Action(name, b''))).body.to_pybytes() \
+                   == str(result).encode('utf-8')
 
-    @pytest.mark.parametrize('args', [tuple()])
-    def test_server_can_shutdown_by_client(self, launch_server):
-        client = UDFMockClient()
-        assert client.call("shutdown") == b''
+    def test_server_can_invoke_registered_control_actions_with_args(self, server):
+        name = "echo"
+        result = b"hello"
+        serialized_args = PythonRPCServer.serialize_arguments("hello")
+        server.register(name, lambda x: x)
+        assert name in server._procedures
+        assert next(server.do_action(None, Action(name, serialized_args))).body.to_pybytes() \
+               == result
 
-    @pytest.mark.parametrize('args', [("hello", "this is another call")])
-    def test_server_call_registered_lambdas(self, launch_server):
-        client = UDFMockClient()
-        assert len(client.list_actions()) == 3
-        assert client.call("hello") == b'hello'
-        assert client.call("this is another call") == b'ack!!!'
-        assert client.call("shutdown") == b''
+    def test_server_can_invoke_registered_control_actions_with_args2(self, server):
+        name = "add"
+        result = b"3"
+        serialized_args = PythonRPCServer.serialize_arguments(1, 2)
+        server.register(name, lambda a, b: a + b)
+        assert name in server._procedures
+        assert next(server.do_action(None, Action(name, serialized_args))).body.to_pybytes() \
+               == result
 
-    @pytest.mark.parametrize('args', [("hello-function",)])
-    def test_server_call_registered_function(self, launch_server):
-        client = UDFMockClient()
-        assert len(client.list_actions()) == 2
-        assert client.call("hello-function") == b'hello-function'
-        assert client.call("shutdown") == b''
+    def test_server_can_invoke_registered_control_actions_with_args_exception(self, server):
+        name = "div"
+        serialized_args = PythonRPCServer.serialize_arguments(1, 0)
+        server.register(name, lambda a, b: a / b)
+        assert name in server._procedures
+        with pytest.raises(ZeroDivisionError):
+            next(server.do_action(None, Action(name, serialized_args))).body.to_pybytes()
 
-    @pytest.mark.parametrize('args', [("hello-class",)])
-    def test_server_call_registered_callable_class(self, launch_server):
-        client = UDFMockClient()
-        assert len(client.list_actions()) == 2
-        assert client.call("hello-class") == b'hello-class'
-        assert client.call("shutdown") == b''
+    def test_server_can_invoke_registered_lambda_with_args_and_ack(self, server):
+        name = "i need an ack"
+        serialized_args = PythonRPCServer.serialize_arguments("some input for lambda")
 
-    @pytest.mark.parametrize('args', [tuple()])
-    def test_server_receive_flights(self, launch_server_with_dp):
-        # prepare a dataframe and convert to pyarrow table
-        df_to_sent = DataFrame({
-            'Brand': ['Honda Civic', 'Toyota Corolla', 'Ford Focus', 'Audi A4'],
-            'Price': [22000, 25000, 27000, 35000]
-        }, columns=['Brand', 'Price'])
-        table = Table.from_pandas(df_to_sent)
+        server.register(name, PythonRPCServer.ack()(lambda _: "random output"))
+        assert name in server._procedures
+        assert next(server.do_action(None, Action(name, serialized_args))).body.to_pybytes() \
+               == b'ack'
 
-        def _handler():
-            # retrieve the same flight
-            flight_infos = list(client.list_flights())
-            assert len(flight_infos) == 1
-            info = flight_infos[0]
-            assert info.total_records == 4
-            assert info.total_bytes == 1096
-            for endpoint in info.endpoints:
-                reader = client.do_get(endpoint.ticket)
-                df = reader.read_pandas()
-                assert df.equals(df_to_sent)
+    def test_server_can_invoke_registered_function_with_args_and_ack(self, server):
+        name = "i need an ack"
+        serialized_args = PythonRPCServer.serialize_arguments("some input for function")
 
-        # send the pyarrow table to server as a flight
-        client = UDFMockClient()
-        client.send_data(table, on_success=_handler)
+        @PythonRPCServer.ack
+        def handler(_):
+            return "random output"
 
-    @pytest.mark.parametrize('args', [tuple()])
-    def test_server_receive_flights_for_dp(self, launch_server_with_dp):
-        # prepare a dataframe and convert to pyarrow table
-        df_to_sent = DataFrame({
-            'Brand': ['Honda Civic', 'Toyota Corolla', 'Ford Focus', 'Audi A4'],
-            'Price': [22000, 25000, 27000, 35000]
-        }, columns=['Brand', 'Price'])
-        table = Table.from_pandas(df_to_sent)
+        server.register(name, handler)
+        assert name in server._procedures
+        assert next(server.do_action(None, Action(name, serialized_args))).body.to_pybytes() \
+               == b'ack'
 
-        # send the pyarrow table to server as a flight
-        client = UDFMockClient()
-        client.send_data(table)
+    def test_server_can_invoke_registered_callable_class_with_args_and_ack(self, server):
+        name = "i need an ack"
+        serialized_args = PythonRPCServer.serialize_arguments("some input for callable class")
+
+        class Handler:
+            @PythonRPCServer.ack
+            def __call__(self, _):
+                return "random output"
+
+        server.register(name, Handler())
+        assert name in server._procedures
+        assert next(server.do_action(None, Action(name, serialized_args))).body.to_pybytes() \
+               == b'ack'
