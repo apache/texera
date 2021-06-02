@@ -3,7 +3,7 @@ from pyarrow import Table
 from pyarrow.flight import Action, FlightCallOptions, FlightClient
 from pyarrow.flight import FlightDescriptor
 
-from server.common import serialize_arguments
+from common import serialize_arguments
 
 
 class PythonRPCClient(FlightClient):
