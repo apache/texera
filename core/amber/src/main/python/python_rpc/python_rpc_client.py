@@ -9,23 +9,24 @@ from python_rpc_server import PythonRPCServer
 
 class PythonRPCClient(FlightClient):
 
-    def __init__(self, scheme: str = "grpc+tcp", host: str = "localhost", port: int = 5005, *args, **kwargs):
+    def __init__(self, scheme: str = "grpc+tcp", host: str = "localhost", port: int = 5005, timeout=1,
+                 *args, **kwargs):
         location = f"{scheme}://{host}:{port}"
         super().__init__(location, *args, **kwargs)
         logger.debug("Connected to server at " + location)
+        self._timeout = timeout
 
-    def call(self, procedure_name: str, timeout: int = 1, *procedure_args, **procedure_kwargs):
+    def call(self, procedure_name: str, *procedure_args, **procedure_kwargs):
         """
         call a specific remote procedure specified by the name
         :param procedure_name: the registered procedure name to be invoked
-        :param timeout: in seconds
         :param procedure_args, positional arguments for the procedure
         :param procedure_kwargs, keyword arguments for the procedure
         :return: exactly one result in bytes
         """
         payload = serialize_arguments(*procedure_args, **procedure_kwargs)
         action = Action(procedure_name, payload)
-        options = FlightCallOptions(timeout=timeout)
+        options = FlightCallOptions(timeout=self._timeout)
         return next(self.do_action(action, options)).body.to_pybytes()
 
     def send_data(self, table: Table, on_success: callable = lambda: None, on_error: callable = lambda: None) -> None:
