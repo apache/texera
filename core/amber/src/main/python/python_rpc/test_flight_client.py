@@ -1,4 +1,5 @@
 from queue import Queue
+from typing import Iterable, List
 
 import pytest
 from pandas import DataFrame
@@ -91,6 +92,26 @@ class TestFlightClient:
             assert client.call("add", a=5, b=4) == b'ack'
             assert client.call("add", 1.1, 2.3) == b'ack'
             assert client.call("add", a=[1, 2, 3], b=[5]) == b'ack'
+            assert client.call("shutdown") == b'Bye bye!'
+
+    def test_client_can_call_registered_lambdas_with_args_and_other_ack(self, server, client):
+        class Extend:
+            @PythonRPCServer.ack(msg="extended!")
+            def __call__(self, a: List, b: Iterable):
+                a.extend(b)
+                return a
+
+        def extend(a: List, b: Iterable):
+            a.extend(b)
+            return a
+
+        with server:
+            server.register("extend_with_ack", Extend())
+            server.register("extend_with_result", extend)
+            assert len(client.list_actions()) == 3
+            assert client.call("extend_with_ack", [5], (4,)) == b'extended!'
+            assert client.call("extend_with_result", [], "hello") == b"['h', 'e', 'l', 'l', 'o']"
+            assert client.call("extend_with_result", a=[1, 2, 3], b=[5]) == b'[1, 2, 3, 5]'
             assert client.call("shutdown") == b'Bye bye!'
 
     def test_client_can_call_registered_lambdas_with_args_and_exceptions(self, server, client):
