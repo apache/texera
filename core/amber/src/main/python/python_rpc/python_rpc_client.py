@@ -18,6 +18,8 @@ class PythonRPCClient(FlightClient):
         call a specific remote procedure specified by the name
         :param procedure_name: the registered procedure name to be invoked
         :param timeout: in seconds
+        :param procedure_args, positional arguments for the procedure
+        :param procedure_kwargs, keyword arguments for the procedure
         :return: exactly one result in bytes
         """
         payload = serialize_arguments(*procedure_args, **procedure_kwargs)
@@ -25,7 +27,16 @@ class PythonRPCClient(FlightClient):
         options = FlightCallOptions(timeout=timeout)
         return next(self.do_action(action, options)).body.to_pybytes()
 
-    def send_data(self, table: Table, on_success: callable = lambda: None, on_error: callable = lambda: None):
+    def send_data(self, table: Table, on_success: callable = lambda: None, on_error: callable = lambda: None) -> None:
+        """
+        send data to the server
+        :param table: a PyArrow.Table of column-stored records.
+        :param on_success: callback function upon success, only used with PythonRPCClient, Java
+                            client should not use it.
+        :param on_error: callback function upon failure, only used with the PythonRPCClient, Java
+                            client should not use it.
+        :return:
+        """
         try:
             writer, reader = self.do_put(FlightDescriptor.for_path("fromClient"), table.schema)
             logger.debug("start writing")
