@@ -4,6 +4,7 @@ from pyarrow.flight import Action, FlightCallOptions, FlightClient
 from pyarrow.flight import FlightDescriptor
 
 from common import serialize_arguments
+from python_rpc_server import PythonRPCServer
 
 
 class PythonRPCClient(FlightClient):
@@ -56,5 +57,7 @@ class PythonRPCClient(FlightClient):
 
 
 if __name__ == '__main__':
-    client = PythonRPCClient()
-    client.call("hello")
+    with PythonRPCServer() as server:
+        server.register("hello", lambda: "what")
+        client = PythonRPCClient()
+        print(client.call("hello"))
