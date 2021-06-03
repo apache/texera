@@ -1,16 +1,20 @@
+import logging
+
 import gensim
 import gensim.corpora as corpora
 import pandas
 import pyLDAvis
 import pyLDAvis.gensim_models
+from loguru import logger
 
 from operators.texera_blocking_unsupervised_trainer_operator import TexeraBlockingUnsupervisedTrainerOperator
-from operators.texera_udf_operator_base import log_exception
 
+# to change library's logger setting
+logging.getLogger("gensim").setLevel(logging.ERROR)
+logging.getLogger("pyLDAvis").setLevel(logging.ERROR)
 
 class TopicModelingTrainer(TexeraBlockingUnsupervisedTrainerOperator):
 
-    @log_exception
     def open(self, *args):
         super(TopicModelingTrainer, self).open(*args)
 
@@ -20,18 +24,16 @@ class TopicModelingTrainer(TexeraBlockingUnsupervisedTrainerOperator):
         else:
             raise RuntimeError("Not enough arguments in topic modeling operator.")
 
-        self.__logger.debug(f"getting args {args}")
-        self.__logger.debug(f"parsed training args {self._train_args}")
+        logger.debug(f"getting args {args}")
+        logger.debug(f"parsed training args {self._train_args}")
 
-    @log_exception
     def accept(self, row: pandas.Series, nth_child: int = 0) -> None:
         # override accept to accept rows as lists
         self._data.append(row[0].strip().split())
 
     @staticmethod
-    @log_exception
     def train(data, *args, **kwargs):
-        TopicModelingTrainer.__logger.debug(f"start training, args:{args}, kwargs:{kwargs}")
+        logger.debug(f"start training, args:{args}, kwargs:{kwargs}")
 
         # Create Dictionary
         id2word = corpora.Dictionary(data)
@@ -55,11 +57,11 @@ class TopicModelingTrainer(TexeraBlockingUnsupervisedTrainerOperator):
         pyldaVis_prepared_model = pyLDAvis.gensim_models.prepare(lda_model, corpus, id2word)
         return pyldaVis_prepared_model
 
-    @log_exception
     def report(self, model):
-        self.__logger.debug(f"reporting trained results")
+        logger.debug(f"reporting trained results")
         html_output = pyLDAvis.prepared_data_to_html(model)
         self._result_tuples.append(pandas.Series({"output": html_output}))
+
 
 operator_instance = TopicModelingTrainer()
 if __name__ == '__main__':

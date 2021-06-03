@@ -5,11 +5,10 @@ from sklearn.svm import SVC
 
 from mock_data import df_from_mysql
 from operators.texera_blocking_supervised_trainer_operator import TexeraBlockingSupervisedTrainerOperator
-from operators.texera_udf_operator_base import log_exception
 
 
 class SVMTrainer(TexeraBlockingSupervisedTrainerOperator):
-    @log_exception
+
     def open(self, *args):
         super(SVMTrainer, self).open(*args)
         self._test_ratio = float(args[2])
@@ -19,7 +18,6 @@ class SVMTrainer(TexeraBlockingSupervisedTrainerOperator):
         self._model_file_path = args[-1]
 
     @staticmethod
-    @log_exception
     def train(x_train, y_train, *args, **kwargs):
         vectorizer = CountVectorizer()
 
@@ -40,7 +38,6 @@ class SVMTrainer(TexeraBlockingSupervisedTrainerOperator):
         return vectorizer, clf
 
     @staticmethod
-    @log_exception
     def test(model, x_test, y_test, *args, **kwargs):
         vc, clf = model
         return clf.predict(vc.transform(x_test))

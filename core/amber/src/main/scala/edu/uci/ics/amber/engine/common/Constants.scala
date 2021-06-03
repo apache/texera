@@ -13,4 +13,7 @@ object Constants {
   var numWorkerPerNode = 2
   var dataVolumePerNode = 10
   var defaultTau: FiniteDuration = 10.milliseconds
+
+  // time interval for logging queue sizes - 30s
+  val loggingQueueSizeInterval = 30000
 }

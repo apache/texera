@@ -32,6 +32,7 @@ import edu.uci.ics.texera.workflow.operators.union.UnionOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.barChart.BarChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.lineChart.LineChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.pieChart.PieChartOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.htmlviz.HtmlVizOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.scatterplot.ScatterplotOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.WordCloudOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
@@ -66,6 +67,7 @@ import java.util.UUID
     new Type(value = classOf[BarChartOpDesc], name = "BarChart"),
     new Type(value = classOf[PieChartOpDesc], name = "PieChart"),
     new Type(value = classOf[WordCloudOpDesc], name = "WordCloud"),
+    new Type(value = classOf[HtmlVizOpDesc], name = "HTMLVisualizer"),
     new Type(value = classOf[ScatterplotOpDesc], name = "Scatterplot"),
     new Type(value = classOf[PythonUDFOpDesc], name = "PythonUDF"),
     new Type(value = classOf[MySQLSourceOpDesc], name = "MySQLSource"),
