@@ -4,7 +4,7 @@ import threading
 import time
 from functools import wraps
 from inspect import signature
-from typing import Iterator, Tuple
+from typing import Iterator, Tuple, Dict
 
 from loguru import logger
 from pyarrow import py_buffer, MockOutputStream, RecordBatchStreamWriter, Table
@@ -67,10 +67,10 @@ class PythonRPCServer(FlightServerBase):
         self.host = host
 
         # PyArrow Flights, identified by the ticket.
-        self._flights = {}
+        self._flights: Dict[str, Table] = dict()
 
         # procedures for actions, will contain registered actions, identified by procedure name.
-        self._procedures = dict()
+        self._procedures: Dict[str, Tuple[callable, str]] = dict()
 
         # register shutdown, this is the default action for client to terminate server.
         self.register("shutdown",
@@ -84,6 +84,7 @@ class PythonRPCServer(FlightServerBase):
     ###########################
     # Flights related methods #
     ###########################
+
     @classmethod
     def descriptor_to_key(cls, descriptor):
         return (descriptor.descriptor_type.value, descriptor.command,
