@@ -4,7 +4,7 @@ import threading
 import time
 from functools import wraps
 from inspect import signature
-from typing import Iterator, Tuple, Dict
+from typing import Iterator, Tuple, Dict, List
 
 from loguru import logger
 from pyarrow import py_buffer, MockOutputStream, RecordBatchStreamWriter, Table
@@ -86,23 +86,24 @@ class PythonRPCServer(FlightServerBase):
     ###########################
 
     @classmethod
-    def descriptor_to_key(cls, descriptor):
+    def descriptor_to_key(cls, descriptor: FlightDescriptor) -> Tuple:
+        logger.debug(
+            f"descriptor:{descriptor}, key: {(descriptor.descriptor_type.value, descriptor.command, tuple(descriptor.path or tuple()))}")
         return (descriptor.descriptor_type.value, descriptor.command,
                 tuple(descriptor.path or tuple()))
 
     def _make_flight_info(self, key, descriptor, table: Table):
-        location = Location.for_grpc_tcp(self.host, self.port)
-        endpoints = [FlightEndpoint(repr(key), [location]), ]
+        location: Location = Location.for_grpc_tcp(self.host, self.port)
+        endpoints: List[FlightEndpoint] = [FlightEndpoint(repr(key), [location]), ]
 
+        # calculate data size
         mock_sink = MockOutputStream()
-        stream_writer = RecordBatchStreamWriter(
-            mock_sink, table.schema)
+        stream_writer = RecordBatchStreamWriter(mock_sink, table.schema)
         stream_writer.write_table(table)
         stream_writer.close()
         data_size = mock_sink.size()
-        return FlightInfo(table.schema,
-                          descriptor, endpoints,
-                          table.num_rows, data_size)
+
+        return FlightInfo(table.schema, descriptor, endpoints, table.num_rows, data_size)
 
     def list_flights(self, context, criteria):
         for key, table in self._flights.items():
