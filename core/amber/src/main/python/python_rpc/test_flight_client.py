@@ -73,6 +73,7 @@ class TestFlightClient:
             server.register("echo", lambda x: x)
             assert len(client.list_actions()) == 2
             assert client.call("echo", "no") == b'no'
+            assert client.call("shutdown") == b'Bye bye!'
 
     def test_client_can_call_registered_lambdas_with_args2(self, server, client):
         with server:
@@ -81,6 +82,15 @@ class TestFlightClient:
             assert client.call("add", a=5, b=4) == b'9'
             assert client.call("add", 1.1, 2.3) == b'3.4'
             assert client.call("add", a=[1, 2, 3], b=[5]) == b'[1, 2, 3, 5]'
+            assert client.call("shutdown") == b'Bye bye!'
+
+    def test_client_can_call_registered_lambdas_with_args_and_ack(self, server, client):
+        with server:
+            server.register("add", PythonRPCServer.ack()(lambda a, b: a + b))
+            assert len(client.list_actions()) == 2
+            assert client.call("add", a=5, b=4) == b'ack'
+            assert client.call("add", 1.1, 2.3) == b'ack'
+            assert client.call("add", a=[1, 2, 3], b=[5]) == b'ack'
             assert client.call("shutdown") == b'Bye bye!'
 
     def test_client_can_call_registered_lambdas_with_args_and_exceptions(self, server, client):
