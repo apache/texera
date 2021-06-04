@@ -6,7 +6,7 @@ import * as cloud from 'd3-cloud';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { ResultObject } from '../../types/execute-workflow.interface';
 import { ChartType, WordCloudTuple } from '../../types/visualization.interface';
-import { Subscription } from 'rxjs';
+import { Subscription, Subject, Observable } from 'rxjs';
 import { environment } from 'src/environments/environment';
 import * as mapboxgl from 'mapbox-gl';
 import { MapboxLayer } from '@deck.gl/mapbox';
@@ -15,6 +15,11 @@ import { ScatterplotLayerProps } from '@deck.gl/layers/scatterplot-layer/scatter
 import { DomSanitizer } from '@angular/platform-browser';
 
 (mapboxgl as any).accessToken = environment.mapbox.accessToken;
+
+export const wordCloudScaleOptions = ['linear', 'square root', 'logarithmic'] as const;
+type WordCloudControlsType = {
+  scale: typeof wordCloudScaleOptions[number]
+};
 
 // TODO: The current design doesn't decouple the visualization types into different modules
 /**
@@ -36,10 +41,11 @@ export class VisualizationPanelContentComponent implements AfterContentInit, OnD
 
   // width and height of the canvas in px
   public static readonly WIDTH = 1000;
-  public static readonly HEIGHT = 800;
+  public static readonly HEIGHT = 600;
 
   // progressive visualization update and redraw interval in milliseconds
   public static readonly UPDATE_INTERVAL_MS = 2000;
+  public static readonly WORD_CLOUD_CONTROL_UPDATE_INTERVAL_MS = 50;
 
   private static readonly props: ScatterplotLayerProps<any> = {
     opacity: 0.8,
@@ -50,6 +56,15 @@ export class VisualizationPanelContentComponent implements AfterContentInit, OnD
     getPosition: (d: { xColumn: number; yColumn: number; }) => [d.xColumn, d.yColumn],
     getFillColor: [57, 73, 171]
   };
+
+  wordCloudScaleOptions = wordCloudScaleOptions; // make this a class variable so template can access it
+  // word cloud related controls
+  wordCloudControls: WordCloudControlsType = {
+    scale: 'linear',
+  };
+
+  wordCloudControlUpdateObservable = new Subject<WordCloudControlsType>();
+
   htmlData: any = '';
 
   @Input()
@@ -78,11 +93,14 @@ export class VisualizationPanelContentComponent implements AfterContentInit, OnD
 
     // setup an event lister that re-draws the chart content every (n) milliseconds
     // auditTime makes sure the first re-draw happens after (n) milliseconds has elapsed
-    this.updateSubscription = this.workflowStatusService.getResultUpdateStream()
-      .auditTime(VisualizationPanelContentComponent.UPDATE_INTERVAL_MS)
-      .subscribe(() => {
-        this.drawChart();
-      });
+    const resultUpdate = this.workflowStatusService.getResultUpdateStream()
+      .auditTime(VisualizationPanelContentComponent.UPDATE_INTERVAL_MS);
+    const controlUpdate = this.wordCloudControlUpdateObservable
+      .debounceTime(VisualizationPanelContentComponent.WORD_CLOUD_CONTROL_UPDATE_INTERVAL_MS);
+
+    this.updateSubscription = Observable.merge(resultUpdate, controlUpdate).subscribe(() => {
+      this.drawChart();
+    });
   }
 
   ngOnDestroy() {
@@ -207,21 +225,29 @@ export class VisualizationPanelContentComponent implements AfterContentInit, OnD
   }
 
   addNeworReplaceExistingLayer() {
-    if (! this.map) {
+    if (!this.map) {
       return;
     }
-      if (this.map?.getLayer('scatter')) {
-        this.map?.removeLayer('scatter');
-      }
+    if (this.map?.getLayer('scatter')) {
+      this.map?.removeLayer('scatter');
+    }
 
-      const clusterLayer = new MapboxLayer({
-        id: 'scatter',
-        type: ScatterplotLayer,
-        data: this.data,
-        pickable: true,
-      });
-      clusterLayer.setProps(VisualizationPanelContentComponent.props);
-      this.map.addLayer(clusterLayer);
+    const clusterLayer = new MapboxLayer({
+      id: 'scatter',
+      type: ScatterplotLayer,
+      data: this.data,
+      pickable: true,
+    });
+    clusterLayer.setProps(VisualizationPanelContentComponent.props);
+    this.map.addLayer(clusterLayer);
+  }
+
+
+  updateWordCloudScale(scale: typeof wordCloudScaleOptions[number]) {
+    if (this.wordCloudControls.scale !== scale) {
+      this.wordCloudControls.scale = scale;
+      this.wordCloudControlUpdateObservable.next(this.wordCloudControls);
+    }
   }
 
   generateWordCloud() {
@@ -263,7 +289,7 @@ export class VisualizationPanelContentComponent implements AfterContentInit, OnD
 
       // Entering and existing words
       wordCloudData.transition()
-        .duration(600)
+        .duration(300)
         .attr('font-family', 'Impact')
         .style('font-size', d => d.size + 'px')
         .attr('transform', d => 'translate(' + [d.x, d.y] + ')rotate(' + d.rotate + ')')
@@ -272,7 +298,7 @@ export class VisualizationPanelContentComponent implements AfterContentInit, OnD
       // Exiting words
       wordCloudData.exit()
         .transition()
-        .duration(200)
+        .duration(100)
         .attr('font-family', 'Impact')
         .style('fill-opacity', 1e-6)
         .attr('font-size', 1)
@@ -285,10 +311,17 @@ export class VisualizationPanelContentComponent implements AfterContentInit, OnD
     const minFontSize = 50;
     const maxFontSize = 150;
 
-    const d3Scale = d3.scaleLinear();
-    // const d3Scale = d3.scaleSqrt();
-    // const d3Scale = d3.scaleLog();
-
+    const getScale: () => d3.ScaleContinuousNumeric<number, number> = () => {
+      switch (this.wordCloudControls.scale) {
+        case 'linear':
+          return d3.scaleLinear();
+        case 'logarithmic':
+          return d3.scaleLog();
+        case 'square root':
+          return d3.scaleSqrt();
+      }
+    };
+    const d3Scale = getScale();
     d3Scale.domain([minCount, maxCount]).range([minFontSize, maxFontSize]);
 
     const layout = cloud()
