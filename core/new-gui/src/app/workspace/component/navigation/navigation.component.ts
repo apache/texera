@@ -14,6 +14,10 @@ import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-grap
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { ExecutionState } from '../../types/execute-workflow.interface';
+import { NgbActiveModal, NgbModal, NgbModalRef } from '@ng-bootstrap/ng-bootstrap';
+import { ResultDownloadComponent } from './result-download/result-download.component';
+import { WorkflowWebsocketService } from '../../service/workflow-websocket/workflow-websocket.service';
+
 /**
  * NavigationComponent is the top level navigation bar that shows
  *  the Texera title and workflow execution button
@@ -49,24 +53,31 @@ export class NavigationComponent implements OnInit {
   public runButtonText = 'Run';
   public runIcon = 'play-circle';
   public runDisable = false;
+<<<<<<< HEAD
   public executionResultID: string | undefined;
+=======
+>>>>>>> 9c8d5f18c7b867d2ea3c451cc2769a1fa9a6049b
 
   // whether user dashboard is enabled and accessible from the workspace
   public userSystemEnabled: boolean = environment.userSystemEnabled;
   public onClickRunHandler: () => void;
+
+  public downloadResultPopup: NgbModalRef | undefined;
 
   constructor(
     public executeWorkflowService: ExecuteWorkflowService,
     public tourService: TourService,
     public workflowActionService: WorkflowActionService,
     public workflowStatusService: WorkflowStatusService,
+    public workflowWebsocketService: WorkflowWebsocketService,
     private location: Location,
     public undoRedoService: UndoRedoService,
     public validationWorkflowService: ValidationWorkflowService,
     public workflowPersistService: WorkflowPersistService,
     public userService: UserService,
     private workflowCacheService: WorkflowCacheService,
-    private datePipe: DatePipe
+    private datePipe: DatePipe,
+    private modalService: NgbModal
   ) {
     this.executionState = executeWorkflowService.getExecutionState().state;
     // return the run button after the execution is finished, either
@@ -81,12 +92,18 @@ export class NavigationComponent implements OnInit {
     executeWorkflowService.getExecutionStateStream().subscribe(
       event => {
         this.executionState = event.current.state;
-        switch (event.current.state) {
-          case ExecutionState.Completed:
-            this.executionResultID = event.current.resultID;
-            break;
-        }
         this.applyRunButtonBehavior(this.getRunButtonBehavior(this.executionState, this.isWorkflowValid));
+      }
+    );
+
+    executeWorkflowService.getResultDownloadStream().subscribe(
+      response => {
+        if (!this.downloadResultPopup) {
+          this.downloadResultPopup = this.modalService.open(ResultDownloadComponent);
+        }
+        this.downloadResultPopup.componentInstance.message = response.message;
+        this.downloadResultPopup.componentInstance.link = response.link;
+        this.downloadResultPopup.componentInstance.openInNewTab();
       }
     );
 
@@ -243,11 +260,22 @@ export class NavigationComponent implements OnInit {
    *  excel format.
    */
   public onClickDownloadExecutionResult(downloadType: string): void {
-    // If there is no valid executionResultID to download from right now, exit immediately
-    if (this.executionResultID === undefined) {
+    // exit if the workflow is not finished
+    if (this.isDownloadDisabled()) {
       return;
     }
-    this.executeWorkflowService.downloadWorkflowExecutionResult(this.executionResultID, downloadType);
+    this.executeWorkflowService.downloadWorkflowExecutionResult(downloadType, this.currentWorkflowName);
+    this.downloadResultPopup = this.modalService.open(ResultDownloadComponent);
+    this.downloadResultPopup.componentInstance.message = 'Collecting results. It may takes a while';
+    // set the variable to undefined when user closes the popup
+    this.downloadResultPopup.result.then(() => {this.downloadResultPopup = undefined; });
+  }
+
+  /**
+   * enable result downloading only when the workflow completes executing
+   */
+  public isDownloadDisabled(): boolean {
+    return !(this.executionState === ExecutionState.Completed && environment.downloadExecutionResultEnabled);
   }
 
   /**
@@ -348,4 +376,5 @@ export class NavigationComponent implements OnInit {
 
       });
   }
+
 }

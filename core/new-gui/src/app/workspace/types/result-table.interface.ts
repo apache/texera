@@ -39,7 +39,6 @@ export const PAGINATION_INFO_STORAGE_KEY = 'result-panel-pagination-info';
 export interface ViewResultOperatorInfo extends Readonly<{
   currentResult: object[];
   currentPageIndex: number;
-  currentPageSize: number;
   total: number;
   columnKeys: string[];
   operatorID: string

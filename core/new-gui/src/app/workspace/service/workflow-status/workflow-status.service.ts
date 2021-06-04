@@ -29,22 +29,30 @@ export class WorkflowStatusService {
     this.getResultUpdateStream().subscribe(event => this.currentResult = event);
 
     this.workflowWebsocketService.websocketEvent().subscribe(event => {
-      if (event.type !== 'WorkflowStatusUpdateEvent') {
+      if (event.type !== 'WebWorkflowStatusUpdateEvent') {
         return;
       }
       this.statusSubject.next(event.operatorStatistics);
     });
 
     this.workflowWebsocketService.websocketEvent().subscribe(event => {
-      if (event.type !== 'WorkflowCompletedEvent') {
+      let resultArray: readonly ResultObject[] | undefined;
+      if (event.type === 'WebWorkflowStatusUpdateEvent') {
+        resultArray = Object.values(event.operatorStatistics).map(o => o.aggregatedOutputResults).filter((o): o is ResultObject => !!o);
+      } else if (event.type === 'WorkflowCompletedEvent') {
+        resultArray = event.result;
+      }
+
+      if (! resultArray) {
         return;
       }
-      const results: Record<string, ResultObject> = {};
-      event.result.forEach(r => {
-        results[r.operatorID] = r;
+
+      const resultMap: Record<string, ResultObject> = {};
+      resultArray.forEach(r => {
+        resultMap[r.operatorID] = r;
       });
-      if (Object.keys(results).length !== 0) {
-        this.resultSubject.next(results);
+      if (Object.keys(resultMap).length !== 0) {
+        this.resultSubject.next(resultMap);
       }
     });
 
@@ -55,7 +63,8 @@ export class WorkflowStatusService {
           initialStatistics[op.operatorID] = {
             operatorState: OperatorState.Initializing,
             aggregatedInputRowCount: 0,
-            aggregatedOutputRowCount: 0
+            aggregatedOutputRowCount: 0,
+            aggregatedOutputResults: undefined
           };
         });
         this.statusSubject.next(initialStatistics);

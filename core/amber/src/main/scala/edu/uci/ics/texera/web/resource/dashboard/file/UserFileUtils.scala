@@ -23,6 +23,17 @@ object UserFileUtils {
   def getFileDirectory(userID: String): Path = FILE_CONTAINER_PATH.resolve(userID)
 
   @throws[FileIOException]
+  def deleteFile(filePath: Path): Unit = {
+    try Files.deleteIfExists(filePath)
+    catch {
+      case e: Exception =>
+        throw FileIOException(
+          "Error occur when deleting the file " + filePath.toString + ": " + e.getMessage
+        )
+    }
+  }
+
+  @throws[FileIOException]
   private def createFileDirectoryIfNotExist(directoryPath: Path): Unit = {
     if (!Files.exists(directoryPath))
       try Files.createDirectories(directoryPath)
@@ -40,28 +51,19 @@ object UserFileUtils {
   @throws[FileIOException]
   private def writeToFile(filePath: Path, fileStream: InputStream): Unit = {
     val charArray = new Array[Char](1024)
-    try {
-      val reader = new BufferedReader(new InputStreamReader(fileStream))
-      val writer = new BufferedWriter(new FileWriter(filePath.toString))
-      try while ({ reader.read(charArray) != -1 }) writer.write(charArray)
-      catch {
-        case e: IOException =>
-          throw FileIOException("Error occurred while writing file on disk: " + e.getMessage)
-      } finally {
-        if (reader != null) reader.close()
-        if (writer != null) writer.close()
-      }
-    }
-  }
-
-  @throws[FileIOException]
-  def deleteFile(filePath: Path): Unit = {
-    try Files.deleteIfExists(filePath)
+    val reader = new BufferedReader(new InputStreamReader(fileStream))
+    val writer = new BufferedWriter(new FileWriter(filePath.toString))
+    var bytesRead = 0
+    try while ({
+      bytesRead = reader.read(charArray)
+      bytesRead
+    } != -1) writer.write(charArray, 0, bytesRead)
     catch {
-      case e: Exception =>
-        throw FileIOException(
-          "Error occur when deleting the file " + filePath.toString + ": " + e.getMessage
-        )
+      case e: IOException =>
+        throw FileIOException("Error occurred while writing file on disk: " + e.getMessage)
+    } finally {
+      if (reader != null) reader.close()
+      if (writer != null) writer.close()
     }
   }
 

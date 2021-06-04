@@ -52,6 +52,9 @@ class UserFileResource {
             .entity(validationResult.getRight)
             .build()
 
+        UserFileUtils.storeFile(uploadedInputStream, fileName, userID.toString)
+
+        // insert record after completely storing the file on the file system.
         fileDao.insert(
           new File(
             userID,
@@ -62,7 +65,6 @@ class UserFileResource {
             description
           )
         )
-        UserFileUtils.storeFile(uploadedInputStream, fileName, userID.toString)
         Response.ok().build()
       case None =>
         Response.status(Response.Status.UNAUTHORIZED).build()

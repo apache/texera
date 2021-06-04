@@ -34,14 +34,15 @@ export class UserService {
    * This method will handle the request for user registration.
    * It will automatically login, save the user account inside and trigger userChangeEvent when success
    * @param userName
+   * @param password
    */
-  public register(userName: string): Observable<Response> {
+  public register(userName: string, password: string): Observable<Response> {
     // assume the text passed in should be correct
     if (this.currentUser) {
       throw new Error('Already logged in when register.');
     }
 
-    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`, {userName});
+    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`, {userName, password});
 
   }
 
@@ -49,12 +50,13 @@ export class UserService {
    * This method will handle the request for user login.
    * It will automatically login, save the user account inside and trigger userChangeEvent when success
    * @param userName
+   * @param password
    */
-  public login(userName: string): Observable<Response> {
+  public login(userName: string, password: string): Observable<Response> {
     if (this.currentUser) {
       throw new Error('Already logged in when login in.');
     }
-    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`, {userName});
+    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`, {userName, password});
   }
 
   /**

@@ -2,11 +2,10 @@ import pickle
 
 import pandas
 
-import texera_udf_operator_base
+from operators.texera_map_operator import TexeraMapOperator
 
 
-class NLTKSentimentOperator(texera_udf_operator_base.TexeraMapOperator):
-
+class NLTKSentimentOperator(TexeraMapOperator):
     def __init__(self):
         super(NLTKSentimentOperator, self).__init__(self.predict)
         self._model_file = None

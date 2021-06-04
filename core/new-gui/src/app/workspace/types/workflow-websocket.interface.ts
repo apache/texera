@@ -58,8 +58,15 @@ type PaginatedResultEvent = Readonly<{
   }>
 }>;
 
+export type ResultDownloadResponse = Readonly<{
+  downloadType: string,
+  link: string,
+  message: string
+}>;
+
 export type TexeraWebsocketRequestTypeMap = {
   'HelloWorldRequest': WebSocketHelloWorld,
+  'HeartBeatRequest': {},
   'ExecuteWorkflowRequest': LogicalPlan,
   'PauseWorkflowRequest': {},
   'ResumeWorkflowRequest': {},
@@ -67,15 +74,17 @@ export type TexeraWebsocketRequestTypeMap = {
   'ModifyLogicRequest': ModifyOperatorLogic,
   'SkipTupleRequest': SkipTuple,
   'AddBreakpointRequest': BreakpointInfo,
-  'ResultPaginationRequest': {pageIndex: number, pageSize: number}
+  'ResultPaginationRequest': {pageIndex: number, pageSize: number},
+  'ResultDownloadRequest': {downloadType: string, workflowName: string}
 };
 
 export type TexeraWebsocketEventTypeMap = {
   'HelloWorldResponse': WebSocketHelloWorld,
+  'HeartBeatResponse': {},
   'WorkflowErrorEvent': WorkflowError,
   'WorkflowStartedEvent': {},
   'WorkflowCompletedEvent': {result: ReadonlyArray<ResultObject>},
-  'WorkflowStatusUpdateEvent': WorkflowStatusUpdate,
+  'WebWorkflowStatusUpdateEvent': WorkflowStatusUpdate,
   'WorkflowPausedEvent': {},
   'WorkflowResumedEvent': {},
   'RecoveryStartedEvent': {},
@@ -83,7 +92,8 @@ export type TexeraWebsocketEventTypeMap = {
   'ModifyLogicCompletedEvent': {},
   'OperatorCurrentTuplesUpdateEvent': OperatorCurrentTuples,
   'PaginatedResultEvent': PaginatedResultEvent,
-  'WorkflowExecutionErrorEvent': WorkflowExecutionError
+  'WorkflowExecutionErrorEvent': WorkflowExecutionError,
+  'ResultDownloadResponse': ResultDownloadResponse
 };
 
 // helper type definitions to generate the request and event types

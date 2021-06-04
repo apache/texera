@@ -1,3 +1,3 @@
 package edu.uci.ics.texera.web.model.request.auth
 
-case class UserLoginRequest(userName: String)
+case class UserLoginRequest(userName: String, password: String)

@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import java.util.concurrent.atomic.AtomicLong
-import edu.uci.ics.amber.engine.architecture.messaginglayer.DataInputPort.WorkflowDataMessage
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowDataMessage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   NetworkSenderActorRef,
   SendRequest

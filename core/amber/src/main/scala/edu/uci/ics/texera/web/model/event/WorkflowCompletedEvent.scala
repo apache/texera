@@ -2,16 +2,58 @@ package edu.uci.ics.texera.web.model.event
 
 import com.fasterxml.jackson.databind.node.ObjectNode
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowCompleted
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator
 
 import scala.collection.mutable
 
+object OperatorResult {
+  def getChartType(operatorID: String, workflowCompiler: WorkflowCompiler): Option[String] = {
+    val outLinks =
+      workflowCompiler.workflowInfo.links.filter(link => link.origin.operatorID == operatorID)
+    val isSink = outLinks.isEmpty
+
+    if (!isSink) {
+      return None
+    }
+
+    // add chartType to result
+    val precedentOpID =
+      workflowCompiler.workflowInfo.links
+        .find(link => link.destination.operatorID == operatorID)
+        .get
+        .origin
+    val precedentOp =
+      workflowCompiler.workflowInfo.operators
+        .find(op => op.operatorID == precedentOpID.operatorID)
+        .get
+    precedentOp match {
+      case operator: VisualizationOperator => Option.apply(operator.chartType())
+      case _                               => Option.empty
+    }
+  }
+
+  def fromTuple(
+      operatorID: String,
+      table: List[ITuple],
+      chartType: Option[String],
+      totalRowCount: Int
+  ): OperatorResult = {
+    OperatorResult(
+      operatorID,
+      table.map(t => t.asInstanceOf[Tuple].asKeyValuePairJson()),
+      chartType,
+      totalRowCount
+    )
+  }
+}
+
 case class OperatorResult(
     operatorID: String,
     table: List[ObjectNode],
-    chartType: String,
+    chartType: Option[String],
     totalRowCount: Int
 )
 
@@ -24,35 +66,17 @@ object WorkflowCompletedEvent {
       workflowCompiler: WorkflowCompiler
   ): WorkflowCompletedEvent = {
     val resultList = new mutable.MutableList[OperatorResult]
-    workflowCompleted.result.foreach(pair => {
-      val operatorID = pair._1
+    for ((operatorID, resultTuples) <- workflowCompleted.result) {
+      val chartType = OperatorResult.getChartType(operatorID, workflowCompiler)
 
-      // add chartType to result
-      val precedentOpID =
-        workflowCompiler.workflowInfo.links
-          .find(link => link.destination.operatorID == operatorID)
-          .get
-          .origin
-      val precedentOp =
-        workflowCompiler.workflowInfo.operators
-          .find(op => op.operatorID == precedentOpID.operatorID)
-          .get
-      val chartType = precedentOp match {
-        case operator: VisualizationOperator => operator.chartType()
-        case _                               => null
+      var table = resultTuples
+      // if not visualization result, then only return first page results
+      if (chartType.isEmpty) {
+        table = resultTuples.slice(0, defaultPageSize)
       }
 
-      val table = precedentOp match {
-        case _: VisualizationOperator =>
-          pair._2.map(tuple => tuple.asInstanceOf[Tuple].asKeyValuePairJson())
-        case _ =>
-          pair._2
-            .slice(0, defaultPageSize)
-            .map(tuple => tuple.asInstanceOf[Tuple].asKeyValuePairJson())
-      }
-
-      resultList += OperatorResult(operatorID, table, chartType, pair._2.length)
-    })
+      resultList += OperatorResult.fromTuple(operatorID, table, chartType, resultTuples.length)
+    }
     WorkflowCompletedEvent(resultList.toList)
   }
 }

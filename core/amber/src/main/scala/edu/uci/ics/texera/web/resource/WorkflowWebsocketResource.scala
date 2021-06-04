@@ -5,7 +5,6 @@ import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerE
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
-import edu.uci.ics.amber.engine.architecture.principal.OperatorStatistics
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.tuple.ITuple
@@ -14,28 +13,66 @@ import edu.uci.ics.texera.web.{ServletAwareConfigurator, TexeraWebApplication}
 import edu.uci.ics.texera.web.model.event._
 import edu.uci.ics.texera.web.model.request._
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
+  getDirtyPageIndices,
+  sessionDownloadCache,
   sessionJobs,
   sessionMap,
   sessionResults
 }
 import edu.uci.ics.texera.web.resource.auth.UserResource
-import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo}
-import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
+import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
 
 import java.util.concurrent.atomic.AtomicInteger
 import javax.servlet.http.HttpSession
 import javax.websocket.{EndpointConfig, _}
 import javax.websocket.server.ServerEndpoint
 import scala.collection.mutable
+
 object WorkflowWebsocketResource {
+  // TODO should reorganize this resource.
 
   val nextJobID = new AtomicInteger(0)
 
+  // Map[sessionId, (Session, HttpSession)]
   val sessionMap = new mutable.HashMap[String, (Session, HttpSession)]
+
+  // Map[sessionId, (WorkflowCompiler, ActorRef)]
   val sessionJobs = new mutable.HashMap[String, (WorkflowCompiler, ActorRef)]
+
+  // Map[sessionId, Map[operatorId, List[ITuple]]]
   val sessionResults = new mutable.HashMap[String, Map[String, List[ITuple]]]
+
+  // Map[sessionId, Map[downloadType, googleSheetLink]
+  val sessionDownloadCache = new mutable.HashMap[String, mutable.HashMap[String, String]]
+
+  /**
+    * Calculate which page in frontend need to be re-fetched
+    * @param beforeList data before status update event (i.e. unmodified sessionResults)
+    * @param afterList data after status update event
+    * @return list of indices of modified pages starting from 1
+    */
+  def getDirtyPageIndices(beforeList: List[ITuple], afterList: List[ITuple]): List[Int] = {
+    val pageSize = 10
+
+    var currentIndex = 1
+    var currentIndexPageCount = 0
+    val dirtyPageIndices = new mutable.HashSet[Int]()
+    for ((before, after) <- beforeList.zipAll(afterList, null, null)) {
+      if (before == null || after == null || !before.equals(after)) {
+        dirtyPageIndices.add(currentIndex)
+      }
+      currentIndexPageCount += 1
+      if (currentIndexPageCount == pageSize) {
+        currentIndexPageCount = 0
+        currentIndex += 1
+      }
+    }
+
+    dirtyPageIndices.toList
+  }
+
 }
 
 @ServerEndpoint(
@@ -58,11 +95,12 @@ class WorkflowWebsocketResource {
   @OnMessage
   def myOnMsg(session: Session, message: String): Unit = {
     val request = objectMapper.readValue(message, classOf[TexeraWebSocketRequest])
-    println(request)
     try {
       request match {
         case helloWorld: HelloWorldRequest =>
           send(session, HelloWorldResponse("hello from texera web server"))
+        case heartbeat: HeartBeatRequest =>
+          send(session, HeartBeatResponse())
         case execute: ExecuteWorkflowRequest =>
           println(execute)
           executeWorkflow(session, execute)
@@ -81,19 +119,26 @@ class WorkflowWebsocketResource {
           addBreakpoint(session, breakpoint)
         case paginationRequest: ResultPaginationRequest =>
           resultPagination(session, paginationRequest)
+        case resultDownloadRequest: ResultDownloadRequest =>
+          downloadResult(session, resultDownloadRequest)
       }
     } catch {
-      case e: Throwable => {
-        send(session, WorkflowErrorEvent(generalErrors = Map("exception" -> e.getMessage)))
+      case e: Throwable =>
+        send(
+          session,
+          WorkflowErrorEvent(generalErrors =
+            Map("exception" -> (e.getMessage + "\n" + e.getStackTrace.mkString("\n")))
+          )
+        )
         throw e
-      }
     }
 
   }
 
   def resultPagination(session: Session, request: ResultPaginationRequest): Unit = {
     val paginatedResultEvent = PaginatedResultEvent(
-      sessionResults(session.getId)
+      sessionResults
+        .getOrElse(session.getId, Map.empty[String, List[ITuple]])
         .map {
           case (operatorID, table) =>
             (
@@ -111,7 +156,10 @@ class WorkflowWebsocketResource {
             PaginatedOperatorResult(
               operatorID,
               objNodes,
-              sessionResults(session.getId)(operatorID).size
+              sessionResults
+                .getOrElse(session.getId, Map.empty[String, List[ITuple]])
+                .getOrElse(operatorID, List.empty[ITuple])
+                .size
             )
         }
         .toList
@@ -185,30 +233,39 @@ class WorkflowWebsocketResource {
     val eventListener = ControllerEventListener(
       workflowCompletedListener = completed => {
         sessionResults.remove(session.getId)
+        sessionDownloadCache.remove(session.getId)
         sessionResults.update(session.getId, completed.result)
-        send(session, WorkflowCompletedEvent.apply(completed, texeraWorkflowCompiler))
+        send(
+          session,
+          WorkflowCompletedEvent.apply(completed, texeraWorkflowCompiler)
+        )
         WorkflowWebsocketResource.sessionJobs.remove(session.getId)
       },
       workflowStatusUpdateListener = statusUpdate => {
-        val updateMutable = mutable.HashMap(statusUpdate.operatorStatistics.toSeq: _*)
-        val sinkID = texeraWorkflowCompiler.workflowInfo.operators
-          .find(p => p.isInstanceOf[SimpleSinkOpDesc])
-          .get
-          .operatorID
-        val sinkInputID = texeraWorkflowCompiler.workflowInfo.links
-          .find(link => link.destination.operatorID == sinkID)
-          .get
-          .origin
-        if (updateMutable.contains(sinkInputID.operatorID)) {
-          val inputStatistics = updateMutable(sinkInputID.operatorID)
-          val sinkStatistics = OperatorStatistics(
-            inputStatistics.operatorState,
-            inputStatistics.aggregatedOutputRowCount,
-            inputStatistics.aggregatedOutputRowCount
+        val sinkOpDirtyPageIndices = statusUpdate.operatorStatistics
+          .filter(e => e._2.aggregatedOutputResults.isDefined)
+          .map(e => {
+            val beforeList =
+              sessionResults.getOrElse(session.getId, Map.empty).getOrElse(e._1, List.empty)
+            val afterList = e._2.aggregatedOutputResults.get
+            val dirtyPageIndices = getDirtyPageIndices(beforeList, afterList)
+            (e._1, dirtyPageIndices)
+          })
+
+        sessionResults.update(
+          session.getId,
+          statusUpdate.operatorStatistics
+            .filter(e => e._2.aggregatedOutputResults.isDefined)
+            .map(e => (e._1, e._2.aggregatedOutputResults.get))
+        )
+        send(
+          session,
+          WebWorkflowStatusUpdateEvent.apply(
+            statusUpdate,
+            sinkOpDirtyPageIndices,
+            texeraWorkflowCompiler
           )
-          updateMutable(sinkID) = sinkStatistics
-        }
-        send(session, WorkflowStatusUpdateEvent(updateMutable.toMap))
+        )
       },
       modifyLogicCompletedListener = _ => {
         send(session, ModifyLogicCompletedEvent())
@@ -246,6 +303,11 @@ class WorkflowWebsocketResource {
 
   }
 
+  def downloadResult(session: Session, request: ResultDownloadRequest): Unit = {
+    val resultDownloadResponse = ResultDownloadResource.apply(session.getId, request)
+    send(session, resultDownloadResponse)
+  }
+
   def killWorkflow(session: Session): Unit = {
     WorkflowWebsocketResource.sessionJobs(session.getId)._2 ! PoisonPill
     println("workflow killed")
@@ -261,6 +323,7 @@ class WorkflowWebsocketResource {
     sessionResults.remove(session.getId)
     sessionJobs.remove(session.getId)
     sessionMap.remove(session.getId)
+    sessionDownloadCache.remove(session.getId)
   }
 
   def removeBreakpoint(session: Session, removeBreakpoint: RemoveBreakpointRequest): Unit = {

@@ -4,7 +4,12 @@
 package edu.uci.ics.texera.web.model.jooq.generated;
 
 
-import edu.uci.ics.texera.web.model.jooq.generated.tables.*;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.File;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.KeywordDictionary;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.Workflow;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfUser;
+
 import org.jooq.Index;
 import org.jooq.OrderField;
 import org.jooq.impl.Internal;
@@ -13,7 +18,7 @@ import org.jooq.impl.Internal;
 /**
  * A class modelling indexes of tables of the <code>texera_db</code> schema.
  */
-@SuppressWarnings({"all", "unchecked", "rawtypes"})
+@SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Indexes {
 
     // -------------------------------------------------------------------------
@@ -35,14 +40,14 @@ public class Indexes {
     // -------------------------------------------------------------------------
 
     private static class Indexes0 {
-        public static Index FILE_PRIMARY = Internal.createIndex("PRIMARY", File.FILE, new OrderField[]{File.FILE.FID}, true);
-        public static Index FILE_UID = Internal.createIndex("uid", File.FILE, new OrderField[]{File.FILE.UID, File.FILE.NAME}, true);
-        public static Index KEYWORD_DICTIONARY_PRIMARY = Internal.createIndex("PRIMARY", KeywordDictionary.KEYWORD_DICTIONARY, new OrderField[]{KeywordDictionary.KEYWORD_DICTIONARY.KID}, true);
-        public static Index KEYWORD_DICTIONARY_UID = Internal.createIndex("uid", KeywordDictionary.KEYWORD_DICTIONARY, new OrderField[]{KeywordDictionary.KEYWORD_DICTIONARY.UID, KeywordDictionary.KEYWORD_DICTIONARY.NAME}, true);
-        public static Index USER_NAME = Internal.createIndex("name", User.USER, new OrderField[]{User.USER.NAME}, true);
-        public static Index USER_PRIMARY = Internal.createIndex("PRIMARY", User.USER, new OrderField[]{User.USER.UID}, true);
-        public static Index WORKFLOW_PRIMARY = Internal.createIndex("PRIMARY", Workflow.WORKFLOW, new OrderField[]{Workflow.WORKFLOW.WID}, true);
-        public static Index WORKFLOW_OF_USER_PRIMARY = Internal.createIndex("PRIMARY", WorkflowOfUser.WORKFLOW_OF_USER, new OrderField[]{WorkflowOfUser.WORKFLOW_OF_USER.UID, WorkflowOfUser.WORKFLOW_OF_USER.WID}, true);
-        public static Index WORKFLOW_OF_USER_WID = Internal.createIndex("wid", WorkflowOfUser.WORKFLOW_OF_USER, new OrderField[]{WorkflowOfUser.WORKFLOW_OF_USER.WID}, false);
+        public static Index FILE_PRIMARY = Internal.createIndex("PRIMARY", File.FILE, new OrderField[] { File.FILE.FID }, true);
+        public static Index FILE_UID = Internal.createIndex("uid", File.FILE, new OrderField[] { File.FILE.UID, File.FILE.NAME }, true);
+        public static Index KEYWORD_DICTIONARY_PRIMARY = Internal.createIndex("PRIMARY", KeywordDictionary.KEYWORD_DICTIONARY, new OrderField[] { KeywordDictionary.KEYWORD_DICTIONARY.KID }, true);
+        public static Index KEYWORD_DICTIONARY_UID = Internal.createIndex("uid", KeywordDictionary.KEYWORD_DICTIONARY, new OrderField[] { KeywordDictionary.KEYWORD_DICTIONARY.UID, KeywordDictionary.KEYWORD_DICTIONARY.NAME }, true);
+        public static Index USER_NAME = Internal.createIndex("name", User.USER, new OrderField[] { User.USER.NAME }, true);
+        public static Index USER_PRIMARY = Internal.createIndex("PRIMARY", User.USER, new OrderField[] { User.USER.UID }, true);
+        public static Index WORKFLOW_PRIMARY = Internal.createIndex("PRIMARY", Workflow.WORKFLOW, new OrderField[] { Workflow.WORKFLOW.WID }, true);
+        public static Index WORKFLOW_OF_USER_PRIMARY = Internal.createIndex("PRIMARY", WorkflowOfUser.WORKFLOW_OF_USER, new OrderField[] { WorkflowOfUser.WORKFLOW_OF_USER.UID, WorkflowOfUser.WORKFLOW_OF_USER.WID }, true);
+        public static Index WORKFLOW_OF_USER_WID = Internal.createIndex("wid", WorkflowOfUser.WORKFLOW_OF_USER, new OrderField[] { WorkflowOfUser.WORKFLOW_OF_USER.WID }, false);
     }
 }

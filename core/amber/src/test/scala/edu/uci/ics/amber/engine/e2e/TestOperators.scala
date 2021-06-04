@@ -6,25 +6,54 @@ import edu.uci.ics.texera.workflow.operators.aggregate.{
 }
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc
 import edu.uci.ics.texera.workflow.operators.keywordSearch.KeywordSearchOpDesc
-import edu.uci.ics.texera.workflow.operators.scan.CSVScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
+import edu.uci.ics.texera.workflow.operators.source.scan.csv.CSVScanSourceOpDesc
+import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONLScanSourceOpDesc
+import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBSourceOpDesc
+import edu.uci.ics.texera.workflow.operators.source.sql.mysql.MySQLSourceOpDesc
 
 object TestOperators {
 
   def headerlessSmallCsvScanOpDesc(): CSVScanSourceOpDesc = {
-    getCsvScanOpDesc("src/test/resources/CountrySalesDataHeaderlessSmall.csv", false)
+    getCsvScanOpDesc("src/test/resources/country_sales_headerless_small.csv", header = false)
+  }
+
+  def headerlessSmallMultiLineDataCsvScanOpDesc(): CSVScanSourceOpDesc = {
+    getCsvScanOpDesc(
+      "src/test/resources/country_sales_headerless_small_multi_line.csv",
+      header = false,
+      multiLine = true
+    )
   }
 
   def smallCsvScanOpDesc(): CSVScanSourceOpDesc = {
-    getCsvScanOpDesc("src/test/resources/CountrySalesDataSmall.csv", true)
+    getCsvScanOpDesc("src/test/resources/country_sales_small.csv", header = true)
   }
 
-  def getCsvScanOpDesc(fileName: String, header: Boolean): CSVScanSourceOpDesc = {
+  def smallJSONLScanOpDesc(): JSONLScanSourceOpDesc = {
+    getJSONLScanOpDesc("src/test/resources/100.jsonl")
+  }
+
+  def mediumFlattenJSONLScanOpDesc(): JSONLScanSourceOpDesc = {
+    getJSONLScanOpDesc("src/test/resources/1000.jsonl", flatten = true)
+  }
+  def getCsvScanOpDesc(
+      fileName: String,
+      header: Boolean,
+      multiLine: Boolean = false
+  ): CSVScanSourceOpDesc = {
     val csvHeaderlessOp = new CSVScanSourceOpDesc()
-    csvHeaderlessOp.fileName = Option(fileName)
-    csvHeaderlessOp.delimiter = Option(",")
+    csvHeaderlessOp.fileName = Some(fileName)
+    csvHeaderlessOp.customDelimiter = Some(",")
     csvHeaderlessOp.hasHeader = header
     csvHeaderlessOp
+  }
+
+  def getJSONLScanOpDesc(fileName: String, flatten: Boolean = false): JSONLScanSourceOpDesc = {
+    val jsonlOp = new JSONLScanSourceOpDesc
+    jsonlOp.fileName = Some(fileName)
+    jsonlOp.flatten = flatten
+    jsonlOp
   }
 
   def joinOpDesc(buildAttrName: String, probeAttrName: String): HashJoinOpDesc[String] = {
@@ -35,7 +64,7 @@ object TestOperators {
   }
 
   def mediumCsvScanOpDesc(): CSVScanSourceOpDesc = {
-    getCsvScanOpDesc("src/test/resources/CountrySalesDataMedium.csv", true)
+    getCsvScanOpDesc("src/test/resources/country_sales_medium.csv", header = true)
   }
 
   def keywordSearchOpDesc(attribute: String, keywordToSearch: String): KeywordSearchOpDesc = {
@@ -56,6 +85,36 @@ object TestOperators {
     aggOp.resultAttribute = "aggregate-result"
     aggOp.groupByKeys = groupByAttributes
     aggOp
+  }
+
+  def inMemoryMySQLSourceOpDesc(
+      host: String,
+      port: String,
+      database: String,
+      table: String,
+      username: String,
+      password: String
+  ): MySQLSourceOpDesc = {
+    val inMemoryMySQLSourceOpDesc = new MySQLSourceOpDesc()
+    inMemoryMySQLSourceOpDesc.host = host
+    inMemoryMySQLSourceOpDesc.port = port
+    inMemoryMySQLSourceOpDesc.database = database
+    inMemoryMySQLSourceOpDesc.table = table
+    inMemoryMySQLSourceOpDesc.username = username
+    inMemoryMySQLSourceOpDesc.password = password
+    inMemoryMySQLSourceOpDesc.limit = Some(1000)
+    inMemoryMySQLSourceOpDesc
+  }
+
+  // TODO: use mock data to perform the test, remove dependency on the real AsterixDB
+  def asterixDBSourceOpDesc(): AsterixDBSourceOpDesc = {
+    val asterixDBOp = new AsterixDBSourceOpDesc()
+    asterixDBOp.host = "ipubmed4.ics.uci.edu" // AsterixDB at version 0.9.5
+    asterixDBOp.port = "default"
+    asterixDBOp.database = "twitter"
+    asterixDBOp.table = "ds_tweet"
+    asterixDBOp.limit = Some(1000)
+    asterixDBOp
   }
 
   def sinkOpDesc(): SimpleSinkOpDesc = {

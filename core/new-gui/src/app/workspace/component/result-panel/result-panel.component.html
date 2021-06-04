@@ -18,9 +18,17 @@
       Skip Records
     </button>
     <div class="result-table" [hidden]="!currentColumns">
-      <nz-table #basicTable (nzQueryParams)="onTableQueryParamsChange($event)" [nzData]="currentResult"
-        [nzFrontPagination]="isFrontPagination" [nzLoading]="isLoadingResult" [nzPageIndex]="currentPageIndex"
-        [nzPageSize]="currentPageSize" [nzTotal]="total" nzBordered="true">
+      <nz-table
+        #basicTable
+        [nzData]="currentResult"
+        nzBordered="true"
+        [nzFrontPagination]="isFrontPagination"
+        [nzLoading]="isLoadingResult"
+        [nzTotal]="total"
+        [nzPageIndex]="currentPageIndex"
+        [nzPageSize]="10"
+        (nzQueryParams)="onTableQueryParamsChange($event)"
+      >
         <thead>
           <tr>
             <th *ngFor="let column of currentColumns">
@@ -39,7 +47,7 @@
     </div>
   </div>
 
-  <div [hidden]="!chartType">
+  <div>
     <texera-visualization-panel [operatorID]="resultPanelOperatorID"></texera-visualization-panel>
   </div>
 

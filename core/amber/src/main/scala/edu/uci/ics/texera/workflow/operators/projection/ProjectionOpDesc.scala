@@ -7,7 +7,9 @@ import edu.uci.ics.texera.workflow.common.metadata._
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeNameList
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+
+import scala.jdk.CollectionConverters.asJavaIterableConverter
 
 class ProjectionOpDesc extends MapOpDesc {
 
@@ -15,7 +17,7 @@ class ProjectionOpDesc extends MapOpDesc {
   @JsonSchemaTitle("Attributes")
   @JsonPropertyDescription("a subset of column to keeps")
   @AutofillAttributeNameList
-  val attributes: List[String] = List[String]()
+  var attributes: List[String] = List()
 
   override def operatorExecutor: OneToOneOpExecConfig = {
     new OneToOneOpExecConfig(operatorIdentifier, _ => new ProjectionOpExec(attributes))
@@ -33,8 +35,9 @@ class ProjectionOpDesc extends MapOpDesc {
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Preconditions.checkArgument(schemas.length == 1)
-    val builder = Schema.newBuilder
-    schemas(0).getAttributes.forEach((attr: Attribute) => { builder.add(attr) })
-    builder.build()
+    Preconditions.checkArgument(attributes.nonEmpty)
+    Schema.newBuilder
+      .add(attributes.map(attribute => schemas(0).getAttribute(attribute)).asJava)
+      .build()
   }
 }

@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS user
 (
     `name` VARCHAR(32)                 NOT NULL,
     `uid`  INT UNSIGNED AUTO_INCREMENT NOT NULL,
+    `password` VARCHAR(256)            NOT NULL,
     UNIQUE (`name`),
     PRIMARY KEY (`uid`)
 ) ENGINE = INNODB,
