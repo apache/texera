@@ -100,6 +100,7 @@ export class DragDropService {
   public handleOperatorDropEvent(): void {
     this.getOperatorDropStream().subscribe(
       value => {
+        console.log(value);
         // construct the operator from the drop stream value
         const operator = this.workflowUtilService.getNewOperatorPredicate(value.operatorType);
 
@@ -109,10 +110,7 @@ export class DragDropService {
           coordinates = value.offset;
         }
 
-        let scale: {sx: number, sy: number} | undefined = this.workflowActionService.getJointGraphWrapper().getMainJointPaper()?.scale();
-        if (scale === undefined) {
-          scale = {sx: 1, sy: 1};
-        }
+        const scale = this.workflowActionService.getJointGraphWrapper().getMainJointPaper()?.scale() ?? {sx: 1, sy: 1};
 
         const newOperatorOffset = {
           x: (coordinates.x)

@@ -117,8 +117,7 @@ export class MiniMapComponent implements AfterViewInit {
     this.miniMapPaper.scale(this.MINI_MAP_ZOOM_SCALE);
 
 
-    this.workflowActionService.getJointGraphWrapper().getMainJointPaperAttachedStream().subscribe(() => {
-      const mainPaper = this.workflowActionService.getJointGraphWrapper().getMainJointPaper();
+    this.workflowActionService.getJointGraphWrapper().getMainJointPaperAttachedStream().subscribe(mainPaper => {
 
       this.updateNavigatorOffset();
       this.updateNavigatorDimension();
@@ -173,7 +172,7 @@ export class MiniMapComponent implements AfterViewInit {
    */
   private updateNavigatorDimension(): void {
     const { width: mainPaperWidth, height: mainPaperHeight } = this.getOriginalWrapperElementSize();
-    const mainPaperScale = this.workflowActionService.getJointGraphWrapper().getMainJointPaper().scale();
+    const mainPaperScale = this.workflowActionService.getJointGraphWrapper().getMainJointPaper()?.scale() ?? { sx: 1, sy: 1 };
 
     // set navigator dimension size, mainPaperDimension * MINI_MAP_ZOOM_SCALE is the
     //  main paper's size in the mini-map

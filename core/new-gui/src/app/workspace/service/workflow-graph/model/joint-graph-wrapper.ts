@@ -87,7 +87,7 @@ export class JointGraphWrapper {
   public navigatorMoveDelta: Subject<{ deltaX: number, deltaY: number }> = new Subject();
 
   private mainJointPaper: joint.dia.Paper | undefined;
-  private mainJointPaperAttachedStream: Subject<void> = new ReplaySubject(1);
+  private mainJointPaperAttachedStream: Subject<joint.dia.Paper> = new ReplaySubject(1);
   private miniMapPaper: joint.dia.Paper | undefined;
 
   private elementPositions: Map<string, PositionInfo> = new Map<string, PositionInfo>();
@@ -186,18 +186,15 @@ export class JointGraphWrapper {
     paperOptions.model = this.jointGraph;
     const paper = new joint.dia.Paper(paperOptions);
     this.mainJointPaper = paper;
-    this.mainJointPaperAttachedStream.next();
+    this.mainJointPaperAttachedStream.next(this.mainJointPaper);
     return paper;
   }
 
-  public getMainJointPaper(): joint.dia.Paper {
-    if (! this.mainJointPaper) {
-      throw new Error('jointJS main paper is not initialized yet');
-    }
+  public getMainJointPaper(): joint.dia.Paper | undefined {
     return this.mainJointPaper;
   }
 
-  public getMainJointPaperAttachedStream(): Observable<void> {
+  public getMainJointPaperAttachedStream(): Observable<joint.dia.Paper> {
     return this.mainJointPaperAttachedStream;
   }
 

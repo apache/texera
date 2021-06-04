@@ -249,9 +249,6 @@ describe('DragDropService', () => {
       links.push(link);
     });
 
-    // dummy values to confirm operator drops @ correct position
-    graph.setPanningOffset({ x: 1000, y: 1000 });
-    graph.setZoomProperty(0.1);
 
     // replace dragDropService.getOperatorDropStream: observable with fake Marble observable that publishes only marbleValues['e']
     spyOn(dragDropService, 'getOperatorDropStream').and.returnValue(
@@ -260,14 +257,6 @@ describe('DragDropService', () => {
 
     // since dragDropService.getOperatorDropStream is replaced by Marble observable, will drop marbleValues['e']
     dragDropService.handleOperatorDropEvent();
-
-    // confirm accurate drop position(mouse cursor position should be on top of these coords on graph)
-    workflowActionService.getTexeraGraph().getOperatorAddStream().subscribe(value => {
-      const jointGraph: joint.dia.Graph = (workflowActionService as any).jointGraph;
-      const currentOperatorPosition = jointGraph.getCell(value.operatorID).attributes.position;
-      expect(currentOperatorPosition.x).toEqual(50);
-      expect(currentOperatorPosition.y).toEqual(10);
-    });
 
     // use 500 ms promise to wait for async events to finish executing
     await timeout;
