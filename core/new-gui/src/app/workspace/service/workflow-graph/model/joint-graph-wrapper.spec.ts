@@ -440,18 +440,6 @@ describe('JointGraphWrapperService', () => {
     expect(localJointGraphWrapper.getElementPosition(mockScanPredicate.operatorID)).toEqual(expectedPosition);
   });
 
-
-  it('should successfully set a new drag offset', () => {
-    let currentDragOffset = jointGraphWrapper.getPanningOffset();
-    expect(currentDragOffset.x).toEqual(0);
-    expect(currentDragOffset.y).toEqual(0);
-
-    jointGraphWrapper.setPanningOffset({ x: 100, y: 200 });
-    currentDragOffset = jointGraphWrapper.getPanningOffset();
-    expect(currentDragOffset.x).toEqual(100);
-    expect(currentDragOffset.y).toEqual(200);
-  });
-
   it('should successfully set a new zoom property', () => {
 
     const mockNewZoomProperty = 0.5;
@@ -475,24 +463,6 @@ describe('JointGraphWrapperService', () => {
 
     m.expect(zoomStream).toBeObservable(expectedStream);
   }));
-
-  it('should restore default zoom ratio and offset when resumeDefaultZoomAndOffset is called', () => {
-    const defaultOffset = JointGraphWrapper.INIT_PAN_OFFSET;
-    const defaultRatio = JointGraphWrapper.INIT_ZOOM_VALUE;
-
-    const mockOffset = { x: 20, y: 20 };
-    const mockRatio = 0.6;
-    jointGraphWrapper.setPanningOffset(mockOffset);
-    jointGraphWrapper.setZoomProperty(mockRatio);
-    expect(jointGraphWrapper.getPanningOffset().x).not.toEqual(defaultOffset.x);
-    expect(jointGraphWrapper.getPanningOffset().y).not.toEqual(defaultOffset.y);
-    expect(jointGraphWrapper.getZoomRatio()).not.toEqual(defaultRatio);
-
-    jointGraphWrapper.restoreDefaultZoomAndOffset();
-    expect(jointGraphWrapper.getPanningOffset().x).toEqual(defaultOffset.x);
-    expect(jointGraphWrapper.getPanningOffset().y).toEqual(defaultOffset.y);
-    expect(jointGraphWrapper.getZoomRatio()).toEqual(defaultRatio);
-  });
 
   it('should trigger getRestorePaperOffsetStream when resumeDefaultZoomAndOffset is called', marbles((m) => {
     m.hot('-e-').do(() => jointGraphWrapper.restoreDefaultZoomAndOffset()).subscribe();
