@@ -4,6 +4,7 @@ USE `texera_db`;
 DROP TABLE IF EXISTS `file`;
 DROP TABLE IF EXISTS `keyword_dictionary`;
 DROP TABLE IF EXISTS `workflow_of_user`;
+DROP TABLE IF EXISTS `user_dictionary`;
 DROP TABLE IF EXISTS `user`;
 DROP TABLE IF EXISTS `workflow`;
 
@@ -21,6 +22,14 @@ CREATE TABLE IF NOT EXISTS user
 ) ENGINE = INNODB,
 -- start auto increment userID from 1 because userID 0 means user not exists
   AUTO_INCREMENT = 1;
+  
+CREATE TABLE `user_dictionary` (
+  `uid` int unsigned NOT NULL,
+  `key` varchar(255) COLLATE utf8mb4_bin NOT NULL,
+  `value` text NOT NULL,
+  PRIMARY KEY (`uid`,`key`),
+  FOREIGN KEY (`uid`) REFERENCES `user` (`uid`) ON DELETE CASCADE
+) ENGINE=InnoDB;
 
 
 CREATE TABLE IF NOT EXISTS file
