@@ -54,7 +54,7 @@ describe('VisualizationPanelContentComponent', () => {
     spyOn(workflowStatusService, 'getCurrentResult').and.returnValue(testData);
 
     component.operatorID = 'operator1';
-    component.ngAfterViewInit();
+    component.ngAfterContentInit();
 
     expect(component.generateChart).toHaveBeenCalled();
   });
@@ -70,8 +70,59 @@ describe('VisualizationPanelContentComponent', () => {
     spyOn(workflowStatusService, 'getCurrentResult').and.returnValue(testData);
 
     component.operatorID = 'operator1';
-    component.ngAfterViewInit();
+    component.ngAfterContentInit();
 
     expect(component.generateWordCloud).toHaveBeenCalled();
   });
+
+  it('should draw the spatial scatteplot map', () => {
+    const testData: Record<string, ResultObject> = {
+      'operator1': {
+        operatorID: 'operator1', chartType: ChartType.SPATIAL_SCATTERPLOT,
+        table: [{'xColumn': -90.285434, 'yColumn': 29.969126},
+          {'xColumn': -76.711521, 'yColumn': 39.197211}], totalRowCount: 2
+      }
+    };
+    spyOn(component, 'generateSpatialScatterplot');
+    spyOn(workflowStatusService, 'getCurrentResult').and.returnValue(testData);
+
+    component.operatorID = 'operator1';
+    component.ngAfterContentInit();
+
+    expect(component.generateSpatialScatterplot).toHaveBeenCalled();
+  });
+
+  it('should draw the simple scatteplot chart', () => {
+    const testData: Record<string, ResultObject> = {
+      'operator1': {
+        operatorID: 'operator1', chartType: ChartType.SIMPLE_SCATTERPLOT,
+        table: [{'employees': 1000, 'sales': 30000},
+          {'employees': 500, 'sales': 21000}], totalRowCount: 2
+      }
+    };
+    spyOn(component, 'generateSimpleScatterplot');
+    spyOn(workflowStatusService, 'getCurrentResult').and.returnValue(testData);
+
+    component.operatorID = 'operator1';
+    component.ngAfterContentInit();
+
+    expect(component.generateSimpleScatterplot).toHaveBeenCalled();
+  });
+
+  it('should draw a sample html', () => {
+    const testData: Record<string, ResultObject> = {
+      'operator1': {
+        operatorID: 'operator1', chartType: ChartType.HTML_VIZ,
+        table: [{'HTML-content': '<div>sample</div>'}], totalRowCount: 1
+      }
+    };
+    spyOn(component, 'generateHTML');
+    spyOn(workflowStatusService, 'getCurrentResult').and.returnValue(testData);
+
+    component.operatorID = 'operator1';
+    component.ngAfterContentInit();
+
+    expect(component.generateHTML).toHaveBeenCalled();
+  });
+
 });

@@ -1,20 +1,17 @@
 import ast
-import importlib.util
-import json
-import sys
 import threading
-import traceback
+from time import sleep
 from typing import Dict
 
 import pandas
 import pyarrow
-import pyarrow.flight
-from pyarrow._flight import FlightDescriptor
+from loguru import logger
+from pyarrow import py_buffer
+from pyarrow.flight import FlightDescriptor, Action, FlightServerBase, Result, FlightInfo, Location, FlightEndpoint, RecordBatchStream
 
-import texera_udf_operator_base
 
+class UDFServer(FlightServerBase):
 
-class UDFServer(pyarrow.flight.FlightServerBase):
     def __init__(self, udf_op, host: str = "localhost", location=None, tls_certificates=None, auth_handler=None):
         super(UDFServer, self).__init__(location, auth_handler, tls_certificates)
         self.flights: Dict = {}
@@ -29,10 +26,10 @@ class UDFServer(pyarrow.flight.FlightServerBase):
     def _make_flight_info(self, key, descriptor: FlightDescriptor, table):
         """NOT USED NOW"""
         if self.tls_certificates:
-            location = pyarrow.flight.Location.for_grpc_tls(self.host, self.port)
+            location = Location.for_grpc_tls(self.host, self.port)
         else:
-            location = pyarrow.flight.Location.for_grpc_tcp(self.host, self.port)
-        endpoints = [pyarrow.flight.FlightEndpoint(repr(key), [location]), ]
+            location = Location.for_grpc_tcp(self.host, self.port)
+        endpoints = [FlightEndpoint(repr(key), [location]), ]
 
         mock_sink = pyarrow.MockOutputStream()
         stream_writer = pyarrow.RecordBatchStreamWriter(mock_sink, table.schema)
@@ -40,9 +37,9 @@ class UDFServer(pyarrow.flight.FlightServerBase):
         stream_writer.close()
         data_size = mock_sink.size()
 
-        return pyarrow.flight.FlightInfo(table.schema,
-                                         descriptor, endpoints,
-                                         table.num_rows, data_size)
+        return FlightInfo(table.schema,
+                          descriptor, endpoints,
+                          table.num_rows, data_size)
 
     def list_flights(self, context, criteria):
         """
@@ -54,9 +51,9 @@ class UDFServer(pyarrow.flight.FlightServerBase):
         """
         for key, table in self.flights.items():
             if key[1] is not None:
-                descriptor = pyarrow.flight.FlightDescriptor.for_command(key[1])
+                descriptor = FlightDescriptor.for_command(key[1])
             else:
-                descriptor = pyarrow.flight.FlightDescriptor.for_path(*key[2])
+                descriptor = FlightDescriptor.for_path(*key[2])
 
             yield self._make_flight_info(key, descriptor, table)
 
@@ -90,53 +87,31 @@ class UDFServer(pyarrow.flight.FlightServerBase):
         """
         key = ast.literal_eval(ticket.ticket.decode())
         if key not in self.flights:
-            print("Flight Server:\tNOT IN")
+            logger.warning("Flight Server:\tNOT IN")
             return None
-        return pyarrow.flight.RecordBatchStream(self.flights[key])
+        return RecordBatchStream(self.flights[key])
 
-    def do_action(self, context, action):
+    def do_action(self, context, action: Action):
         """
         Each (implementation-specific) action is a string (defined in the script). The client is expected to know
         available actions. When a specific action is called, the server executes the corresponding action and
         maybe will return any results, i.e. a generalized function call.
         """
+        logger.debug(f"Flight Server on Action {action.type}")
         if action.type == "health_check":
-            # to check the status of the server to see if it is running.
-            yield self._response(b'Flight Server is up and running!')
+            # do nothing but a heart beat
+            pass
         elif action.type == "open":
-            # open UDF
-            user_args_table = self.flights[self._descriptor_to_key(self._accept(b'args'))]
-            self.udf_op.open(*user_args_table.to_pydict()['args'])
-            yield self._response(b'Success!')
+            self._udf_open()
+
         elif action.type == "compute":
-            # execute UDF
-            # prepare input data
-            input_key = self._descriptor_to_key(self._accept(b'toPython'))
-            try:
-                input_table: pyarrow.Table = self.flights[input_key]
-                input_dataframe: pandas.DataFrame = input_table.to_pandas()
-
-                # execute and output data
-                for index, row in input_dataframe.iterrows():
-                    self.udf_op.accept(row)
-                self._output_data()
-                result_buffer = json.dumps({'status': 'Success'})
-            except:
-                result_buffer = json.dumps({'status': 'Fail', 'errorMessage': traceback.format_exc()})
-
-            # discard this batch of input
-            self.flights.pop(input_key)
-            yield self._response(result_buffer.encode('utf-8'))
+            self._udf_compute()
 
         elif action.type == "input_exhausted":
-            self.udf_op.input_exhausted()
-            self._output_data()
-            yield self._response(b'Success!')
+            self._udf_input_exhausted()
 
         elif action.type == "close":
-            # close UDF
-            self.udf_op.close()
-            yield self._response(b'Success!')
+            self._udf_close()
 
         elif action.type == "terminate":
             # Shut down on background thread to avoid blocking current request
@@ -145,11 +120,20 @@ class UDFServer(pyarrow.flight.FlightServerBase):
 
         else:
             raise ValueError("Unknown action {!r}".format(action.type))
+        yield self._response('success')
 
     def _delayed_shutdown(self):
-        """Shut down after a delay."""
-        # print("Flight Server:\tServer is shutting down...")
+        """
+        Shut down after a delay.
 
+        This is used to allow client to send a terminate command to server. The server would
+        start a shutdown thread, with a short delay, during which allows the client to close the connection.
+
+        The short delay is set to be 100 ms, though it does not matter since it is on another thread.
+
+        """
+        sleep(0.1)
+        logger.debug("Bye bye!")
         self.shutdown()
         self.wait()
 
@@ -159,42 +143,65 @@ class UDFServer(pyarrow.flight.FlightServerBase):
             output_data_list.append(self.udf_op.next())
         output_dataframe = pandas.DataFrame.from_records(output_data_list)
         # send output data to Java
-        output_key = self._descriptor_to_key(self._accept(b'fromPython'))
+        self._send_flight("fromPython", output_dataframe)
+
+    def _get_flight(self, channel: str) -> pandas.DataFrame:
+        logger.debug(f"transforming flight {channel.__repr__()}")
+        df = self.flights[self._descriptor_to_key(self._to_descriptor(channel))].to_pandas()
+        logger.debug(f"got {len(df)} rows in this flight")
+        return df
+
+    def _remove_flight(self, channel: str) -> None:
+        logger.debug(f"removing flight {channel.__repr__()}")
+        self.flights.pop(self._descriptor_to_key(self._to_descriptor(channel)))
+
+    def _send_flight(self, channel: str, output_dataframe: pandas.DataFrame) -> None:
+        output_key = self._descriptor_to_key(self._to_descriptor(channel))
+        logger.debug(f"prepared {len(output_dataframe)} rows in this flight")
+        logger.debug(f"sending flight {channel.__repr__()}")
         self.flights[output_key] = pyarrow.Table.from_pandas(output_dataframe)
 
     @staticmethod
-    def _response(message: bytes):
-        return pyarrow.flight.Result(pyarrow.py_buffer(message))
+    def _response(message: str):
+        return Result(py_buffer(message.encode()))
 
     @staticmethod
-    def _accept(channel: bytes):
-        return pyarrow.flight.FlightDescriptor.for_path(channel)
+    def _to_descriptor(channel: str) -> FlightDescriptor:
+        return FlightDescriptor.for_path(channel)
 
+    def _configure(self, *args):
+        # TODO: add server related configurations here
+        pass
 
-if __name__ == '__main__':
-    _, port, UDF_operator_script_path, *__ = sys.argv
-    # Dynamically import operator from user-defined script.
+    @logger.catch(reraise=True)
+    def _udf_compute(self):
+        # execute UDF
+        # prepare input data
+        input_dataframe: pandas.DataFrame = self._get_flight("toPython")
 
-    # Spec is used to load a spec based on a file location (the UDF script)
-    spec = importlib.util.spec_from_file_location('user_module', UDF_operator_script_path)
-    # Dynamically load the user script as module
-    user_module = importlib.util.module_from_spec(spec)
-    # Execute the module so that its attributes can be loaded.
-    spec.loader.exec_module(user_module)
+        # execute and output data
+        for index, row in input_dataframe.iterrows():
+            self.udf_op.accept(row)
 
-    # The UDF that will be used in the server. It will be either an inherited operator instance, or created by passing
-    # map_func/filter_func to a TexeraMapOperator/TexeraFilterOperator instance.
-    final_UDF = None
+        self._output_data()
+        # discard this batch of input
+        self._remove_flight("toPython")
 
-    if hasattr(user_module, 'operator_instance'):
-        final_UDF = user_module.operator_instance
-    elif hasattr(user_module, 'map_function'):
-        final_UDF = texera_udf_operator_base.TexeraMapOperator(user_module.map_function)
-    elif hasattr(user_module, 'filter_function'):
-        final_UDF = texera_udf_operator_base.TexeraFilterOperator(user_module.filter_function)
-    else:
-        raise ValueError("Unsupported UDF definition!")
+    @logger.catch(reraise=True)
+    def _udf_open(self):
+        # set up user configurations
+        user_conf_table = self.flights[self._descriptor_to_key(self._to_descriptor('conf'))]
+        self._configure(*user_conf_table.to_pydict()['conf'])
 
-    location = "grpc+tcp://localhost:" + port
+        # open UDF
+        user_args_table = self.flights[self._descriptor_to_key(self._to_descriptor('args'))]
+        self.udf_op.open(*user_args_table.to_pydict()['args'])
 
-    UDFServer(final_UDF, "localhost", location).serve()
+    @logger.catch(reraise=True)
+    def _udf_input_exhausted(self):
+        self.udf_op.input_exhausted()
+        self._output_data()
+
+    @logger.catch(reraise=True)
+    def _udf_close(self):
+        self.udf_op.close()

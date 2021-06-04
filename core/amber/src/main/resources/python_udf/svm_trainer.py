@@ -3,11 +3,11 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.model_selection import GridSearchCV
 from sklearn.svm import SVC
 
-import texera_udf_operator_base
 from mock_data import df_from_mysql
+from operators.texera_blocking_supervised_trainer_operator import TexeraBlockingSupervisedTrainerOperator
 
 
-class SVMTrainer(texera_udf_operator_base.TexeraBlockingSupervisedTrainerOperator):
+class SVMTrainer(TexeraBlockingSupervisedTrainerOperator):
 
     def open(self, *args):
         super(SVMTrainer, self).open(*args)

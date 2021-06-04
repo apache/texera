@@ -2,11 +2,11 @@ import pickle
 
 import pandas
 
-import texera_udf_operator_base
 from mock_data import df_from_mysql
+from operators.texera_map_operator import TexeraMapOperator
 
 
-class SVMClassifier(texera_udf_operator_base.TexeraMapOperator):
+class SVMClassifier(TexeraMapOperator):
 
     def __init__(self):
         super(SVMClassifier, self).__init__(self.predict)

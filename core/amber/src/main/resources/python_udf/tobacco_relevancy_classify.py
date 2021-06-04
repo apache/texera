@@ -4,7 +4,7 @@ import pandas
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 
-import texera_udf_operator_base
+from operators.texera_map_operator import TexeraMapOperator
 
 
 def lower_case(text):
@@ -50,7 +50,7 @@ class TobaccoClassifier(object):
         return self.model.predict(test_vector)
 
 
-class TobaccoRelevancyOperator(texera_udf_operator_base.TexeraMapOperator):
+class TobaccoRelevancyOperator(TexeraMapOperator):
 
     def __init__(self):
         super(TobaccoRelevancyOperator, self).__init__(self.predict)

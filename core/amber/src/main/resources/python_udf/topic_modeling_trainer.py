@@ -1,27 +1,38 @@
+import logging
+
 import gensim
 import gensim.corpora as corpora
 import pandas
+from loguru import logger
 
-import texera_udf_operator_base
+from operators.texera_blocking_unsupervised_trainer_operator import TexeraBlockingUnsupervisedTrainerOperator
+
+# to change library's logger setting
+logging.getLogger("gensim").setLevel(logging.ERROR)
 
 
-class TopicModeling(texera_udf_operator_base.TexeraBlockingUnsupervisedTrainerOperator):
+class TopicModelingTrainer(TexeraBlockingUnsupervisedTrainerOperator):
 
     def open(self, *args):
-        super(TopicModeling, self).open(*args)
+        super(TopicModelingTrainer, self).open(*args)
 
         # TODO: _train_args from user input args
         if len(args) >= 2:
             self._train_args = {"num_topics": int(args[1])}
         else:
-            self._train_args = {"num_topics": 5}
+            raise RuntimeError("Not enough arguments in topic modeling operator.")
 
-    # override accept to accept rows as lists
+        logger.debug(f"getting args {args}")
+        logger.debug(f"parsed training args {self._train_args}")
+
     def accept(self, row: pandas.Series, nth_child: int = 0) -> None:
+        # override accept to accept rows as lists
         self._data.append(row[0].strip().split())
 
     @staticmethod
     def train(data, *args, **kwargs):
+        logger.debug(f"start training, args:{args}, kwargs:{kwargs}")
+
         # Create Dictionary
         id2word = corpora.Dictionary(data)
 
@@ -44,13 +55,14 @@ class TopicModeling(texera_udf_operator_base.TexeraBlockingUnsupervisedTrainerOp
         return lda_model
 
     def report(self, model):
+        logger.debug(f"reporting trained results")
         for id, topic in model.print_topics(num_topics=self._train_args["num_topics"]):
             self._result_tuples.append(pandas.Series({"output": topic}))
 
 
-operator_instance = TopicModeling()
+operator_instance = TopicModelingTrainer()
 if __name__ == '__main__':
-    '''
+    """
     The following lines can be put in the file and name it tokenized.txt:
 
     yes unfortunately use tobacco wrap
@@ -59,7 +71,7 @@ if __name__ == '__main__':
     dutch backwoods hemp wrap
     damn need wrap hemparillo cali fire please
 
-    '''
+    """
 
     file1 = open("tokenized.txt", "r+")
     df = file1.readlines()

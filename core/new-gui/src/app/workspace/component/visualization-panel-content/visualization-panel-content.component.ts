@@ -1,19 +1,27 @@
-import { AfterViewInit, Component, Input, OnDestroy } from '@angular/core';
+import { AfterContentInit, Component, Input, OnDestroy } from '@angular/core';
 import * as c3 from 'c3';
-import { PrimitiveArray } from 'c3';
+import { Primitive, PrimitiveArray } from 'c3';
 import * as d3 from 'd3';
 import * as cloud from 'd3-cloud';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { ResultObject } from '../../types/execute-workflow.interface';
 import { ChartType, WordCloudTuple } from '../../types/visualization.interface';
 import { Subscription, Subject, Observable } from 'rxjs';
+import { environment } from 'src/environments/environment';
+import * as mapboxgl from 'mapbox-gl';
+import { MapboxLayer } from '@deck.gl/mapbox';
+import { ScatterplotLayer } from '@deck.gl/layers';
+import { ScatterplotLayerProps } from '@deck.gl/layers/scatterplot-layer/scatterplot-layer';
+import { DomSanitizer } from '@angular/platform-browser';
 
+(mapboxgl as any).accessToken = environment.mapbox.accessToken;
 
 export const wordCloudScaleOptions = ['linear', 'square root', 'logarithmic'] as const;
 type WordCloudControlsType = {
   scale: typeof wordCloudScaleOptions[number]
 };
 
+// TODO: The current design doesn't decouple the visualization types into different modules
 /**
  * VisualizationPanelContentComponent displays the chart based on the chart type and data in table.
  *
@@ -26,17 +34,28 @@ type WordCloudControlsType = {
   templateUrl: './visualization-panel-content.component.html',
   styleUrls: ['./visualization-panel-content.component.scss']
 })
-export class VisualizationPanelContentComponent implements AfterViewInit, OnDestroy {
+export class VisualizationPanelContentComponent implements AfterContentInit, OnDestroy {
   // this readonly variable must be the same as HTML element ID for visualization
   public static readonly CHART_ID = '#texera-result-chart-content';
+  public static readonly MAP_CONTAINER = 'texera-result-map-container';
 
   // width and height of the canvas in px
   public static readonly WIDTH = 1000;
   public static readonly HEIGHT = 600;
 
-  // progressive visualization update and redraw interval in miliseconds
+  // progressive visualization update and redraw interval in milliseconds
   public static readonly UPDATE_INTERVAL_MS = 2000;
   public static readonly WORD_CLOUD_CONTROL_UPDATE_INTERVAL_MS = 50;
+
+  private static readonly props: ScatterplotLayerProps<any> = {
+    opacity: 0.8,
+    filled: true,
+    radiusScale: 100,
+    radiusMinPixels: 1,
+    radiusMaxPixels: 25,
+    getPosition: (d: { xColumn: number; yColumn: number; }) => [d.xColumn, d.yColumn],
+    getFillColor: [57, 73, 171]
+  };
 
   wordCloudScaleOptions = wordCloudScaleOptions; // make this a class variable so template can access it
   // word cloud related controls
@@ -46,9 +65,12 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
 
   wordCloudControlUpdateObservable = new Subject<WordCloudControlsType>();
 
+  htmlData: any = '';
 
   @Input()
   operatorID: string | undefined;
+  displayHTML: boolean = false; // variable to decide whether to display the container to display the HTML container(iFrame)
+  displayMap: boolean = false; // variable to decide whether to display the container to display the map
 
   data: object[] | undefined;
   chartType: ChartType | undefined;
@@ -56,29 +78,30 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
 
   private wordCloudElement: d3.Selection<SVGGElement, unknown, HTMLElement, any> | undefined;
   private c3ChartElement: c3.ChartAPI | undefined;
+  private map: mapboxgl.Map | undefined;
 
   private updateSubscription: Subscription | undefined;
 
   constructor(
-    private workflowStatusService: WorkflowStatusService
+    private workflowStatusService: WorkflowStatusService,
+    private sanitizer: DomSanitizer
   ) {
   }
 
-  ngAfterViewInit() {
+  ngAfterContentInit() {
     // attempt to draw chart immediately
     this.drawChart();
 
-    // setup an event lister that re-draws the chart content every (n) miliseconds
-    // auditTime makes sure the first re-draw happens after (n) miliseconds has elapsed
+    // setup an event lister that re-draws the chart content every (n) milliseconds
+    // auditTime makes sure the first re-draw happens after (n) milliseconds has elapsed
     const resultUpdate = this.workflowStatusService.getResultUpdateStream()
       .auditTime(VisualizationPanelContentComponent.UPDATE_INTERVAL_MS);
     const controlUpdate = this.wordCloudControlUpdateObservable
       .debounceTime(VisualizationPanelContentComponent.WORD_CLOUD_CONTROL_UPDATE_INTERVAL_MS);
 
-    this.updateSubscription = Observable.merge(resultUpdate, controlUpdate)
-      .subscribe(() => {
-        this.drawChart();
-      });
+    this.updateSubscription = Observable.merge(resultUpdate, controlUpdate).subscribe(() => {
+      this.drawChart();
+    });
   }
 
   ngOnDestroy() {
@@ -87,6 +110,9 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
     }
     if (this.c3ChartElement) {
       this.c3ChartElement.destroy();
+    }
+    if (this.map) {
+      this.map.remove();
     }
     if (this.updateSubscription) {
       this.updateSubscription.unsubscribe();
@@ -104,7 +130,14 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
 
     this.data = result.table as object[];
     this.chartType = result.chartType;
-
+    if (!this.data || !this.chartType) {
+      return;
+    }
+    if (this.data?.length < 1) {
+      return;
+    }
+    this.displayHTML = false;
+    this.displayMap = false;
     switch (this.chartType) {
       // correspond to WordCloudSink.java
       case ChartType.WORD_CLOUD:
@@ -121,7 +154,95 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
       case ChartType.SPLINE:
         this.generateChart();
         break;
+      case ChartType.SPATIAL_SCATTERPLOT:
+        this.displayMap = true;
+        this.generateSpatialScatterplot();
+        break;
+      case ChartType.SIMPLE_SCATTERPLOT:
+        this.generateSimpleScatterplot();
+        break;
+      case ChartType.HTML_VIZ:
+        this.displayHTML = true;
+        this.generateHTML();
+        break;
     }
+  }
+
+  generateSimpleScatterplot() {
+    if (this.c3ChartElement) {
+      this.c3ChartElement.destroy();
+    }
+    const result = this.data as Array<Record<string, Primitive>>;
+    const xLabel: string = Object.keys(result[0])[0];
+    const yLabel: string = Object.keys(result[0])[1];
+
+    this.c3ChartElement = c3.generate({
+      size: {
+        height: VisualizationPanelContentComponent.HEIGHT,
+        width: VisualizationPanelContentComponent.WIDTH
+      },
+      data: {
+        json: result,
+        keys: {
+          x: xLabel,
+          value: [yLabel]
+        },
+        type: this.chartType as c3.ChartType
+      },
+      axis: {
+        x: {
+          label: xLabel,
+          tick: {
+            fit: true
+          }
+        },
+        y: {
+          label: yLabel
+        }
+      },
+      bindto: VisualizationPanelContentComponent.CHART_ID
+    });
+  }
+
+  generateSpatialScatterplot() {
+    if (this.map === undefined) {
+      this.initMap();
+    }
+    /* after the map is defined and the base
+    style is loaded, we add a layer of the data points */
+    this.map?.on('styledata', () => {
+      this.addNeworReplaceExistingLayer();
+    });
+  }
+
+  initMap() {
+    /* mapbox object with default configuration */
+    this.map = new mapboxgl.Map({
+      container: VisualizationPanelContentComponent.MAP_CONTAINER,
+      style: 'mapbox://styles/mapbox/light-v9',
+      center: [-96.35, 39.5],
+      zoom: 3,
+      maxZoom: 17,
+      minZoom: 0
+    });
+  }
+
+  addNeworReplaceExistingLayer() {
+    if (!this.map) {
+      return;
+    }
+    if (this.map?.getLayer('scatter')) {
+      this.map?.removeLayer('scatter');
+    }
+
+    const clusterLayer = new MapboxLayer({
+      id: 'scatter',
+      type: ScatterplotLayer,
+      data: this.data,
+      pickable: true,
+    });
+    clusterLayer.setProps(VisualizationPanelContentComponent.props);
+    this.map.addLayer(clusterLayer);
   }
 
 
@@ -264,4 +385,10 @@ export class VisualizationPanelContentComponent implements AfterViewInit, OnDest
 
   }
 
+  generateHTML() {
+    if (!this.data) {
+      return;
+    }
+    this.htmlData = this.sanitizer.bypassSecurityTrustHtml(Object(this.data[0])['HTML-content']); // this line bypasses angular security
+  }
 }

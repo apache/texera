@@ -123,3 +123,6 @@ libraryDependencies += "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.4.0" % Test
 
 // https://www.scalatest.org/getting_started_with_fun_suite
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.5" % "test"
+
+// https://mvnrepository.com/artifact/com.github.redouane59.twitter/twittered
+libraryDependencies += "com.github.redouane59.twitter" % "twittered" % "1.23"

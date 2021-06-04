@@ -1,7 +1,8 @@
-import texera_udf_operator_base
+from operators.texera_udf_operator_base import TexeraUDFOperator
 
 
-class DemoOperator(texera_udf_operator_base.TexeraUDFOperator):
+class DemoOperator(TexeraUDFOperator):
+
     def __init__(self):
         super().__init__()
         self._result_tuples = []

@@ -31,7 +31,7 @@ class LimitOpDesc extends OperatorDescriptor {
       "Limit",
       "Limit the number of output rows",
       OperatorGroupConstants.UTILITY_GROUP,
-      inputPorts = List(InputPort("testPortName")),
+      inputPorts = List(InputPort("")),
       outputPorts = List(OutputPort())
     )
 
