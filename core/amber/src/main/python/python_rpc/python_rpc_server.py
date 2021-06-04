@@ -56,8 +56,8 @@ class PythonRPCServer(FlightServerBase):
             return ack_decorator(original_func)
         return ack_decorator
 
-    def __init__(self, schema: str = "grpc+tcp", host: str = "localhost", port: int = 5005):
-        location = f"{schema}://{host}:{port}"
+    def __init__(self, scheme: str = "grpc+tcp", host: str = "localhost", port: int = 5005):
+        location = f"{scheme}://{host}:{port}"
         super(PythonRPCServer, self).__init__(location)
         logger.debug("Serving on " + location)
 
