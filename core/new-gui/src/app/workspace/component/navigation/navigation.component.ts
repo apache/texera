@@ -53,10 +53,6 @@ export class NavigationComponent implements OnInit {
   public runButtonText = 'Run';
   public runIcon = 'play-circle';
   public runDisable = false;
-<<<<<<< HEAD
-  public executionResultID: string | undefined;
-=======
->>>>>>> 9c8d5f18c7b867d2ea3c451cc2769a1fa9a6049b
 
   // whether user dashboard is enabled and accessible from the workspace
   public userSystemEnabled: boolean = environment.userSystemEnabled;
@@ -202,8 +198,7 @@ export class NavigationComponent implements OnInit {
    *  will disable the zoom out button on the navigation bar.
    */
   public isZoomRatioMin(): boolean {
-    // return this.workflowActionService.getJointGraphWrapper().isZoomRatioMin();
-    return false;
+    return this.workflowActionService.getJointGraphWrapper().isZoomRatioMin();
   }
 
   /**
@@ -211,8 +206,7 @@ export class NavigationComponent implements OnInit {
    *  will disable the zoom in button on the navigation bar.
    */
   public isZoomRatioMax(): boolean {
-    return false;
-    // return this.workflowActionService.getJointGraphWrapper().isZoomRatioMax();
+    return this.workflowActionService.getJointGraphWrapper().isZoomRatioMax();
   }
 
   /**

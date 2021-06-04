@@ -8,7 +8,7 @@ import * as joint from 'jointjs';
 
 import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
 import { Point } from '../../../types/workflow-common.interface';
-import { MINI_MAP_SIZE, MAIN_CANVAS_LIMIT, MINI_MAP_ZOOM_SCALE } from '../workflow-editor-constants';
+import { MAIN_CANVAS_LIMIT } from '../workflow-editor-constants';
 
 /**
  * MiniMapComponent is the componenet that contains the mini-map of the workflow editor component.
@@ -34,6 +34,12 @@ export class MiniMapComponent implements AfterViewInit {
   public readonly MINI_MAP_JOINTJS_MAP_ID = 'texera-mini-map-editor-jointjs-body-id';
   public readonly MINI_MAP_NAVIGATOR_ID = 'mini-map-navigator-id';
   public readonly MINI_MAP_GRID_SIZE = 45;
+
+  public MINI_MAP_ZOOM_SCALE = 0.1;
+  public MINI_MAP_SIZE = {
+    width:  (MAIN_CANVAS_LIMIT.xMax - MAIN_CANVAS_LIMIT.xMin) * this.MINI_MAP_ZOOM_SCALE,
+    height: (MAIN_CANVAS_LIMIT.yMax - MAIN_CANVAS_LIMIT.yMin) * this.MINI_MAP_ZOOM_SCALE
+  };
 
 
   @Input()
@@ -78,8 +84,8 @@ export class MiniMapComponent implements AfterViewInit {
         if (this.mouseDownPosition) {
           const newCoordinate = { x: event.screenX, y: event.screenY };
           const panDelta = {
-            deltaX: - (newCoordinate.x - this.mouseDownPosition.x) / MINI_MAP_ZOOM_SCALE,
-            deltaY: - (newCoordinate.y - this.mouseDownPosition.y) / MINI_MAP_ZOOM_SCALE
+            deltaX: - (newCoordinate.x - this.mouseDownPosition.x) / this.MINI_MAP_ZOOM_SCALE,
+            deltaY: - (newCoordinate.y - this.mouseDownPosition.y) / this.MINI_MAP_ZOOM_SCALE
           };
           this.mouseDownPosition = newCoordinate;
 
@@ -101,14 +107,14 @@ export class MiniMapComponent implements AfterViewInit {
       gridSize: this.MINI_MAP_GRID_SIZE,
       background: { color: '#F7F6F6' },
       interactive: false,
-      width: MINI_MAP_SIZE.width,
-      height: MINI_MAP_SIZE.height
+      width: this.MINI_MAP_SIZE.width,
+      height: this.MINI_MAP_SIZE.height
     };
     this.miniMapPaper = this.workflowActionService.getJointGraphWrapper().attachMiniMapJointPaper(miniMapPaperOptions);
 
     const origin = this.mainPaperToMiniMapPoint({ x: 0, y: 0 });
     this.miniMapPaper.translate(origin.x, origin.y);
-    this.miniMapPaper.scale(MINI_MAP_ZOOM_SCALE);
+    this.miniMapPaper.scale(this.MINI_MAP_ZOOM_SCALE);
 
 
     this.workflowActionService.getJointGraphWrapper().getMainJointPaperAttachedStream().subscribe(() => {
@@ -134,8 +140,8 @@ export class MiniMapComponent implements AfterViewInit {
     const yOffset = point.y - MAIN_CANVAS_LIMIT.yMin;
 
     // calculate how much distance it should be on the mini map
-    const x = xOffset * MINI_MAP_ZOOM_SCALE;
-    const y = yOffset * MINI_MAP_ZOOM_SCALE;
+    const x = xOffset * this.MINI_MAP_ZOOM_SCALE;
+    const y = yOffset * this.MINI_MAP_ZOOM_SCALE;
 
     return { x, y };
   }
@@ -158,7 +164,6 @@ export class MiniMapComponent implements AfterViewInit {
     // set navigator position in the component
     const mainPaperPoint = this.workflowActionService.getJointGraphWrapper()
       .pageToJointLocalCoordinate(this.getMainPaperWrapperElementOffset());
-    console.log(mainPaperPoint);
     const miniMapPoint = this.mainPaperToMiniMapPoint(mainPaperPoint);
     jQuery('#' + this.MINI_MAP_NAVIGATOR_ID).css({ left: miniMapPoint.x + 'px', top: miniMapPoint.y + 'px' });
   }
@@ -172,8 +177,8 @@ export class MiniMapComponent implements AfterViewInit {
 
     // set navigator dimension size, mainPaperDimension * MINI_MAP_ZOOM_SCALE is the
     //  main paper's size in the mini-map
-    const width = (mainPaperWidth / mainPaperScale.sx) * MINI_MAP_ZOOM_SCALE;
-    const height = (mainPaperHeight / mainPaperScale.sy) * MINI_MAP_ZOOM_SCALE;
+    const width = (mainPaperWidth / mainPaperScale.sx) * this.MINI_MAP_ZOOM_SCALE;
+    const height = (mainPaperHeight / mainPaperScale.sy) * this.MINI_MAP_ZOOM_SCALE;
     jQuery('#' + this.MINI_MAP_NAVIGATOR_ID).width(width);
     jQuery('#' + this.MINI_MAP_NAVIGATOR_ID).height(height);
   }

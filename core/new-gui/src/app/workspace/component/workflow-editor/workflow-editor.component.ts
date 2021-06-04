@@ -3,7 +3,6 @@ import * as joint from 'jointjs';
 // if jQuery needs to be used: 1) use jQuery instead of `$`, and
 // 2) always add this import statement even if TypeScript doesn't show an error https://github.com/Microsoft/TypeScript/issues/22016
 import * as jQuery from 'jquery';
-import { max, min } from 'lodash';
 import { Observable } from 'rxjs/Observable';
 import { assertType } from 'src/app/common/util/assert';
 import { environment } from '../../../../environments/environment';
@@ -93,8 +92,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
   // dictionary of {operatorID, CopiedOperator} pairs
   private copiedOperators = new Map<string, CopiedOperator>(); // References to operators that will be copied
   private copiedGroups = new Map<string, CopiedGroup>(); // NOT REFERENCES, stores this.copyGroup() copies because groups aren't constant
-  private translateLimitX = new Array<number>();
-  private translateLimitY = new Array<number>();
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -271,12 +268,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handlePaperZoom(): void {
     this.workflowActionService.getJointGraphWrapper().getWorkflowEditorZoomStream().subscribe(newRatio => {
-      // const elementSize = this.getWrapperElementSize();
-      // const center = this.getJointPaper().localToPaperPoint(
-      //   elementSize.width / 2, elementSize.height / 2);
-      const centerX = MAIN_CANVAS_LIMIT.xMax - MAIN_CANVAS_LIMIT.xMin;
-      const centerY = MAIN_CANVAS_LIMIT.yMax - MAIN_CANVAS_LIMIT.yMin;
-      this.getJointPaper().scale(newRatio, newRatio, 0, 0);
+      // set jointjs scale
+      this.getJointPaper().scale(newRatio, newRatio);
     });
   }
 
@@ -322,32 +315,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * This method gets all operators' position and
    * gets the limits of translating.
    */
-  private getTranslateLimit(): { minX: number, maxX: number, minY: number, maxY: number } {
-    // reset the position array
-    this.translateLimitX = [];
-    this.translateLimitY = [];
-    // get all operators' positions
-    this.workflowActionService.getTexeraGraph().getAllOperators()
-      .filter(
-        op =>
-          !this.workflowActionService.getOperatorGroup().getGroupByOperator(op.operatorID) &&
-          !this.workflowActionService.getOperatorGroup().getGroupByOperator(op.operatorID)?.collapsed
-      )
-      .forEach(op => {
-        const position = this.workflowActionService.getJointGraphWrapper().getElementPosition(op.operatorID);
-        if (!this.translateLimitX.includes(position.x)) {
-          this.translateLimitX.push(position.x);
-        }
-        if (!this.translateLimitY.includes(position.y)) {
-          this.translateLimitY.push(position.y);
-        }
-      });
-    // if no operator, set the default limit
-    const minX = min(this.translateLimitX) ?? MAIN_CANVAS_LIMIT.xMin;
-    const maxX = max(this.translateLimitX) ?? MAIN_CANVAS_LIMIT.xMax;
-    const minY = min(this.translateLimitY) ?? MAIN_CANVAS_LIMIT.yMin;
-    const maxY = max(this.translateLimitY) ?? MAIN_CANVAS_LIMIT.yMax;
-    return { minX, maxX, minY, maxY };
+  private getTranslateLimit(): { xMin: number, xMax: number, yMin: number, yMax: number } {
+    return MAIN_CANVAS_LIMIT;
   }
 
   /**
@@ -454,42 +423,25 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
         const translateLimit = this.getTranslateLimit();
         const elementSize = this.getWrapperElementSize();
-        const limitx = [elementSize.width - (60 + translateLimit.minX) * scale.sx, -translateLimit.maxX * scale.sx];
-        const limity = [elementSize.height - (60 + translateLimit.minY) * scale.sy, -translateLimit.maxY * scale.sy];
 
         // Check canvas limit
-        if (-newOrigin.x <= MAIN_CANVAS_LIMIT.xMin) {
-          newOrigin.x = -MAIN_CANVAS_LIMIT.xMin;
+        if (-newOrigin.x <= translateLimit.xMin) {
+          newOrigin.x = -translateLimit.xMin;
         }
-        if (-newOrigin.y <= MAIN_CANVAS_LIMIT.yMin) {
-          newOrigin.y = -MAIN_CANVAS_LIMIT.yMin;
+        if (-newOrigin.y <= translateLimit.yMin) {
+          newOrigin.y = -translateLimit.yMin;
         }
-        if (-newOrigin.x >= MAIN_CANVAS_LIMIT.xMax - this.getWrapperElementSize().width / scale.sx) {
-          newOrigin.x = - (MAIN_CANVAS_LIMIT.xMax - this.getWrapperElementSize().width / scale.sx);
+        if (-newOrigin.x >= translateLimit.xMax - elementSize.width / scale.sx) {
+          newOrigin.x = - (translateLimit.xMax - elementSize.width / scale.sx);
         }
-        if (-newOrigin.y >= MAIN_CANVAS_LIMIT.yMax - this.getWrapperElementSize().height / scale.sy) {
-          newOrigin.y = - (MAIN_CANVAS_LIMIT.yMax - this.getWrapperElementSize().height / scale.sy);
-        }
-
-        // Check operator limit
-        if (newOrigin.x <= limitx[1]) {
-          newOrigin.x = limitx[1];
-        }
-        if (newOrigin.x >= limitx[0]) {
-          newOrigin.x = limitx[0];
-        }
-        if (newOrigin.y <= limity[1]) {
-          newOrigin.y = limity[1];
-        }
-        if (newOrigin.y >= limity[0]) {
-          newOrigin.y = limity[0];
+        if (-newOrigin.y >= translateLimit.yMax - elementSize.height / scale.sy) {
+          newOrigin.y = - (translateLimit.yMax - elementSize.height / scale.sy);
         }
 
         if (newOrigin.x !== oldOrigin.tx || newOrigin.y !== oldOrigin.ty) {
           this.getJointPaper().translate(newOrigin.x, newOrigin.y);
         }
 
-        // console.log(newOrigin);
       });
 
 
