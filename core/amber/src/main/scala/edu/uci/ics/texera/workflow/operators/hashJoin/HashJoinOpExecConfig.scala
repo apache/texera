@@ -10,7 +10,12 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, LinkIdentity, OperatorIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  LayerIdentity,
+  LinkIdentity,
+  OperatorIdentity
+}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
@@ -20,7 +25,12 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.SchemaInfo
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-class HashJoinOpExecConfig[K](id: OperatorIdentity, val probeAttributeName: String, val buildAttributeName: String, val schemaInfo: SchemaInfo) extends OpExecConfig(id) {
+class HashJoinOpExecConfig[K](
+    id: OperatorIdentity,
+    val probeAttributeName: String,
+    val buildAttributeName: String,
+    val schemaInfo: SchemaInfo
+) extends OpExecConfig(id) {
 
   var buildTable: LinkIdentity = _
 

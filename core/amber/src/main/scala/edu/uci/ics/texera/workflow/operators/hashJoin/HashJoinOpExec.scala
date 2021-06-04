@@ -14,7 +14,12 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorId
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-class HashJoinOpExec[K](val buildTable: LinkIdentity, val buildAttributeName: String, val probeAttributeName: String, val schemaInfo: SchemaInfo) extends OperatorExecutor {
+class HashJoinOpExec[K](
+    val buildTable: LinkIdentity,
+    val buildAttributeName: String,
+    val probeAttributeName: String,
+    val schemaInfo: SchemaInfo
+) extends OperatorExecutor {
 
   var isBuildTableFinished: Boolean = false
   var buildTableHashMap: mutable.HashMap[K, ArrayBuffer[Tuple]] = _
