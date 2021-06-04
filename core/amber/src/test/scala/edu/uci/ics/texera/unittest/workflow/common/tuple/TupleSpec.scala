@@ -30,4 +30,14 @@ class TupleSpec extends AnyFlatSpec {
       Tuple.newBuilder(schema).add(integerAttribute, 1).build()
     }
   }
+
+  it should "not fail when entire tuple passed in has extra attributes" in {
+    val inputSchema = Schema.newBuilder().add(stringAttribute).add(integerAttribute).add(boolAttribute).build()
+    val inputTuple = Tuple.newBuilder(inputSchema).add(integerAttribute, 1).add(stringAttribute, "string-attr").add(boolAttribute, true).build()
+
+    val outputSchema = Schema.newBuilder().add(stringAttribute).add(integerAttribute).build()
+    val outputTuple = Tuple.newBuilder(outputSchema).add(inputTuple).build()
+
+    assert(outputTuple.size == 2)
+  }
 }
