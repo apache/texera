@@ -8,7 +8,12 @@ import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo
 import edu.uci.ics.texera.workflow.common.metadata.OutputPort
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema, SchemaInfo}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{
+  Attribute,
+  AttributeType,
+  Schema,
+  SchemaInfo
+}
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator
 
