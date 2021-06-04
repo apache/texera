@@ -62,6 +62,10 @@ trait WorkerInternalQueue {
 
   def enableDataQueue(): Unit = dataQueue.enable(true)
 
+  def getDataQueueLength: Int = dataQueue.size()
+
+  def getControlQueueLength: Int = controlQueue.size()
+
   def isControlQueueEmpty: Boolean = controlQueue.isEmpty
 
 }

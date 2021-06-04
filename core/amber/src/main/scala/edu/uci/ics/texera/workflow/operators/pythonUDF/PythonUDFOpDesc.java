@@ -98,8 +98,8 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
 
         // check if inputColumns are presented in inputSchema.
         if (inputColumns != null) {
-            for (String s : inputColumns) {
-                if (!inputSchema.containsAttribute(s)) throw new RuntimeException("No such column:" + s + ".");
+            for (String column : inputColumns) {
+                if (!inputSchema.containsAttribute(column)) throw new RuntimeException("No such column:" + column + ".");
             }
         }
 
@@ -119,8 +119,8 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
 
         // for any pythonUDFType, it can add custom output columns (attributes).
         if (outputColumns != null) {
-            for (Attribute a : outputColumns) {
-                if (inputSchema.containsAttribute(a.getName())) throw new RuntimeException("Column name " + a.getName()
+            for (Attribute column : outputColumns) {
+                if (inputSchema.containsAttribute(column.getName())) throw new RuntimeException("Column name " + column.getName()
                         + " already exists!");
             }
             outputSchemaBuilder.add(outputColumns).build();

@@ -1,5 +1,7 @@
 import logging
+import os
 
+# Use gensim 3.8.3
 import gensim
 import gensim.corpora as corpora
 import pandas
@@ -11,16 +13,25 @@ from operators.texera_blocking_unsupervised_trainer_operator import TexeraBlocki
 logging.getLogger("gensim").setLevel(logging.ERROR)
 
 
-class TopicModelingTrainer(TexeraBlockingUnsupervisedTrainerOperator):
+class TopicModeling(TexeraBlockingUnsupervisedTrainerOperator):
 
     def open(self, *args):
-        super(TopicModelingTrainer, self).open(*args)
+        super(TopicModeling, self).open(*args)
 
         # TODO: _train_args from user input args
-        if len(args) >= 2:
-            self._train_args = {"num_topics": int(args[1])}
+        if len(args) >= 3:
+            MALLET_HOME = str(args[1])
+            NUM_TOPICS = int(args[2])
         else:
-            raise RuntimeError("Not enough arguments in topic modeling operator.")
+            raise RuntimeError("Not enough arguments in topic modeling mallet operator")
+
+        MALLET_PATH = os.path.join(MALLET_HOME, "bin", "mallet")
+        # We need to fix a seed value so that the output of LDA is deterministic i.e. same output every time.
+        # The below value is just an arbitrarily chosen value.
+        RANDOM_SEED = 41
+        os.environ['MALLET_HOME'] = MALLET_HOME
+
+        self._train_args = {"mallet_path": MALLET_PATH, "random_seed": RANDOM_SEED, "num_topics": NUM_TOPICS}
 
         logger.debug(f"getting args {args}")
         logger.debug(f"parsed training args {self._train_args}")
@@ -30,7 +41,7 @@ class TopicModelingTrainer(TexeraBlockingUnsupervisedTrainerOperator):
         self._data.append(row[0].strip().split())
 
     @staticmethod
-    def train(data, *args, **kwargs):
+    def train(data, mallet_path: str, random_seed: int, num_topics: int, *args, **kwargs):
         logger.debug(f"start training, args:{args}, kwargs:{kwargs}")
 
         # Create Dictionary
@@ -42,17 +53,13 @@ class TopicModelingTrainer(TexeraBlockingUnsupervisedTrainerOperator):
         # Term Document Frequency
         corpus = [id2word.doc2bow(text1) for text1 in texts]
 
-        lda_model = gensim.models.ldamodel.LdaModel(corpus=corpus,
-                                                    id2word=id2word,
-                                                    num_topics=kwargs["num_topics"],
-                                                    random_state=100,
-                                                    update_every=1,
-                                                    chunksize=100,
-                                                    passes=10,
-                                                    alpha='auto',
-                                                    per_word_topics=True)
+        lda_mallet_model = gensim.models.wrappers.LdaMallet(mallet_path,
+                                                            corpus=corpus,
+                                                            num_topics=num_topics,
+                                                            id2word=id2word,
+                                                            random_seed=random_seed)
 
-        return lda_model
+        return lda_mallet_model
 
     def report(self, model):
         logger.debug(f"reporting trained results")
@@ -60,7 +67,8 @@ class TopicModelingTrainer(TexeraBlockingUnsupervisedTrainerOperator):
             self._result_tuples.append(pandas.Series({"output": topic}))
 
 
-operator_instance = TopicModelingTrainer()
+operator_instance = TopicModeling()
+
 if __name__ == '__main__':
     """
     The following lines can be put in the file and name it tokenized.txt:

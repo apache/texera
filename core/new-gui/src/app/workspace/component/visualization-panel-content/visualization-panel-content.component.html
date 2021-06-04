@@ -1,11 +1,9 @@
 <meta charset="utf-8">
 
-<div>
   <!-- this id should be identical to VisualizationPanelContentComponent.CHART_ID -->
   <div id="texera-result-chart-content">
   </div>
   <!-- this id should be identical to VisualizationPanelContentComponent.MAP_CONTAINER -->
   <div id="texera-result-map-container">
   </div>
-
-</div>
+  <iframe *ngIf="displayHTML" id="texera-result-html-content-container" [srcdoc]="htmlData"></iframe>

@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.workflow.operators.pythonUDF;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.typesafe.config.Config;
 import edu.uci.ics.amber.engine.common.InputExhausted;
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity;
@@ -36,75 +35,23 @@ import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFOpExec.Ch
 import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFOpExec.MSG.*;
 
 public class PythonUDFOpExec implements OperatorExecutor {
-    @NotNull
-    private static byte[] communicate(@NotNull FlightClient client, @NotNull MSG message) {
-        return client.doAction(new Action(message.content)).next().getBody();
-    }
 
-    private Process pythonServerProcess;
 
     private static final int MAX_TRY_COUNT = 20;
     private static final long WAIT_TIME_MS = 500;
     private static final RootAllocator memoryAllocator = new RootAllocator();
-    private static final ObjectMapper objectMapper = Utils.objectMapper();
-
-    /**
-     * For every batch, the operator converts list of {@code Tuple}s into Arrow stream data in almost the exact same
-     * way as it would when using Arrow file, except now it sends stream to the server with
-     * {@link FlightClient#startPut(FlightDescriptor, VectorSchemaRoot, FlightClient.PutListener, CallOption...)} and
-     * {@link FlightClient.ClientStreamListener#putNext()}. The server uses {@code do_put()} to receive data stream
-     * and convert it into a {@code pyarrow.Table} and store it in the server.
-     * {@code startPut} is a non-blocking call, but this method in general is a blocking call, it waits until all the
-     * data are sent.
-     *
-     * @param client      The FlightClient that manages this.
-     * @param values      The input queue that holds tuples, its contents will be consumed in this method.
-     * @param arrowSchema Input Arrow table schema. This should already have been defined (converted).
-     * @param channel     The predefined path that specifies where to store the data in Flight Serve.
-     * @param chunkSize   The chunk size of the arrow stream. This is different than the batch size of the operator,
-     *                    although they may seem similar. This doesn't actually affect serialization speed that much,
-     *                    so in general it can be the same as {@code batchSize}.
-     */
-    private void writeArrowStream(FlightClient client, Queue<Tuple> values,
-                                  org.apache.arrow.vector.types.pojo.Schema arrowSchema,
-                                  Channel channel, int chunkSize) throws RuntimeException {
-        SyncPutListener flightListener = new SyncPutListener();
-        VectorSchemaRoot schemaRoot = VectorSchemaRoot.create(arrowSchema, PythonUDFOpExec.memoryAllocator);
-        FlightClient.ClientStreamListener streamWriter = client.startPut(FlightDescriptor.path(Collections.singletonList(channel.name)), schemaRoot, flightListener);
-        try {
-            while (!values.isEmpty()) {
-                schemaRoot.allocateNew();
-                int indexThisChunk = 0;
-                while (indexThisChunk < chunkSize && !values.isEmpty()) {
-                    convertAmber2ArrowTuple(values.remove(), indexThisChunk, schemaRoot);
-                    indexThisChunk++;
-                }
-                schemaRoot.setRowCount(indexThisChunk);
-                streamWriter.putNext();
-                schemaRoot.clear();
-            }
-            streamWriter.completed();
-            flightListener.getResult();
-            flightListener.close();
-            schemaRoot.clear();
-        } catch (Exception e) {
-            closeAndThrow(client, e);
-        }
-    }
-
-    private String pythonScriptPath;
     private final String pythonScriptText;
     private final ArrayList<String> inputColumns;
     private final ArrayList<Attribute> outputColumns;
-
     private final ArrayList<String> arguments;
     private final ArrayList<String> outerFilePaths;
     private final int batchSize;
     private final boolean isDynamic;
-
+    private final Queue<Tuple> inputTupleBuffer = new LinkedList<>();
+    private Process pythonServerProcess;
+    private String pythonScriptPath;
     private FlightClient flightClient;
     private org.apache.arrow.vector.types.pojo.Schema globalInputSchema;
-    private final Queue<Tuple> inputTupleBuffer = new LinkedList<>();
 
     PythonUDFOpExec(String pythonScriptText, String pythonScriptFile, ArrayList<String> inputColumns,
                     ArrayList<Attribute> outputColumns, ArrayList<String> arguments,
@@ -121,23 +68,9 @@ public class PythonUDFOpExec implements OperatorExecutor {
 
     }
 
-    /**
-     * Make the execution of the UDF in Python. This should only be called
-     * after input data is passed to Python. This is a blocking call.
-     *
-     * @param client The FlightClient that manages this.
-     */
-    private void executeUDF(FlightClient client) {
-        try {
-            FlightResponseMap result = PythonUDFOpExec.objectMapper.readValue(communicate(client, MSG.COMPUTE),
-                    FlightResponseMap.class);
-            if (result.get("status").equals("Fail")) {
-                String errorMessage = result.get("errorMessage");
-                throw new Exception(errorMessage);
-            }
-        } catch (Exception e) {
-            closeAndThrow(client, e);
-        }
+    @NotNull
+    private static byte[] communicate(@NotNull FlightClient client, @NotNull MSG message) {
+        return client.doAction(new Action(message.content)).next().getBody();
     }
 
     /**
@@ -302,9 +235,115 @@ public class PythonUDFOpExec implements OperatorExecutor {
         return new Schema(amberAttributes);
     }
 
-    @Override
-    public void close() {
-        closeClientAndServer(flightClient, true);
+    private static void deleteTempFile(String filePath) throws IOException {
+        File tempFile = new File(filePath);
+        if (tempFile.exists()) {
+            if (!tempFile.delete()) throw new IOException("Could not delete temp file");
+        }
+    }
+
+    /**
+     * Converts an Amber schema into Arrow schema.
+     *
+     * @param amberSchema The Amber Tuple Schema.
+     * @return An Arrow {@link org.apache.arrow.vector.types.pojo.Schema}.
+     */
+    private static org.apache.arrow.vector.types.pojo.Schema convertAmber2ArrowSchema(Schema amberSchema)
+            throws RuntimeException {
+        List<Field> arrowFields = new ArrayList<>();
+        for (Attribute amberAttribute : amberSchema.getAttributes()) {
+            String name = amberAttribute.getName();
+            Field field;
+            switch (amberAttribute.getType()) {
+                case INTEGER:
+                    field = Field.nullablePrimitive(name, new ArrowType.Int(32, true));
+                    break;
+                case LONG:
+                    field = Field.nullablePrimitive(name, new ArrowType.Int(64, true));
+                    break;
+                case DOUBLE:
+                    field = Field.nullablePrimitive(name, new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE));
+                    break;
+                case BOOLEAN:
+                    field = Field.nullablePrimitive(name, ArrowType.Bool.INSTANCE);
+                    break;
+                case STRING:
+                case ANY:
+                    field = Field.nullablePrimitive(name, ArrowType.Utf8.INSTANCE);
+                    break;
+                default:
+                    throw new RuntimeException("Unexpected value: " + amberAttribute.getType());
+            }
+            arrowFields.add(field);
+
+        }
+        return new org.apache.arrow.vector.types.pojo.Schema(arrowFields);
+    }
+
+    private static void safeDeleteTempFile(String fileName) {
+        try {
+            deleteTempFile(fileName);
+        } catch (Exception innerException) {
+            innerException.printStackTrace();
+        }
+    }
+
+    /**
+     * For every batch, the operator converts list of {@code Tuple}s into Arrow stream data in almost the exact same
+     * way as it would when using Arrow file, except now it sends stream to the server with
+     * {@link FlightClient#startPut(FlightDescriptor, VectorSchemaRoot, FlightClient.PutListener, CallOption...)} and
+     * {@link FlightClient.ClientStreamListener#putNext()}. The server uses {@code do_put()} to receive data stream
+     * and convert it into a {@code pyarrow.Table} and store it in the server.
+     * {@code startPut} is a non-blocking call, but this method in general is a blocking call, it waits until all the
+     * data are sent.
+     *
+     * @param client      The FlightClient that manages this.
+     * @param values      The input queue that holds tuples, its contents will be consumed in this method.
+     * @param arrowSchema Input Arrow table schema. This should already have been defined (converted).
+     * @param channel     The predefined path that specifies where to store the data in Flight Serve.
+     * @param chunkSize   The chunk size of the arrow stream. This is different than the batch size of the operator,
+     *                    although they may seem similar. This doesn't actually affect serialization speed that much,
+     *                    so in general it can be the same as {@code batchSize}.
+     */
+    private void writeArrowStream(FlightClient client, Queue<Tuple> values,
+                                  org.apache.arrow.vector.types.pojo.Schema arrowSchema,
+                                  Channel channel, int chunkSize) throws RuntimeException {
+        SyncPutListener flightListener = new SyncPutListener();
+        VectorSchemaRoot schemaRoot = VectorSchemaRoot.create(arrowSchema, PythonUDFOpExec.memoryAllocator);
+        FlightClient.ClientStreamListener streamWriter = client.startPut(FlightDescriptor.path(Collections.singletonList(channel.name)), schemaRoot, flightListener);
+        try {
+            while (!values.isEmpty()) {
+                schemaRoot.allocateNew();
+                int indexThisChunk = 0;
+                while (indexThisChunk < chunkSize && !values.isEmpty()) {
+                    convertAmber2ArrowTuple(values.remove(), indexThisChunk, schemaRoot);
+                    indexThisChunk++;
+                }
+                schemaRoot.setRowCount(indexThisChunk);
+                streamWriter.putNext();
+                schemaRoot.clear();
+            }
+            streamWriter.completed();
+            flightListener.getResult();
+            flightListener.close();
+            schemaRoot.clear();
+        } catch (Exception e) {
+            closeAndThrow(client, e);
+        }
+    }
+
+    /**
+     * Make the execution of the UDF in Python. This should only be called
+     * after input data is passed to Python. This is a blocking call.
+     *
+     * @param client The FlightClient that manages this.
+     */
+    private void executeUDF(FlightClient client) {
+        try {
+            communicate(client, MSG.COMPUTE);
+        } catch (Exception e) {
+            closeAndThrow(client, e);
+        }
     }
 
     /**
@@ -329,6 +368,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
                 root.clear();
             }
         } catch (RuntimeException e) {
+            System.out.println("NO SUCH FLIGHT!!");
             closeAndThrow(client, e);
         }
     }
@@ -381,15 +421,9 @@ public class PythonUDFOpExec implements OperatorExecutor {
      * @param exception the exception to be wrapped into Amber Exception.
      */
     private void closeAndThrow(FlightClient client, Exception exception) throws RuntimeException {
+        exception.printStackTrace();
         closeClientAndServer(client, false);
-        throw new RuntimeException(exception.getMessage());
-    }
-
-    private static void deleteTempFile(String filePath) throws IOException {
-        File tempFile = new File(filePath);
-        if (tempFile.exists()) {
-            if (!tempFile.delete()) throw new IOException("Could not delete temp file");
-        }
+        throw new RuntimeException(exception);
     }
 
     private void connectToServer(Location flightServerURI) throws InterruptedException {
@@ -399,7 +433,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
 
             try {
                 flightClient = FlightClient.builder(memoryAllocator, flightServerURI).build();
-                connected = new String(communicate(flightClient, MSG.HEALTH_CHECK), StandardCharsets.UTF_8).equals("Flight Server is up and running!");
+                connected = new String(communicate(flightClient, MSG.HEALTH_CHECK), StandardCharsets.UTF_8).equals("success");
                 if (!connected) Thread.sleep(WAIT_TIME_MS);
             } catch (FlightRuntimeException e) {
                 System.out.println("Flight Client:\tNot connected to the server in this try.");
@@ -410,52 +444,6 @@ public class PythonUDFOpExec implements OperatorExecutor {
         }
         if (tryCount == MAX_TRY_COUNT)
             throw new RuntimeException("Exceeded try limit of " + MAX_TRY_COUNT + " when connecting to Flight Server!");
-    }
-
-    /**
-     * Converts an Amber schema into Arrow schema.
-     *
-     * @param amberSchema The Amber Tuple Schema.
-     * @return An Arrow {@link org.apache.arrow.vector.types.pojo.Schema}.
-     */
-    private static org.apache.arrow.vector.types.pojo.Schema convertAmber2ArrowSchema(Schema amberSchema)
-            throws RuntimeException {
-        List<Field> arrowFields = new ArrayList<>();
-        for (Attribute amberAttribute : amberSchema.getAttributes()) {
-            String name = amberAttribute.getName();
-            Field field;
-            switch (amberAttribute.getType()) {
-                case INTEGER:
-                    field = Field.nullablePrimitive(name, new ArrowType.Int(32, true));
-                    break;
-                case LONG:
-                    field = Field.nullablePrimitive(name, new ArrowType.Int(64, true));
-                    break;
-                case DOUBLE:
-                    field = Field.nullablePrimitive(name, new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE));
-                    break;
-                case BOOLEAN:
-                    field = Field.nullablePrimitive(name, ArrowType.Bool.INSTANCE);
-                    break;
-                case STRING:
-                case ANY:
-                    field = Field.nullablePrimitive(name, ArrowType.Utf8.INSTANCE);
-                    break;
-                default:
-                    throw new RuntimeException("Unexpected value: " + amberAttribute.getType());
-            }
-            arrowFields.add(field);
-
-        }
-        return new org.apache.arrow.vector.types.pojo.Schema(arrowFields);
-    }
-
-    private static void safeDeleteTempFile(String fileName) {
-        try {
-            deleteTempFile(fileName);
-        } catch (Exception innerException) {
-            innerException.printStackTrace();
-        }
     }
 
     private Iterator<Tuple> processOneBatch(boolean inputExhausted) throws RuntimeException {
@@ -511,6 +499,11 @@ public class PythonUDFOpExec implements OperatorExecutor {
 
     }
 
+    @Override
+    public void close() {
+        closeClientAndServer(flightClient, true);
+    }
+
     private void sendArgs() {
         // Send user args to Server.
         List<String> userArgs = new ArrayList<>();
@@ -564,6 +557,63 @@ public class PythonUDFOpExec implements OperatorExecutor {
         }
     }
 
+    private void writeTempPythonFile() throws IOException {
+        File tempScriptFile = new File(pythonScriptPath);
+
+        if (tempScriptFile.createNewFile()) {
+            FileWriter fileWriter = new FileWriter(pythonScriptPath);
+            fileWriter.write(pythonScriptText);
+            fileWriter.close();
+        }
+    }
+
+    @NotNull
+    private Location startFlightServer() throws IOException {
+        int portNumber = getFreeLocalPort();
+        Location location = new Location(URI.create("grpc+tcp://localhost:" + portNumber));
+
+        // Start Flight server (Python process)
+        String udfMainScriptPath = getPythonResourcePath("texera_udf_main.py");
+
+        // TODO: find a better way to do default conf values.
+
+        Config config = WebUtils.config();
+        String pythonPath = config.getString("python.path").trim();
+
+        String logStreamHandlerLevel = config.getString("python.log.streamHandler.level").trim();
+        String logStreamHandlerFormat = config.getString("python.log.streamHandler.format").trim();
+
+        String logFileHandlerDir = config.getString("python.log.fileHandler.dir").trim();
+        String logFileHandlerLevel = config.getString("python.log.fileHandler.level").trim();
+        String logFileHandlerFormat = config.getString("python.log.fileHandler.format").trim();
+
+        pythonServerProcess =
+                new ProcessBuilder(pythonPath.isEmpty() ? "python3" : pythonPath, // add fall back in case of empty
+                        "-u",
+                        udfMainScriptPath,
+                        Integer.toString(portNumber),
+
+                        logStreamHandlerLevel.isEmpty() ? "INFO" : logStreamHandlerLevel,
+                        logStreamHandlerFormat.isEmpty() ? "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | " +
+                                "<level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - " +
+                                "<level>{message}</level>" : logStreamHandlerFormat,
+
+                        logFileHandlerDir.isEmpty() ? "/tmp/" : logFileHandlerDir,
+                        logFileHandlerLevel.isEmpty() ? "INFO" : logFileHandlerLevel,
+                        logFileHandlerFormat.isEmpty() ? "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | " +
+                                "<level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - " +
+                                "<level>{message}</level>" : logFileHandlerFormat,
+                        pythonScriptPath)
+                        .inheritIO()
+                        .start();
+        return location;
+    }
+
+    private void cleanTerminationWithThrow(@NotNull Exception e) {
+        if (isDynamic) safeDeleteTempFile(pythonScriptPath);
+        closeAndThrow(flightClient, e);
+    }
+
     enum Channel {
         TO_PYTHON("toPython"),
         FROM_PYTHON("fromPython"),
@@ -592,68 +642,4 @@ public class PythonUDFOpExec implements OperatorExecutor {
         }
     }
 
-    private void writeTempPythonFile() throws IOException {
-        File tempScriptFile = new File(pythonScriptPath);
-
-        if (tempScriptFile.createNewFile()) {
-            FileWriter fileWriter = new FileWriter(pythonScriptPath);
-            fileWriter.write(pythonScriptText);
-            fileWriter.close();
-        }
-    }
-
-    @NotNull
-    private Location startFlightServer() throws IOException {
-        int portNumber = getFreeLocalPort();
-        Location location = new Location(URI.create("grpc+tcp://localhost:" + portNumber));
-
-        // Start Flight server (Python process)
-        String udfMainScriptPath = getPythonResourcePath("texera_udf_main.py");
-
-        // TODO: find a better way to do default conf values.
-
-        Config config = WebUtils.config();
-        String pythonPath = config.getString("python.path").trim();
-        String logInputLevel = config.getString("python.log.level").trim();
-
-        String logStreamHandlerLevel = config.getString("python.log.streamHandler.level").trim();
-        String logStreamHandlerFormat = config.getString("python.log.streamHandler.format").trim();
-        String logStreamHandlerDateFormat = config.getString("python.log.streamHandler.datefmt").trim();
-
-        String logFileHandlerDir = config.getString("python.log.fileHandler.dir").trim();
-        String logFileHandlerLevel = config.getString("python.log.fileHandler.level").trim();
-        String logFileHandlerFormat = config.getString("python.log.fileHandler.format").trim();
-        String logFileHandlerDateFormat = config.getString("python.log.fileHandler.datefmt").trim();
-
-        pythonServerProcess =
-                new ProcessBuilder(pythonPath.isEmpty() ? "python3" : pythonPath, // add fall back in case of empty
-                        "-u",
-                        udfMainScriptPath,
-                        Integer.toString(portNumber),
-                        logInputLevel.isEmpty() ? "INFO" : logInputLevel,
-
-                        logStreamHandlerLevel.isEmpty() ? "INFO" : logStreamHandlerLevel,
-                        logStreamHandlerFormat.isEmpty() ? "[%(asctime)s.%(msecs)03d] %(processName)s %(threadName)s " +
-                                "%(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s" : logStreamHandlerFormat,
-                        logStreamHandlerDateFormat.isEmpty() ? "%m-%d-%Y %H:%M:%S" : logStreamHandlerDateFormat,
-
-                        logFileHandlerDir.isEmpty() ? "/tmp/" : logFileHandlerDir,
-                        logFileHandlerLevel.isEmpty() ? "INFO" : logFileHandlerLevel,
-                        logFileHandlerFormat.isEmpty() ? "[%(asctime)s.%(msecs)03d] %(processName)s %(threadName)s " +
-                                "%(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s" : logFileHandlerFormat,
-                        logFileHandlerDateFormat.isEmpty() ? "%m-%d-%Y %H:%M:%S" : logFileHandlerDateFormat,
-                        pythonScriptPath)
-                        .inheritIO()
-                        .start();
-        return location;
-    }
-
-    private void cleanTerminationWithThrow(@NotNull Exception e) {
-        e.printStackTrace();
-        if (isDynamic) safeDeleteTempFile(pythonScriptPath);
-        closeAndThrow(flightClient, e);
-    }
-
-    static class FlightResponseMap extends HashMap<String, String> {
-    }
 }
