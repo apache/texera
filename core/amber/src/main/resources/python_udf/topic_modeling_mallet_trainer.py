@@ -15,7 +15,6 @@ from operators.texera_blocking_unsupervised_trainer_operator import TexeraBlocki
 logging.getLogger("gensim").setLevel(logging.ERROR)
 logging.getLogger("pyLDAvis").setLevel(logging.ERROR)
 
-
 class TopicModeling(TexeraBlockingUnsupervisedTrainerOperator):
 
     def open(self, *args):
@@ -55,11 +54,8 @@ class TopicModeling(TexeraBlockingUnsupervisedTrainerOperator):
 
         # Term Document Frequency
         corpus = [id2word.doc2bow(text1) for text1 in texts]
-        logger.debug(f"converting mallet model1")
         lda_mallet_model = gensim.models.wrappers.LdaMallet(mallet_path, corpus=corpus, num_topics=num_topics, id2word=id2word, random_seed = random_seed)
-        logger.debug(f"converting mallet model")
-        gensim_model = convertMalletModelToGensimFormat(lda_mallet_model)
-        logger.debug(f"converted mallet model")
+        gensim_model = gensim.models.wrappers.ldamallet.malletmodel2ldamodel(lda_mallet_model)
         pyldaVis_prepared_model = pyLDAvis.gensim_models.prepare(gensim_model, corpus, id2word)
         return pyldaVis_prepared_model
 
@@ -67,15 +63,6 @@ class TopicModeling(TexeraBlockingUnsupervisedTrainerOperator):
         logger.debug(f"reporting trained results")
         html_output = pyLDAvis.prepared_data_to_html(model)
         self._result_tuples.append(pandas.Series({"output": html_output}))
-
-    def convertMalletModelToGensimFormat(mallet_model):
-        model_gensim = gensim.models.ldamodel.LdaModel(
-            id2word=mallet_model.id2word, num_topics=mallet_model.num_topics,
-            alpha=mallet_model.alpha, eta=0,
-        )
-        model_gensim.state.sstats[...] = mallet_model.wordtopics
-        model_gensim.sync_state()
-        return model_gensim
 
 
 operator_instance = TopicModeling()
