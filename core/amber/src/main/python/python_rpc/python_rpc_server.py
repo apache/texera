@@ -11,7 +11,7 @@ from pyarrow import py_buffer, Table
 from pyarrow._flight import FlightDescriptor
 from pyarrow.flight import FlightServerBase, ServerCallContext, Action
 from pyarrow.flight import Result
-from pyarrow.ipc import RecordBatchReader
+from pyarrow.ipc import RecordBatchReader, RecordBatchStreamWriter
 
 from common import deserialize_arguments
 
@@ -82,7 +82,15 @@ class PythonRPCServer(FlightServerBase):
     # Flights related methods #
     ###########################
 
-    def do_put(self, context, descriptor: FlightDescriptor, reader: RecordBatchReader, writer):
+    def do_put(self, context: ServerCallContext, descriptor: FlightDescriptor, reader: RecordBatchReader, writer: RecordBatchStreamWriter):
+        """
+        put a data table into server, the data will be handled by the `self.process_data()` handler.
+        :param context: server context, containing information of middlewares.
+        :param descriptor: the descriptor.path contains the sequence numbers for this batch of data.
+        :param reader: the input stream of batches of records.
+        :param writer: the output stream.
+        :return:
+        """
         seq_nums = json.loads(descriptor.path[0])
         logger.debug(f"putting flight with seq={seq_nums}")
         self.process_data(reader.read_all())
