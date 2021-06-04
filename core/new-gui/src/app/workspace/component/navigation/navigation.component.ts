@@ -47,7 +47,7 @@ export class NavigationComponent implements OnInit {
 
   @Input() public autoSaveState: string = '';
   @Input() public currentWorkflowName: string = '';  // reset workflowName
-  @ViewChild('nameInput') nameInputBox: ElementRef<HTMLElement>|undefined;
+  @ViewChild('nameInput') nameInputBox: ElementRef<HTMLElement> | undefined;
 
   // variable bound with HTML to decide if the running spinner should show
   public runButtonText = 'Run';
@@ -105,10 +105,10 @@ export class NavigationComponent implements OnInit {
 
     // set the map of operatorStatusMap
     validationWorkflowService.getWorkflowValidationErrorStream()
-                             .subscribe(value => {
-                               this.isWorkflowValid = Object.keys(value.errors).length === 0;
-                               this.applyRunButtonBehavior(this.getRunButtonBehavior(this.executionState, this.isWorkflowValid));
-                             });
+      .subscribe(value => {
+        this.isWorkflowValid = Object.keys(value.errors).length === 0;
+        this.applyRunButtonBehavior(this.getRunButtonBehavior(this.executionState, this.isWorkflowValid));
+      });
 
     this.registerWorkflowMetadataDisplayRefresh();
   }
@@ -336,13 +336,13 @@ export class NavigationComponent implements OnInit {
   public persistWorkflow(): void {
     this.isSaving = true;
     this.workflowPersistService.persistWorkflow(this.workflowActionService.getWorkflow())
-        .subscribe((updatedWorkflow: Workflow) => {
-          this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
-          this.isSaving = false;
-        }, error => {
-          alert(error);
-          this.isSaving = false;
-        });
+      .subscribe((updatedWorkflow: Workflow) => {
+        this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
+        this.isSaving = false;
+      }, error => {
+        alert(error);
+        this.isSaving = false;
+      });
   }
 
   /**
@@ -362,13 +362,13 @@ export class NavigationComponent implements OnInit {
 
   registerWorkflowMetadataDisplayRefresh() {
     this.workflowActionService.workflowMetaDataChanged().debounceTime(100)
-        .subscribe(() => {
-          this.currentWorkflowName = this.workflowActionService.getWorkflowMetadata()?.name;
-          this.autoSaveState = this.workflowActionService.getWorkflowMetadata().lastModifiedTime === undefined ?
-            '' : 'Saved at ' + this.datePipe.transform(this.workflowActionService.getWorkflowMetadata().lastModifiedTime,
+      .subscribe(() => {
+        this.currentWorkflowName = this.workflowActionService.getWorkflowMetadata()?.name;
+        this.autoSaveState = this.workflowActionService.getWorkflowMetadata().lastModifiedTime === undefined ?
+          '' : 'Saved at ' + this.datePipe.transform(this.workflowActionService.getWorkflowMetadata().lastModifiedTime,
             'MM/dd/yyyy HH:mm:ss zzz', Intl.DateTimeFormat().resolvedOptions().timeZone, 'en');
 
-        });
+      });
   }
 
 }

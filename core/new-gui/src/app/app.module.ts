@@ -67,7 +67,7 @@ import { UserIconComponent } from './dashboard/component/top-bar/user-icon/user-
 import { NgbdModalUserLoginComponent } from './dashboard/component/top-bar/user-icon/user-login/ngbdmodal-user-login.component';
 import { CodeEditorDialogComponent } from './workspace/component/code-editor-dialog/code-editor-dialog.component';
 import { CodeareaCustomTemplateComponent } from './workspace/component/codearea-custom-template/codearea-custom-template.component';
-import { MiniMapComponent } from './workspace/component/mini-map/mini-map.component';
+import { MiniMapComponent } from './workspace/component/workflow-editor/mini-map/mini-map.component';
 import { NavigationComponent } from './workspace/component/navigation/navigation.component';
 import { OperatorLabelComponent } from './workspace/component/operator-panel/operator-label/operator-label.component';
 import { OperatorPanelComponent } from './workspace/component/operator-panel/operator-panel.component';
