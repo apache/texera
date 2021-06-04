@@ -7,22 +7,19 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalB
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.ForceLocal
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.RandomDeployment
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  LayerIdentity,
-  OperatorIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, OperatorIdentity}
 import edu.uci.ics.amber.engine.operators.SinkOpExecConfig
+import edu.uci.ics.texera.workflow.common.tuple.schema.SchemaInfo
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-class SimpleSinkOpExecConfig(tag: OperatorIdentity) extends SinkOpExecConfig(tag) {
+class SimpleSinkOpExecConfig(tag: OperatorIdentity, val schemaInfo: SchemaInfo) extends SinkOpExecConfig(tag) {
   override lazy val topology = new Topology(
     Array(
       new WorkerLayer(
         LayerIdentity(tag, "main"),
-        _ => new SimpleSinkOpExec(),
+        _ => new SimpleSinkOpExec(schemaInfo),
         1,
         ForceLocal(),
         RandomDeployment()

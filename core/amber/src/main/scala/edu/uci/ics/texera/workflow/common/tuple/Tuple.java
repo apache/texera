@@ -597,14 +597,22 @@ public class Tuple implements ITuple, Serializable {
 
         /**
          * The tuple argument here is expected to conform to the exact same schema as the
-         * the schema passed in the constructor. Failure to do so will result in an exception.
+         * the schema passed in the constructor. If it doesn't conform, the mismatched attributes
+         * are just ignored
          */
         public BuilderV2 add(Tuple tuple) {
             checkNotNull(tuple);
 
             for (int i = 0; i < tuple.size(); i++) {
-                // TODO There is scope here to be "loose" in the schema matching, so that we don't need a "remove" ever
-                add(tuple.getSchema().getAttributes().get(i), tuple.getFields().get(i));
+                Attribute attribute = tuple.getSchema().getAttributes().get(i);
+                // We are intentionally "loose" in the schema matching, so that we don't need a "remove" ever
+                // So, if a tuple is passed in and has more fields than the required schema, we'll assume that
+                // the output tuple doesn't need those attributes.
+                // TODO Log this or maybe have a another overload that takes in a "looseSchemaMatch" parameter to make this behaviour explicit?
+                if (!schema.containsAttribute(attribute.getName())) {
+                    continue;
+                }
+                add(attribute, tuple.getFields().get(i));
             }
 
             return this;

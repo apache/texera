@@ -17,7 +17,7 @@ public class SimpleSinkOpDesc extends OperatorDescriptor {
 
     @Override
     public OpExecConfig operatorExecutor(SchemaInfo schemaInfo) {
-        return new SimpleSinkOpExecConfig(this.operatorIdentifier());
+        return new SimpleSinkOpExecConfig(this.operatorIdentifier(), schemaInfo);
     }
 
     @Override

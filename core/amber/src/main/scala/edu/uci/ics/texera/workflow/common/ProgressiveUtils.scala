@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.common
 
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, SchemaInfo}
 
 object ProgressiveUtils {
 
@@ -28,10 +28,10 @@ object ProgressiveUtils {
     }
   }
 
-  def getTupleFlagAndValue(tuple: Tuple): (Boolean, Tuple) = {
+  def getTupleFlagAndValue(tuple: Tuple, schemaInfo: SchemaInfo): (Boolean, Tuple) = {
     (
       isInsertion(tuple),
-      Tuple.newBuilder().add(tuple).removeIfExists(insertRetractFlagAttr.getName).build()
+      Tuple.newBuilder(schemaInfo.outputSchema).add(tuple).build()
     )
   }
 
