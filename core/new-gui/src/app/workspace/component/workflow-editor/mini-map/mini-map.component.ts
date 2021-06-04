@@ -35,9 +35,9 @@ export class MiniMapComponent implements AfterViewInit {
   public readonly MINI_MAP_NAVIGATOR_ID = 'mini-map-navigator-id';
   public readonly MINI_MAP_GRID_SIZE = 45;
 
-  public MINI_MAP_ZOOM_SCALE = 0.1;
+  public MINI_MAP_ZOOM_SCALE = 0.12;
   public MINI_MAP_SIZE = {
-    width:  (MAIN_CANVAS_LIMIT.xMax - MAIN_CANVAS_LIMIT.xMin) * this.MINI_MAP_ZOOM_SCALE,
+    width: (MAIN_CANVAS_LIMIT.xMax - MAIN_CANVAS_LIMIT.xMin) * this.MINI_MAP_ZOOM_SCALE,
     height: (MAIN_CANVAS_LIMIT.yMax - MAIN_CANVAS_LIMIT.yMin) * this.MINI_MAP_ZOOM_SCALE
   };
 
