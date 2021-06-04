@@ -8,11 +8,10 @@ import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo
 import edu.uci.ics.texera.workflow.common.metadata.OutputPort
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
-import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute
-import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema, SchemaInfo}
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator
+
 import java.util.Collections.singletonList
 import scala.collection.JavaConverters.asScalaBuffer
 
@@ -27,7 +26,7 @@ class HtmlVizOpDesc extends VisualizationOperator {
 
   override def chartType: String = VisualizationConstants.HTML_VIZ
 
-  override def operatorExecutor =
+  override def operatorExecutor(schemaInfo: SchemaInfo) =
     new HtmlVizOpExecConfig(this.operatorIdentifier, htmlContentAttrName)
 
   override def operatorInfo =
