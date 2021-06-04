@@ -279,7 +279,6 @@ export class JointGraphWrapper {
         const elementID = e[0].id.toString();
         const oldPosition = this.elementPositions.get(elementID);
         const newPosition = { x: e[1].x, y: e[1].y };
-        // console.log('newPosition:', newPosition);
         if (!oldPosition) {
           throw new Error(`internal error: cannot find element position for ${elementID}`);
         }

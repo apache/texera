@@ -363,12 +363,10 @@ export class WorkflowEditorComponent implements AfterViewInit {
     // pointer down event to start the panning, this will record the original paper offset
     Observable.fromEvent<JointPointerDownEvent>(this.getJointPaper(), 'blank:pointerdown')
       .subscribe(event => {
-        console.log('mousedown');
         const x = event[0].screenX;
         const y = event[0].screenY;
         if (x !== undefined && y !== undefined) {
           this.mouseDown = { x, y };
-          // console.log(this.mouseDown);
         }
         event[0].preventDefault();
       });
@@ -376,7 +374,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     // This observable captures the drop event to stop the panning
     Observable.fromEvent(document, 'mouseup')
       .subscribe(() => {
-        console.log('mouseup');
         this.mouseDown = undefined;
       });
 

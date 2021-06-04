@@ -100,17 +100,16 @@ export class DragDropService {
   public handleOperatorDropEvent(): void {
     this.getOperatorDropStream().subscribe(
       value => {
-        console.log(value);
         // construct the operator from the drop stream value
         const operator = this.workflowUtilService.getNewOperatorPredicate(value.operatorType);
 
         let coordinates: Point | undefined = this.workflowActionService
           .getJointGraphWrapper().getMainJointPaper()?.pageToLocalPoint(value.offset.x, value.offset.y);
-        if (! coordinates) {
+        if (!coordinates) {
           coordinates = value.offset;
         }
 
-        const scale = this.workflowActionService.getJointGraphWrapper().getMainJointPaper()?.scale() ?? {sx: 1, sy: 1};
+        const scale = this.workflowActionService.getJointGraphWrapper().getMainJointPaper()?.scale() ?? { sx: 1, sy: 1 };
 
         const newOperatorOffset = {
           x: (coordinates.x)
@@ -315,7 +314,6 @@ export class DragDropService {
     Observable.fromEvent<MouseEvent>(window, 'mouseup').first()
       .subscribe(
         () => isOperatorDropped = true,
-        error => console.error(error)
       );
 
     Observable.fromEvent<MouseEvent>(window, 'mousemove')
@@ -326,13 +324,13 @@ export class DragDropService {
 
         let coordinates: Point | undefined = this.workflowActionService
           .getJointGraphWrapper().getMainJointPaper()?.pageToLocalPoint(currentMouseCoordinates.x, currentMouseCoordinates.y);
-        if (! coordinates) {
+        if (!coordinates) {
           coordinates = currentMouseCoordinates;
         }
 
-        let scale: {sx: number, sy: number} | undefined = this.workflowActionService.getJointGraphWrapper().getMainJointPaper()?.scale();
+        let scale: { sx: number, sy: number } | undefined = this.workflowActionService.getJointGraphWrapper().getMainJointPaper()?.scale();
         if (scale === undefined) {
-          scale = {sx: 1, sy: 1};
+          scale = { sx: 1, sy: 1 };
         }
 
         const scaledMouseCoordinates = {
@@ -348,9 +346,7 @@ export class DragDropService {
         this.updateHighlighting(this.suggestionInputs.concat(this.suggestionOutputs), newInputs.concat(newOutputs));
         // assign new suggestions
         [this.suggestionInputs, this.suggestionOutputs] = [newInputs, newOutputs];
-      },
-        error => console.error(error)
-      );
+      });
   }
 
   /**
