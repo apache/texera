@@ -1,20 +1,17 @@
 import argparse
-import ast
+import json
 import threading
 import time
 from functools import wraps
 from inspect import signature
-from typing import Iterator, Tuple, Dict, List
+from typing import Iterator, Tuple, Dict
 
 from loguru import logger
-from pyarrow import py_buffer, MockOutputStream, RecordBatchStreamWriter, Table
-from pyarrow.flight import FlightDescriptor
-from pyarrow.flight import FlightEndpoint
-from pyarrow.flight import FlightInfo
+from pyarrow import py_buffer, Table
+from pyarrow._flight import FlightDescriptor
 from pyarrow.flight import FlightServerBase, ServerCallContext, Action
-from pyarrow.flight import Location
-from pyarrow.flight import RecordBatchStream
 from pyarrow.flight import Result
+from pyarrow.ipc import RecordBatchReader
 
 from common import deserialize_arguments
 
@@ -85,54 +82,10 @@ class PythonRPCServer(FlightServerBase):
     # Flights related methods #
     ###########################
 
-    @classmethod
-    def descriptor_to_key(cls, descriptor: FlightDescriptor) -> Tuple:
-        logger.debug(
-            f"descriptor:{descriptor}, key: {(descriptor.descriptor_type.value, descriptor.command, tuple(descriptor.path or tuple()))}")
-        return (descriptor.descriptor_type.value, descriptor.command,
-                tuple(descriptor.path or tuple()))
-
-    def _make_flight_info(self, key, descriptor, table: Table):
-        location: Location = Location.for_grpc_tcp(self.host, self.port)
-        endpoints: List[FlightEndpoint] = [FlightEndpoint(repr(key), [location]), ]
-
-        # calculate data size
-        mock_sink = MockOutputStream()
-        stream_writer = RecordBatchStreamWriter(mock_sink, table.schema)
-        stream_writer.write_table(table)
-        stream_writer.close()
-        data_size = mock_sink.size()
-
-        return FlightInfo(table.schema, descriptor, endpoints, table.num_rows, data_size)
-
-    def list_flights(self, context, criteria):
-        for key, table in self._flights.items():
-            if key[1] is not None:
-                descriptor = \
-                    FlightDescriptor.for_command(key[1])
-            else:
-                descriptor = FlightDescriptor.for_path(*key[2])
-
-            yield self._make_flight_info(key, descriptor, table)
-
-    def get_flight_info(self, context, descriptor):
-        key = PythonRPCServer.descriptor_to_key(descriptor)
-        if key in self._flights:
-            table = self._flights[key]
-            return self._make_flight_info(key, descriptor, table)
-        raise KeyError('Flight not found.')
-
-    def do_put(self, context, descriptor, reader, writer):
-        key = PythonRPCServer.descriptor_to_key(descriptor)
-        logger.debug(f"putting flight with key={key}")
-        self._flights[key] = reader.read_all()
-        self.process_data(self._flights[key])
-
-    def do_get(self, context, ticket):
-        key = ast.literal_eval(ticket.ticket.decode())
-        if key not in self._flights:
-            return None
-        return RecordBatchStream(self._flights[key])
+    def do_put(self, context, descriptor: FlightDescriptor, reader: RecordBatchReader, writer):
+        seq_nums = json.loads(descriptor.path[0])
+        logger.debug(f"putting flight with seq={seq_nums}")
+        self.process_data(reader.read_all())
 
     ###############################
     # RPC actions related methods #

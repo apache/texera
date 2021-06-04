@@ -23,7 +23,7 @@ class TestFlightClient:
     @pytest.fixture
     def server_with_dp(self, data_queue):
         server = PythonRPCServer()
-        server.register_data_handler(lambda batch: list(map(data_queue.put, batch.to_pandas().iterrows())))
+        server.register_data_handler(lambda batch: list(map(data_queue.put, map(lambda t: t[1], batch.to_pandas().iterrows()))))
         yield server
 
     @pytest.fixture
@@ -123,7 +123,7 @@ class TestFlightClient:
                 client.call("div", a=1, b=0)
             assert client.call("shutdown") == b'Bye bye!'
 
-    def test_client_can_send_and_receive_flights(self, server, client):
+    def test_client_cannot_send_data_with_no_handler(self, server, client):
         # prepare a dataframe and convert to pyarrow table
         df_to_sent = DataFrame({
             'Brand': ['Honda Civic', 'Toyota Corolla', 'Ford Focus', 'Audi A4'],
@@ -132,32 +132,22 @@ class TestFlightClient:
         table = Table.from_pandas(df_to_sent)
 
         with server:
-            def _handler():
-                # retrieve the same flight
-                flight_infos = list(client.list_flights())
-                assert len(flight_infos) == 1
-                info = flight_infos[0]
-                assert info.total_records == 4
-                assert info.total_bytes == 1096
-                for endpoint in info.endpoints:
-                    reader = client.do_get(endpoint.ticket)
-                    df = reader.read_pandas()
-                    assert df.equals(df_to_sent)
-
             # send the pyarrow table to server as a flight
             with pytest.raises(ArrowNotImplementedError):
-                client.send_data(table, _handler)
+                client.send_data(table, [1])
 
-    def test_client_can_send_flights_with_dp(self, data_queue, server_with_dp, client):
+    def test_client_can_send_data_with_handler(self, data_queue: Queue, server_with_dp, client):
         # prepare a dataframe and convert to pyarrow table
         df_to_sent = DataFrame({
-            'Brand': ['Honda Civic', 'Toyota Corolla', 'Ford Focus', 'Audi A4'],
-            'Price': [22000, 25000, 27000, 35000]
+            'Brand': ['Honda Civic', 'Toyota Corolla', 'Ford Focus', 'Audi A4'] * 100,
+            'Price': [22000, 25000, 27000, 35000] * 100
         }, columns=['Brand', 'Price'])
         table = Table.from_pandas(df_to_sent)
 
         with server_with_dp:
             # send the pyarrow table to server as a flight
-            client.send_data(table)
+            client.send_data(table, [1])
 
-            assert data_queue.qsize() == 4
+            assert data_queue.qsize() == 400
+            for i, row in table.to_pandas().iterrows():
+                assert data_queue.get().equals(row)
