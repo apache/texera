@@ -1,3 +1,6 @@
+import json
+from typing import List
+
 from loguru import logger
 from pyarrow import Table
 from pyarrow.flight import Action, FlightCallOptions, FlightClient
@@ -29,21 +32,23 @@ class PythonRPCClient(FlightClient):
         options = FlightCallOptions(timeout=self._timeout)
         return next(self.do_action(action, options)).body.to_pybytes()
 
-    def send_data(self, table: Table, on_success: callable = lambda: None, on_error: callable = lambda: None) -> None:
+    def send_data(self, batch: Table, seq_nums: List[int], on_success: callable = lambda: None, on_error: callable = lambda: None) -> None:
         """
         send data to the server
-        :param table: a PyArrow.Table of column-stored records.
+        :param batch: a PyArrow.Table of column-stored records.
+        :param seq_nums: a list of sequence numbers, data identifications for the batch.
         :param on_success: callback function upon success, only used with PythonRPCClient, Java
                             client should not use it.
         :param on_error: callback function upon failure, only used with the PythonRPCClient, Java
                             client should not use it.
         :return:
         """
+
         try:
-            writer, reader = self.do_put(FlightDescriptor.for_path("fromClient"), table.schema)
+            writer, reader = self.do_put(FlightDescriptor.for_path(json.dumps(seq_nums)), batch.schema)
             logger.debug("start writing")
             with writer:
-                writer.write_table(table)
+                writer.write_table(batch)
 
             logger.debug("finish writing")
 
