@@ -55,6 +55,7 @@ class TopicModeling(TexeraBlockingUnsupervisedTrainerOperator):
         # Term Document Frequency
         corpus = [id2word.doc2bow(text1) for text1 in texts]
         lda_mallet_model = gensim.models.wrappers.LdaMallet(mallet_path, corpus=corpus, num_topics=num_topics, id2word=id2word, random_seed = random_seed)
+        # mallet models need to first be converted to gensim models
         gensim_model = gensim.models.wrappers.ldamallet.malletmodel2ldamodel(lda_mallet_model)
         pyldaVis_prepared_model = pyLDAvis.gensim_models.prepare(gensim_model, corpus, id2word)
         return pyldaVis_prepared_model
