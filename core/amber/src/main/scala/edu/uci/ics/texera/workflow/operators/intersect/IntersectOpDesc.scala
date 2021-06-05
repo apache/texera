@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.intersection
+package edu.uci.ics.texera.workflow.operators.intersect
 
 import com.google.common.base.Preconditions
 import edu.uci.ics.amber.engine.operators.OpExecConfig
@@ -20,7 +20,7 @@ class IntersectOpDesc extends OperatorDescriptor {
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "Intersect",
-      "Take the intersection of two inputs",
+      "Take the intersect of two inputs",
       OperatorGroupConstants.UTILITY_GROUP,
       inputPorts = List(InputPort(), InputPort()),
       outputPorts = List(OutputPort())

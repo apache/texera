@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.intersection
+package edu.uci.ics.texera.workflow.operators.intersect
 
 import com.google.common.base.Preconditions
 import edu.uci.ics.amber.engine.common.InputExhausted
@@ -39,7 +39,7 @@ class IntersectOpExec extends OperatorExecutor {
         }
         exhaustedCounter += 1
         if (exhaustedCounter == 2) {
-          // both streams are exhausted, take the intersection and return the results
+          // both streams are exhausted, take the intersect and return the results
 
           hashMap.valuesIterator
             .reduce((set1, set2) => { set1.intersect(set2) })
