@@ -142,6 +142,7 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
     topologicalOrderIterator.forEachRemaining(op => {
       // infer output schema of this operator based on its input schema
       val outputSchema: Option[Schema] = {
+        // call to "getOutputSchema" might cause exceptions, wrap in try/catch and return empty schema
         try {
           if (op.isInstanceOf[SourceOperatorDescriptor]) {
             // op is a source operator, ask for it output schema
