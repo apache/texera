@@ -138,28 +138,27 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
         .withDefault(op => mutable.MutableList.fill(op.operatorInfo.inputPorts.size)(Option.empty))
 
     // propagate output schema following topological order
-    // TODO: introduce the concept of port in TexeraOperatorDescriptor and propagate schema according to port
     val topologicalOrderIterator = workflowDag.iterator()
     topologicalOrderIterator.forEachRemaining(op => {
       // infer output schema of this operator based on its input schema
       val outputSchema: Option[Schema] = {
-        if (op.isInstanceOf[SourceOperatorDescriptor]) {
-          // op is a source operator, ask for it output schema
-          Option.apply(op.getOutputSchema(Array()))
-        } else if (!inputSchemaMap.contains(op) || inputSchemaMap(op).exists(s => s.isEmpty)) {
-          // op does not have input, or any of the op's input's output schema is null
-          // then this op's output schema cannot be inferred as well
-          Option.empty
-        } else {
-          // op's input schema is complete, try to infer its output schema
-          // if inference failed, print an exception message, but still continue the process
-          try {
+        try {
+          if (op.isInstanceOf[SourceOperatorDescriptor]) {
+            // op is a source operator, ask for it output schema
+            Option.apply(op.getOutputSchema(Array()))
+          } else if (!inputSchemaMap.contains(op) || inputSchemaMap(op).exists(s => s.isEmpty)) {
+            // op does not have input, or any of the op's input's output schema is null
+            // then this op's output schema cannot be inferred as well
+            Option.empty
+          } else {
+            // op's input schema is complete, try to infer its output schema
+            // if inference failed, print an exception message, but still continue the process
             Option.apply(op.getOutputSchema(inputSchemaMap(op).map(s => s.get).toArray))
-          } catch {
-            case e: Throwable =>
-              e.printStackTrace()
-              Option.empty
           }
+        } catch {
+          case e: Throwable =>
+            e.printStackTrace()
+            Option.empty
         }
       }
       // exception: if op is a source operator, use its output schema as input schema for autocomplete
