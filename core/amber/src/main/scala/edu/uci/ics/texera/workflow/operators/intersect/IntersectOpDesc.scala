@@ -8,13 +8,13 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.operators.{ManyToOneOpExecConfig, OperatorDescriptor}
+import edu.uci.ics.texera.workflow.common.operators.{HashOpExecConfig, OperatorDescriptor}
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
 class IntersectOpDesc extends OperatorDescriptor {
 
   override def operatorExecutor: OpExecConfig = {
-    new ManyToOneOpExecConfig(operatorIdentifier, _ => new IntersectOpExec())
+    new HashOpExecConfig(operatorIdentifier, _ => new IntersectOpExec())
   }
 
   override def operatorInfo: OperatorInfo =
