@@ -2,13 +2,13 @@ import pytest
 from pyarrow.flight import Action
 
 from .common import serialize_arguments
-from .python_rpc_server import PythonRPCServer
+from .rpc_server import RPCServer
 
 
-class TestFlightServer:
+class TestRPCServer:
     @pytest.fixture()
     def server(self):
-        return PythonRPCServer()
+        return RPCServer()
 
     def test_server_can_register_control_actions_with_lambda(self, server):
         with server:
@@ -85,7 +85,7 @@ class TestFlightServer:
             name = "i need an ack"
             serialized_args = serialize_arguments("some input for lambda")
 
-            server.register(name, PythonRPCServer.ack()(lambda _: "random output"))
+            server.register(name, RPCServer.ack()(lambda _: "random output"))
             assert name in server._procedures
             assert next(server.do_action(None, Action(name, serialized_args))).body.to_pybytes() \
                    == b'ack'
@@ -95,7 +95,7 @@ class TestFlightServer:
             name = "i need an ack"
             serialized_args = serialize_arguments("some input for function")
 
-            @PythonRPCServer.ack
+            @RPCServer.ack
             def handler(_):
                 return "random output"
 
@@ -110,7 +110,7 @@ class TestFlightServer:
             serialized_args = serialize_arguments("some input for callable class")
 
             class Handler:
-                @PythonRPCServer.ack
+                @RPCServer.ack
                 def __call__(self, _):
                     return "random output"
 

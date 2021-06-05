@@ -1,5 +1,4 @@
 import argparse
-import json
 import threading
 import time
 from functools import wraps
@@ -14,7 +13,7 @@ from pyarrow.ipc import RecordBatchReader, RecordBatchStreamWriter
 from .common import deserialize_arguments
 
 
-class PythonRPCServer(FlightServerBase):
+class RPCServer(FlightServerBase):
     @staticmethod
     def ack(original_func=None, msg="ack"):
         """
@@ -56,7 +55,7 @@ class PythonRPCServer(FlightServerBase):
 
     def __init__(self, scheme: str = "grpc+tcp", host: str = "localhost", port: int = 5005):
         location = f"{scheme}://{host}:{port}"
-        super(PythonRPCServer, self).__init__(location)
+        super(RPCServer, self).__init__(location)
         logger.debug("Serving on " + location)
 
         self.host = host
@@ -69,7 +68,7 @@ class PythonRPCServer(FlightServerBase):
 
         # register shutdown, this is the default action for client to terminate server.
         self.register("shutdown",
-                      PythonRPCServer.ack(msg="Bye bye!")
+                      RPCServer.ack(msg="Bye bye!")
                       (lambda: threading.Thread(target=self._shutdown).start()),
                       description="Shut down this server.")
 
@@ -185,7 +184,7 @@ def main():
     args = parser.parse_args()
     scheme = "grpc+tcp"
 
-    server = PythonRPCServer(scheme, args.host, args.port)
+    server = RPCServer(scheme, args.host, args.port)
     server.serve()
 
 

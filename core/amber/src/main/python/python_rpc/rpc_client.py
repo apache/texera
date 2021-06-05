@@ -1,16 +1,13 @@
-import json
-from typing import List
-
 from loguru import logger
 from pyarrow import Table
 from pyarrow.flight import Action, FlightCallOptions, FlightClient
 from pyarrow.flight import FlightDescriptor
 
 from .common import serialize_arguments
-from .python_rpc_server import PythonRPCServer
+from .rpc_server import RPCServer
 
 
-class PythonRPCClient(FlightClient):
+class RPCClient(FlightClient):
 
     def __init__(self, scheme: str = "grpc+tcp", host: str = "localhost", port: int = 5005, timeout=1,
                  *args, **kwargs):
@@ -62,7 +59,7 @@ class PythonRPCClient(FlightClient):
 
 
 if __name__ == '__main__':
-    with PythonRPCServer() as server:
+    with RPCServer() as server:
         server.register("hello", lambda: "what")
-        client = PythonRPCClient()
+        client = RPCClient()
         print(client.call("hello"))
