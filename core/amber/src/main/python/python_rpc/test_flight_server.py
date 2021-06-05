@@ -1,8 +1,8 @@
 import pytest
 from pyarrow.flight import Action
 
-from common import serialize_arguments
-from python_rpc_server import PythonRPCServer
+from .common import serialize_arguments
+from .python_rpc_server import PythonRPCServer
 
 
 class TestFlightServer:

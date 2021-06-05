@@ -6,8 +6,8 @@ from pyarrow import Table
 from pyarrow.flight import Action, FlightCallOptions, FlightClient
 from pyarrow.flight import FlightDescriptor
 
-from common import serialize_arguments
-from python_rpc_server import PythonRPCServer
+from .common import serialize_arguments
+from .python_rpc_server import PythonRPCServer
 
 
 class PythonRPCClient(FlightClient):

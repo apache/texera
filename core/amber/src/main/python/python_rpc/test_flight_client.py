@@ -6,8 +6,8 @@ from pandas import DataFrame
 from pyarrow import Table, ArrowNotImplementedError
 from pyarrow.flight import FlightServerError
 
-from python_rpc_client import PythonRPCClient
-from python_rpc_server import PythonRPCServer
+from .python_rpc_client import PythonRPCClient
+from .python_rpc_server import PythonRPCServer
 
 
 class TestFlightClient:
