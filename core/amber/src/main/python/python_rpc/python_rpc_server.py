@@ -13,7 +13,7 @@ from pyarrow.flight import FlightServerBase, ServerCallContext, Action
 from pyarrow.flight import Result
 from pyarrow.ipc import RecordBatchReader, RecordBatchStreamWriter
 
-from common import deserialize_arguments
+from .common import deserialize_arguments
 
 
 class PythonRPCServer(FlightServerBase):
