@@ -1,0 +1,2 @@
+class ControlPayload:
+    pass
