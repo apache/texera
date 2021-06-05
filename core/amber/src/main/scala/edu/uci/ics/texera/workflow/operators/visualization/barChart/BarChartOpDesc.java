@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.operators.visualization.barChart;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
+import edu.uci.ics.amber.engine.operators.OpExecConfig;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
@@ -43,7 +44,7 @@ public class BarChartOpDesc extends VisualizationOperator {
     }
 
     @Override
-    public OneToOneOpExecConfig operatorExecutor() {
+    public OpExecConfig operatorExecutor() {
         if (nameColumn == null) {
             throw new RuntimeException("bar chart: name column is null");
         }

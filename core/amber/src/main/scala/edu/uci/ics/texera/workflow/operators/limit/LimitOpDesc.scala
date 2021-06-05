@@ -23,7 +23,7 @@ class LimitOpDesc extends OperatorDescriptor {
 
   override def operatorExecutor: OpExecConfig = {
     val limitPerWorker = equallyPartitionGoal(limit, Constants.defaultNumWorkers)
-    new OneToOneOpExecConfig(this.operatorIdentifier, i => new LimitOpExec(limitPerWorker(i)))
+    new OneToOneOpExecConfig(operatorIdentifier, i => new LimitOpExec(limitPerWorker(i)))
   }
 
   override def operatorInfo: OperatorInfo =

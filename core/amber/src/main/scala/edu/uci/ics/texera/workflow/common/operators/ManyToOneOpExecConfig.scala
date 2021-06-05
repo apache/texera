@@ -1,10 +1,7 @@
-package edu.uci.ics.texera.workflow.common.operators.mlmodel
+package edu.uci.ics.texera.workflow.common.operators
 
-import akka.actor.ActorRef
-import akka.event.LoggingAdapter
-import akka.util.Timeout
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
-import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.FollowPrevious
+import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.UseAll
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.RoundRobinDeployment
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.common.virtualidentity.{
@@ -13,15 +10,10 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   OperatorIdentity
 }
 import edu.uci.ics.amber.engine.operators.OpExecConfig
-import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 
-import scala.collection.mutable
-import scala.concurrent.ExecutionContext
-
-class MLModelOpExecConfig(
+class ManyToOneOpExecConfig(
     override val id: OperatorIdentity,
-    val numWorkers: Int,
-    val opExec: () => MLModelOpExec
+    val opExec: Int => OperatorExecutor
 ) extends OpExecConfig(id) {
 
   override lazy val topology: Topology = {
@@ -29,9 +21,9 @@ class MLModelOpExecConfig(
       Array(
         new WorkerLayer(
           LayerIdentity(id, "main"),
-          _ => opExec(),
-          numWorkers,
-          FollowPrevious(),
+          opExec,
+          1,
+          UseAll(),
           RoundRobinDeployment()
         )
       ),
@@ -42,6 +34,7 @@ class MLModelOpExecConfig(
   override def assignBreakpoint(
       breakpoint: GlobalBreakpoint[_]
   ): Array[ActorVirtualIdentity] = {
+    // TODO: take worker states into account
     topology.layers(0).identifiers
   }
 }

@@ -22,8 +22,10 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
 
     @Override
     public OneToOneOpExecConfig operatorExecutor() {
-        return new OneToOneOpExecConfig(this.operatorIdentifier(),
-                worker -> new SpecializedFilterOpExec(this));
+        return new OneToOneOpExecConfig(
+                operatorIdentifier(),
+                worker -> new SpecializedFilterOpExec(this)
+        );
     }
 
     @Override

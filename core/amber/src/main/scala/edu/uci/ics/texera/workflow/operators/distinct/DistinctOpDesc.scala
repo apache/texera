@@ -8,13 +8,13 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
+import edu.uci.ics.texera.workflow.common.operators.{ManyToOneOpExecConfig, OperatorDescriptor}
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
 class DistinctOpDesc extends OperatorDescriptor {
 
   override def operatorExecutor: OpExecConfig = {
-    new DistinctOpExecConfig(operatorIdentifier)
+    new ManyToOneOpExecConfig(operatorIdentifier, _ => new DistinctOpExec())
   }
 
   override def operatorInfo: OperatorInfo =

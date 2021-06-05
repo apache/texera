@@ -41,10 +41,10 @@ public class PythonUDFOpExec implements OperatorExecutor {
     private static final long WAIT_TIME_MS = 500;
     private static final RootAllocator memoryAllocator = new RootAllocator();
     private final String pythonScriptText;
-    private final ArrayList<String> inputColumns;
-    private final ArrayList<Attribute> outputColumns;
-    private final ArrayList<String> arguments;
-    private final ArrayList<String> outerFilePaths;
+    private final List<String> inputColumns;
+    private final List<Attribute> outputColumns;
+    private final List<String> arguments;
+    private final List<String> outerFilePaths;
     private final int batchSize;
     private final boolean isDynamic;
     private final Queue<Tuple> inputTupleBuffer = new LinkedList<>();
@@ -53,9 +53,9 @@ public class PythonUDFOpExec implements OperatorExecutor {
     private FlightClient flightClient;
     private org.apache.arrow.vector.types.pojo.Schema globalInputSchema;
 
-    PythonUDFOpExec(String pythonScriptText, String pythonScriptFile, ArrayList<String> inputColumns,
-                    ArrayList<Attribute> outputColumns, ArrayList<String> arguments,
-                    ArrayList<String> outerFiles, int batchSize) {
+    PythonUDFOpExec(String pythonScriptText, String pythonScriptFile, List<String> inputColumns,
+                    List<Attribute> outputColumns, List<String> arguments,
+                    List<String> outerFiles, int batchSize) {
         this.pythonScriptText = pythonScriptText;
         this.pythonScriptPath = pythonScriptFile;
         this.inputColumns = inputColumns;
