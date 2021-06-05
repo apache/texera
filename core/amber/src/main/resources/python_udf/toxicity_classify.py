@@ -52,11 +52,11 @@ class ToxicityClassifier(TexeraMapOperator):
         super(ToxicityClassifier, self).__init__(self.predict)
         self._model = None
 
-    def open(self, *args):
+    def open(self, *args) -> None:
         super(ToxicityClassifier, self).open(*args)
         self._model = ToxModel()
 
-    def predict(self, row: pd.Series, *args):
+    def predict(self, row: pd.Series, *args) -> pd.Series:
         input_col, output_col, *_ = args
 
         # obtain toxicities of all the input data, split by line.
