@@ -197,11 +197,8 @@ class UserResource {
   @GET
   @Path("/logout")
   def logOut(@Session session: HttpSession): Response = {
-    if (isGoogleUser(session)) {
-      setGoogleUserSession(session, null)
-    } else {
-      setUserSession(session, null)
-    }
+    setGoogleUserSession(session, null)
+    setUserSession(session, null)
     Response.ok().build()
   }
 
