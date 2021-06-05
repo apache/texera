@@ -67,8 +67,8 @@ class UserResource {
 
   val config: Config = WebUtils.config
 
-  private val CLIENT_ID = config.getString("google.clientId")
-  private val CLIENT_SECRET = config.getString("google.clientSecret")
+  private val GOOGLE_CLIENT_ID = config.getString("google.clientId")
+  private val GOOGLE_CLIENT_SECRET = config.getString("google.clientSecret")
 
   final private val userDao = new UserDao(SqlServer.createDSLContext.configuration)
   final private val googleUserDao = new GoogleUserDao(SqlServer.createDSLContext.configuration)
