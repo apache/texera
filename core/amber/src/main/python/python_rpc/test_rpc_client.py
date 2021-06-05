@@ -6,11 +6,11 @@ from pandas import DataFrame
 from pyarrow import Table, ArrowNotImplementedError
 from pyarrow.flight import FlightServerError
 
-from .python_rpc_client import PythonRPCClient
-from .python_rpc_server import PythonRPCServer
+from .rpc_client import RPCClient
+from .rpc_server import RPCServer
 
 
-class TestFlightClient:
+class TestRPCClient:
 
     @pytest.fixture
     def data_queue(self):
@@ -18,21 +18,21 @@ class TestFlightClient:
 
     @pytest.fixture
     def server(self):
-        yield PythonRPCServer()
+        yield RPCServer()
 
     @pytest.fixture
     def server_with_dp(self, data_queue):
-        server = PythonRPCServer()
+        server = RPCServer()
         server.register_data_handler(lambda batch: list(map(data_queue.put, map(lambda t: t[1], batch.to_pandas().iterrows()))))
         yield server
 
     @pytest.fixture
     def client(self):
-        yield PythonRPCClient()
+        yield RPCClient()
 
     def test_client_can_connect_to_server(self, server):
         with server:
-            PythonRPCClient()
+            RPCClient()
 
     def test_client_can_shutdown_server(self, server, client):
         with server:
@@ -64,7 +64,7 @@ class TestFlightClient:
                     return "hello-class"
 
             server.register("hello-class", HelloClass())
-            client = PythonRPCClient()
+            client = RPCClient()
             assert len(client.list_actions()) == 2
             assert client.call("hello-class") == b'hello-class'
             assert client.call("shutdown") == b'Bye bye!'
@@ -87,7 +87,7 @@ class TestFlightClient:
 
     def test_client_can_call_registered_lambdas_with_args_and_ack(self, server, client):
         with server:
-            server.register("add", PythonRPCServer.ack()(lambda a, b: a + b))
+            server.register("add", RPCServer.ack()(lambda a, b: a + b))
             assert len(client.list_actions()) == 2
             assert client.call("add", a=5, b=4) == b'ack'
             assert client.call("add", 1.1, 2.3) == b'ack'
@@ -96,7 +96,7 @@ class TestFlightClient:
 
     def test_client_can_call_registered_lambdas_with_args_and_other_ack(self, server, client):
         class Extend:
-            @PythonRPCServer.ack(msg="extended!")
+            @RPCServer.ack(msg="extended!")
             def __call__(self, a: List, b: Iterable):
                 a.extend(b)
                 return a
