@@ -8,9 +8,7 @@ from typing import Iterator, Tuple, Dict
 
 from loguru import logger
 from pyarrow import py_buffer, Table
-from pyarrow._flight import FlightDescriptor
-from pyarrow.flight import FlightServerBase, ServerCallContext, Action
-from pyarrow.flight import Result
+from pyarrow.flight import Action, FlightDescriptor, FlightServerBase, ServerCallContext, Result
 from pyarrow.ipc import RecordBatchReader, RecordBatchStreamWriter
 
 from .common import deserialize_arguments
@@ -86,13 +84,12 @@ class PythonRPCServer(FlightServerBase):
         """
         put a data table into server, the data will be handled by the `self.process_data()` handler.
         :param context: server context, containing information of middlewares.
-        :param descriptor: the descriptor.path contains the sequence numbers for this batch of data.
+        :param descriptor: the descriptor of this batch of data.
         :param reader: the input stream of batches of records.
         :param writer: the output stream.
         :return:
         """
-        seq_nums = json.loads(descriptor.path[0])
-        logger.debug(f"putting flight with seq={seq_nums}")
+        logger.debug(f"getting a data flight")
         self.process_data(reader.read_all())
 
     ###############################
