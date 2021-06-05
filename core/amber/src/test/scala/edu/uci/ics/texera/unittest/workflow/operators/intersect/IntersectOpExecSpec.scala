@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.unittest.workflow.operators.intersection
+package edu.uci.ics.texera.unittest.workflow.operators.intersect
 
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.virtualidentity.{LayerIdentity, LinkIdentity}
