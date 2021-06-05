@@ -1,64 +1,75 @@
 import os
+from pathlib import Path
+from typing import Iterable
 
+import numpy as np
 import pandas as pd
 import six
 import six.moves.cPickle
+from numpy import ndarray
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 
-import texera_udf_operator_base
+from operators.texera_map_operator import TexeraMapOperator
 
 """
-Requiements:
+Requirements:
 six                                1.15.0 
-tensorflow                         2.4.1
+tensorflow                         2.5.0
 """
-
-Model_Path = '%s/src/main/resources/python_udf/models' % (os.getcwd())
 
 
 class ToxModel:
-    def __init__(self, model_dir=Model_Path):
-        self.model_dir = model_dir
-        self.model = None
-        self.tokenizer = None
-        self.model_name = 'cnn_wiki_tox'
-        self.load_model_from_name(self.model_name)
-
-    def load_model_from_name(self, model_name):
-        # load the model and tokenizer
-        self.model = load_model(os.path.join(self.model_dir, '%s_model.h5' % model_name))
-        self.tokenizer = six.moves.cPickle.load(open(os.path.join(self.model_dir, '%s_tokenizer.pkl' % model_name), 'rb'), encoding="utf-8")
-
-    def prep_text(self, texts):
-        # transfer the text to sequences
-        self.tokenizer.oov_token = None
-        text_sequences = self.tokenizer.texts_to_sequences(texts)
-        return pad_sequences(text_sequences, maxlen=250)
-
-    def tox_predict(self, texts):
-        # predict the result
-        data = self.prep_text(texts)
-        return self.model.predict(data)[:, 1]
-
-
-class ToxModelOperator(texera_udf_operator_base.TexeraMapOperator):
+    # to simplify the operator, the model path is hard coded.
+    MODEL_PATH = Path(os.getcwd()).joinpath('src', 'main', 'resources', 'python_udf', 'models')
+    MODEL_NAME = 'cnn_wiki_tox'
 
     def __init__(self):
-        super(ToxModelOperator, self).__init__(self.predict)
-        self.model_operator = None
+        self._model = load_model(ToxModel.MODEL_PATH.joinpath(f'{ToxModel.MODEL_NAME}_model.h5'))
+        with open(ToxModel.MODEL_PATH.joinpath(f'{ToxModel.MODEL_NAME}_tokenizer.pkl'), 'rb') as file:
+            self._tokenizer = six.moves.cPickle.load(file, encoding="utf-8")
+
+    def _prep_text(self, texts: Iterable[str]) -> ndarray:
+        """
+        transfer the given input texts to sequences of integers, padded with a certain length.
+        :param texts: an iterable of str to be processed.
+        :return: a ndarray of integer sequences.
+        """
+        return pad_sequences(self._tokenizer.texts_to_sequences(texts), maxlen=250)
+
+    def tox_predict(self, texts: Iterable[str]) -> ndarray:
+        """
+        predict the toxicity of the given input texts.
+        :param texts: an iterable of str to be processed.
+        :return: a ndarray of toxicities of each text, from 0.0 ~ 1.0, the exact semantic is to be defined by the ToxModel.
+        """
+        return self._model.predict(self._prep_text(texts))[:, 1]
+
+
+class ToxicityClassifier(TexeraMapOperator):
+
+    def __init__(self):
+        super(ToxicityClassifier, self).__init__(self.predict)
+        self._model = None
 
     def open(self, *args):
-        super(ToxModelOperator, self).open(*args)
-        self.model_operator = ToxModel()
-
-    def close(self):
-        self.model_operator.close()
+        super(ToxicityClassifier, self).open(*args)
+        self._model = ToxModel()
 
     def predict(self, row: pd.Series, *args):
-        p = 1 if self.model_operator.tox_predict(row[args[0]].split('\n')) > 0.5 else 0
-        row[args[1]] = p
+        input_col, output_col, *_ = args
+
+        # obtain toxicities of all the input data, split by line.
+        toxicities = self._model.tox_predict(row[input_col].split('\n'))
+
+        # take an average of toxicities, use it as the toxicity of the input data.
+        # using int for now since python udf does not support boolean yet.
+        toxic = 1 if np.average(toxicities) > 0.5 else 0
+
+        # assign the result toxic to output column.
+        row[output_col] = toxic
+
         return row
 
 
-operator_instance = ToxModelOperator()
+operator_instance = ToxicityClassifier()
