@@ -1,16 +1,15 @@
 package edu.uci.ics.texera.web.resource
 
-import javax.servlet.http.HttpSession
-import javax.ws.rs._
-import javax.ws.rs.core.{MediaType, Response}
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER_DICTIONARY
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDictionaryDao
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserDictionary
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{User, UserDictionary}
 import edu.uci.ics.texera.web.resource.auth.UserResource
 import io.dropwizard.jersey.sessions.Session
 
+import javax.servlet.http.HttpSession
+import javax.ws.rs._
+import javax.ws.rs.core.{MediaType, Response}
 import scala.jdk.CollectionConverters.asScalaBuffer
 
 /**
@@ -33,23 +32,26 @@ class UserDictionaryResource {
     * @param session HttpSession
     * @param req GetRequest (key may be null for GetDictRequest)
     * @return Response with a UserDictionaryResponse payload, 200 ok - payload: EntryResponse or DictResponse,
-    * 401 unauthorized - payload: ErrorResponse("invalid session"),
-    * 400 bad request - payload: ErrorResponse("Unable to process JSON"),
-    * 422 Unprocessable Entity - payload: ErrorResponse("no such entry") (if no entry exists for provided key)
+    * 401 unauthorized - payload: ErrorResponse("Invalid session"),
+    * 400 bad request - payload: ErrorResponse("Malformed JSON payload"),
+    * 422 Unprocessable Entity - payload: ErrorResponse("No such entry") (if no entry exists for provided key)
     */
   @GET
   def getValue(@Session session: HttpSession, req: GetRequest): Response = {
     val user = UserResource.getUser(session).orNull
     if (user == null)
-      Response.status(Response.Status.UNAUTHORIZED).entity(ErrorResponse("invalid session")).build()
-    else if (req == null) {
+      Response.status(Response.Status.UNAUTHORIZED).entity(ErrorResponse("Invalid session")).build()
+    else if (
+      req == null || req.requestType == 0 || (req.key == null && req.requestType == GetRequest.GET_ENTRY)
+    ) {
+      // req.requestType is 0 when unspecified. It should always be specified in a proper GetRequest
       Response
         .status(Response.Status.BAD_REQUEST)
-        .entity(ErrorResponse("Unable to process JSON"))
+        .entity(ErrorResponse("Malformed JSON payload"))
         .build()
     } else if (req.requestType == GetRequest.GET_ENTRY) {
       if (!dictEntryExists(user, req.key))
-        Response.status(422).entity(ErrorResponse("no such entry")).build()
+        Response.status(422).entity(ErrorResponse("No such entry")).build()
       else Response.ok(EntryResponse(getValueByKey(user, req.key))).build()
     } else {
       Response.ok(DictResponse(getDict(user))).build()
@@ -61,9 +63,9 @@ class UserDictionaryResource {
     * the "key" and "value" attributes of the PostRequest
     * @param session HttpSession
     * @param req PostRequest
-    * @return Response, 200 ok - payload: ConfirmationResponse("created" or "updated"),
-    * 401 unauthorized - payload: ErrorResponse("invalid session"),
-    * 400 bad request - payload: ErrorResponse("Unable to process JSON"),
+    * @return Response, 200 ok - payload: ConfirmationResponse("Created" or "Updated"),
+    * 401 unauthorized - payload: ErrorResponse("Invalid session"),
+    * 400 bad request - payload: ErrorResponse("Malformed JSON payload"),
     */
   @POST
   def setValue(
@@ -72,18 +74,18 @@ class UserDictionaryResource {
   ): Response = {
     val user = UserResource.getUser(session).orNull
     if (user == null)
-      Response.status(Response.Status.UNAUTHORIZED).entity(ErrorResponse("invalid session")).build()
-    else if (req == null) {
+      Response.status(Response.Status.UNAUTHORIZED).entity(ErrorResponse("Invalid session")).build()
+    else if (req == null || req.key == null || req.value == null) {
       Response
         .status(Response.Status.BAD_REQUEST)
-        .entity(ErrorResponse("Unable to process JSON"))
+        .entity(ErrorResponse("Malformed JSON payload"))
         .build()
     } else if (dictEntryExists(user, req.key)) {
       userDictionaryDao.update(new UserDictionary(user.getUid, req.key, req.value))
-      Response.ok(ConfirmationResponse("updated")).build()
+      Response.ok(ConfirmationResponse("Updated")).build()
     } else {
       userDictionaryDao.insert(new UserDictionary(user.getUid, req.key, req.value))
-      Response.ok(ConfirmationResponse("created")).build()
+      Response.ok(ConfirmationResponse("Created")).build()
     }
   }
 
@@ -92,26 +94,26 @@ class UserDictionaryResource {
     * the "key" attribute of the DeleteRequest
     * @param session HttpSession
     * @param req DeleteRequest
-    * @return Response, 200 ok - payload: "deleted",
-    * 401 unauthorized - payload: "invalid session",
-    * 400 bad request - payload: ErrorResponse("Unable to process JSON"),
+    * @return Response, 200 ok - payload: "Deleted",
+    * 401 unauthorized - payload: "Invalid session",
+    * 400 bad request - payload: ErrorResponse("Malformed JSON payload"),
     * 422 Unprocessable Entity - payload: "no such entry" (if no entry exists for provided key)
     */
   @DELETE
   def deleteValue(@Session session: HttpSession, req: DeleteRequest): Response = {
     val user = UserResource.getUser(session).orNull
     if (user == null)
-      Response.status(Response.Status.UNAUTHORIZED).entity(ErrorResponse("invalid session")).build()
-    else if (req == null) {
+      Response.status(Response.Status.UNAUTHORIZED).entity(ErrorResponse("Invalid session")).build()
+    else if (req == null || req.key == null) {
       Response
         .status(Response.Status.BAD_REQUEST)
-        .entity(ErrorResponse("Unable to process JSON"))
+        .entity(ErrorResponse("Malformed JSON payload"))
         .build()
     } else if (!dictEntryExists(user, req.key)) {
-      Response.status(422).entity(ErrorResponse("no such entry")).build()
+      Response.status(422).entity(ErrorResponse("No such entry")).build()
     } else {
       deleteDictEntry(user, req.key)
-      Response.ok(ConfirmationResponse("deleted")).build()
+      Response.ok(ConfirmationResponse("Deleted")).build()
     }
   }
 
@@ -180,13 +182,13 @@ abstract class UserDictionaryRequest {
 }
 
 case class GetRequest(
-    key: String,
-    requestType: Int // 0 - get entry, 1 - get dict
+    key: String, // optional/nullable for requestType = GetRequest.GET_DICT
+    requestType: Int // 1 - GET_ENTRY, 2 - GET_DICT, 0 - an error, (indicates requestType wasn't specified in JSON),
 ) extends UserDictionaryRequest
 
 object GetRequest {
-  val GET_ENTRY = 0
-  val GET_DICT = 1
+  val GET_ENTRY = 1
+  val GET_DICT = 2
 }
 
 case class PostRequest(
