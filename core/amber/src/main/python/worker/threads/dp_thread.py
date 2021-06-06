@@ -5,10 +5,10 @@ from typing import Iterable
 from loguru import logger
 
 from util.stoppable_queue_blocking_thread import StoppableQueueBlockingThread
-from .control_payload import ControlPayload
-from .data_tuple import DataTuple, ITuple
-from .link_identity import LinkIdentity
-from .udf_operator import UDFOperator
+from worker.control_payload import ControlPayload
+from worker.data_tuple import DataTuple, ITuple
+from worker.link_identity import LinkIdentity
+from worker.udf_operator import UDFOperator
 
 
 @dataclass

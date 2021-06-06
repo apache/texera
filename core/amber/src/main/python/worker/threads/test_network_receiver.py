@@ -3,7 +3,7 @@ from time import sleep
 
 import pytest
 
-from worker.network_receiver import NetworkReceiver
+from worker.threads.network_receiver import NetworkReceiver
 
 
 class TestNetworkReceiver:
