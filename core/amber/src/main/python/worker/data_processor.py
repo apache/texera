@@ -1,7 +1,5 @@
 from queue import Queue
 
-from loguru import logger
-
 from worker import DPThread
 from worker.network_receiver import NetworkReceiver
 from worker.network_sender import NetworkSender
@@ -10,8 +8,8 @@ from worker.udf_operator import UDFOperator
 
 
 class DataProcessor(StoppableThread):
-    def __init__(self, id: int, host: str, input_port: int, output_port: int, udf_operator: UDFOperator):
-        super().__init__(f"{self.__class__.__name__}-{id}")
+    def __init__(self, host: str, input_port: int, output_port: int, udf_operator: UDFOperator):
+        super().__init__(f"{self.__class__.__name__}")
 
         self._input_queue = Queue()
         self._output_queue = Queue()
@@ -30,11 +28,8 @@ class DataProcessor(StoppableThread):
         self._network_sender.join()
         self._network_receiver.join()
 
-    def on_receive(self, msg, ):
-        pass
-
     def stop(self):
-        logger.debug(f"{self.name}-stopping")
         self._dp_thread.stop()
         self._network_sender.stop()
         self._network_receiver.stop()
+        super().stop()
