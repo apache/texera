@@ -23,6 +23,7 @@ export class UserIconComponent {
     private modalService: NgbModal,
     private userService: UserService
   ) {
+
     this.userService.userChanged().subscribe(user => this.user = user);
   }
 

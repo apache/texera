@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.web.resource.auth
 
+import com.google.api.client.auth.oauth2.TokenResponseException
 import edu.uci.ics.texera.web.{SqlServer, WebUtils}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.GoogleUserDao
@@ -116,8 +117,8 @@ class UserResource {
       val tokenResponse = new GoogleAuthorizationCodeTokenV4Request(
         TRANSPORT,
         JSON_FACTORY,
-        CLIENT_ID,
-        CLIENT_SECRET,
+        GOOGLE_CLIENT_ID,
+        GOOGLE_CLIENT_SECRET,
         code,
         "postmessage"
       ).execute();
@@ -134,19 +135,30 @@ class UserResource {
       if (this.googleUserDao.fetchOneByUid(userId) == null) {
         val googleUser = new GoogleUser(userId, userName)
         this.googleUserDao.insert(googleUser)
-      } else if (this.googleUserDao.fetchOneByUid(userId).getName != userName) {
+      }
+      if (this.googleUserDao.fetchOneByUid(userId).getName != userName) {
         this.googleUserDao.fetchOneByUid(userId).setName(userName)
       }
 
-      // get access token and refresh token (used foe access Google API Service)
-      val access_token = tokenResponse.getAccessToken
-      val refresh_token = tokenResponse.getRefreshToken
+      // get access token and refresh token (used for accessing Google API Service)
+      // val access_token = tokenResponse.getAccessToken
+      // val refresh_token = tokenResponse.getRefreshToken
 
       // set session
       setGoogleUserSession(
         session,
         new GoogleUser(userId, userName)
       )
+    } catch {
+      case e: TokenResponseException =>
+        if (e.getDetails != null) {
+          e.getDetails.getError
+        } else if (e.getDetails.getErrorDescription != null) {
+          e.getDetails.getErrorDescription
+        } else {
+          e.getMessage
+        }
+        Response.status(Response.Status.UNAUTHORIZED).build()
     }
     Response.ok().build()
   }
