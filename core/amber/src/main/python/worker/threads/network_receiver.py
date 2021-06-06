@@ -1,15 +1,16 @@
 from queue import Queue
 
+from loguru import logger
 from pyarrow import Table
 
 from python_rpc import RPCServer
-from util.stoppable_queue_blocking_thread import StoppableQueueBlockingThread
+from util import StoppableThread
 from worker.threads.dp_thread import InputTuple
 
 
-class NetworkReceiver(StoppableQueueBlockingThread):
+class NetworkReceiver(StoppableThread):
     def __init__(self, shared_queue: Queue, host: str, port: int):
-        super().__init__(self.__class__.__name__, queue=shared_queue)
+        super().__init__(self.__class__.__name__)
         self._rpc_server = RPCServer(host=host, port=port)
 
         def handler(batch: Table):
@@ -21,6 +22,7 @@ class NetworkReceiver(StoppableQueueBlockingThread):
     def register_shutdown(self, shutdown: callable) -> None:
         self._rpc_server.register("shutdown", shutdown)
 
+    @logger.catch
     def run(self) -> None:
         self._rpc_server.serve()
 

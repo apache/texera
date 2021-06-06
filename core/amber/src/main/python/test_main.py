@@ -6,9 +6,9 @@ from pandas import DataFrame
 from pyarrow import Table
 
 from python_rpc import RPCClient, RPCServer
-from udf.udf_operator import UDFOperator
 from worker import DataTuple
 from worker.data_processor import DataProcessor
+from worker.udf.udf_operator import UDFOperator
 
 if __name__ == '__main__':
     class EchoOperator(UDFOperator):

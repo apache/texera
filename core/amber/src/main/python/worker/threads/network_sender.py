@@ -12,19 +12,15 @@ class NetworkSender(StoppableQueueBlockingThread):
     def __init__(self, shared_queue: Queue, host: str, port: int):
         super().__init__(self.__class__.__name__, queue=shared_queue)
         self._rpc_client = RPCClient(host=host, port=port)
-        self._output_queue = shared_queue
+        self._batch = list()
 
-    def run(self):
-        batch = list()
-        while self.running():
-            next_entry = self._output_queue.get()
-            if next_entry == StoppableQueueBlockingThread.THREAD_STOP:
-                break
+    def main_loop(self):
+        next_entry = self.interruptible_get()
+        self._batch.append(next_entry.tuple)
 
-            batch.append(next_entry.tuple)
-
-            if len(batch) >= 1:
-                self.send_batch(batch)
+        if len(self._batch) >= 1:
+            self.send_batch(self._batch)
+            self._batch.clear()
 
     def send_batch(self, batch: List[Series]):
         table = Table.from_pandas(DataFrame.from_records(batch))

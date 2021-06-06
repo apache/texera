@@ -1,10 +1,10 @@
 from queue import Queue
 
-from udf.udf_operator import UDFOperator
 from util.stoppable_thread import StoppableThread
 from worker import DPThread
 from worker.threads.network_receiver import NetworkReceiver
 from worker.threads.network_sender import NetworkSender
+from worker.udf.udf_operator import UDFOperator
 
 
 class DataProcessor(StoppableThread):
