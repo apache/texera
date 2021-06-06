@@ -3,13 +3,13 @@ from queue import Queue
 from pyarrow import Table
 
 from python_rpc import RPCServer
-from worker.data_processor import InputTuple
-from worker.stoppable_thread import StoppableThread
+from worker.dp_thread import InputTuple
+from worker.stoppable_queue_blocking_thread import StoppableQueueBlockingThread
 
 
-class NetworkReceiver(StoppableThread):
+class NetworkReceiver(StoppableQueueBlockingThread):
     def __init__(self, shared_queue: Queue, host: str, port: int):
-        super().__init__(self.__class__.__name__)
+        super().__init__(self.__class__.__name__, queue=shared_queue)
         self._rpc_server = RPCServer(host=host, port=port)
 
         def handler(batch: Table):
@@ -18,11 +18,13 @@ class NetworkReceiver(StoppableThread):
 
         self._rpc_server.register_data_handler(handler)
 
-        self._shared_queue = shared_queue
+    def register_shutdown(self, shutdown: callable) -> None:
+        self._rpc_server.register("shutdown", shutdown)
 
     def run(self) -> None:
         self._rpc_server.serve()
 
     def stop(self):
         self._rpc_server.shutdown()
+        self._rpc_server.wait()
         super(NetworkReceiver, self).stop()

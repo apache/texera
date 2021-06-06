@@ -1,21 +1,35 @@
 from queue import Queue
 from time import sleep
 
+import pytest
+
 from worker.network_receiver import NetworkReceiver
 from worker.network_sender import NetworkSender
 
 
 class TestNetworkSender:
+    @pytest.fixture
+    def network_receiver(self):
+        network_receiver = NetworkReceiver(Queue(), host="localhost", port=5555)
+        yield network_receiver
+        network_receiver.stop()
 
-    def test_network_sender_can_stop(self):
-        network_receiver_thread = NetworkReceiver(Queue(), host="localhost", port=5555)
-        network_receiver_thread.start()
+    @pytest.fixture
+    def network_sender(self):
+        network_sender = NetworkSender(Queue(), host="localhost", port=5555)
+        yield network_sender
+        network_sender.stop()
 
-        network_sender_thread = NetworkSender(Queue(), host="localhost", port=5555)
-        network_sender_thread.start()
-
-        sleep(1)
-        network_receiver_thread.stop()
-        network_sender_thread.stop()
-        network_receiver_thread.join()
-        network_sender_thread.join()
+    @pytest.mark.timeout(0.5)
+    def test_network_sender_can_stop(self, network_receiver, network_sender):
+        network_receiver.start()
+        network_sender.start()
+        assert network_receiver.is_alive()
+        assert network_sender.is_alive()
+        sleep(0.1)
+        network_receiver.stop()
+        network_sender.stop()
+        sleep(0.1)
+        assert not network_receiver.is_alive()
+        assert not network_sender.is_alive()
+        network_receiver.join()

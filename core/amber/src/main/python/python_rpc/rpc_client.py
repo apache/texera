@@ -39,7 +39,6 @@ class RPCClient(FlightClient):
                             client should not use it.
         :return:
         """
-
         try:
             writer, reader = self.do_put(FlightDescriptor.for_path(""), batch.schema)
             logger.debug("start writing")

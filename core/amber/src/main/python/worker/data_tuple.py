@@ -1,7 +1,18 @@
-from pandas import Series
+from abc import ABC
+from dataclasses import dataclass
 
 
-class DataTuple(Series):
+class ITuple(ABC):
+    pass
+
+
+@dataclass
+class DataTuple(ITuple):
     """
     Python representation of the Texera.Tuple, as a pandas.Series.
     """
+
+
+@dataclass
+class InputExhausted(ITuple):
+    pass
