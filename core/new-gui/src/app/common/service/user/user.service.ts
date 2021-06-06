@@ -51,8 +51,7 @@ export class UserService {
   /**
    * This method will handle the request for Google login.
    * It will automatically login, save the user account inside and trigger userChangeEvent when success
-   * @param userName
-   * @param password
+   * @param string
    */
   public googleLogin(authoCode: string): Observable<Response>{
     if (this.currentUser) {

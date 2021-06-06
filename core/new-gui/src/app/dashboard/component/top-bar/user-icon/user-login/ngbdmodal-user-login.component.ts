@@ -22,7 +22,6 @@ export class NgbdModalUserLoginComponent implements OnInit {
   public allForms: FormGroup;
   public oauthInstance!: gapi.auth2.GoogleAuth;
   public user!: gapi.auth2.GoogleUser;
-  public authCode!: string ;
   public gapiSetUp: boolean = false;
   public userName!: string | undefined;
   public error!: string;
@@ -114,7 +113,9 @@ export class NgbdModalUserLoginComponent implements OnInit {
     const gapiLoad = new Promise((resolve) => {
       gapi.load('auth2', resolve);
     });
-    // call gapi.auth2 init
+    // gapi is loaded when the first promise resolves
+    // mark gapi library as been loaded 
+    // then we can call gapi.auth2 init
     return gapiLoad.then(async () => {
       await gapi.auth2
         .init({ client_id: environment.google.clientID })
@@ -129,6 +130,7 @@ export class NgbdModalUserLoginComponent implements OnInit {
    * this method will return the authorization code
    */
   public async authenticate(): Promise<void> {
+    var authCode!: string
     // initialize gapi if not done yet
     if (!this.gapiSetUp) {
       await this.initGoogleOauth();
@@ -137,14 +139,16 @@ export class NgbdModalUserLoginComponent implements OnInit {
       user => this.user = user,
       error => this.error = error
     )
+    // allows application to access specified scopes offline
+    // no scopes specified here
     await this.oauthInstance.grantOfflineAccess().then(
-      code => this.authCode = code['code']
+      code => authCode = code['code']
     )
 
     // set the user name
     this.userName = this.user?.getBasicProfile().getName()
 
-    this.userService.googleLogin(this.authCode).subscribe(
+    this.userService.googleLogin(authCode).subscribe(
       () => {
         this.userService.changeUser(<User>{name: this.userName});
         this.activeModal.close();
