@@ -20,7 +20,7 @@ if __name__ == '__main__':
     server = RPCServer(port=5006)
     server.register_data_handler(lambda x: print(x.to_pandas()))
     with server:
-        data_processor = DataProcessor(id=1, host="localhost", input_port=5005, output_port=5006, udf_operator=EchoOperator())
+        data_processor = DataProcessor(host="localhost", input_port=5005, output_port=5006, udf_operator=EchoOperator())
 
         data_processor.start()
 

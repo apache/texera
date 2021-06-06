@@ -5,7 +5,7 @@ from pandas import Series, DataFrame
 from pyarrow import Table
 
 from python_rpc import RPCClient
-from worker.stoppable_queue_blocking_thread import StoppableQueueBlockingThread
+from util.stoppable_queue_blocking_thread import StoppableQueueBlockingThread
 
 
 class NetworkSender(StoppableQueueBlockingThread):

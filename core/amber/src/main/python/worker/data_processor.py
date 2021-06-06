@@ -1,9 +1,9 @@
 from queue import Queue
 
+from util.stoppable_thread import StoppableThread
 from worker import DPThread
 from worker.network_receiver import NetworkReceiver
 from worker.network_sender import NetworkSender
-from worker.stoppable_thread import StoppableThread
 from worker.udf_operator import UDFOperator
 
 

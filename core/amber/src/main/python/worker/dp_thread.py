@@ -4,10 +4,10 @@ from typing import Iterable
 
 from loguru import logger
 
+from util.stoppable_queue_blocking_thread import StoppableQueueBlockingThread
 from .control_payload import ControlPayload
 from .data_tuple import DataTuple, ITuple
 from .link_identity import LinkIdentity
-from .stoppable_queue_blocking_thread import StoppableQueueBlockingThread
 from .udf_operator import UDFOperator
 
 

@@ -3,8 +3,8 @@ from queue import Queue
 from pyarrow import Table
 
 from python_rpc import RPCServer
+from util.stoppable_queue_blocking_thread import StoppableQueueBlockingThread
 from worker.dp_thread import InputTuple
-from worker.stoppable_queue_blocking_thread import StoppableQueueBlockingThread
 
 
 class NetworkReceiver(StoppableQueueBlockingThread):
