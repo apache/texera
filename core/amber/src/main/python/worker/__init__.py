@@ -1,3 +1,2 @@
-from .control_payload import ControlPayload
-from .data_tuple import DataTuple
+from worker.models.tuple import DataTuple
 from .threads.dp_thread import DPThread

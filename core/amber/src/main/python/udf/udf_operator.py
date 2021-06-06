@@ -1,8 +1,8 @@
 from abc import ABC
 from typing import Union, Iterable
 
-from .data_tuple import DataTuple, InputExhausted, ITuple
-from .link_identity import LinkIdentity
+from worker.models.link_identity import LinkIdentity
+from worker.models.tuple import DataTuple, InputExhausted, ITuple
 
 
 class UDFOperator(ABC):

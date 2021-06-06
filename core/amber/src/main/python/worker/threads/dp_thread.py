@@ -4,11 +4,11 @@ from typing import Iterable
 
 from loguru import logger
 
+from udf.udf_operator import UDFOperator
 from util.stoppable_queue_blocking_thread import StoppableQueueBlockingThread
-from worker.control_payload import ControlPayload
-from worker.data_tuple import DataTuple, ITuple
-from worker.link_identity import LinkIdentity
-from worker.udf_operator import UDFOperator
+from worker.models.control_payload import ControlPayload
+from worker.models.link_identity import LinkIdentity
+from worker.models.tuple import DataTuple, ITuple
 
 
 @dataclass
