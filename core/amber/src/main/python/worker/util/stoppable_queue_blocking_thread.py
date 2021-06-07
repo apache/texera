@@ -2,7 +2,7 @@ from queue import Queue
 
 from loguru import logger
 
-from util.stoppable_thread import StoppableThread
+from worker.util.stoppable_thread import StoppableThread
 
 
 class StoppableQueueBlockingThread(StoppableThread):

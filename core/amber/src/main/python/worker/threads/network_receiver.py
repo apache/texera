@@ -4,8 +4,8 @@ from loguru import logger
 from pyarrow import Table
 
 from python_rpc import RPCServer
-from util import StoppableThread
 from worker.threads.dp_thread import InputTuple
+from worker.util import StoppableThread
 
 
 class NetworkReceiver(StoppableThread):
