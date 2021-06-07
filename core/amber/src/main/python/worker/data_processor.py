@@ -1,6 +1,5 @@
-from queue import Queue
-
 from worker import DPThread
+from worker.models.internal_queue import InternalQueue
 from worker.threads.network_receiver import NetworkReceiver
 from worker.threads.network_sender import NetworkSender
 from worker.udf.udf_operator import UDFOperator
@@ -11,8 +10,8 @@ class DataProcessor(StoppableThread):
     def __init__(self, host: str, input_port: int, output_port: int, udf_operator: UDFOperator):
         super().__init__(f"{self.__class__.__name__}")
 
-        self._input_queue = Queue()
-        self._output_queue = Queue()
+        self._input_queue = InternalQueue()
+        self._output_queue = InternalQueue()
         self._network_receiver = NetworkReceiver(self._input_queue, host=host, port=input_port)
         self._network_sender = NetworkSender(self._output_queue, host=host, port=output_port)
 

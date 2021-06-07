@@ -3,6 +3,7 @@ from time import sleep
 
 import pytest
 
+from worker.models.internal_queue import InternalQueue
 from worker.threads.network_receiver import NetworkReceiver
 from worker.threads.network_sender import NetworkSender
 
@@ -16,7 +17,7 @@ class TestNetworkSender:
 
     @pytest.fixture
     def network_sender(self):
-        network_sender = NetworkSender(Queue(), host="localhost", port=5555)
+        network_sender = NetworkSender(InternalQueue(), host="localhost", port=5555)
         yield network_sender
         network_sender.stop()
 

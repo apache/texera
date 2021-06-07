@@ -1,15 +1,14 @@
-from queue import Queue
-
 from loguru import logger
 from pyarrow import Table
 
 from python_rpc import RPCServer
+from worker.models.internal_queue import InternalQueue
 from worker.threads.dp_thread import InputTuple
 from worker.util import StoppableThread
 
 
 class NetworkReceiver(StoppableThread):
-    def __init__(self, shared_queue: Queue, host: str, port: int):
+    def __init__(self, shared_queue: InternalQueue, host: str, port: int):
         super().__init__(self.__class__.__name__)
         self._rpc_server = RPCServer(host=host, port=port)
 

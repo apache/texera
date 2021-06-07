@@ -1,15 +1,15 @@
-from queue import Queue
 from typing import List
 
 from pandas import Series, DataFrame
 from pyarrow import Table
 
 from python_rpc import RPCClient
+from worker.models.internal_queue import InternalQueue
 from worker.util.stoppable_queue_blocking_thread import StoppableQueueBlockingThread
 
 
 class NetworkSender(StoppableQueueBlockingThread):
-    def __init__(self, shared_queue: Queue, host: str, port: int):
+    def __init__(self, shared_queue: InternalQueue, host: str, port: int):
         super().__init__(self.__class__.__name__, queue=shared_queue)
         self._rpc_client = RPCClient(host=host, port=port)
         self._batch = list()
