@@ -1,46 +1,15 @@
 import typing
-from dataclasses import dataclass
 from queue import Queue
 from typing import Iterable, Union
 
 from loguru import logger
 
-from util.stoppable_queue_blocking_thread import StoppableQueueBlockingThread
 from worker.models.control_payload import ControlPayload
 from worker.models.identity import LinkIdentity, VirtualIdentity
+from worker.models.internal_queue import InputTuple, SenderChangeMarker, EndMarker, EndOfAllMarker, ControlElement
 from worker.models.tuple import ITuple, InputExhausted, DataTuple
 from worker.udf.udf_operator import UDFOperator
-
-
-@dataclass
-class InternalQueueElement:
-    pass
-
-
-@dataclass
-class InputTuple(InternalQueueElement):
-    tuple: ITuple
-
-
-@dataclass
-class ControlElement(InternalQueueElement):
-    cmd: ControlPayload
-    from_: VirtualIdentity
-
-
-@dataclass
-class SenderChangeMarker(InternalQueueElement):
-    link: LinkIdentity
-
-
-@dataclass
-class EndMarker(InternalQueueElement):
-    pass
-
-
-@dataclass
-class EndOfAllMarker(InternalQueueElement):
-    pass
+from worker.util.stoppable_queue_blocking_thread import StoppableQueueBlockingThread
 
 
 class DPThread(StoppableQueueBlockingThread):
