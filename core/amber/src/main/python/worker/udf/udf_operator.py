@@ -2,7 +2,7 @@ from abc import ABC
 from typing import Union, Iterable
 
 from worker.models.identity import LinkIdentity
-from worker.models.tuple import Tuple, InputExhausted, ITuple
+from worker.models.tuple import Tuple, InputExhausted
 
 
 class UDFOperator(ABC):
@@ -11,14 +11,10 @@ class UDFOperator(ABC):
     before using.
     """
 
-    def __init__(self):
-        pass
-
     def open(self, *args, **kwargs) -> None:
         pass
 
-    def process_texera_tuple(self, tuple: Union[Tuple, InputExhausted],
-                             input: LinkIdentity) -> Iterable[ITuple]:
+    def process_texera_tuple(self, tuple_: Union[Tuple, InputExhausted], input_: LinkIdentity) -> Iterable[Tuple]:
         pass
 
     def close(self) -> None:

@@ -16,10 +16,10 @@ class TestDpTread:
     @pytest.fixture
     def mock_udf(self):
         class EchoOperator(UDFOperator):
-            def process_texera_tuple(self, row: Union[Tuple, InputExhausted], nth_child: int = 0) -> Iterable[Tuple]:
-                if isinstance(row, InputExhausted):
+            def process_texera_tuple(self, tuple_: Union[Tuple, InputExhausted], nth_child: int = 0) -> Iterable[Tuple]:
+                if isinstance(tuple_, InputExhausted):
                     return []
-                return [row]
+                return [tuple_]
 
         return EchoOperator()
 
