@@ -1,2 +1,0 @@
-class LinkIdentity:
-    pass

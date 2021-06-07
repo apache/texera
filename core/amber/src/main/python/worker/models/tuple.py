@@ -14,5 +14,5 @@ class DataTuple(ITuple):
 
 
 @dataclass
-class InputExhausted(ITuple):
+class InputExhausted:
     pass

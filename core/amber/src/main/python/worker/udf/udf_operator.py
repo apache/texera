@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import Union, Iterable
 
-from worker.models.link_identity import LinkIdentity
+from worker.models.identity import LinkIdentity
 from worker.models.tuple import DataTuple, InputExhausted, ITuple
 
 
