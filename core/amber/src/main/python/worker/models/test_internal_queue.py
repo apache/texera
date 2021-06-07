@@ -1,6 +1,6 @@
 import pytest
 
-from worker import DataTuple
+from worker import Tuple
 from worker.models.control_payload import ControlPayload
 from worker.models.identity import VirtualIdentity, LinkIdentity
 from worker.models.internal_queue import InternalQueue, InputTuple, ControlElement, SenderChangeMarker, EndMarker, EndOfAllMarker
@@ -18,10 +18,10 @@ class TestInternalQueue:
             internal_queue.put(1)
 
         with pytest.raises(TypeError):
-            internal_queue.put(PrioritizedItem((1, 1), InputTuple(DataTuple())))
+            internal_queue.put(PrioritizedItem((1, 1), InputTuple(Tuple())))
 
         with pytest.raises(TypeError):
-            internal_queue.put(DataTuple())
+            internal_queue.put(Tuple())
 
         with pytest.raises(TypeError):
             internal_queue.put(None)
@@ -30,14 +30,14 @@ class TestInternalQueue:
             internal_queue.put(InputExhausted())
 
     def test_internal_queue_can_put_internal_queue_element(self, internal_queue):
-        internal_queue.put(InputTuple(DataTuple()))
+        internal_queue.put(InputTuple(Tuple()))
         internal_queue.put(ControlElement(ControlPayload(), VirtualIdentity()))
         internal_queue.put(SenderChangeMarker(LinkIdentity()))
         internal_queue.put(EndMarker())
         internal_queue.put(EndOfAllMarker())
 
     def test_internal_queue_should_emit_control_first(self, internal_queue):
-        elements = [InputTuple(DataTuple()), SenderChangeMarker(LinkIdentity()),
+        elements = [InputTuple(Tuple()), SenderChangeMarker(LinkIdentity()),
                     EndMarker(), EndOfAllMarker()]
         for element in elements:
             internal_queue.put(element)
@@ -49,7 +49,7 @@ class TestInternalQueue:
         assert internal_queue.get() == control
 
     def test_internal_queue_should_emit_stable_result(self, internal_queue):
-        elements1 = [InputTuple(DataTuple()), SenderChangeMarker(LinkIdentity()),
+        elements1 = [InputTuple(Tuple()), SenderChangeMarker(LinkIdentity()),
                      EndMarker(), EndOfAllMarker()]
         for element in elements1:
             internal_queue.put(element)
@@ -58,9 +58,9 @@ class TestInternalQueue:
         control1 = ControlElement(ControlPayload(), VirtualIdentity())
         internal_queue.put(control1)
 
-        elements2 = [EndOfAllMarker(), InputTuple(DataTuple()), InputTuple(DataTuple()),
-                     InputTuple(DataTuple()), EndMarker(), InputTuple(DataTuple()),
-                     InputTuple(DataTuple()), SenderChangeMarker(LinkIdentity())]
+        elements2 = [EndOfAllMarker(), InputTuple(Tuple()), InputTuple(Tuple()),
+                     InputTuple(Tuple()), EndMarker(), InputTuple(Tuple()),
+                     InputTuple(Tuple()), SenderChangeMarker(LinkIdentity())]
         for element in elements2:
             internal_queue.put(element)
 

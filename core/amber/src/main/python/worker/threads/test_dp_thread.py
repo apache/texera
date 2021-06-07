@@ -4,7 +4,7 @@ from typing import Iterable, Union
 
 import pytest
 
-from worker import DPThread, DataTuple
+from worker import DPThread, Tuple
 from worker.models.identity import LinkIdentity
 from worker.models.internal_queue import InputTuple, SenderChangeMarker, EndMarker, EndOfAllMarker
 from worker.models.tuple import InputExhausted
@@ -16,7 +16,7 @@ class TestDpTread:
     @pytest.fixture
     def mock_udf(self):
         class EchoOperator(UDFOperator):
-            def process_texera_tuple(self, row: Union[DataTuple, InputExhausted], nth_child: int = 0) -> Iterable[DataTuple]:
+            def process_texera_tuple(self, row: Union[Tuple, InputExhausted], nth_child: int = 0) -> Iterable[Tuple]:
                 if isinstance(row, InputExhausted):
                     return []
                 return [row]
@@ -42,7 +42,7 @@ class TestDpTread:
         current_output_queue_size = output_queue.qsize()
         current_output_tuple_count = dp_thread.output_tuple_count
         for i in range(1, n + 1):
-            input_queue.put(InputTuple(DataTuple()))
+            input_queue.put(InputTuple(Tuple()))
             sleep(0.02)
             assert dp_thread._current_input_link == link
             assert input_queue.qsize() == 0

@@ -7,7 +7,7 @@ class ITuple(ABC):
 
 
 @dataclass
-class DataTuple(ITuple):
+class Tuple(ITuple):
     """
     Python representation of the Texera.Tuple, as a pandas.Series.
     """

@@ -6,13 +6,13 @@ from pandas import DataFrame
 from pyarrow import Table
 
 from python_rpc import RPCClient, RPCServer
-from worker import DataTuple
+from worker import Tuple
 from worker.data_processor import DataProcessor
 from worker.udf.udf_operator import UDFOperator
 
 if __name__ == '__main__':
     class EchoOperator(UDFOperator):
-        def process_texera_tuple(self, row: DataTuple, nth_child: int = 0) -> Iterable[DataTuple]:
+        def process_texera_tuple(self, row: Tuple, nth_child: int = 0) -> Iterable[Tuple]:
             logger.debug("processing one row")
             return [row]
 

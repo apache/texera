@@ -7,7 +7,7 @@ from loguru import logger
 from worker.models.control_payload import ControlPayload
 from worker.models.identity import LinkIdentity, VirtualIdentity
 from worker.models.internal_queue import InputTuple, ControlElement, SenderChangeMarker, EndMarker, EndOfAllMarker
-from worker.models.tuple import ITuple, InputExhausted, DataTuple
+from worker.models.tuple import ITuple, InputExhausted, Tuple
 from worker.udf.udf_operator import UDFOperator
 from worker.util.stoppable_queue_blocking_thread import StoppableQueueBlockingThread
 
@@ -69,5 +69,5 @@ class DPThread(StoppableQueueBlockingThread):
         self._output_queue.put(InputTuple(tuple_))
 
     def process_tuple(self, tuple_: Union[ITuple, InputExhausted], link: LinkIdentity) -> Iterable[ITuple]:
-        typing.cast(tuple_, Union[DataTuple, InputExhausted])
+        typing.cast(tuple_, Union[Tuple, InputExhausted])
         return self._udf_operator.process_texera_tuple(tuple_, link)
