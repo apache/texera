@@ -2,8 +2,7 @@ from loguru import logger
 from pyarrow import Table
 
 from python_rpc import RPCServer
-from worker.models.internal_queue import InternalQueue
-from worker.threads.dp_thread import InputTuple
+from worker.models.internal_queue import InternalQueue, InputTuple
 from worker.util import StoppableThread
 
 

@@ -3,9 +3,9 @@ import pytest
 from worker import DataTuple
 from worker.models.control_payload import ControlPayload
 from worker.models.identity import VirtualIdentity, LinkIdentity
-from worker.models.internal_queue import InternalQueue, EndMarker, InputTuple, ControlElement, EndOfAllMarker, SenderChangeMarker, \
-    PrioritizedItem
+from worker.models.internal_queue import InternalQueue, InputTuple, ControlElement, SenderChangeMarker, EndMarker, EndOfAllMarker
 from worker.models.tuple import InputExhausted
+from worker.util.stable_priority_queue import PrioritizedItem
 
 
 class TestInternalQueue:

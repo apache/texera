@@ -2,6 +2,7 @@ from queue import Queue
 
 from loguru import logger
 
+from worker.util.stable_priority_queue import QueueControl
 from worker.util.stoppable_thread import StoppableThread
 
 
@@ -30,7 +31,7 @@ class StoppableQueueBlockingThread(StoppableThread):
     consumed, it should break the Thread.run().
 
     """
-    THREAD_STOP = "__THREAD__STOP__MARKER__"
+    THREAD_STOP = QueueControl(msg="__THREAD__STOP__MARKER__")
 
     def __init__(self, name: str, queue: Queue):
         super().__init__(name=name)

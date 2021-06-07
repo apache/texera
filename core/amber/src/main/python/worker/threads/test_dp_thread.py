@@ -6,8 +6,8 @@ import pytest
 
 from worker import DPThread, DataTuple
 from worker.models.identity import LinkIdentity
+from worker.models.internal_queue import InputTuple, SenderChangeMarker, EndMarker, EndOfAllMarker
 from worker.models.tuple import InputExhausted
-from worker.threads.dp_thread import SenderChangeMarker, InputTuple, EndMarker, EndOfAllMarker
 from worker.udf import UDFOperator
 
 

@@ -6,7 +6,7 @@ from loguru import logger
 
 from worker.models.control_payload import ControlPayload
 from worker.models.identity import LinkIdentity, VirtualIdentity
-from worker.models.internal_queue import InputTuple, SenderChangeMarker, EndMarker, EndOfAllMarker, ControlElement
+from worker.models.internal_queue import InputTuple, ControlElement, SenderChangeMarker, EndMarker, EndOfAllMarker
 from worker.models.tuple import ITuple, InputExhausted, DataTuple
 from worker.udf.udf_operator import UDFOperator
 from worker.util.stoppable_queue_blocking_thread import StoppableQueueBlockingThread
