@@ -3,13 +3,15 @@ import logging
 import gensim
 import gensim.corpora as corpora
 import pandas
+from pyLDAvis import prepared_data_to_html
+from pyLDAvis.gensim_models import prepare
 from loguru import logger
 
 from operators.texera_blocking_unsupervised_trainer_operator import TexeraBlockingUnsupervisedTrainerOperator
 
 # to change library's logger setting
 logging.getLogger("gensim").setLevel(logging.ERROR)
-
+logging.getLogger("pyLDAvis").setLevel(logging.ERROR)
 
 class TopicModelingTrainer(TexeraBlockingUnsupervisedTrainerOperator):
 
@@ -52,12 +54,13 @@ class TopicModelingTrainer(TexeraBlockingUnsupervisedTrainerOperator):
                                                     alpha='auto',
                                                     per_word_topics=True)
 
-        return lda_model
+        pyldaVis_prepared_model = prepare(lda_model, corpus, id2word, n_jobs=1)
+        return pyldaVis_prepared_model
 
     def report(self, model):
         logger.debug(f"reporting trained results")
-        for id, topic in model.print_topics(num_topics=self._train_args["num_topics"]):
-            self._result_tuples.append(pandas.Series({"output": topic}))
+        html_output = prepared_data_to_html(model)
+        self._result_tuples.append(pandas.Series({"output": html_output}))
 
 
 operator_instance = TopicModelingTrainer()
