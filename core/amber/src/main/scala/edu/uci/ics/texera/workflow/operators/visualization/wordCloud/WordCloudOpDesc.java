@@ -64,7 +64,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
     public Schema getOutputSchema(Schema[] schemas) {
         return Schema.newBuilder().add(
                 new Attribute("word", AttributeType.STRING),
-                new Attribute("size", AttributeType.INTEGER)
+                new Attribute("count", AttributeType.INTEGER)
         ).build();
     }
 }
