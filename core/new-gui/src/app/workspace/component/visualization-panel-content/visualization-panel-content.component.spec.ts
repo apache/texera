@@ -54,7 +54,7 @@ describe('VisualizationPanelContentComponent', () => {
     spyOn(workflowStatusService, 'getCurrentResult').and.returnValue(testData);
 
     component.operatorID = 'operator1';
-    component.ngAfterViewInit();
+    component.ngAfterContentInit();
 
     expect(component.generateChart).toHaveBeenCalled();
   });
@@ -70,7 +70,7 @@ describe('VisualizationPanelContentComponent', () => {
     spyOn(workflowStatusService, 'getCurrentResult').and.returnValue(testData);
 
     component.operatorID = 'operator1';
-    component.ngAfterViewInit();
+    component.ngAfterContentInit();
 
     expect(component.generateWordCloud).toHaveBeenCalled();
   });
@@ -87,7 +87,7 @@ describe('VisualizationPanelContentComponent', () => {
     spyOn(workflowStatusService, 'getCurrentResult').and.returnValue(testData);
 
     component.operatorID = 'operator1';
-    component.ngAfterViewInit();
+    component.ngAfterContentInit();
 
     expect(component.generateSpatialScatterplot).toHaveBeenCalled();
   });
@@ -104,9 +104,25 @@ describe('VisualizationPanelContentComponent', () => {
     spyOn(workflowStatusService, 'getCurrentResult').and.returnValue(testData);
 
     component.operatorID = 'operator1';
-    component.ngAfterViewInit();
+    component.ngAfterContentInit();
 
     expect(component.generateSimpleScatterplot).toHaveBeenCalled();
+  });
+
+  it('should draw a sample html', () => {
+    const testData: Record<string, ResultObject> = {
+      'operator1': {
+        operatorID: 'operator1', chartType: ChartType.HTML_VIZ,
+        table: [{'HTML-content': '<div>sample</div>'}], totalRowCount: 1
+      }
+    };
+    spyOn(component, 'generateHTML');
+    spyOn(workflowStatusService, 'getCurrentResult').and.returnValue(testData);
+
+    component.operatorID = 'operator1';
+    component.ngAfterContentInit();
+
+    expect(component.generateHTML).toHaveBeenCalled();
   });
 
 });

@@ -25,6 +25,9 @@ import { NzMenuModule } from 'ng-zorro-antd/menu';
 import { NzModalModule } from 'ng-zorro-antd/modal';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
+import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzSliderModule } from 'ng-zorro-antd/slider';
+import { NzSpaceModule } from 'ng-zorro-antd/space';
 import { NzBadgeModule } from 'ng-zorro-antd/badge';
 import { FileUploadModule } from 'ng2-file-upload';
 import { NgxAceModule } from 'ngx-ace-icy';
@@ -64,7 +67,7 @@ import { UserIconComponent } from './dashboard/component/top-bar/user-icon/user-
 import { NgbdModalUserLoginComponent } from './dashboard/component/top-bar/user-icon/user-login/ngbdmodal-user-login.component';
 import { CodeEditorDialogComponent } from './workspace/component/code-editor-dialog/code-editor-dialog.component';
 import { CodeareaCustomTemplateComponent } from './workspace/component/codearea-custom-template/codearea-custom-template.component';
-import { MiniMapComponent } from './workspace/component/mini-map/mini-map.component';
+import { MiniMapComponent } from './workspace/component/workflow-editor/mini-map/mini-map.component';
 import { NavigationComponent } from './workspace/component/navigation/navigation.component';
 import { OperatorLabelComponent } from './workspace/component/operator-panel/operator-label/operator-label.component';
 import { OperatorPanelComponent } from './workspace/component/operator-panel/operator-panel.component';
@@ -158,6 +161,9 @@ registerLocaleData(en);
     NzToolTipModule,
     NzTableModule,
     NzModalModule,
+    NzSelectModule,
+    NzSliderModule,
+    NzSpaceModule,
     NzBadgeModule,
     NgxAceModule,
     MatDialogModule

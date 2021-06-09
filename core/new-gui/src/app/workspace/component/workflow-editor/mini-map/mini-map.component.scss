@@ -1,0 +1,19 @@
+
+
+.texera-mini-map-square-container {
+  position: relative; // component-body's position: absolute requires this to be the first positioned ancestor element
+  pointer-events: none;
+}
+
+.texera-mini-map-navigator {
+  border: 1px solid #797A79;
+  position: absolute;
+  pointer-events: all;
+  cursor: move;
+  z-index: 1001;
+}
+
+.texera-mini-map-button-shown {
+  position: absolute;
+  bottom: 0px;
+}

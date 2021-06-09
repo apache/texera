@@ -277,19 +277,6 @@ export class WorkflowActionService {
   }
 
   /**
-   * Let the JointGraph model be attached to the joint paper (paperOptions will be passed to Joint Paper constructor).
-   *
-   * We don't want to expose JointModel as a public variable, so instead we let JointPaper to pass the constructor options,
-   *  and JointModel can be still attached to it without being publicly accessible by other modules.
-   *
-   * @param paperOptions JointJS paper options
-   */
-  public attachJointPaper(paperOptions: joint.dia.Paper.Options): joint.dia.Paper.Options {
-    paperOptions.model = this.jointGraph;
-    return paperOptions;
-  }
-
-  /**
    * Adds an operator to the workflow graph at a point.
    * Throws an Error if the operator ID already existed in the Workflow Graph.
    *

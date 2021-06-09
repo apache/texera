@@ -1,15 +1,13 @@
 import ast
-import json
-import logging
 import threading
-import traceback
+from time import sleep
 from typing import Dict
 
 import pandas
 import pyarrow
+from loguru import logger
+from pyarrow import py_buffer
 from pyarrow.flight import FlightDescriptor, Action, FlightServerBase, Result, FlightInfo, Location, FlightEndpoint, RecordBatchStream
-
-logger = logging.getLogger(__name__)
 
 
 class UDFServer(FlightServerBase):
@@ -101,49 +99,19 @@ class UDFServer(FlightServerBase):
         """
         logger.debug(f"Flight Server on Action {action.type}")
         if action.type == "health_check":
-            # to check the status of the server to see if it is running.
-            yield self._response('Flight Server is up and running!')
+            # do nothing but a heart beat
+            pass
         elif action.type == "open":
+            self._udf_open()
 
-            # set up user configurations
-            user_conf_table = self.flights[self._descriptor_to_key(self._to_descriptor('conf'))]
-            self._configure(*user_conf_table.to_pydict()['conf'])
-
-            # open UDF
-            user_args_table = self.flights[self._descriptor_to_key(self._to_descriptor('args'))]
-            self.udf_op.open(*user_args_table.to_pydict()['args'])
-
-            yield self._response('Success!')
         elif action.type == "compute":
-            # execute UDF
-            # prepare input data
-
-            try:
-                input_dataframe: pandas.DataFrame = self._get_flight("toPython")
-
-                # execute and output data
-                for index, row in input_dataframe.iterrows():
-                    self.udf_op.accept(row)
-
-                self._output_data()
-                result_buffer = json.dumps({'status': 'Success'})
-            except:
-                result_buffer = json.dumps({'status': 'Fail', 'errorMessage': traceback.format_exc()})
-
-            # discard this batch of input
-            self._remove_flight("toPython")
-
-            yield self._response(result_buffer)
+            self._udf_compute()
 
         elif action.type == "input_exhausted":
-            self.udf_op.input_exhausted()
-            self._output_data()
-            yield self._response('Success!')
+            self._udf_input_exhausted()
 
         elif action.type == "close":
-            # close UDF
-            self.udf_op.close()
-            yield self._response('Success!')
+            self._udf_close()
 
         elif action.type == "terminate":
             # Shut down on background thread to avoid blocking current request
@@ -152,9 +120,19 @@ class UDFServer(FlightServerBase):
 
         else:
             raise ValueError("Unknown action {!r}".format(action.type))
+        yield self._response('success')
 
     def _delayed_shutdown(self):
-        """Shut down after a delay."""
+        """
+        Shut down after a delay.
+
+        This is used to allow client to send a terminate command to server. The server would
+        start a shutdown thread, with a short delay, during which allows the client to close the connection.
+
+        The short delay is set to be 100 ms, though it does not matter since it is on another thread.
+
+        """
+        sleep(0.1)
         logger.debug("Bye bye!")
         self.shutdown()
         self.wait()
@@ -185,7 +163,7 @@ class UDFServer(FlightServerBase):
 
     @staticmethod
     def _response(message: str):
-        return Result(pyarrow.py_buffer(message.encode()))
+        return Result(py_buffer(message.encode()))
 
     @staticmethod
     def _to_descriptor(channel: str) -> FlightDescriptor:
@@ -194,3 +172,36 @@ class UDFServer(FlightServerBase):
     def _configure(self, *args):
         # TODO: add server related configurations here
         pass
+
+    @logger.catch(reraise=True)
+    def _udf_compute(self):
+        # execute UDF
+        # prepare input data
+        input_dataframe: pandas.DataFrame = self._get_flight("toPython")
+
+        # execute and output data
+        for index, row in input_dataframe.iterrows():
+            self.udf_op.accept(row)
+
+        self._output_data()
+        # discard this batch of input
+        self._remove_flight("toPython")
+
+    @logger.catch(reraise=True)
+    def _udf_open(self):
+        # set up user configurations
+        user_conf_table = self.flights[self._descriptor_to_key(self._to_descriptor('conf'))]
+        self._configure(*user_conf_table.to_pydict()['conf'])
+
+        # open UDF
+        user_args_table = self.flights[self._descriptor_to_key(self._to_descriptor('args'))]
+        self.udf_op.open(*user_args_table.to_pydict()['args'])
+
+    @logger.catch(reraise=True)
+    def _udf_input_exhausted(self):
+        self.udf_op.input_exhausted()
+        self._output_data()
+
+    @logger.catch(reraise=True)
+    def _udf_close(self):
+        self.udf_op.close()

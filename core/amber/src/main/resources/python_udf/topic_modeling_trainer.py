@@ -1,14 +1,20 @@
+import logging
+
 import gensim
 import gensim.corpora as corpora
 import pandas
+from pyLDAvis import prepared_data_to_html
+from pyLDAvis.gensim_models import prepare
+from loguru import logger
 
 from operators.texera_blocking_unsupervised_trainer_operator import TexeraBlockingUnsupervisedTrainerOperator
-from operators.texera_udf_operator_base import log_exception
 
+# to change library's logger setting
+logging.getLogger("gensim").setLevel(logging.ERROR)
+logging.getLogger("pyLDAvis").setLevel(logging.ERROR)
 
 class TopicModelingTrainer(TexeraBlockingUnsupervisedTrainerOperator):
 
-    @log_exception
     def open(self, *args):
         super(TopicModelingTrainer, self).open(*args)
 
@@ -16,20 +22,18 @@ class TopicModelingTrainer(TexeraBlockingUnsupervisedTrainerOperator):
         if len(args) >= 2:
             self._train_args = {"num_topics": int(args[1])}
         else:
-            self._train_args = {"num_topics": 5}
+            raise RuntimeError("Not enough arguments in topic modeling operator.")
 
-        self.__logger.debug(f"getting args {args}")
-        self.__logger.debug(f"parsed training args {self._train_args}")
+        logger.debug(f"getting args {args}")
+        logger.debug(f"parsed training args {self._train_args}")
 
-    @log_exception
     def accept(self, row: pandas.Series, nth_child: int = 0) -> None:
         # override accept to accept rows as lists
         self._data.append(row[0].strip().split())
 
     @staticmethod
-    @log_exception
     def train(data, *args, **kwargs):
-        TopicModelingTrainer.__logger.debug(f"start training, args:{args}, kwargs:{kwargs}")
+        logger.debug(f"start training, args:{args}, kwargs:{kwargs}")
 
         # Create Dictionary
         id2word = corpora.Dictionary(data)
@@ -50,13 +54,13 @@ class TopicModelingTrainer(TexeraBlockingUnsupervisedTrainerOperator):
                                                     alpha='auto',
                                                     per_word_topics=True)
 
-        return lda_model
+        pyldaVis_prepared_model = prepare(lda_model, corpus, id2word, n_jobs=1)
+        return pyldaVis_prepared_model
 
-    @log_exception
     def report(self, model):
-        self.__logger.debug(f"reporting trained results")
-        for id, topic in model.print_topics(num_topics=self._train_args["num_topics"]):
-            self._result_tuples.append(pandas.Series({"output": topic}))
+        logger.debug(f"reporting trained results")
+        html_output = prepared_data_to_html(model)
+        self._result_tuples.append(pandas.Series({"output": html_output}))
 
 
 operator_instance = TopicModelingTrainer()
