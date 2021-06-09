@@ -3,25 +3,16 @@ package edu.uci.ics.texera.web.resource.auth
 import com.google.api.client.auth.oauth2.TokenResponseException
 import edu.uci.ics.texera.web.{SqlServer, WebUtils}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.GoogleUserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.GoogleUser
 import edu.uci.ics.texera.web.model.request.auth.{
   GoogleUserLoginRequest,
   UserLoginRequest,
   UserRegistrationRequest
 }
-import edu.uci.ics.texera.web.resource.auth.UserResource.{
-  getGoogleUser,
-  getUser,
-  isGoogleUser,
-  setGoogleUserSession,
-  setUserSession,
-  validateUsername
-}
+import scala.collection.JavaConverters._
+import edu.uci.ics.texera.web.resource.auth.UserResource.{getUser, setUserSession, validateUsername}
 import io.dropwizard.jersey.sessions.Session
 import org.apache.commons.lang3.tuple.Pair
-import org.jooq.exception.DataAccessException
 import javax.servlet.http.HttpSession
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
@@ -38,13 +29,6 @@ object UserResource {
   def getUser(session: HttpSession): Option[User] =
     Option.apply(session.getAttribute(SESSION_USER)).map(u => u.asInstanceOf[User])
 
-  def getGoogleUser(session: HttpSession): Option[GoogleUser] =
-    Option.apply(session.getAttribute(SESSION_GOOGLE_USER)).map(u => u.asInstanceOf[GoogleUser])
-
-  def isGoogleUser(session: HttpSession): Boolean = {
-    session.getAttribute(SESSION_GOOGLE_USER) != null
-  }
-
   // TODO: rewrite this
   private def validateUsername(userName: String): Pair[Boolean, String] =
     if (userName == null) Pair.of(false, "username cannot be null")
@@ -53,10 +37,6 @@ object UserResource {
 
   private def setUserSession(session: HttpSession, user: User): Unit = {
     session.setAttribute(SESSION_USER, user)
-  }
-
-  private def setGoogleUserSession(session: HttpSession, Googleuser: GoogleUser): Unit = {
-    session.setAttribute(SESSION_GOOGLE_USER, Googleuser)
   }
 
 }
@@ -72,7 +52,6 @@ class UserResource {
   private val GOOGLE_CLIENT_SECRET = config.getString("google.clientSecret")
 
   final private val userDao = new UserDao(SqlServer.createDSLContext.configuration)
-  final private val googleUserDao = new GoogleUserDao(SqlServer.createDSLContext.configuration)
 
   private val TRANSPORT = new NetHttpTransport
   private val JSON_FACTORY = new JacksonFactory
@@ -80,28 +59,29 @@ class UserResource {
   @GET
   @Path("/auth/status")
   def authStatus(@Session session: HttpSession) = {
-    if (isGoogleUser(session)) {
-      getGoogleUser(session)
-    } else {
-      getUser(session)
-    }
+    getUser(session)
   }
 
   @POST
   @Path("/login")
   def login(@Session session: HttpSession, request: UserLoginRequest): Response = {
 
-    // try to fetch the password given the username
-    val userPassword = this.userDao.fetchOneByName(request.userName).getPassword
+    val userList =
+      this.userDao.fetchByName(request.userName).asScala.toList.filter(_.getGoogleId == null)
 
-    // not found or password incorrect
-    if (userPassword == null || !PasswordEncryption.checkPassword(userPassword, request.password)) {
+    // username not found or password incorrect
+    if (
+      userList.length == 0 || !PasswordEncryption.checkPassword(
+        userList(0).getPassword,
+        request.password
+      )
+    ) {
       return Response.status(Response.Status.UNAUTHORIZED).build()
     }
 
     setUserSession(
       session,
-      new User(request.userName, this.userDao.fetchOneByName(request.userName).getUid, null)
+      new User(request.userName, userList(0).getUid, null, null)
     )
     Response.ok().build()
   }
@@ -110,7 +90,7 @@ class UserResource {
   @Path("/google-login")
   def googleLogin(@Session session: HttpSession, request: GoogleUserLoginRequest): Response = {
     // get authorization code from request
-    var code = request.authoCode
+    val code = request.authoCode
 
     // use authorization code to get tokens
     try {
@@ -132,12 +112,15 @@ class UserResource {
       val userName = payload.get("name").asInstanceOf[String]
 
       // store Google user id in database if it does not exist
-      if (this.googleUserDao.fetchOneByUid(userId) == null) {
-        val googleUser = new GoogleUser(userId, userName)
-        this.googleUserDao.insert(googleUser)
+      if (this.userDao.fetchByGoogleId(userId).size() == 0) {
+        val newGoogleUser = new User
+        newGoogleUser.setName(userName)
+        newGoogleUser.setGoogleId(userId)
+        this.userDao.insert(newGoogleUser)
       }
-      if (this.googleUserDao.fetchOneByUid(userId).getName != userName) {
-        this.googleUserDao.fetchOneByUid(userId).setName(userName)
+      val googleUser = this.userDao.fetchByGoogleId(userId).get(0)
+      if (googleUser.getName != userName) {
+        googleUser.setName(userName)
       }
 
       // get access token and refresh token (used for accessing Google API Service)
@@ -145,9 +128,9 @@ class UserResource {
       // val refresh_token = tokenResponse.getRefreshToken
 
       // set session
-      setGoogleUserSession(
+      setUserSession(
         session,
-        new GoogleUser(userId, userName)
+        new User(userName, googleUser.getUid, null, userId)
       )
     } catch {
       case e: TokenResponseException =>
@@ -174,10 +157,13 @@ class UserResource {
       return Response.status(Response.Status.BAD_REQUEST).build()
 
     // hash the plain text password
-    password = PasswordEncryption.encrypt(password);
+    password = PasswordEncryption.encrypt(password)
 
-    // try to insert a new record
-    try {
+    // the username is existing already
+    if (this.userDao.fetchByName(userName).asScala.toList.exists(_.getGoogleId == null)) {
+      // Using BAD_REQUEST as no other status code is suitable. Better to use 422.
+      Response.status(Response.Status.BAD_REQUEST).build()
+    } else {
       val user = new User
       user.setName(userName)
       user.setPassword(password)
@@ -185,11 +171,6 @@ class UserResource {
       user.setPassword(null)
       setUserSession(session, user)
       Response.ok().build()
-    } catch {
-      // the username is existing already
-      case _: DataAccessException =>
-        // Using BAD_REQUEST as no other status code is suitable. Better to use 422.
-        Response.status(Response.Status.BAD_REQUEST).build()
     }
 
   }
@@ -197,7 +178,6 @@ class UserResource {
   @GET
   @Path("/logout")
   def logOut(@Session session: HttpSession): Response = {
-    setGoogleUserSession(session, null)
     setUserSession(session, null)
     Response.ok().build()
   }

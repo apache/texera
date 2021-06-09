@@ -11,23 +11,14 @@ SET GLOBAL time_zone = '+00:00'; # this line is mandatory
 
 CREATE TABLE IF NOT EXISTS user
 (
-    `name` VARCHAR(32)                 NOT NULL,
-    `uid`  INT UNSIGNED AUTO_INCREMENT NOT NULL,
-    `password` VARCHAR(256)            NOT NULL,
-    UNIQUE (`name`),
+    `name`      VARCHAR(32)                 NOT NULL,
+    `uid`       INT UNSIGNED AUTO_INCREMENT NOT NULL,
+    `password`  VARCHAR(256),
+    `google_id` VARCHAR(256),
     PRIMARY KEY (`uid`)
 ) ENGINE = INNODB,
 -- start auto increment userID from 1 because userID 0 means user not exists
   AUTO_INCREMENT = 1;
-
-
-CREATE TABLE IF NOT EXISTS google_user
-(
-    `uid` VARCHAR(256)                 NOT NULL,
-    `name` VARCHAR(32)                 NOT NULL,
-    PRIMARY KEY (`uid`)
-) ENGINE = INNODB;
-
 
 CREATE TABLE IF NOT EXISTS file
 (

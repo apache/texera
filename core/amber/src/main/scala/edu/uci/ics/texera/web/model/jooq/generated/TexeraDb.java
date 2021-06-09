@@ -5,7 +5,6 @@ package edu.uci.ics.texera.web.model.jooq.generated;
 
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.File;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.GoogleUser;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.KeywordDictionary;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Workflow;
@@ -26,7 +25,7 @@ import org.jooq.impl.SchemaImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class TexeraDb extends SchemaImpl {
 
-    private static final long serialVersionUID = -542286415;
+    private static final long serialVersionUID = 1382542828;
 
     /**
      * The reference instance of <code>texera_db</code>
@@ -37,11 +36,6 @@ public class TexeraDb extends SchemaImpl {
      * The table <code>texera_db.file</code>.
      */
     public final File FILE = edu.uci.ics.texera.web.model.jooq.generated.tables.File.FILE;
-
-    /**
-     * The table <code>texera_db.google_user</code>.
-     */
-    public final GoogleUser GOOGLE_USER = edu.uci.ics.texera.web.model.jooq.generated.tables.GoogleUser.GOOGLE_USER;
 
     /**
      * The table <code>texera_db.keyword_dictionary</code>.
@@ -86,7 +80,6 @@ public class TexeraDb extends SchemaImpl {
     private final List<Table<?>> getTables0() {
         return Arrays.<Table<?>>asList(
             File.FILE,
-            GoogleUser.GOOGLE_USER,
             KeywordDictionary.KEYWORD_DICTIONARY,
             User.USER,
             Workflow.WORKFLOW,
