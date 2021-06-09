@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.operators.pythonUDF;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
+import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.amber.engine.operators.OpExecConfig;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
@@ -11,7 +12,6 @@ import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
 import edu.uci.ics.texera.workflow.common.operators.ManyToOneOpExecConfig;
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig;
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor;
-import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
@@ -71,7 +71,7 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
 
     @Override
     public OpExecConfig operatorExecutor() {
-        Function1<Object, OperatorExecutor> exec = (i) ->
+        Function1<Object, IOperatorExecutor> exec = (i) ->
                 new PythonUDFOpExec(
                         pythonScriptText,
                         pythonScriptFile,

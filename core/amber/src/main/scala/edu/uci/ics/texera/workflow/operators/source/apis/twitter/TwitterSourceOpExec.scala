@@ -4,8 +4,6 @@ import com.github.redouane59.twitter.signature.TwitterCredentials
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
 
 abstract class TwitterSourceOpExec(
-    accessToken: String,
-    accessTokenSecret: String,
     apiKey: String,
     apiSecretKey: String
 ) extends SourceOperatorExecutor {
@@ -18,8 +16,6 @@ abstract class TwitterSourceOpExec(
     twitterClient = new TwitterClient(
       TwitterCredentials
         .builder()
-        .accessToken(accessToken)
-        .accessTokenSecret(accessTokenSecret)
         .apiKey(apiKey)
         .apiSecretKey(apiSecretKey)
         .build()

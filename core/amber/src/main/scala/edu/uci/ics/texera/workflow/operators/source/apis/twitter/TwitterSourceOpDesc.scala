@@ -19,14 +19,6 @@ abstract class TwitterSourceOpDesc extends SourceOperatorDescriptor {
   val APIName: Option[String] = None
 
   @JsonProperty(required = true)
-  @JsonSchemaTitle("Access Token")
-  var accessToken: String = _
-
-  @JsonProperty(required = true)
-  @JsonSchemaTitle("Access Token Secret")
-  var accessTokenSecret: String = _
-
-  @JsonProperty(required = true)
   @JsonSchemaTitle("API Key")
   var apiKey: String = _
 
