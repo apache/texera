@@ -240,13 +240,13 @@ object AmberApp {
             // will not work. We have removed the making workflow by parsing JSON string from controller
 //            if (current == 0) {
 //              controller = system.actorOf(
-//                Controller.props(
+//                CONTROLLER.props(
 //                  workflows(current).replace("<arg1>", limit).replace("<arg2>", delay)
 //                )
 //              )
 //            } else {
 //              controller = system.actorOf(
-//                Controller.props(workflows(current).replace("<arg3>", Constants.dataset.toString))
+//                CONTROLLER.props(workflows(current).replace("<arg3>", Constants.dataset.toString))
 //              )
 //            }
 //            controller ! AckedControllerInitialization

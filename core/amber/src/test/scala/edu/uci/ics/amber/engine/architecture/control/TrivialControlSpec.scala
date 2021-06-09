@@ -1,32 +1,30 @@
 package edu.uci.ics.amber.engine.architecture.control
 
-import java.io.{FileInputStream, FileOutputStream, ObjectInputStream, ObjectOutputStream}
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{TestKit, TestProbe}
-import com.esotericsoftware.kryo.{Kryo, KryoException}
-import com.esotericsoftware.kryo.io.Input
-import com.twitter.util.{FuturePool, Promise}
-import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.engine.common.ambermessage.WorkflowControlMessage
+import edu.uci.ics.amber.engine.architecture.control.utils.ChainHandler.Chain
+import edu.uci.ics.amber.engine.architecture.control.utils.CollectHandler.Collect
+import edu.uci.ics.amber.engine.architecture.control.utils.MultiCallHandler.MultiCall
+import edu.uci.ics.amber.engine.architecture.control.utils.NestedHandler.Nested
+import edu.uci.ics.amber.engine.architecture.control.utils.PingPongHandler.Ping
+import edu.uci.ics.amber.engine.architecture.control.utils.RecursionHandler.Recursion
+import edu.uci.ics.amber.engine.architecture.control.utils.TrivialControlTester
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   GetActorRef,
   NetworkAck,
   NetworkMessage,
   RegisterActorRef
 }
-import edu.uci.ics.amber.engine.architecture.control.utils.ChainHandler.Chain
-import edu.uci.ics.amber.engine.architecture.control.utils.CollectHandler.Collect
-import edu.uci.ics.amber.engine.architecture.control.utils.MultiCallHandler.MultiCall
-import edu.uci.ics.amber.engine.architecture.control.utils.NestedHandler.Nested
-import edu.uci.ics.amber.engine.architecture.control.utils.PingPongHandler.Ping
-import edu.uci.ics.amber.engine.architecture.control.utils.TrivialControlTester
-import edu.uci.ics.amber.engine.architecture.control.utils.RecursionHandler.Recursion
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowControlMessage
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.WorkerActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, VirtualIdentity}
-import org.scalatest.wordspec.AnyWordSpecLike
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  WorkerActorVirtualIdentity
+}
+import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.collection.mutable
 import scala.concurrent.duration._
@@ -52,7 +50,7 @@ class TrivialControlSpec
       val ref = probe.childActorOf(Props(new TrivialControlTester(id, probe.ref)))
       idMap(id) = ref
     }
-    idMap(ActorVirtualIdentity.Controller) = probe.ref
+    idMap(CONTROLLER) = probe.ref
     var seqNum = 0
     cmd.foreach { evt =>
       probe.send(
@@ -60,7 +58,7 @@ class TrivialControlSpec
         NetworkMessage(
           seqNum,
           WorkflowControlMessage(
-            ActorVirtualIdentity.Controller,
+            CONTROLLER,
             seqNum,
             ControlInvocation(seqNum, evt)
           )

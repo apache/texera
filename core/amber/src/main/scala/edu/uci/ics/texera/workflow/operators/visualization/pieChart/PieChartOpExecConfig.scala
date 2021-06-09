@@ -1,8 +1,5 @@
 package edu.uci.ics.texera.workflow.operators.visualization.pieChart
 
-import akka.actor.ActorRef
-import akka.event.LoggingAdapter
-import akka.util.Timeout
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.{
   FollowPrevious,
@@ -12,16 +9,11 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.Roun
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.linksemantics.HashBasedShuffle
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  LayerIdentity,
-  OperatorIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
+import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-
-import scala.collection.mutable
-import scala.concurrent.ExecutionContext
 
 class PieChartOpExecConfig(
     tag: OperatorIdentity,
@@ -33,14 +25,14 @@ class PieChartOpExecConfig(
 
   override lazy val topology: Topology = {
     val partialLayer = new WorkerLayer(
-      LayerIdentity(tag, "localPieChartProcessor"),
+      makeLayer(tag, "localPieChartProcessor"),
       _ => new PieChartOpPartialExec(nameColumn, dataColumn),
       numWorkers,
       UseAll(),
       RoundRobinDeployment()
     )
     val finalLayer = new WorkerLayer(
-      LayerIdentity(tag, "globalPieChartProcessor"),
+      makeLayer(tag, "globalPieChartProcessor"),
       _ => new PieChartOpFinalExec(pruneRatio),
       1,
       FollowPrevious(),

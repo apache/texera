@@ -2,16 +2,15 @@ package edu.uci.ics.amber.engine.common.rpc
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlOutputPort
-import edu.uci.ics.amber.engine.architecture.worker.WorkerStatistics
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
 import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{
+  noReplyNeeded,
   ControlInvocation,
-  ReturnPayload,
-  noReplyNeeded
+  ReturnPayload
 }
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, VirtualIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 /** Motivation of having a separate module to handle control messages as RPCs:
   * In the old design, every control message and its response are handled by
@@ -75,19 +74,11 @@ class AsyncRPCServer(controlOutputPort: ControlOutputPort, logger: WorkflowLogge
     }
   }
 
-  @inline
-  private def returnResult(sender: ActorVirtualIdentity, id: Long, ret: Any): Unit = {
-    if (noReplyNeeded(id)) {
-      return
-    }
-    controlOutputPort.sendTo(sender, ReturnPayload(id, ret))
-  }
-
   def execute(cmd: (ControlCommand[_], ActorVirtualIdentity)): Future[_] = {
     handlers(cmd)
   }
 
-  def logControlInvocation(call: ControlInvocation, sender: VirtualIdentity): Unit = {
+  def logControlInvocation(call: ControlInvocation, sender: ActorVirtualIdentity): Unit = {
     if (call.commandID == AsyncRPCClient.IgnoreReplyAndDoNotLog) {
       return
     }
@@ -97,6 +88,14 @@ class AsyncRPCServer(controlOutputPort: ControlOutputPort, logger: WorkflowLogge
     logger.logInfo(
       s"receive command: ${call.command} from ${sender.toString} (controlID: ${call.commandID})"
     )
+  }
+
+  @inline
+  private def returnResult(sender: ActorVirtualIdentity, id: Long, ret: Any): Unit = {
+    if (noReplyNeeded(id)) {
+      return
+    }
+    controlOutputPort.sendTo(sender, ReturnPayload(id, ret))
   }
 
 }

@@ -1,10 +1,9 @@
 package edu.uci.ics.amber.engine.architecture.deploysemantics.layer
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.DeployStrategy
-import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.DeploymentFilter
-import edu.uci.ics.amber.engine.operators.OpExecConfig
 import akka.actor.{ActorContext, ActorRef, Address, Deploy}
 import akka.remote.RemoteScope
+import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.DeploymentFilter
+import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.DeployStrategy
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.RegisterActorRef
 import edu.uci.ics.amber.engine.architecture.worker.{WorkerStatistics, WorkflowWorker}
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
@@ -12,12 +11,13 @@ import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.{
   Uninitialized,
   WorkerState
 }
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.WorkerActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   LayerIdentity,
-  LinkIdentity
+  LinkIdentity,
+  WorkerActorVirtualIdentity
 }
+import edu.uci.ics.amber.engine.operators.OpExecConfig
 
 import scala.collection.mutable
 
@@ -29,9 +29,8 @@ class WorkerLayer(
     val deployStrategy: DeployStrategy
 ) extends Serializable {
 
-  var workers: Map[ActorVirtualIdentity, WorkerInfo] = _
-
   private val startDependencies = mutable.HashSet[LinkIdentity]()
+  var workers: Map[ActorVirtualIdentity, WorkerInfo] = _
 
   def startAfter(link: LinkIdentity): Unit = {
     startDependencies.add(link)

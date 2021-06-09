@@ -1,7 +1,5 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalamock.scalatest.MockFactory
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.OneToOnePolicy
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, EndOfUpstream}
@@ -9,9 +7,11 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   LayerIdentity,
-  LinkIdentity
+  LinkIdentity,
+  WorkerActorVirtualIdentity
 }
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.WorkerActorVirtualIdentity
+import org.scalamock.scalatest.MockFactory
+import org.scalatest.flatspec.AnyFlatSpec
 
 class TupleToBatchConverterSpec extends AnyFlatSpec with MockFactory {
   private val mockDataOutputPort = mock[DataOutputPort]

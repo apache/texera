@@ -1,0 +1,66 @@
+syntax = "proto2";
+
+package edu.uci.ics.amber.engine.common;
+
+// sealed trait ActorVirtualIdentity
+message ActorVirtualIdentity {
+  oneof sealed_value {
+    WorkerActorVirtualIdentity workerActorVirtualIdentity = 1;
+    ControllerVirtualIdentity controllerVirtualIdentity = 2;
+    SelfVirtualIdentity selfVirtualIdentity = 3;
+    ClientVirtualIdentity clientVirtualIdentity = 4;
+  }
+}
+
+// final case class WorkerActorVirtualIdentity (
+//    name: String
+// ) extends ActorVirtualIdentity
+message WorkerActorVirtualIdentity {
+  required string name = 1;
+}
+
+// final case class ControllerVirtualIdentity extends ActorVirtualIdentity
+message ControllerVirtualIdentity {}
+
+// final case class SelfVirtualIdentity extends ActorVirtualIdentity
+message SelfVirtualIdentity {}
+
+// final case class ClientVirtualIdentity extends ActorVirtualIdentity
+message ClientVirtualIdentity {}
+
+// final case class LayerIdentity (
+//    workflow: String,
+//    operator: String,
+//    layerID: String
+// )
+message LayerIdentity{
+  required string workflow = 1;
+  required string operator = 2;
+  required string layerID = 3;
+}
+
+// final case class LinkIdentity (
+//    from: LayerIdentity,
+//    to: LayerIdentity
+// )
+message LinkIdentity {
+  required LayerIdentity from = 1 ;
+  required LayerIdentity to = 2;
+}
+
+// final case class LinkIdentity (
+//    workflow: String,
+//    operator: String
+// )
+message OperatorIdentity {
+  required string workflow = 1;
+  required string operator = 2;
+}
+
+// final case class WorkflowIdentity (
+//    id: String
+// )
+message WorkflowIdentity {
+  required string id = 1;
+}
+

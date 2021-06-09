@@ -6,14 +6,16 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
 import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, DataPayload, WorkflowDataMessage}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.WorkerActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.VirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  WorkerActorVirtualIdentity
+}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
 class NetworkInputPortSpec extends AnyFlatSpec with MockFactory {
 
-  private val mockHandler = mock[(VirtualIdentity, DataPayload) => Unit]
+  private val mockHandler = mock[(ActorVirtualIdentity, DataPayload) => Unit]
   private val fakeID = WorkerActorVirtualIdentity("testReceiver")
   private val logger: WorkflowLogger = WorkflowLogger("NetworkInputPortSpec")
 
