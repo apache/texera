@@ -8,8 +8,6 @@ class TwitterFullArchiveSearchSourceOpExecConfig(
     operatorIdentifier: OperatorIdentity,
     numWorkers: Int,
     schema: Schema,
-    accessToken: String,
-    accessTokenSecret: String,
     apiKey: String,
     apiSecretKey: String,
     searchQuery: String,
@@ -21,8 +19,6 @@ class TwitterFullArchiveSearchSourceOpExecConfig(
       numWorkers,
       new TwitterFullArchiveSearchSourceOpExec(
         schema,
-        accessToken,
-        accessTokenSecret,
         apiKey,
         apiSecretKey,
         searchQuery,
