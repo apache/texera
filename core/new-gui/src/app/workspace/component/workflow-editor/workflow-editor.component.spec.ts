@@ -3,7 +3,7 @@ import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
 import { JointGraphWrapper } from './../../service/workflow-graph/model/joint-graph-wrapper';
 import { DragDropService } from './../../service/drag-drop/drag-drop.service';
 import { WorkflowUtilService } from './../../service/workflow-graph/util/workflow-util.service';
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { ValidationWorkflowService } from './../../service/validation/validation-workflow.service';
 
 import { WorkflowEditorComponent } from './workflow-editor.component';
@@ -39,7 +39,7 @@ describe('WorkflowEditorComponent', () => {
     let fixture: ComponentFixture<WorkflowEditorComponent>;
     let jointGraph: joint.dia.Graph;
 
-    beforeEach(async(() => {
+    beforeEach(waitForAsync(() => {
       TestBed.configureTestingModule({
         declarations: [WorkflowEditorComponent],
         imports: [
@@ -137,7 +137,7 @@ describe('WorkflowEditorComponent', () => {
     let dragDropService: DragDropService;
     let jointUIService: JointUIService;
 
-    beforeEach(async(() => {
+    beforeEach(waitForAsync(() => {
       TestBed.configureTestingModule({
         declarations: [WorkflowEditorComponent],
         imports: [

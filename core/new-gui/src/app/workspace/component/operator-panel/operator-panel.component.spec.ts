@@ -1,7 +1,7 @@
 import { mockScanSourceSchema } from './../../service/operator-metadata/mock-operator-metadata.data';
 import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
 import { DragDropService } from './../../service/drag-drop/drag-drop.service';
-import { async, ComponentFixture, TestBed, tick, fakeAsync } from '@angular/core/testing';
+import { ComponentFixture, TestBed, tick, fakeAsync, waitForAsync } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import '../../../common/rxjs-operators';
 import { CustomNgMaterialModule } from '../../../common/custom-ng-material.module';
@@ -34,7 +34,7 @@ describe('OperatorPanelComponent', () => {
   let component: OperatorPanelComponent;
   let fixture: ComponentFixture<OperatorPanelComponent>;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [OperatorPanelComponent, OperatorLabelComponent],
       providers: [

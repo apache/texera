@@ -1,4 +1,4 @@
-import { async, ComponentFixture, inject, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, inject, waitForAsync } from '@angular/core/testing';
 
 import { NgbModal, NgbModalRef, NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { CustomNgMaterialModule } from '../../../../common/custom-ng-material.module';
@@ -37,7 +37,7 @@ describe('UserFileSectionComponent', () => {
     accessLevel: 'Write',
     isOwner: true,
   };
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [UserFileSectionComponent],
       providers: [

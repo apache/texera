@@ -24,7 +24,7 @@ describe('PropertyEditorComponent', () => {
   let workflowActionService: WorkflowActionService;
   environment.schemaPropagationEnabled = true;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
       providers: [

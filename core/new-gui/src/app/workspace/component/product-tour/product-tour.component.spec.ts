@@ -1,4 +1,4 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 
 import { ProductTourComponent } from './product-tour.component';
 
@@ -14,7 +14,7 @@ describe('ProductTourComponent', () => {
   let fixture: ComponentFixture<ProductTourComponent>;
   let tourService: TourService;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       imports: [ RouterTestingModule.withRoutes([]), TourNgBootstrapModule.forRoot() ],
       declarations: [ ProductTourComponent ],

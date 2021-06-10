@@ -1,4 +1,4 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 
 import { UserDictionarySectionComponent } from './user-dictionary-section.component';
 
@@ -14,7 +14,7 @@ describe('UserDictionarySectionComponent', () => {
   let component: UserDictionarySectionComponent;
   let fixture: ComponentFixture<UserDictionarySectionComponent>;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [UserDictionarySectionComponent],
       providers: [
