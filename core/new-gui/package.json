@@ -95,6 +95,7 @@
     "@types/jqueryui": "1.12.10",
     "@types/json-schema": "^7.0.4",
     "@types/lodash": "~4.14.149",
+    "@types/mapbox-gl": "^2.1.2",
     "@types/uuid": "^3.4.8",
     "codelyzer": "^6.0.0",
     "cypress": "^4.3.0",
