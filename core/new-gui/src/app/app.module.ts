@@ -159,7 +159,7 @@ registerLocaleData(en);
     BrowserAnimationsModule,
     NgbModule,
     NgbPopoverModule,
-    RouterModule.forRoot([], { relativeLinkResolution: 'legacy' }),
+    RouterModule.forRoot([]),
     TourNgBootstrapModule.forRoot(),
     FileUploadModule,
     FormsModule,
