@@ -1,7 +1,7 @@
 <meta charset="utf-8">
 
 
-<div id="texera-word-cloud-control">
+<div *ngIf="displayWordCloud" id="texera-word-cloud-control">
   <nz-space>
     <nz-form-label>Normalization Scale</nz-form-label>
     <nz-select [ngModel]="wordCloudControls.scale" (ngModelChange)="updateWordCloudScale($event)"
@@ -15,6 +15,6 @@
 <div id="texera-result-chart-content">
 </div>
 <!-- this id should be identical to VisualizationPanelContentComponent.MAP_CONTAINER -->
-<div id="texera-result-map-container">
+<div [hidden]="displayMap" id="texera-result-map-container">
 </div>
 <iframe *ngIf="displayHTML" id="texera-result-html-content-container" [srcdoc]="htmlData"></iframe>
