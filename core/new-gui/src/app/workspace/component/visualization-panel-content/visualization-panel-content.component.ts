@@ -71,7 +71,7 @@ export class VisualizationPanelContentComponent implements AfterContentInit, OnD
   operatorID: string | undefined;
   displayHTML: boolean = false; // variable to decide whether to display the container to display the HTML container(iFrame)
   displayWordCloud: boolean = false; // variable to decide whether to display the container for worldcloud visualization
-  hideMap: boolean = true; // variable to decide whether to hide/unhide the map
+  displayMap: boolean = true; // variable to decide whether to hide/unhide the map
   data: object[] | undefined;
   chartType: ChartType | undefined;
   columns: string[] = [];
@@ -138,7 +138,7 @@ export class VisualizationPanelContentComponent implements AfterContentInit, OnD
     }
     this.displayHTML = false;
     this.displayWordCloud = false;
-    this.hideMap = true;
+    this.displayMap = true;
     switch (this.chartType) {
       // correspond to WordCloudSink.java
       case ChartType.WORD_CLOUD:
@@ -157,7 +157,7 @@ export class VisualizationPanelContentComponent implements AfterContentInit, OnD
         this.generateChart();
         break;
       case ChartType.SPATIAL_SCATTERPLOT:
-        this.hideMap = false;
+        this.displayMap = false;
         this.generateSpatialScatterplot();
         break;
       case ChartType.SIMPLE_SCATTERPLOT:
