@@ -36,7 +36,8 @@ class UserDictionaryResource {
     * 400 bad request - payload: ErrorResponse("Malformed JSON payload"),
     * 422 Unprocessable Entity - payload: ErrorResponse("No such entry") (if no entry exists for provided key)
     */
-  @GET
+  @POST
+  @Path("/get")
   def getValue(@Session session: HttpSession, req: GetRequest): Response = {
     val user = UserResource.getUser(session).orNull
     if (user == null)
@@ -68,6 +69,7 @@ class UserDictionaryResource {
     * 400 bad request - payload: ErrorResponse("Malformed JSON payload"),
     */
   @POST
+  @Path("/set")
   def setValue(
       @Session session: HttpSession,
       req: PostRequest
@@ -100,6 +102,7 @@ class UserDictionaryResource {
     * 422 Unprocessable Entity - payload: "no such entry" (if no entry exists for provided key)
     */
   @DELETE
+  @Path("/delete")
   def deleteValue(@Session session: HttpSession, req: DeleteRequest): Response = {
     val user = UserResource.getUser(session).orNull
     if (user == null)
