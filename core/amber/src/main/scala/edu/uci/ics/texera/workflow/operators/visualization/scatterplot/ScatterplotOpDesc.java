@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.operators.visualization.scatterplot;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
+import edu.uci.ics.amber.engine.operators.OpExecConfig;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
@@ -15,6 +16,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.common.tuple.schema.SchemaInfo;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
+
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
 
@@ -48,7 +50,7 @@ public class ScatterplotOpDesc extends VisualizationOperator {
     }
 
     @Override
-    public OneToOneOpExecConfig operatorExecutor(SchemaInfo schemaInfo) {
+    public OpExecConfig operatorExecutor(SchemaInfo schemaInfo) {
         return new OneToOneOpExecConfig(operatorIdentifier(), worker -> new ScatterplotOpExec(this));
     }
 

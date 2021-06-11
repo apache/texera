@@ -3,18 +3,20 @@ package edu.uci.ics.texera.workflow.operators.pythonUDF;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
-import edu.uci.ics.amber.engine.common.Constants;
+import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.amber.engine.operators.OpExecConfig;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
+import edu.uci.ics.texera.workflow.common.operators.ManyToOneOpExecConfig;
+import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig;
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.common.tuple.schema.SchemaInfo;
-import scala.collection.JavaConverters;
+import scala.Function1;
 
 import java.util.List;
 
@@ -70,16 +72,22 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
 
     @Override
     public OpExecConfig operatorExecutor(SchemaInfo schemaInfo) {
-        return new PythonUDFOpExecConfig(this.operatorIdentifier(),
-                // changed it to 1 because training with python needs all data in one node.
-                PythonUDFType.supportsParallel.contains(pythonUDFType) ? Constants.defaultNumWorkers() : 1,
-                pythonScriptText,
-                pythonScriptFile,
-                JavaConverters.asScalaIteratorConverter(this.inputColumns.iterator()).asScala().toBuffer(),
-                JavaConverters.asScalaIteratorConverter(this.outputColumns.iterator()).asScala().toBuffer(),
-                JavaConverters.asScalaIteratorConverter(this.arguments.iterator()).asScala().toBuffer(),
-                JavaConverters.asScalaIteratorConverter(this.outerFiles.iterator()).asScala().toBuffer(),
-                batchSize);
+        Function1<Object, IOperatorExecutor> exec = (i) ->
+                new PythonUDFOpExec(
+                        pythonScriptText,
+                        pythonScriptFile,
+                        inputColumns,
+                        outputColumns,
+                        arguments,
+                        outerFiles,
+                        batchSize
+                );
+        if (PythonUDFType.supportsParallel.contains(pythonUDFType)) {
+            return new OneToOneOpExecConfig(operatorIdentifier(), exec);
+        } else {
+            // changed it to 1 because training with python needs all data in one node.
+            return new ManyToOneOpExecConfig(operatorIdentifier(), exec);
+        }
     }
 
     @Override

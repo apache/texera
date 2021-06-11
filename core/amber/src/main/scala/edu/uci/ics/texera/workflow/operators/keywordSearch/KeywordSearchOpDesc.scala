@@ -2,13 +2,13 @@ package edu.uci.ics.texera.workflow.operators.keywordSearch
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
   OperatorInfo,
   OutputPort
 }
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.SchemaInfo
@@ -28,7 +28,7 @@ class KeywordSearchOpDesc extends FilterOpDesc {
 
   override def operatorExecutor(schemaInfo: SchemaInfo): OneToOneOpExecConfig = {
     new OneToOneOpExecConfig(
-      this.operatorIdentifier,
+      operatorIdentifier,
       (counter: Int) => new KeywordSearchOpExec(counter, this)
     )
   }

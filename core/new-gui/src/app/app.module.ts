@@ -25,6 +25,9 @@ import { NzMenuModule } from 'ng-zorro-antd/menu';
 import { NzModalModule } from 'ng-zorro-antd/modal';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
+import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzSliderModule } from 'ng-zorro-antd/slider';
+import { NzSpaceModule } from 'ng-zorro-antd/space';
 import { NzBadgeModule } from 'ng-zorro-antd/badge';
 import { FileUploadModule } from 'ng2-file-upload';
 import { NgxAceModule } from 'ngx-ace-icy';
@@ -158,6 +161,9 @@ registerLocaleData(en);
     NzToolTipModule,
     NzTableModule,
     NzModalModule,
+    NzSelectModule,
+    NzSliderModule,
+    NzSpaceModule,
     NzBadgeModule,
     NgxAceModule,
     MatDialogModule

@@ -2,13 +2,13 @@ package edu.uci.ics.texera.workflow.operators.regex
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
   OperatorInfo,
   OutputPort
 }
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.SchemaInfo
@@ -30,7 +30,7 @@ class RegexOpDesc extends FilterOpDesc {
   var caseInsensitive: Boolean = _
 
   override def operatorExecutor(schemaInfo: SchemaInfo): OneToOneOpExecConfig = {
-    new OneToOneOpExecConfig(this.operatorIdentifier, _ => new RegexOpExec(this))
+    new OneToOneOpExecConfig(operatorIdentifier, _ => new RegexOpExec(this))
   }
 
   override def operatorInfo: OperatorInfo =

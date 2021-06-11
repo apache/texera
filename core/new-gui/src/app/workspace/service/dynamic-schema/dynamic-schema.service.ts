@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { JSONSchema7 } from 'json-schema';
+import { JSONSchema7, JSONSchema7Definition } from 'json-schema';
 import { cloneDeep, isEqual } from 'lodash';
 import { Observable } from 'rxjs/Observable';
 import { Subject } from 'rxjs/Subject';
@@ -173,27 +173,39 @@ export class DynamicSchemaService {
     // recursively walks the JSON schema property tree to find the property name
     const mutatePropertyRecurse = (jsonSchema: JSONSchema7) => {
       const schemaProperties = jsonSchema.properties;
+      const schemaDefinitions = jsonSchema.definitions;
       const schemaItems = jsonSchema.items;
+
       // nested JSON schema property can have 2 types: object or array
-      if (schemaProperties) {
-        Object.entries(schemaProperties).forEach(([propertyName, propertyValue]) => {
+      const mutateObjectProperty = (objectProperty: { [key: string]: JSONSchema7Definition })  => {
+        Object.entries(objectProperty).forEach(([propertyName, propertyValue]) => {
           if (typeof propertyValue === 'boolean') {
             return;
           }
           if (matchFunc(propertyName, propertyValue as CustomJSONSchema7)) {
-            schemaProperties[propertyName] = mutationFunc(propertyValue as CustomJSONSchema7);
+            objectProperty[propertyName] = mutationFunc(propertyValue as CustomJSONSchema7);
           } else {
             mutatePropertyRecurse(propertyValue);
           }
         });
+      };
+      const mutateArrayProperty = (arrayProperty: JSONSchema7Definition[]) => {
+        arrayProperty.forEach(item => {
+          if (typeof item !== 'boolean') {
+            mutatePropertyRecurse(item);
+          }
+        });
+      };
+
+      if (schemaProperties) {
+        mutateObjectProperty(schemaProperties);
+      }
+      if (schemaDefinitions) {
+        mutateObjectProperty(schemaDefinitions);
       }
       if (schemaItems && typeof schemaItems !== 'boolean') {
         if (Array.isArray(schemaItems)) {
-          schemaItems.forEach(item => {
-            if (typeof item !== 'boolean') {
-              mutatePropertyRecurse(item);
-            }
-          });
+          mutateArrayProperty(schemaItems);
         } else {
           mutatePropertyRecurse(schemaItems);
         }
