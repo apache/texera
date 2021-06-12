@@ -7,6 +7,7 @@
 
 <div class="modal-body" [formGroup]="allForms">
   <mat-tab-group mat-stretch-tabs [selectedIndex]="selectedTab" animationDuration="0ms">
+
     <!-- login tab -->
     <mat-tab label="Sign In">
       <div class="content">
@@ -34,8 +35,6 @@
           </div>
         </div>
         <p *ngIf="loginErrorMessage" style="color:red">{{ loginErrorMessage }}</p>
-
-
       </div>
     </mat-tab>
 
