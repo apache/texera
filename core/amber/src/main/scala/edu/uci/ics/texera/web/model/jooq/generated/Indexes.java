@@ -5,7 +5,6 @@ package edu.uci.ics.texera.web.model.jooq.generated;
 
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.File;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.GoogleUser;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.KeywordDictionary;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Workflow;
@@ -28,7 +27,6 @@ public class Indexes {
 
     public static final Index FILE_PRIMARY = Indexes0.FILE_PRIMARY;
     public static final Index FILE_UID = Indexes0.FILE_UID;
-    public static final Index GOOGLE_USER_PRIMARY = Indexes0.GOOGLE_USER_PRIMARY;
     public static final Index KEYWORD_DICTIONARY_PRIMARY = Indexes0.KEYWORD_DICTIONARY_PRIMARY;
     public static final Index KEYWORD_DICTIONARY_UID = Indexes0.KEYWORD_DICTIONARY_UID;
     public static final Index USER_GOOGLE_ID = Indexes0.USER_GOOGLE_ID;
@@ -44,7 +42,6 @@ public class Indexes {
     private static class Indexes0 {
         public static Index FILE_PRIMARY = Internal.createIndex("PRIMARY", File.FILE, new OrderField[] { File.FILE.FID }, true);
         public static Index FILE_UID = Internal.createIndex("uid", File.FILE, new OrderField[] { File.FILE.UID, File.FILE.NAME }, true);
-        public static Index GOOGLE_USER_PRIMARY = Internal.createIndex("PRIMARY", GoogleUser.GOOGLE_USER, new OrderField[] { GoogleUser.GOOGLE_USER.UID }, true);
         public static Index KEYWORD_DICTIONARY_PRIMARY = Internal.createIndex("PRIMARY", KeywordDictionary.KEYWORD_DICTIONARY, new OrderField[] { KeywordDictionary.KEYWORD_DICTIONARY.KID }, true);
         public static Index KEYWORD_DICTIONARY_UID = Internal.createIndex("uid", KeywordDictionary.KEYWORD_DICTIONARY, new OrderField[] { KeywordDictionary.KEYWORD_DICTIONARY.UID, KeywordDictionary.KEYWORD_DICTIONARY.NAME }, true);
         public static Index USER_GOOGLE_ID = Internal.createIndex("google_id", User.USER, new OrderField[] { User.USER.GOOGLE_ID }, true);

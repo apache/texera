@@ -5,7 +5,6 @@ package edu.uci.ics.texera.web.model.jooq.generated;
 
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.File;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.GoogleUser;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.KeywordDictionary;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Workflow;
@@ -22,11 +21,6 @@ public class Tables {
      * The table <code>texera_db.file</code>.
      */
     public static final File FILE = File.FILE;
-
-    /**
-     * The table <code>texera_db.google_user</code>.
-     */
-    public static final GoogleUser GOOGLE_USER = GoogleUser.GOOGLE_USER;
 
     /**
      * The table <code>texera_db.keyword_dictionary</code>.

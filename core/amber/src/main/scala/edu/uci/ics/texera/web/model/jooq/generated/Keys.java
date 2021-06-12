@@ -5,13 +5,11 @@ package edu.uci.ics.texera.web.model.jooq.generated;
 
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.File;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.GoogleUser;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.KeywordDictionary;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Workflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfUser;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.FileRecord;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.records.GoogleUserRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.KeywordDictionaryRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.UserRecord;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowOfUserRecord;
@@ -46,7 +44,6 @@ public class Keys {
 
     public static final UniqueKey<FileRecord> KEY_FILE_UID = UniqueKeys0.KEY_FILE_UID;
     public static final UniqueKey<FileRecord> KEY_FILE_PRIMARY = UniqueKeys0.KEY_FILE_PRIMARY;
-    public static final UniqueKey<GoogleUserRecord> KEY_GOOGLE_USER_PRIMARY = UniqueKeys0.KEY_GOOGLE_USER_PRIMARY;
     public static final UniqueKey<KeywordDictionaryRecord> KEY_KEYWORD_DICTIONARY_UID = UniqueKeys0.KEY_KEYWORD_DICTIONARY_UID;
     public static final UniqueKey<KeywordDictionaryRecord> KEY_KEYWORD_DICTIONARY_PRIMARY = UniqueKeys0.KEY_KEYWORD_DICTIONARY_PRIMARY;
     public static final UniqueKey<UserRecord> KEY_USER_PRIMARY = UniqueKeys0.KEY_USER_PRIMARY;
@@ -77,7 +74,6 @@ public class Keys {
     private static class UniqueKeys0 {
         public static final UniqueKey<FileRecord> KEY_FILE_UID = Internal.createUniqueKey(File.FILE, "KEY_file_uid", File.FILE.UID, File.FILE.NAME);
         public static final UniqueKey<FileRecord> KEY_FILE_PRIMARY = Internal.createUniqueKey(File.FILE, "KEY_file_PRIMARY", File.FILE.FID);
-        public static final UniqueKey<GoogleUserRecord> KEY_GOOGLE_USER_PRIMARY = Internal.createUniqueKey(GoogleUser.GOOGLE_USER, "KEY_google_user_PRIMARY", GoogleUser.GOOGLE_USER.UID);
         public static final UniqueKey<KeywordDictionaryRecord> KEY_KEYWORD_DICTIONARY_UID = Internal.createUniqueKey(KeywordDictionary.KEYWORD_DICTIONARY, "KEY_keyword_dictionary_uid", KeywordDictionary.KEYWORD_DICTIONARY.UID, KeywordDictionary.KEYWORD_DICTIONARY.NAME);
         public static final UniqueKey<KeywordDictionaryRecord> KEY_KEYWORD_DICTIONARY_PRIMARY = Internal.createUniqueKey(KeywordDictionary.KEYWORD_DICTIONARY, "KEY_keyword_dictionary_PRIMARY", KeywordDictionary.KEYWORD_DICTIONARY.KID);
         public static final UniqueKey<UserRecord> KEY_USER_PRIMARY = Internal.createUniqueKey(User.USER, "KEY_user_PRIMARY", User.USER.UID);
