@@ -5,7 +5,7 @@ DROP TABLE IF EXISTS `file`;
 DROP TABLE IF EXISTS `keyword_dictionary`;
 DROP TABLE IF EXISTS `workflow_of_user`;
 DROP TABLE IF EXISTS `user`;
-DROP TABLE IF EXISTS workflow;
+DROP TABLE IF EXISTS `workflow`;
 
 SET GLOBAL time_zone = '+00:00'; # this line is mandatory
 
