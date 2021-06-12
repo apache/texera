@@ -2,7 +2,7 @@ import pytest
 
 from worker import Tuple
 from worker.models.control_payload import ControlPayload
-from worker.models.identity import VirtualIdentity, LinkIdentity
+from worker.models.generated.virtualidentity_pb2 import LinkIdentity, ActorVirtualIdentity
 from worker.models.internal_queue import InternalQueue, InputTuple, ControlElement, SenderChangeMarker, EndMarker, EndOfAllMarker
 from worker.models.tuple import InputExhausted
 from worker.util.stable_priority_queue import PrioritizedItem
@@ -31,19 +31,20 @@ class TestInternalQueue:
 
     def test_internal_queue_can_put_internal_queue_element(self, internal_queue):
         internal_queue.put(InputTuple(Tuple()))
-        internal_queue.put(ControlElement(ControlPayload(), VirtualIdentity()))
+        internal_queue.put(ControlElement(ControlPayload(), ActorVirtualIdentity()))
         internal_queue.put(SenderChangeMarker(LinkIdentity()))
         internal_queue.put(EndMarker())
         internal_queue.put(EndOfAllMarker())
 
     def test_internal_queue_should_emit_control_first(self, internal_queue):
+
         elements = [InputTuple(Tuple()), SenderChangeMarker(LinkIdentity()),
                     EndMarker(), EndOfAllMarker()]
         for element in elements:
             internal_queue.put(element)
 
         # enqueue a ControlElement:
-        control = ControlElement(ControlPayload(), VirtualIdentity())
+        control = ControlElement(ControlPayload(), ActorVirtualIdentity())
         internal_queue.put(control)
 
         assert internal_queue.get() == control
@@ -55,7 +56,7 @@ class TestInternalQueue:
             internal_queue.put(element)
 
         # enqueue a ControlElement:
-        control1 = ControlElement(ControlPayload(), VirtualIdentity())
+        control1 = ControlElement(ControlPayload(), ActorVirtualIdentity())
         internal_queue.put(control1)
 
         elements2 = [EndOfAllMarker(), InputTuple(Tuple()), InputTuple(Tuple()),
@@ -65,7 +66,7 @@ class TestInternalQueue:
             internal_queue.put(element)
 
         # enqueue a ControlElement:
-        control2 = ControlElement(ControlPayload(), VirtualIdentity())
+        control2 = ControlElement(ControlPayload(), ActorVirtualIdentity())
         internal_queue.put(control2)
 
         assert internal_queue.get() == control1

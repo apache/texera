@@ -5,11 +5,16 @@ from typing import Iterable, Union
 from loguru import logger
 
 from worker.models.control_payload import ControlPayload
-from worker.models.identity import LinkIdentity, VirtualIdentity
+from worker.models.generated.virtualidentity_pb2 import LinkIdentity, ActorVirtualIdentity
+
 from worker.models.internal_queue import InputTuple, ControlElement, SenderChangeMarker, EndMarker, EndOfAllMarker
 from worker.models.tuple import ITuple, InputExhausted, Tuple
 from worker.udf.udf_operator import UDFOperator
 from worker.util.stoppable_queue_blocking_thread import StoppableQueueBlockingThread
+
+
+class BatchProducer:
+    pass
 
 
 class DPThread(StoppableQueueBlockingThread):
@@ -23,6 +28,7 @@ class DPThread(StoppableQueueBlockingThread):
         self._current_input_link: LinkIdentity
         self.output_tuple_count: int = 0
         self.input_tuple_count: int = 0
+        self._batch_producer = BatchProducer()
 
     def before_loop(self) -> None:
         self._udf_operator.open()
@@ -54,7 +60,7 @@ class DPThread(StoppableQueueBlockingThread):
             raise TypeError(f"unknown InternalQueueElement {next_entry}")
 
     @staticmethod
-    def process_control_command(cmd: ControlPayload, from_: VirtualIdentity):
+    def process_control_command(cmd: ControlPayload, from_: ActorVirtualIdentity):
         logger.info(f"processing one control {cmd} from {from_}")
 
     def handle_input_tuple(self):

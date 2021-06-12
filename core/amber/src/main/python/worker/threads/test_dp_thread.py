@@ -5,7 +5,7 @@ from typing import Iterable, Union
 import pytest
 
 from worker import DPThread, Tuple
-from worker.models.identity import LinkIdentity
+from worker.models.generated.virtualidentity_pb2 import LinkIdentity
 from worker.models.internal_queue import InputTuple, SenderChangeMarker, EndMarker, EndOfAllMarker
 from worker.models.tuple import InputExhausted
 from worker.udf import UDFOperator
@@ -22,6 +22,14 @@ class TestDpTread:
                 return [tuple_]
 
         return EchoOperator()
+
+    @pytest.fixture
+    def mock_link(self):
+        with open("mock_data/link.pb", 'rb') as file:
+            link: LinkIdentity = LinkIdentity()
+            link.ParseFromString(file.read())
+
+        return link
 
     @pytest.fixture
     def input_queue(self):
@@ -50,9 +58,8 @@ class TestDpTread:
             assert dp_thread.output_tuple_count == current_output_queue_size + i
 
     @staticmethod
-    def _test_change_sender(dp_thread, input_queue, output_queue) -> LinkIdentity:
+    def _test_change_sender(dp_thread, input_queue, output_queue, link=LinkIdentity()) -> LinkIdentity:
         current_output_queue_size = output_queue.qsize()
-        link = LinkIdentity()
         input_queue.put(SenderChangeMarker(link))
         sleep(0.02)
         assert dp_thread._current_input_link == link
@@ -98,7 +105,7 @@ class TestDpTread:
         link = self._test_change_sender(dp_thread, input_queue, output_queue)
         self._test_data_input(dp_thread, input_queue, link, output_queue, n=10)
 
-    def test_dp_thread_can_handle_change_of_sender_during_data_messages(self, input_queue, output_queue, dp_thread):
+    def test_dp_thread_can_handle_change_of_sender_during_data_messages(self, input_queue, output_queue, dp_thread, mock_link):
         dp_thread.start()
 
         # send some data from sender 1
@@ -106,7 +113,7 @@ class TestDpTread:
         self._test_data_input(dp_thread, input_queue, link, output_queue, n=10)
 
         # change sender now
-        link2 = self._test_change_sender(dp_thread, input_queue, output_queue)
+        link2 = self._test_change_sender(dp_thread, input_queue, output_queue, link=mock_link)
         self._test_data_input(dp_thread, input_queue, link2, output_queue, n=10)
 
     def test_dp_thread_can_handle_end_marker(self, input_queue, output_queue, dp_thread):

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from worker.models.control_payload import ControlPayload
-from worker.models.identity import VirtualIdentity, LinkIdentity
+from worker.models.generated.virtualidentity_pb2 import LinkIdentity, ActorVirtualIdentity
 from worker.models.tuple import ITuple
 from worker.util.stable_priority_queue import StablePriorityQueue, QueueElement
 
@@ -24,7 +24,7 @@ class InputTuple(InternalQueueElement):
 @dataclass
 class ControlElement(InternalQueueElement):
     cmd: ControlPayload
-    from_: VirtualIdentity
+    from_: ActorVirtualIdentity
     _priority: int = 0
 
 
