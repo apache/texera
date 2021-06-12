@@ -24,15 +24,13 @@
         </mat-dialog-content>
         <div>
           <button class="btn btn-info" (click)="login()"> Sign In</button>
-          <div class='g-sign-in-button' (click)="authenticate()">
-            <div class=content-wrapper>
-              <div class='logo-wrapper'>
-                <img src='https://developers.google.com/identity/images/g-logo.png' alt="g-sign-in-button">
-              </div>
-              <span class='text-container'>
-            <span>Sign in with Google</span>
-          </span>
+        </div>
+        <div class='g-sign-in-button' (click)="authenticate()">
+          <div class=content-wrapper>
+            <div class='logo-wrapper'>
+              <img src='https://developers.google.com/identity/images/g-logo.png' alt="g-sign-in-button">
             </div>
+            <span class='text-container'><span>Sign in with Google</span></span>
           </div>
         </div>
         <p *ngIf="loginErrorMessage" style="color:red">{{ loginErrorMessage }}</p>
