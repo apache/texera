@@ -101,4 +101,11 @@ public class UserDao extends DAOImpl<UserRecord, edu.uci.ics.texera.web.model.jo
     public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User> fetchByGoogleId(String... values) {
         return fetch(User.USER.GOOGLE_ID, values);
     }
+
+    /**
+     * Fetch a unique record that has <code>google_id = value</code>
+     */
+    public edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User fetchOneByGoogleId(String value) {
+        return fetchOne(User.USER.GOOGLE_ID, value);
+    }
 }
