@@ -4,7 +4,6 @@ import { UserService } from '../../../../../common/service/user/user.service';
 import { User } from '../../../../../common/type/user';
 import { Validators, FormControl, FormGroup, FormBuilder} from '@angular/forms';
 import { isDefined } from '../../../../../common/util/predicate';
-import { environment } from '../../../../../../environments/environment'
 /**
  * NgbdModalUserLoginComponent is the pop up for user login/registration
  *
@@ -20,11 +19,6 @@ export class NgbdModalUserLoginComponent implements OnInit {
   public loginErrorMessage: string | undefined;
   public registerErrorMessage: string | undefined;
   public allForms: FormGroup;
-  public oauthInstance!: gapi.auth2.GoogleAuth;
-  public user!: gapi.auth2.GoogleUser;
-  public gapiSetUp: boolean = false;
-  public userName!: string | undefined;
-  public error!: string;
 
   constructor(
     private formBuilder: FormBuilder,
@@ -43,15 +37,15 @@ export class NgbdModalUserLoginComponent implements OnInit {
     this.detectUserChange();
   }
 
-  public errorMessageUsernameNull(): string{
-    return "Username required";
+  public errorMessageUsernameNull(): string {
+    return 'Username required';
   }
 
-  public errorMessagePasswordNull(): string{
-    return this.allForms.controls["registerPassword"].hasError('required') ? "Password required"
-          : this.allForms.controls["registerConfirmationPassword"].hasError('required') ? "Confirmation required"
-          : this.allForms.controls["loginPassword"].hasError('required') ? "Password required"
-          : "";
+  public errorMessagePasswordNull(): string {
+    return this.allForms.controls['registerPassword'].hasError('required') ? 'Password required'
+          : this.allForms.controls['registerConfirmationPassword'].hasError('required') ? 'Confirmation required'
+          : this.allForms.controls['loginPassword'].hasError('required') ? 'Password required'
+          : '';
   }
 
   /**
@@ -61,16 +55,19 @@ export class NgbdModalUserLoginComponent implements OnInit {
   public login(): void {
     // validate the credentials format
     this.loginErrorMessage = undefined;
-    const validation = this.userService.validateUsername(this.allForms.get("loginUserName")!.value);
+    const validation = this.userService.validateUsername(this.allForms.get('loginUserName')?.value);
     if (!validation.result) {
       this.loginErrorMessage = validation.message;
       return;
     }
 
+    const normalUserName = this.allForms.get('loginUserName')?.value.trim();
+    const normalUserPassword = this.allForms.get('loginPassword')?.value;
+
     // validate the credentials with backend
-    this.userService.login(this.allForms.get("loginUserName")!.value.trim(), this.allForms.get("loginPassword")!.value).subscribe(
+    this.userService.login(normalUserName, normalUserPassword).subscribe(
       () => {
-        this.userService.changeUser(<User>{name: this.allForms.get("loginUserName")!.value});
+        this.userService.changeUser(<User>{name: normalUserName});
         this.activeModal.close();
 
       }, () => this.loginErrorMessage = 'Incorrect credentials');
@@ -83,12 +80,15 @@ export class NgbdModalUserLoginComponent implements OnInit {
   public register(): void {
     // validate the credentials format
     this.registerErrorMessage = undefined;
-    const validation = this.userService.validateUsername(this.allForms.get("registerUserName")!.value.trim());
-    if (this.allForms.get("registerPassword")!.value.length < 6){
+    const registerPassword = this.allForms.get('registerPassword')?.value;
+    const registerConfirmationPassword = this.allForms.get('registerConfirmationPassword')?.value;
+    const registerUserName = this.allForms.get('registerUserName')?.value.trim();
+    const validation = this.userService.validateUsername(this.allForms.get('registerUserName')?.value.trim());
+    if (registerPassword.length < 6) {
       this.registerErrorMessage = 'Password length should be greater than 5';
       return;
     }
-    if (this.allForms.get("registerPassword")!.value !== this.allForms.get("registerConfirmationPassword")!.value){
+    if (registerPassword !== registerConfirmationPassword) {
       this.registerErrorMessage = 'Passwords do not match';
       return;
     }
@@ -97,63 +97,37 @@ export class NgbdModalUserLoginComponent implements OnInit {
       return;
     }
     // register the credentials with backend
-    this.userService.register(this.allForms.get("registerUserName")!.value.trim(), this.allForms.get("registerPassword")!.value).subscribe(
+    this.userService.register(registerUserName, registerPassword).subscribe(
       () => {
-        this.userService.changeUser(<User>{name: this.allForms.get("registerUserName")!.value.trim()});
+        this.userService.changeUser(<User>{name: registerUserName});
         this.activeModal.close();
 
       }, () => this.registerErrorMessage = 'Registration failed. Could due to duplicate username.');
   }
 
   /**
-   * this method will init A Google Oauth instance and gapi
+   * this method will retrieve a usable Google OAuth Instance first,
+   * with that avaiable instance, get googleUsername and authorization code respectively,
+   * then sending the code to the backend
    */
-  public async initGoogleOauth(): Promise<void> {
-    // load gapi
-    const gapiLoad = new Promise((resolve) => {
-      gapi.load('auth2', resolve);
-    });
-    // gapi is loaded when the first promise resolves
-    // mark gapi library as been loaded 
-    // then we can call gapi.auth2 init
-    return gapiLoad.then(async () => {
-      await gapi.auth2
-        .init({ client_id: environment.google.clientID })
-        .then(auth => {
-          this.oauthInstance = auth;
-          this.gapiSetUp = true;
+  public authenticate(): void {
+    this.userService.initGoogleOauth().then(
+      (auth) => {
+        this.userService.getGoogleAuthCode(auth).then(
+          (code) => {
+            this.userService.getGoogleUserName(auth).then(
+              (googleUsername) => {
+                this.userService.googleLogin(code['code']).subscribe(
+                  () => {
+                    this.userService.changeUser(<User>{name: googleUsername});
+                    this.activeModal.close();
+                }, () => this.loginErrorMessage = 'Incorrect credentials'
+                );
+              }
+            );
         });
-    });
-  }
-
-  /**
-   * this method will return the authorization code
-   */
-  public async authenticate(): Promise<void> {
-    var authCode!: string
-    // initialize gapi if not done yet
-    if (!this.gapiSetUp) {
-      await this.initGoogleOauth();
+      });
     }
-    await this.oauthInstance.signIn().then(
-      user => this.user = user,
-      error => this.error = error
-    )
-    // allows application to access specified scopes offline
-    // no scopes specified here
-    await this.oauthInstance.grantOfflineAccess().then(
-      code => authCode = code['code']
-    )
-
-    // set the user name
-    this.userName = this.user?.getBasicProfile().getName()
-
-    this.userService.googleLogin(authCode).subscribe(
-      () => {
-        this.userService.changeUser(<User>{name: this.userName});
-        this.activeModal.close();
-      }, () => this.loginErrorMessage = 'Incorrect credentials');
-  }
 
   /**
    * this method will handle the pop up when user successfully login
@@ -165,4 +139,3 @@ export class NgbdModalUserLoginComponent implements OnInit {
     });
   }
 }
-
