@@ -35,7 +35,7 @@ object ProgressiveUtils {
   def getTupleFlagAndValue(tuple: Tuple, schemaInfo: OperatorSchemaInfo): (Boolean, Tuple) = {
     (
       isInsertion(tuple),
-      Tuple.newBuilder(schemaInfo.outputSchema).add(tuple).build()
+      Tuple.newBuilder(schemaInfo.outputSchema).add(tuple, false).build()
     )
   }
 

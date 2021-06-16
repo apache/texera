@@ -597,19 +597,24 @@ public class Tuple implements ITuple, Serializable {
 
         /**
          * The tuple argument here is expected to conform to the exact same schema as the
-         * the schema passed in the constructor. If it doesn't conform, the mismatched attributes
-         * are just ignored
+         * the schema passed in the constructor. If it doesn't conform, an error will be thrown.
+         * If you wish to ignore attributes in the tuple that are not part of the output schema,
+         * then use {@link Tuple.BuilderV2#add(Tuple, boolean)} with second parameter as false
          */
         public BuilderV2 add(Tuple tuple) {
+            return add(tuple, true);
+        }
+
+        public BuilderV2 add(Tuple tuple, boolean isStrictSchemaMatch) {
             checkNotNull(tuple);
 
             for (int i = 0; i < tuple.size(); i++) {
                 Attribute attribute = tuple.getSchema().getAttributes().get(i);
-                // We are intentionally "loose" in the schema matching, so that we don't need a "remove" ever
-                // So, if a tuple is passed in and has more fields than the required schema, we'll assume that
-                // the output tuple doesn't need those attributes.
-                // TODO Log this or maybe have a another overload that takes in a "looseSchemaMatch" parameter to make this behaviour explicit?
-                if (!schema.containsAttribute(attribute.getName())) {
+                // The isStrictSchemaMatch parameter toggles the ability to check exact schema matching.
+                // This is so that we don't need a "remove" ever. So, if a tuple is passed in and has more fields
+                // than the required schema, we'll assume that the output tuple doesn't need those attributes,
+                // PROVIDED isStrictSchemaMatch=false
+                if (!isStrictSchemaMatch && !schema.containsAttribute(attribute.getName())) {
                     continue;
                 }
                 add(attribute, tuple.getFields().get(i));
