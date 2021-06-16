@@ -19,8 +19,11 @@ class ProjectionOpDesc extends MapOpDesc {
   @AutofillAttributeNameList
   var attributes: List[String] = List()
 
-  override def operatorExecutor(schemaInfo: OperatorSchemaInfo): OneToOneOpExecConfig = {
-    new OneToOneOpExecConfig(operatorIdentifier, _ => new ProjectionOpExec(attributes, schemaInfo))
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OneToOneOpExecConfig = {
+    new OneToOneOpExecConfig(
+      operatorIdentifier,
+      _ => new ProjectionOpExec(attributes, operatorSchemaInfo)
+    )
   }
 
   override def operatorInfo: OperatorInfo = {

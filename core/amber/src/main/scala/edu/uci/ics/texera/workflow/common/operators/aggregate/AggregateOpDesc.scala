@@ -5,6 +5,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
 abstract class AggregateOpDesc extends OperatorDescriptor {
 
-  override def operatorExecutor(schemaInfo: OperatorSchemaInfo): AggregateOpExecConfig[_]
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): AggregateOpExecConfig[_]
 
 }

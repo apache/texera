@@ -22,7 +22,9 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
   fileTypeName = Option("JSONL")
 
   @throws[IOException]
-  override def operatorExecutor(schemaInfo: OperatorSchemaInfo): JSONLScanSourceOpExecConfig = {
+  override def operatorExecutor(
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): JSONLScanSourceOpExecConfig = {
     filePath match {
       case Some(path) =>
         new JSONLScanSourceOpExecConfig(

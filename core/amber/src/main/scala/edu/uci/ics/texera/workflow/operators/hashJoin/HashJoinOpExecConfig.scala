@@ -29,7 +29,7 @@ class HashJoinOpExecConfig[K](
     id: OperatorIdentity,
     val probeAttributeName: String,
     val buildAttributeName: String,
-    val schemaInfo: OperatorSchemaInfo
+    val operatorSchemaInfo: OperatorSchemaInfo
 ) extends OpExecConfig(id) {
 
   var buildTable: LinkIdentity = _
@@ -57,7 +57,7 @@ class HashJoinOpExecConfig[K](
       workflow.getOperator(source).topology.layers.head.startAfter(buildLink)
     }
     topology.layers.head.metadata = _ =>
-      new HashJoinOpExec[K](buildTable, buildAttributeName, probeAttributeName, schemaInfo)
+      new HashJoinOpExec[K](buildTable, buildAttributeName, probeAttributeName, operatorSchemaInfo)
   }
 
   override def requiredShuffle: Boolean = true

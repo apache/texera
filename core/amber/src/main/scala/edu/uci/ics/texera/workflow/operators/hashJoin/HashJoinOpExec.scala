@@ -18,7 +18,7 @@ class HashJoinOpExec[K](
     val buildTable: LinkIdentity,
     val buildAttributeName: String,
     val probeAttributeName: String,
-    val schemaInfo: OperatorSchemaInfo
+    val operatorSchemaInfo: OperatorSchemaInfo
 ) extends OperatorExecutor {
 
   var isBuildTableFinished: Boolean = false
@@ -83,7 +83,7 @@ class HashJoinOpExec[K](
 
             storedTuples.foreach(buildTuple => {
               val builder = Tuple
-                .newBuilder(schemaInfo.outputSchema)
+                .newBuilder(operatorSchemaInfo.outputSchema)
                 .add(buildTuple)
 
               var newProbeIdx = 0

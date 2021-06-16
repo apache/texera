@@ -43,7 +43,7 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
   @JsonSchemaDescription("Maximum number of tweets to retrieve")
   var limit: Int = _
 
-  override def operatorExecutor(schemaInfo: OperatorSchemaInfo): OpExecConfig =
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig =
     // TODO: use multiple workers
     new ManyToOneOpExecConfig(
       operatorIdentifier,

@@ -21,7 +21,7 @@ class LimitOpDesc extends OperatorDescriptor {
   @JsonPropertyDescription("the max number of output rows")
   var limit: Int = _
 
-  override def operatorExecutor(schemaInfo: OperatorSchemaInfo): OpExecConfig = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
     val limitPerWorker = equallyPartitionGoal(limit, Constants.defaultNumWorkers)
     new OneToOneOpExecConfig(operatorIdentifier, i => new LimitOpExec(limitPerWorker(i)))
   }

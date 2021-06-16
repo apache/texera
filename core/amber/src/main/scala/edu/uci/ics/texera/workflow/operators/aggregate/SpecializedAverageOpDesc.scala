@@ -43,7 +43,9 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
   @JsonPropertyDescription("group by columns")
   var groupByKeys: List[String] = _
 
-  override def operatorExecutor(schemaInfo: OperatorSchemaInfo): AggregateOpExecConfig[_] = {
+  override def operatorExecutor(
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): AggregateOpExecConfig[_] = {
     aggFunction match {
       case AggregationFunction.AVERAGE => averageAgg()
       case AggregationFunction.COUNT   => countAgg()

@@ -34,12 +34,12 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
   @JsonIgnore
   var opExecConfig: HashJoinOpExecConfig[K] = _
 
-  override def operatorExecutor(schemaInfo: OperatorSchemaInfo): OpExecConfig = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
     opExecConfig = new HashJoinOpExecConfig[K](
       operatorIdentifier,
       probeAttributeName,
       buildAttributeName,
-      schemaInfo
+      operatorSchemaInfo
     )
     opExecConfig
   }

@@ -91,7 +91,7 @@ abstract class OperatorDescriptor extends Serializable {
 
   def operatorIdentifier: OperatorIdentity = OperatorIdentity(context.jobID, operatorID)
 
-  def operatorExecutor(schemaInfo: OperatorSchemaInfo): OpExecConfig
+  def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig
 
   def operatorInfo: OperatorInfo
 

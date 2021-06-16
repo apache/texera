@@ -9,7 +9,8 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
 import scala.collection.mutable
 
-class SimpleSinkOpExec(val schemaInfo: OperatorSchemaInfo) extends ITupleSinkOperatorExecutor {
+class SimpleSinkOpExec(val operatorSchemaInfo: OperatorSchemaInfo)
+    extends ITupleSinkOperatorExecutor {
 
   val results: mutable.ListBuffer[Tuple] = mutable.ListBuffer()
 
@@ -35,7 +36,7 @@ class SimpleSinkOpExec(val schemaInfo: OperatorSchemaInfo) extends ITupleSinkOpe
   }
 
   private def updateResult(tuple: Tuple): Unit = {
-    val (isInsertion, tupleValue) = ProgressiveUtils.getTupleFlagAndValue(tuple, schemaInfo)
+    val (isInsertion, tupleValue) = ProgressiveUtils.getTupleFlagAndValue(tuple, operatorSchemaInfo)
     if (isInsertion) {
       results += tupleValue
     } else {

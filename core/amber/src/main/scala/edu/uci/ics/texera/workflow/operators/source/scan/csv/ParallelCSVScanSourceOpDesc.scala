@@ -34,7 +34,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
   fileTypeName = Option("CSV")
 
   @throws[IOException]
-  override def operatorExecutor(schemaInfo: OperatorSchemaInfo): OpExecConfig = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
     // fill in default values
     if (customDelimiter.get.isEmpty)
       customDelimiter = Option(",")

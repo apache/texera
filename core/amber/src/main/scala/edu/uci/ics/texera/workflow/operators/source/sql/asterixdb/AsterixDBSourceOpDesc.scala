@@ -42,7 +42,7 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
   )
   override def getKeywords: Option[String] = super.getKeywords
 
-  override def operatorExecutor(schemaInfo: OperatorSchemaInfo): OpExecConfig =
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig =
     new SQLSourceOpExecConfig(
       this.operatorIdentifier,
       (worker: Any) =>

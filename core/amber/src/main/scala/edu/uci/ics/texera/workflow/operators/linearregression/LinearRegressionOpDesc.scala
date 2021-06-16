@@ -29,7 +29,7 @@ class LinearRegressionOpDesc extends MLModelOpDesc {
   @JsonPropertyDescription("Learning Rate")
   var learningRate: Double = _
 
-  override def operatorExecutor(schemaInfo: OperatorSchemaInfo): OpExecConfig =
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig =
     new ManyToOneOpExecConfig(
       operatorIdentifier,
       _ => new LinearRegressionOpExec(xAttr, yAttr, learningRate)
