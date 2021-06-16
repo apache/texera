@@ -2,8 +2,9 @@ import { Component, OnInit } from '@angular/core';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { UserService } from '../../../../../common/service/user/user.service';
 import { User } from '../../../../../common/type/user';
-import { Validators, FormControl, FormGroup, FormBuilder} from '@angular/forms';
+import { FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms';
 import { isDefined } from '../../../../../common/util/predicate';
+
 /**
  * NgbdModalUserLoginComponent is the pop up for user login/registration
  *
@@ -24,13 +25,13 @@ export class NgbdModalUserLoginComponent implements OnInit {
     private formBuilder: FormBuilder,
     public activeModal: NgbActiveModal,
     private userService: UserService) {
-      this.allForms = this.formBuilder.group({
-        loginUserName: new FormControl('', [Validators.required]),
-        registerUserName: new FormControl('', [Validators.required]),
-        loginPassword: new FormControl('', [Validators.required]),
-        registerPassword : new FormControl('', [Validators.required]),
-        registerConfirmationPassword : new FormControl('', [Validators.required]),
-      });
+    this.allForms = this.formBuilder.group({
+      loginUserName: new FormControl('', [Validators.required]),
+      registerUserName: new FormControl('', [Validators.required]),
+      loginPassword: new FormControl('', [Validators.required]),
+      registerPassword: new FormControl('', [Validators.required]),
+      registerConfirmationPassword: new FormControl('', [Validators.required])
+    });
   }
 
   ngOnInit() {
@@ -43,8 +44,8 @@ export class NgbdModalUserLoginComponent implements OnInit {
 
   public errorMessagePasswordNull(): string {
     return this.allForms.controls['registerPassword'].hasError('required') ? 'Password required'
-          : this.allForms.controls['registerConfirmationPassword'].hasError('required') ? 'Confirmation required'
-          : this.allForms.controls['loginPassword'].hasError('required') ? 'Password required'
+      : this.allForms.controls['registerConfirmationPassword'].hasError('required') ? 'Confirmation required'
+        : this.allForms.controls['loginPassword'].hasError('required') ? 'Password required'
           : '';
   }
 
@@ -107,7 +108,7 @@ export class NgbdModalUserLoginComponent implements OnInit {
 
   /**
    * this method will retrieve a usable Google OAuth Instance first,
-   * with that avaiable instance, get googleUsername and authorization code respectively,
+   * with that available instance, get googleUsername and authorization code respectively,
    * then sending the code to the backend
    */
   public authenticate(): void {
