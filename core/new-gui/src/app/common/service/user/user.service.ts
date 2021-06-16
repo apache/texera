@@ -59,13 +59,13 @@ export class UserService {
   /**
    * This method will handle the request for Google login.
    * It will automatically login, save the user account inside and trigger userChangeEvent when success
-   * @param authoCode string
+   * @param authCode string
    */
-  public googleLogin(authoCode: string): Observable<User> {
+  public googleLogin(authCode: string): Observable<User> {
     if (this.currentUser) {
       throw new Error('Already logged in when login in.');
     }
-    return this.http.post<User>(`${AppSettings.getApiEndpoint()}/${UserService.GOOGLE_LOGIN_ENDPOINT}`, {authoCode})
+    return this.http.post<User>(`${AppSettings.getApiEndpoint()}/${UserService.GOOGLE_LOGIN_ENDPOINT}`, {authCode})
           .filter((user: User) => user != null);
   }
 

@@ -88,7 +88,7 @@ class UserResource {
   @Path("/google-login")
   def googleLogin(@Session session: HttpSession, request: GoogleUserLoginRequest): Response = {
 
-    retrieveUserByGoogleAuthCode(request.authoCode) match {
+    retrieveUserByGoogleAuthCode(request.authCode) match {
       case Success(user) =>
         setUserSession(session, Some(user))
         Response.ok(user).build()
