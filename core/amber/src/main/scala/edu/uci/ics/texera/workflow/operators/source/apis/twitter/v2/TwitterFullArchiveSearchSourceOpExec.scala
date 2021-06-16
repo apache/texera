@@ -85,7 +85,7 @@ class TwitterFullArchiveSearchSourceOpExec(
           ),
           schema.getAttributes.map((attribute: Attribute) => { attribute.getType }).toArray
         )
-        Tuple.newBuilder.add(schema, fields).build
+        Tuple.newBuilder(schema).addSequentially(fields).build
       }
     }
 
