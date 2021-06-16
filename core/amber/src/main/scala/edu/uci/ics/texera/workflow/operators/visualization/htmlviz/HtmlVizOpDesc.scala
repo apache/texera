@@ -12,7 +12,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
   AttributeType,
   Schema,
-  SchemaInfo
+  OperatorSchemaInfo
 }
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator
@@ -31,7 +31,7 @@ class HtmlVizOpDesc extends VisualizationOperator {
 
   override def chartType: String = VisualizationConstants.HTML_VIZ
 
-  override def operatorExecutor(schemaInfo: SchemaInfo) =
+  override def operatorExecutor(schemaInfo: OperatorSchemaInfo) =
     new HtmlVizOpExecConfig(this.operatorIdentifier, htmlContentAttrName)
 
   override def operatorInfo =

@@ -13,12 +13,12 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   OperatorIdentity
 }
 import edu.uci.ics.amber.engine.operators.SinkOpExecConfig
-import edu.uci.ics.texera.workflow.common.tuple.schema.SchemaInfo
+import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-class SimpleSinkOpExecConfig(tag: OperatorIdentity, val schemaInfo: SchemaInfo)
+class SimpleSinkOpExecConfig(tag: OperatorIdentity, val schemaInfo: OperatorSchemaInfo)
     extends SinkOpExecConfig(tag) {
   override lazy val topology = new Topology(
     Array(

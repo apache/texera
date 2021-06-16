@@ -13,7 +13,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
   AttributeType,
   Schema,
-  SchemaInfo
+  OperatorSchemaInfo
 }
 import edu.uci.ics.texera.workflow.operators.source.apis.twitter.TwitterSourceOpDesc
 
@@ -43,7 +43,7 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
   @JsonSchemaDescription("Maximum number of tweets to retrieve")
   var limit: Int = _
 
-  override def operatorExecutor(schemaInfo: SchemaInfo): OpExecConfig =
+  override def operatorExecutor(schemaInfo: OperatorSchemaInfo): OpExecConfig =
     // TODO: use multiple workers
     new ManyToOneOpExecConfig(
       operatorIdentifier,

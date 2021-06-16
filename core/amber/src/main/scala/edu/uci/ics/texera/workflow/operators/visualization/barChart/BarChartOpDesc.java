@@ -12,7 +12,7 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttribute
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
-import edu.uci.ics.texera.workflow.common.tuple.schema.SchemaInfo;
+import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
 
@@ -45,7 +45,7 @@ public class BarChartOpDesc extends VisualizationOperator {
     }
 
     @Override
-    public OpExecConfig operatorExecutor(SchemaInfo schemaInfo) {
+    public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         if (nameColumn == null) {
             throw new RuntimeException("bar chart: name column is null");
         }

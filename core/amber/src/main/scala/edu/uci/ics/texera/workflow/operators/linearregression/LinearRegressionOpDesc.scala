@@ -11,7 +11,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.operators.mlmodel.MLModelOpDesc
 import edu.uci.ics.texera.workflow.common.operators.ManyToOneOpExecConfig
-import edu.uci.ics.texera.workflow.common.tuple.schema.SchemaInfo
+import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
 class LinearRegressionOpDesc extends MLModelOpDesc {
 
@@ -29,7 +29,7 @@ class LinearRegressionOpDesc extends MLModelOpDesc {
   @JsonPropertyDescription("Learning Rate")
   var learningRate: Double = _
 
-  override def operatorExecutor(schemaInfo: SchemaInfo): OpExecConfig =
+  override def operatorExecutor(schemaInfo: OperatorSchemaInfo): OpExecConfig =
     new ManyToOneOpExecConfig(
       operatorIdentifier,
       _ => new LinearRegressionOpExec(xAttr, yAttr, learningRate)

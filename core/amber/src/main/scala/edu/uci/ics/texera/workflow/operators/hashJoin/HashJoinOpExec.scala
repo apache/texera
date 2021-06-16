@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.common.{InputExhausted, WorkflowLogger}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema, SchemaInfo}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema, OperatorSchemaInfo}
 import org.apache.avro.SchemaBuilder
 
 import java.util
@@ -18,7 +18,7 @@ class HashJoinOpExec[K](
     val buildTable: LinkIdentity,
     val buildAttributeName: String,
     val probeAttributeName: String,
-    val schemaInfo: SchemaInfo
+    val schemaInfo: OperatorSchemaInfo
 ) extends OperatorExecutor {
 
   var isBuildTableFinished: Boolean = false

@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.common.operators.source
 
 import com.google.common.base.Preconditions
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Schema, SchemaInfo}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Schema, OperatorSchemaInfo}
 
 abstract class SourceOperatorDescriptor extends OperatorDescriptor {
 

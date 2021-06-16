@@ -8,7 +8,7 @@ import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Schema, SchemaInfo}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Schema, OperatorSchemaInfo}
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 
 import scala.collection.mutable
@@ -43,7 +43,8 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
       val outputSchema =
         if (o.isInstanceOf[SourceOperatorDescriptor]) o.getOutputSchema(Array())
         else o.getOutputSchema(inputSchemas)
-      val amberOperator: OpExecConfig = o.operatorExecutor(SchemaInfo(inputSchemas, outputSchema))
+      val amberOperator: OpExecConfig =
+        o.operatorExecutor(OperatorSchemaInfo(inputSchemas, outputSchema))
       amberOperators.put(amberOperator.id, amberOperator)
     })
 

@@ -5,11 +5,11 @@ import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 import edu.uci.ics.amber.engine.common.{ITupleSinkOperatorExecutor, InputExhausted}
 import edu.uci.ics.texera.workflow.common.ProgressiveUtils
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.SchemaInfo
+import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
 import scala.collection.mutable
 
-class SimpleSinkOpExec(val schemaInfo: SchemaInfo) extends ITupleSinkOperatorExecutor {
+class SimpleSinkOpExec(val schemaInfo: OperatorSchemaInfo) extends ITupleSinkOperatorExecutor {
 
   val results: mutable.ListBuffer[Tuple] = mutable.ListBuffer()
 

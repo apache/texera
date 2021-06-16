@@ -4,7 +4,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
   AttributeType,
   Schema,
-  SchemaInfo
+  OperatorSchemaInfo
 }
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.operators.projection.ProjectionOpExec
@@ -34,7 +34,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       .add(new Attribute("field1", AttributeType.STRING))
       .add(new Attribute("field2", AttributeType.INTEGER))
       .build()
-    val projectionOpExec = new ProjectionOpExec(List(), SchemaInfo(null, outputSchema))
+    val projectionOpExec = new ProjectionOpExec(List(), OperatorSchemaInfo(null, outputSchema))
     projectionOpExec.attributes ++= List("field1", "field2")
 
     projectionOpExec.open()
@@ -53,7 +53,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       .add(new Attribute("field3", AttributeType.BOOLEAN))
       .add(new Attribute("field1", AttributeType.STRING))
       .build()
-    val projectionOpExec = new ProjectionOpExec(List(), SchemaInfo(null, outputSchema))
+    val projectionOpExec = new ProjectionOpExec(List(), OperatorSchemaInfo(null, outputSchema))
     projectionOpExec.attributes ++= List("field3", "field1")
 
     projectionOpExec.open()

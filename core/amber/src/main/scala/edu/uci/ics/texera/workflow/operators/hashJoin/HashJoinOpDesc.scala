@@ -15,7 +15,7 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.{
   AutofillAttributeNameOnPort1
 }
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema, SchemaInfo}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema, OperatorSchemaInfo}
 
 class HashJoinOpDesc[K] extends OperatorDescriptor {
 
@@ -34,7 +34,7 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
   @JsonIgnore
   var opExecConfig: HashJoinOpExecConfig[K] = _
 
-  override def operatorExecutor(schemaInfo: SchemaInfo): OpExecConfig = {
+  override def operatorExecutor(schemaInfo: OperatorSchemaInfo): OpExecConfig = {
     opExecConfig = new HashJoinOpExecConfig[K](
       operatorIdentifier,
       probeAttributeName,

@@ -15,7 +15,7 @@ import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
-import edu.uci.ics.texera.workflow.common.tuple.schema.SchemaInfo;
+import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import scala.Function1;
 
 import java.util.List;
@@ -71,7 +71,7 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
 
 
     @Override
-    public OpExecConfig operatorExecutor(SchemaInfo schemaInfo) {
+    public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         Function1<Object, IOperatorExecutor> exec = (i) ->
                 new PythonUDFOpExec(
                         pythonScriptText,

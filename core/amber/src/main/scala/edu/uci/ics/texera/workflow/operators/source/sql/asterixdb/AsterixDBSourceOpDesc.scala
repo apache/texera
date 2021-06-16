@@ -18,7 +18,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
   AttributeType,
   Schema,
-  SchemaInfo
+  OperatorSchemaInfo
 }
 import edu.uci.ics.texera.workflow.operators.source.sql.{SQLSourceOpDesc, SQLSourceOpExecConfig}
 import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBConnUtil.{
@@ -42,7 +42,7 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
   )
   override def getKeywords: Option[String] = super.getKeywords
 
-  override def operatorExecutor(schemaInfo: SchemaInfo): OpExecConfig =
+  override def operatorExecutor(schemaInfo: OperatorSchemaInfo): OpExecConfig =
     new SQLSourceOpExecConfig(
       this.operatorIdentifier,
       (worker: Any) =>

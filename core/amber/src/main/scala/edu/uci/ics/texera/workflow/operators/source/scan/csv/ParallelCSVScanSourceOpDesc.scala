@@ -9,7 +9,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
   AttributeType,
   Schema,
-  SchemaInfo
+  OperatorSchemaInfo
 }
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
@@ -34,7 +34,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
   fileTypeName = Option("CSV")
 
   @throws[IOException]
-  override def operatorExecutor(schemaInfo: SchemaInfo): OpExecConfig = {
+  override def operatorExecutor(schemaInfo: OperatorSchemaInfo): OpExecConfig = {
     // fill in default values
     if (customDelimiter.get.isEmpty)
       customDelimiter = Option(",")

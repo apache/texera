@@ -14,7 +14,7 @@ import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
-import edu.uci.ics.texera.workflow.common.tuple.schema.SchemaInfo;
+import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
@@ -33,7 +33,7 @@ public class TypeCastingOpDesc extends MapOpDesc {
 
 
     @Override
-    public OneToOneOpExecConfig operatorExecutor(SchemaInfo schemaInfo) {
+    public OneToOneOpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         if (attribute == null) {
             throw new RuntimeException("TypeCasting: attribute is null");
         }
