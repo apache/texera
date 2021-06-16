@@ -111,23 +111,20 @@ export class NgbdModalUserLoginComponent implements OnInit {
    * then sending the code to the backend
    */
   public authenticate(): void {
-    this.userService.initGoogleOauth().then(
-      (auth) => {
-        this.userService.getGoogleAuthCode(auth).then(
-          (code) => {
-            this.userService.getGoogleUserName(auth).then(
-              (googleUsername) => {
-                this.userService.googleLogin(code['code']).subscribe(
-                  () => {
-                    this.userService.changeUser(<User>{name: googleUsername});
-                    this.activeModal.close();
-                }, () => this.loginErrorMessage = 'Incorrect credentials'
-                );
-              }
-            );
-        });
+    this.userService.getGoogleAuthCode().subscribe(
+      Auth => {
+        // grantOfflineAccess allows application to access specified scopes offline
+        // TODO: specify scopes here
+        Auth.grantOfflineAccess().then(code => this.userService.googleLogin(code['code'])
+          .subscribe(
+            googleUser => {
+              this.userService.changeUser(<User>{name: googleUser.name});
+              this.activeModal.close();
+            }, () => this.loginErrorMessage = 'Incorrect credentials'
+          )
+        );
       });
-    }
+  }
 
   /**
    * this method will handle the pop up when user successfully login

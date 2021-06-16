@@ -91,7 +91,7 @@ class UserResource {
     retrieveUserByGoogleAuthCode(request.authoCode) match {
       case Success(user) =>
         setUserSession(session, Some(user))
-        Response.ok().build()
+        Response.ok(user).build()
       case Failure(_) => Response.status(Response.Status.UNAUTHORIZED).build()
     }
 

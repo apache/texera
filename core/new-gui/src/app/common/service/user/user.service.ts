@@ -5,7 +5,7 @@ import { Observable } from 'rxjs/Observable';
 import { environment } from '../../../../environments/environment';
 import { AppSettings } from '../../app-setting';
 import { User } from '../../type/user';
-
+import { GoogleAuthService } from 'ng-gapi';
 /**
  * User Service contains the function of registering and logging the user.
  * It will save the user account inside for future use.
@@ -23,13 +23,10 @@ export class UserService {
   public static readonly LOG_OUT_ENDPOINT = 'users/logout';
   public static readonly GOOGLE_LOGIN_ENDPOINT = 'users/google-login';
 
-  public gapiSetUp: boolean = false;
-  public oauthInstance?: gapi.auth2.GoogleAuth;
-
   private currentUser: User | undefined = undefined;
   private userChangeSubject: ReplaySubject<User | undefined> = new ReplaySubject<User | undefined>(1);
 
-  constructor(private http: HttpClient) {
+  constructor(private http: HttpClient, private googleAuth: GoogleAuthService) {
     if (environment.userSystemEnabled) {
       this.loginFromSession();
     }
@@ -52,51 +49,10 @@ export class UserService {
   }
 
   /**
-   * this method will init a Google OAuth instance and gapi if gapi has not been set up yet
-   * it will return an existing Google OAuth instance if gapi has already been set up
+   * this method returns a Google OAuth Instance
    */
-  public initGoogleOauth(): Promise<gapi.auth2.GoogleAuth> {
-    if (!this.gapiSetUp) {
-      // load gapi
-      const gapiLoad = new Promise((resolve) => {
-        gapi.load('auth2', resolve);
-      });
-      // gapi is loaded when the first promise resolves
-      // mark gapi library as been loaded
-      // then we can call gapi.auth2 init
-      return new Promise((resolve) => {
-        gapiLoad.then(
-        () => gapi.auth2
-          .init({client_id: environment.google.clientID})
-          .then(auth => {
-            this.oauthInstance = auth;
-            this.gapiSetUp = true;
-            resolve(auth);
-          })
-        );
-      });
-    } else {
-      return new Promise((resolve) => {
-        if (this.oauthInstance !== undefined) {
-          resolve(this.oauthInstance);
-        }
-      });
-    }
-}
-
-  /**
-   * this method will return the current user's name of a given Google Oauth Instance
-   */
-  public getGoogleUserName(auth: gapi.auth2.GoogleAuth): Promise<String> {
-    return new Promise((resolve) => resolve(auth.currentUser.get().getBasicProfile().getName()));
-  }
-
-  /**
-   * this method allows application to access specified scopes offline
-   * TODO: specify scopes here
-   */
-  public getGoogleAuthCode(auth: gapi.auth2.GoogleAuth): Promise<{code: string}> {
-      return auth.grantOfflineAccess();
+  public getGoogleAuthCode(): Observable<gapi.auth2.GoogleAuth> {
+      return this.googleAuth.getAuth();
   }
 
 
@@ -105,11 +61,12 @@ export class UserService {
    * It will automatically login, save the user account inside and trigger userChangeEvent when success
    * @param authoCode string
    */
-  public googleLogin(authoCode: string): Observable<Response> {
+  public googleLogin(authoCode: string): Observable<User> {
     if (this.currentUser) {
       throw new Error('Already logged in when login in.');
     }
-    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${UserService.GOOGLE_LOGIN_ENDPOINT}`, {authoCode});
+    return this.http.post<User>(`${AppSettings.getApiEndpoint()}/${UserService.GOOGLE_LOGIN_ENDPOINT}`, {authoCode})
+          .filter((user: User) => user != null);
   }
 
   /**
