@@ -81,7 +81,7 @@ import { VisualizationPanelComponent } from './workspace/component/visualization
 import { WorkflowEditorComponent } from './workspace/component/workflow-editor/workflow-editor.component';
 import { WorkspaceComponent } from './workspace/component/workspace.component';
 import { ResultDownloadComponent } from './workspace/component/navigation/result-download/result-download.component';
-import { GoogleApiModule, NG_GAPI_CONFIG } from 'ng-gapi';
+import { GoogleApiModule, NG_GAPI_CONFIG, GoogleAuthService } from 'ng-gapi';
 
 registerLocaleData(en);
 
@@ -150,6 +150,7 @@ registerLocaleData(en);
     FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
     FormlyMaterialModule,
     FormlyMatDatepickerModule,
+    GoogleAuthService,
     GoogleApiModule.forRoot({
       provide: NG_GAPI_CONFIG,
       useValue: {
@@ -187,6 +188,7 @@ registerLocaleData(en);
   ],
   providers: [
     HttpClientModule,
+    GoogleAuthService,
     UserService,
     UserFileService,
     UserFileUploadService,
