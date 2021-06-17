@@ -21,7 +21,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class KeywordDictionaryRecord extends UpdatableRecordImpl<KeywordDictionaryRecord> implements Record5<UInteger, UInteger, String, byte[], String>, IKeywordDictionary {
 
-    private static final long serialVersionUID = 2016127702;
+    private static final long serialVersionUID = 1444129903;
 
     /**
      * Setter for <code>texera_db.keyword_dictionary.uid</code>.

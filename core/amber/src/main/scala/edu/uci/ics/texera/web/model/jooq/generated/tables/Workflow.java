@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Workflow extends TableImpl<WorkflowRecord> {
 
-    private static final long serialVersionUID = 122439828;
+    private static final long serialVersionUID = -18598487;
 
     /**
      * The reference instance of <code>texera_db.workflow</code>

@@ -25,7 +25,7 @@ import org.jooq.impl.SchemaImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class TexeraDb extends SchemaImpl {
 
-    private static final long serialVersionUID = -446606161;
+    private static final long serialVersionUID = 1382542828;
 
     /**
      * The reference instance of <code>texera_db</code>

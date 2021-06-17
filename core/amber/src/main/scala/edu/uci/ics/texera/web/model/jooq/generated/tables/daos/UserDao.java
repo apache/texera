@@ -54,13 +54,6 @@ public class UserDao extends DAOImpl<UserRecord, edu.uci.ics.texera.web.model.jo
     }
 
     /**
-     * Fetch a unique record that has <code>name = value</code>
-     */
-    public edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User fetchOneByName(String value) {
-        return fetchOne(User.USER.NAME, value);
-    }
-
-    /**
      * Fetch records that have <code>uid BETWEEN lowerInclusive AND upperInclusive</code>
      */
     public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User> fetchRangeOfUid(UInteger lowerInclusive, UInteger upperInclusive) {
@@ -93,5 +86,26 @@ public class UserDao extends DAOImpl<UserRecord, edu.uci.ics.texera.web.model.jo
      */
     public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User> fetchByPassword(String... values) {
         return fetch(User.USER.PASSWORD, values);
+    }
+
+    /**
+     * Fetch records that have <code>google_id BETWEEN lowerInclusive AND upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User> fetchRangeOfGoogleId(String lowerInclusive, String upperInclusive) {
+        return fetchRange(User.USER.GOOGLE_ID, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>google_id IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User> fetchByGoogleId(String... values) {
+        return fetch(User.USER.GOOGLE_ID, values);
+    }
+
+    /**
+     * Fetch a unique record that has <code>google_id = value</code>
+     */
+    public edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User fetchOneByGoogleId(String value) {
+        return fetchOne(User.USER.GOOGLE_ID, value);
     }
 }

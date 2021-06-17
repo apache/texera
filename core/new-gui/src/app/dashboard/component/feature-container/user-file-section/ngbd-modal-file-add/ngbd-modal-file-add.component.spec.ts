@@ -10,6 +10,8 @@ import { UserFileService } from '../../../../../common/service/user/user-file/us
 import { NgbdModalFileAddComponent } from './ngbd-modal-file-add.component';
 import { UserService } from '../../../../../common/service/user/user.service';
 import { UserFileUploadService } from '../../../../../common/service/user/user-file/user-file-upload.service';
+import { GoogleApiModule, GoogleApiService, GoogleAuthService, NG_GAPI_CONFIG } from 'ng-gapi';
+import { environment } from '../../../../../../environments/environment';
 
 describe('NgbdModalFileAddComponent', () => {
   let component: NgbdModalFileAddComponent;
@@ -22,7 +24,13 @@ describe('NgbdModalFileAddComponent', () => {
         UserService,
         UserFileService,
         UserFileUploadService,
-        NgbActiveModal
+        NgbActiveModal,
+        GoogleApiService,
+        GoogleAuthService,
+        {
+          provide: NG_GAPI_CONFIG,
+          useValue: { client_id: environment.google.clientID }
+        }
       ],
       imports: [
         CustomNgMaterialModule,

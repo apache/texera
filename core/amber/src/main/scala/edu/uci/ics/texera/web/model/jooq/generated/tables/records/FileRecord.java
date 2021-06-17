@@ -21,7 +21,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class FileRecord extends UpdatableRecordImpl<FileRecord> implements Record6<UInteger, UInteger, UInteger, String, String, String>, IFile {
 
-    private static final long serialVersionUID = -94832730;
+    private static final long serialVersionUID = -1434714479;
 
     /**
      * Setter for <code>texera_db.file.uid</code>.

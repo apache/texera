@@ -5,7 +5,9 @@
     "types": [
       "jqueryui",
       "jasmine",
-      "node"
+      "node",
+      "gapi",
+      "gapi.auth2"
     ]
   },
   "files": [
