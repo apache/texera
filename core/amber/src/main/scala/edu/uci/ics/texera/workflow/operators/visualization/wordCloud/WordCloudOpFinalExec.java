@@ -59,10 +59,10 @@ public class WordCloudOpFinalExec implements OperatorExecutor {
 
         List<Tuple> termFreqTuples = new ArrayList<>();
         for (Map.Entry<String, Integer> e : topNWordFreqs) {
-            termFreqTuples.add(Tuple.newBuilder().add(
-                    resultSchema,
-                    Arrays.asList(e.getKey(), e.getValue())
-            ).build());
+            termFreqTuples.add(Tuple.newBuilder(resultSchema)
+                    .addSequentially(new Object[]{e.getKey(), e.getValue()})
+                    .build()
+            );
         }
         return termFreqTuples;
     }
