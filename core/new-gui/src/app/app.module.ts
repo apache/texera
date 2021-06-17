@@ -153,7 +153,7 @@ registerLocaleData(en);
     GoogleApiModule.forRoot({
       provide: NG_GAPI_CONFIG,
       useValue: {
-        client_id: environment.google.clientID,
+        client_id: environment.google.clientID
       }
     }),
     NzDatePickerModule,
