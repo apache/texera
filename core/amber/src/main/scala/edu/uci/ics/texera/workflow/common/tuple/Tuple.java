@@ -184,6 +184,12 @@ public class Tuple implements ITuple, Serializable {
         }
     }
 
+    /**
+     * @deprecated
+     * This method is no longer acceptable to create a new Tuple.
+     * <p> Use {@link Tuple#newBuilder(Schema)} instead.</p>
+     */
+    @Deprecated
     public static Tuple.Builder newBuilder() {
         return new Tuple.Builder();
     }
@@ -193,6 +199,8 @@ public class Tuple implements ITuple, Serializable {
     }
 
     /**
+     * @deprecated
+     * See {@link Tuple#newBuilder(Schema)}. Use {@link Tuple.BuilderV2} instead.
      * Tuple.Builder is a helper class for creating immutable Tuple instances.
      * <p>
      * Since Tuple is immutable, Tuple.Builder provides a set of commonly used functions
@@ -202,6 +210,7 @@ public class Tuple implements ITuple, Serializable {
      *
      * @author Zuozhi Wang
      */
+    @Deprecated
     public static class Builder {
 
         private final Schema.Builder schemaBuilder;
@@ -210,6 +219,7 @@ public class Tuple implements ITuple, Serializable {
         /**
          * Creates a new Tuple Builder.
          */
+        @Deprecated
         public Builder() {
             this.schemaBuilder = new Schema.Builder();
             this.fieldNameMap = new HashMap<>();
@@ -220,6 +230,7 @@ public class Tuple implements ITuple, Serializable {
          *
          * @param tuple
          */
+        @Deprecated
         public Builder(Tuple tuple) {
             checkNotNull(tuple);
             checkNotNull(tuple.getFields());
@@ -586,6 +597,15 @@ public class Tuple implements ITuple, Serializable {
 
     }
 
+    /**
+     * {@link Tuple.BuilderV2} is a helper class for creating immutable Tuple instances.
+     * <p>
+     * It's a successor to the {@link Tuple.Builder}, and aims at reducing the number of
+     * {@link Schema} objects that get created
+     * <p>
+     *
+     * @author Maaz Syed Adeeb
+     */
     public static class BuilderV2 {
         private final Schema schema;
         private final Map<String, Object> fieldNameMap;
