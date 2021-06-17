@@ -112,10 +112,9 @@ export class NgbdModalUserLoginComponent implements OnInit {
    * then sending the code to the backend
    */
   public authenticate(): void {
-    this.userService.getGoogleAuthCode().subscribe(
+    this.userService.getGoogleAuthInstance().subscribe(
       Auth => {
         // grantOfflineAccess allows application to access specified scopes offline
-        // TODO: specify scopes here
         Auth.grantOfflineAccess().then(code => this.userService.googleLogin(code['code'])
           .subscribe(
             googleUser => {

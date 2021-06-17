@@ -51,7 +51,7 @@ export class UserService {
   /**
    * this method returns a Google OAuth Instance
    */
-  public getGoogleAuthCode(): Observable<gapi.auth2.GoogleAuth> {
+  public getGoogleAuthInstance(): Observable<gapi.auth2.GoogleAuth> {
       return this.googleAuth.getAuth();
   }
 
