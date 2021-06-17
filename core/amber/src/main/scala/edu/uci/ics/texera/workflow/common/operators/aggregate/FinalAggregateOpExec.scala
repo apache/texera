@@ -57,7 +57,7 @@ class FinalAggregateOpExec[Partial <: AnyRef](
           }
           val fields: Array[Object] =
             (pair._1 ++ JavaConverters.asScalaBuffer(finalObject.getFields)).toArray
-          Tuple.newBuilder().add(schema, fields).build()
+          Tuple.newBuilder(schema).addSequentially(fields).build()
         })
     }
   }

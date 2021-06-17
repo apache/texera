@@ -53,7 +53,7 @@ class PartialAggregateOpExec[Partial <: AnyRef](
       case Right(_) =>
         partialObjectPerKey.iterator.map(pair => {
           val fields: Array[Object] = (pair._1 :+ pair._2).toArray
-          Tuple.newBuilder().add(schema, fields).build()
+          Tuple.newBuilder(schema).addSequentially(fields).build()
         })
     }
   }
