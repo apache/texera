@@ -32,7 +32,7 @@ class HtmlVizOpDesc extends VisualizationOperator {
   override def chartType: String = VisualizationConstants.HTML_VIZ
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) =
-    new HtmlVizOpExecConfig(this.operatorIdentifier, htmlContentAttrName)
+    new HtmlVizOpExecConfig(this.operatorIdentifier, htmlContentAttrName, operatorSchemaInfo)
 
   override def operatorInfo =
     new OperatorInfo(

@@ -5,14 +5,11 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.Us
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.RoundRobinDeployment
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  LayerIdentity,
-  OperatorIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, OperatorIdentity}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
+import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
-class HtmlVizOpExecConfig(id: OperatorIdentity, htmlContentAttrName: String)
+class HtmlVizOpExecConfig(id: OperatorIdentity, htmlContentAttrName: String, operatorSchemaInfo: OperatorSchemaInfo)
     extends OpExecConfig(id) {
 
   override lazy val topology: Topology = {
@@ -20,7 +17,7 @@ class HtmlVizOpExecConfig(id: OperatorIdentity, htmlContentAttrName: String)
       Array(
         new WorkerLayer(
           LayerIdentity(id, "main"),
-          _ => new HtmlVizOpExec(htmlContentAttrName),
+          _ => new HtmlVizOpExec(htmlContentAttrName, operatorSchemaInfo),
           Constants.defaultNumWorkers,
           UseAll(),
           RoundRobinDeployment()
