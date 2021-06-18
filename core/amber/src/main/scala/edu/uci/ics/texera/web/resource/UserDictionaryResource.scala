@@ -38,19 +38,19 @@ class UserDictionaryResource {
     */
   @POST
   @Path("/get")
-  def getValue(@Session session: HttpSession, req: GetRequest): Response = {
+  def getValue(@Session session: HttpSession, req: UserDictionaryGetRequest): Response = {
     val user = UserResource.getUser(session).orNull
     if (user == null)
       Response.status(Response.Status.UNAUTHORIZED).entity(ErrorResponse("Invalid session")).build()
     else if (
-      req == null || req.requestType == 0 || (req.key == null && req.requestType == GetRequest.GET_ENTRY)
+      req == null || req.requestType == UserDictionaryGetRequest.NULL_VALUE || (req.key == null && req.requestType == UserDictionaryGetRequest.GET_ENTRY)
     ) {
       // req.requestType is 0 when unspecified. It should always be specified in a proper GetRequest
       Response
         .status(Response.Status.BAD_REQUEST)
         .entity(ErrorResponse("Malformed JSON payload"))
         .build()
-    } else if (req.requestType == GetRequest.GET_ENTRY) {
+    } else if (req.requestType == UserDictionaryGetRequest.GET_ENTRY) {
       if (!dictEntryExists(user, req.key))
         Response.status(422).entity(ErrorResponse("No such entry")).build()
       else Response.ok(EntryResponse(getValueByKey(user, req.key))).build()
@@ -72,7 +72,7 @@ class UserDictionaryResource {
   @Path("/set")
   def setValue(
       @Session session: HttpSession,
-      req: PostRequest
+      req: UserDictionaryPostRequest
   ): Response = {
     val user = UserResource.getUser(session).orNull
     if (user == null)
@@ -103,7 +103,7 @@ class UserDictionaryResource {
     */
   @DELETE
   @Path("/delete")
-  def deleteValue(@Session session: HttpSession, req: DeleteRequest): Response = {
+  def deleteValue(@Session session: HttpSession, req: UserDictionaryDeleteRequest): Response = {
     val user = UserResource.getUser(session).orNull
     if (user == null)
       Response.status(Response.Status.UNAUTHORIZED).entity(ErrorResponse("Invalid session")).build()
@@ -124,6 +124,7 @@ class UserDictionaryResource {
     * This method retrieves a value from the user_dictionary table
     * given a user's uid and key. each tuple (uid, key) is a primary key
     * in user_dictionary, and should uniquely identify one value
+    * @return String or null if entry doesn't exist
     */
   private def getValueByKey(user: User, key: String): String = {
     SqlServer.createDSLContext
@@ -184,22 +185,24 @@ abstract class UserDictionaryRequest {
   def key: String
 }
 
-case class GetRequest(
+case class UserDictionaryGetRequest(
     key: String, // optional/nullable for requestType = GetRequest.GET_DICT
-    requestType: Int // 1 - GET_ENTRY, 2 - GET_DICT, 0 - an error, (indicates requestType wasn't specified in JSON),
+    requestType: UserDictionaryGetRequest.UserDictionaryGetRequest // 1 - GET_ENTRY, 2 - GET_DICT, 0 - an error, (indicates requestType wasn't specified in JSON),
 ) extends UserDictionaryRequest
 
-object GetRequest {
-  val GET_ENTRY = 1
-  val GET_DICT = 2
+object UserDictionaryGetRequest extends Enumeration {
+  type UserDictionaryGetRequest = Value
+  val NULL_VALUE = Value(0) // default value for ints, always interpreted as none given
+  val GET_ENTRY = Value(1)
+  val GET_DICT = Value(2)
 }
 
-case class PostRequest(
+case class UserDictionaryPostRequest(
     key: String,
     value: String
 ) extends UserDictionaryRequest
 
-case class DeleteRequest(
+case class UserDictionaryDeleteRequest(
     key: String
 ) extends UserDictionaryRequest
 
@@ -207,32 +210,33 @@ case class DeleteRequest(
   * This class represents the json structure of all outgoing responses from UserDictionaryResource
   */
 abstract class UserDictionaryResponse {
-  def code: Int
+  def code: UserDictionaryResponse.UserDictionaryResponse
 }
 
-object UserDictionaryResponse {
-  val CODE_ERROR: Int = -1
-  val CODE_ENTRY: Int = 0
-  val CODE_DICT: Int = 1
-  val CODE_CONFIRM: Int = 2
+object UserDictionaryResponse extends Enumeration {
+  type UserDictionaryResponse = Value
+  val CODE_ERROR = Value(-1)
+  val CODE_ENTRY = Value(0)
+  val CODE_DICT = Value(1)
+  val CODE_CONFIRM = Value(2)
 }
 
 case class ErrorResponse(
     message: String,
-    code: Int = UserDictionaryResponse.CODE_ERROR
+    code: UserDictionaryResponse.UserDictionaryResponse = UserDictionaryResponse.CODE_ERROR
 ) extends UserDictionaryResponse
 
 case class EntryResponse(
     result: String,
-    code: Int = UserDictionaryResponse.CODE_ENTRY
+    code: UserDictionaryResponse.UserDictionaryResponse = UserDictionaryResponse.CODE_ENTRY
 ) extends UserDictionaryResponse
 
 case class DictResponse(
     result: Map[String, String],
-    code: Int = UserDictionaryResponse.CODE_DICT
+    code: UserDictionaryResponse.UserDictionaryResponse = UserDictionaryResponse.CODE_DICT
 ) extends UserDictionaryResponse
 
 case class ConfirmationResponse(
     result: String,
-    code: Int = UserDictionaryResponse.CODE_CONFIRM
+    code: UserDictionaryResponse.UserDictionaryResponse = UserDictionaryResponse.CODE_CONFIRM
 ) extends UserDictionaryResponse
