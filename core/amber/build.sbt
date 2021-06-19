@@ -127,8 +127,8 @@ libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.5" % "test"
 // https://mvnrepository.com/artifact/com.github.redouane59.twitter/twittered
 libraryDependencies += "com.github.redouane59.twitter" % "twittered" % "1.23"
 
-// uncomment the following to have protobuf codegen
-//PB.deleteTargetDirectory in Compile := false
-//Compile / PB.targets := Seq(
-//  scalapb.gen() -> (Compile / sourceDirectory).value / "scala"
-//)
+// run the following with sbt to have protobuf codegen
+PB.deleteTargetDirectory in Compile := false
+Compile / PB.targets := Seq(
+  scalapb.gen() -> (Compile / sourceDirectory).value / "scala"
+)
