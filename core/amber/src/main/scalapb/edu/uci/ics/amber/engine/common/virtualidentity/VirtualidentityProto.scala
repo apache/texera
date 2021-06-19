@@ -7,8 +7,7 @@ package edu.uci.ics.amber.engine.common.virtualidentity
 
 object VirtualidentityProto extends _root_.scalapb.GeneratedFileObject {
   lazy val dependencies: Seq[_root_.scalapb.GeneratedFileObject] = Seq.empty
-  lazy val messagesCompanions
-      : Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] =
+  lazy val messagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] =
     Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]](
       edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage,
       edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity,
@@ -20,24 +19,9 @@ object VirtualidentityProto extends _root_.scalapb.GeneratedFileObject {
       edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity,
       edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
     )
-  lazy val scalaDescriptor: _root_.scalapb.descriptors.FileDescriptor = {
-    val scalaProto = com.google.protobuf.descriptor.FileDescriptorProto.parseFrom(ProtoBytes)
-    _root_.scalapb.descriptors.FileDescriptor
-      .buildFrom(scalaProto, dependencies.map(_.scalaDescriptor))
-  }
-  lazy val javaDescriptor: com.google.protobuf.Descriptors.FileDescriptor = {
-    val javaProto = com.google.protobuf.DescriptorProtos.FileDescriptorProto.parseFrom(ProtoBytes)
-    com.google.protobuf.Descriptors.FileDescriptor.buildFrom(
-      javaProto,
-      _root_.scala.Array(
-      )
-    )
-  }
   private lazy val ProtoBytes: _root_.scala.Array[Byte] =
-    scalapb.Encoding.fromBase64(
-      scala.collection.immutable
-        .Seq(
-          """CjVlZHUvdWNpL2ljcy9hbWJlci9lbmdpbmUvY29tbW9uL3ZpcnR1YWxpZGVudGl0eS5wcm90bxIfZWR1LnVjaS5pY3MuYW1iZ
+      scalapb.Encoding.fromBase64(scala.collection.immutable.Seq(
+  """CjVlZHUvdWNpL2ljcy9hbWJlci9lbmdpbmUvY29tbW9uL3ZpcnR1YWxpZGVudGl0eS5wcm90bxIfZWR1LnVjaS5pY3MuYW1iZ
   XIuZW5naW5lLmNvbW1vbiL2BAoUQWN0b3JWaXJ0dWFsSWRlbnRpdHkSngEKGndvcmtlckFjdG9yVmlydHVhbElkZW50aXR5GAEgA
   SgLMjsuZWR1LnVjaS5pY3MuYW1iZXIuZW5naW5lLmNvbW1vbi5Xb3JrZXJBY3RvclZpcnR1YWxJZGVudGl0eUIf4j8cEhp3b3JrZ
   XJBY3RvclZpcnR1YWxJZGVudGl0eUgAUhp3b3JrZXJBY3RvclZpcnR1YWxJZGVudGl0eRKaAQoZY29udHJvbGxlclZpcnR1YWxJZ
@@ -55,13 +39,16 @@ object VirtualidentityProto extends _root_.scalapb.GeneratedFileObject {
   WNzLmFtYmVyLmVuZ2luZS5jb21tb24uTGF5ZXJJZGVudGl0eUIH4j8EEgJ0b1ICdG8iaAoQT3BlcmF0b3JJZGVudGl0eRIpCgh3b
   3JrZmxvdxgBIAIoCUIN4j8KEgh3b3JrZmxvd1IId29ya2Zsb3cSKQoIb3BlcmF0b3IYAiACKAlCDeI/ChIIb3BlcmF0b3JSCG9wZ
   XJhdG9yIisKEFdvcmtmbG93SWRlbnRpdHkSFwoCaWQYASACKAlCB+I/BBICaWRSAmlk"""
-        )
-        .mkString
-    )
-
-  @deprecated(
-    "Use javaDescriptor instead. In a future version this will refer to scalaDescriptor.",
-    "ScalaPB 0.5.47"
-  )
+      ).mkString)
+  lazy val scalaDescriptor: _root_.scalapb.descriptors.FileDescriptor = {
+    val scalaProto = com.google.protobuf.descriptor.FileDescriptorProto.parseFrom(ProtoBytes)
+    _root_.scalapb.descriptors.FileDescriptor.buildFrom(scalaProto, dependencies.map(_.scalaDescriptor))
+  }
+  lazy val javaDescriptor: com.google.protobuf.Descriptors.FileDescriptor = {
+    val javaProto = com.google.protobuf.DescriptorProtos.FileDescriptorProto.parseFrom(ProtoBytes)
+    com.google.protobuf.Descriptors.FileDescriptor.buildFrom(javaProto, _root_.scala.Array(
+    ))
+  }
+  @deprecated("Use javaDescriptor instead. In a future version this will refer to scalaDescriptor.", "ScalaPB 0.5.47")
   def descriptor: com.google.protobuf.Descriptors.FileDescriptor = javaDescriptor
 }
