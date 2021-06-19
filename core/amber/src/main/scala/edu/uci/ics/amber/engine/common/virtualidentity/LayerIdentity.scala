@@ -17,88 +17,167 @@ final case class LayerIdentity(
     operator: _root_.scala.Predef.String,
     layerID: _root_.scala.Predef.String,
     unknownFields: _root_.scalapb.UnknownFieldSet = _root_.scalapb.UnknownFieldSet.empty
-    ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[LayerIdentity] {
-    @transient
-    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
-      var __size = 0
-      
-      {
-        val __value = workflow
-        __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(1, __value)
-      };
-      
-      {
-        val __value = operator
-        __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(2, __value)
-      };
-      
-      {
-        val __value = layerID
-        __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(3, __value)
-      };
-      __size += unknownFields.serializedSize
-      __size
+) extends scalapb.GeneratedMessage
+    with scalapb.lenses.Updatable[LayerIdentity] {
+  @transient
+  private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
+
+  override def serializedSize: _root_.scala.Int = {
+    var read = __serializedSizeCachedValue
+    if (read == 0) {
+      read = __computeSerializedValue()
+      __serializedSizeCachedValue = read
     }
-    override def serializedSize: _root_.scala.Int = {
-      var read = __serializedSizeCachedValue
-      if (read == 0) {
-        read = __computeSerializedValue()
-        __serializedSizeCachedValue = read
-      }
-      read
+    read
+  }
+
+  def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
+
+    {
+      val __v = workflow
+      _output__.writeString(1, __v)
+    };
+
+    {
+      val __v = operator
+      _output__.writeString(2, __v)
+    };
+
+    {
+      val __v = layerID
+      _output__.writeString(3, __v)
+    };
+    unknownFields.writeTo(_output__)
+  }
+
+  def withWorkflow(__v: _root_.scala.Predef.String): LayerIdentity = copy(workflow = __v)
+
+  def withOperator(__v: _root_.scala.Predef.String): LayerIdentity = copy(operator = __v)
+
+  def withLayerID(__v: _root_.scala.Predef.String): LayerIdentity = copy(layerID = __v)
+
+  def withUnknownFields(__v: _root_.scalapb.UnknownFieldSet) = copy(unknownFields = __v)
+
+  def discardUnknownFields = copy(unknownFields = _root_.scalapb.UnknownFieldSet.empty)
+
+  def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
+    (__fieldNumber: @ _root_.scala.unchecked) match {
+      case 1 => workflow
+      case 2 => operator
+      case 3 => layerID
     }
-    def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
-      
-      {
-        val __v = workflow
-        _output__.writeString(1, __v)
-      };
-      
-      {
-        val __v = operator
-        _output__.writeString(2, __v)
-      };
-      
-      {
-        val __v = layerID
-        _output__.writeString(3, __v)
-      };
-      unknownFields.writeTo(_output__)
+  }
+
+  def getField(
+      __field: _root_.scalapb.descriptors.FieldDescriptor
+  ): _root_.scalapb.descriptors.PValue = {
+    _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
+    (__field.number: @ _root_.scala.unchecked) match {
+      case 1 => _root_.scalapb.descriptors.PString(workflow)
+      case 2 => _root_.scalapb.descriptors.PString(operator)
+      case 3 => _root_.scalapb.descriptors.PString(layerID)
     }
-    def withWorkflow(__v: _root_.scala.Predef.String): LayerIdentity = copy(workflow = __v)
-    def withOperator(__v: _root_.scala.Predef.String): LayerIdentity = copy(operator = __v)
-    def withLayerID(__v: _root_.scala.Predef.String): LayerIdentity = copy(layerID = __v)
-    def withUnknownFields(__v: _root_.scalapb.UnknownFieldSet) = copy(unknownFields = __v)
-    def discardUnknownFields = copy(unknownFields = _root_.scalapb.UnknownFieldSet.empty)
-    def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
-      (__fieldNumber: @_root_.scala.unchecked) match {
-        case 1 => workflow
-        case 2 => operator
-        case 3 => layerID
-      }
-    }
-    def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
-      _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
-      (__field.number: @_root_.scala.unchecked) match {
-        case 1 => _root_.scalapb.descriptors.PString(workflow)
-        case 2 => _root_.scalapb.descriptors.PString(operator)
-        case 3 => _root_.scalapb.descriptors.PString(layerID)
-      }
-    }
-    def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity
-    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.LayerIdentity])
+  }
+
+  def toProtoString: _root_.scala.Predef.String =
+    _root_.scalapb.TextFormat.printToUnicodeString(this)
+
+  def companion = edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity
+
+  private[this] def __computeSerializedValue(): _root_.scala.Int = {
+    var __size = 0
+
+    {
+      val __value = workflow
+      __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(1, __value)
+    };
+
+    {
+      val __value = operator
+      __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(2, __value)
+    };
+
+    {
+      val __value = layerID
+      __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(3, __value)
+    };
+    __size += unknownFields.serializedSize
+    __size
+  }
+  // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.LayerIdentity])
 }
 
-object LayerIdentity extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity = {
+object LayerIdentity
+    extends scalapb.GeneratedMessageCompanion[
+      edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity
+    ] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[
+    edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity
+  ] = this
+
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[
+    edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity
+  ] =
+    _root_.scalapb.descriptors.Reads {
+      case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
+        _root_.scala.Predef.require(
+          __fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor),
+          "FieldDescriptor does not match message type."
+        )
+        edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity(
+          workflow = __fieldsMap
+            .get(scalaDescriptor.findFieldByNumber(1).get)
+            .get
+            .as[_root_.scala.Predef.String],
+          operator = __fieldsMap
+            .get(scalaDescriptor.findFieldByNumber(2).get)
+            .get
+            .as[_root_.scala.Predef.String],
+          layerID = __fieldsMap
+            .get(scalaDescriptor.findFieldByNumber(3).get)
+            .get
+            .as[_root_.scala.Predef.String]
+        )
+      case _ => throw new RuntimeException("Expected PMessage")
+    }
+
+  implicit class LayerIdentityLens[UpperPB](
+      _l: _root_.scalapb.lenses.Lens[
+        UpperPB,
+        edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity
+      ]
+  ) extends _root_.scalapb.lenses.ObjectLens[
+        UpperPB,
+        edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity
+      ](_l) {
+    def workflow: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] =
+      field(_.workflow)((c_, f_) => c_.copy(workflow = f_))
+    def operator: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] =
+      field(_.operator)((c_, f_) => c_.copy(operator = f_))
+    def layerID: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] =
+      field(_.layerID)((c_, f_) => c_.copy(layerID = f_))
+  }
+
+  final val WORKFLOW_FIELD_NUMBER = 1
+  final val OPERATOR_FIELD_NUMBER = 2
+  final val LAYERID_FIELD_NUMBER = 3
+  lazy val nestedMessagesCompanions
+      : Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] =
+    Seq.empty
+  lazy val defaultInstance = edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity(
+    workflow = "",
+    operator = "",
+    layerID = ""
+  )
+
+  def parseFrom(
+      `_input__`: _root_.com.google.protobuf.CodedInputStream
+  ): edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity = {
     var __requiredFields0: _root_.scala.Long = 0x7L
     var __workflow: _root_.scala.Predef.String = ""
     var __operator: _root_.scala.Predef.String = ""
     var __layerID: _root_.scala.Predef.String = ""
-    var `_unknownFields__`: _root_.scalapb.UnknownFieldSet.Builder = null
+    var `_unknownFields__` : _root_.scalapb.UnknownFieldSet.Builder = null
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
@@ -120,50 +199,44 @@ object LayerIdentity extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber
           _unknownFields__.parseField(tag, _input__)
       }
     }
-    if (__requiredFields0 != 0L) { throw new _root_.com.google.protobuf.InvalidProtocolBufferException("Message missing required fields.") } 
+    if (__requiredFields0 != 0L) {
+      throw new _root_.com.google.protobuf.InvalidProtocolBufferException(
+        "Message missing required fields."
+      )
+    }
     edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity(
-        workflow = __workflow,
-        operator = __operator,
-        layerID = __layerID,
-        unknownFields = if (_unknownFields__ == null) _root_.scalapb.UnknownFieldSet.empty else _unknownFields__.result()
+      workflow = __workflow,
+      operator = __operator,
+      layerID = __layerID,
+      unknownFields =
+        if (_unknownFields__ == null) _root_.scalapb.UnknownFieldSet.empty
+        else _unknownFields__.result()
     )
   }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity] = _root_.scalapb.descriptors.Reads{
-    case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
-      _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity(
-        workflow = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).get.as[_root_.scala.Predef.String],
-        operator = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).get.as[_root_.scala.Predef.String],
-        layerID = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).get.as[_root_.scala.Predef.String]
-      )
-    case _ => throw new RuntimeException("Expected PMessage")
-  }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = VirtualidentityProto.javaDescriptor.getMessageTypes().get(5)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = VirtualidentityProto.scalaDescriptor.messages(5)
-  def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
-  lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
-  def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity(
-    workflow = "",
-    operator = "",
-    layerID = ""
-  )
-  implicit class LayerIdentityLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity](_l) {
-    def workflow: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.workflow)((c_, f_) => c_.copy(workflow = f_))
-    def operator: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.operator)((c_, f_) => c_.copy(operator = f_))
-    def layerID: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.layerID)((c_, f_) => c_.copy(layerID = f_))
-  }
-  final val WORKFLOW_FIELD_NUMBER = 1
-  final val OPERATOR_FIELD_NUMBER = 2
-  final val LAYERID_FIELD_NUMBER = 3
+
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor =
+    VirtualidentityProto.javaDescriptor.getMessageTypes().get(5)
+
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor =
+    VirtualidentityProto.scalaDescriptor.messages(5)
+
+  def messageCompanionForFieldNumber(
+      __number: _root_.scala.Int
+  ): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
+
+  def enumCompanionForFieldNumber(
+      __fieldNumber: _root_.scala.Int
+  ): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
+
   def of(
-    workflow: _root_.scala.Predef.String,
-    operator: _root_.scala.Predef.String,
-    layerID: _root_.scala.Predef.String
-  ): _root_.edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity = _root_.edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity(
-    workflow,
-    operator,
-    layerID
-  )
+      workflow: _root_.scala.Predef.String,
+      operator: _root_.scala.Predef.String,
+      layerID: _root_.scala.Predef.String
+  ): _root_.edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity =
+    _root_.edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity(
+      workflow,
+      operator,
+      layerID
+    )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.LayerIdentity])
 }

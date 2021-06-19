@@ -14,11 +14,6 @@ sealed trait ActorVirtualIdentity extends scalapb.GeneratedSealedOneof {
 }
 
 object ActorVirtualIdentity {
-  case object Empty extends edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-  
-  sealed trait NonEmpty extends edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-  def defaultInstance: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity = Empty
-  
   implicit val ActorVirtualIdentityTypeMapper: _root_.scalapb.TypeMapper[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage, edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = new _root_.scalapb.TypeMapper[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage, edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] {
     override def toCustom(__base: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage): edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity = __base.sealedValue match {
       case __v: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue.WorkerActorVirtualIdentity => __v.value
@@ -35,6 +30,12 @@ object ActorVirtualIdentity {
       case Empty => edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue.Empty
     })
   }
+  
+  def defaultInstance: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity = Empty
+
+  sealed trait NonEmpty extends edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+  
+  case object Empty extends edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 }
 /** sealed trait ActorVirtualIdentity
   */
@@ -45,27 +46,7 @@ final case class ActorVirtualIdentityMessage(
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[ActorVirtualIdentityMessage] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
-      var __size = 0
-      if (sealedValue.workerActorVirtualIdentity.isDefined) {
-        val __value = sealedValue.workerActorVirtualIdentity.get
-        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
-      };
-      if (sealedValue.controllerVirtualIdentity.isDefined) {
-        val __value = sealedValue.controllerVirtualIdentity.get
-        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
-      };
-      if (sealedValue.selfVirtualIdentity.isDefined) {
-        val __value = sealedValue.selfVirtualIdentity.get
-        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
-      };
-      if (sealedValue.clientVirtualIdentity.isDefined) {
-        val __value = sealedValue.clientVirtualIdentity.get
-        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
-      };
-      __size += unknownFields.serializedSize
-      __size
-    }
+
     override def serializedSize: _root_.scala.Int = {
       var read = __serializedSizeCachedValue
       if (read == 0) {
@@ -74,6 +55,7 @@ final case class ActorVirtualIdentityMessage(
       }
       read
     }
+
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       sealedValue.workerActorVirtualIdentity.foreach { __v =>
         val __m = __v
@@ -101,18 +83,31 @@ final case class ActorVirtualIdentityMessage(
       };
       unknownFields.writeTo(_output__)
     }
+
     def getWorkerActorVirtualIdentity: edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity = sealedValue.workerActorVirtualIdentity.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity.defaultInstance)
+
     def withWorkerActorVirtualIdentity(__v: edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity): ActorVirtualIdentityMessage = copy(sealedValue = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue.WorkerActorVirtualIdentity(__v))
+
     def getControllerVirtualIdentity: edu.uci.ics.amber.engine.common.virtualidentity.ControllerVirtualIdentity = sealedValue.controllerVirtualIdentity.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.ControllerVirtualIdentity.defaultInstance)
+
     def withControllerVirtualIdentity(__v: edu.uci.ics.amber.engine.common.virtualidentity.ControllerVirtualIdentity): ActorVirtualIdentityMessage = copy(sealedValue = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue.ControllerVirtualIdentity(__v))
+
     def getSelfVirtualIdentity: edu.uci.ics.amber.engine.common.virtualidentity.SelfVirtualIdentity = sealedValue.selfVirtualIdentity.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.SelfVirtualIdentity.defaultInstance)
+
     def withSelfVirtualIdentity(__v: edu.uci.ics.amber.engine.common.virtualidentity.SelfVirtualIdentity): ActorVirtualIdentityMessage = copy(sealedValue = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue.SelfVirtualIdentity(__v))
+
     def getClientVirtualIdentity: edu.uci.ics.amber.engine.common.virtualidentity.ClientVirtualIdentity = sealedValue.clientVirtualIdentity.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.ClientVirtualIdentity.defaultInstance)
+
     def withClientVirtualIdentity(__v: edu.uci.ics.amber.engine.common.virtualidentity.ClientVirtualIdentity): ActorVirtualIdentityMessage = copy(sealedValue = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue.ClientVirtualIdentity(__v))
+
     def clearSealedValue: ActorVirtualIdentityMessage = copy(sealedValue = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue.Empty)
+
     def withSealedValue(__v: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue): ActorVirtualIdentityMessage = copy(sealedValue = __v)
+
     def withUnknownFields(__v: _root_.scalapb.UnknownFieldSet) = copy(unknownFields = __v)
+
     def discardUnknownFields = copy(unknownFields = _root_.scalapb.UnknownFieldSet.empty)
+
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => sealedValue.workerActorVirtualIdentity.orNull
@@ -121,6 +116,7 @@ final case class ActorVirtualIdentityMessage(
         case 4 => sealedValue.clientVirtualIdentity.orNull
       }
     }
+
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
@@ -130,14 +126,70 @@ final case class ActorVirtualIdentityMessage(
         case 4 => sealedValue.clientVirtualIdentity.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
       }
     }
+
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToUnicodeString(this)
+
     def companion = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage
+
     def toActorVirtualIdentity: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.ActorVirtualIdentityTypeMapper.toCustom(this)
+
+    private[this] def __computeSerializedValue(): _root_.scala.Int = {
+      var __size = 0
+      if (sealedValue.workerActorVirtualIdentity.isDefined) {
+        val __value = sealedValue.workerActorVirtualIdentity.get
+        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+      };
+      if (sealedValue.controllerVirtualIdentity.isDefined) {
+        val __value = sealedValue.controllerVirtualIdentity.get
+        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+      };
+      if (sealedValue.selfVirtualIdentity.isDefined) {
+        val __value = sealedValue.selfVirtualIdentity.get
+        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+      };
+      if (sealedValue.clientVirtualIdentity.isDefined) {
+        val __value = sealedValue.clientVirtualIdentity.get
+        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+      };
+      __size += unknownFields.serializedSize
+      __size
+    }
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.ActorVirtualIdentity])
 }
 
 object ActorVirtualIdentityMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage] {
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage] = this
+
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage] = _root_.scalapb.descriptors.Reads{
+    case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
+      _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
+      edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage(
+        sealedValue = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity]]).map(edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue.WorkerActorVirtualIdentity(_))
+            .orElse[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ControllerVirtualIdentity]]).map(edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue.ControllerVirtualIdentity(_)))
+            .orElse[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.SelfVirtualIdentity]]).map(edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue.SelfVirtualIdentity(_)))
+            .orElse[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ClientVirtualIdentity]]).map(edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue.ClientVirtualIdentity(_)))
+            .getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue.Empty)
+      )
+    case _ => throw new RuntimeException("Expected PMessage")
+  }
+
+  implicit class ActorVirtualIdentityMessageLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage](_l) {
+    def workerActorVirtualIdentity: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity] = field(_.getWorkerActorVirtualIdentity)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue.WorkerActorVirtualIdentity(f_)))
+    def controllerVirtualIdentity: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ControllerVirtualIdentity] = field(_.getControllerVirtualIdentity)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue.ControllerVirtualIdentity(f_)))
+    def selfVirtualIdentity: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.SelfVirtualIdentity] = field(_.getSelfVirtualIdentity)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue.SelfVirtualIdentity(f_)))
+    def clientVirtualIdentity: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ClientVirtualIdentity] = field(_.getClientVirtualIdentity)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue.ClientVirtualIdentity(f_)))
+    def sealedValue: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue] = field(_.sealedValue)((c_, f_) => c_.copy(sealedValue = f_))
+  }
+
+  final val WORKERACTORVIRTUALIDENTITY_FIELD_NUMBER = 1
+  final val CONTROLLERVIRTUALIDENTITY_FIELD_NUMBER = 2
+  final val SELFVIRTUALIDENTITY_FIELD_NUMBER = 3
+  final val CLIENTVIRTUALIDENTITY_FIELD_NUMBER = 4
+  lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
+  lazy val defaultInstance = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage(
+    sealedValue = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue.Empty
+  )
+
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage = {
     var __sealedValue: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue.Empty
     var `_unknownFields__`: _root_.scalapb.UnknownFieldSet.Builder = null
@@ -166,20 +218,11 @@ object ActorVirtualIdentityMessage extends scalapb.GeneratedMessageCompanion[edu
         unknownFields = if (_unknownFields__ == null) _root_.scalapb.UnknownFieldSet.empty else _unknownFields__.result()
     )
   }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage] = _root_.scalapb.descriptors.Reads{
-    case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
-      _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage(
-        sealedValue = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity]]).map(edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue.WorkerActorVirtualIdentity(_))
-            .orElse[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ControllerVirtualIdentity]]).map(edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue.ControllerVirtualIdentity(_)))
-            .orElse[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.SelfVirtualIdentity]]).map(edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue.SelfVirtualIdentity(_)))
-            .orElse[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ClientVirtualIdentity]]).map(edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue.ClientVirtualIdentity(_)))
-            .getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue.Empty)
-      )
-    case _ => throw new RuntimeException("Expected PMessage")
-  }
+
   def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = VirtualidentityProto.javaDescriptor.getMessageTypes().get(0)
+
   def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = VirtualidentityProto.scalaDescriptor.messages(0)
+
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
@@ -190,11 +233,15 @@ object ActorVirtualIdentityMessage extends scalapb.GeneratedMessageCompanion[edu
     }
     __out
   }
-  lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
+
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage(
-    sealedValue = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue.Empty
+
+  def of(
+    sealedValue: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue
+  ): _root_.edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage = _root_.edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage(
+    sealedValue
   )
+
   sealed trait SealedValue extends _root_.scalapb.GeneratedOneof {
     def isEmpty: _root_.scala.Boolean = false
     def isDefined: _root_.scala.Boolean = true
@@ -207,7 +254,40 @@ object ActorVirtualIdentityMessage extends scalapb.GeneratedMessageCompanion[edu
     def selfVirtualIdentity: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.SelfVirtualIdentity] = _root_.scala.None
     def clientVirtualIdentity: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ClientVirtualIdentity] = _root_.scala.None
   }
+
   object SealedValue {
+    @SerialVersionUID(0L)
+    final case class WorkerActorVirtualIdentity(value: edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity) extends edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue {
+      type ValueType = edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity
+      override def isWorkerActorVirtualIdentity: _root_.scala.Boolean = true
+      override def workerActorVirtualIdentity: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity] = Some(value)
+      override def number: _root_.scala.Int = 1
+    }
+
+    @SerialVersionUID(0L)
+    final case class ControllerVirtualIdentity(value: edu.uci.ics.amber.engine.common.virtualidentity.ControllerVirtualIdentity) extends edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue {
+      type ValueType = edu.uci.ics.amber.engine.common.virtualidentity.ControllerVirtualIdentity
+      override def isControllerVirtualIdentity: _root_.scala.Boolean = true
+      override def controllerVirtualIdentity: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ControllerVirtualIdentity] = Some(value)
+      override def number: _root_.scala.Int = 2
+    }
+
+    @SerialVersionUID(0L)
+    final case class SelfVirtualIdentity(value: edu.uci.ics.amber.engine.common.virtualidentity.SelfVirtualIdentity) extends edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue {
+      type ValueType = edu.uci.ics.amber.engine.common.virtualidentity.SelfVirtualIdentity
+      override def isSelfVirtualIdentity: _root_.scala.Boolean = true
+      override def selfVirtualIdentity: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.SelfVirtualIdentity] = Some(value)
+      override def number: _root_.scala.Int = 3
+    }
+
+    @SerialVersionUID(0L)
+    final case class ClientVirtualIdentity(value: edu.uci.ics.amber.engine.common.virtualidentity.ClientVirtualIdentity) extends edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue {
+      type ValueType = edu.uci.ics.amber.engine.common.virtualidentity.ClientVirtualIdentity
+      override def isClientVirtualIdentity: _root_.scala.Boolean = true
+      override def clientVirtualIdentity: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ClientVirtualIdentity] = Some(value)
+      override def number: _root_.scala.Int = 4
+    }
+
     @SerialVersionUID(0L)
     case object Empty extends edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue {
       type ValueType = _root_.scala.Nothing
@@ -216,52 +296,7 @@ object ActorVirtualIdentityMessage extends scalapb.GeneratedMessageCompanion[edu
       override def number: _root_.scala.Int = 0
       override def value: _root_.scala.Nothing = throw new java.util.NoSuchElementException("Empty.value")
     }
-  
-    @SerialVersionUID(0L)
-    final case class WorkerActorVirtualIdentity(value: edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity) extends edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue {
-      type ValueType = edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity
-      override def isWorkerActorVirtualIdentity: _root_.scala.Boolean = true
-      override def workerActorVirtualIdentity: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity] = Some(value)
-      override def number: _root_.scala.Int = 1
-    }
-    @SerialVersionUID(0L)
-    final case class ControllerVirtualIdentity(value: edu.uci.ics.amber.engine.common.virtualidentity.ControllerVirtualIdentity) extends edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue {
-      type ValueType = edu.uci.ics.amber.engine.common.virtualidentity.ControllerVirtualIdentity
-      override def isControllerVirtualIdentity: _root_.scala.Boolean = true
-      override def controllerVirtualIdentity: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ControllerVirtualIdentity] = Some(value)
-      override def number: _root_.scala.Int = 2
-    }
-    @SerialVersionUID(0L)
-    final case class SelfVirtualIdentity(value: edu.uci.ics.amber.engine.common.virtualidentity.SelfVirtualIdentity) extends edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue {
-      type ValueType = edu.uci.ics.amber.engine.common.virtualidentity.SelfVirtualIdentity
-      override def isSelfVirtualIdentity: _root_.scala.Boolean = true
-      override def selfVirtualIdentity: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.SelfVirtualIdentity] = Some(value)
-      override def number: _root_.scala.Int = 3
-    }
-    @SerialVersionUID(0L)
-    final case class ClientVirtualIdentity(value: edu.uci.ics.amber.engine.common.virtualidentity.ClientVirtualIdentity) extends edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue {
-      type ValueType = edu.uci.ics.amber.engine.common.virtualidentity.ClientVirtualIdentity
-      override def isClientVirtualIdentity: _root_.scala.Boolean = true
-      override def clientVirtualIdentity: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ClientVirtualIdentity] = Some(value)
-      override def number: _root_.scala.Int = 4
-    }
   }
-  implicit class ActorVirtualIdentityMessageLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage](_l) {
-    def workerActorVirtualIdentity: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity] = field(_.getWorkerActorVirtualIdentity)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue.WorkerActorVirtualIdentity(f_)))
-    def controllerVirtualIdentity: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ControllerVirtualIdentity] = field(_.getControllerVirtualIdentity)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue.ControllerVirtualIdentity(f_)))
-    def selfVirtualIdentity: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.SelfVirtualIdentity] = field(_.getSelfVirtualIdentity)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue.SelfVirtualIdentity(f_)))
-    def clientVirtualIdentity: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ClientVirtualIdentity] = field(_.getClientVirtualIdentity)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue.ClientVirtualIdentity(f_)))
-    def sealedValue: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue] = field(_.sealedValue)((c_, f_) => c_.copy(sealedValue = f_))
-  }
-  final val WORKERACTORVIRTUALIDENTITY_FIELD_NUMBER = 1
-  final val CONTROLLERVIRTUALIDENTITY_FIELD_NUMBER = 2
-  final val SELFVIRTUALIDENTITY_FIELD_NUMBER = 3
-  final val CLIENTVIRTUALIDENTITY_FIELD_NUMBER = 4
-  def of(
-    sealedValue: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage.SealedValue
-  ): _root_.edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage = _root_.edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentityMessage(
-    sealedValue
-  )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.ActorVirtualIdentity])
 }
 
@@ -276,16 +311,7 @@ final case class WorkerActorVirtualIdentity(
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.NonEmpty with scalapb.lenses.Updatable[WorkerActorVirtualIdentity] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
-      var __size = 0
-      
-      {
-        val __value = name
-        __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(1, __value)
-      };
-      __size += unknownFields.serializedSize
-      __size
-    }
+
     override def serializedSize: _root_.scala.Int = {
       var read = __serializedSizeCachedValue
       if (read == 0) {
@@ -294,35 +320,74 @@ final case class WorkerActorVirtualIdentity(
       }
       read
     }
+
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
-      
+
       {
         val __v = name
         _output__.writeString(1, __v)
       };
       unknownFields.writeTo(_output__)
     }
+
     def withName(__v: _root_.scala.Predef.String): WorkerActorVirtualIdentity = copy(name = __v)
+
     def withUnknownFields(__v: _root_.scalapb.UnknownFieldSet) = copy(unknownFields = __v)
+
     def discardUnknownFields = copy(unknownFields = _root_.scalapb.UnknownFieldSet.empty)
+
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => name
       }
     }
+
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
         case 1 => _root_.scalapb.descriptors.PString(name)
       }
     }
+
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToUnicodeString(this)
+
     def companion = edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity
+
+    private[this] def __computeSerializedValue(): _root_.scala.Int = {
+      var __size = 0
+
+      {
+        val __value = name
+        __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(1, __value)
+      };
+      __size += unknownFields.serializedSize
+      __size
+    }
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.WorkerActorVirtualIdentity])
 }
 
 object WorkerActorVirtualIdentity extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity] {
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity] = this
+
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity] = _root_.scalapb.descriptors.Reads{
+    case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
+      _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
+      edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity(
+        name = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).get.as[_root_.scala.Predef.String]
+      )
+    case _ => throw new RuntimeException("Expected PMessage")
+  }
+
+  implicit class WorkerActorVirtualIdentityLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity](_l) {
+    def name: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.name)((c_, f_) => c_.copy(name = f_))
+  }
+
+  final val NAME_FIELD_NUMBER = 1
+  lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
+  lazy val defaultInstance = edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity(
+    name = ""
+  )
+
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity = {
     var __requiredFields0: _root_.scala.Long = 0x1L
     var __name: _root_.scala.Predef.String = ""
@@ -342,32 +407,21 @@ object WorkerActorVirtualIdentity extends scalapb.GeneratedMessageCompanion[edu.
           _unknownFields__.parseField(tag, _input__)
       }
     }
-    if (__requiredFields0 != 0L) { throw new _root_.com.google.protobuf.InvalidProtocolBufferException("Message missing required fields.") } 
+    if (__requiredFields0 != 0L) { throw new _root_.com.google.protobuf.InvalidProtocolBufferException("Message missing required fields.") }
     edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity(
         name = __name,
         unknownFields = if (_unknownFields__ == null) _root_.scalapb.UnknownFieldSet.empty else _unknownFields__.result()
     )
   }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity] = _root_.scalapb.descriptors.Reads{
-    case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
-      _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity(
-        name = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).get.as[_root_.scala.Predef.String]
-      )
-    case _ => throw new RuntimeException("Expected PMessage")
-  }
+
   def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = VirtualidentityProto.javaDescriptor.getMessageTypes().get(1)
+
   def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = VirtualidentityProto.scalaDescriptor.messages(1)
+
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
-  lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
+
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity(
-    name = ""
-  )
-  implicit class WorkerActorVirtualIdentityLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity](_l) {
-    def name: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.name)((c_, f_) => c_.copy(name = f_))
-  }
-  final val NAME_FIELD_NUMBER = 1
+
   def of(
     name: _root_.scala.Predef.String
   ): _root_.edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity = _root_.edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity(
@@ -384,11 +438,7 @@ final case class ControllerVirtualIdentity(
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.NonEmpty with scalapb.lenses.Updatable[ControllerVirtualIdentity] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
-      var __size = 0
-      __size += unknownFields.serializedSize
-      __size
-    }
+
     override def serializedSize: _root_.scala.Int = {
       var read = __serializedSizeCachedValue
       if (read == 0) {
@@ -397,20 +447,49 @@ final case class ControllerVirtualIdentity(
       }
       read
     }
+
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       unknownFields.writeTo(_output__)
     }
+
     def withUnknownFields(__v: _root_.scalapb.UnknownFieldSet) = copy(unknownFields = __v)
+
     def discardUnknownFields = copy(unknownFields = _root_.scalapb.UnknownFieldSet.empty)
+
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = throw new MatchError(__fieldNumber)
+
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = throw new MatchError(__field)
+
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToUnicodeString(this)
+
     def companion = edu.uci.ics.amber.engine.common.virtualidentity.ControllerVirtualIdentity
+
+    private[this] def __computeSerializedValue(): _root_.scala.Int = {
+      var __size = 0
+      __size += unknownFields.serializedSize
+      __size
+    }
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.ControllerVirtualIdentity])
 }
 
 object ControllerVirtualIdentity extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.virtualidentity.ControllerVirtualIdentity] {
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.virtualidentity.ControllerVirtualIdentity] = this
+
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.common.virtualidentity.ControllerVirtualIdentity] = _root_.scalapb.descriptors.Reads{
+    case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
+      _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
+      edu.uci.ics.amber.engine.common.virtualidentity.ControllerVirtualIdentity(
+      )
+    case _ => throw new RuntimeException("Expected PMessage")
+  }
+
+  implicit class ControllerVirtualIdentityLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ControllerVirtualIdentity]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ControllerVirtualIdentity](_l) {
+  }
+
+  lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
+  lazy val defaultInstance = edu.uci.ics.amber.engine.common.virtualidentity.ControllerVirtualIdentity(
+  )
+
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.common.virtualidentity.ControllerVirtualIdentity = {
     var `_unknownFields__`: _root_.scalapb.UnknownFieldSet.Builder = null
     var _done__ = false
@@ -429,22 +508,15 @@ object ControllerVirtualIdentity extends scalapb.GeneratedMessageCompanion[edu.u
         unknownFields = if (_unknownFields__ == null) _root_.scalapb.UnknownFieldSet.empty else _unknownFields__.result()
     )
   }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.common.virtualidentity.ControllerVirtualIdentity] = _root_.scalapb.descriptors.Reads{
-    case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
-      _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.common.virtualidentity.ControllerVirtualIdentity(
-      )
-    case _ => throw new RuntimeException("Expected PMessage")
-  }
+
   def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = VirtualidentityProto.javaDescriptor.getMessageTypes().get(2)
+
   def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = VirtualidentityProto.scalaDescriptor.messages(2)
+
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
-  lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
+
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.amber.engine.common.virtualidentity.ControllerVirtualIdentity(
-  )
-  implicit class ControllerVirtualIdentityLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ControllerVirtualIdentity]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ControllerVirtualIdentity](_l) {
-  }
+
   def of(
   ): _root_.edu.uci.ics.amber.engine.common.virtualidentity.ControllerVirtualIdentity = _root_.edu.uci.ics.amber.engine.common.virtualidentity.ControllerVirtualIdentity(
   )
@@ -459,11 +531,7 @@ final case class SelfVirtualIdentity(
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.NonEmpty with scalapb.lenses.Updatable[SelfVirtualIdentity] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
-      var __size = 0
-      __size += unknownFields.serializedSize
-      __size
-    }
+
     override def serializedSize: _root_.scala.Int = {
       var read = __serializedSizeCachedValue
       if (read == 0) {
@@ -472,20 +540,49 @@ final case class SelfVirtualIdentity(
       }
       read
     }
+
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       unknownFields.writeTo(_output__)
     }
+
     def withUnknownFields(__v: _root_.scalapb.UnknownFieldSet) = copy(unknownFields = __v)
+
     def discardUnknownFields = copy(unknownFields = _root_.scalapb.UnknownFieldSet.empty)
+
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = throw new MatchError(__fieldNumber)
+
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = throw new MatchError(__field)
+
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToUnicodeString(this)
+
     def companion = edu.uci.ics.amber.engine.common.virtualidentity.SelfVirtualIdentity
+
+    private[this] def __computeSerializedValue(): _root_.scala.Int = {
+      var __size = 0
+      __size += unknownFields.serializedSize
+      __size
+    }
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.SelfVirtualIdentity])
 }
 
 object SelfVirtualIdentity extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.virtualidentity.SelfVirtualIdentity] {
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.virtualidentity.SelfVirtualIdentity] = this
+
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.common.virtualidentity.SelfVirtualIdentity] = _root_.scalapb.descriptors.Reads{
+    case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
+      _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
+      edu.uci.ics.amber.engine.common.virtualidentity.SelfVirtualIdentity(
+      )
+    case _ => throw new RuntimeException("Expected PMessage")
+  }
+
+  implicit class SelfVirtualIdentityLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.SelfVirtualIdentity]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.SelfVirtualIdentity](_l) {
+  }
+
+  lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
+  lazy val defaultInstance = edu.uci.ics.amber.engine.common.virtualidentity.SelfVirtualIdentity(
+  )
+
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.common.virtualidentity.SelfVirtualIdentity = {
     var `_unknownFields__`: _root_.scalapb.UnknownFieldSet.Builder = null
     var _done__ = false
@@ -504,22 +601,15 @@ object SelfVirtualIdentity extends scalapb.GeneratedMessageCompanion[edu.uci.ics
         unknownFields = if (_unknownFields__ == null) _root_.scalapb.UnknownFieldSet.empty else _unknownFields__.result()
     )
   }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.common.virtualidentity.SelfVirtualIdentity] = _root_.scalapb.descriptors.Reads{
-    case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
-      _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.common.virtualidentity.SelfVirtualIdentity(
-      )
-    case _ => throw new RuntimeException("Expected PMessage")
-  }
+
   def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = VirtualidentityProto.javaDescriptor.getMessageTypes().get(3)
+
   def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = VirtualidentityProto.scalaDescriptor.messages(3)
+
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
-  lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
+
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.amber.engine.common.virtualidentity.SelfVirtualIdentity(
-  )
-  implicit class SelfVirtualIdentityLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.SelfVirtualIdentity]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.SelfVirtualIdentity](_l) {
-  }
+
   def of(
   ): _root_.edu.uci.ics.amber.engine.common.virtualidentity.SelfVirtualIdentity = _root_.edu.uci.ics.amber.engine.common.virtualidentity.SelfVirtualIdentity(
   )
@@ -534,11 +624,7 @@ final case class ClientVirtualIdentity(
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.NonEmpty with scalapb.lenses.Updatable[ClientVirtualIdentity] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
-      var __size = 0
-      __size += unknownFields.serializedSize
-      __size
-    }
+
     override def serializedSize: _root_.scala.Int = {
       var read = __serializedSizeCachedValue
       if (read == 0) {
@@ -547,20 +633,49 @@ final case class ClientVirtualIdentity(
       }
       read
     }
+
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       unknownFields.writeTo(_output__)
     }
+
     def withUnknownFields(__v: _root_.scalapb.UnknownFieldSet) = copy(unknownFields = __v)
+
     def discardUnknownFields = copy(unknownFields = _root_.scalapb.UnknownFieldSet.empty)
+
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = throw new MatchError(__fieldNumber)
+
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = throw new MatchError(__field)
+
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToUnicodeString(this)
+
     def companion = edu.uci.ics.amber.engine.common.virtualidentity.ClientVirtualIdentity
+
+    private[this] def __computeSerializedValue(): _root_.scala.Int = {
+      var __size = 0
+      __size += unknownFields.serializedSize
+      __size
+    }
     // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.ClientVirtualIdentity])
 }
 
 object ClientVirtualIdentity extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.virtualidentity.ClientVirtualIdentity] {
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.virtualidentity.ClientVirtualIdentity] = this
+
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.common.virtualidentity.ClientVirtualIdentity] = _root_.scalapb.descriptors.Reads{
+    case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
+      _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
+      edu.uci.ics.amber.engine.common.virtualidentity.ClientVirtualIdentity(
+      )
+    case _ => throw new RuntimeException("Expected PMessage")
+  }
+
+  implicit class ClientVirtualIdentityLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ClientVirtualIdentity]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ClientVirtualIdentity](_l) {
+  }
+
+  lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
+  lazy val defaultInstance = edu.uci.ics.amber.engine.common.virtualidentity.ClientVirtualIdentity(
+  )
+
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.common.virtualidentity.ClientVirtualIdentity = {
     var `_unknownFields__`: _root_.scalapb.UnknownFieldSet.Builder = null
     var _done__ = false
@@ -579,22 +694,15 @@ object ClientVirtualIdentity extends scalapb.GeneratedMessageCompanion[edu.uci.i
         unknownFields = if (_unknownFields__ == null) _root_.scalapb.UnknownFieldSet.empty else _unknownFields__.result()
     )
   }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.common.virtualidentity.ClientVirtualIdentity] = _root_.scalapb.descriptors.Reads{
-    case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
-      _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.common.virtualidentity.ClientVirtualIdentity(
-      )
-    case _ => throw new RuntimeException("Expected PMessage")
-  }
+
   def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = VirtualidentityProto.javaDescriptor.getMessageTypes().get(4)
+
   def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = VirtualidentityProto.scalaDescriptor.messages(4)
+
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
-  lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
+
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.amber.engine.common.virtualidentity.ClientVirtualIdentity(
-  )
-  implicit class ClientVirtualIdentityLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ClientVirtualIdentity]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ClientVirtualIdentity](_l) {
-  }
+
   def of(
   ): _root_.edu.uci.ics.amber.engine.common.virtualidentity.ClientVirtualIdentity = _root_.edu.uci.ics.amber.engine.common.virtualidentity.ClientVirtualIdentity(
   )
