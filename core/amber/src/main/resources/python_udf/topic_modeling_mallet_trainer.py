@@ -5,13 +5,15 @@ import os
 import gensim
 import gensim.corpora as corpora
 import pandas
+from pyLDAvis import prepared_data_to_html
+from pyLDAvis.gensim_models import prepare
 from loguru import logger
 
 from operators.texera_blocking_unsupervised_trainer_operator import TexeraBlockingUnsupervisedTrainerOperator
 
 # to change library's logger setting
 logging.getLogger("gensim").setLevel(logging.ERROR)
-
+logging.getLogger("pyLDAvis").setLevel(logging.ERROR)
 
 class TopicModeling(TexeraBlockingUnsupervisedTrainerOperator):
 
@@ -52,19 +54,16 @@ class TopicModeling(TexeraBlockingUnsupervisedTrainerOperator):
 
         # Term Document Frequency
         corpus = [id2word.doc2bow(text1) for text1 in texts]
-
-        lda_mallet_model = gensim.models.wrappers.LdaMallet(mallet_path,
-                                                            corpus=corpus,
-                                                            num_topics=num_topics,
-                                                            id2word=id2word,
-                                                            random_seed=random_seed)
-
-        return lda_mallet_model
+        lda_mallet_model = gensim.models.wrappers.LdaMallet(mallet_path, corpus=corpus, num_topics=num_topics, id2word=id2word, random_seed = random_seed)
+        # mallet models need to first be converted to gensim models
+        gensim_model = gensim.models.wrappers.ldamallet.malletmodel2ldamodel(lda_mallet_model)
+        pyldaVis_prepared_model = prepare(gensim_model, corpus, id2word, n_jobs=1)
+        return pyldaVis_prepared_model
 
     def report(self, model):
         logger.debug(f"reporting trained results")
-        for id, topic in model.print_topics(num_topics=self._train_args["num_topics"]):
-            self._result_tuples.append(pandas.Series({"output": topic}))
+        html_output = prepared_data_to_html(model)
+        self._result_tuples.append(pandas.Series({"output": html_output}))
 
 
 operator_instance = TopicModeling()

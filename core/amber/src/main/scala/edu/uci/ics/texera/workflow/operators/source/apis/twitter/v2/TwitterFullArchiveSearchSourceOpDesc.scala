@@ -8,6 +8,7 @@ import com.kjetland.jackson.jsonSchema.annotations.{
 }
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.annotations.UIWidget
+import edu.uci.ics.texera.workflow.common.operators.ManyToOneOpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.source.apis.twitter.TwitterSourceOpDesc
 
@@ -38,18 +39,19 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
   var limit: Int = _
 
   override def operatorExecutor: OpExecConfig =
-    new TwitterFullArchiveSearchSourceOpExecConfig(
+    // TODO: use multiple workers
+    new ManyToOneOpExecConfig(
       operatorIdentifier,
-      1, // TODO: use multiple workers
-      sourceSchema(),
-      accessToken,
-      accessTokenSecret,
-      apiKey,
-      apiSecretKey,
-      searchQuery,
-      fromDateTime,
-      toDateTime,
-      limit
+      _ =>
+        new TwitterFullArchiveSearchSourceOpExec(
+          sourceSchema(),
+          apiKey,
+          apiSecretKey,
+          searchQuery,
+          fromDateTime,
+          toDateTime,
+          limit
+        )
     )
 
   override def sourceSchema(): Schema = {

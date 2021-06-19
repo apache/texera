@@ -48,8 +48,8 @@ public class Keys {
     public static final UniqueKey<FileRecord> KEY_FILE_PRIMARY = UniqueKeys0.KEY_FILE_PRIMARY;
     public static final UniqueKey<KeywordDictionaryRecord> KEY_KEYWORD_DICTIONARY_UID = UniqueKeys0.KEY_KEYWORD_DICTIONARY_UID;
     public static final UniqueKey<KeywordDictionaryRecord> KEY_KEYWORD_DICTIONARY_PRIMARY = UniqueKeys0.KEY_KEYWORD_DICTIONARY_PRIMARY;
-    public static final UniqueKey<UserRecord> KEY_USER_NAME = UniqueKeys0.KEY_USER_NAME;
     public static final UniqueKey<UserRecord> KEY_USER_PRIMARY = UniqueKeys0.KEY_USER_PRIMARY;
+    public static final UniqueKey<UserRecord> KEY_USER_GOOGLE_ID = UniqueKeys0.KEY_USER_GOOGLE_ID;
     public static final UniqueKey<UserDictionaryRecord> KEY_USER_DICTIONARY_PRIMARY = UniqueKeys0.KEY_USER_DICTIONARY_PRIMARY;
     public static final UniqueKey<WorkflowRecord> KEY_WORKFLOW_PRIMARY = UniqueKeys0.KEY_WORKFLOW_PRIMARY;
     public static final UniqueKey<WorkflowOfUserRecord> KEY_WORKFLOW_OF_USER_PRIMARY = UniqueKeys0.KEY_WORKFLOW_OF_USER_PRIMARY;
@@ -80,8 +80,8 @@ public class Keys {
         public static final UniqueKey<FileRecord> KEY_FILE_PRIMARY = Internal.createUniqueKey(File.FILE, "KEY_file_PRIMARY", File.FILE.FID);
         public static final UniqueKey<KeywordDictionaryRecord> KEY_KEYWORD_DICTIONARY_UID = Internal.createUniqueKey(KeywordDictionary.KEYWORD_DICTIONARY, "KEY_keyword_dictionary_uid", KeywordDictionary.KEYWORD_DICTIONARY.UID, KeywordDictionary.KEYWORD_DICTIONARY.NAME);
         public static final UniqueKey<KeywordDictionaryRecord> KEY_KEYWORD_DICTIONARY_PRIMARY = Internal.createUniqueKey(KeywordDictionary.KEYWORD_DICTIONARY, "KEY_keyword_dictionary_PRIMARY", KeywordDictionary.KEYWORD_DICTIONARY.KID);
-        public static final UniqueKey<UserRecord> KEY_USER_NAME = Internal.createUniqueKey(User.USER, "KEY_user_name", User.USER.NAME);
         public static final UniqueKey<UserRecord> KEY_USER_PRIMARY = Internal.createUniqueKey(User.USER, "KEY_user_PRIMARY", User.USER.UID);
+        public static final UniqueKey<UserRecord> KEY_USER_GOOGLE_ID = Internal.createUniqueKey(User.USER, "KEY_user_google_id", User.USER.GOOGLE_ID);
         public static final UniqueKey<UserDictionaryRecord> KEY_USER_DICTIONARY_PRIMARY = Internal.createUniqueKey(UserDictionary.USER_DICTIONARY, "KEY_user_dictionary_PRIMARY", UserDictionary.USER_DICTIONARY.UID, UserDictionary.USER_DICTIONARY.KEY);
         public static final UniqueKey<WorkflowRecord> KEY_WORKFLOW_PRIMARY = Internal.createUniqueKey(Workflow.WORKFLOW, "KEY_workflow_PRIMARY", Workflow.WORKFLOW.WID);
         public static final UniqueKey<WorkflowOfUserRecord> KEY_WORKFLOW_OF_USER_PRIMARY = Internal.createUniqueKey(WorkflowOfUser.WORKFLOW_OF_USER, "KEY_workflow_of_user_PRIMARY", WorkflowOfUser.WORKFLOW_OF_USER.UID, WorkflowOfUser.WORKFLOW_OF_USER.WID);

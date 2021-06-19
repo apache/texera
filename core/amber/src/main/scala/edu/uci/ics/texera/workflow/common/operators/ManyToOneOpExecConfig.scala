@@ -9,11 +9,12 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   LayerIdentity,
   OperatorIdentity
 }
+import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 
 class ManyToOneOpExecConfig(
     override val id: OperatorIdentity,
-    val opExec: Int => OperatorExecutor
+    val opExec: Int => IOperatorExecutor
 ) extends OpExecConfig(id) {
 
   override lazy val topology: Topology = {

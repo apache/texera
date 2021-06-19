@@ -33,7 +33,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class UserDictionary extends TableImpl<UserDictionaryRecord> {
 
-    private static final long serialVersionUID = 530973819;
+    private static final long serialVersionUID = -1315568742;
 
     /**
      * The reference instance of <code>texera_db.user_dictionary</code>
@@ -56,7 +56,7 @@ public class UserDictionary extends TableImpl<UserDictionaryRecord> {
     /**
      * The column <code>texera_db.user_dictionary.key</code>.
      */
-    public final TableField<UserDictionaryRecord, String> KEY = createField(DSL.name("key"), org.jooq.impl.SQLDataType.VARCHAR(255).nullable(false), this, "");
+    public final TableField<UserDictionaryRecord, String> KEY = createField(DSL.name("key"), org.jooq.impl.SQLDataType.VARCHAR(256).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.user_dictionary.value</code>.

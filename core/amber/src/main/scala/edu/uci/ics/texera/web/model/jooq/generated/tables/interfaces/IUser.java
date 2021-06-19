@@ -45,6 +45,16 @@ public interface IUser extends Serializable {
      */
     public String getPassword();
 
+    /**
+     * Setter for <code>texera_db.user.google_id</code>.
+     */
+    public void setGoogleId(String value);
+
+    /**
+     * Getter for <code>texera_db.user.google_id</code>.
+     */
+    public String getGoogleId();
+
     // -------------------------------------------------------------------------
     // FROM and INTO
     // -------------------------------------------------------------------------

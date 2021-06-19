@@ -4,6 +4,8 @@ import { UserIconComponent } from './user-icon.component';
 import { UserService } from '../../../../common/service/user/user.service';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { GoogleApiService, GoogleAuthService, NG_GAPI_CONFIG } from 'ng-gapi';
+import { environment } from '../../../../../environments/environment';
 
 describe('UserIconComponent', () => {
   let component: UserIconComponent;
@@ -14,7 +16,13 @@ describe('UserIconComponent', () => {
       declarations: [UserIconComponent],
       providers: [
         NgbModal,
-        UserService
+        UserService,
+        GoogleApiService,
+        GoogleAuthService,
+        {
+          provide: NG_GAPI_CONFIG,
+          useValue: { client_id: environment.google.clientID }
+        }
       ],
       imports: [
         HttpClientTestingModule
