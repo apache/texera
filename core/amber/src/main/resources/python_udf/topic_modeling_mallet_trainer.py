@@ -22,6 +22,7 @@ class TopicModeling(TexeraBlockingUnsupervisedTrainerOperator):
 
         # TODO: _train_args from user input args
         if len(args) >= 3:
+            self._input_col_name = str(args[0])
             MALLET_HOME = str(args[1])
             NUM_TOPICS = int(args[2])
         else:
@@ -40,7 +41,7 @@ class TopicModeling(TexeraBlockingUnsupervisedTrainerOperator):
 
     def accept(self, row: pandas.Series, nth_child: int = 0) -> None:
         # override accept to accept rows as lists
-        self._data.append(row[0].strip().split())
+        self._data.append(row[self._input_col_name].strip().split())
 
     @staticmethod
     def train(data, mallet_path: str, random_seed: int, num_topics: int, *args, **kwargs):
