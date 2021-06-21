@@ -265,6 +265,8 @@ object AttributeTypeUtils extends Serializable {
         ).getOrElse(throw parseError)
 
       case long: java.lang.Long => new Timestamp(long)
+
+      case timestamp: Timestamp => timestamp
       // Integer, Double and Boolean are considered to be illegal here.
       case _ =>
         throw parseError

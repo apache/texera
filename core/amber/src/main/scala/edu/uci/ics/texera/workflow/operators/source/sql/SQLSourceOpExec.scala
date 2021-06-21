@@ -186,7 +186,7 @@ abstract class SQLSourceOpExec(
       breakable {
         val columnName = attr.getName
         val columnType = attr.getType
-        val value = curResultSet.get.getString(columnName)
+        val value = curResultSet.get.getObject(columnName)
 
         if (value == null) {
           // add the field as null
