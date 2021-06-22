@@ -9,7 +9,7 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import scala.collection.mutable
 
 class IntersectOpExec extends OperatorExecutor {
-  private val hashMap: mutable.HashMap[LinkIdentity, mutable.LinkedHashSet[Tuple]] =
+  private val hashMap: mutable.HashMap[LinkIdentity, mutable.HashSet[Tuple]] =
     new mutable.HashMap()
 
   private var exhaustedCounter: Int = 0
@@ -22,7 +22,7 @@ class IntersectOpExec extends OperatorExecutor {
       case Left(t) =>
         // for each input stream, initialize an empty set
         if (!hashMap.contains(input)) {
-          hashMap.put(input, mutable.LinkedHashSet())
+          hashMap.put(input, mutable.HashSet())
         }
 
         // should expect no more than 2 input streams, thus no more than 2 sets
@@ -35,7 +35,7 @@ class IntersectOpExec extends OperatorExecutor {
       case Right(_) =>
         // for empty input stream, initialize an empty set
         if (!hashMap.contains(input)) {
-          hashMap.put(input, mutable.LinkedHashSet())
+          hashMap.put(input, mutable.HashSet())
         }
         exhaustedCounter += 1
         if (exhaustedCounter == 2) {

@@ -8,6 +8,8 @@ import { CustomNgMaterialModule } from '../../../common/custom-ng-material.modul
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { UserService } from '../../../common/service/user/user.service';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { GoogleApiModule, GoogleApiService, GoogleAuthService, NG_GAPI_CONFIG } from 'ng-gapi';
+import { environment } from '../../../../environments/environment';
 
 describe('TopBarComponent', () => {
   let component: TopBarComponent;
@@ -17,7 +19,13 @@ describe('TopBarComponent', () => {
       declarations: [TopBarComponent, UserIconComponent],
       providers: [
         NgbModal,
-        UserService
+        UserService,
+        GoogleApiService,
+        GoogleAuthService,
+        {
+          provide: NG_GAPI_CONFIG,
+          useValue: { client_id: environment.google.clientID }
+        }
       ],
       imports: [
         HttpClientTestingModule,

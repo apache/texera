@@ -12,15 +12,13 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.jdk.CollectionConverters.asScalaBufferConverter
 class TwitterFullArchiveSearchSourceOpExec(
     schema: Schema,
-    accessToken: String,
-    accessTokenSecret: String,
     apiKey: String,
     apiSecretKey: String,
     searchQuery: String,
     fromDateTime: String,
     toDateTime: String,
     var curLimit: Int
-) extends TwitterSourceOpExec(accessToken, accessTokenSecret, apiKey, apiSecretKey) {
+) extends TwitterSourceOpExec(apiKey, apiSecretKey) {
 
   // nextToken is used to retrieve next page of results, if exists.
   var nextToken: String = _

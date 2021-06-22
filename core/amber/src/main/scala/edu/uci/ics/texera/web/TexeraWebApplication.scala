@@ -18,8 +18,8 @@ import org.eclipse.jetty.servlet.ErrorPageErrorHandler
 import org.eclipse.jetty.websocket.server.WebSocketUpgradeFilter
 import org.glassfish.jersey.media.multipart.MultiPartFeature
 import java.time.Duration
-
 import com.typesafe.config.{Config, ConfigFactory}
+import edu.uci.ics.texera.web.resource.UserDictionaryResource
 
 object TexeraWebApplication {
 
@@ -79,6 +79,7 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
 //    environment.jersey().register(classOf[MockKillWorkerResource])
     environment.jersey().register(classOf[SchemaPropagationResource])
     environment.jersey().register(classOf[UserResource])
+    environment.jersey().register(classOf[UserDictionaryResource])
     environment.jersey().register(classOf[WorkflowResource])
     environment.jersey().register(classOf[UserFileResource])
   }

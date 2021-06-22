@@ -1,5 +1,5 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
-import { NgbModule, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
+import { NgbActiveModal, NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 
@@ -11,6 +11,8 @@ import { FileUploadModule } from 'ng2-file-upload';
 import { UserService } from '../../../../../common/service/user/user.service';
 import { UserDictionaryUploadService } from '../../../../../common/service/user/user-dictionary/user-dictionary-upload.service';
 import { UserDictionaryService } from '../../../../../common/service/user/user-dictionary/user-dictionary.service';
+import { GoogleApiModule, GoogleApiService, GoogleAuthService, NG_GAPI_CONFIG } from 'ng-gapi';
+import { environment } from '../../../../../../environments/environment';
 
 describe('NgbdModalResourceAddComponent', () => {
   let component: NgbdModalResourceAddComponent;
@@ -26,7 +28,13 @@ describe('NgbdModalResourceAddComponent', () => {
         NgbActiveModal,
         UserService,
         UserDictionaryService,
-        UserDictionaryUploadService
+        UserDictionaryUploadService,
+        GoogleApiService,
+        GoogleAuthService,
+        {
+          provide: NG_GAPI_CONFIG,
+          useValue: { client_id: environment.google.clientID }
+        }
       ],
       imports: [
         CustomNgMaterialModule,

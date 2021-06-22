@@ -23,7 +23,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowRecord extends UpdatableRecordImpl<WorkflowRecord> implements Record5<String, UInteger, String, Timestamp, Timestamp>, IWorkflow {
 
-    private static final long serialVersionUID = 707274682;
+    private static final long serialVersionUID = -1021426305;
 
     /**
      * Setter for <code>texera_db.workflow.name</code>.
