@@ -34,7 +34,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class File extends TableImpl<FileRecord> {
 
-    private static final long serialVersionUID = 709170345;
+    private static final long serialVersionUID = 1809064116;
 
     /**
      * The reference instance of <code>texera_db.file</code>

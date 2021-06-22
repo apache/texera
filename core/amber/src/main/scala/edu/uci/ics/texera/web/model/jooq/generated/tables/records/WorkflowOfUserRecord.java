@@ -20,7 +20,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowOfUserRecord extends UpdatableRecordImpl<WorkflowOfUserRecord> implements Record2<UInteger, UInteger>, IWorkflowOfUser {
 
-    private static final long serialVersionUID = -1405531266;
+    private static final long serialVersionUID = -189114339;
 
     /**
      * Setter for <code>texera_db.workflow_of_user.uid</code>.

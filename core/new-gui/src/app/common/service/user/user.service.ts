@@ -5,7 +5,7 @@ import { Observable } from 'rxjs/Observable';
 import { environment } from '../../../../environments/environment';
 import { AppSettings } from '../../app-setting';
 import { User } from '../../type/user';
-
+import { GoogleAuthService } from 'ng-gapi';
 /**
  * User Service contains the function of registering and logging the user.
  * It will save the user account inside for future use.
@@ -21,10 +21,12 @@ export class UserService {
   public static readonly LOGIN_ENDPOINT = 'users/login';
   public static readonly REGISTER_ENDPOINT = 'users/register';
   public static readonly LOG_OUT_ENDPOINT = 'users/logout';
+  public static readonly GOOGLE_LOGIN_ENDPOINT = 'users/google-login';
+
   private currentUser: User | undefined = undefined;
   private userChangeSubject: ReplaySubject<User | undefined> = new ReplaySubject<User | undefined>(1);
 
-  constructor(private http: HttpClient) {
+  constructor(private http: HttpClient, private googleAuth: GoogleAuthService) {
     if (environment.userSystemEnabled) {
       this.loginFromSession();
     }
@@ -44,6 +46,27 @@ export class UserService {
 
     return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`, {userName, password});
 
+  }
+
+  /**
+   * this method returns a Google OAuth Instance
+   */
+  public getGoogleAuthInstance(): Observable<gapi.auth2.GoogleAuth> {
+      return this.googleAuth.getAuth();
+  }
+
+
+  /**
+   * This method will handle the request for Google login.
+   * It will automatically login, save the user account inside and trigger userChangeEvent when success
+   * @param authCode string
+   */
+  public googleLogin(authCode: string): Observable<User> {
+    if (this.currentUser) {
+      throw new Error('Already logged in when login in.');
+    }
+    return this.http.post<User>(`${AppSettings.getApiEndpoint()}/${UserService.GOOGLE_LOGIN_ENDPOINT}`, {authCode})
+          .filter((user: User) => user != null);
   }
 
   /**

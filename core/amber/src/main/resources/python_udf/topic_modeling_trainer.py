@@ -20,6 +20,7 @@ class TopicModelingTrainer(TexeraBlockingUnsupervisedTrainerOperator):
 
         # TODO: _train_args from user input args
         if len(args) >= 2:
+            self._input_col_name = str(args[0])
             self._train_args = {"num_topics": int(args[1])}
         else:
             raise RuntimeError("Not enough arguments in topic modeling operator.")
@@ -29,7 +30,7 @@ class TopicModelingTrainer(TexeraBlockingUnsupervisedTrainerOperator):
 
     def accept(self, row: pandas.Series, nth_child: int = 0) -> None:
         # override accept to accept rows as lists
-        self._data.append(row[0].strip().split())
+        self._data.append(row[self._input_col_name].strip().split())
 
     @staticmethod
     def train(data, *args, **kwargs):

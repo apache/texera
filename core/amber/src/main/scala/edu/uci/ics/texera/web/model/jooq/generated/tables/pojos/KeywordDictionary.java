@@ -15,7 +15,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class KeywordDictionary implements IKeywordDictionary {
 
-    private static final long serialVersionUID = 322404027;
+    private static final long serialVersionUID = 677434385;
 
     private UInteger uid;
     private UInteger kid;

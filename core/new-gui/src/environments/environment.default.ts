@@ -50,6 +50,13 @@ export const defaultEnvironment = {
    */
   mapbox: {
     accessToken: ''
+  },
+
+  /**
+   * all google-related configs
+   */
+  google: {
+    clientID: ''
   }
 
 };

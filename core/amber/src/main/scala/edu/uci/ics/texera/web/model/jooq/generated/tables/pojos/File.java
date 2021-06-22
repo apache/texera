@@ -15,7 +15,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class File implements IFile {
 
-    private static final long serialVersionUID = 1308189969;
+    private static final long serialVersionUID = 963831931;
 
     private UInteger uid;
     private UInteger fid;

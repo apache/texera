@@ -1,6 +1,6 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { NgbModule, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
+import { NgbActiveModal, NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { FormsModule } from '@angular/forms';
 
 import { NgbdModalResourceViewComponent } from './ngbd-modal-resource-view.component';
@@ -8,6 +8,8 @@ import { CustomNgMaterialModule } from '../../../../../common/custom-ng-material
 import { UserService } from '../../../../../common/service/user/user.service';
 import { UserDictionaryService } from '../../../../../common/service/user/user-dictionary/user-dictionary.service';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { GoogleApiService, GoogleAuthService, NG_GAPI_CONFIG } from 'ng-gapi';
+import { environment } from '../../../../../../environments/environment';
 
 describe('NgbdModalResourceViewComponent', () => {
   let component: NgbdModalResourceViewComponent;
@@ -19,7 +21,13 @@ describe('NgbdModalResourceViewComponent', () => {
       providers: [
         NgbActiveModal,
         UserService,
-        UserDictionaryService
+        UserDictionaryService,
+        GoogleApiService,
+        GoogleAuthService,
+        {
+          provide: NG_GAPI_CONFIG,
+          useValue: { client_id: environment.google.clientID }
+        }
       ],
       imports: [
         CustomNgMaterialModule,
