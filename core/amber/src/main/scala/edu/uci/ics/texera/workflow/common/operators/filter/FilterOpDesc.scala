@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.common.operators.filter
 
 import com.google.common.base.Preconditions
 import edu.uci.ics.texera.workflow.common.operators.{OneToOneOpExecConfig, OperatorDescriptor}
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Schema, OperatorSchemaInfo}
 
 abstract class FilterOpDesc extends OperatorDescriptor {
 
@@ -11,6 +11,6 @@ abstract class FilterOpDesc extends OperatorDescriptor {
     schemas(0)
   }
 
-  override def operatorExecutor: OneToOneOpExecConfig
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OneToOneOpExecConfig
 
 }

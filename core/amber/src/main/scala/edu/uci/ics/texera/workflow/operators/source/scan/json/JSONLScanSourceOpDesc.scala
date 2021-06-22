@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.operators.source.scan.json
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.JsonNode
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema, OperatorSchemaInfo}
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.texera.workflow.common.Utils.objectMapper
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
@@ -22,7 +22,9 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
   fileTypeName = Option("JSONL")
 
   @throws[IOException]
-  override def operatorExecutor: JSONLScanSourceOpExecConfig = {
+  override def operatorExecutor(
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): JSONLScanSourceOpExecConfig = {
     filePath match {
       case Some(path) =>
         new JSONLScanSourceOpExecConfig(

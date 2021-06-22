@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.unittest.workflow.operators.scan.csv
 
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.operators.source.scan.csv.{
   CSVScanSourceOpDesc,
@@ -100,8 +100,17 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     csvScanSourceOpDesc.hasHeader = false
     csvScanSourceOpDesc.setContext(workflowContext)
 
-    assert(csvScanSourceOpDesc.operatorExecutor.topology.layers.length == 1)
-    assert(csvScanSourceOpDesc.operatorExecutor.topology.layers.apply(0).numWorkers == 1)
+    val emptySchema = Schema.newBuilder().build()
+    val operatorSchemaInfo = OperatorSchemaInfo(Array(emptySchema), emptySchema)
+    assert(csvScanSourceOpDesc.operatorExecutor(operatorSchemaInfo).topology.layers.length == 1)
+    assert(
+      csvScanSourceOpDesc
+        .operatorExecutor(operatorSchemaInfo)
+        .topology
+        .layers
+        .apply(0)
+        .numWorkers == 1
+    )
   }
 
 }

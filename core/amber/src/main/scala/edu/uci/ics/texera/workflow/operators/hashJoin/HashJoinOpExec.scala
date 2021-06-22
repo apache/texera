@@ -5,10 +5,10 @@ import edu.uci.ics.amber.engine.common.{InputExhausted, WorkflowLogger}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema, OperatorSchemaInfo}
 import org.apache.avro.SchemaBuilder
-import java.util
 
+import java.util
 import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
 
 import scala.collection.mutable
@@ -17,7 +17,8 @@ import scala.collection.mutable.ArrayBuffer
 class HashJoinOpExec[K](
     val buildTable: LinkIdentity,
     val buildAttributeName: String,
-    val probeAttributeName: String
+    val probeAttributeName: String,
+    val operatorSchemaInfo: OperatorSchemaInfo
 ) extends OperatorExecutor {
 
   var isBuildTableFinished: Boolean = false
@@ -82,7 +83,7 @@ class HashJoinOpExec[K](
 
             storedTuples.foreach(buildTuple => {
               val builder = Tuple
-                .newBuilder()
+                .newBuilder(operatorSchemaInfo.outputSchema)
                 .add(buildTuple)
 
               var newProbeIdx = 0

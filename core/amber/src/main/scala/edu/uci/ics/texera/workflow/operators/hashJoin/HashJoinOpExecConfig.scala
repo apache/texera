@@ -20,6 +20,7 @@ import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
@@ -27,7 +28,8 @@ import scala.concurrent.ExecutionContext
 class HashJoinOpExecConfig[K](
     id: OperatorIdentity,
     val probeAttributeName: String,
-    val buildAttributeName: String
+    val buildAttributeName: String,
+    val operatorSchemaInfo: OperatorSchemaInfo
 ) extends OpExecConfig(id) {
 
   var buildTable: LinkIdentity = _
@@ -55,7 +57,7 @@ class HashJoinOpExecConfig[K](
       workflow.getOperator(source).topology.layers.head.startAfter(buildLink)
     }
     topology.layers.head.metadata = _ =>
-      new HashJoinOpExec[K](buildTable, buildAttributeName, probeAttributeName)
+      new HashJoinOpExec[K](buildTable, buildAttributeName, probeAttributeName, operatorSchemaInfo)
   }
 
   override def requiredShuffle: Boolean = true

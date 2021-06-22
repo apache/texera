@@ -1,10 +1,12 @@
 package edu.uci.ics.texera.workflow.operators.source.sql.postgresql
 
+import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorGroupConstants,
   OperatorInfo,
   OutputPort
 }
+import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 import edu.uci.ics.texera.workflow.operators.source.sql.{SQLSourceOpDesc, SQLSourceOpExecConfig}
 import edu.uci.ics.texera.workflow.operators.source.sql.postgresql.PostgreSQLConnUtil.connect
 
@@ -14,7 +16,7 @@ import scala.jdk.CollectionConverters.asScalaBuffer
 
 class PostgreSQLSourceOpDesc extends SQLSourceOpDesc {
 
-  override def operatorExecutor =
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig =
     new SQLSourceOpExecConfig(
       operatorIdentifier,
       (worker: Any) =>

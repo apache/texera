@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorInfo, PropertyNameConstants}
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Schema, OperatorSchemaInfo}
 import edu.uci.ics.texera.workflow.operators.aggregate.SpecializedAverageOpDesc
 import edu.uci.ics.texera.workflow.operators.distinct.DistinctOpDesc
 import edu.uci.ics.texera.workflow.operators.filter.SpecializedFilterOpDesc
@@ -93,7 +93,7 @@ abstract class OperatorDescriptor extends Serializable {
 
   def operatorIdentifier: OperatorIdentity = OperatorIdentity(context.jobID, operatorID)
 
-  def operatorExecutor: OpExecConfig
+  def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig
 
   def operatorInfo: OperatorInfo
 
