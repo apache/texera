@@ -7,8 +7,11 @@ abstract class TwitterSourceOpExec(
     apiKey: String,
     apiSecretKey: String
 ) extends SourceOperatorExecutor {
-  // batch size for each API request, 500 is the maximum tweets for each request defined by Twitter
-  val TWITTER_API_BATCH_SIZE = 500
+  // batch size for each API request defined by Twitter
+  //    500 is the maximum tweets for each request
+  //    10 is the minimal tweets for each request
+  val TWITTER_API_BATCH_SIZE_MAX = 500
+  val TWITTER_API_BATCH_SIZE_MIN = 10
 
   var twitterClient: TwitterClient = _
 

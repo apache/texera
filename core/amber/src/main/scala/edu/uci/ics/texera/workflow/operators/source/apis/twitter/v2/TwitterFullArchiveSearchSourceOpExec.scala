@@ -39,7 +39,7 @@ class TwitterFullArchiveSearchSourceOpExec(
             searchQuery,
             LocalDateTime.parse(fromDateTime, DateTimeFormatter.ISO_DATE_TIME),
             LocalDateTime.parse(toDateTime, DateTimeFormatter.ISO_DATE_TIME),
-            curLimit.min(TWITTER_API_BATCH_SIZE)
+            curLimit.min(TWITTER_API_BATCH_SIZE_MAX)
           )
         }
 
@@ -105,16 +105,21 @@ class TwitterFullArchiveSearchSourceOpExec(
     // it returns the nextToken as null. The solution is not ideal but should do job in
     // the most cases.
     // TODO: replace with newer version library twittered when the bug is fixed.
-    var retry = 5
+    var retry = 2
     do {
       response = twitterClient.searchForTweetsFullArchive(
         query,
         startDateTime,
         endDateTime,
-        maxResults.max(10), // a request needs at least 10 results
+        maxResults.max(TWITTER_API_BATCH_SIZE_MIN),
         nextToken
       )
       retry -= 1
+
+      // Twitter limit 1 request per second for V2 FullArchiveSearch
+      // If request too frequently, twitter will force the client wait for 5 minutes.
+      // Here we send at most 1 request per second to avoid hitting rate limit.
+      Thread.sleep(1000)
     } while (response.getNextToken == null && retry > 0)
 
     nextToken = response.getNextToken
