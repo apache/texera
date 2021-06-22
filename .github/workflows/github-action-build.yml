@@ -4,6 +4,7 @@ on:
   push:
     branches: 
       - 'ci-enable/**'
+      - 'master'
   pull_request:
     paths-ignore:
       - 'core/scripts/**'
