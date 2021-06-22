@@ -33,6 +33,7 @@ jobs:
           path: |
             ~/.npm
             core/new-gui/node_modules
+            core/new-gui/multi-target/node_modules
           key: ${{ runner.os }}-node-with-modules-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-with-modules-
