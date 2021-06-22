@@ -86,7 +86,7 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       opExec.processTexeraTuple(Right(InputExhausted()), links(1)).toSet
     assert(outputTuples.size <= 10)
     assert(outputTuples.subsetOf(commonTuples.toSet))
-    outputTuples.foreach(tuple => assert(tuple.getField[Int]("field2") < 10))
+    outputTuples.foreach(tuple => assert(tuple.getField[Int]("field2") <= 10))
     opExec.close()
   }
 
@@ -104,7 +104,7 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       val outputTuples: Set[Tuple] = opExec.processTexeraTuple(Right(InputExhausted()), null).toSet
       assert(outputTuples.size <= 10)
       assert(outputTuples.subsetOf(commonTuples.toSet))
-      outputTuples.foreach(tuple => assert(tuple.getField[Int]("field2") < 10))
+      outputTuples.foreach(tuple => assert(tuple.getField[Int]("field2") <= 10))
       opExec.close()
     }
   }
