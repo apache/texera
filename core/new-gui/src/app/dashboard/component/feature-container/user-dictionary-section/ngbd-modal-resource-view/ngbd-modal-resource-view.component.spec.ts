@@ -8,8 +8,7 @@ import { CustomNgMaterialModule } from '../../../../../common/custom-ng-material
 import { UserService } from '../../../../../common/service/user/user.service';
 import { UserDictionaryService } from '../../../../../common/service/user/user-dictionary/user-dictionary.service';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
-import { GoogleApiService, GoogleAuthService, NG_GAPI_CONFIG } from 'ng-gapi';
-import { environment } from '../../../../../../environments/environment';
+import { StubUserService } from '../../../../../common/service/user/stub-user.service';
 
 describe('NgbdModalResourceViewComponent', () => {
   let component: NgbdModalResourceViewComponent;
@@ -20,14 +19,8 @@ describe('NgbdModalResourceViewComponent', () => {
       declarations: [NgbdModalResourceViewComponent],
       providers: [
         NgbActiveModal,
-        UserService,
-        UserDictionaryService,
-        GoogleApiService,
-        GoogleAuthService,
-        {
-          provide: NG_GAPI_CONFIG,
-          useValue: { client_id: environment.google.clientID }
-        }
+        {provide: UserService, useClass: StubUserService},
+        UserDictionaryService
       ],
       imports: [
         CustomNgMaterialModule,

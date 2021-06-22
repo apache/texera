@@ -9,8 +9,7 @@ import { UserFileSectionComponent } from './user-file-section.component';
 import { UserFileService } from '../../../../common/service/user/user-file/user-file.service';
 import { UserService } from '../../../../common/service/user/user.service';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { GoogleApiService, GoogleAuthService, NG_GAPI_CONFIG } from 'ng-gapi';
-import { environment } from '../../../../../environments/environment';
+import { StubUserService } from '../../../../common/service/user/stub-user.service';
 
 describe('UserFileSectionComponent', () => {
   let component: UserFileSectionComponent;
@@ -21,14 +20,8 @@ describe('UserFileSectionComponent', () => {
       declarations: [UserFileSectionComponent],
       providers: [
         NgbModal,
-        UserFileService,
-        UserService,
-        GoogleApiService,
-        GoogleAuthService,
-        {
-          provide: NG_GAPI_CONFIG,
-          useValue: { client_id: environment.google.clientID }
-        }
+        {provide: UserService, useClass: StubUserService},
+        UserFileService
       ],
       imports: [
         CustomNgMaterialModule,
