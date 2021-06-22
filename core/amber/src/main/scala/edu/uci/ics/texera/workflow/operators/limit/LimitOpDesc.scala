@@ -11,7 +11,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OutputPort
 }
 import edu.uci.ics.texera.workflow.common.operators.{OneToOneOpExecConfig, OperatorDescriptor}
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Schema, OperatorSchemaInfo}
 import edu.uci.ics.texera.workflow.operators.util.OperatorDescriptorUtils.equallyPartitionGoal
 
 class LimitOpDesc extends OperatorDescriptor {
@@ -21,7 +21,7 @@ class LimitOpDesc extends OperatorDescriptor {
   @JsonPropertyDescription("the max number of output rows")
   var limit: Int = _
 
-  override def operatorExecutor: OpExecConfig = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
     val limitPerWorker = equallyPartitionGoal(limit, Constants.defaultNumWorkers)
     new OneToOneOpExecConfig(operatorIdentifier, i => new LimitOpExec(limitPerWorker(i)))
   }
