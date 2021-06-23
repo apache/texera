@@ -1,17 +1,10 @@
-ThisBuild / organization := "com.example"
-ThisBuild / version := "0.1.0-SNAPSHOT"
-ThisBuild / scalaVersion := "2.12.13"
+ThisBuild / name := "texera"
+ThisBuild / organization := "edu.uci.ics"
+ThisBuild / version := "0.1-SNAPSHOT"
+ThisBuild / scalaVersion := "2.12.8"
 
 lazy val core = (project in file("amber"))
-  .settings(
-    // other settings
-  )
+  .settings()
 
 lazy val util = (project in file("util"))
-  .settings(
-    // other settings
-    // https://mvnrepository.com/artifact/org.jooq/jooq
-    libraryDependencies += "org.jooq" % "jooq" % "3.14.4",
-    // https://mvnrepository.com/artifact/org.jooq/jooq-codegen
-    libraryDependencies += "org.jooq" % "jooq-codegen" % "3.12.4"
-  )
+  .settings()
