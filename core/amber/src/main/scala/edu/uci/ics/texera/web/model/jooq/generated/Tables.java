@@ -4,6 +4,7 @@
 package edu.uci.ics.texera.web.model.jooq.generated;
 
 
+import edu.uci.ics.texera.web.model.jooq.generated.tables.Abc;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.File;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.KeywordDictionary;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
@@ -17,6 +18,11 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfUser;
  */
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Tables {
+
+    /**
+     * The table <code>texera_db.abc</code>.
+     */
+    public static final Abc ABC = Abc.ABC;
 
     /**
      * The table <code>texera_db.file</code>.
