@@ -5,11 +5,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.Us
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.RoundRobinDeployment
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  LayerIdentity,
-  OperatorIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, OperatorIdentity}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 
 import java.io.File
@@ -22,7 +18,8 @@ class ParallelCSVScanSourceOpExecConfig(
     val totalBytes: Long = new File(desc.filePath.get).length()
     val numWorkers: Int = Constants.defaultNumWorkers
 
-    // TODO: add support of limit
+    // TODO: add support for limit
+    // TODO: add support for offset
     new Topology(
       Array(
         new WorkerLayer(
