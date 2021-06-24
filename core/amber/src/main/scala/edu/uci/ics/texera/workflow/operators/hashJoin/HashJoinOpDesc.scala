@@ -15,7 +15,7 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.{
   AutofillAttributeNameOnPort1
 }
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema, OperatorSchemaInfo}
 
 class HashJoinOpDesc[K] extends OperatorDescriptor {
 
@@ -34,11 +34,12 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
   @JsonIgnore
   var opExecConfig: HashJoinOpExecConfig[K] = _
 
-  override def operatorExecutor: OpExecConfig = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
     opExecConfig = new HashJoinOpExecConfig[K](
       operatorIdentifier,
       probeAttributeName,
-      buildAttributeName
+      buildAttributeName,
+      operatorSchemaInfo
     )
     opExecConfig
   }
@@ -65,7 +66,7 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
             schemas(0).containsAttribute(attr.getName()) && attr.getName() != probeAttributeName
           ) {
             // appending 1 to the output of Join schema in case of duplicate attributes in probe and build table
-            builder.add(new Attribute(s"${attr.getName()}1", attr.getType()))
+            builder.add(new Attribute(s"${attr.getName()}#@1", attr.getType()))
           } else {
             builder.add(attr)
           }

@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.union
+package edu.uci.ics.texera.workflow.operators.intersect
 
 import com.google.common.base.Preconditions
 import edu.uci.ics.amber.engine.operators.OpExecConfig
@@ -8,21 +8,21 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.operators.{OneToOneOpExecConfig, OperatorDescriptor}
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Schema, OperatorSchemaInfo}
+import edu.uci.ics.texera.workflow.common.operators.{HashOpExecConfig, OperatorDescriptor}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 
-class UnionOpDesc extends OperatorDescriptor {
+class IntersectOpDesc extends OperatorDescriptor {
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-    new OneToOneOpExecConfig(operatorIdentifier, _ => new UnionOpExec())
+    new HashOpExecConfig(operatorIdentifier, _ => new IntersectOpExec())
   }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "Union",
-      "Unions the output rows from multiple input operators",
+      "Intersect",
+      "Take the intersect of two inputs",
       OperatorGroupConstants.UTILITY_GROUP,
-      inputPorts = List(InputPort(allowMultiInputs = true)),
+      inputPorts = List(InputPort(), InputPort()),
       outputPorts = List(OutputPort())
     )
 

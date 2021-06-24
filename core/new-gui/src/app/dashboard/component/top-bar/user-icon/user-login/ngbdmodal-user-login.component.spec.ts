@@ -10,8 +10,7 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { FormBuilder, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { GoogleApiModule, GoogleApiService, GoogleAuthService, NG_GAPI_CONFIG } from 'ng-gapi';
-import { environment } from '../../../../../../environments/environment';
+import { StubUserService } from '../../../../../common/service/user/stub-user.service';
 
 describe('UserLoginComponent', () => {
   let component: NgbdModalUserLoginComponent;
@@ -22,14 +21,8 @@ describe('UserLoginComponent', () => {
       declarations: [NgbdModalUserLoginComponent],
       providers: [
         NgbActiveModal,
-        UserService,
-        FormBuilder,
-        GoogleApiService,
-        GoogleAuthService,
-        {
-          provide: NG_GAPI_CONFIG,
-          useValue: { client_id: environment.google.clientID }
-        }
+        {provide: UserService, useClass: StubUserService},
+        FormBuilder
       ],
       imports: [
         BrowserAnimationsModule,
