@@ -5,7 +5,11 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.Us
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.RoundRobinDeployment
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, OperatorIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  LayerIdentity,
+  OperatorIdentity
+}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 
 import java.io.{BufferedReader, FileReader}
@@ -20,7 +24,7 @@ class JSONLScanSourceOpExecConfig(val tag: OperatorIdentity, val desc: JSONLScan
     var lines = reader.lines().iterator().drop(offset)
     desc.limit match {
       case Some(lim) => lines = lines.take(lim)
-      case None =>
+      case None      =>
     }
     val count = lines.map(_ => 1).sum
 
@@ -32,7 +36,8 @@ class JSONLScanSourceOpExecConfig(val tag: OperatorIdentity, val desc: JSONLScan
           LayerIdentity(tag, "main"),
           i => {
             val startOffset: Int = offset + count / numWorkers * i
-            val endOffset = offset + (if (i != numWorkers - 1) count / numWorkers * (i + 1) else count)
+            val endOffset =
+              offset + (if (i != numWorkers - 1) count / numWorkers * (i + 1) else count)
             new JSONLScanSourceOpExec(desc, startOffset, endOffset)
           },
           numWorkers,

@@ -6,7 +6,12 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.ManyToOneOpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{
+  Attribute,
+  AttributeType,
+  OperatorSchemaInfo,
+  Schema
+}
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 import org.codehaus.jackson.map.annotate.JsonDeserialize
 
@@ -63,17 +68,19 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
     reader = CSVReader.open(filePath.get)(CustomFormat)
 
     val startOffset = offset.getOrElse(0).asInstanceOf[Int] + (if (hasHeader) 1 else 0)
-    val endOffset = startOffset + limit.getOrElse(INFER_READ_LIMIT).asInstanceOf[Int].min(INFER_READ_LIMIT)
+    val endOffset =
+      startOffset + limit.getOrElse(INFER_READ_LIMIT).asInstanceOf[Int].min(INFER_READ_LIMIT)
     val attributeTypeList: Array[AttributeType] = inferSchemaFromRows(
-      reader.iterator.slice(startOffset, endOffset)
-          .map(seq => seq.toArray)
+      reader.iterator
+        .slice(startOffset, endOffset)
+        .map(seq => seq.toArray)
     )
 
     reader.close()
 
     // build schema based on inferred AttributeTypes
     Schema.newBuilder
-        .add(
+      .add(
         firstRow.indices
           .map((i: Int) =>
             new Attribute(

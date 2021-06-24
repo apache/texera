@@ -12,11 +12,11 @@ import scala.collection.Iterator
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
 
-class JSONLScanSourceOpExec private[json](
-                                             val desc: JSONLScanSourceOpDesc,
-                                             val startOffset: Int,
-                                             val endOffset: Int
-                                         ) extends SourceOperatorExecutor {
+class JSONLScanSourceOpExec private[json] (
+    val desc: JSONLScanSourceOpDesc,
+    val startOffset: Int,
+    val endOffset: Int
+) extends SourceOperatorExecutor {
   private val schema: Schema = desc.inferSchema()
   private var reader: BufferedReader = _
   private var curLineCount: Long = 0
@@ -40,10 +40,9 @@ class JSONLScanSourceOpExec private[json](
         Tuple.newBuilder.add(schema, fields.toArray).build
       }) match {
         case Success(tuple) => tuple
-        case Failure(_) => null
+        case Failure(_)     => null
       }
     })
-
 
   }
   override def open(): Unit = reader = new BufferedReader(new FileReader(desc.filePath.get))

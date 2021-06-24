@@ -17,25 +17,26 @@ class CSVScanSourceOpExec private[csv] (val desc: CSVScanSourceOpDesc)
 
     // skip line if this worker reads the start of a file, and the file has a header line
     val startOffset = desc.offset.getOrElse(0).asInstanceOf[Int] + (if (desc.hasHeader) 1 else 0)
-    var tuples = reader.iterator.map(fields =>
-      Try({
-        val parsedFields: Array[Object] = AttributeTypeUtils.parseFields(
-          fields.toArray,
-          schema.getAttributes
+    var tuples = reader.iterator
+      .map(fields =>
+        Try({
+          val parsedFields: Array[Object] = AttributeTypeUtils.parseFields(
+            fields.toArray,
+            schema.getAttributes
               .map((attr: Attribute) => attr.getType)
               .toArray
-        )
-        Tuple.newBuilder(schema).addSequentially(parsedFields).build
-      }) match {
-        case Success(tuple) => tuple
-        case Failure(_) => null
-      }
-
-    ).drop(startOffset)
+          )
+          Tuple.newBuilder(schema).addSequentially(parsedFields).build
+        }) match {
+          case Success(tuple) => tuple
+          case Failure(_)     => null
+        }
+      )
+      .drop(startOffset)
 
     desc.limit match {
       case Some(lim) => tuples = tuples.take(lim)
-      case None =>
+      case None      =>
     }
     tuples
   }
