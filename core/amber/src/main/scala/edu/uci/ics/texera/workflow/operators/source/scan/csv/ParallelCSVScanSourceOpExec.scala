@@ -10,6 +10,7 @@ import java.util
 import java.util.stream.{IntStream, Stream}
 import scala.collection.Iterator
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
+import scala.util.{Failure, Success, Try}
 
 class ParallelCSVScanSourceOpExec private[csv] (
     val desc: ParallelCSVScanSourceOpDesc,
@@ -24,38 +25,44 @@ class ParallelCSVScanSourceOpExec private[csv] (
       override def hasNext: Boolean = reader.hasNext
 
       override def next: Tuple = {
-        // obtain String representation of each field
-        // a null value will present if omit in between fields, e.g., ['hello', null, 'world']
-        val line = reader.readLine
-        if (line == null) {
-          return null
-        }
-        var fields: Array[Object] = line.toArray
 
-        if (fields == null || util.Arrays.stream(fields).noneMatch(s => s != null)) {
-          // discard tuple if it's null or it only contains null
-          // which means it will always discard Tuple(null) from readLine()
-          return null
-        }
+        Try({
+          // obtain String representation of each field
+          // a null value will present if omit in between fields, e.g., ['hello', null, 'world']
+          val line = reader.readLine
+          if (line == null) {
+            return null
+          }
+          var fields: Array[Object] = line.toArray
 
-        // however the null values won't present if omitted in the end, we need to match nulls.
-        if (fields.length != schema.getAttributes.size)
-          fields = Stream
-            .concat(
-              util.Arrays.stream(fields),
-              IntStream
-                .range(0, schema.getAttributes.size - fields.length)
-                .mapToObj((_: Int) => null)
-            )
-            .toArray()
-        // parse Strings into inferred AttributeTypes
-        val parsedFields: Array[Object] = AttributeTypeUtils.parseFields(
-          fields,
-          schema.getAttributes
-            .map((attr: Attribute) => attr.getType)
-            .toArray
-        )
-        Tuple.newBuilder(schema).addSequentially(parsedFields).build
+          if (fields == null || util.Arrays.stream(fields).noneMatch(s => s != null)) {
+            // discard tuple if it's null or it only contains null
+            // which means it will always discard Tuple(null) from readLine()
+            return null
+          }
+
+          // however the null values won't present if omitted in the end, we need to match nulls.
+          if (fields.length != schema.getAttributes.size)
+            fields = Stream
+                .concat(
+                  util.Arrays.stream(fields),
+                  IntStream
+                      .range(0, schema.getAttributes.size - fields.length)
+                      .mapToObj((_: Int) => null)
+                )
+                .toArray()
+          // parse Strings into inferred AttributeTypes
+          val parsedFields: Array[Object] = AttributeTypeUtils.parseFields(
+            fields,
+            schema.getAttributes
+                .map((attr: Attribute) => attr.getType)
+                .toArray
+          )
+          Tuple.newBuilder(schema).addSequentially(parsedFields).build})
+
+      }match {
+        case Success(tuple) => tuple
+        case Failure(_) => null
       }
 
     }

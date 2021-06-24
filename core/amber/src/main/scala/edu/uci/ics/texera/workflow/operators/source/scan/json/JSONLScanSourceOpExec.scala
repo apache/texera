@@ -10,6 +10,7 @@ import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
 import java.io.{BufferedReader, FileReader}
 import scala.collection.Iterator
 import scala.collection.JavaConverters._
+import scala.util.{Failure, Success, Try}
 
 class JSONLScanSourceOpExec private[json](val desc: JSONLScanSourceOpDesc, val startOffset: Long, val endOffset: Long)
     extends SourceOperatorExecutor {
@@ -26,21 +27,25 @@ class JSONLScanSourceOpExec private[json](val desc: JSONLScanSourceOpDesc, val s
                     curLineCount += 1
                     reader.readLine
                 }
+                Try({
+                    val line = reader.readLine
+                    curLineCount += 1
+                    val fields = scala.collection.mutable.ArrayBuffer.empty[Object]
+                    val data = JSONToMap(objectMapper.readTree(line), flatten = desc.flatten)
 
-                val line = reader.readLine
-                curLineCount += 1
-                val fields = scala.collection.mutable.ArrayBuffer.empty[Object]
-                val data = JSONToMap(objectMapper.readTree(line), flatten = desc.flatten)
-
-                for (fieldName <- schema.getAttributeNames.asScala) {
-                    if (data.contains(fieldName))
-                        fields += parseField(data(fieldName), schema.getAttribute(fieldName).getType)
-                    else {
-                        fields += null
+                    for (fieldName <- schema.getAttributeNames.asScala) {
+                        if (data.contains(fieldName))
+                            fields += parseField(data(fieldName), schema.getAttribute(fieldName).getType)
+                        else {
+                            fields += null
+                        }
                     }
-                }
 
-                Tuple.newBuilder.add(schema, fields.toArray).build
+                    Tuple.newBuilder.add(schema, fields.toArray).build
+                }) match {
+                    case Success(tuple) => tuple
+                    case Failure(_) => null
+                }
 
             }
         }
