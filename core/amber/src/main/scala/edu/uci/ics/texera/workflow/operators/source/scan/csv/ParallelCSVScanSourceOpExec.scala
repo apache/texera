@@ -44,25 +44,26 @@ class ParallelCSVScanSourceOpExec private[csv] (
           // however the null values won't present if omitted in the end, we need to match nulls.
           if (fields.length != schema.getAttributes.size)
             fields = Stream
-                .concat(
-                  util.Arrays.stream(fields),
-                  IntStream
-                      .range(0, schema.getAttributes.size - fields.length)
-                      .mapToObj((_: Int) => null)
-                )
-                .toArray()
+              .concat(
+                util.Arrays.stream(fields),
+                IntStream
+                  .range(0, schema.getAttributes.size - fields.length)
+                  .mapToObj((_: Int) => null)
+              )
+              .toArray()
           // parse Strings into inferred AttributeTypes
           val parsedFields: Array[Object] = AttributeTypeUtils.parseFields(
             fields,
             schema.getAttributes
-                .map((attr: Attribute) => attr.getType)
-                .toArray
+              .map((attr: Attribute) => attr.getType)
+              .toArray
           )
-          Tuple.newBuilder(schema).addSequentially(parsedFields).build})
+          Tuple.newBuilder(schema).addSequentially(parsedFields).build
+        })
 
-      }match {
+      } match {
         case Success(tuple) => tuple
-        case Failure(_) => null
+        case Failure(_)     => null
       }
 
     }
@@ -70,7 +71,12 @@ class ParallelCSVScanSourceOpExec private[csv] (
   override def open(): Unit = {
     val stream = new SeekableFileInputStream(desc.filePath.get)
     stream.seek(startOffset)
-    reader = new BufferedBlockReader(stream, endOffset - startOffset, desc.customDelimiter.get.charAt(0), null)
+    reader = new BufferedBlockReader(
+      stream,
+      endOffset - startOffset,
+      desc.customDelimiter.get.charAt(0),
+      null
+    )
     // skip line if this worker reads from middle of a file
     if (startOffset > 0) reader.readLine
     // skip line if this worker reads the start of a file, and the file has a header line

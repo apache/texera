@@ -6,7 +6,12 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.ManyToOneOpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{
+  Attribute,
+  AttributeType,
+  OperatorSchemaInfo,
+  Schema
+}
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 import org.codehaus.jackson.map.annotate.JsonDeserialize
 
@@ -15,76 +20,76 @@ import scala.jdk.CollectionConverters.asJavaIterableConverter
 
 class CSVScanSourceOpDesc extends ScanSourceOpDesc {
 
-    @JsonProperty(defaultValue = ",")
-    @JsonSchemaTitle("Delimiter")
-    @JsonPropertyDescription("delimiter to separate each line into fields")
-    @JsonDeserialize(contentAs = classOf[java.lang.String])
-    var customDelimiter: Option[String] = None
+  @JsonProperty(defaultValue = ",")
+  @JsonSchemaTitle("Delimiter")
+  @JsonPropertyDescription("delimiter to separate each line into fields")
+  @JsonDeserialize(contentAs = classOf[java.lang.String])
+  var customDelimiter: Option[String] = None
 
-    @JsonProperty(defaultValue = "true")
-    @JsonSchemaTitle("Header")
-    @JsonPropertyDescription("whether the CSV file contains a header line")
-    var hasHeader: Boolean = true
+  @JsonProperty(defaultValue = "true")
+  @JsonSchemaTitle("Header")
+  @JsonPropertyDescription("whether the CSV file contains a header line")
+  var hasHeader: Boolean = true
 
-    fileTypeName = Option("CSV")
+  fileTypeName = Option("CSV")
 
-    @throws[IOException]
-    override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-        // fill in default values
-        if (customDelimiter.get.isEmpty)
-            customDelimiter = Option(",")
+  @throws[IOException]
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
+    // fill in default values
+    if (customDelimiter.get.isEmpty)
+      customDelimiter = Option(",")
 
-        filePath match {
-            case Some(_) =>
-                new ManyToOneOpExecConfig(operatorIdentifier, _ => new CSVScanSourceOpExec(this))
-            case None =>
-                throw new RuntimeException("File path is not provided.")
-        }
-
+    filePath match {
+      case Some(_) =>
+        new ManyToOneOpExecConfig(operatorIdentifier, _ => new CSVScanSourceOpExec(this))
+      case None =>
+        throw new RuntimeException("File path is not provided.")
     }
 
-    /**
-     * Infer Texera.Schema based on the top few lines of data.
-     *
-     * @return Texera.Schema build for this operator
-     */
-    @Override
-    def inferSchema(): Schema = {
-        if (customDelimiter.isEmpty) return null
-        implicit object CustomFormat extends DefaultCSVFormat {
-            override val delimiter: Char = customDelimiter.get.charAt(0)
+  }
 
-        }
-        var reader: CSVReader = CSVReader.open(filePath.get)(CustomFormat)
-        val firstRow: Array[String] = reader.iterator.next().toArray
-        reader.close()
+  /**
+    * Infer Texera.Schema based on the top few lines of data.
+    *
+    * @return Texera.Schema build for this operator
+    */
+  @Override
+  def inferSchema(): Schema = {
+    if (customDelimiter.isEmpty) return null
+    implicit object CustomFormat extends DefaultCSVFormat {
+      override val delimiter: Char = customDelimiter.get.charAt(0)
 
-        // reopen the file to read from the beginning
-        reader = CSVReader.open(filePath.get)(CustomFormat)
-        if (hasHeader)
-            reader.readNext()
+    }
+    var reader: CSVReader = CSVReader.open(filePath.get)(CustomFormat)
+    val firstRow: Array[String] = reader.iterator.next().toArray
+    reader.close()
 
-        val attributeTypeList: Array[AttributeType] = inferSchemaFromRows(
-            reader.iterator
-                .take(limit.getOrElse(INFER_READ_LIMIT).asInstanceOf[Long].min(INFER_READ_LIMIT).toInt)
-                .map(seq => seq.toArray)
-        )
+    // reopen the file to read from the beginning
+    reader = CSVReader.open(filePath.get)(CustomFormat)
+    if (hasHeader)
+      reader.readNext()
 
-        reader.close()
+    val attributeTypeList: Array[AttributeType] = inferSchemaFromRows(
+      reader.iterator
+        .take(limit.getOrElse(INFER_READ_LIMIT).asInstanceOf[Long].min(INFER_READ_LIMIT).toInt)
+        .map(seq => seq.toArray)
+    )
 
-        // build schema based on inferred AttributeTypes
-        Schema.newBuilder
-            .add(
-                firstRow.indices
-                    .map((i: Int) =>
-                        new Attribute(
-                            if (hasHeader) firstRow.apply(i) else "column-" + (i + 1),
-                            attributeTypeList.apply(i)
-                        )
-                    )
-                    .asJava
+    reader.close()
+
+    // build schema based on inferred AttributeTypes
+    Schema.newBuilder
+      .add(
+        firstRow.indices
+          .map((i: Int) =>
+            new Attribute(
+              if (hasHeader) firstRow.apply(i) else "column-" + (i + 1),
+              attributeTypeList.apply(i)
             )
-            .build
-    }
+          )
+          .asJava
+      )
+      .build
+  }
 
 }
