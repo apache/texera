@@ -4,26 +4,21 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalB
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.UseAll
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.RoundRobinDeployment
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  LayerIdentity,
-  OperatorIdentity
-}
+import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, OperatorIdentity}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
 import java.io.File
 
 class ParallelCSVScanSourceOpExecConfig(
-    tag: OperatorIdentity,
-    numWorkers: Int,
-    filePath: String,
-    schema: Schema,
-    delimiter: Char,
-    hasHeader: Boolean
+    val tag: OperatorIdentity,
+    val desc: ParallelCSVScanSourceOpDesc
 ) extends OpExecConfig(tag) {
   override lazy val topology: Topology = {
-    val totalBytes: Long = new File(filePath).length()
+    val totalBytes: Long = new File(desc.filePath.get).length()
+    val numWorkers: Int = Constants.defaultNumWorkers
+
+    // TODO: add support of limit
     new Topology(
       Array(
         new WorkerLayer(
@@ -33,10 +28,7 @@ class ParallelCSVScanSourceOpExecConfig(
             val endOffset: Long =
               if (i != numWorkers - 1) totalBytes / numWorkers * (i + 1) else totalBytes
             new ParallelCSVScanSourceOpExec(
-              filePath,
-              schema,
-              delimiter,
-              hasHeader,
+              desc,
               startOffset,
               endOffset
             )
@@ -49,7 +41,7 @@ class ParallelCSVScanSourceOpExecConfig(
       Array()
     )
   }
-  val totalBytes: Long = new File(filePath).length()
+  val totalBytes: Long = new File(desc.filePath.get).length()
 
   override def assignBreakpoint(
       breakpoint: GlobalBreakpoint[_]

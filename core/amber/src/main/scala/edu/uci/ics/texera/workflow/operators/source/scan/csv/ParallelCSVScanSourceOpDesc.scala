@@ -40,14 +40,10 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
       customDelimiter = Option(",")
 
     filePath match {
-      case Some(path) =>
+      case Some(_) =>
         new ParallelCSVScanSourceOpExecConfig(
           operatorIdentifier,
-          Constants.defaultNumWorkers,
-          path,
-          inferSchema(),
-          customDelimiter.get.charAt(0),
-          hasHeader
+          this
         )
       case None =>
         throw new RuntimeException("File path is not provided.")
