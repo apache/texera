@@ -1,5 +1,5 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
-import { NgbModule, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
+import { NgbActiveModal, NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 
@@ -11,6 +11,7 @@ import { FileUploadModule } from 'ng2-file-upload';
 import { UserService } from '../../../../../common/service/user/user.service';
 import { UserDictionaryUploadService } from '../../../../../common/service/user/user-dictionary/user-dictionary-upload.service';
 import { UserDictionaryService } from '../../../../../common/service/user/user-dictionary/user-dictionary.service';
+import { StubUserService } from '../../../../../common/service/user/stub-user.service';
 
 describe('NgbdModalResourceAddComponent', () => {
   let component: NgbdModalResourceAddComponent;
@@ -24,7 +25,7 @@ describe('NgbdModalResourceAddComponent', () => {
       declarations: [NgbdModalResourceAddComponent],
       providers: [
         NgbActiveModal,
-        UserService,
+        {provide: UserService, useClass: StubUserService},
         UserDictionaryService,
         UserDictionaryUploadService
       ],

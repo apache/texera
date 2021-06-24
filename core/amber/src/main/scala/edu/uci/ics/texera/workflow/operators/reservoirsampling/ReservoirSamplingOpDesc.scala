@@ -10,41 +10,40 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OutputPort
 }
 import edu.uci.ics.texera.workflow.common.operators.{OneToOneOpExecConfig, OperatorDescriptor}
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
-import edu.uci.ics.texera.workflow.operators.limit.LimitOpDesc
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Schema, OperatorSchemaInfo}
 import edu.uci.ics.texera.workflow.operators.util.OperatorDescriptorUtils.equallyPartitionGoal
 
 import scala.util.Random
 
 class ReservoirSamplingOpDesc extends OperatorDescriptor {
-  @JsonProperty(value = "number of item sampled in reservoir sampling", required = true)
-  @JsonPropertyDescription("reservoir sampling with k items being kept randomly")
-  var k: Int = _
-
-  // Store raondom seeds for each exeutor to satisfy the fault tolerance requirement.
-  // If a worker failed, the engine will start a new worker and rerun the computation.
-  // Fault tolerance requires that the restarted worker should produce the exactly same output.
-  // Therefore the seeds have to be stored.
-  @JsonIgnore
-  private val seeds: Array[Int] = Array.fill(Constants.defaultNumWorkers)(Random.nextInt)
-
-  @JsonIgnore
-  def getSeed(index: Int): Int = seeds(index)
-
   // kPerActor needed because one operator can have multiple executor (a.k.a. worker/actor)
   // In order to make sure the total output is k, each executor should produce (k / n) items
   // (n is the number of the executors)
   @JsonIgnore
   private lazy val kPerActor: List[Int] = equallyPartitionGoal(k, Constants.defaultNumWorkers)
 
+  // Store random seeds for each executor to satisfy the fault tolerance requirement.
+  // If a worker failed, the engine will start a new worker and rerun the computation.
+  // Fault tolerance requires that the restarted worker should produce the exactly same output.
+  // Therefore the seeds have to be stored.
+  @JsonIgnore
+  private val seeds: Array[Int] = Array.fill(Constants.defaultNumWorkers)(Random.nextInt)
+
+  @JsonProperty(value = "number of item sampled in reservoir sampling", required = true)
+  @JsonPropertyDescription("reservoir sampling with k items being kept randomly")
+  var k: Int = _
+
+  @JsonIgnore
+  def getSeed(index: Int): Int = seeds(index)
+
   @JsonIgnore
   def getKForActor(actor: Int): Int = {
     kPerActor(actor)
   }
 
-  override def operatorExecutor: OneToOneOpExecConfig = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OneToOneOpExecConfig = {
     new OneToOneOpExecConfig(
-      this.operatorIdentifier,
+      operatorIdentifier,
       (actor: Int) => new ReservoirSamplingOpExec(actor, this)
     )
   }

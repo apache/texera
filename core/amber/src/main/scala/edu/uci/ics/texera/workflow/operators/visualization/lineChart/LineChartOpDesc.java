@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.operators.visualization.lineChart;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
+import edu.uci.ics.amber.engine.operators.OpExecConfig;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
@@ -11,6 +12,7 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttribute
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
+import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
 
 import java.util.ArrayList;
@@ -45,7 +47,7 @@ public class LineChartOpDesc extends VisualizationOperator {
     }
 
     @Override
-    public OneToOneOpExecConfig operatorExecutor() {
+    public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         if (nameColumn == null) {
             throw new RuntimeException("line chart: name column is null");
         }

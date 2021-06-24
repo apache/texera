@@ -4,13 +4,14 @@ import com.github.redouane59.twitter.signature.TwitterCredentials
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
 
 abstract class TwitterSourceOpExec(
-    accessToken: String,
-    accessTokenSecret: String,
     apiKey: String,
     apiSecretKey: String
 ) extends SourceOperatorExecutor {
-  // batch size for each API request, 500 is the maximum tweets for each request defined by Twitter
-  val TWITTER_API_BATCH_SIZE = 500
+  // batch size for each API request defined by Twitter
+  //    500 is the maximum tweets for each request
+  //    10 is the minimal tweets for each request
+  val TWITTER_API_BATCH_SIZE_MAX = 500
+  val TWITTER_API_BATCH_SIZE_MIN = 10
 
   var twitterClient: TwitterClient = _
 
@@ -18,8 +19,6 @@ abstract class TwitterSourceOpExec(
     twitterClient = new TwitterClient(
       TwitterCredentials
         .builder()
-        .accessToken(accessToken)
-        .accessTokenSecret(accessTokenSecret)
         .apiKey(apiKey)
         .apiSecretKey(apiSecretKey)
         .build()

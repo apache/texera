@@ -6,11 +6,12 @@ import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorInfo, PropertyNameConstants}
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Schema, OperatorSchemaInfo}
 import edu.uci.ics.texera.workflow.operators.aggregate.SpecializedAverageOpDesc
 import edu.uci.ics.texera.workflow.operators.distinct.DistinctOpDesc
 import edu.uci.ics.texera.workflow.operators.filter.SpecializedFilterOpDesc
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc
+import edu.uci.ics.texera.workflow.operators.intersect.IntersectOpDesc
 import edu.uci.ics.texera.workflow.operators.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.texera.workflow.operators.limit.LimitOpDesc
 import edu.uci.ics.texera.workflow.operators.linearregression.LinearRegressionOpDesc
@@ -30,9 +31,9 @@ import edu.uci.ics.texera.workflow.operators.source.sql.postgresql.PostgreSQLSou
 import edu.uci.ics.texera.workflow.operators.typecasting.TypeCastingOpDesc
 import edu.uci.ics.texera.workflow.operators.union.UnionOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.barChart.BarChartOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.htmlviz.HtmlVizOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.lineChart.LineChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.pieChart.PieChartOpDesc
-import edu.uci.ics.texera.workflow.operators.visualization.htmlviz.HtmlVizOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.scatterplot.ScatterplotOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.WordCloudOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
@@ -78,7 +79,8 @@ import java.util.UUID
     new Type(value = classOf[RandomKSamplingOpDesc], name = "RandomKSampling"),
     new Type(value = classOf[ReservoirSamplingOpDesc], name = "ReservoirSampling"),
     new Type(value = classOf[HashJoinOpDesc[String]], name = "HashJoin"),
-    new Type(value = classOf[DistinctOpDesc], name = "Distinct")
+    new Type(value = classOf[DistinctOpDesc], name = "Distinct"),
+    new Type(value = classOf[IntersectOpDesc], name = "Intersect")
   )
 )
 abstract class OperatorDescriptor extends Serializable {
@@ -91,7 +93,7 @@ abstract class OperatorDescriptor extends Serializable {
 
   def operatorIdentifier: OperatorIdentity = OperatorIdentity(context.jobID, operatorID)
 
-  def operatorExecutor: OpExecConfig
+  def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig
 
   def operatorInfo: OperatorInfo
 

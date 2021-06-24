@@ -10,6 +10,7 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { FormBuilder, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { StubUserService } from '../../../../../common/service/user/stub-user.service';
 
 describe('UserLoginComponent', () => {
   let component: NgbdModalUserLoginComponent;
@@ -20,7 +21,7 @@ describe('UserLoginComponent', () => {
       declarations: [NgbdModalUserLoginComponent],
       providers: [
         NgbActiveModal,
-        UserService,
+        {provide: UserService, useClass: StubUserService},
         FormBuilder
       ],
       imports: [
@@ -31,7 +32,7 @@ describe('UserLoginComponent', () => {
         MatInputModule,
         NgbModule,
         FormsModule,
-        ReactiveFormsModule,  
+        ReactiveFormsModule,
         MatDialogModule
       ]
     })

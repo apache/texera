@@ -4,6 +4,7 @@ import { UserIconComponent } from './user-icon.component';
 import { UserService } from '../../../../common/service/user/user.service';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { StubUserService } from '../../../../common/service/user/stub-user.service';
 
 describe('UserIconComponent', () => {
   let component: UserIconComponent;
@@ -14,7 +15,7 @@ describe('UserIconComponent', () => {
       declarations: [UserIconComponent],
       providers: [
         NgbModal,
-        UserService
+        {provide: UserService, useClass: StubUserService}
       ],
       imports: [
         HttpClientTestingModule

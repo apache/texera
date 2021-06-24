@@ -10,6 +10,7 @@ import { UserFileService } from '../../../../../common/service/user/user-file/us
 import { NgbdModalFileAddComponent } from './ngbd-modal-file-add.component';
 import { UserService } from '../../../../../common/service/user/user.service';
 import { UserFileUploadService } from '../../../../../common/service/user/user-file/user-file-upload.service';
+import { StubUserService } from '../../../../../common/service/user/stub-user.service';
 
 describe('NgbdModalFileAddComponent', () => {
   let component: NgbdModalFileAddComponent;
@@ -19,7 +20,7 @@ describe('NgbdModalFileAddComponent', () => {
     TestBed.configureTestingModule({
       declarations: [NgbdModalFileAddComponent],
       providers: [
-        UserService,
+        {provide: UserService, useClass: StubUserService},
         UserFileService,
         UserFileUploadService,
         NgbActiveModal

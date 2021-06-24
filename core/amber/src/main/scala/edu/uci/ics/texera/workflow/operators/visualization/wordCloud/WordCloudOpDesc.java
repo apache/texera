@@ -14,6 +14,7 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttribute
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
+import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
 
@@ -44,7 +45,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
     }
 
     @Override
-    public OpExecConfig operatorExecutor() {
+    public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         if (topN == null) {
             topN = 100;
         }
@@ -64,7 +65,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
     public Schema getOutputSchema(Schema[] schemas) {
         return Schema.newBuilder().add(
                 new Attribute("word", AttributeType.STRING),
-                new Attribute("size", AttributeType.INTEGER)
+                new Attribute("count", AttributeType.INTEGER)
         ).build();
     }
 }

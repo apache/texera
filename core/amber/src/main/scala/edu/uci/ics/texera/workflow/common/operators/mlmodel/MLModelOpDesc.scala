@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.common.operators.mlmodel
 
 import com.google.common.base.Preconditions
-import edu.uci.ics.texera.workflow.common.operators.{OneToOneOpExecConfig, OperatorDescriptor}
+import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
 abstract class MLModelOpDesc extends OperatorDescriptor {
@@ -11,7 +11,5 @@ abstract class MLModelOpDesc extends OperatorDescriptor {
 //    Schema.newBuilder().build()
     schemas(0)
   }
-
-  override def operatorExecutor: MLModelOpExecConfig
 
 }

@@ -7,7 +7,7 @@
 
 .texera-mini-map-navigator {
   border: 1px solid #797A79;
-  position: fixed;
+  position: absolute;
   pointer-events: all;
   cursor: move;
   z-index: 1001;

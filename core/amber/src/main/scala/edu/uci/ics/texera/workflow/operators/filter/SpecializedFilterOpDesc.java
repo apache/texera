@@ -8,6 +8,7 @@ import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig;
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc;
+import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 
 import java.util.List;
 
@@ -21,9 +22,11 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
     public List<FilterPredicate> predicates;
 
     @Override
-    public OneToOneOpExecConfig operatorExecutor() {
-        return new OneToOneOpExecConfig(this.operatorIdentifier(),
-                worker -> new SpecializedFilterOpExec(this));
+    public OneToOneOpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
+        return new OneToOneOpExecConfig(
+                operatorIdentifier(),
+                worker -> new SpecializedFilterOpExec(this)
+        );
     }
 
     @Override

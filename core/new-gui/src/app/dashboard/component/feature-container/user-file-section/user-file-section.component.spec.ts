@@ -1,4 +1,4 @@
-import { async, ComponentFixture, TestBed, inject } from '@angular/core/testing';
+import { async, ComponentFixture, inject, TestBed } from '@angular/core/testing';
 
 import { NgbModal, NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { CustomNgMaterialModule } from '../../../../common/custom-ng-material.module';
@@ -9,6 +9,7 @@ import { UserFileSectionComponent } from './user-file-section.component';
 import { UserFileService } from '../../../../common/service/user/user-file/user-file.service';
 import { UserService } from '../../../../common/service/user/user.service';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { StubUserService } from '../../../../common/service/user/stub-user.service';
 
 describe('UserFileSectionComponent', () => {
   let component: UserFileSectionComponent;
@@ -19,8 +20,8 @@ describe('UserFileSectionComponent', () => {
       declarations: [UserFileSectionComponent],
       providers: [
         NgbModal,
-        UserFileService,
-        UserService
+        {provide: UserService, useClass: StubUserService},
+        UserFileService
       ],
       imports: [
         CustomNgMaterialModule,

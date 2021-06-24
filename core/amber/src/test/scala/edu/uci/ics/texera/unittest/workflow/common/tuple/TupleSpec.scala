@@ -30,4 +30,38 @@ class TupleSpec extends AnyFlatSpec {
       Tuple.newBuilder(schema).add(integerAttribute, 1).build()
     }
   }
+
+  it should "fail when entire tuple passed in has extra attributes" in {
+    val inputSchema =
+      Schema.newBuilder().add(stringAttribute).add(integerAttribute).add(boolAttribute).build()
+    val inputTuple = Tuple
+      .newBuilder(inputSchema)
+      .add(integerAttribute, 1)
+      .add(stringAttribute, "string-attr")
+      .add(boolAttribute, true)
+      .build()
+
+    val outputSchema = Schema.newBuilder().add(stringAttribute).add(integerAttribute).build()
+    assertThrows[TupleBuildingException] {
+      Tuple.newBuilder(outputSchema).add(inputTuple).build()
+    }
+  }
+
+  it should "not fail when entire tuple passed in has extra attributes and strictSchemaMatch is false" in {
+    val inputSchema =
+      Schema.newBuilder().add(stringAttribute).add(integerAttribute).add(boolAttribute).build()
+    val inputTuple = Tuple
+      .newBuilder(inputSchema)
+      .add(integerAttribute, 1)
+      .add(stringAttribute, "string-attr")
+      .add(boolAttribute, true)
+      .build()
+
+    val outputSchema = Schema.newBuilder().add(stringAttribute).add(integerAttribute).build()
+    val outputTuple = Tuple.newBuilder(outputSchema).add(inputTuple, false).build()
+
+    // This is the important test. Input tuple has 3 attributes but output tuple has only 2
+    // It's because of isStrictSchemaMatch=false
+    assert(outputTuple.size == 2);
+  }
 }

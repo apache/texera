@@ -133,8 +133,7 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
         val columnName = columns.getString("COLUMN_NAME")
         val datatype = columns.getInt("DATA_TYPE")
         datatype match {
-          case Types.BIT | // -7 Types.BIT
-              Types.TINYINT | // -6 Types.TINYINT
+          case Types.TINYINT | // -6 Types.TINYINT
               Types.SMALLINT | // 5 Types.SMALLINT
               Types.INTEGER => // 4 Types.INTEGER
             schemaBuilder.add(new Attribute(columnName, AttributeType.INTEGER))
@@ -143,7 +142,8 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
               Types.DOUBLE | // 8 Types.DOUBLE
               Types.NUMERIC => // 3 Types.NUMERIC
             schemaBuilder.add(new Attribute(columnName, AttributeType.DOUBLE))
-          case Types.BOOLEAN => // 16 Types.BOOLEAN
+          case Types.BIT | // -7 Types.BIT
+              Types.BOOLEAN => // 16 Types.BOOLEAN
             schemaBuilder.add(new Attribute(columnName, AttributeType.BOOLEAN))
           case Types.BINARY | //-2 Types.BINARY
               Types.DATE | //91 Types.DATE
