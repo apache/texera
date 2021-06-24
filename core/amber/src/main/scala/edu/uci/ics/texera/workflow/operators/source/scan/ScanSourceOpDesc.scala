@@ -19,7 +19,7 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
      * the first a few lines of it to do the type inference.
      */
     @JsonIgnore
-    var INFER_READ_LIMIT: Int = 100
+    var INFER_READ_LIMIT: Long = 100
 
     @JsonProperty(required = true)
     @JsonSchemaTitle("File")

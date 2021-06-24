@@ -46,11 +46,13 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
         val allFields: ArrayBuffer[Map[String, String]] = ArrayBuffer()
         var line: String = null
         var count: Int = 0
+
+        val lim: Long = limit.getOrElse(INFER_READ_LIMIT).asInstanceOf[Long].min(INFER_READ_LIMIT)
         while ( {
             line = reader.readLine()
             count += 1
             line
-        } != null && count <= INFER_READ_LIMIT) {
+        } != null && count <= lim) {
             val root: JsonNode = objectMapper.readTree(line)
             if (root.isObject) {
                 fields = JSONToMap(root, flatten = flatten)

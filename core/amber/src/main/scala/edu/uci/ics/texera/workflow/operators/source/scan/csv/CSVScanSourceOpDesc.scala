@@ -66,7 +66,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
 
         val attributeTypeList: Array[AttributeType] = inferSchemaFromRows(
             reader.iterator
-                .take(INFER_READ_LIMIT)
+                .take(limit.getOrElse(INFER_READ_LIMIT).asInstanceOf[Long].min(INFER_READ_LIMIT).toInt)
                 .map(seq => seq.toArray)
         )
 

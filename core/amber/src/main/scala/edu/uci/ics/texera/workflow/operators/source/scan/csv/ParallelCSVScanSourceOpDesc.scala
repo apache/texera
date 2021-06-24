@@ -3,15 +3,9 @@ package edu.uci.ics.texera.workflow.operators.source.scan.csv
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.operators.OpExecConfig
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  Schema,
-  OperatorSchemaInfo
-}
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 import org.codehaus.jackson.map.annotate.JsonDeserialize
 
@@ -73,7 +67,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
 
     val attributeTypeList: Array[AttributeType] = inferSchemaFromRows(
       reader.iterator
-        .take(INFER_READ_LIMIT)
+        .take(limit.getOrElse(INFER_READ_LIMIT).asInstanceOf[Long].min(INFER_READ_LIMIT).toInt)
         .map(seq => seq.toArray)
     )
 
