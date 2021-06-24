@@ -9,6 +9,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, La
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 
 import java.io.{BufferedReader, FileReader}
+import scala.util.control.Breaks.{break, breakable}
 
 class JSONLScanSourceOpExecConfig(val tag: OperatorIdentity, val desc: JSONLScanSourceOpDesc)
     extends OpExecConfig(tag) {
@@ -16,9 +17,19 @@ class JSONLScanSourceOpExecConfig(val tag: OperatorIdentity, val desc: JSONLScan
         val numWorkers = Constants.defaultNumWorkers
         val reader = new BufferedReader(new FileReader(desc.filePath.get))
         var totalLines = 0
-        while ( {
-            reader.readLine != null
-        }) totalLines += 1
+        breakable {
+            while ( {
+                reader.readLine != null
+            }) {
+                totalLines += 1
+                desc.limit match {
+                    case Some(limit) => if (totalLines >= limit) {
+                        break
+                    }
+                    case None =>
+                }
+            }
+        }
         reader.close()
 
         new Topology(
