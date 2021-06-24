@@ -14,11 +14,10 @@ class CSVScanSourceOpExec private[csv] (val desc: CSVScanSourceOpDesc)
   var reader: CSVReader = _
 
   override def produceTexeraTuple(): Iterator[Tuple] = {
-    var tuples: Iterator[Tuple] = null
 
     // skip line if this worker reads the start of a file, and the file has a header line
     val startOffset = desc.offset.getOrElse(0).asInstanceOf[Int] + (if (desc.hasHeader) 1 else 0)
-    tuples = reader.iterator.map(fields =>
+    var tuples = reader.iterator.map(fields =>
       Try({
         val parsedFields: Array[Object] = AttributeTypeUtils.parseFields(
           fields.toArray,
