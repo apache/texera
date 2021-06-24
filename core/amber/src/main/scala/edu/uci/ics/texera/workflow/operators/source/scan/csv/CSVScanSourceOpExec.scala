@@ -11,15 +11,14 @@ import scala.util.{Failure, Success, Try}
 class CSVScanSourceOpExec private[csv] (val desc: CSVScanSourceOpDesc)
     extends SourceOperatorExecutor {
   val schema: Schema = desc.inferSchema()
+  var reader: CSVReader = _
 
   override def produceTexeraTuple(): Iterator[Tuple] = {
     var tuples: Iterator[Tuple] = null
-    implicit object CustomFormat extends DefaultCSVFormat {
-      override val delimiter: Char = desc.customDelimiter.get.charAt(0)
-    }
+
     // skip line if this worker reads the start of a file, and the file has a header line
     val startOffset = desc.offset.getOrElse(0).asInstanceOf[Int] + (if (desc.hasHeader) 1 else 0)
-    tuples = CSVReader.open(desc.filePath.get)(CustomFormat).iterator.map(fields =>
+    tuples = reader.iterator.map(fields =>
       Try({
         val parsedFields: Array[Object] = AttributeTypeUtils.parseFields(
           fields.toArray,
@@ -42,7 +41,14 @@ class CSVScanSourceOpExec private[csv] (val desc: CSVScanSourceOpDesc)
     tuples
   }
 
-  override def open(): Unit = {}
+  override def open(): Unit = {
+    implicit object CustomFormat extends DefaultCSVFormat {
+      override val delimiter: Char = desc.customDelimiter.get.charAt(0)
+    }
+    reader = CSVReader.open(desc.filePath.get)(CustomFormat)
+  }
 
-  override def close(): Unit = {}
+  override def close(): Unit = {
+    reader.close()
+  }
 }
