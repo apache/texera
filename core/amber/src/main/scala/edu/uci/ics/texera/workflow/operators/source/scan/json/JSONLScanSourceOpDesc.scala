@@ -9,9 +9,8 @@ import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
 
 import java.io.{BufferedReader, FileReader, IOException}
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
-import scala.jdk.CollectionConverters.asJavaIterableConverter
-
 class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
 
   @JsonProperty(required = true)
@@ -47,22 +46,21 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
     var fieldNames = Set[String]()
     var fields: Map[String, String] = null
     val allFields: ArrayBuffer[Map[String, String]] = ArrayBuffer()
-    var line: String = null
-    var count: Int = 0
 
-    val lim: Long = limit.getOrElse(INFER_READ_LIMIT).asInstanceOf[Long].min(INFER_READ_LIMIT)
-    while ({
-      line = reader.readLine()
-      count += 1
-      line
-    } != null && count <= lim) {
-      val root: JsonNode = objectMapper.readTree(line)
-      if (root.isObject) {
-        fields = JSONToMap(root, flatten = flatten)
-        fieldNames = fieldNames.++(fields.keySet)
-        allFields += fields
+
+    val startOffset = offset.getOrElse(INFER_READ_LIMIT).asInstanceOf[Int]
+    val endOffset = startOffset + limit.getOrElse(INFER_READ_LIMIT).asInstanceOf[Int].min(INFER_READ_LIMIT)
+    reader.lines().iterator().asScala.slice(startOffset, endOffset).foreach(
+      line => {
+        val root: JsonNode = objectMapper.readTree(line)
+        if (root.isObject) {
+          fields = JSONToMap(root, flatten = flatten)
+          fieldNames = fieldNames.++(fields.keySet)
+          allFields += fields
+        }
       }
-    }
+    )
+
     val sortedFieldNames = fieldNames.toList.sorted
     reader.close()
 

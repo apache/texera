@@ -4,11 +4,7 @@ import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyD
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.texera.web.resource.dashboard.file.UserFileUtils
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.metadata.{
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import org.codehaus.jackson.map.annotate.JsonDeserialize
@@ -20,10 +16,10 @@ import scala.collection.immutable.List
 abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
 
   /** in the case we do not want to read the entire large file, but only
-    * the first a few lines of it to do the type inference.
-    */
+   * the first a few lines of it to do the type inference.
+   */
   @JsonIgnore
-  var INFER_READ_LIMIT: Long = 100
+  var INFER_READ_LIMIT: Int = 100
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("File")
@@ -39,8 +35,14 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   @JsonProperty()
   @JsonSchemaTitle("Limit")
   @JsonPropertyDescription("max output count")
-  @JsonDeserialize(contentAs = classOf[Long])
-  var limit: Option[java.lang.Long] = None
+  @JsonDeserialize(contentAs = classOf[Int])
+  var limit: Option[java.lang.Integer] = None
+
+  @JsonProperty()
+  @JsonSchemaTitle("Offset")
+  @JsonPropertyDescription("starting point of output")
+  @JsonDeserialize(contentAs = classOf[Int])
+  var offset: Option[java.lang.Integer] = None
 
   override def sourceSchema(): Schema = {
     if (filePath.isEmpty) return null

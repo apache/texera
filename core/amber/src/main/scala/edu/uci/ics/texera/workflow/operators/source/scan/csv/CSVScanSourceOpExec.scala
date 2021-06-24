@@ -11,47 +11,38 @@ import scala.util.{Failure, Success, Try}
 class CSVScanSourceOpExec private[csv] (val desc: CSVScanSourceOpDesc)
     extends SourceOperatorExecutor {
   val schema: Schema = desc.inferSchema()
-  var rows: Iterator[Seq[String]] = _
-  var curLimit: Option[Long] = desc.limit.asInstanceOf[Option[Long]]
 
-  override def produceTexeraTuple(): Iterator[Tuple] =
-    new Iterator[Tuple]() {
-      override def hasNext: Boolean = rows.hasNext && (curLimit.isEmpty || curLimit.get > 0L)
-
-      override def next: Tuple = {
-        // obtain String representation of each field
-        val fields: Seq[String] = rows.next
-        // parse Strings into inferred AttributeTypes
-        Try({
-          val parsedFields: Array[Object] = AttributeTypeUtils.parseFields(
-            fields.toArray,
-            schema.getAttributes
-              .map((attr: Attribute) => attr.getType)
-              .toArray
-          )
-          Tuple.newBuilder(schema).addSequentially(parsedFields).build
-        }) match {
-          case Success(tuple) =>
-            curLimit match {
-              case Some(limit) => curLimit = Some(limit - 1)
-              case None        =>
-            }
-            tuple
-          case Failure(_) => null
-        }
-
-      }
-
-    }
-
-  override def open(): Unit = {
+  override def produceTexeraTuple(): Iterator[Tuple] = {
+    var tuples: Iterator[Tuple] = null
     implicit object CustomFormat extends DefaultCSVFormat {
       override val delimiter: Char = desc.customDelimiter.get.charAt(0)
     }
-    rows = CSVReader.open(desc.filePath.get)(CustomFormat).iterator
     // skip line if this worker reads the start of a file, and the file has a header line
-    if (desc.hasHeader) rows.next()
+    val startOffset = desc.offset.getOrElse(0).asInstanceOf[Int] + (if (desc.hasHeader) 1 else 0)
+    tuples = CSVReader.open(desc.filePath.get)(CustomFormat).iterator.map(fields =>
+      Try({
+        val parsedFields: Array[Object] = AttributeTypeUtils.parseFields(
+          fields.toArray,
+          schema.getAttributes
+              .map((attr: Attribute) => attr.getType)
+              .toArray
+        )
+        Tuple.newBuilder(schema).addSequentially(parsedFields).build
+      }) match {
+        case Success(tuple) => tuple
+        case Failure(_) => null
+      }
+
+    ).drop(startOffset)
+
+    desc.limit match {
+      case Some(lim) => tuples = tuples.take(lim)
+      case None =>
+    }
+    tuples
   }
+
+  override def open(): Unit = {}
 
   override def close(): Unit = {}
 }
