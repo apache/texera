@@ -21,8 +21,6 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-          - macos-latest
-          - windows-latest
         node_version:
           - 14
         architecture:
