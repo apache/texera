@@ -1,25 +1,38 @@
-*.iml
-/.idea
-/.idea_modules
-/.project
-/.settings
+
+# Ignoring binary/output
 target/
 out/
-user-resources/
 
+# Ignoring packages
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Ignoring VSCode related files
+.vscode/
 
 # Ignoring IntelliJ related files
-.idea
-
+*.iml
+.idea/
+.idea_modules/
+lib_managed/
+src_managed/
 
 # Ignoring Eclipse files
 .classpath
 .project
 .settings
 
+# Ignoring sublime files
+*.sublime-workspace
+
 # Ignoring index folder and data folder
-index
-catalog
+index/
+catalog/
 plan/
 plan_files/
 query-results/
@@ -27,8 +40,41 @@ query-results/
 # Ignoring Mac OSX specific files
 .DS_Store
 
-# Ignoring jenv-related files
+# Ignoring jenv related files
 **/.java-version
 
-**/venv
-**/*.pyc
+# Ignoring scala related files
+hs_err_pid*
+
+# Ignoring python related files
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.ipynb_checkpoints
+.pytype/
+
+# Ingoring user generated resources
+user-resources/
+
+# Ignoring maven related files
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+# https://github.com/takari/maven-wrapper#usage-without-binary-jar
+.mvn/wrapper/maven-wrapper.jar
+
+# Ignoring sbt related files
+.bsp/
+sbt.json
+
+# Ignoring rebel related files
+rebel.xml
+
+# Ignoring log files
+*.log
