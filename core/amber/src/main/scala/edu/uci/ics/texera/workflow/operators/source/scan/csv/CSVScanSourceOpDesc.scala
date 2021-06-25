@@ -60,10 +60,14 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
     */
   @Override
   def inferSchema(): Schema = {
-    if (customDelimiter.isEmpty) return null
+    if (customDelimiter.isEmpty) {
+      return null
+    }
+    if (filePath.isEmpty) {
+      return null
+    }
     implicit object CustomFormat extends DefaultCSVFormat {
       override val delimiter: Char = customDelimiter.get.charAt(0)
-
     }
     var reader: CSVReader = CSVReader.open(filePath.get)(CustomFormat)
     val firstRow: Array[String] = reader.iterator.next().toArray
