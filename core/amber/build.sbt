@@ -96,9 +96,6 @@ libraryDependencies += "org.postgresql" % "postgresql" % "42.2.18"
 
 // https://mvnrepository.com/artifact/org.jooq/jooq
 libraryDependencies += "org.jooq" % "jooq" % "3.14.4"
-libraryDependencies += "org.jooq" % "jooq-meta" % "3.12.4"
-libraryDependencies += "org.jooq" % "jooq-codegen" % "3.12.4"
-
 
 libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2"
 
