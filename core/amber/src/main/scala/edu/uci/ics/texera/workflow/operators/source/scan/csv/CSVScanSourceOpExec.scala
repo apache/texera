@@ -11,14 +11,14 @@ class CSVScanSourceOpExec private[csv] (val desc: CSVScanSourceOpDesc)
     extends SourceOperatorExecutor {
   val schema: Schema = desc.inferSchema()
   var reader: CSVReader = _
-  var rows :Iterator[Seq[String]] = _
+  var rows: Iterator[Seq[String]] = _
   override def produceTexeraTuple(): Iterator[Tuple] = {
 
     // skip line if this worker reads the start of a file, and the file has a header line
     val startOffset = desc.offset.getOrElse(0).asInstanceOf[Int] + (if (desc.hasHeader) 1 else 0)
     var tuples = rows
       .map(fields =>
-        try{
+        try {
           val parsedFields: Array[Object] = AttributeTypeUtils.parseFields(
             fields.toArray,
             schema.getAttributes
@@ -27,9 +27,10 @@ class CSVScanSourceOpExec private[csv] (val desc: CSVScanSourceOpDesc)
           )
           Tuple.newBuilder(schema).addSequentially(parsedFields).build
         } catch {
-          case _:Throwable    => null
+          case _: Throwable => null
         }
-      ).filter( tuple => tuple!=null)
+      )
+      .filter(tuple => tuple != null)
       .drop(startOffset)
 
     if (desc.limit.isDefined) tuples = tuples.take(desc.limit.get)

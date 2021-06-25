@@ -21,24 +21,26 @@ class JSONLScanSourceOpExec private[json] (
   private var reader: BufferedReader = _
 
   override def produceTexeraTuple(): Iterator[Tuple] = {
-    rows.map(line => {
-      try{
-        val fields = scala.collection.mutable.ArrayBuffer.empty[Object]
-        val data = JSONToMap(objectMapper.readTree(line), flatten = desc.flatten)
+    rows
+      .map(line => {
+        try {
+          val fields = scala.collection.mutable.ArrayBuffer.empty[Object]
+          val data = JSONToMap(objectMapper.readTree(line), flatten = desc.flatten)
 
-        for (fieldName <- schema.getAttributeNames.asScala) {
-          if (data.contains(fieldName))
-            fields += parseField(data(fieldName), schema.getAttribute(fieldName).getType)
-          else {
-            fields += null
+          for (fieldName <- schema.getAttributeNames.asScala) {
+            if (data.contains(fieldName))
+              fields += parseField(data(fieldName), schema.getAttribute(fieldName).getType)
+            else {
+              fields += null
+            }
           }
-        }
 
-        Tuple.newBuilder.add(schema, fields.toArray).build
-      } catch {
-        case _: Throwable => null
-      }
-    }).filter(tuple=> tuple!=null)
+          Tuple.newBuilder.add(schema, fields.toArray).build
+        } catch {
+          case _: Throwable => null
+        }
+      })
+      .filter(tuple => tuple != null)
 
   }
   override def open(): Unit = {

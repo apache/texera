@@ -7,7 +7,12 @@ import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{
+  Attribute,
+  AttributeType,
+  OperatorSchemaInfo,
+  Schema
+}
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 import org.codehaus.jackson.map.annotate.JsonDeserialize
 
@@ -40,18 +45,21 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
         val totalBytes: Long = new File(path).length()
         val numWorkers: Int = Constants.defaultNumWorkers
 
-        new OneToOneOpExecConfig(operatorIdentifier, (i:Int) => {
-          // TODO: add support for limit
-          // TODO: add support for offset
-          val startOffset: Long = totalBytes / numWorkers * i
-          val endOffset: Long =
-            if (i != numWorkers - 1) totalBytes / numWorkers * (i + 1) else totalBytes
-          new ParallelCSVScanSourceOpExec(
-            this,
-            startOffset,
-            endOffset
-          )
-        })
+        new OneToOneOpExecConfig(
+          operatorIdentifier,
+          (i: Int) => {
+            // TODO: add support for limit
+            // TODO: add support for offset
+            val startOffset: Long = totalBytes / numWorkers * i
+            val endOffset: Long =
+              if (i != numWorkers - 1) totalBytes / numWorkers * (i + 1) else totalBytes
+            new ParallelCSVScanSourceOpExec(
+              this,
+              startOffset,
+              endOffset
+            )
+          }
+        )
 
       case None =>
         throw new RuntimeException("File path is not provided.")
@@ -94,13 +102,17 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
 
     // build schema based on inferred AttributeTypes
     Schema.newBuilder
-      .add(firstRow.indices.map((i: Int) =>
+      .add(
+        firstRow.indices
+          .map((i: Int) =>
             new Attribute(
               if (hasHeader) firstRow.apply(i) else "column-" + (i + 1),
               attributeTypeList.apply(i)
             )
-          ).asJava
-      ).build
+          )
+          .asJava
+      )
+      .build
   }
 
 }
