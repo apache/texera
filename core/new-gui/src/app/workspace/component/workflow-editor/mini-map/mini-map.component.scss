@@ -1,11 +1,9 @@
 .texera-mini-map-wrapper {
-  backdrop-filter: blur(2px);
-  opacity: 0.7;
-  box-shadow: -2px 2px 2px rgba(0,0,0,0.2);
 }
 
 .texera-mini-map-square-container {
-  position: relative; // component-body's position: absolute requires this to be the first positioned ancestor element
+  width: 100%;
+  // position: relative; // component-body's position: absolute requires this to be the first positioned ancestor element
   pointer-events: none;
 }
 
