@@ -1,17 +1,17 @@
-import {HttpClientTestingModule} from '@angular/common/http/testing';
-import {async, ComponentFixture, TestBed} from '@angular/core/testing';
-import {MatDialogModule} from '@angular/material/dialog';
-import {ExecuteWorkflowService} from '../../service/execute-workflow/execute-workflow.service';
-import {JointUIService} from '../../service/joint-ui/joint-ui.service';
-import {OperatorMetadataService} from '../../service/operator-metadata/operator-metadata.service';
-import {StubOperatorMetadataService} from '../../service/operator-metadata/stub-operator-metadata.service';
-import {UndoRedoService} from '../../service/undo-redo/undo-redo.service';
-import {WorkflowActionService} from '../../service/workflow-graph/model/workflow-action.service';
-import {WorkflowUtilService} from '../../service/workflow-graph/util/workflow-util.service';
-import {WorkflowStatusService} from '../../service/workflow-status/workflow-status.service';
-import {ResultObject} from '../../types/execute-workflow.interface';
-import {ChartType} from '../../types/visualization.interface';
-import {VisualizationPanelContentComponent} from './visualization-panel-content.component';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatDialogModule } from '@angular/material/dialog';
+import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
+import { JointUIService } from '../../service/joint-ui/joint-ui.service';
+import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
+import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
+import { UndoRedoService } from '../../service/undo-redo/undo-redo.service';
+import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
+import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
+import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
+import { ResultObject } from '../../types/execute-workflow.interface';
+import { ChartType } from '../../types/visualization.interface';
+import { VisualizationPanelContentComponent } from './visualization-panel-content.component';
 
 describe('VisualizationPanelContentComponent', () => {
   let component: VisualizationPanelContentComponent;
