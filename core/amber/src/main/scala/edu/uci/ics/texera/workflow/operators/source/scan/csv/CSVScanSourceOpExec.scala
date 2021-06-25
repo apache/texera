@@ -14,8 +14,6 @@ class CSVScanSourceOpExec private[csv] (val desc: CSVScanSourceOpDesc)
   var rows: Iterator[Seq[String]] = _
   override def produceTexeraTuple(): Iterator[Tuple] = {
 
-    // skip line if this worker reads the start of a file, and the file has a header line
-    val startOffset = desc.offset.getOrElse(0).asInstanceOf[Int] + (if (desc.hasHeader) 1 else 0)
     var tuples = rows
       .map(fields =>
         try {
@@ -31,7 +29,6 @@ class CSVScanSourceOpExec private[csv] (val desc: CSVScanSourceOpDesc)
         }
       )
       .filter(tuple => tuple != null)
-      .drop(startOffset)
 
     if (desc.limit.isDefined) tuples = tuples.take(desc.limit.get)
     tuples
@@ -42,7 +39,10 @@ class CSVScanSourceOpExec private[csv] (val desc: CSVScanSourceOpDesc)
       override val delimiter: Char = desc.customDelimiter.get.charAt(0)
     }
     reader = CSVReader.open(desc.filePath.get)(CustomFormat)
-    rows = reader.iterator
+    // skip line if this worker reads the start of a file, and the file has a header line
+    val startOffset = desc.offset.getOrElse(0).asInstanceOf[Int] + (if (desc.hasHeader) 1 else 0)
+
+    rows = reader.iterator.drop(startOffset)
   }
 
   override def close(): Unit = {
