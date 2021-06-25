@@ -69,5 +69,12 @@ buildNumber.properties
 # https://github.com/takari/maven-wrapper#usage-without-binary-jar
 .mvn/wrapper/maven-wrapper.jar
 
+# Ignoring sbt related files
+.bsp/
+sbt.json
+
+# Ignoring rebel related files
+rebel.xml
+
 # Ignoring log files
 *.log
