@@ -6,20 +6,19 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeTypeUtils, Schema}
 
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
-import scala.util.{Failure, Success, Try}
 
 class CSVScanSourceOpExec private[csv] (val desc: CSVScanSourceOpDesc)
     extends SourceOperatorExecutor {
   val schema: Schema = desc.inferSchema()
   var reader: CSVReader = _
-
+  var rows :Iterator[Seq[String]] = _
   override def produceTexeraTuple(): Iterator[Tuple] = {
 
     // skip line if this worker reads the start of a file, and the file has a header line
     val startOffset = desc.offset.getOrElse(0).asInstanceOf[Int] + (if (desc.hasHeader) 1 else 0)
-    var tuples = reader.iterator
+    var tuples = rows
       .map(fields =>
-        Try({
+        try{
           val parsedFields: Array[Object] = AttributeTypeUtils.parseFields(
             fields.toArray,
             schema.getAttributes
@@ -27,17 +26,13 @@ class CSVScanSourceOpExec private[csv] (val desc: CSVScanSourceOpDesc)
               .toArray
           )
           Tuple.newBuilder(schema).addSequentially(parsedFields).build
-        }) match {
-          case Success(tuple) => tuple
-          case Failure(_)     => null
+        } catch {
+          case _:Throwable    => null
         }
       )
       .drop(startOffset)
 
-    desc.limit match {
-      case Some(lim) => tuples = tuples.take(lim)
-      case None      =>
-    }
+    if (desc.limit.isDefined) tuples = tuples.take(desc.limit.get)
     tuples
   }
 
@@ -46,6 +41,7 @@ class CSVScanSourceOpExec private[csv] (val desc: CSVScanSourceOpDesc)
       override val delimiter: Char = desc.customDelimiter.get.charAt(0)
     }
     reader = CSVReader.open(desc.filePath.get)(CustomFormat)
+    rows = reader.iterator
   }
 
   override def close(): Unit = {
