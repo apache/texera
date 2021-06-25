@@ -64,10 +64,10 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
   def inferSchema(): Schema = {
     val reader = new BufferedReader(new FileReader(filePath.get))
     var fieldNames = Set[String]()
-    var fields: Map[String, String] = null
+
     val allFields: ArrayBuffer[Map[String, String]] = ArrayBuffer()
 
-    val startOffset = offset.getOrElse(INFER_READ_LIMIT).asInstanceOf[Int]
+    val startOffset = offset.getOrElse(0).asInstanceOf[Int]
     val endOffset =
       startOffset + limit.getOrElse(INFER_READ_LIMIT).asInstanceOf[Int].min(INFER_READ_LIMIT)
     reader
@@ -78,7 +78,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
       .foreach(line => {
         val root: JsonNode = objectMapper.readTree(line)
         if (root.isObject) {
-          fields = JSONToMap(root, flatten = flatten)
+          val fields: Map[String, String]  = JSONToMap(root, flatten = flatten)
           fieldNames = fieldNames.++(fields.keySet)
           allFields += fields
         }

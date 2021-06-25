@@ -16,7 +16,7 @@ class JSONLScanSourceOpExec private[json] (
     val startOffset: Int,
     val endOffset: Int
 ) extends SourceOperatorExecutor {
-  private val schema: Schema = desc.inferSchema()
+  private var schema: Schema = _
   private var rows: Iterator[String] = _
   private var reader: BufferedReader = _
 
@@ -44,6 +44,7 @@ class JSONLScanSourceOpExec private[json] (
 
   }
   override def open(): Unit = {
+    schema = desc.inferSchema()
     reader = new BufferedReader(new FileReader(desc.filePath.get))
     rows = reader.lines().iterator().asScala.slice(startOffset, endOffset)
   }
