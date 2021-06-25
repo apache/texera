@@ -29,7 +29,7 @@ class CSVScanSourceOpExec private[csv] (val desc: CSVScanSourceOpDesc)
         } catch {
           case _:Throwable    => null
         }
-      )
+      ).filter( tuple => tuple!=null)
       .drop(startOffset)
 
     if (desc.limit.isDefined) tuples = tuples.take(desc.limit.get)

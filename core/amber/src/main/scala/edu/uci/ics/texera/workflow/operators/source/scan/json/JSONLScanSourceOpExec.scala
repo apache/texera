@@ -38,7 +38,7 @@ class JSONLScanSourceOpExec private[json] (
       } catch {
         case _: Throwable => null
       }
-    }).filter(a=> a!=null)
+    }).filter(tuple=> tuple!=null)
 
   }
   override def open(): Unit = {
