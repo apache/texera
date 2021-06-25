@@ -20,17 +20,18 @@ trait QueryWorkerStatisticsHandler {
   registerHandler { (msg: QueryWorkerStatistics, sender) =>
     {
       // send all worker QueryStatistics message
-      Future
-        .collect(workflow.getAllWorkers.map { worker =>
-          send(QueryStatistics(), worker).map { stats =>
-            // update worker stats
-            workflow.getOperator(worker).getWorker(worker).stats = stats
-          }
-        }.toSeq)
-        .map { ret =>
-          // update frontend status
-          updateFrontendWorkflowStatus()
-        }
+      val requests = workflow.getAllWorkers.toList.map(worker =>
+        send(QueryStatistics(), worker).map(res => (worker, res))
+      )
+      val allResponses = Future.collect(requests)
+
+      allResponses.map(responses => {
+        responses.foreach(res => {
+          val (worker, stats) = res
+          workflow.getOperator(worker).getWorker(worker).stats = stats
+        })
+        updateFrontendWorkflowStatus()
+      })
     }
   }
 }
