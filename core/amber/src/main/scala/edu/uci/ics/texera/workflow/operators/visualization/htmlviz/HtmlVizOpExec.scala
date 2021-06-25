@@ -10,8 +10,8 @@ import scala.collection.Iterator
 import scala.util.Either
 
 /**
- * HTML Visualization operator to render any given HTML code
- */
+  * HTML Visualization operator to render any given HTML code
+  */
 class HtmlVizOpExec(desc: HtmlVizOpDesc, operatorSchemaInfo: OperatorSchemaInfo)
     extends OperatorExecutor {
 
@@ -20,15 +20,15 @@ class HtmlVizOpExec(desc: HtmlVizOpDesc, operatorSchemaInfo: OperatorSchemaInfo)
   override def close(): Unit = {}
 
   override def processTexeraTuple(
-                                     tuple: Either[Tuple, InputExhausted],
-                                     input: LinkIdentity
-                                 ): Iterator[Tuple] =
+      tuple: Either[Tuple, InputExhausted],
+      input: LinkIdentity
+  ): Iterator[Tuple] =
     tuple match {
       case Left(t) =>
         val result = Tuple
-            .newBuilder(operatorSchemaInfo.outputSchema)
-            .add("html-content", AttributeType.STRING, t.getField(desc.htmlContentAttrName))
-            .build()
+          .newBuilder(operatorSchemaInfo.outputSchema)
+          .add("html-content", AttributeType.STRING, t.getField(desc.htmlContentAttrName))
+          .build()
         Iterator(result)
 
       case Right(_) => Iterator()
