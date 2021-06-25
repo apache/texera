@@ -1,19 +1,19 @@
-import {Component, Input} from '@angular/core';
+import { Component, Input } from '@angular/core';
 import deepMap from 'deep-map';
-import {isEqual} from 'lodash';
-import {NzModalRef, NzModalService} from 'ng-zorro-antd/modal';
-import {NzTableQueryParams} from 'ng-zorro-antd/table';
-import {Observable} from 'rxjs/Observable';
-import {assertType} from 'src/app/common/util/assert';
-import {sessionGetObject, sessionRemoveObject, sessionSetObject} from 'src/app/common/util/storage';
-import {ExecuteWorkflowService} from '../../service/execute-workflow/execute-workflow.service';
-import {ResultPanelToggleService} from '../../service/result-panel-toggle/result-panel-toggle.service';
-import {WorkflowActionService} from '../../service/workflow-graph/model/workflow-action.service';
-import {WorkflowWebsocketService} from '../../service/workflow-websocket/workflow-websocket.service';
-import {ExecutionState} from '../../types/execute-workflow.interface';
-import {IndexableObject, PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo, TableColumn} from '../../types/result-table.interface';
-import {BreakpointTriggerInfo} from '../../types/workflow-common.interface';
-import {WorkflowStatusService} from '../../service/workflow-status/workflow-status.service';
+import { isEqual } from 'lodash';
+import { NzModalRef, NzModalService } from 'ng-zorro-antd/modal';
+import { NzTableQueryParams } from 'ng-zorro-antd/table';
+import { Observable } from 'rxjs/Observable';
+import { assertType } from 'src/app/common/util/assert';
+import { sessionGetObject, sessionRemoveObject, sessionSetObject } from 'src/app/common/util/storage';
+import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
+import { ResultPanelToggleService } from '../../service/result-panel-toggle/result-panel-toggle.service';
+import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
+import { WorkflowWebsocketService } from '../../service/workflow-websocket/workflow-websocket.service';
+import { ExecutionState } from '../../types/execute-workflow.interface';
+import { IndexableObject, PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo, TableColumn } from '../../types/result-table.interface';
+import { BreakpointTriggerInfo } from '../../types/workflow-common.interface';
+import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 
 /**
  * ResultPanelComponent is the bottom level area that displays the
@@ -134,7 +134,7 @@ export class ResultPanelComponent {
       //  1. Get all the column names except '_id', using the first instance of
       //      result data.
       //  2. Use those names to generate a list of display columns, which would
-      //      be used for displaying on angular material table.
+      //      be used for displaying on angular mateiral table.
       //  3. Pass the result data as array to generate a new angular material
       //      data table.
       //  4. Set the newly created data table to our own paginator.
