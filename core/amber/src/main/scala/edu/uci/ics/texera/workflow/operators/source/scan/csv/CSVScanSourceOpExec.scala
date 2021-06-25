@@ -40,7 +40,7 @@ class CSVScanSourceOpExec private[csv] (val desc: CSVScanSourceOpDesc)
     }
     reader = CSVReader.open(desc.filePath.get)(CustomFormat)
     // skip line if this worker reads the start of a file, and the file has a header line
-    val startOffset = desc.offset.getOrElse(0).asInstanceOf[Int] + (if (desc.hasHeader) 1 else 0)
+    val startOffset = desc.offset.getOrElse(0) + (if (desc.hasHeader) 1 else 0)
 
     rows = reader.iterator.drop(startOffset)
   }

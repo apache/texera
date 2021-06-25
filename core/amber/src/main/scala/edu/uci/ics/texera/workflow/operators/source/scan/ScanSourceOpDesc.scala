@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.source.scan
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.texera.web.resource.dashboard.file.UserFileUtils
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -11,7 +12,6 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 }
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
-import org.codehaus.jackson.map.annotate.JsonDeserialize
 
 import java.util.Collections.singletonList
 import scala.collection.JavaConverters.asScalaBuffer
@@ -40,13 +40,13 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   @JsonSchemaTitle("Limit")
   @JsonPropertyDescription("max output count")
   @JsonDeserialize(contentAs = classOf[Int])
-  var limit: Option[java.lang.Integer] = None
+  var limit: Option[Int] = None
 
   @JsonProperty()
   @JsonSchemaTitle("Offset")
   @JsonPropertyDescription("starting point of output")
   @JsonDeserialize(contentAs = classOf[Int])
-  var offset: Option[java.lang.Integer] = None
+  var offset: Option[Int] = None
 
   override def sourceSchema(): Schema = {
     if (filePath.isEmpty) return null
