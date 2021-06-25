@@ -4,13 +4,14 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.operators.OpExecConfig
+import edu.uci.ics.texera.workflow.common.operators.ManyToOneOpExecConfig
+import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
   AttributeType,
-  Schema,
-  OperatorSchemaInfo
+  OperatorSchemaInfo,
+  Schema
 }
-import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 import org.codehaus.jackson.map.annotate.JsonDeserialize
 
@@ -39,15 +40,8 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
       customDelimiter = Option(",")
 
     filePath match {
-      case Some(path) =>
-        new CSVScanSourceOpExecConfig(
-          operatorIdentifier,
-          1, // here using 1 since there is no easy way to split the task for multi-line csv.
-          path,
-          inferSchema(),
-          customDelimiter.get.charAt(0),
-          hasHeader
-        )
+      case Some(_) =>
+        new ManyToOneOpExecConfig(operatorIdentifier, _ => new CSVScanSourceOpExec(this))
       case None =>
         throw new RuntimeException("File path is not provided.")
     }
@@ -56,6 +50,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
 
   /**
     * Infer Texera.Schema based on the top few lines of data.
+    *
     * @return Texera.Schema build for this operator
     */
   @Override
@@ -75,12 +70,13 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
 
     // reopen the file to read from the beginning
     reader = CSVReader.open(filePath.get)(CustomFormat)
-    if (hasHeader)
-      reader.readNext()
 
+    val startOffset = offset.getOrElse(0) + (if (hasHeader) 1 else 0)
+    val endOffset =
+      startOffset + limit.getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
     val attributeTypeList: Array[AttributeType] = inferSchemaFromRows(
       reader.iterator
-        .take(INFER_READ_LIMIT)
+        .slice(startOffset, endOffset)
         .map(seq => seq.toArray)
     )
 
