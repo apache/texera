@@ -10,7 +10,6 @@ import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
 import java.io.{BufferedReader, FileReader}
 import scala.collection.Iterator
 import scala.collection.JavaConverters._
-import scala.util.{Failure, Success, Try}
 
 class JSONLScanSourceOpExec private[json] (
     val desc: JSONLScanSourceOpDesc,
@@ -18,14 +17,12 @@ class JSONLScanSourceOpExec private[json] (
     val endOffset: Int
 ) extends SourceOperatorExecutor {
   private val schema: Schema = desc.inferSchema()
+  private var rows: Iterator[String] = _
   private var reader: BufferedReader = _
-  private var curLineCount: Long = 0
 
   override def produceTexeraTuple(): Iterator[Tuple] = {
-    val tuples = reader.lines().iterator().asScala.slice(startOffset, endOffset)
-
-    tuples.map(line => {
-      Try({
+    rows.map(line => {
+      try{
         val fields = scala.collection.mutable.ArrayBuffer.empty[Object]
         val data = JSONToMap(objectMapper.readTree(line), flatten = desc.flatten)
 
@@ -38,14 +35,16 @@ class JSONLScanSourceOpExec private[json] (
         }
 
         Tuple.newBuilder.add(schema, fields.toArray).build
-      }) match {
-        case Success(tuple) => tuple
-        case Failure(_)     => null
+      } catch {
+        case _: Throwable => null
       }
-    })
+    }).filter(a=> a!=null)
 
   }
-  override def open(): Unit = reader = new BufferedReader(new FileReader(desc.filePath.get))
+  override def open(): Unit = {
+    reader = new BufferedReader(new FileReader(desc.filePath.get))
+    rows = reader.lines().iterator().asScala.slice(startOffset, endOffset)
+  }
 
   override def close(): Unit = reader.close()
 
