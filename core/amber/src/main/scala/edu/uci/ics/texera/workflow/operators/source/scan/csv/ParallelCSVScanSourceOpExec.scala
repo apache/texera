@@ -10,7 +10,6 @@ import java.util
 import java.util.stream.{IntStream, Stream}
 import scala.collection.Iterator
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
-import scala.util.{Failure, Success, Try}
 
 class ParallelCSVScanSourceOpExec private[csv] (
     val desc: ParallelCSVScanSourceOpDesc,
@@ -26,7 +25,7 @@ class ParallelCSVScanSourceOpExec private[csv] (
 
       override def next: Tuple = {
 
-        Try({
+        try {
           // obtain String representation of each field
           // a null value will present if omit in between fields, e.g., ['hello', null, 'world']
           val line = reader.readLine
@@ -59,14 +58,12 @@ class ParallelCSVScanSourceOpExec private[csv] (
               .toArray
           )
           Tuple.newBuilder(schema).addSequentially(parsedFields).build
-        })
-
-      } match {
-        case Success(tuple) => tuple
-        case Failure(_)     => null
+        } catch {
+          case _: Throwable => null
+        }
       }
 
-    }
+    }.filter(tuple => tuple != null)
 
   override def open(): Unit = {
     val stream = new SeekableFileInputStream(desc.filePath.get)
