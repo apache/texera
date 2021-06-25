@@ -9,6 +9,12 @@ import * as joint from 'jointjs';
 import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
 import { Point } from '../../../types/workflow-common.interface';
 import { MAIN_CANVAS_LIMIT } from '../workflow-editor-constants';
+import { WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID } from '../workflow-editor.component';
+
+export const MINI_MAP_JOINTJS_MAP_WRAPPER_ID = 'texera-mini-map-editor-jointjs-wrapper-id';
+export const MINI_MAP_JOINTJS_MAP_ID = 'texera-mini-map-editor-jointjs-body-id';
+export const MINI_MAP_NAVIGATOR_ID = 'mini-map-navigator-id';
+export const MINI_MAP_GRID_SIZE = 45;
 
 /**
  * MiniMapComponent is the componenet that contains the mini-map of the workflow editor component.
@@ -30,10 +36,12 @@ export class MiniMapComponent implements AfterViewInit {
 
   // the DOM element ID of map. It can be used by jQuery and jointJS to find the DOM element
   // in the HTML template, the div element ID is set using this variable
-  public readonly MINI_MAP_JOINTJS_MAP_WRAPPER_ID = 'texera-mini-map-editor-jointjs-wrapper-id';
-  public readonly MINI_MAP_JOINTJS_MAP_ID = 'texera-mini-map-editor-jointjs-body-id';
-  public readonly MINI_MAP_NAVIGATOR_ID = 'mini-map-navigator-id';
+  public readonly MINI_MAP_JOINTJS_MAP_WRAPPER_ID = MINI_MAP_JOINTJS_MAP_WRAPPER_ID;
+  public readonly MINI_MAP_JOINTJS_MAP_ID = MINI_MAP_JOINTJS_MAP_WRAPPER_ID;
+  public readonly MINI_MAP_NAVIGATOR_ID = MINI_MAP_JOINTJS_MAP_WRAPPER_ID;
   public readonly MINI_MAP_GRID_SIZE = 45;
+
+  public readonly MAIN_PAPER_JOINTJS_WRAPPER_ID = WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID;
 
   public MINI_MAP_ZOOM_SCALE = 0.08;
   public MINI_MAP_SIZE = {
@@ -41,9 +49,6 @@ export class MiniMapComponent implements AfterViewInit {
     height: (MAIN_CANVAS_LIMIT.yMax - MAIN_CANVAS_LIMIT.yMin) * this.MINI_MAP_ZOOM_SCALE
   };
 
-
-  @Input()
-  public mainPaperWrapperElementID: string | undefined;
   public show: boolean = true;
 
   private mouseDownPosition: Point | undefined;
@@ -183,10 +188,7 @@ export class MiniMapComponent implements AfterViewInit {
   }
 
   private getMainPaperWrapperElementOffset(): Point {
-    if (!this.mainPaperWrapperElementID) {
-      throw new Error('main paper wrapper element ID is unknown');
-    }
-    const offset = jQuery('#' + this.mainPaperWrapperElementID).offset();
+    const offset = jQuery('#' + this.MAIN_PAPER_JOINTJS_WRAPPER_ID).offset();
     if (offset === undefined) {
       throw new Error('fail to get Workflow Editor wrapper element offset');
     }
@@ -197,12 +199,8 @@ export class MiniMapComponent implements AfterViewInit {
    * This method gets the original paper wrapper size.
    */
   private getOriginalWrapperElementSize(): { width: number, height: number } {
-    if (!this.mainPaperWrapperElementID) {
-      throw new Error('main paper wrapper element ID is unknown');
-    }
-
-    let width = jQuery('#' + this.mainPaperWrapperElementID).width();
-    let height = jQuery('#' + this.mainPaperWrapperElementID).height();
+    let width = jQuery('#' + this.MAIN_PAPER_JOINTJS_WRAPPER_ID).width();
+    let height = jQuery('#' + this.MAIN_PAPER_JOINTJS_WRAPPER_ID).height();
 
     // when testing, width and height will be undefined, this gives default value
     //  according to css grids
