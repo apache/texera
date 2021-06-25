@@ -4,7 +4,6 @@
 package edu.uci.ics.texera.web.model.jooq.generated;
 
 
-import edu.uci.ics.texera.web.model.jooq.generated.tables.Abc;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.File;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.KeywordDictionary;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
@@ -27,17 +26,12 @@ import org.jooq.impl.SchemaImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class TexeraDb extends SchemaImpl {
 
-    private static final long serialVersionUID = -17438334;
+    private static final long serialVersionUID = -505593039;
 
     /**
      * The reference instance of <code>texera_db</code>
      */
     public static final TexeraDb TEXERA_DB = new TexeraDb();
-
-    /**
-     * The table <code>texera_db.abc</code>.
-     */
-    public final Abc ABC = edu.uci.ics.texera.web.model.jooq.generated.tables.Abc.ABC;
 
     /**
      * The table <code>texera_db.file</code>.
@@ -91,7 +85,6 @@ public class TexeraDb extends SchemaImpl {
 
     private final List<Table<?>> getTables0() {
         return Arrays.<Table<?>>asList(
-            Abc.ABC,
             File.FILE,
             KeywordDictionary.KEYWORD_DICTIONARY,
             User.USER,
