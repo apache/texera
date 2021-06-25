@@ -19,12 +19,15 @@ trait QueryWorkerStatisticsHandler {
 
   registerHandler { (msg: QueryWorkerStatistics, sender) =>
     {
-      // send all worker QueryStatistics message
+      // send QueryStatistics message to all workers
       val requests = workflow.getAllWorkers.toList.map(worker =>
         send(QueryStatistics(), worker).map(res => (worker, res))
       )
+
+      // wait for all workers to reply
       val allResponses = Future.collect(requests)
 
+      // update statistics and notify frontend
       allResponses.map(responses => {
         responses.foreach(res => {
           val (worker, stats) = res
