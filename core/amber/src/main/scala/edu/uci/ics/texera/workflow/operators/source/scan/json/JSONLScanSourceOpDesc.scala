@@ -3,16 +3,18 @@ package edu.uci.ics.texera.workflow.operators.source.scan.json
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.JsonNode
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema, OperatorSchemaInfo}
-import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
+import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.Utils.objectMapper
-import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
+import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
+import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
+import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
 
 import java.io.{BufferedReader, FileReader, IOException}
+import scala.collection.JavaConverters._
+import scala.collection.convert.ImplicitConversions.`iterator asScala`
 import scala.collection.mutable.ArrayBuffer
-import scala.jdk.CollectionConverters.asJavaIterableConverter
-
 class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
 
   @JsonProperty(required = true)
@@ -24,16 +26,29 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
   @throws[IOException]
   override def operatorExecutor(
       operatorSchemaInfo: OperatorSchemaInfo
-  ): JSONLScanSourceOpExecConfig = {
+  ): OpExecConfig = {
     filePath match {
       case Some(path) =>
-        new JSONLScanSourceOpExecConfig(
+        // count lines and partition the task to each worker
+        val reader = new BufferedReader(new FileReader(path))
+        val offsetValue = offset.getOrElse(0)
+        var lines = reader.lines().iterator().drop(offsetValue)
+        if (limit.isDefined) lines = lines.take(limit.get)
+        val count: Int = lines.map(_ => 1).sum
+        reader.close()
+
+        val numWorkers = Constants.defaultNumWorkers
+
+        new OneToOneOpExecConfig(
           operatorIdentifier,
-          Constants.defaultNumWorkers,
-          path,
-          inferSchema(),
-          flatten
+          (i: Int) => {
+            val startOffset: Int = offsetValue + count / numWorkers * i
+            val endOffset: Int =
+              offsetValue + (if (i != numWorkers - 1) count / numWorkers * (i + 1) else count)
+            new JSONLScanSourceOpExec(this, startOffset, endOffset)
+          }
         )
+
       case None =>
         throw new RuntimeException("File path is not provided.")
     }
@@ -42,38 +57,45 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
 
   /**
     * Infer Texera.Schema based on the top few lines of data.
+    *
     * @return Texera.Schema build for this operator
     */
   @Override
   def inferSchema(): Schema = {
     val reader = new BufferedReader(new FileReader(filePath.get))
     var fieldNames = Set[String]()
-    var fields: Map[String, String] = null
+
     val allFields: ArrayBuffer[Map[String, String]] = ArrayBuffer()
-    var line: String = null
-    var count: Int = 0
-    while ({
-      line = reader.readLine()
-      count += 1
-      line
-    } != null && count <= INFER_READ_LIMIT) {
-      val root: JsonNode = objectMapper.readTree(line)
-      if (root.isObject) {
-        fields = JSONToMap(root, flatten = flatten)
-        fieldNames = fieldNames.++(fields.keySet)
-        allFields += fields
-      }
-    }
+
+    val startOffset = offset.getOrElse(0)
+    val endOffset =
+      startOffset + limit.getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
+    reader
+      .lines()
+      .iterator()
+      .asScala
+      .slice(startOffset, endOffset)
+      .foreach(line => {
+        val root: JsonNode = objectMapper.readTree(line)
+        if (root.isObject) {
+          val fields: Map[String, String] = JSONToMap(root, flatten = flatten)
+          fieldNames = fieldNames.++(fields.keySet)
+          allFields += fields
+        }
+      })
+
     val sortedFieldNames = fieldNames.toList.sorted
     reader.close()
 
     val attributeTypes = inferSchemaFromRows(allFields.iterator.map(fields => {
       val result = ArrayBuffer[Object]()
-      for (fieldName <- sortedFieldNames)
-        if (fields.contains(fieldName))
+      for (fieldName <- sortedFieldNames) {
+        if (fields.contains(fieldName)) {
           result += fields(fieldName)
-        else
+        } else {
           result += null
+        }
+      }
       result.toArray
     }))
 

@@ -7,42 +7,45 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType
 
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
-class CSVScanSourceOpExec private[csv] (
-    val localPath: String,
-    val schema: Schema,
-    val customDelimiter: Char,
-    val hasHeader: Boolean
-) extends SourceOperatorExecutor {
-  var rows: Iterator[Seq[String]] = _
+class CSVScanSourceOpExec private[csv] (val desc: CSVScanSourceOpDesc)
+    extends SourceOperatorExecutor {
+  val schema: Schema = desc.inferSchema()
   var reader: CSVReader = _
-  override def produceTexeraTuple(): Iterator[Tuple] =
-    new Iterator[Tuple]() {
-      override def hasNext: Boolean = rows.hasNext
+  var rows: Iterator[Seq[String]] = _
+  override def produceTexeraTuple(): Iterator[Tuple] = {
 
-      override def next: Tuple = {
-        // obtain String representation of each field
-        val fields: Seq[String] = rows.next
-        // parse Strings into inferred AttributeTypes
-        val parsedFields: Array[Object] = AttributeTypeUtils.parseFields(
-          fields.toArray,
-          schema.getAttributes
-            .map((attr: Attribute) => attr.getType)
-            .toArray
-        )
-        Tuple.newBuilder(schema).addSequentially(parsedFields).build
-      }
+    var tuples = rows
+      .map(fields =>
+        try {
+          val parsedFields: Array[Object] = AttributeTypeUtils.parseFields(
+            fields.toArray,
+            schema.getAttributes
+              .map((attr: Attribute) => attr.getType)
+              .toArray
+          )
+          Tuple.newBuilder(schema).addSequentially(parsedFields).build
+        } catch {
+          case _: Throwable => null
+        }
+      )
+      .filter(tuple => tuple != null)
 
-    }
+    if (desc.limit.isDefined) tuples = tuples.take(desc.limit.get)
+    tuples
+  }
 
   override def open(): Unit = {
     implicit object CustomFormat extends DefaultCSVFormat {
-      override val delimiter: Char = customDelimiter
+      override val delimiter: Char = desc.customDelimiter.get.charAt(0)
     }
-    rows = CSVReader.open(localPath)(CustomFormat).iterator
+    reader = CSVReader.open(desc.filePath.get)(CustomFormat)
     // skip line if this worker reads the start of a file, and the file has a header line
-    if (hasHeader) rows.next()
+    val startOffset = desc.offset.getOrElse(0) + (if (desc.hasHeader) 1 else 0)
+
+    rows = reader.iterator.drop(startOffset)
   }
 
-  override def close(): Unit = reader.close()
-
+  override def close(): Unit = {
+    reader.close()
+  }
 }

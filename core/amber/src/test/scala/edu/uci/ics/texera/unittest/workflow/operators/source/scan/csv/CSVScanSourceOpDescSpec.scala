@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.unittest.workflow.operators.scan.csv
+package edu.uci.ics.texera.unittest.workflow.operators.source.scan.csv
 
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
