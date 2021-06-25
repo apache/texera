@@ -78,7 +78,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
       .foreach(line => {
         val root: JsonNode = objectMapper.readTree(line)
         if (root.isObject) {
-          val fields: Map[String, String]  = JSONToMap(root, flatten = flatten)
+          val fields: Map[String, String] = JSONToMap(root, flatten = flatten)
           fieldNames = fieldNames.++(fields.keySet)
           allFields += fields
         }
