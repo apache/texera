@@ -7,145 +7,10 @@ import { JSONSchema7 } from 'json-schema';
 import { catchError, map, shareReplay } from 'rxjs/operators';
 import { isEqual } from 'lodash';
 
-/**
- * User-Dictionary service stores and retrieves string key-value pairs on a per-user basis
- * It uses a mysql table on the backend side and requires the client to be logged in
- * @author Albert Liu
- */
-
-enum RESPONSE_CODE {
-  CODE_ERROR = -1,
-  CODE_ENTRY = 0,
-  CODE_DICT = 1,
-  CODE_CONFIRM = 2,
-}
-
-enum GET_REQUEST_TYPE {
-  GET_ENTRY = 1,
-  GET_DICT = 2,
-}
-
-// Responses describe the json format of responses returned by the backend
-type ErrorResponse = Readonly<{
-  code: RESPONSE_CODE.CODE_ERROR
-  message: string
-}>;
-
-type EntryResponse = Readonly<{
-  code: RESPONSE_CODE.CODE_ENTRY
-  result: string
-}>;
-
-type DictResponse = Readonly<{
-  code: RESPONSE_CODE.CODE_DICT
-  result: UserDictionary
-}>;
-
-type ConfirmationResponse = Readonly<{
-  code: RESPONSE_CODE.CODE_CONFIRM
-  result: string
-}>;
-
-type UserDictionaryResponse = ErrorResponse | EntryResponse | DictResponse | ConfirmationResponse;
-
-// Requests describe the json format of requests sent to the backend
-type GetEntryRequest = {
-  key: string;
-  requestType: GET_REQUEST_TYPE.GET_ENTRY;
-};
-
-type GetAllRequest = {
-  requestType: GET_REQUEST_TYPE.GET_DICT;
-};
-
-type SetEntryRequest = {
-  key: string,
-  value: string,
-};
-
-type DeleteEntryRequest = {
-  key: string,
-};
-
-const errorResponseSchema: JSONSchema7 = {
-  type: 'object',
-  properties: {
-    code: {const: RESPONSE_CODE.CODE_ERROR},
-    message: {type: 'string'}
-  },
-  additionalProperties: false,
-  required: ['code', 'message']
-};
-
-const entryResponseSchema: JSONSchema7 = {
-  type: 'object',
-  properties: {
-    code: {const: RESPONSE_CODE.CODE_ENTRY},
-    result: {type: 'string'}
-  },
-  additionalProperties: false,
-  required: ['code', 'result']
-};
-
-const dictResponseSchema: JSONSchema7 = {
-  type: 'object',
-  properties: {
-    code: {const: RESPONSE_CODE.CODE_DICT},
-    result: {
-      type: 'object',
-      additionalProperties: {
-        type: 'string'
-      }
-    }
-  },
-  additionalProperties: false,
-  required: ['code', 'result']
-};
-
-const confirmationResponseSchema: JSONSchema7 = {
-  type: 'object',
-  properties: {
-    code: {const: RESPONSE_CODE.CODE_CONFIRM},
-    result: {type: 'string'}
-  },
-  additionalProperties: false,
-  required: ['code', 'result']
-};
 
 export type UserDictionary = {
-  [Key: string]: string;
+  [key: string]: string
 };
-
-export enum EVENT_TYPE {
-  GET,
-  SET,
-  DELETE,
-  GET_ALL
-}
-
-export type GET_EVENT = {
-  type: EVENT_TYPE.GET
-  key: string
-  value: string
-};
-
-export type SET_EVENT = {
-  type: EVENT_TYPE.SET
-  key: string
-  value: string
-};
-
-export type DELETE_EVENT = {
-  type: EVENT_TYPE.DELETE
-  key: string
-};
-
-export type GET_ALL_EVENT = {
-  type: EVENT_TYPE.GET_ALL
-  value: UserDictionary
-};
-
-export type USER_DICT_EVENT = GET_EVENT | SET_EVENT | DELETE_EVENT | GET_ALL_EVENT;
 
 /**
  * This error is only thrown if attempting to get a dictionary proxy before initialization is complete
@@ -162,12 +27,9 @@ export class NotReadyError extends Error {
   providedIn: 'root'
 })
 export class DictionaryService {
-  private static ajv = new Ajv({useDefaults: true});
-  private static validateErrorResponse = DictionaryService.ajv.compile(errorResponseSchema);
-  private static validateEntryResponse = DictionaryService.ajv.compile(entryResponseSchema);
-  private static validateDictResponse = DictionaryService.ajv.compile(dictResponseSchema);
-  private static validateConfirmationResponse = DictionaryService.ajv.compile(confirmationResponseSchema);
+
   public static readonly USER_DICTIONARY_ENDPOINT = 'users/dictionary';
+
   private dictionaryEventSubject = new Subject<USER_DICT_EVENT>();
   private localUserDictionary: UserDictionary = {}; // asynchronously initialized after construction (see initLocalDict)
   private ready: { promise: Promise<boolean>, value: boolean } = {promise: Promise.resolve(false), value: false};
@@ -186,16 +48,11 @@ export class DictionaryService {
    * throws Error("No such entry") (invalid key) or Error("Invalid session") (not logged in).
    */
   public get(key: string): Observable<string> {
-    const url = `${AppSettings.getApiEndpoint()}/${DictionaryService.USER_DICTIONARY_ENDPOINT}/get`;
-    const request: GetEntryRequest = {requestType: GET_REQUEST_TYPE.GET_ENTRY, key: key};
-    const result = this.http.post<UserDictionaryResponse>(url, request)
-      .pipe(
-        map(this.handleEntryResponse.bind(this, key)),
-        catchError(DictionaryService.handleErrorResponse),
-        shareReplay());
-
-    result.subscribe(); // causes post request to actually be sent (see cold observables)
-    return result;
+    if (key.trim().length === 0) {
+      throw new Error('Dictionary Service: key cannot be empty');
+    }
+    const url = `${AppSettings.getApiEndpoint()}/${DictionaryService.USER_DICTIONARY_ENDPOINT}/get/${key}`;
+    return this.http.get<string>(url);
   }
 
   /**
