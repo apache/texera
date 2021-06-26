@@ -11,7 +11,7 @@
   height: 100%;
   width: 100%;
   display: grid;
-  grid-template-columns: 14% auto auto auto auto;
+  grid-template-columns: 200px auto auto auto auto;
   grid-template-rows: calc(100% - 56px) 56px;
   align-items: center;
 
@@ -29,14 +29,14 @@
 
     grid-column: 1/1;
     grid-row: 1/3;
-    margin-left: calc(#{$margin} + 12% - 0.854ch);
+    margin-left: calc(#{$margin} + 12%);
     margin-right: $margin;
     width: max-content;
-    font-size: calc(1vw + 12px);
+    font-size: 28px;
 
     &.user-system-enabled {
-      font-size: calc(1.4vw + 10px);
-      margin-left: calc(#{$margin} + 12% - 0.863ch);
+      font-size: 28px;
+      margin-left: calc(#{$margin} + 12%);
     }
   }
 
