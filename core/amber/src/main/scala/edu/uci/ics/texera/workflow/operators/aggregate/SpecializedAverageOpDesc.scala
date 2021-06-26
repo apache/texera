@@ -114,6 +114,8 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     if (this.groupByKeys == null) null
     else
       tuple => {
+        // Since this is a partially evaluated tuple, there is no actual schema for this
+        // available anywhere. Constructing it once for re-use
         if (groupBySchema == null) {
           val schemaBuilder = Schema.newBuilder()
           groupByKeys.foreach(key => schemaBuilder.add(tuple.getSchema.getAttribute(key)))
