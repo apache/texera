@@ -5,7 +5,6 @@ import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
   AttributeType,
   OperatorSchemaInfo
 }
@@ -31,9 +30,10 @@ class HtmlVizOpExec(htmlContentAttrName: String, operatorSchemaInfo: OperatorSch
       case Left(t) =>
         val result = Tuple
           .newBuilder(operatorSchemaInfo.outputSchema)
-          .add("HTML-content", AttributeType.STRING, t.getField(htmlContentAttrName))
+          .add("html-content", AttributeType.STRING, t.getField(htmlContentAttrName))
           .build()
         Iterator(result)
+
       case Right(_) => Iterator()
     }
 }

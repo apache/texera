@@ -11,20 +11,16 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   OperatorIdentity
 }
 import edu.uci.ics.amber.engine.operators.OpExecConfig
-import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
-class HtmlVizOpExecConfig(
-    id: OperatorIdentity,
-    htmlContentAttrName: String,
-    operatorSchemaInfo: OperatorSchemaInfo
-) extends OpExecConfig(id) {
+class HtmlVizOpExecConfig(id: OperatorIdentity, htmlContentAttrName: String)
+    extends OpExecConfig(id) {
 
   override lazy val topology: Topology = {
     new Topology(
       Array(
         new WorkerLayer(
           LayerIdentity(id, "main"),
-          _ => new HtmlVizOpExec(htmlContentAttrName, operatorSchemaInfo),
+          _ => new HtmlVizOpExec(htmlContentAttrName),
           Constants.defaultNumWorkers,
           UseAll(),
           RoundRobinDeployment()

@@ -2,20 +2,24 @@ package edu.uci.ics.texera.workflow.operators.visualization.htmlviz
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.texera.workflow.common.metadata.InputPort
-import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants
-import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo
-import edu.uci.ics.texera.workflow.common.metadata.OutputPort
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
+import edu.uci.ics.texera.workflow.common.metadata.{
+  InputPort,
+  OperatorGroupConstants,
+  OperatorInfo,
+  OutputPort
+}
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
   AttributeType,
-  Schema,
-  OperatorSchemaInfo
+  OperatorSchemaInfo,
+  Schema
 }
-import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants
-import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator
+import edu.uci.ics.texera.workflow.operators.visualization.{
+  VisualizationConstants,
+  VisualizationOperator
+}
 
 import java.util.Collections.singletonList
 import scala.collection.JavaConverters.asScalaBuffer
@@ -32,17 +36,17 @@ class HtmlVizOpDesc extends VisualizationOperator {
   override def chartType: String = VisualizationConstants.HTML_VIZ
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) =
-    new HtmlVizOpExecConfig(this.operatorIdentifier, htmlContentAttrName, operatorSchemaInfo)
+    new OneToOneOpExecConfig(operatorIdentifier, _ => new HtmlVizOpExec(htmlContentAttrName, operatorSchemaInfo))
 
-  override def operatorInfo =
-    new OperatorInfo(
+  override def operatorInfo: OperatorInfo =
+    OperatorInfo(
       "HTML visualizer",
       "Render the result of HTML content",
       OperatorGroupConstants.VISUALIZATION_GROUP,
-      asScalaBuffer(singletonList(new InputPort("", false))).toList,
-      asScalaBuffer(singletonList(new OutputPort(""))).toList
+      asScalaBuffer(singletonList(InputPort(""))).toList,
+      asScalaBuffer(singletonList(OutputPort(""))).toList
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema =
-    Schema.newBuilder.add(new Attribute("HTML-content", AttributeType.STRING)).build
+    Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
 }
