@@ -177,6 +177,7 @@ export class MiniMapComponent implements AfterViewInit {
     Observable.fromEvent(window, 'resize').auditTime(30).subscribe(
       () => {
         this.updateMiniMapScaleSize();
+        this.updateNavigatorOffset();
         this.updateNavigatorDimension();
       }
     );
