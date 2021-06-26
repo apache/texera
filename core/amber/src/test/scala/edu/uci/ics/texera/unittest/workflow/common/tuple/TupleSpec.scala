@@ -10,7 +10,6 @@ class TupleSpec extends AnyFlatSpec {
   val integerAttribute = new Attribute("col-int", AttributeType.INTEGER)
   val boolAttribute = new Attribute("col-bool", AttributeType.BOOLEAN)
 
-
   it should "create a tuple with capitalized attributeName" in {
 
     val capitalizedStringAttribute = new Attribute("COL-string", AttributeType.STRING)
