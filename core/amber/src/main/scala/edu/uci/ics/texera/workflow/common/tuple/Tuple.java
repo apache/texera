@@ -110,10 +110,11 @@ public class Tuple implements ITuple, Serializable {
         } else if (!fields.equals(other.fields))
             return false;
         if (schema == null) {
-            return other.schema == null;
-        } else {
-            return schema.equals(other.schema);
-        }
+            if (other.schema != null)
+                return false;
+        } else if (!schema.equals(other.schema))
+            return false;
+        return true;
     }
 
     public String toString() {
@@ -227,7 +228,7 @@ public class Tuple implements ITuple, Serializable {
             this.fieldNameMap = new HashMap<>();
             for (int i = 0; i < tuple.getFields().size(); i++) {
                 this.fieldNameMap.put(
-                        tuple.getSchema().getAttributes().get(i).getName(),
+                        tuple.getSchema().getAttributes().get(i).getName().toLowerCase(),
                         tuple.fields.get(i));
             }
         }
@@ -241,7 +242,7 @@ public class Tuple implements ITuple, Serializable {
             Schema schema = schemaBuilder.build();
             ArrayList<Object> fields = new ArrayList<>();
             for (int i = 0; i < schema.getAttributes().size(); i++) {
-                fields.add(fieldNameMap.get(schema.getAttributes().get(i).getName()));
+                fields.add(fieldNameMap.get(schema.getAttributes().get(i).getName().toLowerCase()));
             }
             return new Tuple(schema, fields);
         }
@@ -267,7 +268,7 @@ public class Tuple implements ITuple, Serializable {
 
             // schema builder will check if the attribute already exists
             schemaBuilder.add(attribute);
-            fieldNameMap.put(attribute.getName(), field);
+            fieldNameMap.put(attribute.getName().toLowerCase(), field);
             return this;
         }
 
@@ -334,7 +335,7 @@ public class Tuple implements ITuple, Serializable {
 
             // schemaBuilder will check if the attribute exists
             schemaBuilder.remove(attribute);
-            fieldNameMap.remove(attribute);
+            fieldNameMap.remove(attribute.toLowerCase());
             return this;
         }
 
@@ -378,7 +379,7 @@ public class Tuple implements ITuple, Serializable {
             checkNotNull(attribute);
 
             schemaBuilder.removeIfExists(attribute);
-            fieldNameMap.remove(attribute);
+            fieldNameMap.remove(attribute.toLowerCase());
             return this;
         }
 
@@ -630,7 +631,7 @@ public class Tuple implements ITuple, Serializable {
                 throw new TupleBuildingException(String.format("%s doesn't exist in the expected schema.", attribute.getName()));
             }
 
-            fieldNameMap.put(attribute.getName(), field);
+            fieldNameMap.put(attribute.getName().toLowerCase(), field);
             return this;
         }
 
