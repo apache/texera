@@ -33,6 +33,9 @@ class PartialAggregateOpExec[Partial <: AnyRef](
     tuple match {
       case Left(t) =>
         val groupByKey = if (aggFunc == null) null else aggFunc.groupByFunc(t)
+        // TODO Find a way to get this from the OpDesc. Since this is generic, trying to get the
+        // right schema from there is a bit challenging.
+        // See https://github.com/Texera/texera/pull/1166#discussion_r654863854
         if (schema == null) {
           groupByKeyAttributes =
             if (aggFunc == null) Array()
