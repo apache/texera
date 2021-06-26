@@ -110,11 +110,10 @@ public class Tuple implements ITuple, Serializable {
         } else if (!fields.equals(other.fields))
             return false;
         if (schema == null) {
-            if (other.schema != null)
-                return false;
-        } else if (!schema.equals(other.schema))
-            return false;
-        return true;
+            return other.schema == null;
+        } else {
+            return schema.equals(other.schema);
+        }
     }
 
     public String toString() {
@@ -663,7 +662,7 @@ public class Tuple implements ITuple, Serializable {
             }
 
             List<Object> fields = schema.getAttributes().stream()
-                    .map(attribute -> fieldNameMap.get(attribute.getName()))
+                    .map(attribute -> fieldNameMap.get(attribute.getName().toLowerCase()))
                     .collect(Collectors.toList());
             return new Tuple(schema, fields);
         }
