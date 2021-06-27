@@ -41,13 +41,15 @@ export class DictionaryService {
 
   /**
    * get a value from the backend.
-   * Also produces dictionary events and updates dictionary proxy objects as a side effect.
    * keys and values must be strings.
    * @param key string key that uniquely identifies a value
    * @returns string value corresponding to the key from the backend;
    * throws Error("No such entry") (invalid key) or Error("Invalid session") (not logged in).
    */
   public fetchKey(key: string): Observable<string> {
+    if (! this.userService.isLogin()) {
+      throw new Error('user not logged in');
+    }
     if (key.trim().length === 0) {
       throw new Error('Dictionary Service: key cannot be empty');
     }
@@ -59,11 +61,12 @@ export class DictionaryService {
 
   /**
    * get the entire dictionary from the backend.
-   * Also produces dictionary events and updates dictionary proxy objects as a side effect.
    * @returns UserDictionary object with string attributes;
-   * Throws Error("Invalid Session") (not logged in)
    */
   public fetchAll(): Observable<Readonly<UserDictionary>> {
+    if (! this.userService.isLogin()) {
+      throw new Error('user not logged in');
+    }
     const url = `${AppSettings.getApiEndpoint()}/${DictionaryService.USER_DICTIONARY_ENDPOINT}`;
     const req = this.http.get<UserDictionary>(url)
       .do(res => this.updateDict(res))
@@ -74,14 +77,15 @@ export class DictionaryService {
 
   /**
    * saves or updates (if it already exists) an entry (key-value pair) on the backend.
-   * Also produces dictionary events and updates dictionary proxy objects as a side effect.
    * keys and values must be strings.
    * @param key string key that uniquely identifies a value
    * @param value string value corresponding to the key from the backend
-   * @returns true if operation succeeded;
-   * throws Error("No such entry") (invalid key) or Error("Invalid session") (not logged in).
+   * @returns observable indicating the backend has been successfully updated
    */
   public set(key: string, value: string): Observable<void> {
+    if (! this.userService.isLogin()) {
+      throw new Error('user not logged in');
+    }
     if (key.trim().length === 0) {
       throw new Error('Dictionary Service: key cannot be empty');
     }
@@ -95,13 +99,14 @@ export class DictionaryService {
 
   /**
    * delete a value from the backend.
-   * Also produces dictionary events and updates dictionary proxy objects as a side effect.
    * keys and values must be strings.
    * @param key string key that uniquely identifies a value
-   * @returns true if entry was deleted successfully;
-   * throws Error("No such entry") (invalid key) or Error("Invalid session") (not logged in).
+   * @returns observable indicating the backend has been successfully updated
    */
   public delete(key: string): Observable<void> {
+    if (! this.userService.isLogin()) {
+      throw new Error('user not logged in');
+    }
     if (key.trim().length === 0) {
       throw new Error('Dictionary Service: key cannot be empty');
     }
