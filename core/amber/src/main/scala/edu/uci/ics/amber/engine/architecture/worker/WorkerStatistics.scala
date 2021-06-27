@@ -7,5 +7,4 @@ case class WorkerStatistics(
     workerState: WorkerState,
     inputRowCount: Long,
     outputRowCount: Long,
-    outputResults: Option[List[ITuple]] // in case of a sink operator
 )
