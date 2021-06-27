@@ -693,7 +693,7 @@ public class Tuple implements ITuple, Serializable {
             checkSchemaMatchesFields(schema.getAttributes(), Lists.newArrayList(fields));
 
             for (int i = 0; i < fields.length; i++) {
-                fieldNameMap.put(schema.getAttributes().get(i).getName(), fields[i]);
+                this.add(schema.getAttributes().get(i), fields[i]);
             }
 
             return this;
