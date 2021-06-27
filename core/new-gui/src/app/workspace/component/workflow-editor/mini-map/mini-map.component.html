@@ -1,19 +1,21 @@
-<div>
-  <div class="texera-mini-map-navigator" id="mini-map-navigator-id"></div>
-</div>
+<div id="texera-mini-map-wrapper">
+  <div>
+    <div class="texera-mini-map-navigator" id="mini-map-navigator-id"></div>
+  </div>
 
 
-<div [hidden]="!show">
-  <div class="texera-mini-map-square-container" [attr.id]="MINI_MAP_JOINTJS_MAP_WRAPPER_ID">
+  <div [hidden]="!show" class="texera-mini-map-square-container">
     <div class="texera-mini-map-body texera-mini-map-component-body">
       <div class="texera-workspace-mini-map-jointjs" [attr.id]="MINI_MAP_JOINTJS_MAP_ID">
       </div>
     </div>
   </div>
+
+  <!-- <div [ngClass]="{ 'texera-mini-map-button-shown': show }">
+    <button nz-button (click)="show = !show" nzSize="large">
+      <i nz-icon [nzType]="show ? 'shrink' : 'arrows-alt'"></i>
+    </button>
+  </div> -->
 </div>
 
-<div [ngClass]="{ 'texera-mini-map-button-shown': show }">
-  <button nz-button (click)="show = !show" nzSize="large">
-    <i nz-icon [nzType]="show ? 'shrink' : 'arrows-alt'"></i>
-  </button>
-</div>
+

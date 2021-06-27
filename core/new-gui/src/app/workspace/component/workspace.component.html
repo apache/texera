@@ -10,13 +10,24 @@
   <texera-operator-panel class="texera-operator-panel-grid-container grid-container" tourAnchor="texera-operator-panel">
   </texera-operator-panel>
 
-  <texera-property-editor class="texera-property-editor-grid-container grid-container"
-                          tourAnchor="texera-property-editor-grid-container">
-  </texera-property-editor>
+  <div class="texera-property-editor-grid-container grid-container">
+    <div class="texera-right-side-bar-split-editor-minimap">
+      <texera-property-editor style='overflow: auto;'
+      tourAnchor="texera-property-editor-grid-container">
+      </texera-property-editor>
+      <texera-mini-map>
+      </texera-mini-map>
+    </div>
+  </div>
+
+
 
   <texera-workflow-editor class="texera-workflow-editor-grid-container grid-container"
                           tourAnchor="texera-workflow-editor-grid-container">
   </texera-workflow-editor>
+
+
+
   <texera-result-panel-toggle class="texera-result-panel-toggle-grid-container grid-container">
   </texera-result-panel-toggle>
 
