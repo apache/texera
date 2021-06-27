@@ -9,16 +9,6 @@ export type UserDictionary = {
   [key: string]: string
 };
 
-/**
- * This error is only thrown if attempting to get a dictionary proxy before initialization is complete
- */
-export class NotReadyError extends Error {
-  constructor(message?: string) {
-    super(message);
-    Object.setPrototypeOf(this, new.target.prototype);
-    this.name = 'NotReadyError';
-  }
-}
 
 @Injectable({
   providedIn: 'root'
