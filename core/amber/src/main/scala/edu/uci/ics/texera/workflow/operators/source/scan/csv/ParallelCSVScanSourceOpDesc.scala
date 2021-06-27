@@ -5,17 +5,18 @@ import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.operators.OpExecConfig
+import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
+import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
   AttributeType,
-  Schema,
-  OperatorSchemaInfo
+  OperatorSchemaInfo,
+  Schema
 }
-import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 import org.codehaus.jackson.map.annotate.JsonDeserialize
 
-import java.io.IOException
+import java.io.{File, IOException}
 import scala.jdk.CollectionConverters.asJavaIterableConverter
 
 class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
@@ -41,14 +42,25 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
 
     filePath match {
       case Some(path) =>
-        new ParallelCSVScanSourceOpExecConfig(
+        val totalBytes: Long = new File(path).length()
+        val numWorkers: Int = Constants.defaultNumWorkers
+
+        new OneToOneOpExecConfig(
           operatorIdentifier,
-          Constants.defaultNumWorkers,
-          path,
-          inferSchema(),
-          customDelimiter.get.charAt(0),
-          hasHeader
+          (i: Int) => {
+            // TODO: add support for limit
+            // TODO: add support for offset
+            val startOffset: Long = totalBytes / numWorkers * i
+            val endOffset: Long =
+              if (i != numWorkers - 1) totalBytes / numWorkers * (i + 1) else totalBytes
+            new ParallelCSVScanSourceOpExec(
+              this,
+              startOffset,
+              endOffset
+            )
+          }
         )
+
       case None =>
         throw new RuntimeException("File path is not provided.")
     }
@@ -61,7 +73,12 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
     */
   @Override
   def inferSchema(): Schema = {
-    if (customDelimiter.isEmpty) return null
+    if (customDelimiter.isEmpty) {
+      return null
+    }
+    if (filePath.isEmpty) {
+      return null
+    }
     implicit object CustomFormat extends DefaultCSVFormat {
       override val delimiter: Char = customDelimiter.get.charAt(0)
 
@@ -77,7 +94,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
 
     val attributeTypeList: Array[AttributeType] = inferSchemaFromRows(
       reader.iterator
-        .take(INFER_READ_LIMIT)
+        .take(limit.getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT))
         .map(seq => seq.toArray)
     )
 

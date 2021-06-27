@@ -168,14 +168,14 @@ export class SchemaPropagationService {
 
     let newJsonSchema = operatorSchema.jsonSchema;
 
-    const getAttrNames = (v: CustomJSONSchema7): string[] => {
+    const getAttrNames = (v: CustomJSONSchema7): string[] | undefined => {
       const i = v.autofillAttributeOnPort;
       if (i === undefined || i === null || !Number.isInteger(i) || i >= inputAttributes.length) {
-        return [];
+        return undefined;
       }
       const inputAttrAtPort = inputAttributes[i];
       if (!inputAttrAtPort) {
-        return [];
+        return undefined;
       }
       return inputAttrAtPort.map(attr => attr.attributeName);
     };
