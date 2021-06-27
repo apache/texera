@@ -43,7 +43,7 @@
 
 .texera-workspace-grid-container {
   display: grid;
-  grid-template-columns: 14% 70% 16%;
+  grid-template-columns: 200px auto 350px;
   grid-template-rows: var(--header-height)
                        calc((100% - var(--header-height) - var(--resultbar-height)) * 0.65)
                       0px
@@ -62,7 +62,7 @@
 
 .texera-original-workspace-grid-container {
   display: grid;
-  grid-template-columns: 14% 70% 16%;
+  grid-template-columns: 200px auto 350px;
   grid-template-rows: var(--header-height)
                        calc((100% - var(--header-height) - var(--resultbar-height)) * 0.65)
                        calc((100% - var(--header-height) - var(--resultbar-height)) * 0.35)
@@ -102,6 +102,12 @@
   grid-column: 3/4;
   grid-row: 2/6;
   overflow: auto;
+}
+
+.texera-right-side-bar-split-editor-minimap {
+  height: calc(100vh - var(--header-height) - 10px);
+  display: grid;
+  grid-template-rows: 1fr auto;
 }
 
 
