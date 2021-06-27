@@ -6,5 +6,5 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 case class WorkerStatistics(
     workerState: WorkerState,
     inputRowCount: Long,
-    outputRowCount: Long,
+    outputRowCount: Long
 )
