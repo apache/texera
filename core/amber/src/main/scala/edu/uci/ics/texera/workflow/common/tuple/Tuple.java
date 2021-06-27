@@ -700,14 +700,22 @@ public class Tuple implements ITuple, Serializable {
         }
 
         public Tuple build() {
-            if (schema.getAttributes().size() != fieldNameMap.size()) {
+            // Partition the attributes to a list of attributes present and absent in the fieldNameMap.
+            // This helps in printing a better error message using the missing attributes
+            Map<Boolean, List<Attribute>> partitionedAttributes = schema.getAttributes().stream()
+                    .collect(Collectors.partitioningBy(attribute -> fieldNameMap.containsKey(attribute.getName().toLowerCase())));
+
+            List<Attribute> missingAttributes = partitionedAttributes.get(false);
+            List<Attribute> availableAttributes = partitionedAttributes.get(true);
+
+            if (!missingAttributes.isEmpty()) {
                 throw new TupleBuildingException(
-                        String.format("Tuple does not have same number of fields as schema. Has %d, required %d.",
-                                fieldNameMap.size(), schema.getAttributes().size())
+                        String.format("Tuple does not have same number of attributes as schema. Has %d, required %d.%nMissing attributes are %s",
+                                fieldNameMap.size(), schema.getAttributes().size(), missingAttributes)
                 );
             }
 
-            List<Object> fields = schema.getAttributes().stream()
+            List<Object> fields = availableAttributes.stream()
                     .map(attribute -> fieldNameMap.get(attribute.getName().toLowerCase()))
                     .collect(Collectors.toList());
             return new Tuple(schema, fields);
