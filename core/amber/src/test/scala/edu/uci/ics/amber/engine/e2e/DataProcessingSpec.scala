@@ -5,12 +5,7 @@ import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import akka.util.Timeout
 import ch.vorburger.mariadb4j.DB
 import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.engine.architecture.controller.{
-  Controller,
-  ControllerEventListener,
-  ControllerState,
-  Workflow
-}
+import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, ControllerEventListener, ControllerState, Workflow}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
@@ -71,7 +66,7 @@ class DataProcessingSpec
     val eventListener = ControllerEventListener()
     eventListener.workflowCompletedListener = evt => results = evt.result
     val controller = parent.childActorOf(
-      Controller.props(id, workflow, eventListener, 100)
+      Controller.props(id, workflow, eventListener, ControllerConfig.default)
     )
     parent.expectMsg(ControllerState.Ready)
     controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, StartWorkflow())
