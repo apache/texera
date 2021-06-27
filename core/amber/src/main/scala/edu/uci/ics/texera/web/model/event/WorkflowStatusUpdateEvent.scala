@@ -15,7 +15,8 @@ object WebOperatorStatistics {
   ): WebOperatorStatistics = {
     val chartType = OperatorResult.getChartType(operatorID, workflowCompiler)
     // TODO: temporary fix to make it compile, this will be reverted soon in a subsequent PR
-    val results = Option.empty[List[ITuple]]
+    val results = Option
+      .empty[List[ITuple]]
       // if chartType is present, then send all results
       // else (normal view result table), then send empty list
       //   (pagination will take care of sending actual result)
