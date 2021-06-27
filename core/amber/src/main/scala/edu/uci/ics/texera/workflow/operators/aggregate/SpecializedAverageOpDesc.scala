@@ -8,7 +8,10 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{
+  AutofillAttributeName,
+  AutofillAttributeNameList
+}
 import edu.uci.ics.texera.workflow.common.operators.aggregate.{
   AggregateOpDesc,
   AggregateOpExecConfig,
@@ -41,6 +44,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
   @JsonProperty("groupByKeys")
   @JsonSchemaTitle("Group By Keys")
   @JsonPropertyDescription("group by columns")
+  @AutofillAttributeNameList
   var groupByKeys: List[String] = _
 
   override def operatorExecutor(

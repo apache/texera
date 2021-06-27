@@ -10,6 +10,15 @@ class TupleSpec extends AnyFlatSpec {
   val integerAttribute = new Attribute("col-int", AttributeType.INTEGER)
   val boolAttribute = new Attribute("col-bool", AttributeType.BOOLEAN)
 
+  it should "create a tuple with capitalized attributeName" in {
+
+    val capitalizedStringAttribute = new Attribute("COL-string", AttributeType.STRING)
+    val schema = Schema.newBuilder().add(capitalizedStringAttribute).build()
+    val tuple = Tuple.newBuilder(schema).add(capitalizedStringAttribute, "string-value").build()
+    assert(tuple.getField("COL-string").asInstanceOf[String] == "string-value")
+
+  }
+
   it should "create a tuple using new builder, based on another tuple using old builder" in {
     val inputTuple = Tuple.newBuilder().add(stringAttribute, "string-value").build()
     val newTuple = Tuple.newBuilder(inputTuple.getSchema).add(inputTuple).build()
