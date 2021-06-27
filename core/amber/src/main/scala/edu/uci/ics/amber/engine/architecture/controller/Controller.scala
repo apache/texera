@@ -35,7 +35,7 @@ object ControllerConfig {
   def default: ControllerConfig = ControllerConfig(Option(100))
 }
 final case class ControllerConfig(
-    statusUpdateIntervalMs: Option[Long],
+    statusUpdateIntervalMs: Option[Long]
 )
 
 object Controller {
