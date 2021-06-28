@@ -79,17 +79,8 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
 
   def getOutputRowCount: Long = topology.layers.last.statistics.map(_.outputRowCount).sum
 
-  def getOutputResults: Option[List[ITuple]] = {
-    val allEmpty = topology.layers.last.statistics.forall(e => e.outputResults.isEmpty)
-    if (allEmpty) {
-      Option.empty
-    } else {
-      Option(topology.layers.last.statistics.flatMap(e => e.outputResults).flatten.toList)
-    }
-  }
-
   def getOperatorStatistics: OperatorStatistics =
-    OperatorStatistics(getState, getInputRowCount, getOutputRowCount, getOutputResults)
+    OperatorStatistics(getState, getInputRowCount, getOutputRowCount)
 
   def checkStartDependencies(workflow: Workflow): Unit = {
     //do nothing by default

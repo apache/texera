@@ -75,7 +75,7 @@ class WorkerLayer(
       workerID -> WorkerInfo(
         workerID,
         Uninitialized,
-        WorkerStatistics(Uninitialized, 0, 0, Option.empty)
+        WorkerStatistics(Uninitialized, 0, 0)
       )
     }.toMap
   }

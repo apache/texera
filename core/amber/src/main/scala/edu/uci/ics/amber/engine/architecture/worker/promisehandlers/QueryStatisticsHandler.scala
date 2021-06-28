@@ -38,14 +38,8 @@ trait QueryStatisticsHandler {
     }
 
     val state = stateManager.getCurrentState
-    val result = operator match {
-      case sink: ITupleSinkOperatorExecutor =>
-        Option(sink.getResultTuples())
-      case _ =>
-        Option.empty
-    }
 
-    WorkerStatistics(state, in, displayOut, result)
+    WorkerStatistics(state, in, displayOut)
   }
 
 }

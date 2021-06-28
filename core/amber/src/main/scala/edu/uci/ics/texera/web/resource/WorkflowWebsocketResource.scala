@@ -242,30 +242,31 @@ class WorkflowWebsocketResource {
         WorkflowWebsocketResource.sessionJobs.remove(session.getId)
       },
       workflowStatusUpdateListener = statusUpdate => {
-        val sinkOpDirtyPageIndices = statusUpdate.operatorStatistics
-          .filter(e => e._2.aggregatedOutputResults.isDefined)
-          .map(e => {
-            val beforeList =
-              sessionResults.getOrElse(session.getId, Map.empty).getOrElse(e._1, List.empty)
-            val afterList = e._2.aggregatedOutputResults.get
-            val dirtyPageIndices = getDirtyPageIndices(beforeList, afterList)
-            (e._1, dirtyPageIndices)
-          })
-
-        sessionResults.update(
-          session.getId,
-          statusUpdate.operatorStatistics
-            .filter(e => e._2.aggregatedOutputResults.isDefined)
-            .map(e => (e._1, e._2.aggregatedOutputResults.get))
-        )
-        send(
-          session,
-          WebWorkflowStatusUpdateEvent.apply(
-            statusUpdate,
-            sinkOpDirtyPageIndices,
-            texeraWorkflowCompiler
-          )
-        )
+        // TODO: temporarily disable progressive result update until a further PR
+//        val sinkOpDirtyPageIndices = statusUpdate.operatorStatistics
+//          .filter(e => e._2.aggregatedOutputResults.isDefined)
+//          .map(e => {
+//            val beforeList =
+//              sessionResults.getOrElse(session.getId, Map.empty).getOrElse(e._1, List.empty)
+//            val afterList = e._2.aggregatedOutputResults.get
+//            val dirtyPageIndices = getDirtyPageIndices(beforeList, afterList)
+//            (e._1, dirtyPageIndices)
+//          })
+//
+//        sessionResults.update(
+//          session.getId,
+//          statusUpdate.operatorStatistics
+//            .filter(e => e._2.aggregatedOutputResults.isDefined)
+//            .map(e => (e._1, e._2.aggregatedOutputResults.get))
+//        )
+//        send(
+//          session,
+//          WebWorkflowStatusUpdateEvent.apply(
+//            statusUpdate,
+//            sinkOpDirtyPageIndices,
+//            texeraWorkflowCompiler
+//          )
+//        )
       },
       modifyLogicCompletedListener = _ => {
         send(session, ModifyLogicCompletedEvent())
