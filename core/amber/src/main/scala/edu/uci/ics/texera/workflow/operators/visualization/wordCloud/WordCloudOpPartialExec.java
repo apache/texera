@@ -19,6 +19,8 @@ import scala.util.Either;
 import java.io.StringReader;
 import java.util.*;
 
+import static edu.uci.ics.texera.workflow.operators.visualization.wordCloud.WordCloudOpDesc.partialAggregateSchema;
+
 
 /**
  * Calculate word count and output count of each word.
@@ -33,11 +35,6 @@ public class WordCloudOpPartialExec implements OperatorExecutor {
     // for incremental computation
     public static final int UPDATE_INTERVAL_MS = 500;
     private long lastUpdatedTime = 0;
-
-    private static final Schema resultSchema = Schema.newBuilder().add(
-            new Attribute("word", AttributeType.STRING),
-            new Attribute("size", AttributeType.INTEGER)
-    ).build();
 
     public WordCloudOpPartialExec(String textColumn) {
         this.textColumn = textColumn;
@@ -70,7 +67,7 @@ public class WordCloudOpPartialExec implements OperatorExecutor {
         List<Tuple> termFreqTuples = new ArrayList<>();
 
         for (Map.Entry<String, Integer> e : termFreqMap.entrySet()) {
-            termFreqTuples.add(Tuple.newBuilder(resultSchema).addSequentially(new Object[]{e.getKey(), e.getValue()}).build());
+            termFreqTuples.add(Tuple.newBuilder(partialAggregateSchema).addSequentially(new Object[]{e.getKey(), e.getValue()}).build());
         }
         return termFreqTuples;
     }
@@ -93,7 +90,7 @@ public class WordCloudOpPartialExec implements OperatorExecutor {
     @Override
     public Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, LinkIdentity input) {
         if (tuple.isLeft()) {
-            textList.add(tuple.left().get().getField(textColumn));
+            textList.add(tuple.left().get().getField(textColumn).toString());
             boolean condition = System.currentTimeMillis() - lastUpdatedTime > UPDATE_INTERVAL_MS;
             if (condition) {
                 lastUpdatedTime = System.currentTimeMillis();

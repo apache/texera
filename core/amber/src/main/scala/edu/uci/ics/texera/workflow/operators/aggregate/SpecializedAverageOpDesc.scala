@@ -50,11 +50,14 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
   @JsonIgnore
   private var groupBySchema: Schema = _
   @JsonIgnore
-  private var partialSchema: Schema = _
+  private var finalAggValueSchema: Schema = _
 
   override def operatorExecutor(
       operatorSchemaInfo: OperatorSchemaInfo
   ): AggregateOpExecConfig[_] = {
+    this.groupBySchema = getGroupByKeysSchema(operatorSchemaInfo.inputSchemas)
+    this.finalAggValueSchema = getFinalAggValueSchema()
+
     aggFunction match {
       case AggregationFunction.AVERAGE => averageAgg()
       case AggregationFunction.COUNT   => countAgg()
@@ -77,7 +80,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       (partial1, partial2) => partial1 + partial2,
       partial => {
         Tuple
-          .newBuilder(getPartialSchema())
+          .newBuilder(finalAggValueSchema)
           .add(resultAttribute, AttributeType.DOUBLE, partial)
           .build
       },
@@ -98,7 +101,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       (partial1, partial2) => partial1 + partial2,
       partial => {
         Tuple
-          .newBuilder(getPartialSchema())
+          .newBuilder(finalAggValueSchema)
           .add(resultAttribute, AttributeType.INTEGER, partial)
           .build
       },
@@ -141,7 +144,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
         if (partial == Double.MaxValue) null
         else
           Tuple
-            .newBuilder(getPartialSchema())
+            .newBuilder(finalAggValueSchema)
             .add(resultAttribute, AttributeType.DOUBLE, partial)
             .build
       },
@@ -165,7 +168,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
         if (partial == Double.MinValue) null
         else
           Tuple
-            .newBuilder(getPartialSchema())
+            .newBuilder(finalAggValueSchema)
             .add(resultAttribute, AttributeType.DOUBLE, partial)
             .build
       },
@@ -191,7 +194,10 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
         AveragePartialObj(partial1.sum + partial2.sum, partial1.count + partial2.count),
       partial => {
         val value = if (partial.count == 0) null else partial.sum / partial.count
-        Tuple.newBuilder(getPartialSchema()).add(resultAttribute, AttributeType.DOUBLE, value).build
+        Tuple
+          .newBuilder(finalAggValueSchema)
+          .add(resultAttribute, AttributeType.DOUBLE, value)
+          .build
       },
       groupByFunc()
     )
@@ -214,23 +220,32 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     if (resultAttribute == null || resultAttribute.trim.isEmpty) {
       return null
     }
+    Schema
+      .newBuilder()
+      .add(getGroupByKeysSchema(schemas).getAttributes)
+      .add(getFinalAggValueSchema().getAttributes)
+      .build()
+  }
+
+  private def getGroupByKeysSchema(schemas: Array[Schema]): Schema = {
     if (groupByKeys == null) {
       groupByKeys = List()
     }
+    Schema
+      .newBuilder()
+      .add(groupByKeys.map(key => schemas(0).getAttribute(key)).toArray: _*)
+      .build()
+  }
+
+  private def getFinalAggValueSchema(): Schema = {
     if (this.aggFunction.equals(AggregationFunction.COUNT)) {
       Schema
         .newBuilder()
-        .add(
-          groupByKeys.map(key => schemas(0).getAttribute(key)).toArray: _*
-        )
         .add(resultAttribute, AttributeType.INTEGER)
         .build()
     } else {
       Schema
         .newBuilder()
-        .add(
-          groupByKeys.map(key => schemas(0).getAttribute(key)).toArray: _*
-        )
         .add(resultAttribute, AttributeType.DOUBLE)
         .build()
     }
@@ -244,28 +259,6 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     if (tuple.getSchema.getAttribute(attribute).getType == AttributeType.TIMESTAMP)
       Option(parseTimestamp(value.toString).getTime.toDouble)
     else Option(value.toString.toDouble)
-  }
-
-  /**
-    * Create the required partial schema, since it's a subset
-    * of the output schema and can't be statically found due to the
-    * dynamic {@link resultAttribute}
-    */
-  private def getPartialSchema(): Schema = {
-    if (partialSchema == null) {
-      if (this.aggFunction.equals(AggregationFunction.COUNT)) {
-        partialSchema = Schema
-          .newBuilder()
-          .add(resultAttribute, AttributeType.INTEGER)
-          .build()
-      } else {
-        partialSchema = Schema
-          .newBuilder()
-          .add(resultAttribute, AttributeType.DOUBLE)
-          .build()
-      }
-    }
-    partialSchema
   }
 
 }
