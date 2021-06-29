@@ -31,13 +31,20 @@ import edu.uci.ics.amber.error.WorkflowRuntimeError
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
 
+object ControllerConfig {
+  def default: ControllerConfig = ControllerConfig(Option(100))
+}
+final case class ControllerConfig(
+    statusUpdateIntervalMs: Option[Long]
+)
+
 object Controller {
 
   def props(
       id: WorkflowIdentity,
       workflow: Workflow,
       eventListener: ControllerEventListener,
-      statusUpdateInterval: Long,
+      controllerConfig: ControllerConfig = ControllerConfig.default,
       parentNetworkCommunicationActorRef: ActorRef = null
   ): Props =
     Props(
@@ -45,7 +52,7 @@ object Controller {
         id,
         workflow,
         eventListener,
-        Option.apply(statusUpdateInterval),
+        controllerConfig,
         parentNetworkCommunicationActorRef
       )
     )
@@ -55,7 +62,7 @@ class Controller(
     val id: WorkflowIdentity,
     val workflow: Workflow,
     val eventListener: ControllerEventListener = ControllerEventListener(),
-    val statisticsUpdateIntervalMs: Option[Long],
+    val controllerConfig: ControllerConfig,
     parentNetworkCommunicationActorRef: ActorRef
 ) extends WorkflowActor(ActorVirtualIdentity.Controller, parentNetworkCommunicationActorRef) {
   implicit val ec: ExecutionContext = context.dispatcher

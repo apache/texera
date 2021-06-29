@@ -2,6 +2,7 @@ package edu.uci.ics.texera.web.model.event
 
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowStatusUpdate
 import edu.uci.ics.amber.engine.architecture.principal.{OperatorState, OperatorStatistics}
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler
 
 object WebOperatorStatistics {
@@ -13,7 +14,9 @@ object WebOperatorStatistics {
       workflowCompiler: WorkflowCompiler
   ): WebOperatorStatistics = {
     val chartType = OperatorResult.getChartType(operatorID, workflowCompiler)
-    val results = operatorStatistics.aggregatedOutputResults
+    // TODO: temporary fix to make it compile, this will be reverted soon in a subsequent PR
+    val results = Option
+      .empty[List[ITuple]]
       // if chartType is present, then send all results
       // else (normal view result table), then send empty list
       //   (pagination will take care of sending actual result)

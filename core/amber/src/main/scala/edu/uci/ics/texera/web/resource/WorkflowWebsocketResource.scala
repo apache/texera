@@ -1,7 +1,11 @@
 package edu.uci.ics.texera.web.resource
 
 import akka.actor.{ActorRef, PoisonPill}
-import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerEventListener}
+import edu.uci.ics.amber.engine.architecture.controller.{
+  Controller,
+  ControllerConfig,
+  ControllerEventListener
+}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
@@ -242,30 +246,31 @@ class WorkflowWebsocketResource {
         WorkflowWebsocketResource.sessionJobs.remove(session.getId)
       },
       workflowStatusUpdateListener = statusUpdate => {
-        val sinkOpDirtyPageIndices = statusUpdate.operatorStatistics
-          .filter(e => e._2.aggregatedOutputResults.isDefined)
-          .map(e => {
-            val beforeList =
-              sessionResults.getOrElse(session.getId, Map.empty).getOrElse(e._1, List.empty)
-            val afterList = e._2.aggregatedOutputResults.get
-            val dirtyPageIndices = getDirtyPageIndices(beforeList, afterList)
-            (e._1, dirtyPageIndices)
-          })
-
-        sessionResults.update(
-          session.getId,
-          statusUpdate.operatorStatistics
-            .filter(e => e._2.aggregatedOutputResults.isDefined)
-            .map(e => (e._1, e._2.aggregatedOutputResults.get))
-        )
-        send(
-          session,
-          WebWorkflowStatusUpdateEvent.apply(
-            statusUpdate,
-            sinkOpDirtyPageIndices,
-            texeraWorkflowCompiler
-          )
-        )
+        // TODO: temporarily disable progressive result update until a further PR
+//        val sinkOpDirtyPageIndices = statusUpdate.operatorStatistics
+//          .filter(e => e._2.aggregatedOutputResults.isDefined)
+//          .map(e => {
+//            val beforeList =
+//              sessionResults.getOrElse(session.getId, Map.empty).getOrElse(e._1, List.empty)
+//            val afterList = e._2.aggregatedOutputResults.get
+//            val dirtyPageIndices = getDirtyPageIndices(beforeList, afterList)
+//            (e._1, dirtyPageIndices)
+//          })
+//
+//        sessionResults.update(
+//          session.getId,
+//          statusUpdate.operatorStatistics
+//            .filter(e => e._2.aggregatedOutputResults.isDefined)
+//            .map(e => (e._1, e._2.aggregatedOutputResults.get))
+//        )
+//        send(
+//          session,
+//          WebWorkflowStatusUpdateEvent.apply(
+//            statusUpdate,
+//            sinkOpDirtyPageIndices,
+//            texeraWorkflowCompiler
+//          )
+//        )
       },
       modifyLogicCompletedListener = _ => {
         send(session, ModifyLogicCompletedEvent())
@@ -291,7 +296,7 @@ class WorkflowWebsocketResource {
     )
 
     val controllerActorRef = TexeraWebApplication.actorSystem.actorOf(
-      Controller.props(workflowTag, workflow, eventListener, 100)
+      Controller.props(workflowTag, workflow, eventListener, ControllerConfig.default)
     )
     texeraWorkflowCompiler.initializeBreakpoint(controllerActorRef)
     controllerActorRef ! ControlInvocation(AsyncRPCClient.IgnoreReply, StartWorkflow())
