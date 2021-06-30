@@ -20,13 +20,11 @@ public class DifferentOpExec implements OperatorExecutor {
     private final HashSet<Tuple> resultHashSet;
 
     public DifferentOpExec(LinkIdentity rightTable) {
-//        TODO: Clone or assign reference?
         this.rightTable = rightTable;
         this.resultHashSet = new HashSet<>();
     }
 
     @Override
-//    TODO: Preserve order? Remove duplication?
     public Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, LinkIdentity input) {
         if (tuple.isLeft()) {
             if (input == rightTable) {
