@@ -8,12 +8,14 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   SkipTupleResponse,
   WorkflowCompleted,
   WorkflowPaused,
+  WorkflowResultUpdate,
   WorkflowStatusUpdate
 }
 
 case class ControllerEventListener(
     var workflowCompletedListener: WorkflowCompleted => Unit = null,
     workflowStatusUpdateListener: WorkflowStatusUpdate => Unit = null,
+    workflowResultUpdateListener: WorkflowResultUpdate => Unit = null,
     modifyLogicCompletedListener: ModifyLogicCompleted => Unit = null,
     breakpointTriggeredListener: BreakpointTriggered => Unit = null,
     workflowPausedListener: WorkflowPaused => Unit = null,

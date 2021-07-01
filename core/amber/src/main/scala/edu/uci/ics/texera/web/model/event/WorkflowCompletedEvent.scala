@@ -9,7 +9,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator
 
 import scala.collection.mutable
 
-object OperatorResult {
+object WebOperatorResult {
   def getChartType(operatorID: String, workflowCompiler: WorkflowCompiler): Option[String] = {
     val outLinks =
       workflowCompiler.workflowInfo.links.filter(link => link.origin.operatorID == operatorID)
@@ -40,8 +40,8 @@ object OperatorResult {
       table: List[ITuple],
       chartType: Option[String],
       totalRowCount: Int
-  ): OperatorResult = {
-    OperatorResult(
+  ): WebOperatorResult = {
+    WebOperatorResult(
       operatorID,
       table.map(t => t.asInstanceOf[Tuple].asKeyValuePairJson()),
       chartType,
@@ -50,7 +50,7 @@ object OperatorResult {
   }
 }
 
-case class OperatorResult(
+case class WebOperatorResult(
     operatorID: String,
     table: List[ObjectNode],
     chartType: Option[String],
@@ -65,20 +65,21 @@ object WorkflowCompletedEvent {
       workflowCompleted: WorkflowCompleted,
       workflowCompiler: WorkflowCompiler
   ): WorkflowCompletedEvent = {
-    val resultList = new mutable.MutableList[OperatorResult]
-    for ((operatorID, resultTuples) <- workflowCompleted.result) {
-      val chartType = OperatorResult.getChartType(operatorID, workflowCompiler)
-
-      var table = resultTuples
-      // if not visualization result, then only return first page results
-      if (chartType.isEmpty) {
-        table = resultTuples.slice(0, defaultPageSize)
-      }
-
-      resultList += OperatorResult.fromTuple(operatorID, table, chartType, resultTuples.length)
-    }
+    val resultList = new mutable.MutableList[WebOperatorResult]
+    // TODO: temporarily comment out to make it compile, this will be deleted in later PRs
+//    for ((operatorID, resultTuples) <- workflowCompleted.result) {
+//      val chartType = WebOperatorResult.getChartType(operatorID, workflowCompiler)
+//
+//      var table = resultTuples
+//      // if not visualization result, then only return first page results
+//      if (chartType.isEmpty) {
+//        table = resultTuples.slice(0, defaultPageSize)
+//      }
+//
+//      resultList += WebOperatorResult.fromTuple(operatorID, table, chartType, resultTuples.length)
+//    }
     WorkflowCompletedEvent(resultList.toList)
   }
 }
 
-case class WorkflowCompletedEvent(result: List[OperatorResult]) extends TexeraWebSocketEvent
+case class WorkflowCompletedEvent(result: List[WebOperatorResult]) extends TexeraWebSocketEvent

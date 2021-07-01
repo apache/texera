@@ -31,7 +31,6 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
   lazy val topology: Topology = null
   var inputToOrdinalMapping = new mutable.HashMap[LinkIdentity, Int]()
   var attachedBreakpoints = new mutable.HashMap[String, GlobalBreakpoint[_]]()
-  var results: List[ITuple] = List.empty
 
   def getState: OperatorState = {
     val workerStates = getAllWorkerStates
@@ -51,10 +50,6 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
     } else {
       OperatorState.Unknown
     }
-  }
-
-  def acceptResultTuples(tuples: List[ITuple]): Unit = {
-    results ++= tuples
   }
 
   def getAllWorkers: Iterable[ActorVirtualIdentity] = topology.layers.flatMap(l => l.identifiers)

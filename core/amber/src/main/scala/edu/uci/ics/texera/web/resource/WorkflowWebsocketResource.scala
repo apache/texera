@@ -236,14 +236,15 @@ class WorkflowWebsocketResource {
 
     val eventListener = ControllerEventListener(
       workflowCompletedListener = completed => {
-        sessionResults.remove(session.getId)
-        sessionDownloadCache.remove(session.getId)
-        sessionResults.update(session.getId, completed.result)
-        send(
-          session,
-          WorkflowCompletedEvent.apply(completed, texeraWorkflowCompiler)
-        )
-        WorkflowWebsocketResource.sessionJobs.remove(session.getId)
+        // TODO: temporarily comment out to make it compile, this will be changed in later PRs
+//        sessionResults.remove(session.getId)
+//        sessionDownloadCache.remove(session.getId)
+//        sessionResults.update(session.getId, completed.result)
+//        send(
+//          session,
+//          WorkflowCompletedEvent.apply(completed, texeraWorkflowCompiler)
+//        )
+//        WorkflowWebsocketResource.sessionJobs.remove(session.getId)
       },
       workflowStatusUpdateListener = statusUpdate => {
         // TODO: temporarily disable progressive result update until a further PR
