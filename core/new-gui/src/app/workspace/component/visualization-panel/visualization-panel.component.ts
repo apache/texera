@@ -1,7 +1,5 @@
 import { Component, Input, OnChanges } from '@angular/core';
 import { NzModalRef, NzModalService } from 'ng-zorro-antd/modal';
-import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
-import { WebOperatorResult } from '../../types/execute-workflow.interface';
 import { VisualizationPanelContentComponent } from '../visualization-panel-content/visualization-panel-content.component';
 import { WorkflowResultService } from '../../service/workflow-result/workflow-result.service';
 

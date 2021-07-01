@@ -1,4 +1,4 @@
-import { ExecutionResult, ExecutionState } from '../../types/execute-workflow.interface';
+import { ExecutionState } from '../../types/execute-workflow.interface';
 import { TestBed, inject, fakeAsync, tick, flush } from '@angular/core/testing';
 
 import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from './execute-workflow.service';
@@ -10,14 +10,11 @@ import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-
 import { JointUIService } from '../joint-ui/joint-ui.service';
 import { Observable } from 'rxjs/Observable';
 
-import { mockExecutionResult, mockResultData } from './mock-result-data';
 import { mockWorkflowPlan_scan_result, mockLogicalPlan_scan_result } from './mock-workflow-plan';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { marbles } from 'rxjs-marbles';
+import { HttpClient } from '@angular/common/http';
 import { WorkflowGraph } from '../workflow-graph/model/workflow-graph';
 import { LogicalPlan } from '../../types/execute-workflow.interface';
 import { environment } from '../../../../environments/environment';
-import { mockScanResultLink } from '../workflow-graph/model/mock-workflow-data';
 import { WorkflowUtilService } from '../workflow-graph/util/workflow-util.service';
 
 class StubHttpClient {
@@ -72,14 +69,7 @@ describe('ExecuteWorkflowService', () => {
       flush();
       expect(wsSendSpy).toHaveBeenCalledTimes(1);
     } else {
-      // old engine test
-      const httpClient: HttpClient = TestBed.inject(HttpClient);
-      const postMethodSpy = spyOn(httpClient, 'post').and.returnValue(
-        Observable.of(mockExecutionResult)
-      );
-
-      service.executeWorkflow();
-      expect(postMethodSpy.calls.count()).toEqual(1);
+      throw new Error('old texera engine not supported');
     }
 
   }));

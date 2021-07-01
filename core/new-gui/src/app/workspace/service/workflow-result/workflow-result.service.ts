@@ -74,7 +74,7 @@ export class WorkflowResultService {
   }
 }
 
-class OperatorResultService {
+export class OperatorResultService {
 
   private chartType: ChartType | undefined;
   private resultSnapshot: ReadonlyArray<object> = [];
