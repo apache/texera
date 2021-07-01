@@ -14,6 +14,7 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatist
 }
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.collection.mutable
 
@@ -58,7 +59,17 @@ trait QueryWorkerStatisticsHandler {
         })
         updateFrontendWorkflowStatus()
       })
-    }
+    }.onFailure(failure => {
+      this.logger.logError(WorkflowRuntimeError(failure.getMessage, "query stats", Map()))
+      this.logger.logError(
+        WorkflowRuntimeError(
+          failure.getStackTrace.mkString("Array(", ", ", ")"),
+          "query stats",
+          Map()
+        )
+      )
+
+    })
   }
 
   registerHandler((msg: ControllerInitiateQueryResults, sender) => {
@@ -73,25 +84,37 @@ trait QueryWorkerStatisticsHandler {
     // wait for all workers to reply, accumulate response from all workers
     val allResponses = Future.collect(requests)
 
-    allResponses.map(responses => {
-      // combine results of all workers to a single result list of this operator
-      val operatorResultUpdate = new mutable.HashMap[String, OperatorResult]()
-      responses
-        .groupBy(workerResult => workflow.getOperator(workerResult._1).id)
-        .foreach(operatorResult => {
-          val workerResultList = operatorResult._2.flatMap(r => r._2)
-          if (workerResultList.nonEmpty) {
-            val operatorID = operatorResult._1.operator
-            val outputMode = workerResultList.head.outputMode
-            operatorResultUpdate(operatorID) =
-              OperatorResult(outputMode, workerResultList.flatMap(r => r.result).toList)
-          }
-        })
-      // send update result to frontend
-      if (operatorResultUpdate.nonEmpty) {
-        updateFrontendWorkflowResult(WorkflowResultUpdate(operatorResultUpdate.toMap))
-      }
-      operatorResultUpdate.toMap
-    })
+    allResponses
+      .map(responses => {
+        // combine results of all workers to a single result list of this operator
+        val operatorResultUpdate = new mutable.HashMap[String, OperatorResult]()
+        responses
+          .groupBy(workerResult => workflow.getOperator(workerResult._1).id)
+          .foreach(operatorResult => {
+            val workerResultList = operatorResult._2.flatMap(r => r._2)
+            if (workerResultList.nonEmpty) {
+              val operatorID = operatorResult._1.operator
+              val outputMode = workerResultList.head.outputMode
+              operatorResultUpdate(operatorID) =
+                OperatorResult(outputMode, workerResultList.flatMap(r => r.result).toList)
+            }
+          })
+        // send update result to frontend
+        if (operatorResultUpdate.nonEmpty) {
+          updateFrontendWorkflowResult(WorkflowResultUpdate(operatorResultUpdate.toMap))
+        }
+        operatorResultUpdate.toMap
+      })
+      .onFailure(failure => {
+        this.logger.logError(WorkflowRuntimeError(failure.getMessage, "query results", Map()))
+        this.logger.logError(
+          WorkflowRuntimeError(
+            failure.getStackTrace.mkString("Array(", ", ", ")"),
+            "query results",
+            Map()
+          )
+        )
+
+      })
   })
 }

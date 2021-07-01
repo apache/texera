@@ -20,6 +20,7 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, Con
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.WorkerActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, VirtualIdentity}
 import edu.uci.ics.amber.engine.operators.SinkOpExecConfig
+import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.collection.mutable
 
@@ -61,26 +62,50 @@ trait WorkerExecutionCompletedHandler {
         )
       }
 
-      val allRequests = Future.collect(statsRequests ++ resultRequests)
+      val allRequests = Future
+        .collect(statsRequests ++ resultRequests)
+        .onFailure(failure => {
+          this.logger.logError(WorkflowRuntimeError(failure.getMessage, "worker complete 1", Map()))
+          this.logger.logError(
+            WorkflowRuntimeError(
+              failure.getStackTrace.mkString("Array(", ", ", ")"),
+              "worker complete 1",
+              Map()
+            )
+          )
 
-      allRequests.flatMap(_ => {
-        // if entire workflow is completed, fire workflow completed event, clean up, and kill the workflow
-        if (workflow.isCompleted) {
-          execute(ControllerInitiateQueryResults(), ActorVirtualIdentity.Controller)
-            .flatMap(ret => {
-              if (eventListener.workflowCompletedListener != null) {
-                eventListener.workflowCompletedListener.apply(WorkflowCompleted(ret))
-              }
-              disableStatusUpdate()
-              actorContext.parent ! ControllerState.Completed // for testing
-              // clean up all workers and terminate self
-              execute(KillWorkflow(), ActorVirtualIdentity.Controller)
-              Future.Done
-            })
-        } else {
-          Future.Done
-        }
-      })
+        })
+
+      allRequests
+        .flatMap(_ => {
+          // if entire workflow is completed, fire workflow completed event, clean up, and kill the workflow
+          if (workflow.isCompleted) {
+            execute(ControllerInitiateQueryResults(), ActorVirtualIdentity.Controller)
+              .flatMap(ret => {
+                if (eventListener.workflowCompletedListener != null) {
+                  eventListener.workflowCompletedListener.apply(WorkflowCompleted(ret))
+                }
+                disableStatusUpdate()
+                actorContext.parent ! ControllerState.Completed // for testing
+                // clean up all workers and terminate self
+                execute(KillWorkflow(), ActorVirtualIdentity.Controller)
+                Future.Done
+              })
+          } else {
+            Future.Done
+          }
+        })
+        .onFailure(failure => {
+          this.logger.logError(WorkflowRuntimeError(failure.getMessage, "worker complete 2", Map()))
+          this.logger.logError(
+            WorkflowRuntimeError(
+              failure.getStackTrace.mkString("Array(", ", ", ")"),
+              "worker complete 2",
+              Map()
+            )
+          )
+
+        })
     }
   }
 }
