@@ -37,29 +37,22 @@ object QueryWorkerStatisticsHandler {
 trait QueryWorkerStatisticsHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  registerHandler { (msg: ControllerInitiateQueryStatistics, sender) =>
-    {
-      // send to specified workers (or all workers by default)
-      val workers = msg.filterByWorkers.getOrElse(workflow.getAllWorkers).toList
+  registerHandler((msg: ControllerInitiateQueryStatistics, sender) => {
+    // send to specified workers (or all workers by default)
+    val workers = msg.filterByWorkers.getOrElse(workflow.getAllWorkers).toList
 
-      // send QueryStatistics message
-      val requests =
-        workers.map(worker => send(QueryStatistics(), worker).map(res => (worker, res)))
-
-      // wait for all workers to reply
-      val allResponses = Future.collect(requests)
-
-      // update statistics and notify frontend
-      allResponses.map(responses => {
-        responses.foreach(res => {
-          val (worker, stats) = res
-          workflow.getOperator(worker).getWorker(worker).state = stats.workerState
-          workflow.getOperator(worker).getWorker(worker).stats = stats
-        })
-        updateFrontendWorkflowStatus()
+    // send QueryStatistics message
+    val requests = workers.map(worker =>
+      // must immediately update worker state and stats after reply
+      send(QueryStatistics(), worker).map(res => {
+        workflow.getOperator(worker).getWorker(worker).state = res.workerState
+        workflow.getOperator(worker).getWorker(worker).stats = res
       })
-    }
-  }
+    )
+
+    // wait for all workers to reply before notifying frontend
+    Future.collect(requests).map(_ => updateFrontendWorkflowStatus())
+  })
 
   registerHandler((msg: ControllerInitiateQueryResults, sender) => {
     val sinkWorkers = workflow.getSinkLayers.flatMap(l => l.workers.keys).toList
@@ -73,25 +66,28 @@ trait QueryWorkerStatisticsHandler {
     // wait for all workers to reply, accumulate response from all workers
     val allResponses = Future.collect(requests)
 
-    allResponses.map(responses => {
-      // combine results of all workers to a single result list of this operator
-      val operatorResultUpdate = new mutable.HashMap[String, OperatorResult]()
-      responses
-        .groupBy(workerResult => workflow.getOperator(workerResult._1).id)
-        .foreach(operatorResult => {
-          val workerResultList = operatorResult._2.flatMap(r => r._2)
-          if (workerResultList.nonEmpty) {
-            val operatorID = operatorResult._1.operator
-            val outputMode = workerResultList.head.outputMode
-            operatorResultUpdate(operatorID) =
-              OperatorResult(outputMode, workerResultList.flatMap(r => r.result).toList)
-          }
-        })
-      // send update result to frontend
-      if (operatorResultUpdate.nonEmpty) {
-        updateFrontendWorkflowResult(WorkflowResultUpdate(operatorResultUpdate.toMap))
-      }
-      operatorResultUpdate.toMap
-    })
+    allResponses
+      .map(responses => {
+        // combine results of all workers to a single result list of this operator
+        val operatorResultUpdate = new mutable.HashMap[String, OperatorResult]()
+        responses
+          .groupBy(workerResult => workflow.getOperator(workerResult._1).id)
+          .foreach(operatorResult => {
+            // filter out all Option.Empty from worker result response
+            val workerResultList = operatorResult._2.flatMap(r => r._2)
+            // construct operator result if list is not empty
+            if (workerResultList.nonEmpty) {
+              val operatorID = operatorResult._1.operator
+              val outputMode = workerResultList.head.outputMode
+              val workerResultUnion = workerResultList.flatMap(r => r.result).toList
+              operatorResultUpdate(operatorID) = OperatorResult(outputMode, workerResultUnion)
+            }
+          })
+        // send update result to frontend
+        if (operatorResultUpdate.nonEmpty) {
+          updateFrontendWorkflowResult(WorkflowResultUpdate(operatorResultUpdate.toMap))
+        }
+        operatorResultUpdate.toMap
+      })
   })
 }
