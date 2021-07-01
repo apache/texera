@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.symmetricDifferent
+package edu.uci.ics.texera.workflow.operators.symmetricDifference
 
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
@@ -8,7 +8,7 @@ import org.apache.arrow.util.Preconditions
 
 import scala.collection.mutable
 
-class SymmetricDifferentOpExec extends OperatorExecutor {
+class SymmetricDifferenceOpExec extends OperatorExecutor {
   private val hashMap: mutable.HashMap[LinkIdentity, mutable.HashSet[Tuple]] =
     new mutable.HashMap()
 

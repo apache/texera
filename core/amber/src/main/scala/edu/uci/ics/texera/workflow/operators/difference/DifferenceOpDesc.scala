@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.symmetricDifferent
+package edu.uci.ics.texera.workflow.operators.difference
 
 import com.google.common.base.Preconditions
 import edu.uci.ics.amber.engine.operators.OpExecConfig
@@ -8,21 +8,20 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.operators.{HashOpExecConfig, OperatorDescriptor}
+import edu.uci.ics.texera.workflow.common.operators.{OperatorDescriptor}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 
-class SymmetricDifferentOpDesc extends OperatorDescriptor {
-
+class DifferenceOpDesc extends OperatorDescriptor {
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-    new HashOpExecConfig(operatorIdentifier, _ => new SymmetricDifferentOpExec())
+    new DifferenceOpExecConf(operatorIdentifier)
   }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "SymmetricDifferent",
-      "Take the symmetric different of two inputs",
+      "Difference",
+      "find the set difference of two inputs",
       OperatorGroupConstants.UTILITY_GROUP,
-      inputPorts = List(InputPort(), InputPort()),
+      inputPorts = List(InputPort("left"), InputPort("right")),
       outputPorts = List(OutputPort())
     )
 
@@ -30,5 +29,4 @@ class SymmetricDifferentOpDesc extends OperatorDescriptor {
     Preconditions.checkArgument(schemas.forall(_ == schemas(0)))
     schemas(0)
   }
-
 }
