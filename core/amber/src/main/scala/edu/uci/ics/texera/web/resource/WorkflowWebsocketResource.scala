@@ -183,11 +183,11 @@ class WorkflowWebsocketResource {
       return
     }
 
-    val workflowResultService = new WorkflowResultService(texeraWorkflowCompiler)
-    sessionResults(session.getId) = workflowResultService
-
     val workflow = texeraWorkflowCompiler.amberWorkflow
     val workflowTag = WorkflowIdentity(jobID)
+
+    val workflowResultService = new WorkflowResultService(texeraWorkflowCompiler)
+    sessionResults(session.getId) = workflowResultService
 
     val eventListener = ControllerEventListener(
       workflowCompletedListener = completed => {
