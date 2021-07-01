@@ -131,7 +131,7 @@ class OperatorPaginationResultService {
     // first fetch from frontend result cache
     const pageCache = this.resultCache.get(pageIndex);
     if (pageCache) {
-      return Observable.of({ requestID: '', pageIndex: pageIndex, table: pageCache });
+      return Observable.of({ requestID: '', operatorID: this.operatorID, pageIndex: pageIndex, table: pageCache });
     } else {
       // fetch result data from server
       const requestID = uuid();
