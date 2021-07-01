@@ -14,7 +14,6 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatist
 }
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.collection.mutable
 
@@ -38,39 +37,22 @@ object QueryWorkerStatisticsHandler {
 trait QueryWorkerStatisticsHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  registerHandler { (msg: ControllerInitiateQueryStatistics, sender) =>
-    {
-      // send to specified workers (or all workers by default)
-      val workers = msg.filterByWorkers.getOrElse(workflow.getAllWorkers).toList
+  registerHandler((msg: ControllerInitiateQueryStatistics, sender) => {
+    // send to specified workers (or all workers by default)
+    val workers = msg.filterByWorkers.getOrElse(workflow.getAllWorkers).toList
 
-      // send QueryStatistics message
-      val requests =
-        workers.map(worker => send(QueryStatistics(), worker).map(res => (worker, res)))
-
-      // wait for all workers to reply
-      val allResponses = Future.collect(requests)
-
-      // update statistics and notify frontend
-      allResponses.map(responses => {
-        responses.foreach(res => {
-          val (worker, stats) = res
-          workflow.getOperator(worker).getWorker(worker).state = stats.workerState
-          workflow.getOperator(worker).getWorker(worker).stats = stats
-        })
-        updateFrontendWorkflowStatus()
+    // send QueryStatistics message
+    val requests = workers.map(worker =>
+      // must immediately update worker state and stats after reply
+      send(QueryStatistics(), worker).map(res => {
+        workflow.getOperator(worker).getWorker(worker).state = res.workerState
+        workflow.getOperator(worker).getWorker(worker).stats = res
       })
-    }.onFailure(failure => {
-      this.logger.logError(WorkflowRuntimeError(failure.getMessage, "query stats", Map()))
-      this.logger.logError(
-        WorkflowRuntimeError(
-          failure.getStackTrace.mkString("Array(", ", ", ")"),
-          "query stats",
-          Map()
-        )
-      )
+    )
 
-    })
-  }
+    // wait for all workers to reply before notifying frontend
+    Future.collect(requests).map(_ => updateFrontendWorkflowStatus())
+  })
 
   registerHandler((msg: ControllerInitiateQueryResults, sender) => {
     val sinkWorkers = workflow.getSinkLayers.flatMap(l => l.workers.keys).toList
@@ -91,12 +73,14 @@ trait QueryWorkerStatisticsHandler {
         responses
           .groupBy(workerResult => workflow.getOperator(workerResult._1).id)
           .foreach(operatorResult => {
+            // filter out all Option.Empty from worker result response
             val workerResultList = operatorResult._2.flatMap(r => r._2)
+            // construct operator result if list is not empty
             if (workerResultList.nonEmpty) {
               val operatorID = operatorResult._1.operator
               val outputMode = workerResultList.head.outputMode
-              operatorResultUpdate(operatorID) =
-                OperatorResult(outputMode, workerResultList.flatMap(r => r.result).toList)
+              val workerResultUnion = workerResultList.flatMap(r => r.result).toList
+              operatorResultUpdate(operatorID) = OperatorResult(outputMode, workerResultUnion)
             }
           })
         // send update result to frontend
@@ -104,17 +88,6 @@ trait QueryWorkerStatisticsHandler {
           updateFrontendWorkflowResult(WorkflowResultUpdate(operatorResultUpdate.toMap))
         }
         operatorResultUpdate.toMap
-      })
-      .onFailure(failure => {
-        this.logger.logError(WorkflowRuntimeError(failure.getMessage, "query results", Map()))
-        this.logger.logError(
-          WorkflowRuntimeError(
-            failure.getStackTrace.mkString("Array(", ", ", ")"),
-            "query results",
-            Map()
-          )
-        )
-
       })
   })
 }
