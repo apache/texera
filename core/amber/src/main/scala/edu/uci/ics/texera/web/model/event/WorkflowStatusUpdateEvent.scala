@@ -13,7 +13,7 @@ object WebOperatorStatistics {
       dirtyPageIndices: Map[String, List[Int]],
       workflowCompiler: WorkflowCompiler
   ): WebOperatorStatistics = {
-    val chartType = OperatorResult.getChartType(operatorID, workflowCompiler)
+    val chartType = WebOperatorResult.getChartType(operatorID, workflowCompiler)
     // TODO: temporary fix to make it compile, this will be reverted soon in a subsequent PR
     val results = Option
       .empty[List[ITuple]]
@@ -22,8 +22,8 @@ object WebOperatorStatistics {
       //   (pagination will take care of sending actual result)
       .map(r =>
         chartType match {
-          case Some(_) => OperatorResult.fromTuple(operatorID, r, chartType, r.size)
-          case None    => OperatorResult.fromTuple(operatorID, List.empty, chartType, r.size)
+          case Some(_) => WebOperatorResult.fromTuple(operatorID, r, chartType, r.size)
+          case None    => WebOperatorResult.fromTuple(operatorID, List.empty, chartType, r.size)
         }
       )
 
@@ -42,7 +42,7 @@ case class WebOperatorStatistics(
     operatorState: OperatorState,
     aggregatedInputRowCount: Long,
     aggregatedOutputRowCount: Long,
-    aggregatedOutputResults: Option[OperatorResult], // in case of a sink operator
+    aggregatedOutputResults: Option[WebOperatorResult], // in case of a sink operator
     aggregatedOutputResultDirtyPageIndices: Option[List[Int]]
 )
 

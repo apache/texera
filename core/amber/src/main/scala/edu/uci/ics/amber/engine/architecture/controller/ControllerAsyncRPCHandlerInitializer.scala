@@ -1,8 +1,14 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import akka.actor.{ActorContext, ActorRef, Cancellable}
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowStatusUpdate
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.ControllerInitiateQueryStatistics
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
+  WorkflowResultUpdate,
+  WorkflowStatusUpdate
+}
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.{
+  ControllerInitiateQueryResults,
+  ControllerInitiateQueryStatistics
+}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.{
   AssignBreakpointHandler,
   FatalErrorHandler,
@@ -58,6 +64,7 @@ class ControllerAsyncRPCHandlerInitializer(
     with FatalErrorHandler {
 
   var statusUpdateAskHandle: Option[Cancellable] = None
+  var resultUpdateAskHandle: Option[Cancellable] = None
 
   def enableStatusUpdate(): Unit = {
     if (controllerConfig.statusUpdateIntervalMs.nonEmpty && statusUpdateAskHandle.isEmpty) {
@@ -73,6 +80,19 @@ class ControllerAsyncRPCHandlerInitializer(
         )(actorContext.dispatcher)
       )
     }
+    if (controllerConfig.resultUpdateIntervalMs.nonEmpty && resultUpdateAskHandle.isEmpty) {
+      resultUpdateAskHandle = Option(
+        actorContext.system.scheduler.scheduleAtFixedRate(
+          0.milliseconds,
+          FiniteDuration.apply(controllerConfig.resultUpdateIntervalMs.get, MILLISECONDS),
+          actorContext.self,
+          ControlInvocation(
+            AsyncRPCClient.IgnoreReplyAndDoNotLog,
+            ControllerInitiateQueryResults(Option.empty)
+          )
+        )(actorContext.dispatcher)
+      )
+    }
   }
 
   def disableStatusUpdate(): Unit = {
@@ -80,12 +100,22 @@ class ControllerAsyncRPCHandlerInitializer(
       statusUpdateAskHandle.get.cancel()
       statusUpdateAskHandle = Option.empty
     }
+    if (resultUpdateAskHandle.nonEmpty) {
+      resultUpdateAskHandle.get.cancel()
+      resultUpdateAskHandle = Option.empty
+    }
   }
 
   def updateFrontendWorkflowStatus(): Unit = {
     if (eventListener.workflowStatusUpdateListener != null) {
       eventListener.workflowStatusUpdateListener
         .apply(WorkflowStatusUpdate(workflow.getWorkflowStatus))
+    }
+  }
+
+  def updateFrontendWorkflowResult(workflowResultUpdate: WorkflowResultUpdate): Unit = {
+    if (eventListener.workflowResultUpdateListener != null) {
+      eventListener.workflowResultUpdateListener.apply(workflowResultUpdate)
     }
   }
 
