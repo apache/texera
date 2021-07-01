@@ -56,9 +56,6 @@ jobs:
   amber:
     runs-on: ubuntu-latest
     steps:
-      - name: Setup tmate session
-        uses: actions/checkout@v2
-        uses: mxschmitt/action-tmate@v3
       - name: Cancel Previous Runs  # add cancel here since this stage is the fastest one.
         uses: styfle/cancel-workflow-action@0.6.0
         with:
