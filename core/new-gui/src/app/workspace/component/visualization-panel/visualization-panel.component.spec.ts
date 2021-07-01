@@ -9,22 +9,14 @@ import { StubOperatorMetadataService } from '../../service/operator-metadata/stu
 import { UndoRedoService } from '../../service/undo-redo/undo-redo.service';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
-import { ChartType } from '../../types/visualization.interface';
 import { VisualizationPanelComponent } from './visualization-panel.component';
 import { WorkflowResultService, OperatorResultService } from '../../service/workflow-result/workflow-result.service';
-import { WebDataUpdate } from '../../types/execute-workflow.interface';
 
 describe('VisualizationPanelComponent', () => {
   let component: VisualizationPanelComponent;
   let fixture: ComponentFixture<VisualizationPanelComponent>;
   let workflowResultService: WorkflowResultService;
   const operatorID = 'operator1';
-
-  const testData: WebDataUpdate = {
-    mode: {type: 'SetSnapshotMode'},
-    table: [],
-    chartType: ChartType.BAR
-  };
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({

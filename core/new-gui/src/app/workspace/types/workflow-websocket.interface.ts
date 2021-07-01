@@ -61,6 +61,7 @@ export type PaginationRequest = Readonly<{
 
 export type PaginatedResultEvent = Readonly<{
   requestID: string,
+  operatorID: string,
   pageIndex: number,
   table: ReadonlyArray<object>,
 }>;

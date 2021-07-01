@@ -9,12 +9,8 @@ import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
 import { JointUIService } from './../../service/joint-ui/joint-ui.service';
 import { OperatorMetadataService } from './../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from './../../service/operator-metadata/stub-operator-metadata.service';
-import { NgbModule, NgbModal } from '@ng-bootstrap/ng-bootstrap';
-import { marbles } from 'rxjs-marbles';
-import { mockResultData } from '../../service/execute-workflow/mock-result-data';
+import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { By } from '@angular/platform-browser';
-import { Observable } from 'rxjs/Observable';
-import { HttpClient } from '@angular/common/http';
 
 import { ResultPanelToggleService } from './../../service/result-panel-toggle/result-panel-toggle.service';
 import { NgxJsonViewerModule } from 'ngx-json-viewer';

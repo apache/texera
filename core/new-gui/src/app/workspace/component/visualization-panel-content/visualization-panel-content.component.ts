@@ -3,8 +3,6 @@ import * as c3 from 'c3';
 import { Primitive, PrimitiveArray } from 'c3';
 import * as d3 from 'd3';
 import * as cloud from 'd3-cloud';
-import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
-import { WebOperatorResult } from '../../types/execute-workflow.interface';
 import { ChartType, WordCloudTuple } from '../../types/visualization.interface';
 import { Subscription, Subject, Observable } from 'rxjs';
 import { environment } from 'src/environments/environment';
