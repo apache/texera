@@ -78,7 +78,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
   }
 
   /**
-   * duplicate the current workflow. will had a new record in frontend
+   * duplicate the current workflow. A new record will appear in frontend
    * workflow list and backend database.
    */
   public onClickDuplicateWorkflow(workflowToDuplicate: Workflow): void {
