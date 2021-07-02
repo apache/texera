@@ -14,7 +14,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import org.apache.arrow.flight.*;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.*;
-import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.jetbrains.annotations.NotNull;
@@ -34,7 +33,6 @@ import java.util.*;
 import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFOpExec.Channel.FROM_PYTHON;
 import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFOpExec.Channel.TO_PYTHON;
 import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFOpExec.MSG.*;
-import static org.apache.arrow.vector.types.TimeUnit.NANOSECOND;
 
 public class PythonUDFOpExec implements OperatorExecutor {
 
@@ -138,7 +136,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
     private static void convertArrow2TexeraTableBuffer(VectorSchemaRoot vectorSchemaRoot, Queue<Tuple> resultQueue)
             throws RuntimeException {
         List<FieldVector> fieldVectors = vectorSchemaRoot.getFieldVectors();
-        Schema amberSchema = convertArrow2AmberSchema(vectorSchemaRoot.getSchema());
+        Schema amberSchema = convertArrow2TexeraSchema(vectorSchemaRoot.getSchema());
         for (int i = 0; i < vectorSchemaRoot.getRowCount(); i++) {
             List<Object> contents = new ArrayList<>();
             for (FieldVector vector : fieldVectors) {
@@ -241,40 +239,12 @@ public class PythonUDFOpExec implements OperatorExecutor {
      * @param arrowSchema The arrow table schema to be converted.
      * @return The Amber Schema converted from Arrow Table Schema.
      */
-    private static Schema convertArrow2AmberSchema(org.apache.arrow.vector.types.pojo.Schema arrowSchema) {
-        List<Attribute> amberAttributes = new ArrayList<>();
+    private static Schema convertArrow2TexeraSchema(org.apache.arrow.vector.types.pojo.Schema arrowSchema) {
+        List<Attribute> attributes = new ArrayList<>();
         for (Field field : arrowSchema.getFields()) {
-            AttributeType amberAttributeType;
-            switch (field.getFieldType().getType().getTypeID()) {
-                case Int:
-                    switch (((ArrowType.Int) (field.getFieldType().getType())).getBitWidth()) {
-                        case 16:
-                        case 32:
-                            amberAttributeType = AttributeType.INTEGER;
-                            break;
-                        case 64:
-                        default:
-                            amberAttributeType = AttributeType.LONG;
-                    }
-                    break;
-                case Bool:
-                    amberAttributeType = AttributeType.BOOLEAN;
-                    break;
-                case FloatingPoint:
-                    amberAttributeType = AttributeType.DOUBLE;
-                    break;
-                case Utf8:
-                    amberAttributeType = AttributeType.STRING;
-                    break;
-                case Timestamp:
-                    amberAttributeType = AttributeType.TIMESTAMP;
-                    break;
-                default:
-                    throw new IllegalStateException("Unexpected value: " + field.getFieldType().getType().getTypeID());
-            }
-            amberAttributes.add(new Attribute(field.getName(), amberAttributeType));
+            attributes.add(new Attribute(field.getName(), ArrowTypeUtils.toAttributeType(field.getType())));
         }
-        return new Schema(amberAttributes);
+        return new Schema(attributes);
     }
 
     private static void deleteTempFile(String filePath) throws IOException {
@@ -295,30 +265,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
         List<Field> arrowFields = new ArrayList<>();
         for (Attribute amberAttribute : amberSchema.getAttributes()) {
             String name = amberAttribute.getName();
-            Field field;
-            switch (amberAttribute.getType()) {
-                case INTEGER:
-                    field = Field.nullablePrimitive(name, new ArrowType.Int(32, true));
-                    break;
-                case LONG:
-                    field = Field.nullablePrimitive(name, new ArrowType.Int(64, true));
-                    break;
-                case DOUBLE:
-                    field = Field.nullablePrimitive(name, new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE));
-                    break;
-                case BOOLEAN:
-                    field = Field.nullablePrimitive(name, ArrowType.Bool.INSTANCE);
-                    break;
-                case TIMESTAMP:
-                    field = Field.nullable(name, new ArrowType.Timestamp(NANOSECOND, "UTC"));
-                    break;
-                case STRING:
-                case ANY:
-                    field = Field.nullablePrimitive(name, ArrowType.Utf8.INSTANCE);
-                    break;
-                default:
-                    throw new RuntimeException("Unexpected value: " + amberAttribute.getType());
-            }
+            Field field = Field.nullablePrimitive(name, ArrowTypeUtils.fromAttributeType(amberAttribute.getType()));
             arrowFields.add(field);
 
         }
