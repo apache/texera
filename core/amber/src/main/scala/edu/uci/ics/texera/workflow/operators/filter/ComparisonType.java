@@ -13,7 +13,9 @@ public enum ComparisonType {
 
     LESS_THAN_OR_EQUAL_TO("<="),
 
-    NOT_EQUAL_TO("!=");
+    NOT_EQUAL_TO("!="),
+
+    Xnull("not null");
 
     private final String name;
 
