@@ -51,7 +51,7 @@ public class ScatterplotOpDesc extends VisualizationOperator {
 
     @Override
     public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
-        return new OneToOneOpExecConfig(operatorIdentifier(), worker -> new ScatterplotOpExec(this));
+        return new OneToOneOpExecConfig(operatorIdentifier(), worker -> new ScatterplotOpExec(this, operatorSchemaInfo));
     }
 
     @Override
@@ -66,9 +66,16 @@ public class ScatterplotOpDesc extends VisualizationOperator {
 
     @Override
     public Schema getOutputSchema(Schema[] schemas) {
-        return Schema.newBuilder().add(
-                new Attribute("xColumn", AttributeType.DOUBLE),
-                new Attribute("yColumn", AttributeType.DOUBLE)
-        ).build();
+        Schema inputSchema = schemas[0];
+        if(isGeometric)
+            return Schema.newBuilder().add(
+                    new Attribute("xColumn", inputSchema.getAttribute(xColumn).getType()),
+                    new Attribute("yColumn", inputSchema.getAttribute(yColumn).getType())
+            ).build();
+        else
+            return Schema.newBuilder().add(
+                    new Attribute(xColumn, inputSchema.getAttribute(xColumn).getType()),
+                    new Attribute(yColumn, inputSchema.getAttribute(yColumn).getType())
+            ).build();
     }
 }

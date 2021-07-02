@@ -2,7 +2,7 @@ package edu.uci.ics.texera.unittest.workflow.operators.intersect
 
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.virtualidentity.{LayerIdentity, LinkIdentity}
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.operators.intersect.IntersectOpExec
 import org.scalatest.flatspec.AnyFlatSpec
@@ -12,6 +12,15 @@ import scala.util.Random
 class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   var opExec: IntersectOpExec = _
   var counter: Int = 0
+
+  val tupleSchema: Schema = Schema
+    .newBuilder()
+    .add(new Attribute("field1", AttributeType.STRING))
+    .add(new Attribute("field2", AttributeType.INTEGER))
+    .add(
+      new Attribute("field3", AttributeType.BOOLEAN)
+    )
+    .build()
 
   def layerID(): LayerIdentity = {
     counter += 1
@@ -23,7 +32,7 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   def tuple(): Tuple = {
     counter += 1
     Tuple
-      .newBuilder()
+      .newBuilder(tupleSchema)
       .add(new Attribute("field1", AttributeType.STRING), "hello")
       .add(new Attribute("field2", AttributeType.INTEGER), counter)
       .add(

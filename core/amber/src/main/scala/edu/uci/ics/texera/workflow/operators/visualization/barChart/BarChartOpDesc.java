@@ -52,7 +52,7 @@ public class BarChartOpDesc extends VisualizationOperator {
         if (dataColumns == null || dataColumns.isEmpty()) {
             throw new RuntimeException("bar chart: data column is null or empty");
         }
-        return new OneToOneOpExecConfig(operatorIdentifier(), worker -> new BarChartOpExec(this));
+        return new OneToOneOpExecConfig(operatorIdentifier(), worker -> new BarChartOpExec(this, operatorSchemaInfo));
     }
 
     @Override

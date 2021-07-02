@@ -54,7 +54,7 @@ public class LineChartOpDesc extends VisualizationOperator {
         if (dataColumns == null || dataColumns.isEmpty()) {
             throw new RuntimeException("line chart: data column is null or empty");
         }
-        return new OneToOneOpExecConfig(operatorIdentifier(), worker -> new LineChartOpExec(this));
+        return new OneToOneOpExecConfig(operatorIdentifier(), worker -> new LineChartOpExec(this, operatorSchemaInfo));
     }
 
     @Override

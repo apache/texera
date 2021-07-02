@@ -48,6 +48,9 @@ class FinalAggregateOpExec[Partial <: AnyRef](
       case Right(_) =>
         partialObjectPerKey.iterator.map(pair => {
           val finalObject = aggFunc.finalAgg(pair._2)
+          // TODO Find a way to get this from the OpDesc. Since this is generic, trying to get the
+          // right schema from there is a bit challenging.
+          // See https://github.com/Texera/texera/pull/1166#discussion_r654863854
           if (schema == null) {
             schema = Schema
               .newBuilder()
@@ -57,7 +60,7 @@ class FinalAggregateOpExec[Partial <: AnyRef](
           }
           val fields: Array[Object] =
             (pair._1 ++ JavaConverters.asScalaBuffer(finalObject.getFields)).toArray
-          Tuple.newBuilder().add(schema, fields).build()
+          Tuple.newBuilder(schema).addSequentially(fields).build()
         })
     }
   }

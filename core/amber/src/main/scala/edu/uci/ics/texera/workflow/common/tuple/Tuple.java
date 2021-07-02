@@ -183,6 +183,12 @@ public class Tuple implements ITuple, Serializable {
         }
     }
 
+    /**
+     * @deprecated
+     * This method is no longer acceptable to create a new Tuple.
+     * <p> Use {@link Tuple#newBuilder(Schema)} instead.</p>
+     */
+    @Deprecated
     public static Tuple.Builder newBuilder() {
         return new Tuple.Builder();
     }
@@ -192,6 +198,8 @@ public class Tuple implements ITuple, Serializable {
     }
 
     /**
+     * @deprecated
+     * See {@link Tuple#newBuilder(Schema)}. Use {@link Tuple.BuilderV2} instead.
      * Tuple.Builder is a helper class for creating immutable Tuple instances.
      * <p>
      * Since Tuple is immutable, Tuple.Builder provides a set of commonly used functions
@@ -201,6 +209,7 @@ public class Tuple implements ITuple, Serializable {
      *
      * @author Zuozhi Wang
      */
+    @Deprecated
     public static class Builder {
 
         private final Schema.Builder schemaBuilder;
@@ -209,6 +218,7 @@ public class Tuple implements ITuple, Serializable {
         /**
          * Creates a new Tuple Builder.
          */
+        @Deprecated
         public Builder() {
             this.schemaBuilder = new Schema.Builder();
             this.fieldNameMap = new HashMap<>();
@@ -219,6 +229,7 @@ public class Tuple implements ITuple, Serializable {
          *
          * @param tuple
          */
+        @Deprecated
         public Builder(Tuple tuple) {
             checkNotNull(tuple);
             checkNotNull(tuple.getFields());
@@ -237,6 +248,7 @@ public class Tuple implements ITuple, Serializable {
          *
          * @return
          */
+        @Deprecated
         public Tuple build() {
             Schema schema = schemaBuilder.build();
             ArrayList<Object> fields = new ArrayList<>();
@@ -249,6 +261,7 @@ public class Tuple implements ITuple, Serializable {
         /**
          * Adds an existing tuple to the tuple builder.
          */
+        @Deprecated
         public Builder add(Tuple tuple) {
             return add(tuple.schema.getAttributes(), tuple.fields);
         }
@@ -261,6 +274,7 @@ public class Tuple implements ITuple, Serializable {
          * @return this builder object
          * @throws RuntimeException, if attribute already exists, or the attribute and field type don't match.
          */
+        @Deprecated
         public Builder add(Attribute attribute, Object field) {
             checkNotNull(attribute);
             checkAttributeMatchesField(attribute, field);
@@ -280,6 +294,7 @@ public class Tuple implements ITuple, Serializable {
          * @return this builder object
          * @throws RuntimeException, if attribute already exists, or the attribute and field type don't match.
          */
+        @Deprecated
         public Builder add(String attributeName, AttributeType attributeType, Object field) throws RuntimeException {
             checkNotNull(attributeName);
             checkNotNull(attributeType);
@@ -288,10 +303,12 @@ public class Tuple implements ITuple, Serializable {
             return this;
         }
 
+        @Deprecated
         public Builder add(Schema schema, Iterable<Object> fields) {
             return add(schema.getAttributes(), fields);
         }
 
+        @Deprecated
         public Builder add(Schema schema, Object[] fields) {
             return add(schema.getAttributes(), Lists.newArrayList(fields));
         }
@@ -305,6 +322,7 @@ public class Tuple implements ITuple, Serializable {
          * @return this builder object
          * @throws RuntimeException if one of the attributes already exists, or attributes and fields don't match
          */
+        @Deprecated
         public Builder add(Iterable<Attribute> attributes, Iterable<Object> fields) {
             checkNotNull(attributes);
             attributes.forEach(attr -> checkNotNull(attr));
@@ -329,6 +347,7 @@ public class Tuple implements ITuple, Serializable {
          * @return this builder object
          * @throws RuntimeException, if the attribute doesn't exist
          */
+        @Deprecated
         public Builder remove(String attribute) throws RuntimeException {
             checkNotNull(attribute);
 
@@ -345,6 +364,7 @@ public class Tuple implements ITuple, Serializable {
          * @return this builder object
          * @throws RuntimeException, if one of the attributes doesn't exist
          */
+        @Deprecated
         public Builder remove(Iterable<String> attributes) throws RuntimeException {
             checkNotNull(attributes);
             attributes.forEach(attr -> checkNotNull(attr));
@@ -360,6 +380,7 @@ public class Tuple implements ITuple, Serializable {
          * @return this builder object
          * @throws RuntimeException, if one of the attributes doesn't exist
          */
+        @Deprecated
         public Builder remove(String... attributes) throws RuntimeException {
             checkNotNull(attributes);
 
@@ -374,6 +395,7 @@ public class Tuple implements ITuple, Serializable {
          * @param attribute, the name of the attribute
          * @return this builder object
          */
+        @Deprecated
         public Builder removeIfExists(String attribute) {
             checkNotNull(attribute);
 
@@ -389,6 +411,7 @@ public class Tuple implements ITuple, Serializable {
          * @param attributes, the names of the attributes
          * @return this builder object
          */
+        @Deprecated
         public Builder removeIfExists(Iterable<String> attributes) {
             checkNotNull(attributes);
             attributes.forEach(attr -> checkNotNull(attr));
@@ -403,6 +426,7 @@ public class Tuple implements ITuple, Serializable {
          * @param attributes, the names of the attributes
          * @return this builder object
          */
+        @Deprecated
         public Builder removeIfExists(String... attributes) {
             checkNotNull(attributes);
 
@@ -423,6 +447,7 @@ public class Tuple implements ITuple, Serializable {
          * @return a list of newly created tuples, with the attribute and field added.
          * @throws RuntimeException, if the attribute already exists, or the attribute and field don't match
          */
+        @Deprecated
         public static List<Tuple> add(Iterable<Tuple> tuples, Attribute attribute, Object field) throws RuntimeException {
             checkNotNull(tuples);
             tuples.forEach(tuple -> checkNotNull(tuple));
@@ -445,6 +470,7 @@ public class Tuple implements ITuple, Serializable {
          * @return a list of newly created tuples, with the attribute and field added.
          * @throws RuntimeException, if the attribute already exists, or the attribute and field don't match
          */
+        @Deprecated
         public static List<Tuple> add(Iterable<Tuple> tuples, String attributeName, AttributeType attributeType, Object field) {
             checkNotNull(tuples);
             tuples.forEach(tuple -> checkNotNull(tuple));
@@ -463,6 +489,7 @@ public class Tuple implements ITuple, Serializable {
          * @return a list of newly created tuples, with the attributes and fields added.
          * @throws RuntimeException, if one of the attributes already exists, or the attributes and fields don't match
          */
+        @Deprecated
         public static List<Tuple> add(Iterable<Tuple> tuples, Iterable<Attribute> attributes, Iterable<Object> fields) {
             checkNotNull(tuples);
             tuples.forEach(tuple -> checkNotNull(tuple));
@@ -485,6 +512,7 @@ public class Tuple implements ITuple, Serializable {
          * @return a list of newly created tuples, with the attribute removed.
          * @throws RuntimeException, if the attribute doesn't exist.
          */
+        @Deprecated
         public static List<Tuple> remove(Iterable<Tuple> tuples, String attribute) throws RuntimeException {
             checkNotNull(tuples);
             tuples.forEach(tuple -> checkNotNull(tuple));
@@ -505,6 +533,7 @@ public class Tuple implements ITuple, Serializable {
          * @return a list of newly created tuples, with the attributes removed
          * @throws RuntimeException, if one of the attributes doesn't exist in the tuples.
          */
+        @Deprecated
         public static List<Tuple> remove(Iterable<Tuple> tuples, Iterable<String> attributes) {
             checkNotNull(tuples);
             tuples.forEach(tuple -> checkNotNull(tuple));
@@ -526,6 +555,7 @@ public class Tuple implements ITuple, Serializable {
          * @return a list of newly created tuples, with the attributes removed
          * @throws RuntimeException, if one of the attributes doesn't exist in the tuples.
          */
+        @Deprecated
         public static List<Tuple> remove(Iterable<Tuple> tuples, String... attributes) {
             return (remove(tuples, Arrays.asList(attributes)));
         }
@@ -538,6 +568,7 @@ public class Tuple implements ITuple, Serializable {
          * @param attribute
          * @return a list of newly created tuples, with the attributes removed (if they exist)
          */
+        @Deprecated
         public static List<Tuple> removeIfExists(Iterable<Tuple> tuples, String attribute) {
             checkNotNull(tuples);
             tuples.forEach(tuple -> checkNotNull(tuple));
@@ -558,6 +589,7 @@ public class Tuple implements ITuple, Serializable {
          * @param attributes
          * @return a list of newly created tuples, with the attributes removed (if they exist)
          */
+        @Deprecated
         public static List<Tuple> removeIfExists(Iterable<Tuple> tuples, Iterable<String> attributes) {
             checkNotNull(tuples);
             tuples.forEach(tuple -> checkNotNull(tuple));
@@ -579,12 +611,22 @@ public class Tuple implements ITuple, Serializable {
          * @param attributes
          * @return a list of newly created tuples, with the attributes removed (if they exist)
          */
+        @Deprecated
         public static List<Tuple> removeIfExists(Iterable<Tuple> tuples, String... attributes) {
             return (removeIfExists(tuples, Arrays.asList(attributes)));
         }
 
     }
 
+    /**
+     * {@link Tuple.BuilderV2} is a helper class for creating immutable Tuple instances.
+     * <p>
+     * It's a successor to the {@link Tuple.Builder}, and aims at reducing the number of
+     * {@link Schema} objects that get created
+     * <p>
+     *
+     * @author Maaz Syed Adeeb
+     */
     public static class BuilderV2 {
         private final Schema schema;
         private final Map<String, Object> fieldNameMap;
@@ -642,26 +684,38 @@ public class Tuple implements ITuple, Serializable {
             return this;
         }
 
+        /**
+         * Adds the array of the fields provided using the attributes provided in the
+         * schema. This is the successor to the now deprecated {@link Tuple.Builder#add(Schema, Object[])}
+         */
         public BuilderV2 addSequentially(Object[] fields) {
             checkNotNull(fields);
             checkSchemaMatchesFields(schema.getAttributes(), Lists.newArrayList(fields));
 
             for (int i = 0; i < fields.length; i++) {
-                fieldNameMap.put(schema.getAttributes().get(i).getName(), fields[i]);
+                this.add(schema.getAttributes().get(i), fields[i]);
             }
 
             return this;
         }
 
         public Tuple build() {
-            if (schema.getAttributes().size() != fieldNameMap.size()) {
+            // Partition the attributes to a list of attributes present and absent in the fieldNameMap.
+            // This helps in printing a better error message using the missing attributes
+            Map<Boolean, List<Attribute>> partitionedAttributes = schema.getAttributes().stream()
+                    .collect(Collectors.partitioningBy(attribute -> fieldNameMap.containsKey(attribute.getName().toLowerCase())));
+
+            List<Attribute> missingAttributes = partitionedAttributes.get(false);
+            List<Attribute> availableAttributes = partitionedAttributes.get(true);
+
+            if (!missingAttributes.isEmpty()) {
                 throw new TupleBuildingException(
-                        String.format("Tuple does not have same number of fields as schema. Has %d, required %d.",
-                                fieldNameMap.size(), schema.getAttributes().size())
+                        String.format("Tuple does not have same number of attributes as schema. Has %d, required %d.%nMissing attributes are %s",
+                                fieldNameMap.size(), schema.getAttributes().size(), missingAttributes)
                 );
             }
 
-            List<Object> fields = schema.getAttributes().stream()
+            List<Object> fields = availableAttributes.stream()
                     .map(attribute -> fieldNameMap.get(attribute.getName().toLowerCase()))
                     .collect(Collectors.toList());
             return new Tuple(schema, fields);

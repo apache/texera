@@ -1,15 +1,22 @@
 package edu.uci.ics.texera.unittest.workflow.operators.distinct
 
 import edu.uci.ics.amber.engine.common.InputExhausted
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.operators.distinct.DistinctOpExec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.BeforeAndAfter
 class DistinctOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
+  val tupleSchema: Schema = Schema
+    .newBuilder()
+    .add(new Attribute("field1", AttributeType.STRING))
+    .add(new Attribute("field2", AttributeType.INTEGER))
+    .add(new Attribute("field3", AttributeType.BOOLEAN))
+    .build()
+
   val tuple: () => Tuple = () =>
     Tuple
-      .newBuilder()
+      .newBuilder(tupleSchema)
       .add(new Attribute("field1", AttributeType.STRING), "hello")
       .add(new Attribute("field2", AttributeType.INTEGER), 1)
       .add(
@@ -20,7 +27,7 @@ class DistinctOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   val tuple2: () => Tuple = () =>
     Tuple
-      .newBuilder()
+      .newBuilder(tupleSchema)
       .add(new Attribute("field1", AttributeType.STRING), "hello")
       .add(new Attribute("field2", AttributeType.INTEGER), 2)
       .add(
