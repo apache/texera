@@ -78,6 +78,26 @@ export class SavedWorkflowSectionComponent implements OnInit {
   }
 
   /**
+   * duplicate the current workflow. will had a new record in frontend
+   * workflow list and backend database.
+   */
+  public onClickDuplicateWorkflow(workflowToDuplicate: Workflow): void {
+    const newWorkflow = cloneDeep(workflowToDuplicate);
+    newWorkflow.name = workflowToDuplicate.name + '_copy';
+    newWorkflow.creationTime = Date.now();
+    newWorkflow.lastModifiedTime = Date.now();
+    newWorkflow.wid = undefined;
+    this.workflowPersistService.persistWorkflow(newWorkflow)
+      .subscribe((duplicatedWorkflow: Workflow) => {
+        this.workflows.push(duplicatedWorkflow);
+      }, error => {
+        alert(error);
+      });
+  }
+
+
+
+  /**
    * openNgbdModalDeleteWorkflowComponent trigger the delete workflow
    * component. If user confirms the deletion, the method sends
    * message to frontend and delete the workflow on frontend. It
