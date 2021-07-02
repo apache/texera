@@ -4,7 +4,7 @@ import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType
+import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo}
 
 import scala.collection.Iterator
 import scala.util.Either
@@ -12,7 +12,8 @@ import scala.util.Either
 /**
   * HTML Visualization operator to render any given HTML code
   */
-class HtmlVizOpExec(htmlContentAttrName: String) extends OperatorExecutor {
+class HtmlVizOpExec(htmlContentAttrName: String, operatorSchemaInfo: OperatorSchemaInfo)
+    extends OperatorExecutor {
 
   override def open(): Unit = {}
 
@@ -25,7 +26,7 @@ class HtmlVizOpExec(htmlContentAttrName: String) extends OperatorExecutor {
     tuple match {
       case Left(t) =>
         val result = Tuple
-          .newBuilder()
+          .newBuilder(operatorSchemaInfo.outputSchema)
           .add("html-content", AttributeType.STRING, t.getField(htmlContentAttrName))
           .build()
         Iterator(result)
