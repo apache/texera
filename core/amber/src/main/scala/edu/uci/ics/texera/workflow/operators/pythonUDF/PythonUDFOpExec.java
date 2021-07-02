@@ -9,6 +9,7 @@ import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
+import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import org.apache.arrow.flight.*;
 import org.apache.arrow.memory.RootAllocator;
@@ -33,6 +34,7 @@ import java.util.*;
 import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFOpExec.Channel.FROM_PYTHON;
 import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFOpExec.Channel.TO_PYTHON;
 import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFOpExec.MSG.*;
+import static org.apache.arrow.vector.types.TimeUnit.NANOSECOND;
 
 public class PythonUDFOpExec implements OperatorExecutor {
 
@@ -81,7 +83,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
      * @param index            Index of the input tuple in the table (buffer).
      * @param vectorSchemaRoot This should store the Arrow schema, which should already been converted from Amber.
      */
-    private static void convertAmber2ArrowTuple(Tuple tuple, int index, VectorSchemaRoot vectorSchemaRoot)
+    private static void convertTexera2ArrowTuple(Tuple tuple, int index, VectorSchemaRoot vectorSchemaRoot)
             throws ClassCastException {
 
         List<Field> preDefinedFields = vectorSchemaRoot.getSchema().getFields();
@@ -89,17 +91,39 @@ public class PythonUDFOpExec implements OperatorExecutor {
             FieldVector vector = vectorSchemaRoot.getVector(i);
             switch (preDefinedFields.get(i).getFieldType().getType().getTypeID()) {
                 case Int:
-                    ((IntVector) vector).set(index, (int) tuple.get(i));
+                    switch (((ArrowType.Int) (vector.getField().getFieldType().getType())).getBitWidth()) {
+                        case 16:
+                        case 32:
+                            Integer intValue = (Integer) tuple.get(i);
+                            ((IntVector) vector).set(index, intValue == null ? 0 : 1, intValue == null ? 0 : intValue);
+                            break;
+                        case 64:
+                        default:
+                            Long longValue = (Long) tuple.get(i);
+                            ((BigIntVector) vector).set(index, longValue == null ? 0 : 1, longValue == null ? 0 : longValue);
+                    }
                     break;
                 case Bool:
-                    ((BitVector) vector).set(index, (Boolean) tuple.get(i) ? 1 : 0);
+                    Boolean booleanValue = (Boolean) tuple.get(i);
+                    ((BitVector) vector).set(index, booleanValue == null ? 0 : 1, booleanValue == null ? 0 : booleanValue ? 1 : 0);
                     break;
                 case FloatingPoint:
-                    ((Float8Vector) vector).set(index, (double) tuple.get(i));
+                    Double doubleValue = (Double) tuple.get(i);
+                    ((Float8Vector) vector).set(index, doubleValue == null ? 0 : 1, doubleValue == null ? 0 : doubleValue);
+                    break;
+                case Timestamp:
+                    Long longValue = (Long) AttributeTypeUtils.parseField(tuple.get(i), AttributeType.LONG);
+                    ((TimeStampVector) vector).set(index, longValue == null ? 0 : 1, longValue == null ? 0L : longValue);
                     break;
                 case Utf8:
-                    ((VarCharVector) vector).set(index, tuple.get(i).toString().getBytes(StandardCharsets.UTF_8));
+                    String stringValue = (String) tuple.get(i);
+                    if (stringValue == null) {
+                        ((VarCharVector) vector).setNull(index);
+                    } else {
+                        ((VarCharVector) vector).set(index, stringValue.getBytes(StandardCharsets.UTF_8));
+                    }
                     break;
+
             }
         }
     }
@@ -111,59 +135,66 @@ public class PythonUDFOpExec implements OperatorExecutor {
      * @param resultQueue      This should be empty before input.
      * @throws RuntimeException Whatever might happen during this conversion, but especially when tuples have unexpected type.
      */
-    private static void convertArrow2AmberTableBuffer(VectorSchemaRoot vectorSchemaRoot, Queue<Tuple> resultQueue)
+    private static void convertArrow2TexeraTableBuffer(VectorSchemaRoot vectorSchemaRoot, Queue<Tuple> resultQueue)
             throws RuntimeException {
         List<FieldVector> fieldVectors = vectorSchemaRoot.getFieldVectors();
         Schema amberSchema = convertArrow2AmberSchema(vectorSchemaRoot.getSchema());
         for (int i = 0; i < vectorSchemaRoot.getRowCount(); i++) {
             List<Object> contents = new ArrayList<>();
             for (FieldVector vector : fieldVectors) {
+                Object content;
                 try {
-                    Object content;
                     switch (vector.getField().getFieldType().getType().getTypeID()) {
                         case Int:
                             switch (((ArrowType.Int) (vector.getField().getFieldType().getType())).getBitWidth()) {
                                 case 16:
-                                    content = (int) ((SmallIntVector) vector).get(i);
-                                    break;
                                 case 32:
-                                    content = ((IntVector) vector).get(i);
+                                    Integer intValue = (Integer) vector.getObject(i);
+                                    content = AttributeTypeUtils.parseField(intValue, AttributeType.INTEGER);
                                     break;
                                 case 64:
                                 default:
-                                    content = (int) ((BigIntVector) vector).get(i);
+                                    Long longValue = (Long) vector.getObject(i);
+                                    content = AttributeTypeUtils.parseField(longValue, AttributeType.LONG);
                             }
                             break;
                         case Bool:
-                            int bitValue = ((BitVector) vector).get(i);
-                            if (bitValue == 0) content = false;
-                            else content = true;
+                            Boolean bitValue = (Boolean) vector.getObject(i);
+                            content = AttributeTypeUtils.parseField(bitValue, AttributeType.BOOLEAN);
                             break;
                         case FloatingPoint:
                             switch (((ArrowType.FloatingPoint) (vector.getField().getFieldType().getType())).getPrecision()) {
                                 case HALF:
                                     throw new RuntimeException("HALF floating point number is not supported.");
                                 case SINGLE:
-                                    content = (double) ((Float4Vector) vector).get(i);
-                                    break;
                                 default:
-                                    content = ((Float8Vector) vector).get(i);
+                                    Double doubleValue = (Double) vector.getObject(i);
+                                    content = AttributeTypeUtils.parseField(doubleValue, AttributeType.DOUBLE);
                             }
                             break;
                         case Utf8:
-                            content = new String(((VarCharVector) vector).get(i), StandardCharsets.UTF_8);
+                            byte[] bytesValue = ((VarCharVector) vector).get(i);
+                            if (bytesValue == null) {
+                                content = null;
+                            } else {
+                                content = new String(bytesValue, StandardCharsets.UTF_8);
+                            }
+
+                            break;
+                        case Timestamp:
+                            Long longValue = (Long) vector.getObject(i);
+                            content = AttributeTypeUtils.parseField(longValue, AttributeType.TIMESTAMP);
                             break;
                         default:
                             throw new RuntimeException("Unsupported type when converting tuples from Arrow to Amber.");
                     }
-                    contents.add(content);
                 } catch (Exception e) {
-                    if (!e.getMessage().contains("Value at index is null")) {
-                        throw new RuntimeException(e.getMessage(), e);
-                    } else {
-                        contents.add(null);
-                    }
+                    e.printStackTrace();
+                    content = null;
+
                 }
+                contents.add(content);
+
             }
             Tuple result = new Tuple(amberSchema, contents);
             resultQueue.add(result);
@@ -212,11 +243,19 @@ public class PythonUDFOpExec implements OperatorExecutor {
      */
     private static Schema convertArrow2AmberSchema(org.apache.arrow.vector.types.pojo.Schema arrowSchema) {
         List<Attribute> amberAttributes = new ArrayList<>();
-        for (Field f : arrowSchema.getFields()) {
+        for (Field field : arrowSchema.getFields()) {
             AttributeType amberAttributeType;
-            switch (f.getFieldType().getType().getTypeID()) {
+            switch (field.getFieldType().getType().getTypeID()) {
                 case Int:
-                    amberAttributeType = AttributeType.INTEGER;
+                    switch (((ArrowType.Int) (field.getFieldType().getType())).getBitWidth()) {
+                        case 16:
+                        case 32:
+                            amberAttributeType = AttributeType.INTEGER;
+                            break;
+                        case 64:
+                        default:
+                            amberAttributeType = AttributeType.LONG;
+                    }
                     break;
                 case Bool:
                     amberAttributeType = AttributeType.BOOLEAN;
@@ -227,10 +266,13 @@ public class PythonUDFOpExec implements OperatorExecutor {
                 case Utf8:
                     amberAttributeType = AttributeType.STRING;
                     break;
+                case Timestamp:
+                    amberAttributeType = AttributeType.TIMESTAMP;
+                    break;
                 default:
-                    throw new IllegalStateException("Unexpected value: " + f.getFieldType().getType().getTypeID());
+                    throw new IllegalStateException("Unexpected value: " + field.getFieldType().getType().getTypeID());
             }
-            amberAttributes.add(new Attribute(f.getName(), amberAttributeType));
+            amberAttributes.add(new Attribute(field.getName(), amberAttributeType));
         }
         return new Schema(amberAttributes);
     }
@@ -248,7 +290,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
      * @param amberSchema The Amber Tuple Schema.
      * @return An Arrow {@link org.apache.arrow.vector.types.pojo.Schema}.
      */
-    private static org.apache.arrow.vector.types.pojo.Schema convertAmber2ArrowSchema(Schema amberSchema)
+    private static org.apache.arrow.vector.types.pojo.Schema convertTexera2ArrowSchema(Schema amberSchema)
             throws RuntimeException {
         List<Field> arrowFields = new ArrayList<>();
         for (Attribute amberAttribute : amberSchema.getAttributes()) {
@@ -266,6 +308,9 @@ public class PythonUDFOpExec implements OperatorExecutor {
                     break;
                 case BOOLEAN:
                     field = Field.nullablePrimitive(name, ArrowType.Bool.INSTANCE);
+                    break;
+                case TIMESTAMP:
+                    field = Field.nullable(name, new ArrowType.Timestamp(NANOSECOND, "UTC"));
                     break;
                 case STRING:
                 case ANY:
@@ -316,7 +361,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
                 schemaRoot.allocateNew();
                 int indexThisChunk = 0;
                 while (indexThisChunk < chunkSize && !values.isEmpty()) {
-                    convertAmber2ArrowTuple(values.remove(), indexThisChunk, schemaRoot);
+                    convertTexera2ArrowTuple(values.remove(), indexThisChunk, schemaRoot);
                     indexThisChunk++;
                 }
                 schemaRoot.setRowCount(indexThisChunk);
@@ -328,6 +373,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
             flightListener.close();
             schemaRoot.clear();
         } catch (Exception e) {
+            e.printStackTrace();
             closeAndThrow(client, e);
         }
     }
@@ -364,7 +410,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
             FlightStream stream = client.getStream(ticket);
             while (stream.next()) {
                 VectorSchemaRoot root = stream.getRoot(); // get root
-                convertArrow2AmberTableBuffer(root, resultQueue);
+                convertArrow2TexeraTableBuffer(root, resultQueue);
                 root.clear();
             }
         } catch (RuntimeException e) {
@@ -520,7 +566,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
             argsTuples.add(new Tuple(argsSchema, Collections.singletonList(arg)));
         }
 
-        writeArrowStream(flightClient, argsTuples, convertAmber2ArrowSchema(argsSchema), Channel.ARGS, batchSize);
+        writeArrowStream(flightClient, argsTuples, convertTexera2ArrowSchema(argsSchema), Channel.ARGS, batchSize);
     }
 
     private void sendConf() {
@@ -529,7 +575,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
         Queue<Tuple> confTuples = new LinkedList<>();
 
         // TODO: add configurations to be sent
-        writeArrowStream(flightClient, confTuples, convertAmber2ArrowSchema(confSchema), Channel.CONF, batchSize);
+        writeArrowStream(flightClient, confTuples, convertTexera2ArrowSchema(confSchema), Channel.CONF, batchSize);
 
     }
 
@@ -539,7 +585,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
             Tuple inputTuple = tuple.left().get();
             if (globalInputSchema == null) {
                 try {
-                    globalInputSchema = convertAmber2ArrowSchema(inputTuple.getSchema());
+                    globalInputSchema = convertTexera2ArrowSchema(inputTuple.getSchema());
                 } catch (RuntimeException exception) {
                     closeAndThrow(flightClient, exception);
                 }
