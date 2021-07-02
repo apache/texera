@@ -19,7 +19,7 @@ public class FilterPredicate {
     @JsonProperty(value = "condition", required = true)
     public ComparisonType condition;
 
-    @JsonProperty(value = "value", required = true)
+    @JsonProperty(value = "value")
     public String value;
 
 
@@ -28,6 +28,7 @@ public class FilterPredicate {
         AttributeType type = tuple.getSchema().getAttribute(this.attribute).getType();
         switch (type) {
             case STRING:
+                return evaluateFilterString(tuple);
             case ANY:
                 return evaluateFilterString(tuple);
             case BOOLEAN:
@@ -71,15 +72,23 @@ public class FilterPredicate {
     }
 
     private boolean evaluateFilterString(Tuple inputTuple) {
-        String tupleValue = inputTuple.getField(attribute).toString();
-        try {
-            Double tupleValueDouble = tupleValue == null ? null : Double.parseDouble(tupleValue.trim());
-            Double compareToValueDouble = Double.parseDouble(value);
-            return evaluateFilter(tupleValueDouble, compareToValueDouble, condition);
-        } catch (NumberFormatException e) {
-            return evaluateFilter(tupleValue, value, condition);
+        String tupleValue = inputTuple.getField(attribute, String.class);
+        return evaluateFilter(tupleValue,value.trim(),condition);
+        /*if (tupleValue==null){
+            return evaluateFilter(tupleValue, "1", condition);
         }
-    }
+        else {
+            try {
+                Double tupleValueDouble = Double.parseDouble(tupleValue.trim());
+                Double compareToValueDouble = Double.parseDouble(value);
+                return evaluateFilter(tupleValueDouble, compareToValueDouble, condition);
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        } */
+
+        }
+
 
     private boolean evaluateFilterTimestamp(Tuple inputTuple) {
         Long tupleValue = inputTuple.getField(attribute, Timestamp.class).getTime();
@@ -89,24 +98,66 @@ public class FilterPredicate {
     }
 
 
+
+
     private static <T extends Comparable<T>> boolean evaluateFilter(T value, T compareToValue, ComparisonType comparisonType) {
-        if (value == null) {
-            return compareToValue == null;
-        }
-        int compareResult = value.compareTo(compareToValue);
+        int compareResult;
         switch (comparisonType) {
+            case Xnull:
+                 if(value==null){
+                     return false;
+                 }
+                 else{
+                     return true;
+                 }
             case EQUAL_TO:
-                return compareResult == 0;
+                if(value==null){
+                    return false;
+                }
+                else{
+                    compareResult = value.compareTo(compareToValue);
+                    return compareResult == 0;
+                }
             case GREATER_THAN:
-                return compareResult > 0;
+                if(value==null){
+                    return false;
+                }
+                else{
+                    compareResult = value.compareTo(compareToValue);
+                    return compareResult > 0;
+                }
             case GREATER_THAN_OR_EQUAL_TO:
-                return compareResult >= 0;
+                if(value==null){
+                    return false;
+                }
+                else{
+                    compareResult = value.compareTo(compareToValue);
+                    return compareResult >= 0;
+                }
             case LESS_THAN:
-                return compareResult < 0;
+                if(value==null){
+                    return false;
+                }
+                else{
+                    compareResult = value.compareTo(compareToValue);
+                    return compareResult < 0;
+                }
             case LESS_THAN_OR_EQUAL_TO:
-                return compareResult <= 0;
+                if(value==null){
+                    return false;
+                }
+                else{
+                    compareResult = value.compareTo(compareToValue);
+                    return compareResult <= 0;
+                }
             case NOT_EQUAL_TO:
-                return compareResult != 0;
+                if(value==null){
+                    return false;
+                }
+                else{
+                    compareResult = value.compareTo(compareToValue);
+                    return compareResult != 0;
+                }
             default:
                 throw new RuntimeException(
                         "Unable to do comparison: unknown comparison type: " + comparisonType);
