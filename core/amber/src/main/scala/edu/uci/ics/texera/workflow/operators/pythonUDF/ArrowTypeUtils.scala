@@ -36,6 +36,7 @@ object ArrowTypeUtils {
     }
   }
 
+  @throws[AttributeTypeException]
   def toAttributeType(srcType: ArrowType): AttributeType = {
     srcType match {
       case int: ArrowType.Int =>
