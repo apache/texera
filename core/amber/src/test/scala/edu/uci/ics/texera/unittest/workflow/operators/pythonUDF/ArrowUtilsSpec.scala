@@ -205,18 +205,18 @@ class ArrowUtilsSpec extends AnyFlatSpec {
   it should "get Texera Tuple from Arrow Fields with null values correctly" in {
 
     val tuple = Tuple
-        .newBuilder(texeraSchema)
-        .addSequentially(
-          Array(
-            new Integer(2),
-            null,
-            new java.lang.Boolean(true),
-            new java.lang.Double(1.1),
-            null,
-            null
-          )
+      .newBuilder(texeraSchema)
+      .addSequentially(
+        Array(
+          new Integer(2),
+          null,
+          new java.lang.Boolean(true),
+          new java.lang.Double(1.1),
+          null,
+          null
         )
-        .build()
+      )
+      .build()
     val allocator: BufferAllocator = new RootAllocator()
     val vectorSchemaRoot = VectorSchemaRoot.create(arrowSchema, allocator)
     vectorSchemaRoot.allocateNew()
