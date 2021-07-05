@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -18,6 +18,8 @@ class HashJoinOpExec[K](
     val operatorSchemaInfo: OperatorSchemaInfo
 ) extends OperatorExecutor {
 
+  val buildSchema: Schema = operatorSchemaInfo.inputSchemas(0)
+  val probeSchema: Schema = operatorSchemaInfo.inputSchemas(1)
   var isBuildTableFinished: Boolean = false
   var buildTableHashMap: mutable.HashMap[K, ArrayBuffer[Tuple]] = _
   var outputProbeSchema: Schema = operatorSchemaInfo.outputSchema
@@ -65,10 +67,16 @@ class HashJoinOpExec[K](
               //  takes that into consideration while creating a tuple.
               for (i <- 0 until t.getFields.size()) {
                 val attributeName = t.getSchema.getAttributeNames.get(i)
+                val attribute = t.getSchema.getAttribute(attributeName)
 
                 if (attributeName != buildAttributeName) {
                   builder.add(
-                    t.getSchema.getAttribute(attributeName),
+                    new Attribute(
+                      if (buildSchema.getAttributeNames.contains(attributeName))
+                        attributeName + "#@1"
+                      else attributeName,
+                      attribute.getType
+                    ),
                     t.getFields.get(i)
                   )
                 }

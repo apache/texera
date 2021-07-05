@@ -9,7 +9,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
   OperatorSchemaInfo,
   Schema
 }
-import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpExec
+import edu.uci.ics.texera.workflow.operators.hashJoin.{HashJoinOpDesc, HashJoinOpExec}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -18,6 +18,7 @@ class HashJoinOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val probe = linkID()
 
   var opExec: HashJoinOpExec[String] = _
+  var opDesc: HashJoinOpDesc[String] = _
   var counter: Int = 0
 
   def linkID(): LinkIdentity = LinkIdentity(layerID(), layerID())
@@ -75,18 +76,16 @@ class HashJoinOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "work with basic two input streams with the same buildAttributeName and probeAttributeName" in {
-    val outputSchema = Schema
-      .newBuilder()
-      .add(schema("same", 1))
-      .removeIfExists("same")
-      .add(schema("same", 2))
-      .build()
-
+    opDesc = new HashJoinOpDesc[String]()
+    opDesc.probeAttributeName = "same"
+    opDesc.buildAttributeName = "same"
+    val inputSchemas = Array(schema("same", 1), schema("same", 2))
+    val outputSchema = opDesc.getOutputSchema(inputSchemas)
     opExec = new HashJoinOpExec[String](
       build,
       "same",
       "same",
-      OperatorSchemaInfo(null, outputSchema)
+      OperatorSchemaInfo(inputSchemas, outputSchema)
     )
     opExec.open()
     counter = 0
