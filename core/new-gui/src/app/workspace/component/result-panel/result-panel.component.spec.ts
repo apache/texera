@@ -24,6 +24,7 @@ import { NzTableModule } from 'ng-zorro-antd/table';
 import { VisualizationPanelComponent } from '../visualization-panel/visualization-panel.component';
 import { VisualizationPanelContentComponent } from '../visualization-panel-content/visualization-panel-content.component';
 import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
+import { mockData } from '../../service/execute-workflow/mock-result-data';
 
 // this is how to import entry components in testings
 // Stack Overflow Link: https://stackoverflow.com/questions/41483841/providing-entrycomponents-for-a-testbed/45550720
@@ -298,7 +299,7 @@ describe('ResultPanelComponent', () => {
     });
     fixture.detectChanges();
 
-    component.open(mockResultData[0].table[0]);
+    component.open(mockData[0]);
 
     expect(modalSpy).toHaveBeenCalledTimes(1);
     nzModalService.closeAll();

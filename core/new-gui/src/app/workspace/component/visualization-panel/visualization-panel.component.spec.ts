@@ -11,12 +11,19 @@ import { WorkflowActionService } from '../../service/workflow-graph/model/workfl
 import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
 import { VisualizationPanelComponent } from './visualization-panel.component';
 import { WorkflowResultService, OperatorResultService } from '../../service/workflow-result/workflow-result.service';
+import { WebDataUpdate } from '../../types/execute-workflow.interface';
+import { ChartType } from '../../types/visualization.interface';
 
 describe('VisualizationPanelComponent', () => {
   let component: VisualizationPanelComponent;
   let fixture: ComponentFixture<VisualizationPanelComponent>;
   let workflowResultService: WorkflowResultService;
   const operatorID = 'operator1';
+  const testData: WebDataUpdate = {
+    mode: { type: 'SetSnapshotMode' },
+    chartType: ChartType.BAR,
+    table: []
+  };
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
