@@ -34,50 +34,48 @@ class HashJoinOpExec[K](
         // The operatorInfo() in HashJoinOpDesc has a inputPorts list. In that the
         // small input port comes first. So, it is assigned the inputNum 0. Similarly
         // the large input is assigned the inputNum 1.
+
         if (input == buildTable) {
           val key = t.getField(buildAttributeName).asInstanceOf[K]
           val storedTuples = buildTableHashMap.getOrElse(key, new ArrayBuffer[Tuple]())
           storedTuples += t
           buildTableHashMap.put(key, storedTuples)
           Iterator()
+        } else if (!isBuildTableFinished) {
+          val err = WorkflowRuntimeError(
+            "Probe table came before build table ended",
+            "HashJoinOpExec",
+            Map("stacktrace" -> Thread.currentThread().getStackTrace.mkString("\n"))
+          )
+          throw new WorkflowRuntimeException(err)
         } else {
-          if (!isBuildTableFinished) {
-            val err = WorkflowRuntimeError(
-              "Probe table came before build table ended",
-              "HashJoinOpExec",
-              Map("stacktrace" -> Thread.currentThread().getStackTrace.mkString("\n"))
-            )
-            throw new WorkflowRuntimeException(err)
-          } else {
-            val key = t.getField(probeAttributeName).asInstanceOf[K]
-            val storedTuples = buildTableHashMap.getOrElse(key, new ArrayBuffer[Tuple]())
-            val tuplesToOutput: ArrayBuffer[Tuple] = new ArrayBuffer[Tuple]()
-            if (storedTuples.isEmpty) {
-              Iterator()
-            }
+          val key = t.getField(probeAttributeName).asInstanceOf[K]
+          val storedTuples = buildTableHashMap.getOrElse(key, new ArrayBuffer[Tuple]())
+          if (storedTuples.isEmpty) {
+            Iterator()
+          }
 
-            storedTuples.foreach(buildTuple => {
+          storedTuples
+            .map(buildTuple => {
               val builder = Tuple
                 .newBuilder(operatorSchemaInfo.outputSchema)
                 .add(buildTuple)
 
-              var newProbeIdx = 0
               // outputProbeSchema doesnt have "probeAttribute" but t does. The following code
               //  takes that into consideration while creating a tuple.
               for (i <- 0 until t.getFields.size()) {
-                if (!t.getSchema.getAttributeNames.get(i).equals(probeAttributeName)) {
+                val attributeName = t.getSchema.getAttributeNames.get(i)
+
+                if (attributeName != buildAttributeName) {
                   builder.add(
-                    outputProbeSchema.getAttributes.get(newProbeIdx),
+                    t.getSchema.getAttribute(attributeName),
                     t.getFields.get(i)
                   )
-                  newProbeIdx += 1
                 }
               }
-
-              tuplesToOutput += builder.build()
+              builder.build()
             })
-            tuplesToOutput.iterator
-          }
+            .toIterator
         }
       case Right(_) =>
         if (input == buildTable) {
