@@ -17,6 +17,8 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 
+import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
+
 class HashJoinOpDesc[K] extends OperatorDescriptor {
 
   @JsonProperty(required = true)
@@ -57,23 +59,25 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Preconditions.checkArgument(schemas.length == 2)
     val builder = Schema.newBuilder()
-    builder.add(schemas(0)).removeIfExists(probeAttributeName)
+    val buildSchema = schemas(0)
+    val probeSchema = schemas(1)
+    builder.add(buildSchema).removeIfExists(probeAttributeName)
     if (probeAttributeName.equals(buildAttributeName)) {
-      schemas(1).getAttributes
-        .forEach(attr => {
-          val attributeName = attr.getName
-          if (schemas(0).containsAttribute(attributeName) && attributeName != probeAttributeName) {
-            // appending 1 to the output of Join schema in case of duplicate attributes in probe and build table
-            builder.add(new Attribute(s"$attributeName#@1", attr.getType))
-          } else {
-            builder.add(attr)
-          }
-        })
+      probeSchema.getAttributes.foreach(attr => {
+        val attributeName = attr.getName
+        if (buildSchema.containsAttribute(attributeName) && attributeName != probeAttributeName) {
+          // appending 1 to the output of Join schema in case of duplicate attributes in probe and build table
+          builder.add(new Attribute(s"$attributeName#@1", attr.getType))
+        } else {
+          builder.add(attr)
+        }
+      })
+
     } else {
-      schemas(1).getAttributes
+      probeSchema.getAttributes
         .forEach(attr => {
           val attributeName = attr.getName
-          if (schemas(0).containsAttribute(attributeName)) {
+          if (buildSchema.containsAttribute(attributeName)) {
             builder.add(new Attribute(s"$attributeName#@1", attr.getType))
           } else if (!attributeName.equalsIgnoreCase(probeAttributeName)) {
             builder.add(attr)
