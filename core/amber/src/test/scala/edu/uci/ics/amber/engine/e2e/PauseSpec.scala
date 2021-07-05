@@ -58,11 +58,13 @@ class PauseSpec
     parent.expectMsg(ControllerState.Running)
     controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, PauseWorkflow())
     parent.expectMsg(ControllerState.Paused)
+    Thread.sleep(4000)
     controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, ResumeWorkflow())
     parent.expectMsg(ControllerState.Running)
     Thread.sleep(400)
     controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, PauseWorkflow())
     parent.expectMsg(ControllerState.Paused)
+    Thread.sleep(4000)
     controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, ResumeWorkflow())
     parent.expectMsg(ControllerState.Running)
     parent.expectMsg(1.minute, ControllerState.Completed)
@@ -99,4 +101,5 @@ class PauseSpec
       )
     )
   }
+
 }
