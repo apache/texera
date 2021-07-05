@@ -14,8 +14,8 @@ import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
 class HashJoinOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
-  val build = linkID()
-  val probe = linkID()
+  val build: LinkIdentity = linkID()
+  val probe: LinkIdentity = linkID()
 
   var opExec: HashJoinOpExec[String] = _
   var opDesc: HashJoinOpDesc[String] = _
@@ -47,13 +47,18 @@ class HashJoinOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "work with basic two input streams with different buildAttributeName and probeAttributeName" in {
-    val outputSchema = Schema.newBuilder().add(schema("build")).add(schema("probe")).build()
+
+    opDesc = new HashJoinOpDesc[String]()
+    opDesc.buildAttributeName = "build_1"
+    opDesc.probeAttributeName = "probe_1"
+    val inputSchemas = Array(schema("build"), schema("probe"))
+    val outputSchema = opDesc.getOutputSchema(inputSchemas)
 
     opExec = new HashJoinOpExec[String](
       build,
       "build_1",
       "probe_1",
-      OperatorSchemaInfo(null, outputSchema)
+      OperatorSchemaInfo(inputSchemas, outputSchema)
     )
     opExec.open()
     counter = 0
@@ -70,15 +75,15 @@ class HashJoinOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(opExec.processTexeraTuple(Right(InputExhausted()), probe).isEmpty)
 
     assert(outputTuples.size == 3)
-    assert(outputTuples.head.getSchema.getAttributeNames.size() == 4)
+    assert(outputTuples.head.getSchema.getAttributeNames.size() == 3)
 
     opExec.close()
   }
 
   it should "work with basic two input streams with the same buildAttributeName and probeAttributeName" in {
     opDesc = new HashJoinOpDesc[String]()
-    opDesc.probeAttributeName = "same"
     opDesc.buildAttributeName = "same"
+    opDesc.probeAttributeName = "same"
     val inputSchemas = Array(schema("same", 1), schema("same", 2))
     val outputSchema = opDesc.getOutputSchema(inputSchemas)
     opExec = new HashJoinOpExec[String](
