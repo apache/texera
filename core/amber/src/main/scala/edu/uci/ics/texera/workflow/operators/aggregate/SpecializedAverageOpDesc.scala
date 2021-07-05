@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.aggregate
 
-import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
@@ -18,7 +18,7 @@ import edu.uci.ics.texera.workflow.common.operators.aggregate.{
   DistributedAggregation
 }
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema, OperatorSchemaInfo}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseTimestamp
 
 import java.io.Serializable
@@ -47,9 +47,17 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
   @AutofillAttributeNameList
   var groupByKeys: List[String] = _
 
+  @JsonIgnore
+  private var groupBySchema: Schema = _
+  @JsonIgnore
+  private var finalAggValueSchema: Schema = _
+
   override def operatorExecutor(
       operatorSchemaInfo: OperatorSchemaInfo
   ): AggregateOpExecConfig[_] = {
+    this.groupBySchema = getGroupByKeysSchema(operatorSchemaInfo.inputSchemas)
+    this.finalAggValueSchema = getFinalAggValueSchema()
+
     aggFunction match {
       case AggregationFunction.AVERAGE => averageAgg()
       case AggregationFunction.COUNT   => countAgg()
@@ -71,7 +79,10 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       },
       (partial1, partial2) => partial1 + partial2,
       partial => {
-        Tuple.newBuilder.add(resultAttribute, AttributeType.DOUBLE, partial).build
+        Tuple
+          .newBuilder(finalAggValueSchema)
+          .add(resultAttribute, AttributeType.DOUBLE, partial)
+          .build
       },
       groupByFunc()
     )
@@ -89,7 +100,10 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       },
       (partial1, partial2) => partial1 + partial2,
       partial => {
-        Tuple.newBuilder.add(resultAttribute, AttributeType.INTEGER, partial).build
+        Tuple
+          .newBuilder(finalAggValueSchema)
+          .add(resultAttribute, AttributeType.INTEGER, partial)
+          .build
       },
       groupByFunc()
     )
@@ -103,7 +117,14 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     if (this.groupByKeys == null) null
     else
       tuple => {
-        val builder = Tuple.newBuilder()
+        // Since this is a partially evaluated tuple, there is no actual schema for this
+        // available anywhere. Constructing it once for re-use
+        if (groupBySchema == null) {
+          val schemaBuilder = Schema.newBuilder()
+          groupByKeys.foreach(key => schemaBuilder.add(tuple.getSchema.getAttribute(key)))
+          groupBySchema = schemaBuilder.build
+        }
+        val builder = Tuple.newBuilder(groupBySchema)
         groupByKeys.foreach(key =>
           builder.add(tuple.getSchema.getAttribute(key), tuple.getField(key))
         )
@@ -122,7 +143,10 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       partial => {
         if (partial == Double.MaxValue) null
         else
-          Tuple.newBuilder.add(resultAttribute, AttributeType.DOUBLE, partial).build
+          Tuple
+            .newBuilder(finalAggValueSchema)
+            .add(resultAttribute, AttributeType.DOUBLE, partial)
+            .build
       },
       groupByFunc()
     )
@@ -143,7 +167,10 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       partial => {
         if (partial == Double.MinValue) null
         else
-          Tuple.newBuilder.add(resultAttribute, AttributeType.DOUBLE, partial).build
+          Tuple
+            .newBuilder(finalAggValueSchema)
+            .add(resultAttribute, AttributeType.DOUBLE, partial)
+            .build
       },
       groupByFunc()
     )
@@ -167,7 +194,10 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
         AveragePartialObj(partial1.sum + partial2.sum, partial1.count + partial2.count),
       partial => {
         val value = if (partial.count == 0) null else partial.sum / partial.count
-        Tuple.newBuilder.add(resultAttribute, AttributeType.DOUBLE, value).build
+        Tuple
+          .newBuilder(finalAggValueSchema)
+          .add(resultAttribute, AttributeType.DOUBLE, value)
+          .build
       },
       groupByFunc()
     )
@@ -190,23 +220,32 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     if (resultAttribute == null || resultAttribute.trim.isEmpty) {
       return null
     }
+    Schema
+      .newBuilder()
+      .add(getGroupByKeysSchema(schemas).getAttributes)
+      .add(getFinalAggValueSchema().getAttributes)
+      .build()
+  }
+
+  private def getGroupByKeysSchema(schemas: Array[Schema]): Schema = {
     if (groupByKeys == null) {
       groupByKeys = List()
     }
+    Schema
+      .newBuilder()
+      .add(groupByKeys.map(key => schemas(0).getAttribute(key)).toArray: _*)
+      .build()
+  }
+
+  private def getFinalAggValueSchema(): Schema = {
     if (this.aggFunction.equals(AggregationFunction.COUNT)) {
       Schema
         .newBuilder()
-        .add(
-          groupByKeys.map(key => schemas(0).getAttribute(key)).toArray: _*
-        )
         .add(resultAttribute, AttributeType.INTEGER)
         .build()
     } else {
       Schema
         .newBuilder()
-        .add(
-          groupByKeys.map(key => schemas(0).getAttribute(key)).toArray: _*
-        )
         .add(resultAttribute, AttributeType.DOUBLE)
         .build()
     }
