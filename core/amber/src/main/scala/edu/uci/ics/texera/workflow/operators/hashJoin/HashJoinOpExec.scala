@@ -1,15 +1,12 @@
 package edu.uci.ics.texera.workflow.operators.hashJoin
 
+import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.{InputExhausted, WorkflowLogger}
+import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema, OperatorSchemaInfo}
-import org.apache.avro.SchemaBuilder
-
-import java.util
-import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -23,29 +20,10 @@ class HashJoinOpExec[K](
 
   var isBuildTableFinished: Boolean = false
   var buildTableHashMap: mutable.HashMap[K, ArrayBuffer[Tuple]] = _
-  var outputProbeSchema: Schema = _
+  var outputProbeSchema: Schema = operatorSchemaInfo.outputSchema
 
   var currentEntry: Iterator[Tuple] = _
   var currentTuple: Tuple = _
-
-  // probe attribute removed in the output schema
-  private def createOutputProbeSchema(buildTuple: Tuple, probeTuple: Tuple): Schema = {
-    val buildSchema = buildTuple.getSchema()
-    val probeSchema = probeTuple.getSchema()
-    var builder = Schema.newBuilder()
-    probeSchema
-      .getAttributes()
-      .forEach(attr => {
-        if (attr.getName() != probeAttributeName) {
-          if (buildSchema.containsAttribute(attr.getName())) {
-            builder.add(new Attribute(s"${attr.getName()}#@1", attr.getType()))
-          } else {
-            builder.add(attr)
-          }
-        }
-      })
-    builder.build()
-  }
 
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
@@ -58,7 +36,7 @@ class HashJoinOpExec[K](
         // the large input is assigned the inputNum 1.
         if (input == buildTable) {
           val key = t.getField(buildAttributeName).asInstanceOf[K]
-          var storedTuples = buildTableHashMap.getOrElse(key, new ArrayBuffer[Tuple]())
+          val storedTuples = buildTableHashMap.getOrElse(key, new ArrayBuffer[Tuple]())
           storedTuples += t
           buildTableHashMap.put(key, storedTuples)
           Iterator()
@@ -67,18 +45,15 @@ class HashJoinOpExec[K](
             val err = WorkflowRuntimeError(
               "Probe table came before build table ended",
               "HashJoinOpExec",
-              Map("stacktrace" -> Thread.currentThread().getStackTrace().mkString("\n"))
+              Map("stacktrace" -> Thread.currentThread().getStackTrace.mkString("\n"))
             )
             throw new WorkflowRuntimeException(err)
           } else {
             val key = t.getField(probeAttributeName).asInstanceOf[K]
             val storedTuples = buildTableHashMap.getOrElse(key, new ArrayBuffer[Tuple]())
-            var tuplesToOutput: ArrayBuffer[Tuple] = new ArrayBuffer[Tuple]()
+            val tuplesToOutput: ArrayBuffer[Tuple] = new ArrayBuffer[Tuple]()
             if (storedTuples.isEmpty) {
               Iterator()
-            }
-            if (outputProbeSchema == null) {
-              outputProbeSchema = createOutputProbeSchema(storedTuples(0), t)
             }
 
             storedTuples.foreach(buildTuple => {
@@ -90,10 +65,10 @@ class HashJoinOpExec[K](
               // outputProbeSchema doesnt have "probeAttribute" but t does. The following code
               //  takes that into consideration while creating a tuple.
               for (i <- 0 until t.getFields.size()) {
-                if (!t.getSchema().getAttributeNames().get(i).equals(probeAttributeName)) {
+                if (!t.getSchema.getAttributeNames.get(i).equals(probeAttributeName)) {
                   builder.add(
-                    outputProbeSchema.getAttributes().get(newProbeIdx),
-                    t.getFields().get(i)
+                    outputProbeSchema.getAttributes.get(newProbeIdx),
+                    t.getFields.get(i)
                   )
                   newProbeIdx += 1
                 }
