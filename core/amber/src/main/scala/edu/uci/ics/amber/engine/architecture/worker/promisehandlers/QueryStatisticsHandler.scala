@@ -2,14 +2,19 @@ package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
 import edu.uci.ics.amber.engine.architecture.worker.{
   WorkerAsyncRPCHandlerInitializer,
+  WorkerResult,
   WorkerStatistics
 }
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.{
+  QueryStatistics,
+  QueryWorkerResult
+}
 import edu.uci.ics.amber.engine.common.{Constants, ITupleSinkOperatorExecutor}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 
 object QueryStatisticsHandler {
   final case class QueryStatistics() extends ControlCommand[WorkerStatistics]
+  final case class QueryWorkerResult() extends ControlCommand[Option[WorkerResult]]
 }
 
 trait QueryStatisticsHandler {
@@ -38,14 +43,17 @@ trait QueryStatisticsHandler {
     }
 
     val state = stateManager.getCurrentState
-    val result = operator match {
+
+    WorkerStatistics(state, in, displayOut)
+  }
+
+  registerHandler((msg: QueryWorkerResult, sender) => {
+    operator match {
       case sink: ITupleSinkOperatorExecutor =>
-        Option(sink.getResultTuples())
+        Option(WorkerResult(sink.getOutputMode(), sink.getResultTuples()))
       case _ =>
         Option.empty
     }
-
-    WorkerStatistics(state, in, displayOut, result)
-  }
+  })
 
 }

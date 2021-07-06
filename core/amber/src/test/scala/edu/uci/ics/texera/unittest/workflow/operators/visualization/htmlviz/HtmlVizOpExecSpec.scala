@@ -1,7 +1,12 @@
 package edu.uci.ics.texera.unittest.workflow.operators.visualization.htmlviz
 
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{
+  Attribute,
+  AttributeType,
+  OperatorSchemaInfo,
+  Schema
+}
 import edu.uci.ics.texera.workflow.operators.visualization.htmlviz.{HtmlVizOpDesc, HtmlVizOpExec}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
@@ -13,6 +18,9 @@ class HtmlVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   )
   val desc: HtmlVizOpDesc = new HtmlVizOpDesc()
 
+  val outputSchema: Schema = desc.getOutputSchema(Array(schema))
+  val operatorSchemaInfo: OperatorSchemaInfo = OperatorSchemaInfo(Array(schema), outputSchema)
+
   def tuple(): Tuple =
     Tuple
       .newBuilder(schema)
@@ -20,8 +28,7 @@ class HtmlVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       .build()
 
   it should "process a target field" in {
-
-    val htmlVizOpExec = new HtmlVizOpExec("field1")
+    val htmlVizOpExec = new HtmlVizOpExec("field1", operatorSchemaInfo)
     htmlVizOpExec.open()
     val processedTuple: Tuple = htmlVizOpExec.processTexeraTuple(Left(tuple()), null).next()
 
@@ -31,7 +38,7 @@ class HtmlVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "process another target field" in {
 
-    val htmlVizOpExec = new HtmlVizOpExec("field2")
+    val htmlVizOpExec = new HtmlVizOpExec("field2", operatorSchemaInfo)
     htmlVizOpExec.open()
     val processedTuple: Tuple = htmlVizOpExec.processTexeraTuple(Left(tuple()), null).next()
 
