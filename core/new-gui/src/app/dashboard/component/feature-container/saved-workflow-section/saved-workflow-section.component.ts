@@ -82,12 +82,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
    * workflow list and backend database.
    */
   public onClickDuplicateWorkflow(workflowToDuplicate: Workflow): void {
-    const newWorkflow = cloneDeep(workflowToDuplicate);
-    newWorkflow.name = workflowToDuplicate.name + '_copy';
-    newWorkflow.creationTime = Date.now();
-    newWorkflow.lastModifiedTime = Date.now();
-    newWorkflow.wid = undefined;
-    this.workflowPersistService.persistWorkflow(newWorkflow)
+    this.workflowPersistService.createWorkflow(workflowToDuplicate.name + '_copy', Date.now(), Date.now(), workflowToDuplicate.content)
       .subscribe((duplicatedWorkflow: Workflow) => {
         this.workflows.push(duplicatedWorkflow);
       }, error => {

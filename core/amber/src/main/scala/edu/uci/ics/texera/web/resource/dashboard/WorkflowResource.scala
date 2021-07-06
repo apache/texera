@@ -105,6 +105,34 @@ class WorkflowResource {
   }
 
   /**
+   * This method creates and insert a new workflow into database
+   *
+   * @param session  HttpSession
+   * @param workflow , a workflow
+   * @return Workflow, which contains the generated wid if not provided
+   */
+  @POST
+  @Path("/create")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def createWorkflow(@Session session: HttpSession, workflow: Workflow): Response = {
+    UserResource.getUser(session) match {
+      case Some(user) =>
+        if (workflowOfUserExists(workflow.getWid, user.getUid)) {
+          // it should be a new workflow that does not exist yet.
+          Response.status(Response.Status.BAD_REQUEST).build()
+        } else {
+          workflowDao.insert(workflow)
+          workflowOfUserDao.insert(new WorkflowOfUser(user.getUid, workflow.getWid))
+          Response.ok(workflowDao.fetchOneByWid(workflow.getWid)).build()
+        }
+      case None =>
+        Response.status(Response.Status.UNAUTHORIZED).build()
+    }
+  }
+
+
+  /**
     * This method deletes the workflow from database
     *
     * @param session HttpSession

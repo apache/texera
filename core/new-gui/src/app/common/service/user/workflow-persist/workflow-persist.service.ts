@@ -29,6 +29,28 @@ export class WorkflowPersistService {
   }
 
   /**
+   * creates a workflow and insert it to backend database and returns its information
+   * @param newWorkflowName
+   * @param newWorkflowCreationTime
+   * @param newWorkflowLastModifiedTime
+   * @param newWorkflowContent
+   */
+  public createWorkflow(newWorkflowName: string, newWorkflowCreationTime: number|undefined, newWorkflowLastModifiedTime: number|undefined,
+                        newWorkflowContent: WorkflowContent): Observable<Workflow> {
+    return this.http.post<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_URL}/create`, {
+      wid: undefined,
+      name: newWorkflowName,
+      creationTime: newWorkflowCreationTime,
+      lastModifiedTime: newWorkflowCreationTime,
+      content: JSON.stringify(newWorkflowContent)
+    })
+      .filter((createdWorkflow: Workflow) => createdWorkflow != null)
+      .pipe(map(WorkflowPersistService.parseWorkflowInfo));
+  }
+
+
+
+  /**
    * retrieves a workflow from backend database given its id. The user in the session must have access to the workflow.
    * @param wid, the workflow id.
    */
