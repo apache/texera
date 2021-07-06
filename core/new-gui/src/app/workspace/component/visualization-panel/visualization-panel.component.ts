@@ -42,6 +42,7 @@ export class VisualizationPanelComponent implements OnChanges {
     }
     const opratorResultService = this.workflowResultService.getResultService(this.operatorID);
     if (! opratorResultService) {
+      this.displayVisualizationPanel = false;
       return;
     }
     const chartType = opratorResultService.getChartType();
