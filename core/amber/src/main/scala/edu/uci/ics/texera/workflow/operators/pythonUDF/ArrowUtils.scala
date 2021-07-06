@@ -10,7 +10,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
 }
 import org.apache.arrow.vector._
 import org.apache.arrow.vector.types.FloatingPointPrecision
-import org.apache.arrow.vector.types.TimeUnit.NANOSECOND
+import org.apache.arrow.vector.types.TimeUnit.MILLISECOND
 import org.apache.arrow.vector.types.pojo.ArrowType.PrimitiveType
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field}
 
@@ -230,7 +230,7 @@ object ArrowUtils {
         ArrowType.Bool.INSTANCE
 
       case AttributeType.TIMESTAMP =>
-        new ArrowType.Timestamp(NANOSECOND, "UTC")
+        new ArrowType.Timestamp(MILLISECOND, "UTC")
 
       case AttributeType.STRING | AttributeType.ANY =>
         ArrowType.Utf8.INSTANCE

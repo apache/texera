@@ -25,7 +25,7 @@ class ArrowUtilsSpec extends AnyFlatSpec {
   val float = new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE)
   val double = new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)
   val half = new ArrowType.FloatingPoint(FloatingPointPrecision.HALF)
-  val timestamp = new ArrowType.Timestamp(TimeUnit.NANOSECOND, "UTC")
+  val timestamp = new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC")
   val string: ArrowType.Utf8 = ArrowType.Utf8.INSTANCE
 
   val texeraSchema: Schema = Schema
