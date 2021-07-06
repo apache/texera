@@ -105,7 +105,7 @@ class WorkflowResource {
   }
 
   /**
-   * This method creates and insert a new workflow into database
+   * This method creates and insert a new workflow from database
    *
    * @param session  HttpSession
    * @param workflow , a workflow
@@ -119,7 +119,6 @@ class WorkflowResource {
     UserResource.getUser(session) match {
       case Some(user) =>
         if (workflowOfUserExists(workflow.getWid, user.getUid)) {
-          // it should be a new workflow that does not exist yet.
           Response.status(Response.Status.BAD_REQUEST).build()
         } else {
           workflowDao.insert(workflow)
@@ -130,7 +129,6 @@ class WorkflowResource {
         Response.status(Response.Status.UNAUTHORIZED).build()
     }
   }
-
 
   /**
     * This method deletes the workflow from database
