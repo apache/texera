@@ -45,10 +45,10 @@
   display: grid;
   grid-template-columns: 200px auto 350px;
   grid-template-rows: var(--header-height)
-                       calc((100% - var(--header-height) - var(--resultbar-height)) * 0.65)
+                       calc((100% - var(--header-height) - var(--resultbar-height)) * 0.60)
                       0px
                       var(--resultbar-height)
-                       calc((100% - var(--header-height) - var(--resultbar-height)) * 0.35);
+                       calc((100% - var(--header-height) - var(--resultbar-height)) * 0.40);
   position: relative;
 }
 
@@ -64,8 +64,8 @@
   display: grid;
   grid-template-columns: 200px auto 350px;
   grid-template-rows: var(--header-height)
-                       calc((100% - var(--header-height) - var(--resultbar-height)) * 0.65)
-                       calc((100% - var(--header-height) - var(--resultbar-height)) * 0.35)
+                       calc((100% - var(--header-height) - var(--resultbar-height)) * 0.60)
+                       calc((100% - var(--header-height) - var(--resultbar-height)) * 0.40)
                        var(--resultbar-height)
                       0px;
   position: relative;

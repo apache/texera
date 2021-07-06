@@ -211,7 +211,7 @@ class DataProcessor( // dependencies:
   }
 
   private[this] def processControlCommandsDuringExecution(): Unit = {
-    while (!isControlQueueEmpty) {
+    while (!isControlQueueEmpty || pauseManager.isPaused) {
       takeOneControlCommandAndProcess()
     }
   }

@@ -24,9 +24,13 @@
         nzBordered="true"
         [nzFrontPagination]="isFrontPagination"
         [nzLoading]="isLoadingResult"
-        [nzTotal]="total"
+        [nzTotal]="totalNumTuples"
+        [nzSize]="'small'"
+        [nzScroll]="{y: '200px'}"
+        [nzTableLayout]="'fixed'"
         [nzPageIndex]="currentPageIndex"
-        [nzPageSize]="10"
+        [nzPageSize]="pageSize"
+        [nzPaginationPosition]="'bottom'"
         (nzQueryParams)="onTableQueryParamsChange($event)"
       >
         <thead>
@@ -38,7 +42,7 @@
         </thead>
         <tbody>
           <tr *ngFor="let row of basicTable.data; let i=index;">
-            <td (click)="open(row)" *ngFor="let column of currentColumns" class="table-row">
+            <td nzEllipsis (click)="open(row)" *ngFor="let column of currentColumns" class="table-row">
               {{column.getCell(row)}}
             </td>
           </tr>
