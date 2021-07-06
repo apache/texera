@@ -1,10 +1,15 @@
 package edu.uci.ics.amber.engine.architecture.principal
 
 import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.texera.workflow.common.IncrementalOutputMode
 
 case class OperatorStatistics(
     operatorState: OperatorState,
     aggregatedInputRowCount: Long,
-    aggregatedOutputRowCount: Long,
-    aggregatedOutputResults: Option[List[ITuple]] // in case of a sink operator
+    aggregatedOutputRowCount: Long
+)
+
+case class OperatorResult(
+    outputMode: IncrementalOutputMode,
+    result: List[ITuple]
 )

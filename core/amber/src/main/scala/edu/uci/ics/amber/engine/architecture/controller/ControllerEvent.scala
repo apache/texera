@@ -1,7 +1,11 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
-import edu.uci.ics.amber.engine.architecture.principal.{OperatorState, OperatorStatistics}
+import edu.uci.ics.amber.engine.architecture.principal.{
+  OperatorResult,
+  OperatorState,
+  OperatorStatistics
+}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.error.WorkflowRuntimeError
@@ -13,7 +17,7 @@ object ControllerEvent {
 
   case class WorkflowCompleted(
       // map from sink operator ID to the result list of tuples
-      result: Map[String, List[ITuple]]
+      result: Map[String, OperatorResult]
   )
 
   case class WorkflowPaused()
@@ -21,6 +25,8 @@ object ControllerEvent {
   case class WorkflowStatusUpdate(
       operatorStatistics: Map[String, OperatorStatistics]
   )
+
+  case class WorkflowResultUpdate(operatorResults: Map[String, OperatorResult])
 
   case class ModifyLogicCompleted()
 

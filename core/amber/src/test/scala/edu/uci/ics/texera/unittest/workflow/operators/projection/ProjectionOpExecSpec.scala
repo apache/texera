@@ -11,8 +11,15 @@ import edu.uci.ics.texera.workflow.operators.projection.ProjectionOpExec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.BeforeAndAfter
 class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
-  val tuple: Tuple = Tuple
+  val tupleSchema: Schema = Schema
     .newBuilder()
+    .add(new Attribute("field1", AttributeType.STRING))
+    .add(new Attribute("field2", AttributeType.INTEGER))
+    .add(new Attribute("field3", AttributeType.BOOLEAN))
+    .build()
+
+  val tuple: Tuple = Tuple
+    .newBuilder(tupleSchema)
     .add(new Attribute("field1", AttributeType.STRING), "hello")
     .add(new Attribute("field2", AttributeType.INTEGER), 1)
     .add(

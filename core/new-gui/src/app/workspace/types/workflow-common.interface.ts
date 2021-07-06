@@ -1,5 +1,4 @@
 import { JSONSchema4, JSONSchema7 } from 'json-schema';
-import { ResultObject } from './execute-workflow.interface';
 /**
  * This file contains multiple type declarations related to workflow-graph.
  * These type declarations should be identical to the backend API.
