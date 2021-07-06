@@ -105,7 +105,7 @@ class WorkflowResource {
   }
 
   /**
-    * This method creates and insert a new workflow from database
+    * This method creates and insert a new workflow to database
     *
     * @param session  HttpSession
     * @param workflow , a workflow
