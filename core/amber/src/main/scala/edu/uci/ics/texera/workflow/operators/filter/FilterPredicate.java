@@ -22,7 +22,11 @@ public class FilterPredicate {
     @JsonProperty(value = "value")
     public String value;
 
-
+    public FilterPredicate(String a, ComparisonType ct, String v){
+        this.attribute=a;
+        this.condition=ct;
+        this.value=v;
+    }
     @JsonIgnore
     public boolean evaluate(Tuple tuple, WorkflowContext context) {
         AttributeType type = tuple.getSchema().getAttribute(this.attribute).getType();
@@ -87,7 +91,7 @@ public class FilterPredicate {
             }
         } */
 
-        }
+    }
 
 
     private boolean evaluateFilterTimestamp(Tuple inputTuple) {
@@ -103,13 +107,22 @@ public class FilterPredicate {
     private static <T extends Comparable<T>> boolean evaluateFilter(T value, T compareToValue, ComparisonType comparisonType) {
         int compareResult;
         switch (comparisonType) {
-            case Xnull:
-                 if(value==null){
-                     return false;
-                 }
-                 else{
-                     return true;
-                 }
+            case NOT_NULL:
+                if(value==null){
+                    return false;
+                }
+                else{
+                    return true;
+                }
+
+            case IS_NULL:
+                if(value==null){
+                    return true;
+                }
+                else{
+                    return false;
+                }
+
             case EQUAL_TO:
                 if(value==null){
                     return false;

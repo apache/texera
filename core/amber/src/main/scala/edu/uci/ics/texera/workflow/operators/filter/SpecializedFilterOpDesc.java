@@ -22,7 +22,12 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
     public List<FilterPredicate> predicates;
 
     @Override
-    public OneToOneOpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
+    public OneToOneOpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo){
+        for (FilterPredicate predicate : predicates){
+            if (predicate.value==null){
+                throw new RuntimeException();
+            }
+        }
         return new OneToOneOpExecConfig(
                 operatorIdentifier(),
                 worker -> new SpecializedFilterOpExec(this)

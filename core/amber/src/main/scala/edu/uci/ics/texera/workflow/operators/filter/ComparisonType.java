@@ -15,7 +15,9 @@ public enum ComparisonType {
 
     NOT_EQUAL_TO("!="),
 
-    Xnull("not null");
+    NOT_NULL("not null"),
+
+    IS_NULL("is null");
 
     private final String name;
 
