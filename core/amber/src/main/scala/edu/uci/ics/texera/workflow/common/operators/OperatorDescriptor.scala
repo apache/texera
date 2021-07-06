@@ -6,8 +6,9 @@ import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorInfo, PropertyNameConstants}
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Schema, OperatorSchemaInfo}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.operators.aggregate.SpecializedAverageOpDesc
+import edu.uci.ics.texera.workflow.operators.difference.DifferenceOpDesc
 import edu.uci.ics.texera.workflow.operators.distinct.DistinctOpDesc
 import edu.uci.ics.texera.workflow.operators.filter.SpecializedFilterOpDesc
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc
@@ -28,6 +29,7 @@ import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONLScanSourceOpD
 import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.mysql.MySQLSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.postgresql.PostgreSQLSourceOpDesc
+import edu.uci.ics.texera.workflow.operators.symmetricDifference.SymmetricDifferenceOpDesc
 import edu.uci.ics.texera.workflow.operators.typecasting.TypeCastingOpDesc
 import edu.uci.ics.texera.workflow.operators.union.UnionOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.barChart.BarChartOpDesc
@@ -80,7 +82,9 @@ import java.util.UUID
     new Type(value = classOf[ReservoirSamplingOpDesc], name = "ReservoirSampling"),
     new Type(value = classOf[HashJoinOpDesc[String]], name = "HashJoin"),
     new Type(value = classOf[DistinctOpDesc], name = "Distinct"),
-    new Type(value = classOf[IntersectOpDesc], name = "Intersect")
+    new Type(value = classOf[IntersectOpDesc], name = "Intersect"),
+    new Type(value = classOf[SymmetricDifferenceOpDesc], name = "SymmetricDifference"),
+    new Type(value = classOf[DifferenceOpDesc], name = "Difference")
   )
 )
 abstract class OperatorDescriptor extends Serializable {
