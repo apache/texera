@@ -9,18 +9,20 @@ import { StubOperatorMetadataService } from '../../service/operator-metadata/stu
 import { UndoRedoService } from '../../service/undo-redo/undo-redo.service';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
-import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
-import { ResultObject } from '../../types/execute-workflow.interface';
-import { ChartType } from '../../types/visualization.interface';
 import { VisualizationPanelComponent } from './visualization-panel.component';
+import { WorkflowResultService, OperatorResultService } from '../../service/workflow-result/workflow-result.service';
+import { WebDataUpdate } from '../../types/execute-workflow.interface';
+import { ChartType } from '../../types/visualization.interface';
 
 describe('VisualizationPanelComponent', () => {
   let component: VisualizationPanelComponent;
   let fixture: ComponentFixture<VisualizationPanelComponent>;
-  let workflowStatusService: WorkflowStatusService;
-
-  const testData: Record<string, ResultObject> = {
-    'operator1': {operatorID: 'operator1', chartType: ChartType.BAR, table: [], totalRowCount: 0}
+  let workflowResultService: WorkflowResultService;
+  const operatorID = 'operator1';
+  const testData: WebDataUpdate = {
+    mode: { type: 'SetSnapshotMode' },
+    chartType: ChartType.BAR,
+    table: []
   };
 
   beforeEach(async(() => {
@@ -37,7 +39,7 @@ describe('VisualizationPanelComponent', () => {
         UndoRedoService,
         WorkflowActionService,
         {provide: OperatorMetadataService, useClass: StubOperatorMetadataService},
-        WorkflowStatusService,
+        WorkflowResultService,
         ExecuteWorkflowService
       ]
     })
@@ -49,8 +51,11 @@ describe('VisualizationPanelComponent', () => {
     component = fixture.componentInstance;
     fixture.detectChanges();
 
-    workflowStatusService = TestBed.get(WorkflowStatusService);
-    spyOn(workflowStatusService, 'getCurrentResult').and.returnValue(testData);
+    workflowResultService = TestBed.get(WorkflowResultService);
+    const operatorResultService: OperatorResultService = new OperatorResultService(operatorID);
+    operatorResultService.handleResultUpdate(testData);
+
+    spyOn(workflowResultService, 'getResultService').and.returnValue(operatorResultService);
   });
 
   it('should create', () => {
@@ -58,7 +63,7 @@ describe('VisualizationPanelComponent', () => {
   });
 
   it('should have button', () => {
-    component.operatorID = 'operator1';
+    component.operatorID = operatorID;
 
     // fixture.detectChanges() doesn't call ngOnChanges in tests because of Angular bug
     component.ngOnChanges();
@@ -73,7 +78,7 @@ describe('VisualizationPanelComponent', () => {
 
   it('should open dialog', () => {
     // make button appear
-    component.operatorID = 'operator1';
+    component.operatorID = operatorID;
 
     // fixture.detectChanges() doesn't call ngOnChanges in tests because of Angular bug
     component.ngOnChanges();

@@ -41,6 +41,9 @@ export class ResultPanelToggleService {
    *
    */
   public openResultPanel(): void {
+    if (this.currentResultPanelStatus === true) {
+      return;
+    }
     this.currentResultPanelStatus = true;
     this.toggleDisplayChangeStream.next(true);
   }
@@ -54,6 +57,9 @@ export class ResultPanelToggleService {
    *
    */
   public closeResultPanel(): void {
+    if (this.currentResultPanelStatus === false) {
+      return;
+    }
     this.currentResultPanelStatus = false;
     this.toggleDisplayChangeStream.next(false);
   }

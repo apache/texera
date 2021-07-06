@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable, Subject, timer, interval } from 'rxjs';
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
 import {
-  TexeraWebsocketEvent, TexeraWebsocketRequest, TexeraWebsocketRequestTypeMap, TexeraWebsocketRequestTypes
+  TexeraWebsocketEvent, TexeraWebsocketRequest, TexeraWebsocketRequestTypeMap, TexeraWebsocketRequestTypes, TexeraWebsocketEventTypes, TexeraWebsocketEventTypeMap
 } from '../../types/workflow-websocket.interface';
 
 
@@ -49,6 +49,13 @@ export class WorkflowWebsocketService {
 
   public websocketEvent(): Observable<TexeraWebsocketEvent> {
     return this.webSocketResponseSubject;
+  }
+
+  /**
+   * Subscrdibe to a particular type of workflow websocket event
+   */
+  public subscribeToEvent<T extends TexeraWebsocketEventTypes>(type: T): Observable<{type: T} & TexeraWebsocketEventTypeMap[T]> {
+    return this.websocketEvent().filter(event => event.type === type).map(event => event as {type: T} & TexeraWebsocketEventTypeMap[T]);
   }
 
   public send<T extends TexeraWebsocketRequestTypes>(type: T, payload: TexeraWebsocketRequestTypeMap[T]): void {

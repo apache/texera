@@ -4,20 +4,15 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
 import './../../../common/rxjs-operators';
-import { AppSettings } from '../../../common/app-setting';
 import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
 import { WorkflowGraphReadonly } from '../workflow-graph/model/workflow-graph';
 import {
   BreakpointInfo,
-  ErrorExecutionResult,
-  ExecutionResult,
   ExecutionState,
   ExecutionStateInfo,
   LogicalLink,
   LogicalOperator,
   LogicalPlan,
-  ResultObject,
-  SuccessExecutionResult
 } from '../../types/execute-workflow.interface';
 import { environment } from '../../../../environments/environment';
 import { WorkflowWebsocketService } from '../workflow-websocket/workflow-websocket.service';
@@ -96,8 +91,7 @@ export class ExecuteWorkflowService {
       case 'WorkflowStartedEvent':
         return {state: ExecutionState.Running};
       case 'WorkflowCompletedEvent':
-        const resultMap = new Map(event.result.map(r => [r.operatorID, r]));
-        return {state: ExecutionState.Completed, resultID: undefined, resultMap: resultMap};
+        return {state: ExecutionState.Completed};
       case 'WorkflowPausedEvent':
         if (this.currentState.state === ExecutionState.BreakpointTriggered ||
           this.currentState.state === ExecutionState.Paused) {
@@ -160,16 +154,6 @@ export class ExecuteWorkflowService {
     return undefined;
   }
 
-  /**
-   * Return map which contains all sink operators execution result
-   */
-  public getResultMap(): ReadonlyMap<string, ResultObject> | undefined {
-    if (this.currentState?.state === ExecutionState.Completed) {
-      return this.currentState.resultMap;
-    }
-    return undefined;
-  }
-
   public getBreakpointTriggerInfo(): BreakpointTriggerInfo | undefined {
     if (this.currentState?.state === ExecutionState.BreakpointTriggered) {
       return this.currentState.breakpoint;
@@ -181,7 +165,7 @@ export class ExecuteWorkflowService {
     if (environment.amberEngineEnabled) {
       this.executeWorkflowAmberTexera();
     } else {
-      this.executeWorkflowOldTexera();
+      throw new Error('old texera engine not supported');
     }
   }
 
@@ -226,7 +210,7 @@ export class ExecuteWorkflowService {
       throw new Error('cannot kill workflow, current execution state is ' + this.currentState.state);
     }
     this.workflowWebsocketService.send('KillWorkflowRequest', {});
-    this.updateExecutionState({state: ExecutionState.Completed, resultID: undefined, resultMap: new Map()});
+    this.updateExecutionState({state: ExecutionState.Completed});
   }
 
   public resumeWorkflow(): void {
@@ -280,15 +264,6 @@ export class ExecuteWorkflowService {
       operatorType: op.operatorType
     };
     this.workflowWebsocketService.send('ModifyLogicRequest', {operator});
-  }
-
-  /**
-   * Sends the current workflow data to the backend
-   *  to execute the workflow and gets the results.
-   *  return workflow id to be used by workflowStatusService
-   */
-  public executeWorkflowOldTexera(): void {
-    throw new Error('no longer support executing workflow on old texera engine');
   }
 
   /**
@@ -420,30 +395,6 @@ export class ExecuteWorkflowService {
       throw new Error('unhandled breakpoint data ' + breakpointData);
     }
     return {operatorID, breakpoint};
-  }
-
-  public static isExecutionSuccessful(result: ExecutionResult | undefined): result is SuccessExecutionResult {
-    return !!result && result.code === 0;
-  }
-
-  /**
-   * Handles the HTTP Error response in different failure scenarios
-   *  and converts to an ErrorExecutionResult object.
-   * @param errorResponse
-   */
-  private static processErrorResponse(errorResponse: HttpErrorResponse): Record<string, string> {
-    // client side error, such as no internet connection
-    if (errorResponse.error instanceof ProgressEvent) {
-      return {'network error': 'Could not reach Texera server'};
-    }
-    // the workflow graph is invalid
-    // error message from backend will be included in the error property
-    if (errorResponse.status === 400) {
-      const result = <ErrorExecutionResult>(errorResponse.error);
-      return {'workflow error': result.message};
-    }
-    // other kinds of server error
-    return {'server error': `Texera server error: ${errorResponse.error.message}`};
   }
 
 }

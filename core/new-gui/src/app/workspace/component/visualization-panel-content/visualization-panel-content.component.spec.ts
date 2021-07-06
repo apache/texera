@@ -9,14 +9,17 @@ import { UndoRedoService } from '../../service/undo-redo/undo-redo.service';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
-import { ResultObject } from '../../types/execute-workflow.interface';
+import { WebDataUpdate } from '../../types/execute-workflow.interface';
 import { ChartType } from '../../types/visualization.interface';
 import { VisualizationPanelContentComponent } from './visualization-panel-content.component';
+import { WorkflowResultService, OperatorResultService } from '../../service/workflow-result/workflow-result.service';
 
 describe('VisualizationPanelContentComponent', () => {
   let component: VisualizationPanelContentComponent;
   let fixture: ComponentFixture<VisualizationPanelContentComponent>;
-  let workflowStatusService: WorkflowStatusService;
+  let workflowResultService: WorkflowResultService;
+  const operatorID = 'operator1';
+  let operatorResultService: OperatorResultService;
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
@@ -27,7 +30,7 @@ describe('VisualizationPanelContentComponent', () => {
         WorkflowUtilService,
         UndoRedoService,
         WorkflowActionService,
-        {provide: OperatorMetadataService, useClass: StubOperatorMetadataService},
+        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         WorkflowStatusService,
         ExecuteWorkflowService
       ]
@@ -38,7 +41,10 @@ describe('VisualizationPanelContentComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(VisualizationPanelContentComponent);
     component = fixture.componentInstance;
-    workflowStatusService = TestBed.get(WorkflowStatusService);
+    component.operatorID = operatorID;
+    workflowResultService = TestBed.get(WorkflowResultService);
+    operatorResultService = new OperatorResultService(operatorID);
+    spyOn(workflowResultService, 'getResultService').and.returnValue(operatorResultService);
   });
 
   it('should create', () => {
@@ -47,79 +53,75 @@ describe('VisualizationPanelContentComponent', () => {
   });
 
   it('should draw the figure', () => {
-    const testData: Record<string, ResultObject> = {
-      'operator1': {operatorID: 'operator1', chartType: ChartType.PIE, table: [{'id': 1, 'data': 2}], totalRowCount: 1}
+    const testData: WebDataUpdate = {
+      mode: { type: 'SetSnapshotMode' },
+      table: [{ 'id': 1, 'data': 2 }],
+      chartType: ChartType.PIE
     };
-    spyOn(component, 'generateChart');
-    spyOn(workflowStatusService, 'getCurrentResult').and.returnValue(testData);
+    operatorResultService.handleResultUpdate(testData);
 
-    component.operatorID = 'operator1';
+    spyOn(component, 'generateChart');
+
     component.ngAfterContentInit();
 
     expect(component.generateChart).toHaveBeenCalled();
   });
 
   it('should draw the word cloud', () => {
-    const testData: Record<string, ResultObject> = {
-      'operator1': {
-        operatorID: 'operator1', chartType: ChartType.WORD_CLOUD,
-        table: [{'word': 'foo', 'count': 120}, {'word': 'bar', 'count': 100}], totalRowCount: 2
-      }
+    const testData: WebDataUpdate = {
+      mode: { type: 'SetSnapshotMode' },
+      table: [{ 'word': 'foo', 'count': 120 }, { 'word': 'bar', 'count': 100 }],
+      chartType: ChartType.WORD_CLOUD
     };
-    spyOn(component, 'generateWordCloud');
-    spyOn(workflowStatusService, 'getCurrentResult').and.returnValue(testData);
+    operatorResultService.handleResultUpdate(testData);
 
-    component.operatorID = 'operator1';
+    spyOn(component, 'generateWordCloud');
+
     component.ngAfterContentInit();
 
     expect(component.generateWordCloud).toHaveBeenCalled();
   });
 
   it('should draw the spatial scatteplot map', () => {
-    const testData: Record<string, ResultObject> = {
-      'operator1': {
-        operatorID: 'operator1', chartType: ChartType.SPATIAL_SCATTERPLOT,
-        table: [{'xColumn': -90.285434, 'yColumn': 29.969126},
-          {'xColumn': -76.711521, 'yColumn': 39.197211}], totalRowCount: 2
-      }
+    const testData: WebDataUpdate = {
+      mode: { type: 'SetSnapshotMode' },
+      table: [{ 'xColumn': -90.285434, 'yColumn': 29.969126 }, { 'xColumn': -76.711521, 'yColumn': 39.197211 }],
+      chartType: ChartType.SPATIAL_SCATTERPLOT
     };
-    spyOn(component, 'generateSpatialScatterplot');
-    spyOn(workflowStatusService, 'getCurrentResult').and.returnValue(testData);
+    operatorResultService.handleResultUpdate(testData);
 
-    component.operatorID = 'operator1';
+    spyOn(component, 'generateSpatialScatterplot');
+
     component.ngAfterContentInit();
 
     expect(component.generateSpatialScatterplot).toHaveBeenCalled();
   });
 
   it('should draw the simple scatteplot chart', () => {
-    const testData: Record<string, ResultObject> = {
-      'operator1': {
-        operatorID: 'operator1', chartType: ChartType.SIMPLE_SCATTERPLOT,
-        table: [{'employees': 1000, 'sales': 30000},
-          {'employees': 500, 'sales': 21000}], totalRowCount: 2
-      }
+    const testData: WebDataUpdate = {
+      mode: { type: 'SetSnapshotMode' },
+      table: [{ 'employees': 1000, 'sales': 30000 }, { 'employees': 500, 'sales': 21000 }],
+      chartType: ChartType.SIMPLE_SCATTERPLOT
     };
-    spyOn(component, 'generateSimpleScatterplot');
-    spyOn(workflowStatusService, 'getCurrentResult').and.returnValue(testData);
+    operatorResultService.handleResultUpdate(testData);
 
-    component.operatorID = 'operator1';
+    spyOn(component, 'generateSimpleScatterplot');
+
     component.ngAfterContentInit();
 
     expect(component.generateSimpleScatterplot).toHaveBeenCalled();
   });
 
   it('should draw a sample html', () => {
-    const testData: Record<string, ResultObject> = {
-      'operator1': {
-        operatorID: 'operator1', chartType: ChartType.HTML_VIZ,
-        table: [{'html-content': '<div>sample</div>'}], totalRowCount: 1
-      }
+    const testData: WebDataUpdate = {
+      mode: { type: 'SetSnapshotMode' },
+      table: [{ 'html-content': '<div>sample</div>' }],
+      chartType: ChartType.HTML_VIZ
     };
-    spyOn(component, 'generateHTML');
-    spyOn(workflowStatusService, 'getCurrentResult').and.returnValue(testData);
+    operatorResultService.handleResultUpdate(testData);
 
-    component.operatorID = 'operator1';
+    spyOn(component, 'generateHTML');
+
     component.ngAfterContentInit();
 
     expect(component.generateHTML).toHaveBeenCalled();
