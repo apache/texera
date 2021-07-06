@@ -9,12 +9,8 @@ import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
 import { JointUIService } from './../../service/joint-ui/joint-ui.service';
 import { OperatorMetadataService } from './../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from './../../service/operator-metadata/stub-operator-metadata.service';
-import { NgbModule, NgbModal } from '@ng-bootstrap/ng-bootstrap';
-import { marbles } from 'rxjs-marbles';
-import { mockResultData } from '../../service/execute-workflow/mock-result-data';
+import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { By } from '@angular/platform-browser';
-import { Observable } from 'rxjs/Observable';
-import { HttpClient } from '@angular/common/http';
 
 import { ResultPanelToggleService } from './../../service/result-panel-toggle/result-panel-toggle.service';
 import { NgxJsonViewerModule } from 'ngx-json-viewer';
@@ -28,6 +24,7 @@ import { NzTableModule } from 'ng-zorro-antd/table';
 import { VisualizationPanelComponent } from '../visualization-panel/visualization-panel.component';
 import { VisualizationPanelContentComponent } from '../visualization-panel-content/visualization-panel-content.component';
 import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
+import { mockData } from '../../service/execute-workflow/mock-result-data';
 
 // this is how to import entry components in testings
 // Stack Overflow Link: https://stackoverflow.com/questions/41483841/providing-entrycomponents-for-a-testbed/45550720
@@ -302,7 +299,7 @@ describe('ResultPanelComponent', () => {
     });
     fixture.detectChanges();
 
-    component.open(mockResultData[0].table[0]);
+    component.open(mockData[0]);
 
     expect(modalSpy).toHaveBeenCalledTimes(1);
     nzModalService.closeAll();
