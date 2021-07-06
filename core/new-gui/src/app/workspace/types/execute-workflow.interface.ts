@@ -40,40 +40,11 @@ export interface LogicalPlan extends Readonly<{
 /**
  * The backend interface of the return object of a successful execution
  */
-export interface ResultObject extends Readonly<{
+export interface WebOperatorResult extends Readonly<{
   operatorID: string,
-  table: ReadonlyArray<object | string[]>,
+  table: ReadonlyArray<object>,
   chartType: ChartType | undefined,
-  totalRowCount: number
-}> {
-
-}
-
-export interface SuccessExecutionResult extends Readonly<{
-  code: 0,
-  result: ReadonlyArray<ResultObject>,
-  resultID: string
 }> { }
-
-/**
- * The backend interface of the return object of a failed execution
- */
-export interface ErrorExecutionResult extends Readonly<{
-  code: 1,
-  message: string
-}> { }
-
-/**
- * Discriminated Union
- * http://www.typescriptlang.org/docs/handbook/advanced-types.html
- *
- * ExecutionResult type can be either SuccessExecutionResult or ErrorExecutionResult.
- *  but cannot contain both structures at the same time.
- * In this case:
- *  if the code value is 0, then the object type must be SuccessExecutionResult
- *  if the code value is 1, then the object type must be ErrorExecutionResult
- */
-export type ExecutionResult = SuccessExecutionResult | ErrorExecutionResult;
 
 export enum OperatorState {
   Uninitialized = 'Uninitialized',
@@ -92,13 +63,47 @@ export interface OperatorStatistics extends Readonly<{
   operatorState: OperatorState,
   aggregatedInputRowCount: number,
   aggregatedOutputRowCount: number,
-  aggregatedOutputResults: ResultObject | undefined | null // undefined/null if operator is not sink
-  aggregatedOutputResultDirtyPageIndices?: Array<number>
 }> {}
 
 export interface WorkflowStatusUpdate extends Readonly<{
   operatorStatistics: Record<string, OperatorStatistics>
 }> { }
+
+export type PaginationMode = {'type': 'PaginationMode'};
+export type SetSnapshotMode = {'type': 'SetSnapshotMode'};
+export type SetDeltaMode = {'type': 'SetDeltaMode'};
+export type WebOutputMode = PaginationMode | SetSnapshotMode | SetDeltaMode;
+
+export interface WebPaginationUpdate extends Readonly<{
+  mode: PaginationMode,
+  totalNumTuples: number,
+  dirtyPageIndices: ReadonlyArray<number>,
+}> {}
+
+export interface WebDataUpdate extends Readonly<{
+  mode: SetSnapshotMode | SetDeltaMode,
+  table: ReadonlyArray<object>,
+  chartType: ChartType | undefined,
+}> {}
+
+export type WebResultUpdate = WebPaginationUpdate | WebDataUpdate;
+
+export type WorkflowResultUpdate = Record<string, WebResultUpdate>;
+
+export interface WorkflowResultUpdateEvent extends Readonly<{
+  updates: WorkflowResultUpdate
+}> {}
+
+// user-defined type guards to check the type of the result update
+// because TypeScript can't do Tagged Unions on nested data types https://github.com/microsoft/TypeScript/issues/18758
+// and the unions have to be defined as nested because of JSON serialization options
+export function isWebPaginationUpdate(update: WebResultUpdate): update is WebPaginationUpdate {
+  return update !== undefined && update.mode.type === 'PaginationMode';
+}
+
+export function isWebDataUpdate(update: WebResultUpdate): update is WebDataUpdate {
+  return update !== undefined && update.mode.type === 'SetSnapshotMode' || update.mode.type === 'SetDeltaMode';
+}
 
 export enum ExecutionState {
   Uninitialized = 'Uninitialized',
@@ -121,7 +126,7 @@ export type ExecutionStateInfo = Readonly<{
 } | {
   state: ExecutionState.BreakpointTriggered, breakpoint: BreakpointTriggerInfo
 } | {
-  state: ExecutionState.Completed, resultID: string | undefined, resultMap: ReadonlyMap<string, ResultObject>
+  state: ExecutionState.Completed
 } | {
   state: ExecutionState.Failed, errorMessages: Readonly<Record<string, string>>
 }>;
