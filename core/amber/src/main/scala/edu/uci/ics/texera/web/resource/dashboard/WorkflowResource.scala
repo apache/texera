@@ -1,18 +1,9 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
-  WORKFLOW,
-  WORKFLOW_OF_USER
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  WorkflowDao,
-  WorkflowOfUserDao
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
-  Workflow,
-  WorkflowOfUser
-}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{WORKFLOW, WORKFLOW_OF_USER}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowOfUserDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Workflow, WorkflowOfUser}
 import edu.uci.ics.texera.web.resource.auth.UserResource
 import io.dropwizard.jersey.sessions.Session
 import org.jooq.types.UInteger
@@ -30,8 +21,7 @@ import javax.ws.rs.core.{MediaType, Response}
 @Path("/workflow")
 @Produces(Array(MediaType.APPLICATION_JSON))
 class WorkflowResource {
-  final private val workflowDao = new WorkflowDao(
-    SqlServer.createDSLContext.configuration)
+  final private val workflowDao = new WorkflowDao(SqlServer.createDSLContext.configuration)
   final private val workflowOfUserDao = new WorkflowOfUserDao(
     SqlServer.createDSLContext.configuration
   )
@@ -45,8 +35,7 @@ class WorkflowResource {
   @GET
   @Path("/list")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def retrieveWorkflowsBySessionUser(
-      @Session session: HttpSession): util.List[Workflow] = {
+  def retrieveWorkflowsBySessionUser(@Session session: HttpSession): util.List[Workflow] = {
     UserResource.getUser(session) match {
       case Some(user) =>
         SqlServer.createDSLContext
@@ -73,8 +62,7 @@ class WorkflowResource {
   @GET
   @Path("/{wid}")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def retrieveWorkflow(@PathParam("wid") wid: UInteger,
-                       @Session session: HttpSession): Response = {
+  def retrieveWorkflow(@PathParam("wid") wid: UInteger, @Session session: HttpSession): Response = {
     UserResource.getUser(session) match {
       case Some(user) =>
         if (workflowOfUserExists(wid, user.getUid)) {
@@ -99,8 +87,7 @@ class WorkflowResource {
   @Path("/persist")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def persistWorkflow(@Session session: HttpSession,
-                      workflow: Workflow): Response = {
+  def persistWorkflow(@Session session: HttpSession, workflow: Workflow): Response = {
     UserResource.getUser(session) match {
       case Some(user) =>
         if (workflowOfUserExists(workflow.getWid, user.getUid)) {
@@ -109,8 +96,7 @@ class WorkflowResource {
         } else {
           // when the wid is not provided, treat it as a new workflow
           workflowDao.insert(workflow)
-          workflowOfUserDao.insert(
-            new WorkflowOfUser(user.getUid, workflow.getWid))
+          workflowOfUserDao.insert(new WorkflowOfUser(user.getUid, workflow.getWid))
         }
         Response.ok(workflowDao.fetchOneByWid(workflow.getWid)).build()
       case None =>
@@ -129,16 +115,14 @@ class WorkflowResource {
   @Path("/create")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def createWorkflow(@Session session: HttpSession,
-                     workflow: Workflow): Response = {
+  def createWorkflow(@Session session: HttpSession, workflow: Workflow): Response = {
     UserResource.getUser(session) match {
       case Some(user) =>
         if (workflowOfUserExists(workflow.getWid, user.getUid)) {
           Response.status(Response.Status.BAD_REQUEST).build()
         } else {
           workflowDao.insert(workflow)
-          workflowOfUserDao.insert(
-            new WorkflowOfUser(user.getUid, workflow.getWid))
+          workflowOfUserDao.insert(new WorkflowOfUser(user.getUid, workflow.getWid))
           Response.ok(workflowDao.fetchOneByWid(workflow.getWid)).build()
         }
       case None =>
@@ -154,8 +138,7 @@ class WorkflowResource {
     */
   @DELETE
   @Path("/{wid}")
-  def deleteWorkflow(@PathParam("wid") wid: UInteger,
-                     @Session session: HttpSession): Response = {
+  def deleteWorkflow(@PathParam("wid") wid: UInteger, @Session session: HttpSession): Response = {
     UserResource.getUser(session) match {
       case Some(user) =>
         if (workflowOfUserExists(wid, user.getUid)) {
