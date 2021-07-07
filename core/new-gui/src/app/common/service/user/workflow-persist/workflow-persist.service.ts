@@ -29,19 +29,15 @@ export class WorkflowPersistService {
   }
 
   /**
-   * creates a workflow and insert it to backend database and returns its information
+   * creates a workflow and insert it to backend database and return its information
    * @param newWorkflowName
    * @param newWorkflowCreationTime
    * @param newWorkflowLastModifiedTime
    * @param newWorkflowContent
    */
-  public createWorkflow(newWorkflowName: string, newWorkflowCreationTime: number|undefined, newWorkflowLastModifiedTime: number|undefined,
-                        newWorkflowContent: WorkflowContent): Observable<Workflow> {
+  public createWorkflow( newWorkflowContent: WorkflowContent, newWorkflowName: string = 'Untitled workflow' ): Observable<Workflow> {
     return this.http.post<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_URL}/create`, {
-      wid: undefined,
       name: newWorkflowName,
-      creationTime: newWorkflowCreationTime,
-      lastModifiedTime: newWorkflowCreationTime,
       content: JSON.stringify(newWorkflowContent)
     })
       .filter((createdWorkflow: Workflow) => createdWorkflow != null)

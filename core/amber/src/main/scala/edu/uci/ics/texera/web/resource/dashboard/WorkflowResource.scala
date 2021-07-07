@@ -118,7 +118,7 @@ class WorkflowResource {
   def createWorkflow(@Session session: HttpSession, workflow: Workflow): Response = {
     UserResource.getUser(session) match {
       case Some(user) =>
-        if (workflowOfUserExists(workflow.getWid, user.getUid)) {
+        if (workflow.getWid != null) {
           Response.status(Response.Status.BAD_REQUEST).build()
         } else {
           workflowDao.insert(workflow)
