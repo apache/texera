@@ -9,7 +9,7 @@ import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.util
-
+//test sample for filter operator
 class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   var opDesc: SpecializedFilterOpDesc = _
   var opExec: SpecializedFilterOpExec = _
