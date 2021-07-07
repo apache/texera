@@ -22,6 +22,7 @@ public class FilterPredicate {
     @JsonProperty(value = "value")
     public String value;
 
+    //Add a constructor for test sample
     public FilterPredicate(String a, ComparisonType ct, String v){
         this.attribute=a;
         this.condition=ct;
