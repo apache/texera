@@ -13,30 +13,30 @@ class IntervalJoinOpDesc extends OperatorDescriptor {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Left Input attr")
-  @JsonPropertyDescription("Choose one attribute in the first table")
+  @JsonPropertyDescription("Choose one attribute in the left table")
   @AutofillAttributeName
   var leftAttributeName: String = _
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Right Input attr")
-  @JsonPropertyDescription("Choose one attribute in the second table")
+  @JsonPropertyDescription("Choose one attribute in the right table")
   @AutofillAttributeNameOnPort1
   var rightAttributeName: String = _
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Interval Constant")
-  @JsonPropertyDescription("The maximum length that the second input attribute can greater than the first Input attribute")
+  @JsonPropertyDescription("The maximum length that the right input attribute can greater than the left Input attribute")
   var interval: Long = _
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Include Left Bound")
-  @JsonPropertyDescription("Whether the condition holds when first input attr = second input attr")
+  @JsonPropertyDescription("Whether the condition holds when left input attr = right input attr")
   var leftBound: Boolean = true
 
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Include Right Bound")
-  @JsonPropertyDescription("Whether the condition holds when first input attr = second input attr + interval constant")
+  @JsonPropertyDescription("Whether the condition holds when left input attr = right input attr + interval constant")
   var rightBound: Boolean = true
 
   @JsonProperty(required = false)
