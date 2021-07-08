@@ -79,16 +79,17 @@ class IntervalJoinOpExec[K](
               var pointTuple: Tuple = leftTable(j)
               for (k <- 0 until rightTable.size) {
                 var t: Tuple = rightTable(k)
-                if (
-                  joinConditionHolds(
-                    includeLeftBound,
-                    includeRightBound,
-                    pointTuple.getField(leftTableAttributeName),
-                    t.getField(rightTableAttributeName),
-                    constant,
-                    operatorSchemaInfo.inputSchemas(0).getAttribute(leftTableAttributeName).getType
-                  ) == 0
-                ) {
+                if (joinConditionHolds(
+                      includeLeftBound,
+                      includeRightBound,
+                      pointTuple.getField(leftTableAttributeName),
+                      t.getField(rightTableAttributeName),
+                      constant,
+                      operatorSchemaInfo
+                        .inputSchemas(0)
+                        .getAttribute(leftTableAttributeName)
+                        .getType
+                    ) == 0) {
                   val builder = Tuple
                     .newBuilder(operatorSchemaInfo.outputSchema)
                     .add(pointTuple)
@@ -150,31 +151,23 @@ class IntervalJoinOpExec[K](
       rightBoundValue: Timestamp
   ): Int = {
     if (includeLeftBound && includerightBound) {
-      if (
-        (pointValue.after(leftBoundValue) || pointValue.equals(leftBoundValue)) && (pointValue
-          .before(rightBoundValue) || pointValue.equals(rightBoundValue))
-      ) 0
+      if ((pointValue.after(leftBoundValue) || pointValue.equals(leftBoundValue)) && (pointValue
+            .before(rightBoundValue) || pointValue.equals(rightBoundValue))) 0
       else if (pointValue.before(leftBoundValue)) -1
       else 1
     } else if (includeLeftBound && !includerightBound) {
-      if (
-        (pointValue.after(leftBoundValue) || pointValue.equals(leftBoundValue)) && (pointValue
-          .before(rightBoundValue))
-      ) 0
+      if ((pointValue.after(leftBoundValue) || pointValue.equals(leftBoundValue)) && (pointValue
+            .before(rightBoundValue))) 0
       else if (pointValue.before(leftBoundValue)) -1
       else 1
     } else if (!includeLeftBound && includerightBound) {
-      if (
-        (pointValue.after(leftBoundValue)) && (pointValue
-          .before(rightBoundValue) || pointValue.equals(rightBoundValue))
-      ) 0
+      if ((pointValue.after(leftBoundValue)) && (pointValue
+            .before(rightBoundValue) || pointValue.equals(rightBoundValue))) 0
       else if (pointValue.before(leftBoundValue) || pointValue.equals(leftBoundValue)) -1
       else 1
     } else {
-      if (
-        (pointValue.after(leftBoundValue)) && (pointValue
-          .before(rightBoundValue))
-      ) 0
+      if ((pointValue.after(leftBoundValue)) && (pointValue
+            .before(rightBoundValue))) 0
       else if (pointValue.before(leftBoundValue) || pointValue.equals(leftBoundValue)) -1
       else 1
     }

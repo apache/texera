@@ -4,8 +4,16 @@ import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyD
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.operators.OpExecConfig
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameOnPort1}
-import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{
+  AutofillAttributeName,
+  AutofillAttributeNameOnPort1
+}
+import edu.uci.ics.texera.workflow.common.metadata.{
+  InputPort,
+  OperatorGroupConstants,
+  OperatorInfo,
+  OutputPort
+}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 
@@ -25,26 +33,24 @@ class IntervalJoinOpDesc extends OperatorDescriptor {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Interval Constant")
-  @JsonPropertyDescription("The maximum length that the right input attribute can greater than the left Input attribute")
+  @JsonPropertyDescription(
+    "The maximum length that the right input attribute can greater than the left Input attribute")
   var interval: Long = _
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Include Left Bound")
   @JsonPropertyDescription("Whether the condition holds when left input attr = right input attr")
   var leftBound: Boolean = true
-
-
   @JsonProperty(required = true)
   @JsonSchemaTitle("Include Right Bound")
-  @JsonPropertyDescription("Whether the condition holds when left input attr = right input attr + interval constant")
+  @JsonPropertyDescription(
+    "Whether the condition holds when left input attr = right input attr + interval constant")
   var rightBound: Boolean = true
 
   @JsonProperty(required = false)
   @JsonSchemaTitle("Time interval type")
   @JsonPropertyDescription("Year, Month, Hour, etc.")
   var timeIntervalType: TimeIntervalType = TimeIntervalType.DAY
-
-
   @JsonIgnore
   var opExecConfig: IntervalJoinOpExecConfig = _
 
@@ -53,7 +59,6 @@ class IntervalJoinOpDesc extends OperatorDescriptor {
       operatorIdentifier,
       leftAttributeName,
       rightAttributeName,
-
       operatorSchemaInfo,
       interval,
       leftBound,
@@ -76,12 +81,9 @@ class IntervalJoinOpDesc extends OperatorDescriptor {
     val builder = Schema.newBuilder()
     builder.add(schemas(0))
     if (rightAttributeName.equals(leftAttributeName)) {
-      schemas(1)
-        .getAttributes
+      schemas(1).getAttributes
         .forEach(attr => {
-          if (
-            schemas(0).containsAttribute(attr.getName)
-          ) {
+          if (schemas(0).containsAttribute(attr.getName)) {
             // appending 1 to the output of Join schema in case of duplicate attributes in probe and build table
             builder.add(new Attribute(s"${attr.getName}#@1", attr.getType))
           } else {
@@ -89,8 +91,7 @@ class IntervalJoinOpDesc extends OperatorDescriptor {
           }
         })
     } else {
-      schemas(1)
-        .getAttributes
+      schemas(1).getAttributes
         .forEach(attr => {
           if (schemas(0).containsAttribute(attr.getName)) {
             builder.add(new Attribute(s"${attr.getName}#@1", attr.getType))

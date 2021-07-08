@@ -5,20 +5,25 @@ import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.UseAll
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.RoundRobinDeployment
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, LinkIdentity, OperatorIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  LayerIdentity,
+  LinkIdentity,
+  OperatorIdentity
+}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
 class IntervalJoinOpExecConfig(
-                                id: OperatorIdentity,
-                                val leftAttributeName: String,
-                                val rightAttributeName: String,
-                                val operatorSchemaInfo: OperatorSchemaInfo,
-                                val constant:Long,
-                                val includeLeftBound:Boolean,
-                                val includeRightBound:Boolean,
-                                val timeIntervalType: TimeIntervalType
-                              ) extends OpExecConfig(id) {
+    id: OperatorIdentity,
+    val leftAttributeName: String,
+    val rightAttributeName: String,
+    val operatorSchemaInfo: OperatorSchemaInfo,
+    val constant: Long,
+    val includeLeftBound: Boolean,
+    val includeRightBound: Boolean,
+    val timeIntervalType: TimeIntervalType
+) extends OpExecConfig(id) {
 
   var leftTable: LinkIdentity = _
 
@@ -45,7 +50,14 @@ class IntervalJoinOpExecConfig(
     }
 
     topology.layers.head.metadata = _ => {
-      new IntervalJoinOpExec[Long](leftTable, leftAttributeName, rightAttributeName, operatorSchemaInfo, constant, includeLeftBound, includeRightBound, timeIntervalType)
+      new IntervalJoinOpExec[Long](leftTable,
+                                   leftAttributeName,
+                                   rightAttributeName,
+                                   operatorSchemaInfo,
+                                   constant,
+                                   includeLeftBound,
+                                   includeRightBound,
+                                   timeIntervalType)
     }
   }
 
