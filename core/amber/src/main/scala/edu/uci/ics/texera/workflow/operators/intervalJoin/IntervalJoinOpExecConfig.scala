@@ -50,14 +50,16 @@ class IntervalJoinOpExecConfig(
     }
 
     topology.layers.head.metadata = _ => {
-      new IntervalJoinOpExec[Long](leftTable,
-                                   leftAttributeName,
-                                   rightAttributeName,
-                                   operatorSchemaInfo,
-                                   constant,
-                                   includeLeftBound,
-                                   includeRightBound,
-                                   timeIntervalType)
+      new IntervalJoinOpExec[Long](
+        leftTable,
+        leftAttributeName,
+        rightAttributeName,
+        operatorSchemaInfo,
+        constant,
+        includeLeftBound,
+        includeRightBound,
+        timeIntervalType
+      )
     }
   }
 

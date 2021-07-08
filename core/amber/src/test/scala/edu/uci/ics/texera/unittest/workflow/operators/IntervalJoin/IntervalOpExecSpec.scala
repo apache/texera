@@ -266,12 +266,12 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(opExec.processTexeraTuple(Right(InputExhausted()), left).isEmpty)
     var rangeList: Array[Long] = Array(1L, 5L, 8L)
     rangeList
-      .map(
-        i =>
-          opExec.processTexeraTuple(
-            Left(timeStampTuple("range", 1, Timestamp.valueOf(localDateTime.plusDays(i)))),
-            right
-        ))
+      .map(i =>
+        opExec.processTexeraTuple(
+          Left(timeStampTuple("range", 1, Timestamp.valueOf(localDateTime.plusDays(i)))),
+          right
+        )
+      )
     var outputTuples = opExec.processTexeraTuple(Right(InputExhausted()), right).toList
 
     assert(outputTuples.size == 11)

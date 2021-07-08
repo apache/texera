@@ -34,7 +34,8 @@ class IntervalJoinOpDesc extends OperatorDescriptor {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Interval Constant")
   @JsonPropertyDescription(
-    "The maximum length that the right input attribute can greater than the left Input attribute")
+    "The maximum length that the right input attribute can greater than the left Input attribute"
+  )
   var interval: Long = _
 
   @JsonProperty(required = true)
@@ -44,7 +45,8 @@ class IntervalJoinOpDesc extends OperatorDescriptor {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Include Right Bound")
   @JsonPropertyDescription(
-    "Whether the condition holds when left input attr = right input attr + interval constant")
+    "Whether the condition holds when left input attr = right input attr + interval constant"
+  )
   var rightBound: Boolean = true
 
   @JsonProperty(required = false)
