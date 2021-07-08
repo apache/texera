@@ -12,10 +12,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import org.apache.arrow.flight.*;
 import org.apache.arrow.memory.RootAllocator;
-import org.apache.arrow.vector.*;
-import org.apache.arrow.vector.types.FloatingPointPrecision;
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.VectorSchemaRoot;
 import org.jetbrains.annotations.NotNull;
 import scala.collection.Iterator;
 import scala.collection.JavaConverters;
@@ -74,103 +71,6 @@ public class PythonUDFOpExec implements OperatorExecutor {
     }
 
     /**
-     * Does the actual conversion (serialization) of data tuples. This is a tuple-by-tuple method, because this method
-     * will be used in different places.
-     *
-     * @param tuple            Input tuple.
-     * @param index            Index of the input tuple in the table (buffer).
-     * @param vectorSchemaRoot This should store the Arrow schema, which should already been converted from Amber.
-     */
-    private static void convertAmber2ArrowTuple(Tuple tuple, int index, VectorSchemaRoot vectorSchemaRoot)
-            throws ClassCastException {
-
-        List<Field> preDefinedFields = vectorSchemaRoot.getSchema().getFields();
-        for (int i = 0; i < preDefinedFields.size(); i++) {
-            FieldVector vector = vectorSchemaRoot.getVector(i);
-            switch (preDefinedFields.get(i).getFieldType().getType().getTypeID()) {
-                case Int:
-                    ((IntVector) vector).set(index, (int) tuple.get(i));
-                    break;
-                case Bool:
-                    ((BitVector) vector).set(index, (Boolean) tuple.get(i) ? 1 : 0);
-                    break;
-                case FloatingPoint:
-                    ((Float8Vector) vector).set(index, (double) tuple.get(i));
-                    break;
-                case Utf8:
-                    ((VarCharVector) vector).set(index, tuple.get(i).toString().getBytes(StandardCharsets.UTF_8));
-                    break;
-            }
-        }
-    }
-
-    /**
-     * Does the actual conversion (deserialization) of data table. This is a table(buffer)-wise method.
-     *
-     * @param vectorSchemaRoot This should contain the data buffer.
-     * @param resultQueue      This should be empty before input.
-     * @throws RuntimeException Whatever might happen during this conversion, but especially when tuples have unexpected type.
-     */
-    private static void convertArrow2AmberTableBuffer(VectorSchemaRoot vectorSchemaRoot, Queue<Tuple> resultQueue)
-            throws RuntimeException {
-        List<FieldVector> fieldVectors = vectorSchemaRoot.getFieldVectors();
-        Schema amberSchema = convertArrow2AmberSchema(vectorSchemaRoot.getSchema());
-        for (int i = 0; i < vectorSchemaRoot.getRowCount(); i++) {
-            List<Object> contents = new ArrayList<>();
-            for (FieldVector vector : fieldVectors) {
-                try {
-                    Object content;
-                    switch (vector.getField().getFieldType().getType().getTypeID()) {
-                        case Int:
-                            switch (((ArrowType.Int) (vector.getField().getFieldType().getType())).getBitWidth()) {
-                                case 16:
-                                    content = (int) ((SmallIntVector) vector).get(i);
-                                    break;
-                                case 32:
-                                    content = ((IntVector) vector).get(i);
-                                    break;
-                                case 64:
-                                default:
-                                    content = (int) ((BigIntVector) vector).get(i);
-                            }
-                            break;
-                        case Bool:
-                            int bitValue = ((BitVector) vector).get(i);
-                            if (bitValue == 0) content = false;
-                            else content = true;
-                            break;
-                        case FloatingPoint:
-                            switch (((ArrowType.FloatingPoint) (vector.getField().getFieldType().getType())).getPrecision()) {
-                                case HALF:
-                                    throw new RuntimeException("HALF floating point number is not supported.");
-                                case SINGLE:
-                                    content = (double) ((Float4Vector) vector).get(i);
-                                    break;
-                                default:
-                                    content = ((Float8Vector) vector).get(i);
-                            }
-                            break;
-                        case Utf8:
-                            content = new String(((VarCharVector) vector).get(i), StandardCharsets.UTF_8);
-                            break;
-                        default:
-                            throw new RuntimeException("Unsupported type when converting tuples from Arrow to Amber.");
-                    }
-                    contents.add(content);
-                } catch (Exception e) {
-                    if (!e.getMessage().contains("Value at index is null")) {
-                        throw new RuntimeException(e.getMessage(), e);
-                    } else {
-                        contents.add(null);
-                    }
-                }
-            }
-            Tuple result = new Tuple(amberSchema, contents);
-            resultQueue.add(result);
-        }
-    }
-
-    /**
      * Generate the absolute path in the Python UDF folder from a file name.
      *
      * @param fileName Input file name, not a path.
@@ -204,36 +104,6 @@ public class PythonUDFOpExec implements OperatorExecutor {
         }
     }
 
-    /**
-     * Converts an Arrow table schema into Amber schema.
-     *
-     * @param arrowSchema The arrow table schema to be converted.
-     * @return The Amber Schema converted from Arrow Table Schema.
-     */
-    private static Schema convertArrow2AmberSchema(org.apache.arrow.vector.types.pojo.Schema arrowSchema) {
-        List<Attribute> amberAttributes = new ArrayList<>();
-        for (Field f : arrowSchema.getFields()) {
-            AttributeType amberAttributeType;
-            switch (f.getFieldType().getType().getTypeID()) {
-                case Int:
-                    amberAttributeType = AttributeType.INTEGER;
-                    break;
-                case Bool:
-                    amberAttributeType = AttributeType.BOOLEAN;
-                    break;
-                case FloatingPoint:
-                    amberAttributeType = AttributeType.DOUBLE;
-                    break;
-                case Utf8:
-                    amberAttributeType = AttributeType.STRING;
-                    break;
-                default:
-                    throw new IllegalStateException("Unexpected value: " + f.getFieldType().getType().getTypeID());
-            }
-            amberAttributes.add(new Attribute(f.getName(), amberAttributeType));
-        }
-        return new Schema(amberAttributes);
-    }
 
     private static void deleteTempFile(String filePath) throws IOException {
         File tempFile = new File(filePath);
@@ -242,43 +112,6 @@ public class PythonUDFOpExec implements OperatorExecutor {
         }
     }
 
-    /**
-     * Converts an Amber schema into Arrow schema.
-     *
-     * @param amberSchema The Amber Tuple Schema.
-     * @return An Arrow {@link org.apache.arrow.vector.types.pojo.Schema}.
-     */
-    private static org.apache.arrow.vector.types.pojo.Schema convertAmber2ArrowSchema(Schema amberSchema)
-            throws RuntimeException {
-        List<Field> arrowFields = new ArrayList<>();
-        for (Attribute amberAttribute : amberSchema.getAttributes()) {
-            String name = amberAttribute.getName();
-            Field field;
-            switch (amberAttribute.getType()) {
-                case INTEGER:
-                    field = Field.nullablePrimitive(name, new ArrowType.Int(32, true));
-                    break;
-                case LONG:
-                    field = Field.nullablePrimitive(name, new ArrowType.Int(64, true));
-                    break;
-                case DOUBLE:
-                    field = Field.nullablePrimitive(name, new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE));
-                    break;
-                case BOOLEAN:
-                    field = Field.nullablePrimitive(name, ArrowType.Bool.INSTANCE);
-                    break;
-                case STRING:
-                case ANY:
-                    field = Field.nullablePrimitive(name, ArrowType.Utf8.INSTANCE);
-                    break;
-                default:
-                    throw new RuntimeException("Unexpected value: " + amberAttribute.getType());
-            }
-            arrowFields.add(field);
-
-        }
-        return new org.apache.arrow.vector.types.pojo.Schema(arrowFields);
-    }
 
     private static void safeDeleteTempFile(String fileName) {
         try {
@@ -314,12 +147,9 @@ public class PythonUDFOpExec implements OperatorExecutor {
         try {
             while (!values.isEmpty()) {
                 schemaRoot.allocateNew();
-                int indexThisChunk = 0;
-                while (indexThisChunk < chunkSize && !values.isEmpty()) {
-                    convertAmber2ArrowTuple(values.remove(), indexThisChunk, schemaRoot);
-                    indexThisChunk++;
+                while (schemaRoot.getRowCount() < chunkSize && !values.isEmpty()) {
+                    ArrowUtils.appendTexeraTuple(values.remove(), schemaRoot);
                 }
-                schemaRoot.setRowCount(indexThisChunk);
                 streamWriter.putNext();
                 schemaRoot.clear();
             }
@@ -328,6 +158,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
             flightListener.close();
             schemaRoot.clear();
         } catch (Exception e) {
+            e.printStackTrace();
             closeAndThrow(client, e);
         }
     }
@@ -364,7 +195,9 @@ public class PythonUDFOpExec implements OperatorExecutor {
             FlightStream stream = client.getStream(ticket);
             while (stream.next()) {
                 VectorSchemaRoot root = stream.getRoot(); // get root
-                convertArrow2AmberTableBuffer(root, resultQueue);
+                for (int i = 0; i < root.getRowCount(); i++) {
+                    resultQueue.add(ArrowUtils.getTexeraTuple(i, root));
+                }
                 root.clear();
             }
         } catch (RuntimeException e) {
@@ -520,7 +353,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
             argsTuples.add(new Tuple(argsSchema, Collections.singletonList(arg)));
         }
 
-        writeArrowStream(flightClient, argsTuples, convertAmber2ArrowSchema(argsSchema), Channel.ARGS, batchSize);
+        writeArrowStream(flightClient, argsTuples, ArrowUtils.fromTexeraSchema(argsSchema), Channel.ARGS, batchSize);
     }
 
     private void sendConf() {
@@ -529,7 +362,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
         Queue<Tuple> confTuples = new LinkedList<>();
 
         // TODO: add configurations to be sent
-        writeArrowStream(flightClient, confTuples, convertAmber2ArrowSchema(confSchema), Channel.CONF, batchSize);
+        writeArrowStream(flightClient, confTuples, ArrowUtils.fromTexeraSchema(confSchema), Channel.CONF, batchSize);
 
     }
 
@@ -539,7 +372,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
             Tuple inputTuple = tuple.left().get();
             if (globalInputSchema == null) {
                 try {
-                    globalInputSchema = convertAmber2ArrowSchema(inputTuple.getSchema());
+                    globalInputSchema = ArrowUtils.fromTexeraSchema(inputTuple.getSchema());
                 } catch (RuntimeException exception) {
                     closeAndThrow(flightClient, exception);
                 }
