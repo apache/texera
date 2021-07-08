@@ -51,8 +51,9 @@ class IntervalJoinOpDesc extends OperatorDescriptor {
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
     opExecConfig = new IntervalJoinOpExecConfig(
       operatorIdentifier,
-      rightAttributeName,
       leftAttributeName,
+      rightAttributeName,
+
       operatorSchemaInfo,
       interval,
       leftBound,

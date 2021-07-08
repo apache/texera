@@ -11,8 +11,8 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
 class IntervalJoinOpExecConfig(
                                 id: OperatorIdentity,
-                                val probeAttributeName: String,
-                                val buildAttributeName: String,
+                                val leftAttributeName: String,
+                                val rightAttributeName: String,
                                 val operatorSchemaInfo: OperatorSchemaInfo,
                                 val constant:Long,
                                 val includeLeftBound:Boolean,
@@ -45,7 +45,7 @@ class IntervalJoinOpExecConfig(
     }
 
     topology.layers.head.metadata = _ => {
-      new IntervalJoinOpExec[Long](leftTable, buildAttributeName, probeAttributeName, operatorSchemaInfo, constant, includeLeftBound, includeRightBound, timeIntervalType)
+      new IntervalJoinOpExec[Long](leftTable, leftAttributeName, rightAttributeName, operatorSchemaInfo, constant, includeLeftBound, includeRightBound, timeIntervalType)
     }
   }
 

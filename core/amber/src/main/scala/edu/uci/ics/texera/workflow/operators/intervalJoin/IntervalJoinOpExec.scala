@@ -25,7 +25,7 @@ class IntervalJoinOpExec[K](
 
   var ispointTableFinished: Boolean = false
   var outputProbeSchema: Schema = _
-  var pointTable: ArrayBuffer[Tuple] = _
+  var leftTable: ArrayBuffer[Tuple] = _
   var rangeTable: ArrayBuffer[Tuple] = _
   val leftTableSchema: Schema = operatorSchemaInfo.inputSchemas(0)
   val rightTableSchema: Schema = operatorSchemaInfo.inputSchemas(1)
@@ -51,17 +51,17 @@ class IntervalJoinOpExec[K](
     tuple match {
       case Left(t) =>
         if (input == isLeftTableInput) {
-          pointTable += t
+          leftTable += t
           Iterator()
         } else {
           rangeTable += t
           var tuplesToOutput: ArrayBuffer[Tuple] = new ArrayBuffer[Tuple]()
-          if (pointTable.isEmpty) {
+          if (leftTable.isEmpty) {
             Iterator()
           }
-          pointTable.foreach(pointTuple => {
+          leftTable.foreach(pointTuple => {
             if (
-              rangeCondition(
+              joinConditionHolds(
                 includeLeftBound,
                 includeRightBound,
                 pointTuple.getField(leftTableAttributeName),
@@ -99,7 +99,7 @@ class IntervalJoinOpExec[K](
     }
   }
 
-  def rangeCondition(
+  def joinConditionHolds(
                       includeLeftBound: Boolean,
                       includerightBound: Boolean,
                       point: K,
@@ -185,12 +185,12 @@ class IntervalJoinOpExec[K](
 
   override def open(): Unit = {
     outputProbeSchema = createOutputProbeSchema()
-    pointTable = new ArrayBuffer[Tuple]()
+    leftTable = new ArrayBuffer[Tuple]()
     rangeTable = new ArrayBuffer[Tuple]()
   }
 
   override def close(): Unit = {
-    pointTable.clear()
+    leftTable.clear()
     rangeTable.clear()
   }
 }
