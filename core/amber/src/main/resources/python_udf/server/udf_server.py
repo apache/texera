@@ -1,13 +1,14 @@
-import ast
-import threading
 from time import sleep
-from typing import Dict
 
+import ast
 import pandas
 import pyarrow
+import threading
 from loguru import logger
 from pyarrow import py_buffer
-from pyarrow.flight import FlightDescriptor, Action, FlightServerBase, Result, FlightInfo, Location, FlightEndpoint, RecordBatchStream
+from pyarrow.flight import FlightDescriptor, Action, FlightServerBase, Result, FlightInfo, Location, FlightEndpoint, \
+    RecordBatchStream
+from typing import Dict
 
 
 class UDFServer(FlightServerBase):
@@ -18,6 +19,7 @@ class UDFServer(FlightServerBase):
         self.host: str = host
         self.tls_certificates = tls_certificates
         self.udf_op = udf_op
+        self.schema_map = dict()  # to store input schemas, so that output can retrieve
 
     @classmethod
     def _descriptor_to_key(cls, descriptor: FlightDescriptor):
@@ -147,9 +149,15 @@ class UDFServer(FlightServerBase):
 
     def _get_flight(self, channel: str) -> pandas.DataFrame:
         logger.debug(f"transforming flight {channel.__repr__()}")
-        df = self.flights[self._descriptor_to_key(self._to_descriptor(channel))].to_pandas()
-        logger.debug(f"got {len(df)} rows in this flight")
-        return df
+        table = self.flights[self._descriptor_to_key(self._to_descriptor(channel))]
+        input_schema = table.schema
+        # record input schema
+        for field in input_schema:
+            self.schema_map[field.name] = field
+        logger.debug("input schema: " + str(input_schema))
+        dataframe = table.to_pandas()
+        logger.debug(f"got {len(dataframe)} rows in this flight")
+        return dataframe
 
     def _remove_flight(self, channel: str) -> None:
         logger.debug(f"removing flight {channel.__repr__()}")
@@ -159,7 +167,11 @@ class UDFServer(FlightServerBase):
         output_key = self._descriptor_to_key(self._to_descriptor(channel))
         logger.debug(f"prepared {len(output_dataframe)} rows in this flight")
         logger.debug(f"sending flight {channel.__repr__()}")
-        self.flights[output_key] = pyarrow.Table.from_pandas(output_dataframe)
+        inferred_schema: pyarrow.lib.Schema = pyarrow.lib.Schema.from_pandas(output_dataframe)
+        # create a output schema, use the original input schema if possible
+        output_schema = pyarrow.schema([self.schema_map.get(field.name, field) for field in inferred_schema])
+        logger.debug("output schema: " + str(output_schema))
+        self.flights[output_key] = pyarrow.Table.from_pandas(output_dataframe, output_schema)
 
     @staticmethod
     def _response(message: str):
