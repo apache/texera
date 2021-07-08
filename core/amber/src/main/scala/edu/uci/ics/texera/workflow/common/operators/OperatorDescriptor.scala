@@ -39,8 +39,9 @@ import edu.uci.ics.texera.workflow.operators.visualization.pieChart.PieChartOpDe
 import edu.uci.ics.texera.workflow.operators.visualization.scatterplot.ScatterplotOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.WordCloudOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
-
 import java.util.UUID
+
+import edu.uci.ics.texera.workflow.operators.intervalJoin.IntervalJoinOpDesc
 
 @JsonTypeInfo(
   use = JsonTypeInfo.Id.NAME,
@@ -84,7 +85,8 @@ import java.util.UUID
     new Type(value = classOf[DistinctOpDesc], name = "Distinct"),
     new Type(value = classOf[IntersectOpDesc], name = "Intersect"),
     new Type(value = classOf[SymmetricDifferenceOpDesc], name = "SymmetricDifference"),
-    new Type(value = classOf[DifferenceOpDesc], name = "Difference")
+    new Type(value = classOf[DifferenceOpDesc], name = "Difference"),
+    new Type(value = classOf[IntervalJoinOpDesc], name = "IntervalJoin")
   )
 )
 abstract class OperatorDescriptor extends Serializable {
