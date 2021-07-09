@@ -1,7 +1,12 @@
 package edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2
 
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeTypeUtils, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{
+  Attribute,
+  AttributeType,
+  AttributeTypeUtils,
+  OperatorSchemaInfo
+}
 import edu.uci.ics.texera.workflow.operators.source.apis.twitter.TwitterSourceOpExec
 import io.github.redouane59.twitter.dto.endpoints.AdditionalParameters
 import io.github.redouane59.twitter.dto.tweet.TweetList
@@ -14,22 +19,18 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.{Iterator, mutable}
 import scala.jdk.CollectionConverters.asScalaBufferConverter
 class TwitterFullArchiveSearchSourceOpExec(
-    schema: Schema,
-    apiKey: String,
-    apiSecretKey: String,
-    searchQuery: String,
-    fromDateTime: String,
-    toDateTime: String,
-    var curLimit: Int
-) extends TwitterSourceOpExec(apiKey, apiSecretKey) {
-
+    desc: TwitterFullArchiveSearchSourceOpDesc,
+    operatorSchemaInfo: OperatorSchemaInfo,
+) extends TwitterSourceOpExec(desc.apiKey, desc.apiSecretKey) {
+  var curLimit: Int = desc.limit
+  val outputSchemaAttributes: Array[AttributeType] = operatorSchemaInfo.outputSchema.getAttributes
+    .map((attribute: Attribute) => { attribute.getType })
+    .toArray
   // nextToken is used to retrieve next page of results, if exists.
   var nextToken: String = _
-
   // contains tweets from the previous request.
   var tweetCache: mutable.Buffer[TweetData] = mutable.Buffer()
   var userCache: Map[String, UserData] = _
-
   var hasNextRequest: Boolean = curLimit > 0
   var lastQueryTime: Long = 0
 
@@ -41,9 +42,9 @@ class TwitterFullArchiveSearchSourceOpExec(
         // if the current cache is exhausted, query for the next response
         if (tweetCache.isEmpty && hasNextRequest) {
           queryForNextBatch(
-            searchQuery,
-            LocalDateTime.parse(fromDateTime, DateTimeFormatter.ISO_DATE_TIME),
-            LocalDateTime.parse(toDateTime, DateTimeFormatter.ISO_DATE_TIME),
+            desc.searchQuery,
+            LocalDateTime.parse(desc.fromDateTime, DateTimeFormatter.ISO_DATE_TIME),
+            LocalDateTime.parse(desc.toDateTime, DateTimeFormatter.ISO_DATE_TIME),
             curLimit.min(TWITTER_API_BATCH_SIZE_MAX)
           )
         }
@@ -103,9 +104,9 @@ class TwitterFullArchiveSearchSourceOpExec(
               .orNull,
             user.get.getLocation
           ),
-          schema.getAttributes.map((attribute: Attribute) => { attribute.getType }).toArray
+          outputSchemaAttributes
         )
-        Tuple.newBuilder(schema).addSequentially(fields).build
+        Tuple.newBuilder(operatorSchemaInfo.outputSchema).addSequentially(fields).build
       }
     }
 

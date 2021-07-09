@@ -38,7 +38,7 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
   @JsonSchemaDescription("ISO 8601 format")
   var toDateTime: String = _
 
-  @JsonProperty(required = true, defaultValue = "10")
+  @JsonProperty(required = true, defaultValue = "100")
   @JsonSchemaTitle("Limit")
   @JsonSchemaDescription("Maximum number of tweets to retrieve")
   var limit: Int = _
@@ -47,16 +47,7 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
     // TODO: use multiple workers
     new ManyToOneOpExecConfig(
       operatorIdentifier,
-      _ =>
-        new TwitterFullArchiveSearchSourceOpExec(
-          sourceSchema(),
-          apiKey,
-          apiSecretKey,
-          searchQuery,
-          fromDateTime,
-          toDateTime,
-          limit
-        )
+      _ => new TwitterFullArchiveSearchSourceOpExec(this, operatorSchemaInfo)
     )
 
   override def sourceSchema(): Schema = {
