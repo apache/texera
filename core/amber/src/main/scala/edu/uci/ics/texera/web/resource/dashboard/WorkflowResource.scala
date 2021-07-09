@@ -3,7 +3,7 @@ package edu.uci.ics.texera.web.resource.dashboard
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{WORKFLOW, WORKFLOW_OF_USER}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowOfUserDao}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Workflow, WorkflowOfUser}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{User, Workflow, WorkflowOfUser}
 import edu.uci.ics.texera.web.resource.auth.UserResource
 import io.dropwizard.jersey.sessions.Session
 import org.jooq.types.UInteger
@@ -95,8 +95,7 @@ class WorkflowResource {
           workflowDao.update(workflow)
         } else {
           // when the wid is not provided, treat it as a new workflow
-          workflowDao.insert(workflow)
-          workflowOfUserDao.insert(new WorkflowOfUser(user.getUid, workflow.getWid))
+          insertWorkflow(workflow, user)
         }
         Response.ok(workflowDao.fetchOneByWid(workflow.getWid)).build()
       case None =>
@@ -121,13 +120,17 @@ class WorkflowResource {
         if (workflow.getWid != null) {
           Response.status(Response.Status.BAD_REQUEST).build()
         } else {
-          workflowDao.insert(workflow)
-          workflowOfUserDao.insert(new WorkflowOfUser(user.getUid, workflow.getWid))
+          insertWorkflow(workflow, user)
           Response.ok(workflowDao.fetchOneByWid(workflow.getWid)).build()
         }
       case None =>
         Response.status(Response.Status.UNAUTHORIZED).build()
     }
+  }
+
+  private def insertWorkflow(workflow: Workflow, user: User): Unit = {
+    workflowDao.insert(workflow)
+    workflowOfUserDao.insert(new WorkflowOfUser(user.getUid, workflow.getWid))
   }
 
   /**
