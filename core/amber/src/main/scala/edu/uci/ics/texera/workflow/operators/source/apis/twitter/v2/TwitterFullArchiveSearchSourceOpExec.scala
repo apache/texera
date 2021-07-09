@@ -20,7 +20,7 @@ import scala.collection.{Iterator, mutable}
 import scala.jdk.CollectionConverters.asScalaBufferConverter
 class TwitterFullArchiveSearchSourceOpExec(
     desc: TwitterFullArchiveSearchSourceOpDesc,
-    operatorSchemaInfo: OperatorSchemaInfo,
+    operatorSchemaInfo: OperatorSchemaInfo
 ) extends TwitterSourceOpExec(desc.apiKey, desc.apiSecretKey) {
   var curLimit: Int = desc.limit
   val outputSchemaAttributes: Array[AttributeType] = operatorSchemaInfo.outputSchema.getAttributes
