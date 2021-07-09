@@ -69,6 +69,7 @@ class ScatterplotVizOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     scatterplotOpDesc.isGeometric = true
     val outputSchema = scatterplotOpDesc.getOutputSchema(Array(correctSchema))
     assert(outputSchema.getAttributes.get(0).getName.equals("xColumn"))
+    assert(outputSchema.getAttributes.get(1).getName.equals("yColumn"))
   }
 
   it should "build the schema without a problem if the field names (xColumn, yColumn) are the same as the hardcoded geometric but the type is not geometric" in {
@@ -77,5 +78,6 @@ class ScatterplotVizOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val outputSchema = scatterplotOpDesc.getOutputSchema(Array(hardcodedFieldNames))
     assert(scatterplotOpDesc.isGeometric == false)
     assert(outputSchema.getIndex("xColumn") == 0)
+    assert(outputSchema.getIndex("yColumn") == 1)
   }
 }
