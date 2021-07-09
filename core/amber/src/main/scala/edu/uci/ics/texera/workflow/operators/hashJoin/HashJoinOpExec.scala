@@ -68,7 +68,6 @@ class HashJoinOpExec[K](
               for (i <- 0 until t.getFields.size()) {
                 val attributeName = t.getSchema.getAttributeNames.get(i)
                 val attribute = t.getSchema.getAttribute(attributeName)
-
                 if (attributeName != probeAttributeName) {
                   builder.add(
                     new Attribute(

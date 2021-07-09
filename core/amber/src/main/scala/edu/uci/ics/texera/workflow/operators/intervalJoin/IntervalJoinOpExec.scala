@@ -8,14 +8,9 @@ import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
 
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
 class IntervalJoinOpExec[K](
     val isLeftTableInput: LinkIdentity,
@@ -31,8 +26,8 @@ class IntervalJoinOpExec[K](
   var isLeftTableFinished: Boolean = false
   var isRightTableFinished: Boolean = false
   var outputProbeSchema: Schema = _
-  var leftTable: ArrayBuffer[Tuple] = _
-  var rightTable: ArrayBuffer[Tuple] = _
+  var leftTable: ListBuffer[Tuple] = new ListBuffer[Tuple]()
+  var rightTable: ListBuffer[Tuple] = new ListBuffer[Tuple]()
   val leftTableSchema: Schema = operatorSchemaInfo.inputSchemas(0)
   val rightTableSchema: Schema = operatorSchemaInfo.inputSchemas(1)
 
@@ -49,6 +44,36 @@ class IntervalJoinOpExec[K](
     builder.build()
   }
 
+  private def updateRightTableCache(leftTableSmallestTuple:Tuple):Unit = {
+    rightTable = rightTable.filter(
+      rightTableTuple => {
+      joinConditionHolds(
+        leftTableSmallestTuple.getField(leftTableAttributeName),
+        rightTableTuple.getField(rightTableAttributeName),
+        operatorSchemaInfo
+          .inputSchemas(0)
+          .getAttribute(leftTableAttributeName)
+          .getType
+      ) > 0
+
+  }
+    )
+  }
+  private def updateLeftTableCache(rightTableSmallestTuple:Tuple):Unit = {
+    leftTable = leftTable.filter(
+      leftTableTuple => {
+        joinConditionHolds(
+          leftTableTuple.getField(leftTableAttributeName),
+          rightTableSmallestTuple.getField(rightTableAttributeName),
+          operatorSchemaInfo
+            .inputSchemas(0)
+            .getAttribute(leftTableAttributeName)
+            .getType
+        ) < 0
+
+      }
+    )
+  }
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
       input: LinkIdentity
@@ -57,66 +82,85 @@ class IntervalJoinOpExec[K](
       case Left(t) =>
         if (input == isLeftTableInput) {
           leftTable += t
+         if(rightTable.nonEmpty) {
+           updateRightTableCache(leftTable.head)
+           rightTable.filter(rightTableTuple => {
+             joinConditionHolds(
+               t.getField(leftTableAttributeName),
+               rightTableTuple.getField(rightTableAttributeName),
+               operatorSchemaInfo
+                 .inputSchemas(0)
+                 .getAttribute(leftTableAttributeName)
+                 .getType
+             )==0
+           }
+           ).map(rightTuple =>{
+             val builder = Tuple
+               .newBuilder(operatorSchemaInfo.outputSchema)
+               .add(t)
+             for (i <- 0 until rightTuple.getFields.size()) {
+               val attributeName = rightTuple.getSchema.getAttributeNames.get(i)
+               val attribute = rightTuple.getSchema.getAttribute(attributeName)
+               builder.add(
+                 new Attribute(
+                   if (leftTableSchema.getAttributeNames.contains(attributeName))
+                     attributeName + "#@1"
+                   else attributeName,
+                   attribute.getType
+                 ),
+                 rightTuple.getFields.get(i)
+               )
+             }
+             builder.build()
+           }
+           ).toIterator
+         }
+          else {
           Iterator()
-        } else {
+         }
+        }
+        else {
           rightTable += t
-          Iterator()
-        }
-      case Right(_) =>
-        if (input == isLeftTableInput) {
-          isLeftTableFinished = true
-        } else {
-          isRightTableFinished = true
-        }
-        if (isLeftTableFinished && isRightTableFinished) {
-          if (leftTable.isEmpty || rightTable.isEmpty) {
-            Iterator()
-          } else {
-            var tuplesToOutput: ArrayBuffer[Tuple] = new ArrayBuffer[Tuple]()
-            var nextTupleInLeftTable: Int = 0
-
-            for (j <- nextTupleInLeftTable until leftTable.size) {
-              var pointTuple: Tuple = leftTable(j)
-              for (k <- 0 until rightTable.size) {
-                var t: Tuple = rightTable(k)
-                if (
-                  joinConditionHolds(
-                    includeLeftBound,
-                    includeRightBound,
-                    pointTuple.getField(leftTableAttributeName),
-                    t.getField(rightTableAttributeName),
-                    constant,
-                    operatorSchemaInfo
-                      .inputSchemas(0)
-                      .getAttribute(leftTableAttributeName)
-                      .getType
-                  ) == 0
-                ) {
-                  val builder = Tuple
-                    .newBuilder(operatorSchemaInfo.outputSchema)
-                    .add(pointTuple)
-                  for (i <- 0 until t.getFields.size()) {
-                    val attributeName = t.getSchema.getAttributeNames.get(i)
-                    val attribute = t.getSchema.getAttribute(attributeName)
-                    builder.add(
-                      new Attribute(
-                        if (leftTableSchema.getAttributeNames.contains(attributeName))
-                          attributeName + "#@1"
-                        else attributeName,
-                        attribute.getType
-                      ),
-                      t.getFields.get(i)
-                    )
-                  }
-                  tuplesToOutput += builder.build()
-                }
-              }
+          if(leftTable.nonEmpty) {
+            updateRightTableCache(leftTable.head)
+            leftTable.filter(leftTableTuple => {
+              joinConditionHolds(
+                leftTableTuple.getField(leftTableAttributeName),
+                t.getField(rightTableAttributeName),
+                operatorSchemaInfo
+                  .inputSchemas(0)
+                  .getAttribute(leftTableAttributeName)
+                  .getType
+              )==0
             }
-            tuplesToOutput.iterator
+            ).map(leftTuple =>{
+              val builder = Tuple
+                .newBuilder(operatorSchemaInfo.outputSchema)
+                .add(leftTuple)
+              for (i <- 0 until t.getFields.size()) {
+                val attributeName = t.getSchema.getAttributeNames.get(i)
+                val attribute = t.getSchema.getAttribute(attributeName)
+                builder.add(
+                  new Attribute(
+                    if (leftTableSchema.getAttributeNames.contains(attributeName))
+                      attributeName + "#@1"
+                    else attributeName,
+                    attribute.getType
+                  ),
+                  t.getFields.get(i)
+                )
+              }
+              builder.build()
+            }
+            ).toIterator
           }
-        } else {
-          Iterator()
+          else {
+            Iterator()
+          }
         }
+
+      case Right(_) =>
+        Iterator()
     }
   }
   def processNumValue[T <% Ordered[T]](
@@ -183,11 +227,8 @@ class IntervalJoinOpExec[K](
     }
   }
   def joinConditionHolds(
-      includeLeftBound: Boolean,
-      includerightBound: Boolean,
       point: K,
       leftBound: K,
-      constant: Long,
       dataType: AttributeType
   ): Int = {
     if (dataType == AttributeType.LONG) {
@@ -247,7 +288,7 @@ class IntervalJoinOpExec[K](
         }
       processTimeStampValue(
         includeLeftBound,
-        includerightBound,
+        includeRightBound,
         pointValue,
         leftBoundValue,
         rightBoundValue
@@ -264,8 +305,6 @@ class IntervalJoinOpExec[K](
 
   override def open(): Unit = {
     outputProbeSchema = createOutputProbeSchema()
-    leftTable = new ArrayBuffer[Tuple]()
-    rightTable = new ArrayBuffer[Tuple]()
   }
 
   override def close(): Unit = {

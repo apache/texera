@@ -26,6 +26,7 @@ class IntervalJoinOpExecConfig(
 ) extends OpExecConfig(id) {
 
   var leftTable: LinkIdentity = _
+  var rightTable: LinkIdentity = _
 
   override lazy val topology: Topology = {
     new Topology(
@@ -45,6 +46,7 @@ class IntervalJoinOpExecConfig(
     val buildLink = inputToOrdinalMapping.find(pair => pair._2 == 0).get._1
     leftTable = buildLink
     val probeLink = inputToOrdinalMapping.find(pair => pair._2 == 1).get._1
+    rightTable = probeLink
     workflow.getSources(probeLink.from.toOperatorIdentity).foreach { source =>
       workflow.getOperator(source).topology.layers.head.startAfter(buildLink)
     }

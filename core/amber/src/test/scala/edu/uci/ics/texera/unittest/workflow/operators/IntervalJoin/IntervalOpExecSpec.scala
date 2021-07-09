@@ -100,8 +100,10 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     })
     assert(opExec.processTexeraTuple(Right(InputExhausted()), left).isEmpty)
     var rangeList = Array(1, 5, 8)
-    rangeList.map(i => opExec.processTexeraTuple(Left(intergerTuple("range", 1, i)), right))
-    val outputTuples = opExec.processTexeraTuple(Right(InputExhausted()), right).toList
+    val outputTuples = rangeList
+      .map(i => opExec.processTexeraTuple(Left(intergerTuple("range", 1, i)), right))
+      .foldLeft(Iterator[Tuple]())(_ ++ _)
+      .toList
     assert(outputTuples.size == 11)
     assert(outputTuples.head.getSchema.getAttributeNames.size() == 4)
     opExec.close()
@@ -131,8 +133,9 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     })
     assert(opExec.processTexeraTuple(Right(InputExhausted()), left).isEmpty)
     var rangeList = Array(1, 5, 8)
-    rangeList.map(i => opExec.processTexeraTuple(Left(intergerTuple("same", 1, i)), right))
-    var outputTuples = opExec.processTexeraTuple(Right(InputExhausted()), right).toList
+    var outputTuples = rangeList.map(i => opExec.processTexeraTuple(Left(intergerTuple("same", 1, i)), right))      .foldLeft(Iterator[Tuple]())(_ ++ _)
+      .toList
+
     assert(outputTuples.size == 11)
     assert(outputTuples.head.getSchema.getAttributeNames.size() == 4)
     opExec.close()
@@ -162,8 +165,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     })
     assert(opExec.processTexeraTuple(Right(InputExhausted()), left).isEmpty)
     var rangeList = Array(1, 5, 8)
-    rangeList.map(i => opExec.processTexeraTuple(Left(intergerTuple("range", 1, i)), right))
-    var outputTuples = opExec.processTexeraTuple(Right(InputExhausted()), right).toList
+    var outputTuples = rangeList.map(i => opExec.processTexeraTuple(Left(intergerTuple("range", 1, i)), right)).foldLeft(Iterator[Tuple]())(_ ++ _).toList
 
     assert(outputTuples.size == 9)
     assert(outputTuples.head.getSchema.getAttributeNames.size() == 4)
@@ -194,8 +196,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     })
     assert(opExec.processTexeraTuple(Right(InputExhausted()), left).isEmpty)
     var rangeList = Array(1, 5, 8)
-    rangeList.map(i => opExec.processTexeraTuple(Left(intergerTuple("range", 1, i)), right))
-    var outputTuples = opExec.processTexeraTuple(Right(InputExhausted()), right).toList
+    var outputTuples = rangeList.map(i => opExec.processTexeraTuple(Left(intergerTuple("range", 1, i)), right)).foldLeft(Iterator[Tuple]())(_ ++ _).toList
     assert(outputTuples.size == 8)
     assert(outputTuples.head.getSchema.getAttributeNames.size() == 4)
     opExec.close()
@@ -225,8 +226,8 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     })
     assert(opExec.processTexeraTuple(Right(InputExhausted()), left).isEmpty)
     var rangeList = Array(1, 5, 8)
-    rangeList.map(i => opExec.processTexeraTuple(Left(intergerTuple("range", 1, i)), right))
-    var outputTuples = opExec.processTexeraTuple(Right(InputExhausted()), right).toList
+    var outputTuples =rangeList.map(i => opExec.processTexeraTuple(Left(intergerTuple("range", 1, i)), right)).foldLeft(Iterator[Tuple]())(_++_).toList
+
 
     assert(outputTuples.size == 6)
     assert(outputTuples.head.getSchema.getAttributeNames.size() == 4)
@@ -265,14 +266,13 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     })
     assert(opExec.processTexeraTuple(Right(InputExhausted()), left).isEmpty)
     var rangeList: Array[Long] = Array(1L, 5L, 8L)
-    rangeList
-      .map(i =>
-        opExec.processTexeraTuple(
-          Left(timeStampTuple("range", 1, Timestamp.valueOf(localDateTime.plusDays(i)))),
-          right
-        )
-      )
-    var outputTuples = opExec.processTexeraTuple(Right(InputExhausted()), right).toList
+    var outputTuples = rangeList
+      .map(
+        i =>
+          opExec.processTexeraTuple(
+            Left(timeStampTuple("range", 1, Timestamp.valueOf(localDateTime.plusDays(i)))),
+            right
+        )).foldLeft(Iterator[Tuple]())(_++_).toList
 
     assert(outputTuples.size == 11)
     assert(outputTuples.head.getSchema.getAttributeNames.size() == 4)
@@ -306,9 +306,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     })
     assert(opExec.processTexeraTuple(Right(InputExhausted()), left).isEmpty)
     var rangeList: Array[Double] = Array(1.1, 5.1, 8.1)
-    rangeList.map(i => opExec.processTexeraTuple(Left(doubleTuple("range", 1, i)), right))
-    val outputTuples = opExec.processTexeraTuple(Right(InputExhausted()), right).toList
-
+    val outputTuples = rangeList.map(i => opExec.processTexeraTuple(Left(doubleTuple("range", 1, i)), right)).foldLeft(Iterator[Tuple]())(_++_).toList
     assert(outputTuples.size == 11)
     assert(outputTuples.head.getSchema.getAttributeNames.size() == 4)
     opExec.close()
@@ -341,8 +339,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     })
     assert(opExec.processTexeraTuple(Right(InputExhausted()), left).isEmpty)
     var rangeList: Array[Long] = Array(1L, 5L, 8L)
-    rangeList.map(i => opExec.processTexeraTuple(Left(longTuple("range", 1, i)), right))
-    val outputTuples = opExec.processTexeraTuple(Right(InputExhausted()), right).toList
+    var outputTuples= rangeList.map(i => opExec.processTexeraTuple(Left(longTuple("range", 1, i)), right)).foldLeft(Iterator[Tuple]())(_++_).toList
     assert(outputTuples.size == 11)
     assert(outputTuples.head.getSchema.getAttributeNames.size() == 4)
     opExec.close()
@@ -373,8 +370,8 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     })
     assert(opExec.processTexeraTuple(Right(InputExhausted()), left).isEmpty)
     var rangeList = Array(1, 5, 8)
-    rangeList.map(i => opExec.processTexeraTuple(Left(intergerTuple("range", 1, i)), right))
-    val outputTuples = opExec.processTexeraTuple(Right(InputExhausted()), right)
+    val outputTuples =
+      rangeList.map(i => opExec.processTexeraTuple(Left(intergerTuple("range", 1, i)), right)).foldLeft(Iterator[Tuple]())(_++_).toList
     assert(outputTuples.isEmpty)
     opExec.close()
   }
@@ -405,9 +402,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(opExec.processTexeraTuple(Right(InputExhausted()), left).isEmpty)
     var rangeList: Array[Int] = Array()
     val outputTuples =
-      rangeList.map(i => opExec.processTexeraTuple(Left(intergerTuple("range", 1, i)), right))
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), right).isEmpty)
-
+      rangeList.map(i => opExec.processTexeraTuple(Left(intergerTuple("range", 1, i)), right)).foldLeft(Iterator[Tuple]())(_++_).toList
     assert(outputTuples.isEmpty)
     opExec.close()
   }
