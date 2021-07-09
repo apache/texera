@@ -5,10 +5,10 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOpe
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.messaginglayer.TupleToBatchConverter
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue._
-import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, WorkflowLogger}
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
-import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
+import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.Completed
 import edu.uci.ics.amber.engine.common.tuple.ITuple
@@ -17,11 +17,11 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   LinkIdentity,
   VirtualIdentity
 }
+import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, WorkflowLogger}
 import edu.uci.ics.amber.error.ErrorUtils.safely
 import edu.uci.ics.amber.error.WorkflowRuntimeError
-import java.util.concurrent.{ExecutorService, Executors, Future}
 
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
+import java.util.concurrent.{ExecutorService, Executors, Future}
 
 class DataProcessor( // dependencies:
     logger: WorkflowLogger, // logger of the worker actor
