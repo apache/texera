@@ -2,8 +2,16 @@ package edu.uci.ics.texera.web.resource.dashboard
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{WORKFLOW, WORKFLOW_OF_USER}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowOfUserDao}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Workflow, WorkflowOfUser}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+  WorkflowDao,
+  WorkflowOfUserDao,
+  WorkflowUserAccessDao
+}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
+  Workflow,
+  WorkflowOfUser,
+  WorkflowUserAccess
+}
 import edu.uci.ics.texera.web.resource.auth.UserResource
 import io.dropwizard.jersey.sessions.Session
 import org.jooq.types.UInteger
@@ -24,6 +32,9 @@ class WorkflowResource {
   final private val workflowDao = new WorkflowDao(SqlServer.createDSLContext.configuration)
   final private val workflowOfUserDao = new WorkflowOfUserDao(
     SqlServer.createDSLContext.configuration
+  )
+  final private val workflowUserAccessDao = new WorkflowUserAccessDao(
+    SqlServer.createDSLContext().configuration()
   )
 
   /**
@@ -51,7 +62,7 @@ class WorkflowResource {
   }
 
   /**
-    * This method handles the client request to get a specific workflow to be displayed
+    * This method handles the client request to get a specific workflow to be displayed in canvas
     * at current design, it only takes the workflowID and searches within the database for the matching workflow
     * for future design, it should also take userID as an parameter.
     *
@@ -65,15 +76,18 @@ class WorkflowResource {
   def retrieveWorkflow(@PathParam("wid") wid: UInteger, @Session session: HttpSession): Response = {
     UserResource.getUser(session) match {
       case Some(user) =>
-        if (workflowOfUserExists(wid, user.getUid)) {
-          Response.ok(workflowDao.fetchOneByWid(wid)).build()
+        val uid = user.getUid
+        if (
+          WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid) || WorkflowAccessResource
+            .hasNoWorkflowAccessRecord(wid, user.getUid)
+        ) {
+          Response.status(Response.Status.UNAUTHORIZED).build()
         } else {
-          Response.status(Response.Status.BAD_REQUEST).build()
+          Response.ok(workflowDao.fetchOneByWid(wid)).build()
         }
       case None =>
         Response.status(Response.Status.UNAUTHORIZED).build()
     }
-
   }
 
   /**
@@ -81,7 +95,7 @@ class WorkflowResource {
     *
     * @param session  HttpSession
     * @param workflow , a workflow
-    * @return Workflow, which contains the generated wid if not provided
+    * @return Workflow, which contains the generated wid if not provided// TODO: divide into two endpoints -> one for new-workflow and one for updating existing workflow
     */
   @POST
   @Path("/persist")
@@ -91,17 +105,41 @@ class WorkflowResource {
     UserResource.getUser(session) match {
       case Some(user) =>
         if (workflowOfUserExists(workflow.getWid, user.getUid)) {
-          // when the wid is provided, update the existing workflow
+          // current user reading
           workflowDao.update(workflow)
         } else {
-          // when the wid is not provided, treat it as a new workflow
-          workflowDao.insert(workflow)
-          workflowOfUserDao.insert(new WorkflowOfUser(user.getUid, workflow.getWid))
+          if (WorkflowAccessResource.hasNoWorkflowAccessRecord(workflow.getWid, user.getUid)) {
+            // not owner and not access record --> new record
+            workflowDao.insert(workflow)
+            workflowOfUserDao.insert(new WorkflowOfUser(user.getUid, workflow.getWid))
+            workflowUserAccessDao.insert(
+              new WorkflowUserAccess(
+                user.getUid,
+                workflow.getWid,
+                true, // readPrivilege
+                true // writePrivilege
+              )
+            )
+          } else if (WorkflowAccessResource.hasWriteAccess(workflow.getWid, user.getUid)) {
+            // not owner but has write access
+            workflowDao.update(workflow)
+          } else {
+            // not owner and no write access -> rejected
+            Response.status(Response.Status.UNAUTHORIZED).build()
+          }
         }
         Response.ok(workflowDao.fetchOneByWid(workflow.getWid)).build()
       case None =>
         Response.status(Response.Status.UNAUTHORIZED).build()
     }
+  }
+
+  private def workflowOfUserExists(wid: UInteger, uid: UInteger): Boolean = {
+    workflowOfUserDao.existsById(
+      SqlServer.createDSLContext
+        .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
+        .values(uid, wid)
+    )
   }
 
   /**
@@ -126,11 +164,4 @@ class WorkflowResource {
     }
   }
 
-  private def workflowOfUserExists(wid: UInteger, uid: UInteger): Boolean = {
-    workflowOfUserDao.existsById(
-      SqlServer.createDSLContext
-        .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
-        .values(uid, wid)
-    )
-  }
 }

@@ -10,6 +10,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserDictionary;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Workflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfUser;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserAccess;
 
 
 /**
@@ -47,4 +48,9 @@ public class Tables {
      * The table <code>texera_db.workflow_of_user</code>.
      */
     public static final WorkflowOfUser WORKFLOW_OF_USER = WorkflowOfUser.WORKFLOW_OF_USER;
+
+    /**
+     * The table <code>texera_db.workflow_user_access</code>.
+     */
+    public static final WorkflowUserAccess WORKFLOW_USER_ACCESS = WorkflowUserAccess.WORKFLOW_USER_ACCESS;
 }

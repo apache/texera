@@ -10,6 +10,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserDictionary;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Workflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfUser;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserAccess;
 
 import org.jooq.Index;
 import org.jooq.OrderField;
@@ -36,6 +37,8 @@ public class Indexes {
     public static final Index WORKFLOW_PRIMARY = Indexes0.WORKFLOW_PRIMARY;
     public static final Index WORKFLOW_OF_USER_PRIMARY = Indexes0.WORKFLOW_OF_USER_PRIMARY;
     public static final Index WORKFLOW_OF_USER_WID = Indexes0.WORKFLOW_OF_USER_WID;
+    public static final Index WORKFLOW_USER_ACCESS_PRIMARY = Indexes0.WORKFLOW_USER_ACCESS_PRIMARY;
+    public static final Index WORKFLOW_USER_ACCESS_WID = Indexes0.WORKFLOW_USER_ACCESS_WID;
 
     // -------------------------------------------------------------------------
     // [#1459] distribute members to avoid static initialisers > 64kb
@@ -52,5 +55,7 @@ public class Indexes {
         public static Index WORKFLOW_PRIMARY = Internal.createIndex("PRIMARY", Workflow.WORKFLOW, new OrderField[] { Workflow.WORKFLOW.WID }, true);
         public static Index WORKFLOW_OF_USER_PRIMARY = Internal.createIndex("PRIMARY", WorkflowOfUser.WORKFLOW_OF_USER, new OrderField[] { WorkflowOfUser.WORKFLOW_OF_USER.UID, WorkflowOfUser.WORKFLOW_OF_USER.WID }, true);
         public static Index WORKFLOW_OF_USER_WID = Internal.createIndex("wid", WorkflowOfUser.WORKFLOW_OF_USER, new OrderField[] { WorkflowOfUser.WORKFLOW_OF_USER.WID }, false);
+        public static Index WORKFLOW_USER_ACCESS_PRIMARY = Internal.createIndex("PRIMARY", WorkflowUserAccess.WORKFLOW_USER_ACCESS, new OrderField[] { WorkflowUserAccess.WORKFLOW_USER_ACCESS.UID, WorkflowUserAccess.WORKFLOW_USER_ACCESS.WID }, true);
+        public static Index WORKFLOW_USER_ACCESS_WID = Internal.createIndex("wid", WorkflowUserAccess.WORKFLOW_USER_ACCESS, new OrderField[] { WorkflowUserAccess.WORKFLOW_USER_ACCESS.WID }, false);
     }
 }

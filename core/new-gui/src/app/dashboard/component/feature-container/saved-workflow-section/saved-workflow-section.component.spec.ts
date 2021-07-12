@@ -1,7 +1,7 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { RouterTestingModule } from '@angular/router/testing';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
-
+import {ReactiveFormsModule} from "@angular/forms";
 import { SavedWorkflowSectionComponent } from './saved-workflow-section.component';
 import { WorkflowPersistService } from '../../../../common/service/user/workflow-persist/workflow-persist.service';
 import { MatDividerModule } from '@angular/material/divider';
@@ -71,7 +71,8 @@ describe('SavedWorkflowSectionComponent', () => {
         NgbModule,
         FormsModule,
         RouterTestingModule,
-        HttpClientTestingModule]
+        HttpClientTestingModule,
+        ReactiveFormsModule]
     }).compileComponents();
   }));
 
