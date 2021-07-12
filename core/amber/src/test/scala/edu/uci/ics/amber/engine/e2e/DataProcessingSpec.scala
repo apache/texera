@@ -25,8 +25,10 @@ import edu.uci.ics.texera.workflow.common.workflow._
 import edu.uci.ics.texera.workflow.operators.aggregate.AggregationFunction
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.flatspec.AnyFlatSpecLike
-
 import java.sql.PreparedStatement
+
+import edu.uci.ics.amber.engine.architecture.principal.OperatorResult
+
 import scala.collection.mutable
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
@@ -68,7 +70,7 @@ class DataProcessingSpec
 
   def executeWorkflow(id: WorkflowIdentity, workflow: Workflow): Map[String, List[ITuple]] = {
     val parent = TestProbe()
-    var results: Map[String, List[ITuple]] = null
+    var results: Map[String, OperatorResult] = null
     val eventListener = ControllerEventListener()
     eventListener.workflowCompletedListener = evt => results = evt.result
     val controller = parent.childActorOf(
@@ -79,7 +81,7 @@ class DataProcessingSpec
     parent.expectMsg(ControllerState.Running)
     parent.expectMsg(1.minute, ControllerState.Completed)
     parent.ref ! PoisonPill
-    results
+    results.map(e => (e._1, e._2.result))
   }
 
   def initializeInMemoryMySQLInstance(): (String, String, String, String, String, String) = {
@@ -220,6 +222,28 @@ class DataProcessingSpec
       )
     )
     executeWorkflow(id, workflow)
+  }
+
+  "Engine" should "execute headerlessCsv->word count->sink workflow normally" in {
+
+    val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
+    // Get only the highest count, for testing purposes
+    val wordCountOpDesc = TestOperators.wordCloudOpDesc("column-1", 1)
+    val sink = TestOperators.sinkOpDesc()
+    val (id, workflow) = buildWorkflow(
+      mutable.MutableList[OperatorDescriptor](headerlessCsvOpDesc, wordCountOpDesc, sink),
+      mutable.MutableList[OperatorLink](
+        OperatorLink(
+          OperatorPort(headerlessCsvOpDesc.operatorID, 0),
+          OperatorPort(wordCountOpDesc.operatorID, 0)
+        ),
+        OperatorLink(OperatorPort(wordCountOpDesc.operatorID, 0), OperatorPort(sink.operatorID, 0))
+      )
+    )
+    val result = executeWorkflow(id, workflow).values
+    // Assert that only one tuple came out successfully
+    assert(result.size == 1)
+
   }
 
   "Engine" should "execute csv->sink workflow normally" in {

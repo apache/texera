@@ -32,10 +32,15 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
 
 object ControllerConfig {
-  def default: ControllerConfig = ControllerConfig(Option(100))
+  def default: ControllerConfig =
+    ControllerConfig(
+      statusUpdateIntervalMs = Option(100),
+      resultUpdateIntervalMs = Option(1000)
+    )
 }
 final case class ControllerConfig(
-    statusUpdateIntervalMs: Option[Long]
+    statusUpdateIntervalMs: Option[Long],
+    resultUpdateIntervalMs: Option[Long]
 )
 
 object Controller {
@@ -183,7 +188,6 @@ class Controller(
     if (statusUpdateAskHandle != null) {
       statusUpdateAskHandle.cancel()
     }
-    workflow.cleanupResults()
     logger.logInfo("stopped!")
   }
 

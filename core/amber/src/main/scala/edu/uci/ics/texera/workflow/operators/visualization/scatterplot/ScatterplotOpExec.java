@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.operators.visualization.scatterplot;
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
+import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import scala.Function1;
 import scala.Serializable;
@@ -15,30 +16,20 @@ import java.util.*;
  */
 public class ScatterplotOpExec extends MapOpExec {
     private final ScatterplotOpDesc opDesc;
+    private final OperatorSchemaInfo operatorSchemaInfo;
 
-    public ScatterplotOpExec(ScatterplotOpDesc opDesc) {
+    public ScatterplotOpExec(ScatterplotOpDesc opDesc, OperatorSchemaInfo operatorSchemaInfo) {
         this.opDesc = opDesc;
+        this.operatorSchemaInfo = operatorSchemaInfo;
         this.setMapFunc((Function1<Tuple, Tuple> & Serializable) this::processTuple);
     }
 
     public Tuple processTuple(Tuple t) {
-        List<Object> resultObjects = new ArrayList<>();
+        Object[] resultObjects = new Object[2];
 
-        Schema resultSchema;
-        if(opDesc.isGeometric)
-            resultSchema = Schema.newBuilder().add(
-                    new Attribute("xColumn", t.getSchema().getAttribute(opDesc.xColumn).getType()),
-                    new Attribute("yColumn", t.getSchema().getAttribute(opDesc.yColumn).getType())
-            ).build();
+        resultObjects[0] = t.getField(opDesc.xColumn);
+        resultObjects[1] = t.getField(opDesc.yColumn);
 
-        else
-            resultSchema = Schema.newBuilder().add(
-                    new Attribute(opDesc.xColumn, t.getSchema().getAttribute(opDesc.xColumn).getType()),
-                    new Attribute(opDesc.yColumn, t.getSchema().getAttribute(opDesc.yColumn).getType())
-            ).build();
-
-        resultObjects.add(t.getField(opDesc.xColumn));
-        resultObjects.add(t.getField(opDesc.yColumn));
-        return Tuple.newBuilder().add(resultSchema.getAttributes(), resultObjects).build();
+        return Tuple.newBuilder(operatorSchemaInfo.outputSchema()).addSequentially(resultObjects).build();
     }
 }
