@@ -256,7 +256,8 @@ describe('SchemaPropagationService', () => {
       operatorProperties: {},
       inputPorts: [],
       outputPorts: [],
-      showAdvanced: true
+      showAdvanced: true,
+      isDisabled: false,
     };
 
     workflowActionService.addOperator(mockKeywordSearchOperator, mockPoint);
@@ -309,7 +310,8 @@ describe('SchemaPropagationService', () => {
       operatorProperties: {},
       inputPorts: [],
       outputPorts: [],
-      showAdvanced: true
+      showAdvanced: true,
+      isDisabled: false,
     };
 
     workflowActionService.addOperator(mockAggregationPredicate, mockPoint);

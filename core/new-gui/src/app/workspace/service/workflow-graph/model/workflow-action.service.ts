@@ -807,7 +807,9 @@ export class WorkflowActionService {
       this.getOperatorGroup().getGroupExpandStream(),
       this.getTexeraGraph().getOperatorPropertyChangeStream(),
       this.getTexeraGraph().getBreakpointChangeStream(),
-      this.getJointGraphWrapper().getElementPositionChangeEvent()
+      this.getJointGraphWrapper().getElementPositionChangeEvent(),
+      this.getTexeraGraph().getDisabledOperatorsChangedStream(),
+      this.getTexeraGraph().getCachedOperatorsChangedStream(),
     );
   }
 
@@ -843,13 +845,15 @@ export class WorkflowActionService {
     breakpointsMap.forEach((value, key) => (breakpoints[key] = value));
     texeraGraph.getAllOperators().forEach(op => operatorPositions[op.operatorID] =
       this.getJointGraphWrapper().getElementPosition(op.operatorID));
-    return <WorkflowContent>{
+
+    const workflowContent: WorkflowContent = {
       operators, operatorPositions, links, groups, breakpoints
     };
+    return workflowContent;
   }
 
   public getWorkflow(): Workflow {
-    return <Workflow>{...this.workflowMetadata, ...{content: this.getWorkflowContent()}};
+    return {...this.workflowMetadata, ...{content: this.getWorkflowContent()}};
   }
 
   public setWorkflowName(name: string): void {

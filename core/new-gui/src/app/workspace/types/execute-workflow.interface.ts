@@ -34,7 +34,8 @@ export interface BreakpointInfo extends Readonly<{
 export interface LogicalPlan extends Readonly<{
   operators: LogicalOperator[],
   links: LogicalLink[],
-  breakpoints: BreakpointInfo[]
+  breakpoints: BreakpointInfo[],
+  cachedOperatorIDs: string[],
 }> { }
 
 /**

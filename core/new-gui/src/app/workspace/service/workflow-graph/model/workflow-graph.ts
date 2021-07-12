@@ -24,12 +24,14 @@ export type WorkflowGraphReadonly = Omit<WorkflowGraph, restrictedMethods>;
 export class WorkflowGraph {
 
   private readonly operatorIDMap = new Map<string, OperatorPredicate>();
-  private readonly operatorPositionMap = new Map<string, Point>();
   private readonly operatorLinkMap = new Map<string, OperatorLink>();
   private readonly linkBreakpointMap = new Map<string, Breakpoint>();
 
   private readonly operatorAddSubject = new Subject<OperatorPredicate>();
   private readonly operatorDeleteSubject = new Subject<{ deletedOperator: OperatorPredicate }>();
+  private readonly disabledOperatorChangedSubject = new Subject<{ newDisabled: string[], newEnabled: string[] }>();
+  private readonly cachedOperatorChangedSubject = new Subject<{ newCached: string[], newUnCached: string[] }>();
+
   private readonly linkAddSubject = new Subject<OperatorLink>();
   private readonly linkDeleteSubject = new Subject<{ deletedLink: OperatorLink }>();
   private readonly operatorPropertyChangeSubject = new Subject<{ oldProperty: object, operator: OperatorPredicate }>();
@@ -54,11 +56,6 @@ export class WorkflowGraph {
     this.operatorAddSubject.next(operator);
   }
 
-  public setOperatorPosition(operatorID: string, position: Point): void {
-    this.assertOperatorExists(operatorID);
-    this.operatorPositionMap.set(operatorID, position);
-  }
-
   /**
    * Deletes the operator from the graph by its ID.
    * Throws an Error if the operator doesn't exist.
@@ -71,6 +68,78 @@ export class WorkflowGraph {
     }
     this.operatorIDMap.delete(operatorID);
     this.operatorDeleteSubject.next({ deletedOperator: operator });
+  }
+
+  public disableOperator(operatorID: string): void {
+    const operator = this.getOperator(operatorID);
+    if (!operator) {
+      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+    }
+    if (this.isOperatorDisabled(operatorID)) {
+      return;
+    }
+    this.operatorIDMap.set(operatorID, {...operator, isDisabled: true});
+    this.disabledOperatorChangedSubject.next({ newDisabled: [operatorID], newEnabled: [] });
+  }
+
+  public enableOperator(operatorID: string): void {
+    const operator = this.getOperator(operatorID);
+    if (!operator) {
+      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+    }
+    if (! this.isOperatorDisabled(operatorID)) {
+      return;
+    }
+    this.operatorIDMap.set(operatorID, {...operator, isDisabled: false});
+    this.disabledOperatorChangedSubject.next({ newDisabled: [], newEnabled: [operatorID] });
+  }
+
+  public isOperatorDisabled(operatorID: string): boolean {
+    const operator = this.getOperator(operatorID);
+    if (!operator) {
+      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+    }
+    return operator.isDisabled ?? false;
+  }
+
+  public getDisabledOperators(): ReadonlySet<string> {
+    return new Set(Array.from(this.operatorIDMap.keys()).filter(op => this.isOperatorDisabled(op)));
+  }
+
+  public cacheOperator(operatorID: string): void {
+    const operator = this.getOperator(operatorID);
+    if (!operator) {
+      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+    }
+    if (this.isOperatorCached(operatorID)) {
+      return;
+    }
+    this.operatorIDMap.set(operatorID, {...operator, isCached: true});
+    this.cachedOperatorChangedSubject.next({ newCached: [operatorID], newUnCached: [] });
+  }
+
+  public unCacheOperator(operatorID: string): void {
+    const operator = this.getOperator(operatorID);
+    if (!operator) {
+      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+    }
+    if (! this.isOperatorCached(operatorID)) {
+      return;
+    }
+    this.operatorIDMap.set(operatorID, {...operator, isCached: false});
+    this.cachedOperatorChangedSubject.next({ newCached: [], newUnCached: [operatorID] });
+  }
+
+  public isOperatorCached(operatorID: string): boolean {
+    const operator = this.getOperator(operatorID);
+    if (!operator) {
+      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+    }
+    return operator.isCached ?? false;
+  }
+
+  public getCachedOperators(): ReadonlySet<string> {
+    return new Set(Array.from(this.operatorIDMap.keys()).filter(op => this.isOperatorCached(op)));
   }
 
   /**
@@ -99,6 +168,10 @@ export class WorkflowGraph {
    */
   public getAllOperators(): OperatorPredicate[] {
     return Array.from(this.operatorIDMap.values());
+  }
+
+  public getAllEnabledOperators(): ReadonlyArray<OperatorPredicate> {
+    return Array.from(this.operatorIDMap.values()).filter(op => ! this.isOperatorDisabled(op.operatorID));
   }
 
   /**
@@ -171,6 +244,11 @@ export class WorkflowGraph {
     }
   }
 
+  public isLinkEnabled(linkID: string): boolean {
+    const link = this.getLinkWithID(linkID);
+    return ! this.isOperatorDisabled(link.source.operatorID) && ! this.isOperatorDisabled(link.target.operatorID);
+  }
+
   /**
    * Returns a link with the linkID from operatorLinkMap.
    * Throws an error if the link doesn't exist.
@@ -208,6 +286,10 @@ export class WorkflowGraph {
    */
   public getAllLinks(): OperatorLink[] {
     return Array.from(this.operatorLinkMap.values());
+  }
+
+  public getAllEnabledLinks(): ReadonlyArray<OperatorLink> {
+    return Array.from(this.operatorLinkMap.values()).filter(link => this.isLinkEnabled(link.linkID));
   }
 
   /**
@@ -283,6 +365,16 @@ export class WorkflowGraph {
     return this.linkBreakpointMap;
   }
 
+  public getAllEnabledLinkBreakpoints(): ReadonlyMap<string, Breakpoint> {
+    const enabledBreakpoints = new Map();
+    this.linkBreakpointMap.forEach((breakpoint, linkID) => {
+      if (this.isLinkEnabled(linkID)) {
+        enabledBreakpoints.set(linkID, breakpoint);
+      }
+    });
+    return enabledBreakpoints;
+  }
+
   /**
    * Gets the observable event stream of an operator being added into the graph.
    */
@@ -296,6 +388,14 @@ export class WorkflowGraph {
    */
   public getOperatorDeleteStream(): Observable<{ deletedOperator: OperatorPredicate }> {
     return this.operatorDeleteSubject.asObservable();
+  }
+
+  public getDisabledOperatorsChangedStream(): Observable<{ newDisabled: ReadonlyArray<string>, newEnabled: ReadonlyArray<string> }> {
+    return this.disabledOperatorChangedSubject.asObservable();
+  }
+
+  public getCachedOperatorsChangedStream(): Observable<{ newCached: ReadonlyArray<string>, newUnCached: ReadonlyArray<string> }> {
+    return this.cachedOperatorChangedSubject.asObservable();
   }
 
   /**

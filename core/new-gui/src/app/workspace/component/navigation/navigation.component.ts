@@ -17,6 +17,7 @@ import { ExecutionState } from '../../types/execute-workflow.interface';
 import { NgbActiveModal, NgbModal, NgbModalRef } from '@ng-bootstrap/ng-bootstrap';
 import { ResultDownloadComponent } from './result-download/result-download.component';
 import { WorkflowWebsocketService } from '../../service/workflow-websocket/workflow-websocket.service';
+import { Observable } from 'rxjs';
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -59,6 +60,13 @@ export class NavigationComponent implements OnInit {
   public onClickRunHandler: () => void;
 
   public downloadResultPopup: NgbModalRef | undefined;
+
+  // whether the disable operator button should be enabled
+  public isDisableOperatorClickable: boolean = false;
+  public isDisableOperator: boolean = true;
+
+  public isCacheOperatorClickable: boolean = false;
+  public isCacheOperator: boolean = true;
 
   constructor(
     public executeWorkflowService: ExecuteWorkflowService,
@@ -111,6 +119,10 @@ export class NavigationComponent implements OnInit {
       });
 
     this.registerWorkflowMetadataDisplayRefresh();
+
+    this.handleDisableOperatorStatusChange();
+    this.handleCacheOperatorStatusChange();
+
   }
 
   ngOnInit() {
@@ -326,6 +338,34 @@ export class NavigationComponent implements OnInit {
   }
 
   /**
+   * callback function when user clicks the "disable operator" icon:
+   * this.isDisableOperator indicates whether the operators should be disabled or enabled
+   */
+  public onClickDisableOperators(): void {
+    if (this.isDisableOperator) {
+      this.effectivelyHighlightedOperators().forEach(op => {
+        this.workflowActionService.getTexeraGraph().disableOperator(op);
+      });
+    } else {
+      this.effectivelyHighlightedOperators().forEach(op => {
+        this.workflowActionService.getTexeraGraph().enableOperator(op);
+      });
+    }
+  }
+
+  public onClickCacheOperators(): void {
+    if (this.isCacheOperator) {
+      this.effectivelyHighlightedOperators().forEach(op => {
+        this.workflowActionService.getTexeraGraph().cacheOperator(op);
+      });
+    } else {
+      this.effectivelyHighlightedOperators().forEach(op => {
+        this.workflowActionService.getTexeraGraph().unCacheOperator(op);
+      });
+    }
+  }
+
+  /**
    * Returns true if currently highlighted elements are all groups.
    */
   public highlightedElementsUngroupable(): boolean {
@@ -369,6 +409,61 @@ export class NavigationComponent implements OnInit {
             'MM/dd/yyyy HH:mm:ss zzz', Intl.DateTimeFormat().resolvedOptions().timeZone, 'en');
 
       });
+  }
+
+  /**
+   * Updates the status of the disable operator icon:
+   * If all selected operators are disabled, then click it will re-enable the operators
+   * If any of the selected operator is not disabled, then click will disable all selected operators
+   */
+  handleDisableOperatorStatusChange() {
+    Observable.merge(
+      this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointGroupHighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream(),
+      this.workflowActionService.getTexeraGraph().getDisabledOperatorsChangedStream(),
+    ).subscribe(event => {
+      const effectiveHighlightedOperators = this.effectivelyHighlightedOperators();
+      const allDisabled = this.effectivelyHighlightedOperators().every(
+        op => this.workflowActionService.getTexeraGraph().isOperatorDisabled(op));
+
+      this.isDisableOperator = ! allDisabled;
+      this.isDisableOperatorClickable = effectiveHighlightedOperators.length !== 0;
+    });
+  }
+
+  handleCacheOperatorStatusChange() {
+    Observable.merge(
+      this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointGroupHighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream(),
+      this.workflowActionService.getTexeraGraph().getCachedOperatorsChangedStream(),
+    ).subscribe(event => {
+      const effectiveHighlightedOperators = this.effectivelyHighlightedOperators();
+      const allCached = this.effectivelyHighlightedOperators().every(
+        op => this.workflowActionService.getTexeraGraph().isOperatorCached(op));
+
+      this.isCacheOperator = ! allCached;
+      this.isCacheOperatorClickable = effectiveHighlightedOperators.length !== 0;
+    });
+  }
+
+  /**
+   * Gets all highlighted operators, and all operators in the highlighted groups
+   */
+  effectivelyHighlightedOperators(): readonly string[] {
+    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    const highlightedGroups = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
+
+    const operatorInHighlightedGroups: string[] = highlightedGroups.flatMap(
+      g => Array.from(this.workflowActionService.getOperatorGroup().getGroup(g).operators.keys()));
+
+    const effectiveHighlightedOperators = new Set<string>();
+    highlightedOperators.forEach(op => effectiveHighlightedOperators.add(op));
+    operatorInHighlightedGroups.forEach(op => effectiveHighlightedOperators.add(op));
+    return Array.from(effectiveHighlightedOperators);
   }
 
 }
