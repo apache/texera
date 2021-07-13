@@ -20,6 +20,8 @@ abstract class LinkStrategy(
 
   def isCompleted: Boolean = currentCompletedCount == totalReceiversCount
 
+  def totalReceiversCount: Long = to.numWorkers
+
   // returns Iterable of (sender, sender's sending policy, set of receivers)
   def getPolicies: Iterable[(ActorVirtualIdentity, DataSendingPolicy, Seq[ActorVirtualIdentity])]
 }

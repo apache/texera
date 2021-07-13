@@ -3,13 +3,10 @@ package edu.uci.ics.amber.engine.architecture.linksemantics
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.{
   DataSendingPolicy,
-  HashBasedShufflePolicy,
-  RoundRobinPolicy
+  HashBasedShufflePolicy
 }
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-
-import scala.concurrent.ExecutionContext
 
 class HashBasedShuffle(
     from: WorkerLayer,
@@ -23,7 +20,7 @@ class HashBasedShuffle(
     from.identifiers.map(x =>
       (
         x,
-        new HashBasedShufflePolicy(id, batchSize, hashFunc, to.identifiers),
+        HashBasedShufflePolicy(id, batchSize, to.identifiers, hashFunc),
         to.identifiers.toSeq
       )
     )

@@ -15,7 +15,7 @@ class OneToOne(from: WorkerLayer, to: WorkerLayer, batchSize: Int)
     from.identifiers.indices.map(i =>
       (
         from.identifiers(i),
-        new OneToOnePolicy(id, batchSize, Array(to.identifiers(i))),
+        OneToOnePolicy(id, batchSize, Array(to.identifiers(i))),
         Seq(to.identifiers(i))
       )
     )
