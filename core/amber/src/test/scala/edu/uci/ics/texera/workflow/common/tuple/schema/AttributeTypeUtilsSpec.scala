@@ -4,7 +4,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.{inferField, inferSchemaFromRows}
 import org.scalatest.funsuite.AnyFunSuite
 
-class AttributeTypeUtilsTest extends AnyFunSuite {
+class AttributeTypeUtilsSpec extends AnyFunSuite {
   // Unit Test for Infer Schema
 
   test("type should get inferred correctly individually") {
