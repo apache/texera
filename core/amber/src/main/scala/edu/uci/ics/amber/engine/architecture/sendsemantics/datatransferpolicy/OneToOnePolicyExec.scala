@@ -4,13 +4,9 @@ import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, DataPayload, End
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
-
 import scala.collection.mutable.ArrayBuffer
 
-
-
-case class OneToOnePolicyExec(override val policy: OneToOnePolicy)
-    extends DataSendingPolicyExec {
+case class OneToOnePolicyExec(policy: OneToOnePolicy) extends DataSendingPolicyExec {
   var batch: Array[ITuple] = new Array[ITuple](policy.batchSize)
   var currentSize = 0
 
