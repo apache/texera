@@ -83,8 +83,8 @@ CREATE TABLE IF NOT EXISTS workflow_user_access
 (
     `uid` INT UNSIGNED NOT NULL,
     `wid` INT UNSIGNED NOT NULL,
-    `read_access` BIT(1),
-    `write_access` BIT(1),
+    `read_privilege` BIT(1),
+    `write_privilege` BIT(1),
     PRIMARY KEY (`uid`, `wid`),
     FOREIGN KEY (`uid`) REFERENCES `user` (`uid`) ON DELETE CASCADE,
     FOREIGN KEY (`wid`) REFERENCES `workflow` (`wid`) ON DELETE CASCADE

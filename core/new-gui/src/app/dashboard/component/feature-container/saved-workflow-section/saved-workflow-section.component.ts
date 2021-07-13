@@ -1,11 +1,11 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { NgbModal, ModalDismissReasons } from '@ng-bootstrap/ng-bootstrap';
-import {FormBuilder} from "@angular/forms";
+import { ModalDismissReasons, NgbModal } from '@ng-bootstrap/ng-bootstrap';
+import { FormBuilder } from '@angular/forms';
 import { cloneDeep } from 'lodash';
 import { Observable } from 'rxjs';
 import { WorkflowPersistService } from '../../../../common/service/user/workflow-persist/workflow-persist.service';
-import {WorkflowGrantAccessService} from "../../../../common/service/user/workflow-access-control/workflow-grant-access.service";
+import { WorkflowGrantAccessService } from '../../../../common/service/user/workflow-access-control/workflow-grant-access.service';
 import { Workflow } from '../../../../common/type/workflow';
 import { NgbdModalDeleteWorkflowComponent } from './ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component';
 
@@ -88,9 +88,10 @@ export class SavedWorkflowSectionComponent implements OnInit {
   }
 
 
-  public onClickShareWorkflow(workflow: Workflow, userToShareWith: string, accessType: string): void{
-      this.workflowGrantAccessService.grantWorkflowAccess(workflow, parseInt(userToShareWith), accessType);
+  public onClickShareWorkflow(workflow: Workflow, userToShareWith: number, accessType: string): void {
+    this.workflowGrantAccessService.grantWorkflowAccess(workflow, userToShareWith, accessType);
   }
+
   /**
    * duplicate the current workflow. A new record will appear in frontend
    * workflow list and backend database.
@@ -135,11 +136,15 @@ export class SavedWorkflowSectionComponent implements OnInit {
       this.closeResult = `Closed with: ${result}`;
     }, (reason) => {
       this.closeResult =
-        `Dismissed ${this.getDismissReason(reason)}`;
+        `Dismissed ${SavedWorkflowSectionComponent.getDismissReason(reason)}`;
     });
   }
 
-  private getDismissReason(reason: any): string {
+  onSubmit(workflow: Workflow): any {
+    this.onClickShareWorkflow(workflow, this.shareForm.get('uid')?.value, this.shareForm.get('accessType')?.value);
+  }
+
+  private static getDismissReason(reason: any): string {
     if (reason === ModalDismissReasons.ESC) {
       return 'by pressing ESC';
     } else if (reason === ModalDismissReasons.BACKDROP_CLICK) {
@@ -147,10 +152,6 @@ export class SavedWorkflowSectionComponent implements OnInit {
     } else {
       return `with: ${reason}`;
     }
-  }
-
-  onSubmit(workflow: Workflow): any{
-    this.onClickShareWorkflow(workflow, this.shareForm.get("uid")?.value, this.shareForm.get("accessType")?.value)
   }
 
 }
