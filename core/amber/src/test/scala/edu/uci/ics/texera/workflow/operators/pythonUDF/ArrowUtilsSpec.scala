@@ -1,9 +1,8 @@
-package edu.uci.ics.texera.unittest.workflow.operators.pythonUDF
+package edu.uci.ics.texera.workflow.operators.pythonUDF
 
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.AttributeTypeException
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
-import edu.uci.ics.texera.workflow.operators.pythonUDF.ArrowUtils
 import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field}
