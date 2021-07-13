@@ -78,7 +78,7 @@ describe('NgbdModalShareAccessComponent', () => {
     const mySpy = spyOn(component, 'onClickShareWorkflow');
     expect(component.shareForm.valid).toBeFalsy();
     component.shareForm.controls['username'].setValue('testguy');
-    component.shareForm.controls['accessType'].setValue('read');
+    component.shareForm.controls['accessLevel'].setValue('read');
     expect(component.shareForm.valid).toBeTruthy();
     component.onClickShareWorkflow(workflow);
     expect(mySpy).toHaveBeenCalled();
