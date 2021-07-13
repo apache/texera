@@ -1,32 +1,18 @@
-syntax = "proto2";
+syntax = "proto3";
 
 package edu.uci.ics.amber.engine.common;
 
-// sealed trait ActorVirtualIdentity
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+  scope: FILE,
+  preserve_unknown_fields: false
+};
+
+// final case class ActorVirtualIdentity
 message ActorVirtualIdentity {
-  oneof sealed_value {
-    WorkerActorVirtualIdentity workerActorVirtualIdentity = 1;
-    ControllerVirtualIdentity controllerVirtualIdentity = 2;
-    SelfVirtualIdentity selfVirtualIdentity = 3;
-    ClientVirtualIdentity clientVirtualIdentity = 4;
-  }
+  string name = 1;
 }
-
-// final case class WorkerActorVirtualIdentity (
-//    name: String
-// ) extends ActorVirtualIdentity
-message WorkerActorVirtualIdentity {
-  required string name = 1;
-}
-
-// final case class ControllerVirtualIdentity extends ActorVirtualIdentity
-message ControllerVirtualIdentity {}
-
-// final case class SelfVirtualIdentity extends ActorVirtualIdentity
-message SelfVirtualIdentity {}
-
-// final case class ClientVirtualIdentity extends ActorVirtualIdentity
-message ClientVirtualIdentity {}
 
 // final case class LayerIdentity (
 //    workflow: String,
@@ -34,9 +20,9 @@ message ClientVirtualIdentity {}
 //    layerID: String
 // )
 message LayerIdentity{
-  required string workflow = 1;
-  required string operator = 2;
-  required string layerID = 3;
+  string workflow = 1;
+  string operator = 2;
+  string layerID = 3;
 }
 
 // final case class LinkIdentity (
@@ -44,8 +30,8 @@ message LayerIdentity{
 //    to: LayerIdentity
 // )
 message LinkIdentity {
-  required LayerIdentity from = 1 ;
-  required LayerIdentity to = 2;
+  LayerIdentity from = 1 ;
+  LayerIdentity to = 2;
 }
 
 // final case class LinkIdentity (
@@ -53,14 +39,14 @@ message LinkIdentity {
 //    operator: String
 // )
 message OperatorIdentity {
-  required string workflow = 1;
-  required string operator = 2;
+  string workflow = 1;
+  string operator = 2;
 }
 
 // final case class WorkflowIdentity (
 //    id: String
 // )
 message WorkflowIdentity {
-  required string id = 1;
+  string id = 1;
 }
 

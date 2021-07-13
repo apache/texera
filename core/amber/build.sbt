@@ -129,5 +129,11 @@ libraryDependencies += "com.github.redouane59.twitter" % "twittered" % "1.23"
 
 // run the following with sbt to have protobuf codegen
 Compile / PB.targets := Seq(
-  scalapb.gen() -> (Compile / sourceDirectory).value / "scalapb"
+  scalapb.gen(
+    singleLineToProtoString = true
+  ) -> (Compile / sourceDirectory).value / "scalapb"
+)
+
+libraryDependencies ++= Seq(
+  "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf"
 )

@@ -1,10 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.controller.{
-  ControllerAsyncRPCHandlerInitializer,
-  ControllerState
-}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.KillWorkflowHandler.KillWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.{
@@ -14,7 +10,7 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWor
 import edu.uci.ics.amber.engine.architecture.principal.OperatorResult
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, VirtualIdentity}
-import edu.uci.ics.amber.engine.common.virtualidentity.WorkerActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.operators.SinkOpExecConfig
 import edu.uci.ics.amber.error.WorkflowRuntimeError
@@ -37,7 +33,7 @@ trait WorkerExecutionCompletedHandler {
 
   registerHandler { (msg: WorkerExecutionCompleted, sender) =>
     {
-      assert(sender.isInstanceOf[WorkerActorVirtualIdentity])
+      assert(sender.isInstanceOf[ActorVirtualIdentity])
       // get the corresponding operator of this worker
       val operator = workflow.getOperator(sender)
 

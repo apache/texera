@@ -12,27 +12,27 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue._
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
-import edu.uci.ics.amber.engine.common.{InputExhausted, WorkflowLogger}
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
-import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
+import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.{Completed, Running}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  LayerIdentity,
-  LinkIdentity,
-  WorkerActorVirtualIdentity
-}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  LayerIdentity,
+  LinkIdentity
+}
+import edu.uci.ics.amber.engine.common.{InputExhausted, WorkflowLogger}
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.flatspec.AnyFlatSpec
 
-import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.{Await, ExecutionContext, Future}
 
 class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfterEach {
   lazy val logger: WorkflowLogger = WorkflowLogger("testDP")
@@ -42,7 +42,10 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   lazy val breakpointManager: BreakpointManager = mock[BreakpointManager]
   lazy val controlOutputPort: ControlOutputPort = mock[ControlOutputPort]
   val linkID: LinkIdentity =
-    LinkIdentity(LayerIdentity("testDP", "mockOp", "src"), LayerIdentity("testDP", "mockOp", "dst"))
+    LinkIdentity(
+      Option(LayerIdentity("testDP", "mockOp", "src")),
+      Option(LayerIdentity("testDP", "mockOp", "dst"))
+    )
   val tuples: Seq[ITuple] = (0 until 400).map(ITuple(_))
 
   def sendDataToDP(dp: DataProcessor, data: Seq[ITuple], interval: Long = -1): Future[_] = {
@@ -178,7 +181,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   }
 
   "data processor" should "process only control commands while paused" in {
-    val id = WorkerActorVirtualIdentity("test")
+    val id = ActorVirtualIdentity("test")
     val operator = mock[OperatorExecutor]
     (operator.open _).expects().once()
     val ctx: ActorContext = null
