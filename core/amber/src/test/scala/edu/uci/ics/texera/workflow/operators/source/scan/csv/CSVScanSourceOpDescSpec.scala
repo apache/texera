@@ -1,13 +1,9 @@
-package edu.uci.ics.texera.unittest.workflow.operators.source.scan.csv
+package edu.uci.ics.texera.workflow.operators.source.scan.csv
 
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.operators.source.scan.csv.{
-  CSVScanSourceOpDesc,
-  ParallelCSVScanSourceOpDesc
-}
-import org.scalatest.flatspec.AnyFlatSpec
+import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
 import org.scalatest.BeforeAndAfter
+import org.scalatest.flatspec.AnyFlatSpec
 
 import scala.collection.convert.ImplicitConversions.`list asScalaBuffer`
 class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {

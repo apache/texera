@@ -1,6 +1,5 @@
-package edu.uci.ics.texera.unittest.workflow.common.tuple
+package edu.uci.ics.texera.workflow.common.tuple
 
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.exception.TupleBuildingException
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.flatspec.AnyFlatSpec

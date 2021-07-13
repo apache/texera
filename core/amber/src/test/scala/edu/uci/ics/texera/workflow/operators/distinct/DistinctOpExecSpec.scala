@@ -1,11 +1,10 @@
-package edu.uci.ics.texera.unittest.workflow.operators.distinct
+package edu.uci.ics.texera.workflow.operators.distinct
 
 import edu.uci.ics.amber.engine.common.InputExhausted
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.operators.distinct.DistinctOpExec
-import org.scalatest.flatspec.AnyFlatSpec
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
+import org.scalatest.flatspec.AnyFlatSpec
 class DistinctOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val tupleSchema: Schema = Schema
     .newBuilder()
