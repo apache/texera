@@ -4,7 +4,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables.{WORKFLOW_OF_USER, WOR
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{UserDao, WorkflowOfUserDao, WorkflowUserAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess
 import edu.uci.ics.texera.web.resource.auth.UserResource
-import edu.uci.ics.texera.web.resource.dashboard.WorkflowAccessResource.{UserWorkflowAccess, checkAccessLevel}
+import edu.uci.ics.texera.web.resource.dashboard.WorkflowAccessResource.{UserWorkflowAccess, checkAccessLevel, hasNoWorkflowAccessRecord}
 import io.dropwizard.jersey.sessions.Session
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
@@ -233,6 +233,7 @@ class WorkflowAccessResource(DSLContext: DSLContext = SqlServer.createDSLContext
         ) {
           Response.status(Response.Status.UNAUTHORIZED).build()
         } else {
+          // TODO: remove JSON
           val respJSON = mutable.HashMap("removing access" -> "Successful")
           DSLContext
             .delete(WORKFLOW_USER_ACCESS)
@@ -267,6 +268,7 @@ class WorkflowAccessResource(DSLContext: DSLContext = SqlServer.createDSLContext
       case Some(user) =>
         val uid: UInteger =
           try {
+            // TODO: remove name related DAO functions
             userDao.getId(userDao.fetchOneByName(username))
           } catch {
             case _: NullPointerException =>

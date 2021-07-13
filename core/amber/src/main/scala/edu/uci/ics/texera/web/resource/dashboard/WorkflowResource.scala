@@ -86,7 +86,8 @@ class WorkflowResource {
     *
     * @param session  HttpSession
     * @param workflow , a workflow
-    * @return Workflow, which contains the generated wid if not provided// TODO: divide into two endpoints -> one for new-workflow and one for updating existing workflow
+    * @return Workflow, which contains the generated wid if not provided//
+    *         TODO: divide into two endpoints -> one for new-workflow and one for updating existing workflow
     */
   @POST
   @Path("/persist")
