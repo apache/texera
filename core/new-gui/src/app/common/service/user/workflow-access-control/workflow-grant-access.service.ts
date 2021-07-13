@@ -1,16 +1,25 @@
-import {HttpClient} from '@angular/common/http';
-import {Injectable} from '@angular/core';
-import {Observable} from 'rxjs/Observable';
-import {AppSettings} from '../../../app-setting';
-import {Workflow} from '../../../type/workflow';
+import { HttpClient } from '@angular/common/http';
+import { Injectable } from '@angular/core';
+import { Observable } from 'rxjs/Observable';
+import { AppSettings } from '../../../app-setting';
+import { Workflow } from '../../../type/workflow';
 
 
-export const WORKFLOW_ACCESS_URL = 'workflowaccess';
+export const WORKFLOW_ACCESS_URL = 'workflow-access';
+export const WORKFLOW_ACCESS_GRANT_URL = WORKFLOW_ACCESS_URL + '/grant';
+export const WORKFLOW_ACCESS_LIST_URL = WORKFLOW_ACCESS_URL + '/list';
+export const WORKFLOW_ACCESS_REVOKE_URL = WORKFLOW_ACCESS_URL + '/revoke';
+export interface UserWorkflowAccess {
+  userName: string;
+  accessLevel: string;
+
+}
 
 @Injectable({
   providedIn: 'root'
 })
 export class WorkflowGrantAccessService {
+
   constructor(private http: HttpClient) {
   }
 
@@ -18,11 +27,12 @@ export class WorkflowGrantAccessService {
    * Assign a new access to/Modify an existing access of another user
    * @param workflow the workflow that is about to be shared
    * @param username the username of target user
-   * @param accessType the type of access offered
+   * @param accessLevel the type of access offered
    * @return hashmap indicating all current accesses, ex: {"Jim": "Write"}
    */
-  public grantWorkflowAccess(workflow: Workflow, username: string, accessType: string): Observable<Map<string, string>> {
-    return this.http.post<Map<string, string>>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_ACCESS_URL}/share/${workflow.wid}/${username}/${accessType}`, null);
+  public grantAccess(workflow: Workflow, username: string, accessLevel: string): Observable<Readonly<UserWorkflowAccess>[]> {
+    return this.http.post<Readonly<UserWorkflowAccess>[]>(
+      `${AppSettings.getApiEndpoint()}/${WORKFLOW_ACCESS_GRANT_URL}/${workflow.wid}/${username}/${accessLevel}`, null);
   }
 
   /**
@@ -30,8 +40,9 @@ export class WorkflowGrantAccessService {
    * @param workflow the current workflow
    * @return message of success
    */
-  public getSharedAccess(workflow: Workflow): Observable<Map<string, string>> {
-    return this.http.get<Map<string, string>>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_ACCESS_URL}/currentShare/${workflow.wid}`);
+  public retrieveGrantedList(workflow: Workflow): Observable<Readonly<UserWorkflowAccess>[]> {
+    return this.http.get<Readonly<UserWorkflowAccess>[]>(
+      `${AppSettings.getApiEndpoint()}/${WORKFLOW_ACCESS_LIST_URL}/${workflow.wid}`);
   }
 
 
@@ -41,7 +52,8 @@ export class WorkflowGrantAccessService {
    * @param username the username of target user
    * @return message of success
    */
-  public removeAccess(workflow: Workflow, username: string): Observable<Map<string, string>> {
-    return this.http.post<Map<string, string>>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_ACCESS_URL}/remove/${workflow.wid}/${username}`, null);
+  public revokeAccess(workflow: Workflow, username: string): Observable<Map<string, string>> {
+    return this.http.post<Map<string, string>>(
+      `${AppSettings.getApiEndpoint()}/${WORKFLOW_ACCESS_REVOKE_URL}/${workflow.wid}/${username}`, null);
   }
 }

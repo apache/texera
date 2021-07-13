@@ -1,14 +1,13 @@
-import {Component, OnInit} from '@angular/core';
-import {Router} from '@angular/router';
-import {NgbModal} from '@ng-bootstrap/ng-bootstrap';
-import {FormBuilder, Validators} from "@angular/forms";
-import {cloneDeep} from 'lodash';
-import {Observable} from 'rxjs';
-import {WorkflowPersistService} from '../../../../common/service/user/workflow-persist/workflow-persist.service';
-import {WorkflowGrantAccessService} from "../../../../common/service/user/workflow-access-control/workflow-grant-access.service";
-import {Workflow} from '../../../../common/type/workflow';
-import {NgbdModalDeleteWorkflowComponent} from './ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component';
-import {NgbdModalShareAccessComponent} from "./ngbd-modal-share-access/ngbd-modal-share-access.component";
+import { Component, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
+import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
+import { cloneDeep } from 'lodash';
+import { Observable } from 'rxjs';
+import { WorkflowPersistService } from '../../../../common/service/user/workflow-persist/workflow-persist.service';
+import { WorkflowGrantAccessService } from '../../../../common/service/user/workflow-access-control/workflow-grant-access.service';
+import { Workflow } from '../../../../common/type/workflow';
+import { NgbdModalDeleteWorkflowComponent } from './ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component';
+import { NgbdModalShareAccessComponent } from './ngbd-modal-share-access/ngbd-modal-share-access.component';
 
 /**
  * SavedProjectSectionComponent is the main interface for
@@ -27,27 +26,13 @@ export class SavedWorkflowSectionComponent implements OnInit {
 
   public workflows: Workflow[] = [];
 
-  closeResult = '';
-
-  shareForm = this.formBuilder.group({
-    username: '',
-    accessType: ['', [Validators.required]]
-  });
-
-  accessTypes: any = ["read", "write"]
-
-  currentShare: Map<string, string> = new Map<string, string>()
-
-  sharedUsers: string[] = []
-
   public defaultWeb: String = 'http://localhost:4200/';
 
   constructor(
     private workflowPersistService: WorkflowPersistService,
     private workflowGrantAccessService: WorkflowGrantAccessService,
     private modalService: NgbModal,
-    private router: Router,
-    private formBuilder: FormBuilder
+    private router: Router
   ) {
   }
 
