@@ -5,18 +5,18 @@ import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity;
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
-import org.apache.curator.shaded.com.google.common.collect.Iterators;
 import scala.collection.JavaConverters;
 import scala.util.Either;
 
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 
 /**
  * Sort all the tuples and replace the ones whose numbers make up very little to the sum (below pruneRatio) with
  * a new tuple (others).
+ *
  * @author Mingji Han, Xiaozhen Liu
  */
 public class PieChartOpFinalExec implements OperatorExecutor {
@@ -52,9 +52,8 @@ public class PieChartOpFinalExec implements OperatorExecutor {
             sum += tuple.left().get().getDouble(1);
             tempList.add(tuple.left().get());
             if (resultSchema == null) resultSchema = tuple.left().get().getSchema();
-            return JavaConverters.asScalaIterator(Iterators.emptyIterator());
-        }
-        else {
+            return JavaConverters.asScalaIterator(Collections.emptyIterator());
+        } else {
             // sort all tuples in descending order
             tempList.sort((left, right) -> {
                 double leftValue = left.getDouble(1);
@@ -65,11 +64,11 @@ public class PieChartOpFinalExec implements OperatorExecutor {
             // process the sorted rows, if the cumulative sum is greater than ratio * sum.
             // stop adding tuples, add new row called "Other" instead.
             double total = 0.0;
-            for (Tuple t: tempList) {
+            for (Tuple t : tempList) {
                 total += t.getDouble(1);
                 resultList.add(t);
                 if (total / sum > pruneRatio) {
-                    Double otherDataField = sum - total;
+                    double otherDataField = sum - total;
                     resultList.add(Tuple.newBuilder(resultSchema).addSequentially(new Object[]{"Other", otherDataField}).build());
                     break;
                 }
