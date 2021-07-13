@@ -2,8 +2,17 @@ package edu.uci.ics.texera.web.resource.dashboard
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{WORKFLOW, WORKFLOW_OF_USER}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowOfUserDao, WorkflowUserAccessDao}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{User, Workflow, WorkflowOfUser, WorkflowUserAccess}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+  WorkflowDao,
+  WorkflowOfUserDao,
+  WorkflowUserAccessDao
+}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
+  User,
+  Workflow,
+  WorkflowOfUser,
+  WorkflowUserAccess
+}
 import edu.uci.ics.texera.web.resource.auth.UserResource
 import io.dropwizard.jersey.sessions.Session
 import org.jooq.types.UInteger
