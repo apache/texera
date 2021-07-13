@@ -10,6 +10,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserDictionary;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Workflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfUser;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserAccess;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,7 +27,7 @@ import org.jooq.impl.SchemaImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class TexeraDb extends SchemaImpl {
 
-    private static final long serialVersionUID = -505593039;
+    private static final long serialVersionUID = 1761177904;
 
     /**
      * The reference instance of <code>texera_db</code>
@@ -36,32 +37,37 @@ public class TexeraDb extends SchemaImpl {
     /**
      * The table <code>texera_db.file</code>.
      */
-    public final File FILE = edu.uci.ics.texera.web.model.jooq.generated.tables.File.FILE;
+    public final File FILE = File.FILE;
 
     /**
      * The table <code>texera_db.keyword_dictionary</code>.
      */
-    public final KeywordDictionary KEYWORD_DICTIONARY = edu.uci.ics.texera.web.model.jooq.generated.tables.KeywordDictionary.KEYWORD_DICTIONARY;
+    public final KeywordDictionary KEYWORD_DICTIONARY = KeywordDictionary.KEYWORD_DICTIONARY;
 
     /**
      * The table <code>texera_db.user</code>.
      */
-    public final User USER = edu.uci.ics.texera.web.model.jooq.generated.tables.User.USER;
+    public final User USER = User.USER;
 
     /**
      * The table <code>texera_db.user_dictionary</code>.
      */
-    public final UserDictionary USER_DICTIONARY = edu.uci.ics.texera.web.model.jooq.generated.tables.UserDictionary.USER_DICTIONARY;
+    public final UserDictionary USER_DICTIONARY = UserDictionary.USER_DICTIONARY;
 
     /**
      * The table <code>texera_db.workflow</code>.
      */
-    public final Workflow WORKFLOW = edu.uci.ics.texera.web.model.jooq.generated.tables.Workflow.WORKFLOW;
+    public final Workflow WORKFLOW = Workflow.WORKFLOW;
 
     /**
      * The table <code>texera_db.workflow_of_user</code>.
      */
-    public final WorkflowOfUser WORKFLOW_OF_USER = edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfUser.WORKFLOW_OF_USER;
+    public final WorkflowOfUser WORKFLOW_OF_USER = WorkflowOfUser.WORKFLOW_OF_USER;
+
+    /**
+     * The table <code>texera_db.workflow_user_access</code>.
+     */
+    public final WorkflowUserAccess WORKFLOW_USER_ACCESS = WorkflowUserAccess.WORKFLOW_USER_ACCESS;
 
     /**
      * No further instances allowed
@@ -90,6 +96,7 @@ public class TexeraDb extends SchemaImpl {
             User.USER,
             UserDictionary.USER_DICTIONARY,
             Workflow.WORKFLOW,
-            WorkflowOfUser.WORKFLOW_OF_USER);
+            WorkflowOfUser.WORKFLOW_OF_USER,
+            WorkflowUserAccess.WORKFLOW_USER_ACCESS);
     }
 }
