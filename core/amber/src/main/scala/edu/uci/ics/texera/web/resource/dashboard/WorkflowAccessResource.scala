@@ -4,7 +4,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables.{WORKFLOW_OF_USER, WOR
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{UserDao, WorkflowOfUserDao, WorkflowUserAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess
 import edu.uci.ics.texera.web.resource.auth.UserResource
-import edu.uci.ics.texera.web.resource.dashboard.WorkflowAccessResource.{UserWorkflowAccess, WorkflowAccess}
+import edu.uci.ics.texera.web.resource.dashboard.WorkflowAccessResource.{UserWorkflowAccess, WorkflowAccess, checkAccessLevel}
 import io.dropwizard.jersey.sessions.Session
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
@@ -38,6 +38,61 @@ object WorkflowAccessResource {
     val NONE: WorkflowAccess.Value = Value("None")
     val NO_RECORD: WorkflowAccess.Value = Value("NoRecord")
   }
+
+  /**
+   * Identifies whether the given user has read-only access over the given workflow
+   *
+   * @param wid     workflow id
+   * @param uid     user id, works with workflow id as primary keys in database
+   * @return boolean value indicating yes/no
+   */
+  def hasReadAccess(wid: UInteger, uid: UInteger): Boolean = {
+    checkAccessLevel(wid, uid).eq(WorkflowAccess.READ)
+  }
+
+  /**
+   * Identifies whether the given user has write access over the given workflow
+   * @param wid     workflow id
+   * @param uid     user id, works with workflow id as primary keys in database
+   * @return boolean value indicating yes/no
+   */
+  def hasWriteAccess(wid: UInteger, uid: UInteger): Boolean = {
+    checkAccessLevel(wid, uid).eq(WorkflowAccess.WRITE)
+  }
+
+  /**
+   * Identifies whether the given user has no access over the given workflow
+   * @param wid     workflow id
+   * @param uid     user id, works with workflow id as primary keys in database
+   * @return boolean value indicating yes/no
+   */
+  def hasNoWorkflowAccess(wid: UInteger, uid: UInteger): Boolean = {
+    checkAccessLevel(wid, uid).eq(WorkflowAccess.NONE)
+  }
+
+  /**
+   * Returns an Access Object based on given wid and uid
+   * Searches in database for the given uid-wid pair, and returns Access Object based on search result
+   *
+   * @param wid     workflow id
+   * @param uid     user id, works with workflow id as primary keys in database
+   * @return Access Object indicating the access level
+   */
+  def checkAccessLevel(wid: UInteger, uid: UInteger): WorkflowAccess.Value = {
+    val accessDetail = SqlServer.createDSLContext
+        .select(WORKFLOW_USER_ACCESS.READ_PRIVILEGE, WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE)
+        .from(WORKFLOW_USER_ACCESS)
+        .where(WORKFLOW_USER_ACCESS.WID.eq(wid).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
+        .fetch()
+    if (accessDetail.isEmpty) return WorkflowAccess.NO_RECORD
+    if (accessDetail.getValue(0, 1) == true) {
+      WorkflowAccess.WRITE
+    } else if (accessDetail.getValue(0, 0) == true) {
+      WorkflowAccess.READ
+    } else {
+      WorkflowAccess.NONE
+    }
+  }
 }
 
 /**
@@ -54,60 +109,7 @@ class WorkflowAccessResource(DSLContext: DSLContext = SqlServer.createDSLContext
     DSLContext.configuration
   )
 
-  /**
-    * Identifies whether the given user has read-only access over the given workflow
-    *
-    * @param wid     workflow id
-    * @param uid     user id, works with workflow id as primary keys in database
-    * @return boolean value indicating yes/no
-    */
-  def hasReadAccess(wid: UInteger, uid: UInteger): Boolean = {
-    checkAccessLevel(wid, uid).eq(WorkflowAccess.READ)
-  }
 
-  /**
-    * Returns an Access Object based on given wid and uid
-    * Searches in database for the given uid-wid pair, and returns Access Object based on search result
-    *
-    * @param wid     workflow id
-    * @param uid     user id, works with workflow id as primary keys in database
-    * @return Access Object indicating the access level
-    */
-  def checkAccessLevel(wid: UInteger, uid: UInteger): WorkflowAccess.Value = {
-    val accessDetail = DSLContext
-      .select(WORKFLOW_USER_ACCESS.READ_PRIVILEGE, WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE)
-      .from(WORKFLOW_USER_ACCESS)
-      .where(WORKFLOW_USER_ACCESS.WID.eq(wid).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
-      .fetch()
-    if (accessDetail.isEmpty) return WorkflowAccess.NO_RECORD
-    if (accessDetail.getValue(0, 1) == true) {
-      WorkflowAccess.WRITE
-    } else if (accessDetail.getValue(0, 0) == true) {
-      WorkflowAccess.READ
-    } else {
-      WorkflowAccess.NONE
-    }
-  }
-
-  /**
-    * Identifies whether the given user has write access over the given workflow
-    * @param wid     workflow id
-    * @param uid     user id, works with workflow id as primary keys in database
-    * @return boolean value indicating yes/no
-    */
-  def hasWriteAccess(wid: UInteger, uid: UInteger): Boolean = {
-    checkAccessLevel(wid, uid).eq(WorkflowAccess.WRITE)
-  }
-
-  /**
-    * Identifies whether the given user has no access over the given workflow
-    * @param wid     workflow id
-    * @param uid     user id, works with workflow id as primary keys in database
-    * @return boolean value indicating yes/no
-    */
-  def hasNoWorkflowAccess(wid: UInteger, uid: UInteger): Boolean = {
-    checkAccessLevel(wid, uid).eq(WorkflowAccess.NONE)
-  }
 
   /**
     * This method identifies the user access level of the given workflow
