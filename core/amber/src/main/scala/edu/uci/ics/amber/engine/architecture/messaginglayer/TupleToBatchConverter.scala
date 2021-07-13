@@ -15,7 +15,7 @@ class TupleToBatchConverter(
     selfID: ActorVirtualIdentity,
     dataOutputPort: DataOutputPort
 ) {
-  private var policyExecs = mutable.HashMap[LinkIdentity, DataSendingPolicyExec]()
+  private val policyExecs = mutable.HashMap[LinkIdentity, DataSendingPolicyExec]()
 
   /**
     * Add down stream operator and its corresponding transfer policy executor.
