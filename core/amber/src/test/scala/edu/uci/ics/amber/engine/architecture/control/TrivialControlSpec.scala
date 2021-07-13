@@ -9,7 +9,12 @@ import edu.uci.ics.amber.engine.architecture.control.utils.NestedHandler.Nested
 import edu.uci.ics.amber.engine.architecture.control.utils.PingPongHandler.Ping
 import edu.uci.ics.amber.engine.architecture.control.utils.RecursionHandler.Recursion
 import edu.uci.ics.amber.engine.architecture.control.utils.TrivialControlTester
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{GetActorRef, NetworkAck, NetworkMessage, RegisterActorRef}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
+  GetActorRef,
+  NetworkAck,
+  NetworkMessage,
+  RegisterActorRef
+}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowControlMessage
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
@@ -101,7 +106,7 @@ class TrivialControlSpec
         10,
         (
           Chain((1 to 9).map(i => ActorVirtualIdentity(i.toString))),
-            ActorVirtualIdentity(9.toString)
+          ActorVirtualIdentity(9.toString)
         )
       )
     }
