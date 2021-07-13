@@ -10,23 +10,22 @@ import scala.collection.mutable
 
 //TODO: Use WorkflowResultService.
 class WorkflowRewriter(
-    workflowInfo: WorkflowInfo,
-    operatorOutputCache: mutable.HashMap[String, mutable.MutableList[Tuple]],
-    cachedOperators: mutable.HashMap[String, OperatorDescriptor],
-    cacheSourceOperators: mutable.HashMap[String, CacheSourceOpDesc],
-    cacheSinkOperators: mutable.HashMap[String, CacheSinkOpDesc]
+    var workflowInfo: WorkflowInfo,
+    var operatorOutputCache: mutable.HashMap[String, mutable.MutableList[Tuple]],
+    var cachedOperators: mutable.HashMap[String, String],
+    var cacheSourceOperators: mutable.HashMap[String, CacheSourceOpDesc],
+    var cacheSinkOperators: mutable.HashMap[String, CacheSinkOpDesc]
 ) {
-
-  var operatorRecord: mutable.HashMap[String, OperatorDescriptor] = _
-
   private val logger = Logger(this.getClass.getName)
+
+  var operatorRecord: mutable.HashMap[String, String] = _
 
   private val workflowDAG: WorkflowDAG = if (workflowInfo != null) {
     new WorkflowDAG(workflowInfo)
   } else {
     null
   }
-  private val newOperators = if (workflowInfo != null) {
+  private var newOperators = if (workflowInfo != null) {
     mutable.MutableList[OperatorDescriptor]()
   } else {
     null
@@ -73,6 +72,7 @@ class WorkflowRewriter(
           rewriteUpstreamOperator(opID, upstreamOp)
         })
     }
+    newOperators = newOperators.reverse
     WorkflowInfo(newOperators, newLinks, newBreakpoints)
   }
 
@@ -101,18 +101,26 @@ class WorkflowRewriter(
 
   private def isUpdated(operatorID: String): Boolean = {
     if (!operatorRecord.contains(operatorID)) {
-      operatorRecord += ((operatorID, workflowDAG.getOperator(operatorID)))
-      true
-    } else if (!operatorRecord(operatorID).equals(workflowDAG.getOperator(operatorID))) {
-      operatorRecord(operatorID) = workflowDAG.getOperator(operatorID)
+      val str = operatorIDToString(operatorID)
+      operatorRecord += ((operatorID, str))
+      logger.info("Operator: {} is not recorded.", workflowDAG.getOperator(operatorID).toString)
       true
     } else {
-      false
+      val str = operatorIDToString(operatorID)
+      if (!operatorRecord(operatorID).equals(str)) {
+        operatorRecord(operatorID) = str
+        logger.info("Operator: {} is updated.", workflowDAG.getOperator(operatorID).toString)
+        true
+      } else {
+        logger.info("Operator: {} is not updated.", workflowDAG.getOperator(operatorID).toString)
+        false
+      }
     }
   }
 
   private def checkOperatorCacheValidity(operatorID: String): Unit = {
     val desc = workflowDAG.getOperator(operatorID)
+    logger.info("Checking cache validity of operator: {}.", desc.toString)
     if (isCacheEnabled(desc) && !isCacheValid(desc)) {
       invalidateCache(operatorID)
     }
@@ -124,9 +132,9 @@ class WorkflowRewriter(
   }
 
   private def invalidateCache(operatorID: String): Unit = {
-    logger.debug("Operator {} cache invalidated.", operatorID)
     operatorOutputCache.remove(operatorID)
     cachedOperators.remove(operatorID)
+    logger.info("Operator {} cache invalidated.", operatorID)
     workflowDAG
       .getDownstream(operatorID)
       .foreach(desc => {
@@ -165,7 +173,7 @@ class WorkflowRewriter(
   private def addMatchingBreakpoints(operatorID: String): Unit = {
     workflowInfo.breakpoints.foreach(breakpoint => {
       if (operatorID.equals(breakpoint.operatorID)) {
-        logger.debug("Add breakpoint {} for operator {}", breakpoint, operatorID)
+        logger.info("Add breakpoint {} for operator {}", breakpoint, operatorID)
         newBreakpoints += breakpoint
       }
     })
@@ -173,13 +181,13 @@ class WorkflowRewriter(
 
   private def rewriteToCacheOperator(opID: String, upstreamOp: OperatorDescriptor): Unit = {
     if (!rewrittenToCacheOperator.contains(upstreamOp.operatorID)) {
-      logger.debug("Rewrite operator {}.", upstreamOp.operatorID)
+      logger.info("Rewrite operator {}.", upstreamOp.operatorID)
       val toCacheOperator = generateCacheSinkOperator(upstreamOp)
       newOperators += toCacheOperator
-      newLinks += generateToCacheLink(toCacheOperator, workflowDAG.getOperator(opID))
+      newLinks += generateToCacheLink(toCacheOperator, upstreamOp)
       rewrittenToCacheOperator.add(upstreamOp.operatorID)
     } else {
-      logger.debug("Operator {} is already rewritten.", upstreamOp.operatorID)
+      logger.info("Operator {} is already rewritten.", upstreamOp.operatorID)
     }
     rewriteNormalOperator(opID, upstreamOp)
   }
@@ -205,32 +213,36 @@ class WorkflowRewriter(
     if (!workflowInfo.cachedOperatorIDs.contains(operator.operatorID)) {
       operatorOutputCache.remove(operator.operatorID)
       cachedOperators.remove(operator.operatorID)
-      logger.debug("Operator {} cache not enabled.", operator)
+      logger.info("Operator {} cache not enabled.", operator)
       return false
     }
-    logger.debug("Operator {} cache enabled.", operator)
+    logger.info("Operator {} cache enabled.", operator)
     true
   }
 
   private def isCacheValid(operator: OperatorDescriptor): Boolean = {
-    logger.debug("Checking the cache validity of operator {}.", operator.toString)
+    logger.info("Checking the cache validity of operator {}.", operator.toString)
     assert(isCacheEnabled(operator))
     if (cachedOperators.contains(operator.operatorID)) {
       if (
-        getCachedOperator(operator)
-          .equals(operator) && !rewrittenToCacheOperator.contains(operator.operatorID)
+        getCachedOperator(operator).equals(
+          operatorIDToString(operator.operatorID)
+        ) && !rewrittenToCacheOperator.contains(
+          operator.operatorID
+        )
       ) {
-        logger.debug("Operator {} cache valid.", operator)
+        logger.info("Operator {} cache valid.", operator)
         return true
       }
-      logger.debug("Operator {} cache invalid.", operator)
+      logger.info("Operator {} cache invalid.", operator)
     } else {
-      logger.debug("Operator {} is never cached.", operator)
+      logger.info("cachedOperators: {}.", cachedOperators.toString())
+      logger.info("Operator {} is never cached.", operator)
     }
     false
   }
 
-  private def getCachedOperator(operator: OperatorDescriptor): OperatorDescriptor = {
+  private def getCachedOperator(operator: OperatorDescriptor): String = {
     assert(cachedOperators.contains(operator.operatorID))
     cachedOperators(operator.operatorID)
   }
@@ -268,8 +280,15 @@ class WorkflowRewriter(
   }
 
   private def generateCacheSinkOperator(operator: OperatorDescriptor): CacheSinkOpDesc = {
+    logger.info("Generating CacheSinkOperator for operator {}.", operator.toString)
     val outputCache = mutable.MutableList[Tuple]()
-    cachedOperators.+=((operator.operatorID, operator))
+    cachedOperators += ((operator.operatorID, operatorIDToString(operator.operatorID)))
+    logger.info(
+      "Operator: {} added to cachedOperators: {}.",
+      operator.toString,
+      cachedOperators.toString()
+    )
+    logger.info("cachedOperators size: {}.", cachedOperators.size)
     val cacheSinkOperator = new CacheSinkOpDesc(outputCache)
     cacheSinkOperators += ((operator.operatorID, cacheSinkOperator))
     val cacheSourceOperator = new CacheSourceOpDesc(outputCache)
@@ -291,5 +310,12 @@ class WorkflowRewriter(
     val origin: OperatorPort = OperatorPort(upstream.operatorID, 0)
     val destination: OperatorPort = OperatorPort(toCacheOperator.operatorID, 0)
     OperatorLink(origin, destination)
+  }
+
+  private def operatorIDToString(operatorID: String): String = {
+    var str: String = workflowDAG.getOperator(operatorID).toString()
+    val start = str.indexOf('[')
+    str = str.substring(start + 1, str.length - 1)
+    str
   }
 }

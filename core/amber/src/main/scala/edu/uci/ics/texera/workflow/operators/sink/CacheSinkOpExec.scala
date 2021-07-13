@@ -19,7 +19,10 @@ class CacheSinkOpExec(dest: mutable.MutableList[Tuple])
   val results: mutable.MutableList[Tuple] = mutable.MutableList()
 
   //TODO: Empty list or null?
-  override def getResultTuples(): List[ITuple] = List[ITuple]()
+  override def getResultTuples(): List[ITuple] = {
+    logger.info("Get result tuples.")
+    List[Tuple]()
+  }
 
   override def getOutputMode(): IncrementalOutputMode = IncrementalOutputMode.SET_SNAPSHOT
 
@@ -31,7 +34,7 @@ class CacheSinkOpExec(dest: mutable.MutableList[Tuple])
       tuple: Either[ITuple, InputExhausted],
       input: LinkIdentity
   ): Iterator[ITuple] = {
-    logger.debug("Processing tuple {}", tuple.toString)
+    logger.info("Processing tuple {}", tuple.toString)
     tuple match {
       case Left(t) =>
         results += t.asInstanceOf[Tuple]

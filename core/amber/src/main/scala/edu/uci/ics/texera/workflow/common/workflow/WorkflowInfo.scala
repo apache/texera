@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
+import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
 import org.jgrapht.graph.DirectedAcyclicGraph
 
 import scala.collection.mutable
@@ -44,7 +45,9 @@ class WorkflowDAG(workflowInfo: WorkflowInfo) {
     operators.keys.filter(op => jgraphtDag.inDegreeOf(op) == 0).toList
 
   val sinkOperators: List[String] =
-    operators.keys.filter(op => jgraphtDag.outDegreeOf(op) == 0).toList
+    operators.keys
+      .filter(op => operators(op).isInstanceOf[SimpleSinkOpDesc])
+      .toList
 
   def getOperator(operatorID: String): OperatorDescriptor = operators(operatorID)
 

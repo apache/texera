@@ -11,7 +11,6 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHa
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.web.{ServletAwareConfigurator, TexeraWebApplication}
 import edu.uci.ics.texera.web.model.event._
@@ -25,17 +24,22 @@ import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
 }
 import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo}
+import edu.uci.ics.texera.workflow.common.workflow.{
+  WorkflowCompiler,
+  WorkflowInfo,
+  WorkflowRewriter
+}
 import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
 import java.util.concurrent.atomic.AtomicInteger
-
 import edu.uci.ics.texera.workflow.common.Utils.objectMapper
 import javax.servlet.http.HttpSession
 import javax.websocket.{EndpointConfig, _}
 import javax.websocket.server.ServerEndpoint
-
 import scala.collection.mutable
 import com.typesafe.scalalogging.Logger
+import edu.uci.ics.texera.workflow.common.workflow.WorkflowInfo.toJgraphtDAG
+import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDesc
+import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 
 object WorkflowWebsocketResource {
   // TODO should reorganize this resource.
@@ -65,7 +69,7 @@ object WorkflowWebsocketResource {
 )
 class WorkflowWebsocketResource {
 
-  private var logger = Logger(this.getClass.getName)
+  private val logger = Logger(this.getClass.getName)
 
   final val objectMapper = Utils.objectMapper
 
@@ -167,6 +171,17 @@ class WorkflowWebsocketResource {
     send(session, WorkflowResumedEvent())
   }
 
+  var operatorOutputCache: mutable.HashMap[String, mutable.MutableList[Tuple]] =
+    mutable.HashMap[String, mutable.MutableList[Tuple]]()
+  var cachedOperators: mutable.HashMap[String, String] =
+    mutable.HashMap[String, String]()
+  var cacheSourceOperators: mutable.HashMap[String, CacheSourceOpDesc] =
+    mutable.HashMap[String, CacheSourceOpDesc]()
+  var cacheSinkOperators: mutable.HashMap[String, CacheSinkOpDesc] =
+    mutable.HashMap[String, CacheSinkOpDesc]()
+  var operatorRecord: mutable.HashMap[String, String] =
+    mutable.HashMap[String, String]()
+
   def executeWorkflow(session: Session, request: ExecuteWorkflowRequest): Unit = {
     val context = new WorkflowContext
     val jobID = Integer.toString(WorkflowWebsocketResource.nextJobID.incrementAndGet)
@@ -175,10 +190,24 @@ class WorkflowWebsocketResource {
       .getUser(sessionMap(session.getId)._2)
       .map(u => u.getUid)
 
-    val workflowInfo = WorkflowInfo(request.operators, request.links, request.breakpoints)
+    var workflowInfo = WorkflowInfo(request.operators, request.links, request.breakpoints)
     workflowInfo.cachedOperatorIDs = request.cachedOperatorIDs
+    logger.info("Cached operators: {}.", cachedOperators.toString())
+    logger.info("request.cachedOperatorIDs: {}.", request.cachedOperatorIDs)
+    val workflowRewriter = new WorkflowRewriter(
+      workflowInfo,
+      operatorOutputCache,
+      cachedOperators,
+      cacheSourceOperators,
+      cacheSinkOperators
+    )
+    workflowRewriter.operatorRecord = operatorRecord
+    val newWorkflowInfo = workflowRewriter.rewrite
+    logger.info("Original workflow: {}.", toJgraphtDAG(workflowInfo).toString)
+    workflowInfo = newWorkflowInfo
+    logger.info("Rewritten workflow: {}.", toJgraphtDAG(workflowInfo).toString)
     val texeraWorkflowCompiler = new WorkflowCompiler(workflowInfo, context)
-
+    logger.info("TexeraWorkflowCompiler constructed: {}.", texeraWorkflowCompiler)
     val violations = texeraWorkflowCompiler.validate
     if (violations.nonEmpty) {
       send(session, WorkflowErrorEvent(violations))
@@ -222,6 +251,7 @@ class WorkflowWebsocketResource {
         send(session, RecoveryStartedEvent())
       },
       workflowExecutionErrorListener = errorOccurred => {
+        logger.error("Workflow execution has error: {}.", errorOccurred.error)
         send(session, WorkflowExecutionErrorEvent(errorOccurred.error.convertToMap()))
       }
     )
@@ -263,7 +293,7 @@ class WorkflowWebsocketResource {
   }
 
   def removeBreakpoint(session: Session, removeBreakpoint: RemoveBreakpointRequest): Unit = {
-    throw new UnsupportedOperationException();
+    throw new UnsupportedOperationException()
   }
 
 }

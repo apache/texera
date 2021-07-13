@@ -4,7 +4,6 @@ import com.google.common.base.Preconditions
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.ProgressiveUtils
 import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 
@@ -13,7 +12,7 @@ import scala.collection.JavaConverters.asScalaBuffer
 import scala.collection.immutable.List
 import scala.collection.mutable
 
-class CacheSinkOpDesc(dest: mutable.MutableList[Tuple]) extends OperatorDescriptor {
+class CacheSinkOpDesc(dest: mutable.MutableList[Tuple]) extends SimpleSinkOpDesc {
 
   var schema: Schema = _
 

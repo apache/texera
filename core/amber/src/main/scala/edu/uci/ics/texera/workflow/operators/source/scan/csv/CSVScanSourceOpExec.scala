@@ -30,6 +30,8 @@ class CSVScanSourceOpExec private[csv] (val desc: CSVScanSourceOpDesc)
       )
       .filter(tuple => tuple != null)
 
+    println("CSVScanSourceOpExec: producing tuples.")
+
     if (desc.limit.isDefined) tuples = tuples.take(desc.limit.get)
     tuples
   }
