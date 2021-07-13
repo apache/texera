@@ -68,10 +68,9 @@ class WorkflowResource {
   def retrieveWorkflow(@PathParam("wid") wid: UInteger, @Session session: HttpSession): Response = {
     UserResource.getUser(session) match {
       case Some(user) =>
-        val uid = user.getUid
         if (
-          WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid) || WorkflowAccessResource
-            .hasNoWorkflowAccessRecord(wid, user.getUid)
+          WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid) ||
+          WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, user.getUid)
         ) {
           Response.status(Response.Status.UNAUTHORIZED).build()
         } else {
