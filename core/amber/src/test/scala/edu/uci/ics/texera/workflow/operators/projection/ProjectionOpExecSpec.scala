@@ -1,15 +1,9 @@
-package edu.uci.ics.texera.unittest.workflow.operators.projection
+package edu.uci.ics.texera.workflow.operators.projection
 
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  Schema,
-  OperatorSchemaInfo
-}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.operators.projection.ProjectionOpExec
-import org.scalatest.flatspec.AnyFlatSpec
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
 import org.scalatest.BeforeAndAfter
+import org.scalatest.flatspec.AnyFlatSpec
 class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val tupleSchema: Schema = Schema
     .newBuilder()
