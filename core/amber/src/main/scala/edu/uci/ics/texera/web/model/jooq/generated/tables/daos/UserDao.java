@@ -39,9 +39,6 @@ public class UserDao extends DAOImpl<UserRecord, edu.uci.ics.texera.web.model.jo
         return object.getUid();
     }
 
-    public String getName(edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User object) {
-        return object.getName();
-    }
     /**
      * Fetch records that have <code>name BETWEEN lowerInclusive AND upperInclusive</code>
      */
@@ -68,13 +65,6 @@ public class UserDao extends DAOImpl<UserRecord, edu.uci.ics.texera.web.model.jo
      */
     public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User> fetchByUid(UInteger... values) {
         return fetch(User.USER.UID, values);
-    }
-
-    /**
-     * Fetch a unique record that has <code>uid = value</code>
-     */
-    public edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User fetchOneByName(String value) {
-        return fetchOne(User.USER.NAME, value);
     }
 
     /**

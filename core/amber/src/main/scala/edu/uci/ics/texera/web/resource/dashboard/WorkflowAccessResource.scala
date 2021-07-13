@@ -1,10 +1,18 @@
 package edu.uci.ics.texera.web.resource.dashboard
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{UserDao, WorkflowOfUserDao, WorkflowUserAccessDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+  UserDao,
+  WorkflowOfUserDao,
+  WorkflowUserAccessDao
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess
 import edu.uci.ics.texera.web.resource.auth.UserResource
-import edu.uci.ics.texera.web.resource.dashboard.WorkflowAccessResource.{UserWorkflowAccess, checkAccessLevel, hasNoWorkflowAccessRecord}
+import edu.uci.ics.texera.web.resource.dashboard.WorkflowAccessResource.{
+  UserWorkflowAccess,
+  checkAccessLevel,
+  hasNoWorkflowAccessRecord
+}
 import io.dropwizard.jersey.sessions.Session
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
@@ -29,6 +37,7 @@ import scala.collection.mutable.ListBuffer
   * Helper functions for retrieving access level based on given information
   */
 object WorkflowAccessResource {
+
   /**
     * Identifies whether the given user has read-only access over the given workflow
     *
@@ -38,26 +47,6 @@ object WorkflowAccessResource {
     */
   def hasReadAccess(wid: UInteger, uid: UInteger): Boolean = {
     checkAccessLevel(wid, uid).eq(WorkflowAccess.READ)
-  }
-
-  /**
-    * Identifies whether the given user has write access over the given workflow
-    * @param wid     workflow id
-    * @param uid     user id, works with workflow id as primary keys in database
-    * @return boolean value indicating yes/no
-    */
-  def hasWriteAccess(wid: UInteger, uid: UInteger): Boolean = {
-    checkAccessLevel(wid, uid).eq(WorkflowAccess.WRITE)
-  }
-
-  /**
-    * Identifies whether the given user has no access over the given workflow
-    * @param wid     workflow id
-    * @param uid     user id, works with workflow id as primary keys in database
-    * @return boolean value indicating yes/no
-    */
-  def hasNoWorkflowAccess(wid: UInteger, uid: UInteger): Boolean = {
-    checkAccessLevel(wid, uid).eq(WorkflowAccess.NONE)
   }
 
   /**
@@ -82,6 +71,26 @@ object WorkflowAccessResource {
     } else {
       WorkflowAccess.NONE
     }
+  }
+
+  /**
+    * Identifies whether the given user has write access over the given workflow
+    * @param wid     workflow id
+    * @param uid     user id, works with workflow id as primary keys in database
+    * @return boolean value indicating yes/no
+    */
+  def hasWriteAccess(wid: UInteger, uid: UInteger): Boolean = {
+    checkAccessLevel(wid, uid).eq(WorkflowAccess.WRITE)
+  }
+
+  /**
+    * Identifies whether the given user has no access over the given workflow
+    * @param wid     workflow id
+    * @param uid     user id, works with workflow id as primary keys in database
+    * @return boolean value indicating yes/no
+    */
+  def hasNoWorkflowAccess(wid: UInteger, uid: UInteger): Boolean = {
+    checkAccessLevel(wid, uid).eq(WorkflowAccess.NONE)
   }
 
   /**
@@ -110,14 +119,20 @@ object WorkflowAccessResource {
   */
 @Path("/workflow-access")
 @Produces(Array(MediaType.APPLICATION_JSON))
-class WorkflowAccessResource(DSLContext: DSLContext = SqlServer.createDSLContext) {
-  final private val userDao = new UserDao(DSLContext.configuration())
+class WorkflowAccessResource() {
+  final private val userDao = new UserDao(context.configuration())
   final private val workflowOfUserDao = new WorkflowOfUserDao(
-    DSLContext.configuration
+    context.configuration
   )
   final private val workflowUserAccessDao = new WorkflowUserAccessDao(
-    DSLContext.configuration
+    context.configuration
   )
+  var context: DSLContext = SqlServer.createDSLContext
+
+  def this(dslContext: DSLContext) {
+    this()
+    context = dslContext
+  }
 
   /**
     * This method identifies the user access level of the given workflow
@@ -149,7 +164,7 @@ class WorkflowAccessResource(DSLContext: DSLContext = SqlServer.createDSLContext
     *
     * @param wid     the given workflow
     * @param session the session indicating current User
-    * @return json object indicating user with access and access type, ex: {"Jim": "Write"}
+    * @return json object indicating user with access and access type, ex: [{"Jim": "Write"}]
     */
   @GET
   @Path("/list/{wid}")
@@ -161,17 +176,17 @@ class WorkflowAccessResource(DSLContext: DSLContext = SqlServer.createDSLContext
       case Some(user) =>
         if (
           workflowOfUserDao.existsById(
-            DSLContext
+            context
               .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
               .values(user.getUid, wid)
           )
         ) {
           Response.ok(getGrantedList(wid, user.getUid)).build()
         } else {
-          Response.status(Response.Status.UNAUTHORIZED).build()
+          Response.status(Response.Status.UNAUTHORIZED).entity("You are not workflow owner").build()
         }
       case None =>
-        Response.status(Response.Status.UNAUTHORIZED).build()
+        Response.status(Response.Status.UNAUTHORIZED).entity("Please Login").build()
     }
   }
 
@@ -180,10 +195,10 @@ class WorkflowAccessResource(DSLContext: DSLContext = SqlServer.createDSLContext
     *
     * @param wid     workflow id
     * @param uid     user id of current user, used to identify ownership
-    * @return a HashMap with corresponding information Ex: {"Jim": "Read"}
+    * @return a List with corresponding information Ex: [{"Jim": "Read"}]
     */
   def getGrantedList(wid: UInteger, uid: UInteger): List[UserWorkflowAccess] = {
-    val shares = DSLContext
+    val shares = context
       .select(
         WORKFLOW_USER_ACCESS.UID,
         WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
@@ -195,7 +210,7 @@ class WorkflowAccessResource(DSLContext: DSLContext = SqlServer.createDSLContext
     val currShares = ListBuffer[UserWorkflowAccess]()
     shares.getValues(0).asScala.toList.zipWithIndex.foreach {
       case (id, index) =>
-        val userName = userDao.getName(userDao.fetchOneByUid(id.asInstanceOf[UInteger]))
+        val userName = (userDao.fetchOneByUid(id.asInstanceOf[UInteger])).getName
         if (shares.getValue(index, 2) == true) {
           currShares += UserWorkflowAccess(userName, "Write")
         } else {
@@ -211,7 +226,7 @@ class WorkflowAccessResource(DSLContext: DSLContext = SqlServer.createDSLContext
     * @param wid     the given workflow
     * @param username the username of the use whose access is about to be removed
     * @param session the session indicating current User
-    * @return json object indicating successful removal Ex: {"removing access" -> "Successful"}
+    * @return message indicating a success message
     */
   @POST
   @Path("/revoke/{wid}/{username}")
@@ -223,24 +238,31 @@ class WorkflowAccessResource(DSLContext: DSLContext = SqlServer.createDSLContext
   ): Response = {
     UserResource.getUser(session) match {
       case Some(user) =>
-        val uid = userDao.getId(userDao.fetchOneByName(username))
+        val uid: UInteger =
+          try {
+            userDao.fetchByName(username).get(0).getUid
+          } catch {
+            case _: NullPointerException =>
+              return Response
+                .status(Response.Status.BAD_REQUEST)
+                .entity("Target user does not exist!")
+                .build()
+          }
         if (
           !workflowOfUserDao.existsById(
-            DSLContext
+            context
               .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
               .values(user.getUid, wid)
           )
         ) {
           Response.status(Response.Status.UNAUTHORIZED).build()
         } else {
-          // TODO: remove JSON
-          val respJSON = mutable.HashMap("removing access" -> "Successful")
-          DSLContext
+          context
             .delete(WORKFLOW_USER_ACCESS)
             .where(WORKFLOW_USER_ACCESS.UID.eq(uid).and(WORKFLOW_USER_ACCESS.WID.eq(wid)))
             .execute()
-          Response.ok(respJSON).build()
         }
+        Response.ok().build()
 
       case None =>
         Response.status(Response.Status.UNAUTHORIZED).build()
@@ -254,7 +276,7 @@ class WorkflowAccessResource(DSLContext: DSLContext = SqlServer.createDSLContext
     * @param username    the user name which the access is given to
     * @param session the session indicating current User
     * @param accessLevel the type of Access given to the target user
-    * @return rejection if user not permitted to share the workflow
+    * @return rejection if user not permitted to share the workflow or Success Message
     */
   @POST
   @Path("/grant/{wid}/{username}/{accessLevel}")
@@ -268,20 +290,18 @@ class WorkflowAccessResource(DSLContext: DSLContext = SqlServer.createDSLContext
       case Some(user) =>
         val uid: UInteger =
           try {
-            // TODO: remove name related DAO functions
-            userDao.getId(userDao.fetchOneByName(username))
+            userDao.fetchByName(username).get(0).getUid
           } catch {
-            case _: NullPointerException =>
+            case _: IndexOutOfBoundsException =>
               return Response
                 .status(Response.Status.BAD_REQUEST)
                 .entity("Target user does not exist!")
                 .build()
-
           }
 
         if (
           !workflowOfUserDao.existsById(
-            DSLContext
+            context
               .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
               .values(user.getUid, wid)
           )

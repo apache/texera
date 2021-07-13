@@ -82,10 +82,10 @@ public interface IFile extends Serializable {
     /**
      * Load data from another generated Record/POJO implementing the common interface IFile
      */
-    public void from(IFile from);
+    public void from(edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IFile from);
 
     /**
      * Copy data into another generated Record/POJO implementing the common interface IFile
      */
-    public <E extends IFile> E into(E into);
+    public <E extends edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IFile> E into(E into);
 }

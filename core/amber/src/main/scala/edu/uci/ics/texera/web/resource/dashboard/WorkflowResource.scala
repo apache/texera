@@ -1,9 +1,21 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{WORKFLOW, WORKFLOW_OF_USER}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowOfUserDao, WorkflowUserAccessDao}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Workflow, WorkflowOfUser, WorkflowUserAccess}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
+  WORKFLOW,
+  WORKFLOW_OF_USER,
+  WORKFLOW_USER_ACCESS
+}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+  WorkflowDao,
+  WorkflowOfUserDao,
+  WorkflowUserAccessDao
+}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
+  Workflow,
+  WorkflowOfUser,
+  WorkflowUserAccess
+}
 import edu.uci.ics.texera.web.resource.auth.UserResource
 import io.dropwizard.jersey.sessions.Session
 import org.jooq.types.UInteger
@@ -30,7 +42,7 @@ class WorkflowResource {
   )
 
   /**
-    * This method returns the current in-session user's workflow list
+    * This method returns the current in-session user's workflow list based on all workflows he/she has access to
     *
     * @param session HttpSession
     * @return Workflow[]
@@ -44,9 +56,9 @@ class WorkflowResource {
         SqlServer.createDSLContext
           .select()
           .from(WORKFLOW)
-          .join(WORKFLOW_OF_USER)
-          .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
-          .where(WORKFLOW_OF_USER.UID.eq(user.getUid))
+          .join(WORKFLOW_USER_ACCESS)
+          .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
+          .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
           .fetchInto(classOf[Workflow])
 
       case None => new util.ArrayList()
@@ -126,6 +138,14 @@ class WorkflowResource {
     }
   }
 
+  private def workflowOfUserExists(wid: UInteger, uid: UInteger): Boolean = {
+    workflowOfUserDao.existsById(
+      SqlServer.createDSLContext
+        .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
+        .values(uid, wid)
+    )
+  }
+
   /**
     * This method deletes the workflow from database
     *
@@ -146,14 +166,6 @@ class WorkflowResource {
       case None =>
         Response.status(Response.Status.UNAUTHORIZED).build()
     }
-  }
-
-  private def workflowOfUserExists(wid: UInteger, uid: UInteger): Boolean = {
-    workflowOfUserDao.existsById(
-      SqlServer.createDSLContext
-        .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
-        .values(uid, wid)
-    )
   }
 
 }
