@@ -135,16 +135,7 @@ describe('SavedWorkflowSectionComponent', () => {
     expect(SortedCase)
       .toEqual([2, 3, 4, 6, 8]);
   });
-
-
-  // it('should call createWorkflow when click on duplicate button', () => {
-  //   // tslint:disable-next-line:prefer-const
-  //   let buttonState = fixture.debugElement.query(By.css('button.mat-focus-indicator.duplicate-workflow-btn.mat-button.mat-button-base'));
-  //   expect(buttonState).toBeTruthy();
-  //   spyOn(mockWorkflowPersistService, 'createWorkflow');
-  //   buttonState.triggerEventHandler('click', null);
-  //   expect(mockWorkflowPersistService.createWorkflow).toHaveBeenCalledTimes(1);
-  // });
+  
 
 
   /*
