@@ -1,26 +1,16 @@
-package edu.uci.ics.texera.unittest.workflow.operators.intersect
+package edu.uci.ics.texera.workflow.operators.symmetricDifference
 
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.virtualidentity.{LayerIdentity, LinkIdentity}
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.operators.intersect.IntersectOpExec
-import org.scalatest.flatspec.AnyFlatSpec
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType}
 import org.scalatest.BeforeAndAfter
+import org.scalatest.flatspec.AnyFlatSpec
 
 import scala.util.Random
-class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
-  var opExec: IntersectOpExec = _
+class SymmetricDifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
+  var opExec: SymmetricDifferenceOpExec = _
   var counter: Int = 0
-
-  val tupleSchema: Schema = Schema
-    .newBuilder()
-    .add(new Attribute("field1", AttributeType.STRING))
-    .add(new Attribute("field2", AttributeType.INTEGER))
-    .add(
-      new Attribute("field3", AttributeType.BOOLEAN)
-    )
-    .build()
 
   def layerID(): LayerIdentity = {
     counter += 1
@@ -32,7 +22,7 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   def tuple(): Tuple = {
     counter += 1
     Tuple
-      .newBuilder(tupleSchema)
+      .newBuilder()
       .add(new Attribute("field1", AttributeType.STRING), "hello")
       .add(new Attribute("field2", AttributeType.INTEGER), counter)
       .add(
@@ -43,7 +33,7 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   before {
-    opExec = new IntersectOpExec()
+    opExec = new SymmetricDifferenceOpExec()
   }
 
   it should "open" in {
@@ -69,33 +59,10 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     })
 
     val outputTuples: Set[Tuple] = opExec.processTexeraTuple(Right(InputExhausted()), linkID2).toSet
-    assert(outputTuples.equals(commonTuples.slice(5, 8).toSet))
+    assert(
+      outputTuples.equals(commonTuples.slice(0, 5).toSet.union(commonTuples.slice(8, 10).toSet))
+    )
 
-    opExec.close()
-  }
-
-  it should "work with two random input upstreams" in {
-    val links = (0 to 1).map(_ => linkID()).toList
-    opExec.open()
-    counter = 0
-    val commonTuples = (1 to 10).map(_ => tuple()).toList
-
-    (1 to 10).map(_ => {
-
-      opExec.processTexeraTuple(Left(tuple()), links(Random.nextInt(links.size)))
-      opExec.processTexeraTuple(
-        Left(commonTuples(Random.nextInt(commonTuples.size))),
-        links(Random.nextInt(links.size))
-      )
-    })
-
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), links.head).isEmpty)
-
-    val outputTuples: Set[Tuple] =
-      opExec.processTexeraTuple(Right(InputExhausted()), links(1)).toSet
-    assert(outputTuples.size <= 10)
-    assert(outputTuples.subsetOf(commonTuples.toSet))
-    outputTuples.foreach(tuple => assert(tuple.getField[Int]("field2") <= 10))
     opExec.close()
   }
 
@@ -125,13 +92,13 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     counter = 0
     val commonTuples = (1 to 10).map(_ => tuple()).toList
 
-    (1 to 100).map(_ => {
-      opExec.processTexeraTuple(Left(tuple()), linkID1)
-      opExec.processTexeraTuple(Left(commonTuples(Random.nextInt(commonTuples.size))), linkID1)
+    (0 to 9).map(i => {
+      opExec.processTexeraTuple(Left(commonTuples(i)), linkID1)
     })
     assert(opExec.processTexeraTuple(Right(InputExhausted()), linkID1).isEmpty)
 
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), linkID2).isEmpty)
+    val outputTuples: Set[Tuple] = opExec.processTexeraTuple(Right(InputExhausted()), linkID2).toSet
+    assert(outputTuples.equals(commonTuples.toSet))
     opExec.close()
   }
 
@@ -142,13 +109,13 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     counter = 0
     val commonTuples = (1 to 10).map(_ => tuple()).toList
 
-    (1 to 100).map(_ => {
-      opExec.processTexeraTuple(Left(tuple()), linkID1)
-      opExec.processTexeraTuple(Left(commonTuples(Random.nextInt(commonTuples.size))), linkID1)
+    (0 to 9).map(i => {
+      opExec.processTexeraTuple(Left(commonTuples(i)), linkID2)
     })
     assert(opExec.processTexeraTuple(Right(InputExhausted()), linkID2).isEmpty)
 
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), linkID1).isEmpty)
+    val outputTuples: Set[Tuple] = opExec.processTexeraTuple(Right(InputExhausted()), linkID1).toSet
+    assert(outputTuples.equals(commonTuples.toSet))
     opExec.close()
   }
 
@@ -160,12 +127,12 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val commonTuples = (1 to 10).map(_ => tuple()).toList
 
     assert(opExec.processTexeraTuple(Right(InputExhausted()), linkID2).isEmpty)
-    (1 to 100).map(_ => {
-      opExec.processTexeraTuple(Left(tuple()), linkID1)
-      opExec.processTexeraTuple(Left(commonTuples(Random.nextInt(commonTuples.size))), linkID1)
+    (0 to 9).map(i => {
+      opExec.processTexeraTuple(Left(commonTuples(i)), linkID1)
     })
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), linkID1).isEmpty)
 
+    val outputTuples: Set[Tuple] = opExec.processTexeraTuple(Right(InputExhausted()), linkID1).toSet
+    assert(outputTuples.equals(commonTuples.toSet))
     opExec.close()
   }
 
@@ -176,18 +143,16 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     counter = 0
     val commonTuples = (1 to 10).map(_ => tuple()).toList
 
-    (1 to 100).map(_ => {
-      opExec.processTexeraTuple(Left(tuple()), linkID1)
-      opExec.processTexeraTuple(Left(commonTuples(Random.nextInt(commonTuples.size))), linkID1)
+    (0 to 5).map(i => {
+      opExec.processTexeraTuple(Left(commonTuples(i)), linkID1)
     })
     assert(opExec.processTexeraTuple(Right(InputExhausted()), linkID2).isEmpty)
-
-    (1 to 100).map(_ => {
-      opExec.processTexeraTuple(Left(tuple()), linkID1)
-      opExec.processTexeraTuple(Left(commonTuples(Random.nextInt(commonTuples.size))), linkID1)
+    (6 to 9).map(i => {
+      opExec.processTexeraTuple(Left(commonTuples(i)), linkID1)
     })
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), linkID1).isEmpty)
 
+    val outputTuples: Set[Tuple] = opExec.processTexeraTuple(Right(InputExhausted()), linkID1).toSet
+    assert(outputTuples.equals(commonTuples.toSet))
     opExec.close()
   }
 

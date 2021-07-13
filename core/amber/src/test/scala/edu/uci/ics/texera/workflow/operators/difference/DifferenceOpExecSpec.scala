@@ -1,12 +1,11 @@
-package edu.uci.ics.texera.unittest.workflow.operators.difference
+package edu.uci.ics.texera.workflow.operators.difference
 
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.virtualidentity.{LayerIdentity, LinkIdentity}
-import org.scalatest.BeforeAndAfter
-import org.scalatest.flatspec.AnyFlatSpec
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType}
-import edu.uci.ics.texera.workflow.operators.difference.DifferenceOpExec
+import org.scalatest.BeforeAndAfter
+import org.scalatest.flatspec.AnyFlatSpec
 
 import scala.util.Random
 
