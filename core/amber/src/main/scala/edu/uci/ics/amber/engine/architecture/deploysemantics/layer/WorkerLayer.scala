@@ -61,7 +61,7 @@ class WorkerLayer(
     deployStrategy.initialize(deploymentFilter.filter(prev, all, context.self.path.address))
     workers = (0 until numWorkers).map { i =>
       val m = metadata(i)
-      val workerID = ActorVirtualIdentity("Worker-" + id.toString + s"[$i]")
+      val workerID = ActorVirtualIdentity(s"Worker-$id-[$i]")
       val d = deployStrategy.next()
       val ref = context.actorOf(
         WorkflowWorker
