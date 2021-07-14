@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.common.metadata.annotations;
 
 public class CommonOpDescAnnotation {
     // JSON schema key
-    public final static   String autofill = "autofill";
+    public final static String autofill = "autofill";
 
     // allowed JSON schema values for the key autoCompleteType
     public final static String attributeName = "attributeName";

@@ -14,7 +14,7 @@ import java.lang.annotation.Target;
 @Target({ElementType.FIELD})
 @JacksonAnnotationsInside
 @JsonSchemaInject(
-        strings = @JsonSchemaString(path = Common.autofill, value = Common.attributeName),
-        ints = @JsonSchemaInt(path = Common.autofillAttributeOnPort, value = 1))
+        strings = @JsonSchemaString(path = CommonOpDescAnnotation.autofill, value = CommonOpDescAnnotation.attributeName),
+        ints = @JsonSchemaInt(path = CommonOpDescAnnotation.autofillAttributeOnPort, value = 1))
 public @interface AutofillAttributeNameOnPort1 {
 }
