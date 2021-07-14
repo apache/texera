@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.hashjoin
+package edu.uci.ics.texera.workflow.operators.hashJoin
 
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.virtualidentity.{LayerIdentity, LinkIdentity}
@@ -9,7 +9,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
   OperatorSchemaInfo,
   Schema
 }
-import edu.uci.ics.texera.workflow.operators.hashJoin.{HashJoinOpDesc, HashJoinOpExec}
+
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -21,7 +21,7 @@ class HashJoinOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   var opDesc: HashJoinOpDesc[String] = _
   var counter: Int = 0
 
-  def linkID(): LinkIdentity = LinkIdentity(layerID(), layerID())
+  def linkID(): LinkIdentity = LinkIdentity(Option(layerID()), Option(layerID()))
 
   def layerID(): LayerIdentity = {
     counter += 1

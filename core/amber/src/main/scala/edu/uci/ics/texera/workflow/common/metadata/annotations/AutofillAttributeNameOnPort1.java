@@ -10,13 +10,11 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import static edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName.*;
-
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.FIELD})
 @JacksonAnnotationsInside
 @JsonSchemaInject(
-        strings = @JsonSchemaString(path = autofill, value = attributeName),
-        ints = @JsonSchemaInt(path = autofillAttributeOnPort, value = 1))
+        strings = @JsonSchemaString(path = CommonOpDescAnnotation.autofill, value = CommonOpDescAnnotation.attributeName),
+        ints = @JsonSchemaInt(path = CommonOpDescAnnotation.autofillAttributeOnPort, value = 1))
 public @interface AutofillAttributeNameOnPort1 {
 }

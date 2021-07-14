@@ -2,24 +2,17 @@ package edu.uci.ics.amber.engine.architecture.controller
 
 import akka.actor.{ActorContext, Address}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{WorkerInfo, WorkerLayer}
-import edu.uci.ics.amber.engine.architecture.linksemantics.{
-  AllToOne,
-  FullRoundRobin,
-  HashBasedShuffle,
-  LinkStrategy,
-  OneToOne
-}
+import edu.uci.ics.amber.engine.architecture.linksemantics._
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef
 import edu.uci.ics.amber.engine.architecture.principal.OperatorState.Completed
 import edu.uci.ics.amber.engine.architecture.principal.OperatorStatistics
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.WorkerActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.{AmberUtils, Constants}
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
   LayerIdentity,
   LinkIdentity,
   OperatorIdentity
 }
-import edu.uci.ics.amber.engine.common.{AmberUtils, Constants}
 import edu.uci.ics.amber.engine.operators.{OpExecConfig, SinkOpExecConfig}
 
 import scala.collection.mutable

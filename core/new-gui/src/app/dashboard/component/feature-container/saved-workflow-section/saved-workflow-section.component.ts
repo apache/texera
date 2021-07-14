@@ -8,6 +8,7 @@ import { WorkflowPersistService } from '../../../../common/service/user/workflow
 import { WorkflowGrantAccessService } from '../../../../common/service/user/workflow-access-control/workflow-grant-access.service';
 import { Workflow } from '../../../../common/type/workflow';
 import { NgbdModalDeleteWorkflowComponent } from './ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component';
+import { NgbdModalShareAccessComponent } from './ngbd-modal-share-access/ngbd-modal-share-access.component';
 
 /**
  * SavedProjectSectionComponent is the main interface for
@@ -26,28 +27,29 @@ export class SavedWorkflowSectionComponent implements OnInit {
 
   public workflows: Workflow[] = [];
 
-  closeResult = '';
-
-  shareForm = this.formBuilder.group({
-    uid: '',
-    accessType: ''
-  });
-
   public defaultWeb: String = 'http://localhost:4200/';
 
   constructor(
     private workflowPersistService: WorkflowPersistService,
     private workflowGrantAccessService: WorkflowGrantAccessService,
     private modalService: NgbModal,
-    private router: Router,
-    private formBuilder: FormBuilder
+    private router: Router
   ) {
   }
+
 
   ngOnInit() {
     this.workflowPersistService.retrieveWorkflowsBySessionUser().subscribe(
       workflows => this.workflows = workflows
     );
+  }
+
+  /**
+   * open the Modal based on the workflow clicked on
+   */
+  public onClickOpenShareAccess(workflow: Workflow): void {
+    const modalRef = this.modalService.open(NgbdModalShareAccessComponent);
+    modalRef.componentInstance.workflow = workflow;
   }
 
   /**
@@ -87,11 +89,6 @@ export class SavedWorkflowSectionComponent implements OnInit {
     this.router.navigate(['/workflow/new']).then(null);
   }
 
-
-  public onClickShareWorkflow(workflow: Workflow, userToShareWith: number, accessType: string): void {
-    this.workflowGrantAccessService.grantWorkflowAccess(workflow, userToShareWith, accessType);
-  }
-
   /**
    * duplicate the current workflow. A new record will appear in frontend
    * workflow list and backend database.
@@ -104,8 +101,6 @@ export class SavedWorkflowSectionComponent implements OnInit {
         alert(error);
       });
   }
-
-
   /**
    * openNgbdModalDeleteWorkflowComponent trigger the delete workflow
    * component. If user confirms the deletion, the method sends
@@ -126,32 +121,12 @@ export class SavedWorkflowSectionComponent implements OnInit {
     });
   }
 
+  /**
+   * jump to the target workflow canvas
+   */
   jumpToWorkflow(workflow: Workflow) {
     this.router.navigate([`/workflow/${workflow.wid}`]).then(null);
   }
 
-  open(content: any) {
-    this.modalService.open(content,
-      {ariaLabelledBy: 'modal-basic-title'}).result.then((result) => {
-      this.closeResult = `Closed with: ${result}`;
-    }, (reason) => {
-      this.closeResult =
-        `Dismissed ${SavedWorkflowSectionComponent.getDismissReason(reason)}`;
-    });
-  }
-
-  onSubmit(workflow: Workflow): any {
-    this.onClickShareWorkflow(workflow, this.shareForm.get('uid')?.value, this.shareForm.get('accessType')?.value);
-  }
-
-  private static getDismissReason(reason: any): string {
-    if (reason === ModalDismissReasons.ESC) {
-      return 'by pressing ESC';
-    } else if (reason === ModalDismissReasons.BACKDROP_CLICK) {
-      return 'by clicking on a backdrop';
-    } else {
-      return `with: ${reason}`;
-    }
-  }
 
 }

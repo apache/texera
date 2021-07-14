@@ -16,7 +16,7 @@
         </mat-list>
       </div>
       <button (click)="onClickCreateNewWorkflowFromDashboard()" class="btn btn-outline-dark add-button" type="button">
-        <i class="fa fa-plus" color="dark"></i></button>
+        <i class="fa fa-plus"></i></button>
     </div>
   </mat-card>
 
@@ -35,52 +35,10 @@
               <span class="time-space"></span>
               Created: {{workflow.creationTime | date:'yyyy-MM-dd HH:mm'}}
             </p>
-            <ng-template #content let-modal>
-              <div class="modal-header">
-                <h4 class="modal-title"
-                    id="modal-basic-title">
-                  Share This Workflow With Someone
-                </h4>
-                <button type="button" class="close"
-                        aria-label="Close" (click)=
-                          "modal.dismiss('Cross click')">
-
-            <span aria-hidden="true">
-                ×
-            </span>
-                </button>
-              </div>
-              <div class="modal-body">
-                    <form [formGroup]="shareForm" (ngSubmit)="onSubmit(workflow)">
-                      <div class="form-group">
-
-                        <label for="uid">
-                          Uid of target user
-                        </label>
-                        <input  class="form-control" id="uid" type="text" formControlName="uid">
-
-                        <br>
-                        <label for="accessType">
-                          Access Level (Read or Write)
-                        </label>
-                        <div id = "accessType">
-                            <input type="radio" value='read' formControlName="accessType" >Read Access
-                            <br>
-                            <input type="radio" value='write' formControlName="accessType">Write Access
-                        </div>
-                        <br>
-
-                        <button class="btn
-                            btn-primary" type="submit">Share</button>
-                      </div>
-                    </form>
-              </div>
-              <div class="modal-footer">
-                <p>Reminder: Read Access is Read-only while Write Access Dominates</p>
-              </div>
-            </ng-template>
-            <button (click)="open(content)" class = "delete-workflow-btn" mat-button
-                    ngbTooltip="Share your workflow" placement="bottom"><i class="fa fa-share"></i></button>
+            <button (click)="onClickOpenShareAccess(workflow)" class="btn btn-outline-dark add-button"
+                    type="button">
+              <i class="fa fa-share"></i>
+            </button>
             <button (click)="onClickDuplicateWorkflow(workflow)" type="button" class="duplicate-workflow-btn" mat-button
                     ngbTooltip="Duplicate the {{workflow.name}}" placement="bottom"><i class="fa fa-copy"></i>
             </button>
