@@ -37,7 +37,7 @@ import edu.uci.ics.texera.workflow.common.Utils.objectMapper
 import javax.servlet.http.HttpSession
 import javax.websocket.{EndpointConfig, _}
 import javax.websocket.server.ServerEndpoint
-import scala.collection.mutable
+import scala.collection.{breakOut, mutable}
 import com.typesafe.scalalogging.Logger
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowInfo.toJgraphtDAG
@@ -129,7 +129,18 @@ class WorkflowWebsocketResource {
   }
 
   def resultPagination(session: Session, request: ResultPaginationRequest): Unit = {
-    val opResultService = sessionResults(session.getId).operatorResults(request.operatorID)
+    var operatorID = request.operatorID
+    if (!sessionResults(session.getId).operatorResults.contains(operatorID)) {
+      val downstreamIDs = sessionResults(session.getId).workflowCompiler.workflow
+        .getDownstream(operatorID)
+      for (elem <- downstreamIDs) {
+        if (elem.isInstanceOf[CacheSinkOpDesc]) {
+          operatorID = elem.operatorID
+          breakOut
+        }
+      }
+    }
+    val opResultService = sessionResults(session.getId).operatorResults(operatorID)
     // calculate from index (pageIndex starts from 1 instead of 0)
     val from = request.pageSize * (request.pageIndex - 1)
     val paginationResults = opResultService.getResult

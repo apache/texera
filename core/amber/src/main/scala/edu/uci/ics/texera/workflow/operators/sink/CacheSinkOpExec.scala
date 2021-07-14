@@ -21,7 +21,7 @@ class CacheSinkOpExec(dest: mutable.MutableList[Tuple])
   //TODO: Empty list or null?
   override def getResultTuples(): List[ITuple] = {
     logger.info("Get result tuples.")
-    List[Tuple]()
+    results.toList
   }
 
   override def getOutputMode(): IncrementalOutputMode = IncrementalOutputMode.SET_SNAPSHOT

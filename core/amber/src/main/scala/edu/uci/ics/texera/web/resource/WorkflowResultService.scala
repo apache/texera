@@ -19,7 +19,7 @@ import edu.uci.ics.texera.web.resource.WorkflowResultService.{
 import edu.uci.ics.texera.web.resource.WorkflowResultService.calculateDirtyPageIndices
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.send
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler
-import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
+import edu.uci.ics.texera.workflow.operators.sink.{CacheSinkOpDesc, SimpleSinkOpDesc}
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode.{SET_DELTA, SET_SNAPSHOT}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
@@ -41,17 +41,20 @@ object WorkflowResultService {
     */
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
   sealed abstract class WebOutputMode extends Product with Serializable
+
   @JsonTypeName("PaginationMode")
   final case class PaginationMode() extends WebOutputMode
+
   @JsonTypeName("SetSnapshotMode")
   final case class SetSnapshotMode() extends WebOutputMode
+
   @JsonTypeName("SetDeltaMode")
   final case class SetDeltaMode() extends WebOutputMode
 
   /**
     * The result update of one operator that will be sent to the frontend.
     * Can be either WebPaginationUpdate (for PaginationMode)
-    *            or WebDataUpdate (for SetSnapshotMode or SetDeltaMode)
+    * or WebDataUpdate (for SetSnapshotMode or SetDeltaMode)
     */
   sealed abstract class WebResultUpdate extends Product with Serializable
 
@@ -117,7 +120,14 @@ class WorkflowResultService(val workflowCompiler: WorkflowCompiler) {
   // OperatorResultService for each sink operator
   val operatorResults: Map[String, OperatorResultService] =
     workflowCompiler.workflow.getSinkOperators
-      .map(sink => (sink, new OperatorResultService(sink, workflowCompiler)))
+      .map(sink => {
+        if (workflowCompiler.workflow.getOperator(sink).isInstanceOf[CacheSinkOpDesc]) {
+          val upstreamID = workflowCompiler.workflow.getUpstream(sink).head.operatorID
+          (sink, new OperatorResultService(upstreamID, workflowCompiler))
+        } else {
+          (sink, new OperatorResultService(sink, workflowCompiler))
+        }
+      })
       .toMap
 
   def onResultUpdate(resultUpdate: WorkflowResultUpdate, session: Session): Unit = {
@@ -126,8 +136,28 @@ class WorkflowResultService(val workflowCompiler: WorkflowCompiler) {
     val webUpdateEvent = resultUpdate.operatorResults.map(e => {
       val opResultService = operatorResults(e._1)
       val webUpdateEvent = opResultService.convertWebResultUpdate(e._2)
-      (e._1, webUpdateEvent)
+      if (workflowCompiler.workflow.getOperator(e._1).isInstanceOf[CacheSinkOpDesc]) {
+        val upID = opResultService.operatorID
+        (upID, webUpdateEvent)
+      } else {
+        (e._1, webUpdateEvent)
+      }
     })
+
+//    def onResultUpdate(resultUpdate: WorkflowResultUpdate, session: Session): Unit = {
+    //
+    //      // prepare web update event to frontend
+    //      val webUpdateEvent = resultUpdate.operatorResults.map(e => {
+    //        val opResultService = operatorResults(e._1)
+    //        val webUpdateEvent = opResultService.convertWebResultUpdate(e._2)
+    //        val operator = workflowCompiler.workflow.getOperator(e._1)
+    //        if (operator.isInstanceOf[CacheSinkOpDesc]) {
+    //          val upstream = workflowCompiler.workflow.getUpstream(e._1).head
+    //          (upstream.operatorID, webUpdateEvent)
+    //        } else {
+    //          (e._1, webUpdateEvent)
+    //        }
+    //      })
 
     // update the result snapshot of each operator
     resultUpdate.operatorResults.foreach(e => operatorResults(e._1).updateResult(e._2))
@@ -147,25 +177,30 @@ class WorkflowResultService(val workflowCompiler: WorkflowCompiler) {
     val webOutputMode: WebOutputMode = {
       val op = workflowCompiler.workflow.getOperator(operatorID)
       if (!op.isInstanceOf[SimpleSinkOpDesc]) {
-        throw new RuntimeException("operator is not sink: " + op.operatorID)
+        PaginationMode()
+//        throw new RuntimeException("operator is not sink: " + op.operatorID)
+      } else {
+        val sink = op.asInstanceOf[SimpleSinkOpDesc]
+        (sink.getOutputMode, sink.getChartType) match {
+          // visualization sinks use its corresponding mode
+          case (SET_SNAPSHOT, Some(_)) => SetSnapshotMode()
+          case (SET_DELTA, Some(_))    => SetDeltaMode()
+          // Non-visualization sinks use pagination mode
+          case (_, None) => PaginationMode()
+        }
       }
-      val sink = op.asInstanceOf[SimpleSinkOpDesc]
-      (sink.getOutputMode, sink.getChartType) match {
-        // visualization sinks use its corresponding mode
-        case (SET_SNAPSHOT, Some(_)) => SetSnapshotMode()
-        case (SET_DELTA, Some(_))    => SetDeltaMode()
-        // Non-visualization sinks use pagination mode
-        case (_, None) => PaginationMode()
-      }
+
     }
 
     // chartType of this sink operator
     val chartType: Option[String] = {
       val op = workflowCompiler.workflow.getOperator(operatorID)
       if (!op.isInstanceOf[SimpleSinkOpDesc]) {
-        throw new RuntimeException("operator is not sink: " + op.operatorID)
+        new SimpleSinkOpDesc().getChartType
+//        throw new RuntimeException("operator is not sink: " + op.operatorID)
+      } else {
+        op.asInstanceOf[SimpleSinkOpDesc].getChartType
       }
-      op.asInstanceOf[SimpleSinkOpDesc].getChartType
     }
 
     /**
