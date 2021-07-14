@@ -7,6 +7,9 @@ import { Workflow, WorkflowContent } from '../../../type/workflow';
 import { jsonCast } from '../../../util/storage';
 
 export const WORKFLOW_URL = 'workflow';
+export const WORKFLOW_PERSIST_URL = WORKFLOW_URL + '/persist';
+export const WORKFLOW_LIST_URL = WORKFLOW_URL + '/list';
+export const WORKFLOW_CREATE_URL = WORKFLOW_URL + '/create';
 
 @Injectable({
   providedIn: 'root'
@@ -20,7 +23,7 @@ export class WorkflowPersistService {
    * @param workflow
    */
   public persistWorkflow(workflow: Workflow): Observable<Workflow> {
-    return this.http.post<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_URL}/persist`, {
+    return this.http.post<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_PERSIST_URL}`, {
       wid: workflow.wid,
       name: workflow.name,
       content: JSON.stringify(workflow.content)
@@ -35,7 +38,7 @@ export class WorkflowPersistService {
    * @param newWorkflowContent
    */
   public createWorkflow(newWorkflowContent: WorkflowContent, newWorkflowName: string = 'Untitled workflow'): Observable<Workflow> {
-    return this.http.post<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_URL}/create`, {
+    return this.http.post<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_CREATE_URL}`, {
       name: newWorkflowName,
       content: JSON.stringify(newWorkflowContent)
     })
@@ -57,7 +60,7 @@ export class WorkflowPersistService {
    * retrieves a list of workflows from backend database that belongs to the user in the session.
    */
   public retrieveWorkflowsBySessionUser(): Observable<Workflow[]> {
-    return this.http.get<Workflow[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_URL}/list`)
+    return this.http.get<Workflow[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_LIST_URL}`)
       .pipe(map((workflows: Workflow[]) => workflows.map(WorkflowPersistService.parseWorkflowInfo)));
   }
 

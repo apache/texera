@@ -26,7 +26,7 @@ describe('SavedWorkflowSectionComponent', () => {
   const testContent = ' {"operators":[],"operatorPositions":{},"links":[],"groups":[],"breakpoints":{}}';
   const TestWorkflow: Workflow = {
     wid: 1,
-    name: 'project 1',
+    name: 'workflow',
     content: jsonCast<WorkflowContent>(testContent),
     creationTime: 1,
     lastModifiedTime: 2,
@@ -34,35 +34,35 @@ describe('SavedWorkflowSectionComponent', () => {
   const TestCase: Workflow[] = [
     {
       wid: 1,
-      name: 'project 1',
+      name: 'workflow 1',
       content: jsonCast<WorkflowContent>('{}'),
       creationTime: 1,
       lastModifiedTime: 2,
     },
     {
       wid: 2,
-      name: 'project 2',
+      name: 'workflow 2',
       content: jsonCast<WorkflowContent>('{}'),
       creationTime: 3,
       lastModifiedTime: 4,
     },
     {
       wid: 3,
-      name: 'project 3',
+      name: 'workflow 3',
       content: jsonCast<WorkflowContent>('{}'),
       creationTime: 3,
       lastModifiedTime: 3,
     },
     {
       wid: 4,
-      name: 'project 4',
+      name: 'workflow 4',
       content: jsonCast<WorkflowContent>('{}'),
       creationTime: 4,
       lastModifiedTime: 6,
     },
     {
       wid: 5,
-      name: 'project 5',
+      name: 'workflow 5',
       content: jsonCast<WorkflowContent>('{}'),
       creationTime: 3,
       lastModifiedTime: 8,
