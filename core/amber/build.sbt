@@ -2,7 +2,7 @@ name := "texera"
 organization := "edu.uci.ics"
 version := "0.1-SNAPSHOT"
 
-scalaVersion := "2.12.8"
+scalaVersion := "2.12.14"
 
 // to turn on, use: INFO
 // to turn off, use: WARNING
@@ -35,7 +35,7 @@ val akkaDependencies = Seq(
   "io.kamon" % "sigar-loader" % "1.6.6-rev002",
   "com.softwaremill.macwire" %% "macros" % "2.3.6" % Provided,
   "com.softwaremill.macwire" %% "macrosakka" % "2.3.6" % Provided,
-  "com.softwaremill.macwire" %% "util" % "2.3.6",
+  "com.softwaremill.macwire" %% "Common" % "2.3.6",
   "com.softwaremill.macwire" %% "proxy" % "2.3.6"
 )
 
@@ -148,7 +148,7 @@ libraryDependencies += "edu.stanford.nlp" % "stanford-corenlp" % "3.9.2" classif
 libraryDependencies += "com.twitter" %% "chill-akka" % "0.9.3"
 
 // https://mvnrepository.com/artifact/com.twitter/util-core
-libraryDependencies += "com.twitter" %% "util-core" % "20.9.0"
+libraryDependencies += "com.twitter" %% "Common-core" % "20.9.0"
 
 // https://mvnrepository.com/artifact/com.typesafe.play/play-json
 libraryDependencies += "com.typesafe.play" %% "play-json" % "2.7.3"
