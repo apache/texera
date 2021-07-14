@@ -13,15 +13,14 @@ import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
   sessionDownloadCache,
   sessionResults
 }
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.Utils.retry
+import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 import java.util
 import java.util.concurrent.{Executors, ThreadPoolExecutor}
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.util.{Failure, Success, Try}
 object ResultDownloadResource {
 
   private final val UPLOAD_BATCH_ROW_COUNT = 10000
@@ -178,15 +177,14 @@ object ResultDownloadResource {
       sheetId: String,
       retry: Boolean = true
   ): Unit = {
-    Try(
+    try {
       driveService
         .files()
         .update(sheetId, null)
         .setAddParents(WORKFLOW_RESULT_FOLDER_ID)
         .execute()
-    ) match {
-      case Success(_) => // do nothing upon success
-      case Failure(exception: GoogleJsonResponseException) =>
+    } catch {
+      case exception: GoogleJsonResponseException =>
         if (retry) {
           // This exception maybe caused by the full deletion of the target folder and
           // the cached folder id is obsolete.

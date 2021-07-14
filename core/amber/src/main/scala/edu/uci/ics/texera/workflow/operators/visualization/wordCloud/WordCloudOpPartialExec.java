@@ -7,7 +7,6 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
-import org.apache.curator.shaded.com.google.common.collect.Iterators;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.en.EnglishAnalyzer;
@@ -96,7 +95,7 @@ public class WordCloudOpPartialExec implements OperatorExecutor {
                 lastUpdatedTime = System.currentTimeMillis();
                 return computeResultIteratorForOneBatch();
             } else {
-                return JavaConverters.asScalaIterator(Iterators.emptyIterator());
+                return JavaConverters.asScalaIterator(Collections.emptyIterator());
             }
         } else { // input exhausted
             lastUpdatedTime = System.currentTimeMillis();

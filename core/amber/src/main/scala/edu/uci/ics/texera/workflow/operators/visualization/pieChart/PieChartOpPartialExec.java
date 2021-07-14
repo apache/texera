@@ -7,7 +7,6 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
-import org.apache.curator.shaded.com.google.common.collect.Iterators;
 import scala.collection.Iterator;
 import scala.collection.JavaConverters;
 import scala.util.Either;
@@ -57,7 +56,7 @@ public class PieChartOpPartialExec implements OperatorExecutor {
             Attribute dataAttribute = new Attribute(oldSchema.getAttribute(dataColumn).getName(), AttributeType.DOUBLE);
             Schema newSchema = new Schema(Arrays.asList(oldSchema.getAttribute(nameColumn), dataAttribute));
             result.add(Tuple.newBuilder(newSchema).addSequentially(new Object[]{name, data}).build());
-            return JavaConverters.asScalaIterator(Iterators.emptyIterator());
+            return JavaConverters.asScalaIterator(Collections.emptyIterator());
         }
         else {
             result.sort((left, right) -> {

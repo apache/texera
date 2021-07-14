@@ -67,4 +67,4 @@ jobs:
       - name: Compile with sbt
         run: cd core/amber && sbt clean compile
       - name: Run backend tests
-        run: cd core/amber && sbt test
+        run: cd core/amber && sbt -v -J-Xmx2G test
