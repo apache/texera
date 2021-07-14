@@ -201,7 +201,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.workflowStatusService.getStatusUpdateStream().subscribe(status => {
       Object.keys(status).forEach(operatorID => {
         if (!this.workflowActionService.getTexeraGraph().hasOperator(operatorID)) {
-          throw new Error(`operator ${operatorID} does not exist`);
+          return;
+          // throw new Error(`operator ${operatorID} does not exist`);
         }
         if (this.executeWorkflowService.getExecutionState().state === ExecutionState.Recovering) {
           status[operatorID] = {
