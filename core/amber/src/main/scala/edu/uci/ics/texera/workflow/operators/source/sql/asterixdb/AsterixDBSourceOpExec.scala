@@ -1,23 +1,23 @@
 package edu.uci.ics.texera.workflow.operators.source.sql.asterixdb
 
 import com.github.tototoshi.csv.CSVParser
+import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseField
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
-import edu.uci.ics.texera.workflow.operators.source.sql.SQLSourceOpExec
 import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBConnUtil.{
   queryAsterixDB,
   updateAsterixDBVersionMapping
 }
+import edu.uci.ics.texera.workflow.operators.source.sql.SQLSourceOpExec
 
 import java.sql._
-import java.time.format.DateTimeFormatter
 import java.time.{ZoneId, ZoneOffset}
+import java.time.format.DateTimeFormatter
 import scala.collection.Iterator
 import scala.jdk.CollectionConverters.asScalaBufferConverter
-import scala.util.control.Breaks.{break, breakable}
 import scala.util.{Failure, Success, Try}
+import scala.util.control.Breaks.{break, breakable}
 
 class AsterixDBSourceOpExec private[asterixdb] (
     schema: Schema,
@@ -93,10 +93,12 @@ class AsterixDBSourceOpExec private[asterixdb] (
                 if (resultSet.hasNext) {
 
                   // manually skip until the offset position in order to adapt to progressive batches
-                  curOffset = curOffset.filter(_ > 0).map(_ - 1)
-                  if (curOffset.isDefined) {
-                    break
-                  }
+                  curOffset.fold()(offset => {
+                    if (offset > 0) {
+                      curOffset = Option(offset - 1)
+                      break
+                    }
+                  })
 
                   // construct Texera.Tuple from the next result.
                   val tuple = buildTupleFromRow
@@ -105,8 +107,11 @@ class AsterixDBSourceOpExec private[asterixdb] (
                     break
 
                   // update the limit in order to adapt to progressive batches
-                  curLimit = curLimit.filter(_ > 0).map(_ - 1)
-
+                  curLimit.fold()(limit => {
+                    if (limit > 0) {
+                      curLimit = Option(limit - 1)
+                    }
+                  })
                   return tuple
                 } else {
                   // close the current resultSet and query
@@ -131,49 +136,6 @@ class AsterixDBSourceOpExec private[asterixdb] (
 
       }
     }
-  }
-
-  /**
-    * Build a Texera.Tuple from a row of curResultIterator
-    *
-    * @return the new Texera.Tuple
-    */
-  override def buildTupleFromRow: Tuple = {
-
-    val tupleBuilder = Tuple.newBuilder(schema)
-    val row = curResultIterator.get.next().toString
-
-    var values: Option[List[String]] = None
-    Try(values = CSVParser.parse(row, '\\', ',', '"'))
-    if (values.isEmpty) return null
-    Try(
-      for (i <- 0 until schema.getAttributes.size()) {
-
-        val attr = schema.getAttributes.get(i)
-        breakable {
-          val columnType = attr.getType
-
-          var value: String = null
-          Try(value = values.get(i))
-
-          if (value == null || value.equals("null")) {
-            // add the field as null
-            tupleBuilder.add(attr, null)
-            break
-          }
-
-          // otherwise, transform the type of the value
-          tupleBuilder.add(
-            attr,
-            parseField(value.stripSuffix("\"").stripPrefix("\""), columnType)
-          )
-        }
-      }
-    ) match {
-      case Success(_) => tupleBuilder.build
-      case Failure(_) => null
-    }
-
   }
 
   /**
@@ -231,6 +193,49 @@ class AsterixDBSourceOpExec private[asterixdb] (
 
       case None => 0
     }
+  }
+
+  /**
+    * Build a Texera.Tuple from a row of curResultIterator
+    *
+    * @return the new Texera.Tuple
+    */
+  override def buildTupleFromRow: Tuple = {
+
+    val tupleBuilder = Tuple.newBuilder(schema)
+    val row = curResultIterator.get.next().toString
+
+    var values: Option[List[String]] = None
+    Try(values = CSVParser.parse(row, '\\', ',', '"'))
+    if (values.isEmpty) return null
+    Try(
+      for (i <- 0 until schema.getAttributes.size()) {
+
+        val attr = schema.getAttributes.get(i)
+        breakable {
+          val columnType = attr.getType
+
+          var value: String = null
+          Try(value = values.get(i))
+
+          if (value == null || value.equals("null")) {
+            // add the field as null
+            tupleBuilder.add(attr, null)
+            break
+          }
+
+          // otherwise, transform the type of the value
+          tupleBuilder.add(
+            attr,
+            parseField(value.stripSuffix("\"").stripPrefix("\""), columnType)
+          )
+        }
+      }
+    ) match {
+      case Success(_) => tupleBuilder.build
+      case Failure(_) => null
+    }
+
   }
 
   override def addBaseSelect(queryBuilder: StringBuilder): Unit = {

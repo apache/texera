@@ -2,12 +2,12 @@ package edu.uci.ics.texera.workflow.operators.source.sql
 
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.{
   parseField,
   parseTimestamp
 }
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 
 import java.sql._
 import scala.collection.Iterator
@@ -89,10 +89,12 @@ abstract class SQLSourceOpExec(
                 if (resultSet.next()) {
 
                   // manually skip until the offset position in order to adapt to progressive batches
-                  curOffset = curOffset.filter(_ > 0).map(_ - 1)
-                  if (curOffset.isDefined) {
-                    break
-                  }
+                  curOffset.fold()(offset => {
+                    if (offset > 0) {
+                      curOffset = Option(offset - 1)
+                      break
+                    }
+                  })
 
                   // construct Texera.Tuple from the next result.
                   val tuple = buildTupleFromRow
@@ -101,8 +103,11 @@ abstract class SQLSourceOpExec(
                     break
 
                   // update the limit in order to adapt to progressive batches
-                  curLimit = curLimit.filter(_ > 0).map(_ - 1)
-
+                  curLimit.fold()(limit => {
+                    if (limit > 0) {
+                      curLimit = Option(limit - 1)
+                    }
+                  })
                   return tuple
                 } else {
                   // close the current resultSet and query
@@ -130,6 +135,40 @@ abstract class SQLSourceOpExec(
       }
 
     }
+  }
+
+  /**
+    * Establish a connection to the database server and load statistics for constructing future queries.
+    * - tableNames, to check if the input tableName exists on the database server, to prevent SQL injection.
+    * - batchColumnBoundaries, to be used to split mini queries, if progressive mode is enabled.
+    *
+    * @throws SQLException all possible exceptions from JDBC
+    */
+  @throws[SQLException]
+  override def open(): Unit = {
+    connection = establishConn()
+
+    // load user table names from the given database
+    loadTableNames()
+    // validates the input table name
+    if (!tableNames.contains(table))
+      throw new RuntimeException("Can't find the given table `" + table + "`.")
+    // load for batch column value boundaries used to split mini queries
+    if (progressive.getOrElse(false)) initBatchColumnBoundaries()
+  }
+
+  /**
+    * close resultSet, preparedStatement and connection
+    * @throws SQLException all possible exceptions from JDBC
+    */
+  @throws[SQLException]
+  override def close(): Unit = {
+
+    curResultSet.foreach(resultSet => resultSet.close())
+
+    curQuery.foreach(query => query.close())
+
+    if (connection != null) connection.close()
   }
 
   /**
@@ -164,52 +203,6 @@ abstract class SQLSourceOpExec(
   }
 
   /**
-    * Get the next query.
-    * - If progressive mode is enabled, this method will be invoked
-    * many times, each yielding the next mini query.
-    * - If progressive mode is not enabled, this method will be invoked
-    * only once, returning the one giant query.
-    * @throws SQLException all possible exceptions from JDBC
-    * @return a PreparedStatement to be filled with values.
-    */
-  @throws[SQLException]
-  private def getNextQuery: Option[PreparedStatement] = {
-    if (hasNextQuery) {
-      val nextQuery = generateSqlQuery
-      nextQuery match {
-        case Some(query) =>
-          val preparedStatement = connection.prepareStatement(query)
-          var curIndex = 1
-
-          // fill up the keywords
-          if (search.getOrElse(false) && searchByColumn.isDefined && keywords.isDefined) {
-            preparedStatement.setString(curIndex, keywords.get)
-            curIndex += 1
-          }
-
-          // fill up limit
-          curLimit match {
-            case Some(limit) =>
-              if (limit > 0) preparedStatement.setLong(curIndex, limit)
-              curIndex += 1
-            case None =>
-          }
-
-          // fill up offset if progressive mode is not enabled
-          if (!progressive.getOrElse(false))
-            curOffset match {
-              case Some(offset) =>
-                preparedStatement.setLong(curIndex, offset)
-              case None =>
-            }
-
-          Option(preparedStatement)
-        case None => None
-      }
-    } else None
-  }
-
-  /**
     * Checks if there is a next query.
     * - This is mostly used for progressive mode: if the lower bound is
     * not yet reached upper bound, it will have next query.
@@ -236,58 +229,6 @@ abstract class SQLSourceOpExec(
         querySent = true
         hasNextQuery
     }
-  }
-
-  /**
-    * generate sql query string using the info provided by user. One of following
-    * select * from TableName where 1 = 1 AND MATCH (ColumnName) AGAINST ( ? IN BOOLEAN MODE) LIMIT ?;
-    * select * from TableName where 1 = 1 AND MATCH (ColumnName) AGAINST ( ? IN BOOLEAN MODE);
-    * select * from TableName where 1 = 1 LIMIT ? ;
-    * select * from TableName where 1 = 1;
-    *
-    * with an optional appropriate batchByColumn sliding window,
-    * e.g. create_at >= '2017-01-14 03:47:59.0' AND create_at < '2017-01-15 03:47:59.0'
-    *
-    * Or a fixed offset [OFFSET ?] to be added if not progressive.
-    *
-    * @throws IllegalArgumentException if the given batchByAttribute's type is
-    *                          not supported to be incremental.
-    * @return string of sql query
-    */
-  @throws[IllegalArgumentException]
-  protected def generateSqlQuery: Option[String] = {
-    // in sql prepared statement, table name cannot be inserted using PreparedStatement.setString
-    // so it has to be inserted here during sql query generation
-    // table has to be verified to be existing in the given schema.
-    val queryBuilder = new StringBuilder
-
-    // Add base SELECT * with true condition
-    // TODO: add more selection conditions, including alias
-    addBaseSelect(queryBuilder)
-
-    // add keyword search if applicable
-    if (search.getOrElse(false) && searchByColumn.isDefined && keywords.isDefined)
-      addKeywordSearch(queryBuilder)
-
-    // add sliding window if progressive mode is enabled
-    if (progressive.getOrElse(false) && batchByColumn.isDefined && interval > 0L)
-      addBatchSlidingWindow(queryBuilder)
-
-    // add limit if provided
-    if (curLimit.isDefined) {
-      if (curLimit.get > 0) addLimit(queryBuilder)
-      else
-        // there should be no more queries as limit is equal or less than 0
-        return None
-    }
-
-    // add fixed offset if not progressive
-    if (!progressive.getOrElse(false) && curOffset.isDefined) addOffset(queryBuilder)
-
-    // end
-    terminateSQL(queryBuilder)
-
-    Option(queryBuilder.result())
   }
 
   protected def terminateSQL(queryBuilder: StringBuilder): Unit = {
@@ -382,23 +323,39 @@ abstract class SQLSourceOpExec(
   }
 
   /**
-    * Establish a connection to the database server and load statistics for constructing future queries.
-    * - tableNames, to check if the input tableName exists on the database server, to prevent SQL injection.
-    * - batchColumnBoundaries, to be used to split mini queries, if progressive mode is enabled.
-    *
-    * @throws SQLException all possible exceptions from JDBC
+    * Fetch for a numeric value of the boundary of the batchByColumn.
+    * @param side either "MAX" or "MIN" for boundary
+    * @throws IllegalArgumentException if the batchByAttribute type is unexpected
+    * @return a numeric value, could be Int, Long or Double
     */
-  @throws[SQLException]
-  override def open(): Unit = {
-    connection = establishConn()
+  @throws[IllegalArgumentException]
+  protected def fetchBatchByBoundary(side: String): Number = {
+    batchByAttribute match {
+      case Some(attribute) =>
+        var result: Number = null
+        val preparedStatement = connection.prepareStatement(
+          "SELECT " + side + "(" + attribute.getName + ") FROM " + table + ";"
+        )
+        val resultSet = preparedStatement.executeQuery
+        resultSet.next
+        schema.getAttribute(attribute.getName).getType match {
+          case INTEGER =>
+            result = resultSet.getInt(1)
+          case LONG =>
+            result = resultSet.getLong(1)
+          case TIMESTAMP =>
+            result = resultSet.getTimestamp(1).getTime
+          case DOUBLE =>
+            result = resultSet.getDouble(1)
+          case BOOLEAN | STRING | ANY | _ =>
+            throw new IllegalStateException("Unexpected value: " + attribute.getType)
+        }
+        resultSet.close()
+        preparedStatement.close()
+        result
 
-    // load user table names from the given database
-    loadTableNames()
-    // validates the input table name
-    if (!tableNames.contains(table))
-      throw new RuntimeException("Can't find the given table `" + table + "`.")
-    // load for batch column value boundaries used to split mini queries
-    if (progressive.getOrElse(false)) initBatchColumnBoundaries()
+      case None => 0
+    }
   }
 
   /**
@@ -408,6 +365,114 @@ abstract class SQLSourceOpExec(
     */
   @throws[SQLException]
   protected def establishConn(): Connection = null
+
+  /**
+    * Fetch all table names from the given database. This is used to
+    * check the input table name to prevent from SQL injection.
+    * @throws SQLException all possible exceptions from JDBC
+    */
+  @throws[SQLException]
+  protected def loadTableNames(): Unit
+
+  protected def addKeywordSearch(queryBuilder: StringBuilder): Unit
+
+  /**
+    * generate sql query string using the info provided by user. One of following
+    * select * from TableName where 1 = 1 AND MATCH (ColumnName) AGAINST ( ? IN BOOLEAN MODE) LIMIT ?;
+    * select * from TableName where 1 = 1 AND MATCH (ColumnName) AGAINST ( ? IN BOOLEAN MODE);
+    * select * from TableName where 1 = 1 LIMIT ? ;
+    * select * from TableName where 1 = 1;
+    *
+    * with an optional appropriate batchByColumn sliding window,
+    * e.g. create_at >= '2017-01-14 03:47:59.0' AND create_at < '2017-01-15 03:47:59.0'
+    *
+    * Or a fixed offset [OFFSET ?] to be added if not progressive.
+    *
+    * @throws IllegalArgumentException if the given batchByAttribute's type is
+    *                          not supported to be incremental.
+    * @return string of sql query
+    */
+  @throws[IllegalArgumentException]
+  protected def generateSqlQuery: Option[String] = {
+    // in sql prepared statement, table name cannot be inserted using PreparedStatement.setString
+    // so it has to be inserted here during sql query generation
+    // table has to be verified to be existing in the given schema.
+    val queryBuilder = new StringBuilder
+
+    // Add base SELECT * with true condition
+    // TODO: add more selection conditions, including alias
+    addBaseSelect(queryBuilder)
+
+    // add keyword search if applicable
+    if (search.getOrElse(false) && searchByColumn.isDefined && keywords.isDefined)
+      addKeywordSearch(queryBuilder)
+
+    // add sliding window if progressive mode is enabled
+    if (progressive.getOrElse(false) && batchByColumn.isDefined && interval > 0L)
+      addBatchSlidingWindow(queryBuilder)
+
+    // add limit if provided
+    if (curLimit.isDefined) {
+      if (curLimit.get > 0) addLimit(queryBuilder)
+      else
+        // there should be no more queries as limit is equal or less than 0
+        return None
+    }
+
+    // add fixed offset if not progressive
+    if (!progressive.getOrElse(false) && curOffset.isDefined) addOffset(queryBuilder)
+
+    // end
+    terminateSQL(queryBuilder)
+
+    Option(queryBuilder.result())
+  }
+
+  /**
+    * Get the next query.
+    * - If progressive mode is enabled, this method will be invoked
+    * many times, each yielding the next mini query.
+    * - If progressive mode is not enabled, this method will be invoked
+    * only once, returning the one giant query.
+    * @throws SQLException all possible exceptions from JDBC
+    * @return a PreparedStatement to be filled with values.
+    */
+  @throws[SQLException]
+  private def getNextQuery: Option[PreparedStatement] = {
+    if (hasNextQuery) {
+      val nextQuery = generateSqlQuery
+      nextQuery match {
+        case Some(query) =>
+          val preparedStatement = connection.prepareStatement(query)
+          var curIndex = 1
+
+          // fill up the keywords
+          if (search.getOrElse(false) && searchByColumn.isDefined && keywords.isDefined) {
+            preparedStatement.setString(curIndex, keywords.get)
+            curIndex += 1
+          }
+
+          // fill up limit
+          curLimit match {
+            case Some(limit) =>
+              if (limit > 0) preparedStatement.setLong(curIndex, limit)
+              curIndex += 1
+            case None =>
+          }
+
+          // fill up offset if progressive mode is not enabled
+          if (!progressive.getOrElse(false))
+            curOffset match {
+              case Some(offset) =>
+                preparedStatement.setLong(curIndex, offset)
+              case None =>
+            }
+
+          Option(preparedStatement)
+        case None => None
+      }
+    } else None
+  }
 
   /**
     * Load the lower bound and upper bound of the batchByColumn. Those
@@ -445,64 +510,4 @@ abstract class SQLSourceOpExec(
       )
     }
   }
-
-  /**
-    * Fetch for a numeric value of the boundary of the batchByColumn.
-    * @param side either "MAX" or "MIN" for boundary
-    * @throws IllegalArgumentException if the batchByAttribute type is unexpected
-    * @return a numeric value, could be Int, Long or Double
-    */
-  @throws[IllegalArgumentException]
-  protected def fetchBatchByBoundary(side: String): Number = {
-    batchByAttribute match {
-      case Some(attribute) =>
-        var result: Number = null
-        val preparedStatement = connection.prepareStatement(
-          "SELECT " + side + "(" + attribute.getName + ") FROM " + table + ";"
-        )
-        val resultSet = preparedStatement.executeQuery
-        resultSet.next
-        schema.getAttribute(attribute.getName).getType match {
-          case INTEGER =>
-            result = resultSet.getInt(1)
-          case LONG =>
-            result = resultSet.getLong(1)
-          case TIMESTAMP =>
-            result = resultSet.getTimestamp(1).getTime
-          case DOUBLE =>
-            result = resultSet.getDouble(1)
-          case BOOLEAN | STRING | ANY | _ =>
-            throw new IllegalStateException("Unexpected value: " + attribute.getType)
-        }
-        resultSet.close()
-        preparedStatement.close()
-        result
-
-      case None => 0
-    }
-  }
-
-  /**
-    * close resultSet, preparedStatement and connection
-    * @throws SQLException all possible exceptions from JDBC
-    */
-  @throws[SQLException]
-  override def close(): Unit = {
-
-    curResultSet.foreach(resultSet => resultSet.close())
-
-    curQuery.foreach(query => query.close())
-
-    if (connection != null) connection.close()
-  }
-
-  /**
-    * Fetch all table names from the given database. This is used to
-    * check the input table name to prevent from SQL injection.
-    * @throws SQLException all possible exceptions from JDBC
-    */
-  @throws[SQLException]
-  protected def loadTableNames(): Unit
-
-  protected def addKeywordSearch(queryBuilder: StringBuilder): Unit
 }
