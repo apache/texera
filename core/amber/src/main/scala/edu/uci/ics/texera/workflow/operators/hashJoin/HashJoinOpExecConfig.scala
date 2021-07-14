@@ -7,13 +7,16 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.Roun
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.util.{
+  makeLayer,
+  toOperatorIdentity
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
   LayerIdentity,
   LinkIdentity,
   OperatorIdentity
 }
-import edu.uci.ics.amber.engine.common.virtualidentity.util.{makeLayer, toOperatorIdentity}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
@@ -49,20 +52,27 @@ class HashJoinOpExecConfig[K](
       workflow.getOperator(source).topology.layers.head.startAfter(buildLink)
     }
     topology.layers.head.metadata = _ =>
-      new HashJoinOpExec[K](buildTable, buildAttributeName, probeAttributeName, operatorSchemaInfo)
+      new HashJoinOpExec[K](
+        buildTable,
+        buildAttributeName,
+        probeAttributeName,
+        operatorSchemaInfo
+      )
   }
 
   override def requiredShuffle: Boolean = true
 
   override def getShuffleHashFunction(layer: LayerIdentity): ITuple => Int = {
-    if (layer == buildTable.from) { t: ITuple =>
+    if (layer == buildTable.from.get) { t: ITuple =>
       t.asInstanceOf[Tuple].getField(buildAttributeName).hashCode()
     } else { t: ITuple =>
       t.asInstanceOf[Tuple].getField(probeAttributeName).hashCode()
     }
   }
 
-  override def assignBreakpoint(breakpoint: GlobalBreakpoint[_]): Array[ActorVirtualIdentity] = {
+  override def assignBreakpoint(
+      breakpoint: GlobalBreakpoint[_]
+  ): Array[ActorVirtualIdentity] = {
     topology.layers(0).identifiers
   }
 }
