@@ -1,7 +1,11 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{WORKFLOW, WORKFLOW_OF_USER}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
+  WORKFLOW,
+  WORKFLOW_OF_USER,
+  WORKFLOW_USER_ACCESS
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   WorkflowDao,
   WorkflowOfUserDao,
@@ -38,7 +42,7 @@ class WorkflowResource {
   )
 
   /**
-    * This method returns the current in-session user's workflow list
+    * This method returns the current in-session user's workflow list based on all workflows he/she has access to
     *
     * @param session HttpSession
     * @return Workflow[]
@@ -52,12 +56,12 @@ class WorkflowResource {
         SqlServer.createDSLContext
           .select()
           .from(WORKFLOW)
-          .join(WORKFLOW_OF_USER)
-          .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
-          .where(WORKFLOW_OF_USER.UID.eq(user.getUid))
+          .join(WORKFLOW_USER_ACCESS)
+          .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
+          .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
           .fetchInto(classOf[Workflow])
-      case None =>
-        new util.ArrayList[Workflow]()
+
+      case None => new util.ArrayList()
     }
   }
 
@@ -76,10 +80,9 @@ class WorkflowResource {
   def retrieveWorkflow(@PathParam("wid") wid: UInteger, @Session session: HttpSession): Response = {
     UserResource.getUser(session) match {
       case Some(user) =>
-        val uid = user.getUid
         if (
-          WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid) || WorkflowAccessResource
-            .hasNoWorkflowAccessRecord(wid, user.getUid)
+          WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid) ||
+          WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, user.getUid)
         ) {
           Response.status(Response.Status.UNAUTHORIZED).build()
         } else {
@@ -95,7 +98,8 @@ class WorkflowResource {
     *
     * @param session  HttpSession
     * @param workflow , a workflow
-    * @return Workflow, which contains the generated wid if not provided// TODO: divide into two endpoints -> one for new-workflow and one for updating existing workflow
+    * @return Workflow, which contains the generated wid if not provided//
+    *         TODO: divide into two endpoints -> one for new-workflow and one for updating existing workflow
     */
   @POST
   @Path("/persist")

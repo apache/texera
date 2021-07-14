@@ -72,10 +72,10 @@ public interface IKeywordDictionary extends Serializable {
     /**
      * Load data from another generated Record/POJO implementing the common interface IKeywordDictionary
      */
-    public void from(IKeywordDictionary from);
+    public void from(edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IKeywordDictionary from);
 
     /**
      * Copy data into another generated Record/POJO implementing the common interface IKeywordDictionary
      */
-    public <E extends IKeywordDictionary> E into(E into);
+    public <E extends edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IKeywordDictionary> E into(E into);
 }

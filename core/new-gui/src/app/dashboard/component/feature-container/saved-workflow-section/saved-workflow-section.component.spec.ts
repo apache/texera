@@ -1,24 +1,34 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
-import { RouterTestingModule } from '@angular/router/testing';
-import { HttpClientTestingModule } from '@angular/common/http/testing';
-import {ReactiveFormsModule} from "@angular/forms";
-import { SavedWorkflowSectionComponent } from './saved-workflow-section.component';
-import { WorkflowPersistService } from '../../../../common/service/user/workflow-persist/workflow-persist.service';
-import { MatDividerModule } from '@angular/material/divider';
-import { MatListModule } from '@angular/material/list';
-import { MatCardModule } from '@angular/material/card';
-import { MatDialogModule } from '@angular/material/dialog';
+import {async, ComponentFixture, TestBed} from '@angular/core/testing';
+import {RouterTestingModule} from '@angular/router/testing';
+import {HttpClientTestingModule} from '@angular/common/http/testing';
+import {FormsModule, ReactiveFormsModule} from "@angular/forms";
+import {SavedWorkflowSectionComponent} from './saved-workflow-section.component';
+import {WorkflowPersistService} from '../../../../common/service/user/workflow-persist/workflow-persist.service';
+import {MatDividerModule} from '@angular/material/divider';
+import {MatListModule} from '@angular/material/list';
+import {MatCardModule} from '@angular/material/card';
+import {MatDialogModule} from '@angular/material/dialog';
+import {WorkflowGrantAccessService} from "../../../../common/service/user/workflow-access-control/workflow-grant-access.service";
+import {NgbActiveModal, NgbModal, NgbModalRef, NgbModule} from '@ng-bootstrap/ng-bootstrap';
+import {NgbdModalShareAccessComponent} from "./ngbd-modal-share-access/ngbd-modal-share-access.component";
+import {Workflow, WorkflowContent} from "../../../../common/type/workflow";
+import {jsonCast} from "../../../../common/util/storage";
 
-import { NgbActiveModal, NgbModule } from '@ng-bootstrap/ng-bootstrap';
-import { FormsModule } from '@angular/forms';
-
-
-import { Workflow } from '../../../../common/type/workflow';
 
 describe('SavedWorkflowSectionComponent', () => {
   let component: SavedWorkflowSectionComponent;
   let fixture: ComponentFixture<SavedWorkflowSectionComponent>;
+  let modalService: NgbModal;
+  let modalRef: NgbModalRef;
 
+  const TestWorkflow: Workflow =
+    {
+      wid: 1,
+      name: 'project 1',
+      content: jsonCast<WorkflowContent>(" {\"operators\":[],\"operatorPositions\":{},\"links\":[],\"groups\":[],\"breakpoints\":{}}"),
+      creationTime: 1,
+      lastModifiedTime: 2,
+    }
   // const TestCase: Workflow[] = [
   //   {
   //     wid: 1,
@@ -59,10 +69,12 @@ describe('SavedWorkflowSectionComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [SavedWorkflowSectionComponent],
+      declarations: [SavedWorkflowSectionComponent,
+        NgbdModalShareAccessComponent],
       providers: [
         WorkflowPersistService,
-        NgbActiveModal
+        NgbActiveModal,
+        WorkflowGrantAccessService
       ],
       imports: [MatDividerModule,
         MatListModule,
@@ -80,12 +92,29 @@ describe('SavedWorkflowSectionComponent', () => {
     fixture = TestBed.createComponent(SavedWorkflowSectionComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
+    modalService = TestBed.get(NgbModal);
+    modalRef = modalService.open(NgbdModalShareAccessComponent);
+    spyOn(modalService, "open").and.returnValue(modalRef);
+    spyOn(console, 'log').and.callThrough();
   });
 
   it('should create', () => {
     expect(component).toBeTruthy();
   });
 
+  it("Modal Opened", () => {
+    component.onClickOpenShareAccess(TestWorkflow)
+    expect(modalService.open).toHaveBeenCalled()
+  })
+
+  it("Modal Opened, then Closed", () => {
+    component.onClickOpenShareAccess(TestWorkflow)
+    expect(modalService.open).toHaveBeenCalled()
+    fixture.detectChanges()
+    fixture.whenStable().then(() => {
+      modalRef.dismiss()
+    })
+  })
   // it('alphaSortTest increaseOrder', () => {
   //   component.workflows = [];
   //   component.workflows = component.workflows.concat(TestCase);

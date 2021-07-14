@@ -68,12 +68,12 @@ public class Workflow extends TableImpl<WorkflowRecord> {
     /**
      * The column <code>texera_db.workflow.creation_time</code>.
      */
-    public final TableField<WorkflowRecord, Timestamp> CREATION_TIME = createField(DSL.name("creation_time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false).defaultValue(DSL.field("CURRENT_TIMESTAMP", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
+    public final TableField<WorkflowRecord, Timestamp> CREATION_TIME = createField(DSL.name("creation_time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false).defaultValue(org.jooq.impl.DSL.field("CURRENT_TIMESTAMP", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
 
     /**
      * The column <code>texera_db.workflow.last_modified_time</code>.
      */
-    public final TableField<WorkflowRecord, Timestamp> LAST_MODIFIED_TIME = createField(DSL.name("last_modified_time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false).defaultValue(DSL.field("CURRENT_TIMESTAMP", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
+    public final TableField<WorkflowRecord, Timestamp> LAST_MODIFIED_TIME = createField(DSL.name("last_modified_time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false).defaultValue(org.jooq.impl.DSL.field("CURRENT_TIMESTAMP", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
 
     /**
      * Create a <code>texera_db.workflow</code> table reference
