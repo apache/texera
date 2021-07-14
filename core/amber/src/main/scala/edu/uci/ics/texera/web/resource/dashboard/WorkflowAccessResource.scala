@@ -22,7 +22,6 @@ import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 
 /**
   * An enum class identifying the specific workflow access level
@@ -50,6 +49,26 @@ object WorkflowAccessResource {
   }
 
   /**
+    * Identifies whether the given user has write access over the given workflow
+    * @param wid     workflow id
+    * @param uid     user id, works with workflow id as primary keys in database
+    * @return boolean value indicating yes/no
+    */
+  def hasWriteAccess(wid: UInteger, uid: UInteger): Boolean = {
+    checkAccessLevel(wid, uid).eq(WorkflowAccess.WRITE)
+  }
+
+  /**
+    * Identifies whether the given user has no access over the given workflow
+    * @param wid     workflow id
+    * @param uid     user id, works with workflow id as primary keys in database
+    * @return boolean value indicating yes/no
+    */
+  def hasNoWorkflowAccess(wid: UInteger, uid: UInteger): Boolean = {
+    checkAccessLevel(wid, uid).eq(WorkflowAccess.NONE)
+  }
+
+  /**
     * Returns an Access Object based on given wid and uid
     * Searches in database for the given uid-wid pair, and returns Access Object based on search result
     *
@@ -71,26 +90,6 @@ object WorkflowAccessResource {
     } else {
       WorkflowAccess.NONE
     }
-  }
-
-  /**
-    * Identifies whether the given user has write access over the given workflow
-    * @param wid     workflow id
-    * @param uid     user id, works with workflow id as primary keys in database
-    * @return boolean value indicating yes/no
-    */
-  def hasWriteAccess(wid: UInteger, uid: UInteger): Boolean = {
-    checkAccessLevel(wid, uid).eq(WorkflowAccess.WRITE)
-  }
-
-  /**
-    * Identifies whether the given user has no access over the given workflow
-    * @param wid     workflow id
-    * @param uid     user id, works with workflow id as primary keys in database
-    * @return boolean value indicating yes/no
-    */
-  def hasNoWorkflowAccess(wid: UInteger, uid: UInteger): Boolean = {
-    checkAccessLevel(wid, uid).eq(WorkflowAccess.NONE)
   }
 
   /**
@@ -127,7 +126,7 @@ class WorkflowAccessResource() {
   final private val workflowUserAccessDao = new WorkflowUserAccessDao(
     context.configuration
   )
-  var context: DSLContext = SqlServer.createDSLContext
+  private var context: DSLContext = SqlServer.createDSLContext
 
   def this(dslContext: DSLContext) {
     this()
@@ -183,10 +182,13 @@ class WorkflowAccessResource() {
         ) {
           Response.ok(getGrantedList(wid, user.getUid)).build()
         } else {
-          Response.status(Response.Status.UNAUTHORIZED).entity("You are not workflow owner").build()
+          Response
+            .status(Response.Status.UNAUTHORIZED)
+            .entity("You are not the owner of the workflow.")
+            .build()
         }
       case None =>
-        Response.status(Response.Status.UNAUTHORIZED).entity("Please Login").build()
+        Response.status(Response.Status.UNAUTHORIZED).entity("Please Login.").build()
     }
   }
 
@@ -207,17 +209,22 @@ class WorkflowAccessResource() {
       .from(WORKFLOW_USER_ACCESS)
       .where(WORKFLOW_USER_ACCESS.WID.eq(wid).and(WORKFLOW_USER_ACCESS.UID.notEqual(uid)))
       .fetch()
-    val currShares = ListBuffer[UserWorkflowAccess]()
-    shares.getValues(0).asScala.toList.zipWithIndex.foreach {
-      case (id, index) =>
-        val userName = (userDao.fetchOneByUid(id.asInstanceOf[UInteger])).getName
-        if (shares.getValue(index, 2) == true) {
-          currShares += UserWorkflowAccess(userName, "Write")
-        } else {
-          currShares += UserWorkflowAccess(userName, "Read")
-        }
-    }
-    currShares.toList
+
+    shares
+      .getValues(0)
+      .asScala
+      .toList
+      .zipWithIndex
+      .map({
+        case (id, index) =>
+          val userName = userDao.fetchOneByUid(id.asInstanceOf[UInteger]).getName
+          if (shares.getValue(index, 2) == true) {
+            UserWorkflowAccess(userName, "Write")
+          } else {
+            UserWorkflowAccess(userName, "Read")
+          }
+      })
+
   }
 
   /**
@@ -295,7 +302,7 @@ class WorkflowAccessResource() {
             case _: IndexOutOfBoundsException =>
               return Response
                 .status(Response.Status.BAD_REQUEST)
-                .entity("Target user does not exist!")
+                .entity("Target user does not exist.")
                 .build()
           }
 
