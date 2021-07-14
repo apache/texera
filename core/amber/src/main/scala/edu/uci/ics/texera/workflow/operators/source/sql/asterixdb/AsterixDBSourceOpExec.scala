@@ -144,57 +144,34 @@ class AsterixDBSourceOpExec private[asterixdb] (
     val row = curResultIterator.get.next().toString
 
     var values: Option[List[String]] = None
-
-    // attempt to parse the value
-    values =
-      try { CSVParser.parse(row, '\\', ',', '"') }
-      catch {
-        case e: Exception =>
-          e.printStackTrace()
-          return null
-      }
-
-    // if no content, return null
-    if (values.isEmpty) {
-      return null
-    }
-
-    // convert into Texera.Tuple
-    try {
+    Try(values = CSVParser.parse(row, '\\', ',', '"'))
+    if (values.isEmpty) return null
+    Try(
       for (i <- 0 until schema.getAttributes.size()) {
 
         val attr = schema.getAttributes.get(i)
         breakable {
           val columnType = attr.getType
 
-          val value: String =
-            try {
-              values.get(i)
-            } catch {
-              case e: Exception =>
-                e.printStackTrace()
-                null
-            }
+          var value: String = null
+          Try(value = values.get(i))
 
           if (value == null || value.equals("null")) {
             // add the field as null
             tupleBuilder.add(attr, null)
             break
-          } else {
-            // otherwise, transform the type of the value
-            tupleBuilder.add(
-              attr,
-              parseField(value.stripSuffix("\"").stripPrefix("\""), columnType)
-            )
           }
 
+          // otherwise, transform the type of the value
+          tupleBuilder.add(
+            attr,
+            parseField(value.stripSuffix("\"").stripPrefix("\""), columnType)
+          )
         }
       }
-      tupleBuilder.build
-    } catch {
-      case e: Exception =>
-        e.printStackTrace()
-        null
+    ) match {
+      case Success(_) => tupleBuilder.build
+      case Failure(_) => null
     }
 
   }
