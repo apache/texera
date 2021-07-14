@@ -43,11 +43,11 @@ jobs:
 #          key: ${{ runner.os }}-node-with-modules-${{ hashFiles('**/package-lock.json') }}
 #          restore-keys: |
 #            ${{ runner.os }}-node-with-modules-
-      - name: Install dependency with npm install
-        run: yarn --cwd core/new-gui install --progress=false
-      - name: Backup - Install dependency with npm ci
-        if: ${{ failure() }}
-        run: yarn --cwd core/new-gui ci --progress=false
+#      - name: Install dependency with npm install
+#        run: yarn --cwd core/new-gui install --progress=false
+      - name: Install dependency with yarn ci
+#        if: ${{ failure() }}
+        run: yarn --cwd core/new-gui install --frozen-lockfile --progress=false
       - name: Build with npm
         run: yarn --cwd core/new-gui run build --prod --progress=false
       - name: Run frontend unit tests
