@@ -101,4 +101,5 @@ class HashJoinOpExec[K](
   override def close(): Unit = {
     buildTableHashMap.clear()
   }
+
 }

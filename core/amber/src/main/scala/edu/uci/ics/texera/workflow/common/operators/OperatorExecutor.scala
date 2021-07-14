@@ -1,8 +1,8 @@
 package edu.uci.ics.texera.workflow.common.operators
 
+import edu.uci.ics.amber.engine.common.{InputExhausted, IOperatorExecutor}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
-import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 trait OperatorExecutor extends IOperatorExecutor {

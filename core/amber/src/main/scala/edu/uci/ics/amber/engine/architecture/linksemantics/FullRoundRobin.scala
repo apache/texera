@@ -11,7 +11,7 @@ import scala.concurrent.ExecutionContext
 
 class FullRoundRobin(from: WorkerLayer, to: WorkerLayer, batchSize: Int)
     extends LinkStrategy(from, to, batchSize) {
-  override def getPolicies()
+  override def getPolicies
       : Iterable[(ActorVirtualIdentity, DataSendingPolicy, Seq[ActorVirtualIdentity])] = {
     assert(from.isBuilt && to.isBuilt)
     from.identifiers.map(x =>
