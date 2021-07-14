@@ -33,25 +33,25 @@ jobs:
         with:
           node-version: ${{ matrix.node_version }}
           architecture: ${{ matrix.architecture }}
-      - name: Cache npm and node_modules
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.npm
-            core/new-gui/node_modules
-            core/new-gui/multi-target/node_modules
-          key: ${{ runner.os }}-node-with-modules-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-with-modules-
+#      - name: Cache npm and node_modules
+#        uses: actions/cache@v2
+#        with:
+#          path: |
+#            ~/.npm
+#            core/new-gui/node_modules
+#            core/new-gui/multi-target/node_modules
+#          key: ${{ runner.os }}-node-with-modules-${{ hashFiles('**/package-lock.json') }}
+#          restore-keys: |
+#            ${{ runner.os }}-node-with-modules-
       - name: Install dependency with npm install
-        run: npm --prefix core/new-gui install --progress=false
+        run: yarn --cwd core/new-gui install --progress=false
       - name: Backup - Install dependency with npm ci
         if: ${{ failure() }}
-        run: npm --prefix core/new-gui ci --progress=false
+        run: yarn --cwd core/new-gui ci --progress=false
       - name: Build with npm
-        run: npm run --prefix core/new-gui build --prod --progress=false
+        run: yarn --cwd core/new-gui run build --prod --progress=false
       - name: Run frontend unit tests
-        run: npm run --prefix core/new-gui test:ci
+        run: yarn --cwd core/new-gui run test:ci
 
   amber:
     runs-on: ubuntu-latest
