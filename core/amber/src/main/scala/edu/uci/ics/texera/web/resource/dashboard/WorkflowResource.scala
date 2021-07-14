@@ -82,8 +82,8 @@ class WorkflowResource {
     UserResource.getUser(session) match {
       case Some(user) =>
         if (
-          WorkflowAccessResource.hasNoWorkflowAccess(wid, uid) ||
-          WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, uid)
+          WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid) ||
+          WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, user.getUid)
         ) {
           Response.status(Response.Status.UNAUTHORIZED).build()
         } else {

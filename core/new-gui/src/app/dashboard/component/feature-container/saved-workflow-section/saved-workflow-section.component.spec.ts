@@ -13,6 +13,7 @@ import { NgbdModalShareAccessComponent } from './ngbd-modal-share-access/ngbd-mo
 import { Workflow, WorkflowContent } from '../../../../common/type/workflow';
 import { jsonCast } from '../../../../common/util/storage';
 import { HttpClient } from '@angular/common/http';
+import { WorkflowGrantAccessService } from '../../../../common/service/user/workflow-access-control/workflow-grant-access.service';
 
 describe('SavedWorkflowSectionComponent', () => {
   let component: SavedWorkflowSectionComponent;

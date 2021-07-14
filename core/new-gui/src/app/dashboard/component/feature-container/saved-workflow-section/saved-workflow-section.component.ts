@@ -1,7 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { ModalDismissReasons, NgbModal } from '@ng-bootstrap/ng-bootstrap';
-import { FormBuilder } from '@angular/forms';
+import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { cloneDeep } from 'lodash';
 import { Observable } from 'rxjs';
 import { WorkflowPersistService } from '../../../../common/service/user/workflow-persist/workflow-persist.service';
@@ -101,6 +100,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
         alert(error);
       });
   }
+
   /**
    * openNgbdModalDeleteWorkflowComponent trigger the delete workflow
    * component. If user confirms the deletion, the method sends
