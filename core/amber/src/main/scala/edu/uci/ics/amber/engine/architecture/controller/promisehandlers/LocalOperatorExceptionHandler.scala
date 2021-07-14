@@ -1,18 +1,15 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
-import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.BreakpointTriggered
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, VirtualIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 
 object LocalOperatorExceptionHandler {
   final case class LocalOperatorException(triggeredTuple: ITuple, e: Throwable)
@@ -49,7 +46,7 @@ trait LocalOperatorExceptionHandler {
         )
       }
       // then pause the workflow
-      execute(PauseWorkflow(), ActorVirtualIdentity.Controller)
+      execute(PauseWorkflow(), CONTROLLER)
     }
   }
 }

@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package edu.uci.ics.amber.engine.common;
+
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+  scope: FILE,
+  preserve_unknown_fields: false
+};
+
+// final case class ActorVirtualIdentity
+message ActorVirtualIdentity {
+  string name = 1;
+}
+
+// final case class LayerIdentity (
+//    workflow: String,
+//    operator: String,
+//    layerID: String
+// )
+message LayerIdentity{
+  string workflow = 1;
+  string operator = 2;
+  string layerID = 3;
+}
+
+// final case class LinkIdentity (
+//    from: LayerIdentity,
+//    to: LayerIdentity
+// )
+message LinkIdentity {
+  LayerIdentity from = 1 ;
+  LayerIdentity to = 2;
+}
+
+// final case class LinkIdentity (
+//    workflow: String,
+//    operator: String
+// )
+message OperatorIdentity {
+  string workflow = 1;
+  string operator = 2;
+}
+
+// final case class WorkflowIdentity (
+//    id: String
+// )
+message WorkflowIdentity {
+  string id = 1;
+}
+

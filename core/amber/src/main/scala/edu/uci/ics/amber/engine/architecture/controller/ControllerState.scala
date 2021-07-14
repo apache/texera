@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 /*
-Controller State Transition (view from controller side):
+CONTROLLER State Transition (view from controller side):
 
 Normal case                                      If message dropped
 UnInitialized -> Ready                      =>   ()

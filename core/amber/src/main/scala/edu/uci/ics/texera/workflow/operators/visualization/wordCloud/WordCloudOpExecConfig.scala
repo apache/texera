@@ -9,11 +9,9 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.Roun
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.linksemantics.HashBasedShuffle
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  LayerIdentity,
-  OperatorIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
+import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
@@ -26,14 +24,14 @@ class WordCloudOpExecConfig(
 
   override lazy val topology: Topology = {
     val partialLayer = new WorkerLayer(
-      LayerIdentity(tag, "local"),
+      makeLayer(tag, "local"),
       _ => new WordCloudOpPartialExec(textColumn),
       numWorkers,
       UseAll(),
       RoundRobinDeployment()
     )
     val finalLayer = new WorkerLayer(
-      LayerIdentity(tag, "global"),
+      makeLayer(tag, "global"),
       _ => new WordCloudOpFinalExec(topN),
       1,
       FollowPrevious(),

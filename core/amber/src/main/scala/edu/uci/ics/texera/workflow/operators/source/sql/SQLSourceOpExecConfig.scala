@@ -4,11 +4,9 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalB
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.UseAll
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.OneOnEach
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  LayerIdentity,
-  OperatorIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
 
@@ -21,7 +19,7 @@ class SQLSourceOpExecConfig(
     new Topology(
       Array(
         new WorkerLayer(
-          LayerIdentity(tag, "main"),
+          makeLayer(tag, "main"),
           opExec,
           1,
           UseAll(), // it's source operator

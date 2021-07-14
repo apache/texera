@@ -78,7 +78,7 @@ class ExceptionBreakpointSpec
 //
 //  "A workflow" should "be able to detect faulted tuples and trigger exception breakpoint in the workflow1, then skip them" in {
 //    val parent = TestProbe()
-//    val controller = parent.childActorOf(Controller.props(logicalPlan1))
+//    val controller = parent.childActorOf(CONTROLLER.props(logicalPlan1))
 //    controller ! AckedControllerInitialization
 //    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
 //    controller ! Start
@@ -105,7 +105,7 @@ class ExceptionBreakpointSpec
 //
 //  "A workflow" should "be able to detect faulted tuples and trigger exception breakpoint in the workflow1, then modify them" in {
 //    val parent = TestProbe()
-//    val controller = parent.childActorOf(Controller.props(logicalPlan1))
+//    val controller = parent.childActorOf(CONTROLLER.props(logicalPlan1))
 //    controller ! AckedControllerInitialization
 //    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
 //    controller ! Start
@@ -137,7 +137,7 @@ class ExceptionBreakpointSpec
 //
 //  "A workflow" should "be able to trigger conditional breakpoint in the workflow2, then resume them" in {
 //    val parent = TestProbe()
-//    val controller = parent.childActorOf(Controller.props(logicalPlan2))
+//    val controller = parent.childActorOf(CONTROLLER.props(logicalPlan2))
 //    controller ! AckedControllerInitialization
 //    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
 //    controller ! PassBreakpointTo(
@@ -168,7 +168,7 @@ class ExceptionBreakpointSpec
 //
 //  "A workflow" should "be able to trigger conditional breakpoint in the workflow2, then skip them" in {
 //    val parent = TestProbe()
-//    val controller = parent.childActorOf(Controller.props(logicalPlan2))
+//    val controller = parent.childActorOf(CONTROLLER.props(logicalPlan2))
 //    controller ! AckedControllerInitialization
 //    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
 //    controller ! PassBreakpointTo(
@@ -199,7 +199,7 @@ class ExceptionBreakpointSpec
 //
 //  "A workflow" should "be able to trigger count breakpoint in the workflow2, then resume it" in {
 //    val parent = TestProbe()
-//    val controller = parent.childActorOf(Controller.props(logicalPlan2))
+//    val controller = parent.childActorOf(CONTROLLER.props(logicalPlan2))
 //    controller ! AckedControllerInitialization
 //    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
 //    controller ! PassBreakpointTo("Gen", new CountGlobalBreakpoint("CountBreakpoint", 500))
@@ -226,7 +226,7 @@ class ExceptionBreakpointSpec
 //
 //  "A workflow" should "be able to trigger conditional breakpoint in the workflow2, then resume it" in {
 //    val parent = TestProbe()
-//    val controller = parent.childActorOf(Controller.props(logicalPlan2))
+//    val controller = parent.childActorOf(CONTROLLER.props(logicalPlan2))
 //    controller ! AckedControllerInitialization
 //    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
 //    controller ! PassBreakpointTo(
@@ -256,7 +256,7 @@ class ExceptionBreakpointSpec
 //
 //  "A workflow" should "be able to trigger count breakpoint in the workflow1, then resume it" in {
 //    val parent = TestProbe()
-//    val controller = parent.childActorOf(Controller.props(logicalPlan1))
+//    val controller = parent.childActorOf(CONTROLLER.props(logicalPlan1))
 //    controller ! AckedControllerInitialization
 //    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
 //    controller ! PassBreakpointTo("KeywordSearch1", new CountGlobalBreakpoint("CountBreakpoint", 3))

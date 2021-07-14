@@ -85,7 +85,7 @@ class ControllerSpec
 //
 //  "A controller" should "be able to set and trigger count breakpoint in the workflow1" in {
 //    val parent = TestProbe()
-//    val controller = parent.childActorOf(Controller.props(logicalPlan1))
+//    val controller = parent.childActorOf(CONTROLLER.props(logicalPlan1))
 //    controller ! AckedControllerInitialization
 //    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
 //    controller ! PassBreakpointTo("KeywordSearch", new CountGlobalBreakpoint("break1", 100000))
@@ -105,7 +105,7 @@ class ControllerSpec
 //
 //  "A controller" should "execute the workflow1 normally" in {
 //    val parent = TestProbe()
-//    val controller = parent.childActorOf(Controller.props(logicalPlan1))
+//    val controller = parent.childActorOf(CONTROLLER.props(logicalPlan1))
 //    controller ! AckedControllerInitialization
 //    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
 //    controller ! Start
@@ -116,7 +116,7 @@ class ControllerSpec
 //
 //  "A controller" should "execute the workflow3 normally" in {
 //    val parent = TestProbe()
-//    val controller = parent.childActorOf(Controller.props(logicalPlan3))
+//    val controller = parent.childActorOf(CONTROLLER.props(logicalPlan3))
 //    controller ! AckedControllerInitialization
 //    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
 //    controller ! Start
@@ -127,7 +127,7 @@ class ControllerSpec
 //
 //  "A controller" should "execute the workflow2 normally" in {
 //    val parent = TestProbe()
-//    val controller = parent.childActorOf(Controller.props(logicalPlan2))
+//    val controller = parent.childActorOf(CONTROLLER.props(logicalPlan2))
 //    controller ! AckedControllerInitialization
 //    parent.expectMsg(ReportState(ControllerState.Ready))
 //    controller ! Start
@@ -138,7 +138,7 @@ class ControllerSpec
 //
 //  "A controller" should "be able to pause/resume the workflow1" in {
 //    val parent = TestProbe()
-//    val controller = parent.childActorOf(Controller.props(logicalPlan1))
+//    val controller = parent.childActorOf(CONTROLLER.props(logicalPlan1))
 //    controller ! AckedControllerInitialization
 //    parent.expectMsg(ReportState(ControllerState.Ready))
 //    controller ! Start
@@ -173,7 +173,7 @@ class ControllerSpec
 
 //  "A controller" should "be able to modify the logic after pausing the workflow1" in {
 //    val parent = TestProbe()
-//    val controller = parent.childActorOf(Controller.props(logicalPlan1))
+//    val controller = parent.childActorOf(CONTROLLER.props(logicalPlan1))
 //    controller ! AckedControllerInitialization
 //    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
 //    controller ! Start
@@ -201,7 +201,7 @@ class ControllerSpec
 
 //  "A controller" should "be able to set and trigger conditional breakpoint in the workflow1" in {
 //    val parent = TestProbe()
-//    val controller = parent.childActorOf(Controller.props(logicalPlan1))
+//    val controller = parent.childActorOf(CONTROLLER.props(logicalPlan1))
 //    controller ! AckedControllerInitialization
 //    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
 //    controller ! PassBreakpointTo(
@@ -224,7 +224,7 @@ class ControllerSpec
 //
 //  "A controller" should "be able to set and trigger count breakpoint on complete in the workflow1" in {
 //    val parent = TestProbe()
-//    val controller = parent.childActorOf(Controller.props(logicalPlan1))
+//    val controller = parent.childActorOf(CONTROLLER.props(logicalPlan1))
 //    controller ! AckedControllerInitialization
 //    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
 //    controller ! PassBreakpointTo("KeywordSearch", new CountGlobalBreakpoint("break1", 146017))
@@ -244,7 +244,7 @@ class ControllerSpec
 //
 //  "A controller" should "be able to pause/resume with conditional breakpoint in the workflow1" in {
 //    val parent = TestProbe()
-//    val controller = parent.childActorOf(Controller.props(logicalPlan1))
+//    val controller = parent.childActorOf(CONTROLLER.props(logicalPlan1))
 //    controller ! AckedControllerInitialization
 //    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
 //    controller ! PassBreakpointTo(
@@ -276,7 +276,7 @@ class ControllerSpec
 //
 //  "A controller" should "be able to pause/resume with count breakpoint in the workflow1" in {
 //    val parent = TestProbe()
-//    val controller = parent.childActorOf(Controller.props(logicalPlan1))
+//    val controller = parent.childActorOf(CONTROLLER.props(logicalPlan1))
 //    controller ! AckedControllerInitialization
 //    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
 //    controller ! PassBreakpointTo("KeywordSearch", new CountGlobalBreakpoint("break1", 100000))
@@ -305,7 +305,7 @@ class ControllerSpec
 //
 //  "A controller" should "execute the workflow4 normally" in {
 //    val parent = TestProbe()
-//    val controller = parent.childActorOf(Controller.props(logicalPlan4))
+//    val controller = parent.childActorOf(CONTROLLER.props(logicalPlan4))
 //    controller ! AckedControllerInitialization
 //    parent.expectMsg(ReportState(ControllerState.Ready))
 //    controller ! Start

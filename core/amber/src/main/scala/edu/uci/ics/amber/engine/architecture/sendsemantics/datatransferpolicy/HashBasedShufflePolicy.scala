@@ -1,11 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy
 
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, DataPayload, EndOfUpstream}
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
-
-import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.ExecutionContext
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 
 class HashBasedShufflePolicy(
     policyTag: LinkIdentity,

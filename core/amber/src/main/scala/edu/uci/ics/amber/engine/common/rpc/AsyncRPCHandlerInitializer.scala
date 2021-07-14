@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.common.rpc
 
-import com.twitter.util.{Future, Promise}
+import com.twitter.util.Future
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
@@ -65,18 +65,18 @@ class AsyncRPCHandlerInitializer(
     registerImpl({ case (c: C, s) => handler(c, s) })
   }
 
-  private def registerImpl(
-      newHandler: PartialFunction[(ControlCommand[_], ActorVirtualIdentity), Future[_]]
-  ): Unit = {
-    ctrlReceiver.registerHandler(newHandler)
-  }
-
   def send[T](cmd: ControlCommand[T], to: ActorVirtualIdentity): Future[T] = {
     ctrlSource.send(cmd, to)
   }
 
   def execute[T](cmd: ControlCommand[T], sender: ActorVirtualIdentity): Future[T] = {
     ctrlReceiver.execute((cmd, sender)).asInstanceOf[Future[T]]
+  }
+
+  private def registerImpl(
+      newHandler: PartialFunction[(ControlCommand[_], ActorVirtualIdentity), Future[_]]
+  ): Unit = {
+    ctrlReceiver.registerHandler(newHandler)
   }
 
 }

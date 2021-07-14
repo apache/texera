@@ -1,10 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy
 
-import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.ambermessage.DataPayload
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
-
-import scala.concurrent.ExecutionContext
 
 // Sending policy used by a worker to send data to the downstream workers.
 abstract class DataSendingPolicy(

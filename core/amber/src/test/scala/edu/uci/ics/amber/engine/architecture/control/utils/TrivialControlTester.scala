@@ -3,16 +3,12 @@ package edu.uci.ics.amber.engine.architecture.control.utils
 import akka.actor.ActorRef
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
-import edu.uci.ics.amber.engine.common.ambermessage.WorkflowControlMessage
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
-  NetworkAck,
-  NetworkMessage
-}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkMessage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputPort
-import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
+import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowControlMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, VirtualIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.error.ErrorUtils.safely
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
@@ -44,7 +40,7 @@ class TrivialControlTester(id: ActorVirtualIdentity, parentNetworkCommunicationA
   }
 
   def handleControlPayloadWithTryCatch(
-      from: VirtualIdentity,
+      from: ActorVirtualIdentity,
       controlPayload: ControlPayload
   ): Unit = {
     try {
@@ -53,7 +49,7 @@ class TrivialControlTester(id: ActorVirtualIdentity, parentNetworkCommunicationA
         case invocation: ControlInvocation =>
           assert(from.isInstanceOf[ActorVirtualIdentity])
           asyncRPCServer.logControlInvocation(invocation, from)
-          asyncRPCServer.receive(invocation, from.asInstanceOf[ActorVirtualIdentity])
+          asyncRPCServer.receive(invocation, from)
         case ret: ReturnPayload =>
           asyncRPCClient.logControlReply(ret, from)
           asyncRPCClient.fulfillPromise(ret)

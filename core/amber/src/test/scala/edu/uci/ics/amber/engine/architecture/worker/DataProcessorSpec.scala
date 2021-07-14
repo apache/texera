@@ -2,7 +2,6 @@ package edu.uci.ics.amber.engine.architecture.worker
 
 import akka.actor.ActorContext
 import com.softwaremill.macwire.wire
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   BatchToTupleConverter,
   ControlOutputPort,
@@ -16,28 +15,23 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandle
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
-import edu.uci.ics.amber.engine.common.{InputExhausted, WorkflowLogger}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
-import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.{
-  Completed,
-  Ready,
-  Running
-}
+import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.{Completed, Running}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.WorkerActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   LayerIdentity,
   LinkIdentity
 }
+import edu.uci.ics.amber.engine.common.{InputExhausted, WorkflowLogger}
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
-import lbmq.LinkedBlockingMultiQueue
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.flatspec.AnyFlatSpec
 
-import scala.concurrent.duration.{Duration, DurationInt, FiniteDuration}
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{Await, ExecutionContext, Future}
 
 class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfterEach {
@@ -48,10 +42,11 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   lazy val breakpointManager: BreakpointManager = mock[BreakpointManager]
   lazy val controlOutputPort: ControlOutputPort = mock[ControlOutputPort]
   val linkID: LinkIdentity =
-    LinkIdentity(LayerIdentity("testDP", "mockOp", "src"), LayerIdentity("testDP", "mockOp", "dst"))
+    LinkIdentity(
+      Option(LayerIdentity("testDP", "mockOp", "src")),
+      Option(LayerIdentity("testDP", "mockOp", "dst"))
+    )
   val tuples: Seq[ITuple] = (0 until 400).map(ITuple(_))
-
-  case class DummyControl() extends ControlCommand[CommandCompleted]
 
   def sendDataToDP(dp: DataProcessor, data: Seq[ITuple], interval: Long = -1): Future[_] = {
     Future {
@@ -74,7 +69,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   ): Future[_] = {
     Future {
       control.foreach { x =>
-        dp.enqueueCommand(x, ActorVirtualIdentity.Controller)
+        dp.enqueueCommand(x, CONTROLLER)
         if (interval > 0) {
           Thread.sleep(interval)
         }
@@ -100,6 +95,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     }
     assert(dp.isControlQueueEmpty)
   }
+
+  case class DummyControl() extends ControlCommand[CommandCompleted]
 
   "data processor" should "process data messages" in {
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
@@ -184,7 +181,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   }
 
   "data processor" should "process only control commands while paused" in {
-    val id = WorkerActorVirtualIdentity("test")
+    val id = ActorVirtualIdentity("test")
     val operator = mock[OperatorExecutor]
     (operator.open _).expects().once()
     val ctx: ActorContext = null
@@ -204,14 +201,14 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     }
     dp.appendElement(InputTuple(ITuple(1)))
     Thread.sleep(500)
-    dp.enqueueCommand(ControlInvocation(0, PauseWorker()), ActorVirtualIdentity.Controller)
+    dp.enqueueCommand(ControlInvocation(0, PauseWorker()), CONTROLLER)
     dp.appendElement(InputTuple(ITuple(2)))
-    dp.enqueueCommand(ControlInvocation(1, QueryStatistics()), ActorVirtualIdentity.Controller)
+    dp.enqueueCommand(ControlInvocation(1, QueryStatistics()), CONTROLLER)
     Thread.sleep(1000)
     dp.appendElement(InputTuple(ITuple(3)))
-    dp.enqueueCommand(ControlInvocation(2, QueryStatistics()), ActorVirtualIdentity.Controller)
+    dp.enqueueCommand(ControlInvocation(2, QueryStatistics()), CONTROLLER)
     dp.appendElement(InputTuple(ITuple(4)))
-    dp.enqueueCommand(ControlInvocation(3, ResumeWorker()), ActorVirtualIdentity.Controller)
+    dp.enqueueCommand(ControlInvocation(3, ResumeWorker()), CONTROLLER)
     dp.appendElement(EndMarker)
     dp.appendElement(EndOfAllMarker)
     waitForControlProcessing(dp)

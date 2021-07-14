@@ -17,7 +17,7 @@ class SymmetricDifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     LayerIdentity("" + counter, "" + counter, "" + counter)
   }
 
-  def linkID(): LinkIdentity = LinkIdentity(layerID(), layerID())
+  def linkID(): LinkIdentity = LinkIdentity(Option(layerID()), Option(layerID()))
 
   def tuple(): Tuple = {
     counter += 1

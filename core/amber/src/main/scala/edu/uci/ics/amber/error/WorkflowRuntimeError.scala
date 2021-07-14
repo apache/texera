@@ -12,7 +12,7 @@ object WorkflowRuntimeError {
 
 /**
   * @param errorMessage a descriptive name of the error
-  * @param errorSource where the error is occurring. eg: "Engine:Controller:CreateWorklow"
+  * @param errorSource where the error is occurring. eg: "Engine:CONTROLLER:CreateWorklow"
   * @param errorAdditionalParams details about the error: is this an unexpected exception or a constraint-violation, stacktrace etc.
   */
 case class WorkflowRuntimeError(

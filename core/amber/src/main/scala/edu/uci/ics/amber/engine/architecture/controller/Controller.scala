@@ -20,16 +20,13 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputPort
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowControlMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.Ready
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  VirtualIdentity,
-  WorkflowIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.error.ErrorUtils.safely
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
-import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.duration._
 
 object ControllerConfig {
   def default: ControllerConfig =
@@ -69,27 +66,24 @@ class Controller(
     val eventListener: ControllerEventListener = ControllerEventListener(),
     val controllerConfig: ControllerConfig,
     parentNetworkCommunicationActorRef: ActorRef
-) extends WorkflowActor(ActorVirtualIdentity.Controller, parentNetworkCommunicationActorRef) {
-  implicit val ec: ExecutionContext = context.dispatcher
-  implicit val timeout: Timeout = 5.seconds
-
+) extends WorkflowActor(CONTROLLER, parentNetworkCommunicationActorRef) {
   lazy val controlInputPort: NetworkInputPort[ControlPayload] =
     new NetworkInputPort[ControlPayload](this.logger, this.handleControlPayloadWithTryCatch)
+  implicit val ec: ExecutionContext = context.dispatcher
+  implicit val timeout: Timeout = 5.seconds
   val rpcHandlerInitializer: ControllerAsyncRPCHandlerInitializer =
     wire[ControllerAsyncRPCHandlerInitializer]
-
-  private def errorLogAction(err: WorkflowRuntimeError): Unit = {
-    if (eventListener.workflowExecutionErrorListener != null) {
-      eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
-    }
-  }
+  var statusUpdateAskHandle: Cancellable = _
 
   logger.setErrorLogAction(errorLogAction)
 
-  var statusUpdateAskHandle: Cancellable = _
+  def availableNodes: Array[Address] =
+    Await
+      .result(context.actorSelection("/user/cluster-info") ? GetAvailableNodeAddresses, 5.seconds)
+      .asInstanceOf[Array[Address]]
 
   // register controller itself
-  networkCommunicationActor ! RegisterActorRef(ActorVirtualIdentity.Controller, self)
+  networkCommunicationActor ! RegisterActorRef(CONTROLLER, self)
 
   // build whole workflow
   workflow.build(availableNodes, networkCommunicationActor, context)
@@ -99,7 +93,7 @@ class Controller(
     .collect(workflow.getAllLinks.map { link =>
       asyncRPCClient.send(
         LinkWorkers(link),
-        ActorVirtualIdentity.Controller
+        CONTROLLER
       )
     }.toSeq)
     .onSuccess { ret =>
@@ -114,11 +108,6 @@ class Controller(
       unstashAll()
     }
 
-  def availableNodes: Array[Address] =
-    Await
-      .result(context.actorSelection("/user/cluster-info") ? GetAvailableNodeAddresses, 5.seconds)
-      .asInstanceOf[Array[Address]]
-
   override def receive: Receive = initializing
 
   def initializing: Receive = {
@@ -127,13 +116,13 @@ class Controller(
       controlInputPort.handleMessage(this.sender(), id, from, seqNum, payload)
     case NetworkMessage(
           id,
-          WorkflowControlMessage(ActorVirtualIdentity.Controller, seqNum, payload)
+          WorkflowControlMessage(CONTROLLER, seqNum, payload)
         ) =>
       //process control messages from self
       controlInputPort.handleMessage(
         this.sender(),
         id,
-        ActorVirtualIdentity.Controller,
+        CONTROLLER,
         seqNum,
         payload
       )
@@ -152,11 +141,11 @@ class Controller(
 
   def acceptDirectInvocations: Receive = {
     case invocation: ControlInvocation =>
-      this.handleControlPayloadWithTryCatch(ActorVirtualIdentity.Controller, invocation)
+      this.handleControlPayloadWithTryCatch(CONTROLLER, invocation)
   }
 
   def handleControlPayloadWithTryCatch(
-      from: VirtualIdentity,
+      from: ActorVirtualIdentity,
       controlPayload: ControlPayload
   ): Unit = {
     try {
@@ -189,6 +178,12 @@ class Controller(
       statusUpdateAskHandle.cancel()
     }
     logger.logInfo("stopped!")
+  }
+
+  private def errorLogAction(err: WorkflowRuntimeError): Unit = {
+    if (eventListener.workflowExecutionErrorListener != null) {
+      eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
+    }
   }
 
 }

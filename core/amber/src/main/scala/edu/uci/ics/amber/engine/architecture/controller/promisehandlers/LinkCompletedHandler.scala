@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandle
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
-import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 
 object LinkCompletedHandler {
   final case class LinkCompleted(linkID: LinkIdentity) extends ControlCommand[CommandCompleted]

@@ -1,26 +1,20 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import akka.actor.{Actor, ActorRef, Cancellable, Props}
-import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
-  GetActorRef,
-  MessageBecomesDeadLetter,
-  NetworkAck,
-  NetworkMessage,
-  RegisterActorRef,
-  ResendMessages,
-  SendRequest
-}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor._
 import edu.uci.ics.amber.engine.common.WorkflowLogger
-import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.collection.mutable
 import scala.concurrent.duration._
 
 object NetworkCommunicationActor {
+
+  def props(parentSender: ActorRef, workerLogger: WorkflowLogger): Props =
+    Props(new NetworkCommunicationActor(parentSender, workerLogger))
 
   /** to distinguish between main actor self ref and
     * network sender actor
@@ -38,6 +32,7 @@ object NetworkCommunicationActor {
   /** Identifier <-> ActorRef related messages
     */
   final case class GetActorRef(id: ActorVirtualIdentity, replyTo: Set[ActorRef])
+
   final case class RegisterActorRef(id: ActorVirtualIdentity, ref: ActorRef)
 
   /** All outgoing message should be eventually NetworkMessage
@@ -55,9 +50,6 @@ object NetworkCommunicationActor {
   final case class ResendMessages()
 
   final case class MessageBecomesDeadLetter(message: NetworkMessage)
-
-  def props(parentSender: ActorRef, workerLogger: WorkflowLogger): Props =
-    Props(new NetworkCommunicationActor(parentSender, workerLogger))
 }
 
 /** This actor handles the transformation from identifier to actorRef
@@ -70,18 +62,7 @@ class NetworkCommunicationActor(parentRef: ActorRef, workerLogger: WorkflowLogge
   val idToCongestionControls = new mutable.HashMap[ActorVirtualIdentity, CongestionControl]()
   val queriedActorVirtualIdentities = new mutable.HashSet[ActorVirtualIdentity]()
   val messageStash = new mutable.HashMap[ActorVirtualIdentity, mutable.Queue[WorkflowMessage]]
-
-  /** keeps track of every outgoing message.
-    * Each message is identified by this monotonic increasing ID.
-    * It's different from the sequence number and it will only
-    * be used by the output gate.
-    */
-  var networkMessageID = 0L
   val messageIDToIdentity = new mutable.LongMap[ActorVirtualIdentity]
-
-  //add parent actor into idMap
-  idToActorRefs(ActorVirtualIdentity.Self) = context.parent
-
   //register timer for resending messages
   val resendHandle: Cancellable = context.system.scheduler.schedule(
     30.seconds,
@@ -89,6 +70,16 @@ class NetworkCommunicationActor(parentRef: ActorRef, workerLogger: WorkflowLogge
     self,
     ResendMessages
   )(context.dispatcher)
+
+  //add parent actor into idMap
+  idToActorRefs(SELF) = context.parent
+
+  /** keeps track of every outgoing message.
+    * Each message is identified by this monotonic increasing ID.
+    * It's different from the sequence number and it will only
+    * be used by the output gate.
+    */
+  var networkMessageID = 0L
 
   /** This method should always be a part of the unified WorkflowActor receiving logic.
     * 1. when an actor wants to know the actorRef of an Identifier, it replies if the mapping
@@ -189,6 +180,15 @@ class NetworkCommunicationActor(parentRef: ActorRef, workerLogger: WorkflowLogge
       }
   }
 
+  override def receive: Receive = {
+    sendMessagesAndReceiveAcks orElse findActorRefFromVirtualIdentity
+  }
+
+  override def postStop(): Unit = {
+    resendHandle.cancel()
+    workerLogger.logInfo(s"network communication actor stopped!")
+  }
+
   @inline
   private[this] def sendOrGetActorRef(actorID: ActorVirtualIdentity, msg: NetworkMessage): Unit = {
     if (idToActorRefs.contains(actorID)) {
@@ -208,14 +208,5 @@ class NetworkCommunicationActor(parentRef: ActorRef, workerLogger: WorkflowLogge
       parentRef ! GetActorRef(actorID, Set(self))
       queriedActorVirtualIdentities.add(actorID)
     }
-  }
-
-  override def receive: Receive = {
-    sendMessagesAndReceiveAcks orElse findActorRefFromVirtualIdentity
-  }
-
-  override def postStop(): Unit = {
-    resendHandle.cancel()
-    workerLogger.logInfo(s"network communication actor stopped!")
   }
 }

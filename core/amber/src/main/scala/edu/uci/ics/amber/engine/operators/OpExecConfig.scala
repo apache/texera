@@ -8,8 +8,8 @@ import edu.uci.ics.amber.engine.architecture.principal.{OperatorState, OperatorS
 import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager._
 import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
   LayerIdentity,
   LinkIdentity,
   OperatorIdentity
@@ -22,13 +22,8 @@ import scala.collection.mutable
   */
 abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
 
-  class Topology(
-      var layers: Array[WorkerLayer],
-      var links: Array[LinkStrategy]
-  ) extends Serializable
-
-  val opExecConfigLogger = WorkflowLogger(s"OpExecConfig $id")
   lazy val topology: Topology = null
+  val opExecConfigLogger = WorkflowLogger(s"OpExecConfig $id")
   var inputToOrdinalMapping = new mutable.HashMap[LinkIdentity, Int]()
   var attachedBreakpoints = new mutable.HashMap[String, GlobalBreakpoint[_]]()
 
@@ -90,5 +85,10 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
   def getShuffleHashFunction(layerTag: LayerIdentity): ITuple => Int = ???
 
   def assignBreakpoint(breakpoint: GlobalBreakpoint[_]): Array[ActorVirtualIdentity]
+
+  class Topology(
+      var layers: Array[WorkerLayer],
+      var links: Array[LinkStrategy]
+  ) extends Serializable
 
 }

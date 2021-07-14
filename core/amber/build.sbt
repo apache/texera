@@ -99,6 +99,24 @@ libraryDependencies ++= arrowDependencies
 libraryDependencies ++= googleServiceDependencies
 
 /////////////////////////////////////////////////////////////////////////////
+// protobuf related
+// run the following with sbt to have protobuf codegen
+Compile / PB.targets := Seq(
+  scalapb.gen(
+    singleLineToProtoString = true
+  ) -> (Compile / sourceDirectory).value / "scalapb"
+)
+
+libraryDependencies ++= Seq(
+  "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf"
+)
+// For ScalaPB 0.11.x:
+libraryDependencies += "com.thesamet.scalapb" %% "scalapb-json4s" % "0.11.0"
+
+// enable protobuf compilation in Test
+Test / PB.protoSources += PB.externalSourcePath.value
+
+/////////////////////////////////////////////////////////////////////////////
 // Test related
 // https://mvnrepository.com/artifact/org.scalamock/scalamock
 libraryDependencies += "org.scalamock" %% "scalamock" % "4.4.0" % Test

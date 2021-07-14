@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.randomksampling
 
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpExec
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 import scala.util.Random
 

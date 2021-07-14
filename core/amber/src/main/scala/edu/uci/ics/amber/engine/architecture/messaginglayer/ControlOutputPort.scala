@@ -9,6 +9,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
 import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 
 import scala.collection.mutable
 
@@ -24,8 +25,8 @@ class ControlOutputPort(selfID: ActorVirtualIdentity, networkSenderActor: Networ
 
   def sendTo(to: ActorVirtualIdentity, payload: ControlPayload): Unit = {
     var receiverId = to
-    if (to == ActorVirtualIdentity.Self) {
-      // selfID and VirtualIdentity.Self should be one key
+    if (to == SELF) {
+      // selfID and VirtualIdentity.SELF should be one key
       receiverId = selfID
     }
     val seqNum = idToSequenceNums.getOrElseUpdate(receiverId, new AtomicLong()).getAndIncrement()

@@ -1,7 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.BreakpointTriggered
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.AssignBreakpointHandler.AssignGlobalBreakpoint
@@ -11,10 +10,10 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryAndRemoveBreakpointsHandler.QueryAndRemoveBreakpoints
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, VirtualIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 
 object LocalBreakpointTriggeredHandler {
   final case class LocalBreakpointTriggered(localBreakpoints: Array[(String, Long)])
@@ -83,7 +82,7 @@ trait LocalBreakpointTriggeredHandler {
                     // attach new version if not resolved
                     execute(
                       AssignGlobalBreakpoint(gbp, targetOp.id),
-                      ActorVirtualIdentity.Controller
+                      CONTROLLER
                     )
                   }
                   .toSeq
@@ -107,7 +106,7 @@ trait LocalBreakpointTriggeredHandler {
                       BreakpointTriggered(mutable.HashMap.empty, opID)
                     )
                   }
-                  execute(PauseWorkflow(), ActorVirtualIdentity.Controller)
+                  execute(PauseWorkflow(), CONTROLLER)
                 }
               }
           }

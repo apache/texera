@@ -75,7 +75,7 @@ class RecoverySpec
 //    val workflowTag = WorkflowTag.apply("workflow-test")
 //
 //    val controller = parent.childActorOf(
-//      Controller.props(workflowTag, workflow, false, ControllerEventListener(), 100)
+//      CONTROLLER.props(workflowTag, workflow, false, ControllerEventListener(), 100)
 //    )
 //    controller ! AckedControllerInitialization
 //    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
