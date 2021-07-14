@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.common.metadata.annotations;
 
-public class Common {
+public class CommonOpDescAnnotation {
     // JSON schema key
     public final static   String autofill = "autofill";
 
