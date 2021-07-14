@@ -3,6 +3,8 @@ import { Observable } from 'rxjs/Observable';
 import { Point } from '../../../types/workflow-common.interface';
 import * as joint from 'jointjs';
 import { ReplaySubject } from 'rxjs';
+import * as dagre from 'dagre';
+import * as graphlib from 'graphlib';
 
 type operatorIDsType = { operatorIDs: string[] };
 type linkIDType = { linkID: string };
@@ -121,6 +123,8 @@ export class JointGraphWrapper {
   private workflowEditorZoomSubject: Subject<number> = new Subject<number>();
   // event stream of restoring zoom / offset default of the jointJS paper
   private restorePaperOffsetSubject: Subject<void> = new Subject<void>();
+  // event stream of auto layout
+  private autoLayoutSubject: Subject<void> = new Subject<void>();
 
   // event stream of showing the breakpoint button of a link
   private jointLinkBreakpointShowStream = new Subject<linkIDType>();
@@ -577,6 +581,23 @@ export class JointGraphWrapper {
   public getZoomRatio(): number {
     return this.zoomRatio;
   }
+
+  /**
+   * This method will update the layout
+   */
+  public autoLayout(): void {
+    joint.layout.DirectedGraph.layout(this.jointGraph, {dagre: dagre, graphlib: graphlib,
+      nodeSep: 100, edgeSep: 100, rankSep: 200, ranker: 'longest-path', rankDir: 'LR',
+    });
+  }
+
+  /**
+   * Returns an Observable stream capturing the event of restoring
+   *  default offset
+   */
+    public getAutoLayoutStream(): Observable<void> {
+      return this.autoLayoutSubject.asObservable();
+    }
 
   /**
    * This method will restore the default zoom ratio and offset for
