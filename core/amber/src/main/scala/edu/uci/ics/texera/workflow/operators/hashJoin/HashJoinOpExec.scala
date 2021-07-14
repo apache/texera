@@ -102,22 +102,4 @@ class HashJoinOpExec[K](
     buildTableHashMap.clear()
   }
 
-  // probe attribute removed in the output schema
-  private def createOutputProbeSchema(buildTuple: Tuple, probeTuple: Tuple): Schema = {
-    val buildSchema = buildTuple.getSchema()
-    val probeSchema = probeTuple.getSchema()
-    var builder = Schema.newBuilder()
-    probeSchema
-      .getAttributes()
-      .forEach(attr => {
-        if (attr.getName() != probeAttributeName) {
-          if (buildSchema.containsAttribute(attr.getName())) {
-            builder.add(new Attribute(s"${attr.getName()}#@1", attr.getType()))
-          } else {
-            builder.add(attr)
-          }
-        }
-      })
-    builder.build()
-  }
 }
