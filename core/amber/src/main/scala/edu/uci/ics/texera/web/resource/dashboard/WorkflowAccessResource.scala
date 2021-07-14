@@ -11,6 +11,7 @@ import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.web.resource.dashboard.WorkflowAccessResource.{
   UserWorkflowAccess,
   checkAccessLevel,
+  context,
   hasNoWorkflowAccessRecord
 }
 import io.dropwizard.jersey.sessions.Session
@@ -36,6 +37,8 @@ import scala.collection.mutable
   * Helper functions for retrieving access level based on given information
   */
 object WorkflowAccessResource {
+
+  private var context: DSLContext = SqlServer.createDSLContext
 
   /**
     * Identifies whether the given user has read-only access over the given workflow
@@ -69,6 +72,16 @@ object WorkflowAccessResource {
   }
 
   /**
+    * Identifies whether the given user has no access record over the given workflow
+    * @param wid     workflow id
+    * @param uid     user id, works with workflow id as primary keys in database
+    * @return boolean value indicating yes/no
+    */
+  def hasNoWorkflowAccessRecord(wid: UInteger, uid: UInteger): Boolean = {
+    checkAccessLevel(wid, uid).eq(WorkflowAccess.NO_RECORD)
+  }
+
+  /**
     * Returns an Access Object based on given wid and uid
     * Searches in database for the given uid-wid pair, and returns Access Object based on search result
     *
@@ -77,7 +90,7 @@ object WorkflowAccessResource {
     * @return Access Object indicating the access level
     */
   def checkAccessLevel(wid: UInteger, uid: UInteger): WorkflowAccess.Value = {
-    val accessDetail = SqlServer.createDSLContext
+    val accessDetail = context
       .select(WORKFLOW_USER_ACCESS.READ_PRIVILEGE, WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE)
       .from(WORKFLOW_USER_ACCESS)
       .where(WORKFLOW_USER_ACCESS.WID.eq(wid).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
@@ -90,16 +103,6 @@ object WorkflowAccessResource {
     } else {
       WorkflowAccess.NONE
     }
-  }
-
-  /**
-    * Identifies whether the given user has no access record over the given workflow
-    * @param wid     workflow id
-    * @param uid     user id, works with workflow id as primary keys in database
-    * @return boolean value indicating yes/no
-    */
-  def hasNoWorkflowAccessRecord(wid: UInteger, uid: UInteger): Boolean = {
-    checkAccessLevel(wid, uid).eq(WorkflowAccess.NO_RECORD)
   }
 
   case class UserWorkflowAccess(userName: String, accessLevel: String) {}
@@ -119,14 +122,14 @@ object WorkflowAccessResource {
 @Path("/workflow-access")
 @Produces(Array(MediaType.APPLICATION_JSON))
 class WorkflowAccessResource() {
-  final private val userDao = new UserDao(context.configuration())
-  final private val workflowOfUserDao = new WorkflowOfUserDao(
+
+  private val userDao = new UserDao(context.configuration())
+  private val workflowOfUserDao = new WorkflowOfUserDao(
     context.configuration
   )
-  final private val workflowUserAccessDao = new WorkflowUserAccessDao(
+  private val workflowUserAccessDao = new WorkflowUserAccessDao(
     context.configuration
   )
-  private var context: DSLContext = SqlServer.createDSLContext
 
   def this(dslContext: DSLContext) {
     this()
