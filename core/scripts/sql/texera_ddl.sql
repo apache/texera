@@ -46,6 +46,14 @@ CREATE TABLE IF NOT EXISTS file
     FOREIGN KEY (`uid`) REFERENCES user (`uid`) ON DELETE CASCADE
 ) ENGINE = INNODB;
 
+CREATE TABLE IF NOT EXISTS user_file_access(
+    `uid`         INT UNSIGNED                NOT NULL,
+    `fid`         INT UNSIGNED                NOT NULL,
+    PRIMARY KEY (`uid`, `fid`),
+    FOREIGN KEY (`uid`) REFERENCES user (`uid`) ON DELETE CASCADE,
+    FOREIGN KEY (`fid`) REFERENCES file (`fid`) ON DELETE CASCADE
+)ENGINE = INNODB;
+
 CREATE TABLE IF NOT EXISTS keyword_dictionary
 (
     `uid`         INT UNSIGNED                NOT NULL,

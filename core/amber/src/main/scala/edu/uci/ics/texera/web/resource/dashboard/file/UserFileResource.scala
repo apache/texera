@@ -1,9 +1,9 @@
 package edu.uci.ics.texera.web.resource.dashboard.file
 
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.FILE
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.FileDao
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.File
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER_FILE_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileDao, UserFileAccessDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, UserFileAccess}
 import edu.uci.ics.texera.web.resource.auth.UserResource
 import io.dropwizard.jersey.sessions.Session
 import org.apache.commons.lang3.tuple.Pair
@@ -68,6 +68,23 @@ class UserFileResource {
         Response.ok().build()
       case None =>
         Response.status(Response.Status.UNAUTHORIZED).build()
+    }
+  }
+
+  @GET
+  @Path("/{uid}/has-access-to/{fid}")
+  def hasAccessTo(@PathParam("uid") uid : UInteger, @PathParam("fid") fid: UInteger, @Session session: HttpSession): Response = {
+    UserResource.getUser(session) match{
+      case Some(user) =>
+        val existence = SqlServer.createDSLContext().fetchExists(SqlServer.createDSLContext
+          .selectFrom(USER_FILE_ACCESS)
+          .where(USER_FILE_ACCESS.UID.eq(uid).and(USER_FILE_ACCESS.FID.eq(fid))))
+        if(existence) {
+          Response.ok().entity().build()
+        }else{
+          Response.status(Response.Status.BAD_REQUEST).entity("user has no access to file").build()
+        }
+      case None => Response.status(Response.Status.UNAUTHORIZED).entity("please login").build()
     }
   }
 

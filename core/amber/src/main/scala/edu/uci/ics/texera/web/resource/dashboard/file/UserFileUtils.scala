@@ -3,6 +3,11 @@ package edu.uci.ics.texera.web.resource.dashboard.file
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.texera.workflow.common.Utils
+import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER_FILE_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileDao, UserFileAccessDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, UserFileAccess}
+import org.jooq.types.UInteger
 
 import java.io._
 import java.nio.file.{Files, Path}
@@ -11,14 +16,17 @@ object UserFileUtils {
   private val FILE_CONTAINER_PATH: Path =
     Utils.amberHomePath.resolve("user-resources").resolve("files")
 
-  def storeFile(fileStream: InputStream, fileName: String, userID: String): Unit = {
+  private val fileDao = new FileDao(SqlServer.createDSLContext.configuration)
+  def storeFile(fileStream: InputStream, fid: UInteger, userID: String): Unit = {
     createFileDirectoryIfNotExist(UserFileUtils.getFileDirectory(userID))
-    checkFileDuplicate(UserFileUtils.getFilePath(userID, fileName))
-    writeToFile(UserFileUtils.getFilePath(userID, fileName), fileStream)
+    checkFileDuplicate(UserFileUtils.getFilePath(userID, fid))
+    writeToFile(UserFileUtils.getFilePath(userID, fid), fileStream)
   }
 
-  def getFilePath(userID: String, fileName: String): Path =
-    getFileDirectory(userID).resolve(fileName)
+  def getFilePath(userID: String, fid: UInteger): Path = {
+    val pathStr = fileDao.fetchByFid(fid).get(0).getPath
+    Path.of(pathStr)
+  }
 
   def getFileDirectory(userID: String): Path = FILE_CONTAINER_PATH.resolve(userID)
 
