@@ -22,10 +22,10 @@ class TwitterFullArchiveSearchSourceOpExec(
     desc: TwitterFullArchiveSearchSourceOpDesc,
     operatorSchemaInfo: OperatorSchemaInfo
 ) extends TwitterSourceOpExec(desc.apiKey, desc.apiSecretKey) {
-  var curLimit: Int = desc.limit
   val outputSchemaAttributes: Array[AttributeType] = operatorSchemaInfo.outputSchema.getAttributes
     .map((attribute: Attribute) => { attribute.getType })
     .toArray
+  var curLimit: Int = desc.limit
   // nextToken is used to retrieve next page of results, if exists.
   var nextToken: String = _
   // contains tweets from the previous request.
@@ -90,19 +90,21 @@ class TwitterFullArchiveSearchSourceOpExec(
             user.get.getId,
             user.get.getCreatedAt,
             user.get.getName,
-            user.get.getDisplayedName,
-            user.get.getLang,
-            user.get.getDescription,
-            Option(user.get.getPublicMetrics)
-              .map(u => java.lang.Long.valueOf(u.getFollowersCount))
-              .orNull,
-            Option(user.get.getPublicMetrics)
-              .map(u => java.lang.Long.valueOf(u.getFollowingCount))
-              .orNull,
-            Option(user.get.getPublicMetrics)
-              .map(u => java.lang.Long.valueOf(u.getTweetCount))
-              .orNull,
-            user.get.getLocation
+            user.get.getDisplayedName
+            // The following works but currently all get null returned. Will need to wait for
+            // redouane59/twittered to update
+            // user.get.getLang,
+            // user.get.getDescription,
+            // Option(user.get.getPublicMetrics)
+            //   .map(u => java.lang.Long.valueOf(u.getFollowersCount))
+            //   .orNull,
+            // Option(user.get.getPublicMetrics)
+            //   .map(u => java.lang.Long.valueOf(u.getFollowingCount))
+            //   .orNull,
+            // Option(user.get.getPublicMetrics)
+            //   .map(u => java.lang.Long.valueOf(u.getTweetCount))
+            //   .orNull,
+            // user.get.getLocation
           ),
           outputSchemaAttributes
         )
