@@ -9,7 +9,8 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import scala.collection.mutable
 import com.typesafe.scalalogging.Logger
 
-class CacheSinkOpExec(dest: mutable.MutableList[Tuple]) extends ITupleSinkOperatorExecutor {
+class CacheSinkOpExec(dest: mutable.MutableList[Tuple])
+    extends ITupleSinkOperatorExecutor {
 
   assert(null != dest)
 
@@ -19,8 +20,8 @@ class CacheSinkOpExec(dest: mutable.MutableList[Tuple]) extends ITupleSinkOperat
 
   //TODO: Empty list or null?
   override def getResultTuples(): List[ITuple] = {
-    logger.info("Get result tuples: {}.", results.toString())
-    results.toList
+    logger.info("Get result tuples.")
+    List[Tuple]()
   }
 
   override def getOutputMode(): IncrementalOutputMode = IncrementalOutputMode.SET_SNAPSHOT
