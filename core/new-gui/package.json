@@ -11,9 +11,9 @@
     "test:ci": "ng test --watch=false --progress=false --browsers=ChromeHeadless",
     "lint": "ng lint",
     "e2e": "ng e2e",
-    "preinstall": "cd multi-target && npm install && npm run build",
-    "multi-target-updater": "cd multi-target && npm run build && cd .. && npm install ./multi-target -D",
-    "postinstall": "node git-version.js && ngcc && npm explore @danmarshall/deckgl-typings -- npm run postinstall"
+    "preinstall": "cd multi-target && yarn install && yarn run build",
+    "multi-target-updater": "cd multi-target && yarn run build && cd .. && yarn install ./multi-target -D",
+    "postinstall": "node git-version.js && ngcc && yarn --cwd node_modules/@danmarshall/deckgl-typings run postinstall"
   },
   "private": true,
   "dependencies": {
