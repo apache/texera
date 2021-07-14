@@ -30,13 +30,16 @@ import edu.uci.ics.texera.workflow.common.workflow.{
   WorkflowRewriter
 }
 import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
+
 import java.util.concurrent.atomic.AtomicInteger
 import edu.uci.ics.texera.workflow.common.Utils.objectMapper
+
 import javax.servlet.http.HttpSession
 import javax.websocket.{EndpointConfig, _}
 import javax.websocket.server.ServerEndpoint
 import scala.collection.mutable
 import com.typesafe.scalalogging.Logger
+import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowInfo.toJgraphtDAG
 import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
@@ -173,14 +176,14 @@ class WorkflowWebsocketResource {
 
   var operatorOutputCache: mutable.HashMap[String, mutable.MutableList[Tuple]] =
     mutable.HashMap[String, mutable.MutableList[Tuple]]()
-  var cachedOperators: mutable.HashMap[String, String] =
-    mutable.HashMap[String, String]()
+  var cachedOperators: mutable.HashMap[String, OperatorDescriptor] =
+    mutable.HashMap[String, OperatorDescriptor]()
   var cacheSourceOperators: mutable.HashMap[String, CacheSourceOpDesc] =
     mutable.HashMap[String, CacheSourceOpDesc]()
   var cacheSinkOperators: mutable.HashMap[String, CacheSinkOpDesc] =
     mutable.HashMap[String, CacheSinkOpDesc]()
-  var operatorRecord: mutable.HashMap[String, String] =
-    mutable.HashMap[String, String]()
+  var operatorRecord: mutable.HashMap[String, OperatorDescriptor] =
+    mutable.HashMap[String, OperatorDescriptor]()
 
   def executeWorkflow(session: Session, request: ExecuteWorkflowRequest): Unit = {
     val context = new WorkflowContext
