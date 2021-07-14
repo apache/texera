@@ -110,6 +110,9 @@ Compile / PB.targets := Seq(
 libraryDependencies ++= Seq(
   "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf"
 )
+// For ScalaPB 0.11.x:
+libraryDependencies += "com.thesamet.scalapb" %% "scalapb-json4s" % "0.11.0"
+
 
 /////////////////////////////////////////////////////////////////////////////
 // Test related
