@@ -248,7 +248,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
 
     /**
      * Close everything and throw an exception. This should only be called when an exception occurs and needs to be
-     * thrown, but the Arrow Flight CLIENT is still running.
+     * thrown, but the Arrow Flight Client is still running.
      *
      * @param client    FlightClient.
      * @param exception the exception to be wrapped into Amber Exception.
@@ -269,7 +269,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
                 connected = new String(communicate(flightClient, MSG.HEALTH_CHECK), StandardCharsets.UTF_8).equals("success");
                 if (!connected) Thread.sleep(WAIT_TIME_MS);
             } catch (FlightRuntimeException e) {
-                System.out.println("Flight CLIENT:\tNot connected to the server in this try.");
+                System.out.println("Flight Client:\tNot connected to the server in this try.");
                 flightClient.close();
                 Thread.sleep(WAIT_TIME_MS);
                 tryCount++;
