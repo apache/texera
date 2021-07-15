@@ -1,6 +1,11 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
-import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners.{HashBasedShufflePartitioner, OneToOnePartitioner, Partitioner, RoundRobinPartitioner}
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners.{
+  HashBasedShufflePartitioner,
+  OneToOnePartitioner,
+  Partitioner,
+  RoundRobinPartitioner
+}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}

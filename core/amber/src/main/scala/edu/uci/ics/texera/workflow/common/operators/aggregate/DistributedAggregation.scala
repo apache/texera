@@ -36,6 +36,5 @@ case class DistributedAggregation[P <: AnyRef](
     finalAgg: P => Tuple,
     // optional: group by function, calculate a group by key for a tuple
     groupByFunc: Tuple => Tuple = null,
-
-    groupBySchemaFunc : Schema => Schema = null
+    groupBySchemaFunc: Schema => Schema = null
 )

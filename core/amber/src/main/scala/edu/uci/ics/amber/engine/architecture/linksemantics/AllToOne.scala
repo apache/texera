@@ -14,7 +14,9 @@ class AllToOne(from: WorkerLayer, to: WorkerLayer, batchSize: Int)
   ] = {
     assert(from.isBuilt && to.isBuilt && to.numWorkers == 1)
     val toActor = to.identifiers.head
-    from.identifiers.map(x => (x, id, OneToOnePartitioning(batchSize, Array(toActor)), Seq(toActor)))
+    from.identifiers.map(x =>
+      (x, id, OneToOnePartitioning(batchSize, Array(toActor)), Seq(toActor))
+    )
   }
 
 }

@@ -82,7 +82,7 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
     this.inputToOrdinalMapping.update(input, ordinal)
   }
 
-  def getPartitionColumnIndices(layer: LayerIdentity):  Array[Int] = ???
+  def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = ???
 
   def assignBreakpoint(breakpoint: GlobalBreakpoint[_]): Array[ActorVirtualIdentity]
 
