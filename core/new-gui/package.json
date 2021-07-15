@@ -5,10 +5,10 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "build": "ng build --prod --progress=false --source-map=false",
+    "build": "NODE_OPTIONS=--max-old-space-size=4096 && ng build --prod --progress=false --source-map=false",
     "analyze": "ng build --prod --stats-json && webpack-bundle-analyzer dist/stats.json",
     "test": "ng test",
-    "test:ci": "ng test --watch=false --progress=false --browsers=ChromeHeadless",
+    "test:ci": "NODE_OPTIONS=--max-old-space-size=4096 && ng test --watch=false --progress=false --browsers=ChromeHeadless",
     "lint": "ng lint",
     "e2e": "ng e2e",
     "preinstall": "cd multi-target && yarn install && yarn run build",
