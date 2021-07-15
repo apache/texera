@@ -116,7 +116,7 @@ describe('SavedWorkflowSectionComponent', () => {
     component.ascSort();
     const SortedCase = component.workflows.map(item => item.name);
     expect(SortedCase)
-      .toEqual(['project 1', 'project 2', 'project 3', 'project 4', 'project 5']);
+      .toEqual(['workflow 1', 'workflow 2', 'workflow 3', 'workflow 4', 'workflow 5']);
   });
 
   it('alphaSortTest decreaseOrder', () => {
@@ -125,7 +125,7 @@ describe('SavedWorkflowSectionComponent', () => {
     component.dscSort();
     const SortedCase = component.workflows.map(item => item.name);
     expect(SortedCase)
-      .toEqual(['project 5', 'project 4', 'project 3', 'project 2', 'project 1']);
+      .toEqual(['workflow 5', 'workflow 4', 'workflow 3', 'workflow 2', 'workflow 1']);
   });
 
   it('Modal Opened', () => {
@@ -141,14 +141,14 @@ describe('SavedWorkflowSectionComponent', () => {
       modalRef.dismiss();
     });
   });
-  // it('alphaSortTest increaseOrder', () => {
-  //   component.workflows = [];
-  //   component.workflows = component.workflows.concat(TestCase);
-  //   component.ascSort();
-  //   const SortedCase = component.workflows.map(item => item.name);
-  //   expect(SortedCase)
-  //     .toEqual(['project 1', 'project 2', 'project 3', 'project 4', 'project 5']);
-  // });
+  it('alphaSortTest increaseOrder', () => {
+    component.workflows = [];
+    component.workflows = component.workflows.concat(TestCase);
+    component.ascSort();
+    const SortedCase = component.workflows.map(item => item.name);
+    expect(SortedCase)
+      .toEqual(['workflow 1', 'workflow 2', 'workflow 3', 'workflow 4', 'workflow 5']);
+  });
   it('createDateSortTest', () => {
     component.workflows = [];
     component.workflows = component.workflows.concat(TestCase);
