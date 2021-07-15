@@ -17,7 +17,7 @@ class SymmetricDifferenceOpDesc extends OperatorDescriptor {
     new HashOpExecConfig(
       operatorIdentifier,
       _ => new SymmetricDifferenceOpExec(),
-      operatorSchemaInfo
+      operatorSchemaInfo.inputSchemas(0).getAttributes.toArray.indices.toArray
     )
   }
 
