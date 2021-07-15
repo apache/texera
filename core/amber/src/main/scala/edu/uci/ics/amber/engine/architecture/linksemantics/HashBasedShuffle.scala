@@ -5,14 +5,13 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.{
   DataSendingPolicy,
   HashBasedShufflePolicy
 }
-import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 
 class HashBasedShuffle(
     from: WorkerLayer,
     to: WorkerLayer,
     batchSize: Int,
-    hashFunc: ITuple => Int
+    hashColumnIndices: Array[Int]
 ) extends LinkStrategy(from, to, batchSize) {
   override def getPolicies: Iterable[
     (ActorVirtualIdentity, LinkIdentity, DataSendingPolicy, Seq[ActorVirtualIdentity])
@@ -22,7 +21,7 @@ class HashBasedShuffle(
       (
         x,
         id,
-        HashBasedShufflePolicy(batchSize, to.identifiers, hashFunc),
+        HashBasedShufflePolicy(batchSize, to.identifiers, hashColumnIndices),
         to.identifiers.toSeq
       )
     )

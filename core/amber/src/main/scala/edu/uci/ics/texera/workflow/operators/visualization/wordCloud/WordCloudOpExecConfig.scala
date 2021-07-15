@@ -1,25 +1,23 @@
 package edu.uci.ics.texera.workflow.operators.visualization.wordCloud
 
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
-import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.{
-  FollowPrevious,
-  UseAll
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.{FollowPrevious, UseAll}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.RoundRobinDeployment
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.linksemantics.HashBasedShuffle
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, OperatorIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
-import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
 class WordCloudOpExecConfig(
     tag: OperatorIdentity,
     val numWorkers: Int,
     val textColumn: String,
-    val topN: Int
+    val topN: Int,
+    operatorSchemaInfo: OperatorSchemaInfo
 ) extends OpExecConfig(tag) {
 
   override lazy val topology: Topology = {
@@ -47,10 +45,14 @@ class WordCloudOpExecConfig(
           partialLayer,
           finalLayer,
           Constants.defaultBatchSize,
-          x => x.asInstanceOf[Tuple].hashCode()
+          getPartitionColumnIndices(partialLayer.id)
         )
       )
     )
+  }
+
+  override def getPartitionColumnIndices(layer :LayerIdentity): Array[Int] = {
+    operatorSchemaInfo.inputSchemas(0).getAttributes.toArray.indices.toArray
   }
 
   override def assignBreakpoint(

@@ -6,6 +6,10 @@ case class HashBasedShufflePolicyExec(policy: HashBasedShufflePolicy)
     extends ParallelBatchingPolicyExec() {
   override def selectBatchingIndex(tuple: ITuple): Int = {
     val numBuckets = policy.receivers.length
-    (policy.hashFunc(tuple) % numBuckets + numBuckets) % numBuckets
+
+    (policy.hashColumnIndices
+      .map(i => tuple.get(i))
+      .toList
+      .hashCode() % numBuckets + numBuckets) % numBuckets
   }
 }

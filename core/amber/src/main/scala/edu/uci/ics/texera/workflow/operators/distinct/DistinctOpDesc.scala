@@ -14,7 +14,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Schema, OperatorSchemaIn
 class DistinctOpDesc extends OperatorDescriptor {
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-    new HashOpExecConfig(operatorIdentifier, _ => new DistinctOpExec())
+    new HashOpExecConfig(operatorIdentifier, _ => new DistinctOpExec(), operatorSchemaInfo)
   }
 
   override def operatorInfo: OperatorInfo =

@@ -1,6 +1,5 @@
 package edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy
 
-import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 /**
@@ -14,7 +13,7 @@ sealed trait DataSendingPolicy {
 case class HashBasedShufflePolicy(
     batchSize: Int,
     receivers: Array[ActorVirtualIdentity],
-    hashFunc: ITuple => Int
+    hashColumnIndices: Array[Int]
 ) extends DataSendingPolicy {}
 
 case class OneToOnePolicy(
@@ -23,11 +22,6 @@ case class OneToOnePolicy(
 ) extends DataSendingPolicy {}
 
 case class RoundRobinPolicy(
-    batchSize: Int,
-    receivers: Array[ActorVirtualIdentity]
-) extends DataSendingPolicy {}
-
-case class ParallelBatchingPolicy(
     batchSize: Int,
     receivers: Array[ActorVirtualIdentity]
 ) extends DataSendingPolicy {}
