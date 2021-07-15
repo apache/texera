@@ -3,12 +3,12 @@ package edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 
-case class HashBasedShufflePartitioner(policy: HashBasedShufflePartitioning)
+case class HashBasedShufflePartitioner(partitioning: HashBasedShufflePartitioning)
     extends ParallelBatchingPartitioner() {
   override def selectBatchingIndex(tuple: ITuple): Int = {
-    val numBuckets = policy.receivers.length
+    val numBuckets = partitioning.receivers.length
 
-    (policy.hashColumnIndices
+    (partitioning.hashColumnIndices
       .map(i => tuple.get(i))
       .toList
       .hashCode() % numBuckets + numBuckets) % numBuckets

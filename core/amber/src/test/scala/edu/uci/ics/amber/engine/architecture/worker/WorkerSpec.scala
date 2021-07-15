@@ -9,7 +9,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   TupleToBatchConverter
 }
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddOutputPolicyHandler.AddOutputPolicy
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowControlMessage
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.tuple.ITuple
@@ -58,7 +58,7 @@ class WorkerSpec
       override lazy val batchProducer: TupleToBatchConverter = mockTupleToBatchConverter
       override lazy val controlOutputPort: ControlOutputPort = mockControlOutputPort
     })
-    val invocation = ControlInvocation(0, AddOutputPolicy(mockTag, mockPolicy))
+    val invocation = ControlInvocation(0, AddPartitioning(mockTag, mockPolicy))
     worker ! NetworkMessage(
       0,
       WorkflowControlMessage(CONTROLLER, 0, invocation)

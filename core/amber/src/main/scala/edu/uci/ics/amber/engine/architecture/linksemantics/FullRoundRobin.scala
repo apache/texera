@@ -9,7 +9,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, Li
 
 class FullRoundRobin(from: WorkerLayer, to: WorkerLayer, batchSize: Int)
     extends LinkStrategy(from, to, batchSize) {
-  override def getPolicies: Iterable[
+  override def getPartitioning: Iterable[
     (ActorVirtualIdentity, LinkIdentity, Partitioning, Seq[ActorVirtualIdentity])
   ] = {
     assert(from.isBuilt && to.isBuilt)

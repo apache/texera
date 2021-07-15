@@ -13,7 +13,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, Li
 import scala.Function.tupled
 import scala.collection.mutable
 
-/** This class is a container of all the transfer policyExecs.
+/** This class is a container of all the transfer partitioners.
   * @param selfID ActorVirtualIdentity of self.
   * @param dataOutputPort DataOutputPort
   */
@@ -21,35 +21,36 @@ class TupleToBatchConverter(
     selfID: ActorVirtualIdentity,
     dataOutputPort: DataOutputPort
 ) {
-  private val policyExecs = mutable.HashMap[LinkIdentity, Partitioner]()
+  private val partitioners = mutable.HashMap[LinkIdentity, Partitioner]()
 
   /**
-    * Add down stream operator and its corresponding transfer policy executor.
-    * @param policy Partitioning, describes how and whom to send to.
+    * Add down stream operator and its corresponding Partitioner.
+    * @param partitioning Partitioning, describes how and whom to send to.
     */
-  def addPolicy(tag: LinkIdentity, policy: Partitioning): Unit = {
+  def addPartitionerWithPartitioning(tag: LinkIdentity, partitioning: Partitioning): Unit = {
 
-    // create a corresponding policy executor for the given policy
-    val policyExec = policy match {
-      case oneToOnePolicy: OneToOnePartitioning     => OneToOnePartitioner(oneToOnePolicy)
-      case roundRobinPolicy: RoundRobinPartitioning => RoundRobinPartitioner(roundRobinPolicy)
-      case hashBasedShufflePolicy: HashBasedShufflePartitioning =>
-        HashBasedShufflePartitioner(hashBasedShufflePolicy)
+    // create a corresponding partitioner for the given partitioning
+    val partitioner = partitioning match {
+      case oneToOnePartitioning: OneToOnePartitioning => OneToOnePartitioner(oneToOnePartitioning)
+      case roundRobinPartitioning: RoundRobinPartitioning =>
+        RoundRobinPartitioner(roundRobinPartitioning)
+      case hashBasedShufflePartitioning: HashBasedShufflePartitioning =>
+        HashBasedShufflePartitioner(hashBasedShufflePartitioning)
     }
 
-    // update the existing policy executors.
-    policyExecs.update(tag, policyExec)
+    // update the existing partitioners.
+    partitioners.update(tag, partitioner)
 
   }
 
   /**
-    * Push one tuple to the downstream, will be batched by each transfer policy.
+    * Push one tuple to the downstream, will be batched by each transfer partitioning.
     * Should ONLY be called by DataProcessor.
     * @param tuple ITuple to be passed.
     */
   def passTupleToDownstream(tuple: ITuple): Unit = {
-    policyExecs.valuesIterator.foreach(policyExec =>
-      policyExec.addTupleToBatch(tuple) foreach tupled((to, batch) =>
+    partitioners.valuesIterator.foreach(partitioner =>
+      partitioner.addTupleToBatch(tuple) foreach tupled((to, batch) =>
         dataOutputPort.sendTo(to, batch)
       )
     )
@@ -58,15 +59,15 @@ class TupleToBatchConverter(
   /* Old API: for compatibility */
   @deprecated
   def resetPolicies(): Unit = {
-    policyExecs.values.foreach(_.reset())
+    partitioners.values.foreach(_.reset())
   }
 
   /**
     * Send the last batch and EOU marker to all down streams
     */
   def emitEndOfUpstream(): Unit = {
-    policyExecs.values.foreach(policyExec =>
-      policyExec.noMore() foreach tupled((to, batch) => dataOutputPort.sendTo(to, batch))
+    partitioners.values.foreach(partitioner =>
+      partitioner.noMore() foreach tupled((to, batch) => dataOutputPort.sendTo(to, batch))
     )
   }
 

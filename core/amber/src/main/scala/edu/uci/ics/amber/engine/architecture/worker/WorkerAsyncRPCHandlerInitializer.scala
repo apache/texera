@@ -33,7 +33,7 @@ class WorkerAsyncRPCHandlerInitializer(
     receiver: AsyncRPCServer
 ) extends AsyncRPCHandlerInitializer(source, receiver)
     with PauseHandler
-    with AddOutputPolicyHandler
+    with AddPartitioningHandler
     with QueryAndRemoveBreakpointsHandler
     with QueryCurrentInputTupleHandler
     with QueryStatisticsHandler

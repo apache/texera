@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 abstract class Partitioner() {
-  val policy: Partitioning
+  val partitioning: Partitioning
 
   /**
     * Keeps on adding tuples to the batch. When the batch_size is reached, the batch is returned along with the receiver

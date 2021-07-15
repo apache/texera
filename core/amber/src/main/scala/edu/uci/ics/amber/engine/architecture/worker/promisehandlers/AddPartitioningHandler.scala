@@ -2,22 +2,22 @@ package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
 import edu.uci.ics.amber.engine.architecture.worker.WorkerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddOutputPolicyHandler.AddOutputPolicy
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.Ready
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 
-object AddOutputPolicyHandler {
-  final case class AddOutputPolicy(tag: LinkIdentity, policy: Partitioning)
+object AddPartitioningHandler {
+  final case class AddPartitioning(tag: LinkIdentity, partitioning: Partitioning)
       extends ControlCommand[CommandCompleted]
 }
 
-trait AddOutputPolicyHandler {
+trait AddPartitioningHandler {
   this: WorkerAsyncRPCHandlerInitializer =>
 
-  registerHandler { (msg: AddOutputPolicy, sender) =>
+  registerHandler { (msg: AddPartitioning, sender) =>
     stateManager.assertState(Ready)
-    tupleToBatchConverter.addPolicy(msg.tag, msg.policy)
+    tupleToBatchConverter.addPartitionerWithPartitioning(msg.tag, msg.partitioning)
     CommandCompleted()
   }
 

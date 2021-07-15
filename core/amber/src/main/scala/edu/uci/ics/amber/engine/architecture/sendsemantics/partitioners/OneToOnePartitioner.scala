@@ -7,22 +7,22 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 import scala.collection.mutable.ArrayBuffer
 
-case class OneToOnePartitioner(policy: OneToOnePartitioning) extends Partitioner {
-  var batch: Array[ITuple] = new Array[ITuple](policy.batchSize)
+case class OneToOnePartitioner(partitioning: OneToOnePartitioning) extends Partitioner {
+  var batch: Array[ITuple] = new Array[ITuple](partitioning.batchSize)
   var currentSize = 0
 
-  assert(policy.receivers.length == 1)
+  assert(partitioning.receivers.length == 1)
 
   override def addTupleToBatch(
       tuple: ITuple
   ): Option[(ActorVirtualIdentity, DataPayload)] = {
     batch(currentSize) = tuple
     currentSize += 1
-    if (currentSize == policy.batchSize) {
+    if (currentSize == partitioning.batchSize) {
       currentSize = 0
       val retBatch = batch
-      batch = new Array[ITuple](policy.batchSize)
-      return Some((policy.receivers(0), DataFrame(retBatch)))
+      batch = new Array[ITuple](partitioning.batchSize)
+      return Some((partitioning.receivers(0), DataFrame(retBatch)))
     }
     None
   }
@@ -30,14 +30,14 @@ case class OneToOnePartitioner(policy: OneToOnePartitioning) extends Partitioner
   override def noMore(): Array[(ActorVirtualIdentity, DataPayload)] = {
     val ret = new ArrayBuffer[(ActorVirtualIdentity, DataPayload)]
     if (currentSize > 0) {
-      ret.append((policy.receivers(0), DataFrame(batch.slice(0, currentSize))))
+      ret.append((partitioning.receivers(0), DataFrame(batch.slice(0, currentSize))))
     }
-    ret.append((policy.receivers(0), EndOfUpstream()))
+    ret.append((partitioning.receivers(0), EndOfUpstream()))
     ret.toArray
   }
 
   override def reset(): Unit = {
-    batch = new Array[ITuple](policy.batchSize)
+    batch = new Array[ITuple](partitioning.batchSize)
     currentSize = 0
   }
 }

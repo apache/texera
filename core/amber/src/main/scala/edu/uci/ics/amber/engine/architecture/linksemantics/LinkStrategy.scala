@@ -19,7 +19,7 @@ abstract class LinkStrategy(
 
   def totalReceiversCount: Long = to.numWorkers
 
-  // returns Iterable of (sender, sender's sending policy, set of receivers)
-  def getPolicies
+  // returns Iterable of (sender, link id, sender's partitioning, set of receivers)
+  def getPartitioning
       : Iterable[(ActorVirtualIdentity, LinkIdentity, Partitioning, Seq[ActorVirtualIdentity])]
 }

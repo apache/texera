@@ -13,7 +13,7 @@ class HashBasedShuffle(
     batchSize: Int,
     hashColumnIndices: Array[Int]
 ) extends LinkStrategy(from, to, batchSize) {
-  override def getPolicies: Iterable[
+  override def getPartitioning: Iterable[
     (ActorVirtualIdentity, LinkIdentity, Partitioning, Seq[ActorVirtualIdentity])
   ] = {
     assert(from.isBuilt && to.isBuilt)
