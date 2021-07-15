@@ -10,9 +10,6 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
 }
 import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.OneToOnePolicy
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddOutputPolicyHandler.AddOutputPolicy
-import edu.uci.ics.amber.engine.common.ambermessage.{DataPayload, WorkflowControlMessage}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.CommandCompleted
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowControlMessage
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.tuple.ITuple
@@ -55,13 +52,13 @@ class WorkerSpec
 
     val mockTag = LinkIdentity(null, null)
 
-    val mockPolicy = OneToOnePolicy(mockTag, 10, Array(identifier2))
+    val mockPolicy = OneToOnePolicy(10, Array(identifier2))
 
     val worker = TestActorRef(new WorkflowWorker(identifier1, mockOpExecutor, TestProbe().ref) {
       override lazy val batchProducer: TupleToBatchConverter = mockTupleToBatchConverter
       override lazy val controlOutputPort: ControlOutputPort = mockControlOutputPort
     })
-    val invocation = ControlInvocation(0, AddOutputPolicy(mockPolicy))
+    val invocation = ControlInvocation(0, AddOutputPolicy(mockTag, mockPolicy))
     worker ! NetworkMessage(
       0,
       WorkflowControlMessage(CONTROLLER, 0, invocation)
