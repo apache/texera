@@ -1,30 +1,25 @@
 package edu.uci.ics.amber.engine.architecture.control
 
-import java.io.{FileInputStream, FileOutputStream, ObjectInputStream, ObjectOutputStream}
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{TestKit, TestProbe}
-import com.esotericsoftware.kryo.{Kryo, KryoException}
-import com.esotericsoftware.kryo.io.Input
-import com.twitter.util.{FuturePool, Promise}
-import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.engine.common.ambermessage.WorkflowControlMessage
+import edu.uci.ics.amber.engine.architecture.control.utils.ChainHandler.Chain
+import edu.uci.ics.amber.engine.architecture.control.utils.CollectHandler.Collect
+import edu.uci.ics.amber.engine.architecture.control.utils.MultiCallHandler.MultiCall
+import edu.uci.ics.amber.engine.architecture.control.utils.NestedHandler.Nested
+import edu.uci.ics.amber.engine.architecture.control.utils.PingPongHandler.Ping
+import edu.uci.ics.amber.engine.architecture.control.utils.RecursionHandler.Recursion
+import edu.uci.ics.amber.engine.architecture.control.utils.TrivialControlTester
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   GetActorRef,
   NetworkAck,
   NetworkMessage,
   RegisterActorRef
 }
-import edu.uci.ics.amber.engine.architecture.control.utils.ChainHandler.Chain
-import edu.uci.ics.amber.engine.architecture.control.utils.CollectHandler.Collect
-import edu.uci.ics.amber.engine.architecture.control.utils.MultiCallHandler.MultiCall
-import edu.uci.ics.amber.engine.architecture.control.utils.NestedHandler.Nested
-import edu.uci.ics.amber.engine.architecture.control.utils.PingPongHandler.Ping
-import edu.uci.ics.amber.engine.architecture.control.utils.TrivialControlTester
-import edu.uci.ics.amber.engine.architecture.control.utils.RecursionHandler.Recursion
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowControlMessage
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.WorkerActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, VirtualIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
@@ -39,36 +34,6 @@ class TrivialControlSpec
 
   override def afterAll: Unit = {
     TestKit.shutdownActorSystem(system)
-  }
-
-  def setUp(
-      numActors: Int,
-      cmd: ControlCommand[_]*
-  ): (TestProbe, mutable.HashMap[ActorVirtualIdentity, ActorRef]) = {
-    val probe = TestProbe()
-    val idMap = mutable.HashMap[ActorVirtualIdentity, ActorRef]()
-    for (i <- 0 until numActors) {
-      val id = WorkerActorVirtualIdentity(s"$i")
-      val ref = probe.childActorOf(Props(new TrivialControlTester(id, probe.ref)))
-      idMap(id) = ref
-    }
-    idMap(ActorVirtualIdentity.Controller) = probe.ref
-    var seqNum = 0
-    cmd.foreach { evt =>
-      probe.send(
-        idMap(WorkerActorVirtualIdentity("0")),
-        NetworkMessage(
-          seqNum,
-          WorkflowControlMessage(
-            ActorVirtualIdentity.Controller,
-            seqNum,
-            ControlInvocation(seqNum, evt)
-          )
-        )
-      )
-      seqNum += 1
-    }
-    (probe, idMap)
   }
 
   def testControl[T](numActors: Int, eventPairs: (ControlCommand[_], T)*): Unit = {
@@ -92,17 +57,47 @@ class TrivialControlSpec
     }
   }
 
+  def setUp(
+      numActors: Int,
+      cmd: ControlCommand[_]*
+  ): (TestProbe, mutable.HashMap[ActorVirtualIdentity, ActorRef]) = {
+    val probe = TestProbe()
+    val idMap = mutable.HashMap[ActorVirtualIdentity, ActorRef]()
+    for (i <- 0 until numActors) {
+      val id = ActorVirtualIdentity(s"$i")
+      val ref = probe.childActorOf(Props(new TrivialControlTester(id, probe.ref)))
+      idMap(id) = ref
+    }
+    idMap(CONTROLLER) = probe.ref
+    var seqNum = 0
+    cmd.foreach { evt =>
+      probe.send(
+        idMap(ActorVirtualIdentity("0")),
+        NetworkMessage(
+          seqNum,
+          WorkflowControlMessage(
+            CONTROLLER,
+            seqNum,
+            ControlInvocation(seqNum, evt)
+          )
+        )
+      )
+      seqNum += 1
+    }
+    (probe, idMap)
+  }
+
   "testers" should {
 
     "execute Ping Pong" in {
-      testControl(2, (Ping(1, 5, WorkerActorVirtualIdentity("1")), 5))
+      testControl(2, (Ping(1, 5, ActorVirtualIdentity("1")), 5))
     }
 
     "execute Ping Pong 2 times" in {
       testControl(
         2,
-        (Ping(1, 4, WorkerActorVirtualIdentity("1")), 4),
-        (Ping(10, 13, WorkerActorVirtualIdentity("1")), 13)
+        (Ping(1, 4, ActorVirtualIdentity("1")), 4),
+        (Ping(10, 13, ActorVirtualIdentity("1")), 13)
       )
     }
 
@@ -110,8 +105,8 @@ class TrivialControlSpec
       testControl(
         10,
         (
-          Chain((1 to 9).map(i => WorkerActorVirtualIdentity(i.toString))),
-          WorkerActorVirtualIdentity(9.toString)
+          Chain((1 to 9).map(i => ActorVirtualIdentity(i.toString))),
+          ActorVirtualIdentity(9.toString)
         )
       )
     }
@@ -119,7 +114,7 @@ class TrivialControlSpec
     "execute Collect" in {
       testControl(
         4,
-        (Collect((1 to 3).map(i => WorkerActorVirtualIdentity(i.toString))), "finished")
+        (Collect((1 to 3).map(i => ActorVirtualIdentity(i.toString))), "finished")
       )
     }
 
@@ -130,7 +125,7 @@ class TrivialControlSpec
     "execute MultiCall" in {
       testControl(
         10,
-        (MultiCall((1 to 9).map(i => WorkerActorVirtualIdentity(i.toString))), "finished")
+        (MultiCall((1 to 9).map(i => ActorVirtualIdentity(i.toString))), "finished")
       )
     }
 

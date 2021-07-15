@@ -8,6 +8,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   TupleToBatchConverter
 }
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers._
+import edu.uci.ics.amber.engine.common.{IOperatorExecutor, WorkflowLogger}
 import edu.uci.ics.amber.engine.common.rpc.{
   AsyncRPCClient,
   AsyncRPCHandlerInitializer,
@@ -15,7 +16,6 @@ import edu.uci.ics.amber.engine.common.rpc.{
 }
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.{IOperatorExecutor, WorkflowLogger}
 
 class WorkerAsyncRPCHandlerInitializer(
     val selfID: ActorVirtualIdentity,

@@ -1,27 +1,28 @@
 package edu.uci.ics.amber
 
-import java.net._
-
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.util.Timeout
 import com.typesafe.config.{Config, ConfigFactory}
 import edu.uci.ics.amber.clustering.ClusterListener
-import edu.uci.ics.amber.engine.architecture.controller.Controller
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.common.Constants
 import play.api.libs.json.Json
 
+import java.net._
 import scala.annotation.tailrec
 import scala.concurrent.duration._
 
-@deprecated
+@deprecated(
+  "entry point has moved to edu.uci.ics.texera.web.TexeraWebApplication and edu.uci.ics.texera.web.TexeraRunWorker",
+  since = "0.1-SNAPSHOT"
+)
 object AmberApp {
+  type OptionMap = Map[Symbol, Any]
   val usage = """
     Usage: App [--main-node-addr addr]
   """
-  type OptionMap = Map[Symbol, Any]
   implicit val timeout: Timeout = Timeout(5.seconds)
 
   @tailrec
@@ -240,13 +241,13 @@ object AmberApp {
             // will not work. We have removed the making workflow by parsing JSON string from controller
 //            if (current == 0) {
 //              controller = system.actorOf(
-//                Controller.props(
+//                CONTROLLER.props(
 //                  workflows(current).replace("<arg1>", limit).replace("<arg2>", delay)
 //                )
 //              )
 //            } else {
 //              controller = system.actorOf(
-//                Controller.props(workflows(current).replace("<arg3>", Constants.dataset.toString))
+//                CONTROLLER.props(workflows(current).replace("<arg3>", Constants.dataset.toString))
 //              )
 //            }
 //            controller ! AckedControllerInitialization

@@ -19,6 +19,7 @@ import edu.uci.ics.amber.engine.common.rpc.{
   AsyncRPCServer
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 abstract class WorkflowActor(
@@ -32,7 +33,7 @@ abstract class WorkflowActor(
   logger.setErrorLogAction(err => {
     asyncRPCClient.send(
       FatalError(err),
-      ActorVirtualIdentity.Controller
+      CONTROLLER
     )
   })
 
