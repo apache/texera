@@ -5,7 +5,7 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "build": "ng build --prod --progress=false --source-map=false",
+    "build": "ng build --prod --progress=false",
     "analyze": "ng build --prod --stats-json && webpack-bundle-analyzer dist/stats.json",
     "test": "ng test",
     "test:ci": "ng test --watch=false --progress=false --browsers=ChromeHeadless",
