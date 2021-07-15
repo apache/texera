@@ -5,9 +5,10 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkerAsyncRPCHandlerInitial
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddOutputPolicyHandler.AddOutputPolicy
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.Ready
+import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 
 object AddOutputPolicyHandler {
-  final case class AddOutputPolicy(policy: DataSendingPolicy)
+  final case class AddOutputPolicy(tag: LinkIdentity, policy: DataSendingPolicy)
       extends ControlCommand[CommandCompleted]
 }
 
@@ -16,7 +17,7 @@ trait AddOutputPolicyHandler {
 
   registerHandler { (msg: AddOutputPolicy, sender) =>
     stateManager.assertState(Ready)
-    tupleToBatchConverter.addPolicy(msg.policy)
+    tupleToBatchConverter.addPolicy(msg.tag, msg.policy)
     CommandCompleted()
   }
 

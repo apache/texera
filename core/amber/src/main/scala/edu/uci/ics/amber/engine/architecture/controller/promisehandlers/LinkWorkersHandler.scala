@@ -24,13 +24,13 @@ trait LinkWorkersHandler {
     {
       // get the list of (sender id, policy, set of receiver ids) from the link
       val futures = msg.link.getPolicies.flatMap {
-        case (from, policy, tos) =>
+        case (from, link, policy, tos) =>
           // send messages to sender worker and receiver workers
-          Seq(send(AddOutputPolicy(policy), from)) ++ tos.map(
+          Seq(send(AddOutputPolicy(link, policy), from)) ++ tos.map(
             send(UpdateInputLinking(from, msg.link.id), _)
           )
       }
-      Future.collect(futures.toSeq).map { x =>
+      Future.collect(futures.toSeq).map { _ =>
         // returns when all has completed
         CommandCompleted()
       }

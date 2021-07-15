@@ -21,9 +21,7 @@ class TupleToBatchConverter(
     * Add down stream operator and its corresponding transfer policy executor.
     * @param policy DataSendingPolicy, describes how and whom to send to.
     */
-  def addPolicy(
-      policy: DataSendingPolicy
-  ): Unit = {
+  def addPolicy(tag: LinkIdentity, policy: DataSendingPolicy): Unit = {
 
     // create a corresponding policy executor for the given policy
     val policyExec = policy match {
@@ -34,7 +32,7 @@ class TupleToBatchConverter(
     }
 
     // update the existing policy executors.
-    policyExecs.update(policy.policyTag, policyExec)
+    policyExecs.update(tag, policyExec)
 
   }
 

@@ -5,15 +5,16 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.{
   DataSendingPolicy,
   OneToOnePolicy
 }
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 
 class AllToOne(from: WorkerLayer, to: WorkerLayer, batchSize: Int)
     extends LinkStrategy(from, to, batchSize) {
-  override def getPolicies
-      : Iterable[(ActorVirtualIdentity, DataSendingPolicy, Seq[ActorVirtualIdentity])] = {
+  override def getPolicies: Iterable[
+    (ActorVirtualIdentity, LinkIdentity, DataSendingPolicy, Seq[ActorVirtualIdentity])
+  ] = {
     assert(from.isBuilt && to.isBuilt && to.numWorkers == 1)
     val toActor = to.identifiers.head
-    from.identifiers.map(x => (x, new OneToOnePolicy(id, batchSize, Array(toActor)), Seq(toActor)))
+    from.identifiers.map(x => (x, id, OneToOnePolicy(batchSize, Array(toActor)), Seq(toActor)))
   }
 
 }
