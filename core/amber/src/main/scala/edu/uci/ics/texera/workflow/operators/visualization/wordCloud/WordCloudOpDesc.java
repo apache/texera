@@ -59,7 +59,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
             topN = 100;
         }
 
-        return new WordCloudOpExecConfig(this.operatorIdentifier(), Constants.defaultNumWorkers(), textColumn, topN, operatorSchemaInfo);
+        return new WordCloudOpExecConfig(this.operatorIdentifier(), Constants.defaultNumWorkers(), textColumn, topN, partialAggregateSchema);
     }
 
     @Override
