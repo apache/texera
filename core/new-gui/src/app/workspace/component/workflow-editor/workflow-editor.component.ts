@@ -130,6 +130,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleOperatorValidation();
     this.handlePaperRestoreDefaultOffset();
     this.handlePaperZoom();
+    this.handleAutoLayout();
     this.handleWindowResize();
     this.handleViewDeleteOperator();
     this.handleCellHighlight();
@@ -274,6 +275,18 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.workflowActionService.getJointGraphWrapper().getWorkflowEditorZoomStream().subscribe(newRatio => {
       // set jointjs scale
       this.getJointPaper().scale(newRatio, newRatio);
+    });
+  }
+
+  /**
+   * Handles something
+   */
+
+  private handleAutoLayout(): void {
+    this.workflowActionService.getJointGraphWrapper().getAutoLayoutStream()
+    .subscribe(() => {
+      this.workflowActionService.getJointGraphWrapper().setAutoLayout();
+      this.getJointPaper().translate(100, 300);
     });
   }
 

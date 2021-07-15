@@ -265,7 +265,7 @@ export class NavigationComponent implements OnInit {
         return;
       }
       this.workflowActionService.getJointGraphWrapper().autoLayout();
-      this.workflowActionService.getJointGraphWrapper().restoreDefaultZoomAndOffset();
+      // this.workflowActionService.getJointGraphWrapper().restoreDefaultZoomAndOffset();
   }
 
   /**

@@ -1,8 +1,8 @@
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
 import { Point } from '../../../types/workflow-common.interface';
-import * as joint from 'jointjs';
 import { ReplaySubject } from 'rxjs';
+import * as joint from 'jointjs';
 import * as dagre from 'dagre';
 import * as graphlib from 'graphlib';
 
@@ -582,13 +582,28 @@ export class JointGraphWrapper {
     return this.zoomRatio;
   }
 
+/************************** MY CODE ***************************/
+
+  public setAutoLayout(): void {
+    joint.layout.DirectedGraph.layout(this.jointGraph, {
+      dagre: dagre,
+      graphlib: graphlib,
+      nodeSep: 100,
+      edgeSep: 100,
+      rankSep: 200,
+      ranker: 'tight-tree',
+      rankDir: 'LR',
+      resizeClusters: true,
+    });
+  }
+
+
   /**
    * This method will update the layout
    */
   public autoLayout(): void {
-    joint.layout.DirectedGraph.layout(this.jointGraph, {dagre: dagre, graphlib: graphlib,
-      nodeSep: 100, edgeSep: 100, rankSep: 200, ranker: 'longest-path', rankDir: 'LR',
-    });
+    // this.setAutoLayout();
+    this.autoLayoutSubject.next();
   }
 
   /**
@@ -598,6 +613,7 @@ export class JointGraphWrapper {
     public getAutoLayoutStream(): Observable<void> {
       return this.autoLayoutSubject.asObservable();
     }
+/************************** MY CODE ***************************/
 
   /**
    * This method will restore the default zoom ratio and offset for
