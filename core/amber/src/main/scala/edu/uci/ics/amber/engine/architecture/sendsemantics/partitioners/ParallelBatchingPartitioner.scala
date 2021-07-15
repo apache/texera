@@ -1,14 +1,12 @@
-package edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy
+package edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners
 
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, DataPayload, EndOfUpstream}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 
 import scala.collection.mutable.ArrayBuffer
 
-abstract class ParallelBatchingPolicyExec extends DataSendingPolicyExec {
+abstract class ParallelBatchingPartitioner extends Partitioner {
   var batches: Array[Array[ITuple]] = _
   var currentSizes: Array[Int] = _
 

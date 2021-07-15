@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.linksemantics
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
-import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.DataSendingPolicy
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 
 abstract class LinkStrategy(
@@ -21,5 +21,5 @@ abstract class LinkStrategy(
 
   // returns Iterable of (sender, sender's sending policy, set of receivers)
   def getPolicies
-      : Iterable[(ActorVirtualIdentity, LinkIdentity, DataSendingPolicy, Seq[ActorVirtualIdentity])]
+      : Iterable[(ActorVirtualIdentity, LinkIdentity, Partitioning, Seq[ActorVirtualIdentity])]
 }

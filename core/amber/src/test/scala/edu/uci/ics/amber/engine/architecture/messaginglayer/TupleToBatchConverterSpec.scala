@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import com.softwaremill.macwire.wire
-import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.OneToOnePolicy
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, EndOfUpstream}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.{
@@ -30,7 +30,7 @@ class TupleToBatchConverterSpec extends AnyFlatSpec with MockFactory {
       LinkIdentity(Option(LayerIdentity()), Option(LayerIdentity()))
     val fakeReceiver = Array[ActorVirtualIdentity](fakeID)
 
-    batchProducer.addPolicy(fakeLink, OneToOnePolicy(10, fakeReceiver))
+    batchProducer.addPolicy(fakeLink, OneToOnePartitioning(10, fakeReceiver))
     tuples.foreach { t =>
       batchProducer.passTupleToDownstream(t)
     }

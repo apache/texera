@@ -1,12 +1,13 @@
-package edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy
+package edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners
 
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, DataPayload, EndOfUpstream}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
+
 import scala.collection.mutable.ArrayBuffer
 
-case class OneToOnePolicyExec(policy: OneToOnePolicy) extends DataSendingPolicyExec {
+case class OneToOnePartitioner(policy: OneToOnePartitioning) extends Partitioner {
   var batch: Array[ITuple] = new Array[ITuple](policy.batchSize)
   var currentSize = 0
 

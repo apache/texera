@@ -1,9 +1,10 @@
-package edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy
+package edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners
 
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 
-case class HashBasedShufflePolicyExec(policy: HashBasedShufflePolicy)
-    extends ParallelBatchingPolicyExec() {
+case class HashBasedShufflePartitioner(policy: HashBasedShufflePartitioning)
+    extends ParallelBatchingPartitioner() {
   override def selectBatchingIndex(tuple: ITuple): Int = {
     val numBuckets = policy.receivers.length
 

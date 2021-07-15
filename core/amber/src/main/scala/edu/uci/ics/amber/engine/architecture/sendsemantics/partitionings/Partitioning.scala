@@ -1,27 +1,27 @@
-package edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy
+package edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings
 
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 /**
-  * Sending policy used by a worker to send data to the downstream workers.
+  * Partitioning used by a worker to send data to the downstream workers.
   */
-sealed trait DataSendingPolicy {
+sealed trait Partitioning {
   val batchSize: Int
   val receivers: Array[ActorVirtualIdentity]
 }
 
-case class HashBasedShufflePolicy(
+case class HashBasedShufflePartitioning(
     batchSize: Int,
     receivers: Array[ActorVirtualIdentity],
     hashColumnIndices: Array[Int]
-) extends DataSendingPolicy {}
+) extends Partitioning {}
 
-case class OneToOnePolicy(
+case class OneToOnePartitioning(
     batchSize: Int,
     receivers: Array[ActorVirtualIdentity]
-) extends DataSendingPolicy {}
+) extends Partitioning {}
 
-case class RoundRobinPolicy(
+case class RoundRobinPartitioning(
     batchSize: Int,
     receivers: Array[ActorVirtualIdentity]
-) extends DataSendingPolicy {}
+) extends Partitioning {}

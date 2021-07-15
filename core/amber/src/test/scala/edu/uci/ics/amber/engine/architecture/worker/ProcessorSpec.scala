@@ -1,7 +1,7 @@
 //package Engine.Architecture.Worker
 //
 //import Engine.Architecture.Breakpoint.LocalBreakpoint.{ConditionalBreakpoint, CountBreakpoint, ExceptionBreakpoint}
-//import Engine.Architecture.SendSemantics.DataTransferPolicy.OneToOnePolicy
+//import Engine.Architecture.SendSemantics.DataTransferPolicy.OneToOnePartitioning
 //import Engine.Architecture.SendSemantics.Routees.DirectRoutee
 //import Engine.Common.AmberMessage.ControlMessage.{Pause, QueryState, Resume}
 //import Engine.Common.AmberMessage.PrincipalMessage.ReportPrincipalPartialCompleted
@@ -72,7 +72,7 @@
 //    val execActor = system.actorOf(Processor.props(new SimpleTupleProcessor, workerTag()))
 //    execActor ? AckedWorkerInitialization
 //    execActor ? UpdateInputLinking(testActor, null)
-//    val output = new OneToOnePolicy(1)
+//    val output = new OneToOnePartitioning(1)
 //    execActor ? UpdateOutputLinking(output, linkTag(), Array(new DirectRoutee(testActor)))
 //    val start = System.nanoTime()
 //    for (i <- 0 until datasetSize) {
@@ -93,7 +93,7 @@
 //    val execActor = system.actorOf(Processor.props(new SimpleTupleProcessor, workerTag()))
 //    execActor ? AckedWorkerInitialization
 //    execActor ? UpdateInputLinking(testActor, null)
-//    val output = new OneToOnePolicy(1)
+//    val output = new OneToOnePartitioning(1)
 //    execActor ? UpdateOutputLinking(output, linkTag(), Array(new DirectRoutee(testActor)))
 //    val start = System.nanoTime()
 //    val generator = new Random()
@@ -117,7 +117,7 @@
 //    val execActor = system.actorOf(Processor.props(new SimpleTupleProcessor, workerTag()))
 //    execActor ? AckedWorkerInitialization
 //    execActor ? UpdateInputLinking(testActor, null)
-//    val output = new OneToOnePolicy(1)
+//    val output = new OneToOnePartitioning(1)
 //    execActor ? UpdateOutputLinking(output, linkTag(), Array(new DirectRoutee(testActor)))
 //    val start = System.nanoTime()
 //    var i = 0
@@ -136,7 +136,7 @@
 //    val execActor = system.actorOf(Processor.props(new SimpleTupleProcessor, workerTag()))
 //    execActor ? AckedWorkerInitialization
 //    execActor ? UpdateInputLinking(testActor, null)
-//    val output = new OneToOnePolicy(1)
+//    val output = new OneToOnePartitioning(1)
 //    execActor ? UpdateOutputLinking(output, linkTag(), Array(new DirectRoutee(testActor)))
 //    execActor ! Pause
 //    execActor ! Resume
@@ -168,7 +168,7 @@
 //    execActor.tell(Resume, probe.ref)
 //    probe.expectMsg(ReportState(WorkerState.Ready))
 //    execActor ? UpdateInputLinking(testActor, null)
-//    val output = new OneToOnePolicy(1)
+//    val output = new OneToOnePartitioning(1)
 //    execActor ? UpdateOutputLinking(output, linkTag(), Array(new DirectRoutee(testActor)))
 //    val start = System.nanoTime()
 //    var i = 0
@@ -190,7 +190,7 @@
 //    execActor ? AckedWorkerInitialization
 //    probe.expectMsg(ReportState(WorkerState.Ready))
 //    execActor ? UpdateInputLinking(testActor, null)
-//    val output = new OneToOnePolicy(1)
+//    val output = new OneToOnePartitioning(1)
 //    execActor ? UpdateOutputLinking(output, linkTag(), Array(new DirectRoutee(testActor)))
 //    val start = System.nanoTime()
 //    var i = 0
@@ -221,7 +221,7 @@
 //    execActor.tell(QueryState, probe.ref)
 //    probe.expectMsg(ReportState(WorkerState.Ready))
 //    execActor ? UpdateInputLinking(testActor, null)
-//    val output = new OneToOnePolicy(1)
+//    val output = new OneToOnePartitioning(1)
 //    execActor ? UpdateOutputLinking(output, linkTag(), Array(new DirectRoutee(testActor)))
 //    val start = System.nanoTime()
 //    var i = 0
@@ -257,7 +257,7 @@
 //    probe.ignoreMsg { case ReportWorkerPartialCompleted(x, y) => true }
 //    probe.expectMsg(ReportState(WorkerState.Ready))
 //    execActor ? UpdateInputLinking(testActor, null)
-//    val output = new OneToOnePolicy(1)
+//    val output = new OneToOnePartitioning(1)
 //    execActor ? UpdateOutputLinking(output, linkTag(), Array(new DirectRoutee(testActor)))
 //    execActor ? AssignBreakpoint(new ExceptionBreakpoint()("ex", 0))
 //    execActor ? AssignBreakpoint(new ConditionalBreakpoint(x => x.getInt(0) >= 5)("cond1", 0))
@@ -308,7 +308,7 @@
 //    probe.ignoreMsg { case ReportWorkerPartialCompleted(x, y) => true }
 //    probe.expectMsg(ReportState(WorkerState.Ready))
 //    execActor ? UpdateInputLinking(testActor, null)
-//    val output = new OneToOnePolicy(1)
+//    val output = new OneToOnePartitioning(1)
 //    execActor ? UpdateOutputLinking(output, linkTag(), Array(new DirectRoutee(testActor)))
 //    execActor ? AssignBreakpoint(new ExceptionBreakpoint()("ex", 0))
 //    execActor ? AssignBreakpoint(new CountBreakpoint(5)("count1", 0))
@@ -345,7 +345,7 @@
 //    probe.ignoreMsg { case ReportWorkerPartialCompleted(x, y) => true }
 //    probe.expectMsg(ReportState(WorkerState.Ready))
 //    execActor ? UpdateInputLinking(testActor, null)
-//    val output = new OneToOnePolicy(1)
+//    val output = new OneToOnePartitioning(1)
 //    execActor ? UpdateOutputLinking(output, linkTag(), Array(new DirectRoutee(testActor)))
 //    execActor ? AssignBreakpoint(new ExceptionBreakpoint()("ex", 0))
 //    execActor ? AssignBreakpoint(new CountBreakpoint(5)("count1", 0))
@@ -382,7 +382,7 @@
 //    probe.ignoreMsg { case ReportWorkerPartialCompleted(x, y) => true }
 //    probe.expectMsg(ReportState(WorkerState.Ready))
 //    execActor ? UpdateInputLinking(testActor, null)
-//    val output = new OneToOnePolicy(1)
+//    val output = new OneToOnePartitioning(1)
 //    execActor ? UpdateOutputLinking(output, linkTag(), Array(new DirectRoutee(testActor)))
 //    execActor ? AssignBreakpoint(new ExceptionBreakpoint()("ex", 0))
 //    execActor ? AssignBreakpoint(new CountBreakpoint(5)("count1", 0))

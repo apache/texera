@@ -1,9 +1,9 @@
 package edu.uci.ics.amber.engine.architecture.linksemantics
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
-import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.{
-  DataSendingPolicy,
-  HashBasedShufflePolicy
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.{
+  Partitioning,
+  HashBasedShufflePartitioning
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 
@@ -14,14 +14,14 @@ class HashBasedShuffle(
     hashColumnIndices: Array[Int]
 ) extends LinkStrategy(from, to, batchSize) {
   override def getPolicies: Iterable[
-    (ActorVirtualIdentity, LinkIdentity, DataSendingPolicy, Seq[ActorVirtualIdentity])
+    (ActorVirtualIdentity, LinkIdentity, Partitioning, Seq[ActorVirtualIdentity])
   ] = {
     assert(from.isBuilt && to.isBuilt)
     from.identifiers.map(x =>
       (
         x,
         id,
-        HashBasedShufflePolicy(batchSize, to.identifiers, hashColumnIndices),
+        HashBasedShufflePartitioning(batchSize, to.identifiers, hashColumnIndices),
         to.identifiers.toSeq
       )
     )

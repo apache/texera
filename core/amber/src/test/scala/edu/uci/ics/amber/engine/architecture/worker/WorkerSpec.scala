@@ -8,7 +8,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   ControlOutputPort,
   TupleToBatchConverter
 }
-import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.OneToOnePolicy
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddOutputPolicyHandler.AddOutputPolicy
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowControlMessage
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
@@ -52,7 +52,7 @@ class WorkerSpec
 
     val mockTag = LinkIdentity(null, null)
 
-    val mockPolicy = OneToOnePolicy(10, Array(identifier2))
+    val mockPolicy = OneToOnePartitioning(10, Array(identifier2))
 
     val worker = TestActorRef(new WorkflowWorker(identifier1, mockOpExecutor, TestProbe().ref) {
       override lazy val batchProducer: TupleToBatchConverter = mockTupleToBatchConverter

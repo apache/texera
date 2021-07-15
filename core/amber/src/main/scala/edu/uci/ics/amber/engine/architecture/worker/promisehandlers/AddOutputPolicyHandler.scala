@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
-import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.DataSendingPolicy
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
 import edu.uci.ics.amber.engine.architecture.worker.WorkerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddOutputPolicyHandler.AddOutputPolicy
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
@@ -8,7 +8,7 @@ import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.Ready
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 
 object AddOutputPolicyHandler {
-  final case class AddOutputPolicy(tag: LinkIdentity, policy: DataSendingPolicy)
+  final case class AddOutputPolicy(tag: LinkIdentity, policy: Partitioning)
       extends ControlCommand[CommandCompleted]
 }
 
