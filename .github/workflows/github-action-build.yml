@@ -43,9 +43,9 @@ jobs:
             ${{ steps.yarn-cache-dir-path.outputs.dir }}
             core/new-gui/node_modules
             core/new-gui/multi-target/node_modules
-          key: ${{ runner.os }}-yarn-test-key-${{ hashFiles('**/yarn.lock') }}
+          key: ${{ runner.os }}-yarn-cache-v1-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
-            ${{ runner.os }}-yarn-test-key-
+            ${{ runner.os }}-yarn-cache-v1-
       - name: Install dependency with yarn ci
         run: yarn --cwd core/new-gui install --frozen-lockfile --progress=false
       - name: Build with yarn
