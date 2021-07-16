@@ -5,30 +5,17 @@ import akka.util.Timeout
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
-  NetworkMessage,
-  RegisterActorRef
-}
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{
-  BatchToTupleConverter,
-  DataOutputPort,
-  NetworkInputPort,
-  TupleToBatchConverter
-}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{NetworkMessage, RegisterActorRef}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{BatchToTupleConverter, DataOutputPort, NetworkInputPort, TupleToBatchConverter}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ShutdownDPThreadHandler.ShutdownDPThread
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ControlPayload,
-  DataPayload,
-  WorkflowControlMessage,
-  WorkflowDataMessage
-}
+import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, DataPayload, WorkflowControlMessage, WorkflowDataMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCHandlerInitializer}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
-import edu.uci.ics.amber.engine.common.statetransition.WorkerState.{Ready, Running, Uninitialized}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
+import edu.uci.ics.amber.engine.common.worker.WorkerState.{Ready, Running, Uninitialized}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.collection.mutable

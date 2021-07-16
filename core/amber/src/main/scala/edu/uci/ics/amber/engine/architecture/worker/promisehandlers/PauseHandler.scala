@@ -3,8 +3,8 @@ package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 import edu.uci.ics.amber.engine.architecture.worker.WorkerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.statetransition.WorkerState
-import edu.uci.ics.amber.engine.common.statetransition.WorkerState.{Paused, Ready, Running}
+import edu.uci.ics.amber.engine.common.worker.WorkerState
+import edu.uci.ics.amber.engine.common.worker.WorkerState.{Paused, Ready, Running}
 
 object PauseHandler {
 

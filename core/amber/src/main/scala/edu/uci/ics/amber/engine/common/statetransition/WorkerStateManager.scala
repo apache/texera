@@ -1,6 +1,8 @@
 package edu.uci.ics.amber.engine.common.statetransition
 
-import edu.uci.ics.amber.engine.common.statetransition.WorkerState._
+
+import edu.uci.ics.amber.engine.common.worker.WorkerState
+import edu.uci.ics.amber.engine.common.worker.WorkerState._
 
 // The following pattern is a good practice of enum in scala
 // We've always used this pattern in the codebase

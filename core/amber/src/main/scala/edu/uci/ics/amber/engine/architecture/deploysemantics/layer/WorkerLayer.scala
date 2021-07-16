@@ -7,8 +7,8 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.Depl
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.RegisterActorRef
 import edu.uci.ics.amber.engine.architecture.worker.{WorkerStatistics, WorkflowWorker}
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
-import edu.uci.ics.amber.engine.common.statetransition.WorkerState
-import edu.uci.ics.amber.engine.common.statetransition.WorkerState.Uninitialized
+import edu.uci.ics.amber.engine.common.worker.WorkerState
+import edu.uci.ics.amber.engine.common.worker.WorkerState.Uninitialized
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   LayerIdentity,
