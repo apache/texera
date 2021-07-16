@@ -1,5 +1,4 @@
 cd amber
-sbt clean
-sbt compile
+sbt clean compile
 cd ..
 ./scripts/gui.sh
