@@ -8,7 +8,7 @@
 //}
 //import Engine.Architecture.DeploySemantics.Layer.ActorLayer
 //import Engine.Architecture.LinkSemantics.OperatorLink
-//import Engine.Architecture.SendSemantics.DataTransferPolicy.{OneToOnePolicy, RoundRobinPolicy}
+//import Engine.Architecture.SendSemantics.DataTransferPolicy.{OneToOnePartitioning, RoundRobinPartitioning}
 //import Engine.Architecture.SendSemantics.Routees.DirectRoutee
 //import Engine.Architecture.Worker.Generator
 //import Engine.Common.AmberMessage.ControlMessage.{Pause, Resume, Start}
@@ -92,7 +92,7 @@
 //    parent.expectMsg(ReportState(PrincipalState.Ready))
 //    val output = Await.result(principal ? GetOutputLayer, timeout.duration).asInstanceOf[ActorLayer]
 //    output.layer.foreach(x =>
-//      x ! UpdateOutputLinking(new OneToOnePolicy(1), linkTag(), Array(new DirectRoutee(testActor)))
+//      x ! UpdateOutputLinking(new OneToOnePartitioning(1), linkTag(), Array(new DirectRoutee(testActor)))
 //    )
 //    principal ! Start
 //    parent.expectMsg(ReportState(PrincipalState.Running))
@@ -118,12 +118,12 @@
 //    val output = Await.result(principal ? GetOutputLayer, timeout.duration).asInstanceOf[ActorLayer]
 //    val input = Await.result(principal ? GetInputLayer, timeout.duration).asInstanceOf[ActorLayer]
 //    execActor ! UpdateOutputLinking(
-//      new RoundRobinPolicy(100),
+//      new RoundRobinPartitioning(100),
 //      linkTag(),
 //      output.layer.map(new DirectRoutee(_))
 //    )
 //    output.layer.foreach(x =>
-//      x ! UpdateOutputLinking(new OneToOnePolicy(1), linkTag(), Array(new DirectRoutee(testActor)))
+//      x ! UpdateOutputLinking(new OneToOnePartitioning(1), linkTag(), Array(new DirectRoutee(testActor)))
 //    )
 //    execActor ! Start
 //    parent.expectMsg(ReportState(PrincipalState.Running))
@@ -148,7 +148,7 @@
 //    val output = Await.result(principal ? GetOutputLayer, timeout.duration).asInstanceOf[ActorLayer]
 //    output.layer.foreach(x =>
 //      x ! UpdateOutputLinking(
-//        new OneToOnePolicy(1),
+//        new OneToOnePartitioning(1),
 //        linkTag(),
 //        Array(new DirectRoutee(receiver.ref))
 //      )
@@ -183,7 +183,7 @@
 //    parent.expectMsg(ReportState(PrincipalState.Ready))
 //    val output = Await.result(principal ? GetOutputLayer, timeout.duration).asInstanceOf[ActorLayer]
 //    output.layer.foreach(x =>
-//      x ! UpdateOutputLinking(new OneToOnePolicy(1), linkTag(), Array(new DirectRoutee(testActor)))
+//      x ! UpdateOutputLinking(new OneToOnePartitioning(1), linkTag(), Array(new DirectRoutee(testActor)))
 //    )
 //    principal ! Start
 //    parent.expectMsg(ReportState(PrincipalState.Running))
@@ -210,7 +210,7 @@
 //    parent.expectMsg(ReportState(PrincipalState.Ready))
 //    val output = Await.result(principal ? GetOutputLayer, timeout.duration).asInstanceOf[ActorLayer]
 //    output.layer.foreach(x =>
-//      x ! UpdateOutputLinking(new OneToOnePolicy(1), linkTag(), Array(new DirectRoutee(testActor)))
+//      x ! UpdateOutputLinking(new OneToOnePartitioning(1), linkTag(), Array(new DirectRoutee(testActor)))
 //    )
 //    principal ! Start
 //    parent.expectMsg(ReportState(PrincipalState.Running))
@@ -239,14 +239,14 @@
 //    val output = Await.result(principal ? GetOutputLayer, timeout.duration).asInstanceOf[ActorLayer]
 //    val input = Await.result(principal ? GetInputLayer, timeout.duration).asInstanceOf[ActorLayer]
 //    execActor ! UpdateOutputLinking(
-//      new RoundRobinPolicy(100),
+//      new RoundRobinPartitioning(100),
 //      linkTag(),
 //      output.layer.map(new DirectRoutee(_))
 //    )
 //    //input.layer.foreach(x => x ! UpdateInputLinking(execActor,layerTag()))
 //    output.layer.foreach(x =>
 //      x ! UpdateOutputLinking(
-//        new OneToOnePolicy(100),
+//        new OneToOnePartitioning(100),
 //        linkTag(),
 //        Array(new DirectRoutee(receiver.ref))
 //      )
@@ -284,14 +284,14 @@
 //    val output = Await.result(principal ? GetOutputLayer, timeout.duration).asInstanceOf[ActorLayer]
 //    val input = Await.result(principal ? GetInputLayer, timeout.duration).asInstanceOf[ActorLayer]
 //    execActor ! UpdateOutputLinking(
-//      new RoundRobinPolicy(100),
+//      new RoundRobinPartitioning(100),
 //      linkTag(),
 //      output.layer.map(new DirectRoutee(_))
 //    )
 //    //input.layer.foreach(x => x ! UpdateInputLinking(execActor,layerTag()))
 //    output.layer.foreach(x =>
 //      x ! UpdateOutputLinking(
-//        new OneToOnePolicy(100),
+//        new OneToOnePartitioning(100),
 //        linkTag(),
 //        Array(new DirectRoutee(testActor))
 //      )
@@ -328,7 +328,7 @@
 //    val output = Await.result(process ? GetOutputLayer, timeout.duration).asInstanceOf[ActorLayer]
 //    output.layer.foreach(x =>
 //      x ! UpdateOutputLinking(
-//        new OneToOnePolicy(100),
+//        new OneToOnePartitioning(100),
 //        linkTag(),
 //        Array(new DirectRoutee(testActor))
 //      )
@@ -360,7 +360,7 @@
 //    val output = Await.result(process ? GetOutputLayer, timeout.duration).asInstanceOf[ActorLayer]
 //    output.layer.foreach(x =>
 //      x ! UpdateOutputLinking(
-//        new OneToOnePolicy(100),
+//        new OneToOnePartitioning(100),
 //        linkTag(),
 //        Array(new DirectRoutee(testActor))
 //      )
@@ -400,7 +400,7 @@
 //    val output = Await.result(process ? GetOutputLayer, timeout.duration).asInstanceOf[ActorLayer]
 //    output.layer.foreach(x =>
 //      x ! UpdateOutputLinking(
-//        new OneToOnePolicy(100),
+//        new OneToOnePartitioning(100),
 //        linkTag(),
 //        Array(new DirectRoutee(testActor))
 //      )
@@ -442,7 +442,7 @@
 //    val output = Await.result(process ? GetOutputLayer, timeout.duration).asInstanceOf[ActorLayer]
 //    output.layer.foreach(x =>
 //      x ! UpdateOutputLinking(
-//        new OneToOnePolicy(100),
+//        new OneToOnePartitioning(100),
 //        linkTag(),
 //        Array(new DirectRoutee(testActor))
 //      )
@@ -488,7 +488,7 @@
 //    val output = Await.result(process ? GetOutputLayer, timeout.duration).asInstanceOf[ActorLayer]
 //    output.layer.foreach(x =>
 //      x ! UpdateOutputLinking(
-//        new OneToOnePolicy(100),
+//        new OneToOnePartitioning(100),
 //        linkTag(),
 //        Array(new DirectRoutee(testActor))
 //      )
@@ -534,7 +534,7 @@
 //    val output = Await.result(process ? GetOutputLayer, timeout.duration).asInstanceOf[ActorLayer]
 //    output.layer.foreach(x =>
 //      x ! UpdateOutputLinking(
-//        new OneToOnePolicy(100),
+//        new OneToOnePartitioning(100),
 //        linkTag(),
 //        Array(new DirectRoutee(testActor))
 //      )
@@ -584,7 +584,7 @@
 //    val output = Await.result(process ? GetOutputLayer, timeout.duration).asInstanceOf[ActorLayer]
 //    output.layer.foreach(x =>
 //      x ! UpdateOutputLinking(
-//        new OneToOnePolicy(100),
+//        new OneToOnePartitioning(100),
 //        linkTag(),
 //        Array(new DirectRoutee(testActor))
 //      )
@@ -634,7 +634,7 @@
 //    val output = Await.result(process ? GetOutputLayer, timeout.duration).asInstanceOf[ActorLayer]
 //    output.layer.foreach(x =>
 //      x ! UpdateOutputLinking(
-//        new OneToOnePolicy(100),
+//        new OneToOnePartitioning(100),
 //        linkTag(),
 //        Array(new DirectRoutee(testActor))
 //      )
@@ -680,7 +680,7 @@
 //    val output = Await.result(process ? GetOutputLayer, timeout.duration).asInstanceOf[ActorLayer]
 //    output.layer.foreach(x =>
 //      x ! UpdateOutputLinking(
-//        new OneToOnePolicy(100),
+//        new OneToOnePartitioning(100),
 //        linkTag(),
 //        Array(new DirectRoutee(testActor))
 //      )
@@ -726,7 +726,7 @@
 //    val output = Await.result(process ? GetOutputLayer, timeout.duration).asInstanceOf[ActorLayer]
 //    output.layer.foreach(x =>
 //      x ! UpdateOutputLinking(
-//        new OneToOnePolicy(100),
+//        new OneToOnePartitioning(100),
 //        linkTag(),
 //        Array(new DirectRoutee(testActor))
 //      )
@@ -781,7 +781,7 @@
 //    val output = Await.result(process ? GetOutputLayer, timeout.duration).asInstanceOf[ActorLayer]
 //    output.layer.foreach(x =>
 //      x ! UpdateOutputLinking(
-//        new OneToOnePolicy(100),
+//        new OneToOnePartitioning(100),
 //        linkTag(),
 //        Array(new DirectRoutee(testActor))
 //      )
