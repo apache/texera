@@ -4,7 +4,7 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partiti
 import edu.uci.ics.amber.engine.architecture.worker.WorkerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
-import edu.uci.ics.amber.engine.common.statetransition2.Ready
+import edu.uci.ics.amber.engine.common.statetransition.WorkerState.Ready
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 
 object AddPartitioningHandler {
@@ -16,7 +16,7 @@ trait AddPartitioningHandler {
   this: WorkerAsyncRPCHandlerInitializer =>
 
   registerHandler { (msg: AddPartitioning, sender) =>
-    stateManager.assertState(Ready())
+    stateManager.assertState(Ready)
     tupleToBatchConverter.addPartitionerWithPartitioning(msg.tag, msg.partitioning)
     CommandCompleted()
   }

@@ -6,7 +6,8 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler
 import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.statetransition2.{Ready, Running, WorkerState}
+import edu.uci.ics.amber.engine.common.statetransition.WorkerState
+import edu.uci.ics.amber.engine.common.statetransition.WorkerState.{Ready, Running}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 object StartHandler {
@@ -17,9 +18,9 @@ trait StartHandler {
   this: WorkerAsyncRPCHandlerInitializer =>
 
   registerHandler { (msg: StartWorker, sender) =>
-    stateManager.assertState(Ready())
+    stateManager.assertState(Ready)
     if (operator.isInstanceOf[ISourceOperatorExecutor]) {
-      stateManager.transitTo(Running())
+      stateManager.transitTo(Running)
       dataProcessor.appendElement(EndMarker)
       dataProcessor.appendElement(EndOfAllMarker)
       stateManager.getCurrentState

@@ -7,7 +7,8 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.Depl
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.RegisterActorRef
 import edu.uci.ics.amber.engine.architecture.worker.{WorkerStatistics, WorkflowWorker}
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
-import edu.uci.ics.amber.engine.common.statetransition2.{Uninitialized, WorkerState}
+import edu.uci.ics.amber.engine.common.statetransition.WorkerState
+import edu.uci.ics.amber.engine.common.statetransition.WorkerState.Uninitialized
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   LayerIdentity,
@@ -69,8 +70,8 @@ class WorkerLayer(
       workerToLayer(workerID) = this
       workerID -> WorkerInfo(
         workerID,
-        Uninitialized(),
-        WorkerStatistics(Uninitialized(), 0, 0)
+        Uninitialized,
+        WorkerStatistics(Uninitialized, 0, 0)
       )
     }.toMap
   }
