@@ -35,12 +35,15 @@
               <span class="time-space"></span>
               Created: {{workflow.creationTime | date:'yyyy-MM-dd HH:mm'}}
             </p>
-            <button (click)="onClickOpenShareAccess(workflow)" class="btn btn-outline-dark add-button"
-                    type="button">
+            <button (click)="onClickOpenShareAccess(workflow)" type="button" mat-button
+                    ngbTooltip="Share the workflow {{workflow.name}} to others" placement="bottom">
               <i class="fa fa-share"></i>
             </button>
+            <button (click)="onClickDuplicateWorkflow(workflow)" type="button" class="duplicate-workflow-btn" mat-button
+                    ngbTooltip="Duplicate the workflow {{workflow.name}}" placement="bottom"><i class="fa fa-copy"></i>
+            </button>
             <button (click)="openNgbdModalDeleteWorkflowComponent(workflow)" class="delete-workflow-btn" mat-button
-                    ngbTooltip="Delete the {{workflow.name}}" placement="bottom"><i class="fa fa-trash"></i>
+                    ngbTooltip="Delete the workflow {{workflow.name}}" placement="bottom"><i class="fa fa-trash"></i>
             </button>
           </mat-list-item>
 

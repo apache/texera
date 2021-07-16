@@ -12,6 +12,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   WorkflowUserAccessDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
+  User,
   Workflow,
   WorkflowOfUser,
   WorkflowUserAccess
@@ -114,16 +115,8 @@ class WorkflowResource {
         } else {
           if (WorkflowAccessResource.hasNoWorkflowAccessRecord(workflow.getWid, user.getUid)) {
             // not owner and not access record --> new record
-            workflowDao.insert(workflow)
-            workflowOfUserDao.insert(new WorkflowOfUser(user.getUid, workflow.getWid))
-            workflowUserAccessDao.insert(
-              new WorkflowUserAccess(
-                user.getUid,
-                workflow.getWid,
-                true, // readPrivilege
-                true // writePrivilege
-              )
-            )
+            insertWorkflow(workflow, user)
+
           } else if (WorkflowAccessResource.hasWriteAccess(workflow.getWid, user.getUid)) {
             // not owner but has write access
             workflowDao.update(workflow)
@@ -138,11 +131,41 @@ class WorkflowResource {
     }
   }
 
-  private def workflowOfUserExists(wid: UInteger, uid: UInteger): Boolean = {
-    workflowOfUserDao.existsById(
-      SqlServer.createDSLContext
-        .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
-        .values(uid, wid)
+  /**
+    * This method creates and insert a new workflow to database
+    *
+    * @param session  HttpSession
+    * @param workflow , a workflow
+    * @return Workflow, which contains the generated wid if not provided
+    */
+  @POST
+  @Path("/create")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def createWorkflow(@Session session: HttpSession, workflow: Workflow): Response = {
+    UserResource.getUser(session) match {
+      case Some(user) =>
+        if (workflow.getWid != null) {
+          Response.status(Response.Status.BAD_REQUEST).build()
+        } else {
+          insertWorkflow(workflow, user)
+          Response.ok(workflowDao.fetchOneByWid(workflow.getWid)).build()
+        }
+      case None =>
+        Response.status(Response.Status.UNAUTHORIZED).build()
+    }
+  }
+
+  private def insertWorkflow(workflow: Workflow, user: User): Unit = {
+    workflowDao.insert(workflow)
+    workflowOfUserDao.insert(new WorkflowOfUser(user.getUid, workflow.getWid))
+    workflowUserAccessDao.insert(
+      new WorkflowUserAccess(
+        user.getUid,
+        workflow.getWid,
+        true, // readPrivilege
+        true // writePrivilege
+      )
     )
   }
 
@@ -166,6 +189,14 @@ class WorkflowResource {
       case None =>
         Response.status(Response.Status.UNAUTHORIZED).build()
     }
+  }
+
+  private def workflowOfUserExists(wid: UInteger, uid: UInteger): Boolean = {
+    workflowOfUserDao.existsById(
+      SqlServer.createDSLContext
+        .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
+        .values(uid, wid)
+    )
   }
 
 }
