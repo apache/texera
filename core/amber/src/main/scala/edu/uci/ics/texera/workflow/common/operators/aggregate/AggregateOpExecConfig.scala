@@ -88,7 +88,7 @@ class AggregateOpExecConfig[P <: AnyRef](
 
   override def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = {
     aggFunc
-      .groupBySchemaFunc(operatorSchemaInfo.inputSchemas(0))
+      .groupByFunc(operatorSchemaInfo.inputSchemas(0))
       .getAttributes
       .toArray
       .indices

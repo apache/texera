@@ -84,8 +84,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
           .add(resultAttribute, AttributeType.DOUBLE, partial)
           .build
       },
-      groupByFunc(),
-      groupBySchemaFunc()
+      groupByFunc()
     )
     new AggregateOpExecConfig[java.lang.Double](
       operatorIdentifier,
@@ -107,8 +106,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
           .add(resultAttribute, AttributeType.INTEGER, partial)
           .build
       },
-      groupByFunc(),
-      groupBySchemaFunc()
+      groupByFunc()
     )
     new AggregateOpExecConfig[Integer](
       operatorIdentifier,
@@ -133,8 +131,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
             .add(resultAttribute, AttributeType.DOUBLE, partial)
             .build
       },
-      groupByFunc(),
-      groupBySchemaFunc()
+      groupByFunc()
     )
     new AggregateOpExecConfig[java.lang.Double](
       operatorIdentifier,
@@ -159,8 +156,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
             .add(resultAttribute, AttributeType.DOUBLE, partial)
             .build
       },
-      groupByFunc(),
-      groupBySchemaFunc()
+      groupByFunc()
     )
     new AggregateOpExecConfig[java.lang.Double](
       operatorIdentifier,
@@ -169,7 +165,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     )
   }
 
-  def groupBySchemaFunc(): Schema => Schema = {
+  def groupByFunc(): Schema => Schema = {
     if (this.groupByKeys == null) null
     else
       schema => {
@@ -181,25 +177,6 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
           groupBySchema = schemaBuilder.build
         }
         groupBySchema
-      }
-  }
-
-  def groupByFunc(): Tuple => Tuple = {
-    if (this.groupByKeys == null) null
-    else
-      tuple => {
-        // Since this is a partially evaluated tuple, there is no actual schema for this
-        // available anywhere. Constructing it once for re-use
-        if (groupBySchema == null) {
-          val schemaBuilder = Schema.newBuilder()
-          groupByKeys.foreach(key => schemaBuilder.add(tuple.getSchema.getAttribute(key)))
-          groupBySchema = schemaBuilder.build
-        }
-        val builder = Tuple.newBuilder(groupBySchema)
-        groupByKeys.foreach(key =>
-          builder.add(tuple.getSchema.getAttribute(key), tuple.getField(key))
-        )
-        builder.build()
       }
   }
 
@@ -232,8 +209,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
           .add(resultAttribute, AttributeType.DOUBLE, value)
           .build
       },
-      groupByFunc(),
-      groupBySchemaFunc()
+      groupByFunc()
     )
     new AggregateOpExecConfig[AveragePartialObj](
       operatorIdentifier,
