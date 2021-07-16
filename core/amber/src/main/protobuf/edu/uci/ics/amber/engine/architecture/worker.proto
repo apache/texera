@@ -11,3 +11,10 @@ enum WorkerState {
   Recovering = 5;
 
 }
+
+message WorkerStatistics{
+  WorkerState workerState = 1;
+  int64 inputRowCount = 2;
+  int64 outputRowCount = 3;
+
+}
