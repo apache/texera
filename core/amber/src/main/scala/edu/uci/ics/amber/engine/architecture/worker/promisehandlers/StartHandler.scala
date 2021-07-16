@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.worker.WorkerState
-import edu.uci.ics.amber.engine.common.worker.WorkerState.{Ready,Running}
+import edu.uci.ics.amber.engine.common.worker.WorkerState.{Ready, Running}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 object StartHandler {

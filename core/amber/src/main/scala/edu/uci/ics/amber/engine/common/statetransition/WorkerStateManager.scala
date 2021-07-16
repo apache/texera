@@ -1,6 +1,5 @@
 package edu.uci.ics.amber.engine.common.statetransition
 
-
 import edu.uci.ics.amber.engine.common.worker.WorkerState
 import edu.uci.ics.amber.engine.common.worker.WorkerState._
 
