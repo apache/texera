@@ -26,6 +26,10 @@ jobs:
         architecture:
           - x64
     steps:
+      - name: Cancel Previous Runs  
+        uses: styfle/cancel-workflow-action@0.9.0
+        with:
+          access_token: ${{ github.token }}
       - name: Checkout Texera
         uses: actions/checkout@v2
       - name: Setup node
@@ -33,35 +37,31 @@ jobs:
         with:
           node-version: ${{ matrix.node_version }}
           architecture: ${{ matrix.architecture }}
-      - name: Cache npm and node_modules
-        uses: actions/cache@v2
+      - uses: actions/cache@v2
         with:
           path: |
-            ~/.npm
             core/new-gui/node_modules
             core/new-gui/multi-target/node_modules
-          key: ${{ runner.os }}-node-with-modules-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-yarn-cache-v3-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
-            ${{ runner.os }}-node-with-modules-
-      - name: Install dependency with npm install
-        run: npm --prefix core/new-gui install --progress=false
-      - name: Backup - Install dependency with npm ci
-        if: ${{ failure() }}
-        run: npm --prefix core/new-gui ci --progress=false
-      - name: Build with npm
-        run: npm run --prefix core/new-gui build --prod --progress=false
+            ${{ runner.os }}-yarn-cache-v3-
+      - name: Install dependency
+        run: yarn --cwd core/new-gui install --frozen-lockfile --progress=false
       - name: Run frontend unit tests
-        run: npm run --prefix core/new-gui test:ci
+        run: yarn --cwd core/new-gui run test:ci
+      - name: Prod build
+        run: yarn --cwd core/new-gui run build
 
   amber:
     runs-on: ubuntu-latest
     steps:
-      - name: Cancel Previous Runs  # add cancel here since this stage is the fastest one.
-        uses: styfle/cancel-workflow-action@0.6.0
+      - name: Cancel Previous Runs  
+        uses: styfle/cancel-workflow-action@0.9.0
         with:
           access_token: ${{ github.token }}
       - name: Checkout Texera
         uses: actions/checkout@v2
+      - uses: coursier/cache-action@v6
       - name: Lint with scalafmt
         run: cd core/amber && sbt scalafmtCheckAll
       - name: Compile with sbt
