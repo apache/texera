@@ -37,19 +37,15 @@ jobs:
         with:
           node-version: ${{ matrix.node_version }}
           architecture: ${{ matrix.architecture }}
-      - name: Get yarn cache directory path
-        id: yarn-cache-dir-path
-        run: echo "::set-output name=dir::$(yarn cache dir)"
       - uses: actions/cache@v2
         id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
         with:
           path: |
-            ${{ steps.yarn-cache-dir-path.outputs.dir }}
             core/new-gui/node_modules
             core/new-gui/multi-target/node_modules
-          key: ${{ runner.os }}-yarn-cache-v2-${{ hashFiles('**/yarn.lock') }}
+          key: ${{ runner.os }}-yarn-cache-v3-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
-            ${{ runner.os }}-yarn-cache-v2-
+            ${{ runner.os }}-yarn-cache-v3-
       - name: Install dependency
         run: yarn --cwd core/new-gui install --frozen-lockfile --progress=false
       - name: Run frontend unit tests
