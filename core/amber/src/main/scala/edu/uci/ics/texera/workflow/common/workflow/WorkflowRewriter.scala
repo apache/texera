@@ -82,8 +82,23 @@ class WorkflowRewriter(
           })
       }
       newOperatorDescriptors = newOperatorDescriptors.reverse
+      removeInvalidLinks()
       WorkflowInfo(newOperatorDescriptors, newOperatorLinks, newBreakpointInfos)
     }
+  }
+
+  private def removeInvalidLinks(): Unit = {
+    val opIDs = newOperatorDescriptors.map(op => op.operatorID).toSet
+    val linkSets = mutable.Set[OperatorLink]()
+    newOperatorLinks.foreach(link => {
+      if (opIDs.contains(link.origin.operatorID) && opIDs.contains(link.destination.operatorID)) {
+        linkSets += link
+      }
+    })
+    newOperatorLinks.clear()
+    linkSets.foreach(link => {
+      newOperatorLinks += link
+    })
   }
 
   private def checkCacheValidity(): Unit = {

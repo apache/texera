@@ -106,17 +106,16 @@ case class WebResultUpdateEvent(updates: Map[String, WebResultUpdate]) extends T
 class WorkflowResultService(val workflowCompiler: WorkflowCompiler) {
 
   // OperatorResultService for each sink operator
-  val operatorResults: Map[String, OperatorResultService] =
-    workflowCompiler.workflow.getSinkOperators
-      .map(sink => {
-        if (workflowCompiler.workflow.getOperator(sink).isInstanceOf[CacheSinkOpDesc]) {
-          val upstreamID = workflowCompiler.workflow.getUpstream(sink).head.operatorID
-          (sink, new OperatorResultService(upstreamID, workflowCompiler))
-        } else {
-          (sink, new OperatorResultService(sink, workflowCompiler))
-        }
-      })
-      .toMap
+  var operatorResults: mutable.HashMap[String, OperatorResultService] =
+    mutable.HashMap[String, OperatorResultService]()
+  workflowCompiler.workflow.getSinkOperators.map(sink => {
+    if (workflowCompiler.workflow.getOperator(sink).isInstanceOf[CacheSinkOpDesc]) {
+      val upstreamID = workflowCompiler.workflow.getUpstream(sink).head.operatorID
+      operatorResults += ((sink, new OperatorResultService(upstreamID, workflowCompiler)))
+    } else {
+      operatorResults += ((sink, new OperatorResultService(sink, workflowCompiler)))
+    }
+  })
 
   def onResultUpdate(resultUpdate: WorkflowResultUpdate, session: Session): Unit = {
 

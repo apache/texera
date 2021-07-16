@@ -196,6 +196,8 @@ class WorkflowWebsocketResource {
   var operatorRecord: mutable.HashMap[String, OperatorDescriptor] =
     mutable.HashMap[String, OperatorDescriptor]()
 
+  var previousWorkflowResultService: WorkflowResultService = _
+
   def executeWorkflow(session: Session, request: ExecuteWorkflowRequest): Unit = {
     val context = new WorkflowContext
     val jobID = Integer.toString(WorkflowWebsocketResource.nextJobID.incrementAndGet)
@@ -232,6 +234,19 @@ class WorkflowWebsocketResource {
     val workflowTag = WorkflowIdentity(jobID)
 
     val workflowResultService = new WorkflowResultService(texeraWorkflowCompiler)
+    if (previousWorkflowResultService == null) {
+      previousWorkflowResultService = workflowResultService
+    } else {
+      val previousResults = previousWorkflowResultService.operatorResults
+      var results = workflowResultService.operatorResults
+      previousResults.foreach(e => {
+        val upID =
+          previousWorkflowResultService.workflowCompiler.workflow.getUpstream(e._1).head.operatorID
+        if (cachedOperators.contains(upID) && !results.contains(upID)) {
+          results += ((upID, e._2))
+        }
+      })
+    }
     sessionResults(session.getId) = workflowResultService
 
     val eventListener = ControllerEventListener(
