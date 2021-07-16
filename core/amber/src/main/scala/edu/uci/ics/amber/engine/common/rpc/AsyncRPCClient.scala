@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, VirtualIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 import scala.collection.mutable
 
@@ -31,11 +31,10 @@ import scala.collection.mutable
   */
 object AsyncRPCClient {
 
-  def noReplyNeeded(id: Long): Boolean = id < 0
-
   final val IgnoreReply = -1
-
   final val IgnoreReplyAndDoNotLog = -2
+
+  def noReplyNeeded(id: Long): Boolean = id < 0
 
   /** The invocation of a control command
     * @param commandID
@@ -53,21 +52,13 @@ object AsyncRPCClient {
 
 class AsyncRPCClient(controlOutputPort: ControlOutputPort, logger: WorkflowLogger) {
 
-  private var promiseID = 0L
-
   private val unfulfilledPromises = mutable.LongMap[WorkflowPromise[_]]()
+  private var promiseID = 0L
 
   def send[T](cmd: ControlCommand[T], to: ActorVirtualIdentity): Future[T] = {
     val (p, id) = createPromise[T]()
     controlOutputPort.sendTo(to, ControlInvocation(id, cmd))
     p
-  }
-
-  private def createPromise[T](): (Promise[T], Long) = {
-    promiseID += 1
-    val promise = new WorkflowPromise[T]()
-    unfulfilledPromises(promiseID) = promise
-    (promise, promiseID)
   }
 
   def fulfillPromise(ret: ReturnPayload): Unit = {
@@ -78,7 +69,7 @@ class AsyncRPCClient(controlOutputPort: ControlOutputPort, logger: WorkflowLogge
     }
   }
 
-  def logControlReply(ret: ReturnPayload, sender: VirtualIdentity): Unit = {
+  def logControlReply(ret: ReturnPayload, sender: ActorVirtualIdentity): Unit = {
     if (ret.originalCommandID == AsyncRPCClient.IgnoreReplyAndDoNotLog) {
       return
     }
@@ -94,6 +85,13 @@ class AsyncRPCClient(controlOutputPort: ControlOutputPort, logger: WorkflowLogge
         s"receive reply: null from ${sender.toString} (controlID: ${ret.originalCommandID})"
       )
     }
+  }
+
+  private def createPromise[T](): (Promise[T], Long) = {
+    promiseID += 1
+    val promise = new WorkflowPromise[T]()
+    unfulfilledPromises(promiseID) = promise
+    (promise, promiseID)
   }
 
 }

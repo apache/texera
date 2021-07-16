@@ -5,15 +5,15 @@ import akka.util.Timeout
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
-  NetworkMessage,
-  RegisterActorRef
-}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   BatchToTupleConverter,
   DataOutputPort,
   NetworkInputPort,
   TupleToBatchConverter
+}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
+  NetworkMessage,
+  RegisterActorRef
 }
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ShutdownDPThreadHandler.ShutdownDPThread
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
@@ -23,11 +23,12 @@ import edu.uci.ics.amber.engine.common.ambermessage.{
   WorkflowControlMessage,
   WorkflowDataMessage
 }
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCHandlerInitializer}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager._
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, VirtualIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.collection.mutable
@@ -48,11 +49,6 @@ class WorkflowWorker(
     operator: IOperatorExecutor,
     parentNetworkCommunicationActorRef: ActorRef
 ) extends WorkflowActor(identifier, parentNetworkCommunicationActorRef) {
-  implicit val ec: ExecutionContext = context.dispatcher
-  implicit val timeout: Timeout = 5.seconds
-
-  val workerStateManager: WorkerStateManager = new WorkerStateManager()
-
   lazy val pauseManager: PauseManager = wire[PauseManager]
   lazy val dataProcessor: DataProcessor = wire[DataProcessor]
   lazy val dataInputPort: NetworkInputPort[DataPayload] =
@@ -63,7 +59,9 @@ class WorkflowWorker(
   lazy val batchProducer: TupleToBatchConverter = wire[TupleToBatchConverter]
   lazy val tupleProducer: BatchToTupleConverter = wire[BatchToTupleConverter]
   lazy val breakpointManager: BreakpointManager = wire[BreakpointManager]
-
+  implicit val ec: ExecutionContext = context.dispatcher
+  implicit val timeout: Timeout = 5.seconds
+  val workerStateManager: WorkerStateManager = new WorkerStateManager()
   val rpcHandlerInitializer: AsyncRPCHandlerInitializer =
     wire[WorkerAsyncRPCHandlerInitializer]
 
@@ -92,18 +90,21 @@ class WorkflowWorker(
     }
   }
 
-  final def handleDataPayload(from: VirtualIdentity, dataPayload: DataPayload): Unit = {
+  final def handleDataPayload(from: ActorVirtualIdentity, dataPayload: DataPayload): Unit = {
     if (workerStateManager.getCurrentState == Ready) {
       workerStateManager.transitTo(Running)
       asyncRPCClient.send(
         WorkerStateUpdated(workerStateManager.getCurrentState),
-        ActorVirtualIdentity.Controller
+        CONTROLLER
       )
     }
     tupleProducer.processDataPayload(from, dataPayload)
   }
 
-  final def handleControlPayload(from: VirtualIdentity, controlPayload: ControlPayload): Unit = {
+  final def handleControlPayload(
+      from: ActorVirtualIdentity,
+      controlPayload: ControlPayload
+  ): Unit = {
     // let dp thread process it
     assert(from.isInstanceOf[ActorVirtualIdentity])
     controlPayload match {
@@ -124,7 +125,7 @@ class WorkflowWorker(
     // shutdown dp thread by sending a command
     dataProcessor.enqueueCommand(
       ControlInvocation(AsyncRPCClient.IgnoreReply, ShutdownDPThread()),
-      ActorVirtualIdentity.Self
+      SELF
     )
     logger.logInfo("stopped!")
   }

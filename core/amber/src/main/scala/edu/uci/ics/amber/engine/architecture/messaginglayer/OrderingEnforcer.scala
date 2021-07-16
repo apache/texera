@@ -1,14 +1,13 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
-import edu.uci.ics.amber.engine.common.virtualidentity.VirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 import scala.collection.mutable
-import scala.reflect.ClassTag
 
 object OrderingEnforcer {
   def reorderMessage[V](
-      seqMap: mutable.AnyRefMap[VirtualIdentity, OrderingEnforcer[V]],
-      sender: VirtualIdentity,
+      seqMap: mutable.AnyRefMap[ActorVirtualIdentity, OrderingEnforcer[V]],
+      sender: ActorVirtualIdentity,
       seq: Long,
       payload: V
   ): Option[Iterable[V]] = {
@@ -27,8 +26,8 @@ object OrderingEnforcer {
 /* The abstracted FIFO/exactly-once logic */
 class OrderingEnforcer[T] {
 
-  var current = 0L
   val ofoMap = new mutable.LongMap[T]
+  var current = 0L
 
   def isDuplicated(sequenceNumber: Long): Boolean =
     sequenceNumber < current || ofoMap.contains(sequenceNumber)

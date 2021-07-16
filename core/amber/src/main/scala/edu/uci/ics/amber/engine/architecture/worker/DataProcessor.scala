@@ -5,22 +5,20 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOpe
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.messaginglayer.TupleToBatchConverter
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue._
-import edu.uci.ics.amber.engine.common.{InputExhausted, IOperatorExecutor, WorkflowLogger}
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
+import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, WorkflowLogger}
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
-import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
+import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.Completed
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  LinkIdentity,
-  VirtualIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 import edu.uci.ics.amber.error.ErrorUtils.safely
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
-import java.util.concurrent.{Executors, ExecutorService, Future}
+import java.util.concurrent.{ExecutorService, Executors, Future}
 
 class DataProcessor( // dependencies:
     logger: WorkflowLogger, // logger of the worker actor
@@ -148,7 +146,7 @@ class DataProcessor( // dependencies:
           currentInputTuple = Right(InputExhausted())
           handleInputTuple()
           if (currentInputLink != null) {
-            asyncRPCClient.send(LinkCompleted(currentInputLink), ActorVirtualIdentity.Controller)
+            asyncRPCClient.send(LinkCompleted(currentInputLink), CONTROLLER)
           }
         case EndOfAllMarker =>
           // end of processing, break DP loop
@@ -160,7 +158,7 @@ class DataProcessor( // dependencies:
     }
     // Send Completed signal to worker actor.
     logger.logInfo(s"${operator.toString} completed")
-    asyncRPCClient.send(WorkerExecutionCompleted(), ActorVirtualIdentity.Controller)
+    asyncRPCClient.send(WorkerExecutionCompleted(), CONTROLLER)
     stateManager.transitTo(Completed)
     disableDataQueue()
     processControlCommandsAfterCompletion()
@@ -170,16 +168,17 @@ class DataProcessor( // dependencies:
     if (currentInputTuple.isLeft) {
       asyncRPCClient.send(
         LocalOperatorException(currentInputTuple.left.get, e),
-        ActorVirtualIdentity.Controller
+        CONTROLLER
       )
     } else {
       asyncRPCClient.send(
         LocalOperatorException(ITuple("input exhausted"), e),
-        ActorVirtualIdentity.Controller
+        CONTROLLER
       )
     }
     logger.logWarning(e.getLocalizedMessage + "\n" + e.getStackTrace.mkString("\n"))
-    pauseManager.pause()
+    // invoke a pause in-place
+    asyncRPCServer.execute(PauseWorker(), SELF)
   }
 
   private[this] def handleInputTuple(): Unit = {
@@ -227,11 +226,11 @@ class DataProcessor( // dependencies:
     processControlCommand(control.cmd, control.from)
   }
 
-  private[this] def processControlCommand(cmd: ControlPayload, from: VirtualIdentity): Unit = {
+  private[this] def processControlCommand(cmd: ControlPayload, from: ActorVirtualIdentity): Unit = {
     cmd match {
       case invocation: ControlInvocation =>
         asyncRPCServer.logControlInvocation(invocation, from)
-        asyncRPCServer.receive(invocation, from.asInstanceOf[ActorVirtualIdentity])
+        asyncRPCServer.receive(invocation, from)
       case ret: ReturnPayload =>
         asyncRPCClient.logControlReply(ret, from)
         asyncRPCClient.fulfillPromise(ret)
