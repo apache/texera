@@ -15,11 +15,8 @@ import scala.collection.mutable
 class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
   var rewriter: WorkflowRewriter = _
 
-  def operatorToString(operator: OperatorDescriptor): String = {
-    var str = operator.toString
-    val start = str.indexOf('[')
-    str = str.substring(start + 1, str.length - 1)
-    str
+  def operatorToString(operator: OperatorDescriptor): OperatorDescriptor = {
+    operator
   }
 
   it should "return null" in {
@@ -53,11 +50,11 @@ class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
     rewriter = new WorkflowRewriter(
       workflowInfo,
       mutable.HashMap[String, mutable.MutableList[Tuple]](),
-      mutable.HashMap[String, String](),
+      mutable.HashMap[String, OperatorDescriptor](),
       mutable.HashMap[String, CacheSourceOpDesc](),
       mutable.HashMap[String, CacheSinkOpDesc]()
     )
-    rewriter.operatorRecord = mutable.HashMap[String, String]()
+    rewriter.operatorRecord = mutable.HashMap[String, OperatorDescriptor]()
     val rewrittenWorkflowInfo = rewriter.rewrite
     rewrittenWorkflowInfo.operators.foreach(operator => {
       assert(operators.contains(operator))
@@ -86,7 +83,7 @@ class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
     val operatorOutputCache = mutable.HashMap[String, mutable.MutableList[Tuple]]()
     cacheSinkOperator.schema = new Schema()
     operatorOutputCache += ((sourceOperator.operatorID, tuples))
-    val cachedOperators = mutable.HashMap[String, String]()
+    val cachedOperators = mutable.HashMap[String, OperatorDescriptor]()
     cachedOperators += ((sourceOperator.operatorID, operatorToString(sourceOperator)))
     val cacheSourceOperators = mutable.HashMap[String, CacheSourceOpDesc]()
     cacheSourceOperators += ((sourceOperator.operatorID, cacheSourceOperator))
@@ -102,7 +99,7 @@ class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
       cacheSinkOperators
     )
 
-    rewriter.operatorRecord = mutable.HashMap[String, String]()
+    rewriter.operatorRecord = mutable.HashMap[String, OperatorDescriptor]()
     rewriter.operatorRecord += ((sourceOperator.operatorID, operatorToString(sourceOperator)))
     val rewrittenWorkflowInfo = rewriter.rewrite
     assert(2.equals(rewrittenWorkflowInfo.operators.size))
@@ -129,7 +126,7 @@ class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
     workflowInfo.cachedOperatorIDs = mutable.MutableList(sourceOperator.operatorID)
 
     val operatorOutputCache = mutable.HashMap[String, mutable.MutableList[Tuple]]()
-    val cachedOperators = mutable.HashMap[String, String]()
+    val cachedOperators = mutable.HashMap[String, OperatorDescriptor]()
     val cacheSourceOperators = mutable.HashMap[String, CacheSourceOpDesc]()
     val cacheSinkOperators = mutable.HashMap[String, CacheSinkOpDesc]()
 
@@ -141,7 +138,7 @@ class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
       cacheSinkOperators
     )
 
-    rewriter.operatorRecord = mutable.HashMap[String, String]()
+    rewriter.operatorRecord = mutable.HashMap[String, OperatorDescriptor]()
     val rewrittenWorkflowInfo = rewriter.rewrite
     assert(3.equals(rewrittenWorkflowInfo.operators.size))
     assert(rewrittenWorkflowInfo.operators.contains(sourceOperator))
@@ -173,7 +170,7 @@ class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
     workflowInfo.cachedOperatorIDs = mutable.MutableList(sourceOperator.operatorID)
 
     val operatorOutputCache = mutable.HashMap[String, mutable.MutableList[Tuple]]()
-    val cachedOperators = mutable.HashMap[String, String]()
+    val cachedOperators = mutable.HashMap[String, OperatorDescriptor]()
     val cacheSourceOperators = mutable.HashMap[String, CacheSourceOpDesc]()
     val cacheSinkOperators = mutable.HashMap[String, CacheSinkOpDesc]()
 
@@ -188,7 +185,7 @@ class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
       cacheSinkOperators
     )
 
-    rewriter.operatorRecord = mutable.HashMap[String, String]()
+    rewriter.operatorRecord = mutable.HashMap[String, OperatorDescriptor]()
     val rewrittenWorkflowInfo = rewriter.rewrite
     assert(4.equals(rewrittenWorkflowInfo.operators.size))
     assert(rewrittenWorkflowInfo.operators.contains(sourceOperator))
@@ -230,7 +227,7 @@ class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
     workflowInfo.cachedOperatorIDs = mutable.MutableList(cachedOperatorID)
     operatorOutputCache += ((cachedOperatorID, tuples))
 
-    val cachedOperators = mutable.HashMap[String, String]()
+    val cachedOperators = mutable.HashMap[String, OperatorDescriptor]()
     cachedOperators += ((cachedOperatorID, operatorToString(filterOperator)))
     val cacheSourceOperators = mutable.HashMap[String, CacheSourceOpDesc]()
     cacheSourceOperators += ((cachedOperatorID, cacheSourceOperator))
@@ -247,7 +244,7 @@ class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
       cacheSinkOperators
     )
 
-    rewriter.operatorRecord = mutable.HashMap[String, String]()
+    rewriter.operatorRecord = mutable.HashMap[String, OperatorDescriptor]()
     rewriter.operatorRecord += ((sourceOperator.operatorID, operatorToString(sourceOperator)))
     rewriter.operatorRecord += ((filterOperator.operatorID, operatorToString(filterOperator)))
 
@@ -291,7 +288,7 @@ class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
     workflowInfo.cachedOperatorIDs = mutable.MutableList(cachedOperatorID)
     operatorOutputCache += ((cachedOperatorID, tuples))
 
-    val cachedOperators = mutable.HashMap[String, String]()
+    val cachedOperators = mutable.HashMap[String, OperatorDescriptor]()
     cachedOperators += ((cachedOperatorID, operatorToString(filterOperator)))
     val cacheSourceOperators = mutable.HashMap[String, CacheSourceOpDesc]()
     cacheSourceOperators += ((cachedOperatorID, cacheSourceOperator))
@@ -308,7 +305,7 @@ class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
       cacheSinkOperators
     )
 
-    rewriter.operatorRecord = mutable.HashMap[String, String]()
+    rewriter.operatorRecord = mutable.HashMap[String, OperatorDescriptor]()
     val modifiedSourceOperator = new CSVScanSourceOpDesc()
     rewriter.operatorRecord += (
       (
