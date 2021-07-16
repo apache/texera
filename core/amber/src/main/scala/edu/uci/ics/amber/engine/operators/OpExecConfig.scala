@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{WorkerInfo, 
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.principal.{OperatorState, OperatorStatistics}
 import edu.uci.ics.amber.engine.common.WorkflowLogger
-import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager._
+import edu.uci.ics.amber.engine.common.statetransition2._
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   LayerIdentity,
@@ -47,18 +47,18 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
 
   def getState: OperatorState = {
     val workerStates = getAllWorkerStates
-    if (workerStates.forall(_ == Completed)) {
+    if (workerStates.forall(_ == Completed())) {
       return OperatorState.Completed
     }
-    if (workerStates.exists(_ == Running)) {
+    if (workerStates.exists(_ == Running())) {
       return OperatorState.Running
     }
-    val unCompletedWorkerStates = workerStates.filter(_ != Completed)
-    if (unCompletedWorkerStates.forall(_ == Uninitialized)) {
+    val unCompletedWorkerStates = workerStates.filter(_ != Completed())
+    if (unCompletedWorkerStates.forall(_ == Uninitialized())) {
       OperatorState.Uninitialized
-    } else if (unCompletedWorkerStates.forall(_ == Paused)) {
+    } else if (unCompletedWorkerStates.forall(_ == Paused())) {
       OperatorState.Paused
-    } else if (unCompletedWorkerStates.forall(_ == Ready)) {
+    } else if (unCompletedWorkerStates.forall(_ == Ready())) {
       OperatorState.Ready
     } else {
       OperatorState.Unknown

@@ -17,7 +17,7 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
-import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.{Completed, Running}
+import edu.uci.ics.amber.engine.common.statetransition2.{Completed, Running}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{
@@ -82,10 +82,10 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       timeout: FiniteDuration = 5.seconds
   ): Unit = {
     val deadline = timeout.fromNow
-    while (deadline.hasTimeLeft() && workerStateManager.getCurrentState != Completed) {
+    while (deadline.hasTimeLeft() && workerStateManager.getCurrentState != Completed()) {
       //wait
     }
-    assert(workerStateManager.getCurrentState == Completed)
+    assert(workerStateManager.getCurrentState == Completed())
   }
 
   def waitForControlProcessing(dp: DataProcessor, timeout: FiniteDuration = 5.seconds): Unit = {
@@ -102,7 +102,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
     val operator = mock[OperatorExecutor]
     val asyncRPCServer: AsyncRPCServer = null
-    val workerStateManager: WorkerStateManager = new WorkerStateManager(Running)
+    val workerStateManager: WorkerStateManager = new WorkerStateManager(Running())
     inAnyOrder {
       (batchProducer.emitEndOfUpstream _).expects().anyNumberOfTimes()
       (asyncRPCClient.send[CommandCompleted] _).expects(*, *).anyNumberOfTimes()
@@ -126,7 +126,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   "data processor" should "prioritize control messages" in {
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
     val operator = mock[OperatorExecutor]
-    val workerStateManager: WorkerStateManager = new WorkerStateManager(Running)
+    val workerStateManager: WorkerStateManager = new WorkerStateManager(Running())
     val asyncRPCServer: AsyncRPCServer = mock[AsyncRPCServer]
     inAnyOrder {
       (asyncRPCServer.logControlInvocation _).expects(*, *).anyNumberOfTimes()
@@ -162,7 +162,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   "data processor" should "process control command without inputting data" in {
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
     val operator = mock[OperatorExecutor]
-    val workerStateManager: WorkerStateManager = new WorkerStateManager(Running)
+    val workerStateManager: WorkerStateManager = new WorkerStateManager(Running())
     val asyncRPCServer: AsyncRPCServer = mock[AsyncRPCServer]
     inAnyOrder {
       (operator.open _).expects().once()
@@ -189,7 +189,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
     (asyncRPCClient.send _).expects(*, *).anyNumberOfTimes()
     val asyncRPCServer: AsyncRPCServer = wire[AsyncRPCServer]
-    val workerStateManager: WorkerStateManager = new WorkerStateManager(Running)
+    val workerStateManager: WorkerStateManager = new WorkerStateManager(Running())
     val dp: DataProcessor = wire[DataProcessor]
     val handlerInitializer = wire[WorkerAsyncRPCHandlerInitializer]
     inSequence {

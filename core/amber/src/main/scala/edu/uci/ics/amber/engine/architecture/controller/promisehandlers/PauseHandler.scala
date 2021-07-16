@@ -16,11 +16,7 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryCurrentInputTupleHandler.QueryCurrentInputTuple
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
-import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.{
-  Completed,
-  Paused,
-  Running
-}
+import edu.uci.ics.amber.engine.common.statetransition2._
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 

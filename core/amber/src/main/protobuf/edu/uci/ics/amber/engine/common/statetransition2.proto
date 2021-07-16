@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package edu.uci.ics.amber.engine.common;
+
+message Uninitialized{}
+message Ready{}
+message Running{}
+message Paused{}
+message Completed{}
+message Recovering{}
+
+message WorkerState{
+  oneof sealed_value {
+    Uninitialized uninitialized = 1;
+    Ready ready = 2;
+    Running running = 3;
+    Paused paused = 4;
+    Completed completed = 5;
+    Recovering recovering = 6;
+  }
+
+}
