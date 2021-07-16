@@ -13,15 +13,19 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.{
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.linksemantics.{AllToOne, HashBasedShuffle}
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  LayerIdentity,
+  OperatorIdentity
+}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
 class AggregateOpExecConfig[P <: AnyRef](
     id: OperatorIdentity,
-    val aggFunc: DistributedAggregation[P]
+    val aggFunc: DistributedAggregation[P],
+    operatorSchemaInfo: OperatorSchemaInfo
 ) extends OpExecConfig(id) {
 
   override lazy val topology: Topology = {
@@ -75,14 +79,20 @@ class AggregateOpExecConfig[P <: AnyRef](
             partialLayer,
             finalLayer,
             Constants.defaultBatchSize,
-            x => {
-              val tuple = x.asInstanceOf[Tuple]
-              aggFunc.groupByFunc(tuple).hashCode()
-            }
+            getPartitionColumnIndices(partialLayer.id)
           )
         )
       )
     }
+  }
+
+  override def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = {
+    aggFunc
+      .groupByFunc(operatorSchemaInfo.inputSchemas(0))
+      .getAttributes
+      .toArray
+      .indices
+      .toArray
   }
 
   override def assignBreakpoint(

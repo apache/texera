@@ -8,6 +8,7 @@ import edu.uci.ics.texera.workflow.common.operators.aggregate.PartialAggregateOp
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 
+import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.{JavaConverters, mutable}
 
 object PartialAggregateOpExec {
@@ -32,7 +33,12 @@ class PartialAggregateOpExec[Partial <: AnyRef](
   ): scala.Iterator[Tuple] = {
     tuple match {
       case Left(t) =>
-        val groupByKey = if (aggFunc == null) null else aggFunc.groupByFunc(t)
+        val groupBySchema = if (aggFunc == null) null else aggFunc.groupByFunc(t.getSchema)
+        val builder = Tuple.newBuilder(groupBySchema)
+        groupBySchema.getAttributeNames.foreach(attrName =>
+          builder.add(t.getSchema.getAttribute(attrName), t.getField(attrName))
+        )
+        val groupByKey = if (aggFunc == null) null else builder.build()
         // TODO Find a way to get this from the OpDesc. Since this is generic, trying to get the
         // right schema from there is a bit challenging.
         // See https://github.com/Texera/texera/pull/1166#discussion_r654863854

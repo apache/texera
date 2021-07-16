@@ -82,7 +82,7 @@ import { WorkflowEditorComponent } from './workspace/component/workflow-editor/w
 import { WorkspaceComponent } from './workspace/component/workspace.component';
 import { ResultDownloadComponent } from './workspace/component/navigation/result-download/result-download.component';
 import { GoogleApiModule, NG_GAPI_CONFIG } from 'ng-gapi';
-import {NgbdModalShareAccessComponent} from "./dashboard/component/feature-container/saved-workflow-section/ngbd-modal-share-access/ngbd-modal-share-access.component";
+import {NgbdModalShareAccessComponent} from './dashboard/component/feature-container/saved-workflow-section/ngbd-modal-share-access/ngbd-modal-share-access.component';
 
 registerLocaleData(en);
 
