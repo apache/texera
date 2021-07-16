@@ -8,11 +8,10 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   ControlOutputPort,
   TupleToBatchConverter
 }
-import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.DataSendingPolicy
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddOutputPolicyHandler.AddOutputPolicy
-import edu.uci.ics.amber.engine.common.ambermessage.{DataPayload, WorkflowControlMessage}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.CommandCompleted
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowControlMessage
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
@@ -53,26 +52,13 @@ class WorkerSpec
 
     val mockTag = LinkIdentity(null, null)
 
-    val mockPolicy = new DataSendingPolicy(mockTag, 10, Array(identifier2)) {
-      override def addTupleToBatch(tuple: ITuple): Option[(ActorVirtualIdentity, DataPayload)] =
-        None
-
-      override def noMore(): Array[(ActorVirtualIdentity, DataPayload)] = { Array() }
-
-      override def reset(): Unit = {}
-    }
-
-    inSequence {
-      (mockTupleToBatchConverter.addPolicy _).expects(mockPolicy)
-      (mockControlOutputPort.sendTo _)
-        .expects(CONTROLLER, ReturnPayload(0, CommandCompleted()))
-    }
+    val mockPolicy = OneToOnePartitioning(10, Array(identifier2))
 
     val worker = TestActorRef(new WorkflowWorker(identifier1, mockOpExecutor, TestProbe().ref) {
       override lazy val batchProducer: TupleToBatchConverter = mockTupleToBatchConverter
       override lazy val controlOutputPort: ControlOutputPort = mockControlOutputPort
     })
-    val invocation = ControlInvocation(0, AddOutputPolicy(mockPolicy))
+    val invocation = ControlInvocation(0, AddPartitioning(mockTag, mockPolicy))
     worker ! NetworkMessage(
       0,
       WorkflowControlMessage(CONTROLLER, 0, invocation)

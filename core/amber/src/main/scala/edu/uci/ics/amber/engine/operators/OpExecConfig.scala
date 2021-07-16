@@ -7,9 +7,8 @@ import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.principal.{OperatorState, OperatorStatistics}
 import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager._
-import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
   LayerIdentity,
   LinkIdentity,
   OperatorIdentity
@@ -23,9 +22,28 @@ import scala.collection.mutable
 abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
 
   lazy val topology: Topology = null
-  val opExecConfigLogger = WorkflowLogger(s"OpExecConfig $id")
+  val opExecConfigLogger: WorkflowLogger = WorkflowLogger(s"OpExecConfig $id")
   var inputToOrdinalMapping = new mutable.HashMap[LinkIdentity, Int]()
   var attachedBreakpoints = new mutable.HashMap[String, GlobalBreakpoint[_]]()
+
+  def getAllWorkers: Iterable[ActorVirtualIdentity] = topology.layers.flatMap(l => l.identifiers)
+
+  def getWorker(id: ActorVirtualIdentity): WorkerInfo = {
+    val layer = topology.layers.find(l => l.workers.contains(id)).get
+    layer.workers(id)
+  }
+
+  def setAllWorkerState(state: WorkerState): Unit = {
+    topology.layers.foreach { layer =>
+      (0 until layer.numWorkers).foreach(layer.states.update(_, state))
+    }
+  }
+
+  def getLayerFromWorkerID(id: ActorVirtualIdentity): WorkerLayer =
+    topology.layers.find(_.identifiers.contains(id)).get
+
+  def getOperatorStatistics: OperatorStatistics =
+    OperatorStatistics(getState, getInputRowCount, getOutputRowCount)
 
   def getState: OperatorState = {
     val workerStates = getAllWorkerStates
@@ -47,30 +65,11 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
     }
   }
 
-  def getAllWorkers: Iterable[ActorVirtualIdentity] = topology.layers.flatMap(l => l.identifiers)
-
   def getAllWorkerStates: Iterable[WorkerState] = topology.layers.flatMap(l => l.states)
-
-  def getWorker(id: ActorVirtualIdentity): WorkerInfo = {
-    val layer = topology.layers.find(l => l.workers.contains(id)).get
-    layer.workers(id)
-  }
-
-  def setAllWorkerState(state: WorkerState): Unit = {
-    topology.layers.foreach { layer =>
-      (0 until layer.numWorkers).foreach(layer.states.update(_, state))
-    }
-  }
-
-  def getLayerFromWorkerID(id: ActorVirtualIdentity): WorkerLayer =
-    topology.layers.find(_.identifiers.contains(id)).get
 
   def getInputRowCount: Long = topology.layers.head.statistics.map(_.inputRowCount).sum
 
   def getOutputRowCount: Long = topology.layers.last.statistics.map(_.outputRowCount).sum
-
-  def getOperatorStatistics: OperatorStatistics =
-    OperatorStatistics(getState, getInputRowCount, getOutputRowCount)
 
   def checkStartDependencies(workflow: Workflow): Unit = {
     //do nothing by default
@@ -82,7 +81,7 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
     this.inputToOrdinalMapping.update(input, ordinal)
   }
 
-  def getShuffleHashFunction(layerTag: LayerIdentity): ITuple => Int = ???
+  def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = ???
 
   def assignBreakpoint(breakpoint: GlobalBreakpoint[_]): Array[ActorVirtualIdentity]
 

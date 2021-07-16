@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.common.operators.aggregate
 
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
 /**
   * This class defines the necessary functions required by a distributed aggregation.
@@ -34,5 +35,5 @@ case class DistributedAggregation[P <: AnyRef](
     // PartialObject => FinalObject
     finalAgg: P => Tuple,
     // optional: group by function, calculate a group by key for a tuple
-    groupByFunc: Tuple => Tuple = null
+    groupByFunc: Schema => Schema = null
 )

@@ -154,7 +154,7 @@ class Workflow(
         sender,
         receiver,
         Constants.defaultBatchSize,
-        to._1.getShuffleHashFunction(sender.id)
+        to._1.getPartitionColumnIndices(sender.id)
       )
     } else if (to._1.isInstanceOf[SinkOpExecConfig]) {
       new AllToOne(sender, receiver, Constants.defaultBatchSize)
