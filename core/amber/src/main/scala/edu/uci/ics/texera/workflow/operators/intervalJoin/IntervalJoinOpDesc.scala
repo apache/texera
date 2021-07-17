@@ -40,7 +40,7 @@ class IntervalJoinOpDesc() extends OperatorDescriptor {
   @JsonProperty(required = true, index = 2)
   @JsonSchemaTitle("Interval Constant")
   @JsonPropertyDescription(
-    "Join condition: left in the boundary (right, right + constant)"
+    "left attri in (right, right + constant)"
   )
   var constant: Long = _
 
@@ -50,7 +50,7 @@ class IntervalJoinOpDesc() extends OperatorDescriptor {
   var includeLeftBound: Boolean = true
 
   @JsonProperty(required = true, index = 4)
-  @JsonSchemaTitle("Include right bound ']'")
+  @JsonSchemaTitle("Include Right Bound")
   @JsonPropertyDescription("Include condition left attri = right attri")
   var includeRightBound: Boolean = true
 
