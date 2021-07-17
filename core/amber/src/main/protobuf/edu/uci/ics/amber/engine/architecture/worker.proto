@@ -2,6 +2,15 @@ syntax = "proto3";
 
 package edu.uci.ics.amber.engine.common;
 
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+  scope: FILE,
+  preserve_unknown_fields: false
+  no_default_values_in_constructor: true
+  package_name: "edu.uci.ics.amber.engine.common"
+};
+
 enum WorkerState {
   Uninitialized = 0;
   Ready = 1;

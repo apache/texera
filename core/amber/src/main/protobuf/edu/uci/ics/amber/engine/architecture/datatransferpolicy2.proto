@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package edu.uci.ics.amber.engine.architecture.sendsemantics;
+import "edu/uci/ics/amber/engine/common/virtualidentity.proto";
+
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+  scope: FILE,
+  preserve_unknown_fields: false
+  no_default_values_in_constructor: true
+  package_name: "edu.uci.ics.amber.engine.architecture.sendsemantics"
+};
+
+
+message DataSendingPolicy{
+  oneof value{
+    OneToOnePolicy oneToOnePolicy = 1;
+    RoundRobinPolicy roundRobinPolicy = 2;
+  }
+}
+
+message OneToOnePolicy{
+  edu.uci.ics.amber.engine.common.LinkIdentity policyTag = 1;
+  int32 batchSize = 2;
+  repeated edu.uci.ics.amber.engine.common.ActorVirtualIdentity receivers = 3;
+}
+
+message RoundRobinPolicy{
+  edu.uci.ics.amber.engine.common.LinkIdentity policyTag = 1;
+  int32 batchSize = 2;
+  repeated edu.uci.ics.amber.engine.common.ActorVirtualIdentity receivers = 3;
+}
+
