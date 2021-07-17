@@ -1,6 +1,6 @@
-import { BuilderOutput, BuilderContext, createBuilder, Target } from '@angular-devkit/architect';
-import { ChildProcess, spawn, execSync } from 'child_process';
-import { platform, kill } from 'process';
+import { BuilderContext, BuilderOutput, createBuilder, Target } from '@angular-devkit/architect';
+import { ChildProcess, execSync, spawn } from 'child_process';
+import { kill, platform } from 'process';
 import { JsonObject } from '@angular-devkit/core';
 
 // cmd-target logs cmd's output with a header that gets truncated to CMD_LENGTH characters
@@ -17,7 +17,7 @@ const liveTasks: CmdTask[] = [];
  *  - **detached**: *bool* execute in detached shell. cmd is assumed to run successfully. can be killed later.
  *  - **kill**: *bool* true to kill process with matching cmd that was run previously.
  *  - **killChildren**: *bool* true to also kill process descendants (processes launched by cmd)
-*/
+ */
 interface Options extends JsonObject {
   cmd: string;
   daemon: boolean;
@@ -40,6 +40,7 @@ interface CmdTask {
 type PromiseFunc = (value?: BuilderOutput | PromiseLike<BuilderOutput> | undefined) => void;
 
 export default createBuilder<Options>(cmdBuilder);
+
 function cmdBuilder(options: Options, context: BuilderContext): Promise<BuilderOutput> {
   return new Promise<BuilderOutput>(async (resolve: PromiseFunc, reject: PromiseFunc) => {
     const builderOutput: BuilderOutput = options.kill ? killTarget(options, context) : await execTarget(options, context);
@@ -67,7 +68,7 @@ function clampCmd(cmd: string, length: number): string {
  */
 function killDescendants(parentPID: number): void {
 
-  function isNumber(value: number| undefined): asserts value is number {
+  function isNumber(value: number | undefined): asserts value is number {
     if (value === undefined) {
       throw new Error(`KillDescendants Failed: PID ${value} is not a number`);
     }
@@ -115,7 +116,10 @@ function killCmdTask(cmd: string, killChildren: boolean): boolean {
   const index = liveTasks.findIndex(element => element.cmd === cmd);
   if (index !== -1) {
     if (killChildren) {
-      killDescendants(liveTasks[index].process.pid);
+      const pid = liveTasks[index].process.pid;
+      if (pid !== undefined) {
+        killDescendants(pid);
+      }
     }
     liveTasks[index].process.kill('SIGINT');
     liveTasks.splice(index, 1); // remove livetask (since it's been killed)
@@ -134,7 +138,11 @@ function killCmdTask(cmd: string, killChildren: boolean): boolean {
  * @returns created CmdTask, with process already running
  */
 function execCmdTask(cmd: string, loggerPrefix: string, options: Options, context: BuilderContext): CmdTask {
-  const child: ChildProcess = spawn(cmd, [], { stdio: options.daemon ? 'ignore' : 'pipe', detached: options.detached, shell: true });
+  const child: ChildProcess = spawn(cmd, [], {
+    stdio: options.daemon ? 'ignore' : 'pipe',
+    detached: options.detached,
+    shell: true
+  });
 
   if (!options.daemon) {
     // @ts-ignore: stdout won't be null since not running as daemon (childprocess's stdio = 'pipe')
@@ -146,7 +154,7 @@ function execCmdTask(cmd: string, loggerPrefix: string, options: Options, contex
       context.logger.error(loggerPrefix + data.toString());
     });
   }
-  return { process: child, cmd: cmd };
+  return {process: child, cmd: cmd};
 }
 
 /**
@@ -159,9 +167,9 @@ function killTarget(options: Options, context: BuilderContext): BuilderOutput {
   context.logger.info(`Killing ${options.daemon ? 'daemon ' : ''} '${options.cmd}'`);
   if (!killCmdTask(options.cmd, options.killChildren)) {
     context.logger.warn(`Couldn't find/kill cmd '${options.cmd}'. it may not have been executed or already terminated`);
-    return { success: false, target: context.target as Target };
+    return {success: false, target: context.target as Target};
   }
-  return { success: true, target: context.target as Target };
+  return {success: true, target: context.target as Target};
 }
 
 /**
@@ -178,7 +186,7 @@ function execTarget(options: Options, context: BuilderContext): Promise<BuilderO
   liveTasks.push(task);
 
   if (options.detached) {
-    return Promise.resolve({ success: true, target: context.target as Target });
+    return Promise.resolve({success: true, target: context.target as Target});
   } else {
     return new Promise<BuilderOutput>((resolve, reject) => {
       task.process.on('close', code => {
@@ -189,11 +197,11 @@ function execTarget(options: Options, context: BuilderContext): Promise<BuilderO
         if (code === 0) {
           context.reportStatus(`${prefix} successfully terminated`);
           context.logger.info(`${prefix} successfully terminated)`);
-          resolve({ success: true, target: context.target as Target });
+          resolve({success: true, target: context.target as Target});
         } else {
           context.reportStatus(`${prefix} terminated (code ${code})`);
           context.logger.fatal(`${prefix} terminated (code ${code})`);
-          resolve({ success: false, target: context.target as Target });
+          resolve({success: false, target: context.target as Target});
         }
       });
     });

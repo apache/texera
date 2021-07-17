@@ -1,12 +1,13 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
-
 import { cloneDeep } from 'lodash';
 import { Observable } from 'rxjs';
 import { WorkflowPersistService } from '../../../../common/service/user/workflow-persist/workflow-persist.service';
+import { WorkflowGrantAccessService } from '../../../../common/service/user/workflow-access-control/workflow-grant-access.service';
 import { Workflow } from '../../../../common/type/workflow';
 import { NgbdModalDeleteWorkflowComponent } from './ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component';
+import { NgbdModalShareAccessComponent } from './ngbd-modal-share-access/ngbd-modal-share-access.component';
 
 /**
  * SavedProjectSectionComponent is the main interface for
@@ -29,15 +30,25 @@ export class SavedWorkflowSectionComponent implements OnInit {
 
   constructor(
     private workflowPersistService: WorkflowPersistService,
+    private workflowGrantAccessService: WorkflowGrantAccessService,
     private modalService: NgbModal,
     private router: Router
   ) {
   }
 
+
   ngOnInit() {
     this.workflowPersistService.retrieveWorkflowsBySessionUser().subscribe(
       workflows => this.workflows = workflows
     );
+  }
+
+  /**
+   * open the Modal based on the workflow clicked on
+   */
+  public onClickOpenShareAccess(workflow: Workflow): void {
+    const modalRef = this.modalService.open(NgbdModalShareAccessComponent);
+    modalRef.componentInstance.workflow = workflow;
   }
 
   /**
@@ -78,6 +89,19 @@ export class SavedWorkflowSectionComponent implements OnInit {
   }
 
   /**
+   * duplicate the current workflow. A new record will appear in frontend
+   * workflow list and backend database.
+   */
+  public onClickDuplicateWorkflow(workflowToDuplicate: Workflow): void {
+    this.workflowPersistService.createWorkflow(workflowToDuplicate.content, workflowToDuplicate.name + '_copy')
+      .subscribe((duplicatedWorkflow: Workflow) => {
+        this.workflows.push(duplicatedWorkflow);
+      }, error => {
+        alert(error);
+      });
+  }
+
+  /**
    * openNgbdModalDeleteWorkflowComponent trigger the delete workflow
    * component. If user confirms the deletion, the method sends
    * message to frontend and delete the workflow on frontend. It
@@ -97,7 +121,12 @@ export class SavedWorkflowSectionComponent implements OnInit {
     });
   }
 
+  /**
+   * jump to the target workflow canvas
+   */
   jumpToWorkflow(workflow: Workflow) {
     this.router.navigate([`/workflow/${workflow.wid}`]).then(null);
   }
+
+
 }
