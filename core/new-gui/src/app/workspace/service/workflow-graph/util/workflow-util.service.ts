@@ -72,6 +72,9 @@ export class WorkflowUtilService {
     // by default, the operator will not show advanced option in the properties to the user
     const showAdvanced = false;
 
+    // by default, the operator is not disabled
+    const isDisabled = false;
+
     for (let i = 0; i < operatorSchema.additionalMetadata.inputPorts.length; i++) {
       const portID = 'input-' + i.toString();
       const displayName = operatorSchema.additionalMetadata.inputPorts[i].displayName;
@@ -84,7 +87,7 @@ export class WorkflowUtilService {
       outputPorts.push({ portID, displayName });
     }
 
-    return { operatorID, operatorType, operatorProperties, inputPorts, outputPorts, showAdvanced };
+    return { operatorID, operatorType, operatorProperties, inputPorts, outputPorts, showAdvanced, isDisabled };
 
   }
 

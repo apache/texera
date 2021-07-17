@@ -137,6 +137,40 @@ describe('ValidationWorkflowService', () => {
     }
     ));
 
+    it('should consider disabled operators when validating workflow', () => {
+      workflowActionservice.addOperator(mockScanPredicate, mockPoint);
+      workflowActionservice.addOperator(mockResultPredicate, mockPoint);
+      workflowActionservice.addLink(mockScanResultLink);
+      workflowActionservice.setOperatorProperty(mockScanPredicate.operatorID, { 'tableName': 'test-table' });
+      expect(Object.entries(validationWorkflowService.getCurrentWorkflowValidationError().errors).length).toEqual(0);
+
+      const mockScanPredicate2 = { ...mockScanPredicate, operatorID: 'mockScan2'};
+      const mockResultPredicate2 = { ...mockResultPredicate, operatorID: 'mockResult2' };
+      const mockScanResultLink2 = {
+        linkID: 'mock-scan-result-link-2',
+        source: {
+          operatorID: mockScanPredicate2.operatorID,
+          portID: mockScanPredicate2.outputPorts[0].portID
+        },
+        target: {
+          operatorID: mockResultPredicate2.operatorID,
+          portID: mockResultPredicate2.inputPorts[0].portID
+        }
+      };
+
+      workflowActionservice.addOperator(mockScanPredicate2, mockPoint);
+      workflowActionservice.addOperator(mockResultPredicate2, mockPoint);
+      workflowActionservice.addLink(mockScanResultLink2);
+      console.log(validationWorkflowService.getCurrentWorkflowValidationError().errors);
+      expect(Object.entries(validationWorkflowService.getCurrentWorkflowValidationError().errors).length).toEqual(1);
+
+      workflowActionservice.getTexeraGraph().disableOperator(mockScanPredicate2.operatorID);
+      workflowActionservice.getTexeraGraph().disableOperator(mockResultPredicate2.operatorID);
+      expect(Object.entries(validationWorkflowService.getCurrentWorkflowValidationError().errors).length).toEqual(0);
+
+
+    });
+
 
 
 });

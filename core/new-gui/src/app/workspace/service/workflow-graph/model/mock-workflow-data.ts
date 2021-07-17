@@ -31,7 +31,8 @@ export const mockScanPredicate: OperatorPredicate = {
   },
   inputPorts: [],
   outputPorts: [{portID: 'output-0'}],
-  showAdvanced: true
+  showAdvanced: true,
+  isDisabled: false,
 };
 
 export const mockSentimentPredicate: OperatorPredicate = {
@@ -41,7 +42,8 @@ export const mockSentimentPredicate: OperatorPredicate = {
   },
   inputPorts: [{portID: 'input-0'}],
   outputPorts: [{portID: 'output-0'}],
-  showAdvanced: true
+  showAdvanced: true,
+  isDisabled: false,
 };
 
 export const mockResultPredicate: OperatorPredicate = {
@@ -51,7 +53,8 @@ export const mockResultPredicate: OperatorPredicate = {
   },
   inputPorts: [{portID: 'input-0'}],
   outputPorts: [],
-  showAdvanced: true
+  showAdvanced: true,
+  isDisabled: false,
 };
 
 export const mockMultiInputOutputPredicate: OperatorPredicate = {
@@ -61,7 +64,8 @@ export const mockMultiInputOutputPredicate: OperatorPredicate = {
   },
   inputPorts: [{portID: 'input-0'}, {portID: 'input-1'}, {portID: 'input-2'}],
   outputPorts: [{portID: 'output-0'}, {portID: 'output-1'}, {portID: 'output-2'}],
-  showAdvanced: true
+  showAdvanced: true,
+  isDisabled: false,
 };
 
 export const mockScanResultLink: OperatorLink = {

@@ -51,7 +51,9 @@ export class SchemaPropagationService {
         this.workflowActionService.getTexeraGraph().getLinkAddStream(),
         this.workflowActionService.getTexeraGraph().getLinkDeleteStream(),
         this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream()
-          .debounceTime(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS))
+          .debounceTime(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS),
+        this.workflowActionService.getTexeraGraph().getDisabledOperatorsChangedStream(),
+        )
       .flatMap(() => this.invokeSchemaPropagationAPI())
       .filter(response => response.code === 0)
       .subscribe(response => {

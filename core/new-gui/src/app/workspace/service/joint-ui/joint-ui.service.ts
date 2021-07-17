@@ -192,13 +192,13 @@ export class JointUIService {
     const operatorElement = new TexeraCustomJointElement({
       position: point,
       size: { width: JointUIService.DEFAULT_OPERATOR_WIDTH, height: JointUIService.DEFAULT_OPERATOR_HEIGHT },
-      attrs: JointUIService.getCustomOperatorStyleAttrs(operatorSchema.additionalMetadata.userFriendlyName, operatorSchema.operatorType),
+      attrs: JointUIService.getCustomOperatorStyleAttrs(operator, operatorSchema.additionalMetadata.userFriendlyName, operatorSchema.operatorType),
       ports: {
         groups: {
           'in': { attrs: JointUIService.getCustomPortStyleAttrs() },
           'out': { attrs: JointUIService.getCustomPortStyleAttrs() }
         }
-      }
+      },
     });
 
     // set operator element ID to be operator ID
@@ -340,6 +340,10 @@ export class JointUIService {
     } else {
       jointPaper.getModelById(operatorID).attr('rect/stroke', 'red');
     }
+  }
+
+  public changeOperatorDisableStatus(jointPaper: joint.dia.Paper, operator: OperatorPredicate): void {
+    jointPaper.getModelById(operator.operatorID).attr('rect/fill', JointUIService.getOperatorFillColor(operator));
   }
 
   public getBreakpointButton(): (new () => joint.linkTools.Button) {
@@ -526,8 +530,12 @@ export class JointUIService {
    * @param operatorDisplayName the name of the operator that will display on the UI
    * @returns the custom attributes of the operator
    */
-  public static getCustomOperatorStyleAttrs(operatorDisplayName: string,
-    operatorType: string): joint.shapes.devs.ModelSelectors {
+  public static getCustomOperatorStyleAttrs(
+    operator: OperatorPredicate,
+    operatorDisplayName: string,
+    operatorType: string,
+    ): joint.shapes.devs.ModelSelectors {
+
     const operatorStyleAttrs = {
       '.texera-operator-state': {
         text: '', 'font-size': '14px', 'visible': true,
@@ -542,7 +550,7 @@ export class JointUIService {
         'ref-x': 0.5, 'ref-y': -20, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
       },
       'rect': {
-        fill: '#FFFFFF', 'follow-scale': true, stroke: 'red', 'stroke-width': '2',
+        fill: JointUIService.getOperatorFillColor(operator), 'follow-scale': true, stroke: 'red', 'stroke-width': '2',
         rx: '5px', ry: '5px'
       },
       '.texera-operator-name': {
@@ -564,6 +572,11 @@ export class JointUIService {
       },
     };
     return operatorStyleAttrs;
+  }
+
+  public static getOperatorFillColor(operator: OperatorPredicate): string {
+    const isDisabled = operator.isDisabled ?? false;
+    return isDisabled ? '#E0E0E0' : '#FFFFFF';
   }
 
   /**
