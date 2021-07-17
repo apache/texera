@@ -8,7 +8,6 @@ enum WorkerState {
   Running = 2;
   Paused = 3;
   Completed = 4;
-  Recovering = 5;
 
 }
 

@@ -12,7 +12,6 @@ sealed abstract class WorkerState(val value: _root_.scala.Int) extends _root_.sc
   def isRunning: _root_.scala.Boolean = false
   def isPaused: _root_.scala.Boolean = false
   def isCompleted: _root_.scala.Boolean = false
-  def isRecovering: _root_.scala.Boolean = false
   def companion: _root_.scalapb.GeneratedEnumCompanion[WorkerState] = edu.uci.ics.amber.engine.common.worker.WorkerState
   final def asRecognized: _root_.scala.Option[edu.uci.ics.amber.engine.common.worker.WorkerState.Recognized] = if (isUnrecognized) _root_.scala.None else _root_.scala.Some(this.asInstanceOf[edu.uci.ics.amber.engine.common.worker.WorkerState.Recognized])
 }
@@ -56,23 +55,15 @@ object WorkerState extends _root_.scalapb.GeneratedEnumCompanion[WorkerState] {
   }
   
   @SerialVersionUID(0L)
-  case object Recovering extends WorkerState(5) with WorkerState.Recognized {
-    val index = 5
-    val name = "Recovering"
-    override def isRecovering: _root_.scala.Boolean = true
-  }
-  
-  @SerialVersionUID(0L)
   final case class Unrecognized(unrecognizedValue: _root_.scala.Int) extends WorkerState(unrecognizedValue) with _root_.scalapb.UnrecognizedEnum
   
-  lazy val values = scala.collection.immutable.Seq(Uninitialized, Ready, Running, Paused, Completed, Recovering)
+  lazy val values = scala.collection.immutable.Seq(Uninitialized, Ready, Running, Paused, Completed)
   def fromValue(__value: _root_.scala.Int): WorkerState = __value match {
     case 0 => Uninitialized
     case 1 => Ready
     case 2 => Running
     case 3 => Paused
     case 4 => Completed
-    case 5 => Recovering
     case __other => Unrecognized(__other)
   }
   def javaDescriptor: _root_.com.google.protobuf.Descriptors.EnumDescriptor = WorkerProto.javaDescriptor.getEnumTypes().get(0)
