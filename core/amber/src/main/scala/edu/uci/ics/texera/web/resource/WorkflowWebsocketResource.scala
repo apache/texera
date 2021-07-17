@@ -1,11 +1,7 @@
 package edu.uci.ics.texera.web.resource
 
 import akka.actor.{ActorRef, PoisonPill}
-import edu.uci.ics.amber.engine.architecture.controller.{
-  Controller,
-  ControllerConfig,
-  ControllerEventListener
-}
+import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, ControllerEventListener}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
@@ -15,20 +11,10 @@ import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.web.{ServletAwareConfigurator, TexeraWebApplication}
 import edu.uci.ics.texera.web.model.event._
 import edu.uci.ics.texera.web.model.request._
-import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
-  send,
-  sessionDownloadCache,
-  sessionJobs,
-  sessionMap,
-  sessionResults
-}
+import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{send, sessionDownloadCache, sessionJobs, sessionMap, sessionResults}
 import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.workflow.{
-  WorkflowCompiler,
-  WorkflowInfo,
-  WorkflowRewriter
-}
+import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo, WorkflowRewriter, WorkflowVertex}
 import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -193,8 +179,8 @@ class WorkflowWebsocketResource {
     mutable.HashMap[String, CacheSourceOpDesc]()
   var cacheSinkOperators: mutable.HashMap[String, CacheSinkOpDesc] =
     mutable.HashMap[String, CacheSinkOpDesc]()
-  var operatorRecord: mutable.HashMap[String, OperatorDescriptor] =
-    mutable.HashMap[String, OperatorDescriptor]()
+  var operatorRecord: mutable.HashMap[String, WorkflowVertex] =
+    mutable.HashMap[String, WorkflowVertex]()
 
   var previousWorkflowResultService: WorkflowResultService = _
 

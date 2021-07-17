@@ -5,11 +5,21 @@ import edu.uci.ics.texera.workflow.common.Utils.objectMapper
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowRewriter.copyOperator
-
 import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
+import org.apache.commons.lang3.builder.EqualsBuilder
 
 import scala.collection.mutable
+
+class WorkflowVertex(
+    val op: OperatorDescriptor,
+    val links: mutable.HashSet[OperatorLink],
+    val breakpoints: mutable.HashSet[BreakpointInfo]
+) {
+  override def equals(obj: Any): Boolean = EqualsBuilder.reflectionEquals(this, obj)
+
+  override def toString: String = objectMapper.writeValueAsString(this)
+}
 
 object WorkflowRewriter {
   private def copyOperator(operator: OperatorDescriptor): OperatorDescriptor = {
@@ -27,7 +37,8 @@ class WorkflowRewriter(
 ) {
   private val logger = Logger(this.getClass.getName)
 
-  var operatorRecord: mutable.HashMap[String, OperatorDescriptor] = _
+  var operatorRecord: mutable.HashMap[String, WorkflowVertex] = _
+//  var operatorRecord: mutable.HashMap[String, OperatorDescriptor] = _
 
   private val workflowDAG: WorkflowDAG = if (workflowInfo != null) {
     new WorkflowDAG(workflowInfo)
@@ -124,19 +135,19 @@ class WorkflowRewriter(
       })
   }
 
-  private def isUpdated(operatorID: String): Boolean = {
-    if (!operatorRecord.contains(operatorID)) {
-      operatorRecord += ((operatorID, copyOperator(workflowDAG.getOperator(operatorID))))
-      logger.info("Operator: {} is not recorded.", workflowDAG.getOperator(operatorID).toString)
+  private def isUpdated(opID: String): Boolean = {
+    if (!operatorRecord.contains(opID)) {
+      operatorRecord += ((opID, getWorkflowVertex(workflowDAG.getOperator(opID))))
+      logger.info("Vertex {} is not recorded.", operatorRecord(opID))
       true
     } else {
-      val operatorDescriptor = workflowDAG.getOperator(operatorID)
-      if (!operatorRecord(operatorID).equals(operatorDescriptor)) {
-        operatorRecord(operatorID) = operatorDescriptor
-        logger.info("Operator: {} is updated.", workflowDAG.getOperator(operatorID).toString)
+      val vertex = getWorkflowVertex(workflowDAG.getOperator(opID))
+      if (!operatorRecord(opID).equals(vertex)) {
+        operatorRecord(opID) = vertex
+        logger.info("Vertex {} is updated.", operatorRecord(opID))
         true
       } else {
-        logger.info("Operator: {} is not updated.", workflowDAG.getOperator(operatorID).toString)
+        logger.info("Operator: {} is not updated.", operatorRecord(opID))
         false
       }
     }
@@ -350,5 +361,21 @@ class WorkflowRewriter(
     val destinationOperatorPort: OperatorPort =
       OperatorPort(destinationOperatorDescriptor.operatorID, 0)
     OperatorLink(originOperatorPort, destinationOperatorPort)
+  }
+
+  def getWorkflowVertex(op: OperatorDescriptor): WorkflowVertex = {
+    val opInVertex = copyOperator(op)
+    val links = mutable.HashSet[OperatorLink]()
+    if (!workflowDAG.operators.contains(op.operatorID)) {
+      null
+    } else {
+      workflowDAG.jgraphtDag.outgoingEdgesOf(opInVertex.operatorID).forEach(links.+=)
+      workflowDAG.jgraphtDag.incomingEdgesOf(opInVertex.operatorID).forEach(links.+=)
+      val breakpoints = mutable.HashSet[BreakpointInfo]()
+      workflowInfo.breakpoints
+        .filter(breakpoint => breakpoint.operatorID.equals(op.operatorID))
+        .foreach(breakpoints.+=)
+      new WorkflowVertex(opInVertex, links, breakpoints)
+    }
   }
 }
