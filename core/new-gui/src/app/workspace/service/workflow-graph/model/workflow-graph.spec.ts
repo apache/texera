@@ -194,6 +194,30 @@ describe('WorkflowGraph', () => {
     expect(workflowGraph.getOutputLinksByOperatorId('1').length).toEqual(1);
   });
 
+  it('should disable and enable an operator', () => {
+    workflowGraph.addOperator(mockScanPredicate);
+    workflowGraph.addOperator(mockResultPredicate);
+    workflowGraph.disableOperator(mockScanPredicate.operatorID);
+
+    expect(workflowGraph.isOperatorDisabled(mockScanPredicate.operatorID)).toBeTrue();
+    expect(workflowGraph.isOperatorDisabled(mockResultPredicate.operatorID)).toBeFalse();
+    expect(workflowGraph.getDisabledOperators().size).toEqual(1);
+
+    workflowGraph.enableOperator(mockScanPredicate.operatorID);
+    expect(workflowGraph.isOperatorDisabled(mockScanPredicate.operatorID)).toBeFalse();
+    expect(workflowGraph.getDisabledOperators().size).toEqual(0);
+  });
+
+  it('should calculate if link is disabled based on the disabled operator', () => {
+    workflowGraph.addOperator(mockScanPredicate);
+    workflowGraph.addOperator(mockResultPredicate);
+    workflowGraph.addLink(mockScanResultLink);
+    workflowGraph.disableOperator(mockScanPredicate.operatorID);
+
+    expect(workflowGraph.isLinkEnabled(mockScanResultLink.linkID)).toBeFalse();
+    expect(workflowGraph.getAllEnabledLinks().length).toEqual(0);
+  });
+
   describe('when linkBreakpoint is enabled', () => {
     beforeAll(() => {
       environment.linkBreakpointEnabled = true;

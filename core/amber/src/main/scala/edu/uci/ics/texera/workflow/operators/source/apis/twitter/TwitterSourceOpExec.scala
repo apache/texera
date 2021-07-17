@@ -1,17 +1,24 @@
 package edu.uci.ics.texera.workflow.operators.source.apis.twitter
-import com.github.redouane59.twitter.TwitterClient
-import com.github.redouane59.twitter.signature.TwitterCredentials
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
+import io.github.redouane59.twitter.TwitterClient
+import io.github.redouane59.twitter.signature.TwitterCredentials
 
 abstract class TwitterSourceOpExec(
     apiKey: String,
     apiSecretKey: String
 ) extends SourceOperatorExecutor {
   // batch size for each API request defined by Twitter
-  //    500 is the maximum tweets for each request
-  //    10 is the minimal tweets for each request
+  //  500 is the maximum tweets for each request
   val TWITTER_API_BATCH_SIZE_MAX = 500
-  val TWITTER_API_BATCH_SIZE_MIN = 10
+
+  //  10 is the minimal tweets for each request
+  // val TWITTER_API_BATCH_SIZE_MIN = 10
+
+  //  however, when using batch size < 100, could cause using different
+  //  twitter endpoints which has different rate limit.
+  //  (related to redouane59/twitteredV2.5)
+  //  thus, in practice, we use 100 as the min batch size.
+  val TWITTER_API_BATCH_SIZE_MIN = 100
 
   var twitterClient: TwitterClient = _
 

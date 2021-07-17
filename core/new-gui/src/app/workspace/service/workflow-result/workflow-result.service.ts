@@ -77,12 +77,12 @@ export class WorkflowResultService {
 export class OperatorResultService {
 
   private chartType: ChartType | undefined;
-  private resultSnapshot: ReadonlyArray<object> = [];
+  private resultSnapshot: ReadonlyArray<object> | undefined;
 
   constructor(public operatorID: string) {
   }
 
-  public getCurrentResultSnapshot(): ReadonlyArray<object> {
+  public getCurrentResultSnapshot(): ReadonlyArray<object> | undefined {
     return this.resultSnapshot;
   }
 
@@ -93,10 +93,10 @@ export class OperatorResultService {
   public handleResultUpdate(update: WebDataUpdate): void {
     this.chartType = update.chartType;
     if (update.mode.type === 'SetSnapshotMode') {
+      // update the result snapshot with latest update
       this.resultSnapshot = update.table;
     } else if (update.mode.type === 'SetDeltaMode') {
-      const combinedResult = this.resultSnapshot.concat(update.table);
-      this.resultSnapshot = combinedResult;
+      // intentionally do nothing, frontend does not accumulate delta results
     } else {
       const _exhaustiveCheck: never = update.mode;
     }

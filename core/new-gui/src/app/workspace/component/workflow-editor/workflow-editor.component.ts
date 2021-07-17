@@ -133,6 +133,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleWindowResize();
     this.handleViewDeleteOperator();
     this.handleCellHighlight();
+    this.handleDisableOperator();
     this.handleViewDeleteLink();
     this.handleViewCollapseGroup();
     this.handleViewExpandGroup();
@@ -474,6 +475,15 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private handleCellHighlight(): void {
     this.handleHighlightMouseInput();
     this.handleElementHightlightEvent();
+  }
+
+  private handleDisableOperator(): void {
+    this.workflowActionService.getTexeraGraph().getDisabledOperatorsChangedStream().subscribe(event => {
+      event.newDisabled.concat(event.newEnabled).forEach(opID => {
+        const op = this.workflowActionService.getTexeraGraph().getOperator(opID);
+        this.jointUIService.changeOperatorDisableStatus(this.getJointPaper(), op);
+      });
+    });
   }
 
   /**
@@ -1055,7 +1065,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
     const inputPorts = operator.inputPorts;
     const outputPorts = operator.outputPorts;
     const showAdvanced = operator.showAdvanced;
-    return {operatorID, operatorType, operatorProperties, inputPorts, outputPorts, showAdvanced};
+    const isDisabled = operator.isDisabled;
+    return {operatorID, operatorType, operatorProperties, inputPorts, outputPorts, showAdvanced, isDisabled};
   }
 
   private copyGroup(group: Group) {

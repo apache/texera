@@ -105,7 +105,9 @@ export class ResultPanelComponent {
       if (event.current.state === ExecutionState.Completed || event.current.state === ExecutionState.Running) {
         const sinkOperators = this.workflowActionService.getTexeraGraph().getAllOperators()
           .filter(op => op.operatorType.toLowerCase().includes('sink'));
-        if (sinkOperators.length > 0) {
+        if (sinkOperators.length > 0 && ! this.resultPanelOperatorID) {
+          const currentlyHighlighted = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+          this.workflowActionService.getJointGraphWrapper().unhighlightOperators(...currentlyHighlighted);
           this.workflowActionService.getJointGraphWrapper().highlightOperators(sinkOperators[0].operatorID);
         }
         this.resultPanelToggleService.openResultPanel();
@@ -131,6 +133,10 @@ export class ResultPanelComponent {
   }
 
   public rerenderResultPanel(): void {
+    // update highlighted operator
+    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    this.resultPanelOperatorID = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
+
     // current result panel is closed, do nothing
     this.showResultPanel = this.resultPanelToggleService.isResultPanelOpen();
     if (!this.showResultPanel) {
@@ -141,8 +147,6 @@ export class ResultPanelComponent {
     this.clearResultPanel();
 
     const executionState = this.executeWorkflowService.getExecutionState();
-    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    this.resultPanelOperatorID = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
 
     if (executionState.state === ExecutionState.Failed) {
       this.errorMessages = this.executeWorkflowService.getErrorMessages();
@@ -204,7 +208,6 @@ export class ResultPanelComponent {
     this.currentColumns = undefined;
     this.currentResult = [];
 
-    this.resultPanelOperatorID = undefined;
     this.chartType = undefined;
     this.breakpointTriggerInfo = undefined;
     this.breakpointAction = false;

@@ -5,6 +5,7 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErr
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.KillWorkflowHandler.KillWorkflow
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 object FatalErrorHandler {
@@ -23,7 +24,7 @@ trait FatalErrorHandler {
       // log the error to console
       logger.logError(msg.e)
       // shutdown the workflow
-      execute(KillWorkflow(), ActorVirtualIdentity.Controller)
+      execute(KillWorkflow(), CONTROLLER)
     }
   }
 }
