@@ -23,39 +23,37 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchem
   * 1. The tuples in both inputs come in ascending order
   * 2. The left input join key takes as points, join condition is: left key in the range of (right key, right key + constant)
   */
-class IntervalJoinOpDesc() extends OperatorDescriptor {
+class IntervalJoinOpDesc extends OperatorDescriptor {
 
-  @JsonProperty(required = true, index = 0)
+  @JsonProperty(required = true)
   @JsonSchemaTitle("Left Input attr")
   @JsonPropertyDescription("Choose one attribute in the left table")
   @AutofillAttributeName
   var leftAttributeName: String = _
 
-  @JsonProperty(required = true, index = 1)
+  @JsonProperty(required = true)
   @JsonSchemaTitle("Right Input attr")
   @JsonPropertyDescription("Choose one attribute in the right table")
   @AutofillAttributeNameOnPort1
   var rightAttributeName: String = _
 
-  @JsonProperty(required = true,index = 2)
+  @JsonProperty(required = true, defaultValue = "10")
   @JsonSchemaTitle("Interval Constant")
-  @JsonPropertyDescription(
-    "Join condition: left in the boundary (right, right + constant)"
-  )
-  var constant: Long = _
+  @JsonPropertyDescription("left attri in (right, right + constant)")
+  var constant: Long = 10
 
-  @JsonProperty(required = true, index = 3)
+  @JsonProperty(required = true, defaultValue = "true")
   @JsonSchemaTitle("Include Left Bound")
   @JsonPropertyDescription("Include condition left attri = right attri")
   var includeLeftBound: Boolean = true
 
-  @JsonProperty(required = true,index=4)
-  @JsonSchemaTitle("Include right bound ']'")
+  @JsonProperty(required = true, defaultValue = "true")
+  @JsonSchemaTitle("Include Right Bound")
   @JsonPropertyDescription("Include condition left attri = right attri")
   var includeRightBound: Boolean = true
 
   @JsonDeserialize(contentAs = classOf[TimeIntervalType])
-  @JsonProperty(defaultValue = "day", required = false, index = 5)
+  @JsonProperty(defaultValue = "day", required = false)
   @JsonSchemaTitle("Time interval type")
   @JsonPropertyDescription("Year, Month, Day, Hour, Minute or Second")
   var timeIntervalType: Option[TimeIntervalType] = _
