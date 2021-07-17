@@ -12,21 +12,22 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   OperatorIdentity
 }
 import edu.uci.ics.amber.engine.operators.OpExecConfig
+import edu.uci.ics.texera.workflow.common.operators.ManyToOneOpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
 class IntervalJoinOpExecConfig(
     id: OperatorIdentity,
+    val operatorSchemaInfo: OperatorSchemaInfo,
     val leftAttributeName: String,
     val rightAttributeName: String,
-    val operatorSchemaInfo: OperatorSchemaInfo,
     val constant: Long,
     val includeLeftBound: Boolean,
     val includeRightBound: Boolean,
-    val timeIntervalType: TimeIntervalType
+    val timeIntervalType: Option[TimeIntervalType]
 ) extends OpExecConfig(id) {
 
-  var leftTable: LinkIdentity = _
-  var rightTable: LinkIdentity = _
+  var leftInpueLink: LinkIdentity = _
+  var rightInputLink: LinkIdentity = _
 
   override lazy val topology: Topology = {
     new Topology(
@@ -42,30 +43,9 @@ class IntervalJoinOpExecConfig(
       Array()
     )
   }
-  override def checkStartDependencies(workflow: Workflow): Unit = {
-    val buildLink = inputToOrdinalMapping.find(pair => pair._2 == 0).get._1
-    leftTable = buildLink
-    val probeLink = inputToOrdinalMapping.find(pair => pair._2 == 1).get._1
-    rightTable = probeLink
-    workflow.getSources(probeLink.from.toOperatorIdentity).foreach { source =>
-      workflow.getOperator(source).topology.layers.head.startAfter(buildLink)
-    }
-
-    topology.layers.head.metadata = _ => {
-      new IntervalJoinOpExec[Long](
-        leftTable,
-        leftAttributeName,
-        rightAttributeName,
-        operatorSchemaInfo,
-        constant,
-        includeLeftBound,
-        includeRightBound,
-        timeIntervalType
-      )
-    }
-  }
 
   override def assignBreakpoint(breakpoint: GlobalBreakpoint[_]): Array[ActorVirtualIdentity] = {
     topology.layers(0).identifiers
   }
+
 }

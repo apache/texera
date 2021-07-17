@@ -1,184 +1,159 @@
 package edu.uci.ics.texera.workflow.operators.intervalJoin
 
 import java.sql.Timestamp
-
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{
+  Attribute,
+  AttributeType,
+  OperatorSchemaInfo,
+  Schema
+}
 
-import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+import scala.collection.mutable.ListBuffer
 
-class IntervalJoinOpExec[K](
-    val isLeftTableInput: LinkIdentity,
-    val leftTableAttributeName: String,
-    val rightTableAttributeName: String,
+/** This Operator have two assumptions:
+  * 1. The tuples in both inputs come in ascending order
+  * 2. The left input join key takes as points, join condition is: left key in the range of (right key, right key + constant)
+  */
+class IntervalJoinOpExec(
     val operatorSchemaInfo: OperatorSchemaInfo,
-    val constant: Long,
-    val includeLeftBound: Boolean,
-    val includeRightBound: Boolean,
-    var timeIntervalType: TimeIntervalType
+    val desc: IntervalJoinOpDesc
 ) extends OperatorExecutor {
 
-  var isLeftTableFinished: Boolean = false
-  var isRightTableFinished: Boolean = false
-  var outputProbeSchema: Schema = _
   var leftTable: ListBuffer[Tuple] = new ListBuffer[Tuple]()
   var rightTable: ListBuffer[Tuple] = new ListBuffer[Tuple]()
   val leftTableSchema: Schema = operatorSchemaInfo.inputSchemas(0)
   val rightTableSchema: Schema = operatorSchemaInfo.inputSchemas(1)
 
-  private def createOutputProbeSchema(): Schema = {
-    var builder = Schema.newBuilder()
-    rightTableSchema.getAttributes
-      .forEach(attr => {
-        if (leftTableSchema.containsAttribute(attr.getName)) {
-          builder.add(new Attribute(s"${attr.getName}#@1", attr.getType))
-        } else {
-          builder.add(attr)
-        }
-      })
-    builder.build()
-  }
-
-  private def updateRightTableCache(leftTableSmallestTuple:Tuple):Unit = {
-    rightTable = rightTable.filter(
-      rightTableTuple => {
-      joinConditionHolds(
-        leftTableSmallestTuple.getField(leftTableAttributeName),
-        rightTableTuple.getField(rightTableAttributeName),
-        operatorSchemaInfo
-          .inputSchemas(0)
-          .getAttribute(leftTableAttributeName)
-          .getType
-      ) > 0
+  //if right table has tuple smaller than smallest tuple in left table, delete it
+  private def removeTooSmallTupleInRightCache(leftTableSmallestTuple: Tuple): Unit = {
+    while (rightTable.nonEmpty) {
+      if (
+        intervalCompare(
+          leftTableSmallestTuple.getField(desc.leftAttributeName),
+          rightTable.head.getField(desc.rightAttributeName),
+          leftTableSchema
+            .getAttribute(desc.leftAttributeName)
+            .getType
+        ) > 0
+      ) {
+        rightTable.remove(0)
+      } else {
+        return
+      }
+    }
 
   }
-    )
-  }
-  private def updateLeftTableCache(rightTableSmallestTuple:Tuple):Unit = {
-    leftTable = leftTable.filter(
-      leftTableTuple => {
-        joinConditionHolds(
-          leftTableTuple.getField(leftTableAttributeName),
-          rightTableSmallestTuple.getField(rightTableAttributeName),
-          operatorSchemaInfo
-            .inputSchemas(0)
-            .getAttribute(leftTableAttributeName)
+
+  //if left table has tuple smaller than smallest tuple in right table, delete it
+  private def removeTooSmallTupleInLeftCache(rightTableSmallestTuple: Tuple): Unit = {
+    while (leftTable.nonEmpty) {
+      if (
+        intervalCompare(
+          leftTable.head.getField(desc.leftAttributeName),
+          rightTableSmallestTuple.getField(desc.rightAttributeName),
+          leftTableSchema
+            .getAttribute(desc.leftAttributeName)
             .getType
         ) < 0
-
+      ) {
+        leftTable.remove(0)
+      } else {
+        return
       }
-    )
+    }
+
   }
+
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
       input: LinkIdentity
   ): Iterator[Tuple] = {
     tuple match {
-      case Left(t) =>
-        if (input == isLeftTableInput) {
-          leftTable += t
-         if(rightTable.nonEmpty) {
-           updateRightTableCache(leftTable.head)
-           rightTable.filter(rightTableTuple => {
-             joinConditionHolds(
-               t.getField(leftTableAttributeName),
-               rightTableTuple.getField(rightTableAttributeName),
-               operatorSchemaInfo
-                 .inputSchemas(0)
-                 .getAttribute(leftTableAttributeName)
-                 .getType
-             )==0
-           }
-           ).map(rightTuple =>{
-             val builder = Tuple
-               .newBuilder(operatorSchemaInfo.outputSchema)
-               .add(t)
-             for (i <- 0 until rightTuple.getFields.size()) {
-               val attributeName = rightTuple.getSchema.getAttributeNames.get(i)
-               val attribute = rightTuple.getSchema.getAttribute(attributeName)
-               builder.add(
-                 new Attribute(
-                   if (leftTableSchema.getAttributeNames.contains(attributeName))
-                     attributeName + "#@1"
-                   else attributeName,
-                   attribute.getType
-                 ),
-                 rightTuple.getFields.get(i)
-               )
-             }
-             builder.build()
-           }
-           ).toIterator
-         }
-          else {
-          Iterator()
-         }
-        }
-        else {
-          rightTable += t
-          if(leftTable.nonEmpty) {
-            updateRightTableCache(leftTable.head)
-            leftTable.filter(leftTableTuple => {
-              joinConditionHolds(
-                leftTableTuple.getField(leftTableAttributeName),
-                t.getField(rightTableAttributeName),
-                operatorSchemaInfo
-                  .inputSchemas(0)
-                  .getAttribute(leftTableAttributeName)
-                  .getType
-              )==0
-            }
-            ).map(leftTuple =>{
-              val builder = Tuple
-                .newBuilder(operatorSchemaInfo.outputSchema)
-                .add(leftTuple)
-              for (i <- 0 until t.getFields.size()) {
-                val attributeName = t.getSchema.getAttributeNames.get(i)
-                val attribute = t.getSchema.getAttribute(attributeName)
-                builder.add(
-                  new Attribute(
-                    if (leftTableSchema.getAttributeNames.contains(attributeName))
-                      attributeName + "#@1"
-                    else attributeName,
-                    attribute.getType
-                  ),
-                  t.getFields.get(i)
-                )
-              }
-              builder.build()
-            }
-            ).toIterator
+      case Left(currentTuple) =>
+        if (input == desc.leftInpueLink) {
+          leftTable += currentTuple
+          if (rightTable.nonEmpty) {
+            removeTooSmallTupleInRightCache(leftTable.head)
+            rightTable
+              .filter(rightTableTuple => {
+                intervalCompare(
+                  currentTuple.getField(desc.leftAttributeName),
+                  rightTableTuple.getField(desc.rightAttributeName),
+                  leftTableSchema
+                    .getAttribute(desc.leftAttributeName)
+                    .getType
+                ) == 0
+              })
+              .map(rightTuple => joinTuples(currentTuple, rightTuple))
+              .toIterator
+          } else {
+            Iterator()
           }
-          else {
+        } else {
+          rightTable += currentTuple
+          if (leftTable.nonEmpty) {
+            removeTooSmallTupleInLeftCache(rightTable.head)
+            leftTable
+              .filter(leftTableTuple => {
+                intervalCompare(
+                  leftTableTuple.getField(desc.leftAttributeName),
+                  currentTuple.getField(desc.rightAttributeName),
+                  leftTableSchema
+                    .getAttribute(desc.leftAttributeName)
+                    .getType
+                ) == 0
+              })
+              .map(leftTuple => joinTuples(leftTuple, currentTuple))
+              .toIterator
+          } else {
             Iterator()
           }
         }
-
       case Right(_) =>
         Iterator()
     }
   }
-  def processNumValue[T <% Ordered[T]](
-      includeLeftBound: Boolean,
-      includerightBound: Boolean,
+
+  private def joinTuples(leftTuple: Tuple, rightTuple: Tuple): Tuple = {
+    val builder = Tuple
+      .newBuilder(operatorSchemaInfo.outputSchema)
+      .add(leftTuple)
+    for (i <- 0 until rightTuple.getFields.size()) {
+      val attributeName = rightTuple.getSchema.getAttributeNames.get(i)
+      val attribute = rightTuple.getSchema.getAttribute(attributeName)
+      builder.add(
+        new Attribute(
+          if (leftTableSchema.getAttributeNames.contains(attributeName))
+            attributeName + "#@1"
+          else attributeName,
+          attribute.getType
+        ),
+        rightTuple.getFields.get(i)
+      )
+    }
+    builder.build()
+  }
+
+  private def processNumValue[T](
       pointValue: T,
       leftBoundValue: T,
       rightBoundValue: T
-  ): Int = {
-    if (includeLeftBound && includerightBound) {
+  )(implicit ev$1: T => Ordered[T]): Int = {
+    if (desc.includeLeftBound && desc.includeRightBound) {
       if (pointValue >= leftBoundValue && pointValue <= rightBoundValue) 0
       else if (pointValue < leftBoundValue) -1
       else 1
-    } else if (includeLeftBound && !includerightBound) {
+    } else if (desc.includeLeftBound && !desc.includeRightBound) {
       if (pointValue >= leftBoundValue && pointValue < rightBoundValue) 0
       else if (pointValue < leftBoundValue) -1
       else 1
-    } else if (!includeLeftBound && includerightBound) {
+    } else if (!desc.includeLeftBound && desc.includeRightBound) {
       if (pointValue > leftBoundValue && pointValue <= rightBoundValue) 0
       else if (pointValue <= leftBoundValue) -1
       else 1
@@ -189,109 +164,67 @@ class IntervalJoinOpExec[K](
     }
   }
 
-  def processTimeStampValue(
-      includeLeftBound: Boolean,
-      includerightBound: Boolean,
-      pointValue: Timestamp,
-      leftBoundValue: Timestamp,
-      rightBoundValue: Timestamp
-  ): Int = {
-    if (includeLeftBound && includerightBound) {
-      if (
-        (pointValue.after(leftBoundValue) || pointValue.equals(leftBoundValue)) && (pointValue
-          .before(rightBoundValue) || pointValue.equals(rightBoundValue))
-      ) 0
-      else if (pointValue.before(leftBoundValue)) -1
-      else 1
-    } else if (includeLeftBound && !includerightBound) {
-      if (
-        (pointValue.after(leftBoundValue) || pointValue.equals(leftBoundValue)) && (pointValue
-          .before(rightBoundValue))
-      ) 0
-      else if (pointValue.before(leftBoundValue)) -1
-      else 1
-    } else if (!includeLeftBound && includerightBound) {
-      if (
-        (pointValue.after(leftBoundValue)) && (pointValue
-          .before(rightBoundValue) || pointValue.equals(rightBoundValue))
-      ) 0
-      else if (pointValue.before(leftBoundValue) || pointValue.equals(leftBoundValue)) -1
-      else 1
-    } else {
-      if (
-        (pointValue.after(leftBoundValue)) && (pointValue
-          .before(rightBoundValue))
-      ) 0
-      else if (pointValue.before(leftBoundValue) || pointValue.equals(leftBoundValue)) -1
-      else 1
-    }
-  }
-  def joinConditionHolds(
+  private def intervalCompare[K](
       point: K,
       leftBound: K,
       dataType: AttributeType
   ): Int = {
+    var result: Int = -2
     if (dataType == AttributeType.LONG) {
-      var pointValue: Long = point.asInstanceOf[Long]
-      var leftBoundValue: Long = leftBound.asInstanceOf[Long]
-      var constantValue: Long = constant.asInstanceOf[Long]
-      var rightBoundValue: Long = leftBoundValue + constantValue
-      processNumValue[Long](
-        includeLeftBound,
-        includeRightBound,
+      val pointValue: Long = point.asInstanceOf[Long]
+      val leftBoundValue: Long = leftBound.asInstanceOf[Long]
+      val constantValue: Long = desc.constant
+      val rightBoundValue: Long = leftBoundValue + constantValue
+      result = processNumValue[Long](
         pointValue,
         leftBoundValue,
         rightBoundValue
       )
 
     } else if (dataType == AttributeType.DOUBLE) {
-      var pointValue: Double = point.asInstanceOf[Double]
-      var leftBoundValue: Double = leftBound.asInstanceOf[Double]
-      var constantValue: Double = constant.asInstanceOf[Double]
-      var rightBoundValue: Double = leftBoundValue + constantValue
-      processNumValue[Double](
-        includeLeftBound,
-        includeRightBound,
+      val pointValue: Double = point.asInstanceOf[Double]
+      val leftBoundValue: Double = leftBound.asInstanceOf[Double]
+      val constantValue: Double = desc.constant.asInstanceOf[Double]
+      val rightBoundValue: Double = leftBoundValue + constantValue
+      result = processNumValue[Double](
         pointValue,
         leftBoundValue,
         rightBoundValue
       )
     } else if (dataType == AttributeType.INTEGER) {
-      var pointValue: Int = point.asInstanceOf[Int]
-      var leftBoundValue: Int = leftBound.asInstanceOf[Int]
-      var constantValue: Int = constant.asInstanceOf[Int]
-      var rightBoundValue: Int = leftBoundValue + constantValue
-      processNumValue[Int](
-        includeLeftBound,
-        includeRightBound,
+      val pointValue: Int = point.asInstanceOf[Int]
+      val leftBoundValue: Int = leftBound.asInstanceOf[Int]
+      val constantValue: Int = desc.constant.asInstanceOf[Int]
+      val rightBoundValue: Int = leftBoundValue + constantValue
+      result = processNumValue[Int](
         pointValue,
         leftBoundValue,
         rightBoundValue
       )
     } else if (dataType == AttributeType.TIMESTAMP) {
-      var pointValue: Timestamp = point.asInstanceOf[Timestamp]
-      var leftBoundValue: Timestamp = leftBound.asInstanceOf[Timestamp]
-      var rightBoundValue: Timestamp =
-        timeIntervalType match {
-          case TimeIntervalType.YEAR =>
-            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusYears(constant))
-          case TimeIntervalType.MONTH =>
-            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusMonths(constant))
-          case TimeIntervalType.DAY =>
-            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusDays(constant))
-          case TimeIntervalType.HOUR =>
-            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusHours(constant))
-          case TimeIntervalType.MINUTE =>
-            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusMinutes(constant))
-          case TimeIntervalType.SECOND =>
-            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusSeconds(constant))
+      val pointValue: Timestamp = point.asInstanceOf[Timestamp]
+      val leftBoundValue: Timestamp = leftBound.asInstanceOf[Timestamp]
+      val rightBoundValue: Timestamp =
+        desc.timeIntervalType match {
+          case Some(TimeIntervalType.YEAR) =>
+            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusYears(desc.constant))
+          case Some(TimeIntervalType.MONTH) =>
+            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusMonths(desc.constant))
+          case Some(TimeIntervalType.DAY) =>
+            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusDays(desc.constant))
+          case Some(TimeIntervalType.HOUR) =>
+            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusHours(desc.constant))
+          case Some(TimeIntervalType.MINUTE) =>
+            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusMinutes(desc.constant))
+          case Some(TimeIntervalType.SECOND) =>
+            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusSeconds(desc.constant))
+          case None =>
+            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusDays(desc.constant))
         }
-      processTimeStampValue(
-        includeLeftBound,
-        includeRightBound,
-        pointValue,
-        leftBoundValue,
-        rightBoundValue
+      result = processNumValue(
+        pointValue.getTime,
+        leftBoundValue.getTime,
+        rightBoundValue.getTime
       )
     } else {
       val err = WorkflowRuntimeError(
@@ -301,14 +234,11 @@ class IntervalJoinOpExec[K](
       )
       throw new WorkflowRuntimeException(err)
     }
+    result
+
   }
 
-  override def open(): Unit = {
-    outputProbeSchema = createOutputProbeSchema()
-  }
+  override def open(): Unit = {}
 
-  override def close(): Unit = {
-    leftTable.clear()
-    rightTable.clear()
-  }
+  override def close(): Unit = {}
 }
