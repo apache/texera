@@ -65,6 +65,20 @@ object AttributeTypeUtils extends Serializable {
   }
 
   /**
+    * parse Fields to corresponding Java objects base on the given Schema AttributeTypes
+    * @param attributeTypes Schema AttributeTypeList
+    * @param fields fields value
+    * @return parsedFields in the target AttributeTypes
+    */
+  @throws[AttributeTypeException]
+  def parseFields(
+      fields: Array[Object],
+      attributeTypes: Array[AttributeType]
+  ): Array[Object] = {
+    fields.indices.map(i => parseField(fields.apply(i), attributeTypes.apply(i))).toArray
+  }
+
+  /**
     * parse Field to a corresponding Java object base on the given Schema AttributeType
     * @param field fields value
     * @param attributeType target AttributeType
@@ -88,18 +102,103 @@ object AttributeTypeUtils extends Serializable {
     }
   }
 
-  /**
-    * parse Fields to corresponding Java objects base on the given Schema AttributeTypes
-    * @param attributeTypes Schema AttributeTypeList
-    * @param fields fields value
-    * @return parsedFields in the target AttributeTypes
-    */
   @throws[AttributeTypeException]
-  def parseFields(
-      fields: Array[Object],
-      attributeTypes: Array[AttributeType]
-  ): Array[Object] = {
-    fields.indices.map(i => parseField(fields.apply(i), attributeTypes.apply(i))).toArray
+  def parseInteger(fieldValue: Object): Integer = {
+    fieldValue match {
+      case str: String                => str.trim.toInt
+      case int: Integer               => int
+      case long: java.lang.Long       => long.toInt
+      case double: java.lang.Double   => double.toInt
+      case boolean: java.lang.Boolean => if (boolean) 1 else 0
+      // Timestamp is considered to be illegal here.
+      case _ =>
+        throw new AttributeTypeException(
+          s"not able to parse type ${fieldValue.getClass} to Integer: ${fieldValue.toString}"
+        )
+    }
+  }
+
+  @throws[AttributeTypeException]
+  def parseLong(fieldValue: Object): java.lang.Long = {
+    fieldValue match {
+      case str: String                => str.trim.toLong
+      case int: Integer               => int.toLong
+      case long: java.lang.Long       => long
+      case double: java.lang.Double   => double.toLong
+      case boolean: java.lang.Boolean => if (boolean) 1L else 0L
+      case timestamp: Timestamp       => timestamp.toInstant.toEpochMilli
+      case _ =>
+        throw new AttributeTypeException(
+          s"not able to parse type ${fieldValue.getClass} to Long: ${fieldValue.toString}"
+        )
+    }
+  }
+
+  @throws[AttributeTypeException]
+  def parseTimestamp(fieldValue: Object): Timestamp = {
+    val parseError = new AttributeTypeException(
+      s"not able to parse type ${fieldValue.getClass} to Timestamp: ${fieldValue.toString}"
+    )
+    val datetimeISOFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+    val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
+    fieldValue match {
+      case str: String =>
+        (
+          // support ISO format with UTC {@code 2007-12-03T10:15:30.00Z}
+          Try(new Timestamp(Instant.parse(str.trim).toEpochMilli))
+            orElse
+              // support {@code yyyy-[m]m-[d]d hh:mm:ss[.f...]}
+              Try(Timestamp.valueOf(str.trim))
+            orElse
+              // support ISO format with timezone {@code 2007-12-03T10:15:30.00.000Z}
+              Try(new Timestamp(datetimeISOFormat.parse(fieldValue.toString.trim).getTime))
+            orElse
+              // support date format with timezone {@code 2007-12-03}
+              Try(new Timestamp(dateFormat.parse(fieldValue.toString.trim).getTime))
+        ).getOrElse(throw parseError)
+
+      case long: java.lang.Long => new Timestamp(long)
+
+      case timestamp: Timestamp => timestamp
+      // Integer, Double and Boolean are considered to be illegal here.
+      case _ =>
+        throw parseError
+    }
+  }
+
+  @throws[AttributeTypeException]
+  def parseDouble(fieldValue: Object): java.lang.Double = {
+    fieldValue match {
+      case str: String                => str.trim.toDouble
+      case int: Integer               => int.toDouble
+      case long: java.lang.Long       => long.toDouble
+      case double: java.lang.Double   => double
+      case boolean: java.lang.Boolean => if (boolean) 1 else 0
+      // Timestamp is considered to be illegal here.
+      case _ =>
+        throw new AttributeTypeException(
+          s"not able to parse type ${fieldValue.getClass} to Double: ${fieldValue.toString}"
+        )
+    }
+  }
+
+  @throws[AttributeTypeException]
+  def parseBoolean(fieldValue: Object): java.lang.Boolean = {
+    val parseError = new AttributeTypeException(
+      s"not able to parse type ${fieldValue.getClass} to Boolean: ${fieldValue.toString}"
+    )
+    fieldValue match {
+      case str: String =>
+        (Try(str.trim.toBoolean) orElse Try(str.trim.toInt == 1))
+          .getOrElse(throw parseError)
+      case int: Integer               => int != 0
+      case long: java.lang.Long       => long != 0
+      case double: java.lang.Double   => double != 0
+      case boolean: java.lang.Boolean => boolean
+      // Timestamp is considered to be illegal here.
+      case _ =>
+        throw parseError
+    }
   }
 
   /**
@@ -154,44 +253,12 @@ object AttributeTypeUtils extends Serializable {
     }
   }
 
-  @throws[AttributeTypeException]
-  def parseInteger(fieldValue: Object): Integer = {
-    fieldValue match {
-      case str: String                => str.trim.toInt
-      case int: Integer               => int
-      case long: java.lang.Long       => long.toInt
-      case double: java.lang.Double   => double.toInt
-      case boolean: java.lang.Boolean => if (boolean) 1 else 0
-      // Timestamp is considered to be illegal here.
-      case _ =>
-        throw new AttributeTypeException(
-          s"not able to parse type ${fieldValue.getClass} to Integer: ${fieldValue.toString}"
-        )
-    }
-  }
-
   private def tryParseLong(fieldValue: Object): AttributeType = {
     if (fieldValue == null)
       return LONG
     allCatch opt parseLong(fieldValue) match {
       case Some(_) => LONG
       case None    => tryParseTimestamp(fieldValue)
-    }
-  }
-
-  @throws[AttributeTypeException]
-  def parseLong(fieldValue: Object): java.lang.Long = {
-    fieldValue match {
-      case str: String                => str.trim.toLong
-      case int: Integer               => int.toLong
-      case long: java.lang.Long       => long
-      case double: java.lang.Double   => double.toLong
-      case boolean: java.lang.Boolean => if (boolean) 1L else 0L
-      case timestamp: Timestamp       => timestamp.toInstant.toEpochMilli
-      case _ =>
-        throw new AttributeTypeException(
-          s"not able to parse type ${fieldValue.getClass} to Long: ${fieldValue.toString}"
-        )
     }
   }
 
@@ -204,38 +271,6 @@ object AttributeTypeUtils extends Serializable {
     }
   }
 
-  @throws[AttributeTypeException]
-  def parseTimestamp(fieldValue: Object): Timestamp = {
-    val parseError = new AttributeTypeException(
-      s"not able to parse type ${fieldValue.getClass} to Timestamp: ${fieldValue.toString}"
-    )
-    val datetimeISOFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
-    val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
-    fieldValue match {
-      case str: String =>
-        (
-          // support ISO format with UTC {@code 2007-12-03T10:15:30.00Z}
-          Try(new Timestamp(Instant.parse(str.trim).toEpochMilli))
-            orElse
-              // support {@code yyyy-[m]m-[d]d hh:mm:ss[.f...]}
-              Try(Timestamp.valueOf(str.trim))
-            orElse
-              // support ISO format with timezone {@code 2007-12-03T10:15:30.00.000Z}
-              Try(new Timestamp(datetimeISOFormat.parse(fieldValue.toString.trim).getTime))
-            orElse
-              // support date format with timezone {@code 2007-12-03}
-              Try(new Timestamp(dateFormat.parse(fieldValue.toString.trim).getTime))
-        ).getOrElse(throw parseError)
-
-      case long: java.lang.Long => new Timestamp(long)
-
-      case timestamp: Timestamp => timestamp
-      // Integer, Double and Boolean are considered to be illegal here.
-      case _ =>
-        throw parseError
-    }
-  }
-
   private def tryParseDouble(fieldValue: Object): AttributeType = {
     if (fieldValue == null)
       return DOUBLE
@@ -245,47 +280,12 @@ object AttributeTypeUtils extends Serializable {
     }
   }
 
-  @throws[AttributeTypeException]
-  def parseDouble(fieldValue: Object): java.lang.Double = {
-    fieldValue match {
-      case str: String                => str.trim.toDouble
-      case int: Integer               => int.toDouble
-      case long: java.lang.Long       => long.toDouble
-      case double: java.lang.Double   => double
-      case boolean: java.lang.Boolean => if (boolean) 1 else 0
-      // Timestamp is considered to be illegal here.
-      case _ =>
-        throw new AttributeTypeException(
-          s"not able to parse type ${fieldValue.getClass} to Double: ${fieldValue.toString}"
-        )
-    }
-  }
-
   private def tryParseBoolean(fieldValue: Object): AttributeType = {
     if (fieldValue == null)
       return BOOLEAN
     allCatch opt parseBoolean(fieldValue) match {
       case Some(_) => BOOLEAN
       case None    => tryParseString()
-    }
-  }
-
-  @throws[AttributeTypeException]
-  def parseBoolean(fieldValue: Object): java.lang.Boolean = {
-    val parseError = new AttributeTypeException(
-      s"not able to parse type ${fieldValue.getClass} to Boolean: ${fieldValue.toString}"
-    )
-    fieldValue match {
-      case str: String =>
-        (Try(str.trim.toBoolean) orElse Try(str.trim.toInt == 1))
-          .getOrElse(throw parseError)
-      case int: Integer               => int != 0
-      case long: java.lang.Long       => long != 0
-      case double: java.lang.Double   => double != 0
-      case boolean: java.lang.Boolean => boolean
-      // Timestamp is considered to be illegal here.
-      case _ =>
-        throw parseError
     }
   }
 
