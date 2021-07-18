@@ -10,18 +10,16 @@ import java.io.Serializable;
 
 
 public class TypeCastingOpExec extends MapOpExec {
-    private final TypeCastingOpDesc opDesc;
+
     private final OperatorSchemaInfo operatorSchemaInfo;
 
-    public TypeCastingOpExec(TypeCastingOpDesc opDesc, OperatorSchemaInfo operatorSchemaInfo) {
-        this.opDesc = opDesc;
+    public TypeCastingOpExec(OperatorSchemaInfo operatorSchemaInfo) {
         this.operatorSchemaInfo = operatorSchemaInfo;
         this.setMapFunc((Function1<Tuple, Tuple> & Serializable) this::processTuple);
     }
 
-    public Tuple processTuple(Tuple t) {
-
-        return AttributeTypeUtils.TupleCasting(t, operatorSchemaInfo.outputSchema());
+    public Tuple processTuple(Tuple tuple) {
+        return AttributeTypeUtils.TupleCasting(tuple, operatorSchemaInfo.outputSchema());
     }
 
 }

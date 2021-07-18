@@ -3,20 +3,15 @@ package edu.uci.ics.texera.workflow.operators.typecasting;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.google.common.base.Preconditions;
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
-import com.sun.xml.bind.v2.util.TypeCast;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
-import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig;
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc;
-import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils;
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
-import edu.uci.ics.texera.workflow.operators.filter.FilterPredicate;
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 
 import java.util.List;
 
@@ -32,7 +27,7 @@ public class TypeCastingOpDesc extends MapOpDesc {
     @Override
     public OneToOneOpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         Preconditions.checkArgument(!typeCastingUnits.isEmpty());
-        return new OneToOneOpExecConfig(operatorIdentifier(), worker -> new TypeCastingOpExec(this, operatorSchemaInfo));
+        return new OneToOneOpExecConfig(operatorIdentifier(), worker -> new TypeCastingOpExec(operatorSchemaInfo));
     }
 
     @Override
@@ -49,8 +44,8 @@ public class TypeCastingOpDesc extends MapOpDesc {
     public Schema getOutputSchema(Schema[] schemas) {
         Preconditions.checkArgument(schemas.length == 1);
         Preconditions.checkArgument(!typeCastingUnits.isEmpty());
-        Schema outputSchema= schemas[0];
-        for (TypeCastingUnit unit: typeCastingUnits){
+        Schema outputSchema = schemas[0];
+        for (TypeCastingUnit unit : typeCastingUnits) {
             outputSchema = AttributeTypeUtils.SchemaCasting(outputSchema, unit.attribute, unit.resultType);
         }
         return outputSchema;
