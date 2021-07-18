@@ -1,24 +1,59 @@
 package edu.uci.ics.amber.engine.architecture.common
 
+
 import com.google.protobuf.any.Any
-import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy2.{
-  Add,
-  Literal,
-  ProtoExprWrapper
-}
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  LayerIdentity,
-  LinkIdentity,
-  OperatorIdentity
-}
+import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy2.{Add, Literal, ProtoExprWrapper}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, LinkIdentity, OperatorIdentity}
 import edu.uci.ics.amber.engine.common.worker.WorkerState
 import edu.uci.ics.amber.engine.common.worker.WorkerState.Ready
 import edu.uci.ics.texera.workflow.common.Utils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
+import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 import scalapb.json4s.{Parser, Printer, TypeRegistry}
 
 class VirtualIdentitySpec extends AnyFlatSpec {
+  it should "test" in {
+//    val registeredTypes =Add
+    val v = Add(Literal(2), Literal(3))
+    val json = myToJSON(v)
+    println(json)
+    val ret = myFromJSON(json)
+    println(ret)
+
+  }
+
+  def myToJSON(msg: GeneratedMessage): String = {
+    val any = Any.pack(msg)
+    var typeRegistry = TypeRegistry()
+        typeRegistry = typeRegistry.addMessage(Add)
+//    for (t <- registeredTypes){
+//      typeRegistry = typeRegistry.addMessage(msg.companion)
+//    }
+//    registeredTypes.map(t => typeRegistry.addMessage(t))
+    new Printer()
+      .withTypeRegistry(typeRegistry)
+      .includingDefaultValueFields
+      .preservingProtoFieldNames
+      .formattingLongAsNumber
+      .print(any)
+  }
+
+  def myFromJSON(json: String): Option[GeneratedMessage] = {
+    var typeRegistry = TypeRegistry()
+    typeRegistry = typeRegistry.addMessage(Add)
+//    for (t <- registeredTypes){
+//      typeRegistry = typeRegistry.addMessage(t)
+//    }
+//    registeredTypes.map(t => typeRegistry.addMessage(t))
+    val any = new Parser().withTypeRegistry(typeRegistry).fromJsonString[Any](json)
+//    for (message<- registeredTypes) {
+//      if (any.is(message)) {
+//        Some(any.unpack(cmp = message))
+//      }
+//    }
+    None
+  }
+
   it should "convert virtualidentities to json with jackson" in {
     val workerID = ActorVirtualIdentity("worker")
     val workerID2 = ActorVirtualIdentity("worker2")
@@ -92,12 +127,25 @@ class VirtualIdentitySpec extends AnyFlatSpec {
 
     println(s"scalapb-json4s $json4sString")
 
-    println(
-      s"Parse back with json4s ${new Parser().withTypeRegistry(t).fromJsonString[Any](json4sString)}"
-    )
-    println(s"raw jackson ${objectMapper.writeValueAsString(m)}")
+    val parsedAny = new Parser().withTypeRegistry(t).fromJsonString[Any](json4sString)
+//
+//    println(
+//      s"Parse back with json4s ${parsedAny.unpack[Class]}"
+//    )
+//    println(s"raw jackson ${objectMapper.writeValueAsString(m)}")
 //     println(s"Parse back with jackson ${objectMapper.readValue(json4sString, classOf[Any])}")
 //     does not work
 
   }
+//  it should "convert enum" in {
+//    val enum = Ready
+//    val json4sString =
+//      new Printer().formattingEnumsAsNumber
+//          .includingDefaultValueFields
+//          .preservingProtoFieldNames
+//          .formattingLongAsNumber
+//          .print(enum)
+//
+//
+//  }
 }
