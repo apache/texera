@@ -27,7 +27,6 @@ object WorkflowRewriter {
   }
 }
 
-//TODO: Use WorkflowResultService.
 class WorkflowRewriter(
     var workflowInfo: WorkflowInfo,
     var operatorOutputCache: mutable.HashMap[String, mutable.MutableList[Tuple]],
