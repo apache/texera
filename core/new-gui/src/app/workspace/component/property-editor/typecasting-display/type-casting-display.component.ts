@@ -1,22 +1,25 @@
-import { Component, Input, OnInit, OnChanges } from '@angular/core';
+import { Component, Input, OnChanges } from '@angular/core';
 import { WorkflowActionService } from 'src/app/workspace/service/workflow-graph/model/workflow-action.service';
-import { SchemaPropagationService } from 'src/app/workspace/service/dynamic-schema/schema-propagation/schema-propagation.service';
+import {
+  SchemaAttribute,
+  SchemaPropagationService
+} from 'src/app/workspace/service/dynamic-schema/schema-propagation/schema-propagation.service';
 import { OperatorPredicate } from 'src/app/workspace/types/workflow-common.interface';
 
 // correspond to operator type specified in backend OperatorDescriptor
 export const TYPE_CASTING_OPERATOR_TYPE = 'TypeCasting';
 
 @Component({
-  selector: 'texera-typecasting-display',
-  templateUrl: './typecasting-display.component.html',
-  styleUrls: ['./typecasting-display.component.scss']
+  selector: 'texera-type-casting-display',
+  templateUrl: './type-casting-display.component.html',
+  styleUrls: ['./type-casting-display.component.scss']
 })
-export class TypecastingDisplayComponent implements OnInit, OnChanges {
 
-  public attribute: string | undefined;
-  public inputType: string | undefined;
-  public resultType: string | undefined;
 
+export class TypeCastingDisplayComponent implements OnChanges {
+
+  public schema: SchemaAttribute[] = [];
+  public displayedColumns: string[] = ['attributeName', 'attributeType'];
   public showTypeCastingTypeInformation: boolean = false;
 
   @Input() operatorID: string | undefined;
@@ -34,12 +37,9 @@ export class TypecastingDisplayComponent implements OnInit, OnChanges {
       });
   }
 
-  ngOnInit(): void {
-  }
-
   // invoke on first init and every time the input binding is changed
   ngOnChanges(): void {
-    if (! this.operatorID) {
+    if (!this.operatorID) {
       this.showTypeCastingTypeInformation = false;
       return;
     }
@@ -53,21 +53,24 @@ export class TypecastingDisplayComponent implements OnInit, OnChanges {
   }
 
   private updateComponent(op: OperatorPredicate): void {
-    this.attribute = op.operatorProperties['attribute'];
-    this.resultType = op.operatorProperties['resultType'];
-    if (! this.operatorID) {
+
+    if (!this.operatorID) {
       return;
     }
+    this.schema = [];
     const inputSchema = this.schemaPropagationService.getOperatorInputSchema(this.operatorID);
-    if (! inputSchema || inputSchema.length === 0) {
-      return;
-    }
-    const inputSchemaPort0 = inputSchema[0];
-    if (! inputSchemaPort0) {
-      return;
-    }
-    this.inputType = inputSchemaPort0.find(e => e.attributeName === this.attribute)?.attributeType;
+    inputSchema?.forEach(schema => schema?.forEach(attr => {
+      const castedAttr = {...attr};
+      for (const castTo of op.operatorProperties['TypeCasting Units']) {
+        if (castTo.attribute === attr.attributeName) {
+          castedAttr.attributeType = castTo.resultType;
+        }
+      }
+      this.schema.push(castedAttr);
+    }));
+
   }
-
-
 }
+
+
+

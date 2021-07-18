@@ -9,7 +9,7 @@ import scala.Function1;
 import java.io.Serializable;
 
 
-public class TypeCastingOpExec extends  MapOpExec{
+public class TypeCastingOpExec extends MapOpExec {
     private final TypeCastingOpDesc opDesc;
     private final OperatorSchemaInfo operatorSchemaInfo;
 
@@ -20,7 +20,8 @@ public class TypeCastingOpExec extends  MapOpExec{
     }
 
     public Tuple processTuple(Tuple t) {
-        return AttributeTypeUtils.TupleCasting(t, opDesc.attribute, opDesc.resultType, operatorSchemaInfo);
+
+        return AttributeTypeUtils.TupleCasting(t, operatorSchemaInfo.outputSchema());
     }
 
 }
