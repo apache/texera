@@ -9,6 +9,6 @@ object util {
     LayerIdentity(operatorIdentity.workflow, operatorIdentity.operator, layerID)
   }
 
-  def toOperatorIdentity(layerIdentity: Option[LayerIdentity]): OperatorIdentity =
-    OperatorIdentity(layerIdentity.get.workflow, layerIdentity.get.operator)
+  def toOperatorIdentity(layerIdentity: LayerIdentity): OperatorIdentity =
+    OperatorIdentity(layerIdentity.workflow, layerIdentity.operator)
 }

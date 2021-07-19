@@ -21,7 +21,7 @@ class HashJoinOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   var opDesc: HashJoinOpDesc[String] = _
   var counter: Int = 0
 
-  def linkID(): LinkIdentity = LinkIdentity(Option(layerID()), Option(layerID()))
+  def linkID(): LinkIdentity = LinkIdentity(LayerIdentity("", "", ""), LayerIdentity("", "", ""))
 
   def layerID(): LayerIdentity = {
     counter += 1

@@ -27,7 +27,7 @@ class TupleToBatchConverterSpec extends AnyFlatSpec with MockFactory {
       (mockDataOutputPort.sendTo _).expects(fakeID, EndOfUpstream())
     }
     val fakeLink =
-      LinkIdentity(Option(LayerIdentity()), Option(LayerIdentity()))
+      LinkIdentity(LayerIdentity("", "", ""), LayerIdentity("", "", ""))
     val fakeReceiver = Array[ActorVirtualIdentity](fakeID)
 
     batchProducer.addPartitionerWithPartitioning(fakeLink, OneToOnePartitioning(10, fakeReceiver))
