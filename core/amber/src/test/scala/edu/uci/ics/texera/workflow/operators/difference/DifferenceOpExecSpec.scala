@@ -20,7 +20,7 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     LayerIdentity("" + counter, "" + counter, "" + counter)
   }
 
-  def linkID(): LinkIdentity = LinkIdentity(LayerIdentity("", "", ""), LayerIdentity("", "", ""))
+  def linkID(): LinkIdentity = LinkIdentity(layerID(), layerID())
 
   def tuple(): Tuple = {
     counter += 1
