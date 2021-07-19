@@ -255,17 +255,14 @@ export class NavigationComponent implements OnInit {
   }
 
   /**
-   * This method should perform the following three things in order:
-   * 1. auto layout the workflow (LR)
-   * 2. zoom out to fit the whole workflow
-   * 3. center the workflow
+   * This method will run the autoLayout function
+   *
    */
     public onClickAutoLayout(): void {
       if (!this.hasOperators()) {
         return;
       }
-      this.workflowActionService.getJointGraphWrapper().autoLayout();
-      // this.workflowActionService.getJointGraphWrapper().restoreDefaultZoomAndOffset();
+      this.workflowActionService.handleAutoLayout(this.workflowActionService.getWorkflow());
   }
 
   /**

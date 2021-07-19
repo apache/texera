@@ -527,6 +527,38 @@ export class WorkflowActionService {
     this.executeAndStoreCommand(command);
   }
 
+  /**
+   * Handles the auto layout function and
+   *
+   * @param Workflow
+   */
+  // Originally: drag Operator
+    public handleAutoLayout(workflow: Workflow | undefined): void {
+      const oldOperatorsAndPositions: { op: OperatorPredicate, pos: Point }[] = [];
+      // remeber old position
+      if (workflow === undefined) {
+        return;
+      }
+      const workflowContent: WorkflowContent = workflow.content;
+      workflowContent.operators.forEach(op => {
+        const oldPosition = workflowContent.operatorPositions[op.operatorID];
+        oldOperatorsAndPositions.push({op: op, pos: oldPosition});
+      });
+
+        const command: Command = {
+        modifiesWorkflow: false,
+        execute: () => {
+          this.jointGraphWrapper.setAutoLayout();
+        },
+        undo: () => {
+          oldOperatorsAndPositions.forEach(op => {
+          this.jointGraphWrapper.setAbsolutePosition(op.op.operatorID, op.pos.x, op.pos.y);
+          });
+        }
+      };
+      this.executeAndStoreCommand(command);
+    }
+
   // not used I believe
   /**
    * Adds a link to the workflow graph

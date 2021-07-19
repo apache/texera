@@ -130,7 +130,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleOperatorValidation();
     this.handlePaperRestoreDefaultOffset();
     this.handlePaperZoom();
-    this.handleAutoLayout();
     this.handleWindowResize();
     this.handleViewDeleteOperator();
     this.handleCellHighlight();
@@ -278,17 +277,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     });
   }
 
-  /**
-   * Handles something
-   */
-
-  private handleAutoLayout(): void {
-    this.workflowActionService.getJointGraphWrapper().getAutoLayoutStream()
-    .subscribe(() => {
-      this.workflowActionService.getJointGraphWrapper().setAutoLayout();
-      this.getJointPaper().translate(100, 300);
-    });
-  }
 
   /**
    * Handles zoom events when user slides the mouse wheel.
