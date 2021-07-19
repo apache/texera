@@ -198,6 +198,7 @@ class WorkflowWebsocketResource {
     mutable.HashMap[String, WorkflowVertex]()
 
   def executeWorkflow(session: Session, request: ExecuteWorkflowRequest): Unit = {
+    logger.info("Session id: {}", session.getId)
     val context = new WorkflowContext
     val jobID = Integer.toString(WorkflowWebsocketResource.nextJobID.incrementAndGet)
     context.jobID = jobID
@@ -217,7 +218,7 @@ class WorkflowWebsocketResource {
       cacheSinkOperators
     )
     workflowRewriter.operatorRecord = operatorRecord
-    val newWorkflowInfo = workflowRewriter.rewrite
+    val newWorkflowInfo = workflowRewriter.rewrite_v2
     logger.info("Original workflow: {}.", toJgraphtDAG(workflowInfo).toString)
     workflowInfo = newWorkflowInfo
     logger.info("Rewritten workflow: {}.", toJgraphtDAG(workflowInfo).toString)
@@ -234,20 +235,40 @@ class WorkflowWebsocketResource {
 
     val workflowResultService = new WorkflowResultService(texeraWorkflowCompiler)
     if (!sessionResults.contains(session.getId)) {
-      sessionResults += ((session.getId, workflowResultService))
+      sessionResults(session.getId) = workflowResultService
     } else {
       val previousWorkflowResultService = sessionResults(session.getId)
       val previousResults = previousWorkflowResultService.operatorResults
       val results = workflowResultService.operatorResults
-      previousResults.foreach(e => {
-        val upID =
-          previousWorkflowResultService.workflowCompiler.workflow.getUpstream(e._1).head.operatorID
-        if (cachedOperators.contains(upID) && !results.contains(upID)) {
-          results += ((upID, e._2))
+      results.foreach(e => {
+        if (previousResults.contains(e._2.operatorID)) {
+          previousResults(e._2.operatorID) = e._2
         }
       })
+//      previousResults.foreach(e => {
+      //        if (results.contains(e._1)) {
+      //          previousResults(e._1) = results(e._1)
+      //        }
+      //      })
+      previousResults.foreach(e => {
+        if (cachedOperators.contains(e._2.operatorID) && !results.contains(e._2.operatorID)) {
+          results += ((e._2.operatorID, e._2))
+        }
+//        if (previousWorkflowResultService.workflowCompiler.workflow.operators.contains(e._1)) {
+//          val upID =
+//            previousWorkflowResultService.workflowCompiler.workflow
+//              .getUpstream(e._1)
+//              .head
+//              .operatorID
+//          if (cachedOperators.contains(upID) && !results.contains(upID)) {
+//            results += ((upID, e._2))
+//          }
+//        } else {
+//          results += (e)
+//        }
+      })
+      sessionResults(session.getId) = workflowResultService
     }
-    sessionResults(session.getId) = workflowResultService
 
     val eventListener = ControllerEventListener(
       workflowCompletedListener = completed => {
