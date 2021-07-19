@@ -20,6 +20,9 @@ concurrentRestrictions in Global += Tags.limit(Tags.Test, 1)
 // https://github.com/coursier/coursier/issues/2016
 ThisBuild / useCoursier := false
 
+// add python as an additional source
+Compile / unmanagedSourceDirectories += baseDirectory.value / "src" / "main" / "python"
+
 /////////////////////////////////////////////////////////////////////////////
 // Akka related
 val akkaVersion = "2.6.12"
@@ -116,6 +119,18 @@ libraryDependencies += "com.thesamet.scalapb" %% "scalapb-json4s" % "0.11.0"
 // enable protobuf compilation in Test
 Test / PB.protoSources += PB.externalSourcePath.value
 
+lazy val pythonProtoGen = TaskKey[Unit]("pythonProtoGen", "Generate protobuf code for python")
+pythonProtoGen := {
+  import sys.process._
+  Process("source ../venv/bin/active") ! match {
+    case 0 => // Success!
+      sys.error("SUCCESS")
+    case n => sys.error(s"Could not load python venv, exit code: $n")
+  }
+//  Seq("source", "../venv/bin/active")
+//  Seq("protoc", "--python_betterproto_out=./src/main/python/","-I=./src/main/protobuf", "$(find", "./src/main/protobuf", "-iname", "\"*.proto\")", "--proto_path=./src/main/protobuf") !
+}
+//compile in Compile <<= (compile in Compile).dependsOn(pythonProtoGen)
 /////////////////////////////////////////////////////////////////////////////
 // Test related
 // https://mvnrepository.com/artifact/org.scalamock/scalamock
