@@ -11,7 +11,7 @@ from pyarrow.flight import Action, FlightDescriptor, FlightServerBase, MetadataR
 from pyarrow.ipc import RecordBatchStreamWriter
 from typing import Dict, Iterator, Tuple
 
-from edu.uci.ics.amber.engine.common import ActorVirtualIdentity
+from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity
 from .common import deserialize_arguments
 
 

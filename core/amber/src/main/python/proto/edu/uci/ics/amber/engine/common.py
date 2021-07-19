@@ -4,17 +4,16 @@
 from dataclasses import dataclass
 
 import betterproto
-from betterproto.grpc.grpclib_server import ServiceBase
 
 
-@dataclass(eq=False, repr=False)
+@dataclass
 class ActorVirtualIdentity(betterproto.Message):
     """final case class ActorVirtualIdentity"""
 
     name: str = betterproto.string_field(1)
 
 
-@dataclass(eq=False, repr=False)
+@dataclass
 class LayerIdentity(betterproto.Message):
     """
     final case class LayerIdentity (    workflow: String,    operator: String,
@@ -23,10 +22,10 @@ class LayerIdentity(betterproto.Message):
 
     workflow: str = betterproto.string_field(1)
     operator: str = betterproto.string_field(2)
-    layer_id: str = betterproto.string_field(3)
+    layer_i_d: str = betterproto.string_field(3)
 
 
-@dataclass(eq=False, repr=False)
+@dataclass
 class LinkIdentity(betterproto.Message):
     """
     final case class LinkIdentity (    from: LayerIdentity,    to:
@@ -37,7 +36,7 @@ class LinkIdentity(betterproto.Message):
     to: "LayerIdentity" = betterproto.message_field(2)
 
 
-@dataclass(eq=False, repr=False)
+@dataclass
 class OperatorIdentity(betterproto.Message):
     """
     final case class LinkIdentity (    workflow: String,    operator: String )
@@ -47,7 +46,7 @@ class OperatorIdentity(betterproto.Message):
     operator: str = betterproto.string_field(2)
 
 
-@dataclass(eq=False, repr=False)
+@dataclass
 class WorkflowIdentity(betterproto.Message):
     """final case class WorkflowIdentity (    id: String )"""
 

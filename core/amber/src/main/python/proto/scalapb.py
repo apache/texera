@@ -5,7 +5,8 @@ from dataclasses import dataclass
 from typing import Dict, List
 
 import betterproto
-from betterproto.grpc.grpclib_server import ServiceBase
+
+from .google import protobuf
 
 
 class MatchType(betterproto.Enum):
@@ -24,7 +25,7 @@ class ScalaPbOptionsEnumValueNaming(betterproto.Enum):
     CAMEL_CASE = 1
 
 
-@dataclass(eq=False, repr=False)
+@dataclass
 class ScalaPbOptions(betterproto.Message):
     # If set then it overrides the java_package and package.
     package_name: str = betterproto.string_field(1)
@@ -114,7 +115,7 @@ class ScalaPbOptions(betterproto.Message):
     test_only_no_java_conversions: bool = betterproto.bool_field(999)
 
 
-@dataclass(eq=False, repr=False)
+@dataclass
 class ScalaPbOptionsAuxMessageOptions(betterproto.Message):
     """
     AuxMessageOptions enables you to set message-level options through package-
@@ -129,7 +130,7 @@ class ScalaPbOptionsAuxMessageOptions(betterproto.Message):
     options: "MessageOptions" = betterproto.message_field(2)
 
 
-@dataclass(eq=False, repr=False)
+@dataclass
 class ScalaPbOptionsAuxFieldOptions(betterproto.Message):
     """
     AuxFieldOptions enables you to set field-level options through package-
@@ -144,7 +145,7 @@ class ScalaPbOptionsAuxFieldOptions(betterproto.Message):
     options: "FieldOptions" = betterproto.message_field(2)
 
 
-@dataclass(eq=False, repr=False)
+@dataclass
 class ScalaPbOptionsAuxEnumOptions(betterproto.Message):
     """
     AuxEnumOptions enables you to set enum-level options through package-scoped
@@ -159,7 +160,7 @@ class ScalaPbOptionsAuxEnumOptions(betterproto.Message):
     options: "EnumOptions" = betterproto.message_field(2)
 
 
-@dataclass(eq=False, repr=False)
+@dataclass
 class ScalaPbOptionsAuxEnumValueOptions(betterproto.Message):
     """
     AuxEnumValueOptions enables you to set enum value level options through
@@ -174,7 +175,7 @@ class ScalaPbOptionsAuxEnumValueOptions(betterproto.Message):
     options: "EnumValueOptions" = betterproto.message_field(2)
 
 
-@dataclass(eq=False, repr=False)
+@dataclass
 class MessageOptions(betterproto.Message):
     # Additional classes and traits to mix in to the case class.
     extends: List[str] = betterproto.string_field(1)
@@ -199,7 +200,7 @@ class MessageOptions(betterproto.Message):
     unknown_fields_annotations: List[str] = betterproto.string_field(8)
 
 
-@dataclass(eq=False, repr=False)
+@dataclass
 class Collection(betterproto.Message):
     """
     Represents a custom Collection type in Scala. This allows ScalaPB to
@@ -218,7 +219,7 @@ class Collection(betterproto.Message):
     adapter: str = betterproto.string_field(3)
 
 
-@dataclass(eq=False, repr=False)
+@dataclass
 class FieldOptions(betterproto.Message):
     type: str = betterproto.string_field(1)
     scala_name: str = betterproto.string_field(2)
@@ -246,7 +247,7 @@ class FieldOptions(betterproto.Message):
     required: bool = betterproto.bool_field(31)
 
 
-@dataclass(eq=False, repr=False)
+@dataclass
 class EnumOptions(betterproto.Message):
     # Additional classes and traits to mix in to the base trait
     extends: List[str] = betterproto.string_field(1)
@@ -263,7 +264,7 @@ class EnumOptions(betterproto.Message):
     unrecognized_annotations: List[str] = betterproto.string_field(6)
 
 
-@dataclass(eq=False, repr=False)
+@dataclass
 class EnumValueOptions(betterproto.Message):
     # Additional classes and traits to mix in to an individual enum value.
     extends: List[str] = betterproto.string_field(1)
@@ -273,7 +274,7 @@ class EnumValueOptions(betterproto.Message):
     annotations: List[str] = betterproto.string_field(3)
 
 
-@dataclass(eq=False, repr=False)
+@dataclass
 class OneofOptions(betterproto.Message):
     # Additional traits to mix in to a oneof.
     extends: List[str] = betterproto.string_field(1)
@@ -281,20 +282,15 @@ class OneofOptions(betterproto.Message):
     scala_name: str = betterproto.string_field(2)
 
 
-@dataclass(eq=False, repr=False)
+@dataclass
 class FieldTransformation(betterproto.Message):
-    when: "betterproto_lib_google_protobuf.FieldDescriptorProto" = (
-        betterproto.message_field(1)
-    )
+    when: protobuf.FieldDescriptorProto = betterproto.message_field(1)
     match_type: "MatchType" = betterproto.enum_field(2)
-    set: "betterproto_lib_google_protobuf.FieldOptions" = betterproto.message_field(3)
+    set: protobuf.FieldOptions = betterproto.message_field(3)
 
 
-@dataclass(eq=False, repr=False)
+@dataclass
 class PreprocessorOutput(betterproto.Message):
     options_by_file: Dict[str, "ScalaPbOptions"] = betterproto.map_field(
         1, betterproto.TYPE_STRING, betterproto.TYPE_MESSAGE
     )
-
-
-import betterproto.lib.google.protobuf as betterproto_lib_google_protobuf

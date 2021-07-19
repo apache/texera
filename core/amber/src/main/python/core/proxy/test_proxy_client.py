@@ -5,7 +5,7 @@ from pyarrow.flight import FlightServerError
 from queue import Queue
 from typing import Iterator
 
-from edu.uci.ics.amber.engine.common import ActorVirtualIdentity
+from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity
 from .proxy_client import ProxyClient
 from .proxy_server import ProxyServer
 
