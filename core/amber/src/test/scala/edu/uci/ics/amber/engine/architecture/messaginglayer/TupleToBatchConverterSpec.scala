@@ -15,6 +15,12 @@ import org.scalatest.flatspec.AnyFlatSpec
 class TupleToBatchConverterSpec extends AnyFlatSpec with MockFactory {
   private val mockDataOutputPort = mock[DataOutputPort]
   private val identifier = ActorVirtualIdentity("batch producer mock")
+  var counter: Int = 0
+
+  def layerID(): LayerIdentity = {
+    counter += 1
+    LayerIdentity("" + counter, "" + counter, "" + counter)
+  }
 
   "TupleToBatchConverter" should "aggregate tuples and output" in {
     val batchProducer = wire[TupleToBatchConverter]
