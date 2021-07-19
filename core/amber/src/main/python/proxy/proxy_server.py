@@ -1,0 +1,215 @@
+import time
+
+import argparse
+import threading
+from functools import wraps
+from inspect import signature
+from loguru import logger
+from pyarrow import Table, py_buffer
+from pyarrow.flight import Action, FlightDescriptor, FlightServerBase, MetadataRecordBatchReader, Result, \
+    ServerCallContext
+from pyarrow.ipc import RecordBatchStreamWriter
+from typing import Dict, Iterator, Tuple
+
+from edu.uci.ics.amber.engine.common import ActorVirtualIdentity
+from .common import deserialize_arguments
+
+
+class ProxyServer(FlightServerBase):
+    @staticmethod
+    def ack(original_func=None, msg="ack"):
+        """
+        decorator for returning an ack message after the action.
+        example usage:
+            ```
+            @ack
+            def hello():
+                return None
+            server.register("hello", hello)
+            msg = client.call("hello") # msg will be "ack"
+            ```
+
+            or
+            ```
+            @ack(msg="other msg")
+            def hello():
+                return None
+            server.register("hello", hello)
+            msg = client.call("hello") # msg will be "other msg"
+            ```
+
+        :param original_func: decorated function, usually is a callable to be registered.
+        :param msg: the return message from the decorator, "ack" by default.
+        :return:
+        """
+
+        def ack_decorator(func: callable):
+            @wraps(func)
+            def wrapper(*args, **kwargs):
+                func(*args, **kwargs)
+                return msg
+
+            return wrapper
+
+        if original_func:
+            return ack_decorator(original_func)
+        return ack_decorator
+
+    def __init__(self, scheme: str = "grpc+tcp", host: str = "localhost", port: int = 5005):
+        location = f"{scheme}://{host}:{port}"
+        super(ProxyServer, self).__init__(location)
+        logger.debug("Serving on " + location)
+
+        self.host = host
+
+        # PyArrow Flights, identified by the ticket.
+        self._flights: Dict[str, Table] = dict()
+
+        # procedures for actions, will contain registered actions, identified by procedure name.
+        self._procedures: Dict[str, Tuple[callable, str]] = dict()
+
+        # register shutdown, this is the default action for client to terminate server.
+        self.register("shutdown",
+                      ProxyServer.ack(msg="Bye bye!")
+                      (lambda: threading.Thread(target=self._shutdown).start()),
+                      description="Shut down this server.")
+
+        # the data message handlers for each batch, needs to be implemented during runtime.
+        self.register_data_handler(lambda *args, **kwargs: (_ for _ in ()).throw(NotImplementedError))
+
+        self.process_data = None
+        self.process_control = None
+
+    ###########################
+    # Flights related methods #
+    ###########################
+
+    def do_put(self, context: ServerCallContext, descriptor: FlightDescriptor, reader: MetadataRecordBatchReader,
+               writer: RecordBatchStreamWriter):
+        """
+        put a data table into server, the data will be handled by the `self.process_data()` handler.
+        :param context: server context, containing information of middlewares.
+        :param descriptor: the descriptor of this batch of data.
+        :param reader: the input stream of batches of records.
+        :param writer: the output stream.
+        :return:
+        """
+
+        from_ = ActorVirtualIdentity().parse(descriptor.command)
+
+        data: Table = reader.read_all()
+        if len(data.schema) == 0:
+            self.process_data(from_, None)
+        else:
+            # logger.debug(f"getting a data flight from {from_}, data: \n {data}")
+            self.process_data(from_, data)
+
+    ###############################
+    # RPC actions related methods #
+    ###############################
+    def list_actions(self, context: ServerCallContext) -> Iterator[Tuple[str, str]]:
+        """
+        list all actions that are being registered with the server, it will
+        return the procedure name and description for each registered action.
+        :param context: server context, containing information of middlewares.
+        :return: iterator of (procedure_name, procedure_description) pairs.
+        """
+        return map(lambda x: (x[0], x[1][1]), self._procedures.items())
+
+    def do_action(self, context: ServerCallContext, action: Action) -> Iterator[Result]:
+        """
+        perform an action that previously registered with a procedure,
+        return a result in bytes.
+        :param context: server context, containing information of middlewares.
+        :param action: the action to perform, including
+                        action.type: the procedure name to invoke
+                        action.body: the procedure arguments in bytes
+        :return: yield the encoded result back to client.
+        """
+        # logger.debug(f"python getting a call on {action.type}, {type(action.type)}")
+        # get procedure by name
+
+        if action.type == "control":
+            message = self.deserialize_control(action.body.to_pybytes())
+            self.process_control(message)
+            encoded = b"ack"
+        else:
+            procedure, _ = self._procedures.get(action.type)
+            if not procedure:
+                raise KeyError("Unknown action {!r}".format(action.type))
+
+            # parse arguments for the procedure
+            arguments = deserialize_arguments(action.body.to_pybytes())
+            logger.debug(f"received call {action.type} with args {arguments} along with context {context}")
+
+            # invoke the procedure
+            result = procedure(*arguments["args"], **arguments["kwargs"])
+
+            # serialize the result
+            if isinstance(result, bytes):
+                encoded = result
+            else:
+                encoded = str(result).encode('utf-8')
+
+        yield Result(py_buffer(encoded))
+
+    def register(self, name: str, procedure: callable, description: str = "") -> None:
+        """
+        register a procedure with an action name.
+        :param name: the name of the procedure, it should be matching Action's type.
+        :param procedure: a callable, could be class, function, or lambda.
+        :param description: describes the procedure.
+        :return:
+        """
+
+        # wrap the given procedure so that its error can be logged.
+        @logger.catch(level="WARNING", reraise=True)
+        def wrapper(*args, **kwargs):
+            return procedure(*args, **kwargs)
+
+        # update the procedures, which overwrites the previous registration.
+        self._procedures[name] = (wrapper, description)
+        logger.debug("registered procedure " + name)
+
+    def register_data_handler(self, handler: callable) -> None:
+        """
+        register the data handler function, which will be invoked after each `do_put`.
+        :param handler: a callable with at least one argument, for the data batch.
+        :return:
+        """
+
+        # the handler at least should have 2 arguments for the from_ and data batch.
+        assert len(signature(handler).parameters) >= 2
+
+        self.process_data = handler
+
+    def register_control_handler(self, handler: callable, deserializer: callable) -> None:
+        self.process_control = handler
+        self.deserialize_control = deserializer
+
+    ##################
+    # helper methods #
+    ##################
+    def _shutdown(self):
+        """Shut down after a delay."""
+        logger.debug("Server is shutting down...")
+        time.sleep(1)
+        self.shutdown()
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--host", type=str, default="localhost",
+                        help="Address or hostname to listen on")
+    parser.add_argument("--port", type=int, default=5005,
+                        help="Port number to listen on")
+
+    args = parser.parse_args()
+    scheme = "grpc+tcp"
+
+    server = ProxyServer(scheme, args.host, args.port)
+    server.serve()
+
+
+if __name__ == '__main__':
+    main()
