@@ -32,7 +32,7 @@ class ProxyClient(FlightClient):
         options = FlightCallOptions(timeout=self._timeout)
         return next(self.do_action(action, options)).body.to_pybytes()
 
-    def send_flight(self, command: bytes, table: Optional[Table]) -> None:
+    def send(self, command: bytes, table: Optional[Table]) -> None:
         """
         send data to the server
         :param table: a PyArrow.Table of column-stored records.

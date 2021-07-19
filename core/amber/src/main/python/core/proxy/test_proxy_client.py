@@ -6,7 +6,6 @@ from pandas import DataFrame
 from pyarrow import ArrowNotImplementedError, Table
 from pyarrow.flight import FlightServerError
 
-from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity
 from .proxy_client import ProxyClient
 from .proxy_server import ProxyServer
 
@@ -138,12 +137,12 @@ class TestProxyClient:
         with server:
             # send the pyarrow table to server as a flight
             with pytest.raises(ArrowNotImplementedError):
-                client.send_flight(bytes(ActorVirtualIdentity()), test_table)
+                client.send(bytes(), test_table)
 
     def test_client_can_send_data_with_handler(self, data_queue: Queue, server_with_dp, client, test_table):
         with server_with_dp:
             # send the pyarrow table to server as a flight
-            client.send_flight(bytes(ActorVirtualIdentity()), test_table)
+            client.send(bytes(), test_table)
 
             assert data_queue.qsize() == 4
             for i, row in test_table.to_pandas().iterrows():
