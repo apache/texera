@@ -32,23 +32,19 @@ class ProxyClient(FlightClient):
         options = FlightCallOptions(timeout=self._timeout)
         return next(self.do_action(action, options)).body.to_pybytes()
 
-    def send_data(self, command: bytes, table: Optional[Table]) -> None:
+    def send_flight(self, command: bytes, table: Optional[Table]) -> None:
         """
         send data to the server
         :param table: a PyArrow.Table of column-stored records.
         :return:
         """
-
         descriptor = FlightDescriptor.for_command(command)
         table = Table.from_arrays([]) if table is None else table
+        writer, _ = self.do_put(descriptor, table.schema)
+        writer: FlightStreamWriter
+        with writer:
+            writer.write_table(table)
 
-        refs = self.do_put(descriptor, table.schema)
-        writer: FlightStreamWriter = refs[0]
-        try:
-            with writer:
-                writer.write_table(table)
-        except Exception as err:
-            logger.exception(err)
 
 
 if __name__ == '__main__':

@@ -1,15 +1,15 @@
-import time
-
 import argparse
 import threading
+import time
 from functools import wraps
 from inspect import signature
+from typing import Dict, Iterator, Tuple
+
 from loguru import logger
 from pyarrow import Table, py_buffer
 from pyarrow.flight import Action, FlightDescriptor, FlightServerBase, MetadataRecordBatchReader, Result, \
     ServerCallContext
 from pyarrow.ipc import RecordBatchStreamWriter
-from typing import Dict, Iterator, Tuple
 
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity
 from .common import deserialize_arguments
@@ -59,11 +59,7 @@ class ProxyServer(FlightServerBase):
         location = f"{scheme}://{host}:{port}"
         super(ProxyServer, self).__init__(location)
         logger.debug("Serving on " + location)
-
         self.host = host
-
-        # PyArrow Flights, identified by the ticket.
-        self._flights: Dict[str, Table] = dict()
 
         # procedures for actions, will contain registered actions, identified by procedure name.
         self._procedures: Dict[str, Tuple[callable, str]] = dict()
@@ -77,8 +73,8 @@ class ProxyServer(FlightServerBase):
         # the data message handlers for each batch, needs to be implemented during runtime.
         self.register_data_handler(lambda *args, **kwargs: (_ for _ in ()).throw(NotImplementedError))
 
-        self.process_data = None
-        self.process_control = None
+        self.process_data = lambda *args, **kwargs: (_ for _ in ()).throw(NotImplementedError)
+        self.process_control = lambda *args, **kwargs: (_ for _ in ()).throw(NotImplementedError)
 
     ###########################
     # Flights related methods #
@@ -178,7 +174,7 @@ class ProxyServer(FlightServerBase):
         :return:
         """
 
-        # the handler at least should have 2 arguments for the from_ and data batch.
+        # the handler at least should have 2 arguments for 1) the command and 2) the data batch.
         assert len(signature(handler).parameters) >= 2
 
         self.process_data = handler

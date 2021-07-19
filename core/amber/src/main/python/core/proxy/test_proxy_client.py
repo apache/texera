@@ -1,9 +1,10 @@
+from queue import Queue
+from typing import Iterator
+
 import pytest
 from pandas import DataFrame
 from pyarrow import ArrowNotImplementedError, Table
 from pyarrow.flight import FlightServerError
-from queue import Queue
-from typing import Iterator
 
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity
 from .proxy_client import ProxyClient
@@ -23,13 +24,22 @@ class TestProxyClient:
     @pytest.fixture
     def server_with_dp(self, data_queue):
         server = ProxyServer()
-        server.register_data_handler(lambda table: list(map(data_queue.put,
-                                                            map(lambda t: t[1], table.to_pandas().iterrows()))))
+        server.register_data_handler(lambda cmd, table:
+                                     list(map(data_queue.put,
+                                              map(lambda t: t[1], table.to_pandas().iterrows()))))
         yield server
 
     @pytest.fixture
     def client(self):
         yield ProxyClient()
+
+    @pytest.fixture
+    def test_table(self):
+        df_to_sent = DataFrame({
+            'Brand': ['Honda Civic', 'Toyota Corolla', 'Ford Focus', 'Audi A4'],
+            'Price': [22000, 25000, 27000, 35000]
+        }, columns=['Brand', 'Price'])
+        return Table.from_pandas(df_to_sent)
 
     def test_client_can_connect_to_server(self, server):
         with server:
@@ -124,31 +134,17 @@ class TestProxyClient:
                 client.call("div", a=1, b=0)
             assert client.call("shutdown") == b'Bye bye!'
 
-    def test_client_cannot_send_data_with_no_handler(self, server, client):
-        # prepare a dataframe and convert to pyarrow table
-        df_to_sent = DataFrame({
-            'Brand': ['Honda Civic', 'Toyota Corolla', 'Ford Focus', 'Audi A4'],
-            'Price': [22000, 25000, 27000, 35000]
-        }, columns=['Brand', 'Price'])
-        table = Table.from_pandas(df_to_sent)
-
+    def test_client_cannot_send_data_with_no_handler(self, server, client, test_table):
         with server:
             # send the pyarrow table to server as a flight
             with pytest.raises(ArrowNotImplementedError):
-                client.send_data(ActorVirtualIdentity(), table)
+                client.send_flight(bytes(ActorVirtualIdentity()), test_table)
 
-    def test_client_can_send_data_with_handler(self, data_queue: Queue, server_with_dp, client):
-        # prepare a dataframe and convert to pyarrow table
-        df_to_sent = DataFrame({
-            'Brand': ['Honda Civic', 'Toyota Corolla', 'Ford Focus', 'Audi A4'] * 100,
-            'Price': [22000, 25000, 27000, 35000] * 100
-        }, columns=['Brand', 'Price'])
-        table = Table.from_pandas(df_to_sent)
-
+    def test_client_can_send_data_with_handler(self, data_queue: Queue, server_with_dp, client, test_table):
         with server_with_dp:
             # send the pyarrow table to server as a flight
-            client.send_data(ActorVirtualIdentity(), table)
+            client.send_flight(bytes(ActorVirtualIdentity()), test_table)
 
-            assert data_queue.qsize() == 400
-            for i, row in table.to_pandas().iterrows():
+            assert data_queue.qsize() == 4
+            for i, row in test_table.to_pandas().iterrows():
                 assert data_queue.get().equals(row)
