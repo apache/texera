@@ -1,6 +1,15 @@
 syntax = "proto3";
 
 package edu.uci.ics.amber.engine.architecture.sendsemantics;
+
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+  scope: FILE,
+  preserve_unknown_fields: false
+  no_default_values_in_constructor: true
+};
+
 import "edu/uci/ics/amber/engine/common/virtualidentity.proto";
 
 message Partitioning{
