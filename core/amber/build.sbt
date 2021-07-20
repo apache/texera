@@ -102,7 +102,7 @@ libraryDependencies ++= googleServiceDependencies
 // protobuf related
 // run the following with sbt to have protobuf codegen
 
-PB.protocVersion := "3.11.4"
+PB.protocVersion := "3.17.3"
 
 Compile / PB.targets := Seq(
   scalapb.gen(
