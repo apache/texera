@@ -15,24 +15,32 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class UserFileAccess implements IUserFileAccess {
 
-    private static final long serialVersionUID = -1800319650;
+    private static final long serialVersionUID = 1757479799;
 
     private UInteger uid;
     private UInteger fid;
+    private Boolean  readAccess;
+    private Boolean  writeAccess;
 
     public UserFileAccess() {}
 
     public UserFileAccess(IUserFileAccess value) {
         this.uid = value.getUid();
         this.fid = value.getFid();
+        this.readAccess = value.getReadAccess();
+        this.writeAccess = value.getWriteAccess();
     }
 
     public UserFileAccess(
         UInteger uid,
-        UInteger fid
+        UInteger fid,
+        Boolean  readAccess,
+        Boolean  writeAccess
     ) {
         this.uid = uid;
         this.fid = fid;
+        this.readAccess = readAccess;
+        this.writeAccess = writeAccess;
     }
 
     @Override
@@ -56,11 +64,33 @@ public class UserFileAccess implements IUserFileAccess {
     }
 
     @Override
+    public Boolean getReadAccess() {
+        return this.readAccess;
+    }
+
+    @Override
+    public void setReadAccess(Boolean readAccess) {
+        this.readAccess = readAccess;
+    }
+
+    @Override
+    public Boolean getWriteAccess() {
+        return this.writeAccess;
+    }
+
+    @Override
+    public void setWriteAccess(Boolean writeAccess) {
+        this.writeAccess = writeAccess;
+    }
+
+    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("UserFileAccess (");
 
         sb.append(uid);
         sb.append(", ").append(fid);
+        sb.append(", ").append(readAccess);
+        sb.append(", ").append(writeAccess);
 
         sb.append(")");
         return sb.toString();
@@ -74,6 +104,8 @@ public class UserFileAccess implements IUserFileAccess {
     public void from(IUserFileAccess from) {
         setUid(from.getUid());
         setFid(from.getFid());
+        setReadAccess(from.getReadAccess());
+        setWriteAccess(from.getWriteAccess());
     }
 
     @Override

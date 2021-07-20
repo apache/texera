@@ -17,7 +17,7 @@ import org.jooq.ForeignKey;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row2;
+import org.jooq.Row4;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -33,7 +33,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class UserFileAccess extends TableImpl<UserFileAccessRecord> {
 
-    private static final long serialVersionUID = -996014671;
+    private static final long serialVersionUID = -1485119794;
 
     /**
      * The reference instance of <code>texera_db.user_file_access</code>
@@ -57,6 +57,16 @@ public class UserFileAccess extends TableImpl<UserFileAccessRecord> {
      * The column <code>texera_db.user_file_access.fid</code>.
      */
     public final TableField<UserFileAccessRecord, UInteger> FID = createField(DSL.name("fid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+
+    /**
+     * The column <code>texera_db.user_file_access.read_access</code>.
+     */
+    public final TableField<UserFileAccessRecord, Boolean> READ_ACCESS = createField(DSL.name("read_access"), org.jooq.impl.SQLDataType.BIT, this, "");
+
+    /**
+     * The column <code>texera_db.user_file_access.write_access</code>.
+     */
+    public final TableField<UserFileAccessRecord, Boolean> WRITE_ACCESS = createField(DSL.name("write_access"), org.jooq.impl.SQLDataType.BIT, this, "");
 
     /**
      * Create a <code>texera_db.user_file_access</code> table reference
@@ -151,11 +161,11 @@ public class UserFileAccess extends TableImpl<UserFileAccessRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row2 type methods
+    // Row4 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row2<UInteger, UInteger> fieldsRow() {
-        return (Row2) super.fieldsRow();
+    public Row4<UInteger, UInteger, Boolean, Boolean> fieldsRow() {
+        return (Row4) super.fieldsRow();
     }
 }

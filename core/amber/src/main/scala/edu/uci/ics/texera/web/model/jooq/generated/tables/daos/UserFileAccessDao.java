@@ -67,4 +67,32 @@ public class UserFileAccessDao extends DAOImpl<UserFileAccessRecord, edu.uci.ics
     public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserFileAccess> fetchByFid(UInteger... values) {
         return fetch(UserFileAccess.USER_FILE_ACCESS.FID, values);
     }
+
+    /**
+     * Fetch records that have <code>read_access BETWEEN lowerInclusive AND upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserFileAccess> fetchRangeOfReadAccess(Boolean lowerInclusive, Boolean upperInclusive) {
+        return fetchRange(UserFileAccess.USER_FILE_ACCESS.READ_ACCESS, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>read_access IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserFileAccess> fetchByReadAccess(Boolean... values) {
+        return fetch(UserFileAccess.USER_FILE_ACCESS.READ_ACCESS, values);
+    }
+
+    /**
+     * Fetch records that have <code>write_access BETWEEN lowerInclusive AND upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserFileAccess> fetchRangeOfWriteAccess(Boolean lowerInclusive, Boolean upperInclusive) {
+        return fetchRange(UserFileAccess.USER_FILE_ACCESS.WRITE_ACCESS, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>write_access IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserFileAccess> fetchByWriteAccess(Boolean... values) {
+        return fetch(UserFileAccess.USER_FILE_ACCESS.WRITE_ACCESS, values);
+    }
 }

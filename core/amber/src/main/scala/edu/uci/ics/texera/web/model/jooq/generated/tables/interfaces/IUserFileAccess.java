@@ -35,6 +35,26 @@ public interface IUserFileAccess extends Serializable {
      */
     public UInteger getFid();
 
+    /**
+     * Setter for <code>texera_db.user_file_access.read_access</code>.
+     */
+    public void setReadAccess(Boolean value);
+
+    /**
+     * Getter for <code>texera_db.user_file_access.read_access</code>.
+     */
+    public Boolean getReadAccess();
+
+    /**
+     * Setter for <code>texera_db.user_file_access.write_access</code>.
+     */
+    public void setWriteAccess(Boolean value);
+
+    /**
+     * Getter for <code>texera_db.user_file_access.write_access</code>.
+     */
+    public Boolean getWriteAccess();
+
     // -------------------------------------------------------------------------
     // FROM and INTO
     // -------------------------------------------------------------------------
