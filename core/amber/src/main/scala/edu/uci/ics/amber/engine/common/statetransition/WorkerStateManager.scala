@@ -11,12 +11,11 @@ import edu.uci.ics.amber.engine.common.worker.WorkerState._
 class WorkerStateManager(initialState: WorkerState = Uninitialized)
     extends StateManager[WorkerState](
       Map(
-        Uninitialized -> Set(Ready, Recovering),
-        Ready -> Set(Paused, Running, Recovering),
-        Running -> Set(Paused, Completed, Recovering),
-        Paused -> Set(Running, Recovering),
-        Completed -> Set(Recovering),
-        Recovering -> Set(Uninitialized, Ready, Running, Paused, Completed)
+        Uninitialized -> Set(Ready),
+        Ready -> Set(Paused, Running),
+        Running -> Set(Paused, Completed),
+        Paused -> Set(Running),
+        Completed -> Set()
       ),
       initialState
     ) {}

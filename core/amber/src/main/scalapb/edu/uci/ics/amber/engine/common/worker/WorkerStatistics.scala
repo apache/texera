@@ -7,10 +7,9 @@ package edu.uci.ics.amber.engine.common.worker
 
 @SerialVersionUID(0L)
 final case class WorkerStatistics(
-    workerState: edu.uci.ics.amber.engine.common.worker.WorkerState = edu.uci.ics.amber.engine.common.worker.WorkerState.Uninitialized,
-    inputRowCount: _root_.scala.Long = 0L,
-    outputRowCount: _root_.scala.Long = 0L,
-    unknownFields: _root_.scalapb.UnknownFieldSet = _root_.scalapb.UnknownFieldSet.empty
+    workerState: edu.uci.ics.amber.engine.common.worker.WorkerState,
+    inputRowCount: _root_.scala.Long,
+    outputRowCount: _root_.scala.Long
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[WorkerStatistics] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
@@ -37,7 +36,6 @@ final case class WorkerStatistics(
           __size += _root_.com.google.protobuf.CodedOutputStream.computeInt64Size(3, __value)
         }
       };
-      __size += unknownFields.serializedSize
       __size
     }
     override def serializedSize: _root_.scala.Int = {
@@ -67,13 +65,10 @@ final case class WorkerStatistics(
           _output__.writeInt64(3, __v)
         }
       };
-      unknownFields.writeTo(_output__)
     }
     def withWorkerState(__v: edu.uci.ics.amber.engine.common.worker.WorkerState): WorkerStatistics = copy(workerState = __v)
     def withInputRowCount(__v: _root_.scala.Long): WorkerStatistics = copy(inputRowCount = __v)
     def withOutputRowCount(__v: _root_.scala.Long): WorkerStatistics = copy(outputRowCount = __v)
-    def withUnknownFields(__v: _root_.scalapb.UnknownFieldSet) = copy(unknownFields = __v)
-    def discardUnknownFields = copy(unknownFields = _root_.scalapb.UnknownFieldSet.empty)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
@@ -109,7 +104,6 @@ object WorkerStatistics extends scalapb.GeneratedMessageCompanion[edu.uci.ics.am
     var __workerState: edu.uci.ics.amber.engine.common.worker.WorkerState = edu.uci.ics.amber.engine.common.worker.WorkerState.Uninitialized
     var __inputRowCount: _root_.scala.Long = 0L
     var __outputRowCount: _root_.scala.Long = 0L
-    var `_unknownFields__`: _root_.scalapb.UnknownFieldSet.Builder = null
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
@@ -121,18 +115,13 @@ object WorkerStatistics extends scalapb.GeneratedMessageCompanion[edu.uci.ics.am
           __inputRowCount = _input__.readInt64()
         case 24 =>
           __outputRowCount = _input__.readInt64()
-        case tag =>
-          if (_unknownFields__ == null) {
-            _unknownFields__ = new _root_.scalapb.UnknownFieldSet.Builder()
-          }
-          _unknownFields__.parseField(tag, _input__)
+        case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.common.worker.WorkerStatistics(
         workerState = __workerState,
         inputRowCount = __inputRowCount,
-        outputRowCount = __outputRowCount,
-        unknownFields = if (_unknownFields__ == null) _root_.scalapb.UnknownFieldSet.empty else _unknownFields__.result()
+        outputRowCount = __outputRowCount
     )
   }
   implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.common.worker.WorkerStatistics] = _root_.scalapb.descriptors.Reads{
