@@ -2,12 +2,12 @@ package edu.uci.ics.amber.engine.common.rpc
 
 import com.twitter.util.{Future, Promise}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlOutputPort
-import edu.uci.ics.amber.engine.architecture.worker.WorkerStatistics
 import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.worker.WorkerStatistics
 
 import scala.collection.mutable
 
@@ -61,6 +61,13 @@ class AsyncRPCClient(controlOutputPort: ControlOutputPort, logger: WorkflowLogge
     p
   }
 
+  private def createPromise[T](): (Promise[T], Long) = {
+    promiseID += 1
+    val promise = new WorkflowPromise[T]()
+    unfulfilledPromises(promiseID) = promise
+    (promise, promiseID)
+  }
+
   def fulfillPromise(ret: ReturnPayload): Unit = {
     if (unfulfilledPromises.contains(ret.originalCommandID)) {
       val p = unfulfilledPromises(ret.originalCommandID)
@@ -85,13 +92,6 @@ class AsyncRPCClient(controlOutputPort: ControlOutputPort, logger: WorkflowLogge
         s"receive reply: null from ${sender.toString} (controlID: ${ret.originalCommandID})"
       )
     }
-  }
-
-  private def createPromise[T](): (Promise[T], Long) = {
-    promiseID += 1
-    val promise = new WorkflowPromise[T]()
-    unfulfilledPromises(promiseID) = promise
-    (promise, promiseID)
   }
 
 }

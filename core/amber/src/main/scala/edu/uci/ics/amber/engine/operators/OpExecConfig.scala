@@ -6,13 +6,14 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{WorkerInfo, 
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.principal.{OperatorState, OperatorStatistics}
 import edu.uci.ics.amber.engine.common.WorkflowLogger
-import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager._
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   LayerIdentity,
   LinkIdentity,
   OperatorIdentity
 }
+import edu.uci.ics.amber.engine.common.worker.WorkerState
+import edu.uci.ics.amber.engine.common.worker.WorkerState._
 
 import scala.collection.mutable
 

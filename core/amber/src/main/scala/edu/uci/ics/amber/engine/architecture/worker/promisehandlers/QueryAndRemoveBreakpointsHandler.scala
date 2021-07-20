@@ -4,7 +4,7 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.LocalBre
 import edu.uci.ics.amber.engine.architecture.worker.WorkerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryAndRemoveBreakpointsHandler.QueryAndRemoveBreakpoints
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.Paused
+import edu.uci.ics.amber.engine.common.worker.WorkerState.Paused
 
 object QueryAndRemoveBreakpointsHandler {
 

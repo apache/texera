@@ -5,17 +5,15 @@ import akka.remote.RemoteScope
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.DeploymentFilter
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.DeployStrategy
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.RegisterActorRef
-import edu.uci.ics.amber.engine.architecture.worker.{WorkerStatistics, WorkflowWorker}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
-import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.{
-  Uninitialized,
-  WorkerState
-}
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   LayerIdentity,
   LinkIdentity
 }
+import edu.uci.ics.amber.engine.common.worker.WorkerState.Uninitialized
+import edu.uci.ics.amber.engine.common.worker.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 
 import scala.collection.mutable
