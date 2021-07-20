@@ -4,12 +4,9 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalB
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.FollowPrevious
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.RoundRobinDeployment
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
+import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, OperatorIdentity}
 import edu.uci.ics.amber.engine.common.{Constants, IOperatorExecutor}
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  LayerIdentity,
-  OperatorIdentity
-}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 
 class OneToOneOpExecConfig(
@@ -21,7 +18,7 @@ class OneToOneOpExecConfig(
     new Topology(
       Array(
         new WorkerLayer(
-          LayerIdentity(id, "main"),
+          makeLayer(id, "main"),
           opExec,
           Constants.defaultNumWorkers,
           FollowPrevious(),

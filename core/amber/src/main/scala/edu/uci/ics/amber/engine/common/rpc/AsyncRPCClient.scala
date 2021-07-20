@@ -2,12 +2,12 @@ package edu.uci.ics.amber.engine.common.rpc
 
 import com.twitter.util.{Future, Promise}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlOutputPort
-import edu.uci.ics.amber.engine.architecture.worker.WorkerStatistics
 import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, VirtualIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.worker.WorkerStatistics
 
 import scala.collection.mutable
 
@@ -31,11 +31,10 @@ import scala.collection.mutable
   */
 object AsyncRPCClient {
 
-  def noReplyNeeded(id: Long): Boolean = id < 0
-
   final val IgnoreReply = -1
-
   final val IgnoreReplyAndDoNotLog = -2
+
+  def noReplyNeeded(id: Long): Boolean = id < 0
 
   /** The invocation of a control command
     * @param commandID
@@ -53,9 +52,8 @@ object AsyncRPCClient {
 
 class AsyncRPCClient(controlOutputPort: ControlOutputPort, logger: WorkflowLogger) {
 
-  private var promiseID = 0L
-
   private val unfulfilledPromises = mutable.LongMap[WorkflowPromise[_]]()
+  private var promiseID = 0L
 
   def send[T](cmd: ControlCommand[T], to: ActorVirtualIdentity): Future[T] = {
     val (p, id) = createPromise[T]()
@@ -78,7 +76,7 @@ class AsyncRPCClient(controlOutputPort: ControlOutputPort, logger: WorkflowLogge
     }
   }
 
-  def logControlReply(ret: ReturnPayload, sender: VirtualIdentity): Unit = {
+  def logControlReply(ret: ReturnPayload, sender: ActorVirtualIdentity): Unit = {
     if (ret.originalCommandID == AsyncRPCClient.IgnoreReplyAndDoNotLog) {
       return
     }

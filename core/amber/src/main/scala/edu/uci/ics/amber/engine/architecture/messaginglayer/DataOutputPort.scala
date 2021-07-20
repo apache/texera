@@ -8,6 +8,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
 }
 import edu.uci.ics.amber.engine.common.ambermessage.DataPayload
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 
 import scala.collection.mutable
 
@@ -21,8 +22,8 @@ class DataOutputPort(selfID: ActorVirtualIdentity, networkSenderActor: NetworkSe
 
   def sendTo(to: ActorVirtualIdentity, payload: DataPayload): Unit = {
     var receiverId = to
-    if (to == ActorVirtualIdentity.Self) {
-      // selfID and VirtualIdentity.Self should be one key. Although it should never happen
+    if (to == SELF) {
+      // selfID and VirtualIdentity.SELF should be one key. Although it should never happen
       // that data-message is sent by an actor to itself. But this check is here to avoid any bugs.
       receiverId = selfID
     }

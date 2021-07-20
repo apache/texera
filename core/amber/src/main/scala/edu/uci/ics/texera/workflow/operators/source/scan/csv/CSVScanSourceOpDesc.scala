@@ -13,7 +13,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Schema
 }
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
-import org.codehaus.jackson.map.annotate.JsonDeserialize
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 
 import java.io.IOException
 import scala.jdk.CollectionConverters.asJavaIterableConverter

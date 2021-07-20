@@ -23,6 +23,7 @@ import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
   sessionResults
 }
 import edu.uci.ics.texera.web.resource.auth.UserResource
+import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.{
   WorkflowCompiler,

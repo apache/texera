@@ -54,42 +54,44 @@ describe('SchemaPropagationService', () => {
     expect(service).toBeTruthy();
   }));
 
-  it('should invoke schema propagation API when a link is added/deleted', fakeAsync(() => {
+  it('should invoke schema propagation API on link changes, property changes, and disable status changes', fakeAsync(() => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const schemaPropagationService: SchemaPropagationService = TestBed.inject(SchemaPropagationService);
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
     workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
+
+    // add link
     workflowActionService.addLink(mockScanSentimentLink);
-
-    // since resetAttributeOfOperator is called every time when the schema changes, and resetAttributeOfOperator
-    //  will change operator property, 2 requests will be sent to auto-complete API endpoint every time
-    // EDIT: resetAttributeOfOperator was disabled due to it acting like an independent undo-redo action
-    tick(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS);
-    const req1 = httpTestingController.expectOne(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
-    expect(req1.request.method === 'POST');
-    expect(req1.request.url).toEqual(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
-    req1.flush(mockSchemaPropagationResponse);
-
-    // const req2 = httpTestingController.expectOne(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
-    // expect(req2.request.url).toEqual(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
-    // req2.flush(mockSchemaPropagationResponse);
-
+    httpTestingController.match(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
     httpTestingController.verify();
 
+    // delete link
     workflowActionService.deleteLinkWithID(mockScanSentimentLink.linkID);
+    httpTestingController.match(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
+    httpTestingController.verify();
 
-    const req3 = httpTestingController.match(
-      request => request.method === 'POST'
-    );
-    expect(req3[0].request.url).toEqual(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
-    req3[0].flush(mockEmptySchemaPropagationResponse);
+    // add link again
+    workflowActionService.addLink(mockScanSentimentLink);
+    httpTestingController.match(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
+    httpTestingController.verify();
 
-    // const req4 = httpTestingController.match(
-    //   request => request.method === 'POST'
-    // );
-    // expect(req4[0].request.url).toEqual(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
-    // req4[0].flush(mockEmptySchemaPropagationResponse);
+    // disable opeator
+    workflowActionService.getTexeraGraph().disableOperator(mockScanPredicate.operatorID);
+    httpTestingController.match(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
+    httpTestingController.verify();
 
+    // enable operator
+    workflowActionService.getTexeraGraph().disableOperator(mockScanPredicate.operatorID);
+    httpTestingController.match(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
+    httpTestingController.verify();
+
+    // change operator property
+    workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, {attribute: 'mockChangedAttribute'});
+    // verify debounce time: no request before debounce time ticks
+    httpTestingController.verify();
+    tick(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS);
+    // reqeuest should be made after debounce time
+    httpTestingController.match(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
     httpTestingController.verify();
 
   }));
