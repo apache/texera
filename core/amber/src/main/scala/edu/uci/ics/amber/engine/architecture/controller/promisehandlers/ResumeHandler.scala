@@ -7,10 +7,10 @@ import edu.uci.ics.amber.engine.architecture.controller.{
   ControllerState
 }
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 
 object ResumeHandler {
-  final case class ResumeWorkflow() extends ControlCommand[CommandCompleted]
+  final case class ResumeWorkflow() extends ControlCommand[Unit]
 }
 
 /** resume the entire workflow
@@ -31,12 +31,12 @@ trait ResumeHandler {
             workflow.getWorkerInfo(worker).state = ret
           }
         }.toSeq)
-        .map { ret =>
+        .map { _ =>
           // update frontend status
           updateFrontendWorkflowStatus()
           enableStatusUpdate() //re-enabled it since it is disabled in pause
           actorContext.parent ! ControllerState.Running //for testing
-          CommandCompleted()
+
         }
     }
   }

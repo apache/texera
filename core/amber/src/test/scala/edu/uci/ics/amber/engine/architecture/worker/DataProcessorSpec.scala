@@ -14,10 +14,9 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatist
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
-import edu.uci.ics.amber.engine.common.worker.WorkerState.{Completed, Running}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{
@@ -25,6 +24,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   LayerIdentity,
   LinkIdentity
 }
+import edu.uci.ics.amber.engine.common.worker.WorkerState.{Completed, Running}
 import edu.uci.ics.amber.engine.common.{InputExhausted, WorkflowLogger}
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import org.scalamock.scalatest.MockFactory
@@ -96,7 +96,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     assert(dp.isControlQueueEmpty)
   }
 
-  case class DummyControl() extends ControlCommand[CommandCompleted]
+  case class DummyControl() extends ControlCommand[Unit]
 
   "data processor" should "process data messages" in {
     val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
@@ -105,7 +105,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val workerStateManager: WorkerStateManager = new WorkerStateManager(Running)
     inAnyOrder {
       (batchProducer.emitEndOfUpstream _).expects().anyNumberOfTimes()
-      (asyncRPCClient.send[CommandCompleted] _).expects(*, *).anyNumberOfTimes()
+      (asyncRPCClient.send[Unit] _).expects(*, *).anyNumberOfTimes()
       inSequence {
         (operator.open _).expects().once()
         tuples.foreach { x =>
@@ -130,7 +130,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val asyncRPCServer: AsyncRPCServer = mock[AsyncRPCServer]
     inAnyOrder {
       (asyncRPCServer.logControlInvocation _).expects(*, *).anyNumberOfTimes()
-      (asyncRPCClient.send[CommandCompleted] _).expects(*, *).anyNumberOfTimes()
+      (asyncRPCClient.send[Unit] _).expects(*, *).anyNumberOfTimes()
       inSequence {
         (operator.open _).expects().once()
         inAnyOrder {
@@ -167,7 +167,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     inAnyOrder {
       (operator.open _).expects().once()
       (asyncRPCServer.logControlInvocation _).expects(*, *).anyNumberOfTimes()
-      (asyncRPCClient.send[CommandCompleted] _).expects(*, *).anyNumberOfTimes()
+      (asyncRPCClient.send[Unit] _).expects(*, *).anyNumberOfTimes()
       (asyncRPCServer.receive _).expects(*, *).repeat(3)
       (operator.close _).expects().once()
     }

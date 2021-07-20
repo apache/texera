@@ -4,11 +4,11 @@ import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 
 object LinkCompletedHandler {
-  final case class LinkCompleted(linkID: LinkIdentity) extends ControlCommand[CommandCompleted]
+  final case class LinkCompleted(linkID: LinkIdentity) extends ControlCommand[Unit]
 }
 
 /** Notify the completion of a particular link
@@ -45,10 +45,10 @@ trait LinkCompletedHandler {
               .map(send(StartWorker(), _))
               .toSeq
           )
-          .map(ret => CommandCompleted())
+          .map(ret => {})
       } else {
         // if the link is not completed yet, do nothing
-        Future { CommandCompleted() }
+        Future {}
       }
     }
   }

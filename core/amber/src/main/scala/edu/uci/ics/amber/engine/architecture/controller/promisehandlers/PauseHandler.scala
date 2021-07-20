@@ -13,7 +13,7 @@ import edu.uci.ics.amber.engine.architecture.controller.{
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryCurrentInputTupleHandler.QueryCurrentInputTuple
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
@@ -21,7 +21,7 @@ import scala.collection.mutable
 
 object PauseHandler {
 
-  final case class PauseWorkflow() extends ControlCommand[CommandCompleted]
+  final case class PauseWorkflow() extends ControlCommand[Unit]
 }
 
 /** pause the entire workflow
@@ -75,7 +75,7 @@ trait PauseHandler {
           }
           disableStatusUpdate() // to be enabled in resume
           actorContext.parent ! ControllerState.Paused // for testing
-          CommandCompleted()
+
         }
     }
   }
