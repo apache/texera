@@ -1,13 +1,12 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import akka.actor.PoisonPill
-import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.KillWorkflowHandler.KillWorkflow
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 
 object KillWorkflowHandler {
-  final case class KillWorkflow() extends ControlCommand[CommandCompleted]
+  final case class KillWorkflow() extends ControlCommand[Unit]
 }
 
 /** Kill the workflow and release all resources
@@ -25,7 +24,6 @@ trait KillWorkflowHandler {
       // the workers and network communication actors will also be killed
       // the dp thread will be shut down when the workers kill themselves
       actorContext.self ! PoisonPill
-      CommandCompleted()
     }
   }
 }
