@@ -17,7 +17,7 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
-import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.{Completed, Running}
+import edu.uci.ics.amber.engine.common.worker.WorkerState.{Completed, Running}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{
@@ -43,8 +43,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   lazy val controlOutputPort: ControlOutputPort = mock[ControlOutputPort]
   val linkID: LinkIdentity =
     LinkIdentity(
-      Option(LayerIdentity("testDP", "mockOp", "src")),
-      Option(LayerIdentity("testDP", "mockOp", "dst"))
+      LayerIdentity("testDP", "mockOp", "src"),
+      LayerIdentity("testDP", "mockOp", "dst")
     )
   val tuples: Seq[ITuple] = (0 until 400).map(ITuple(_))
 
