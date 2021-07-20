@@ -101,7 +101,7 @@ class ProxyServer(FlightServerBase):
             self.process_data(from_, data)
 
     ###############################
-    # RPC actions related methods #
+    # Actions related methods #
     ###############################
     def list_actions(self, context: ServerCallContext) -> Iterator[Tuple[str, str]]:
         """
