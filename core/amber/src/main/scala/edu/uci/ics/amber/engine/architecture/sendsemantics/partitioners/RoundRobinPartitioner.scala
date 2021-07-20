@@ -4,7 +4,7 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RoundRo
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 
 case class RoundRobinPartitioner(partitioning: RoundRobinPartitioning)
-    extends ParallelBatchingPartitioner {
+    extends ParallelBatchingPartitioner(partitioning.batchSize, partitioning.receivers) {
   var roundRobinIndex = 0
 
   override def selectBatchingIndex(tuple: ITuple): Int = {

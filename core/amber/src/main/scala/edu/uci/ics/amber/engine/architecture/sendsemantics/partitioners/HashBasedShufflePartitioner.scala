@@ -4,7 +4,7 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBas
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 
 case class HashBasedShufflePartitioner(partitioning: HashBasedShufflePartitioning)
-    extends ParallelBatchingPartitioner() {
+    extends ParallelBatchingPartitioner(partitioning.batchSize, partitioning.receivers) {
   override def selectBatchingIndex(tuple: ITuple): Int = {
     val numBuckets = partitioning.receivers.length
 
