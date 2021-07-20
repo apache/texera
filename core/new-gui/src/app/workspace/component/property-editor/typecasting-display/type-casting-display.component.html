@@ -1,16 +1,16 @@
 <div *ngIf="displayTypeCastingSchemaInformation">
-  <table mat-table [dataSource]="schemaToDisplay" class="mat-elevation-z8">
-    <ng-container matColumnDef="attributeName">
-      <th mat-header-cell *matHeaderCellDef> Attribute Name</th>
-      <td mat-cell *matCellDef="let element"> {{element.attributeName}} </td>
-    </ng-container>
-
-    <ng-container matColumnDef="attributeType">
-      <th mat-header-cell *matHeaderCellDef> Attribute Type </th>
-      <td mat-cell *matCellDef="let element"> {{element.attributeType}} </td>
-    </ng-container>
-
-    <tr mat-header-row *matHeaderRowDef="columnNamesToDisplay"></tr>
-    <tr mat-row *matRowDef="let row; columns: columnNamesToDisplay;"></tr>
-  </table>
+  <nz-table #attributes [nzData]="schemaToDisplay">
+    <thead>
+    <tr>
+      <th>Attribute Name</th>
+      <th>Attribute Type</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr *ngFor="let attribute of attributes.data">
+      <td>{{attribute.attributeName}}</td>
+      <td>{{attribute.attributeType}}</td>
+    </tr>
+    </tbody>
+  </nz-table>
 </div>
