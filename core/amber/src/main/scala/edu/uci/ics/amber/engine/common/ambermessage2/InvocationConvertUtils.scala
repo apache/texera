@@ -1,6 +1,9 @@
 package edu.uci.ics.amber.engine.common.ambermessage2
 
-import edu.uci.ics.amber.engine.architecture.worker.controlcommands.{ControlCommand, ControlCommandConvertUtils}
+import edu.uci.ics.amber.engine.architecture.worker.controlcommands.{
+  ControlCommand,
+  ControlCommandConvertUtils
+}
 
 object InvocationConvertUtils {
 
