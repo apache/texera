@@ -126,8 +126,6 @@ export class JointGraphWrapper {
   private workflowEditorZoomSubject: Subject<number> = new Subject<number>();
   // event stream of restoring zoom / offset default of the jointJS paper
   private restorePaperOffsetSubject: Subject<void> = new Subject<void>();
-  // event stream of auto layout
-  private autoLayoutSubject: Subject<void> = new Subject<void>();
 
   // event stream of showing the breakpoint button of a link
   private jointLinkBreakpointShowStream = new Subject<linkIDType>();
@@ -590,8 +588,8 @@ export class JointGraphWrapper {
       dagre: dagre,
       graphlib: graphlib,
       nodeSep: 100,
-      edgeSep: 100,
-      rankSep: 200,
+      edgeSep: 150,
+      rankSep: 80,
       ranker: 'tight-tree',
       rankDir: 'LR',
       resizeClusters: true,

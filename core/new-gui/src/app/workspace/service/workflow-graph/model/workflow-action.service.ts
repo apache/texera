@@ -528,13 +528,13 @@ export class WorkflowActionService {
   }
 
   /**
-   * Handles the auto layout function and
+   * Handles the auto layout function
    *
    * @param Workflow
    */
   // Originally: drag Operator
     public handleAutoLayout(workflow: Workflow | undefined): void {
-      const oldOperatorsAndPositions: { op: OperatorPredicate, pos: Point }[] = [];
+      const oldOperatorsAndPositions: { operator: OperatorPredicate, pos: Point }[] = [];
       // remeber old position
       if (workflow === undefined) {
         return;
@@ -542,9 +542,8 @@ export class WorkflowActionService {
       const workflowContent: WorkflowContent = workflow.content;
       workflowContent.operators.forEach(op => {
         const oldPosition = workflowContent.operatorPositions[op.operatorID];
-        oldOperatorsAndPositions.push({op: op, pos: oldPosition});
+        oldOperatorsAndPositions.push({operator: op, pos: oldPosition});
       });
-
         const command: Command = {
         modifiesWorkflow: false,
         execute: () => {
@@ -552,7 +551,7 @@ export class WorkflowActionService {
         },
         undo: () => {
           oldOperatorsAndPositions.forEach(op => {
-          this.jointGraphWrapper.setAbsolutePosition(op.op.operatorID, op.pos.x, op.pos.y);
+          this.jointGraphWrapper.setAbsolutePosition(op.operator.operatorID, op.pos.x, op.pos.y);
           });
         }
       };
