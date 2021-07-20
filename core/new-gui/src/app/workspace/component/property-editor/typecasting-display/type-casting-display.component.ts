@@ -18,9 +18,9 @@ export const TYPE_CASTING_OPERATOR_TYPE = 'TypeCasting';
 
 export class TypeCastingDisplayComponent implements OnChanges {
 
-  public schema: SchemaAttribute[] = [];
-  public displayedColumns: string[] = ['attributeName', 'attributeType'];
-  public showTypeCastingTypeInformation: boolean = false;
+  public schemaToDisplay: Partial<SchemaAttribute>[] = [];
+  public columnNamesToDisplay: string[] = ['attributeName', 'attributeType'];
+  public displayTypeCastingSchemaInformation: boolean = false;
 
   @Input() operatorID: string | undefined;
 
@@ -40,15 +40,15 @@ export class TypeCastingDisplayComponent implements OnChanges {
   // invoke on first init and every time the input binding is changed
   ngOnChanges(): void {
     if (!this.operatorID) {
-      this.showTypeCastingTypeInformation = false;
+      this.displayTypeCastingSchemaInformation = false;
       return;
     }
     const op = this.workflowActionService.getTexeraGraph().getOperator(this.operatorID);
     if (op.operatorType !== TYPE_CASTING_OPERATOR_TYPE) {
-      this.showTypeCastingTypeInformation = false;
+      this.displayTypeCastingSchemaInformation = false;
       return;
     }
-    this.showTypeCastingTypeInformation = true;
+    this.displayTypeCastingSchemaInformation = true;
     this.updateComponent(op);
   }
 
@@ -57,16 +57,18 @@ export class TypeCastingDisplayComponent implements OnChanges {
     if (!this.operatorID) {
       return;
     }
-    this.schema = [];
+    this.schemaToDisplay = [];
     const inputSchema = this.schemaPropagationService.getOperatorInputSchema(this.operatorID);
     inputSchema?.forEach(schema => schema?.forEach(attr => {
-      const castedAttr = {...attr};
-      for (const castTo of op.operatorProperties['TypeCasting Units']) {
+      const castedAttr: Partial<SchemaAttribute> = {...attr};
+      for (const castTo of op.operatorProperties['typeCastingUnits']) {
         if (castTo.attribute === attr.attributeName) {
           castedAttr.attributeType = castTo.resultType;
+          break;
         }
       }
-      this.schema.push(castedAttr);
+      this.schemaToDisplay.push(castedAttr);
+
     }));
 
   }
