@@ -34,8 +34,6 @@ object AsyncRPCServer {
 
   trait ControlCommand[T]
 
-  final case class CommandCompleted()
-
 }
 
 class AsyncRPCServer(controlOutputPort: ControlOutputPort, logger: WorkflowLogger) {

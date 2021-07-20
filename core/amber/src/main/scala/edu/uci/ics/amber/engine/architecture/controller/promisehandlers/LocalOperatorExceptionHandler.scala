@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandle
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.BreakpointTriggered
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 
@@ -13,7 +13,7 @@ import scala.collection.mutable
 
 object LocalOperatorExceptionHandler {
   final case class LocalOperatorException(triggeredTuple: ITuple, e: Throwable)
-      extends ControlCommand[CommandCompleted]
+      extends ControlCommand[Unit]
 }
 
 /** indicate an exception thrown from the operator logic on a worker
