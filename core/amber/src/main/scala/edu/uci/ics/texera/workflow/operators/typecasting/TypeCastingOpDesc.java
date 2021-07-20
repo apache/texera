@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.operators.typecasting;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.google.common.base.Preconditions;
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
@@ -19,7 +20,9 @@ import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
 
 public class TypeCastingOpDesc extends MapOpDesc {
-    @JsonProperty(value = "TypeCasting Units", required = true)
+
+    @JsonProperty(required = true)
+    @JsonSchemaTitle("TypeCasting Units")
     @JsonPropertyDescription("Multiple type castings")
     public List<TypeCastingUnit> typeCastingUnits;
 
