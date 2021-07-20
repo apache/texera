@@ -15,6 +15,12 @@ import org.scalatest.flatspec.AnyFlatSpec
 class TupleToBatchConverterSpec extends AnyFlatSpec with MockFactory {
   private val mockDataOutputPort = mock[DataOutputPort]
   private val identifier = ActorVirtualIdentity("batch producer mock")
+  var counter: Int = 0
+
+  def layerID(): LayerIdentity = {
+    counter += 1
+    LayerIdentity("" + counter, "" + counter, "" + counter)
+  }
 
   "TupleToBatchConverter" should "aggregate tuples and output" in {
     val batchProducer = wire[TupleToBatchConverter]
@@ -27,7 +33,7 @@ class TupleToBatchConverterSpec extends AnyFlatSpec with MockFactory {
       (mockDataOutputPort.sendTo _).expects(fakeID, EndOfUpstream())
     }
     val fakeLink =
-      LinkIdentity(Option(LayerIdentity()), Option(LayerIdentity()))
+      LinkIdentity(layerID(), layerID())
     val fakeReceiver = Array[ActorVirtualIdentity](fakeID)
 
     batchProducer.addPartitionerWithPartitioning(fakeLink, OneToOnePartitioning(10, fakeReceiver))

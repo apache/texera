@@ -13,9 +13,9 @@ package edu.uci.ics.amber.engine.common.virtualidentity
   */
 @SerialVersionUID(0L)
 final case class LayerIdentity(
-    workflow: _root_.scala.Predef.String = "",
-    operator: _root_.scala.Predef.String = "",
-    layerID: _root_.scala.Predef.String = ""
+    workflow: _root_.scala.Predef.String,
+    operator: _root_.scala.Predef.String,
+    layerID: _root_.scala.Predef.String
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[LayerIdentity] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0

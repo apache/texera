@@ -43,8 +43,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   lazy val controlOutputPort: ControlOutputPort = mock[ControlOutputPort]
   val linkID: LinkIdentity =
     LinkIdentity(
-      Option(LayerIdentity("testDP", "mockOp", "src")),
-      Option(LayerIdentity("testDP", "mockOp", "dst"))
+      LayerIdentity("testDP", "mockOp", "src"),
+      LayerIdentity("testDP", "mockOp", "dst")
     )
   val tuples: Seq[ITuple] = (0 until 400).map(ITuple(_))
 
