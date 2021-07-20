@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package edu.uci.ics.amber.engine.common;
+
+import "edu/uci/ics/amber/engine/architecture/worker/controlcommands.proto";
+import "edu/uci/ics/amber/engine/architecture/worker/controlreturns.proto";
+import "edu/uci/ics/amber/engine/common/virtualidentity.proto";
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+    scope: FILE,
+    preserve_unknown_fields: false
+    no_default_values_in_constructor: true
+};
+
+message ControlInvocation {
+    int64 command_id = 1;
+    architecture.worker.ControlCommand command = 2;
+}
+
+message ReturnInvocation {
+    int64 original_command_id = 1;
+    architecture.worker.ControlReturn control_return = 2;
+}
+
+message ControlPayload {
+    oneof sealed_value {
+        ControlInvocation control_invocation = 1;
+        ReturnInvocation return_invocation = 2;
+    }
+}
+
+message DataHeader {
+    common.ActorVirtualIdentity from = 1;
+    bool is_end = 2;
+}
+
+

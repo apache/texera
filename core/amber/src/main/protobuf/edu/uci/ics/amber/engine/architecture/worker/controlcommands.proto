@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package edu.uci.ics.amber.engine.architecture.worker;
+
+import "edu/uci/ics/amber/engine/architecture/sendsemantics/partitionings.proto";
+import "edu/uci/ics/amber/engine/common/virtualidentity.proto";
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+    scope: FILE,
+    preserve_unknown_fields: false
+    no_default_values_in_constructor: true
+};
+
+message PauseWorker {}
+
+message ResumeWorker {}
+
+message StartWorker {}
+
+message UpdateInputLinking {
+    common.ActorVirtualIdentity identifier = 1;
+    common.LinkIdentity input_link = 2;
+}
+
+message AddPartitioning {
+    architecture.sendsemantics.Partitioning partitioning = 1;
+}
+
+message WorkerExecutionCompleted {
+}
+
+message ControlCommand {
+    oneof sealed_value {
+        StartWorker start_worker = 1;
+        PauseWorker pause_worker = 2;
+        ResumeWorker resume_worker = 3;
+
+        AddPartitioning add_output_policy = 4;
+        UpdateInputLinking update_input_linking = 5;
+
+        WorkerExecutionCompleted worker_execution_completed = 101;
+    }
+
+}
+
+
