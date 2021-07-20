@@ -4,7 +4,6 @@ import { Observable, Subject } from 'rxjs';
 import { of } from 'rxjs';
 import { AppSettings } from '../../../app-setting';
 import { UserFile } from '../../../type/user-file';
-import { UserService } from '../user.service';
 
 export const USER_FILE_LIST_URL = 'user/file/list';
 export const USER_FILE_DELETE_URL = 'user/file/delete';
@@ -28,8 +27,7 @@ export class StubUserFileService {
 
   public testUFAs: UserFileAccess[] = []
   constructor(
-    private http: HttpClient,
-    private userService: UserService
+    private http: HttpClient
   ) {
     this.detectUserChanges();
   }
