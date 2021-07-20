@@ -59,23 +59,21 @@ class IntervalJoinOpDesc extends OperatorDescriptor {
   var timeIntervalType: Option[TimeIntervalType] = _
 
   @JsonIgnore
-  var opExecConfig: ManyToOneOpExecConfig = _
+  var opExecConfig: IntervalJoinExecConfig = _
 
   @JsonIgnore
-  var leftInpueLink: LinkIdentity = _
+  var leftInputLink: LinkIdentity = _
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
 
-    var config = new ManyToOneOpExecConfig(
+    opExecConfig = new IntervalJoinExecConfig(
       operatorIdentifier,
-      _ =>
-        new IntervalJoinOpExec(
-          operatorSchemaInfo,
-          this
-        )
+      leftAttributeName,
+      rightAttributeName,
+      operatorSchemaInfo,
+      this
     )
-    leftInpueLink = config.inputToOrdinalMapping.find(pair => pair._2 == 0).get._1
-    config
+    opExecConfig
 
   }
 
@@ -105,15 +103,14 @@ class IntervalJoinOpDesc extends OperatorDescriptor {
     this.includeLeftBound = includeLeftBound
     this.includeRightBound = includeRightBound
     this.timeIntervalType = Some(timeIntervalType)
-    this.opExecConfig = new ManyToOneOpExecConfig(
+    this.opExecConfig = new IntervalJoinExecConfig(
       OperatorIdentity("test", "test"),
-      _ =>
-        new IntervalJoinOpExec(
-          OperatorSchemaInfo(schemas, getOutputSchema(schemas)),
-          this
-        )
+      leftTableAttributeName,
+      rightTableAttributeName,
+      OperatorSchemaInfo(schemas, getOutputSchema(schemas)),
+      this
     )
-    this.leftInpueLink = isLeftTableInput
+    this.leftInputLink = isLeftTableInput
   }
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {

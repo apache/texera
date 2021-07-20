@@ -76,7 +76,7 @@ class IntervalJoinOpExec(
   ): Iterator[Tuple] = {
     tuple match {
       case Left(currentTuple) =>
-        if (input == desc.leftInpueLink) {
+        if (input == desc.leftInputLink) {
           leftTable += currentTuple
           if (rightTable.nonEmpty) {
             removeTooSmallTupleInRightCache(leftTable.head)
