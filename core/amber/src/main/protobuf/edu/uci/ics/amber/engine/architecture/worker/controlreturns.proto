@@ -11,18 +11,12 @@ option (scalapb.options) = {
     no_default_values_in_constructor: true
 };
 
-message QueryStatistics {}
-
-message PythonPrint {
-    string content = 1;
-}
-
 message ControlReturn {
     oneof value {
         common.WorkerStatistics worker_statistics = 1;
         common.WorkerState worker_state = 2;
-        QueryStatistics query_statistics = 3;
-        PythonPrint python_print = 201;
+
     }
 }
+
 

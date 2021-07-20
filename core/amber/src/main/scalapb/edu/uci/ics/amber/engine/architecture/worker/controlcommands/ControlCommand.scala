@@ -463,12 +463,20 @@ object ResumeWorker extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.
 
 @SerialVersionUID(0L)
 final case class AddPartitioning(
+    tag: edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity,
     partitioning: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommand.NonEmpty with scalapb.lenses.Updatable[AddPartitioning] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
     private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
+      
+      {
+        val __value = tag
+        if (__value != edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance) {
+          __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+        }
+      };
       
       {
         val __value = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioning._typemapper_partitioning.toBase(partitioning)
@@ -488,18 +496,31 @@ final case class AddPartitioning(
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
-        val __v = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioning._typemapper_partitioning.toBase(partitioning)
-        if (__v != edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.defaultInstance) {
+        val __v = tag
+        if (__v != edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance) {
           _output__.writeTag(1, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
           __v.writeTo(_output__)
         }
       };
+      {
+        val __v = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioning._typemapper_partitioning.toBase(partitioning)
+        if (__v != edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.defaultInstance) {
+          _output__.writeTag(2, 2)
+          _output__.writeUInt32NoTag(__v.serializedSize)
+          __v.writeTo(_output__)
+        }
+      };
     }
+    def withTag(__v: edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity): AddPartitioning = copy(tag = __v)
     def withPartitioning(__v: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning): AddPartitioning = copy(partitioning = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
+          val __t = tag
+          if (__t != edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance) __t else null
+        }
+        case 2 => {
           val __t = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioning._typemapper_partitioning.toBase(partitioning)
           if (__t != edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.defaultInstance) __t else null
         }
@@ -508,7 +529,8 @@ final case class AddPartitioning(
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
-        case 1 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioning._typemapper_partitioning.toBase(partitioning).toPMessage
+        case 1 => tag.toPMessage
+        case 2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioning._typemapper_partitioning.toBase(partitioning).toPMessage
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -519,6 +541,7 @@ final case class AddPartitioning(
 object AddPartitioning extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioning] {
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioning] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioning = {
+    var __tag: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity] = _root_.scala.None
     var __partitioning: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage] = _root_.scala.None
     var _done__ = false
     while (!_done__) {
@@ -526,11 +549,14 @@ object AddPartitioning extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amb
       _tag__ match {
         case 0 => _done__ = true
         case 10 =>
+          __tag = _root_.scala.Some(__tag.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+        case 18 =>
           __partitioning = _root_.scala.Some(__partitioning.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioning(
+        tag = __tag.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance),
         partitioning = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioning._typemapper_partitioning.toCustom(__partitioning.getOrElse(edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.defaultInstance))
     )
   }
@@ -538,7 +564,8 @@ object AddPartitioning extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amb
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioning(
-        partitioning = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioning._typemapper_partitioning.toCustom(__fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage]).getOrElse(edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.defaultInstance))
+        tag = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance),
+        partitioning = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioning._typemapper_partitioning.toCustom(__fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage]).getOrElse(edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.defaultInstance))
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -547,24 +574,30 @@ object AddPartitioning extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amb
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
-      case 1 => __out = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage
+      case 1 => __out = edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
+      case 2 => __out = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage
     }
     __out
   }
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioning(
+    tag = edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance,
     partitioning = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioning._typemapper_partitioning.toCustom(edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.defaultInstance)
   )
   implicit class AddPartitioningLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioning]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioning](_l) {
+    def tag: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity] = field(_.tag)((c_, f_) => c_.copy(tag = f_))
     def partitioning: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning] = field(_.partitioning)((c_, f_) => c_.copy(partitioning = f_))
   }
-  final val PARTITIONING_FIELD_NUMBER = 1
+  final val TAG_FIELD_NUMBER = 1
+  final val PARTITIONING_FIELD_NUMBER = 2
   @transient
   private[controlcommands] val _typemapper_partitioning: _root_.scalapb.TypeMapper[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage, edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning] = implicitly[_root_.scalapb.TypeMapper[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage, edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning]]
   def of(
+    tag: edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity,
     partitioning: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
   ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioning = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioning(
+    tag,
     partitioning
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.AddPartitioning])
@@ -572,20 +605,26 @@ object AddPartitioning extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amb
 
 @SerialVersionUID(0L)
 final case class UpdateInputLinking(
-    identifier: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity],
-    inputLink: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity]
+    identifier: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity,
+    inputLink: edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommand.NonEmpty with scalapb.lenses.Updatable[UpdateInputLinking] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
     private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
-      if (identifier.isDefined) {
-        val __value = identifier.get
-        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+      
+      {
+        val __value = identifier
+        if (__value != edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance) {
+          __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+        }
       };
-      if (inputLink.isDefined) {
-        val __value = inputLink.get
-        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+      
+      {
+        val __value = inputLink
+        if (__value != edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance) {
+          __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+        }
       };
       __size
     }
@@ -598,36 +637,42 @@ final case class UpdateInputLinking(
       read
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
-      identifier.foreach { __v =>
-        val __m = __v
-        _output__.writeTag(1, 2)
-        _output__.writeUInt32NoTag(__m.serializedSize)
-        __m.writeTo(_output__)
+      {
+        val __v = identifier
+        if (__v != edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance) {
+          _output__.writeTag(1, 2)
+          _output__.writeUInt32NoTag(__v.serializedSize)
+          __v.writeTo(_output__)
+        }
       };
-      inputLink.foreach { __v =>
-        val __m = __v
-        _output__.writeTag(2, 2)
-        _output__.writeUInt32NoTag(__m.serializedSize)
-        __m.writeTo(_output__)
+      {
+        val __v = inputLink
+        if (__v != edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance) {
+          _output__.writeTag(2, 2)
+          _output__.writeUInt32NoTag(__v.serializedSize)
+          __v.writeTo(_output__)
+        }
       };
     }
-    def getIdentifier: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity = identifier.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance)
-    def clearIdentifier: UpdateInputLinking = copy(identifier = _root_.scala.None)
-    def withIdentifier(__v: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity): UpdateInputLinking = copy(identifier = Option(__v))
-    def getInputLink: edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity = inputLink.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance)
-    def clearInputLink: UpdateInputLinking = copy(inputLink = _root_.scala.None)
-    def withInputLink(__v: edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity): UpdateInputLinking = copy(inputLink = Option(__v))
+    def withIdentifier(__v: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity): UpdateInputLinking = copy(identifier = __v)
+    def withInputLink(__v: edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity): UpdateInputLinking = copy(inputLink = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
-        case 1 => identifier.orNull
-        case 2 => inputLink.orNull
+        case 1 => {
+          val __t = identifier
+          if (__t != edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance) __t else null
+        }
+        case 2 => {
+          val __t = inputLink
+          if (__t != edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance) __t else null
+        }
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
-        case 1 => identifier.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
-        case 2 => inputLink.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 1 => identifier.toPMessage
+        case 2 => inputLink.toPMessage
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -646,23 +691,23 @@ object UpdateInputLinking extends scalapb.GeneratedMessageCompanion[edu.uci.ics.
       _tag__ match {
         case 0 => _done__ = true
         case 10 =>
-          __identifier = Option(__identifier.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __identifier = _root_.scala.Some(__identifier.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 18 =>
-          __inputLink = Option(__inputLink.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __inputLink = _root_.scala.Some(__inputLink.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinking(
-        identifier = __identifier,
-        inputLink = __inputLink
+        identifier = __identifier.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance),
+        inputLink = __inputLink.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance)
     )
   }
   implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinking] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinking(
-        identifier = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]]),
-        inputLink = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity]])
+        identifier = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance),
+        inputLink = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -679,20 +724,18 @@ object UpdateInputLinking extends scalapb.GeneratedMessageCompanion[edu.uci.ics.
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinking(
-    identifier = _root_.scala.None,
-    inputLink = _root_.scala.None
+    identifier = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance,
+    inputLink = edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance
   )
   implicit class UpdateInputLinkingLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinking]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinking](_l) {
-    def identifier: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = field(_.getIdentifier)((c_, f_) => c_.copy(identifier = Option(f_)))
-    def optionalIdentifier: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]] = field(_.identifier)((c_, f_) => c_.copy(identifier = f_))
-    def inputLink: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity] = field(_.getInputLink)((c_, f_) => c_.copy(inputLink = Option(f_)))
-    def optionalInputLink: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity]] = field(_.inputLink)((c_, f_) => c_.copy(inputLink = f_))
+    def identifier: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = field(_.identifier)((c_, f_) => c_.copy(identifier = f_))
+    def inputLink: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity] = field(_.inputLink)((c_, f_) => c_.copy(inputLink = f_))
   }
   final val IDENTIFIER_FIELD_NUMBER = 1
   final val INPUT_LINK_FIELD_NUMBER = 2
   def of(
-    identifier: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity],
-    inputLink: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity]
+    identifier: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity,
+    inputLink: edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
   ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinking = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinking(
     identifier,
     inputLink

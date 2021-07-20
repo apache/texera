@@ -19,12 +19,13 @@ message ResumeWorker {}
 message StartWorker {}
 
 message UpdateInputLinking {
-    common.ActorVirtualIdentity identifier = 1;
-    common.LinkIdentity input_link = 2;
+    common.ActorVirtualIdentity identifier = 1 [(scalapb.field).no_box = true];
+    common.LinkIdentity input_link = 2 [(scalapb.field).no_box = true];
 }
 
 message AddPartitioning {
-    architecture.sendsemantics.Partitioning partitioning = 1;
+    common.LinkIdentity tag = 1 [(scalapb.field).no_box = true];
+    architecture.sendsemantics.Partitioning partitioning = 2 [(scalapb.field).no_box = true];
 }
 
 message WorkerExecutionCompleted {
@@ -32,14 +33,14 @@ message WorkerExecutionCompleted {
 
 message ControlCommand {
     oneof sealed_value {
-        StartWorker start_worker = 1;
-        PauseWorker pause_worker = 2;
-        ResumeWorker resume_worker = 3;
+        architecture.worker.StartWorker start_worker = 1;
+        architecture.worker.PauseWorker pause_worker = 2;
+        architecture.worker.ResumeWorker resume_worker = 3;
 
-        AddPartitioning add_output_policy = 4;
-        UpdateInputLinking update_input_linking = 5;
+        architecture.worker.AddPartitioning add_output_policy = 4;
+        architecture.worker.UpdateInputLinking update_input_linking = 5;
 
-        WorkerExecutionCompleted worker_execution_completed = 101;
+        architecture.worker.WorkerExecutionCompleted worker_execution_completed = 101;
     }
 
 }
