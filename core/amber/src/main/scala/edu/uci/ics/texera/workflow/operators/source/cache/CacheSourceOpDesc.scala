@@ -15,8 +15,7 @@ import scala.collection.JavaConverters.asScalaBuffer
 import scala.collection.immutable.List
 import scala.collection.mutable
 
-class CacheSourceOpDesc(src: mutable.MutableList[Tuple])
-    extends SourceOperatorDescriptor {
+class CacheSourceOpDesc(src: mutable.MutableList[Tuple]) extends SourceOperatorDescriptor {
   assert(null != src)
 
   var schema: Schema = _
