@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.resource.dashboard.file
 
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER_FILE_ACCESS, FILE}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER_FILE_ACCESS}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileDao, UserDao, UserFileAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserFileAccess
 import edu.uci.ics.texera.web.resource.auth.UserResource
@@ -30,7 +30,12 @@ object FileAccessUtils {
 
   def getFileId(ownername: String, filename: String): UInteger = {
     val uid = userDao.fetchByName(ownername).get(0).getUid
-    val file = SqlServer.createDSLContext().select(FILE.FID).from(FILE).where(FILE.UID.eq(uid).and(FILE.NAME.eq(filename))).fetch()
+    val file = SqlServer
+      .createDSLContext()
+      .select(FILE.FID)
+      .from(FILE)
+      .where(FILE.UID.eq(uid).and(FILE.NAME.eq(filename)))
+      .fetch()
     return file.getValue(0, 0).asInstanceOf[UInteger]
   }
 
@@ -127,8 +132,7 @@ class UserFileAccessResource {
         val uid: UInteger =
           try {
             userDao.fetchByName(username).get(0).getUid
-          }
-          catch {
+          } catch {
             case _: NullPointerException =>
               return Response
                 .status(Response.Status.BAD_REQUEST)
