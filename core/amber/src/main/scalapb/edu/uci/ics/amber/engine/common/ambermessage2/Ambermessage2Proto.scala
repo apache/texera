@@ -9,33 +9,29 @@ object Ambermessage2Proto extends _root_.scalapb.GeneratedFileObject {
   lazy val dependencies: Seq[_root_.scalapb.GeneratedFileObject] = Seq(
     edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlcommandsProto,
     edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlreturnsProto,
-    edu.uci.ics.amber.engine.common.virtualidentity.VirtualidentityProto,
     scalapb.options.ScalapbProto
   )
   lazy val messagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] =
     Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]](
       edu.uci.ics.amber.engine.common.ambermessage2.ControlInvocation,
       edu.uci.ics.amber.engine.common.ambermessage2.ReturnInvocation,
-      edu.uci.ics.amber.engine.common.ambermessage2.ControlPayloadMessage,
-      edu.uci.ics.amber.engine.common.ambermessage2.DataHeader
+      edu.uci.ics.amber.engine.common.ambermessage2.ControlPayloadMessage
     )
   private lazy val ProtoBytes: _root_.scala.Array[Byte] =
       scalapb.Encoding.fromBase64(scala.collection.immutable.Seq(
   """CjNlZHUvdWNpL2ljcy9hbWJlci9lbmdpbmUvY29tbW9uL2FtYmVybWVzc2FnZTIucHJvdG8SH2VkdS51Y2kuaWNzLmFtYmVyL
   mVuZ2luZS5jb21tb24aQmVkdS91Y2kvaWNzL2FtYmVyL2VuZ2luZS9hcmNoaXRlY3R1cmUvd29ya2VyL2NvbnRyb2xjb21tYW5kc
-  y5wcm90bxpBZWR1L3VjaS9pY3MvYW1iZXIvZW5naW5lL2FyY2hpdGVjdHVyZS93b3JrZXIvY29udHJvbHJldHVybnMucHJvdG8aN
-  WVkdS91Y2kvaWNzL2FtYmVyL2VuZ2luZS9jb21tb24vdmlydHVhbGlkZW50aXR5LnByb3RvGhVzY2FsYXBiL3NjYWxhcGIucHJvd
-  G8iqAEKEUNvbnRyb2xJbnZvY2F0aW9uEi0KCmNvbW1hbmRfaWQYASABKANCDuI/CxIJY29tbWFuZElkUgljb21tYW5kSWQSZAoHY
-  29tbWFuZBgCIAEoCzI8LmVkdS51Y2kuaWNzLmFtYmVyLmVuZ2luZS5hcmNoaXRlY3R1cmUud29ya2VyLkNvbnRyb2xDb21tYW5kQ
-  gziPwkSB2NvbW1hbmRSB2NvbW1hbmQi0gEKEFJldHVybkludm9jYXRpb24SRgoTb3JpZ2luYWxfY29tbWFuZF9pZBgBIAEoA0IW4
-  j8TEhFvcmlnaW5hbENvbW1hbmRJZFIRb3JpZ2luYWxDb21tYW5kSWQSdgoOY29udHJvbF9yZXR1cm4YAiABKAsyOy5lZHUudWNpL
-  mljcy5hbWJlci5lbmdpbmUuYXJjaGl0ZWN0dXJlLndvcmtlci5Db250cm9sUmV0dXJuQhLiPw8SDWNvbnRyb2xSZXR1cm5SDWNvb
-  nRyb2xSZXR1cm4ilgIKDkNvbnRyb2xQYXlsb2FkEnsKEmNvbnRyb2xfaW52b2NhdGlvbhgBIAEoCzIyLmVkdS51Y2kuaWNzLmFtY
-  mVyLmVuZ2luZS5jb21tb24uQ29udHJvbEludm9jYXRpb25CFuI/ExIRY29udHJvbEludm9jYXRpb25IAFIRY29udHJvbEludm9jY
-  XRpb24SdwoRcmV0dXJuX2ludm9jYXRpb24YAiABKAsyMS5lZHUudWNpLmljcy5hbWJlci5lbmdpbmUuY29tbW9uLlJldHVybklud
-  m9jYXRpb25CFeI/EhIQcmV0dXJuSW52b2NhdGlvbkgAUhByZXR1cm5JbnZvY2F0aW9uQg4KDHNlYWxlZF92YWx1ZSKFAQoKRGF0Y
-  UhlYWRlchJUCgRmcm9tGAEgASgLMjUuZWR1LnVjaS5pY3MuYW1iZXIuZW5naW5lLmNvbW1vbi5BY3RvclZpcnR1YWxJZGVudGl0e
-  UIJ4j8GEgRmcm9tUgRmcm9tEiEKBmlzX2VuZBgCIAEoCEIK4j8HEgVpc0VuZFIFaXNFbmRCCeI/BkgAWAB4AWIGcHJvdG8z"""
+  y5wcm90bxpBZWR1L3VjaS9pY3MvYW1iZXIvZW5naW5lL2FyY2hpdGVjdHVyZS93b3JrZXIvY29udHJvbHJldHVybnMucHJvdG8aF
+  XNjYWxhcGIvc2NhbGFwYi5wcm90byKoAQoRQ29udHJvbEludm9jYXRpb24SLQoKY29tbWFuZF9pZBgBIAEoA0IO4j8LEgljb21tY
+  W5kSWRSCWNvbW1hbmRJZBJkCgdjb21tYW5kGAIgASgLMjwuZWR1LnVjaS5pY3MuYW1iZXIuZW5naW5lLmFyY2hpdGVjdHVyZS53b
+  3JrZXIuQ29udHJvbENvbW1hbmRCDOI/CRIHY29tbWFuZFIHY29tbWFuZCLSAQoQUmV0dXJuSW52b2NhdGlvbhJGChNvcmlnaW5hb
+  F9jb21tYW5kX2lkGAEgASgDQhbiPxMSEW9yaWdpbmFsQ29tbWFuZElkUhFvcmlnaW5hbENvbW1hbmRJZBJ2Cg5jb250cm9sX3Jld
+  HVybhgCIAEoCzI7LmVkdS51Y2kuaWNzLmFtYmVyLmVuZ2luZS5hcmNoaXRlY3R1cmUud29ya2VyLkNvbnRyb2xSZXR1cm5CEuI/D
+  xINY29udHJvbFJldHVyblINY29udHJvbFJldHVybiKWAgoOQ29udHJvbFBheWxvYWQSewoSY29udHJvbF9pbnZvY2F0aW9uGAEgA
+  SgLMjIuZWR1LnVjaS5pY3MuYW1iZXIuZW5naW5lLmNvbW1vbi5Db250cm9sSW52b2NhdGlvbkIW4j8TEhFjb250cm9sSW52b2Nhd
+  GlvbkgAUhFjb250cm9sSW52b2NhdGlvbhJ3ChFyZXR1cm5faW52b2NhdGlvbhgCIAEoCzIxLmVkdS51Y2kuaWNzLmFtYmVyLmVuZ
+  2luZS5jb21tb24uUmV0dXJuSW52b2NhdGlvbkIV4j8SEhByZXR1cm5JbnZvY2F0aW9uSABSEHJldHVybkludm9jYXRpb25CDgoMc
+  2VhbGVkX3ZhbHVlQgniPwZIAFgAeAFiBnByb3RvMw=="""
       ).mkString)
   lazy val scalaDescriptor: _root_.scalapb.descriptors.FileDescriptor = {
     val scalaProto = com.google.protobuf.descriptor.FileDescriptorProto.parseFrom(ProtoBytes)
@@ -46,7 +42,6 @@ object Ambermessage2Proto extends _root_.scalapb.GeneratedFileObject {
     com.google.protobuf.Descriptors.FileDescriptor.buildFrom(javaProto, _root_.scala.Array(
       edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlcommandsProto.javaDescriptor,
       edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlreturnsProto.javaDescriptor,
-      edu.uci.ics.amber.engine.common.virtualidentity.VirtualidentityProto.javaDescriptor,
       scalapb.options.ScalapbProto.javaDescriptor
     ))
   }
