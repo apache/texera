@@ -5,14 +5,14 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalB
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.AssignBreakpointHandler.AssignGlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignLocalBreakpointHandler.AssignLocalBreakpoint
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 
 object AssignBreakpointHandler {
   final case class AssignGlobalBreakpoint[T](
       breakpoint: GlobalBreakpoint[T],
       operatorID: OperatorIdentity
-  ) extends ControlCommand[CommandCompleted]
+  ) extends ControlCommand[Unit]
 }
 
 /** Assign a breakpoint to a specific operator
@@ -41,9 +41,7 @@ trait AssignBreakpointHandler {
             }
             .toSeq
         )
-        .map { ret =>
-          CommandCompleted()
-        }
+        .map { _ => }
     }
   }
 
