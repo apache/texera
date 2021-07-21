@@ -7,10 +7,10 @@ import { UserService } from '../user.service';
 
 export const USER_FILE_LIST_URL = 'user/file/list';
 export const USER_FILE_DELETE_URL = 'user/file/delete';
-export const USER_FILE_SHARE_ACCESS_URL = 'user/file/share'
-export const USER_FILE_PATH_URL = 'user/file/file-path'
-export const USER_FILE_GET_ACCESS_URL = 'user/file/all-access-of'
-export const USER_REVOKE_ACCESS_URL = 'user/file/revoke'
+export const USER_FILE_SHARE_ACCESS_URL = 'user-file-access/grant'
+export const USER_FILE_ACCESS_LIST_URL = 'user-file-access/list'
+export const USER_REVOKE_ACCESS_URL = 'user-file-access/revoke'
+
 export interface UserFileAccess {
   username: string;
   fileAccess: string;
@@ -99,11 +99,11 @@ export class UserFileService {
 
 
   public grantAccess(file: UserFile, username: string, accessLevel: string): Observable<Response>{
-    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${USER_FILE_SHARE_ACCESS_URL}/${file.fid}/to/${username}/${accessLevel}`, null);
+    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${USER_FILE_SHARE_ACCESS_URL}/${file.fid}/${username}/${accessLevel}`, null);
   }
 
   public getSharedAccessesOfFile(file: UserFile): Observable<Readonly<UserFileAccess>[]>{
-    return this.http.get<Readonly<UserFileAccess>[]>(`${AppSettings.getApiEndpoint()}/${USER_FILE_GET_ACCESS_URL}/${file.fid}`);
+    return this.http.get<Readonly<UserFileAccess>[]>(`${AppSettings.getApiEndpoint()}/${USER_FILE_ACCESS_LIST_URL}/${file.fid}`);
   }
 
   public revokeFileAccess(file: UserFile, username: string): Observable<Response>{

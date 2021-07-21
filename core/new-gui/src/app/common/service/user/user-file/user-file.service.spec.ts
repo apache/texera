@@ -7,7 +7,7 @@ import {
   UserFileService,
   USER_FILE_LIST_URL,
   USER_FILE_SHARE_ACCESS_URL,
-  USER_REVOKE_ACCESS_URL, USER_FILE_GET_ACCESS_URL
+  USER_REVOKE_ACCESS_URL, USER_FILE_ACCESS_LIST_URL
 } from './user-file.service';
 import { UserService } from '../user.service';
 import { StubUserService, MOCK_USER } from '../stub-user.service';
@@ -60,7 +60,7 @@ describe('UserFileService', () => {
   it('can share access', () => {
     service.grantAccess(testFile, username, accessLevel).first().subscribe();
     const req = httpMock.expectOne(
-      `${AppSettings.getApiEndpoint()}/${USER_FILE_SHARE_ACCESS_URL}/${testFile.fid}/to/${username}/${accessLevel}`);
+      `${AppSettings.getApiEndpoint()}/${USER_FILE_SHARE_ACCESS_URL}/${testFile.fid}/${username}/${accessLevel}`);
     expect(req.request.method).toEqual('POST');
     req.flush({code: 0, message: ''});
   })
@@ -76,7 +76,7 @@ describe('UserFileService', () => {
   it('can get all access', () => {
     service.getSharedAccessesOfFile(testFile).first().subscribe();
     const req = httpMock.expectOne(
-      `${AppSettings.getApiEndpoint()}/${USER_FILE_GET_ACCESS_URL}/${testFile.fid}`);
+      `${AppSettings.getApiEndpoint()}/${USER_FILE_ACCESS_LIST_URL}/${testFile.fid}`);
     expect(req.request.method).toEqual('GET');
     req.flush({code: 0, message: ''});
   })
