@@ -12,20 +12,20 @@ option (scalapb.options) = {
     no_default_values_in_constructor: true
 };
 
-message ControlInvocation {
+message ControlInvocationV2 {
     int64 command_id = 1;
-    architecture.worker.ControlCommand command = 2;
+    architecture.worker.ControlCommandV2 command = 2;
 }
 
-message ReturnInvocation {
+message ReturnInvocationV2 {
     int64 original_command_id = 1;
-    architecture.worker.ControlReturn control_return = 2;
+    architecture.worker.ControlReturnV2 control_return = 2;
 }
 
-message ControlPayload {
+message ControlPayloadV2 {
     oneof sealed_value {
-        ControlInvocation control_invocation = 1;
-        ReturnInvocation return_invocation = 2;
+        ControlInvocationV2 control_invocation = 1;
+        ReturnInvocationV2 return_invocation = 2;
     }
 }
 

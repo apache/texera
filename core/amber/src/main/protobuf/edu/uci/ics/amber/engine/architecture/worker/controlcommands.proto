@@ -12,35 +12,35 @@ option (scalapb.options) = {
     no_default_values_in_constructor: true
 };
 
-message StartWorker {}
+message StartWorkerV2 {}
 
-message PauseWorker {}
+message PauseWorkerV2 {}
 
-message ResumeWorker {}
+message ResumeWorkerV2 {}
 
-message UpdateInputLinking {
+message UpdateInputLinkingV2 {
     common.ActorVirtualIdentity identifier = 1 [(scalapb.field).no_box = true];
     common.LinkIdentity input_link = 2 [(scalapb.field).no_box = true];
 }
 
-message AddPartitioning {
+message AddPartitioningV2 {
     common.LinkIdentity tag = 1 [(scalapb.field).no_box = true];
     architecture.sendsemantics.Partitioning partitioning = 2 [(scalapb.field).no_box = true];
 }
 
-message WorkerExecutionCompleted {
+message WorkerExecutionCompletedV2 {
 }
 
-message ControlCommand {
+message ControlCommandV2 {
     oneof sealed_value {
-        architecture.worker.StartWorker start_worker = 1;
-        architecture.worker.PauseWorker pause_worker = 2;
-        architecture.worker.ResumeWorker resume_worker = 3;
+        architecture.worker.StartWorkerV2 start_worker = 1;
+        architecture.worker.PauseWorkerV2 pause_worker = 2;
+        architecture.worker.ResumeWorkerV2 resume_worker = 3;
 
-        architecture.worker.AddPartitioning add_output_policy = 4;
-        architecture.worker.UpdateInputLinking update_input_linking = 5;
+        architecture.worker.AddPartitioningV2 add_output_policy = 4;
+        architecture.worker.UpdateInputLinkingV2 update_input_linking = 5;
 
-        architecture.worker.WorkerExecutionCompleted worker_execution_completed = 101;
+        architecture.worker.WorkerExecutionCompletedV2 worker_execution_completed = 101;
     }
 
 }

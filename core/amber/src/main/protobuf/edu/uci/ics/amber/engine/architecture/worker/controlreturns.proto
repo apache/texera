@@ -11,7 +11,7 @@ option (scalapb.options) = {
     no_default_values_in_constructor: true
 };
 
-message ControlReturn {
+message ControlReturnV2 {
     oneof value {
         common.WorkerStatistics worker_statistics = 1;
         common.WorkerState worker_state = 2;
