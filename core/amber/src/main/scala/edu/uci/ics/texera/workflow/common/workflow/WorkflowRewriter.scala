@@ -12,7 +12,7 @@ import scala.collection.mutable
 
 case class WorkflowVertex(
     op: OperatorDescriptor,
-    links: mutable.HashSet[OperatorLink],
+    links: mutable.HashSet[OperatorLink]
 )
 
 object WorkflowRewriter {
