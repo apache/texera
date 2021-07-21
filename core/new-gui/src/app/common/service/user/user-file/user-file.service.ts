@@ -93,22 +93,40 @@ export class UserFileService {
     return Math.max(fileSize, 0.1).toFixed(1) + byteUnits[i];
   }
 
+  /**
+   * Assign a new access to/Modify an existing access of another user
+   * @param file the file that is about to be shared
+   * @param username the username of target user
+   * @param accessLevel the type of access offered
+   * @return Response
+   */
+  public grantAccess(file: UserFile, username: string, accessLevel: string): Observable<Response> {
+    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${USER_FILE_SHARE_ACCESS_URL}/${file.fid}/${username}/${accessLevel}`, null);
+  }
+
+  /**
+   * Retrieve all shared accesses of the given workflow
+   * @param file the current file
+   * @return Readonly<UserFileAccess>[] an array of UserFileAccesses, Ex: [{username: TestUser, fileAccess: read}]
+   */
+  public getSharedAccessesOfFile(file: UserFile): Observable<Readonly<UserFileAccess>[]> {
+    return this.http.get<Readonly<UserFileAccess>[]>(`${AppSettings.getApiEndpoint()}/${USER_FILE_ACCESS_LIST_URL}/${file.fid}`);
+  }
+
+  /**
+   * Remove an existing access of another user
+   * @param file the current file
+   * @param username the username of target user
+   * @return message of success
+   */
+  public revokeFileAccess(file: UserFile, username: string): Observable<Response> {
+    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${USER_REVOKE_ACCESS_URL}/${file.fid}/${username}`, null);
+  }
+
   private fetchFileList(): Observable<UserFile[]> {
     return this.http.get<UserFile[]>(`${AppSettings.getApiEndpoint()}/${USER_FILE_LIST_URL}`);
   }
 
-
-  public grantAccess(file: UserFile, username: string, accessLevel: string): Observable<Response>{
-    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${USER_FILE_SHARE_ACCESS_URL}/${file.fid}/${username}/${accessLevel}`, null);
-  }
-
-  public getSharedAccessesOfFile(file: UserFile): Observable<Readonly<UserFileAccess>[]>{
-    return this.http.get<Readonly<UserFileAccess>[]>(`${AppSettings.getApiEndpoint()}/${USER_FILE_ACCESS_LIST_URL}/${file.fid}`);
-  }
-
-  public revokeFileAccess(file: UserFile, username: string): Observable<Response>{
-    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${USER_REVOKE_ACCESS_URL}/${file.fid}/${username}`, null);
-  }
   /**
    * refresh the files in the service whenever the user changes.
    */

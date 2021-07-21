@@ -14,6 +14,7 @@ import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
 import scala.collection.JavaConverters._
 
+//A Utility Class used to for operations related to database
 object FileAccessUtils {
   final private val fileDao = new FileDao(SqlServer.createDSLContext.configuration)
   final private val userDao = new UserDao(SqlServer.createDSLContext().configuration)
@@ -57,6 +58,12 @@ class UserFileAccessResource {
   final private val userDao = new UserDao(SqlServer.createDSLContext().configuration)
   private var context: DSLContext = SqlServer.createDSLContext
 
+  /**
+    * Retrieves the list of all shared accesses of the target file
+    * @param fid     the fileId of target file to be shared
+    * @param session the session identifying the current user
+    * @return A JSON array of File Accesses, Ex: [{username: TestUser, fileAccess: read}]
+    */
   @GET
   @Path("list/{fid}")
   def getAllSharedFileAccess(
@@ -94,6 +101,12 @@ class UserFileAccessResource {
     }
   }
 
+  /**
+    * chekcs whether a user has access to a file
+    * @param fid     the fileId of target file to be checked
+    * @param uid     the userId of target user to be checked
+    * @return success resp if has access, failed resp otherwise
+    */
   @GET
   @Path("hasAccess/{uid}/{fid}")
   def hasAccessTo(
@@ -119,6 +132,14 @@ class UserFileAccessResource {
     }
   }
 
+  /**
+    * Grants a specific type of access of a file to a user
+    * @param fid     the fileId of target file to be shared
+    * @param username the username of target user to be shared to
+    * @param accessType the type of access to be shared
+    * @param session the session identifying the current user
+    * @return A successful resp if granted, failed resp otherwise
+    */
   @POST
   @Path("grant/{fid}/{username}/{accessType}")
   def shareFileTo(
@@ -158,6 +179,13 @@ class UserFileAccessResource {
     }
   }
 
+  /**
+    * Revoke a user's access to a file
+    * @param fid     the fileId of target file
+    * @param username the username of target user whose access is about to be revoked
+    * @param session the session identifying the current user
+    * @return A successful resp if granted, failed resp otherwise
+    */
   @POST
   @Path("/revoke/{fid}/{username}")
   def revokeAccess(

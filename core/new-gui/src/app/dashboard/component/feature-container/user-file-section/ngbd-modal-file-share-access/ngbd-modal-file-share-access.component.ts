@@ -1,14 +1,8 @@
 import { Component, Input, OnInit } from '@angular/core';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { FormBuilder, Validators } from '@angular/forms';
-import {
-  UserWorkflowAccess,
-  WorkflowGrantAccessService
-} from '../../../../../common/service/user/workflow-access-control/workflow-grant-access.service';
-import { Workflow } from '../../../../../common/type/workflow';
-import {UserFileService} from "../../../../../common/service/user/user-file/user-file.service";
-import {UserFile} from "../../../../../common/type/user-file";
-import {UserFileAccess} from "../../../../../common/service/user/user-file/user-file.service";
+import { UserFileAccess, UserFileService } from "../../../../../common/service/user/user-file/user-file.service";
+import { UserFile } from "../../../../../common/type/user-file";
 
 
 @Component({
@@ -21,7 +15,7 @@ export class NgbdModalFileShareAccessComponent implements OnInit {
   @Input() file!: UserFile;
 
   shareForm = this.formBuilder.group({
-    username: ['',[Validators.required]],
+    username: ['', [Validators.required]],
     accessLevel: ['', [Validators.required]]
   });
 
@@ -49,8 +43,8 @@ export class NgbdModalFileShareAccessComponent implements OnInit {
   }
 
   /**
-   * get all shared access of the current workflow
-   * @param file target/current workflow
+   * get all shared access of the current file
+   * @param file target/current file
    */
   public refreshGrantedList(file: UserFile): void {
     this.userFileService.getSharedAccessesOfFile(file).subscribe(
@@ -61,9 +55,9 @@ export class NgbdModalFileShareAccessComponent implements OnInit {
 
   /**
    * grant a specific level of access to a user
-   * @param file the given/target workflow
+   * @param file the given/target file
    * @param userToShareWith the target user
-   * @param accessLevel
+   * @param accessLevel the level of Access to be given
    */
   public grantAccess(file: UserFile, userToShareWith: string, accessLevel: string): void {
     this.userFileService.grantAccess(file, userToShareWith, accessLevel).subscribe(
@@ -74,14 +68,14 @@ export class NgbdModalFileShareAccessComponent implements OnInit {
 
   /**
    * triggered by clicking the SUBMIT button, offers access based on the input information
-   * @param file target/current workflow
+   * @param file target/current file
    */
-  public onClickShareWorkflow(file: UserFile): void {
-    if(this.shareForm.get('username')?.invalid){
+  public onClickShareFile(file: UserFile): void {
+    if (this.shareForm.get('username')?.invalid) {
       alert("Please Fill in Username")
       return
     }
-    if(this.shareForm.get('accessLevel')?.invalid){
+    if (this.shareForm.get('accessLevel')?.invalid) {
       alert("Please Select Access Level")
       return
     }
