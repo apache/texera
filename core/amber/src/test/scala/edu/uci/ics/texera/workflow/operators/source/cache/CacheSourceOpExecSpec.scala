@@ -18,7 +18,7 @@ class CacheSourceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     LayerIdentity("", "", "")
   }
 
-  def linkID(): LinkIdentity = LinkIdentity(Option(layerID()), Option(layerID()))
+  def linkID(): LinkIdentity = LinkIdentity(layerID(), layerID())
 
   before {
     linkID1 = linkID()
