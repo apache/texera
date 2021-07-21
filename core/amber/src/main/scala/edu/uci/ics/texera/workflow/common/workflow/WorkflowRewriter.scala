@@ -13,7 +13,6 @@ import scala.collection.mutable
 case class WorkflowVertex(
     op: OperatorDescriptor,
     links: mutable.HashSet[OperatorLink],
-    breakpoints: mutable.HashSet[BreakpointInfo]
 )
 
 object WorkflowRewriter {
@@ -470,11 +469,7 @@ class WorkflowRewriter(
     } else {
       //      workflowDAG.jgraphtDag.outgoingEdgesOf(opInVertex.operatorID).forEach(links.+=)
       workflowDAG.jgraphtDag.incomingEdgesOf(opInVertex.operatorID).forEach(link => links.+=(link))
-      val breakpoints = mutable.HashSet[BreakpointInfo]()
-      workflowInfo.breakpoints
-        .filter(breakpoint => breakpoint.operatorID.equals(op.operatorID))
-        .foreach(breakpoints.+=)
-      WorkflowVertex(opInVertex, links, breakpoints)
+      WorkflowVertex(opInVertex, links)
     }
   }
 
