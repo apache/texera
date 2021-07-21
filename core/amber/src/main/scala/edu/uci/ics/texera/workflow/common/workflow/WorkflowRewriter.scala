@@ -117,6 +117,17 @@ class WorkflowRewriter(
       while (r2OpIDQue.nonEmpty) {
         r2(r2OpIDQue.dequeue())
       }
+      val r2TmpLinks = mutable.MutableList[OperatorLink]()
+      val r2TmpOpIDs = r2NewOps.map(op => op.operatorID)
+      r2NewLinks.foreach(link => {
+        if (r2TmpOpIDs.contains(link.destination.operatorID)) {
+          if (r2TmpOpIDs.contains(link.origin.operatorID)) {
+            r2TmpLinks += link
+          }
+        }
+      })
+      r2NewLinks.clear()
+      r2TmpLinks.foreach(r2NewLinks.+=)
 
       r2WorkflowInfo = WorkflowInfo(r2NewOps, r2NewLinks, r2NewBreakpoints)
       r2WorkflowDAG = new WorkflowDAG(r2WorkflowInfo)
@@ -129,33 +140,6 @@ class WorkflowRewriter(
       r1OpIDs.foreach(r1)
 
       new WorkflowInfo(r1NewOps, r1NewLinks, r1NewBreakpoints)
-    }
-  }
-
-  def rewrite: WorkflowInfo = {
-    if (null == workflowInfo) {
-      throw new Exception("Rewriting null workflow.")
-      null
-    } else {
-      logger.info("Rewriting workflow {}", workflowInfo)
-      checkCacheValidity()
-      // Topological traversal
-      workflowDAG.getSinkOperators.foreach(sinkOpID => {
-        operatorIDQueue.enqueue(sinkOpID)
-        newOps += workflowDAG.getOperator(sinkOpID)
-        addMatchingBreakpoints(sinkOpID)
-      })
-      while (operatorIDQueue.nonEmpty) {
-        val operatorID: String = operatorIDQueue.dequeue()
-        workflowDAG
-          .getUpstream(operatorID)
-          .foreach(upstreamDesc => {
-            rewriteUpstreamOperator(operatorID, upstreamDesc)
-          })
-      }
-      newOps = newOps.reverse
-      removeInvalidLinks()
-      WorkflowInfo(newOps, newLinks, newBreakpoints)
     }
   }
 
@@ -232,11 +216,12 @@ class WorkflowRewriter(
 
   private def checkCacheValidity(): Unit = {
     val opIter = workflowDAG.jgraphtDag.iterator()
-    opIter.forEachRemaining(id => {
+    while (opIter.hasNext) {
+      val id = opIter.next()
       if (!visitedOpID.contains(id)) {
         invalidateIfUpdated(id)
       }
-    })
+    }
   }
 
   private def invalidateIfUpdated(operatorID: String): Unit = {
@@ -249,50 +234,46 @@ class WorkflowRewriter(
       workflowDAG.getOperator(operatorID).toString
     )
     if (isUpdated(operatorID)) {
-      invalidateCache(operatorID)
+      invalidateOperatorCache(operatorID)
+      workflowDAG
+        .getDownstream(operatorID)
+        .map(op => op.operatorID)
+        .foreach(invalidateOperatorCacheRecursively)
     }
-    workflowDAG.getDownstream(operatorID).map(op => op.operatorID).foreach(invalidateIfUpdated)
   }
 
-  private def isUpdated(opID: String): Boolean = {
-    if (!operatorRecord.contains(opID)) {
-      operatorRecord += ((opID, getWorkflowVertex(workflowDAG.getOperator(opID))))
-      logger.info("Vertex {} is not recorded.", operatorRecord(opID))
+  private def isUpdated(id: String): Boolean = {
+    if (!operatorRecord.contains(id)) {
+      operatorRecord += ((id, getWorkflowVertex(workflowDAG.getOperator(id))))
+      logger.info("Vertex {} is not recorded.", operatorRecord(id))
       true
     } else {
-      val vertex = getWorkflowVertex(workflowDAG.getOperator(opID))
-      if (!operatorRecord(opID).equals(vertex)) {
-        operatorRecord(opID) = vertex
-        logger.info("Vertex {} is updated.", operatorRecord(opID))
+      val vertex = getWorkflowVertex(workflowDAG.getOperator(id))
+      if (!operatorRecord(id).equals(vertex)) {
+        operatorRecord(id) = vertex
+        logger.info("Vertex {} is updated.", operatorRecord(id))
         true
+      } else if (cachedOperatorDescriptors.contains(id)) {
+        !workflowInfo.cachedOperatorIDs.contains(id)
       } else {
-        logger.info("Operator: {} is not updated.", operatorRecord(opID))
+        logger.info("Operator: {} is not updated.", operatorRecord(id))
         false
       }
     }
   }
 
-  private def checkOperatorCacheValidity(operatorID: String): Unit = {
-    val desc = workflowDAG.getOperator(operatorID)
-    logger.info("Checking cache validity of operator: {}.", desc.toString)
-    if (isCacheEnabled(desc) && !isCacheValid(desc)) {
-      invalidateCache(operatorID)
-    }
-    workflowDAG
-      .getDownstream(operatorID)
-      .foreach(desc => {
-        checkOperatorCacheValidity(desc.operatorID)
-      })
+  private def invalidateOperatorCache(id: String): Unit = {
+    operatorOutputCache.remove(id)
+    cachedOperatorDescriptors.remove(id)
+    logger.info("Operator {} cache invalidated.", id)
   }
 
-  private def invalidateCache(operatorID: String): Unit = {
-    operatorOutputCache.remove(operatorID)
-    cachedOperatorDescriptors.remove(operatorID)
-    logger.info("Operator {} cache invalidated.", operatorID)
+  private def invalidateOperatorCacheRecursively(operatorID: String): Unit = {
+    invalidateOperatorCache(operatorID)
     workflowDAG
       .getDownstream(operatorID)
       .foreach(desc => {
-        invalidateCache(desc.operatorID)
+        invalidateOperatorCacheRecursively(desc.operatorID)
       })
   }
 
@@ -495,5 +476,57 @@ class WorkflowRewriter(
         .foreach(breakpoints.+=)
       WorkflowVertex(opInVertex, links, breakpoints)
     }
+  }
+
+  @Deprecated
+  def rewrite: WorkflowInfo = {
+    if (null == workflowInfo) {
+      throw new Exception("Rewriting null workflow.")
+      null
+    } else {
+      logger.info("Rewriting workflow {}", workflowInfo)
+      checkCacheValidity()
+      // Topological traversal
+      workflowDAG.getSinkOperators.foreach(sinkOpID => {
+        operatorIDQueue.enqueue(sinkOpID)
+        newOps += workflowDAG.getOperator(sinkOpID)
+        addMatchingBreakpoints(sinkOpID)
+      })
+      while (operatorIDQueue.nonEmpty) {
+        val operatorID: String = operatorIDQueue.dequeue()
+        workflowDAG
+          .getUpstream(operatorID)
+          .foreach(upstreamDesc => {
+            rewriteUpstreamOperator(operatorID, upstreamDesc)
+          })
+      }
+      newOps = newOps.reverse
+      removeInvalidLinks()
+      WorkflowInfo(newOps, newLinks, newBreakpoints)
+    }
+  }
+
+  @Deprecated
+  private def checkOperatorCacheValidity(operatorID: String): Unit = {
+    val desc = workflowDAG.getOperator(operatorID)
+    logger.info("Checking cache validity of operator: {}.", desc.toString)
+    if (isCacheEnabled(desc) && !isCacheValid(desc)) {
+      invalidateCache(operatorID)
+    }
+    workflowDAG
+      .getDownstream(operatorID)
+      .foreach(desc => {
+        checkOperatorCacheValidity(desc.operatorID)
+      })
+  }
+
+  @Deprecated
+  private def invalidateCache(operatorID: String): Unit = {
+    invalidateOperatorCache(operatorID)
+    workflowDAG
+      .getDownstream(operatorID)
+      .foreach(desc => {
+        invalidateCache(desc.operatorID)
+      })
   }
 }

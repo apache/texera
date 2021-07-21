@@ -13,7 +13,6 @@ class CacheSourceOpExec(src: mutable.MutableList[Tuple]) extends SourceOperatorE
 
   override def produceTexeraTuple(): Iterator[Tuple] = {
     logger.info("Retrieve cached output from {}.", this.toString)
-    logger.info("Cached tuples: {}.", src.toString())
     src.iterator
   }
 
