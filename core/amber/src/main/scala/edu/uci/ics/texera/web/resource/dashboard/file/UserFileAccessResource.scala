@@ -60,9 +60,9 @@ class UserFileAccessResource {
   @GET
   @Path("list/{fid}")
   def getAllSharedFileAccess(
-                              @PathParam("fid") fid: UInteger,
-                              @Session session: HttpSession
-                            ): Response = {
+      @PathParam("fid") fid: UInteger,
+      @Session session: HttpSession
+  ): Response = {
     UserResource.getUser(session) match {
       case Some(user) =>
         val fileAccess = SqlServer
@@ -97,10 +97,10 @@ class UserFileAccessResource {
   @GET
   @Path("hasAccess/{uid}/{fid}")
   def hasAccessTo(
-                   @PathParam("uid") uid: UInteger,
-                   @PathParam("fid") fid: UInteger,
-                   @Session session: HttpSession
-                 ): Response = {
+      @PathParam("uid") uid: UInteger,
+      @PathParam("fid") fid: UInteger,
+      @Session session: HttpSession
+  ): Response = {
     UserResource.getUser(session) match {
       case Some(user) =>
         val existence = SqlServer
@@ -122,11 +122,11 @@ class UserFileAccessResource {
   @POST
   @Path("grant/{fid}/{username}/{accessType}")
   def shareFileTo(
-                   @PathParam("username") username: String,
-                   @PathParam("fid") fid: UInteger,
-                   @PathParam("accessType") accessType: String,
-                   @Session session: HttpSession
-                 ): Response = {
+      @PathParam("username") username: String,
+      @PathParam("fid") fid: UInteger,
+      @PathParam("accessType") accessType: String,
+      @Session session: HttpSession
+  ): Response = {
     UserResource.getUser(session) match {
       case Some(user) =>
         val uid: UInteger =
@@ -161,10 +161,10 @@ class UserFileAccessResource {
   @POST
   @Path("/revoke/{fid}/{username}")
   def revokeAccess(
-                    @PathParam("fid") fid: UInteger,
-                    @PathParam("username") username: String,
-                    @Session session: HttpSession
-                  ): Response = {
+      @PathParam("fid") fid: UInteger,
+      @PathParam("username") username: String,
+      @Session session: HttpSession
+  ): Response = {
     UserResource.getUser(session) match {
       case Some(user) =>
         val uid: UInteger =
