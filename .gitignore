@@ -81,3 +81,6 @@ rebel.xml
 
 # Ignoring package-lock.json
 package-lock.json
+
+# Ignoring yarn.lock
+**/yarn.lock
