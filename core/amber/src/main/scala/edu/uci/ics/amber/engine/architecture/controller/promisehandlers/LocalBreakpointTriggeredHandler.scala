@@ -9,15 +9,14 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHan
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryAndRemoveBreakpointsHandler.QueryAndRemoveBreakpoints
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 
 import scala.collection.mutable
 
 object LocalBreakpointTriggeredHandler {
   final case class LocalBreakpointTriggered(localBreakpoints: Array[(String, Long)])
-      extends ControlCommand[CommandCompleted]
+      extends ControlCommand[Unit]
 }
 
 /** indicate one/multiple local breakpoints have triggered on a worker
@@ -46,9 +45,7 @@ trait LocalBreakpointTriggeredHandler {
 
       if (unResolved.isEmpty) {
         // no breakpoint needs to resolve, return directly
-        Future {
-          CommandCompleted()
-        }
+        Future {}
       } else {
         // we need to resolve global breakpoints
         // before query workers, increase the version number
@@ -96,9 +93,7 @@ trait LocalBreakpointTriggeredHandler {
                     .collect(targetOp.getAllWorkers.map { worker =>
                       send(ResumeWorker(), worker)
                     }.toSeq)
-                    .map { ret =>
-                      CommandCompleted()
-                    }
+                    .map { _ => {} }
                 } else {
                   // other wise, report to frontend and pause entire workflow
                   if (eventListener.breakpointTriggeredListener != null) {
