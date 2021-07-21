@@ -13,9 +13,9 @@ object ControlcommandsProto extends _root_.scalapb.GeneratedFileObject {
   )
   lazy val messagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] =
     Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]](
+      edu.uci.ics.amber.engine.architecture.worker.controlcommands.StartWorker,
       edu.uci.ics.amber.engine.architecture.worker.controlcommands.PauseWorker,
       edu.uci.ics.amber.engine.architecture.worker.controlcommands.ResumeWorker,
-      edu.uci.ics.amber.engine.architecture.worker.controlcommands.StartWorker,
       edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinking,
       edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioning,
       edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompleted,
@@ -26,8 +26,8 @@ object ControlcommandsProto extends _root_.scalapb.GeneratedFileObject {
   """CkJlZHUvdWNpL2ljcy9hbWJlci9lbmdpbmUvYXJjaGl0ZWN0dXJlL3dvcmtlci9jb250cm9sY29tbWFuZHMucHJvdG8SLGVkd
   S51Y2kuaWNzLmFtYmVyLmVuZ2luZS5hcmNoaXRlY3R1cmUud29ya2VyGkdlZHUvdWNpL2ljcy9hbWJlci9lbmdpbmUvYXJjaGl0Z
   WN0dXJlL3NlbmRzZW1hbnRpY3MvcGFydGl0aW9uaW5ncy5wcm90bxo1ZWR1L3VjaS9pY3MvYW1iZXIvZW5naW5lL2NvbW1vbi92a
-  XJ0dWFsaWRlbnRpdHkucHJvdG8aFXNjYWxhcGIvc2NhbGFwYi5wcm90byINCgtQYXVzZVdvcmtlciIOCgxSZXN1bWVXb3JrZXIiD
-  QoLU3RhcnRXb3JrZXIi4AEKElVwZGF0ZUlucHV0TGlua2luZxJpCgppZGVudGlmaWVyGAEgASgLMjUuZWR1LnVjaS5pY3MuYW1iZ
+  XJ0dWFsaWRlbnRpdHkucHJvdG8aFXNjYWxhcGIvc2NhbGFwYi5wcm90byINCgtTdGFydFdvcmtlciINCgtQYXVzZVdvcmtlciIOC
+  gxSZXN1bWVXb3JrZXIi4AEKElVwZGF0ZUlucHV0TGlua2luZxJpCgppZGVudGlmaWVyGAEgASgLMjUuZWR1LnVjaS5pY3MuYW1iZ
   XIuZW5naW5lLmNvbW1vbi5BY3RvclZpcnR1YWxJZGVudGl0eUIS4j8PEgppZGVudGlmaWVy8AEBUgppZGVudGlmaWVyEl8KCmluc
   HV0X2xpbmsYAiABKAsyLS5lZHUudWNpLmljcy5hbWJlci5lbmdpbmUuY29tbW9uLkxpbmtJZGVudGl0eUIR4j8OEglpbnB1dExpb
   mvwAQFSCWlucHV0TGluayLcAQoPQWRkUGFydGl0aW9uaW5nEkwKA3RhZxgBIAEoCzItLmVkdS51Y2kuaWNzLmFtYmVyLmVuZ2luZ

@@ -8,15 +8,15 @@ object ControlCommandConvertUtils {
       controlCommand: edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand[_]
   ): ControlCommand = {
     controlCommand match {
+      case edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler
+            .StartWorker() =>
+        StartWorker()
       case edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler
             .PauseWorker() =>
         PauseWorker()
       case edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler
             .ResumeWorker() =>
         ResumeWorker()
-      case edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler
-            .StartWorker() =>
-        StartWorker()
       case edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler
             .AddPartitioning(tag: LinkIdentity, partitioning: Partitioning) =>
         AddPartitioning(tag, partitioning)
