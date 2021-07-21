@@ -23,7 +23,6 @@ import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
   sessionResults
 }
 import edu.uci.ics.texera.web.resource.auth.UserResource
-import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.{
   WorkflowCompiler,
@@ -216,9 +215,9 @@ class WorkflowWebsocketResource {
       operatorOutputCache,
       cachedOperators,
       cacheSourceOperators,
-      cacheSinkOperators
+      cacheSinkOperators,
+      operatorRecord
     )
-    workflowRewriter.operatorRecord = operatorRecord
     val newWorkflowInfo = workflowRewriter.rewrite_v2
     logger.info("Original workflow: {}.", toJgraphtDAG(workflowInfo).toString)
     workflowInfo = newWorkflowInfo

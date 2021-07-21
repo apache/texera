@@ -19,9 +19,9 @@ class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
     operator
   }
 
-  it should "return null" in {
-    rewriter = new WorkflowRewriter(null, null, null, null, null)
-    assert(rewriter.rewrite == null)
+  it should "throw exception for null input" in {
+    rewriter = new WorkflowRewriter(null, null, null, null, null, null)
+    assertThrows[Exception](rewriter.rewrite == null)
   }
 
   it should "return empty workflowInfo" in {
@@ -30,7 +30,7 @@ class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
       mutable.MutableList[OperatorLink](),
       mutable.MutableList[BreakpointInfo]()
     )
-    rewriter = new WorkflowRewriter(workflowInfo, null, null, null, null)
+    rewriter = new WorkflowRewriter(workflowInfo, null, null, null, null, null)
     assert(rewriter.rewrite.equals(workflowInfo))
   }
 
@@ -52,9 +52,9 @@ class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
       mutable.HashMap[String, mutable.MutableList[Tuple]](),
       mutable.HashMap[String, OperatorDescriptor](),
       mutable.HashMap[String, CacheSourceOpDesc](),
-      mutable.HashMap[String, CacheSinkOpDesc]()
+      mutable.HashMap[String, CacheSinkOpDesc](),
+      mutable.HashMap[String, WorkflowVertex]()
     )
-    rewriter.operatorRecord = mutable.HashMap[String, WorkflowVertex]()
     val rewrittenWorkflowInfo = rewriter.rewrite
     rewrittenWorkflowInfo.operators.foreach(operator => {
       assert(operators.contains(operator))
@@ -96,10 +96,9 @@ class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
       operatorOutputCache,
       cachedOperators,
       cacheSourceOperators,
-      cacheSinkOperators
+      cacheSinkOperators,
+      mutable.HashMap[String, WorkflowVertex]()
     )
-
-    rewriter.operatorRecord = mutable.HashMap[String, WorkflowVertex]()
     rewriter.operatorRecord += (
       (
         sourceOperator.operatorID,
@@ -140,10 +139,10 @@ class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
       operatorOutputCache,
       cachedOperators,
       cacheSourceOperators,
-      cacheSinkOperators
+      cacheSinkOperators,
+      mutable.HashMap[String, WorkflowVertex]()
     )
 
-    rewriter.operatorRecord = mutable.HashMap[String, WorkflowVertex]()
     val rewrittenWorkflowInfo = rewriter.rewrite
     assert(3.equals(rewrittenWorkflowInfo.operators.size))
     assert(rewrittenWorkflowInfo.operators.contains(sourceOperator))
@@ -187,10 +186,10 @@ class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
       operatorOutputCache,
       cachedOperators,
       cacheSourceOperators,
-      cacheSinkOperators
+      cacheSinkOperators,
+      mutable.HashMap[String, WorkflowVertex]()
     )
 
-    rewriter.operatorRecord = mutable.HashMap[String, WorkflowVertex]()
     val rewrittenWorkflowInfo = rewriter.rewrite
     assert(4.equals(rewrittenWorkflowInfo.operators.size))
     assert(rewrittenWorkflowInfo.operators.contains(sourceOperator))
@@ -245,10 +244,10 @@ class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
       operatorOutputCache,
       cachedOperators,
       cacheSourceOperators,
-      cacheSinkOperators
+      cacheSinkOperators,
+      mutable.HashMap[String, WorkflowVertex]()
     )
 
-    rewriter.operatorRecord = mutable.HashMap[String, WorkflowVertex]()
     rewriter.operatorRecord += (
       (
         sourceOperator.operatorID,
@@ -316,10 +315,10 @@ class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
       operatorOutputCache,
       cachedOperators,
       cacheSourceOperators,
-      cacheSinkOperators
+      cacheSinkOperators,
+      mutable.HashMap[String, WorkflowVertex]()
     )
 
-    rewriter.operatorRecord = mutable.HashMap[String, WorkflowVertex]()
     val modifiedSourceOperator = new CSVScanSourceOpDesc()
     modifiedSourceOperator.hasHeader = false
     modifiedSourceOperator.operatorID = sourceOperator.operatorID
@@ -347,9 +346,9 @@ class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(3.equals(rewriter.operatorRecord.size))
   }
 
-  it should "return null v2" in {
-    rewriter = new WorkflowRewriter(null, null, null, null, null)
-    assert(rewriter.rewrite == null)
+  it should "throw exception for null input v2" in {
+    rewriter = new WorkflowRewriter(null, null, null, null, null, null)
+    assertThrows[Exception](rewriter.rewrite == null)
   }
 
   it should "return empty workflowInfo v2" in {
@@ -358,7 +357,7 @@ class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
       mutable.MutableList[OperatorLink](),
       mutable.MutableList[BreakpointInfo]()
     )
-    rewriter = new WorkflowRewriter(workflowInfo, null, null, null, null)
+    rewriter = new WorkflowRewriter(workflowInfo, null, null, null, null, null)
     assert(rewriter.rewrite_v2.equals(workflowInfo))
   }
 
@@ -380,9 +379,9 @@ class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
       mutable.HashMap[String, mutable.MutableList[Tuple]](),
       mutable.HashMap[String, OperatorDescriptor](),
       mutable.HashMap[String, CacheSourceOpDesc](),
-      mutable.HashMap[String, CacheSinkOpDesc]()
+      mutable.HashMap[String, CacheSinkOpDesc](),
+      mutable.HashMap[String, WorkflowVertex]()
     )
-    rewriter.operatorRecord = mutable.HashMap[String, WorkflowVertex]()
     val rewrittenWorkflowInfo = rewriter.rewrite_v2
     rewrittenWorkflowInfo.operators.foreach(operator => {
       assert(operators.contains(operator))
@@ -424,10 +423,10 @@ class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
       operatorOutputCache,
       cachedOperators,
       cacheSourceOperators,
-      cacheSinkOperators
+      cacheSinkOperators,
+      mutable.HashMap[String, WorkflowVertex]()
     )
 
-    rewriter.operatorRecord = mutable.HashMap[String, WorkflowVertex]()
     rewriter.operatorRecord += (
       (
         sourceOperator.operatorID,
@@ -468,10 +467,10 @@ class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
       operatorOutputCache,
       cachedOperators,
       cacheSourceOperators,
-      cacheSinkOperators
+      cacheSinkOperators,
+      mutable.HashMap[String, WorkflowVertex]()
     )
 
-    rewriter.operatorRecord = mutable.HashMap[String, WorkflowVertex]()
     val rewrittenWorkflowInfo = rewriter.rewrite_v2
     assert(3.equals(rewrittenWorkflowInfo.operators.size))
     assert(rewrittenWorkflowInfo.operators.contains(sourceOperator))
@@ -515,10 +514,10 @@ class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
       operatorOutputCache,
       cachedOperators,
       cacheSourceOperators,
-      cacheSinkOperators
+      cacheSinkOperators,
+      mutable.HashMap[String, WorkflowVertex]()
     )
 
-    rewriter.operatorRecord = mutable.HashMap[String, WorkflowVertex]()
     val rewrittenWorkflowInfo = rewriter.rewrite_v2
     assert(4.equals(rewrittenWorkflowInfo.operators.size))
     assert(rewrittenWorkflowInfo.operators.contains(sourceOperator))
@@ -573,10 +572,10 @@ class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
       operatorOutputCache,
       cachedOperators,
       cacheSourceOperators,
-      cacheSinkOperators
+      cacheSinkOperators,
+      mutable.HashMap[String, WorkflowVertex]()
     )
 
-    rewriter.operatorRecord = mutable.HashMap[String, WorkflowVertex]()
     rewriter.operatorRecord += (
       (
         sourceOperator.operatorID,
@@ -644,10 +643,10 @@ class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
       operatorOutputCache,
       cachedOperators,
       cacheSourceOperators,
-      cacheSinkOperators
+      cacheSinkOperators,
+      mutable.HashMap[String, WorkflowVertex]()
     )
 
-    rewriter.operatorRecord = mutable.HashMap[String, WorkflowVertex]()
     val modifiedSourceOperator = new CSVScanSourceOpDesc()
     modifiedSourceOperator.hasHeader = false
     modifiedSourceOperator.operatorID = sourceOperator.operatorID
