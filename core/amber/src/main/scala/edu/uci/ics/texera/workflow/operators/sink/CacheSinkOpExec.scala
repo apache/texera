@@ -9,8 +9,7 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import scala.collection.mutable
 import com.typesafe.scalalogging.Logger
 
-class CacheSinkOpExec(dest: mutable.MutableList[Tuple])
-    extends ITupleSinkOperatorExecutor {
+class CacheSinkOpExec(dest: mutable.MutableList[Tuple]) extends ITupleSinkOperatorExecutor {
 
   assert(null != dest)
 
