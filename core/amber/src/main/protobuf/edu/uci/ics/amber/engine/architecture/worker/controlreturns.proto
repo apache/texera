@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package edu.uci.ics.amber.engine.architecture.worker;
+
+import "edu/uci/ics/amber/engine/architecture/worker.proto";
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+    scope: FILE,
+    preserve_unknown_fields: false
+    no_default_values_in_constructor: true
+};
+
+message ControlReturnV2 {
+    oneof value {
+        common.WorkerStatistics worker_statistics = 1;
+        common.WorkerState worker_state = 2;
+
+    }
+}
+
+

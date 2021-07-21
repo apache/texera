@@ -16,7 +16,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
   RegisterActorRef
 }
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowControlMessage
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
@@ -45,7 +45,7 @@ class TrivialControlSpec
         replyTo.foreach { actor =>
           actor ! RegisterActorRef(id, idMap(id))
         }
-      case NetworkMessage(msgID, WorkflowControlMessage(_, _, ReturnPayload(id, returnValue))) =>
+      case NetworkMessage(msgID, WorkflowControlMessage(_, _, ReturnInvocation(id, returnValue))) =>
         probe.sender() ! NetworkAck(msgID)
         assert(returnValue.asInstanceOf[T] == expectedValues(id.toInt))
         flag += 1
