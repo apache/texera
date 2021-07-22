@@ -168,11 +168,11 @@ class ProxyServer(FlightServerBase):
         yield Result(py_buffer(encoded))
 
     @logger.catch(reraise=True)
-    def register(self, name: str, action: Callable, description: str = "") -> None:
+    def register(self, name: str, func: Callable, description: str = "") -> None:
         """
         register a action with an action name.
         :param name: the name of the action, it should be matching Action's type.
-        :param action: a callable, could be class, function, or lambda.
+        :param func: a callable, could be class, function, or lambda.
         :param description: describes the action.
         :return:
         """
@@ -180,7 +180,7 @@ class ProxyServer(FlightServerBase):
         # wrap the given action so that its error can be logged.
         @logger.catch(level="WARNING", reraise=True)
         def wrapper(*args, **kwargs):
-            return action(*args, **kwargs)
+            return func(*args, **kwargs)
 
         # update the actions, which overwrites the previous registration.
         self._procedures[name] = (wrapper, description)
