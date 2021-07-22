@@ -5,9 +5,9 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlOutputPort
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
 import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{
-  noReplyNeeded,
   ControlInvocation,
-  ReturnPayload
+  ReturnInvocation,
+  noReplyNeeded
 }
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
@@ -33,8 +33,6 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 object AsyncRPCServer {
 
   trait ControlCommand[T]
-
-  final case class CommandCompleted()
 
 }
 
@@ -78,6 +76,14 @@ class AsyncRPCServer(controlOutputPort: ControlOutputPort, logger: WorkflowLogge
     handlers(cmd)
   }
 
+  @inline
+  private def returnResult(sender: ActorVirtualIdentity, id: Long, ret: Any): Unit = {
+    if (noReplyNeeded(id)) {
+      return
+    }
+    controlOutputPort.sendTo(sender, ReturnInvocation(id, ret))
+  }
+
   def logControlInvocation(call: ControlInvocation, sender: ActorVirtualIdentity): Unit = {
     if (call.commandID == AsyncRPCClient.IgnoreReplyAndDoNotLog) {
       return
@@ -88,14 +94,6 @@ class AsyncRPCServer(controlOutputPort: ControlOutputPort, logger: WorkflowLogge
     logger.logInfo(
       s"receive command: ${call.command} from ${sender.toString} (controlID: ${call.commandID})"
     )
-  }
-
-  @inline
-  private def returnResult(sender: ActorVirtualIdentity, id: Long, ret: Any): Unit = {
-    if (noReplyNeeded(id)) {
-      return
-    }
-    controlOutputPort.sendTo(sender, ReturnPayload(id, ret))
   }
 
 }

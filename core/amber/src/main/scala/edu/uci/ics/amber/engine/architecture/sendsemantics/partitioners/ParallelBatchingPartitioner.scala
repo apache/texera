@@ -1,18 +1,13 @@
-package edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy
+package edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners
 
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, DataPayload, EndOfUpstream}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 
 import scala.collection.mutable.ArrayBuffer
 
-abstract class ParallelBatchingPolicy(
-    policyTag: LinkIdentity,
-    batchSize: Int,
-    receivers: Array[ActorVirtualIdentity]
-) extends DataSendingPolicy(policyTag, batchSize, receivers) {
-
+abstract class ParallelBatchingPartitioner(batchSize: Int, receivers: Seq[ActorVirtualIdentity])
+    extends Partitioner {
   var batches: Array[Array[ITuple]] = _
   var currentSizes: Array[Int] = _
 
@@ -52,7 +47,7 @@ abstract class ParallelBatchingPolicy(
     initializeInternalState(receivers)
   }
 
-  private[this] def initializeInternalState(_receivers: Array[ActorVirtualIdentity]): Unit = {
+  private[this] def initializeInternalState(_receivers: Seq[ActorVirtualIdentity]): Unit = {
     batches = new Array[Array[ITuple]](_receivers.length)
     for (i <- _receivers.indices) {
       batches(i) = new Array[ITuple](batchSize)

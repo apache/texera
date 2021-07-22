@@ -14,7 +14,11 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Sche
 class IntersectOpDesc extends OperatorDescriptor {
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-    new HashOpExecConfig(operatorIdentifier, _ => new IntersectOpExec())
+    new HashOpExecConfig(
+      operatorIdentifier,
+      _ => new IntersectOpExec(),
+      operatorSchemaInfo.inputSchemas(0).getAttributes.toArray.indices.toArray
+    )
   }
 
   override def operatorInfo: OperatorInfo =
