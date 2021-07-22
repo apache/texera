@@ -6,10 +6,10 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWork
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 
 object LinkWorkersHandler {
-  final case class LinkWorkers(link: LinkStrategy) extends ControlCommand[CommandCompleted]
+  final case class LinkWorkers(link: LinkStrategy) extends ControlCommand[Unit]
 }
 
 /** add a data transfer partitioning to the sender workers and update input linking
@@ -32,7 +32,7 @@ trait LinkWorkersHandler {
       }
       Future.collect(futures.toSeq).map { _ =>
         // returns when all has completed
-        CommandCompleted()
+
       }
     }
   }
