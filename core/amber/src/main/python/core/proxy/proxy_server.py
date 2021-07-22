@@ -76,7 +76,7 @@ class ProxyServer(FlightServerBase):
         self.host = host
 
         # actions for actions, will contain registered actions, identified by action name.
-        self._actions: dict[str, tuple[callable, str]] = dict()
+        self._procedures: dict[str, tuple[callable, str]] = dict()
 
         # register heartbeat, this is the default action for the client to check the aliveness of the server
         self.register("heartbeat", ProxyServer.ack()(lambda: None))
@@ -129,7 +129,7 @@ class ProxyServer(FlightServerBase):
         :param context: server context, containing information of middlewares.
         :return: iterator of (action_name, action_description) pairs.
         """
-        return map(lambda x: (x[0], x[1][1]), self._actions.items())
+        return map(lambda x: (x[0], x[1][1]), self._procedures.items())
 
     @overrides(check_signature=False)
     def do_action(self, context: ServerCallContext, action: Action) -> Iterator[Result]:
@@ -146,17 +146,17 @@ class ProxyServer(FlightServerBase):
         action_name = action.type
         logger.debug(f"python getting a call on {action_name}")
         # get action by name
-        if action_name in self._actions:
-            action, _ = self._actions.get(action_name)
+        if action_name in self._procedures:
+            procedure, _ = self._procedures.get(action_name)
             if not action:
                 raise KeyError("Unknown action {!r}".format(action_name))
 
             payload = action.body.to_pybytes()
             # invoke the action
             if payload:
-                result = action(action.body.to_pybytes())
+                result = procedure(payload)
             else:
-                result = action()
+                result = procedure()
 
             # serialize the result
             if isinstance(result, bytes):
@@ -183,7 +183,7 @@ class ProxyServer(FlightServerBase):
             return action(*args, **kwargs)
 
         # update the actions, which overwrites the previous registration.
-        self._actions[name] = (wrapper, description)
+        self._procedures[name] = (wrapper, description)
         logger.debug("registered action " + name)
 
     @logger.catch(reraise=True)
