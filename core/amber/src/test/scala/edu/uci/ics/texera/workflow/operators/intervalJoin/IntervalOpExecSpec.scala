@@ -24,7 +24,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   var opDesc: IntervalJoinOpDesc = _
   var counter: Int = 0
 
-  def linkID(): LinkIdentity = LinkIdentity(Option(layerID()), Option(layerID()))
+  def linkID(): LinkIdentity = LinkIdentity(layerID(), layerID())
 
   def layerID(): LayerIdentity = {
     counter += 1
