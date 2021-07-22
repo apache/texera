@@ -157,7 +157,6 @@ class TestDoubleBlockingQueue:
         def consumer():
             with reraise:
                 queue.disable_sub()
-                print("len target:", len(target))
                 while len(l) < len(target):
                     l.append(queue.get())
 
@@ -185,3 +184,5 @@ class TestDoubleBlockingQueue:
         consumer_thread.start()
         with pytest.raises(AssertionError):
             reraise()
+
+    # TODO: add the common use case test case

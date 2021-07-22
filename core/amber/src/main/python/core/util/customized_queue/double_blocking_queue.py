@@ -42,12 +42,12 @@ class DoubleBlockingQueue(IQueue):
     @overrides
     def empty(self) -> bool:
         """
-        Invoked by the consumer only, checks if the queue is empty. Might not be reliable.
+        Invoked by the consumer only, checks if the queue is empty.
         :return: True if the main queue is empty, and the enabled sub queue is empty as well.
         """
         self._enforce_single_consumer()
         if self._sub_enabled:
-            return self.main_empty() and self._sub_empty()
+            return self.main_empty() and self.sub_empty()
         else:
             return self.main_empty()
 
@@ -80,23 +80,24 @@ class DoubleBlockingQueue(IQueue):
         Enqueue an item.
         :param item: any type
         """
-
         self._input_queue.put(item)
 
     def main_empty(self) -> bool:
         """
-        Invoked by the consumer only, checks if the main queue is empty. Might not be reliable.
+        Invoked by the consumer only, checks if the main queue is empty.
         :return: True if the main queue is empty.
         """
         self._enforce_single_consumer()
         self._distribute_all()
         return self._main_queue.qsize() == 0
 
-    def _sub_empty(self) -> bool:
+    def sub_empty(self) -> bool:
         """
-        Checks if the main queue is empty. Might not be reliable.
+        Invoked by the consumer only, checks if the sub queue is empty.
         :return: True if the sub queue is empty.
         """
+        self._enforce_single_consumer()
+        self._distribute_all()
         return self._sub_queue.qsize() == 0
 
     def _distribute_all(self) -> None:
