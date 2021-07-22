@@ -65,16 +65,15 @@ export class TypeCastingDisplayComponent implements OnChanges {
         (map[castTo.attribute] = castTo.resultType, map), {});
 
     inputSchema?.forEach(schema => schema?.forEach(attr => {
-      let castedAttr: Partial<SchemaAttribute>;
       if (attr.attributeName in castTypeMap) {
-        castedAttr = {
+        const castedAttr: Partial<SchemaAttribute> = {
           attributeName: attr.attributeName,
           attributeType: castTypeMap[attr.attributeName]
         };
+        this.schemaToDisplay.push(castedAttr);
       } else {
-        castedAttr = attr;
+        this.schemaToDisplay.push(attr);
       }
-      this.schemaToDisplay.push(castedAttr);
     }));
 
   }
