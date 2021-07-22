@@ -3,9 +3,10 @@ import threading
 import time
 from functools import wraps
 from inspect import signature
-from typing import Iterator, Tuple
+from typing import Iterator
 
 from loguru import logger
+from overrides import overrides
 from pyarrow import Table, py_buffer
 from pyarrow.flight import Action, FlightDescriptor, FlightServerBase, MetadataRecordBatchReader, Result, \
     ServerCallContext
@@ -74,8 +75,8 @@ class ProxyServer(FlightServerBase):
         logger.debug("Serving on " + location)
         self.host = host
 
-        # procedures for actions, will contain registered actions, identified by procedure name.
-        self._procedures: dict[str, tuple[callable, str]] = dict()
+        # actions for actions, will contain registered actions, identified by action name.
+        self._actions: dict[str, tuple[callable, str]] = dict()
 
         # register heartbeat, this is the default action for the client to check the aliveness of the server
         self.register("heartbeat", ProxyServer.ack()(lambda: None))
@@ -101,7 +102,7 @@ class ProxyServer(FlightServerBase):
     ###########################
     # Flights related methods #
     ###########################
-
+    @overrides(check_signature=False)
     def do_put(self, context: ServerCallContext, descriptor: FlightDescriptor, reader: MetadataRecordBatchReader,
                writer: RecordBatchStreamWriter):
         """
@@ -120,41 +121,42 @@ class ProxyServer(FlightServerBase):
     ###############################
     # Actions related methods #
     ###############################
-    def list_actions(self, context: ServerCallContext) -> Iterator[Tuple[str, str]]:
+    @overrides(check_signature=False)
+    def list_actions(self, context: ServerCallContext) -> Iterator[tuple[str, str]]:
         """
         list all actions that are being registered with the server, it will
-        return the procedure name and description for each registered action.
+        return the action name and description for each registered action.
         :param context: server context, containing information of middlewares.
-        :return: iterator of (procedure_name, procedure_description) pairs.
+        :return: iterator of (action_name, action_description) pairs.
         """
-        return map(lambda x: (x[0], x[1][1]), self._procedures.items())
+        return map(lambda x: (x[0], x[1][1]), self._actions.items())
 
-    @logger.catch(reraise=True)
+    @overrides(check_signature=False)
     def do_action(self, context: ServerCallContext, action: Action) -> Iterator[Result]:
         """
-        perform an action that previously registered with a procedure,
+        perform an action that previously registered with a action,
         return a result in bytes.
         :param context: server context, containing information of middlewares.
         :param action: the action to perform, including
-                        action.type: the procedure name to invoke
-                        action.body: the procedure arguments in bytes
+                        action.type: the action name to invoke
+                        action.body: the action arguments in bytes
         :return: yield the encoded result back to client.
         """
 
-        procedure_name = action.type
-        logger.debug(f"python getting a call on {procedure_name}")
-        # get procedure by name
-        if procedure_name in self._procedures:
-            procedure, _ = self._procedures.get(procedure_name)
-            if not procedure:
-                raise KeyError("Unknown action {!r}".format(procedure_name))
+        action_name = action.type
+        logger.debug(f"python getting a call on {action_name}")
+        # get action by name
+        if action_name in self._actions:
+            action, _ = self._actions.get(action_name)
+            if not action:
+                raise KeyError("Unknown action {!r}".format(action_name))
 
             payload = action.body.to_pybytes()
-            # invoke the procedure
+            # invoke the action
             if payload:
-                result = procedure(action.body.to_pybytes())
+                result = action(action.body.to_pybytes())
             else:
-                result = procedure()
+                result = action()
 
             # serialize the result
             if isinstance(result, bytes):
@@ -162,32 +164,33 @@ class ProxyServer(FlightServerBase):
             else:
                 encoded = str(result).encode('utf-8')
         else:
-            raise KeyError("Unknown action {!r}".format(procedure_name))
+            raise KeyError("Unknown action {!r}".format(action_name))
         yield Result(py_buffer(encoded))
 
-    def register(self, name: str, procedure: callable, description: str = "") -> None:
+    @logger.catch(reraise=True)
+    def register(self, name: str, action: callable, description: str = "") -> None:
         """
-        register a procedure with an action name.
-        :param name: the name of the procedure, it should be matching Action's type.
-        :param procedure: a callable, could be class, function, or lambda.
-        :param description: describes the procedure.
+        register a action with an action name.
+        :param name: the name of the action, it should be matching Action's type.
+        :param action: a callable, could be class, function, or lambda.
+        :param description: describes the action.
         :return:
         """
 
-        # wrap the given procedure so that its error can be logged.
+        # wrap the given action so that its error can be logged.
         @logger.catch(level="WARNING", reraise=True)
         def wrapper(*args, **kwargs):
-            return procedure(*args, **kwargs)
+            return action(*args, **kwargs)
 
-        # update the procedures, which overwrites the previous registration.
-        self._procedures[name] = (wrapper, description)
-        logger.debug("registered procedure " + name)
+        # update the actions, which overwrites the previous registration.
+        self._actions[name] = (wrapper, description)
+        logger.debug("registered action " + name)
 
+    @logger.catch(reraise=True)
     def register_data_handler(self, handler: callable) -> None:
         """
         register the data handler function, which will be invoked after each `do_put`.
         :param handler: a callable with at least two arguments, for 1) the command and 2) the data batch.
-        :param command_deserializer:
         :return:
         """
 
@@ -195,7 +198,15 @@ class ProxyServer(FlightServerBase):
         assert len(signature(handler).parameters) >= 2
         self.process_data = handler
 
+    @logger.catch(reraise=True)
     def register_control_handler(self, handler: callable) -> None:
+        """
+        register the control handler function, which will be invoked after each `do_action` with `control` as the command.
+        :param handler: a callable with at least two arguments, for 1) the command and 2) the control payload..
+        :return:
+        """
+        # the handler should at least have 1 argument
+        assert len(signature(handler).parameters) >= 1
         self.process_control = handler
 
     ##################
