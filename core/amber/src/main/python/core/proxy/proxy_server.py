@@ -3,7 +3,7 @@ import threading
 import time
 from functools import wraps
 from inspect import signature
-from typing import Dict, Iterator, Tuple
+from typing import Iterator, Tuple
 
 from loguru import logger
 from pyarrow import Table, py_buffer
@@ -11,11 +11,24 @@ from pyarrow.flight import Action, FlightDescriptor, FlightServerBase, MetadataR
     ServerCallContext
 from pyarrow.ipc import RecordBatchStreamWriter
 
-from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity
-from .common import deserialize_arguments
-
 
 class ProxyServer(FlightServerBase):
+    """
+    There are three kinds of messages supported by the ProxyServer:
+    1. Data Messages.
+        Data Messages are passed through the endpoint do_put. It will contain a command and a data batch
+        The user should provide deserializer for the command and a handler for the data batch.
+    2. ProxyInternal Messages.
+        ProxyInternal Messages are passed through the endpoint do_action. It will be used to control the
+        life cycle of the ProxyServer. Some example messages:
+        - heartbeat: checks if the ProxyServer is alive.
+        - shutdown: shutdown the ProxyServer.
+        - control: passing a Control Message.
+    3. Control Messages.
+        Control Messages are passed through the endpoint do_action. It will contain a command and a payload.
+        The user should provide deserializer for both the command and the payload.
+    """
+
     @staticmethod
     def ack(original_func=None, msg="ack"):
         """
@@ -62,18 +75,27 @@ class ProxyServer(FlightServerBase):
         self.host = host
 
         # procedures for actions, will contain registered actions, identified by procedure name.
-        self._procedures: Dict[str, Tuple[callable, str]] = dict()
+        self._procedures: dict[str, tuple[callable, str]] = dict()
 
-        # register shutdown, this is the default action for client to terminate server.
+        # register heartbeat, this is the default action for the client to check the aliveness of the server
+        self.register("heartbeat", ProxyServer.ack()(lambda: None))
+
+        # register shutdown, this is the default action for the client to terminate the server.
         self.register("shutdown",
                       ProxyServer.ack(msg="Bye bye!")
                       (lambda: threading.Thread(target=self._shutdown).start()),
                       description="Shut down this server.")
 
-        # the data message handlers for each batch, needs to be implemented during runtime.
-        self.register_data_handler(lambda *args, **kwargs: (_ for _ in ()).throw(NotImplementedError))
+        self.register("control",
+                      ProxyServer.ack()(
+                          lambda control_message: self.process_control(control_message)),
+                      description="Process the control message"
+                      )
 
+        # the data message handler for each data message, needs to be implemented during runtime.
         self.process_data = lambda *args, **kwargs: (_ for _ in ()).throw(NotImplementedError)
+
+        # the control message handler for each control message, needs to be implemented during runtime.
         self.process_control = lambda *args, **kwargs: (_ for _ in ()).throw(NotImplementedError)
 
     ###########################
@@ -91,14 +113,9 @@ class ProxyServer(FlightServerBase):
         :return:
         """
 
-        from_ = ActorVirtualIdentity().parse(descriptor.command)
-
         data: Table = reader.read_all()
-        if len(data.schema) == 0:
-            self.process_data(from_, None)
-        else:
-            # logger.debug(f"getting a data flight from {from_}, data: \n {data}")
-            self.process_data(from_, data)
+        logger.debug(f"getting a data batch {data}")
+        self.process_data(descriptor.command, data)
 
     ###############################
     # Actions related methods #
@@ -112,6 +129,7 @@ class ProxyServer(FlightServerBase):
         """
         return map(lambda x: (x[0], x[1][1]), self._procedures.items())
 
+    @logger.catch(reraise=True)
     def do_action(self, context: ServerCallContext, action: Action) -> Iterator[Result]:
         """
         perform an action that previously registered with a procedure,
@@ -122,31 +140,29 @@ class ProxyServer(FlightServerBase):
                         action.body: the procedure arguments in bytes
         :return: yield the encoded result back to client.
         """
-        # logger.debug(f"python getting a call on {action.type}, {type(action.type)}")
+
+        procedure_name = action.type
+        logger.debug(f"python getting a call on {procedure_name}")
         # get procedure by name
-
-        if action.type == "control":
-            message = self.deserialize_control(action.body.to_pybytes())
-            self.process_control(message)
-            encoded = b"ack"
-        else:
-            procedure, _ = self._procedures.get(action.type)
+        if procedure_name in self._procedures:
+            procedure, _ = self._procedures.get(procedure_name)
             if not procedure:
-                raise KeyError("Unknown action {!r}".format(action.type))
+                raise KeyError("Unknown action {!r}".format(procedure_name))
 
-            # parse arguments for the procedure
-            arguments = deserialize_arguments(action.body.to_pybytes())
-            logger.debug(f"received call {action.type} with args {arguments} along with context {context}")
-
+            payload = action.body.to_pybytes()
             # invoke the procedure
-            result = procedure(*arguments["args"], **arguments["kwargs"])
+            if payload:
+                result = procedure(action.body.to_pybytes())
+            else:
+                result = procedure()
 
             # serialize the result
             if isinstance(result, bytes):
                 encoded = result
             else:
                 encoded = str(result).encode('utf-8')
-
+        else:
+            raise KeyError("Unknown action {!r}".format(procedure_name))
         yield Result(py_buffer(encoded))
 
     def register(self, name: str, procedure: callable, description: str = "") -> None:
@@ -170,18 +186,17 @@ class ProxyServer(FlightServerBase):
     def register_data_handler(self, handler: callable) -> None:
         """
         register the data handler function, which will be invoked after each `do_put`.
-        :param handler: a callable with at least one argument, for the data batch.
+        :param handler: a callable with at least two arguments, for 1) the command and 2) the data batch.
+        :param command_deserializer:
         :return:
         """
 
-        # the handler at least should have 2 arguments for 1) the command and 2) the data batch.
+        # the handler should at least have 2 arguments
         assert len(signature(handler).parameters) >= 2
-
         self.process_data = handler
 
-    def register_control_handler(self, handler: callable, deserializer: callable) -> None:
+    def register_control_handler(self, handler: callable) -> None:
         self.process_control = handler
-        self.deserialize_control = deserializer
 
     ##################
     # helper methods #
