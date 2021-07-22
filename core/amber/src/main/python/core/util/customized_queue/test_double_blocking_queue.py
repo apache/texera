@@ -3,9 +3,8 @@ import time
 from threading import Thread
 
 import pytest
-from loguru import logger
 
-from core.util.queue.double_blocking_queue import DoubleBlockingQueue
+from core.util.customized_queue.double_blocking_queue import DoubleBlockingQueue
 
 
 class TestDoubleBlockingQueue:
@@ -136,7 +135,6 @@ class TestDoubleBlockingQueue:
     @pytest.mark.timeout(5)
     def test_multiple_producer_race(self, queue, reraise):
 
-
         def producer(k):
             with reraise:
                 if isinstance(k, int):
@@ -159,7 +157,7 @@ class TestDoubleBlockingQueue:
         def consumer():
             with reraise:
                 queue.disable_sub()
-                print("len target:" ,len(target))
+                print("len target:", len(target))
                 while len(l) < len(target):
                     l.append(queue.get())
 
@@ -177,6 +175,7 @@ class TestDoubleBlockingQueue:
         queue.put(1)
         queue.get()
         queue.put("s")
+
         def consumer():
             with reraise:
                 queue.disable_sub()
@@ -186,4 +185,3 @@ class TestDoubleBlockingQueue:
         consumer_thread.start()
         with pytest.raises(AssertionError):
             reraise()
-

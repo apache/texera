@@ -4,7 +4,7 @@ from typing import T
 
 from overrides import overrides
 
-from core.util.queue.queue_base import IQueue
+from core.util.customized_queue.queue_base import IQueue
 
 
 class DoubleBlockingQueue(IQueue):
