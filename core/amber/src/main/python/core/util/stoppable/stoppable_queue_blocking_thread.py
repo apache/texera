@@ -1,12 +1,12 @@
 from loguru import logger
 from overrides import overrides
-from threading import Thread
 
 from core.util.customized_queue.queue_base import IQueue
+from core.util.runnable.runnable import Runnable
 from core.util.stoppable.stoppable import Stoppable
 
 
-class StoppableQueueBlockingThread(Thread, Stoppable):
+class StoppableQueueBlockingRunnable(Runnable, Stoppable):
     """
     An implementation of Stoppable, assuming the Thread.run() would be blocked
     by a blocking Queue.get(block=True, timeout=None).
@@ -45,7 +45,7 @@ class StoppableQueueBlockingThread(Thread, Stoppable):
         try:
             while True:
                 self.receive(self.interruptible_get())
-        except StoppableQueueBlockingThread.InterruptThread:
+        except StoppableQueueBlockingRunnable.InterruptThread:
             # surpassed the expected interruption
             logger.debug(f"{self.name}-interrupting")
         finally:
@@ -62,12 +62,12 @@ class StoppableQueueBlockingThread(Thread, Stoppable):
 
     @overrides
     def stop(self):
-        self._internal_queue.put(StoppableQueueBlockingThread.THREAD_STOP)
+        self._internal_queue.put(StoppableQueueBlockingRunnable.THREAD_STOP)
 
     def interruptible_get(self):
         next_entry = self._internal_queue.get()
-        if next_entry == StoppableQueueBlockingThread.THREAD_STOP:
-            raise StoppableQueueBlockingThread.InterruptThread
+        if next_entry == StoppableQueueBlockingRunnable.THREAD_STOP:
+            raise StoppableQueueBlockingRunnable.InterruptThread
         return next_entry
 
     class InterruptThread(BaseException):

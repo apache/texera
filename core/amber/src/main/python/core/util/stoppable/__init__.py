@@ -1,2 +1,2 @@
 from .stoppable import Stoppable
-from .stoppable_queue_blocking_thread import StoppableQueueBlockingThread
+from .stoppable_queue_blocking_thread import StoppableQueueBlockingRunnable

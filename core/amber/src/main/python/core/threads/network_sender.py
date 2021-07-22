@@ -5,11 +5,11 @@ from pyarrow.lib import Schema, schema
 
 from core.models import *
 from core.proxy import ProxyClient
-from core.util import StoppableQueueBlockingThread
+from core.util import StoppableQueueBlockingRunnable
 from proto.edu.uci.ics.amber.engine.common import *
 
 
-class NetworkSender(StoppableQueueBlockingThread):
+class NetworkSender(StoppableQueueBlockingRunnable):
     def __init__(self, shared_queue: InternalQueue, host: str, port: int, schema_map: dict[str, type]):
         super().__init__(self.__class__.__name__, queue=shared_queue)
         self._proxy_client = ProxyClient(host=host, port=port)

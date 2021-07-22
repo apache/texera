@@ -1,3 +1,4 @@
+import threading
 from time import sleep
 
 import pandas
@@ -25,9 +26,10 @@ class TestNetworkReceiver:
         return dict()
 
     @pytest.fixture
-    def network_receiver(self, schema_map, output_queue):
+    def network_receiver_thread(self, schema_map, output_queue):
         network_receiver = NetworkReceiver(output_queue, host="localhost", port=5555, schema_map=schema_map)
-        yield network_receiver
+        network_receiver_thread = threading.Thread(target=network_receiver.run)
+        yield network_receiver_thread
         network_receiver.stop()
 
     @pytest.fixture
@@ -47,31 +49,31 @@ class TestNetworkReceiver:
     @pytest.mark.timeout(0.5)
     def test_network_receiver_can_stop(self, schema_map):
         network_receiver = NetworkReceiver(InternalQueue(), host="localhost", port=5555, schema_map=schema_map)
-        network_receiver.start()
+        network_receiver_thread = threading.Thread(target=network_receiver.run)
+        network_receiver_thread.start()
         sleep(0.1)
-        assert network_receiver.is_alive()
+        assert network_receiver_thread.is_alive()
         network_receiver.stop()
         sleep(0.1)
-        assert not network_receiver.is_alive()
-        network_receiver.join()
+        assert not network_receiver_thread.is_alive()
+        network_receiver_thread.join()
 
     @pytest.mark.timeout(1)
     def test_network_receiver_can_receive_data_messages(self, schema_map, data_payload, output_queue, input_queue,
-                                                        network_receiver, network_sender):
-        network_receiver.start()
+                                                        network_receiver_thread, network_sender):
+        network_receiver_thread.start()
         network_sender.start()
         worker_id = ActorVirtualIdentity(name="test")
         input_queue.put(OutputDataElement(to=worker_id, payload=data_payload))
         element: InputDataElement = output_queue.get()
         assert len(element.payload.frame) == len(data_payload.frame)
         assert element.from_ == worker_id
-        network_sender.stop()
-        network_receiver.stop()
+
 
     @pytest.mark.timeout(1)
     def test_network_receiver_can_receive_control_messages(self, schema_map, data_payload, output_queue, input_queue,
-                                                           network_receiver, network_sender):
-        network_receiver.start()
+                                                           network_receiver_thread, network_sender):
+        network_receiver_thread.start()
         network_sender.start()
         worker_id = ActorVirtualIdentity(name="test")
         control_payload = set_one_of(ControlPayloadV2, ControlInvocationV2())
@@ -79,5 +81,4 @@ class TestNetworkReceiver:
         element: ControlElement = output_queue.get()
         assert element.cmd == control_payload
         assert element.from_ == worker_id
-        network_sender.stop()
-        network_receiver.stop()
+

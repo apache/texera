@@ -1,5 +1,3 @@
-from threading import Thread
-
 from loguru import logger
 from overrides import overrides
 from pyarrow.lib import Table
@@ -7,10 +5,11 @@ from pyarrow.lib import Table
 from core.models import ControlElement, DataFrame, EndOfUpstream, InputDataElement, InternalQueue
 from core.proxy import ProxyServer
 from core.util import Stoppable
+from core.util.runnable.runnable import Runnable
 from proto.edu.uci.ics.amber.engine.common import PythonControlMessage, PythonDataHeader
 
 
-class NetworkReceiver(Thread, Stoppable):
+class NetworkReceiver(Runnable, Stoppable):
     def __init__(self, shared_queue: InternalQueue, host: str, port: int, schema_map: dict[str, type]):
         super().__init__()
         self._proxy_server = ProxyServer(host=host, port=port)
