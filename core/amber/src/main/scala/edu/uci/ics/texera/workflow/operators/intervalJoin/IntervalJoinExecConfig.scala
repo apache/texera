@@ -59,7 +59,7 @@ class IntervalJoinExecConfig(
   override def requiredShuffle: Boolean = true
 
   override def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = {
-    if (layer == leftInputLink.from.get) {
+    if (layer == leftInputLink.from) {
       Array(operatorSchemaInfo.inputSchemas(0).getIndex(leftJoinKeyName))
 
     } else {
