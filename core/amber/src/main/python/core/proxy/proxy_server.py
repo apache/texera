@@ -3,7 +3,7 @@ import threading
 import time
 from functools import wraps
 from inspect import signature
-from typing import Iterator
+from typing import Callable, Dict, Iterator, Tuple
 
 from loguru import logger
 from overrides import overrides
@@ -31,7 +31,7 @@ class ProxyServer(FlightServerBase):
     """
 
     @staticmethod
-    def ack(original_func=None, msg="ack"):
+    def ack(original_func=Callable, msg="ack"):
         """
         decorator for returning an ack message after the action.
         example usage:
@@ -57,7 +57,7 @@ class ProxyServer(FlightServerBase):
         :return:
         """
 
-        def ack_decorator(func: callable):
+        def ack_decorator(func: Callable):
             @wraps(func)
             def wrapper(*args, **kwargs):
                 func(*args, **kwargs)
@@ -76,7 +76,7 @@ class ProxyServer(FlightServerBase):
         self.host = host
 
         # actions for actions, will contain registered actions, identified by action name.
-        self._procedures: dict[str, tuple[callable, str]] = dict()
+        self._procedures: Dict[str, Tuple[Callable, str]] = dict()
 
         # register heartbeat, this is the default action for the client to check the aliveness of the server
         self.register("heartbeat", ProxyServer.ack()(lambda: None))
@@ -122,7 +122,7 @@ class ProxyServer(FlightServerBase):
     # Actions related methods #
     ###############################
     @overrides(check_signature=False)
-    def list_actions(self, context: ServerCallContext) -> Iterator[tuple[str, str]]:
+    def list_actions(self, context: ServerCallContext) -> Iterator[Tuple[str, str]]:
         """
         list all actions that are being registered with the server, it will
         return the action name and description for each registered action.
@@ -168,7 +168,7 @@ class ProxyServer(FlightServerBase):
         yield Result(py_buffer(encoded))
 
     @logger.catch(reraise=True)
-    def register(self, name: str, action: callable, description: str = "") -> None:
+    def register(self, name: str, action: Callable, description: str = "") -> None:
         """
         register a action with an action name.
         :param name: the name of the action, it should be matching Action's type.
@@ -187,7 +187,7 @@ class ProxyServer(FlightServerBase):
         logger.debug("registered action " + name)
 
     @logger.catch(reraise=True)
-    def register_data_handler(self, handler: callable) -> None:
+    def register_data_handler(self, handler: Callable) -> None:
         """
         register the data handler function, which will be invoked after each `do_put`.
         :param handler: a callable with at least two arguments, for 1) the command and 2) the data batch.
@@ -199,7 +199,7 @@ class ProxyServer(FlightServerBase):
         self.process_data = handler
 
     @logger.catch(reraise=True)
-    def register_control_handler(self, handler: callable) -> None:
+    def register_control_handler(self, handler: Callable) -> None:
         """
         register the control handler function, which will be invoked after each `do_action` with `control` as the command.
         :param handler: a callable with at least two arguments, for 1) the command and 2) the control payload..
