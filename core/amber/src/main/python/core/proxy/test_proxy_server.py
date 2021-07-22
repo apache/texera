@@ -4,7 +4,7 @@ from pyarrow.flight import Action
 from .proxy_server import ProxyServer
 
 
-class TestRPCServer:
+class TestProxyServer:
     @pytest.fixture()
     def server(self):
         return ProxyServer()
@@ -23,6 +23,7 @@ class TestRPCServer:
             assert "hello" not in server._procedures
             server.register("hello", hello)
             assert "hello" in server._procedures
+
     def test_server_can_register_control_actions_with_callable_class(self, server):
         class Hello:
             def __call__(self, ):
