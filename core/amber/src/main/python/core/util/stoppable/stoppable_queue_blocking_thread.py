@@ -2,7 +2,7 @@ from loguru import logger
 from overrides import overrides
 from threading import Thread
 
-from core.util.queue.queue_base import IQueue
+from core.util.customized_queue.queue_base import IQueue
 from core.util.stoppable.stoppable import Stoppable
 
 

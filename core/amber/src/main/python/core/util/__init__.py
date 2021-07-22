@@ -1,3 +1,3 @@
 from .proto import *
-from .queue import *
+from .customized_queue import *
 from .stoppable import *
