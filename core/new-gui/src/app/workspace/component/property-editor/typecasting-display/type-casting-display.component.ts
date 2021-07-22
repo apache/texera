@@ -59,18 +59,22 @@ export class TypeCastingDisplayComponent implements OnChanges {
     }
     this.schemaToDisplay = [];
     const inputSchema = this.schemaPropagationService.getOperatorInputSchema(this.operatorID);
-    inputSchema?.forEach(schema => schema?.forEach(attr => {
-      for (const castTo of op.operatorProperties['typeCastingUnits']) {
-        let castedAttr: Partial<SchemaAttribute> = {...attr};
-        if (castTo.attributeName === attr.attributeName) {
-          castedAttr = {
-            attributeName: attr.attributeName,
-            attributeType: castTo.resultType
-          };
-        }
-        this.schemaToDisplay.push(castedAttr);
-      }
 
+    const castTypeMap = op.operatorProperties['typeCastingUnits']
+      .reduce((map: { [x: string]: any; }, castTo: { attribute: string; resultType: string; }) =>
+        (map[castTo.attribute] = castTo.resultType, map), {});
+
+    inputSchema?.forEach(schema => schema?.forEach(attr => {
+      let castedAttr: Partial<SchemaAttribute>;
+      if (attr.attributeName in castTypeMap) {
+        castedAttr = {
+          attributeName: attr.attributeName,
+          attributeType: castTypeMap[attr.attributeName]
+        };
+      } else {
+        castedAttr = attr;
+      }
+      this.schemaToDisplay.push(castedAttr);
     }));
 
   }
