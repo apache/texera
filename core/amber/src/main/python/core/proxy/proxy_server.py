@@ -3,7 +3,7 @@ import threading
 import time
 from functools import wraps
 from inspect import signature
-from typing import Callable, Dict, Iterator, Tuple
+from typing import Callable, Dict, Iterator, Optional, Tuple
 
 from loguru import logger
 from overrides import overrides
@@ -31,7 +31,7 @@ class ProxyServer(FlightServerBase):
     """
 
     @staticmethod
-    def ack(original_func=Callable, msg="ack"):
+    def ack(original_func: Optional[Callable] = None, msg="ack"):
         """
         decorator for returning an ack message after the action.
         example usage:
