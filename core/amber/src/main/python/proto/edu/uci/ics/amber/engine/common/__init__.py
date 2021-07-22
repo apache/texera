@@ -93,4 +93,16 @@ class ControlPayloadV2(betterproto.Message):
     )
 
 
+@dataclass(eq=False, repr=False)
+class PythonDataHeader(betterproto.Message):
+    end: int = betterproto.int32_field(1)
+    from_: "ActorVirtualIdentity" = betterproto.message_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class PythonControlMessage(betterproto.Message):
+    from_: "ActorVirtualIdentity" = betterproto.message_field(1)
+    payload: "ControlPayloadV2" = betterproto.message_field(2)
+
+
 from ..architecture import worker as _architecture_worker__

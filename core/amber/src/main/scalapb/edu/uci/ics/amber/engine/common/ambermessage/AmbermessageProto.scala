@@ -9,29 +9,37 @@ object AmbermessageProto extends _root_.scalapb.GeneratedFileObject {
   lazy val dependencies: Seq[_root_.scalapb.GeneratedFileObject] = Seq(
     edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlcommandsProto,
     edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlreturnsProto,
+    edu.uci.ics.amber.engine.common.virtualidentity.VirtualidentityProto,
     scalapb.options.ScalapbProto
   )
   lazy val messagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] =
     Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]](
       edu.uci.ics.amber.engine.common.ambermessage.ControlInvocationV2,
       edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2,
-      edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message
+      edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message,
+      edu.uci.ics.amber.engine.common.ambermessage.PythonDataHeader,
+      edu.uci.ics.amber.engine.common.ambermessage.PythonControlMessage
     )
   private lazy val ProtoBytes: _root_.scala.Array[Byte] =
       scalapb.Encoding.fromBase64(scala.collection.immutable.Seq(
   """CjJlZHUvdWNpL2ljcy9hbWJlci9lbmdpbmUvY29tbW9uL2FtYmVybWVzc2FnZS5wcm90bxIfZWR1LnVjaS5pY3MuYW1iZXIuZ
   W5naW5lLmNvbW1vbhpCZWR1L3VjaS9pY3MvYW1iZXIvZW5naW5lL2FyY2hpdGVjdHVyZS93b3JrZXIvY29udHJvbGNvbW1hbmRzL
-  nByb3RvGkFlZHUvdWNpL2ljcy9hbWJlci9lbmdpbmUvYXJjaGl0ZWN0dXJlL3dvcmtlci9jb250cm9scmV0dXJucy5wcm90bxoVc
-  2NhbGFwYi9zY2FsYXBiLnByb3RvIqwBChNDb250cm9sSW52b2NhdGlvblYyEi0KCmNvbW1hbmRfaWQYASABKANCDuI/CxIJY29tb
-  WFuZElkUgljb21tYW5kSWQSZgoHY29tbWFuZBgCIAEoCzI+LmVkdS51Y2kuaWNzLmFtYmVyLmVuZ2luZS5hcmNoaXRlY3R1cmUud
-  29ya2VyLkNvbnRyb2xDb21tYW5kVjJCDOI/CRIHY29tbWFuZFIHY29tbWFuZCLWAQoSUmV0dXJuSW52b2NhdGlvblYyEkYKE29ya
-  WdpbmFsX2NvbW1hbmRfaWQYASABKANCFuI/ExIRb3JpZ2luYWxDb21tYW5kSWRSEW9yaWdpbmFsQ29tbWFuZElkEngKDmNvbnRyb
-  2xfcmV0dXJuGAIgASgLMj0uZWR1LnVjaS5pY3MuYW1iZXIuZW5naW5lLmFyY2hpdGVjdHVyZS53b3JrZXIuQ29udHJvbFJldHVyb
-  lYyQhLiPw8SDWNvbnRyb2xSZXR1cm5SDWNvbnRyb2xSZXR1cm4inAIKEENvbnRyb2xQYXlsb2FkVjISfQoSY29udHJvbF9pbnZvY
-  2F0aW9uGAEgASgLMjQuZWR1LnVjaS5pY3MuYW1iZXIuZW5naW5lLmNvbW1vbi5Db250cm9sSW52b2NhdGlvblYyQhbiPxMSEWNvb
-  nRyb2xJbnZvY2F0aW9uSABSEWNvbnRyb2xJbnZvY2F0aW9uEnkKEXJldHVybl9pbnZvY2F0aW9uGAIgASgLMjMuZWR1LnVjaS5pY
-  3MuYW1iZXIuZW5naW5lLmNvbW1vbi5SZXR1cm5JbnZvY2F0aW9uVjJCFeI/EhIQcmV0dXJuSW52b2NhdGlvbkgAUhByZXR1cm5Jb
-  nZvY2F0aW9uQg4KDHNlYWxlZF92YWx1ZUIJ4j8GSABYAHgBYgZwcm90bzM="""
+  nByb3RvGkFlZHUvdWNpL2ljcy9hbWJlci9lbmdpbmUvYXJjaGl0ZWN0dXJlL3dvcmtlci9jb250cm9scmV0dXJucy5wcm90bxo1Z
+  WR1L3VjaS9pY3MvYW1iZXIvZW5naW5lL2NvbW1vbi92aXJ0dWFsaWRlbnRpdHkucHJvdG8aFXNjYWxhcGIvc2NhbGFwYi5wcm90b
+  yKsAQoTQ29udHJvbEludm9jYXRpb25WMhItCgpjb21tYW5kX2lkGAEgASgDQg7iPwsSCWNvbW1hbmRJZFIJY29tbWFuZElkEmYKB
+  2NvbW1hbmQYAiABKAsyPi5lZHUudWNpLmljcy5hbWJlci5lbmdpbmUuYXJjaGl0ZWN0dXJlLndvcmtlci5Db250cm9sQ29tbWFuZ
+  FYyQgziPwkSB2NvbW1hbmRSB2NvbW1hbmQi1gEKElJldHVybkludm9jYXRpb25WMhJGChNvcmlnaW5hbF9jb21tYW5kX2lkGAEgA
+  SgDQhbiPxMSEW9yaWdpbmFsQ29tbWFuZElkUhFvcmlnaW5hbENvbW1hbmRJZBJ4Cg5jb250cm9sX3JldHVybhgCIAEoCzI9LmVkd
+  S51Y2kuaWNzLmFtYmVyLmVuZ2luZS5hcmNoaXRlY3R1cmUud29ya2VyLkNvbnRyb2xSZXR1cm5WMkIS4j8PEg1jb250cm9sUmV0d
+  XJuUg1jb250cm9sUmV0dXJuIpwCChBDb250cm9sUGF5bG9hZFYyEn0KEmNvbnRyb2xfaW52b2NhdGlvbhgBIAEoCzI0LmVkdS51Y
+  2kuaWNzLmFtYmVyLmVuZ2luZS5jb21tb24uQ29udHJvbEludm9jYXRpb25WMkIW4j8TEhFjb250cm9sSW52b2NhdGlvbkgAUhFjb
+  250cm9sSW52b2NhdGlvbhJ5ChFyZXR1cm5faW52b2NhdGlvbhgCIAEoCzIzLmVkdS51Y2kuaWNzLmFtYmVyLmVuZ2luZS5jb21tb
+  24uUmV0dXJuSW52b2NhdGlvblYyQhXiPxISEHJldHVybkludm9jYXRpb25IAFIQcmV0dXJuSW52b2NhdGlvbkIOCgxzZWFsZWRfd
+  mFsdWUihAEKEFB5dGhvbkRhdGFIZWFkZXISGgoDZW5kGAEgASgFQgjiPwUSA2VuZFIDZW5kElQKBGZyb20YAiABKAsyNS5lZHUud
+  WNpLmljcy5hbWJlci5lbmdpbmUuY29tbW9uLkFjdG9yVmlydHVhbElkZW50aXR5QgniPwYSBGZyb21SBGZyb20ixwEKFFB5dGhvb
+  kNvbnRyb2xNZXNzYWdlElQKBGZyb20YASABKAsyNS5lZHUudWNpLmljcy5hbWJlci5lbmdpbmUuY29tbW9uLkFjdG9yVmlydHVhb
+  ElkZW50aXR5QgniPwYSBGZyb21SBGZyb20SWQoHcGF5bG9hZBgCIAEoCzIxLmVkdS51Y2kuaWNzLmFtYmVyLmVuZ2luZS5jb21tb
+  24uQ29udHJvbFBheWxvYWRWMkIM4j8JEgdwYXlsb2FkUgdwYXlsb2FkQgniPwZIAFgAeAFiBnByb3RvMw=="""
       ).mkString)
   lazy val scalaDescriptor: _root_.scalapb.descriptors.FileDescriptor = {
     val scalaProto = com.google.protobuf.descriptor.FileDescriptorProto.parseFrom(ProtoBytes)
@@ -42,6 +50,7 @@ object AmbermessageProto extends _root_.scalapb.GeneratedFileObject {
     com.google.protobuf.Descriptors.FileDescriptor.buildFrom(javaProto, _root_.scala.Array(
       edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlcommandsProto.javaDescriptor,
       edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlreturnsProto.javaDescriptor,
+      edu.uci.ics.amber.engine.common.virtualidentity.VirtualidentityProto.javaDescriptor,
       scalapb.options.ScalapbProto.javaDescriptor
     ))
   }

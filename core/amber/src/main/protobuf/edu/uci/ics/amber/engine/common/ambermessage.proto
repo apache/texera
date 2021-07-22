@@ -4,6 +4,7 @@ package edu.uci.ics.amber.engine.common;
 
 import "edu/uci/ics/amber/engine/architecture/worker/controlcommands.proto";
 import "edu/uci/ics/amber/engine/architecture/worker/controlreturns.proto";
+import "edu/uci/ics/amber/engine/common/virtualidentity.proto";
 import "scalapb/scalapb.proto";
 
 option (scalapb.options) = {
@@ -29,4 +30,14 @@ message ControlPayloadV2 {
     }
 }
 
+message PythonDataHeader {
+    int32 end = 1;
+    common.ActorVirtualIdentity from = 2;
+
+}
+
+message PythonControlMessage {
+    common.ActorVirtualIdentity from = 1 ;
+    ControlPayloadV2 payload = 2;
+}
 
