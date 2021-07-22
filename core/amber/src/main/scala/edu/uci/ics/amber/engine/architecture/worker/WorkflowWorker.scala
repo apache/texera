@@ -23,7 +23,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.{
   WorkflowControlMessage,
   WorkflowDataMessage
 }
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCHandlerInitializer}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
@@ -108,7 +108,7 @@ class WorkflowWorker(
     // let dp thread process it
     assert(from.isInstanceOf[ActorVirtualIdentity])
     controlPayload match {
-      case controlCommand @ (ControlInvocation(_, _) | ReturnPayload(_, _)) =>
+      case controlCommand @ (ControlInvocation(_, _) | ReturnInvocation(_, _)) =>
         dataProcessor.enqueueCommand(controlCommand, from)
       case _ =>
         logger.logError(
