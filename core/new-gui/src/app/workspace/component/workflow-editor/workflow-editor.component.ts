@@ -803,8 +803,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     const targetCellID = targetView.model.id.toString();
     const targetPortID = targetMagnet?.getAttribute('port');
 
-    console.log(this);
-
     return this.validateOperatorConnection(sourceCellID, sourcePortID, targetCellID, targetPortID);
   }
 
@@ -1378,9 +1376,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * This function is provided to JointJS to disallow links starting from an in port.
    *
    * https://resources.jointjs.com/docs/jointjs/v2.0/joint.html#dia.Paper.prototype.options.validateMagnet
-   *
-   * @param cellView
-   * @param magnet
    */
   private static validateOperatorMagnet(cellView: joint.dia.CellView, magnet: SVGElement, event: joint.dia.Event): boolean {
     return magnet && magnet.getAttribute('port-group') === 'out';
