@@ -4,7 +4,7 @@ iniconfig==1.1.1
 loguru==0.5.3
 numpy
 packaging==20.9
-pandas==1.2.4
+pandas
 pluggy==0.13.1
 py==1.10.0
 pyarrow==4.0.1
