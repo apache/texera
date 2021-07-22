@@ -3,12 +3,10 @@ from loguru import logger
 from pyarrow import Table
 from pyarrow.lib import Schema, schema
 
-from core.models.internal_queue import ControlElement, InternalQueue, InternalQueueElement, OutputDataElement
-from core.models.payload import DataFrame, DataPayload, EndOfUpstream
+from core.models import *
 from core.proxy import ProxyClient
-from core.util.stoppable.stoppable_queue_blocking_thread import StoppableQueueBlockingThread
-from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlPayloadV2, PythonControlMessage, \
-    PythonDataHeader
+from core.util import StoppableQueueBlockingThread
+from proto.edu.uci.ics.amber.engine.common import *
 
 
 class NetworkSender(StoppableQueueBlockingThread):

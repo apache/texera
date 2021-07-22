@@ -4,7 +4,7 @@ from threading import Thread
 
 import pytest
 
-from core.util.customized_queue.double_blocking_queue import DoubleBlockingQueue
+from core.util.customized_queue import DoubleBlockingQueue
 
 
 class TestDoubleBlockingQueue:

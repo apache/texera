@@ -4,10 +4,9 @@ from loguru import logger
 from overrides import overrides
 from pyarrow.lib import Table
 
-from core.models.internal_queue import ControlElement, InputDataElement, InternalQueue
-from core.models.payload import DataFrame, EndOfUpstream
+from core.models import ControlElement, DataFrame, EndOfUpstream, InputDataElement, InternalQueue
 from core.proxy import ProxyServer
-from core.util.stoppable.stoppable import Stoppable
+from core.util import Stoppable
 from proto.edu.uci.ics.amber.engine.common import PythonControlMessage, PythonDataHeader
 
 
