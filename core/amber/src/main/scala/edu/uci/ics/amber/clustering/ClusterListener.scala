@@ -13,7 +13,7 @@ object ClusterListener {
 
 class ClusterListener extends Actor with ActorLogging {
 
-  val cluster = Cluster(context.system)
+  val cluster: Cluster = Cluster(context.system)
   val availableNodeAddresses = new mutable.HashSet[Address]()
 
   // subscribe to cluster changes, re-subscribe when restart
@@ -27,7 +27,7 @@ class ClusterListener extends Actor with ActorLogging {
   }
   override def postStop(): Unit = cluster.unsubscribe(self)
 
-  def receive = {
+  def receive: Receive = {
     case MemberUp(member) =>
       if (
         context.system

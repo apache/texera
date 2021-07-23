@@ -4,16 +4,17 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.typesafe.config.Config
-import edu.uci.ics.texera.web.{SqlServer, WebUtils}
+import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER
 import edu.uci.ics.texera.web.model.request.auth.{
   GoogleUserLoginRequest,
   UserLoginRequest,
   UserRegistrationRequest
 }
 import edu.uci.ics.texera.web.resource.auth.UserResource.{getUser, setUserSession, validateUsername}
+import edu.uci.ics.texera.workflow.common.Utils
 import io.dropwizard.jersey.sessions.Session
 import org.apache.commons.lang3.tuple.Pair
 
@@ -60,7 +61,7 @@ object UserResource {
 class UserResource {
 
   final private val userDao = new UserDao(SqlServer.createDSLContext.configuration)
-  val config: Config = WebUtils.config
+  val config: Config = Utils.config
   private val GOOGLE_CLIENT_ID: String = config.getString("google.clientId")
   private val GOOGLE_CLIENT_SECRET: String = config.getString("google.clientSecret")
   private val TRANSPORT = new NetHttpTransport
@@ -95,40 +96,6 @@ class UserResource {
       case Failure(_) => Response.status(Response.Status.UNAUTHORIZED).build()
     }
 
-  }
-
-  @POST
-  @Path("/register")
-  def register(@Session session: HttpSession, request: UserRegistrationRequest): Response = {
-    val userName = request.userName
-    val password = request.password
-    val validationResult = validateUsername(userName)
-    if (!validationResult.getLeft)
-      // Using BAD_REQUEST as no other status code is suitable. Better to use 422.
-      return Response.status(Response.Status.BAD_REQUEST).build()
-
-    retrieveUserByUsernameAndPassword(userName, password) match {
-      case Some(_) =>
-        // the username is existing already
-        // Using BAD_REQUEST as no other status code is suitable. Better to use 422.
-        Response.status(Response.Status.BAD_REQUEST).build()
-      case None =>
-        val user = new User
-        user.setName(userName)
-        // hash the plain text password
-        user.setPassword(PasswordEncryption.encrypt(password))
-        userDao.insert(user)
-        setUserSession(session, Some(user))
-        Response.ok().build()
-    }
-
-  }
-
-  @GET
-  @Path("/logout")
-  def logOut(@Session session: HttpSession): Response = {
-    setUserSession(session, None)
-    Response.ok().build()
   }
 
   /**
@@ -182,6 +149,33 @@ class UserResource {
     })
   }
 
+  @POST
+  @Path("/register")
+  def register(@Session session: HttpSession, request: UserRegistrationRequest): Response = {
+    val userName = request.userName
+    val password = request.password
+    val validationResult = validateUsername(userName)
+    if (!validationResult.getLeft)
+      // Using BAD_REQUEST as no other status code is suitable. Better to use 422.
+      return Response.status(Response.Status.BAD_REQUEST).build()
+
+    retrieveUserByUsernameAndPassword(userName, password) match {
+      case Some(_) =>
+        // the username is existing already
+        // Using BAD_REQUEST as no other status code is suitable. Better to use 422.
+        Response.status(Response.Status.BAD_REQUEST).build()
+      case None =>
+        val user = new User
+        user.setName(userName)
+        // hash the plain text password
+        user.setPassword(PasswordEncryption.encrypt(password))
+        userDao.insert(user)
+        setUserSession(session, Some(user))
+        Response.ok().build()
+    }
+
+  }
+
   /**
     * Retrieve exactly one User from databases with the given username and password
     * @param name String
@@ -196,6 +190,13 @@ class UserResource {
         .where(USER.NAME.eq(name).and(USER.GOOGLE_ID.isNull))
         .fetchOneInto(classOf[User])
     ).filter(user => PasswordEncryption.checkPassword(user.getPassword, password))
+  }
+
+  @GET
+  @Path("/logout")
+  def logOut(@Session session: HttpSession): Response = {
+    setUserSession(session, None)
+    Response.ok().build()
   }
 
 }

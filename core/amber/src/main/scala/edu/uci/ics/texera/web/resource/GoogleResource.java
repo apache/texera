@@ -15,7 +15,6 @@ import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.DriveScopes;
 import com.google.api.services.sheets.v4.Sheets;
 import com.google.api.services.sheets.v4.SheetsScopes;
-import edu.uci.ics.texera.web.WebUtils;
 import edu.uci.ics.texera.workflow.common.Utils;
 
 import java.io.*;
@@ -28,7 +27,7 @@ public class GoogleResource {
     private static final int GOOGLE_TIMEOUT_IN_MS = 10000;
     private static final String APPLICATION_NAME = "Texera";
     private static final String TOKENS_DIRECTORY_PATH = Utils.amberHomePath()
-            .resolve("../conf").resolve(WebUtils.config().getString("google.tokenPath")).toString();
+            .resolve("../conf").resolve(Utils.config().getString("google.tokenPath")).toString();
     private static final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
 
     /**
@@ -36,7 +35,7 @@ public class GoogleResource {
      * If modifying these scopes, delete your previously saved tokens/ folder.
      */
     private static final String CREDENTIALS_FILE_PATH = Utils.amberHomePath()
-            .resolve("../conf").resolve(WebUtils.config().getString("google.credentialPath")).toString();
+            .resolve("../conf").resolve(Utils.config().getString("google.credentialPath")).toString();
     private static final List<String> SCOPES = Arrays.asList(SheetsScopes.SPREADSHEETS, DriveScopes.DRIVE);
 
     // singleton service
