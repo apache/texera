@@ -226,7 +226,10 @@ class DataProcessor( // dependencies:
     processControlCommand(control.payload, control.from)
   }
 
-  private[this] def processControlCommand(payload: ControlPayload, from: ActorVirtualIdentity): Unit = {
+  private[this] def processControlCommand(
+      payload: ControlPayload,
+      from: ActorVirtualIdentity
+  ): Unit = {
     payload match {
       case invocation: ControlInvocation =>
         asyncRPCServer.logControlInvocation(invocation, from)
