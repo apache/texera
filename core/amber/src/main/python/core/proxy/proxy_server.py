@@ -33,8 +33,10 @@ class ProxyServer(FlightServerBase):
     @staticmethod
     def ack(original_func: Optional[Callable] = None, msg="ack"):
         """
-        decorator for returning an ack message after the action.
-        example usage:
+        Decorator for returning an ack message after the action. It is a Proxy level ack, only to be used
+        by ProxyServer actions.
+
+        Example usage:
             ```
             @ack
             def hello():
@@ -72,13 +74,13 @@ class ProxyServer(FlightServerBase):
     def __init__(self, scheme: str = "grpc+tcp", host: str = "localhost", port: int = 5005):
         location = f"{scheme}://{host}:{port}"
         super(ProxyServer, self).__init__(location)
-        logger.debug("Serving on " + location)
+        logger.debug(f"Serving on {location}")
         self.host = host
 
-        # actions for actions, will contain registered actions, identified by action name.
+        # action name to callable map, will contain registered actions, identified by action name.
         self._procedures: Dict[str, Tuple[Callable, str]] = dict()
 
-        # register heartbeat, this is the default action for the client to check the aliveness of the server
+        # register heartbeat, this is the default action for the client to check the aliveness of the server.
         self.register("heartbeat", ProxyServer.ack()(lambda: None))
 
         # register shutdown, this is the default action for the client to terminate the server.
@@ -87,6 +89,7 @@ class ProxyServer(FlightServerBase):
                       (lambda: threading.Thread(target=self._shutdown).start()),
                       description="Shut down this server.")
 
+        # register control, this is the default action for the client to invoke after receiving control.
         self.register("control",
                       ProxyServer.ack()(
                           lambda control_message: self.process_control(control_message)),
@@ -106,7 +109,7 @@ class ProxyServer(FlightServerBase):
     def do_put(self, context: ServerCallContext, descriptor: FlightDescriptor, reader: MetadataRecordBatchReader,
                writer: RecordBatchStreamWriter):
         """
-        put a data table into server, the data will be handled by the `self.process_data()` handler.
+        Put a data table into server, the data will be handled by the `self.process_data()` handler.
         :param context: server context, containing information of middlewares.
         :param descriptor: the descriptor of this batch of data.
         :param reader: the input stream of batches of records.
@@ -115,8 +118,9 @@ class ProxyServer(FlightServerBase):
         """
 
         data: Table = reader.read_all()
+        command: bytes = descriptor.command
         logger.debug(f"getting a data batch {data}")
-        self.process_data(descriptor.command, data)
+        self.process_data(command, data)
 
     ###############################
     # Actions related methods #
@@ -124,7 +128,7 @@ class ProxyServer(FlightServerBase):
     @overrides(check_signature=False)
     def list_actions(self, context: ServerCallContext) -> Iterator[Tuple[str, str]]:
         """
-        list all actions that are being registered with the server, it will
+        List all actions that are being registered with the server, it will
         return the action name and description for each registered action.
         :param context: server context, containing information of middlewares.
         :return: iterator of (action_name, action_description) pairs.
@@ -134,7 +138,7 @@ class ProxyServer(FlightServerBase):
     @overrides(check_signature=False)
     def do_action(self, context: ServerCallContext, action: Action) -> Iterator[Result]:
         """
-        perform an action that previously registered with a action,
+        Perform an action that previously registered with a action,
         return a result in bytes.
         :param context: server context, containing information of middlewares.
         :param action: the action to perform, including
@@ -170,7 +174,7 @@ class ProxyServer(FlightServerBase):
     @logger.catch(reraise=True)
     def register(self, name: str, action: Callable, description: str = "") -> None:
         """
-        register a action with an action name.
+        Register an action with the action name.
         :param name: the name of the action, it should be matching Action's type.
         :param action: a callable, could be class, function, or lambda.
         :param description: describes the action.
@@ -184,28 +188,28 @@ class ProxyServer(FlightServerBase):
 
         # update the actions, which overwrites the previous registration.
         self._procedures[name] = (wrapper, description)
-        logger.debug("registered action " + name)
+        logger.debug(f"registered action {name}")
 
     @logger.catch(reraise=True)
     def register_data_handler(self, handler: Callable) -> None:
         """
-        register the data handler function, which will be invoked after each `do_put`.
+        Register the data handler function, which will be invoked after each `do_put`.
         :param handler: a callable with at least two arguments, for 1) the command and 2) the data batch.
         :return:
         """
 
-        # the handler should at least have 2 arguments
+        # the handler should have at least 2 arguments
         assert len(signature(handler).parameters) >= 2
         self.process_data = handler
 
     @logger.catch(reraise=True)
     def register_control_handler(self, handler: Callable) -> None:
         """
-        register the control handler function, which will be invoked after each `do_action` with `control` as the command.
+        Register the control handler function, which will be invoked after each `do_action` with `control` as the command.
         :param handler: a callable with at least two arguments, for 1) the command and 2) the control payload..
         :return:
         """
-        # the handler should at least have 1 argument
+        # the handler should have at least 1 argument
         assert len(signature(handler).parameters) >= 1
         self.process_control = handler
 

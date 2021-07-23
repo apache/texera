@@ -11,18 +11,18 @@ class ProxyClient(FlightClient):
                  *args, **kwargs):
         location = f"{scheme}://{host}:{port}"
         super().__init__(location, *args, **kwargs)
-        logger.debug("Connected to server at " + location)
+        logger.debug(f"Connected to server at {location}")
         self._timeout = timeout
 
     @logger.catch(reraise=True)
     def call_action(self, action_name: str, payload: bytes = bytes(),
                     options: Optional[FlightCallOptions] = None) -> bytes:
         """
-        call a specific remote action specified by the name, pass along a payload
+        Call a specific remote action specified by the name, pass along a payload.
         :param action_name: the registered action name to be invoked.
         :param payload: the action payload in bytes, user should take the responsibility to serialize it.
         :param options: FlightCallOption to config the call.
-        :return: exactly one result in bytes
+        :return: exactly one result in bytes.
         """
 
         action = Action(action_name, payload)
@@ -33,10 +33,9 @@ class ProxyClient(FlightClient):
     @logger.catch(reraise=True)
     def send_data(self, command: bytes, table: Optional[Table]) -> None:
         """
-        send data to the server
+        Send a data batch to the server.
         :param command: a command to in descriptor to pass along.
         :param table: a PyArrow.Table of column-stored records.
-        :return:
         """
         descriptor = FlightDescriptor.for_command(command)
         table = Table.from_arrays([]) if table is None else table
