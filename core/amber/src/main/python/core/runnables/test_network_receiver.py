@@ -6,8 +6,8 @@ import pytest
 
 from core.models.internal_queue import ControlElement, DataElement, InternalQueue
 from core.models.payload import DataFrame, EndOfUpstream
-from core.threads.network_receiver import NetworkReceiver
-from core.threads.network_sender import NetworkSender
+from core.runnables.network_receiver import NetworkReceiver
+from core.runnables.network_sender import NetworkSender
 from core.util.proto.proto_utils import set_one_of
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlInvocationV2, ControlPayloadV2
 

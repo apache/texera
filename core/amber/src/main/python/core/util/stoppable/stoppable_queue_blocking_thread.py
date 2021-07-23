@@ -38,7 +38,7 @@ class StoppableQueueBlockingRunnable(Runnable, Stoppable):
         self._internal_queue = queue
         self.name = name
 
-    @logger.catch
+    @logger.catch(reraise=True)
     @overrides
     def run(self):
         self.pre_start()
@@ -51,15 +51,19 @@ class StoppableQueueBlockingRunnable(Runnable, Stoppable):
         finally:
             self.post_stop()
 
+    @logger.catch(reraise=True)
     def receive(self, next_entry: IQueue.QueueElement):
         pass
 
+    @logger.catch(reraise=True)
     def pre_start(self) -> None:
         pass
 
+    @logger.catch(reraise=True)
     def post_stop(self) -> None:
         pass
 
+    @logger.catch(reraise=True)
     @overrides
     def stop(self):
         self._internal_queue.put(StoppableQueueBlockingRunnable.THREAD_STOP)
