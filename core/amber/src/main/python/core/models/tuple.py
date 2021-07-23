@@ -1,8 +1,7 @@
-from __future__ import annotations
-
-import pandas
 from abc import ABC
 from dataclasses import dataclass
+
+import pandas
 
 
 @dataclass
