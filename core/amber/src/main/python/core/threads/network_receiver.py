@@ -4,7 +4,7 @@ from loguru import logger
 from overrides import overrides
 from pyarrow.lib import Table
 
-from core.models import ControlElement, DataFrame, EndOfUpstream, InputDataElement, InternalQueue
+from core.models import ControlElement, DataElement, DataFrame, EndOfUpstream, InternalQueue
 from core.proxy import ProxyServer
 from core.util import Stoppable
 from core.util.runnable.runnable import Runnable
@@ -25,17 +25,18 @@ class NetworkReceiver(Runnable, Stoppable):
                 # record input schema
                 for field in input_schema:
                     schema_map[field.name] = field
-                shared_queue.put(InputDataElement(
+                shared_queue.put(DataElement(
+                    tag=data_header.from_,
                     payload=DataFrame([row for _, row in table.to_pandas().iterrows()])
-                    , from_=data_header.from_))
+                ))
             else:
-                shared_queue.put(InputDataElement(payload=EndOfUpstream(), from_=data_header.from_))
+                shared_queue.put(DataElement(tag=data_header.from_, payload=EndOfUpstream()))
 
         self._proxy_server.register_data_handler(data_handler)
 
         def control_handler(message: bytes):
             python_control_message = PythonControlMessage().parse(message)
-            shared_queue.put(ControlElement(python_control_message.payload, python_control_message.from_))
+            shared_queue.put(ControlElement(tag=python_control_message.from_, cmd=python_control_message.payload))
 
         self._proxy_server.register_control_handler(control_handler)
 

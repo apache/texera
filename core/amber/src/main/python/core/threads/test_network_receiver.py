@@ -4,7 +4,7 @@ from time import sleep
 import pandas
 import pytest
 
-from core.models.internal_queue import ControlElement, InputDataElement, InternalQueue, OutputDataElement
+from core.models.internal_queue import ControlElement, DataElement, InternalQueue
 from core.models.payload import DataFrame, EndOfUpstream
 from core.threads.network_receiver import NetworkReceiver
 from core.threads.network_sender import NetworkSender
@@ -65,10 +65,10 @@ class TestNetworkReceiver:
         network_receiver_thread.start()
         network_sender_thread.start()
         worker_id = ActorVirtualIdentity(name="test")
-        input_queue.put(OutputDataElement(to=worker_id, payload=data_payload))
-        element: InputDataElement = output_queue.get()
+        input_queue.put(DataElement(tag=worker_id, payload=data_payload))
+        element: DataElement = output_queue.get()
         assert len(element.payload.frame) == len(data_payload.frame)
-        assert element.from_ == worker_id
+        assert element.tag == worker_id
 
     @pytest.mark.timeout(1)
     def test_network_receiver_can_receive_data_messages_end_of_upstream(self, schema_map, data_payload,
@@ -77,10 +77,10 @@ class TestNetworkReceiver:
         network_receiver_thread.start()
         network_sender_thread.start()
         worker_id = ActorVirtualIdentity(name="test")
-        input_queue.put(OutputDataElement(to=worker_id, payload=EndOfUpstream()))
-        element: InputDataElement = output_queue.get()
+        input_queue.put(DataElement(tag=worker_id, payload=EndOfUpstream()))
+        element: DataElement = output_queue.get()
         assert element.payload == EndOfUpstream()
-        assert element.from_ == worker_id
+        assert element.tag == worker_id
 
     @pytest.mark.timeout(1)
     def test_network_receiver_can_receive_control_messages(self, schema_map, data_payload, output_queue, input_queue,
@@ -89,7 +89,7 @@ class TestNetworkReceiver:
         network_sender_thread.start()
         worker_id = ActorVirtualIdentity(name="test")
         control_payload = set_one_of(ControlPayloadV2, ControlInvocationV2())
-        input_queue.put(ControlElement(cmd=control_payload, from_=worker_id))
+        input_queue.put(ControlElement(cmd=control_payload, tag=worker_id))
         element: ControlElement = output_queue.get()
-        assert element.cmd == control_payload
-        assert element.from_ == worker_id
+        assert element.payload == control_payload
+        assert element.tag == worker_id

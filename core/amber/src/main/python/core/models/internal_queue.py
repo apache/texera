@@ -9,7 +9,7 @@ from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlP
 
 class InternalQueue(DoubleBlockingQueue):
     def __init__(self):
-        super().__init__(InputDataElement, OutputDataElement, Marker)
+        super().__init__(DataElement, Marker)
 
 
 @dataclass
@@ -18,18 +18,12 @@ class InternalQueueElement(IQueue.QueueElement):
 
 
 @dataclass
-class InputDataElement(InternalQueueElement):
+class DataElement(InternalQueueElement):
+    tag: ActorVirtualIdentity
     payload: DataPayload
-    from_: ActorVirtualIdentity
-
-
-@dataclass
-class OutputDataElement(InternalQueueElement):
-    payload: DataPayload
-    to: ActorVirtualIdentity
 
 
 @dataclass
 class ControlElement(InternalQueueElement):
-    cmd: ControlPayloadV2
-    from_: ActorVirtualIdentity
+    tag: ActorVirtualIdentity
+    payload: ControlPayloadV2

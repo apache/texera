@@ -19,10 +19,10 @@ class NetworkSender(StoppableQueueBlockingRunnable):
 
     def receive(self, next_entry: InternalQueueElement):
         logger.debug(f"Sender receive a new entry {next_entry}")
-        if isinstance(next_entry, OutputDataElement):
-            self.send_data(next_entry.to, next_entry.payload)
+        if isinstance(next_entry, DataElement):
+            self.send_data(next_entry.tag, next_entry.payload)
         elif isinstance(next_entry, ControlElement):
-            self.send_control(next_entry.from_, next_entry.cmd)
+            self.send_control(next_entry.tag, next_entry.payload)
 
         # TODO: handle else
 
