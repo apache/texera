@@ -131,21 +131,6 @@ class WorkflowResultService(val workflowCompiler: WorkflowCompiler) {
       }
     })
 
-//    def onResultUpdate(resultUpdate: WorkflowResultUpdate, session: Session): Unit = {
-    //
-    //      // prepare web update event to frontend
-    //      val webUpdateEvent = resultUpdate.operatorResults.map(e => {
-    //        val opResultService = operatorResults(e._1)
-    //        val webUpdateEvent = opResultService.convertWebResultUpdate(e._2)
-    //        val operator = workflowCompiler.workflow.getOperator(e._1)
-    //        if (operator.isInstanceOf[CacheSinkOpDesc]) {
-    //          val upstream = workflowCompiler.workflow.getUpstream(e._1).head
-    //          (upstream.operatorID, webUpdateEvent)
-    //        } else {
-    //          (e._1, webUpdateEvent)
-    //        }
-    //      })
-
     // update the result snapshot of each operator
     resultUpdate.operatorResults.foreach(e => operatorResults(e._1).updateResult(e._2))
 
