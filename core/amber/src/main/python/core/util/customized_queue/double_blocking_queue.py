@@ -28,35 +28,24 @@ class DoubleBlockingQueue(IQueue):
         self._enforce_single_consumer()
         self._sub_enabled = False
 
-    def _enforce_single_consumer(self):
-        """
-        Raises an AssertionError if multiple consumers are detected.
-        :return:
-        """
-        if self._consumer_id is None:
-            self._consumer_id = threading.get_ident()
-        else:
-            assert self._consumer_id == threading.get_ident(), f"DoubleBlockingQueue can only have one consumer! " \
-                                                               f"{self._consumer_id} vs {threading.get_ident()}"
-
-    @overrides
-    def empty(self) -> bool:
-        """
-        Invoked by the consumer only, checks if the queue is empty. Might not be reliable.
-        :return: True if the main queue is empty, and the enabled sub queue is empty as well.
-        """
-        self._enforce_single_consumer()
-        if self._sub_enabled:
-            return self.main_empty() and self._sub_empty()
-        else:
-            return self.main_empty()
-
     def enable_sub(self) -> None:
         """
         Invoked by the consumer only, to enable sub queue to emit elements.
         """
         self._enforce_single_consumer()
         self._sub_enabled = True
+
+    @overrides
+    def empty(self) -> bool:
+        """
+        Invoked by the consumer only, checks if the queue is empty.
+        :return: True if the main queue is empty, and the enabled sub queue is empty as well.
+        """
+        self._enforce_single_consumer()
+        if self._sub_enabled:
+            return self.main_empty() and self.sub_empty()
+        else:
+            return self.main_empty()
 
     @overrides
     def get(self) -> T:
@@ -80,23 +69,24 @@ class DoubleBlockingQueue(IQueue):
         Enqueue an item.
         :param item: any type
         """
-
         self._input_queue.put(item)
 
     def main_empty(self) -> bool:
         """
-        Invoked by the consumer only, checks if the main queue is empty. Might not be reliable.
+        Invoked by the consumer only, checks if the main queue is empty.
         :return: True if the main queue is empty.
         """
         self._enforce_single_consumer()
         self._distribute_all()
         return self._main_queue.qsize() == 0
 
-    def _sub_empty(self) -> bool:
+    def sub_empty(self) -> bool:
         """
-        Checks if the main queue is empty. Might not be reliable.
+        Invoked by the consumer only, checks if the sub queue is empty.
         :return: True if the sub queue is empty.
         """
+        self._enforce_single_consumer()
+        self._distribute_all()
         return self._sub_queue.qsize() == 0
 
     def _distribute_all(self) -> None:
@@ -116,3 +106,20 @@ class DoubleBlockingQueue(IQueue):
             self._sub_queue.put(ele)
         else:
             self._main_queue.put(ele)
+
+    def _enforce_single_consumer(self):
+        """
+        Raises an AssertionError if multiple consumers are detected.
+        :return:
+        """
+        try:
+            # new unique identifier in python 3.8.
+            get_id = threading.get_native_id
+        except:
+            # fall back to old ident method for python prior to 3.8.
+            get_id = threading.get_ident
+        if self._consumer_id is None:
+            self._consumer_id = get_id()
+        else:
+            assert self._consumer_id == get_id(), f"DoubleBlockingQueue can only have one consumer! " \
+                                                  f"{self._consumer_id} vs {get_id()}"
