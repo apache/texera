@@ -186,18 +186,56 @@ class WorkflowWebsocketResource {
     send(session, WorkflowResumedEvent())
   }
 
-  var operatorOutputCache: mutable.HashMap[String, mutable.MutableList[Tuple]] =
-    mutable.HashMap[String, mutable.MutableList[Tuple]]()
-  var cachedOperators: mutable.HashMap[String, OperatorDescriptor] =
-    mutable.HashMap[String, OperatorDescriptor]()
-  var cacheSourceOperators: mutable.HashMap[String, CacheSourceOpDesc] =
-    mutable.HashMap[String, CacheSourceOpDesc]()
-  var cacheSinkOperators: mutable.HashMap[String, CacheSinkOpDesc] =
-    mutable.HashMap[String, CacheSinkOpDesc]()
-  var operatorRecord: mutable.HashMap[String, WorkflowVertex] =
-    mutable.HashMap[String, WorkflowVertex]()
+  val sessionOperatorOutputCache
+      : mutable.HashMap[String, mutable.HashMap[String, mutable.MutableList[Tuple]]] =
+    mutable.HashMap[String, mutable.HashMap[String, mutable.MutableList[Tuple]]]()
+  val sessionCachedOperators: mutable.HashMap[String, mutable.HashMap[String, OperatorDescriptor]] =
+    mutable.HashMap[String, mutable.HashMap[String, OperatorDescriptor]]()
+  val sessionCacheSourceOperators
+      : mutable.HashMap[String, mutable.HashMap[String, CacheSourceOpDesc]] =
+    mutable.HashMap[String, mutable.HashMap[String, CacheSourceOpDesc]]()
+  val sessionCacheSinkOperators: mutable.HashMap[String, mutable.HashMap[String, CacheSinkOpDesc]] =
+    mutable.HashMap[String, mutable.HashMap[String, CacheSinkOpDesc]]()
+  val sessionOperatorRecord: mutable.HashMap[String, mutable.HashMap[String, WorkflowVertex]] =
+    mutable.HashMap[String, mutable.HashMap[String, WorkflowVertex]]()
 
   def executeWorkflow(session: Session, request: ExecuteWorkflowRequest): Unit = {
+    var operatorOutputCache: mutable.HashMap[String, mutable.MutableList[Tuple]] = null
+    if (!sessionOperatorOutputCache.contains(session.getId)) {
+      operatorOutputCache = mutable.HashMap[String, mutable.MutableList[Tuple]]()
+      sessionOperatorOutputCache += ((session.getId, operatorOutputCache))
+    } else {
+      operatorOutputCache = sessionOperatorOutputCache(session.getId)
+    }
+    var cachedOperators: mutable.HashMap[String, OperatorDescriptor] = null
+    if (!sessionCachedOperators.contains(session.getId)) {
+      cachedOperators = mutable.HashMap[String, OperatorDescriptor]()
+      sessionCachedOperators += ((session.getId, cachedOperators))
+    } else {
+      cachedOperators = sessionCachedOperators(session.getId)
+    }
+    var cacheSourceOperators: mutable.HashMap[String, CacheSourceOpDesc] = null
+    if (!sessionCacheSourceOperators.contains(session.getId)) {
+      cacheSourceOperators = mutable.HashMap[String, CacheSourceOpDesc]()
+      sessionCacheSourceOperators += ((session.getId, cacheSourceOperators))
+    } else {
+      cacheSourceOperators = sessionCacheSourceOperators(session.getId)
+    }
+    var cacheSinkOperators: mutable.HashMap[String, CacheSinkOpDesc] = null
+    if (!sessionCacheSinkOperators.contains(session.getId)) {
+      cacheSinkOperators = mutable.HashMap[String, CacheSinkOpDesc]()
+      sessionCacheSinkOperators += ((session.getId, cacheSinkOperators))
+    } else {
+      cacheSinkOperators = sessionCacheSinkOperators(session.getId)
+    }
+    var operatorRecord: mutable.HashMap[String, WorkflowVertex] = null
+    if (!sessionOperatorRecord.contains(session.getId)) {
+      operatorRecord = mutable.HashMap[String, WorkflowVertex]()
+      sessionOperatorRecord += ((session.getId, operatorRecord))
+    } else {
+      operatorRecord = sessionOperatorRecord(session.getId)
+    }
+
     logger.info("Session id: {}", session.getId)
     val context = new WorkflowContext
     val jobID = Integer.toString(WorkflowWebsocketResource.nextJobID.incrementAndGet)
@@ -347,6 +385,11 @@ class WorkflowWebsocketResource {
     sessionJobs.remove(session.getId)
     sessionMap.remove(session.getId)
     sessionDownloadCache.remove(session.getId)
+    sessionOperatorOutputCache.remove(session.getId)
+    sessionCachedOperators.remove(session.getId)
+    sessionCacheSourceOperators.remove(session.getId)
+    sessionCacheSinkOperators.remove(session.getId)
+    sessionOperatorRecord.remove(session.getId)
   }
 
   def removeBreakpoint(session: Session, removeBreakpoint: RemoveBreakpointRequest): Unit = {
