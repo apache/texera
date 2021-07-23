@@ -17,26 +17,24 @@ class NetworkReceiver(Runnable, Stoppable):
         self._proxy_server = ProxyServer(host=host, port=port)
 
         def data_handler(command: bytes, table: Table):
-
             data_header = PythonDataHeader().parse(command)
-            logger.debug(f"getting {data_header}, table {table}")
             if not data_header.end:
                 input_schema = table.schema
                 # record input schema
                 for field in input_schema:
                     schema_map[field.name] = field
                 shared_queue.put(DataElement(
-                    tag=data_header.from_,
+                    tag=data_header.tag,
                     payload=DataFrame([row for _, row in table.to_pandas().iterrows()])
                 ))
             else:
-                shared_queue.put(DataElement(tag=data_header.from_, payload=EndOfUpstream()))
+                shared_queue.put(DataElement(tag=data_header.tag, payload=EndOfUpstream()))
 
         self._proxy_server.register_data_handler(data_handler)
 
         def control_handler(message: bytes):
             python_control_message = PythonControlMessage().parse(message)
-            shared_queue.put(ControlElement(tag=python_control_message.from_, payload=python_control_message.payload))
+            shared_queue.put(ControlElement(tag=python_control_message.tag, payload=python_control_message.payload))
 
         self._proxy_server.register_control_handler(control_handler)
 

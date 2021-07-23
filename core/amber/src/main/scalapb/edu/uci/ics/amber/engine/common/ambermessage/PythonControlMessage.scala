@@ -7,15 +7,15 @@ package edu.uci.ics.amber.engine.common.ambermessage
 
 @SerialVersionUID(0L)
 final case class PythonControlMessage(
-    from: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity],
+    tag: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity],
     payload: edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[PythonControlMessage] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
     private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
-      if (from.isDefined) {
-        val __value = from.get
+      if (tag.isDefined) {
+        val __value = tag.get
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       };
       
@@ -36,7 +36,7 @@ final case class PythonControlMessage(
       read
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
-      from.foreach { __v =>
+      tag.foreach { __v =>
         val __m = __v
         _output__.writeTag(1, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
@@ -51,13 +51,13 @@ final case class PythonControlMessage(
         }
       };
     }
-    def getFrom: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity = from.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance)
-    def clearFrom: PythonControlMessage = copy(from = _root_.scala.None)
-    def withFrom(__v: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity): PythonControlMessage = copy(from = Option(__v))
+    def getTag: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity = tag.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance)
+    def clearTag: PythonControlMessage = copy(tag = _root_.scala.None)
+    def withTag(__v: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity): PythonControlMessage = copy(tag = Option(__v))
     def withPayload(__v: edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2): PythonControlMessage = copy(payload = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
-        case 1 => from.orNull
+        case 1 => tag.orNull
         case 2 => {
           val __t = edu.uci.ics.amber.engine.common.ambermessage.PythonControlMessage._typemapper_payload.toBase(payload)
           if (__t != edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.defaultInstance) __t else null
@@ -67,7 +67,7 @@ final case class PythonControlMessage(
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
-        case 1 => from.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 1 => tag.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 2 => edu.uci.ics.amber.engine.common.ambermessage.PythonControlMessage._typemapper_payload.toBase(payload).toPMessage
       }
     }
@@ -79,7 +79,7 @@ final case class PythonControlMessage(
 object PythonControlMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.ambermessage.PythonControlMessage] {
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.ambermessage.PythonControlMessage] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.common.ambermessage.PythonControlMessage = {
-    var __from: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = _root_.scala.None
+    var __tag: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = _root_.scala.None
     var __payload: _root_.scala.Option[edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message] = _root_.scala.None
     var _done__ = false
     while (!_done__) {
@@ -87,14 +87,14 @@ object PythonControlMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ic
       _tag__ match {
         case 0 => _done__ = true
         case 10 =>
-          __from = Option(__from.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __tag = Option(__tag.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 18 =>
           __payload = _root_.scala.Some(__payload.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.common.ambermessage.PythonControlMessage(
-        from = __from,
+        tag = __tag,
         payload = edu.uci.ics.amber.engine.common.ambermessage.PythonControlMessage._typemapper_payload.toCustom(__payload.getOrElse(edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.defaultInstance))
     )
   }
@@ -102,7 +102,7 @@ object PythonControlMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ic
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.common.ambermessage.PythonControlMessage(
-        from = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]]),
+        tag = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]]),
         payload = edu.uci.ics.amber.engine.common.ambermessage.PythonControlMessage._typemapper_payload.toCustom(__fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message]).getOrElse(edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.defaultInstance))
       )
     case _ => throw new RuntimeException("Expected PMessage")
@@ -120,23 +120,23 @@ object PythonControlMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ic
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.common.ambermessage.PythonControlMessage(
-    from = _root_.scala.None,
+    tag = _root_.scala.None,
     payload = edu.uci.ics.amber.engine.common.ambermessage.PythonControlMessage._typemapper_payload.toCustom(edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message.defaultInstance)
   )
   implicit class PythonControlMessageLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.ambermessage.PythonControlMessage]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.ambermessage.PythonControlMessage](_l) {
-    def from: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = field(_.getFrom)((c_, f_) => c_.copy(from = Option(f_)))
-    def optionalFrom: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]] = field(_.from)((c_, f_) => c_.copy(from = f_))
+    def tag: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = field(_.getTag)((c_, f_) => c_.copy(tag = Option(f_)))
+    def optionalTag: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]] = field(_.tag)((c_, f_) => c_.copy(tag = f_))
     def payload: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2] = field(_.payload)((c_, f_) => c_.copy(payload = f_))
   }
-  final val FROM_FIELD_NUMBER = 1
+  final val TAG_FIELD_NUMBER = 1
   final val PAYLOAD_FIELD_NUMBER = 2
   @transient
   private[ambermessage] val _typemapper_payload: _root_.scalapb.TypeMapper[edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message, edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2] = implicitly[_root_.scalapb.TypeMapper[edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2Message, edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2]]
   def of(
-    from: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity],
+    tag: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity],
     payload: edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2
   ): _root_.edu.uci.ics.amber.engine.common.ambermessage.PythonControlMessage = _root_.edu.uci.ics.amber.engine.common.ambermessage.PythonControlMessage(
-    from,
+    tag,
     payload
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.PythonControlMessage])

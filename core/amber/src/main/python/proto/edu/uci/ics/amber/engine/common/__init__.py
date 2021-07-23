@@ -95,13 +95,13 @@ class ControlPayloadV2(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class PythonDataHeader(betterproto.Message):
-    from_: "ActorVirtualIdentity" = betterproto.message_field(1)
+    tag: "ActorVirtualIdentity" = betterproto.message_field(1)
     end: bool = betterproto.bool_field(2)
 
 
 @dataclass(eq=False, repr=False)
 class PythonControlMessage(betterproto.Message):
-    from_: "ActorVirtualIdentity" = betterproto.message_field(1)
+    tag: "ActorVirtualIdentity" = betterproto.message_field(1)
     payload: "ControlPayloadV2" = betterproto.message_field(2)
 
 

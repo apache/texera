@@ -31,13 +31,13 @@ message ControlPayloadV2 {
 }
 
 message PythonDataHeader {
-    common.ActorVirtualIdentity from = 1;
+    common.ActorVirtualIdentity tag = 1;
     bool end = 2;
 
 }
 
 message PythonControlMessage {
-    common.ActorVirtualIdentity from = 1 ;
+    common.ActorVirtualIdentity tag = 1 ;
     ControlPayloadV2 payload = 2;
 }
 
