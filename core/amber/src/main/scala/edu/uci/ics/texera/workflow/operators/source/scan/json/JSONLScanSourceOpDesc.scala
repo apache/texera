@@ -37,7 +37,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
         val count: Int = lines.map(_ => 1).sum
         reader.close()
 
-        val numWorkers = Constants.defaultNumWorkers
+        val numWorkers = Constants.currentWorkerNum
 
         new OneToOneOpExecConfig(
           operatorIdentifier,

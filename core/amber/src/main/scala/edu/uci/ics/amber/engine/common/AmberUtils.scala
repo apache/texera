@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.common
 
 import akka.actor.{ActorSystem, DeadLetter, Props}
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import edu.uci.ics.amber.clustering.ClusterListener
 import edu.uci.ics.amber.engine.architecture.messaginglayer.DeadLetterMonitorActor
 
@@ -28,15 +28,15 @@ object AmberUtils {
       }
     }
 
-    val config = ConfigFactory
+    val masterConfig = ConfigFactory
       .parseString(s"""
         akka.remote.artery.canonical.port = 2552
         akka.remote.artery.canonical.hostname = $localIpAddress
         akka.cluster.seed-nodes = [ "akka://Amber@$localIpAddress:2552" ]
         """)
-      .withFallback(ConfigFactory.load())
+      .withFallback(config)
 
-    val system = ActorSystem("Amber", config)
+    val system = ActorSystem("Amber", masterConfig)
     system.actorOf(Props[ClusterListener], "cluster-info")
     val deadLetterMonitorActor =
       system.actorOf(Props[DeadLetterMonitorActor], name = "dead-letter-monitor-actor")
@@ -48,19 +48,21 @@ object AmberUtils {
   def startActorWorker(mainNodeAddress: Option[String]): ActorSystem = {
     val addr = mainNodeAddress.getOrElse("localhost")
     val localIpAddress = "localhost"
-    val config = ConfigFactory
+    val workerConfig = ConfigFactory
       .parseString(s"""
         akka.remote.artery.canonical.hostname = $localIpAddress
         akka.remote.artery.canonical.port = 0
         akka.cluster.seed-nodes = [ "akka://Amber@$addr:2552" ]
         """)
-      .withFallback(ConfigFactory.load())
-    val system = ActorSystem("Amber", config)
+      .withFallback(config)
+    val system = ActorSystem("Amber", workerConfig)
     system.actorOf(Props[ClusterListener], "cluster-info")
     val deadLetterMonitorActor =
       system.actorOf(Props[DeadLetterMonitorActor], name = "dead-letter-monitor-actor")
     system.eventStream.subscribe(deadLetterMonitorActor, classOf[DeadLetter])
-    Constants.masterNodeAddr = addr
+    Constants.masterNodeAddr = Option(addr)
     system
   }
+
+  def config: Config = ConfigFactory.load()
 }
