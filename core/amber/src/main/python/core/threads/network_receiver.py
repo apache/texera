@@ -1,3 +1,5 @@
+from typing import Dict
+
 from loguru import logger
 from overrides import overrides
 from pyarrow.lib import Table
@@ -10,7 +12,7 @@ from proto.edu.uci.ics.amber.engine.common import PythonControlMessage, PythonDa
 
 
 class NetworkReceiver(Runnable, Stoppable):
-    def __init__(self, shared_queue: InternalQueue, host: str, port: int, schema_map: dict[str, type]):
+    def __init__(self, shared_queue: InternalQueue, host: str, port: int, schema_map: Dict[str, type]):
         super().__init__()
         self._proxy_server = ProxyServer(host=host, port=port)
 
