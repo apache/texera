@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.common
+package edu.uci.ics.texera
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -74,10 +74,9 @@ object Utils {
     }
   }
 
+  def config: Config = ConfigFactory.load()
+
   private def isAmberHomePath(path: Path): Boolean = {
     path.toRealPath().endsWith(AMBER_HOME_FOLDER_NAME)
   }
-
-  def config: Config =
-    ConfigFactory.parseFile(Utils.amberHomePath.resolve("../conf").resolve("web.conf").toFile)
 }

@@ -13,6 +13,7 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
+import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.{ServletAwareConfigurator, TexeraWebApplication}
 import edu.uci.ics.texera.web.model.event._
 import edu.uci.ics.texera.web.model.request._
@@ -24,16 +25,16 @@ import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
   sessionResults
 }
 import edu.uci.ics.texera.web.resource.auth.UserResource
-import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
+import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo}
-import java.util.concurrent.atomic.AtomicInteger
 
-import edu.uci.ics.texera.workflow.common.Utils.objectMapper
+import java.util.concurrent.atomic.AtomicInteger
+import edu.uci.ics.texera.Utils.objectMapper
+
 import javax.servlet.http.HttpSession
 import javax.websocket.{EndpointConfig, _}
 import javax.websocket.server.ServerEndpoint
-
 import scala.collection.mutable
 
 object WorkflowWebsocketResource {

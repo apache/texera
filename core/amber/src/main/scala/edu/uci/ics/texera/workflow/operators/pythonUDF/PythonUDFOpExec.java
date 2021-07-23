@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.operators.pythonUDF;
 import com.typesafe.config.Config;
 import edu.uci.ics.amber.engine.common.InputExhausted;
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity;
-import edu.uci.ics.texera.workflow.common.Utils;
+import edu.uci.ics.texera.Utils;
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;

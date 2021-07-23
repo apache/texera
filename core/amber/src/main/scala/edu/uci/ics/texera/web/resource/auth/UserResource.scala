@@ -4,6 +4,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.typesafe.config.Config
+import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
@@ -14,7 +15,6 @@ import edu.uci.ics.texera.web.model.request.auth.{
   UserRegistrationRequest
 }
 import edu.uci.ics.texera.web.resource.auth.UserResource.{getUser, setUserSession, validateUsername}
-import edu.uci.ics.texera.workflow.common.Utils
 import io.dropwizard.jersey.sessions.Session
 import org.apache.commons.lang3.tuple.Pair
 

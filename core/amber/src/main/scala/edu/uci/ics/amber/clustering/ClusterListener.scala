@@ -50,7 +50,9 @@ class ClusterListener extends Actor with ActorLogging {
       log.info(
         "---------Now we have " + availableNodeAddresses.size + " nodes in the cluster---------"
       )
-      log.info("currentDataSetNum: " + Constants.currentDataSetNum + " numWorkers: " + Constants.currentWorkerNum)
+      log.info(
+        "currentDataSetNum: " + Constants.currentDataSetNum + " numWorkers: " + Constants.currentWorkerNum
+      )
     case UnreachableMember(member) =>
       removeMember(member)
       log.info("Member detected as unreachable: {}", member)
