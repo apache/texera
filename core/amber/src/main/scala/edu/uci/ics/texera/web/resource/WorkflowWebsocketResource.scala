@@ -269,10 +269,12 @@ class WorkflowWebsocketResource {
       })
       sessionResults(session.getId) = workflowResultService
     }
+
+    // TODO: fix cacheValid 
     val availableResultEvent = WorkflowAvailableResultEvent(
       sessionResults(session.getId).operatorResults
         .map(e =>
-          (e._2.operatorID, OperatorAvailableResult(operatorOutputCache.contains(e._1), e._2.webOutputMode))
+          (e._2.operatorID, OperatorAvailableResult(operatorOutputCache.contains(e._2.operatorID), e._2.webOutputMode))
         )
         .toMap
     )
