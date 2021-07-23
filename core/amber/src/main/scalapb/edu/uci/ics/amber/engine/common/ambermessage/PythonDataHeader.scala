@@ -7,23 +7,23 @@ package edu.uci.ics.amber.engine.common.ambermessage
 
 @SerialVersionUID(0L)
 final case class PythonDataHeader(
-    end: _root_.scala.Int,
-    from: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]
+    from: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity],
+    end: _root_.scala.Boolean
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[PythonDataHeader] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
     private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
-      
-      {
-        val __value = end
-        if (__value != 0) {
-          __size += _root_.com.google.protobuf.CodedOutputStream.computeInt32Size(1, __value)
-        }
-      };
       if (from.isDefined) {
         val __value = from.get
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+      };
+      
+      {
+        val __value = end
+        if (__value != false) {
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeBoolSize(2, __value)
+        }
       };
       __size
     }
@@ -36,37 +36,37 @@ final case class PythonDataHeader(
       read
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
-      {
-        val __v = end
-        if (__v != 0) {
-          _output__.writeInt32(1, __v)
-        }
-      };
       from.foreach { __v =>
         val __m = __v
-        _output__.writeTag(2, 2)
+        _output__.writeTag(1, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
+      {
+        val __v = end
+        if (__v != false) {
+          _output__.writeBool(2, __v)
+        }
+      };
     }
-    def withEnd(__v: _root_.scala.Int): PythonDataHeader = copy(end = __v)
     def getFrom: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity = from.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance)
     def clearFrom: PythonDataHeader = copy(from = _root_.scala.None)
     def withFrom(__v: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity): PythonDataHeader = copy(from = Option(__v))
+    def withEnd(__v: _root_.scala.Boolean): PythonDataHeader = copy(end = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
-        case 1 => {
+        case 1 => from.orNull
+        case 2 => {
           val __t = end
-          if (__t != 0) __t else null
+          if (__t != false) __t else null
         }
-        case 2 => from.orNull
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
-        case 1 => _root_.scalapb.descriptors.PInt(end)
-        case 2 => from.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 1 => from.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 2 => _root_.scalapb.descriptors.PBoolean(end)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -77,31 +77,31 @@ final case class PythonDataHeader(
 object PythonDataHeader extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.ambermessage.PythonDataHeader] {
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.ambermessage.PythonDataHeader] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.common.ambermessage.PythonDataHeader = {
-    var __end: _root_.scala.Int = 0
     var __from: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = _root_.scala.None
+    var __end: _root_.scala.Boolean = false
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
       _tag__ match {
         case 0 => _done__ = true
-        case 8 =>
-          __end = _input__.readInt32()
-        case 18 =>
+        case 10 =>
           __from = Option(__from.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+        case 16 =>
+          __end = _input__.readBool()
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.common.ambermessage.PythonDataHeader(
-        end = __end,
-        from = __from
+        from = __from,
+        end = __end
     )
   }
   implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.common.ambermessage.PythonDataHeader] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.common.ambermessage.PythonDataHeader(
-        end = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Int]).getOrElse(0),
-        from = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]])
+        from = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]]),
+        end = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Boolean]).getOrElse(false)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -110,29 +110,29 @@ object PythonDataHeader extends scalapb.GeneratedMessageCompanion[edu.uci.ics.am
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
-      case 2 => __out = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+      case 1 => __out = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
     }
     __out
   }
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.common.ambermessage.PythonDataHeader(
-    end = 0,
-    from = _root_.scala.None
+    from = _root_.scala.None,
+    end = false
   )
   implicit class PythonDataHeaderLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.ambermessage.PythonDataHeader]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.ambermessage.PythonDataHeader](_l) {
-    def end: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Int] = field(_.end)((c_, f_) => c_.copy(end = f_))
     def from: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = field(_.getFrom)((c_, f_) => c_.copy(from = Option(f_)))
     def optionalFrom: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]] = field(_.from)((c_, f_) => c_.copy(from = f_))
+    def end: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Boolean] = field(_.end)((c_, f_) => c_.copy(end = f_))
   }
-  final val END_FIELD_NUMBER = 1
-  final val FROM_FIELD_NUMBER = 2
+  final val FROM_FIELD_NUMBER = 1
+  final val END_FIELD_NUMBER = 2
   def of(
-    end: _root_.scala.Int,
-    from: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]
+    from: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity],
+    end: _root_.scala.Boolean
   ): _root_.edu.uci.ics.amber.engine.common.ambermessage.PythonDataHeader = _root_.edu.uci.ics.amber.engine.common.ambermessage.PythonDataHeader(
-    end,
-    from
+    from,
+    end
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.PythonDataHeader])
 }

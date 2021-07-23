@@ -31,8 +31,8 @@ message ControlPayloadV2 {
 }
 
 message PythonDataHeader {
-    int32 end = 1;
-    common.ActorVirtualIdentity from = 2;
+    common.ActorVirtualIdentity from = 1;
+    bool end = 2;
 
 }
 

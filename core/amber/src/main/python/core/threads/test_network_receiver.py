@@ -5,7 +5,7 @@ import pandas
 import pytest
 
 from core.models.internal_queue import ControlElement, InputDataElement, InternalQueue, OutputDataElement
-from core.models.payload import DataFrame
+from core.models.payload import DataFrame, EndOfUpstream
 from core.threads.network_receiver import NetworkReceiver
 from core.threads.network_sender import NetworkSender
 from core.util.proto.proto_utils import set_one_of
@@ -68,6 +68,18 @@ class TestNetworkReceiver:
         input_queue.put(OutputDataElement(to=worker_id, payload=data_payload))
         element: InputDataElement = output_queue.get()
         assert len(element.payload.frame) == len(data_payload.frame)
+        assert element.from_ == worker_id
+
+    @pytest.mark.timeout(1)
+    def test_network_receiver_can_receive_data_messages_end_of_upstream(self, schema_map, data_payload,
+                                                                        output_queue, input_queue,
+                                                                        network_receiver_thread, network_sender_thread):
+        network_receiver_thread.start()
+        network_sender_thread.start()
+        worker_id = ActorVirtualIdentity(name="test")
+        input_queue.put(OutputDataElement(to=worker_id, payload=EndOfUpstream()))
+        element: InputDataElement = output_queue.get()
+        assert element.payload == EndOfUpstream()
         assert element.from_ == worker_id
 
     @pytest.mark.timeout(1)

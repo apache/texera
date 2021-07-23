@@ -95,8 +95,8 @@ class ControlPayloadV2(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class PythonDataHeader(betterproto.Message):
-    end: int = betterproto.int32_field(1)
-    from_: "ActorVirtualIdentity" = betterproto.message_field(2)
+    from_: "ActorVirtualIdentity" = betterproto.message_field(1)
+    end: bool = betterproto.bool_field(2)
 
 
 @dataclass(eq=False, repr=False)

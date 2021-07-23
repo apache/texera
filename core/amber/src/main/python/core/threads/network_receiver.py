@@ -20,7 +20,7 @@ class NetworkReceiver(Runnable, Stoppable):
 
             data_header = PythonDataHeader().parse(command)
             logger.debug(f"getting {data_header}, table {table}")
-            if data_header.end == 10:
+            if not data_header.end:
                 input_schema = table.schema
                 # record input schema
                 for field in input_schema:

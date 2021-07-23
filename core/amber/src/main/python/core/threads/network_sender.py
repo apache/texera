@@ -32,14 +32,12 @@ class NetworkSender(StoppableQueueBlockingRunnable):
             inferred_schema: Schema = Schema.from_pandas(df)
             # create a output schema, use the original input schema if possible
             output_schema = schema([self.schema_map.get(field.name, field) for field in inferred_schema])
-            data_header = PythonDataHeader(from_=to, end=10)
-            logger.debug(f"prepared data_header {data_header}")
-            logger.debug(f"reparsed data_header {PythonDataHeader().parse(bytes(data_header))}")
+            data_header = PythonDataHeader(from_=to, end=False)
             table = Table.from_pandas(df, output_schema)
             self._proxy_client.send_data(bytes(data_header), table)
 
         elif isinstance(data_payload, EndOfUpstream):
-            data_header = PythonDataHeader(from_=to, end=11)
+            data_header = PythonDataHeader(from_=to, end=True)
             self._proxy_client.send_data(bytes(data_header), None)
 
         # TODO: handle else
