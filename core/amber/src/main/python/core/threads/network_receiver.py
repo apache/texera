@@ -36,7 +36,7 @@ class NetworkReceiver(Runnable, Stoppable):
 
         def control_handler(message: bytes):
             python_control_message = PythonControlMessage().parse(message)
-            shared_queue.put(ControlElement(tag=python_control_message.from_, cmd=python_control_message.payload))
+            shared_queue.put(ControlElement(tag=python_control_message.from_, payload=python_control_message.payload))
 
         self._proxy_server.register_control_handler(control_handler)
 

@@ -1,8 +1,9 @@
+from typing import Dict
+
 import pandas
 from loguru import logger
 from pyarrow import Table
 from pyarrow.lib import Schema, schema
-from typing import Dict
 
 from core.models import *
 from core.proxy import ProxyClient
@@ -29,11 +30,11 @@ class NetworkSender(StoppableQueueBlockingRunnable):
     def send_data(self, to: ActorVirtualIdentity, data_payload: DataPayload) -> None:
         if isinstance(data_payload, DataFrame):
             df = pandas.DataFrame.from_records(data_payload.frame)
-            inferred_schema: Schema = Schema.from_pandas(df)
+            inferred_schema: Schema = Schema.from_pandas( df)
             # create a output schema, use the original input schema if possible
             output_schema = schema([self.schema_map.get(field.name, field) for field in inferred_schema])
             data_header = PythonDataHeader(from_=to, end=False)
-            table = Table.from_pandas(df, output_schema)
+            table = Table.from_pandas( df, output_schema)
             self._proxy_client.send_data(bytes(data_header), table)
 
         elif isinstance(data_payload, EndOfUpstream):
@@ -42,6 +43,6 @@ class NetworkSender(StoppableQueueBlockingRunnable):
 
         # TODO: handle else
 
-    def send_control(self, to: ActorVirtualIdentity, cmd: ControlPayloadV2):
-        python_control_message = PythonControlMessage(from_=to, payload=cmd)
+    def send_control(self, to: ActorVirtualIdentity, control_payload: ControlPayloadV2):
+        python_control_message = PythonControlMessage(from_=to, payload=control_payload)
         self._proxy_client.call_action("control", bytes(python_control_message))

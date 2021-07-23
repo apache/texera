@@ -89,7 +89,7 @@ class TestNetworkReceiver:
         network_sender_thread.start()
         worker_id = ActorVirtualIdentity(name="test")
         control_payload = set_one_of(ControlPayloadV2, ControlInvocationV2())
-        input_queue.put(ControlElement(cmd=control_payload, tag=worker_id))
+        input_queue.put(ControlElement(tag=worker_id, payload=control_payload))
         element: ControlElement = output_queue.get()
         assert element.payload == control_payload
         assert element.tag == worker_id
