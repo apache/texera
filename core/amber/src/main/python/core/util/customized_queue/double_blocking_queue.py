@@ -34,10 +34,10 @@ class DoubleBlockingQueue(IQueue):
         :return:
         """
         if self._consumer_id is None:
-            self._consumer_id = threading.get_ident()
+            self._consumer_id = threading.get_native_id()
         else:
-            assert self._consumer_id == threading.get_ident(), f"DoubleBlockingQueue can only have one consumer! " \
-                                                               f"{self._consumer_id} vs {threading.get_ident()}"
+            assert self._consumer_id == threading.get_native_id(), f"DoubleBlockingQueue can only have one consumer! " \
+                                                                   f"{self._consumer_id} vs {threading.get_native_id()}"
 
     @overrides
     def empty(self) -> bool:
