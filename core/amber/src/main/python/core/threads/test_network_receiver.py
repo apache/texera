@@ -33,9 +33,10 @@ class TestNetworkReceiver:
         network_receiver.stop()
 
     @pytest.fixture
-    def network_sender(self, schema_map, input_queue):
+    def network_sender_thread(self, schema_map, input_queue):
         network_sender = NetworkSender(input_queue, host="localhost", port=5555, schema_map=schema_map)
-        yield network_sender
+        network_sender_thread = threading.Thread(target=network_sender.run)
+        yield network_sender_thread
         network_sender.stop()
 
     @pytest.fixture
@@ -60,25 +61,23 @@ class TestNetworkReceiver:
 
     @pytest.mark.timeout(1)
     def test_network_receiver_can_receive_data_messages(self, schema_map, data_payload, output_queue, input_queue,
-                                                        network_receiver_thread, network_sender):
+                                                        network_receiver_thread, network_sender_thread):
         network_receiver_thread.start()
-        network_sender.start()
+        network_sender_thread.start()
         worker_id = ActorVirtualIdentity(name="test")
         input_queue.put(OutputDataElement(to=worker_id, payload=data_payload))
         element: InputDataElement = output_queue.get()
         assert len(element.payload.frame) == len(data_payload.frame)
         assert element.from_ == worker_id
 
-
     @pytest.mark.timeout(1)
     def test_network_receiver_can_receive_control_messages(self, schema_map, data_payload, output_queue, input_queue,
-                                                           network_receiver_thread, network_sender):
+                                                           network_receiver_thread, network_sender_thread):
         network_receiver_thread.start()
-        network_sender.start()
+        network_sender_thread.start()
         worker_id = ActorVirtualIdentity(name="test")
         control_payload = set_one_of(ControlPayloadV2, ControlInvocationV2())
         input_queue.put(ControlElement(cmd=control_payload, from_=worker_id))
         element: ControlElement = output_queue.get()
         assert element.cmd == control_payload
         assert element.from_ == worker_id
-
