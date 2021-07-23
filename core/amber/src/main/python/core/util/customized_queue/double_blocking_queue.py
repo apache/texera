@@ -33,11 +33,17 @@ class DoubleBlockingQueue(IQueue):
         Raises an AssertionError if multiple consumers are detected.
         :return:
         """
+        try:
+            # new unique identifier in python 3.8.
+            get_id = threading.get_native_id
+        except:
+            # fall back to old ident method for python prior to 3.8.
+            get_id = threading.get_ident
         if self._consumer_id is None:
-            self._consumer_id = threading.get_native_id()
+            self._consumer_id = get_id()
         else:
-            assert self._consumer_id == threading.get_native_id(), f"DoubleBlockingQueue can only have one consumer! " \
-                                                                   f"{self._consumer_id} vs {threading.get_native_id()}"
+            assert self._consumer_id == get_id(), f"DoubleBlockingQueue can only have one consumer! " \
+                                                  f"{self._consumer_id} vs {get_id()}"
 
     @overrides
     def empty(self) -> bool:
