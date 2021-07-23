@@ -8,7 +8,7 @@ from core.util.stoppable.stoppable import Stoppable
 
 class StoppableQueueBlockingRunnable(Runnable, Stoppable):
     """
-    An implementation of Stoppable, assuming the Thread.run() would be blocked
+    An implementation of Stoppable, assuming the Runnable.run() would be blocked
     by a blocking Queue.get(block=True, timeout=None).
 
     For example:
@@ -27,11 +27,11 @@ class StoppableQueueBlockingRunnable(Runnable, Stoppable):
     Currently, there is no other workaround for interrupting a waiting stoppable, safely.
 
     This implementation adds a special marker called
-    `StoppableQueueBlockingThread.THREAD_STOP` into the queue, and when the marker is
-    consumed, it should break the Thread.run().
+    `StoppableQueueBlockingRunnable.RUNNABLE_STOP` into the queue, and when the marker is
+    consumed, it should break the Runnable.run().
 
     """
-    THREAD_STOP = IQueue.QueueControl(msg="__THREAD__STOP__MARKER__")
+    RUNNABLE_STOP = IQueue.QueueControl(msg="__RUNNABLE__STOP__MARKER__")
 
     def __init__(self, name: str, queue: IQueue):
         super().__init__()
@@ -45,7 +45,7 @@ class StoppableQueueBlockingRunnable(Runnable, Stoppable):
         try:
             while True:
                 self.receive(self.interruptible_get())
-        except StoppableQueueBlockingRunnable.InterruptThread:
+        except StoppableQueueBlockingRunnable.InterruptRunnable:
             # surpassed the expected interruption
             logger.debug(f"{self.name}-interrupting")
         finally:
@@ -66,15 +66,15 @@ class StoppableQueueBlockingRunnable(Runnable, Stoppable):
     @logger.catch(reraise=True)
     @overrides
     def stop(self):
-        self._internal_queue.put(StoppableQueueBlockingRunnable.THREAD_STOP)
+        self._internal_queue.put(StoppableQueueBlockingRunnable.RUNNABLE_STOP)
 
     def interruptible_get(self):
         next_entry = self._internal_queue.get()
-        if next_entry == StoppableQueueBlockingRunnable.THREAD_STOP:
-            raise StoppableQueueBlockingRunnable.InterruptThread
+        if next_entry == StoppableQueueBlockingRunnable.RUNNABLE_STOP:
+            raise StoppableQueueBlockingRunnable.InterruptRunnable
         return next_entry
 
-    class InterruptThread(BaseException):
+    class InterruptRunnable(Exception):
         """
-        Used to interrupt a stoppable.
+        Used to interrupt a runnable.
         """
