@@ -245,39 +245,36 @@ class WorkflowWebsocketResource {
           previousResults(e._2.operatorID) = e._2
         }
       })
-//      previousResults.foreach(e => {
-      //        if (results.contains(e._1)) {
-      //          previousResults(e._1) = results(e._1)
-      //        }
-      //      })
       previousResults.foreach(e => {
         if (cachedOperators.contains(e._2.operatorID) && !results.contains(e._2.operatorID)) {
           results += ((e._2.operatorID, e._2))
         }
-//        if (previousWorkflowResultService.workflowCompiler.workflow.operators.contains(e._1)) {
-//          val upID =
-//            previousWorkflowResultService.workflowCompiler.workflow
-//              .getUpstream(e._1)
-//              .head
-//              .operatorID
-//          if (cachedOperators.contains(upID) && !results.contains(upID)) {
-//            results += ((upID, e._2))
-//          }
-//        } else {
-//          results += (e)
-//        }
       })
       sessionResults(session.getId) = workflowResultService
     }
 
-    // TODO: fix cacheValid 
+    val cachedIDs = mutable.HashSet[String]()
+    val cachedIDMap = mutable.HashMap[String, String]()
+    sessionResults(session.getId).operatorResults.foreach(e =>
+      cachedIDMap += ((e._2.operatorID, e._1))
+    )
+
     val availableResultEvent = WorkflowAvailableResultEvent(
-      sessionResults(session.getId).operatorResults
-        .map(e =>
-          (e._2.operatorID, OperatorAvailableResult(operatorOutputCache.contains(e._2.operatorID), e._2.webOutputMode))
-        )
+      request.operators
+        .filter(op => cachedIDMap.contains(op.operatorID))
+        .map(op => op.operatorID)
+        .map(id => {
+          (
+            id,
+            OperatorAvailableResult(
+              cachedIDs.contains(id),
+              sessionResults(session.getId).operatorResults(cachedIDMap(id)).webOutputMode
+            )
+          )
+        })
         .toMap
     )
+
     send(session, availableResultEvent)
 
     val eventListener = ControllerEventListener(
