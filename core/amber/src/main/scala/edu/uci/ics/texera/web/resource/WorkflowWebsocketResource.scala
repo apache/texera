@@ -269,6 +269,14 @@ class WorkflowWebsocketResource {
       })
       sessionResults(session.getId) = workflowResultService
     }
+    val availableResultEvent = WorkflowAvailableResultEvent(
+      sessionResults(session.getId).operatorResults
+        .map(e =>
+          (e._2.operatorID, OperatorAvailableResult(operatorOutputCache.contains(e._1), e._2.webOutputMode))
+        )
+        .toMap
+    )
+    send(session, availableResultEvent)
 
     val eventListener = ControllerEventListener(
       workflowCompletedListener = completed => {

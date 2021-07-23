@@ -1,5 +1,5 @@
 import {
-  LogicalPlan, WorkflowStatusUpdate, LogicalOperator, BreakpointInfo, WorkflowResultUpdateEvent
+  LogicalPlan, WorkflowStatusUpdate, LogicalOperator, BreakpointInfo, WorkflowResultUpdateEvent, WebOutputMode
 } from './execute-workflow.interface';
 import { BreakpointTriggerInfo, BreakpointFaultedTuple } from './workflow-common.interface';
 
@@ -72,6 +72,17 @@ export type ResultDownloadResponse = Readonly<{
   message: string
 }>;
 
+export type OperatorAvailableResult = Readonly<{
+  operatorID: string,
+  cacheValid: boolean,
+  outputMode: WebOutputMode,
+}>;
+
+export type WorkflowAvailableResultEvent = Readonly<{
+  availableOperators: ReadonlyArray<OperatorAvailableResult>,
+}>;
+
+
 export type TexeraWebsocketRequestTypeMap = {
   'HelloWorldRequest': WebSocketHelloWorld,
   'HeartBeatRequest': {},
@@ -102,7 +113,8 @@ export type TexeraWebsocketEventTypeMap = {
   'OperatorCurrentTuplesUpdateEvent': OperatorCurrentTuples,
   'PaginatedResultEvent': PaginatedResultEvent,
   'WorkflowExecutionErrorEvent': WorkflowExecutionError,
-  'ResultDownloadResponse': ResultDownloadResponse
+  'ResultDownloadResponse': ResultDownloadResponse,
+  'WorkflowAvailableResultEvent': WorkflowAvailableResultEvent,
 };
 
 // helper type definitions to generate the request and event types

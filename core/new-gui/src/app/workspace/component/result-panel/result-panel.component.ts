@@ -179,7 +179,13 @@ export class ResultPanelComponent {
             return;
           }
           const opUpdate = update[this.resultPanelOperatorID];
+
           if (! opUpdate || ! isWebPaginationUpdate(opUpdate)) {
+            // clear result panel if currently display results
+            if (this.totalNumTuples > 0) {
+              this.clearResultPanel();
+            }
+
             return;
           }
           this.totalNumTuples = opUpdate.totalNumTuples;

@@ -3,7 +3,7 @@ import {
   WorkflowResultUpdate, isWebPaginationUpdate, isWebDataUpdate, WebPaginationUpdate, WebDataUpdate, WebResultUpdate
 } from '../../types/execute-workflow.interface';
 import { WorkflowWebsocketService } from '../workflow-websocket/workflow-websocket.service';
-import { PaginatedResultEvent } from '../../types/workflow-websocket.interface';
+import { PaginatedResultEvent, WorkflowAvailableResultEvent } from '../../types/workflow-websocket.interface';
 import { Subject, Observable } from 'rxjs';
 import * as uuid from 'uuid';
 import { ChartType } from '../../types/visualization.interface';
@@ -21,13 +21,14 @@ export class WorkflowResultService {
   private paginatedResultServices = new Map<string, OperatorPaginationResultService>();
   private operatorResultServices = new Map<string, OperatorResultService>();
 
-  private resultUpdateStream = new Subject<Record<string, WebResultUpdate>>();
+  private resultUpdateStream = new Subject<Record<string, WebResultUpdate | undefined>>();
 
   constructor(private wsService: WorkflowWebsocketService) {
     this.wsService.subscribeToEvent('WebResultUpdateEvent').subscribe(event => this.handleResultUpdate(event.updates));
+    this.wsService.subscribeToEvent('WorkflowAvailableResultEvent').subscribe(event => this.handleCleanResultCache(event));
   }
 
-  public getResultUpdateStream(): Observable<Record<string, WebResultUpdate>> {
+  public getResultUpdateStream(): Observable<Record<string, WebResultUpdate | undefined>> {
     return this.resultUpdateStream;
   }
 
@@ -37,6 +38,49 @@ export class WorkflowResultService {
 
   public getResultService(operatorID: string): OperatorResultService | undefined {
     return this.operatorResultServices.get(operatorID);
+  }
+
+  private handleCleanResultCache(event: WorkflowAvailableResultEvent): void {
+    const removedOrInvalidatedOperators = new Set<string>();
+    // remove operators that no longer have results
+    this.operatorResultServices.forEach((_, op) => {
+      if (! (op in event.availableOperators)) {
+        this.operatorResultServices.delete(op);
+        removedOrInvalidatedOperators.add(op);
+      }
+    });
+    this.paginatedResultServices.forEach((_, op) => {
+      if (! (op in event.availableOperators)) {
+        this.paginatedResultServices.delete(op);
+        removedOrInvalidatedOperators.add(op);
+      }
+    });
+    // for each operator that has results:
+    Object.entries(event.availableOperators).forEach(e => {
+      const op = e[0];
+      const cacheValid = e[1].cacheValid;
+      const outputMode = e[1].outputMode;
+
+      // make sure to init or reuse result service for each operator
+      const resultService = (() => {
+        if (outputMode.type === 'PaginationMode') {
+          return this.getOrInitPaginatedResultService(op);
+        } else {
+          return this.getOrInitResultService(op);
+        }
+      })();
+
+      // invalidate frontend cache if needed
+      if (! cacheValid) {
+        resultService.reset();
+        removedOrInvalidatedOperators.add(op);
+      }
+    });
+    console.log(removedOrInvalidatedOperators);
+
+    const invalidatedOperatorsUpdate: Record<string, undefined> = {};
+    removedOrInvalidatedOperators.forEach(op => invalidatedOperatorsUpdate[op] = undefined);
+    this.resultUpdateStream.next(invalidatedOperatorsUpdate);
   }
 
   private handleResultUpdate(event: WorkflowResultUpdate): void {
@@ -90,6 +134,11 @@ export class OperatorResultService {
     return this.chartType;
   }
 
+  public reset(): void {
+    this.chartType = undefined;
+    this.resultSnapshot = undefined;
+  }
+
   public handleResultUpdate(update: WebDataUpdate): void {
     this.chartType = update.chartType;
     if (update.mode.type === 'SetSnapshotMode') {
@@ -141,6 +190,13 @@ class OperatorPaginationResultService {
       this.pendingRequests.set(requestID, pendingRequestSubject);
       return pendingRequestSubject;
     }
+  }
+
+  public reset(): void {
+    this.pendingRequests.clear();
+    this.resultCache.clear();
+    this.currentPageIndex = 1;
+    this.currentTotalNumTuples = 0;
   }
 
   public handleResultUpdate(update: WebPaginationUpdate): void {
