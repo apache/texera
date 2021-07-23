@@ -185,4 +185,38 @@ class TestDoubleBlockingQueue:
         with pytest.raises(AssertionError):
             reraise()
 
-    # TODO: add the common use case test case
+    @pytest.mark.timeout(0.5)
+    def test_common_single_producer_single_consumer(self, queue, reraise):
+        def producer():
+            with reraise:
+                for i in range(11):
+                    if i % 3 == 0:
+                        queue.put("s")
+                    else:
+                        queue.put(i)
+
+        producer_thread = Thread(target=producer)
+        producer_thread.start()
+        producer_thread.join()
+
+        total: int = 0
+        while True:
+            queue.enable_sub()
+            queue.enable_sub()
+            t = queue.get()
+            queue.main_empty()
+
+            if isinstance(t, int):
+                total += t
+            else:
+                assert t == "s"
+            queue.empty()
+            queue.disable_sub()
+            queue.disable_sub()
+            queue.empty()
+            queue.disable_sub()
+            if t == 10:
+                break
+        assert total == sum(filter(lambda x: x % 3 != 0, range(11)))
+
+        reraise()
