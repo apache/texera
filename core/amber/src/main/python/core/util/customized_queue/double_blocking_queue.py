@@ -28,22 +28,12 @@ class DoubleBlockingQueue(IQueue):
         self._enforce_single_consumer()
         self._sub_enabled = False
 
-    def _enforce_single_consumer(self):
+    def enable_sub(self) -> None:
         """
-        Raises an AssertionError if multiple consumers are detected.
-        :return:
+        Invoked by the consumer only, to enable sub queue to emit elements.
         """
-        try:
-            # new unique identifier in python 3.8.
-            get_id = threading.get_native_id
-        except:
-            # fall back to old ident method for python prior to 3.8.
-            get_id = threading.get_ident
-        if self._consumer_id is None:
-            self._consumer_id = get_id()
-        else:
-            assert self._consumer_id == get_id(), f"DoubleBlockingQueue can only have one consumer! " \
-                                                  f"{self._consumer_id} vs {get_id()}"
+        self._enforce_single_consumer()
+        self._sub_enabled = True
 
     @overrides
     def empty(self) -> bool:
@@ -56,13 +46,6 @@ class DoubleBlockingQueue(IQueue):
             return self.main_empty() and self.sub_empty()
         else:
             return self.main_empty()
-
-    def enable_sub(self) -> None:
-        """
-        Invoked by the consumer only, to enable sub queue to emit elements.
-        """
-        self._enforce_single_consumer()
-        self._sub_enabled = True
 
     @overrides
     def get(self) -> T:
@@ -123,3 +106,20 @@ class DoubleBlockingQueue(IQueue):
             self._sub_queue.put(ele)
         else:
             self._main_queue.put(ele)
+
+    def _enforce_single_consumer(self):
+        """
+        Raises an AssertionError if multiple consumers are detected.
+        :return:
+        """
+        try:
+            # new unique identifier in python 3.8.
+            get_id = threading.get_native_id
+        except:
+            # fall back to old ident method for python prior to 3.8.
+            get_id = threading.get_ident
+        if self._consumer_id is None:
+            self._consumer_id = get_id()
+        else:
+            assert self._consumer_id == get_id(), f"DoubleBlockingQueue can only have one consumer! " \
+                                                  f"{self._consumer_id} vs {get_id()}"
