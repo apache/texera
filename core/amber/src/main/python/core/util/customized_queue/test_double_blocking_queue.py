@@ -144,21 +144,21 @@ class TestDoubleBlockingQueue:
                     queue.put(k)
 
         threads = []
-        target = []
+        target = set()
         for i in range(1000):
             if random.random() > 0.5:
                 i = chr(i)
-                target.append(i)
+                target.add(i)
             producer_thread = Thread(target=producer, args=(i,))
             producer_thread.start()
             threads.append(producer_thread)
-        l = []
+        l = set()
 
         def consumer():
             with reraise:
                 queue.disable_sub()
                 while len(l) < len(target):
-                    l.append(queue.get())
+                    l.add(queue.get())
 
         consumer_thread = Thread(target=consumer)
         consumer_thread.start()
