@@ -171,20 +171,21 @@ class TestDoubleBlockingQueue:
         reraise()
 
     def test_multiple_consumers_should_fail(self, queue, reraise):
-        with pytest.raises(AssertionError):
-            queue.put(1)
-            queue.get()
-            queue.put("s")
 
-            def consumer():
-                with reraise:
+        queue.put(1)
+        queue.get()
+        queue.put("s")
+
+        def consumer():
+            with reraise:
+                with pytest.raises(AssertionError):
                     queue.disable_sub()
                     queue.get()
 
-            consumer_thread = Thread(target=consumer)
-            consumer_thread.start()
+        consumer_thread = Thread(target=consumer)
+        consumer_thread.start()
 
-            reraise()
+        reraise()
 
     @pytest.mark.timeout(0.5)
     def test_common_single_producer_single_consumer(self, queue, reraise):
