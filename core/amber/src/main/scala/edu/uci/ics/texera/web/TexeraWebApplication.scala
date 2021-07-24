@@ -5,10 +5,10 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.texera.Utils
-import edu.uci.ics.texera.web.resource.{UserDictionaryResource, _}
 import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource
 import edu.uci.ics.texera.web.resource.dashboard.{WorkflowAccessResource, WorkflowResource}
+import edu.uci.ics.texera.web.resource.{UserDictionaryResource, _}
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
 import org.eclipse.jetty.server.session.SessionHandler
@@ -27,10 +27,15 @@ object TexeraWebApplication {
     actorSystem = AmberUtils.startActorMaster(true)
 
     // start web server
-    val server = "server"
-    val serverConfig =
-      Utils.amberHomePath.resolve("../conf").resolve("web-config.yml").toString
-    new TexeraWebApplication().run(server, serverConfig)
+    new TexeraWebApplication().run(
+      "server",
+      Utils.amberHomePath
+        .resolve("src")
+        .resolve("main")
+        .resolve("resources")
+        .resolve("web-config.yml")
+        .toString
+    )
   }
 }
 

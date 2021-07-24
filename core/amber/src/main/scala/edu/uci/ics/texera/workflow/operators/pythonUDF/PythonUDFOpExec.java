@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.pythonUDF;
 
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import edu.uci.ics.amber.engine.common.InputExhausted;
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity;
 import edu.uci.ics.texera.Utils;
@@ -409,7 +410,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
 
         // TODO: find a better way to do default conf values.
 
-        Config config = Utils.config();
+        Config config = ConfigFactory.load("python_udf");
         String pythonPath = config.getString("python.path").trim();
 
         String logStreamHandlerLevel = config.getString("python.log.streamHandler.level").trim();

@@ -34,7 +34,7 @@ object AmberUtils {
         akka.remote.artery.canonical.hostname = $localIpAddress
         akka.cluster.seed-nodes = [ "akka://Amber@$localIpAddress:2552" ]
         """)
-      .withFallback(config)
+      .withFallback(akkaConfig)
 
     val system = ActorSystem("Amber", masterConfig)
     system.actorOf(Props[ClusterListener], "cluster-info")
@@ -54,7 +54,7 @@ object AmberUtils {
         akka.remote.artery.canonical.port = 0
         akka.cluster.seed-nodes = [ "akka://Amber@$addr:2552" ]
         """)
-      .withFallback(config)
+      .withFallback(akkaConfig)
     val system = ActorSystem("Amber", workerConfig)
     system.actorOf(Props[ClusterListener], "cluster-info")
     val deadLetterMonitorActor =
@@ -64,5 +64,7 @@ object AmberUtils {
     system
   }
 
-  def config: Config = ConfigFactory.load()
+  def akkaConfig: Config = ConfigFactory.load("cluster")
+
+  def amberConfig: Config = ConfigFactory.load()
 }
