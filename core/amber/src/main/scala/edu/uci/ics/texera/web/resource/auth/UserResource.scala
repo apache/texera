@@ -3,17 +3,13 @@ package edu.uci.ics.texera.web.resource.auth
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.jackson2.JacksonFactory
-import com.typesafe.config.Config
+import com.typesafe.config.{Config, ConfigFactory}
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
-import edu.uci.ics.texera.web.model.request.auth.{
-  GoogleUserLoginRequest,
-  UserLoginRequest,
-  UserRegistrationRequest
-}
+import edu.uci.ics.texera.web.model.request.auth.{GoogleUserLoginRequest, UserLoginRequest, UserRegistrationRequest}
 import edu.uci.ics.texera.web.resource.auth.UserResource.{getUser, setUserSession, validateUsername}
 import io.dropwizard.jersey.sessions.Session
 import org.apache.commons.lang3.tuple.Pair
@@ -61,9 +57,9 @@ object UserResource {
 class UserResource {
 
   final private val userDao = new UserDao(SqlServer.createDSLContext.configuration)
-  val config: Config = Utils.config
-  private val GOOGLE_CLIENT_ID: String = config.getString("google.clientId")
-  private val GOOGLE_CLIENT_SECRET: String = config.getString("google.clientSecret")
+  val googleAPIConfig: Config = ConfigFactory.load("google_api")
+  private val GOOGLE_CLIENT_ID: String = googleAPIConfig.getString("google.clientId")
+  private val GOOGLE_CLIENT_SECRET: String = googleAPIConfig.getString("google.clientSecret")
   private val TRANSPORT = new NetHttpTransport
   private val JSON_FACTORY = new JacksonFactory
 

@@ -3,7 +3,6 @@ package edu.uci.ics.texera
 import com.fasterxml.jackson.annotation.JsonInclude.Include
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import com.typesafe.config.{Config, ConfigFactory}
 
 import java.nio.file.{Files, Path, Paths}
 import java.text.SimpleDateFormat
@@ -73,8 +72,6 @@ object Utils {
         } else throw e
     }
   }
-
-  def config: Config = ConfigFactory.load()
 
   private def isAmberHomePath(path: Path): Boolean = {
     path.toRealPath().endsWith(AMBER_HOME_FOLDER_NAME)
