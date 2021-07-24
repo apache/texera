@@ -35,17 +35,18 @@ class TestNetworkSender:
         network_sender_thread = threading.Thread(target=network_sender.run)
         yield network_sender_thread
 
-    @pytest.mark.timeout(0.5)
+    @pytest.mark.timeout(1)
     def test_network_sender_can_stop(self, network_receiver, network_receiver_thread, network_sender,
                                      network_sender_thread):
         network_receiver_thread.start()
         network_sender_thread.start()
         assert network_receiver_thread.is_alive()
         assert network_sender_thread.is_alive()
-        sleep(0.1)
+        sleep(0.2)
         network_receiver.stop()
         network_sender.stop()
-        sleep(0.1)
+        sleep(0.2)
         assert not network_receiver_thread.is_alive()
         assert not network_sender_thread.is_alive()
         network_receiver_thread.join()
+        network_sender_thread.join()
