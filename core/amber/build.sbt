@@ -20,6 +20,12 @@ concurrentRestrictions in Global += Tags.limit(Tags.Test, 1)
 // https://github.com/coursier/coursier/issues/2016
 ThisBuild / useCoursier := false
 
+// add python as an additional source
+Compile / unmanagedSourceDirectories += baseDirectory.value / "src" / "main" / "python"
+
+// Excluding some proto files:
+PB.generate / excludeFilter := "scalapb.proto"
+
 /////////////////////////////////////////////////////////////////////////////
 // Akka related
 val akkaVersion = "2.6.12"
@@ -101,6 +107,9 @@ libraryDependencies ++= googleServiceDependencies
 /////////////////////////////////////////////////////////////////////////////
 // protobuf related
 // run the following with sbt to have protobuf codegen
+
+PB.protocVersion := "3.17.3"
+
 Compile / PB.targets := Seq(
   scalapb.gen(
     singleLineToProtoString = true

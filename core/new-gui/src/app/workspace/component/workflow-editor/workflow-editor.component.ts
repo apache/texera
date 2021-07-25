@@ -108,11 +108,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     private workflowUtilService: WorkflowUtilService,
     private executeWorkflowService: ExecuteWorkflowService
   ) {
-
-    // bind validation functions to the same scope as component
-    // https://stackoverflow.com/questions/38245450/angular2-components-this-is-undefined-when-executing-callback-function
-    this.validateOperatorConnection = this.validateOperatorConnection.bind(this);
-    WorkflowEditorComponent.validateOperatorMagnet = WorkflowEditorComponent.validateOperatorMagnet.bind(this);
   }
 
   public getJointPaper(): joint.dia.Paper {
@@ -133,6 +128,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleWindowResize();
     this.handleViewDeleteOperator();
     this.handleCellHighlight();
+    this.handleDisableOperator();
     this.handleViewDeleteLink();
     this.handleViewCollapseGroup();
     this.handleViewExpandGroup();
@@ -476,6 +472,15 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleElementHightlightEvent();
   }
 
+  private handleDisableOperator(): void {
+    this.workflowActionService.getTexeraGraph().getDisabledOperatorsChangedStream().subscribe(event => {
+      event.newDisabled.concat(event.newEnabled).forEach(opID => {
+        const op = this.workflowActionService.getTexeraGraph().getOperator(opID);
+        this.jointUIService.changeOperatorDisableStatus(this.getJointPaper(), op);
+      });
+    });
+  }
+
   /**
    * Handles user mouse down events to trigger logically highlight and unhighlight an operator or group.
    * If user clicks the operator/group while pressing the shift key, multiselect mode is turned on.
@@ -754,9 +759,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
       // disable jointjs default action that can make a link not connect to an operator
       linkPinning: false,
       // provide a validation to determine if two ports could be connected (only output connect to input is allowed)
-      validateConnection: this.validateOperatorConnection,
+      validateConnection: (...args) => this.validateJointOperatorConnection(...args),
       // provide a validation to determine if the port where link starts from is an out port
-      validateMagnet: WorkflowEditorComponent.validateOperatorMagnet,
+      validateMagnet: (...args) => WorkflowEditorComponent.validateOperatorMagnet(...args),
       // marks all the available magnets or elements when a link is dragged
       markAvailable: true,
       // disable jointjs default action of adding vertexes to the link
@@ -781,15 +786,12 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * If the connection is invalid, users are not able to connect the links on the UI.
    *
    * https://resources.jointjs.com/docs/jointjs/v2.0/joint.html#dia.Paper.prototype.options.validateConnection
-   *
-   * @param sourceView
-   * @param sourceMagnet
-   * @param targetView
-   * @param targetMagnet
    */
-  private validateOperatorConnection(sourceView: joint.dia.CellView, sourceMagnet: SVGElement | undefined,
-                                     targetView: joint.dia.CellView, targetMagnet: SVGElement | undefined): boolean {
-
+  private validateJointOperatorConnection(
+    sourceView: joint.dia.CellView, sourceMagnet: SVGElement | undefined,
+    targetView: joint.dia.CellView, targetMagnet: SVGElement | undefined,
+    end: joint.dia.LinkEnd, linkView: joint.dia.LinkView
+  ): boolean {
     // user cannot draw connection starting from the input port (left side)
     if (sourceMagnet && sourceMagnet.getAttribute('port-group') === 'in') { return false; }
 
@@ -801,6 +803,13 @@ export class WorkflowEditorComponent implements AfterViewInit {
     const targetCellID = targetView.model.id.toString();
     const targetPortID = targetMagnet?.getAttribute('port');
 
+    return this.validateOperatorConnection(sourceCellID, sourcePortID, targetCellID, targetPortID);
+  }
+
+  private validateOperatorConnection(
+    sourceCellID: string, sourcePortID: string | null | undefined,
+    targetCellID: string, targetPortID: string | null | undefined
+  ): boolean {
     // cannot connect to itself
     if (sourceCellID === targetCellID) {
       return false;
@@ -817,12 +826,17 @@ export class WorkflowEditorComponent implements AfterViewInit {
       return false;
     }
 
-    // find all the links that are connected to the target port, except the link we are checking now
+    // find all the links that are connected to the target operator and port
     const connectedLinksToTargetPort = this.workflowActionService.getTexeraGraph().getAllLinks()
-      // connect to the same target operator and port
-      .filter(link => link.target.operatorID === targetCellID && link.target.portID === targetPortID)
-      // but not the link we are checking right now, jointJS sometimes invoke the function on already connected link
-      .filter(link => !(link.source.operatorID === sourceCellID && link.source.portID === sourcePortID));
+      .filter(link => link.target.operatorID === targetCellID && link.target.portID === targetPortID);
+
+    // check if this link already exists, duplicate links are not allowed
+    const isDuplicateLink = connectedLinksToTargetPort
+      .filter(link => (link.source.operatorID === sourceCellID && link.source.portID === sourcePortID))
+      .length > 0;
+    if (isDuplicateLink) {
+      return false;
+    }
 
     let allowMultiInput = false;
     if (this.workflowActionService.getTexeraGraph().hasOperator(targetCellID)) {
@@ -1055,7 +1069,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
     const inputPorts = operator.inputPorts;
     const outputPorts = operator.outputPorts;
     const showAdvanced = operator.showAdvanced;
-    return {operatorID, operatorType, operatorProperties, inputPorts, outputPorts, showAdvanced};
+    const isDisabled = operator.isDisabled;
+    return {operatorID, operatorType, operatorProperties, inputPorts, outputPorts, showAdvanced, isDisabled};
   }
 
   private copyGroup(group: Group) {
@@ -1361,11 +1376,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * This function is provided to JointJS to disallow links starting from an in port.
    *
    * https://resources.jointjs.com/docs/jointjs/v2.0/joint.html#dia.Paper.prototype.options.validateMagnet
-   *
-   * @param cellView
-   * @param magnet
    */
-  private static validateOperatorMagnet(cellView: joint.dia.CellView, magnet: SVGElement): boolean {
+  private static validateOperatorMagnet(cellView: joint.dia.CellView, magnet: SVGElement, event: joint.dia.Event): boolean {
     return magnet && magnet.getAttribute('port-group') === 'out';
 
   }

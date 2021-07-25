@@ -18,15 +18,15 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputPort
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowControlMessage}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
-import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.Ready
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
+import edu.uci.ics.amber.engine.common.worker.WorkerState.Ready
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.error.ErrorUtils.safely
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
-import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext}
 
 object ControllerConfig {
   def default: ControllerConfig =
@@ -111,7 +111,7 @@ class Controller(
   override def receive: Receive = initializing
 
   def initializing: Receive = {
-    case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload: ReturnPayload)) =>
+    case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload: ReturnInvocation)) =>
       //process reply messages
       controlInputPort.handleMessage(this.sender(), id, from, seqNum, payload)
     case NetworkMessage(
@@ -155,7 +155,7 @@ class Controller(
           assert(from.isInstanceOf[ActorVirtualIdentity])
           asyncRPCServer.logControlInvocation(invocation, from)
           asyncRPCServer.receive(invocation, from.asInstanceOf[ActorVirtualIdentity])
-        case ret: ReturnPayload =>
+        case ret: ReturnInvocation =>
           asyncRPCClient.logControlReply(ret, from)
           asyncRPCClient.fulfillPromise(ret)
         case other =>

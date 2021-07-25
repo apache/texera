@@ -11,7 +11,7 @@ package edu.uci.ics.amber.engine.common.virtualidentity
   */
 @SerialVersionUID(0L)
 final case class WorkflowIdentity(
-    id: _root_.scala.Predef.String = ""
+    id: _root_.scala.Predef.String
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[WorkflowIdentity] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
