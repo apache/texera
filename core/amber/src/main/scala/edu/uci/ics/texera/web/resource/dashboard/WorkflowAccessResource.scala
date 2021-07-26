@@ -62,26 +62,6 @@ object WorkflowAccessResource {
   }
 
   /**
-    * Identifies whether the given user has no access over the given workflow
-    * @param wid     workflow id
-    * @param uid     user id, works with workflow id as primary keys in database
-    * @return boolean value indicating yes/no
-    */
-  def hasNoWorkflowAccess(wid: UInteger, uid: UInteger): Boolean = {
-    checkAccessLevel(wid, uid).eq(WorkflowAccess.NONE)
-  }
-
-  /**
-    * Identifies whether the given user has no access record over the given workflow
-    * @param wid     workflow id
-    * @param uid     user id, works with workflow id as primary keys in database
-    * @return boolean value indicating yes/no
-    */
-  def hasNoWorkflowAccessRecord(wid: UInteger, uid: UInteger): Boolean = {
-    checkAccessLevel(wid, uid).eq(WorkflowAccess.NO_RECORD)
-  }
-
-  /**
     * Returns an Access Object based on given wid and uid
     * Searches in database for the given uid-wid pair, and returns Access Object based on search result
     *
@@ -103,6 +83,26 @@ object WorkflowAccessResource {
     } else {
       WorkflowAccess.NONE
     }
+  }
+
+  /**
+    * Identifies whether the given user has no access over the given workflow
+    * @param wid     workflow id
+    * @param uid     user id, works with workflow id as primary keys in database
+    * @return boolean value indicating yes/no
+    */
+  def hasNoWorkflowAccess(wid: UInteger, uid: UInteger): Boolean = {
+    checkAccessLevel(wid, uid).eq(WorkflowAccess.NONE)
+  }
+
+  /**
+    * Identifies whether the given user has no access record over the given workflow
+    * @param wid     workflow id
+    * @param uid     user id, works with workflow id as primary keys in database
+    * @return boolean value indicating yes/no
+    */
+  def hasNoWorkflowAccessRecord(wid: UInteger, uid: UInteger): Boolean = {
+    checkAccessLevel(wid, uid).eq(WorkflowAccess.NO_RECORD)
   }
 
   case class UserWorkflowAccess(userName: String, accessLevel: String) {}

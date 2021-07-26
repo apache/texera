@@ -17,6 +17,8 @@ import java.util
 import javax.servlet.http.HttpSession
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
+import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 /**
   * Model `File` corresponds to `core/new-gui/src/app/common/type/user-file.ts` (frontend).
@@ -87,9 +89,18 @@ class UserFileResource {
   }
 
   private def getUserFileRecord(userID: UInteger): util.List[File] = {
-
     // TODO: verify user in session?
-    fileDao.fetchByUid(userID)
+    val accesses = userFileAccessDao.fetchByUid(userID)
+    var files: mutable.ArrayBuffer[File] = mutable.ArrayBuffer()
+    accesses.asScala.toList.map((access) => {
+      val fid = access.getFid
+      files += fileDao.fetchOneByFid(fid)
+    })
+    val ownFiles = fileDao.fetchByUid(userID)
+    ownFiles.asScala.toList.map(ownFile => {
+      files += ownFile
+    })
+    files.toList.asJava
   }
 
   @DELETE
