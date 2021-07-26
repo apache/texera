@@ -152,8 +152,8 @@ class DataProcessor( // dependencies:
           // end of processing, break DP loop
           isCompleted = true
           batchProducer.emitEndOfUpstream()
-        case ControlElement(cmd, from) =>
-          processControlCommand(cmd, from)
+        case ControlElement(payload, from) =>
+          processControlCommand(payload, from)
       }
     }
     // Send Completed signal to worker actor.
@@ -223,11 +223,14 @@ class DataProcessor( // dependencies:
 
   private[this] def takeOneControlCommandAndProcess(): Unit = {
     val control = getElement.asInstanceOf[ControlElement]
-    processControlCommand(control.cmd, control.from)
+    processControlCommand(control.payload, control.from)
   }
 
-  private[this] def processControlCommand(cmd: ControlPayload, from: ActorVirtualIdentity): Unit = {
-    cmd match {
+  private[this] def processControlCommand(
+      payload: ControlPayload,
+      from: ActorVirtualIdentity
+  ): Unit = {
+    payload match {
       case invocation: ControlInvocation =>
         asyncRPCServer.logControlInvocation(invocation, from)
         asyncRPCServer.receive(invocation, from)

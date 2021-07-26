@@ -22,7 +22,7 @@ object WorkerInternalQueue {
 
   case class SenderChangeMarker(newUpstreamLink: LinkIdentity) extends InternalQueueElement
 
-  case class ControlElement(cmd: ControlPayload, from: ActorVirtualIdentity)
+  case class ControlElement(payload: ControlPayload, from: ActorVirtualIdentity)
       extends InternalQueueElement
 
   case object EndMarker extends InternalQueueElement
@@ -49,8 +49,8 @@ trait WorkerInternalQueue {
     dataQueue.add(elem)
   }
 
-  def enqueueCommand(cmd: ControlPayload, from: ActorVirtualIdentity): Unit = {
-    controlQueue.add(ControlElement(cmd, from))
+  def enqueueCommand(payload: ControlPayload, from: ActorVirtualIdentity): Unit = {
+    controlQueue.add(ControlElement(payload, from))
   }
 
   def getElement: InternalQueueElement = lbmq.take()

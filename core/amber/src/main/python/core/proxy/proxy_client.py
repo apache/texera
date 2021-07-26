@@ -20,7 +20,8 @@ class ProxyClient(FlightClient):
         """
         Call a specific remote action specified by the name, pass along a payload.
         :param action_name: the registered action name to be invoked.
-        :param payload: the action payload in bytes, user should take the responsibility to serialize it.
+        :param payload: the action payload in bytes, user should take the responsibility to
+            deserialize it.
         :param options: FlightCallOption to config the call.
         :return: exactly one result in bytes.
         """
@@ -34,7 +35,8 @@ class ProxyClient(FlightClient):
     def send_data(self, command: bytes, table: Optional[Table]) -> None:
         """
         Send a data batch to the server.
-        :param command: a command to in descriptor to pass along.
+        :param command: a command to in descriptor to pass along, user should take the responsibility to
+            deserialize it.
         :param table: a PyArrow.Table of column-stored records.
         """
         descriptor = FlightDescriptor.for_command(command)

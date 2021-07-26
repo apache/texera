@@ -144,21 +144,21 @@ class TestDoubleBlockingQueue:
                     queue.put(k)
 
         threads = []
-        target = []
+        target = set()
         for i in range(1000):
             if random.random() > 0.5:
                 i = chr(i)
-                target.append(i)
+                target.add(i)
             producer_thread = Thread(target=producer, args=(i,))
             producer_thread.start()
             threads.append(producer_thread)
-        l = []
+        l = set()
 
         def consumer():
             with reraise:
                 queue.disable_sub()
                 while len(l) < len(target):
-                    l.append(queue.get())
+                    l.add(queue.get())
 
         consumer_thread = Thread(target=consumer)
         consumer_thread.start()
@@ -171,19 +171,21 @@ class TestDoubleBlockingQueue:
         reraise()
 
     def test_multiple_consumers_should_fail(self, queue, reraise):
+
         queue.put(1)
         queue.get()
         queue.put("s")
 
         def consumer():
             with reraise:
-                queue.disable_sub()
-                queue.get()
+                with pytest.raises(AssertionError):
+                    queue.disable_sub()
+                    queue.get()
 
         consumer_thread = Thread(target=consumer)
         consumer_thread.start()
-        with pytest.raises(AssertionError):
-            reraise()
+
+        reraise()
 
     @pytest.mark.timeout(0.5)
     def test_common_single_producer_single_consumer(self, queue, reraise):

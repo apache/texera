@@ -1,4 +1,3 @@
-import argparse
 import threading
 import time
 from functools import wraps
@@ -221,21 +220,3 @@ class ProxyServer(FlightServerBase):
         logger.debug("Server is shutting down...")
         time.sleep(1)
         self.shutdown()
-
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--host", type=str, default="localhost",
-                        help="Address or hostname to listen on")
-    parser.add_argument("--port", type=int, default=5005,
-                        help="Port number to listen on")
-
-    args = parser.parse_args()
-    scheme = "grpc+tcp"
-
-    server = ProxyServer(scheme, args.host, args.port)
-    server.serve()
-
-
-if __name__ == '__main__':
-    main()
