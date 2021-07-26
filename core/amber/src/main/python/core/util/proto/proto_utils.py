@@ -6,8 +6,8 @@ from betterproto import Message, which_one_of
 camel_case_pattern = re.compile(r'(?<!^)(?=[A-Z])')
 
 
-def get_one_of(base: T) -> T:
-    _, value = which_one_of(base, "sealed_value")
+def get_one_of(base: T, sealed=True) -> T:
+    _, value = which_one_of(base, ("sealed_" if sealed else "") + "value")
     return value
 
 

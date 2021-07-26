@@ -24,8 +24,9 @@ object ControlCommandV2 {
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.StartWorker => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PauseWorker => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ResumeWorker => __v.value
-      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.AddOutputPolicy => __v.value
+      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.AddPartitioningV2 => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.UpdateInputLinking => __v.value
+      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryStatistics => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerExecutionCompleted => __v.value
       case edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.Empty => Empty
     }
@@ -33,8 +34,9 @@ object ControlCommandV2 {
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.StartWorkerV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.StartWorker(__v)
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.PauseWorkerV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PauseWorker(__v)
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ResumeWorkerV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ResumeWorker(__v)
-      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.AddOutputPolicy(__v)
+      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.AddPartitioningV2(__v)
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.UpdateInputLinking(__v)
+      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryStatistics(__v)
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerExecutionCompleted(__v)
       case Empty => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.Empty
     })
@@ -60,12 +62,16 @@ final case class ControlCommandV2Message(
         val __value = sealedValue.resumeWorker.get
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       };
-      if (sealedValue.addOutputPolicy.isDefined) {
-        val __value = sealedValue.addOutputPolicy.get
+      if (sealedValue.addPartitioningV2.isDefined) {
+        val __value = sealedValue.addPartitioningV2.get
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       };
       if (sealedValue.updateInputLinking.isDefined) {
         val __value = sealedValue.updateInputLinking.get
+        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+      };
+      if (sealedValue.queryStatistics.isDefined) {
+        val __value = sealedValue.queryStatistics.get
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       };
       if (sealedValue.workerExecutionCompleted.isDefined) {
@@ -101,7 +107,7 @@ final case class ControlCommandV2Message(
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
-      sealedValue.addOutputPolicy.foreach { __v =>
+      sealedValue.addPartitioningV2.foreach { __v =>
         val __m = __v
         _output__.writeTag(4, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
@@ -110,6 +116,12 @@ final case class ControlCommandV2Message(
       sealedValue.updateInputLinking.foreach { __v =>
         val __m = __v
         _output__.writeTag(5, 2)
+        _output__.writeUInt32NoTag(__m.serializedSize)
+        __m.writeTo(_output__)
+      };
+      sealedValue.queryStatistics.foreach { __v =>
+        val __m = __v
+        _output__.writeTag(6, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
@@ -126,10 +138,12 @@ final case class ControlCommandV2Message(
     def withPauseWorker(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.PauseWorkerV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PauseWorker(__v))
     def getResumeWorker: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ResumeWorkerV2 = sealedValue.resumeWorker.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ResumeWorkerV2.defaultInstance)
     def withResumeWorker(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ResumeWorkerV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ResumeWorker(__v))
-    def getAddOutputPolicy: edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2 = sealedValue.addOutputPolicy.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2.defaultInstance)
-    def withAddOutputPolicy(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.AddOutputPolicy(__v))
+    def getAddPartitioningV2: edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2 = sealedValue.addPartitioningV2.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2.defaultInstance)
+    def withAddPartitioningV2(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.AddPartitioningV2(__v))
     def getUpdateInputLinking: edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2 = sealedValue.updateInputLinking.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2.defaultInstance)
     def withUpdateInputLinking(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.UpdateInputLinking(__v))
+    def getQueryStatistics: edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2 = sealedValue.queryStatistics.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2.defaultInstance)
+    def withQueryStatistics(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryStatistics(__v))
     def getWorkerExecutionCompleted: edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2 = sealedValue.workerExecutionCompleted.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2.defaultInstance)
     def withWorkerExecutionCompleted(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerExecutionCompleted(__v))
     def clearSealedValue: ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.Empty)
@@ -139,8 +153,9 @@ final case class ControlCommandV2Message(
         case 1 => sealedValue.startWorker.orNull
         case 2 => sealedValue.pauseWorker.orNull
         case 3 => sealedValue.resumeWorker.orNull
-        case 4 => sealedValue.addOutputPolicy.orNull
+        case 4 => sealedValue.addPartitioningV2.orNull
         case 5 => sealedValue.updateInputLinking.orNull
+        case 6 => sealedValue.queryStatistics.orNull
         case 101 => sealedValue.workerExecutionCompleted.orNull
       }
     }
@@ -150,8 +165,9 @@ final case class ControlCommandV2Message(
         case 1 => sealedValue.startWorker.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 2 => sealedValue.pauseWorker.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 3 => sealedValue.resumeWorker.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
-        case 4 => sealedValue.addOutputPolicy.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 4 => sealedValue.addPartitioningV2.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 5 => sealedValue.updateInputLinking.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 6 => sealedValue.queryStatistics.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 101 => sealedValue.workerExecutionCompleted.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
       }
     }
@@ -177,9 +193,11 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
         case 26 =>
           __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ResumeWorker(__sealedValue.resumeWorker.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ResumeWorkerV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 34 =>
-          __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.AddOutputPolicy(__sealedValue.addOutputPolicy.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.AddPartitioningV2(__sealedValue.addPartitioningV2.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 42 =>
           __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.UpdateInputLinking(__sealedValue.updateInputLinking.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+        case 50 =>
+          __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryStatistics(__sealedValue.queryStatistics.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 810 =>
           __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerExecutionCompleted(__sealedValue.workerExecutionCompleted.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case tag => _input__.skipField(tag)
@@ -196,15 +214,16 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
         sealedValue = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.StartWorkerV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.StartWorker(_))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.PauseWorkerV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PauseWorker(_)))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ResumeWorkerV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ResumeWorker(_)))
-            .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.AddOutputPolicy(_)))
+            .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.AddPartitioningV2(_)))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(5).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.UpdateInputLinking(_)))
+            .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(6).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryStatistics(_)))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(101).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerExecutionCompleted(_)))
             .getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.Empty)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(6)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(6)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(7)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(7)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
@@ -213,6 +232,7 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
       case 3 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ResumeWorkerV2
       case 4 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2
       case 5 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2
+      case 6 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2
       case 101 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2
     }
     __out
@@ -228,14 +248,16 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
     def isStartWorker: _root_.scala.Boolean = false
     def isPauseWorker: _root_.scala.Boolean = false
     def isResumeWorker: _root_.scala.Boolean = false
-    def isAddOutputPolicy: _root_.scala.Boolean = false
+    def isAddPartitioningV2: _root_.scala.Boolean = false
     def isUpdateInputLinking: _root_.scala.Boolean = false
+    def isQueryStatistics: _root_.scala.Boolean = false
     def isWorkerExecutionCompleted: _root_.scala.Boolean = false
     def startWorker: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.StartWorkerV2] = _root_.scala.None
     def pauseWorker: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.PauseWorkerV2] = _root_.scala.None
     def resumeWorker: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ResumeWorkerV2] = _root_.scala.None
-    def addOutputPolicy: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2] = _root_.scala.None
+    def addPartitioningV2: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2] = _root_.scala.None
     def updateInputLinking: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2] = _root_.scala.None
+    def queryStatistics: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2] = _root_.scala.None
     def workerExecutionCompleted: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2] = _root_.scala.None
   }
   object SealedValue {
@@ -270,10 +292,10 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
       override def number: _root_.scala.Int = 3
     }
     @SerialVersionUID(0L)
-    final case class AddOutputPolicy(value: edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2) extends edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue {
+    final case class AddPartitioningV2(value: edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2) extends edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue {
       type ValueType = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2
-      override def isAddOutputPolicy: _root_.scala.Boolean = true
-      override def addOutputPolicy: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2] = Some(value)
+      override def isAddPartitioningV2: _root_.scala.Boolean = true
+      override def addPartitioningV2: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2] = Some(value)
       override def number: _root_.scala.Int = 4
     }
     @SerialVersionUID(0L)
@@ -282,6 +304,13 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
       override def isUpdateInputLinking: _root_.scala.Boolean = true
       override def updateInputLinking: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2] = Some(value)
       override def number: _root_.scala.Int = 5
+    }
+    @SerialVersionUID(0L)
+    final case class QueryStatistics(value: edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2) extends edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue {
+      type ValueType = edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2
+      override def isQueryStatistics: _root_.scala.Boolean = true
+      override def queryStatistics: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2] = Some(value)
+      override def number: _root_.scala.Int = 6
     }
     @SerialVersionUID(0L)
     final case class WorkerExecutionCompleted(value: edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2) extends edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue {
@@ -295,16 +324,18 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
     def startWorker: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.StartWorkerV2] = field(_.getStartWorker)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.StartWorker(f_)))
     def pauseWorker: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.PauseWorkerV2] = field(_.getPauseWorker)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PauseWorker(f_)))
     def resumeWorker: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.ResumeWorkerV2] = field(_.getResumeWorker)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ResumeWorker(f_)))
-    def addOutputPolicy: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2] = field(_.getAddOutputPolicy)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.AddOutputPolicy(f_)))
+    def addPartitioningV2: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2] = field(_.getAddPartitioningV2)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.AddPartitioningV2(f_)))
     def updateInputLinking: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2] = field(_.getUpdateInputLinking)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.UpdateInputLinking(f_)))
+    def queryStatistics: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2] = field(_.getQueryStatistics)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryStatistics(f_)))
     def workerExecutionCompleted: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2] = field(_.getWorkerExecutionCompleted)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerExecutionCompleted(f_)))
     def sealedValue: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue] = field(_.sealedValue)((c_, f_) => c_.copy(sealedValue = f_))
   }
   final val START_WORKER_FIELD_NUMBER = 1
   final val PAUSE_WORKER_FIELD_NUMBER = 2
   final val RESUME_WORKER_FIELD_NUMBER = 3
-  final val ADD_OUTPUT_POLICY_FIELD_NUMBER = 4
+  final val ADD_PARTITIONING_V2_FIELD_NUMBER = 4
   final val UPDATE_INPUT_LINKING_FIELD_NUMBER = 5
+  final val QUERY_STATISTICS_FIELD_NUMBER = 6
   final val WORKER_EXECUTION_COMPLETED_FIELD_NUMBER = 101
   def of(
     sealedValue: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue
@@ -741,6 +772,55 @@ object UpdateInputLinkingV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ic
     inputLink
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.UpdateInputLinkingV2])
+}
+
+@SerialVersionUID(0L)
+final case class QueryStatisticsV2(
+    ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[QueryStatisticsV2] {
+    final override def serializedSize: _root_.scala.Int = 0
+    def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
+    }
+    def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = throw new MatchError(__fieldNumber)
+    def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = throw new MatchError(__field)
+    def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2
+    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.QueryStatisticsV2])
+}
+
+object QueryStatisticsV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2 = {
+    var _done__ = false
+    while (!_done__) {
+      val _tag__ = _input__.readTag()
+      _tag__ match {
+        case 0 => _done__ = true
+        case tag => _input__.skipField(tag)
+      }
+    }
+    edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2(
+    )
+  }
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2] = _root_.scalapb.descriptors.Reads{
+    case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
+      _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
+      edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2(
+      )
+    case _ => throw new RuntimeException("Expected PMessage")
+  }
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(6)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(6)
+  def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
+  lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
+  def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
+  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2(
+  )
+  implicit class QueryStatisticsV2Lens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2](_l) {
+  }
+  def of(
+  ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2 = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2(
+  )
+  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.QueryStatisticsV2])
 }
 
 @SerialVersionUID(0L)
