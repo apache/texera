@@ -26,12 +26,10 @@ describe('UserFileSectionComponent', () => {
   const description = 'this is a test file';
   const size = 1024;
   const testFile: UserFile = {
-    uid: id,
-    fid: id,
-    name: name,
-    path: path,
-    size: size,
-    description: description
+    fileName: "test",
+    ownerName: "test",
+    size: 1,
+    description: "test"
   };
   beforeEach(async(() => {
     TestBed.configureTestingModule({

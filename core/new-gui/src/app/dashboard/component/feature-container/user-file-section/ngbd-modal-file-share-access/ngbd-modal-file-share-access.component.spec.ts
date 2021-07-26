@@ -14,12 +14,10 @@ describe('NgbdModalFileShareAccessComponent', () => {
   let service: UserFileService;
 
   const file: UserFile = {
-    uid: 1,
-    fid: 1,
-    name: "Something",
-    path: "Something",
-    description: "Something",
-    size: 1
+    fileName: "test",
+    ownerName: "test",
+    size: 1,
+    description: "test"
   }
 
   beforeEach(async(async () => {
