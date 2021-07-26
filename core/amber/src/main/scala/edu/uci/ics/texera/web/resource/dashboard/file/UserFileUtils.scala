@@ -8,7 +8,7 @@ import edu.uci.ics.texera.workflow.common.Utils
 import org.jooq.types.UInteger
 
 import java.io._
-import java.nio.file.{Files, Path}
+import java.nio.file.{Files, Path, Paths}
 
 object UserFileUtils {
   private val FILE_CONTAINER_PATH: Path = {
@@ -67,7 +67,7 @@ object UserFileUtils {
     val uid = FileAccessUtils.getUidOfUser(username)
     if (FileAccessUtils.hasAccessTo(uid, fid)) {
       val path = fileDao.fetchByFid(fid).get(0).getPath
-      Some(Path.of(path))
+      Some(Paths.get(path))
     } else {
       None
     }
@@ -76,7 +76,7 @@ object UserFileUtils {
   def getFilePathByIds(uid: UInteger, fid: UInteger): Option[Path] = {
     if (FileAccessUtils.hasAccessTo(uid, fid)) {
       val path = fileDao.fetchByFid(fid).get(0).getPath
-      Some(Path.of(path))
+      Some(Paths.get(path))
     } else {
       None
     }
