@@ -11,7 +11,8 @@ class Tuple(ABC):
     """
 
 
-# Use pandas.Series as a Tuple.
+# Use pandas.Series as a Tuple, so that isinstance(pandas.Series(), Tuple) can be true.
+# A pandas.Series instance can be viewed as a Tuple to be processed.
 Tuple.register(pandas.Series)
 
 

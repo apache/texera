@@ -35,6 +35,7 @@ class DoubleBlockingQueue(IQueue):
         self._enforce_single_consumer()
         self._sub_enabled = True
 
+    Marker
     @overrides
     def empty(self) -> bool:
         """
