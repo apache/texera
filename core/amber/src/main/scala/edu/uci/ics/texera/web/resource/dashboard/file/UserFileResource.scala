@@ -23,7 +23,7 @@ import scala.collection.mutable
 /**
   * Model `File` corresponds to `core/new-gui/src/app/common/type/user-file.ts` (frontend).
   */
-
+case class fileRecord(ownerName: String, fileName: String, size: UInteger, description: String)
 @Path("/user/file")
 @Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON))
@@ -81,37 +81,50 @@ class UserFileResource {
 
   @GET
   @Path("/list")
-  def listUserFiles(@Session session: HttpSession): util.List[File] = {
+  def listUserFiles(@Session session: HttpSession): util.List[fileRecord] = {
     UserResource.getUser(session) match {
       case Some(user) => getUserFileRecord(user.getUid)
-      case None       => new util.ArrayList[File]()
+      case None       => new util.ArrayList[fileRecord]()
     }
   }
 
-  private def getUserFileRecord(userID: UInteger): util.List[File] = {
+  private def getUserFileRecord(userID: UInteger): util.List[fileRecord] = {
     // TODO: verify user in session?
     val accesses = userFileAccessDao.fetchByUid(userID)
-    var files: mutable.ArrayBuffer[File] = mutable.ArrayBuffer()
+    var files: mutable.ArrayBuffer[fileRecord] = mutable.ArrayBuffer()
     accesses.asScala.toList.map((access) => {
       val fid = access.getFid
-      files += fileDao.fetchOneByFid(fid)
+      val file = fileDao.fetchOneByFid(fid)
+      files += fileRecord(
+        userDao.fetchOneByUid(file.getUid).getName,
+        file.getName,
+        file.getSize,
+        file.getDescription
+      )
     })
     val ownFiles = fileDao.fetchByUid(userID)
-    ownFiles.asScala.toList.map(ownFile => {
-      files += ownFile
+    ownFiles.asScala.toList.map(file => {
+      files += fileRecord(
+        userDao.fetchOneByUid(file.getUid).getName,
+        file.getName,
+        file.getSize,
+        file.getDescription
+      )
     })
     files.toList.asJava
   }
 
   @DELETE
-  @Path("/delete/{fileID}")
+  @Path("/delete/{fileName}/{ownerName}")
   def deleteUserFile(
-      @PathParam("fileID") fileID: UInteger,
+      @PathParam("fileName") fileName: String,
+      @PathParam("ownerName") ownerName: String,
       @Session session: HttpSession
   ): Response = {
 
     UserResource.getUser(session) match {
       case Some(user) =>
+        val fileID = FileAccessUtils.getFileId(ownerName, fileName)
         val userID = user.getUid
         // TODO: add user check
         val filePath = fileDao.fetchOneByFid(fileID).getPath

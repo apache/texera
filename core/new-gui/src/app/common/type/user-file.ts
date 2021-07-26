@@ -6,13 +6,12 @@
  */
 //TODO: remove uid, fid, path from UserFile interface, they should not be accessible via front-end
 export interface UserFile extends Readonly<{
-  uid: number;
-  fid: number;
-  name: string;
-  path: string;
-  description: string;
+  ownerName: string;
+  fileName: string;
   size: number;
-}> {}
+  description: string
+}> {
+}
 
 /**
  * This interface stores the information about the users' files when uploading.

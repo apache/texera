@@ -159,7 +159,7 @@ export class SourceTablesService {
   private registerUpdateUserFileInFileSourceOp(): void {
     this.userFileService.getUserFilesChangedEvent().subscribe(
       _ => {
-        this.userFileNames = this.userFileService.getUserFiles().map(file => file.name);
+        this.userFileNames = this.userFileService.getUserFiles().map(file => file.fileName);
 
         Array.from(this.dynamicSchemaService.getDynamicSchemaMap().keys())
           .forEach(operatorID => {
@@ -201,8 +201,10 @@ export class SourceTablesService {
 export interface TableMetadata extends Readonly<{
   tableName: string,
   schema: TableSchema
-}> {}
+}> {
+}
 
 export interface TableSchema extends Readonly<{
   attributes: ReadonlyArray<SchemaAttribute>
-}> {}
+}> {
+}

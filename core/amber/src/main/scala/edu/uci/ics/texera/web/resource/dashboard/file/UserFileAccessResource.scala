@@ -65,13 +65,15 @@ class UserFileAccessResource {
     * @return A JSON array of File Accesses, Ex: [{username: TestUser, fileAccess: read}]
     */
   @GET
-  @Path("list/{fid}")
+  @Path("list/{fileName}/{ownerName}")
   def getAllSharedFileAccess(
-      @PathParam("fid") fid: UInteger,
+      @PathParam("fileName") fileName: String,
+      @PathParam("ownerName") ownerName: String,
       @Session session: HttpSession
   ): Response = {
     UserResource.getUser(session) match {
       case Some(user) =>
+        val fid = FileAccessUtils.getFileId(ownerName, fileName)
         val fileAccess = SqlServer
           .createDSLContext()
           .select(USER_FILE_ACCESS.UID, USER_FILE_ACCESS.READ_ACCESS, USER_FILE_ACCESS.WRITE_ACCESS)
@@ -141,15 +143,17 @@ class UserFileAccessResource {
     * @return A successful resp if granted, failed resp otherwise
     */
   @POST
-  @Path("grant/{fid}/{username}/{accessType}")
+  @Path("grant/{fileName}/{ownerName}/{username}/{accessType}")
   def shareFileTo(
       @PathParam("username") username: String,
-      @PathParam("fid") fid: UInteger,
+      @PathParam("fileName") fileName: String,
+      @PathParam("ownerName") ownerName: String,
       @PathParam("accessType") accessType: String,
       @Session session: HttpSession
   ): Response = {
     UserResource.getUser(session) match {
       case Some(user) =>
+        val fid = FileAccessUtils.getFileId(ownerName, fileName)
         val uid: UInteger =
           try {
             userDao.fetchByName(username).get(0).getUid
@@ -187,14 +191,16 @@ class UserFileAccessResource {
     * @return A successful resp if granted, failed resp otherwise
     */
   @POST
-  @Path("/revoke/{fid}/{username}")
+  @Path("/revoke/{fileName}/{ownerName}/{username}")
   def revokeAccess(
-      @PathParam("fid") fid: UInteger,
+      @PathParam("fileName") fileName: String,
+      @PathParam("ownerName") ownerName: String,
       @PathParam("username") username: String,
       @Session session: HttpSession
   ): Response = {
     UserResource.getUser(session) match {
       case Some(user) =>
+        val fid = FileAccessUtils.getFileId(ownerName, fileName)
         val uid: UInteger =
           try {
             userDao.fetchByName(username).get(0).getUid

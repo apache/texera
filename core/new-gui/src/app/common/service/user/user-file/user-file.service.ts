@@ -69,7 +69,8 @@ export class UserFileService {
    * @param targetFile
    */
   public deleteFile(targetFile: UserFile): void {
-    this.http.delete<Response>(`${AppSettings.getApiEndpoint()}/${USER_FILE_DELETE_URL}/${targetFile.fid}`).subscribe(
+    console.log(targetFile)
+    this.http.delete<Response>(`${AppSettings.getApiEndpoint()}/${USER_FILE_DELETE_URL}/${targetFile.fileName}/${targetFile.ownerName}`).subscribe(
       () => this.refreshFiles(),
       err => alert('Can\'t delete the file: ' + err.error)
     );
@@ -103,7 +104,7 @@ export class UserFileService {
    */
   public grantAccess(file: UserFile, username: string, accessLevel: string): Observable<Response> {
     return this.http.post<Response>(
-      `${AppSettings.getApiEndpoint()}/${USER_FILE_SHARE_ACCESS_URL}/${file.fid}/${username}/${accessLevel}`,
+      `${AppSettings.getApiEndpoint()}/${USER_FILE_SHARE_ACCESS_URL}/${file.fileName}/${file.ownerName}/${username}/${accessLevel}`,
       null);
   }
 
@@ -114,7 +115,7 @@ export class UserFileService {
    */
   public getSharedAccessesOfFile(file: UserFile): Observable<Readonly<UserFileAccess>[]> {
     return this.http.get<Readonly<UserFileAccess>[]>(
-      `${AppSettings.getApiEndpoint()}/${USER_FILE_ACCESS_LIST_URL}/${file.fid}`);
+      `${AppSettings.getApiEndpoint()}/${USER_FILE_ACCESS_LIST_URL}/${file.fileName}/${file.ownerName}`);
   }
 
   /**
@@ -125,7 +126,7 @@ export class UserFileService {
    */
   public revokeFileAccess(file: UserFile, username: string): Observable<Response> {
     return this.http.post<Response>(
-      `${AppSettings.getApiEndpoint()}/${USER_REVOKE_ACCESS_URL}/${file.fid}/${username}`, null);
+      `${AppSettings.getApiEndpoint()}/${USER_REVOKE_ACCESS_URL}/${file.fileName}/${file.ownerName}/${username}`, null);
   }
 
   private fetchFileList(): Observable<UserFile[]> {

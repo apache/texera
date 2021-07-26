@@ -2,7 +2,7 @@
   <mat-card class="button-area subsection-grid-container">
     <div ngbDropdown class="d-inline-block">
       <button (click)="openFileAddComponent()" [disabled]="disableAddButton()" class="btn btn-outline-dark add-button"
-        type="button">
+              type="button">
         <i class="fa fa-cloud-upload"></i>
       </button>
     </div>
@@ -12,12 +12,12 @@
     <mat-card-content>
       <mat-list>
         <h2 class="page-title">Files</h2>
-        <br />
+        <br/>
         <div class="scroll">
           <mat-list-item *ngFor="let userFile of getFileArray()" class="user-dictionary-list-item">
             <div class="section-for-tip" placement="bottom">
               <p font-size=20px><span class="dict-name">
-                  {{userFile.name}}</span>
+                  {{userFile.fileName}}</span>
               </p>
               <p font-size=10px><span class="dict-name">
                   {{addFileSizeUnit(userFile.size)}}</span>
@@ -25,11 +25,12 @@
             </div>
             <span class="gap-filler"></span>
             <button (click)="onClickOpenShareAccess(userFile)" type="button" mat-button
-                    ngbTooltip="Share the workflow {{userFile.name}} to others" placement="bottom">
+                    ngbTooltip="Share the workflow {{userFile.fileName}} to others" placement="bottom">
               <i class="fa fa-share"></i>
             </button>
-            <button class="delete-workflow-btn" mat-button ngbTooltip="Delete the {{userFile.name}}" placement="bottom"
-              (click)="deleteFile(userFile)"><i class="fa fa-trash"></i></button>
+            <button class="delete-workflow-btn" mat-button ngbTooltip="Delete the {{userFile.fileName}}"
+                    placement="bottom"
+                    (click)="deleteFile(userFile)"><i class="fa fa-trash"></i></button>
           </mat-list-item>
         </div>
       </mat-list>
