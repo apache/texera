@@ -1,16 +1,15 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable, Subject } from 'rxjs';
-import { of } from 'rxjs';
-import { AppSettings } from '../../../app-setting';
+import { Observable, of, Subject } from 'rxjs';
 import { UserFile } from '../../../type/user-file';
 
 export const USER_FILE_LIST_URL = 'user/file/list';
 export const USER_FILE_DELETE_URL = 'user/file/delete';
-export const USER_FILE_SHARE_ACCESS_URL = 'user/file/share'
-export const USER_FILE_PATH_URL = 'user/file/file-path'
-export const USER_FILE_GET_ACCESS_URL = 'user/file/all-access-of'
-export const USER_REVOKE_ACCESS_URL = 'user/file/revoke'
+export const USER_FILE_SHARE_ACCESS_URL = 'user/file/share';
+export const USER_FILE_PATH_URL = 'user/file/file-path';
+export const USER_FILE_GET_ACCESS_URL = 'user/file/all-access-of';
+export const USER_REVOKE_ACCESS_URL = 'user/file/revoke';
+
 export interface UserFileAccess {
   username: string;
   fileAccess: string;
@@ -21,11 +20,10 @@ export interface UserFileAccess {
 })
 
 export class StubUserFileService {
+  public testUFAs: UserFileAccess[] = [];
   private userFiles: UserFile[] = [];
   private userFilesChanged = new Subject<null>();
 
-
-  public testUFAs: UserFileAccess[] = []
   constructor(
     private http: HttpClient
   ) {
@@ -42,7 +40,7 @@ export class StubUserFileService {
   }
 
   public getUserFilesChangedEvent(): Observable<null> {
-    return of()
+    return of();
   }
 
   /**
@@ -50,7 +48,7 @@ export class StubUserFileService {
    * these file can be accessed by function {@link getFileArray}
    */
   public refreshFiles(): void {
-    return
+    return;
   }
 
   /**
@@ -59,7 +57,7 @@ export class StubUserFileService {
    * @param targetFile
    */
   public deleteFile(targetFile: UserFile): void {
-    return
+    return;
   }
 
   /**
@@ -68,33 +66,33 @@ export class StubUserFileService {
    * @param fileSize
    */
   public addFileSizeUnit(fileSize: number): string {
-    return "lala";
+    return 'lala';
+  }
+
+  public grantAccess(file: UserFile, username: string, accessLevel: string): Observable<Response> {
+    return of();
+  }
+
+  public getSharedAccessesOfFile(file: UserFile): Observable<Readonly<UserFileAccess>[]> {
+    return of(this.testUFAs);
+  }
+
+  public revokeFileAccess(file: UserFile, username: string): Observable<Response> {
+    return of();
   }
 
   private fetchFileList(): Observable<UserFile[]> {
-    return of(this.userFiles)
+    return of(this.userFiles);
   }
 
-
-  public grantAccess(file: UserFile, username: string, accessLevel: string): Observable<Response>{
-    return of()
-  }
-
-  public getSharedAccessesOfFile(file: UserFile): Observable<Readonly<UserFileAccess>[]>{
-    return of(this.testUFAs)
-  }
-
-  public revokeFileAccess(file: UserFile, username: string): Observable<Response>{
-    return of()
-  }
   /**
    * refresh the files in the service whenever the user changes.
    */
   private detectUserChanges(): void {
-    return
+    return;
   }
 
   private clearUserFile(): void {
-    return
+    return;
   }
 }

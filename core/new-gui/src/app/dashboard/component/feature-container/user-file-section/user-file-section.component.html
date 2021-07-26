@@ -17,7 +17,7 @@
           <mat-list-item *ngFor="let userFile of getFileArray()" class="user-dictionary-list-item">
             <div class="section-for-tip" placement="bottom">
               <p font-size=20px><span class="dict-name">
-                  {{userFile.fileName}}</span>
+                  {{userFile.ownerName}}/{{userFile.fileName}}</span>
               </p>
               <p font-size=10px><span class="dict-name">
                   {{addFileSizeUnit(userFile.size)}}</span>

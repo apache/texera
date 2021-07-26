@@ -159,7 +159,7 @@ export class SourceTablesService {
   private registerUpdateUserFileInFileSourceOp(): void {
     this.userFileService.getUserFilesChangedEvent().subscribe(
       _ => {
-        this.userFileNames = this.userFileService.getUserFiles().map(file => file.fileName);
+        this.userFileNames = this.userFileService.getUserFiles().map(file => `${file.ownerName}/${file.fileName}`);
 
         Array.from(this.dynamicSchemaService.getDynamicSchemaMap().keys())
           .forEach(operatorID => {

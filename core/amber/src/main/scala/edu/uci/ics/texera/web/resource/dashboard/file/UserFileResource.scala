@@ -91,8 +91,8 @@ class UserFileResource {
   private def getUserFileRecord(userID: UInteger): util.List[fileRecord] = {
     // TODO: verify user in session?
     val accesses = userFileAccessDao.fetchByUid(userID)
-    var files: mutable.ArrayBuffer[fileRecord] = mutable.ArrayBuffer()
-    accesses.asScala.toList.map((access) => {
+    val files: mutable.ArrayBuffer[fileRecord] = mutable.ArrayBuffer()
+    accesses.asScala.toList.map(access => {
       val fid = access.getFid
       val file = fileDao.fetchOneByFid(fid)
       files += fileRecord(

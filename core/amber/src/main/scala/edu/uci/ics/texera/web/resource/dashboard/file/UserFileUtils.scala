@@ -62,15 +62,9 @@ object UserFileUtils {
     }
   }
 
-  def getFilePathByInfo(owner: String, filename: String, username: String): Option[Path] = {
-    val fid = FileAccessUtils.getFileId(owner, filename)
-    val uid = FileAccessUtils.getUidOfUser(username)
-    if (FileAccessUtils.hasAccessTo(uid, fid)) {
-      val path = fileDao.fetchByFid(fid).get(0).getPath
-      Some(Paths.get(path))
-    } else {
-      None
-    }
+  def getFilePathByInfo(ownerName: String, fileName: String, uid: UInteger): Option[Path] = {
+    val fid = FileAccessUtils.getFileId(ownerName, fileName)
+    getFilePathByIds(uid, fid)
   }
 
   def getFilePathByIds(uid: UInteger, fid: UInteger): Option[Path] = {

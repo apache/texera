@@ -69,8 +69,9 @@ export class UserFileService {
    * @param targetFile
    */
   public deleteFile(targetFile: UserFile): void {
-    console.log(targetFile)
-    this.http.delete<Response>(`${AppSettings.getApiEndpoint()}/${USER_FILE_DELETE_URL}/${targetFile.fileName}/${targetFile.ownerName}`).subscribe(
+    console.log(targetFile);
+    this.http.delete<Response>(
+      `${AppSettings.getApiEndpoint()}/${USER_FILE_DELETE_URL}/${targetFile.fileName}/${targetFile.ownerName}`).subscribe(
       () => this.refreshFiles(),
       err => alert('Can\'t delete the file: ' + err.error)
     );
