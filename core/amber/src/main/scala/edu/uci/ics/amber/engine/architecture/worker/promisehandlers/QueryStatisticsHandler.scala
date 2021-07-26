@@ -4,9 +4,9 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatist
   QueryStatistics,
   QueryWorkerResult
 }
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.architecture.worker.{WorkerAsyncRPCHandlerInitializer, WorkerResult}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.common.{Constants, ITupleSinkOperatorExecutor}
 
 object QueryStatisticsHandler {

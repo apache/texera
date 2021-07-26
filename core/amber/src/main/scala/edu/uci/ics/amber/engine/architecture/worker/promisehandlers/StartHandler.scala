@@ -3,11 +3,11 @@ package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 import edu.uci.ics.amber.engine.architecture.worker.WorkerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{EndMarker, EndOfAllMarker}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{READY, RUNNING}
 import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{READY, RUNNING}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 object StartHandler {
