@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.TupleToBatchConverte
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue._
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.tuple.ITuple
@@ -152,8 +152,8 @@ class DataProcessor( // dependencies:
           // end of processing, break DP loop
           isCompleted = true
           batchProducer.emitEndOfUpstream()
-        case ControlElement(cmd, from) =>
-          processControlCommand(cmd, from)
+        case ControlElement(payload, from) =>
+          processControlCommand(payload, from)
       }
     }
     // Send Completed signal to worker actor.
@@ -223,15 +223,18 @@ class DataProcessor( // dependencies:
 
   private[this] def takeOneControlCommandAndProcess(): Unit = {
     val control = getElement.asInstanceOf[ControlElement]
-    processControlCommand(control.cmd, control.from)
+    processControlCommand(control.payload, control.from)
   }
 
-  private[this] def processControlCommand(cmd: ControlPayload, from: ActorVirtualIdentity): Unit = {
-    cmd match {
+  private[this] def processControlCommand(
+      payload: ControlPayload,
+      from: ActorVirtualIdentity
+  ): Unit = {
+    payload match {
       case invocation: ControlInvocation =>
         asyncRPCServer.logControlInvocation(invocation, from)
         asyncRPCServer.receive(invocation, from)
-      case ret: ReturnPayload =>
+      case ret: ReturnInvocation =>
         asyncRPCClient.logControlReply(ret, from)
         asyncRPCClient.fulfillPromise(ret)
     }

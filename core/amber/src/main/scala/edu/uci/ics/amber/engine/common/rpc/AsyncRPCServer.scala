@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatist
 import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{
   ControlInvocation,
-  ReturnPayload,
+  ReturnInvocation,
   noReplyNeeded
 }
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
@@ -81,7 +81,7 @@ class AsyncRPCServer(controlOutputPort: ControlOutputPort, logger: WorkflowLogge
     if (noReplyNeeded(id)) {
       return
     }
-    controlOutputPort.sendTo(sender, ReturnPayload(id, ret))
+    controlOutputPort.sendTo(sender, ReturnInvocation(id, ret))
   }
 
   def logControlInvocation(call: ControlInvocation, sender: ActorVirtualIdentity): Unit = {
