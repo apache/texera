@@ -3,8 +3,9 @@ from typing import Iterator, Union
 import pytest
 from overrides import overrides
 
-from core.models.tuple import InputExhausted
+from core.models.tuple import InputExhausted, Tuple
 from core.udf import UDFOperator
+from proto.edu.uci.ics.amber.engine.common import LinkIdentity
 
 
 class TestDpTread:
