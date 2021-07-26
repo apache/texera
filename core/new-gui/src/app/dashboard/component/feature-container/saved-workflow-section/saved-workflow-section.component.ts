@@ -4,19 +4,14 @@ import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { cloneDeep } from 'lodash';
 import { Observable } from 'rxjs';
 import { WorkflowPersistService } from '../../../../common/service/user/workflow-persist/workflow-persist.service';
-import { WorkflowGrantAccessService } from '../../../../common/service/user/workflow-access-control/workflow-grant-access.service';
 import { Workflow } from '../../../../common/type/workflow';
 import { NgbdModalDeleteWorkflowComponent } from './ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component';
 import { NgbdModalShareAccessComponent } from './ngbd-modal-share-access/ngbd-modal-share-access.component';
+import { UserService } from '../../../../common/service/user/user.service';
 
-/**
- * SavedProjectSectionComponent is the main interface for
- * managing all the personal projects. On this interface,
- * user can view the project list by the order he/she defines,
- * add project into list, delete project, and access the projects.
- *
- * @author Zhaomin Li
- */
+export const ROUTER_WORKFLOW_BASE_URL = `/workflow`;
+export const ROUTER_WORKFLOW_CREATE_NEW_URL = `${ROUTER_WORKFLOW_BASE_URL}/new`;
+
 @Component({
   selector: 'texera-saved-workflow-section',
   templateUrl: './saved-workflow-section.component.html',
@@ -26,11 +21,9 @@ export class SavedWorkflowSectionComponent implements OnInit {
 
   public workflows: Workflow[] = [];
 
-  public defaultWeb: String = 'http://localhost:4200/';
-
   constructor(
+    private userService: UserService,
     private workflowPersistService: WorkflowPersistService,
-    private workflowGrantAccessService: WorkflowGrantAccessService,
     private modalService: NgbModal,
     private router: Router
   ) {
@@ -38,9 +31,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
 
 
   ngOnInit() {
-    this.workflowPersistService.retrieveWorkflowsBySessionUser().subscribe(
-      workflows => this.workflows = workflows
-    );
+    this.registerWorkflowRefresh();
   }
 
   /**
@@ -85,7 +76,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
    * create a new workflow. will redirect to a pre-emptied workspace
    */
   public onClickCreateNewWorkflowFromDashboard(): void {
-    this.router.navigate(['/workflow/new']).then(null);
+    this.router.navigate([`${ROUTER_WORKFLOW_CREATE_NEW_URL}`]).then(null);
   }
 
   /**
@@ -96,8 +87,8 @@ export class SavedWorkflowSectionComponent implements OnInit {
     this.workflowPersistService.createWorkflow(workflowToDuplicate.content, workflowToDuplicate.name + '_copy')
       .subscribe((duplicatedWorkflow: Workflow) => {
         this.workflows.push(duplicatedWorkflow);
-      }, error => {
-        alert(error);
+      }, err => {
+        alert(err.error);
       });
   }
 
@@ -115,7 +106,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
       if (confirmToDelete && workflowToDelete.wid !== undefined) {
         this.workflows = this.workflows.filter(workflow => workflow.wid !== workflowToDelete.wid);
         this.workflowPersistService.deleteWorkflow(workflowToDelete.wid).subscribe(_ => {
-          }, alert // TODO: handle error messages properly.
+          }, err => alert(err.error) // TODO: handle error messages properly.
         );
       }
     });
@@ -124,9 +115,31 @@ export class SavedWorkflowSectionComponent implements OnInit {
   /**
    * jump to the target workflow canvas
    */
-  jumpToWorkflow(workflow: Workflow) {
-    this.router.navigate([`/workflow/${workflow.wid}`]).then(null);
+  public jumpToWorkflow(workflow: Workflow): void {
+    this.router.navigate([`${ROUTER_WORKFLOW_BASE_URL}/${workflow.wid}`]).then(null);
   }
 
+  private registerWorkflowRefresh(): void {
+    this.userService.userChanged().subscribe(
+      () => {
+        if (this.userService.isLogin()) {
+          this.refreshWorkflows();
+        } else {
+          this.clearWorkflows();
+        }
+      }
+    );
+
+  }
+
+  private refreshWorkflows(): void {
+    this.workflowPersistService.retrieveWorkflowsBySessionUser().subscribe(
+      workflows => this.workflows = workflows
+    );
+  }
+
+  private clearWorkflows(): void {
+    this.workflows = [];
+  }
 
 }
