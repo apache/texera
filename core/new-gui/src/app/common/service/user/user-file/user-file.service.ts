@@ -7,9 +7,9 @@ import { UserService } from '../user.service';
 
 export const USER_FILE_LIST_URL = 'user/file/list';
 export const USER_FILE_DELETE_URL = 'user/file/delete';
-export const USER_FILE_SHARE_ACCESS_URL = 'user-file-access/grant'
-export const USER_FILE_ACCESS_LIST_URL = 'user-file-access/list'
-export const USER_REVOKE_ACCESS_URL = 'user-file-access/revoke'
+export const USER_FILE_SHARE_ACCESS_URL = 'user-file-access/grant';
+export const USER_FILE_ACCESS_LIST_URL = 'user-file-access/list';
+export const USER_REVOKE_ACCESS_URL = 'user-file-access/revoke';
 
 export interface UserFileAccess {
   username: string;
@@ -102,7 +102,9 @@ export class UserFileService {
    * @return Response
    */
   public grantAccess(file: UserFile, username: string, accessLevel: string): Observable<Response> {
-    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${USER_FILE_SHARE_ACCESS_URL}/${file.fid}/${username}/${accessLevel}`, null);
+    return this.http.post<Response>(
+      `${AppSettings.getApiEndpoint()}/${USER_FILE_SHARE_ACCESS_URL}/${file.fid}/${username}/${accessLevel}`,
+      null);
   }
 
   /**
@@ -111,7 +113,8 @@ export class UserFileService {
    * @return Readonly<UserFileAccess>[] an array of UserFileAccesses, Ex: [{username: TestUser, fileAccess: read}]
    */
   public getSharedAccessesOfFile(file: UserFile): Observable<Readonly<UserFileAccess>[]> {
-    return this.http.get<Readonly<UserFileAccess>[]>(`${AppSettings.getApiEndpoint()}/${USER_FILE_ACCESS_LIST_URL}/${file.fid}`);
+    return this.http.get<Readonly<UserFileAccess>[]>(
+      `${AppSettings.getApiEndpoint()}/${USER_FILE_ACCESS_LIST_URL}/${file.fid}`);
   }
 
   /**
@@ -121,11 +124,13 @@ export class UserFileService {
    * @return message of success
    */
   public revokeFileAccess(file: UserFile, username: string): Observable<Response> {
-    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${USER_REVOKE_ACCESS_URL}/${file.fid}/${username}`, null);
+    return this.http.post<Response>(
+      `${AppSettings.getApiEndpoint()}/${USER_REVOKE_ACCESS_URL}/${file.fid}/${username}`, null);
   }
 
   private fetchFileList(): Observable<UserFile[]> {
-    return this.http.get<UserFile[]>(`${AppSettings.getApiEndpoint()}/${USER_FILE_LIST_URL}`);
+    return this.http.get<UserFile[]>(
+      `${AppSettings.getApiEndpoint()}/${USER_FILE_LIST_URL}`);
   }
 
   /**
