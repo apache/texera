@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.worker.WorkerStatistics
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 
 import scala.collection.mutable
 
