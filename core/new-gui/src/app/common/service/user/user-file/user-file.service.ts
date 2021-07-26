@@ -51,6 +51,7 @@ export class UserFileService {
    */
   public refreshFiles(): void {
     if (!this.userService.isLogin()) {
+      this.clearUserFile();
       return;
     }
 
