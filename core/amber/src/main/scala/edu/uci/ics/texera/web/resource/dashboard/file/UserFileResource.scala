@@ -3,7 +3,7 @@ package edu.uci.ics.texera.web.resource.dashboard.file
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.FILE
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileDao, UserDao, UserFileAccessDao}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.File
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, UserFileAccess}
 import edu.uci.ics.texera.web.resource.auth.UserResource
 import io.dropwizard.jersey.sessions.Session
 import org.apache.commons.lang3.tuple.Pair
@@ -73,6 +73,17 @@ class UserFileResource {
             description
           )
         )
+        val fid = SqlServer
+          .createDSLContext()
+          .select(FILE.FID)
+          .from(FILE)
+          .where(FILE.UID.eq(userID).and(FILE.NAME.eq(fileName)))
+          .fetch()
+          .getValue(0, 0)
+          .asInstanceOf[UInteger]
+        userFileAccessDao.insert(
+          new UserFileAccess(userID, fid, true, true)
+        )
         Response.ok().build()
       case None =>
         Response.status(Response.Status.UNAUTHORIZED).build()
@@ -95,15 +106,6 @@ class UserFileResource {
     accesses.asScala.toList.map(access => {
       val fid = access.getFid
       val file = fileDao.fetchOneByFid(fid)
-      files += fileRecord(
-        userDao.fetchOneByUid(file.getUid).getName,
-        file.getName,
-        file.getSize,
-        file.getDescription
-      )
-    })
-    val ownFiles = fileDao.fetchByUid(userID)
-    ownFiles.asScala.toList.map(file => {
       files += fileRecord(
         userDao.fetchOneByUid(file.getUid).getName,
         file.getName,

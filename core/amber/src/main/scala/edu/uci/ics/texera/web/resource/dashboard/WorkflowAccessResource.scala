@@ -136,6 +136,16 @@ class WorkflowAccessResource() {
     context = dslContext
   }
 
+  @GET
+  @Path("/owner/{wid}")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def getWorkflowOwner(@PathParam("wid") wid: UInteger): Response = {
+    val uid = workflowOfUserDao.fetchByWid(wid).get(0).getUid
+    val username = userDao.fetchOneByUid(uid).getName
+    val resp = List(username)
+    Response.ok(resp).build()
+  }
+
   /**
     * This method identifies the user access level of the given workflow
     *

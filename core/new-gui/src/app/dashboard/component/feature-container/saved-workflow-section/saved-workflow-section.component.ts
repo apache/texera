@@ -8,6 +8,7 @@ import { WorkflowGrantAccessService } from '../../../../common/service/user/work
 import { Workflow } from '../../../../common/type/workflow';
 import { NgbdModalDeleteWorkflowComponent } from './ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component';
 import { NgbdModalShareAccessComponent } from './ngbd-modal-share-access/ngbd-modal-share-access.component';
+import { WorkflowInfo } from "../../../../common/type/workflow-info";
 
 /**
  * SavedProjectSectionComponent is the main interface for
@@ -24,7 +25,7 @@ import { NgbdModalShareAccessComponent } from './ngbd-modal-share-access/ngbd-mo
 })
 export class SavedWorkflowSectionComponent implements OnInit {
 
-  public workflows: Workflow[] = [];
+  public workflows: WorkflowInfo[] = [];
 
   public defaultWeb: String = 'http://localhost:4200/';
 
@@ -38,8 +39,8 @@ export class SavedWorkflowSectionComponent implements OnInit {
 
 
   ngOnInit() {
-    this.workflowPersistService.retrieveWorkflowsBySessionUser().subscribe(
-      workflows => this.workflows = workflows
+    this.workflowPersistService.getWorkflowList().subscribe(
+      workflowInfos => this.workflows = workflowInfos
     );
   }
 
@@ -55,30 +56,30 @@ export class SavedWorkflowSectionComponent implements OnInit {
    * sort the workflow by name in ascending order
    */
   public ascSort(): void {
-    this.workflows.sort((t1, t2) => t1.name.toLowerCase().localeCompare(t2.name.toLowerCase()));
+    this.workflows.sort((t1, t2) => t1.workflow.name.toLowerCase().localeCompare(t2.workflow.name.toLowerCase()));
   }
 
   /**
    * sort the project by name in descending order
    */
   public dscSort(): void {
-    this.workflows.sort((t1, t2) => t2.name.toLowerCase().localeCompare(t1.name.toLowerCase()));
+    this.workflows.sort((t1, t2) => t2.workflow.name.toLowerCase().localeCompare(t1.workflow.name.toLowerCase()));
   }
 
   /**
    * sort the project by creating time
    */
   public dateSort(): void {
-    this.workflows.sort((left: Workflow, right: Workflow) =>
-      left.creationTime !== undefined && right.creationTime !== undefined ? left.creationTime - right.creationTime : 0);
+    this.workflows.sort((left: WorkflowInfo, right: WorkflowInfo) =>
+      left.workflow.creationTime !== undefined && right.workflow.creationTime !== undefined ? left.workflow.creationTime - right.workflow.creationTime : 0);
   }
 
   /**
    * sort the project by last modified time
    */
   public lastSort(): void {
-    this.workflows.sort((left: Workflow, right: Workflow) =>
-      left.lastModifiedTime !== undefined && right.lastModifiedTime !== undefined ? left.lastModifiedTime - right.lastModifiedTime : 0);
+    this.workflows.sort((left: WorkflowInfo, right: WorkflowInfo) =>
+      left.workflow.lastModifiedTime !== undefined && right.workflow.lastModifiedTime !== undefined ? left.workflow.lastModifiedTime - right.workflow.lastModifiedTime : 0);
   }
 
   /**
@@ -95,7 +96,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
   public onClickDuplicateWorkflow(workflowToDuplicate: Workflow): void {
     this.workflowPersistService.createWorkflow(workflowToDuplicate.content, workflowToDuplicate.name + '_copy')
       .subscribe((duplicatedWorkflow: Workflow) => {
-        this.workflows.push(duplicatedWorkflow);
+        this.workflows.push({workflow: duplicatedWorkflow, isOwner: true});
       }, error => {
         alert(error);
       });
@@ -113,7 +114,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
 
     Observable.from(modalRef.result).subscribe((confirmToDelete: boolean) => {
       if (confirmToDelete && workflowToDelete.wid !== undefined) {
-        this.workflows = this.workflows.filter(workflow => workflow.wid !== workflowToDelete.wid);
+        this.workflows = this.workflows.filter(workflow => workflow.workflow.wid !== workflowToDelete.wid);
         this.workflowPersistService.deleteWorkflow(workflowToDelete.wid).subscribe(_ => {
           }, alert // TODO: handle error messages properly.
         );

@@ -5,6 +5,7 @@ import { map } from 'rxjs/operators';
 import { AppSettings } from '../../../app-setting';
 import { Workflow, WorkflowContent } from '../../../type/workflow';
 import { jsonCast } from '../../../util/storage';
+import {WorkflowInfo} from "../../../type/workflow-info";
 
 export const WORKFLOW_URL = 'workflow';
 export const WORKFLOW_PERSIST_URL = WORKFLOW_URL + '/persist';
@@ -56,6 +57,9 @@ export class WorkflowPersistService {
       .pipe(map(WorkflowPersistService.parseWorkflowInfo));
   }
 
+  public getWorkflowList(): Observable<WorkflowInfo[]> {
+    return this.http.get<WorkflowInfo[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_LIST_URL}`);
+  }
   /**
    * retrieves a list of workflows from backend database that belongs to the user in the session.
    */

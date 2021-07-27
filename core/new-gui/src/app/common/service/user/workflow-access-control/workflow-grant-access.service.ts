@@ -9,6 +9,7 @@ export const WORKFLOW_ACCESS_URL = 'workflow-access';
 export const WORKFLOW_ACCESS_GRANT_URL = WORKFLOW_ACCESS_URL + '/grant';
 export const WORKFLOW_ACCESS_LIST_URL = WORKFLOW_ACCESS_URL + '/list';
 export const WORKFLOW_ACCESS_REVOKE_URL = WORKFLOW_ACCESS_URL + '/revoke';
+export const WORKFLOW_OWNER_URL = WORKFLOW_ACCESS_URL + '/owner';
 export interface UserWorkflowAccess {
   userName: string;
   accessLevel: string;
@@ -55,5 +56,10 @@ export class WorkflowGrantAccessService {
   public revokeAccess(workflow: Workflow, username: string): Observable<Response> {
     return this.http.post<Response>(
       `${AppSettings.getApiEndpoint()}/${WORKFLOW_ACCESS_REVOKE_URL}/${workflow.wid}/${username}`, null);
+  }
+
+  public getOwner(workflow: Workflow): Observable<Readonly<string[]>> {
+    return this.http.get<Readonly<string[]>>(
+      `${AppSettings.getApiEndpoint()}/${WORKFLOW_OWNER_URL}/${workflow.wid}`);
   }
 }

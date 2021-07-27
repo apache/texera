@@ -56,7 +56,6 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
 
   override def setContext(workflowContext: WorkflowContext): Unit = {
     super.setContext(workflowContext)
-
     if (context.userID.isDefined) {
       // if context has a valid user ID, the fileName will be a file name,
       // resolve fileName to be the actual file path.

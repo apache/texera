@@ -42,8 +42,9 @@
   <button (click)="onClickGetAllSharedAccess(file)" class="btn" type="button"><i class="fa fa-refresh"></i></button>
   <label for="current-share">Shared Access:</label>
   <ul class="current-share" id="current-share">
+    <li>{{fileOwner}}  <span class="badge badge-primary">owner</span></li>
     <li *ngFor="let userFileAccess of allUserFileAccess">
-      {{userFileAccess.username}} -> {{userFileAccess.fileAccess}}
+      {{userFileAccess.username}} <span class="badge badge-primary">{{userFileAccess.fileAccess}}</span>
       <button (click)="onClickRemoveAccess(file, userFileAccess.username)" class="btn" type="button"><i
         class="fa fa-trash"></i>
       </button>

@@ -19,10 +19,11 @@ export class NgbdModalFileShareAccessComponent implements OnInit {
     accessLevel: ['', [Validators.required]]
   });
 
-  allUserFileAccess: Readonly<UserFileAccess>[] = [];
+  allUserFileAccess: UserFileAccess[] = [];
 
   accessLevels = ["read", "write"]
 
+  fileOwner = ""
 
   public defaultWeb: String = 'http://localhost:4200/';
 
@@ -48,7 +49,13 @@ export class NgbdModalFileShareAccessComponent implements OnInit {
    */
   public refreshGrantedList(file: UserFile): void {
     this.userFileService.getSharedAccessesOfFile(file).subscribe(
-      (userFileAccess: Readonly<UserFileAccess>[]) => this.allUserFileAccess = userFileAccess,
+      (userFileAccess: Readonly<UserFileAccess>[]) => {
+        this.allUserFileAccess = []
+        userFileAccess.map(ufa => {
+          if(ufa.fileAccess === "Owner") this.fileOwner = ufa.username
+          else this.allUserFileAccess.push(ufa)
+        })
+      },
       err => console.log(err.error)
     );
   }

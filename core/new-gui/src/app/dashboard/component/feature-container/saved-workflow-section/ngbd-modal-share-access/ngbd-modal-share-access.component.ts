@@ -26,6 +26,7 @@ export class NgbdModalShareAccessComponent implements OnInit {
 
   allUserWorkflowAccess: Readonly<UserWorkflowAccess>[] = [];
 
+  workflowOwner: string = "emm"
 
   public defaultWeb: String = 'http://localhost:4200/';
 
@@ -40,6 +41,9 @@ export class NgbdModalShareAccessComponent implements OnInit {
     this.refreshGrantedList(this.workflow);
   }
 
+  public getOwnerOfWorkflow(workflow: Workflow): void{
+
+  }
 
   public onClickGetAllSharedAccess(workflow: Workflow): void {
     this.refreshGrantedList(workflow);
@@ -54,6 +58,9 @@ export class NgbdModalShareAccessComponent implements OnInit {
       (userWorkflowAccess: Readonly<UserWorkflowAccess>[]) => this.allUserWorkflowAccess = userWorkflowAccess,
       err => console.log(err.error)
     );
+    this.workflowGrantAccessService.getOwner(workflow).subscribe(ownership => {
+      this.workflowOwner = ownership[0];
+    })
   }
 
   /**

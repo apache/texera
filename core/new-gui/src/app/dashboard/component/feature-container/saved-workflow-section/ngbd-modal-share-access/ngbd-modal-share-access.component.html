@@ -42,10 +42,11 @@
   </form>
   <br>
   <button (click)="onClickGetAllSharedAccess(workflow)" class="btn" type="button"><i class="fa fa-refresh"></i></button>
-  <label for="current-share">Shared Access:</label>
+  <label for="current-share">Access:</label>
   <ul class="current-share" id="current-share">
+    <li>{{workflowOwner}}  <span class="badge badge-primary">owner</span></li>
     <li *ngFor="let userWorkflowAccess of allUserWorkflowAccess">
-      {{userWorkflowAccess.userName}}  ---->   {{userWorkflowAccess.accessLevel}}
+      {{userWorkflowAccess.userName}}   <span class="badge badge-primary">{{userWorkflowAccess.accessLevel}}</span>
       <button (click)="onClickRemoveAccess(workflow, userWorkflowAccess.userName)" class="btn" type="button"><i class="fa fa-trash"></i>
       </button>
     </li>

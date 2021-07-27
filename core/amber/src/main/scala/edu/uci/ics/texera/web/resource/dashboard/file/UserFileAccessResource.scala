@@ -90,7 +90,9 @@ class UserFileAccessResource {
               .map({
                 case (uid, index) =>
                   val uname = userDao.fetchOneByUid(uid.asInstanceOf[UInteger]).getName
-                  if (fileAccess.getValue(index, 2) == true) {
+                  if (uname == ownerName) {
+                    FileAccess(uname, "Owner")
+                  } else if (fileAccess.getValue(index, 2) == true) {
                     FileAccess(uname, "Write")
                   } else {
                     FileAccess(uname, "Read")
