@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package edu.uci.ics.amber.engine.architecture.worker;
 
-import "edu/uci/ics/amber/engine/architecture/worker.proto";
+import "edu/uci/ics/amber/engine/architecture/worker/statistics.proto";
 import "scalapb/scalapb.proto";
 
 option (scalapb.options) = {
@@ -13,8 +13,8 @@ option (scalapb.options) = {
 
 message ControlReturnV2 {
     oneof value {
-        common.WorkerStatistics worker_statistics = 1;
-        common.WorkerState worker_state = 2;
+        WorkerStatistics worker_statistics = 1;
+        WorkerState worker_state = 2;
 
     }
 }

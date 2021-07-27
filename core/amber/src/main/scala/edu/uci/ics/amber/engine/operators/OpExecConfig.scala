@@ -5,6 +5,8 @@ import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{WorkerInfo, WorkerLayer}
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.principal.{OperatorState, OperatorStatistics}
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState._
 import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
@@ -12,8 +14,6 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   LinkIdentity,
   OperatorIdentity
 }
-import edu.uci.ics.amber.engine.common.worker.WorkerState
-import edu.uci.ics.amber.engine.common.worker.WorkerState._
 
 import scala.collection.mutable
 
@@ -48,18 +48,18 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
 
   def getState: OperatorState = {
     val workerStates = getAllWorkerStates
-    if (workerStates.forall(_ == Completed)) {
+    if (workerStates.forall(_ == COMPLETED)) {
       return OperatorState.Completed
     }
-    if (workerStates.exists(_ == Running)) {
+    if (workerStates.exists(_ == RUNNING)) {
       return OperatorState.Running
     }
-    val unCompletedWorkerStates = workerStates.filter(_ != Completed)
-    if (unCompletedWorkerStates.forall(_ == Uninitialized)) {
+    val unCompletedWorkerStates = workerStates.filter(_ != COMPLETED)
+    if (unCompletedWorkerStates.forall(_ == UNINITIALIZED)) {
       OperatorState.Uninitialized
-    } else if (unCompletedWorkerStates.forall(_ == Paused)) {
+    } else if (unCompletedWorkerStates.forall(_ == PAUSED)) {
       OperatorState.Paused
-    } else if (unCompletedWorkerStates.forall(_ == Ready)) {
+    } else if (unCompletedWorkerStates.forall(_ == READY)) {
       OperatorState.Ready
     } else {
       OperatorState.Unknown
@@ -68,9 +68,9 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
 
   def getAllWorkerStates: Iterable[WorkerState] = topology.layers.flatMap(l => l.states)
 
-  def getInputRowCount: Long = topology.layers.head.statistics.map(_.inputRowCount).sum
+  def getInputRowCount: Long = topology.layers.head.statistics.map(_.inputTupleCount).sum
 
-  def getOutputRowCount: Long = topology.layers.last.statistics.map(_.outputRowCount).sum
+  def getOutputRowCount: Long = topology.layers.last.statistics.map(_.outputTupleCount).sum
 
   def checkStartDependencies(workflow: Workflow): Unit = {
     //do nothing by default

@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package edu.uci.ics.amber.engine.architecture.worker;
+
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+    scope: FILE,
+    preserve_unknown_fields: false
+    no_default_values_in_constructor: true
+
+};
+
+enum WorkerState {
+    UNINITIALIZED = 0;
+    READY = 1;
+    RUNNING = 2;
+    PAUSED = 3;
+    COMPLETED = 4;
+
+}
+
+message WorkerStatistics {
+    WorkerState worker_state = 1 [(scalapb.field).no_box = true];
+    int64 input_tuple_count = 2;
+    int64 output_tuple_count = 3;
+
+}

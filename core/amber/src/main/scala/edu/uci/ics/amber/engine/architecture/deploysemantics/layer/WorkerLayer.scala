@@ -6,14 +6,14 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.De
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.DeployStrategy
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.RegisterActorRef
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.UNINITIALIZED
+import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   LayerIdentity,
   LinkIdentity
 }
-import edu.uci.ics.amber.engine.common.worker.WorkerState.Uninitialized
-import edu.uci.ics.amber.engine.common.worker.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 
 import scala.collection.mutable
@@ -70,8 +70,8 @@ class WorkerLayer(
       workerToLayer(workerID) = this
       workerID -> WorkerInfo(
         workerID,
-        Uninitialized,
-        WorkerStatistics(Uninitialized, 0, 0)
+        UNINITIALIZED,
+        WorkerStatistics(UNINITIALIZED, 0, 0)
       )
     }.toMap
   }
