@@ -34,7 +34,7 @@ class AggregateOpExecConfig[P <: AnyRef](
       val partialLayer = new WorkerLayer(
         makeLayer(id, "localAgg"),
         _ => new PartialAggregateOpExec(aggFunc),
-        Constants.defaultNumWorkers,
+        Constants.currentWorkerNum,
         UseAll(),
         RoundRobinDeployment()
       )
@@ -58,14 +58,14 @@ class AggregateOpExecConfig[P <: AnyRef](
       val partialLayer = new WorkerLayer(
         makeLayer(id, "localAgg"),
         _ => new PartialAggregateOpExec(aggFunc),
-        Constants.defaultNumWorkers,
+        Constants.currentWorkerNum,
         UseAll(),
         RoundRobinDeployment()
       )
       val finalLayer = new WorkerLayer(
         makeLayer(id, "globalAgg"),
         _ => new FinalAggregateOpExec(aggFunc),
-        Constants.defaultNumWorkers,
+        Constants.currentWorkerNum,
         FollowPrevious(),
         RoundRobinDeployment()
       )

@@ -9,7 +9,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Streams;
 import edu.uci.ics.amber.engine.common.tuple.ITuple;
-import edu.uci.ics.texera.workflow.common.Utils;
+import edu.uci.ics.texera.Utils;
 import edu.uci.ics.texera.workflow.common.tuple.exception.TupleBuildingException;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
@@ -184,8 +184,7 @@ public class Tuple implements ITuple, Serializable {
     }
 
     /**
-     * @deprecated
-     * This method is no longer acceptable to create a new Tuple.
+     * @deprecated This method is no longer acceptable to create a new Tuple.
      * <p> Use {@link Tuple#newBuilder(Schema)} instead.</p>
      */
     @Deprecated
@@ -198,16 +197,14 @@ public class Tuple implements ITuple, Serializable {
     }
 
     /**
-     * @deprecated
-     * See {@link Tuple#newBuilder(Schema)}. Use {@link Tuple.BuilderV2} instead.
+     * @author Zuozhi Wang
+     * @deprecated See {@link Tuple#newBuilder(Schema)}. Use {@link Tuple.BuilderV2} instead.
      * Tuple.Builder is a helper class for creating immutable Tuple instances.
      * <p>
      * Since Tuple is immutable, Tuple.Builder provides a set of commonly used functions
      * to do insert/remove operations.
      * <p>
      * Tuple.Builder also provides a set of static helper function to manipulate a list of tuples.
-     *
-     * @author Zuozhi Wang
      */
     @Deprecated
     public static class Builder {

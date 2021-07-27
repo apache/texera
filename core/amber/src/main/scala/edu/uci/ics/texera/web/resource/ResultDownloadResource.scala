@@ -13,7 +13,7 @@ import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
   sessionDownloadCache,
   sessionResults
 }
-import edu.uci.ics.texera.workflow.common.Utils.retry
+import edu.uci.ics.texera.Utils.retry
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 import java.util

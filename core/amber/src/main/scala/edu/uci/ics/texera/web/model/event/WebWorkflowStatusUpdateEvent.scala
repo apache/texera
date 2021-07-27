@@ -4,7 +4,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.Workflow
 import edu.uci.ics.amber.engine.architecture.principal.{OperatorState, OperatorStatistics}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode
-import edu.uci.ics.texera.workflow.common.Utils.objectMapper
+import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler
 
 object WebWorkflowStatusUpdateEvent {

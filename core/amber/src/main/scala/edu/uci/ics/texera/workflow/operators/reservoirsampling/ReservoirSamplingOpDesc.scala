@@ -20,14 +20,14 @@ class ReservoirSamplingOpDesc extends OperatorDescriptor {
   // In order to make sure the total output is k, each executor should produce (k / n) items
   // (n is the number of the executors)
   @JsonIgnore
-  private lazy val kPerActor: List[Int] = equallyPartitionGoal(k, Constants.defaultNumWorkers)
+  private lazy val kPerActor: List[Int] = equallyPartitionGoal(k, Constants.currentWorkerNum)
 
   // Store random seeds for each executor to satisfy the fault tolerance requirement.
   // If a worker failed, the engine will start a new worker and rerun the computation.
   // Fault tolerance requires that the restarted worker should produce the exactly same output.
   // Therefore the seeds have to be stored.
   @JsonIgnore
-  private val seeds: Array[Int] = Array.fill(Constants.defaultNumWorkers)(Random.nextInt)
+  private val seeds: Array[Int] = Array.fill(Constants.currentWorkerNum)(Random.nextInt)
 
   @JsonProperty(value = "number of item sampled in reservoir sampling", required = true)
   @JsonPropertyDescription("reservoir sampling with k items being kept randomly")
