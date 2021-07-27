@@ -21,9 +21,10 @@ class TupleToBatchConverter:
             OneToOnePartitioning: OneToOnePartitioner
         }
 
-    def add_policy(self, tag: LinkIdentity, partitioning: Partitioning) -> None:
+    def add_partitioning(self, tag: LinkIdentity, partitioning: Partitioning) -> None:
         """
         Add down stream operator and its transfer policy
+        :param tag:
         :param partitioning:
         :return:
         """

@@ -7,5 +7,5 @@ class AddOutputPolicyHandler(Handler):
     cmd = AddPartitioningV2
 
     def __call__(self, context: Context, command: AddPartitioningV2, *args, **kwargs):
-        context.tuple_to_batch_converter.add_policy(command.partitioning)
+        context.tuple_to_batch_converter.add_partitioning(command.partitioning)
         return None

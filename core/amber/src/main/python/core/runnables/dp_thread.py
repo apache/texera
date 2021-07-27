@@ -36,9 +36,8 @@ class DPThread(StoppableQueueBlockingRunnable):
 
     @overrides
     def pre_start(self) -> None:
-
         self.context.state_manager.assert_state(WorkerState.UNINITIALIZED)
-        self.context.state_manager.transit_to(WorkerState.Ready())
+        self.context.state_manager.transit_to(WorkerState.READY)
 
     @overrides
     def receive(self, next_entry: IQueue.QueueElement) -> None:
@@ -52,22 +51,20 @@ class DPThread(StoppableQueueBlockingRunnable):
             EndOfAllMarker, self._process_end_of_all_marker
         )
 
-    def process_control_command(self, cmd: ControlPayloadV2, from_: ActorVirtualIdentity):
+    def process_control_command(self, tag: ActorVirtualIdentity, payload: ControlPayloadV2):
         # logger.info(f"PYTHON DP processing one CONTROL: {cmd} from {from_}")
-
         match(
-            (get_one_of(cmd), from_),
-            typing.Tuple[ControlInvocationV2, ActorVirtualIdentity], self._process_control_invocation
+            (tag, get_one_of(payload)),
+            typing.Tuple[ActorVirtualIdentity, ControlInvocationV2], self._process_control_invocation
             # TODO: handle ReturnPayload
         )
 
     def process_input_tuple(self):
-
         if isinstance(self._current_input_tuple, Tuple):
-            self.context.statistics_manager.input_tuple_count += 1
+            self.context.statistics_manager.increase_input_tuple_count()
 
         for result in self.process_tuple(self._current_input_tuple, self._current_input_link):
-            self.context.statistics_manager.output_tuple_count += 1
+            self.context.statistics_manager.increase_output_tuple_count()
             self.pass_tuple_to_downstream(result)
 
     def process_tuple(self, tuple_: Union[Tuple, InputExhausted], link: LinkIdentity) -> Iterator[Tuple]:
@@ -75,7 +72,7 @@ class DPThread(StoppableQueueBlockingRunnable):
 
     def pass_tuple_to_downstream(self, tuple_: Tuple) -> None:
         for to, batch in self.context.tuple_to_batch_converter.tuple_to_batch(tuple_):
-            self._output_queue.put(DataElement(payload=batch, tag=to))
+            self._output_queue.put(DataElement(tag=to, payload=batch))
 
     def complete(self) -> None:
         self._udf_operator.close()
@@ -103,7 +100,7 @@ class DPThread(StoppableQueueBlockingRunnable):
 
     def _process_control_element(self, control_element: ControlElement) -> None:
         # logger.info(f"PYTHON DP receive a CONTROL: {next_entry}")
-        self.process_control_command(control_element.cmd, control_element.from_)
+        self.process_control_command(control_element.tag, control_element.payload)
 
     def _process_tuple(self, tuple_: Tuple) -> None:
         self._current_input_tuple = tuple_
@@ -127,8 +124,8 @@ class DPThread(StoppableQueueBlockingRunnable):
     def _process_input_data_element(self, input_data_element: DataElement) -> None:
         if self.context.state_manager.confirm_state(WorkerState.READY):
             self.context.state_manager.transit_to(WorkerState.RUNNING)
-        for element in self.context.batch_to_tuple_converter.process_data_payload(input_data_element.tag,
-                                                                                  input_data_element.payload):
+        for element in self.context.batch_to_tuple_converter.process_data_payload(
+                input_data_element.tag, input_data_element.payload):
             match(
                 element,
                 Tuple, self._process_tuple,

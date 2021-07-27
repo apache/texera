@@ -1,6 +1,5 @@
 from collections import defaultdict
-
-from typing import Iterator, Set, Union
+from typing import Iterator, Optional, Set, Union
 
 from core.models import Tuple
 from core.models.marker import EndMarker, EndOfAllMarker, Marker, SenderChangeMarker
@@ -12,24 +11,23 @@ class BatchToTupleConverter:
     def __init__(self):
         self._input_map: dict[ActorVirtualIdentity, LinkIdentity] = dict()
         self._upstream_map: defaultdict[LinkIdentity, Set[ActorVirtualIdentity]] = defaultdict(set)
-        self._current_link: LinkIdentity = None
+        self._current_link: Optional[LinkIdentity] = None
 
     def register_input(self, identifier: ActorVirtualIdentity, input_: LinkIdentity) -> None:
         self._upstream_map[input_].add(identifier)
         self._input_map[identifier] = input_
 
-    def process_data_payload(self, from_: ActorVirtualIdentity, data_payload: DataPayload) \
-            -> Iterator[Union[Tuple, Marker]]:
+    def process_data_payload(self, from_: ActorVirtualIdentity, payload: DataPayload) -> Iterator[Union[Tuple, Marker]]:
         link = self._input_map[from_]
         if self._current_link is None or self._current_link != link:
             self._current_link = link
             yield SenderChangeMarker(link)
 
-        if isinstance(data_payload, DataFrame):
-            for tuple_ in data_payload.frame:
+        if isinstance(payload, DataFrame):
+            for tuple_ in payload.frame:
                 yield tuple_
 
-        elif isinstance(data_payload, EndOfUpstream):
+        elif isinstance(payload, EndOfUpstream):
             self._upstream_map[link].remove(from_)
             if len(self._upstream_map[link]) == 0:
                 del self._upstream_map[link]

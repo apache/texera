@@ -1,7 +1,13 @@
 class StatisticsManager:
     def __init__(self):
-        self.input_tuple_count = 0
-        self.output_tuple_count = 0
+        self._input_tuple_count = 0
+        self._output_tuple_count = 0
 
     def get_statistics(self):
-        return self.input_tuple_count, self.output_tuple_count
+        return self._input_tuple_count, self._output_tuple_count
+
+    def increase_input_tuple_count(self):
+        self._input_tuple_count += 1
+
+    def increase_output_tuple_count(self):
+        self._output_tuple_count += 1

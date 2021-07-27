@@ -1,11 +1,3 @@
-"""
- if (stateManager.confirmState(Running(), Ready())) {
-      pauseManager.pause()
-      dataProcessor.disableDataQueue()
-      stateManager.transitTo(Paused())
-    }
-    stateManager.getCurrentState
-"""
 from core.architecture.handlers.handler_base import Handler
 from core.architecture.managers.context import Context
 
