@@ -1,18 +1,23 @@
 from __future__ import annotations
 
+from enum import Enum
+
+
+class PauseState(Enum):
+    NO_PAUSE = 0
+    PAUSED = 1
+
 
 class PauseManager:
-    NoPause = 0
-    Paused = 1
 
     def __init__(self):
-        self.pause_privilege_level = PauseManager.NoPause
+        self._pause_state = PauseState.NO_PAUSE
 
     def pause(self):
-        self.pause_privilege_level = PauseManager.Paused
+        self._pause_state = PauseState.PAUSED
 
     def resume(self):
-        self.pause_privilege_level = PauseManager.NoPause
+        self._pause_state = PauseState.NO_PAUSE
 
     def is_paused(self) -> bool:
-        return self.pause_privilege_level == PauseManager.Paused
+        return self._pause_state == PauseState.PAUSED
