@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.web
 
-import edu.uci.ics.texera.workflow.common.Utils
+import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.workflow.common.workflow.{
   Breakpoint,
   BreakpointCondition,
