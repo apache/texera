@@ -21,7 +21,7 @@ class TestProxyClient:
     @pytest.fixture
     def server_with_dp(self, data_queue):
         server = ProxyServer()
-        server.register_data_handler(lambda cmd, table:
+        server.register_data_handler(lambda _, table:
                                      list(map(data_queue.put,
                                               map(lambda t: t[1], table.to_pandas().iterrows()))))
         yield server
