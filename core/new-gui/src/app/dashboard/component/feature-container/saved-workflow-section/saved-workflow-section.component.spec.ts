@@ -14,6 +14,7 @@ import { Workflow, WorkflowContent } from '../../../../common/type/workflow';
 import { jsonCast } from '../../../../common/util/storage';
 import { HttpClient } from '@angular/common/http';
 import { WorkflowGrantAccessService } from '../../../../common/service/user/workflow-access-control/workflow-grant-access.service';
+import { WorkflowInfo } from "../../../../common/type/workflow-info";
 
 describe('SavedWorkflowSectionComponent', () => {
   let component: SavedWorkflowSectionComponent;
@@ -31,41 +32,14 @@ describe('SavedWorkflowSectionComponent', () => {
     creationTime: 1,
     lastModifiedTime: 2,
   };
-  const TestCase: Workflow[] = [
+  const TestCase: WorkflowInfo[] = [
     {
-      wid: 1,
-      name: 'workflow 1',
-      content: jsonCast<WorkflowContent>('{}'),
-      creationTime: 1,
-      lastModifiedTime: 2,
+      workflow: TestWorkflow,
+      isOwner: true
     },
     {
-      wid: 2,
-      name: 'workflow 2',
-      content: jsonCast<WorkflowContent>('{}'),
-      creationTime: 3,
-      lastModifiedTime: 4,
-    },
-    {
-      wid: 3,
-      name: 'workflow 3',
-      content: jsonCast<WorkflowContent>('{}'),
-      creationTime: 3,
-      lastModifiedTime: 3,
-    },
-    {
-      wid: 4,
-      name: 'workflow 4',
-      content: jsonCast<WorkflowContent>('{}'),
-      creationTime: 4,
-      lastModifiedTime: 6,
-    },
-    {
-      wid: 5,
-      name: 'workflow 5',
-      content: jsonCast<WorkflowContent>('{}'),
-      creationTime: 3,
-      lastModifiedTime: 8,
+      workflow: TestWorkflow,
+      isOwner: true
     }
   ];
 
@@ -114,7 +88,7 @@ describe('SavedWorkflowSectionComponent', () => {
     component.workflows = [];
     component.workflows = component.workflows.concat(TestCase);
     component.ascSort();
-    const SortedCase = component.workflows.map(item => item.name);
+    const SortedCase = component.workflows.map(item => item.workflow.name);
     expect(SortedCase)
       .toEqual(['workflow 1', 'workflow 2', 'workflow 3', 'workflow 4', 'workflow 5']);
   });
@@ -123,7 +97,7 @@ describe('SavedWorkflowSectionComponent', () => {
     component.workflows = [];
     component.workflows = component.workflows.concat(TestCase);
     component.dscSort();
-    const SortedCase = component.workflows.map(item => item.name);
+    const SortedCase = component.workflows.map(item => item.workflow.name);
     expect(SortedCase)
       .toEqual(['workflow 5', 'workflow 4', 'workflow 3', 'workflow 2', 'workflow 1']);
   });
@@ -145,7 +119,7 @@ describe('SavedWorkflowSectionComponent', () => {
     component.workflows = [];
     component.workflows = component.workflows.concat(TestCase);
     component.ascSort();
-    const SortedCase = component.workflows.map(item => item.name);
+    const SortedCase = component.workflows.map(item => item.workflow.name);
     expect(SortedCase)
       .toEqual(['workflow 1', 'workflow 2', 'workflow 3', 'workflow 4', 'workflow 5']);
   });
@@ -153,7 +127,7 @@ describe('SavedWorkflowSectionComponent', () => {
     component.workflows = [];
     component.workflows = component.workflows.concat(TestCase);
     component.dateSort();
-    const SortedCase = component.workflows.map(item => item.creationTime);
+    const SortedCase = component.workflows.map(item => item.workflow.creationTime);
     expect(SortedCase)
       .toEqual([1, 3, 3, 3, 4]);
   });
@@ -162,7 +136,7 @@ describe('SavedWorkflowSectionComponent', () => {
     component.workflows = [];
     component.workflows = component.workflows.concat(TestCase);
     component.lastSort();
-    const SortedCase = component.workflows.map(item => item.lastModifiedTime);
+    const SortedCase = component.workflows.map(item => item.workflow.lastModifiedTime);
     expect(SortedCase)
       .toEqual([2, 3, 4, 6, 8]);
   });

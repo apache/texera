@@ -2,9 +2,9 @@ package edu.uci.ics.texera.web.resource.dashboard.file
 
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.error.WorkflowRuntimeError
+import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.FileDao
-import edu.uci.ics.texera.workflow.common.Utils
 import org.jooq.types.UInteger
 
 import java.io._
