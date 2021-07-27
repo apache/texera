@@ -27,10 +27,15 @@ object TexeraWebApplication {
     actorSystem = AmberUtils.startActorMaster(true)
 
     // start web server
-    val server = "server"
-    val serverConfig =
-      Utils.amberHomePath.resolve("../conf").resolve("web-config.yml").toString
-    new TexeraWebApplication().run(server, serverConfig)
+    new TexeraWebApplication().run(
+      "server",
+      Utils.amberHomePath
+        .resolve("src")
+        .resolve("main")
+        .resolve("resources")
+        .resolve("web-config.yml")
+        .toString
+    )
   }
 }
 
