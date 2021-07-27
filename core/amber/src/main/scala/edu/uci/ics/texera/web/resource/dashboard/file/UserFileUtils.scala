@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web.resource.dashboard.file
 
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.error.WorkflowRuntimeError
-import edu.uci.ics.texera.workflow.common.Utils
+import edu.uci.ics.texera.Utils
 
 import java.io._
 import java.nio.file.{Files, Path}
