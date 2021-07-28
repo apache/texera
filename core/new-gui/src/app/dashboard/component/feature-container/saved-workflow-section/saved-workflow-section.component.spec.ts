@@ -16,6 +16,7 @@ import { HttpClient } from '@angular/common/http';
 import { WorkflowGrantAccessService } from '../../../../common/service/user/workflow-access-control/workflow-grant-access.service';
 import { UserService } from '../../../../common/service/user/user.service';
 import { StubUserService } from '../../../../common/service/user/stub-user.service';
+import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
 
 describe('SavedWorkflowSectionComponent', () => {
   let component: SavedWorkflowSectionComponent;
@@ -91,7 +92,9 @@ describe('SavedWorkflowSectionComponent', () => {
         FormsModule,
         RouterTestingModule,
         HttpClientTestingModule,
-        ReactiveFormsModule]
+        ReactiveFormsModule,
+        NzDropDownModule
+      ]
     }).compileComponents();
   }));
 
