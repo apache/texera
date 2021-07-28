@@ -14,7 +14,7 @@ class TestDpTread:
     def mock_udf(self):
         class EchoOperator(UDFOperator):
             @overrides
-            def process_texera_tuple(self, tuple_: Union[Tuple, InputExhausted], input_: LinkIdentity) -> Iterator[
+            def process_texera_tuple(self, tuple_: Union[Tuple, InputExhausted], link: LinkIdentity) -> Iterator[
                 Tuple]:
                 if isinstance(tuple_, InputExhausted):
                     return []

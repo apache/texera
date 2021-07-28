@@ -1,5 +1,5 @@
 import typing
-from typing import Iterator, Union
+from typing import Iterator, Optional, Union
 
 from loguru import logger
 from overrides import overrides
@@ -26,8 +26,8 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         self._input_queue: InternalQueue = input_queue
         self._output_queue: InternalQueue = output_queue
         self._udf_operator: UDFOperator = udf_operator
-        self._current_input_tuple: Union[Tuple, InputExhausted] = None
-        self._current_input_link: LinkIdentity = None
+        self._current_input_tuple: Optional[Union[Tuple, InputExhausted]] = None
+        self._current_input_link: Optional[LinkIdentity] = None
 
         self.context = Context(self)
         self._rpc_server = SyncRPCServer(output_queue, context=self.context)
