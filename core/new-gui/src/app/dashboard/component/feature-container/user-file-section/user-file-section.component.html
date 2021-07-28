@@ -1,32 +1,34 @@
-<div class="user-dictionary-container subsection-grid-container">
+<div class="user-file-container subsection-grid-container">
   <nz-card class="button-area subsection-grid-container">
-    <div ngbDropdown class="d-inline-block">
-      <button (click)="openFileAddComponent()" [disabled]="disableAddButton()" class="btn btn-outline-dark add-button"
-              type="button">
-        <i class="fa fa-cloud-upload"></i>
+    <h2 class="page-title">Files</h2>
+    <div class="d-inline-block">
+      <button (click)="openFileAddComponent()" [disabled]="disableAddButton()" nz-button
+              nz-tooltip nzTooltipTitle="Upload file" nzTooltipPlacement="bottom">
+        <i nz-icon nzType="upload" nzTheme="outline"></i>
       </button>
     </div>
   </nz-card>
 
-  <nz-card class="user-dictionary-list subsection-grid-container">
-    <!--    <mat-card-content>-->
-    <h2 class="page-title">Files</h2>
+  <nz-card class="user-file-list subsection-grid-container">
     <nz-list>
-      <div class="scroll">
-        <nz-list-item *ngFor="let userFile of getFileArray()" class="user-dictionary-list-item">
-          <div class="section-for-tip">
-            <p><span class="dict-name">{{userFile.name}}</span>
-            </p>
-            <p><span class="dict-name">
-                  {{addFileSizeUnit(userFile.size)}}</span>
-            </p>
-          </div>
-          <span class="gap-filler"></span>
-          <button class="delete-workflow-btn" mat-button ngbTooltip="Delete the {{userFile.name}}" placement="bottom"
-                  (click)="deleteFile(userFile)"><i class="fa fa-trash"></i></button>
-        </nz-list-item>
-      </div>
+      <nz-list-item *ngFor="let userFile of getFileArray()" class="user-file-list-item">
+        <nz-list-item-meta>
+          <nz-list-item-meta-title>
+            <div class="file-name">{{userFile.name}}</div>
+          </nz-list-item-meta-title>
+          <nz-list-item-meta-description>
+            {{addFileSizeUnit(userFile.size)}}
+          </nz-list-item-meta-description>
+        </nz-list-item-meta>
+        <ul nz-list-item-actions>
+          <nz-list-item-action>
+            <button nz-button nz-tooltip nzTooltipTitle="Delete the {{userFile.name}}"
+                    nzTooltipPlacement="bottom" (click)="deleteFile(userFile)"  type="button">
+              <i nz-icon nzType="delete" nzTheme="outline"></i>
+            </button>
+          </nz-list-item-action>
+        </ul>
+      </nz-list-item>
     </nz-list>
-    <!--    </mat-card-content>-->
   </nz-card>
 </div>
