@@ -26,7 +26,7 @@ class AsyncRPCServer:
         self.register(UpdateInputLinkingHandler())
         self.register(QueryStatisticsHandler())
 
-    def receive(self, control_invocation: ControlInvocationV2, from_: ActorVirtualIdentity):
+    def receive(self, from_: ActorVirtualIdentity, control_invocation: ControlInvocationV2):
         command: ControlCommandV2 = get_one_of(control_invocation.command)
         # logger.info(f"PYTHON receive a CONTROL: {control_invocation}")
         handler = self.look_up(command)

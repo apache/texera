@@ -15,7 +15,7 @@ from core.udf.udf_operator import UDFOperator
 from core.util import IQueue, StoppableQueueBlockingRunnable, get_one_of, set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.worker import ControlCommandV2, WorkerExecutionCompletedV2, WorkerState
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlInvocationV2, ControlPayloadV2, \
-    LinkIdentity
+    LinkIdentity, ReturnInvocationV2
 
 
 class DataProcessor(StoppableQueueBlockingRunnable):
@@ -54,8 +54,8 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         # logger.info(f"PYTHON DP processing one CONTROL: {cmd} from {from_}")
         match(
             (tag, get_one_of(payload)),
-            typing.Tuple[ActorVirtualIdentity, ControlInvocationV2], self._process_control_invocation
-            # TODO: handle ReturnPayload
+            typing.Tuple[ActorVirtualIdentity, ControlInvocationV2], self._process_control_invocation,
+            typing.Tuple[ActorVirtualIdentity, ReturnInvocationV2], self._process_return_invocation
         )
 
     def process_input_tuple(self):
@@ -125,5 +125,8 @@ class DataProcessor(StoppableQueueBlockingRunnable):
                 EndOfAllMarker, self._process_end_of_all_marker
             )
 
-    def _process_control_invocation(self, control_invocation: ControlInvocationV2, from_: ActorVirtualIdentity) -> None:
-        self._async_rpc_server.receive(control_invocation=control_invocation, from_=from_)
+    def _process_control_invocation(self, from_: ActorVirtualIdentity, control_invocation: ControlInvocationV2) -> None:
+        self._async_rpc_server.receive(from_=from_, control_invocation=control_invocation)
+
+    def _process_return_invocation(self, from_: ActorVirtualIdentity, return_invocation: ReturnInvocationV2) -> None:
+        self._async_rpc_client.fulfill_promise(from_=from_, return_invocation=return_invocation)
