@@ -1,4 +1,4 @@
-from asyncio import base_futures, exceptions
+from asyncio import CancelledError, InvalidStateError, base_futures
 from collections import defaultdict
 from typing import Callable, Dict
 
@@ -20,8 +20,6 @@ class Future:
     _state = _PENDING
     _result = None
     _exception = None
-    _loop = None
-    _source_traceback = None
     _cancel_message = None
     # A saved CancelledError for later chaining as an exception context.
     _cancelled_exc = None
@@ -41,7 +39,7 @@ class Future:
             exc = self._make_cancelled_error()
             raise exc
         if self._state != _FINISHED:
-            raise exceptions.InvalidStateError('Result is not ready.')
+            raise InvalidStateError('Result is not ready.')
         if self._exception is not None:
             raise self._exception
         return self._result
@@ -64,7 +62,7 @@ class Future:
             exc = self._make_cancelled_error()
             raise exc
         if self._state != _FINISHED:
-            raise exceptions.InvalidStateError('Exception is not set.')
+            raise InvalidStateError('Exception is not set.')
         return self._exception
 
     def add_done_callback(self, fn: Callable):
@@ -92,7 +90,7 @@ class Future:
         InvalidStateError.
         """
         if self._state != _PENDING:
-            raise exceptions.InvalidStateError(f'{self._state}: {self!r}')
+            raise InvalidStateError(f'{self._state}: {self!r}')
         self._result = result
         self._state = _FINISHED
         self._execute_callback()
@@ -103,7 +101,7 @@ class Future:
         InvalidStateError.
         """
         if self._state != _PENDING:
-            raise exceptions.InvalidStateError(f'{self._state}: {self!r}')
+            raise InvalidStateError(f'{self._state}: {self!r}')
         if isinstance(exception, type):
             exception = exception()
         if type(exception) is StopIteration:
@@ -119,9 +117,9 @@ class Future:
         it erases the saved context exception value.
         """
         if self._cancel_message is None:
-            exc = exceptions.CancelledError()
+            exc = CancelledError()
         else:
-            exc = exceptions.CancelledError(self._cancel_message)
+            exc = CancelledError(self._cancel_message)
         exc.__context__ = self._cancelled_exc
         # Remove the reference since we don't need this anymore.
         self._cancelled_exc = None
@@ -139,21 +137,42 @@ class AsyncRPCClient:
         self._send_sequences: Dict[ActorVirtualIdentity, int] = defaultdict(int)
         self._unfulfilled_promises: Dict[(ActorVirtualIdentity, int), Future] = dict()
 
-    def send(self, to: ActorVirtualIdentity, control_command: ControlCommandV2):
-        self.create_promise(to, control_command)
+    def send(self, to: ActorVirtualIdentity, control_command: ControlCommandV2) -> None:
+        """
+        Send the ControlCommand to the target actor.
 
-    def create_promise(self, to: ActorVirtualIdentity, control_command: ControlCommandV2) -> None:
+        :param to: ActorVirtualIdentity, the receiver.
+        :param control_command: ControlCommandV2, the command to be sent.
+        """
         payload = set_one_of(ControlPayloadV2, ControlInvocationV2(self._send_sequences[to], command=control_command))
         self._output_queue.put(ControlElement(tag=to, payload=payload))
+        self.create_promise(to)
 
-        future = Future()
+    def create_promise(self, to: ActorVirtualIdentity) -> None:
+        """
+        Create a promise for the target actor, recording the CommandInvocations sent with a sequence,
+        so that the promise can be fulfilled once the ReturnInvocation is received for the
+        CommandInvocation.
+
+        :param to: ActorVirtualIdentity, the receiver.
+        """
         # TODO: add callback api
+        future = Future()
         self._unfulfilled_promises[(to, self._send_sequences[to])] = future
+        logger.debug(f"future created with {(to, self._send_sequences[to])}")
         self._send_sequences[to] += 1
 
     def fulfill_promise(self, from_: ActorVirtualIdentity, return_invocation: ReturnInvocationV2) -> None:
+        """
+        Fulfill the promise with the CommandInvocation, referenced by the sequence id with this sender of
+        ReturnInvocation.
+
+        :param from_: ActorVirtualIdentity, the sender.
+        :param return_invocation: ReturnInvocationV2, contains the original command id to be used to find
+                        the promise, and also the ControlReturn to be used to fulfill the promise.
+        """
         command_id = return_invocation.original_command_id
         future: Future = self._unfulfilled_promises[(from_, command_id)]
         future.set_result(return_invocation.control_return)
-        logger.info(f"future fulfilled {return_invocation.original_command_id}")
+        logger.debug(f"future of {(from_, command_id)} is now fulfilled")
         del self._unfulfilled_promises[(from_, command_id)]

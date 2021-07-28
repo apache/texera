@@ -97,13 +97,16 @@ class TestDpTread:
         dp_thread = Thread(target=wrapper, name="dp_thread")
         yield dp_thread
 
+    @pytest.mark.timeout(1)
     def test_dp_thread_can_start(self, dp_thread):
         dp_thread.start()
         assert dp_thread.is_alive()
 
+    @pytest.mark.timeout(1)
     def test_dp_thread_can_handle_data_messages(self, mock_link, mock_receiver_actor, mock_controller, input_queue,
                                                 output_queue, mock_data_element, dp_thread, mock_update_input_linking,
-                                                mock_add_partitioning, mock_end_of_upstream, command_sequence, reraise):
+                                                mock_add_partitioning, mock_end_of_upstream, mock_tuple,
+                                                command_sequence, reraise):
         dp_thread.start()
 
         # can update input link
@@ -130,9 +133,14 @@ class TestDpTread:
 
         # can process a DataFrame
         input_queue.put(mock_data_element)
-        expected_data_element = mock_data_element
-        expected_data_element.tag = mock_receiver_actor
-        assert output_queue.get() == expected_data_element
+
+        expected_data_frame: DataFrame = DataFrame(frame=[mock_tuple])
+        output_data_element: DataElement = output_queue.get()
+        assert output_data_element.tag == mock_receiver_actor
+        assert isinstance(output_data_element.payload, DataFrame)
+        data_frame: DataFrame = output_data_element.payload
+        assert len(data_frame.frame) == 1
+        assert (data_frame.frame[0] == expected_data_frame.frame[0]).all()
 
         # can process an EndOfUpstream
         input_queue.put(mock_end_of_upstream)
