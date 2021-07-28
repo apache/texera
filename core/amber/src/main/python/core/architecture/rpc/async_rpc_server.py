@@ -14,7 +14,7 @@ from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlI
     ReturnInvocationV2
 
 
-class SyncRPCServer:
+class AsyncRPCServer:
     def __init__(self, output_queue: InternalQueue, context: Context):
         self._context = context
         self._output_queue = output_queue

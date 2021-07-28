@@ -7,7 +7,7 @@ from pampy import match
 
 from core.architecture.managers.context import Context
 from core.architecture.packaging.batch_to_tuple_converter import EndMarker, EndOfAllMarker
-from core.architecture.sync_rpc.sync_rpc_server import SyncRPCServer
+from core.architecture.rpc.async_rpc_server import AsyncRPCServer
 from core.models.internal_queue import ControlElement, DataElement, InternalQueue
 from core.models.marker import SenderChangeMarker
 from core.models.tuple import InputExhausted, Tuple
@@ -30,7 +30,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         self._current_input_link: Optional[LinkIdentity] = None
 
         self.context = Context(self)
-        self._rpc_server = SyncRPCServer(output_queue, context=self.context)
+        self._async_rpc_server = AsyncRPCServer(output_queue, context=self.context)
 
         self.send_sequence = 0
 
@@ -135,4 +135,4 @@ class DataProcessor(StoppableQueueBlockingRunnable):
             )
 
     def _process_control_invocation(self, control_invocation: ControlInvocationV2, from_: ActorVirtualIdentity) -> None:
-        self._rpc_server.receive(control_invocation=control_invocation, from_=from_)
+        self._async_rpc_server.receive(control_invocation=control_invocation, from_=from_)
