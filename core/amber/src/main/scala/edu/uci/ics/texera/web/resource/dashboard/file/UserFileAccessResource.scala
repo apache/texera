@@ -5,6 +5,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER_FILE_ACCES
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{UserDao, UserFileAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserFileAccess
 import edu.uci.ics.texera.web.resource.auth.UserResource
+import edu.uci.ics.texera.web.resource.dashboard.file.UserFileAccessResource.context
 import io.dropwizard.jersey.sessions.Session
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
@@ -17,8 +18,7 @@ import scala.collection.JavaConverters._
 /**
   * A Utility Class used to for operations related to database
   */
-object FileAccessUtils {
-  final private val userDao = new UserDao(context.configuration)
+object UserFileAccessResource {
   private var context: DSLContext = SqlServer.createDSLContext
 
   def hasAccessTo(uid: UInteger, fid: UInteger): Boolean = {
@@ -31,6 +31,7 @@ object FileAccessUtils {
   }
 
   def getFileId(ownerName: String, fileName: String): UInteger = {
+    val userDao = new UserDao(context.configuration)
     val uid = userDao.fetchByName(ownerName).get(0).getUid
     val file = context
       .select(FILE.FID)
@@ -41,6 +42,7 @@ object FileAccessUtils {
   }
 
   def getUidOfUser(username: String): UInteger = {
+    val userDao = new UserDao(context.configuration)
     userDao.fetchByName(username).get(0).getUid
   }
 }
@@ -55,7 +57,6 @@ class UserFileAccessResource {
     context.configuration
   )
   final private val userDao = new UserDao(context.configuration)
-  private var context: DSLContext = SqlServer.createDSLContext
 
   /**
     * Retrieves the list of all shared accesses of the target file
@@ -72,7 +73,7 @@ class UserFileAccessResource {
   ): Response = {
     UserResource.getUser(session) match {
       case Some(_) =>
-        val fid = FileAccessUtils.getFileId(ownerName, fileName)
+        val fid = UserFileAccessResource.getFileId(ownerName, fileName)
         val fileAccess = context
           .select(USER_FILE_ACCESS.UID, USER_FILE_ACCESS.READ_ACCESS, USER_FILE_ACCESS.WRITE_ACCESS)
           .from(USER_FILE_ACCESS)
@@ -152,7 +153,7 @@ class UserFileAccessResource {
   ): Response = {
     UserResource.getUser(session) match {
       case Some(_) =>
-        val fid = FileAccessUtils.getFileId(ownerName, fileName)
+        val fid = UserFileAccessResource.getFileId(ownerName, fileName)
         val uid: UInteger =
           try {
             userDao.fetchByName(username).get(0).getUid
@@ -164,7 +165,7 @@ class UserFileAccessResource {
                 .build()
           }
 
-        if (FileAccessUtils.hasAccessTo(uid, fid)) {
+        if (UserFileAccessResource.hasAccessTo(uid, fid)) {
           if (accessType == "read") {
             userFileAccessDao.update(new UserFileAccess(uid, fid, true, false))
           } else {
@@ -199,7 +200,7 @@ class UserFileAccessResource {
   ): Response = {
     UserResource.getUser(session) match {
       case Some(_) =>
-        val fid = FileAccessUtils.getFileId(ownerName, fileName)
+        val fid = UserFileAccessResource.getFileId(ownerName, fileName)
         val uid: UInteger =
           try {
             userDao.fetchByName(username).get(0).getUid

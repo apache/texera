@@ -52,16 +52,6 @@ object WorkflowAccessResource {
   }
 
   /**
-    * Identifies whether the given user has write access over the given workflow
-    * @param wid     workflow id
-    * @param uid     user id, works with workflow id as primary keys in database
-    * @return boolean value indicating yes/no
-    */
-  def hasWriteAccess(wid: UInteger, uid: UInteger): Boolean = {
-    checkAccessLevel(wid, uid).eq(WorkflowAccess.WRITE)
-  }
-
-  /**
     * Returns an Access Object based on given wid and uid
     * Searches in database for the given uid-wid pair, and returns Access Object based on search result
     *
@@ -83,6 +73,16 @@ object WorkflowAccessResource {
     } else {
       WorkflowAccess.NONE
     }
+  }
+
+  /**
+    * Identifies whether the given user has write access over the given workflow
+    * @param wid     workflow id
+    * @param uid     user id, works with workflow id as primary keys in database
+    * @return boolean value indicating yes/no
+    */
+  def hasWriteAccess(wid: UInteger, uid: UInteger): Boolean = {
+    checkAccessLevel(wid, uid).eq(WorkflowAccess.WRITE)
   }
 
   /**
@@ -122,7 +122,6 @@ object WorkflowAccessResource {
 @Path("/workflow-access")
 @Produces(Array(MediaType.APPLICATION_JSON))
 class WorkflowAccessResource() {
-
   private val userDao = new UserDao(context.configuration())
   private val workflowOfUserDao = new WorkflowOfUserDao(
     context.configuration

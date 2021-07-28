@@ -1,10 +1,11 @@
 package edu.uci.ics.texera.web.resource.dashboard.file
 
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.FILE
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER_FILE_ACCESS}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileDao, UserDao, UserFileAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, UserFileAccess}
 import edu.uci.ics.texera.web.resource.auth.UserResource
+import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.context
 import io.dropwizard.jersey.sessions.Session
 import org.apache.commons.lang3.tuple.Pair
 import org.glassfish.jersey.media.multipart.{FormDataContentDisposition, FormDataParam}
@@ -30,6 +31,11 @@ case class fileRecord(
     description: String,
     access: String
 )
+
+object UserFileResource {
+  private var context: DSLContext = SqlServer.createDSLContext
+}
+
 @Path("/user/file")
 @Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON))
@@ -39,7 +45,6 @@ class UserFileResource {
     context.configuration
   )
   final private val userDao = new UserDao(context.configuration)
-  private var context: DSLContext = SqlServer.createDSLContext
 
   /**
     * This method will handle the request to upload a single file.
@@ -139,13 +144,26 @@ class UserFileResource {
 
     UserResource.getUser(session) match {
       case Some(user) =>
-        val fileID = FileAccessUtils.getFileId(ownerName, fileName)
+        val fileID = UserFileAccessResource.getFileId(ownerName, fileName)
         val userID = user.getUid
-        // TODO: add user check
-        val filePath = fileDao.fetchOneByFid(fileID).getPath
-        UserFileUtils.deleteFile(Paths.get(filePath))
-        fileDao.deleteById(fileID)
-        Response.ok().build()
+        val hasWriteAccess = context
+          .select(USER_FILE_ACCESS.WRITE_ACCESS)
+          .from(USER_FILE_ACCESS)
+          .where(USER_FILE_ACCESS.UID.eq(userID).and(USER_FILE_ACCESS.FID.eq(fileID)))
+          .fetch()
+          .getValue(0, 0)
+        if (hasWriteAccess == false) {
+          Response
+            .status(Response.Status.UNAUTHORIZED)
+            .entity("You do not have the access to deleting the file")
+            .build()
+        } else {
+          val filePath = fileDao.fetchOneByFid(fileID).getPath
+          UserFileUtils.deleteFile(Paths.get(filePath))
+          fileDao.deleteById(fileID)
+          Response.ok().build()
+        }
+
       case None =>
         Response.status(Response.Status.UNAUTHORIZED).build()
     }
