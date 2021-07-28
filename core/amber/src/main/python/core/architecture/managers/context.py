@@ -10,7 +10,7 @@ class Context:
     """
     This class manages context of command handlers. Many of those attributes belongs to DP thread,
     they are managed here to show a clean interface what handlers can or should access.
-    Context class can be viewed as a friend of DPRunnable.
+    Context class can be viewed as a friend of DataProcessor.
     """
     def __init__(self, dp):
         self.dp = dp

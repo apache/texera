@@ -18,7 +18,7 @@ from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlI
     LinkIdentity
 
 
-class DPThread(StoppableQueueBlockingRunnable):
+class DataProcessor(StoppableQueueBlockingRunnable):
 
     def __init__(self, input_queue: InternalQueue, output_queue: InternalQueue, udf_operator: UDFOperator):
         super().__init__(self.__class__.__name__, queue=input_queue)
