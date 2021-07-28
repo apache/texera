@@ -14,6 +14,8 @@ import { Workflow, WorkflowContent } from '../../../../common/type/workflow';
 import { jsonCast } from '../../../../common/util/storage';
 import { HttpClient } from '@angular/common/http';
 import { WorkflowGrantAccessService } from '../../../../common/service/user/workflow-access-control/workflow-grant-access.service';
+import { UserService } from '../../../../common/service/user/user.service';
+import { StubUserService } from '../../../../common/service/user/stub-user.service';
 
 describe('SavedWorkflowSectionComponent', () => {
   let component: SavedWorkflowSectionComponent;
@@ -78,7 +80,8 @@ describe('SavedWorkflowSectionComponent', () => {
         NgbActiveModal,
         HttpClient,
         NgbActiveModal,
-        WorkflowGrantAccessService
+        WorkflowGrantAccessService,
+        {provide: UserService, useClass: StubUserService},
       ],
       imports: [MatDividerModule,
         MatListModule,
@@ -141,14 +144,7 @@ describe('SavedWorkflowSectionComponent', () => {
       modalRef.dismiss();
     });
   });
-  it('alphaSortTest increaseOrder', () => {
-    component.workflows = [];
-    component.workflows = component.workflows.concat(TestCase);
-    component.ascSort();
-    const SortedCase = component.workflows.map(item => item.name);
-    expect(SortedCase)
-      .toEqual(['workflow 1', 'workflow 2', 'workflow 3', 'workflow 4', 'workflow 5']);
-  });
+
   it('createDateSortTest', () => {
     component.workflows = [];
     component.workflows = component.workflows.concat(TestCase);
