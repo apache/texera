@@ -55,8 +55,9 @@ class UDFOperator(ABC):
                 ) -> Iterator[pd.Series]:
                     if isinstance(tuple_, Tuple):
                         yield tuple_
+
+        See .examples/ for more example operators.
         """
-        # TODO: add example operators somewhere else.
         pass
 
     def close(self) -> None:

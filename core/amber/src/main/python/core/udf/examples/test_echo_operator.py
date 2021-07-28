@@ -1,7 +1,7 @@
 import pandas
 import pytest
 
-from core.udf.echo_operator import EchoOperator
+from core.udf.examples.echo_operator import EchoOperator
 from proto.edu.uci.ics.amber.engine.common import LayerIdentity, LinkIdentity
 
 
