@@ -7,8 +7,15 @@ from ..packaging.tuple_to_batch_converter import TupleToBatchConverter
 
 
 class Context:
+    """
+    This class manages context of command handlers. Many of those attributes belongs to DP thread,
+    they are managed here to show a clean interface what handlers can or should access.
+    Context class can be viewed as a friend of DPRunnable.
+    """
     def __init__(self, dp):
         self.dp = dp
+        self.input_queue = dp._input_queue
+        self.udf_operator = dp._udf_operator
         self.state_manager = StateManager({
             WorkerState.UNINITIALIZED: {WorkerState.READY},
             WorkerState.READY:         {WorkerState.PAUSED, WorkerState.RUNNING},

@@ -11,6 +11,13 @@ class UDFOperator(ABC):
     before using.
     """
 
+    def __init__(self, is_source=False):
+        self._is_source: bool = is_source
+
+    @property
+    def is_source(self) -> bool:
+        return self._is_source
+
     def open(self) -> None:
         pass
 

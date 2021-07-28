@@ -1,4 +1,4 @@
-from core.architecture.handlers.add_output_policy_handler import AddOutputPolicyHandler
+from core.architecture.handlers.add_partitioning_handler import AddOutputPolicyHandler
 from core.architecture.handlers.handler_base import Handler
 from core.architecture.handlers.pause_worker_handler import PauseWorkerHandler
 from core.architecture.handlers.query_statistics_handler import QueryStatisticsHandler
@@ -16,15 +16,15 @@ from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlI
 
 class SyncRPCServer:
     def __init__(self, output_queue: InternalQueue, context: Context):
+        self._context = context
         self._output_queue = output_queue
         self._handlers: dict[type(ControlCommandV2), Handler] = dict()
-        self.register(AddOutputPolicyHandler())
-        self.register(UpdateInputLinkingHandler())
-        self.register(QueryStatisticsHandler())
         self.register(StartWorkerHandler())
         self.register(PauseWorkerHandler())
         self.register(ResumeWorkerHandler())
-        self._context = context
+        self.register(AddOutputPolicyHandler())
+        self.register(UpdateInputLinkingHandler())
+        self.register(QueryStatisticsHandler())
 
     def receive(self, control_invocation: ControlInvocationV2, from_: ActorVirtualIdentity):
         command: ControlCommandV2 = get_one_of(control_invocation.command)
@@ -32,12 +32,18 @@ class SyncRPCServer:
         handler = self.look_up(command)
         control_return: ControlReturnV2 = set_one_of(ControlReturnV2, handler(self._context, command))
 
-        payload: ControlPayloadV2 = set_one_of(ControlPayloadV2,
-                                               ReturnInvocationV2(original_command_id=control_invocation.command_id,
-                                                                  control_return=control_return))
+        payload: ControlPayloadV2 = set_one_of(
+            ControlPayloadV2,
+            ReturnInvocationV2(
+                original_command_id=control_invocation.command_id,
+                control_return=control_return
+            )
+        )
 
+        # reply to the sender
+        to = from_
         # logger.info(f"PYTHON returning control {cmd}")
-        self._output_queue.put(ControlElement(tag=from_, payload=payload))
+        self._output_queue.put(ControlElement(tag=to, payload=payload))
 
     def register(self, handler: Handler) -> None:
         self._handlers[handler.cmd] = handler

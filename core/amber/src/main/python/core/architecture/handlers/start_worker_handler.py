@@ -10,8 +10,7 @@ class StartWorkerHandler(Handler):
     def __call__(self, context: Context, command: StartWorkerV2, *args, **kwargs):
         if context.dp._udf_is_source:
             context.state_manager.transit_to(WorkerState.RUNNING)
-            context.dp._input_queue.put(EndMarker())
-            context.dp._input_queue.put(EndOfAllMarker())
-
+            context.input_queue.put(EndMarker())
+            context.input_queue.put(EndOfAllMarker())
         state = context.state_manager.get_current_state()
         return state

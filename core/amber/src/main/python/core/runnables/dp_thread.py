@@ -26,12 +26,12 @@ class DPThread(StoppableQueueBlockingRunnable):
         self._input_queue: InternalQueue = input_queue
         self._output_queue: InternalQueue = output_queue
         self._udf_operator: UDFOperator = udf_operator
-        self._udf_is_source: bool = False
         self._current_input_tuple: Union[Tuple, InputExhausted] = None
         self._current_input_link: LinkIdentity = None
 
         self.context = Context(self)
         self._rpc_server = SyncRPCServer(output_queue, context=self.context)
+
         self.send_sequence = 0
 
     @overrides
