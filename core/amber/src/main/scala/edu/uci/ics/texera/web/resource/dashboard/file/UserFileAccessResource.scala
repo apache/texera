@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web.resource.dashboard.file
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER_FILE_ACCESS}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileDao, UserDao, UserFileAccessDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{UserDao, UserFileAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserFileAccess
 import edu.uci.ics.texera.web.resource.auth.UserResource
 import io.dropwizard.jersey.sessions.Session
@@ -14,13 +14,14 @@ import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
 import scala.collection.JavaConverters._
 
-//A Utility Class used to for operations related to database
+/**
+  * A Utility Class used to for operations related to database
+  */
 object FileAccessUtils {
-  final private val fileDao = new FileDao(SqlServer.createDSLContext.configuration)
   final private val userDao = new UserDao(SqlServer.createDSLContext().configuration)
 
   def hasAccessTo(uid: UInteger, fid: UInteger): Boolean = {
-    return SqlServer
+    SqlServer
       .createDSLContext()
       .fetchExists(
         SqlServer.createDSLContext
@@ -29,15 +30,15 @@ object FileAccessUtils {
       )
   }
 
-  def getFileId(ownername: String, filename: String): UInteger = {
-    val uid = userDao.fetchByName(ownername).get(0).getUid
+  def getFileId(ownerName: String, fileName: String): UInteger = {
+    val uid = userDao.fetchByName(ownerName).get(0).getUid
     val file = SqlServer
       .createDSLContext()
       .select(FILE.FID)
       .from(FILE)
-      .where(FILE.UID.eq(uid).and(FILE.NAME.eq(filename)))
+      .where(FILE.UID.eq(uid).and(FILE.NAME.eq(fileName)))
       .fetch()
-    return file.getValue(0, 0).asInstanceOf[UInteger]
+    file.getValue(0, 0).asInstanceOf[UInteger]
   }
 
   def getUidOfUser(username: String): UInteger = {
@@ -51,7 +52,6 @@ case class FileAccess(username: String, fileAccess: String)
 @Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON))
 class UserFileAccessResource {
-  final private val fileDao = new FileDao(SqlServer.createDSLContext.configuration)
   final private val userFileAccessDao = new UserFileAccessDao(
     SqlServer.createDSLContext.configuration
   )
@@ -72,7 +72,7 @@ class UserFileAccessResource {
       @Session session: HttpSession
   ): Response = {
     UserResource.getUser(session) match {
-      case Some(user) =>
+      case Some(_) =>
         val fid = FileAccessUtils.getFileId(ownerName, fileName)
         val fileAccess = SqlServer
           .createDSLContext()
@@ -106,7 +106,7 @@ class UserFileAccessResource {
   }
 
   /**
-    * chekcs whether a user has access to a file
+    * Checks whether a user has access to a file
     * @param fid     the fileId of target file to be checked
     * @param uid     the userId of target user to be checked
     * @return success resp if has access, failed resp otherwise
@@ -119,7 +119,7 @@ class UserFileAccessResource {
       @Session session: HttpSession
   ): Response = {
     UserResource.getUser(session) match {
-      case Some(user) =>
+      case Some(_) =>
         val existence = SqlServer
           .createDSLContext()
           .fetchExists(
@@ -154,7 +154,7 @@ class UserFileAccessResource {
       @Session session: HttpSession
   ): Response = {
     UserResource.getUser(session) match {
-      case Some(user) =>
+      case Some(_) =>
         val fid = FileAccessUtils.getFileId(ownerName, fileName)
         val uid: UInteger =
           try {
@@ -201,7 +201,7 @@ class UserFileAccessResource {
       @Session session: HttpSession
   ): Response = {
     UserResource.getUser(session) match {
-      case Some(user) =>
+      case Some(_) =>
         val fid = FileAccessUtils.getFileId(ownerName, fileName)
         val uid: UInteger =
           try {
