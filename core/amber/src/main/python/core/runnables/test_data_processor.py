@@ -9,7 +9,7 @@ from core.udf.examples import EchoOperator
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import OneToOnePartitioning, Partitioning
 from proto.edu.uci.ics.amber.engine.architecture.worker import AddPartitioningV2, ControlCommandV2, ControlReturnV2, \
-    UpdateInputLinkingV2, WorkerExecutionCompletedV2
+    QueryStatisticsV2, UpdateInputLinkingV2, WorkerExecutionCompletedV2, WorkerState, WorkerStatistics
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlInvocationV2, ControlPayloadV2, \
     LayerIdentity, LinkIdentity, ReturnInvocationV2
 
@@ -83,6 +83,12 @@ class TestDpTread:
         return ControlElement(tag=mock_controller, payload=payload)
 
     @pytest.fixture
+    def mock_query_statistics(self, mock_controller, mock_sender_actor, command_sequence):
+        command = set_one_of(ControlCommandV2, QueryStatisticsV2())
+        payload = set_one_of(ControlPayloadV2, ControlInvocationV2(command_id=command_sequence, command=command))
+        return ControlElement(tag=mock_controller, payload=payload)
+
+    @pytest.fixture
     def data_processor(self, input_queue, output_queue, mock_udf):
         data_processor = DataProcessor(input_queue, output_queue, mock_udf)
         yield data_processor
@@ -103,13 +109,13 @@ class TestDpTread:
         assert dp_thread.is_alive()
 
     @pytest.mark.timeout(1)
-    def test_dp_thread_can_handle_data_messages(self, mock_link, mock_receiver_actor, mock_controller, input_queue,
-                                                output_queue, mock_data_element, dp_thread, mock_update_input_linking,
-                                                mock_add_partitioning, mock_end_of_upstream, mock_tuple,
-                                                command_sequence, reraise):
+    def test_dp_thread_can_process_messages(self, mock_link, mock_receiver_actor, mock_controller, input_queue,
+                                            output_queue, mock_data_element, dp_thread, mock_update_input_linking,
+                                            mock_add_partitioning, mock_end_of_upstream, mock_query_statistics,
+                                            mock_tuple, command_sequence, reraise):
         dp_thread.start()
 
-        # can update input link
+        # can process UpdateInputLinking
         input_queue.put(mock_update_input_linking)
         assert output_queue.get() == ControlElement(
             tag=mock_controller,
@@ -120,7 +126,7 @@ class TestDpTread:
             )
         )
 
-        # can add partitioning
+        # can process AddPartitioning
         input_queue.put(mock_add_partitioning)
         assert output_queue.get() == ControlElement(
             tag=mock_controller,
@@ -142,7 +148,24 @@ class TestDpTread:
         assert len(data_frame.frame) == 1
         assert (data_frame.frame[0] == expected_data_frame.frame[0]).all()
 
-        # can process an EndOfUpstream
+        # can process QueryStatistics
+        input_queue.put(mock_query_statistics)
+        assert output_queue.get() == ControlElement(
+            tag=mock_controller,
+            payload=ControlPayloadV2(
+                return_invocation=ReturnInvocationV2(
+                    original_command_id=1,
+                    control_return=ControlReturnV2(
+                        worker_statistics=WorkerStatistics(
+                            worker_state=WorkerState.RUNNING,
+                            input_tuple_count=1,
+                            output_tuple_count=1)
+                    )
+                )
+            )
+        )
+
+        # can process EndOfUpstream
         input_queue.put(mock_end_of_upstream)
         assert output_queue.get() == DataElement(tag=mock_receiver_actor, payload=EndOfUpstream())
 
