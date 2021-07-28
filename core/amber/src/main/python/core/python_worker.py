@@ -1,10 +1,7 @@
 from threading import Thread
-from typing import Iterable
 
-from loguru import logger
 from overrides import overrides
 
-from core.models import Tuple
 from core.models.internal_queue import InternalQueue
 from core.runnables import DataProcessor, NetworkReceiver, NetworkSender
 from core.udf.udf_operator import UDFOperator
@@ -40,4 +37,3 @@ class PythonWorker(Runnable, Stoppable):
         self._data_processor.stop()
         self._network_sender.stop()
         self._network_receiver.stop()
-
