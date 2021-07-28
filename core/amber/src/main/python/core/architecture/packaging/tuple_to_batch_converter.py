@@ -1,3 +1,4 @@
+import typing
 from collections import OrderedDict
 from itertools import chain
 
@@ -33,8 +34,8 @@ class TupleToBatchConverter:
         partitioner: Partitioner = partitioners(the_partitioning)
         self._partitioners.update({tag: partitioner})
 
-    def tuple_to_batch(self, tuple_: Tuple) -> Iterator[tuple[ActorVirtualIdentity, DataFrame]]:
+    def tuple_to_batch(self, tuple_: Tuple) -> Iterator[typing.Tuple[ActorVirtualIdentity, DataFrame]]:
         return chain(*(partitioner.add_tuple_to_batch(tuple_) for partitioner in self._partitioners.values()))
 
-    def emit_end_of_upstream(self) -> Iterable[tuple[ActorVirtualIdentity, DataPayload]]:
+    def emit_end_of_upstream(self) -> Iterable[typing.Tuple[ActorVirtualIdentity, DataPayload]]:
         return chain(*(partitioner.no_more() for partitioner in self._partitioners.values()))
