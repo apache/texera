@@ -1,4 +1,4 @@
-from asyncio import Future, get_running_loop
+from asyncio import Future
 from collections import defaultdict
 from typing import Dict
 
@@ -26,7 +26,14 @@ class AsyncRPCClient:
     def create_promise(self, to: ActorVirtualIdentity, control_command: ControlCommandV2) -> None:
         payload = set_one_of(ControlPayloadV2, ControlInvocationV2(self._send_sequences[to], command=control_command))
         self._output_queue.put(ControlElement(tag=to, payload=payload))
-        self._unfulfilled_promises[(to, self._send_sequences[to])] = get_running_loop().create_future()
+        try:
+            from asyncio import get_running_loop
+            future = get_running_loop().create_future()
+        except ImportError:
+            # backward compatible for python 3.6
+            from asyncio import get_event_loop
+            future = get_event_loop().create_future()
+        self._unfulfilled_promises[(to, self._send_sequences[to])] = future
         self._send_sequences[to] += 1
 
     def fulfill_promise(self, from_: ActorVirtualIdentity, return_invocation: ReturnInvocationV2) -> None:
