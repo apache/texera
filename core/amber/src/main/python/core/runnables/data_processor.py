@@ -48,21 +48,19 @@ class DataProcessor(StoppableQueueBlockingRunnable):
                     1. a ControlElement;
                     2. a DataElement.
         """
-
-        # logger.info(f"PYTHON DP receives an entry from queue: {next_entry}")
         match(
             next_entry,
             DataElement, self._process_data_element,
             ControlElement, self._process_control_element
         )
 
-    def process_control_command(self, tag: ActorVirtualIdentity, payload: ControlPayloadV2) -> None:
+    def process_control_payload(self, tag: ActorVirtualIdentity, payload: ControlPayloadV2) -> None:
         """
         Process the given ControlPayload with the tag.
         :param tag: ActorVirtualIdentity, the sender.
         :param payload: ControlPayloadV2 to be handled.
         """
-        # logger.info(f"PYTHON DP processing one CONTROL: {payload} from {tag}")
+        logger.debug(f"processing one CONTROL: {payload} from {tag}")
         match(
             (tag, get_one_of(payload)),
             typing.Tuple[ActorVirtualIdentity, ControlInvocationV2], self._async_rpc_server.receive,
@@ -117,11 +115,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
 
         while not self._input_queue.main_empty() or self.context.pause_manager.is_paused():
             next_entry = self.interruptible_get()
-
-            match(
-                next_entry,
-                ControlElement, self._process_control_element
-            )
+            self._process_control_element(next_entry)
 
     def _process_control_element(self, control_element: ControlElement) -> None:
         """
@@ -129,8 +123,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
 
         :param control_element: ControlElement to be handled.
         """
-        # logger.info(f"PYTHON DP receive a CONTROL: {next_entry}")
-        self.process_control_command(control_element.tag, control_element.payload)
+        self.process_control_payload(control_element.tag, control_element.payload)
 
     def _process_tuple(self, tuple_: Tuple) -> None:
         self._current_input_tuple = tuple_
