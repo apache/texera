@@ -40,7 +40,7 @@ message ControlCommandV2 {
         PauseWorkerV2 pause_worker = 2;
         ResumeWorkerV2 resume_worker = 3;
 
-        AddPartitioningV2 add_partitioning_v2 = 4;
+        AddPartitioningV2 add_partitioning = 4;
         UpdateInputLinkingV2 update_input_linking = 5;
 
         QueryStatisticsV2 query_statistics = 6;

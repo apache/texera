@@ -24,7 +24,7 @@ object ControlCommandV2 {
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.StartWorker => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PauseWorker => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ResumeWorker => __v.value
-      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.AddPartitioningV2 => __v.value
+      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.AddPartitioning => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.UpdateInputLinking => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryStatistics => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerExecutionCompleted => __v.value
@@ -34,7 +34,7 @@ object ControlCommandV2 {
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.StartWorkerV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.StartWorker(__v)
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.PauseWorkerV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PauseWorker(__v)
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ResumeWorkerV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ResumeWorker(__v)
-      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.AddPartitioningV2(__v)
+      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.AddPartitioning(__v)
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.UpdateInputLinking(__v)
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryStatistics(__v)
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerExecutionCompleted(__v)
@@ -62,8 +62,8 @@ final case class ControlCommandV2Message(
         val __value = sealedValue.resumeWorker.get
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       };
-      if (sealedValue.addPartitioningV2.isDefined) {
-        val __value = sealedValue.addPartitioningV2.get
+      if (sealedValue.addPartitioning.isDefined) {
+        val __value = sealedValue.addPartitioning.get
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       };
       if (sealedValue.updateInputLinking.isDefined) {
@@ -107,7 +107,7 @@ final case class ControlCommandV2Message(
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
-      sealedValue.addPartitioningV2.foreach { __v =>
+      sealedValue.addPartitioning.foreach { __v =>
         val __m = __v
         _output__.writeTag(4, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
@@ -138,8 +138,8 @@ final case class ControlCommandV2Message(
     def withPauseWorker(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.PauseWorkerV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PauseWorker(__v))
     def getResumeWorker: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ResumeWorkerV2 = sealedValue.resumeWorker.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ResumeWorkerV2.defaultInstance)
     def withResumeWorker(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ResumeWorkerV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ResumeWorker(__v))
-    def getAddPartitioningV2: edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2 = sealedValue.addPartitioningV2.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2.defaultInstance)
-    def withAddPartitioningV2(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.AddPartitioningV2(__v))
+    def getAddPartitioning: edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2 = sealedValue.addPartitioning.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2.defaultInstance)
+    def withAddPartitioning(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.AddPartitioning(__v))
     def getUpdateInputLinking: edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2 = sealedValue.updateInputLinking.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2.defaultInstance)
     def withUpdateInputLinking(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.UpdateInputLinking(__v))
     def getQueryStatistics: edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2 = sealedValue.queryStatistics.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2.defaultInstance)
@@ -153,7 +153,7 @@ final case class ControlCommandV2Message(
         case 1 => sealedValue.startWorker.orNull
         case 2 => sealedValue.pauseWorker.orNull
         case 3 => sealedValue.resumeWorker.orNull
-        case 4 => sealedValue.addPartitioningV2.orNull
+        case 4 => sealedValue.addPartitioning.orNull
         case 5 => sealedValue.updateInputLinking.orNull
         case 6 => sealedValue.queryStatistics.orNull
         case 101 => sealedValue.workerExecutionCompleted.orNull
@@ -165,7 +165,7 @@ final case class ControlCommandV2Message(
         case 1 => sealedValue.startWorker.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 2 => sealedValue.pauseWorker.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 3 => sealedValue.resumeWorker.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
-        case 4 => sealedValue.addPartitioningV2.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 4 => sealedValue.addPartitioning.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 5 => sealedValue.updateInputLinking.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 6 => sealedValue.queryStatistics.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 101 => sealedValue.workerExecutionCompleted.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
@@ -193,7 +193,7 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
         case 26 =>
           __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ResumeWorker(__sealedValue.resumeWorker.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ResumeWorkerV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 34 =>
-          __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.AddPartitioningV2(__sealedValue.addPartitioningV2.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.AddPartitioning(__sealedValue.addPartitioning.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 42 =>
           __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.UpdateInputLinking(__sealedValue.updateInputLinking.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 50 =>
@@ -214,7 +214,7 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
         sealedValue = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.StartWorkerV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.StartWorker(_))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.PauseWorkerV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PauseWorker(_)))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ResumeWorkerV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ResumeWorker(_)))
-            .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.AddPartitioningV2(_)))
+            .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.AddPartitioning(_)))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(5).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.UpdateInputLinking(_)))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(6).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryStatistics(_)))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(101).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerExecutionCompleted(_)))
@@ -248,14 +248,14 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
     def isStartWorker: _root_.scala.Boolean = false
     def isPauseWorker: _root_.scala.Boolean = false
     def isResumeWorker: _root_.scala.Boolean = false
-    def isAddPartitioningV2: _root_.scala.Boolean = false
+    def isAddPartitioning: _root_.scala.Boolean = false
     def isUpdateInputLinking: _root_.scala.Boolean = false
     def isQueryStatistics: _root_.scala.Boolean = false
     def isWorkerExecutionCompleted: _root_.scala.Boolean = false
     def startWorker: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.StartWorkerV2] = _root_.scala.None
     def pauseWorker: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.PauseWorkerV2] = _root_.scala.None
     def resumeWorker: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ResumeWorkerV2] = _root_.scala.None
-    def addPartitioningV2: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2] = _root_.scala.None
+    def addPartitioning: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2] = _root_.scala.None
     def updateInputLinking: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2] = _root_.scala.None
     def queryStatistics: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2] = _root_.scala.None
     def workerExecutionCompleted: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2] = _root_.scala.None
@@ -292,10 +292,10 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
       override def number: _root_.scala.Int = 3
     }
     @SerialVersionUID(0L)
-    final case class AddPartitioningV2(value: edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2) extends edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue {
+    final case class AddPartitioning(value: edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2) extends edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue {
       type ValueType = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2
-      override def isAddPartitioningV2: _root_.scala.Boolean = true
-      override def addPartitioningV2: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2] = Some(value)
+      override def isAddPartitioning: _root_.scala.Boolean = true
+      override def addPartitioning: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2] = Some(value)
       override def number: _root_.scala.Int = 4
     }
     @SerialVersionUID(0L)
@@ -324,7 +324,7 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
     def startWorker: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.StartWorkerV2] = field(_.getStartWorker)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.StartWorker(f_)))
     def pauseWorker: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.PauseWorkerV2] = field(_.getPauseWorker)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PauseWorker(f_)))
     def resumeWorker: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.ResumeWorkerV2] = field(_.getResumeWorker)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ResumeWorker(f_)))
-    def addPartitioningV2: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2] = field(_.getAddPartitioningV2)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.AddPartitioningV2(f_)))
+    def addPartitioning: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2] = field(_.getAddPartitioning)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.AddPartitioning(f_)))
     def updateInputLinking: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2] = field(_.getUpdateInputLinking)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.UpdateInputLinking(f_)))
     def queryStatistics: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2] = field(_.getQueryStatistics)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryStatistics(f_)))
     def workerExecutionCompleted: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2] = field(_.getWorkerExecutionCompleted)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerExecutionCompleted(f_)))
@@ -333,7 +333,7 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
   final val START_WORKER_FIELD_NUMBER = 1
   final val PAUSE_WORKER_FIELD_NUMBER = 2
   final val RESUME_WORKER_FIELD_NUMBER = 3
-  final val ADD_PARTITIONING_V2_FIELD_NUMBER = 4
+  final val ADD_PARTITIONING_FIELD_NUMBER = 4
   final val UPDATE_INPUT_LINKING_FIELD_NUMBER = 5
   final val QUERY_STATISTICS_FIELD_NUMBER = 6
   final val WORKER_EXECUTION_COMPLETED_FIELD_NUMBER = 101

@@ -57,7 +57,7 @@ class ControlCommandV2(betterproto.Message):
     start_worker: "StartWorkerV2" = betterproto.message_field(1, group="sealed_value")
     pause_worker: "PauseWorkerV2" = betterproto.message_field(2, group="sealed_value")
     resume_worker: "ResumeWorkerV2" = betterproto.message_field(3, group="sealed_value")
-    add_partitioning_v2: "AddPartitioningV2" = betterproto.message_field(
+    add_partitioning: "AddPartitioningV2" = betterproto.message_field(
         4, group="sealed_value"
     )
     update_input_linking: "UpdateInputLinkingV2" = betterproto.message_field(
