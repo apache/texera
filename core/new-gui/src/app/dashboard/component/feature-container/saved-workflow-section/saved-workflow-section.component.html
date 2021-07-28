@@ -1,6 +1,6 @@
 <div class="saved-workflow-container subsection-grid-container">
-
   <nz-card class="workflow-section-title subsection-grid-container">
+    <h2 class="page-title">Workflows</h2>
     <div class="d-inline-block" ngbDropdown>
       <a [nzDropdownMenu]="sortOptions" nz-dropdown>
         <button nz-button id="sortDropdown" ngbDropdownToggle>
@@ -24,43 +24,60 @@
         </ul>
       </nz-dropdown-menu>
       <button (click)="onClickCreateNewWorkflowFromDashboard()" nz-button type="button"
-              ngbTooltip="Create a new workflow">
-        <i nz-icon nzType="file-add" nzTheme="outline"></i></button>
+              nz-tooltip nzTooltipTitle="Create a new workflow" nzTooltipPlacement="bottom">
+        <i nz-icon nzType="file-add" nzTheme="outline"></i>
+      </button>
+
     </div>
   </nz-card>
 
-  <mat-card class="workflow-list subsection-grid-container">
-    <mat-card-content>
-      <mat-list>
-        <div>
-          <h2 class="page-title">Workflows</h2>
-          <br/>
-        </div>
-        <div class="scroll">
-          <mat-list-item *ngFor="let workflow of workflows" class="workflow-list-item">
-            <h3 class="workflow-name" mat-line><label (click)="jumpToWorkflow(workflow)">{{workflow.name}}</label></h3>
-            <p class="workflow-time" mat-line><br>
+  <nz-card class="workflow-list-container subsection-grid-container">
+    <nz-list>
+      <nz-list-item *ngFor="let workflow of getWorkflows()" class="workflow-list-item">
+        <nz-list-item-meta>
+          <nz-list-item-meta-avatar>
+            <nz-avatar
+              [nzGap]="4"
+              [ngStyle]="{ 'background-color': 'grey' }"
+              [nzText]="''+workflow.wid"
+              nzSize="medium"
+              style="vertical-align: middle;"
+            ></nz-avatar>
+          </nz-list-item-meta-avatar>
+          <nz-list-item-meta-title>
+            <label class="workflow-name" (click)="jumpToWorkflow(workflow)">{{workflow.name}}</label>
+          </nz-list-item-meta-title>
+          <nz-list-item-meta-description>
+            <p class="workflow-time">
               Last Access: {{workflow.lastModifiedTime | date:'yyyy-MM-dd HH:mm'}}
               <span class="time-space"></span>
               Created: {{workflow.creationTime | date:'yyyy-MM-dd HH:mm'}}
             </p>
-            <button (click)="onClickOpenShareAccess(workflow)" type="button" nz-button
-                    ngbTooltip="Share the workflow {{workflow.name}} to others" placement="bottom">
+          </nz-list-item-meta-description>
+        </nz-list-item-meta>
+        <ul nz-list-item-actions>
+          <nz-list-item-action>
+            <button (click)="onClickOpenShareAccess(workflow)" type="button" nz-button nz-tooltip
+                    nzTooltipTitle="Share the workflow {{workflow.name}} to others" nzTooltipPlacement="bottom">
               <i nz-icon nzType="share-alt" nzTheme="outline"></i>
             </button>
+          </nz-list-item-action>
+          <nz-list-item-action>
             <button (click)="onClickDuplicateWorkflow(workflow)" type="button" class="duplicate-workflow-btn" nz-button
-                    ngbTooltip="Duplicate the workflow {{workflow.name}}" placement="bottom">
+                    nz-tooltip
+                    nzTooltipTitle="Duplicate the workflow {{workflow.name}}" nzTooltipPlacement="bottom">
               <i nz-icon nzType="copy" nzTheme="outline"></i>
             </button>
+          </nz-list-item-action>
+          <nz-list-item-action>
             <button (click)="openNgbdModalDeleteWorkflowComponent(workflow)" class="delete-workflow-btn" nz-button
-                    ngbTooltip="Delete the workflow {{workflow.name}}" placement="bottom">
+                    nz-tooltip
+                    nzTooltipTitle="Delete the workflow {{workflow.name}}" nzTooltipPlacement="bottom">
               <i nz-icon nzType="delete" nzTheme="outline"></i>
             </button>
-          </mat-list-item>
-
-        </div>
-      </mat-list>
-
-    </mat-card-content>
-  </mat-card>
+          </nz-list-item-action>
+        </ul>
+      </nz-list-item>
+    </nz-list>
+  </nz-card>
 </div>

@@ -42,6 +42,10 @@ export class SavedWorkflowSectionComponent implements OnInit {
     modalRef.componentInstance.workflow = workflow;
   }
 
+  public getWorkflows(): ReadonlyArray<Workflow> {
+    return this.workflows;
+  }
+
   /**
    * sort the workflow by name in ascending order
    */
