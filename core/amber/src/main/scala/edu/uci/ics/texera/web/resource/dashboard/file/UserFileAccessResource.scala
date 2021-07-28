@@ -18,13 +18,13 @@ import scala.collection.JavaConverters._
   * A Utility Class used to for operations related to database
   */
 object FileAccessUtils {
-  final private val userDao = new UserDao(SqlServer.createDSLContext().configuration)
+  final private val userDao = new UserDao(context.configuration)
+  private var context: DSLContext = SqlServer.createDSLContext
 
   def hasAccessTo(uid: UInteger, fid: UInteger): Boolean = {
-    SqlServer
-      .createDSLContext()
+    context
       .fetchExists(
-        SqlServer.createDSLContext
+        context
           .selectFrom(USER_FILE_ACCESS)
           .where(USER_FILE_ACCESS.UID.eq(uid).and(USER_FILE_ACCESS.FID.eq(fid)))
       )
@@ -32,8 +32,7 @@ object FileAccessUtils {
 
   def getFileId(ownerName: String, fileName: String): UInteger = {
     val uid = userDao.fetchByName(ownerName).get(0).getUid
-    val file = SqlServer
-      .createDSLContext()
+    val file = context
       .select(FILE.FID)
       .from(FILE)
       .where(FILE.UID.eq(uid).and(FILE.NAME.eq(fileName)))
@@ -53,9 +52,9 @@ case class FileAccess(username: String, fileAccess: String)
 @Produces(Array(MediaType.APPLICATION_JSON))
 class UserFileAccessResource {
   final private val userFileAccessDao = new UserFileAccessDao(
-    SqlServer.createDSLContext.configuration
+    context.configuration
   )
-  final private val userDao = new UserDao(SqlServer.createDSLContext().configuration)
+  final private val userDao = new UserDao(context.configuration)
   private var context: DSLContext = SqlServer.createDSLContext
 
   /**
@@ -74,8 +73,7 @@ class UserFileAccessResource {
     UserResource.getUser(session) match {
       case Some(_) =>
         val fid = FileAccessUtils.getFileId(ownerName, fileName)
-        val fileAccess = SqlServer
-          .createDSLContext()
+        val fileAccess = context
           .select(USER_FILE_ACCESS.UID, USER_FILE_ACCESS.READ_ACCESS, USER_FILE_ACCESS.WRITE_ACCESS)
           .from(USER_FILE_ACCESS)
           .where(USER_FILE_ACCESS.FID.eq(fid))
@@ -120,10 +118,9 @@ class UserFileAccessResource {
   ): Response = {
     UserResource.getUser(session) match {
       case Some(_) =>
-        val existence = SqlServer
-          .createDSLContext()
+        val existence = context
           .fetchExists(
-            SqlServer.createDSLContext
+            context
               .selectFrom(USER_FILE_ACCESS)
               .where(USER_FILE_ACCESS.UID.eq(uid).and(USER_FILE_ACCESS.FID.eq(fid)))
           )
@@ -213,8 +210,7 @@ class UserFileAccessResource {
                 .entity("Target User Does Not Exist")
                 .build()
           }
-        SqlServer
-          .createDSLContext()
+        context
           .deleteFrom(USER_FILE_ACCESS)
           .where(USER_FILE_ACCESS.UID.eq(uid).and(USER_FILE_ACCESS.FID.eq(fid)))
           .execute()

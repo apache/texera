@@ -23,17 +23,22 @@ import scala.collection.mutable
 /**
   * Model `File` corresponds to `core/new-gui/src/app/common/type/user-file.ts` (frontend).
   */
-case class fileRecord(ownerName: String, fileName: String, size: UInteger, description: String)
+case class fileRecord(
+    ownerName: String,
+    fileName: String,
+    size: UInteger,
+    description: String,
+    access: String
+)
 @Path("/user/file")
 @Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON))
 class UserFileResource {
-
-  final private val fileDao = new FileDao(SqlServer.createDSLContext.configuration)
+  final private val fileDao = new FileDao(context.configuration)
   final private val userFileAccessDao = new UserFileAccessDao(
-    SqlServer.createDSLContext.configuration
+    context.configuration
   )
-  final private val userDao = new UserDao(SqlServer.createDSLContext().configuration)
+  final private val userDao = new UserDao(context.configuration)
   private var context: DSLContext = SqlServer.createDSLContext
 
   /**
@@ -73,8 +78,7 @@ class UserFileResource {
             description
           )
         )
-        val fid = SqlServer
-          .createDSLContext()
+        val fid = context
           .select(FILE.FID)
           .from(FILE)
           .where(FILE.UID.eq(userID).and(FILE.NAME.eq(fileName)))
@@ -106,11 +110,20 @@ class UserFileResource {
     accesses.asScala.toList.map(access => {
       val fid = access.getFid
       val file = fileDao.fetchOneByFid(fid)
+      var accessLevel = "None"
+      if (access.getWriteAccess) {
+        accessLevel = "Write"
+      } else if (access.getReadAccess) {
+        accessLevel = "Read"
+      } else {
+        accessLevel = "None"
+      }
       files += fileRecord(
         userDao.fetchOneByUid(file.getUid).getName,
         file.getName,
         file.getSize,
-        file.getDescription
+        file.getDescription,
+        accessLevel
       )
     })
     files.toList.asJava
@@ -167,8 +180,8 @@ class UserFileResource {
   }
 
   private def isFileNameExisted(fileName: String, userID: UInteger): Boolean =
-    SqlServer.createDSLContext.fetchExists(
-      SqlServer.createDSLContext
+    context.fetchExists(
+      context
         .selectFrom(FILE)
         .where(FILE.UID.equal(userID).and(FILE.NAME.equal(fileName)))
     )

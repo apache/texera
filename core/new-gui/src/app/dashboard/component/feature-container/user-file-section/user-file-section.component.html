@@ -30,7 +30,7 @@
             </button>
             <button class="delete-workflow-btn" mat-button ngbTooltip="Delete the {{userFile.fileName}}"
                     placement="bottom"
-                    (click)="deleteFile(userFile)"><i class="fa fa-trash"></i></button>
+                    (click)="deleteFile(userFile)" *ngIf = "userFile.access==='Write'"><i class="fa fa-trash"></i></button>
           </mat-list-item>
         </div>
       </mat-list>

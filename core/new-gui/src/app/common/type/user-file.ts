@@ -9,7 +9,8 @@ export interface UserFile extends Readonly<{
   ownerName: string;
   fileName: string;
   size: number;
-  description: string
+  description: string;
+  access: string;
 }> {
 }
 

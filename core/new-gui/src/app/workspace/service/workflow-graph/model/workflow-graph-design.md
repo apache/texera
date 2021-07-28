@@ -12,6 +12,7 @@ Each operator has several attributes, such as:
   - operator type
   - texera-specific properties
   - input/output ports
+
 Each link has:
   - a unique link ID
   - the source operator+port
