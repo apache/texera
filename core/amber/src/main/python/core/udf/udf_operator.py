@@ -16,8 +16,8 @@ class UDFOperator(ABC):
     def __init__(self, is_source=False):
         self._is_source: bool = is_source
 
-    @overrides.final
     @property
+    @overrides.final
     def is_source(self) -> bool:
         """
         Whether the operator is a source operator. Source operators generates output
