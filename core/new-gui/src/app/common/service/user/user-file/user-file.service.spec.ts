@@ -15,16 +15,12 @@ import { AppSettings } from 'src/app/common/app-setting';
 
 const username = "Jim";
 const accessLevel = "read";
-const id = 1;
-const name = 'testFile';
-const path = 'test/path';
-const description = 'this is a test file';
-const size = 1024;
 const testFile: UserFile = {
   fileName: "test",
   ownerName: "test",
   size: 1,
-  description: "test"
+  description: "test",
+  access: "Read"
 };
 
 describe('UserFileService', () => {

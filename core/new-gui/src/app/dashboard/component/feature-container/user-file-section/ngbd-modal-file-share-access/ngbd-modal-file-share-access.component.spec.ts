@@ -17,7 +17,8 @@ describe('NgbdModalFileShareAccessComponent', () => {
     fileName: "test",
     ownerName: "test",
     size: 1,
-    description: "test"
+    description: "test",
+    access: "Test"
   }
 
   beforeEach(async(async () => {
