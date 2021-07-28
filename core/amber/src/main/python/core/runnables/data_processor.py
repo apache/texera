@@ -1,6 +1,7 @@
 import typing
 from typing import Iterator, Optional, Union
 
+from loguru import logger
 from overrides import overrides
 from pampy import match
 
@@ -48,7 +49,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
                     2. a DataElement.
         """
 
-        # logger.info(f"PYTHON DP receive an entry from queue: {next_entry}")
+        # logger.info(f"PYTHON DP receives an entry from queue: {next_entry}")
         match(
             next_entry,
             DataElement, self._process_data_element,
@@ -61,7 +62,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         :param tag: ActorVirtualIdentity, the sender.
         :param payload: ControlPayloadV2 to be handled.
         """
-        # logger.info(f"PYTHON DP processing one CONTROL: {cmd} from {tag}")
+        # logger.info(f"PYTHON DP processing one CONTROL: {payload} from {tag}")
         match(
             (tag, get_one_of(payload)),
             typing.Tuple[ActorVirtualIdentity, ControlInvocationV2], self._async_rpc_server.receive,

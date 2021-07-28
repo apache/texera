@@ -1,4 +1,4 @@
-from core.architecture.handlers.add_partitioning_handler import AddOutputPolicyHandler
+from core.architecture.handlers.add_partitioning_handler import AddPartitioningHandler
 from core.architecture.handlers.handler_base import Handler
 from core.architecture.handlers.pause_worker_handler import PauseWorkerHandler
 from core.architecture.handlers.query_statistics_handler import QueryStatisticsHandler
@@ -22,7 +22,7 @@ class AsyncRPCServer:
         self.register(StartWorkerHandler())
         self.register(PauseWorkerHandler())
         self.register(ResumeWorkerHandler())
-        self.register(AddOutputPolicyHandler())
+        self.register(AddPartitioningHandler())
         self.register(UpdateInputLinkingHandler())
         self.register(QueryStatisticsHandler())
 

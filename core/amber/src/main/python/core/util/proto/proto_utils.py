@@ -12,7 +12,9 @@ def get_one_of(base: T, sealed=True) -> T:
 
 
 def set_one_of(base: T, value: Message) -> T:
-    snake_case_name = re.sub(camel_case_pattern, '_', value.__class__.__name__).lower()
+    name = value.__class__.__name__
+    name = name.strip("V2")
+    snake_case_name = re.sub(camel_case_pattern, '_', name).lower()
     ret = base()
     ret.__setattr__(snake_case_name, value)
     return ret
