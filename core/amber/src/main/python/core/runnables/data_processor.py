@@ -1,12 +1,12 @@
 import typing
 from typing import Iterator, Optional, Union
 
-from loguru import logger
 from overrides import overrides
 from pampy import match
 
 from core.architecture.managers.context import Context
 from core.architecture.packaging.batch_to_tuple_converter import EndMarker, EndOfAllMarker
+from core.architecture.rpc.async_rpc_client import AsyncRPCClient
 from core.architecture.rpc.async_rpc_server import AsyncRPCServer
 from core.models.internal_queue import ControlElement, DataElement, InternalQueue
 from core.models.marker import SenderChangeMarker
@@ -31,8 +31,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
 
         self.context = Context(self)
         self._async_rpc_server = AsyncRPCServer(output_queue, context=self.context)
-
-        self.send_sequence = 0
+        self._async_rpc_client = AsyncRPCClient(output_queue, context=self.context)
 
     @overrides
     def pre_start(self) -> None:
@@ -77,16 +76,8 @@ class DataProcessor(StoppableQueueBlockingRunnable):
     def complete(self) -> None:
         self._udf_operator.close()
         self.context.state_manager.transit_to(WorkerState.COMPLETED)
-
         control_command = set_one_of(ControlCommandV2, WorkerExecutionCompletedV2())
-        self.send_control(control_command)
-
-    def send_control(self, control_command: ControlCommandV2):
-        logger.info(f"prepared control command {control_command}")
-        payload = set_one_of(ControlPayloadV2, ControlInvocationV2(self.send_sequence, command=control_command))
-        from_ = set_one_of(ActorVirtualIdentity, ActorVirtualIdentity(name="CONTROLLER"))
-        self._output_queue.put(ControlElement(tag=from_, payload=payload))
-        self.send_sequence += 1
+        self._async_rpc_client.send(ActorVirtualIdentity(name="CONTROLLER"), control_command)
 
     def check_and_process_control(self) -> None:
 
