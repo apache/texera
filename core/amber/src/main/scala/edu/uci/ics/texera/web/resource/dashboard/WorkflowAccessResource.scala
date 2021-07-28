@@ -135,6 +135,12 @@ class WorkflowAccessResource() {
     context = dslContext
   }
 
+  /**
+    * This method returns the owner of a workflow
+    *
+    * @param wid     the given workflow
+    * @return json array with the owner's name in it
+    */
   @GET
   @Path("/owner/{wid}")
   @Produces(Array(MediaType.APPLICATION_JSON))
