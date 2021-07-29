@@ -7,8 +7,11 @@ import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQue
   DataElement
 }
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
-import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.controlInvocationToV2
-import edu.uci.ics.amber.engine.common.ambermessage._
+import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
+  controlInvocationToV2,
+  returnInvocationToV2
+}
+import edu.uci.ics.amber.engine.common.ambermessage.{PythonControlMessage, _}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
@@ -80,69 +83,32 @@ case class PythonProxyClient(portNumber: Int, operator: IOperatorExecutor)
 
       getElement match {
         case DataElement(dataPayload, from) =>
-          dataPayload match {
-            case DataFrame(frame) =>
-              val tuples = mutable.Queue(frame.map((t: ITuple) => t.asInstanceOf[Tuple]): _*)
-              writeArrowStream(flightClient, tuples, 100, from, false)
-            case EndOfUpstream() =>
-              val q = mutable.Queue(
-                Tuple
-                  .newBuilder(
-                    edu.uci.ics.texera.workflow.common.tuple.schema.Schema.newBuilder().build()
-                  )
-                  .build()
-              )
-              writeArrowStream(flightClient, q, 100, from, true)
-          }
+          sendData(dataPayload, from)
         case ControlElement(cmd, from) =>
-          sendControl(cmd, from)
+          sendControl(from, cmd)
         case ControlElementV2(cmd, from) =>
-          sendControl(cmd.asInstanceOf[ControlInvocationV2], from)
+          sendControlV2(from, cmd)
 
       }
     }
 
   }
 
-  def sendControl(cmd: ControlPayload, from: ActorVirtualIdentity): Unit = {
-    cmd match {
-      case controlInvocation: ControlInvocation =>
-        val controlInvocationV2: ControlInvocationV2 = controlInvocationToV2(controlInvocation)
-        send(from, controlInvocationV2)
-      case ReturnInvocation(originalCommandID, _) =>
-        println("JAVA receive return payload " + originalCommandID)
+  def sendData(dataPayload: DataPayload, from: ActorVirtualIdentity): Unit = {
+    dataPayload match {
+      case DataFrame(frame) =>
+        val tuples = mutable.Queue(frame.map((t: ITuple) => t.asInstanceOf[Tuple]): _*)
+        writeArrowStream(flightClient, tuples, 100, from, isEnd = false)
+      case EndOfUpstream() =>
+        val q = mutable.Queue(
+          Tuple
+            .newBuilder(
+              edu.uci.ics.texera.workflow.common.tuple.schema.Schema.newBuilder().build()
+            )
+            .build()
+        )
+        writeArrowStream(flightClient, q, 100, from, isEnd = true)
     }
-  }
-
-  def sendControl(cmd: ControlInvocationV2, from: ActorVirtualIdentity): Unit =
-    send(from, cmd)
-
-  def send(
-      from: ActorVirtualIdentity,
-      cmd: ControlInvocationV2
-  ): Result = {
-
-    val controlMessage = toPythonControlMessage(from, cmd)
-    println("JAVA sending " + controlMessage.toString)
-    val action: Action = new Action("control", controlMessage.toByteArray)
-    flightClient.doAction(action).next()
-  }
-
-  def toPythonControlMessage(
-      from: ActorVirtualIdentity,
-      controlPayload: ControlPayloadV2
-  ): PythonControlMessage = {
-    PythonControlMessage(
-      tag = from,
-      payload = controlPayload
-    )
-  }
-
-  override def close(): Unit = {
-
-    val action: Action = new Action("shutdown", "".getBytes)
-    flightClient.doAction(action) // do not expect reply
-    flightClient.close()
   }
 
   private def writeArrowStream(
@@ -186,6 +152,39 @@ case class PythonProxyClient(portNumber: Int, operator: IOperatorExecutor)
       }
     }
 
+  }
+
+  def sendControl(from: ActorVirtualIdentity, cmd: ControlPayload): Unit = {
+    cmd match {
+      case controlInvocation: ControlInvocation =>
+        val controlInvocationV2: ControlInvocationV2 = controlInvocationToV2(controlInvocation)
+        sendControlV2(from, controlInvocationV2)
+      case returnInvocation: ReturnInvocation =>
+        val returnInvocationV2: ReturnInvocationV2 = returnInvocationToV2(returnInvocation)
+        if (returnInvocationV2.originalCommandId != -1) {
+          sendControlV2(from, returnInvocationV2)
+        }
+        println("JAVA receive return payload " + returnInvocation.originalCommandID)
+    }
+  }
+
+  def sendControlV2(
+      from: ActorVirtualIdentity,
+      payload: ControlPayloadV2
+  ): Result = {
+    val controlMessage = PythonControlMessage(
+      tag = from,
+      payload = payload
+    )
+    val action: Action = new Action("control", controlMessage.toByteArray)
+    flightClient.doAction(action).next()
+  }
+
+  override def close(): Unit = {
+
+    val action: Action = new Action("shutdown", "".getBytes)
+    flightClient.doAction(action) // do not expect reply
+    flightClient.close()
   }
 
 }

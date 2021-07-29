@@ -58,9 +58,7 @@ class PythonWorkflowWorker(
   }
 
   final def handleDataPayload(from: ActorVirtualIdentity, dataPayload: DataPayload): Unit = {
-//    println("JAVA handing a DATA payload " + dataPayload)
     pythonProxyClient.enqueueData(DataElement(dataPayload, from))
-//    pythonProxyClient.sendData(dataPayload, from)
   }
 
   final def handleControlPayload(
@@ -88,6 +86,7 @@ class PythonWorkflowWorker(
 
     // destroy python process
     pythonServerProcess.destroyForcibly()
+
   }
 
   override def preStart(): Unit = {
@@ -98,7 +97,7 @@ class PythonWorkflowWorker(
   def sendUDF(): Unit = {
     pythonProxyClient.enqueueCommand(
       ControlInvocationV2(
-        999999L,
+        -1,
         SendPythonUdfV2(
           udf = operator.asInstanceOf[PythonUDFOpExecV2].getCode,
           isSource = operator.isInstanceOf[ISourceOperatorExecutor]

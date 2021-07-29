@@ -33,10 +33,8 @@ private class AmberProducer(
     action.getType match {
       case "control" =>
         val pythonControlMessage = PythonControlMessage.parseFrom(action.getBody)
-        println(s"JAVA got ${pythonControlMessage}")
         pythonControlMessage.payload match {
           case returnInvocation: ReturnInvocationV2 =>
-            println(s"JAVA trying to send V1 ${returnInvocationToV1(returnInvocation)}")
             controlOutputPort.sendTo(
               to = pythonControlMessage.tag,
               payload = returnInvocationToV1(returnInvocation)
