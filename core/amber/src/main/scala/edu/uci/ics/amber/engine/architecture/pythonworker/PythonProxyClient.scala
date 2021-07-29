@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
-import edu.uci.ics.amber.engine.architecture.pythonworker.PythonProxyClient.communicate
+import edu.uci.ics.amber.engine.architecture.pythonworker.PythonProxyClient.CHUNK_SIZE
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
   ControlElement,
   ControlElementV2,
@@ -13,15 +13,14 @@ import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
 }
 import edu.uci.ics.amber.engine.common.ambermessage.{PythonControlMessage, _}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
-import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.operators.pythonUDF.ArrowUtils
 import org.apache.arrow.flight._
 import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.VectorSchemaRoot
 
-import java.nio.charset.StandardCharsets
 import scala.collection.mutable
 
 object MSG extends Enumeration {
@@ -31,8 +30,8 @@ object MSG extends Enumeration {
 
 object PythonProxyClient {
 
-  private def communicate(client: FlightClient, message: String): Array[Byte] =
-    client.doAction(new Action(message)).next.getBody
+  final val CHUNK_SIZE: Int = 100
+
 }
 
 case class PythonProxyClient(portNumber: Int, operator: IOperatorExecutor)
@@ -46,7 +45,6 @@ case class PythonProxyClient(portNumber: Int, operator: IOperatorExecutor)
 
   private val MAX_TRY_COUNT: Int = 3
   private val WAIT_TIME_MS = 500
-  var schemaRoot: VectorSchemaRoot = _
   private var flightClient: FlightClient = _
 
   override def run(): Unit = {
@@ -61,11 +59,10 @@ case class PythonProxyClient(portNumber: Int, operator: IOperatorExecutor)
       try {
         println("trying to connect to " + location)
         flightClient = FlightClient.builder(allocator, location).build()
-        connected =
-          new String(communicate(flightClient, "heartbeat"), StandardCharsets.UTF_8) == "ack"
+        connected = new String(flightClient.doAction(new Action("heartbeat")).next.getBody) == "ack"
         if (!connected) Thread.sleep(WAIT_TIME_MS)
       } catch {
-        case e: FlightRuntimeException =>
+        case _: FlightRuntimeException =>
           System.out.println("Flight CLIENT:\tNot connected to the server in this try.")
           flightClient.close()
           Thread.sleep(WAIT_TIME_MS)
@@ -80,7 +77,6 @@ case class PythonProxyClient(portNumber: Int, operator: IOperatorExecutor)
 
   def mainLoop(): Unit = {
     while (true) {
-
       getElement match {
         case DataElement(dataPayload, from) =>
           sendData(dataPayload, from)
@@ -88,70 +84,50 @@ case class PythonProxyClient(portNumber: Int, operator: IOperatorExecutor)
           sendControl(from, cmd)
         case ControlElementV2(cmd, from) =>
           sendControlV2(from, cmd)
-
       }
     }
-
   }
 
   def sendData(dataPayload: DataPayload, from: ActorVirtualIdentity): Unit = {
     dataPayload match {
       case DataFrame(frame) =>
-        val tuples = mutable.Queue(frame.map((t: ITuple) => t.asInstanceOf[Tuple]): _*)
-        writeArrowStream(flightClient, tuples, 100, from, isEnd = false)
+        val tuples: mutable.Queue[Tuple] =
+          mutable.Queue(frame.map(_.asInstanceOf[Tuple]): _*)
+        writeArrowStream(tuples, from, isEnd = false)
       case EndOfUpstream() =>
-        val q = mutable.Queue(
-          Tuple
-            .newBuilder(
-              edu.uci.ics.texera.workflow.common.tuple.schema.Schema.newBuilder().build()
-            )
-            .build()
-        )
-        writeArrowStream(flightClient, q, 100, from, isEnd = true)
+        writeArrowStream(mutable.Queue(), from, isEnd = true)
     }
   }
 
   private def writeArrowStream(
-      client: FlightClient,
-      values: mutable.Queue[Tuple],
-      chunkSize: Int = 100,
+      tuples: mutable.Queue[Tuple],
       from: ActorVirtualIdentity,
       isEnd: Boolean
   ): Unit = {
-    if (values.nonEmpty) {
-      val cachedTuple = values.front
-      val schema = cachedTuple.getSchema
-      val arrowSchema = ArrowUtils.fromTexeraSchema(schema)
-      val flightListener = new SyncPutListener
+    val schema = if (tuples.isEmpty) new Schema() else tuples.front.getSchema
+    val descriptor = FlightDescriptor.command(PythonDataHeader(from, isEnd).toByteArray)
+    val flightListener = new SyncPutListener
+    val schemaRoot = VectorSchemaRoot.create(ArrowUtils.fromTexeraSchema(schema), allocator)
+    val writer = flightClient.startPut(descriptor, schemaRoot, flightListener)
 
-      val schemaRoot = VectorSchemaRoot.create(arrowSchema, allocator)
-
-      val writer =
-        client.startPut(
-          FlightDescriptor.command(PythonDataHeader(from, isEnd).toByteArray),
-          schemaRoot,
-          flightListener
-        )
-
-      try {
-        while (values.nonEmpty) {
-          schemaRoot.allocateNew()
-          while (schemaRoot.getRowCount < chunkSize && values.nonEmpty)
-            ArrowUtils.appendTexeraTuple(values.dequeue(), schemaRoot)
-          writer.putNext()
-          schemaRoot.clear()
-        }
-        writer.completed()
-        flightListener.getResult()
-        flightListener.close()
-        schemaRoot.clear()
-
-      } catch {
-        case e: Exception =>
-          e.printStackTrace()
-      }
+    while (tuples.nonEmpty) {
+      writeChunk(tuples, schemaRoot, writer)
     }
+    writer.completed()
+    flightListener.getResult()
+    flightListener.close()
+  }
 
+  private def writeChunk(
+      tuples: mutable.Queue[Tuple],
+      schemaRoot: VectorSchemaRoot,
+      writer: FlightClient.ClientStreamListener
+  ): Unit = {
+    schemaRoot.allocateNew()
+    while (schemaRoot.getRowCount < CHUNK_SIZE && tuples.nonEmpty)
+      ArrowUtils.appendTexeraTuple(tuples.dequeue(), schemaRoot)
+    writer.putNext()
+    schemaRoot.clear()
   }
 
   def sendControl(from: ActorVirtualIdentity, cmd: ControlPayload): Unit = {
@@ -164,7 +140,6 @@ case class PythonProxyClient(portNumber: Int, operator: IOperatorExecutor)
         if (returnInvocationV2.originalCommandId != -1) {
           sendControlV2(from, returnInvocationV2)
         }
-        println("JAVA receive return payload " + returnInvocation.originalCommandID)
     }
   }
 
@@ -172,17 +147,14 @@ case class PythonProxyClient(portNumber: Int, operator: IOperatorExecutor)
       from: ActorVirtualIdentity,
       payload: ControlPayloadV2
   ): Result = {
-    val controlMessage = PythonControlMessage(
-      tag = from,
-      payload = payload
-    )
+    val controlMessage = PythonControlMessage(from, payload)
     val action: Action = new Action("control", controlMessage.toByteArray)
     flightClient.doAction(action).next()
   }
 
   override def close(): Unit = {
 
-    val action: Action = new Action("shutdown", "".getBytes)
+    val action: Action = new Action("shutdown")
     flightClient.doAction(action) // do not expect reply
     flightClient.close()
   }
