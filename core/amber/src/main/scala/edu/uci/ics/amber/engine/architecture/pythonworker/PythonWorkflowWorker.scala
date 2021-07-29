@@ -88,11 +88,20 @@ class PythonWorkflowWorker(
 
   override def postStop(): Unit = {
 
-    // try to send shutdown command so that it can gracefully shutdown
-    pythonProxyClient.close()
+    try {
+      // try to send shutdown command so that it can gracefully shutdown
+      pythonProxyClient.close()
 
-    // destroy python process
-    pythonServerProcess.destroyForcibly()
+      clientThreadExecutor.shutdown()
+
+      serverThreadExecutor.shutdown()
+
+      // destroy python process
+      pythonServerProcess.destroyForcibly()
+    } catch {
+      case e: Exception =>
+        e.printStackTrace()
+    }
 
   }
 
@@ -123,7 +132,6 @@ class PythonWorkflowWorker(
     )
   }
 
-
   private def startPythonProcess(
       udfMainScriptPath: String
   ): Unit = {
@@ -149,7 +157,7 @@ class PythonWorkflowWorker(
     * Get a random free port.
     *
     * @return The port number.
-    * @throws IOException ,RuntimeException Might happen when getting a free port.
+    * @throws IOException, might happen when getting a free port.
     */
   @throws[IOException]
   private def getFreeLocalPort: Int = {

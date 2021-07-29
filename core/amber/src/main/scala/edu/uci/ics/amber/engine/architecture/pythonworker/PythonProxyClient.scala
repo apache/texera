@@ -28,7 +28,7 @@ class PythonProxyClient(portNumber: Int)
 
   final val CHUNK_SIZE: Int = 100
   val allocator: BufferAllocator =
-    new RootAllocator().newChildAllocator("flight-client", 0, Long.MaxValue);
+    new RootAllocator().newChildAllocator("flight-client", 0, Long.MaxValue)
   val location: Location = Location.forGrpcInsecure("localhost", portNumber)
 
   private val MAX_TRY_COUNT: Int = 3
@@ -141,9 +141,9 @@ class PythonProxyClient(portNumber: Int)
   }
 
   override def close(): Unit = {
-
     val action: Action = new Action("shutdown")
     flightClient.doAction(action) // do not expect reply
+
     flightClient.close()
   }
 
