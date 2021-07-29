@@ -1,12 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
-import edu.uci.ics.amber.engine.architecture.pythonworker.PythonProxyClient.CHUNK_SIZE
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
   ControlElement,
   ControlElementV2,
   DataElement
 }
-import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
   controlInvocationToV2,
   returnInvocationToV2
@@ -23,24 +21,14 @@ import org.apache.arrow.vector.VectorSchemaRoot
 
 import scala.collection.mutable
 
-object MSG extends Enumeration {
-  type MSGType = Value
-  val HEALTH_CHECK: Value = Value
-}
-
-object PythonProxyClient {
-
-  final val CHUNK_SIZE: Int = 100
-
-}
-
-case class PythonProxyClient(portNumber: Int, operator: IOperatorExecutor)
+class PythonProxyClient(portNumber: Int)
     extends Runnable
     with AutoCloseable
     with WorkerBatchInternalQueue {
 
+  final val CHUNK_SIZE: Int = 100
   val allocator: BufferAllocator =
-    new RootAllocator().newChildAllocator("flight-server", 0, Long.MaxValue);
+    new RootAllocator().newChildAllocator("flight-client", 0, Long.MaxValue);
   val location: Location = Location.forGrpcInsecure("localhost", portNumber)
 
   private val MAX_TRY_COUNT: Int = 3
@@ -63,7 +51,7 @@ case class PythonProxyClient(portNumber: Int, operator: IOperatorExecutor)
         if (!connected) Thread.sleep(WAIT_TIME_MS)
       } catch {
         case _: FlightRuntimeException =>
-          System.out.println("Flight CLIENT:\tNot connected to the server in this try.")
+          println("Flight CLIENT:\tNot connected to the server in this try.")
           flightClient.close()
           Thread.sleep(WAIT_TIME_MS)
           tryCount += 1
@@ -81,7 +69,7 @@ case class PythonProxyClient(portNumber: Int, operator: IOperatorExecutor)
         case DataElement(dataPayload, from) =>
           sendData(dataPayload, from)
         case ControlElement(cmd, from) =>
-          sendControl(from, cmd)
+          sendControlV1(from, cmd)
         case ControlElementV2(cmd, from) =>
           sendControlV2(from, cmd)
       }
@@ -130,8 +118,8 @@ case class PythonProxyClient(portNumber: Int, operator: IOperatorExecutor)
     schemaRoot.clear()
   }
 
-  def sendControl(from: ActorVirtualIdentity, cmd: ControlPayload): Unit = {
-    cmd match {
+  def sendControlV1(from: ActorVirtualIdentity, payload: ControlPayload): Unit = {
+    payload match {
       case controlInvocation: ControlInvocation =>
         val controlInvocationV2: ControlInvocationV2 = controlInvocationToV2(controlInvocation)
         sendControlV2(from, controlInvocationV2)

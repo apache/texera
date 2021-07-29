@@ -38,11 +38,18 @@ class PythonWorkflowWorker(
 
   val config: Config = ConfigFactory.load("python_udf")
   val pythonPath: String = config.getString("python.path").trim
+
+  val inputPortNum: Int = getFreeLocalPort
+  val outputPortNum: Int = getFreeLocalPort
+
   private val serverThreadExecutor: ExecutorService = Executors.newSingleThreadExecutor
   private val clientThreadExecutor: ExecutorService = Executors.newSingleThreadExecutor
 
-  private var pythonProxyClient: PythonProxyClient = null
-  private var pythonServerProcess: Process = null
+  private val pythonProxyClient: PythonProxyClient = new PythonProxyClient(outputPortNum)
+  private val pythonProxyServer: PythonProxyServer =
+    new PythonProxyServer(inputPortNum, controlOutputPort, dataOutputPort)
+
+  private var pythonServerProcess: Process = _
 
   override def receive: Receive = {
     disallowActorRefRelatedMessages orElse {
@@ -90,7 +97,16 @@ class PythonWorkflowWorker(
   }
 
   override def preStart(): Unit = {
-    start()
+    val udfMainScriptPath =
+      "/Users/yicong-huang/IdeaProjects/texera-other/core/amber/src/main/python/main.py"
+    // TODO: find a better way to do default conf values.
+
+    startProxyServer()
+
+    startPythonProcess(udfMainScriptPath)
+
+    startProxyClient()
+
     sendUDF()
   }
 
@@ -107,26 +123,8 @@ class PythonWorkflowWorker(
     )
   }
 
-  @throws[IOException]
-  private def start(): Unit = {
-    val outputPortNumber = getFreeLocalPort
-    val inputPortNumber = getFreeLocalPort
-
-    val udfMainScriptPath =
-      "/Users/yicong-huang/IdeaProjects/texera-other/core/amber/src/main/python/main.py"
-    // TODO: find a better way to do default conf values.
-
-    startProxyServer(inputPortNumber)
-
-    startPythonProcess(outputPortNumber, inputPortNumber, udfMainScriptPath)
-
-    startProxyClient(outputPortNumber)
-
-  }
 
   private def startPythonProcess(
-      outputPortNumber: Int,
-      inputPortNumber: Int,
       udfMainScriptPath: String
   ): Unit = {
     pythonServerProcess = new ProcessBuilder(
@@ -134,15 +132,17 @@ class PythonWorkflowWorker(
       else pythonPath, // add fall back in case of empty
       "-u",
       udfMainScriptPath,
-      Integer.toString(outputPortNumber),
-      Integer.toString(inputPortNumber)
+      Integer.toString(outputPortNum),
+      Integer.toString(inputPortNum)
     ).inheritIO.start
   }
 
-  def startProxyServer(outputPortNumber: Int): Unit = {
-    serverThreadExecutor.submit(
-      new PythonProxyServer(outputPortNumber, controlOutputPort, dataOutputPort)
-    )
+  def startProxyServer(): Unit = {
+    serverThreadExecutor.submit(pythonProxyServer)
+  }
+
+  def startProxyClient(): Unit = {
+    clientThreadExecutor.submit(pythonProxyClient)
   }
 
   /**
@@ -165,10 +165,5 @@ class PythonWorkflowWorker(
       assert(s != null)
       s.close()
     }
-  }
-
-  def startProxyClient(inputPortNumber: Int): Unit = {
-    pythonProxyClient = new PythonProxyClient(inputPortNumber, operator)
-    clientThreadExecutor.submit(pythonProxyClient)
   }
 }
