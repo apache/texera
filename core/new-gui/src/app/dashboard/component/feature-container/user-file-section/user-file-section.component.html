@@ -25,7 +25,8 @@
             </div>
             <span class="gap-filler"></span>
             <button (click)="onClickOpenShareAccess(userFile)" type="button" mat-button
-                    ngbTooltip="Share the workflow {{userFile.fileName}} to others" placement="bottom">
+                    ngbTooltip="Share the workflow {{userFile.fileName}} to others" placement="bottom"
+                    *ngIf = "userFile.access==='Write'">
               <i class="fa fa-share"></i>
             </button>
             <button class="delete-workflow-btn" mat-button ngbTooltip="Delete the {{userFile.fileName}}"

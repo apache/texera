@@ -46,7 +46,7 @@
                     ngbTooltip="Duplicate the workflow {{workflow.workflow.name}}" placement="bottom"><i class="fa fa-copy"></i>
             </button>
             <button (click)="openNgbdModalDeleteWorkflowComponent(workflow.workflow)" class="delete-workflow-btn" mat-button
-                    ngbTooltip="Delete the workflow {{workflow.workflow.name}}" placement="bottom"><i class="fa fa-trash"></i>
+                    ngbTooltip="Delete the workflow {{workflow.workflow.name}}" placement="bottom" *ngIf="workflow.isOwner"><i class="fa fa-trash"></i>
             </button>
           </mat-list-item>
 
