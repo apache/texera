@@ -1,7 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{ControlOutputPort, DataOutputPort}
-import edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2
 import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
   controlInvocationToV1,
   returnInvocationToV1
@@ -41,13 +40,11 @@ private class AmberProducer(
             )
 
           case controlInvocation: ControlInvocationV2 =>
-            controlInvocation.command match {
-              case _: WorkerExecutionCompletedV2 =>
-                controlOutputPort.sendTo(
-                  to = pythonControlMessage.tag,
-                  payload = controlInvocationToV1(controlInvocation)
-                )
-            }
+            controlOutputPort.sendTo(
+              to = pythonControlMessage.tag,
+              payload = controlInvocationToV1(controlInvocation)
+            )
+
         }
         listener.onNext(new Result("ack".getBytes))
         listener.onCompleted()
@@ -66,7 +63,7 @@ private class AmberProducer(
       val dataHeader: PythonDataHeader = PythonDataHeader
         .parseFrom(flightStream.getDescriptor.getCommand)
       val to: ActorVirtualIdentity = dataHeader.tag
-      val isEnd: Boolean = dataHeader.end
+      val isEnd: Boolean = dataHeader.isEnd
 
       val root = flightStream.getRoot
       try {
