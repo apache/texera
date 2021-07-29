@@ -60,11 +60,11 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         :param tag: ActorVirtualIdentity, the sender.
         :param payload: ControlPayloadV2 to be handled.
         """
-        logger.debug(f"processing one CONTROL: {payload} from {tag}")
+        # logger.debug(f"processing one CONTROL: {payload} from {tag}")
         match(
             (tag, get_one_of(payload)),
             typing.Tuple[ActorVirtualIdentity, ControlInvocationV2], self._async_rpc_server.receive,
-            typing.Tuple[ActorVirtualIdentity, ReturnInvocationV2], self._async_rpc_client.fulfill_promise
+            typing.Tuple[ActorVirtualIdentity, ReturnInvocationV2], self._async_rpc_client.receive
         )
 
     def process_input_tuple(self) -> None:

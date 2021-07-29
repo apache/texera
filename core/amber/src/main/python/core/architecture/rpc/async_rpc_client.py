@@ -2,12 +2,10 @@ from collections import defaultdict
 from concurrent.futures import Future
 from typing import Dict
 
-from loguru import logger
-
 from core.architecture.managers.context import Context
 from core.models.internal_queue import ControlElement, InternalQueue
 from core.util import set_one_of
-from proto.edu.uci.ics.amber.engine.architecture.worker import ControlCommandV2
+from proto.edu.uci.ics.amber.engine.architecture.worker import ControlCommandV2, ControlReturnV2
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlInvocationV2, ControlPayloadV2, \
     ReturnInvocationV2
 
@@ -19,7 +17,7 @@ class AsyncRPCClient:
         self._send_sequences: Dict[ActorVirtualIdentity, int] = defaultdict(int)
         self._unfulfilled_promises: Dict[(ActorVirtualIdentity, int), Future] = dict()
 
-    def send(self, to: ActorVirtualIdentity, control_command: ControlCommandV2) -> None:
+    def send(self, to: ActorVirtualIdentity, control_command: ControlCommandV2) -> Future:
         """
         Send the ControlCommand to the target actor.
 
@@ -28,9 +26,9 @@ class AsyncRPCClient:
         """
         payload = set_one_of(ControlPayloadV2, ControlInvocationV2(self._send_sequences[to], command=control_command))
         self._output_queue.put(ControlElement(tag=to, payload=payload))
-        self.create_promise(to)
+        return self._create_future(to)
 
-    def create_promise(self, to: ActorVirtualIdentity) -> None:
+    def _create_future(self, to: ActorVirtualIdentity) -> Future:
         """
         Create a promise for the target actor, recording the CommandInvocations sent with a sequence,
         so that the promise can be fulfilled once the ReturnInvocation is received for the
@@ -38,23 +36,31 @@ class AsyncRPCClient:
 
         :param to: ActorVirtualIdentity, the receiver.
         """
-        # TODO: add callback api
         future = Future()
         self._unfulfilled_promises[(to, self._send_sequences[to])] = future
-        logger.debug(f"future created with {(to, self._send_sequences[to])}")
         self._send_sequences[to] += 1
+        return future
 
-    def fulfill_promise(self, from_: ActorVirtualIdentity, return_invocation: ReturnInvocationV2) -> None:
+    def receive(self, from_: ActorVirtualIdentity, return_invocation: ReturnInvocationV2) -> None:
+        """
+        Receive the ReturnInvocation from the given actor.
+        :param from_: ActorVirtualIdentity, the sender.
+        :param return_invocation: ReturnInvocationV2, the return to be processed.
+        """
+        command_id = return_invocation.original_command_id
+        self._fulfill_promise(from_, command_id, return_invocation.control_return)
+
+    def _fulfill_promise(self, from_: ActorVirtualIdentity, command_id: int,
+                         control_return: ControlReturnV2) -> None:
         """
         Fulfill the promise with the CommandInvocation, referenced by the sequence id with this sender of
         ReturnInvocation.
 
         :param from_: ActorVirtualIdentity, the sender.
-        :param return_invocation: ReturnInvocationV2, contains the original command id to be used to find
-                        the promise, and also the ControlReturn to be used to fulfill the promise.
+        :param command_id: int, paired with from_ to uniquely identify an unfulfilled future.
+        :param control_return: ControlReturnV2m, to be used to fulfill the promise.
         """
-        command_id = return_invocation.original_command_id
+
         future: Future = self._unfulfilled_promises[(from_, command_id)]
-        future.set_result(return_invocation.control_return)
-        logger.debug(f"future of {(from_, command_id)} is now fulfilled")
+        future.set_result(control_return)
         del self._unfulfilled_promises[(from_, command_id)]
