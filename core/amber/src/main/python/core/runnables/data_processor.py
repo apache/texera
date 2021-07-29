@@ -21,12 +21,12 @@ from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlI
 
 class DataProcessor(StoppableQueueBlockingRunnable):
 
-    def __init__(self, input_queue: InternalQueue, output_queue: InternalQueue, udf_operator: UDFOperator):
+    def __init__(self, input_queue: InternalQueue, output_queue: InternalQueue):
         super().__init__(self.__class__.__name__, queue=input_queue)
 
         self._input_queue: InternalQueue = input_queue
         self._output_queue: InternalQueue = output_queue
-        self._udf_operator: UDFOperator = udf_operator
+        self._udf_operator: Optional[UDFOperator] = None
         self._current_input_tuple: Optional[Union[Tuple, InputExhausted]] = None
         self._current_input_link: Optional[LinkIdentity] = None
 
