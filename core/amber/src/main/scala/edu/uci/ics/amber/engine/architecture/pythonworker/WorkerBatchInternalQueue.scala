@@ -1,7 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
-
-import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{CONTROL_QUEUE, ControlElement, ControlElementV2, DATA_QUEUE, InternalQueueElement}
+import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue._
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, ControlPayloadV2, DataPayload}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import lbmq.LinkedBlockingMultiQueue
