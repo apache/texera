@@ -15,11 +15,14 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, ISourceOperatorExecutor}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
+import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.workflow.operators.udf.python.PythonUDFOpExecV2
 
 import java.io.IOException
 import java.net.ServerSocket
+import java.nio.file.Path
 import java.util.concurrent.{ExecutorService, Executors}
+import scala.sys.process.{BasicIO, Process}
 
 class PythonWorkflowWorker(
     identifier: ActorVirtualIdentity,
@@ -31,25 +34,25 @@ class PythonWorkflowWorker(
     new NetworkInputPort[DataPayload](this.logger, this.handleDataPayload)
   lazy val controlInputPort: NetworkInputPort[ControlPayload] =
     new NetworkInputPort[ControlPayload](this.logger, this.handleControlPayload)
-
   lazy val dataOutputPort: DataOutputPort = wire[DataOutputPort]
-
-  override val rpcHandlerInitializer: AsyncRPCHandlerInitializer = null
-
-  val config: Config = ConfigFactory.load("python_udf")
-  val pythonPath: String = config.getString("python.path").trim
-
-  val inputPortNum: Int = getFreeLocalPort
-  val outputPortNum: Int = getFreeLocalPort
-
-  private val serverThreadExecutor: ExecutorService = Executors.newSingleThreadExecutor
-  private val clientThreadExecutor: ExecutorService = Executors.newSingleThreadExecutor
-
-  private val pythonProxyClient: PythonProxyClient = new PythonProxyClient(outputPortNum)
-  private val pythonProxyServer: PythonProxyServer =
+  // Input/Output port used in between Python and Java processes.
+  private lazy val inputPortNum: Int = getFreeLocalPort
+  private lazy val outputPortNum: Int = getFreeLocalPort
+  // Proxy Serve and Client
+  private lazy val serverThreadExecutor: ExecutorService = Executors.newSingleThreadExecutor
+  private lazy val clientThreadExecutor: ExecutorService = Executors.newSingleThreadExecutor
+  private lazy val pythonProxyClient: PythonProxyClient = new PythonProxyClient(outputPortNum)
+  private lazy val pythonProxyServer: PythonProxyServer =
     new PythonProxyServer(inputPortNum, controlOutputPort, dataOutputPort)
-
-  private var pythonServerProcess: Process = _
+  override val rpcHandlerInitializer: AsyncRPCHandlerInitializer = null
+  val pythonSrcDirectory: Path = Utils.amberHomePath
+    .resolve("src")
+    .resolve("main")
+    .resolve("python")
+  val config: Config = ConfigFactory.load("python_udf")
+  val pythonENVPath: String = config.getString("python.path").trim
+  // Python process
+  private val pythonServerProcess = startPythonProcess()
 
   override def receive: Receive = {
     disallowActorRefRelatedMessages orElse {
@@ -97,7 +100,7 @@ class PythonWorkflowWorker(
       serverThreadExecutor.shutdown()
 
       // destroy python process
-      pythonServerProcess.destroyForcibly()
+      pythonServerProcess.destroy()
     } catch {
       case e: Exception =>
         e.printStackTrace()
@@ -106,20 +109,12 @@ class PythonWorkflowWorker(
   }
 
   override def preStart(): Unit = {
-    val udfMainScriptPath =
-      "/Users/yicong-huang/IdeaProjects/texera-other/core/amber/src/main/python/main.py"
-    // TODO: find a better way to do default conf values.
-
     startProxyServer()
-
-    startPythonProcess(udfMainScriptPath)
-
     startProxyClient()
-
     sendUDF()
   }
 
-  def sendUDF(): Unit = {
+  private def sendUDF(): Unit = {
     pythonProxyClient.enqueueCommand(
       ControlInvocationV2(
         -1,
@@ -132,25 +127,27 @@ class PythonWorkflowWorker(
     )
   }
 
-  private def startPythonProcess(
-      udfMainScriptPath: String
-  ): Unit = {
-    pythonServerProcess = new ProcessBuilder(
-      if (pythonPath.isEmpty) "python3"
-      else pythonPath, // add fall back in case of empty
-      "-u",
-      udfMainScriptPath,
-      Integer.toString(outputPortNum),
-      Integer.toString(inputPortNum)
-    ).inheritIO.start
-  }
-
-  def startProxyServer(): Unit = {
+  private def startProxyServer(): Unit = {
     serverThreadExecutor.submit(pythonProxyServer)
   }
 
-  def startProxyClient(): Unit = {
+  private def startProxyClient(): Unit = {
     clientThreadExecutor.submit(pythonProxyClient)
+  }
+
+  private def startPythonProcess(): Process = {
+    val udfMainScriptPath: String = pythonSrcDirectory.resolve("main.py").toString
+
+    Process(
+      Seq(
+        if (pythonENVPath.isEmpty) "python3"
+        else pythonENVPath, // add fall back in case of empty
+        "-u",
+        udfMainScriptPath,
+        Integer.toString(outputPortNum),
+        Integer.toString(inputPortNum)
+      )
+    ).run(BasicIO.standard(false))
   }
 
   /**
