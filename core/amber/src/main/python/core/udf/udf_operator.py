@@ -70,3 +70,7 @@ class UDFOperator(ABC):
         Close the context of the operator.
         """
         pass
+
+    @is_source.setter
+    def is_source(self, value: bool) -> None:
+        self._is_source = value

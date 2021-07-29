@@ -2,8 +2,11 @@ package edu.uci.ics.amber.engine.architecture.worker.controlcommands
 
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
+import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2
+import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value.Empty
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
@@ -25,6 +28,8 @@ object ControlCommandConvertUtils {
         AddPartitioningV2(tag, partitioning)
       case UpdateInputLinking(identifier, inputLink) =>
         UpdateInputLinkingV2(identifier, inputLink)
+      case QueryStatistics()=>
+        QueryStatisticsV2()
       case _ =>
         throw new UnsupportedOperationException(
           s"V1 command $controlCommand does not support converting to V2"
@@ -46,4 +51,14 @@ object ControlCommandConvertUtils {
     }
 
   }
+
+  def controlReturnToV1(
+      controlReturnV2: ControlReturnV2
+  ): Any =
+    if (controlReturnV2.value == Empty) {
+      Unit
+    }else{
+      controlReturnV2.value.value
+    }
+
 }

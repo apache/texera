@@ -15,6 +15,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   NetworkInputPort,
   TupleToBatchConverter
 }
+import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ShutdownDPThreadHandler.ShutdownDPThread
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
   READY,
@@ -34,6 +35,7 @@ import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
+import edu.uci.ics.texera.workflow.operators.udf.python.PythonUDFOpExecV2
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
@@ -45,7 +47,11 @@ object WorkflowWorker {
       op: IOperatorExecutor,
       parentNetworkCommunicationActorRef: ActorRef
   ): Props =
-    Props(new WorkflowWorker(id, op, parentNetworkCommunicationActorRef))
+    if (op.isInstanceOf[PythonUDFOpExecV2]) {
+      Props(new PythonWorkflowWorker(id, op, parentNetworkCommunicationActorRef))
+    } else {
+      Props(new WorkflowWorker(id, op, parentNetworkCommunicationActorRef))
+    }
 }
 
 class WorkflowWorker(

@@ -34,6 +34,11 @@ message WorkerExecutionCompletedV2 {
 message QueryStatisticsV2 {
 }
 
+message SendPythonUdfV2 {
+    string udf = 1;
+    bool is_source = 2;
+}
+
 message ControlCommandV2 {
     oneof sealed_value {
         StartWorkerV2 start_worker = 1;
@@ -44,6 +49,8 @@ message ControlCommandV2 {
         UpdateInputLinkingV2 update_input_linking = 5;
 
         QueryStatisticsV2 query_statistics = 6;
+
+        SendPythonUdfV2 send_python_udf = 21;
 
         WorkerExecutionCompletedV2 worker_execution_completed = 101;
     }

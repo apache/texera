@@ -1,9 +1,7 @@
 package edu.uci.ics.amber.engine.common.ambermessage
 
-import edu.uci.ics.amber.engine.architecture.worker.controlcommands.{
-  ControlCommandConvertUtils,
-  ControlCommandV2
-}
+import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandConvertUtils.controlReturnToV1
+import edu.uci.ics.amber.engine.architecture.worker.controlcommands.{ControlCommandConvertUtils, ControlCommandV2}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 
@@ -28,7 +26,10 @@ object InvocationConvertUtils {
 
   def returnInvocationToV1(
       returnInvocation: ReturnInvocationV2
-  ): ReturnInvocation =
-    ReturnInvocation(returnInvocation.originalCommandId, returnInvocation.controlReturn)
+  ): ReturnInvocation = {
+    println(controlReturnToV1(returnInvocation.controlReturn))
+    ReturnInvocation(returnInvocation.originalCommandId, controlReturnToV1(returnInvocation.controlReturn))
+
+  }
 
 }

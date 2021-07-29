@@ -1,9 +1,11 @@
+from loguru import logger
+
 from core.architecture.handlers.add_partitioning_handler import AddPartitioningHandler
 from core.architecture.handlers.handler_base import Handler
 from core.architecture.handlers.pause_worker_handler import PauseWorkerHandler
 from core.architecture.handlers.query_statistics_handler import QueryStatisticsHandler
 from core.architecture.handlers.resume_worker_handler import ResumeWorkerHandler
-
+from core.architecture.handlers.send_python_udf_handler import SendPythonUdfHandler
 from core.architecture.handlers.start_worker_handler import StartWorkerHandler
 from core.architecture.handlers.update_input_linking_handler import UpdateInputLinkingHandler
 from core.architecture.managers.context import Context
@@ -25,10 +27,11 @@ class AsyncRPCServer:
         self.register(AddPartitioningHandler())
         self.register(UpdateInputLinkingHandler())
         self.register(QueryStatisticsHandler())
+        self.register(SendPythonUdfHandler())
 
     def receive(self, from_: ActorVirtualIdentity, control_invocation: ControlInvocationV2):
         command: ControlCommandV2 = get_one_of(control_invocation.command)
-        # logger.info(f"PYTHON receive a CONTROL: {control_invocation}")
+        logger.info(f"PYTHON receive a CONTROL: {control_invocation}")
         handler = self.look_up(command)
         control_return: ControlReturnV2 = set_one_of(ControlReturnV2, handler(self._context, command))
 
@@ -42,11 +45,12 @@ class AsyncRPCServer:
 
         # reply to the sender
         to = from_
-        # logger.info(f"PYTHON returning control {cmd}")
+        logger.info(f"PYTHON returning control {payload}, for command {command}")
         self._output_queue.put(ControlElement(tag=to, payload=payload))
 
     def register(self, handler: Handler) -> None:
         self._handlers[handler.cmd] = handler
 
     def look_up(self, cmd: ControlCommandV2) -> Handler:
+        logger.debug(cmd)
         return self._handlers[type(cmd)]
