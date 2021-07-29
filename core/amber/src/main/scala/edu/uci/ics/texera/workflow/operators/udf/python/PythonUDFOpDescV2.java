@@ -57,7 +57,7 @@ public class PythonUDFOpDescV2 extends OperatorDescriptor {
     @Override
     public OperatorInfo operatorInfo() {
         return new OperatorInfo(
-                "Python UDF",
+                "Python UDF V2",
                 "User-defined function operator in Python script",
                 OperatorGroupConstants.UDF_GROUP(),
                 asScalaBuffer(singletonList(new InputPort("", true))).toList(),
