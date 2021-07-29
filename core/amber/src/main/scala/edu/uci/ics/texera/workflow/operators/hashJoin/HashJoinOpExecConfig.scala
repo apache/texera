@@ -29,7 +29,7 @@ class HashJoinOpExecConfig[K](
         new WorkerLayer(
           makeLayer(id, "main"),
           null,
-          Constants.defaultNumWorkers,
+          Constants.currentWorkerNum,
           UseAll(),
           RoundRobinDeployment()
         )

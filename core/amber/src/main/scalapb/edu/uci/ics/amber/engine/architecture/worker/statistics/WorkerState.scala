@@ -3,7 +3,7 @@
 //
 // Protofile syntax: PROTO3
 
-package edu.uci.ics.amber.engine.common.worker
+package edu.uci.ics.amber.engine.architecture.worker.statistics
 
 sealed abstract class WorkerState(val value: _root_.scala.Int) extends _root_.scalapb.GeneratedEnum {
   type EnumType = WorkerState
@@ -12,60 +12,60 @@ sealed abstract class WorkerState(val value: _root_.scala.Int) extends _root_.sc
   def isRunning: _root_.scala.Boolean = false
   def isPaused: _root_.scala.Boolean = false
   def isCompleted: _root_.scala.Boolean = false
-  def companion: _root_.scalapb.GeneratedEnumCompanion[WorkerState] = edu.uci.ics.amber.engine.common.worker.WorkerState
-  final def asRecognized: _root_.scala.Option[edu.uci.ics.amber.engine.common.worker.WorkerState.Recognized] = if (isUnrecognized) _root_.scala.None else _root_.scala.Some(this.asInstanceOf[edu.uci.ics.amber.engine.common.worker.WorkerState.Recognized])
+  def companion: _root_.scalapb.GeneratedEnumCompanion[WorkerState] = edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
+  final def asRecognized: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.Recognized] = if (isUnrecognized) _root_.scala.None else _root_.scala.Some(this.asInstanceOf[edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.Recognized])
 }
 
 object WorkerState extends _root_.scalapb.GeneratedEnumCompanion[WorkerState] {
   sealed trait Recognized extends WorkerState
   implicit def enumCompanion: _root_.scalapb.GeneratedEnumCompanion[WorkerState] = this
   @SerialVersionUID(0L)
-  case object Uninitialized extends WorkerState(0) with WorkerState.Recognized {
+  case object UNINITIALIZED extends WorkerState(0) with WorkerState.Recognized {
     val index = 0
-    val name = "Uninitialized"
+    val name = "UNINITIALIZED"
     override def isUninitialized: _root_.scala.Boolean = true
   }
   
   @SerialVersionUID(0L)
-  case object Ready extends WorkerState(1) with WorkerState.Recognized {
+  case object READY extends WorkerState(1) with WorkerState.Recognized {
     val index = 1
-    val name = "Ready"
+    val name = "READY"
     override def isReady: _root_.scala.Boolean = true
   }
   
   @SerialVersionUID(0L)
-  case object Running extends WorkerState(2) with WorkerState.Recognized {
+  case object RUNNING extends WorkerState(2) with WorkerState.Recognized {
     val index = 2
-    val name = "Running"
+    val name = "RUNNING"
     override def isRunning: _root_.scala.Boolean = true
   }
   
   @SerialVersionUID(0L)
-  case object Paused extends WorkerState(3) with WorkerState.Recognized {
+  case object PAUSED extends WorkerState(3) with WorkerState.Recognized {
     val index = 3
-    val name = "Paused"
+    val name = "PAUSED"
     override def isPaused: _root_.scala.Boolean = true
   }
   
   @SerialVersionUID(0L)
-  case object Completed extends WorkerState(4) with WorkerState.Recognized {
+  case object COMPLETED extends WorkerState(4) with WorkerState.Recognized {
     val index = 4
-    val name = "Completed"
+    val name = "COMPLETED"
     override def isCompleted: _root_.scala.Boolean = true
   }
   
   @SerialVersionUID(0L)
   final case class Unrecognized(unrecognizedValue: _root_.scala.Int) extends WorkerState(unrecognizedValue) with _root_.scalapb.UnrecognizedEnum
   
-  lazy val values = scala.collection.immutable.Seq(Uninitialized, Ready, Running, Paused, Completed)
+  lazy val values = scala.collection.immutable.Seq(UNINITIALIZED, READY, RUNNING, PAUSED, COMPLETED)
   def fromValue(__value: _root_.scala.Int): WorkerState = __value match {
-    case 0 => Uninitialized
-    case 1 => Ready
-    case 2 => Running
-    case 3 => Paused
-    case 4 => Completed
+    case 0 => UNINITIALIZED
+    case 1 => READY
+    case 2 => RUNNING
+    case 3 => PAUSED
+    case 4 => COMPLETED
     case __other => Unrecognized(__other)
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.EnumDescriptor = WorkerProto.javaDescriptor.getEnumTypes().get(0)
-  def scalaDescriptor: _root_.scalapb.descriptors.EnumDescriptor = WorkerProto.scalaDescriptor.enums(0)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.EnumDescriptor = StatisticsProto.javaDescriptor.getEnumTypes().get(0)
+  def scalaDescriptor: _root_.scalapb.descriptors.EnumDescriptor = StatisticsProto.scalaDescriptor.enums(0)
 }
