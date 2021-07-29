@@ -34,6 +34,9 @@ message WorkerExecutionCompletedV2 {
 message QueryStatisticsV2 {
 }
 
+message QueryCurrentInputTupleV2 {
+}
+
 message SendPythonUdfV2 {
     string udf = 1;
     bool is_source = 2;
@@ -49,6 +52,7 @@ message ControlCommandV2 {
         UpdateInputLinkingV2 update_input_linking = 5;
 
         QueryStatisticsV2 query_statistics = 6;
+        QueryCurrentInputTupleV2 query_current_input_tuple = 7;
 
         SendPythonUdfV2 send_python_udf = 21;
 

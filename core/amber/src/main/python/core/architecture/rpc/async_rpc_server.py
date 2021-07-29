@@ -3,6 +3,7 @@ from loguru import logger
 from core.architecture.handlers.add_partitioning_handler import AddPartitioningHandler
 from core.architecture.handlers.handler_base import Handler
 from core.architecture.handlers.pause_worker_handler import PauseWorkerHandler
+from core.architecture.handlers.query_current_input_tuple_handler import QueryCurrentInputTupleHandler
 from core.architecture.handlers.query_statistics_handler import QueryStatisticsHandler
 from core.architecture.handlers.resume_worker_handler import ResumeWorkerHandler
 from core.architecture.handlers.send_python_udf_handler import SendPythonUdfHandler
@@ -27,6 +28,7 @@ class AsyncRPCServer:
         self.register(AddPartitioningHandler())
         self.register(UpdateInputLinkingHandler())
         self.register(QueryStatisticsHandler())
+        self.register(QueryCurrentInputTupleHandler())
         self.register(SendPythonUdfHandler())
 
     def receive(self, from_: ActorVirtualIdentity, control_invocation: ControlInvocationV2):

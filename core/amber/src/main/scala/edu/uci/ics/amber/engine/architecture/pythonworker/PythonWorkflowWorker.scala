@@ -8,7 +8,6 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{DataOutputPort, NetworkInputPort}
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.DataElement
 import edu.uci.ics.amber.engine.architecture.worker.controlcommands.SendPythonUdfV2
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryCurrentInputTupleHandler.QueryCurrentInputTuple
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
@@ -69,13 +68,7 @@ class PythonWorkflowWorker(
       controlPayload: ControlPayload
   ): Unit = {
     controlPayload match {
-      case ControlInvocation(commandID, command) =>
-        if (command.isInstanceOf[QueryCurrentInputTuple]) {
-          controlOutputPort.sendTo(from, ReturnInvocation(commandID, null))
-        } else {
-          pythonProxyClient.enqueueCommand(controlPayload, from)
-        }
-      case ReturnInvocation(_, _) =>
+      case ControlInvocation(_, _) | ReturnInvocation(_, _) =>
         pythonProxyClient.enqueueCommand(controlPayload, from)
       case _ =>
         logger.logError(
@@ -95,7 +88,6 @@ class PythonWorkflowWorker(
 
     // destroy python process
     pythonServerProcess.destroyForcibly()
-    println("PYTHON process stopped!")
   }
 
   override def preStart(): Unit = {
