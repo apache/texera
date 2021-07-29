@@ -21,10 +21,15 @@ class UDFOperator(ABC):
     def is_source(self) -> bool:
         """
         Whether the operator is a source operator. Source operators generates output
-        Tuples without input Tuples.
+        Tuples without having input Tuples.
         :return:
         """
         return self._is_source
+
+    @is_source.setter
+    @overrides.final
+    def is_source(self, value: bool) -> None:
+        self._is_source = value
 
     def open(self) -> None:
         """

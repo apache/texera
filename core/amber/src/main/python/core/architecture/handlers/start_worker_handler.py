@@ -8,7 +8,7 @@ class StartWorkerHandler(Handler):
     cmd = StartWorkerV2
 
     def __call__(self, context: Context, command: StartWorkerV2, *args, **kwargs):
-        if context.dp._udf_is_source:
+        if context.udf_operator.is_source:
             context.state_manager.transit_to(WorkerState.RUNNING)
             context.input_queue.put(EndMarker())
             context.input_queue.put(EndOfAllMarker())
