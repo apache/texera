@@ -30,11 +30,11 @@ class PythonWorkflowWorker(
     parentNetworkCommunicationActorRef: ActorRef
 ) extends WorkflowActor(identifier, parentNetworkCommunicationActorRef) {
 
-  lazy val dataInputPort: NetworkInputPort[DataPayload] =
+  private lazy val dataInputPort: NetworkInputPort[DataPayload] =
     new NetworkInputPort[DataPayload](this.logger, this.handleDataPayload)
-  lazy val controlInputPort: NetworkInputPort[ControlPayload] =
+  private lazy val controlInputPort: NetworkInputPort[ControlPayload] =
     new NetworkInputPort[ControlPayload](this.logger, this.handleControlPayload)
-  lazy val dataOutputPort: DataOutputPort = wire[DataOutputPort]
+  private lazy val dataOutputPort: DataOutputPort = wire[DataOutputPort]
   // Input/Output port used in between Python and Java processes.
   private lazy val inputPortNum: Int = getFreeLocalPort
   private lazy val outputPortNum: Int = getFreeLocalPort
@@ -44,6 +44,7 @@ class PythonWorkflowWorker(
   private lazy val pythonProxyClient: PythonProxyClient = new PythonProxyClient(outputPortNum)
   private lazy val pythonProxyServer: PythonProxyServer =
     new PythonProxyServer(inputPortNum, controlOutputPort, dataOutputPort)
+  // OPTIMIZE: find a way to remove this dependency, AsyncRPC is not used here.
   override val rpcHandlerInitializer: AsyncRPCHandlerInitializer = null
   val pythonSrcDirectory: Path = Utils.amberHomePath
     .resolve("src")

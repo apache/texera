@@ -33,7 +33,7 @@ class AsyncRPCServer:
 
     def receive(self, from_: ActorVirtualIdentity, control_invocation: ControlInvocationV2):
         command: ControlCommandV2 = get_one_of(control_invocation.command)
-        logger.info(f"PYTHON receive a CONTROL: {control_invocation}")
+        logger.debug(f"PYTHON receives a ControlInvocation: {control_invocation}")
         handler = self.look_up(command)
         control_return: ControlReturnV2 = set_one_of(ControlReturnV2, handler(self._context, command))
 
@@ -47,7 +47,7 @@ class AsyncRPCServer:
 
         # reply to the sender
         to = from_
-        logger.info(f"PYTHON returning control {payload}, for command {command}")
+        logger.debug(f"PYTHON returns a ReturnInvocation {payload}, replying the command {command}")
         self._output_queue.put(ControlElement(tag=to, payload=payload))
 
     def register(self, handler: Handler) -> None:
