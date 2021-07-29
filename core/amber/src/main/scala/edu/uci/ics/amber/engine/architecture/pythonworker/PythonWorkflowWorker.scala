@@ -137,14 +137,15 @@ class PythonWorkflowWorker(
   }
 
   private def startPythonProcess(): Process = {
-    val udfMainScriptPath: String = pythonSrcDirectory.resolve("main.py").toString
+    val udfEntryScriptPath: String =
+      pythonSrcDirectory.resolve("texera_run_python_worker.py").toString
 
     Process(
       Seq(
         if (pythonENVPath.isEmpty) "python3"
         else pythonENVPath, // add fall back in case of empty
         "-u",
-        udfMainScriptPath,
+        udfEntryScriptPath,
         Integer.toString(outputPortNum),
         Integer.toString(inputPortNum)
       )
