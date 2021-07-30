@@ -16,7 +16,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, ISourceOperatorExecutor}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.texera.Utils
-import edu.uci.ics.texera.workflow.operators.udf.python.PythonUDFOpExecV2
+import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
 
 import java.io.IOException
 import java.net.ServerSocket

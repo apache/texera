@@ -1,18 +1,16 @@
-package edu.uci.ics.texera.workflow.operators.udf.python;
+package edu.uci.ics.texera.workflow.operators.udf.pythonV2.source;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
-import com.google.common.base.Preconditions;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.amber.engine.operators.OpExecConfig;
-import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
 import edu.uci.ics.texera.workflow.common.operators.ManyToOneOpExecConfig;
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig;
-import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor;
+import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
@@ -24,7 +22,7 @@ import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
 
 
-public class PythonUDFOpDescV2 extends OperatorDescriptor {
+public class PythonUDFSourceOpDesc extends SourceOperatorDescriptor {
 
     @JsonProperty(required = true)
     @JsonSchemaTitle("Python script")
@@ -36,21 +34,16 @@ public class PythonUDFOpDescV2 extends OperatorDescriptor {
     @JsonPropertyDescription("Run with multiple workers?")
     public Boolean parallel;
 
-    @JsonProperty(required = true, defaultValue = "true")
-    @JsonSchemaTitle("Retain input columns")
-    @JsonPropertyDescription("Keep the original input columns?")
-    public Boolean retainInputColumns;
-
     @JsonProperty()
-    @JsonSchemaTitle("Extra output column(s)")
-    @JsonPropertyDescription("Name of the newly added output columns that the UDF will produce, if any")
-    public List<Attribute> outputColumns;
+    @JsonSchemaTitle("Columns")
+    @JsonPropertyDescription("The columns of the source")
+    public List<Attribute> columns;
 
 
     @Override
     public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         Function1<Object, IOperatorExecutor> exec = (i) ->
-                new PythonUDFOpExecV2(code);
+                new PythonUDFSourceOpExec(code);
         if (parallel) {
             return new OneToOneOpExecConfig(operatorIdentifier(), exec);
         } else {
@@ -62,36 +55,21 @@ public class PythonUDFOpDescV2 extends OperatorDescriptor {
     @Override
     public OperatorInfo operatorInfo() {
         return new OperatorInfo(
-                "Python UDF V2",
+                "Python UDF Source",
                 "User-defined function operator in Python script",
                 OperatorGroupConstants.UDF_GROUP(),
-                asScalaBuffer(singletonList(new InputPort("", true))).toList(),
+                scala.collection.immutable.List.empty(),
                 asScalaBuffer(singletonList(new OutputPort(""))).toList());
     }
 
-    @Override
-    public Schema getOutputSchema(Schema[] schemas) {
-        Preconditions.checkArgument(schemas.length == 1);
-        Schema inputSchema = schemas[0];
 
+    @Override
+    public Schema sourceSchema() {
         Schema.Builder outputSchemaBuilder = Schema.newBuilder();
 
-        // keep the same schema from input
-        if (retainInputColumns) {
-            outputSchemaBuilder.add(inputSchema);
-        }
-
-
         // for any pythonUDFType, it can add custom output columns (attributes).
-        if (outputColumns != null) {
-            if (retainInputColumns) {
-                // check if columns are duplicated
-                for (Attribute column : outputColumns) {
-                    if (inputSchema.containsAttribute(column.getName()))
-                        throw new RuntimeException("Column name " + column.getName() + " already exists!");
-                }
-            }
-            outputSchemaBuilder.add(outputColumns).build();
+        if (columns != null) {
+            outputSchemaBuilder.add(columns).build();
         }
         return outputSchemaBuilder.build();
     }
