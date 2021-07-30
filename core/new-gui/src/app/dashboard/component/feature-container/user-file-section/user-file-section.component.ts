@@ -46,5 +46,8 @@ export class UserFileSectionComponent implements OnInit {
   public addFileSizeUnit(fileSize: number): string {
     return this.userFileService.addFileSizeUnit(fileSize);
   }
+  public downloadFile(userFile: UserFile): void {
+    this.userFileService.downloadUserFile(userFile);
+  }
 
 }

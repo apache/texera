@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.web.resource.dashboard.file
 
+import com.google.common.io.Files
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.FILE
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.FileDao
@@ -10,12 +11,12 @@ import org.apache.commons.lang3.tuple.Pair
 import org.glassfish.jersey.media.multipart.{FormDataContentDisposition, FormDataParam}
 import org.jooq.types.UInteger
 
-import java.io.InputStream
+import java.io.{IOException, InputStream, OutputStream}
 import java.nio.file.Paths
 import java.util
 import javax.servlet.http.HttpSession
-import javax.ws.rs._
-import javax.ws.rs.core.{MediaType, Response}
+import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
+import javax.ws.rs.{WebApplicationException, _}
 
 /**
   * Model `File` corresponds to `core/new-gui/src/app/common/type/user-file.ts` (frontend).
@@ -80,6 +81,12 @@ class UserFileResource {
     }
   }
 
+  private def getUserFileRecord(userID: UInteger): util.List[File] = {
+
+    // TODO: verify user in session?
+    fileDao.fetchByUid(userID)
+  }
+
   @DELETE
   @Path("/delete/{fileID}")
   def deleteUserFile(
@@ -121,12 +128,6 @@ class UserFileResource {
 
   }
 
-  private def getUserFileRecord(userID: UInteger): util.List[File] = {
-
-    // TODO: verify user in session?
-    fileDao.fetchByUid(userID)
-  }
-
   private def validateFileName(fileName: String, userID: UInteger): Pair[Boolean, String] = {
     if (fileName == null) Pair.of(false, "file name cannot be null")
     else if (fileName.trim.isEmpty) Pair.of(false, "file name cannot be empty")
@@ -140,4 +141,41 @@ class UserFileResource {
         .selectFrom(FILE)
         .where(FILE.UID.equal(userID).and(FILE.NAME.equal(fileName)))
     )
+
+  @GET
+  @Path("/download/{fileId}")
+  def downloadFile(
+      @PathParam("fileId") fileId: UInteger,
+      @Session session: HttpSession
+  ): Response = {
+    UserResource.getUser(session) match {
+      case Some(user) =>
+        // TODO: check user and access.
+        val file: File = fileDao.fetchOneByFid(fileId)
+        val fileObject = Paths.get(file.getPath).toFile
+
+        // sending a FileOutputStream/ByteArrayOutputStream directly will cause MessageBodyWriter
+        // not found issue for jersey
+        // so we create our own stream.
+        val fileStream = new StreamingOutput() {
+          @throws[IOException]
+          @throws[WebApplicationException]
+          def write(output: OutputStream): Unit = {
+            val data = Files.toByteArray(fileObject)
+            output.write(data)
+            output.flush()
+          }
+        }
+
+        Response
+          .ok(fileStream, MediaType.APPLICATION_OCTET_STREAM)
+          .header("content-disposition", String.format("attachment; filename=%s", file.getName))
+          .build
+
+      case None =>
+        Response.status(Response.Status.UNAUTHORIZED).build()
+    }
+
+  }
+
 }

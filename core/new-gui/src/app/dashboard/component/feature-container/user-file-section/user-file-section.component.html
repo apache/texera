@@ -22,8 +22,10 @@
         </nz-list-item-meta>
         <ul nz-list-item-actions>
           <nz-list-item-action>
+            <button class="download-workflow-btn" mat-button ngbTooltip="Download the {{userFile.name}}" placement="bottom"
+                    (click)="downloadFile(userFile)"><i nz-icon nzType="download" nzTheme="outline"></i></button>
             <button nz-button nz-tooltip="Delete the {{userFile.name}}"
-                    nzTooltipPlacement="bottom" (click)="deleteFile(userFile)"  type="button">
+                    nzTooltipPlacement="bottom" (click)="deleteFile(userFile)" type="button">
               <i nz-icon nzType="delete" nzTheme="outline"></i>
             </button>
           </nz-list-item-action>

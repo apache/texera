@@ -7,6 +7,7 @@ import { UserService } from '../user.service';
 
 export const USER_FILE_LIST_URL = 'user/file/list';
 export const USER_FILE_DELETE_URL = 'user/file/delete';
+export const USER_FILE_DOWNLOAD_URL = 'user/file/download';
 
 @Injectable({
   providedIn: 'root'
@@ -107,4 +108,15 @@ export class UserFileService {
     this.userFilesChanged.next();
   }
 
+  public downloadUserFile(targetFile: UserFile): void {
+    const requestURL = `${AppSettings.getApiEndpoint()}/${USER_FILE_DOWNLOAD_URL}/${targetFile.fid}`;
+
+    this.http.get(
+      requestURL,
+      {responseType: 'blob'}
+    ).subscribe(
+      () => window.location.href = requestURL,
+      error => alert(error.err)
+    );
+  }
 }
