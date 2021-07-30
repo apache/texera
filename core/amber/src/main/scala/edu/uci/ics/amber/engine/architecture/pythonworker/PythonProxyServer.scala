@@ -5,7 +5,6 @@ import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{cont
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.operators.udf.pythonV1.ArrowUtils
 import kotlin.NotImplementedError
 import org.apache.arrow.flight._
 import org.apache.arrow.flight.example.InMemoryStore
