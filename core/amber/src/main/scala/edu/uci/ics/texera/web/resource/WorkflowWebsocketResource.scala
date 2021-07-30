@@ -1,11 +1,7 @@
 package edu.uci.ics.texera.web.resource
 
 import akka.actor.{ActorRef, PoisonPill}
-import edu.uci.ics.amber.engine.architecture.controller.{
-  Controller,
-  ControllerConfig,
-  ControllerEventListener
-}
+import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, ControllerEventListener}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
@@ -15,21 +11,10 @@ import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.web.{ServletAwareConfigurator, TexeraWebApplication}
 import edu.uci.ics.texera.web.model.event._
 import edu.uci.ics.texera.web.model.request._
-import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
-  send,
-  sessionDownloadCache,
-  sessionJobs,
-  sessionMap,
-  sessionResults
-}
+import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{send, sessionDownloadCache, sessionJobs, sessionMap, sessionResults}
 import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.workflow.{
-  WorkflowCompiler,
-  WorkflowInfo,
-  WorkflowRewriter,
-  WorkflowVertex
-}
+import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo, WorkflowRewriter, WorkflowVertex}
 import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -40,9 +25,11 @@ import javax.websocket.{EndpointConfig, _}
 import javax.websocket.server.ServerEndpoint
 import scala.collection.{breakOut, mutable}
 import com.typesafe.scalalogging.Logger
+import edu.uci.ics.amber.engine.storage.OpResultStorage
+import edu.uci.ics.amber.engine.storage.memory.MemOpResultStorage
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowInfo.toJgraphtDAG
-import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDesc
+import edu.uci.ics.texera.workflow.operators.sink.{CacheSinkOpDesc, SimpleSinkOpDesc}
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 
 object WorkflowWebsocketResource {
@@ -199,6 +186,8 @@ class WorkflowWebsocketResource {
   val sessionOperatorRecord: mutable.HashMap[String, mutable.HashMap[String, WorkflowVertex]] =
     mutable.HashMap[String, mutable.HashMap[String, WorkflowVertex]]()
 
+  val opResultStorage: OpResultStorage = new MemOpResultStorage()
+
   def executeWorkflow(session: Session, request: ExecuteWorkflowRequest): Unit = {
     var operatorOutputCache: mutable.HashMap[String, mutable.MutableList[Tuple]] = null
     if (!sessionOperatorOutputCache.contains(session.getId)) {
@@ -253,9 +242,10 @@ class WorkflowWebsocketResource {
       operatorOutputCache,
       cachedOperators,
       cacheSourceOperators,
-      cacheSinkOperators,
+      cacheSinkOperators.asInstanceOf[mutable.HashMap[String, SimpleSinkOpDesc]],
       operatorRecord
     )
+    workflowRewriter.opResultStorage = opResultStorage
     val newWorkflowInfo = workflowRewriter.rewrite_v2
     logger.info("Original workflow: {}.", toJgraphtDAG(workflowInfo).toString)
     workflowInfo = newWorkflowInfo

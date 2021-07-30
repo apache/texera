@@ -10,7 +10,7 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 import scala.collection.mutable
 
-class CacheSinkOpExecV2(id: String, dest: OpResultStorage) extends ITupleSinkOperatorExecutor {
+class CacheSinkOpExecV2(uuid: String, dest: OpResultStorage) extends ITupleSinkOperatorExecutor {
 
   assert(null != dest)
 
@@ -20,7 +20,7 @@ class CacheSinkOpExecV2(id: String, dest: OpResultStorage) extends ITupleSinkOpe
 
   override def getResultTuples(): List[ITuple] = {
     logger.info("Get result tuples.")
-    dest.get(id)
+    dest.get(uuid)
   }
 
   override def getOutputMode(): IncrementalOutputMode = IncrementalOutputMode.SET_SNAPSHOT
@@ -37,8 +37,8 @@ class CacheSinkOpExecV2(id: String, dest: OpResultStorage) extends ITupleSinkOpe
     tuple match {
       case Left(t) => results += t.asInstanceOf[Tuple]
       case Right(_) =>
-        dest.remove(id)
-        dest.put(id, results.toList)
+        dest.remove(uuid)
+        dest.put(uuid, results.toList)
     }
     Iterator()
   }

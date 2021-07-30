@@ -1,13 +1,19 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
 import com.typesafe.scalalogging.Logger
+import edu.uci.ics.amber.engine.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.Utils.objectMapper
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowRewriter.copyOperator
-import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDesc
-import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
+import edu.uci.ics.texera.workflow.operators.sink.{
+  CacheSinkOpDesc,
+  CacheSinkOpDescV2,
+  SimpleSinkOpDesc
+}
+import edu.uci.ics.texera.workflow.operators.source.cache.{CacheSourceOpDesc, CacheSourceOpDescV2}
 
+import java.util.UUID
 import scala.collection.mutable
 
 case class WorkflowVertex(
@@ -26,9 +32,12 @@ class WorkflowRewriter(
     var operatorOutputCache: mutable.HashMap[String, mutable.MutableList[Tuple]],
     var cachedOperatorDescriptors: mutable.HashMap[String, OperatorDescriptor],
     var cacheSourceOperatorDescriptors: mutable.HashMap[String, CacheSourceOpDesc],
-    var cacheSinkOperatorDescriptors: mutable.HashMap[String, CacheSinkOpDesc],
+    var cacheSinkOperatorDescriptors: mutable.HashMap[String, SimpleSinkOpDesc],
     var operatorRecord: mutable.HashMap[String, WorkflowVertex]
 ) {
+
+  var opResultStorage: OpResultStorage = _
+
   private val logger = Logger(this.getClass.getName)
 
   var visitedOpID: mutable.HashSet[String] = new mutable.HashSet[String]()
@@ -328,7 +337,7 @@ class WorkflowRewriter(
   ): Unit = {
     if (!rewrittenToCacheOperatorIDs.contains(upstreamOperatorDescriptor.operatorID)) {
       logger.info("Rewrite operator {}.", upstreamOperatorDescriptor.operatorID)
-      val toCacheOperator = generateCacheSinkOperator(upstreamOperatorDescriptor)
+      val toCacheOperator = generateCacheSinkOperator_v2(upstreamOperatorDescriptor)
       newOps += toCacheOperator
       newLinks += generateCacheSinkLink(toCacheOperator, upstreamOperatorDescriptor)
       rewrittenToCacheOperatorIDs.add(upstreamOperatorDescriptor.operatorID)
@@ -428,6 +437,24 @@ class WorkflowRewriter(
     workflowDAG.jgraphtDag.removeVertex(operator.operatorID)
   }
 
+  private def generateCacheSinkOperator_v2(
+      operatorDescriptor: OperatorDescriptor
+  ): CacheSinkOpDescV2 = {
+    logger.info("Generating CacheSinkOperator for operator {}.", operatorDescriptor.toString)
+    val outputTupleCache = mutable.MutableList[Tuple]()
+    cachedOperatorDescriptors += ((operatorDescriptor.operatorID, copyOperator(operatorDescriptor)))
+    logger.info(
+      "Operator: {} added to cachedOperators: {}.",
+      operatorDescriptor.toString,
+      cachedOperatorDescriptors.toString()
+    )
+    val uuid = UUID.randomUUID().toString
+    val cacheSinkOperator = new CacheSinkOpDescV2(uuid, opResultStorage)
+    cacheSinkOperatorDescriptors += ((operatorDescriptor.operatorID, cacheSinkOperator))
+    val cacheSourceOperator = new CacheSourceOpDescV2(uuid, opResultStorage)
+    cacheSinkOperator
+  }
+
   private def generateCacheSinkOperator(operatorDescriptor: OperatorDescriptor): CacheSinkOpDesc = {
     logger.info("Generating CacheSinkOperator for operator {}.", operatorDescriptor.toString)
     val outputTupleCache = mutable.MutableList[Tuple]()
@@ -447,7 +474,9 @@ class WorkflowRewriter(
 
   private def getCacheSourceOperator(operatorDescriptor: OperatorDescriptor): CacheSourceOpDesc = {
     val cacheSourceOperator = cacheSourceOperatorDescriptors(operatorDescriptor.operatorID)
-    cacheSourceOperator.schema = cacheSinkOperatorDescriptors(operatorDescriptor.operatorID).schema
+    cacheSourceOperator.schema = cacheSinkOperatorDescriptors(operatorDescriptor.operatorID)
+      .asInstanceOf[CacheSinkOpDesc]
+      .schema
     cacheSourceOperator
   }
 

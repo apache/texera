@@ -11,13 +11,13 @@ import java.util.Collections.singletonList
 import scala.collection.JavaConverters.asScalaBuffer
 import scala.collection.immutable.List
 
-class CacheSinkOpDescV2(dest: OpResultStorage) extends SimpleSinkOpDesc {
+class CacheSinkOpDescV2(uuid: String, opResultStorage: OpResultStorage) extends SimpleSinkOpDesc {
 
   var schema: Schema = _
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
     schema = operatorSchemaInfo.outputSchema
-    new CacheSinkOpExecConfigV2(operatorIdentifier, operatorSchemaInfo, dest)
+    new CacheSinkOpExecConfigV2(operatorIdentifier, operatorSchemaInfo, uuid, opResultStorage)
   }
 
   override def operatorInfo: OperatorInfo =
