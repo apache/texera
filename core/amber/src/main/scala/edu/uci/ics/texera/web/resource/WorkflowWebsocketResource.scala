@@ -31,21 +31,19 @@ import edu.uci.ics.texera.workflow.common.workflow.{
   WorkflowRewriter,
   WorkflowVertex
 }
-import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
+import edu.uci.ics.texera.workflow.common.WorkflowContext
 
 import java.util.concurrent.atomic.AtomicInteger
-import edu.uci.ics.texera.workflow.common.Utils.objectMapper
-
 import javax.servlet.http.HttpSession
 import javax.websocket.{EndpointConfig, _}
 import javax.websocket.server.ServerEndpoint
 import scala.collection.{breakOut, mutable}
 import com.typesafe.scalalogging.Logger
+import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowInfo.toJgraphtDAG
 import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
-
 
 object WorkflowWebsocketResource {
   // TODO should reorganize this resource.
