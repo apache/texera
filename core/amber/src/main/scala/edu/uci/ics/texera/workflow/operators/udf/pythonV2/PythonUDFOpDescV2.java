@@ -81,7 +81,6 @@ public class PythonUDFOpDescV2 extends OperatorDescriptor {
             outputSchemaBuilder.add(inputSchema);
         }
 
-
         // for any pythonUDFType, it can add custom output columns (attributes).
         if (outputColumns != null) {
             if (retainInputColumns) {

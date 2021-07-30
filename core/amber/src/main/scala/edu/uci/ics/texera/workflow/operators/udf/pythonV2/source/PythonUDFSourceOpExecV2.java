@@ -9,10 +9,10 @@ import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2;
 import scala.collection.Iterator;
 import scala.util.Either;
 
-public class PythonUDFSourceOpExec extends PythonUDFOpExecV2 implements SourceOperatorExecutor {
+public class PythonUDFSourceOpExecV2 extends PythonUDFOpExecV2 implements SourceOperatorExecutor {
 
 
-    public PythonUDFSourceOpExec(String code) {
+    public PythonUDFSourceOpExecV2(String code) {
         super(code);
     }
 

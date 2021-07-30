@@ -33,6 +33,7 @@ import edu.uci.ics.texera.workflow.operators.symmetricDifference.SymmetricDiffer
 import edu.uci.ics.texera.workflow.operators.typecasting.TypeCastingOpDesc
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpDescV2
 import edu.uci.ics.texera.workflow.operators.udf.pythonV1.PythonUDFOpDesc
+import edu.uci.ics.texera.workflow.operators.udf.pythonV2.source.PythonUDFSourceOpDescV2
 import edu.uci.ics.texera.workflow.operators.union.UnionOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.barChart.BarChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.htmlviz.HtmlVizOpDesc
@@ -76,6 +77,7 @@ import java.util.UUID
     new Type(value = classOf[ScatterplotOpDesc], name = "Scatterplot"),
     new Type(value = classOf[PythonUDFOpDesc], name = "PythonUDF"),
     new Type(value = classOf[PythonUDFOpDescV2], name = "PythonUDFV2"),
+    new Type(value = classOf[PythonUDFSourceOpDescV2], name = "PythonUDFSourceV2"),
     new Type(value = classOf[MySQLSourceOpDesc], name = "MySQLSource"),
     new Type(value = classOf[PostgreSQLSourceOpDesc], name = "PostgreSQLSource"),
     new Type(value = classOf[AsterixDBSourceOpDesc], name = "AsterixDBSource"),

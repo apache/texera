@@ -51,7 +51,9 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         match(
             next_entry,
             DataElement, self._process_data_element,
-            ControlElement, self._process_control_element
+            ControlElement, self._process_control_element,
+            EndMarker, self._process_end_marker,
+            EndOfAllMarker, self._process_end_of_all_marker
         )
 
     def process_control_payload(self, tag: ActorVirtualIdentity, payload: ControlPayloadV2) -> None:

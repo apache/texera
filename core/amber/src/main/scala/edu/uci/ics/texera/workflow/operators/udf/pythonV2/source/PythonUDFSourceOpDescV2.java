@@ -22,7 +22,7 @@ import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
 
 
-public class PythonUDFSourceOpDesc extends SourceOperatorDescriptor {
+public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
 
     @JsonProperty(required = true)
     @JsonSchemaTitle("Python script")
@@ -43,7 +43,7 @@ public class PythonUDFSourceOpDesc extends SourceOperatorDescriptor {
     @Override
     public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         Function1<Object, IOperatorExecutor> exec = (i) ->
-                new PythonUDFSourceOpExec(code);
+                new PythonUDFSourceOpExecV2(code);
         if (parallel) {
             return new OneToOneOpExecConfig(operatorIdentifier(), exec);
         } else {
@@ -55,7 +55,7 @@ public class PythonUDFSourceOpDesc extends SourceOperatorDescriptor {
     @Override
     public OperatorInfo operatorInfo() {
         return new OperatorInfo(
-                "Python UDF Source",
+                "Python UDF Source V2",
                 "User-defined function operator in Python script",
                 OperatorGroupConstants.UDF_GROUP(),
                 scala.collection.immutable.List.empty(),
