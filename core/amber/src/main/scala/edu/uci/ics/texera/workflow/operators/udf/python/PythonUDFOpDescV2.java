@@ -36,6 +36,11 @@ public class PythonUDFOpDescV2 extends OperatorDescriptor {
     @JsonPropertyDescription("Run with multiple workers?")
     public Boolean parallel;
 
+    @JsonProperty(required = true, defaultValue = "true")
+    @JsonSchemaTitle("Retain input columns")
+    @JsonPropertyDescription("Keep the original input columns?")
+    public Boolean retainInputColumns;
+
     @JsonProperty()
     @JsonSchemaTitle("Extra output column(s)")
     @JsonPropertyDescription("Name of the newly added output columns that the UDF will produce, if any")
@@ -72,14 +77,19 @@ public class PythonUDFOpDescV2 extends OperatorDescriptor {
         Schema.Builder outputSchemaBuilder = Schema.newBuilder();
 
         // keep the same schema from input
-        outputSchemaBuilder.add(inputSchema);
+        if (retainInputColumns) {
+            outputSchemaBuilder.add(inputSchema);
+        }
+
 
         // for any pythonUDFType, it can add custom output columns (attributes).
         if (outputColumns != null) {
-            for (Attribute column : outputColumns) {
-                if (inputSchema.containsAttribute(column.getName()))
-                    throw new RuntimeException("Column name " + column.getName()
-                            + " already exists!");
+            if (retainInputColumns) {
+                // check if columns are duplicated
+                for (Attribute column : outputColumns) {
+                    if (inputSchema.containsAttribute(column.getName()))
+                        throw new RuntimeException("Column name " + column.getName() + " already exists!");
+                }
             }
             outputSchemaBuilder.add(outputColumns).build();
         }
