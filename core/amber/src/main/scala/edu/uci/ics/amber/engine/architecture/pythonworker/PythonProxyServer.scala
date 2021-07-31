@@ -57,36 +57,29 @@ private class AmberProducer(
       flightStream: FlightStream,
       ackStream: FlightProducer.StreamListener[PutResult]
   ): Runnable = { () =>
-    {
+    val dataHeader: PythonDataHeader = PythonDataHeader
+      .parseFrom(flightStream.getDescriptor.getCommand)
+    val to: ActorVirtualIdentity = dataHeader.tag
+    val isEnd: Boolean = dataHeader.isEnd
 
-      val dataHeader: PythonDataHeader = PythonDataHeader
-        .parseFrom(flightStream.getDescriptor.getCommand)
-      val to: ActorVirtualIdentity = dataHeader.tag
-      val isEnd: Boolean = dataHeader.isEnd
+    val root = flightStream.getRoot
+    try {
+      // consume all data in the stream, it will store on the root vectors.
+      while (flightStream.next) {
+        ackStream.onNext(PutResult.metadata(flightStream.getLatestMetadata))
+      }
+      // closing the stream will release the dictionaries
+      flightStream.takeDictionaryOwnership
 
-      val root = flightStream.getRoot
-      try {
-        // consume all data in the stream, it will store on the root vectors.
-        while (flightStream.next) {
-          ackStream.onNext(PutResult.metadata(flightStream.getLatestMetadata))
-        }
-        // closing the stream will release the dictionaries
-        flightStream.takeDictionaryOwnership
-
-        if (isEnd) {
-          // EndOfUpstream
-          dataOutputPort.sendTo(to, EndOfUpstream())
-        } else {
-          // normal data batches
-          val queue = mutable.Queue[Tuple]()
-          for (i <- 0 until root.getRowCount)
-            queue.enqueue(ArrowUtils.getTexeraTuple(i, root))
-          dataOutputPort.sendTo(to, DataFrame(queue.toArray))
-        }
-
-      } catch {
-        case e: Exception =>
-          e.printStackTrace()
+      if (isEnd) {
+        // EndOfUpstream
+        dataOutputPort.sendTo(to, EndOfUpstream())
+      } else {
+        // normal data batches
+        val queue = mutable.Queue[Tuple]()
+        for (i <- 0 until root.getRowCount)
+          queue.enqueue(ArrowUtils.getTexeraTuple(i, root))
+        dataOutputPort.sendTo(to, DataFrame(queue.toArray))
       }
 
     }

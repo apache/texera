@@ -1,12 +1,9 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import akka.actor.ActorRef
-import com.softwaremill.macwire.wire
 import com.typesafe.config.{Config, ConfigFactory}
-import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkMessage
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{DataOutputPort, NetworkInputPort}
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.DataElement
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
 import edu.uci.ics.amber.engine.architecture.worker.controlcommands.SendPythonUdfV2
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
@@ -28,13 +25,8 @@ class PythonWorkflowWorker(
     identifier: ActorVirtualIdentity,
     operator: IOperatorExecutor,
     parentNetworkCommunicationActorRef: ActorRef
-) extends WorkflowActor(identifier, parentNetworkCommunicationActorRef) {
+) extends WorkflowWorker(identifier, operator, parentNetworkCommunicationActorRef) {
 
-  private lazy val dataInputPort: NetworkInputPort[DataPayload] =
-    new NetworkInputPort[DataPayload](this.logger, this.handleDataPayload)
-  private lazy val controlInputPort: NetworkInputPort[ControlPayload] =
-    new NetworkInputPort[ControlPayload](this.logger, this.handleControlPayload)
-  private lazy val dataOutputPort: DataOutputPort = wire[DataOutputPort]
   // Input/Output port used in between Python and Java processes.
   private lazy val inputPortNum: Int = getFreeLocalPort
   private lazy val outputPortNum: Int = getFreeLocalPort
@@ -53,26 +45,13 @@ class PythonWorkflowWorker(
   val config: Config = ConfigFactory.load("python_udf")
   val pythonENVPath: String = config.getString("python.path").trim
   // Python process
-  private val pythonServerProcess = startPythonProcess()
+  private var pythonServerProcess: Process = _
 
-  override def receive: Receive = {
-    disallowActorRefRelatedMessages orElse {
-      case NetworkMessage(id, WorkflowDataMessage(from, seqNum, payload)) =>
-        dataInputPort.handleMessage(this.sender(), id, from, seqNum, payload)
-      case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload)) =>
-        controlInputPort.handleMessage(this.sender(), id, from, seqNum, payload)
-      case other =>
-        logger.logError(
-          WorkflowRuntimeError(s"unhandled message: $other", identifier.toString, Map.empty)
-        )
-    }
-  }
-
-  final def handleDataPayload(from: ActorVirtualIdentity, dataPayload: DataPayload): Unit = {
+  override def handleDataPayload(from: ActorVirtualIdentity, dataPayload: DataPayload): Unit = {
     pythonProxyClient.enqueueData(DataElement(dataPayload, from))
   }
 
-  final def handleControlPayload(
+  override def handleControlPayload(
       from: ActorVirtualIdentity,
       controlPayload: ControlPayload
   ): Unit = {
@@ -104,12 +83,14 @@ class PythonWorkflowWorker(
       pythonServerProcess.destroy()
     } catch {
       case e: Exception =>
+        // TODO: use logger
         e.printStackTrace()
     }
 
   }
 
   override def preStart(): Unit = {
+    startPythonProcess()
     startProxyServer()
     startProxyClient()
     sendUDF()
@@ -136,11 +117,11 @@ class PythonWorkflowWorker(
     clientThreadExecutor.submit(pythonProxyClient)
   }
 
-  private def startPythonProcess(): Process = {
+  private def startPythonProcess(): Unit = {
     val udfEntryScriptPath: String =
       pythonSrcDirectory.resolve("texera_run_python_worker.py").toString
 
-    Process(
+    pythonServerProcess =  Process(
       Seq(
         if (pythonENVPath.isEmpty) "python3"
         else pythonENVPath, // add fall back in case of empty

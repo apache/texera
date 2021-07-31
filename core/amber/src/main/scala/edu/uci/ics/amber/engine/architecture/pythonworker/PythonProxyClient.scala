@@ -25,7 +25,7 @@ class PythonProxyClient(portNumber: Int)
     with AutoCloseable
     with WorkerBatchInternalQueue {
 
-  final val CHUNK_SIZE: Int = 100
+  final val CHUNK_SIZE: Int = 100 // TODO: remove it
   val allocator: BufferAllocator =
     new RootAllocator().newChildAllocator("flight-client", 0, Long.MaxValue)
   val location: Location = Location.forGrpcInsecure("localhost", portNumber)
@@ -64,6 +64,7 @@ class PythonProxyClient(portNumber: Int)
 
   def mainLoop(): Unit = {
     while (true) {
+      // TODO: change to termination condition?
       getElement match {
         case DataElement(dataPayload, from) =>
           sendData(dataPayload, from)
@@ -124,6 +125,7 @@ class PythonProxyClient(portNumber: Int)
         sendControlV2(from, controlInvocationV2)
       case returnInvocation: ReturnInvocation =>
         val returnInvocationV2: ReturnInvocationV2 = returnInvocationToV2(returnInvocation)
+        // Let python handle -1
         if (returnInvocationV2.originalCommandId != -1) {
           sendControlV2(from, returnInvocationV2)
         }

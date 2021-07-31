@@ -61,6 +61,7 @@ class AsyncRPCClient:
         :param control_return: ControlReturnV2m, to be used to fulfill the promise.
         """
 
-        future: Future = self._unfulfilled_promises[(from_, command_id)]
+        future: Future = self._unfulfilled_promises.get((from_, command_id))
+        # TODO: handle None case
         future.set_result(control_return)
         del self._unfulfilled_promises[(from_, command_id)]

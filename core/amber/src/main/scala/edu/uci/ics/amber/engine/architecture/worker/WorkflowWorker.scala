@@ -100,7 +100,7 @@ class WorkflowWorker(
     }
   }
 
-  final def handleDataPayload(from: ActorVirtualIdentity, dataPayload: DataPayload): Unit = {
+   def handleDataPayload(from: ActorVirtualIdentity, dataPayload: DataPayload): Unit = {
     if (workerStateManager.getCurrentState == READY) {
       workerStateManager.transitTo(RUNNING)
       asyncRPCClient.send(
@@ -111,7 +111,7 @@ class WorkflowWorker(
     tupleProducer.processDataPayload(from, dataPayload)
   }
 
-  final def handleControlPayload(
+   def handleControlPayload(
       from: ActorVirtualIdentity,
       controlPayload: ControlPayload
   ): Unit = {
