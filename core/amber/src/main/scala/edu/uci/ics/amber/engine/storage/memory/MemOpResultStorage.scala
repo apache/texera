@@ -9,7 +9,7 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 class MemOpResultStorage extends OpResultStorage {
 
-  private val cache: CacheAccess[String, List[Tuple]] = JCS.getInstance("")
+  private val cache: CacheAccess[String, List[Tuple]] = JCS.getInstance("texera")
 
   private val logger = Logger(this.getClass.getName)
 
