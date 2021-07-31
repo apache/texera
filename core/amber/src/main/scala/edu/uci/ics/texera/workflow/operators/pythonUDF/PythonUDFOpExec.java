@@ -13,7 +13,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import org.apache.arrow.flight.*;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.VectorSchemaRoot;
-import org.jetbrains.annotations.NotNull;
 import scala.collection.Iterator;
 import scala.collection.JavaConverters;
 import scala.util.Either;
@@ -65,8 +64,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
 
     }
 
-    @NotNull
-    private static byte[] communicate(@NotNull FlightClient client, @NotNull MSG message) {
+    private static byte[] communicate(FlightClient client, MSG message) {
         return client.doAction(new Action(message.content)).next().getBody();
     }
 
@@ -400,7 +398,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
         }
     }
 
-    @NotNull
+
     private Location startFlightServer() throws IOException {
         int portNumber = getFreeLocalPort();
         Location location = new Location(URI.create("grpc+tcp://localhost:" + portNumber));
@@ -442,7 +440,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
         return location;
     }
 
-    private void cleanTerminationWithThrow(@NotNull Exception e) {
+    private void cleanTerminationWithThrow(Exception e) {
         if (isDynamic) safeDeleteTempFile(pythonScriptPath);
         closeAndThrow(flightClient, e);
     }
