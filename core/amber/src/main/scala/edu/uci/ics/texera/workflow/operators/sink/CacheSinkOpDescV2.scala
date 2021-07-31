@@ -11,7 +11,7 @@ import java.util.Collections.singletonList
 import scala.collection.JavaConverters.asScalaBuffer
 import scala.collection.immutable.List
 
-class CacheSinkOpDescV2(uuid: String, opResultStorage: OpResultStorage) extends SimpleSinkOpDesc {
+class CacheSinkOpDescV2(val uuid: String, opResultStorage: OpResultStorage) extends SimpleSinkOpDesc {
 
   var schema: Schema = _
 

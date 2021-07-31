@@ -1,7 +1,11 @@
 package edu.uci.ics.texera.web.resource
 
 import akka.actor.{ActorRef, PoisonPill}
-import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, ControllerEventListener}
+import edu.uci.ics.amber.engine.architecture.controller.{
+  Controller,
+  ControllerConfig,
+  ControllerEventListener
+}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
@@ -11,10 +15,21 @@ import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.web.{ServletAwareConfigurator, TexeraWebApplication}
 import edu.uci.ics.texera.web.model.event._
 import edu.uci.ics.texera.web.model.request._
-import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{send, sessionDownloadCache, sessionJobs, sessionMap, sessionResults}
+import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
+  send,
+  sessionDownloadCache,
+  sessionJobs,
+  sessionMap,
+  sessionResults
+}
 import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo, WorkflowRewriter, WorkflowRewriterV2, WorkflowVertexV2}
+import edu.uci.ics.texera.workflow.common.workflow.{
+  WorkflowCompiler,
+  WorkflowInfo,
+  WorkflowRewriterV2,
+  WorkflowVertexV2
+}
 import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -29,8 +44,8 @@ import edu.uci.ics.amber.engine.storage.OpResultStorage
 import edu.uci.ics.amber.engine.storage.memory.MemOpResultStorage
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowInfo.toJgraphtDAG
-import edu.uci.ics.texera.workflow.operators.sink.{CacheSinkOpDesc, CacheSinkOpDescV2, SimpleSinkOpDesc}
-import edu.uci.ics.texera.workflow.operators.source.cache.{CacheSourceOpDesc, CacheSourceOpDescV2}
+import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDescV2
+import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDescV2
 
 object WorkflowWebsocketResource {
   // TODO should reorganize this resource.
@@ -44,7 +59,7 @@ object WorkflowWebsocketResource {
   val sessionJobs = new mutable.HashMap[String, (WorkflowCompiler, ActorRef)]
 
   // Map[sessionId, Map[operatorId, List[ITuple]]]
-  val sessionResults = new mutable.HashMap[String, WorkflowResultService]
+  val sessionResults = new mutable.HashMap[String, WorkflowResultServiceV2]
 
   // Map[sessionId, Map[downloadType, googleSheetLink]
   val sessionDownloadCache = new mutable.HashMap[String, mutable.HashMap[String, String]]
@@ -122,7 +137,7 @@ class WorkflowWebsocketResource {
       val downstreamIDs = sessionResults(session.getId).workflowCompiler.workflow
         .getDownstream(operatorID)
       for (elem <- downstreamIDs) {
-        if (elem.isInstanceOf[CacheSinkOpDesc]) {
+        if (elem.isInstanceOf[CacheSinkOpDescV2]) {
           operatorID = elem.operatorID
           breakOut
         }
@@ -182,11 +197,12 @@ class WorkflowWebsocketResource {
 //      : mutable.HashMap[String, mutable.HashMap[String, CacheSourceOpDesc]] =
 //    mutable.HashMap[String, mutable.HashMap[String, CacheSourceOpDesc]]()
   val sessionCacheSourceOperators
-  : mutable.HashMap[String, mutable.HashMap[String, CacheSourceOpDescV2]] =
+      : mutable.HashMap[String, mutable.HashMap[String, CacheSourceOpDescV2]] =
     mutable.HashMap[String, mutable.HashMap[String, CacheSourceOpDescV2]]()
 //  val sessionCacheSinkOperators: mutable.HashMap[String, mutable.HashMap[String, CacheSinkOpDesc]] =
 //    mutable.HashMap[String, mutable.HashMap[String, CacheSinkOpDesc]]()
-  val sessionCacheSinkOperators: mutable.HashMap[String, mutable.HashMap[String, CacheSinkOpDescV2]] =
+  val sessionCacheSinkOperators
+      : mutable.HashMap[String, mutable.HashMap[String, CacheSinkOpDescV2]] =
     mutable.HashMap[String, mutable.HashMap[String, CacheSinkOpDescV2]]()
   val sessionOperatorRecord: mutable.HashMap[String, mutable.HashMap[String, WorkflowVertexV2]] =
     mutable.HashMap[String, mutable.HashMap[String, WorkflowVertexV2]]()
@@ -288,7 +304,7 @@ class WorkflowWebsocketResource {
     val workflow = texeraWorkflowCompiler.amberWorkflow
     val workflowTag = WorkflowIdentity(jobID)
 
-    val workflowResultService = new WorkflowResultService(texeraWorkflowCompiler)
+    val workflowResultService = new WorkflowResultServiceV2(texeraWorkflowCompiler, opResultStorage)
     if (!sessionResults.contains(session.getId)) {
       sessionResults(session.getId) = workflowResultService
     } else {
