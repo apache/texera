@@ -3,7 +3,7 @@
     <h2 class="page-title">Files</h2>
     <div class="d-inline-block">
       <button (click)="openFileAddComponent()" [disabled]="disableAddButton()" nz-button
-              nz-tooltip nzTooltipTitle="Upload file" nzTooltipPlacement="bottom">
+              nz-tooltip="Upload file" nzTooltipPlacement="bottom">
         <i nz-icon nzType="upload" nzTheme="outline"></i>
       </button>
     </div>
@@ -22,7 +22,7 @@
         </nz-list-item-meta>
         <ul nz-list-item-actions>
           <nz-list-item-action>
-            <button nz-button nz-tooltip nzTooltipTitle="Delete the {{userFile.name}}"
+            <button nz-button nz-tooltip="Delete the {{userFile.name}}"
                     nzTooltipPlacement="bottom" (click)="deleteFile(userFile)"  type="button">
               <i nz-icon nzType="delete" nzTheme="outline"></i>
             </button>

@@ -24,7 +24,7 @@
         </ul>
       </nz-dropdown-menu>
       <button (click)="onClickCreateNewWorkflowFromDashboard()" nz-button type="button"
-              nz-tooltip nzTooltipTitle="Create a new workflow" nzTooltipPlacement="bottom">
+              nz-tooltip="Create a new workflow" nzTooltipPlacement="bottom">
         <i nz-icon nzType="file-add" nzTheme="outline"></i>
       </button>
 
@@ -57,22 +57,20 @@
         </nz-list-item-meta>
         <ul nz-list-item-actions>
           <nz-list-item-action>
-            <button (click)="onClickOpenShareAccess(workflow)" type="button" nz-button nz-tooltip
-                    nzTooltipTitle="Share the workflow {{workflow.name}} to others" nzTooltipPlacement="bottom">
+            <button (click)="onClickOpenShareAccess(workflow)" type="button" nz-button
+                    nz-tooltip="Share the workflow {{workflow.name}} to others" nzTooltipPlacement="bottom">
               <i nz-icon nzType="share-alt" nzTheme="outline"></i>
             </button>
           </nz-list-item-action>
           <nz-list-item-action>
             <button (click)="onClickDuplicateWorkflow(workflow)" type="button" class="duplicate-workflow-btn" nz-button
-                    nz-tooltip
-                    nzTooltipTitle="Duplicate the workflow {{workflow.name}}" nzTooltipPlacement="bottom">
+                    nz-tooltip="Duplicate the workflow {{workflow.name}}" nzTooltipPlacement="bottom">
               <i nz-icon nzType="copy" nzTheme="outline"></i>
             </button>
           </nz-list-item-action>
           <nz-list-item-action>
             <button (click)="openNgbdModalDeleteWorkflowComponent(workflow)" class="delete-workflow-btn" nz-button
-                    nz-tooltip
-                    nzTooltipTitle="Delete the workflow {{workflow.name}}" nzTooltipPlacement="bottom">
+                    nz-tooltip="Delete the workflow {{workflow.name}}" nzTooltipPlacement="bottom">
               <i nz-icon nzType="delete" nzTheme="outline"></i>
             </button>
           </nz-list-item-action>
