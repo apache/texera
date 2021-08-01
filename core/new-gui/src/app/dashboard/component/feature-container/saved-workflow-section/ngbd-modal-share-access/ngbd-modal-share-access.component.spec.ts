@@ -72,7 +72,7 @@ describe('NgbdModalShareAccessComponent', () => {
     expect(mySpy).toHaveBeenCalled();
   });
 
-  fit('can remove accesses', () => {
+  it('can remove accesses', () => {
     const mySpy = spyOn(service, 'revokeAccess').and.callThrough();
     component.onClickRemoveAccess(workflow, 'Jim');
     expect(mySpy).toHaveBeenCalled();
