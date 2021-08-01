@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
-import akka.actor.ActorRef
+import akka.actor.{ActorRef, Props}
 import com.typesafe.config.{Config, ConfigFactory}
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.DataElement
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
@@ -20,6 +20,15 @@ import java.net.ServerSocket
 import java.nio.file.Path
 import java.util.concurrent.{ExecutorService, Executors}
 import scala.sys.process.{BasicIO, Process}
+
+object PythonWorkflowWorker {
+  def props(
+      id: ActorVirtualIdentity,
+      op: IOperatorExecutor,
+      parentNetworkCommunicationActorRef: ActorRef
+  ): Props =
+    Props(new PythonWorkflowWorker(id, op, parentNetworkCommunicationActorRef))
+}
 
 class PythonWorkflowWorker(
     identifier: ActorVirtualIdentity,
