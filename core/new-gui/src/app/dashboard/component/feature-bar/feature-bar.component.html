@@ -1,16 +1,16 @@
 <!--TODO: change to nz-menu-->
-<nz-list nzBordered nzSize="small">
+<nz-list nzBordered>
   <nz-list-item>
-    <button class="feature-bar-btn " nz-button [routerLink]="['/dashboard/workflow']"
+    <button class="feature-bar-btn" nz-button nzType="text" [routerLink]="['/dashboard/workflow']"
             nz-tooltip="Open the saved workflows" nzTooltipPlacement="right">
-      <i nz-icon nzType="project" nzTheme="outline"></i>
+      <i class="feature-bar-btn-icon" nz-icon nzType="project" nzTheme="outline"></i>
       Workflows
     </button>
   </nz-list-item>
   <nz-list-item>
-    <button class="feature-bar-btn " nz-button [routerLink]="['/dashboard/user-file']"
+    <button class="feature-bar-btn" nz-button nzType="text" [routerLink]="['/dashboard/user-file']"
             nz-tooltip="Look up the user files" nzTooltipPlacement="right">
-      <i nz-icon nzType="folder-open" nzTheme="outline"></i>
+      <i class="feature-bar-btn-icon" nz-icon nzType="folder-open" nzTheme="outline"></i>
       User Files
     </button>
   </nz-list-item>
