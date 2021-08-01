@@ -332,7 +332,7 @@ object ControlInvocationV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics
 @SerialVersionUID(0L)
 final case class ReturnInvocationV2(
     originalCommandId: _root_.scala.Long,
-    controlReturn: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2]
+    controlReturn: edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.common.ambermessage.ControlPayloadV2.NonEmpty with scalapb.lenses.Updatable[ReturnInvocationV2] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
@@ -345,9 +345,12 @@ final case class ReturnInvocationV2(
           __size += _root_.com.google.protobuf.CodedOutputStream.computeInt64Size(1, __value)
         }
       };
-      if (controlReturn.isDefined) {
-        val __value = controlReturn.get
-        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+      
+      {
+        val __value = controlReturn
+        if (__value != edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.defaultInstance) {
+          __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+        }
       };
       __size
     }
@@ -366,31 +369,34 @@ final case class ReturnInvocationV2(
           _output__.writeInt64(1, __v)
         }
       };
-      controlReturn.foreach { __v =>
-        val __m = __v
-        _output__.writeTag(2, 2)
-        _output__.writeUInt32NoTag(__m.serializedSize)
-        __m.writeTo(_output__)
+      {
+        val __v = controlReturn
+        if (__v != edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.defaultInstance) {
+          _output__.writeTag(2, 2)
+          _output__.writeUInt32NoTag(__v.serializedSize)
+          __v.writeTo(_output__)
+        }
       };
     }
     def withOriginalCommandId(__v: _root_.scala.Long): ReturnInvocationV2 = copy(originalCommandId = __v)
-    def getControlReturn: edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2 = controlReturn.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.defaultInstance)
-    def clearControlReturn: ReturnInvocationV2 = copy(controlReturn = _root_.scala.None)
-    def withControlReturn(__v: edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2): ReturnInvocationV2 = copy(controlReturn = Option(__v))
+    def withControlReturn(__v: edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2): ReturnInvocationV2 = copy(controlReturn = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
           val __t = originalCommandId
           if (__t != 0L) __t else null
         }
-        case 2 => controlReturn.orNull
+        case 2 => {
+          val __t = controlReturn
+          if (__t != edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.defaultInstance) __t else null
+        }
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
         case 1 => _root_.scalapb.descriptors.PLong(originalCommandId)
-        case 2 => controlReturn.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 2 => controlReturn.toPMessage
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -411,13 +417,13 @@ object ReturnInvocationV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.
         case 8 =>
           __originalCommandId = _input__.readInt64()
         case 18 =>
-          __controlReturn = Option(__controlReturn.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __controlReturn = _root_.scala.Some(__controlReturn.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2(
         originalCommandId = __originalCommandId,
-        controlReturn = __controlReturn
+        controlReturn = __controlReturn.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.defaultInstance)
     )
   }
   implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2] = _root_.scalapb.descriptors.Reads{
@@ -425,7 +431,7 @@ object ReturnInvocationV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2(
         originalCommandId = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Long]).getOrElse(0L),
-        controlReturn = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2]])
+        controlReturn = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2]).getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.defaultInstance)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -442,18 +448,17 @@ object ReturnInvocationV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2(
     originalCommandId = 0L,
-    controlReturn = _root_.scala.None
+    controlReturn = edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.defaultInstance
   )
   implicit class ReturnInvocationV2Lens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2](_l) {
     def originalCommandId: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Long] = field(_.originalCommandId)((c_, f_) => c_.copy(originalCommandId = f_))
-    def controlReturn: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2] = field(_.getControlReturn)((c_, f_) => c_.copy(controlReturn = Option(f_)))
-    def optionalControlReturn: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2]] = field(_.controlReturn)((c_, f_) => c_.copy(controlReturn = f_))
+    def controlReturn: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2] = field(_.controlReturn)((c_, f_) => c_.copy(controlReturn = f_))
   }
   final val ORIGINAL_COMMAND_ID_FIELD_NUMBER = 1
   final val CONTROL_RETURN_FIELD_NUMBER = 2
   def of(
     originalCommandId: _root_.scala.Long,
-    controlReturn: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2]
+    controlReturn: edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2
   ): _root_.edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2 = _root_.edu.uci.ics.amber.engine.common.ambermessage.ReturnInvocationV2(
     originalCommandId,
     controlReturn
