@@ -78,10 +78,6 @@ final case class ControlCommandV2Message(
         val __value = sealedValue.queryStatistics.get
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       };
-      if (sealedValue.queryStatistics.isDefined) {
-        val __value = sealedValue.queryStatistics.get
-        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
-      };
       if (sealedValue.queryCurrentInputTuple.isDefined) {
         val __value = sealedValue.queryCurrentInputTuple.get
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
@@ -132,12 +128,6 @@ final case class ControlCommandV2Message(
       sealedValue.updateInputLinking.foreach { __v =>
         val __m = __v
         _output__.writeTag(5, 2)
-        _output__.writeUInt32NoTag(__m.serializedSize)
-        __m.writeTo(_output__)
-      };
-      sealedValue.queryStatistics.foreach { __v =>
-        val __m = __v
-        _output__.writeTag(6, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
@@ -953,14 +943,14 @@ final case class SendPythonUdfV2(
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
     private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
-
+      
       {
         val __value = udf
         if (!__value.isEmpty) {
           __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(1, __value)
         }
       };
-
+      
       {
         val __value = isSource
         if (__value != false) {
