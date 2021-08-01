@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Iterator, Union
+from typing import Iterator, Optional, Union
 
 import overrides
 
@@ -39,7 +39,8 @@ class UDFOperator(ABC):
         pass
 
     @abstractmethod
-    def process_texera_tuple(self, tuple_: Union[Tuple, InputExhausted], link: LinkIdentity) -> Iterator[Tuple]:
+    def process_texera_tuple(self, tuple_: Union[Tuple, InputExhausted], link: LinkIdentity) \
+            -> Iterator[Optional[Tuple]]:
         """
         Process an input Tuple from the given link. The Tuple is represented as pandas.Series.
         :param tuple_: Union[Tuple, InputExhausted], either
@@ -49,15 +50,15 @@ class UDFOperator(ABC):
                         Tuple is implemented as pandas.Series.
 
         :param link: LinkIdentity, indicating where the Tuple came from.
-        :return: Iterator[Tuple], producing one Tuple/pandas.Series at a time.
+        :return: Iterator[Optional[Tuple]], producing one Tuple/pandas.Series at a time, or None.
 
         example:
             class EchoOperator(UDFOperator):
                 def process_texera_tuple(
                     self,
-                    tuple_: Union[pd.Series, InputExhausted],
+                    tuple_: Union[Tuple, InputExhausted],
                     link: LinkIdentity
-                ) -> Iterator[pd.Series]:
+                ) -> Iterator[Optional[Tuple]]:
                     if isinstance(tuple_, Tuple):
                         yield tuple_
 

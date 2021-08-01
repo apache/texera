@@ -1,7 +1,6 @@
 import typing
 from typing import Iterator, Optional, Union
 
-from loguru import logger
 from overrides import overrides
 from pampy import match
 
@@ -77,20 +76,23 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         if isinstance(self._current_input_tuple, Tuple):
             self.context.statistics_manager.increase_input_tuple_count()
 
-        for tuple_ in self.process_tuple(self._current_input_tuple, self._current_input_link):
-            self.context.statistics_manager.increase_output_tuple_count()
-            for to, batch in self.context.tuple_to_batch_converter.tuple_to_batch(tuple_):
-                self._output_queue.put(DataElement(tag=to, payload=batch))
+        for tuple_ in self.process_tuple_with_udf(self._current_input_tuple, self._current_input_link):
+            self.check_and_process_control()
+            if tuple_ is not None:
+                self.context.statistics_manager.increase_output_tuple_count()
+                for to, batch in self.context.tuple_to_batch_converter.tuple_to_batch(tuple_):
+                    self._output_queue.put(DataElement(tag=to, payload=batch))
 
-    def process_tuple(self, tuple_: Union[Tuple, InputExhausted], link: LinkIdentity) -> Iterator[Tuple]:
+    def process_tuple_with_udf(self, tuple_: Union[Tuple, InputExhausted], link: LinkIdentity) \
+            -> Iterator[Optional[Tuple]]:
         """
-        Process the Tuple/InputExhausted with the current link.
+        Process the Tuple/InputExhausted with the current link, using the UDF operator.
 
         This is a wrapper to invoke udf operator.
 
         :param tuple_: Union[Tuple, InputExhausted], the current tuple.
         :param link: LinkIdentity, the current link.
-        :return: Iterator[Tuple], iterator of result Tuple(s).
+        :return: Iterator[Optional[Tuple]], iterator of result Tuple(s).
         """
         return self._udf_operator.process_texera_tuple(tuple_, link)
 
