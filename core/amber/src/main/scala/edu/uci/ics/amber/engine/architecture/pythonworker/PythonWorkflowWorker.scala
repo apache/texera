@@ -83,10 +83,14 @@ class PythonWorkflowWorker(
       pythonServerProcess.destroy()
     } catch {
       case e: Exception =>
-        // TODO: use logger
-        e.printStackTrace()
+        logger.logError(
+          WorkflowRuntimeError(
+            s"$e - happened during shutdown",
+            identifier.toString,
+            Map("stacktrace" -> e.getStackTrace.mkString("\n"))
+          )
+        )
     }
-
   }
 
   override def preStart(): Unit = {
@@ -121,7 +125,7 @@ class PythonWorkflowWorker(
     val udfEntryScriptPath: String =
       pythonSrcDirectory.resolve("texera_run_python_worker.py").toString
 
-    pythonServerProcess =  Process(
+    pythonServerProcess = Process(
       Seq(
         if (pythonENVPath.isEmpty) "python3"
         else pythonENVPath, // add fall back in case of empty
