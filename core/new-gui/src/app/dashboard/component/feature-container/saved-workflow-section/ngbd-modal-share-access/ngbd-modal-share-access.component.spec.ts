@@ -45,8 +45,7 @@ describe('NgbdModalShareAccessComponent', () => {
     service = TestBed.get(WorkflowGrantAccessService);
     fixture.detectChanges();
   });
-  afterEach(() => component.activeModal.close());
-  afterAll(() => component.activeModal.close());
+
   it('should create', () => {
     expect(component).toBeTruthy();
   });
