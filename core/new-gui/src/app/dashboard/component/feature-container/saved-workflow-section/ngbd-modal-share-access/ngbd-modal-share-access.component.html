@@ -12,7 +12,6 @@
 <div class="modal-body">
   <form (ngSubmit)="onClickShareWorkflow(workflow)" [formGroup]="shareForm">
     <div class="form-group">
-
       <label for="username">
         Username of the target user to share
       </label>
@@ -28,28 +27,25 @@
           <option (change)="changeType($event)" *ngFor="let accessLevel of accessLevels"
                   [ngValue]="accessLevel">{{accessLevel}}</option>
         </select>
-
       </div>
       <br>
       <br>
-      <button class="btn
-                            btn-primary" type="submit">Share
-      </button>
+      <button class="btn btn-primary" type="submit">Share</button>
     </div>
   </form>
   <br>
-  <button (click)="onClickGetAllSharedAccess(workflow)" class="btn" type="button"><i class="fa fa-refresh"></i></button>
+  <button (click)="onClickGetAllSharedAccess(workflow)" class="btn" type="button">
+    <i class="fa fa-refresh"></i>
+  </button>
   <label for="current-share">Shared Access:</label>
   <ul class="current-share" id="current-share">
     <li *ngFor="let userWorkflowAccess of allUserWorkflowAccess">
       {{userWorkflowAccess.userName}}  ---->   {{userWorkflowAccess.accessLevel}}
-      <button (click)="onClickRemoveAccess(workflow, userWorkflowAccess.userName)" class="btn" type="button"><i
-        class="fa fa-trash"></i>
+      <button (click)="onClickRemoveAccess(workflow, userWorkflowAccess.userName)" class="btn" type="button">
+        <i class="fa fa-trash"></i>
       </button>
     </li>
   </ul>
-
-
 </div>
 <div class="modal-footer">
   <p>Reminder: Read Access is Read-only while Write Access Dominates</p>
