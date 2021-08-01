@@ -23,12 +23,19 @@ describe('NgbdModalShareAccessComponent', () => {
 
   beforeEach(async(async () => {
     TestBed.configureTestingModule({
-      imports: [ReactiveFormsModule, FormsModule],
-      declarations: [NgbdModalShareAccessComponent],
-      providers: [NgbActiveModal, HttpClient, HttpHandler, {
-        provide: WorkflowGrantAccessService,
-        useClass: StubWorkflowGrantAccessService
-      }]
+      imports: [
+        ReactiveFormsModule,
+        FormsModule
+      ],
+      declarations: [
+        NgbdModalShareAccessComponent
+      ],
+      providers: [
+        NgbActiveModal,
+        HttpClient,
+        HttpHandler,
+        {provide: WorkflowGrantAccessService, useClass: StubWorkflowGrantAccessService}
+      ]
     });
   }));
 
@@ -38,7 +45,8 @@ describe('NgbdModalShareAccessComponent', () => {
     service = TestBed.get(WorkflowGrantAccessService);
     fixture.detectChanges();
   });
-
+  afterEach(() => component.activeModal.close());
+  afterAll(() => component.activeModal.close());
   it('should create', () => {
     expect(component).toBeTruthy();
   });

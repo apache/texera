@@ -18,7 +18,7 @@ export class NgbdModalShareAccessComponent implements OnInit {
   @Input() workflow!: Workflow;
 
   shareForm = this.formBuilder.group({
-    username: ['',[Validators.required]],
+    username: ['', [Validators.required]],
     accessLevel: ['', [Validators.required]]
   });
 
@@ -33,8 +33,7 @@ export class NgbdModalShareAccessComponent implements OnInit {
     public activeModal: NgbActiveModal,
     private workflowGrantAccessService: WorkflowGrantAccessService,
     private formBuilder: FormBuilder
-  ) {
-  }
+  ) {}
 
   ngOnInit(): void {
     this.refreshGrantedList(this.workflow);
@@ -74,13 +73,13 @@ export class NgbdModalShareAccessComponent implements OnInit {
    * @param workflow target/current workflow
    */
   public onClickShareWorkflow(workflow: Workflow): void {
-    if(this.shareForm.get('username')?.invalid){
-      alert("Please Fill in Username")
-      return
+    if (this.shareForm.get('username')?.invalid) {
+      alert('Please Fill in Username');
+      return;
     }
-    if(this.shareForm.get('accessLevel')?.invalid){
-      alert("Please Select Access Level")
-      return
+    if (this.shareForm.get('accessLevel')?.invalid) {
+      alert('Please Select Access Level');
+      return;
     }
     const userToShareWith = this.shareForm.get('username')?.value;
     const accessLevel = this.shareForm.get('accessLevel')?.value;

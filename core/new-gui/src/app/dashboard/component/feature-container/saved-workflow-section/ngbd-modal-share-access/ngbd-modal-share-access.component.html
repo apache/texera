@@ -1,15 +1,12 @@
 <div class="modal-header">
-  <h4 class="modal-title"
-      id="modal-basic-title">
+  <h4 class="modal-title" id="modal-basic-title">
     Share This Workflow With Someone
   </h4>
-  <button (click)=
-            "activeModal.dismiss('Cross click')" aria-label="Close"
+  <button (click)="activeModal.dismiss('Cross click')" aria-label="Close"
           class="close" type="button">
-
-            <span aria-hidden="true">
-                ×
-            </span>
+    <span aria-hidden="true">
+      ×
+    </span>
   </button>
 </div>
 <div class="modal-body">
@@ -46,7 +43,8 @@
   <ul class="current-share" id="current-share">
     <li *ngFor="let userWorkflowAccess of allUserWorkflowAccess">
       {{userWorkflowAccess.userName}}  ---->   {{userWorkflowAccess.accessLevel}}
-      <button (click)="onClickRemoveAccess(workflow, userWorkflowAccess.userName)" class="btn" type="button"><i class="fa fa-trash"></i>
+      <button (click)="onClickRemoveAccess(workflow, userWorkflowAccess.userName)" class="btn" type="button"><i
+        class="fa fa-trash"></i>
       </button>
     </li>
   </ul>
