@@ -53,6 +53,11 @@ class QueryStatisticsV2(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class QueryStatisticsV2(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
 class QueryCurrentInputTupleV2(betterproto.Message):
     pass
 

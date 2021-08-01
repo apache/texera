@@ -4,7 +4,6 @@ from overrides import overrides
 
 from core.models.internal_queue import InternalQueue
 from core.runnables import DataProcessor, NetworkReceiver, NetworkSender
-from core.udf.udf_operator import UDFOperator
 from core.util.runnable.runnable import Runnable
 from core.util.stoppable.stoppable import Stoppable
 
