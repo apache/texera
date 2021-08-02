@@ -31,7 +31,7 @@ class PythonProxyClient(portNumber: Int, logger: WorkflowLogger)
     new RootAllocator().newChildAllocator("flight-client", 0, Long.MaxValue)
   val location: Location = Location.forGrpcInsecure("localhost", portNumber)
 
-  private val MAX_TRY_COUNT: Int = 5
+  private val MAX_TRY_COUNT: Int = 6
   private val WAIT_TIME_MS = 500
   private var flightClient: FlightClient = _
   private var running: Boolean = true
@@ -51,18 +51,18 @@ class PythonProxyClient(portNumber: Int, logger: WorkflowLogger)
         if (!connected) Thread.sleep(WAIT_TIME_MS)
       } catch {
         case e: FlightRuntimeException =>
-          logger.logInfo(
-            s"Flight CLIENT:\tNot connected to the server in this try. ${e.getStackTrace
-              .mkString("Array(", ", ", ")")}"
-          )
+          logger.logWarning(s"${e.getStackTrace.mkString("Array(", ", ", ")")}")
           flightClient.close()
           Thread.sleep(WAIT_TIME_MS)
 
       } finally {
+        logger.logInfo(
+          "Flight CLIENT:\tNot connected to the server in this try. "
+        )
         tryCount += 1
-        if (tryCount == MAX_TRY_COUNT) {
+        if (tryCount >= MAX_TRY_COUNT) {
           logger.logError(
-            new WorkflowRuntimeError(
+            WorkflowRuntimeError(
               "Exceeded try limit of " + MAX_TRY_COUNT + " when connecting to Flight Server!",
               "PythonProxyClient",
               Map.empty
@@ -70,7 +70,6 @@ class PythonProxyClient(portNumber: Int, logger: WorkflowLogger)
           )
         }
       }
-
     }
   }
 

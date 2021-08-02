@@ -42,11 +42,15 @@ class PythonWorkflowWorker(
   // Proxy Serve and Client
   private lazy val serverThreadExecutor: ExecutorService = Executors.newSingleThreadExecutor
   private lazy val clientThreadExecutor: ExecutorService = Executors.newSingleThreadExecutor
-  private lazy val pythonProxyClient: PythonProxyClient = new PythonProxyClient(outputPortNum, logger)
+  private lazy val pythonProxyClient: PythonProxyClient =
+    new PythonProxyClient(outputPortNum, logger)
   private lazy val pythonProxyServer: PythonProxyServer =
     new PythonProxyServer(inputPortNum, controlOutputPort, dataOutputPort)
-  // OPTIMIZE: find a way to remove this dependency, AsyncRPC is not used here.
+
+  // TODO: find a better way to send Error log to frontend.
   override val rpcHandlerInitializer: AsyncRPCHandlerInitializer = null
+  logger.setErrorLogAction(null)
+
   val pythonSrcDirectory: Path = Utils.amberHomePath
     .resolve("src")
     .resolve("main")
