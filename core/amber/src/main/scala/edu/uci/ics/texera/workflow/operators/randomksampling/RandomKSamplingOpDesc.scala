@@ -20,7 +20,7 @@ class RandomKSamplingOpDesc extends FilterOpDesc {
   // Fault tolerance requires that the restarted worker should produce the exactly same output.
   // Therefore the seeds have to be stored.
   @JsonIgnore
-  private val seeds: Array[Int] = Array.fill(Constants.defaultNumWorkers)(Random.nextInt)
+  private val seeds: Array[Int] = Array.fill(Constants.currentWorkerNum)(Random.nextInt)
 
   @JsonProperty(value = "random k sample percentage", required = true)
   @JsonPropertyDescription("random k sampling with given percentage")

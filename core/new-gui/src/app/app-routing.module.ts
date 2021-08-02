@@ -30,7 +30,8 @@ if (environment.userSystemEnabled) {
   /*
    *  The user dashboard is under path '/dashboard'
    *  The saved workflow is under path '/dashboard/workflow'
-   *  The user dictionary is under path '/dashboard/userdictionary'
+   *  The user file is under path '/dashboard/user-file'
+   *  The user dictionary is under path '/dashboard/user-dictionary'
    */
 
   routes.push(
@@ -43,11 +44,11 @@ if (environment.userSystemEnabled) {
           component: SavedWorkflowSectionComponent
         },
         {
-          path: 'userdictionary',
+          path: 'user-dictionary',
           component: UserDictionarySectionComponent
         },
         {
-          path: 'userfile',
+          path: 'user-file',
           component: UserFileSectionComponent
         }
       ]

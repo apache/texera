@@ -14,12 +14,15 @@ import { Workflow, WorkflowContent } from '../../../../common/type/workflow';
 import { jsonCast } from '../../../../common/util/storage';
 import { HttpClient } from '@angular/common/http';
 import { WorkflowGrantAccessService } from '../../../../common/service/user/workflow-access-control/workflow-grant-access.service';
+import { UserService } from '../../../../common/service/user/user.service';
+import { StubUserService } from '../../../../common/service/user/stub-user.service';
+import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
 
 describe('SavedWorkflowSectionComponent', () => {
   let component: SavedWorkflowSectionComponent;
   let fixture: ComponentFixture<SavedWorkflowSectionComponent>;
   let modalService: NgbModal;
-  let modalRef: NgbModalRef;
+
   let mockWorkflowPersistService: WorkflowPersistService;
   let httpClient: HttpClient;
   let httpTestingController: HttpTestingController;
@@ -78,7 +81,8 @@ describe('SavedWorkflowSectionComponent', () => {
         NgbActiveModal,
         HttpClient,
         NgbActiveModal,
-        WorkflowGrantAccessService
+        WorkflowGrantAccessService,
+        {provide: UserService, useClass: StubUserService},
       ],
       imports: [MatDividerModule,
         MatListModule,
@@ -88,7 +92,9 @@ describe('SavedWorkflowSectionComponent', () => {
         FormsModule,
         RouterTestingModule,
         HttpClientTestingModule,
-        ReactiveFormsModule]
+        ReactiveFormsModule,
+        NzDropDownModule
+      ]
     }).compileComponents();
   }));
 
@@ -100,8 +106,6 @@ describe('SavedWorkflowSectionComponent', () => {
     component = fixture.componentInstance;
     fixture.detectChanges();
     modalService = TestBed.get(NgbModal);
-    modalRef = modalService.open(NgbdModalShareAccessComponent);
-    spyOn(modalService, 'open').and.returnValue(modalRef);
     spyOn(console, 'log').and.callThrough();
   });
 
@@ -128,27 +132,15 @@ describe('SavedWorkflowSectionComponent', () => {
       .toEqual(['workflow 5', 'workflow 4', 'workflow 3', 'workflow 2', 'workflow 1']);
   });
 
-  it('Modal Opened', () => {
-    component.onClickOpenShareAccess(TestWorkflow);
-    expect(modalService.open).toHaveBeenCalled();
-  });
-
   it('Modal Opened, then Closed', () => {
+    const modalRef: NgbModalRef = modalService.open(NgbdModalShareAccessComponent);
+    spyOn(modalService, 'open').and.returnValue(modalRef);
     component.onClickOpenShareAccess(TestWorkflow);
     expect(modalService.open).toHaveBeenCalled();
     fixture.detectChanges();
-    fixture.whenStable().then(() => {
-      modalRef.dismiss();
-    });
+    modalRef.dismiss();
   });
-  it('alphaSortTest increaseOrder', () => {
-    component.workflows = [];
-    component.workflows = component.workflows.concat(TestCase);
-    component.ascSort();
-    const SortedCase = component.workflows.map(item => item.name);
-    expect(SortedCase)
-      .toEqual(['workflow 1', 'workflow 2', 'workflow 3', 'workflow 4', 'workflow 5']);
-  });
+
   it('createDateSortTest', () => {
     component.workflows = [];
     component.workflows = component.workflows.concat(TestCase);
