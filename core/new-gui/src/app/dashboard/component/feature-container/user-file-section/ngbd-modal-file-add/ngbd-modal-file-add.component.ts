@@ -21,10 +21,9 @@ export class NgbdModalFileAddComponent implements OnInit {
   constructor(
     public activeModal: NgbActiveModal,
     private userFileUploadService: UserFileUploadService
-  ) { }
+  ) {}
 
-  ngOnInit() {
-  }
+  ngOnInit() {}
 
   public getFileArray(): ReadonlyArray<Readonly<FileUploadItem>> {
     return this.userFileUploadService.getFilesToBeUploaded();
