@@ -32,7 +32,7 @@ class PythonProxyClient(portNumber: Int)
   private val MAX_TRY_COUNT: Int = 3
   private val WAIT_TIME_MS = 500
   private var flightClient: FlightClient = _
-
+  private var running: Boolean = true
   override def run(): Unit = {
     establishConnection()
     mainLoop()
@@ -62,8 +62,7 @@ class PythonProxyClient(portNumber: Int)
   }
 
   def mainLoop(): Unit = {
-    while (true) {
-      // TODO: change to termination condition?
+    while (running) {
       getElement match {
         case DataElement(dataPayload, from) =>
           sendData(dataPayload, from)
@@ -133,10 +132,14 @@ class PythonProxyClient(portNumber: Int)
   }
 
   override def close(): Unit = {
+
     val action: Action = new Action("shutdown")
     flightClient.doAction(action) // do not expect reply
 
     flightClient.close()
+
+    // stop the main loop
+    running = false
   }
 
 }
