@@ -11,7 +11,7 @@ import { jsonCast } from '../../../../../common/util/storage';
 describe('NgbdModalShareAccessComponent', () => {
   let component: NgbdModalShareAccessComponent;
   let fixture: ComponentFixture<NgbdModalShareAccessComponent>;
-  let service: WorkflowGrantAccessService;
+  let service: StubWorkflowGrantAccessService;
 
   const workflow: Workflow = {
     wid: 28,
@@ -23,12 +23,19 @@ describe('NgbdModalShareAccessComponent', () => {
 
   beforeEach(async(async () => {
     TestBed.configureTestingModule({
-      imports: [ReactiveFormsModule, FormsModule],
-      declarations: [NgbdModalShareAccessComponent],
-      providers: [NgbActiveModal, HttpClient, HttpHandler, {
-        provide: WorkflowGrantAccessService,
-        useClass: StubWorkflowGrantAccessService
-      }]
+      imports: [
+        ReactiveFormsModule,
+        FormsModule
+      ],
+      declarations: [
+        NgbdModalShareAccessComponent
+      ],
+      providers: [
+        NgbActiveModal,
+        HttpClient,
+        HttpHandler,
+        {provide: WorkflowGrantAccessService, useClass: StubWorkflowGrantAccessService}
+      ]
     });
   }));
 
@@ -49,7 +56,6 @@ describe('NgbdModalShareAccessComponent', () => {
 
   it('can get all accesses', () => {
     const mySpy = spyOn(service, 'retrieveGrantedList').and.callThrough();
-    console.log(service);
     component.workflow = workflow;
     fixture.detectChanges();
     component.onClickGetAllSharedAccess(component.workflow);
@@ -59,7 +65,6 @@ describe('NgbdModalShareAccessComponent', () => {
 
   it('can share accesses', () => {
     const mySpy = spyOn(service, 'grantAccess').and.callThrough();
-    console.log(service);
     component.workflow = workflow;
     fixture.detectChanges();
     component.grantAccess(component.workflow, 'Jim', 'read');
@@ -68,8 +73,6 @@ describe('NgbdModalShareAccessComponent', () => {
 
   it('can remove accesses', () => {
     const mySpy = spyOn(service, 'revokeAccess').and.callThrough();
-    console.log(service);
-    console.log(service.retrieveGrantedList);
     component.onClickRemoveAccess(workflow, 'Jim');
     expect(mySpy).toHaveBeenCalled();
   });
