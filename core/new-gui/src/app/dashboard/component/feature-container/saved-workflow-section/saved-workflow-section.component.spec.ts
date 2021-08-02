@@ -22,7 +22,7 @@ describe('SavedWorkflowSectionComponent', () => {
   let component: SavedWorkflowSectionComponent;
   let fixture: ComponentFixture<SavedWorkflowSectionComponent>;
   let modalService: NgbModal;
-  let modalRef: NgbModalRef;
+
   let mockWorkflowPersistService: WorkflowPersistService;
   let httpClient: HttpClient;
   let httpTestingController: HttpTestingController;
@@ -106,8 +106,6 @@ describe('SavedWorkflowSectionComponent', () => {
     component = fixture.componentInstance;
     fixture.detectChanges();
     modalService = TestBed.get(NgbModal);
-    modalRef = modalService.open(NgbdModalShareAccessComponent);
-    spyOn(modalService, 'open').and.returnValue(modalRef);
     spyOn(console, 'log').and.callThrough();
   });
 
@@ -134,18 +132,13 @@ describe('SavedWorkflowSectionComponent', () => {
       .toEqual(['workflow 5', 'workflow 4', 'workflow 3', 'workflow 2', 'workflow 1']);
   });
 
-  it('Modal Opened', () => {
-    component.onClickOpenShareAccess(TestWorkflow);
-    expect(modalService.open).toHaveBeenCalled();
-  });
-
   it('Modal Opened, then Closed', () => {
+    const modalRef: NgbModalRef = modalService.open(NgbdModalShareAccessComponent);
+    spyOn(modalService, 'open').and.returnValue(modalRef);
     component.onClickOpenShareAccess(TestWorkflow);
     expect(modalService.open).toHaveBeenCalled();
     fixture.detectChanges();
-    fixture.whenStable().then(() => {
-      modalRef.dismiss();
-    });
+    modalRef.dismiss();
   });
 
   it('createDateSortTest', () => {
