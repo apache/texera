@@ -4,18 +4,17 @@ import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowResultUpdate
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.storage.OpResultStorage
 import edu.uci.ics.texera.web.model.event.TexeraWebSocketEvent
-import edu.uci.ics.texera.web.resource.WorkflowResultServiceV2.WebResultUpdate
+import edu.uci.ics.texera.web.resource.WorkflowResultServiceV1.WebResultUpdate
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.send
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler
-import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDescV2
+import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 import javax.websocket.Session
 import scala.collection.mutable
 
-object WorkflowResultServiceV2 {
+object WorkflowResultServiceV1 {
 
   val defaultPageSize: Int = 10
 
@@ -95,32 +94,26 @@ object WorkflowResultServiceV2 {
   }
 }
 
-case class WebResultUpdateEventV2(updates: Map[String, WebResultUpdate])
-    extends TexeraWebSocketEvent
+case class WebResultUpdateEventV1(updates: Map[String, WebResultUpdate]) extends TexeraWebSocketEvent
 
 /**
-  * WorkflowResultServiceV2 manages the materialized result of all sink operators in one workflow execution.
+  * WorkflowResultService manages the materialized result of all sink operators in one workflow execution.
   *
-  * On each result update from the engine, WorkflowResultServiceV2
+  * On each result update from the engine, WorkflowResultService
   *  - update the result data for each operator,
   *  - send result update event to the frontend
   */
-class WorkflowResultServiceV2(
-    val workflowCompiler: WorkflowCompiler,
-    opResultStorage: OpResultStorage
-) {
+class WorkflowResultServiceV1(val workflowCompiler: WorkflowCompiler) {
 
   // OperatorResultService for each sink operator
-  var operatorResults: mutable.HashMap[String, OperatorResultServiceV2] =
-    mutable.HashMap[String, OperatorResultServiceV2]()
+  var operatorResults: mutable.HashMap[String, OperatorResultService] =
+    mutable.HashMap[String, OperatorResultService]()
   workflowCompiler.workflow.getSinkOperators.map(sink => {
-    if (workflowCompiler.workflow.getOperator(sink).isInstanceOf[CacheSinkOpDescV2]) {
+    if (workflowCompiler.workflow.getOperator(sink).isInstanceOf[CacheSinkOpDesc]) {
       val upstreamID = workflowCompiler.workflow.getUpstream(sink).head.operatorID
-      val serviceV2 = new OperatorResultServiceV2(upstreamID, workflowCompiler, opResultStorage)
-      operatorResults += ((sink, serviceV2))
+      operatorResults += ((sink, new OperatorResultService(upstreamID, workflowCompiler)))
     } else {
-      val serviceV2 = new OperatorResultServiceV2(sink, workflowCompiler, opResultStorage)
-      operatorResults += ((sink, serviceV2))
+      operatorResults += ((sink, new OperatorResultService(sink, workflowCompiler)))
     }
   })
 
@@ -130,7 +123,7 @@ class WorkflowResultServiceV2(
     val webUpdateEvent = resultUpdate.operatorResults.map(e => {
       val opResultService = operatorResults(e._1)
       val webUpdateEvent = opResultService.convertWebResultUpdate(e._2)
-      if (workflowCompiler.workflow.getOperator(e._1).isInstanceOf[CacheSinkOpDescV2]) {
+      if (workflowCompiler.workflow.getOperator(e._1).isInstanceOf[CacheSinkOpDesc]) {
         val upID = opResultService.operatorID
         (upID, webUpdateEvent)
       } else {
@@ -142,7 +135,7 @@ class WorkflowResultServiceV2(
     resultUpdate.operatorResults.foreach(e => operatorResults(e._1).updateResult(e._2))
 
     // send update event to frontend
-    send(session, WebResultUpdateEventV2(webUpdateEvent))
+    send(session, WebResultUpdateEventV1(webUpdateEvent))
 
   }
 

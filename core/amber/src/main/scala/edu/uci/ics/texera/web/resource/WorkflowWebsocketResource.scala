@@ -59,7 +59,7 @@ object WorkflowWebsocketResource {
   val sessionJobs = new mutable.HashMap[String, (WorkflowCompiler, ActorRef)]
 
   // Map[sessionId, Map[operatorId, List[ITuple]]]
-  val sessionResults = new mutable.HashMap[String, WorkflowResultServiceV2]
+  val sessionResults = new mutable.HashMap[String, WorkflowResultService]
 
   // Map[sessionId, Map[downloadType, googleSheetLink]
   val sessionDownloadCache = new mutable.HashMap[String, mutable.HashMap[String, String]]
@@ -304,7 +304,7 @@ class WorkflowWebsocketResource {
     val workflow = texeraWorkflowCompiler.amberWorkflow
     val workflowTag = WorkflowIdentity(jobID)
 
-    val workflowResultService = new WorkflowResultServiceV2(texeraWorkflowCompiler, opResultStorage)
+    val workflowResultService = new WorkflowResultService(texeraWorkflowCompiler, opResultStorage)
     if (!sessionResults.contains(session.getId)) {
       sessionResults(session.getId) = workflowResultService
     } else {
