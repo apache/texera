@@ -5,7 +5,12 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowResultUpdate
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.texera.web.model.event.TexeraWebSocketEvent
-import edu.uci.ics.texera.web.resource.WorkflowResultService.WebResultUpdate
+import edu.uci.ics.texera.web.resource.WorkflowResultService.{
+  PaginationMode,
+  WebPaginationUpdate,
+  WebResultUpdate,
+  defaultPageSize
+}
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.send
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler
 import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDesc
@@ -120,16 +125,33 @@ class WorkflowResultService(val workflowCompiler: WorkflowCompiler) {
   def onResultUpdate(resultUpdate: WorkflowResultUpdate, session: Session): Unit = {
 
     // prepare web update event to frontend
-    val webUpdateEvent = resultUpdate.operatorResults.map(e => {
-      val opResultService = operatorResults(e._1)
-      val webUpdateEvent = opResultService.convertWebResultUpdate(e._2)
-      if (workflowCompiler.workflow.getOperator(e._1).isInstanceOf[CacheSinkOpDesc]) {
-        val upID = opResultService.operatorID
-        (upID, webUpdateEvent)
+//    val webUpdateEvent = resultUpdate.operatorResults.map(e => {
+//      val opResultService = operatorResults(e._1)
+//      val webUpdateEvent = opResultService.convertWebResultUpdate(e._2)
+//      if (workflowCompiler.workflow.getOperator(e._1).isInstanceOf[CacheSinkOpDesc]) {
+//        val upID = opResultService.operatorID
+//        (upID, webUpdateEvent)
+//      } else {
+//        (e._1, webUpdateEvent)
+//      }
+//    })
+
+    val webUpdateEvent = operatorResults.map(e => {
+      if (resultUpdate.operatorResults.contains(e._1)) {
+        val e1 = resultUpdate.operatorResults(e._1)
+        val opResultService = operatorResults(e._1)
+        val webUpdateEvent = opResultService.convertWebResultUpdate(e1)
+        if (workflowCompiler.workflow.getOperator(e._1).isInstanceOf[CacheSinkOpDesc]) {
+          val upID = opResultService.operatorID
+          (upID, webUpdateEvent)
+        } else {
+          (e._1, webUpdateEvent)
+        }
       } else {
-        (e._1, webUpdateEvent)
+        val size = operatorResults(e._1).getResult.size
+        (e._1, WebPaginationUpdate(PaginationMode(), size, List.range(0, defaultPageSize)))
       }
-    })
+    }).toMap
 
     // update the result snapshot of each operator
     resultUpdate.operatorResults.foreach(e => operatorResults(e._1).updateResult(e._2))
