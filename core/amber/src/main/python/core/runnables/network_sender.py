@@ -47,12 +47,12 @@ class NetworkSender(StoppableQueueBlockingRunnable):
             #   use pandas to infer/cache column types, remove dependencies on pyarrow.
             #   Pyarrow related logic should be moved into proxy level.
             output_schema = schema([self._schema_map.get(field.name, field) for field in inferred_schema])
-            data_header = PythonDataHeader(tag=to, end=False)
+            data_header = PythonDataHeader(tag=to, is_end=False)
             table = Table.from_pandas(df=df, schema=output_schema)
             self._proxy_client.send_data(bytes(data_header), table)
 
         elif isinstance(data_payload, EndOfUpstream):
-            data_header = PythonDataHeader(tag=to, end=True)
+            data_header = PythonDataHeader(tag=to, is_end=True)
             self._proxy_client.send_data(bytes(data_header), None)
 
         else:

@@ -1,5 +1,9 @@
 package edu.uci.ics.amber.engine.common.ambermessage
 
+import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandConvertUtils.{
+  controlReturnToV1,
+  controlReturnToV2
+}
 import edu.uci.ics.amber.engine.architecture.worker.controlcommands.{
   ControlCommandConvertUtils,
   ControlCommandV2
@@ -28,7 +32,19 @@ object InvocationConvertUtils {
 
   def returnInvocationToV1(
       returnInvocation: ReturnInvocationV2
-  ): ReturnInvocation =
-    ReturnInvocation(returnInvocation.originalCommandId, returnInvocation.controlReturn)
+  ): ReturnInvocation = {
+    ReturnInvocation(
+      returnInvocation.originalCommandId,
+      controlReturnToV1(returnInvocation.controlReturn)
+    )
+
+  }
+
+  def returnInvocationToV2(returnInvocation: ReturnInvocation): ReturnInvocationV2 = {
+    ReturnInvocationV2(
+      returnInvocation.originalCommandID,
+      controlReturnToV2(returnInvocation.controlReturn)
+    )
+  }
 
 }

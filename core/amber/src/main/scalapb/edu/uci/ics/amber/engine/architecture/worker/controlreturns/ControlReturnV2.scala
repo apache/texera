@@ -21,6 +21,10 @@ final case class ControlReturnV2(
         val __value = value.workerState.get.value
         __size += _root_.com.google.protobuf.CodedOutputStream.computeEnumSize(2, __value)
       };
+      if (value.currentInputTupleInfo.isDefined) {
+        val __value = value.currentInputTupleInfo.get
+        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+      };
       __size
     }
     override def serializedSize: _root_.scala.Int = {
@@ -42,17 +46,26 @@ final case class ControlReturnV2(
         val __m = __v.value
         _output__.writeEnum(2, __m)
       };
+      value.currentInputTupleInfo.foreach { __v =>
+        val __m = __v
+        _output__.writeTag(3, 2)
+        _output__.writeUInt32NoTag(__m.serializedSize)
+        __m.writeTo(_output__)
+      };
     }
     def getWorkerStatistics: edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics = value.workerStatistics.getOrElse(edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics.defaultInstance)
     def withWorkerStatistics(__v: edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics): ControlReturnV2 = copy(value = edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value.WorkerStatistics(__v))
     def getWorkerState: edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState = value.workerState.getOrElse(edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.UNINITIALIZED)
     def withWorkerState(__v: edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState): ControlReturnV2 = copy(value = edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value.WorkerState(__v))
+    def getCurrentInputTupleInfo: edu.uci.ics.amber.engine.architecture.worker.controlreturns.CurrentInputTupleInfo = value.currentInputTupleInfo.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlreturns.CurrentInputTupleInfo.defaultInstance)
+    def withCurrentInputTupleInfo(__v: edu.uci.ics.amber.engine.architecture.worker.controlreturns.CurrentInputTupleInfo): ControlReturnV2 = copy(value = edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value.CurrentInputTupleInfo(__v))
     def clearValue: ControlReturnV2 = copy(value = edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value.Empty)
     def withValue(__v: edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value): ControlReturnV2 = copy(value = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => value.workerStatistics.orNull
         case 2 => value.workerState.map(_.javaValueDescriptor).orNull
+        case 3 => value.currentInputTupleInfo.orNull
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
@@ -60,6 +73,7 @@ final case class ControlReturnV2(
       (__field.number: @_root_.scala.unchecked) match {
         case 1 => value.workerStatistics.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 2 => value.workerState.map(__e => _root_.scalapb.descriptors.PEnum(__e.scalaValueDescriptor)).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 3 => value.currentInputTupleInfo.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -80,6 +94,8 @@ object ControlReturnV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amb
           __value = edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value.WorkerStatistics(__value.workerStatistics.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 16 =>
           __value = edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value.WorkerState(edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.fromValue(_input__.readEnum()))
+        case 26 =>
+          __value = edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value.CurrentInputTupleInfo(__value.currentInputTupleInfo.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlreturns.CurrentInputTupleInfo](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case tag => _input__.skipField(tag)
       }
     }
@@ -93,16 +109,18 @@ object ControlReturnV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amb
       edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2(
         value = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics]]).map(edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value.WorkerStatistics(_))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value](__fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).flatMap(_.as[_root_.scala.Option[_root_.scalapb.descriptors.EnumValueDescriptor]]).map(__e => edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value.WorkerState(edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.fromValue(__e.number))))
+            .orElse[edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value](__fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlreturns.CurrentInputTupleInfo]]).map(edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value.CurrentInputTupleInfo(_)))
             .getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value.Empty)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlreturnsProto.javaDescriptor.getMessageTypes().get(0)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlreturnsProto.scalaDescriptor.messages(0)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlreturnsProto.javaDescriptor.getMessageTypes().get(1)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlreturnsProto.scalaDescriptor.messages(1)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
       case 1 => __out = edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
+      case 3 => __out = edu.uci.ics.amber.engine.architecture.worker.controlreturns.CurrentInputTupleInfo
     }
     __out
   }
@@ -120,8 +138,10 @@ object ControlReturnV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amb
     def isDefined: _root_.scala.Boolean = true
     def isWorkerStatistics: _root_.scala.Boolean = false
     def isWorkerState: _root_.scala.Boolean = false
+    def isCurrentInputTupleInfo: _root_.scala.Boolean = false
     def workerStatistics: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics] = _root_.scala.None
     def workerState: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState] = _root_.scala.None
+    def currentInputTupleInfo: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlreturns.CurrentInputTupleInfo] = _root_.scala.None
   }
   object Value {
     @SerialVersionUID(0L)
@@ -147,14 +167,23 @@ object ControlReturnV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amb
       override def workerState: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState] = Some(value)
       override def number: _root_.scala.Int = 2
     }
+    @SerialVersionUID(0L)
+    final case class CurrentInputTupleInfo(value: edu.uci.ics.amber.engine.architecture.worker.controlreturns.CurrentInputTupleInfo) extends edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value {
+      type ValueType = edu.uci.ics.amber.engine.architecture.worker.controlreturns.CurrentInputTupleInfo
+      override def isCurrentInputTupleInfo: _root_.scala.Boolean = true
+      override def currentInputTupleInfo: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlreturns.CurrentInputTupleInfo] = Some(value)
+      override def number: _root_.scala.Int = 3
+    }
   }
   implicit class ControlReturnV2Lens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2](_l) {
     def workerStatistics: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics] = field(_.getWorkerStatistics)((c_, f_) => c_.copy(value = edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value.WorkerStatistics(f_)))
     def workerState: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState] = field(_.getWorkerState)((c_, f_) => c_.copy(value = edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value.WorkerState(f_)))
+    def currentInputTupleInfo: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlreturns.CurrentInputTupleInfo] = field(_.getCurrentInputTupleInfo)((c_, f_) => c_.copy(value = edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value.CurrentInputTupleInfo(f_)))
     def value: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value] = field(_.value)((c_, f_) => c_.copy(value = f_))
   }
   final val WORKER_STATISTICS_FIELD_NUMBER = 1
   final val WORKER_STATE_FIELD_NUMBER = 2
+  final val CURRENT_INPUT_TUPLE_INFO_FIELD_NUMBER = 3
   def of(
     value: edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value
   ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2 = _root_.edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2(

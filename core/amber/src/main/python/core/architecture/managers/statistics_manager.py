@@ -2,6 +2,7 @@ import typing
 
 
 class StatisticsManager:
+
     def __init__(self):
         self._input_tuple_count = 0
         self._output_tuple_count = 0

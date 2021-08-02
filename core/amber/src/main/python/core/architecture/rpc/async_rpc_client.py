@@ -2,6 +2,8 @@ from collections import defaultdict
 from concurrent.futures import Future
 from typing import Dict
 
+from loguru import logger
+
 from core.architecture.managers.context import Context
 from core.models.internal_queue import ControlElement, InternalQueue
 from core.util import set_one_of
@@ -61,6 +63,9 @@ class AsyncRPCClient:
         :param control_return: ControlReturnV2m, to be used to fulfill the promise.
         """
 
-        future: Future = self._unfulfilled_promises[(from_, command_id)]
-        future.set_result(control_return)
-        del self._unfulfilled_promises[(from_, command_id)]
+        future: Future = self._unfulfilled_promises.get((from_, command_id))
+        if future is not None:
+            future.set_result(control_return)
+            del self._unfulfilled_promises[(from_, command_id)]
+        else:
+            logger.warning(f"received unknown ControlReturn {control_return}, no corresponding ControlCommand found.")

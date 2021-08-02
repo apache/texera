@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.pythonUDF
+package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.AttributeTypeException

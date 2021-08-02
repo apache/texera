@@ -1,6 +1,7 @@
 import typing
 from typing import Iterator, Optional, Union
 
+from loguru import logger
 from overrides import overrides
 from pampy import match
 
@@ -20,12 +21,12 @@ from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlI
 
 class DataProcessor(StoppableQueueBlockingRunnable):
 
-    def __init__(self, input_queue: InternalQueue, output_queue: InternalQueue, udf_operator: UDFOperator):
+    def __init__(self, input_queue: InternalQueue, output_queue: InternalQueue):
         super().__init__(self.__class__.__name__, queue=input_queue)
 
         self._input_queue: InternalQueue = input_queue
         self._output_queue: InternalQueue = output_queue
-        self._udf_operator: UDFOperator = udf_operator
+        self._udf_operator: Optional[UDFOperator] = None
         self._current_input_tuple: Optional[Union[Tuple, InputExhausted]] = None
         self._current_input_link: Optional[LinkIdentity] = None
 
@@ -50,7 +51,9 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         match(
             next_entry,
             DataElement, self._process_data_element,
-            ControlElement, self._process_control_element
+            ControlElement, self._process_control_element,
+            EndMarker, self._process_end_marker,
+            EndOfAllMarker, self._process_end_of_all_marker
         )
 
     def process_control_payload(self, tag: ActorVirtualIdentity, payload: ControlPayloadV2) -> None:
@@ -77,22 +80,22 @@ class DataProcessor(StoppableQueueBlockingRunnable):
             self.context.statistics_manager.increase_input_tuple_count()
 
         for tuple_ in self.process_tuple_with_udf(self._current_input_tuple, self._current_input_link):
-            self.check_and_process_control()
-            if tuple_ is not None:
-                self.context.statistics_manager.increase_output_tuple_count()
-                for to, batch in self.context.tuple_to_batch_converter.tuple_to_batch(tuple_):
-                    self._output_queue.put(DataElement(tag=to, payload=batch))
+                self.check_and_process_control()
+                if tuple_ is not None:
+                    self.context.statistics_manager.increase_output_tuple_count()
+                    for to, batch in self.context.tuple_to_batch_converter.tuple_to_batch(tuple_):
+                        self._output_queue.put(DataElement(tag=to, payload=batch))
 
     def process_tuple_with_udf(self, tuple_: Union[Tuple, InputExhausted], link: LinkIdentity) \
-            -> Iterator[Optional[Tuple]]:
+                -> Iterator[Optional[Tuple]]:
         """
-        Process the Tuple/InputExhausted with the current link, using the UDF operator.
+        Process the Tuple/InputExhausted with the current link.
 
         This is a wrapper to invoke udf operator.
 
         :param tuple_: Union[Tuple, InputExhausted], the current tuple.
         :param link: LinkIdentity, the current link.
-        :return: Iterator[Optional[Tuple]], iterator of result Tuple(s).
+        :return: Iterator[Tuple], iterator of result Tuple(s).
         """
         return self._udf_operator.process_texera_tuple(tuple_, link)
 
