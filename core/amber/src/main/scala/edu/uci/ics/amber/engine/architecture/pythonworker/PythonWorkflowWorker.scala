@@ -42,7 +42,7 @@ class PythonWorkflowWorker(
   // Proxy Serve and Client
   private lazy val serverThreadExecutor: ExecutorService = Executors.newSingleThreadExecutor
   private lazy val clientThreadExecutor: ExecutorService = Executors.newSingleThreadExecutor
-  private lazy val pythonProxyClient: PythonProxyClient = new PythonProxyClient(outputPortNum)
+  private lazy val pythonProxyClient: PythonProxyClient = new PythonProxyClient(outputPortNum, logger)
   private lazy val pythonProxyServer: PythonProxyServer =
     new PythonProxyServer(inputPortNum, controlOutputPort, dataOutputPort)
   // OPTIMIZE: find a way to remove this dependency, AsyncRPC is not used here.

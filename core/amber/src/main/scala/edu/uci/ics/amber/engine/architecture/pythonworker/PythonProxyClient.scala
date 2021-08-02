@@ -5,6 +5,7 @@ import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQue
   ControlElementV2,
   DataElement
 }
+import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
   controlInvocationToV2,
   returnInvocationToV2
@@ -12,6 +13,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
 import edu.uci.ics.amber.engine.common.ambermessage.{PythonControlMessage, _}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import org.apache.arrow.flight._
@@ -20,7 +22,7 @@ import org.apache.arrow.vector.VectorSchemaRoot
 
 import scala.collection.mutable
 
-class PythonProxyClient(portNumber: Int)
+class PythonProxyClient(portNumber: Int, logger: WorkflowLogger)
     extends Runnable
     with AutoCloseable
     with WorkerBatchInternalQueue {
@@ -29,7 +31,7 @@ class PythonProxyClient(portNumber: Int)
     new RootAllocator().newChildAllocator("flight-client", 0, Long.MaxValue)
   val location: Location = Location.forGrpcInsecure("localhost", portNumber)
 
-  private val MAX_TRY_COUNT: Int = 3
+  private val MAX_TRY_COUNT: Int = 5
   private val WAIT_TIME_MS = 500
   private var flightClient: FlightClient = _
   private var running: Boolean = true
@@ -43,21 +45,32 @@ class PythonProxyClient(portNumber: Int)
     var tryCount = 0
     while (!connected && tryCount < MAX_TRY_COUNT) {
       try {
-        println("trying to connect to " + location)
+        logger.logInfo("trying to connect to " + location)
         flightClient = FlightClient.builder(allocator, location).build()
         connected = new String(flightClient.doAction(new Action("heartbeat")).next.getBody) == "ack"
         if (!connected) Thread.sleep(WAIT_TIME_MS)
       } catch {
-        case _: FlightRuntimeException =>
-          println("Flight CLIENT:\tNot connected to the server in this try.")
+        case e: FlightRuntimeException =>
+          logger.logInfo(
+            s"Flight CLIENT:\tNot connected to the server in this try. ${e.getStackTrace
+              .mkString("Array(", ", ", ")")}"
+          )
           flightClient.close()
           Thread.sleep(WAIT_TIME_MS)
-          tryCount += 1
+
+      } finally {
+        tryCount += 1
+        if (tryCount == MAX_TRY_COUNT) {
+          logger.logError(
+            new WorkflowRuntimeError(
+              "Exceeded try limit of " + MAX_TRY_COUNT + " when connecting to Flight Server!",
+              "PythonProxyClient",
+              Map.empty
+            )
+          )
+        }
       }
-      if (tryCount == MAX_TRY_COUNT)
-        throw new RuntimeException(
-          "Exceeded try limit of " + MAX_TRY_COUNT + " when connecting to Flight Server!"
-        )
+
     }
   }
 
