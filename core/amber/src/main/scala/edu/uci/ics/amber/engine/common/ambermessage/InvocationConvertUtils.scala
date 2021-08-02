@@ -33,7 +33,6 @@ object InvocationConvertUtils {
   def returnInvocationToV1(
       returnInvocation: ReturnInvocationV2
   ): ReturnInvocation = {
-    println(controlReturnToV1(returnInvocation.controlReturn))
     ReturnInvocation(
       returnInvocation.originalCommandId,
       controlReturnToV1(returnInvocation.controlReturn)

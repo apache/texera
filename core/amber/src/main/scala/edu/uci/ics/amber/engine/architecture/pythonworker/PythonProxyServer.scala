@@ -73,6 +73,7 @@ private class AmberProducer(
 
       if (isEnd) {
         // EndOfUpstream
+        assert(root.getRowCount == 0)
         dataOutputPort.sendTo(to, EndOfUpstream())
       } else {
         // normal data batches
