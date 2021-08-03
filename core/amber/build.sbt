@@ -69,7 +69,6 @@ val dropwizardDependencies = Seq(
 // deps from library
 //"com.kjetland" % "mbknor-jackson-jsonschema_2.12" % "1.0.39"
 
-val jacksonModuleScalaVersion = "2.12.1"
 val slf4jVersion = "1.7.26"
 val mbknorJacksonJsonSchemaDependencies  = Seq(
   "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
@@ -79,7 +78,6 @@ val mbknorJacksonJsonSchemaDependencies  = Seq(
   "org.scalatest" %% "scalatest" % "3.0.8" % "test",
   "ch.qos.logback" % "logback-classic" % "1.2.3" % "test",
   "com.github.java-json-tools" % "json-schema-validator" % "2.2.11" % "test",
-  "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonModuleScalaVersion % "test",
   "com.fasterxml.jackson.module" % "jackson-module-kotlin" % jacksonVersion % "test",
   "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8" % jacksonVersion % "test",
   "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % jacksonVersion % "test",
