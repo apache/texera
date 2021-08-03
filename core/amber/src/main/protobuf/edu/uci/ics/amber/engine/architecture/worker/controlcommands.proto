@@ -31,16 +31,32 @@ message AddPartitioningV2 {
 message WorkerExecutionCompletedV2 {
 }
 
+message QueryStatisticsV2 {
+}
+
+message QueryCurrentInputTupleV2 {
+}
+
+message SendPythonUdfV2 {
+    string udf = 1;
+    bool is_source = 2;
+}
+
 message ControlCommandV2 {
     oneof sealed_value {
-        architecture.worker.StartWorkerV2 start_worker = 1;
-        architecture.worker.PauseWorkerV2 pause_worker = 2;
-        architecture.worker.ResumeWorkerV2 resume_worker = 3;
+        StartWorkerV2 start_worker = 1;
+        PauseWorkerV2 pause_worker = 2;
+        ResumeWorkerV2 resume_worker = 3;
 
-        architecture.worker.AddPartitioningV2 add_output_policy = 4;
-        architecture.worker.UpdateInputLinkingV2 update_input_linking = 5;
+        AddPartitioningV2 add_partitioning = 4;
+        UpdateInputLinkingV2 update_input_linking = 5;
 
-        architecture.worker.WorkerExecutionCompletedV2 worker_execution_completed = 101;
+        QueryStatisticsV2 query_statistics = 6;
+        QueryCurrentInputTupleV2 query_current_input_tuple = 7;
+
+        SendPythonUdfV2 send_python_udf = 21;
+
+        WorkerExecutionCompletedV2 worker_execution_completed = 101;
     }
 
 }

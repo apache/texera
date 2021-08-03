@@ -1,7 +1,8 @@
-package edu.uci.ics.texera.workflow.operators.pythonUDF;
+package edu.uci.ics.texera.workflow.operators.udf.pythonV1;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import edu.uci.ics.amber.engine.architecture.pythonworker.ArrowUtils;
 import edu.uci.ics.amber.engine.common.InputExhausted;
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity;
 import edu.uci.ics.texera.Utils;
@@ -26,9 +27,9 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
-import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFOpExec.Channel.FROM_PYTHON;
-import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFOpExec.Channel.TO_PYTHON;
-import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFOpExec.MSG.*;
+import static edu.uci.ics.texera.workflow.operators.udf.pythonV1.PythonUDFOpExec.Channel.FROM_PYTHON;
+import static edu.uci.ics.texera.workflow.operators.udf.pythonV1.PythonUDFOpExec.Channel.TO_PYTHON;
+import static edu.uci.ics.texera.workflow.operators.udf.pythonV1.PythonUDFOpExec.MSG.*;
 
 public class PythonUDFOpExec implements OperatorExecutor {
 
