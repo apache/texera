@@ -8,7 +8,6 @@ import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import kotlin.NotImplementedError
 import org.apache.arrow.flight._
 import org.apache.arrow.flight.example.InMemoryStore
 import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
