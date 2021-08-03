@@ -168,7 +168,7 @@ class WorkflowResource {
     * This method creates and insert a new workflow to database
     *
     * @param session  HttpSession
-    * @param workflow , a workflow
+    * @param workflow , a workflow to be created
     * @return Workflow, which contains the generated wid if not provided
     */
   @POST
