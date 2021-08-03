@@ -3,7 +3,7 @@ package edu.uci.ics.texera.web.resource.dashboard.file
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER_FILE_ACCESS}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileDao, UserDao, UserFileAccessDao}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, UserFileAccess}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, User, UserFileAccess}
 import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.context
 import io.dropwizard.jersey.sessions.Session
@@ -24,12 +24,11 @@ import scala.collection.mutable
 /**
   * Model `File` corresponds to `core/new-gui/src/app/common/type/user-file.ts` (frontend).
   */
-case class fileRecord(
+case class DashboardFileEntry(
     ownerName: String,
-    fileName: String,
-    size: UInteger,
-    description: String,
-    access: String
+    file: File,
+    accessLevel: String,
+    isOwner: Boolean
 )
 
 object UserFileResource {
@@ -106,17 +105,17 @@ class UserFileResource {
     */
   @GET
   @Path("/list")
-  def listUserFiles(@Session session: HttpSession): util.List[fileRecord] = {
+  def listUserFiles(@Session session: HttpSession): util.List[DashboardFileEntry] = {
     UserResource.getUser(session) match {
-      case Some(user) => getUserFileRecord(user.getUid)
-      case None       => new util.ArrayList[fileRecord]()
+      case Some(user) => getUserFileRecord(user)
+      case None       => new util.ArrayList[DashboardFileEntry]()
     }
   }
 
-  private def getUserFileRecord(userID: UInteger): util.List[fileRecord] = {
+  private def getUserFileRecord(user: User): util.List[DashboardFileEntry] = {
     // TODO: verify user in session?
-    val accesses = userFileAccessDao.fetchByUid(userID)
-    val files: mutable.ArrayBuffer[fileRecord] = mutable.ArrayBuffer()
+    val accesses = userFileAccessDao.fetchByUid(user.getUid)
+    val files: mutable.ArrayBuffer[DashboardFileEntry] = mutable.ArrayBuffer()
     accesses.asScala.toList.map(access => {
       val fid = access.getFid
       val file = fileDao.fetchOneByFid(fid)
@@ -128,12 +127,12 @@ class UserFileResource {
       } else {
         accessLevel = "None"
       }
-      files += fileRecord(
-        userDao.fetchOneByUid(file.getUid).getName,
-        file.getName,
-        file.getSize,
-        file.getDescription,
-        accessLevel
+      val ownerName = userDao.fetchOneByUid(file.getUid).getName
+      files += DashboardFileEntry(
+        ownerName,
+        file,
+        accessLevel,
+        ownerName == user.getName
       )
     })
     files.toList.asJava

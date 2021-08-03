@@ -5,7 +5,7 @@ import { map } from 'rxjs/operators';
 import { AppSettings } from '../../../app-setting';
 import { Workflow, WorkflowContent } from '../../../type/workflow';
 import { jsonCast } from '../../../util/storage';
-import {WorkflowInfo} from "../../../type/workflow-info";
+import { WorkflowInfo } from "../../../type/workflow-info";
 
 export const WORKFLOW_URL = 'workflow';
 export const WORKFLOW_PERSIST_URL = WORKFLOW_URL + '/persist';
@@ -17,6 +17,19 @@ export const WORKFLOW_CREATE_URL = WORKFLOW_URL + '/create';
 })
 export class WorkflowPersistService {
   constructor(private http: HttpClient) {
+  }
+
+  /**
+   * helper function to parse WorkflowInfo from a JSON string. In some case, for example reading from backend, the content would returned
+   * as a JSON string.
+   * @param workflow
+   * @private
+   */
+  private static parseWorkflowInfo(workflow: Workflow): Workflow {
+    if (workflow != null && typeof workflow.content === 'string') {
+      workflow.content = jsonCast<WorkflowContent>(workflow.content);
+    }
+    return workflow;
   }
 
   /**
@@ -38,13 +51,13 @@ export class WorkflowPersistService {
    * @param newWorkflowName
    * @param newWorkflowContent
    */
-  public createWorkflow(newWorkflowContent: WorkflowContent, newWorkflowName: string = 'Untitled workflow'): Observable<Workflow> {
-    return this.http.post<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_CREATE_URL}`, {
+  public createWorkflow(newWorkflowContent: WorkflowContent, newWorkflowName: string = 'Untitled workflow'): Observable<WorkflowInfo> {
+    return this.http.post<WorkflowInfo>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_CREATE_URL}`, {
       name: newWorkflowName,
       content: JSON.stringify(newWorkflowContent)
     })
-      .filter((createdWorkflow: Workflow) => createdWorkflow != null)
-      .pipe(map(WorkflowPersistService.parseWorkflowInfo));
+      .filter((createdWorkflow: WorkflowInfo) => createdWorkflow != null)
+
   }
 
   /**
@@ -60,6 +73,7 @@ export class WorkflowPersistService {
   public getWorkflowList(): Observable<WorkflowInfo[]> {
     return this.http.get<WorkflowInfo[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_LIST_URL}`);
   }
+
   /**
    * retrieves a list of workflows from backend database that belongs to the user in the session.
    */
@@ -73,18 +87,5 @@ export class WorkflowPersistService {
    */
   public deleteWorkflow(wid: number): Observable<Response> {
     return this.http.delete<Response>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_URL}/${wid}`);
-  }
-
-  /**
-   * helper function to parse WorkflowInfo from a JSON string. In some case, for example reading from backend, the content would returned
-   * as a JSON string.
-   * @param workflow
-   * @private
-   */
-  private static parseWorkflowInfo(workflow: Workflow): Workflow {
-    if (workflow != null && typeof workflow.content === 'string') {
-      workflow.content = jsonCast<WorkflowContent>(workflow.content);
-    }
-    return workflow;
   }
 }

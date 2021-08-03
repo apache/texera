@@ -6,11 +6,19 @@
  */
 //TODO: remove uid, fid, path from UserFile interface, they should not be accessible via front-end
 export interface UserFile extends Readonly<{
-  ownerName: string;
-  fileName: string;
-  size: number;
-  description: string;
-  access: string;
+  ownerName: string,
+  file: FileContent,
+  accessLevel: string,
+  isOwner: boolean,
+}> {
+}
+
+export interface FileContent extends Readonly<{
+  id: number,
+  name: string,
+  path: string,
+  size: number,
+  description: string
 }> {
 }
 

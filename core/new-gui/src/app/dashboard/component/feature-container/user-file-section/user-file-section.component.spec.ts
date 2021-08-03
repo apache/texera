@@ -1,18 +1,16 @@
 import { async, ComponentFixture, inject, TestBed } from '@angular/core/testing';
 
-import { NgbModal, NgbModule } from '@ng-bootstrap/ng-bootstrap';
+import { NgbModal, NgbModalRef, NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { CustomNgMaterialModule } from '../../../../common/custom-ng-material.module';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatListModule } from '@angular/material/list';
-import {NgbModalRef} from "@ng-bootstrap/ng-bootstrap";
 import { UserFileSectionComponent } from './user-file-section.component';
 import { UserFileService } from '../../../../common/service/user/user-file/user-file.service';
 import { UserService } from '../../../../common/service/user/user.service';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { StubUserService } from '../../../../common/service/user/stub-user.service';
-import {UserFile} from "../../../../common/type/user-file";
-import {NgbdModalFileShareAccessComponent} from "./ngbd-modal-file-share-access/ngbd-modal-file-share-access.component";
-import {NgbdModalShareAccessComponent} from "../saved-workflow-section/ngbd-modal-share-access/ngbd-modal-share-access.component";
+import { FileContent, UserFile } from "../../../../common/type/user-file";
+import { NgbdModalFileShareAccessComponent } from "./ngbd-modal-file-share-access/ngbd-modal-file-share-access.component";
 
 describe('UserFileSectionComponent', () => {
   let component: UserFileSectionComponent;
@@ -25,12 +23,20 @@ describe('UserFileSectionComponent', () => {
   const path = 'test/path';
   const description = 'this is a test file';
   const size = 1024;
+  const username = "Jim";
+  const accessLevel = "read";
+  const fileContent: FileContent = {
+    id: id,
+    name: name,
+    path: path,
+    size: size,
+    description: description
+  }
   const testFile: UserFile = {
-    fileName: "test",
-    ownerName: "test",
-    size: 1,
-    description: "test",
-    access: "Test"
+    ownerName: "Texera",
+    file: fileContent,
+    accessLevel: "Write",
+    isOwner: true,
   };
   beforeEach(async(() => {
     TestBed.configureTestingModule({

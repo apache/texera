@@ -56,8 +56,8 @@ describe('WorkflowPersistService', () => {
   it('should check if workflow content and name returned correctly', () => {
     service.createWorkflow(jsonCast<WorkflowContent>(testContent), 'testname').last().subscribe(
       (value) => {
-        expect(value.name).toEqual('testname_copy');
-        expect(value.content).toEqual(jsonCast<WorkflowContent>(testContent));
+        expect(value.workflow.name).toEqual('testname_copy');
+        expect(value.workflow.content).toEqual(jsonCast<WorkflowContent>(testContent));
       }
     );
   });

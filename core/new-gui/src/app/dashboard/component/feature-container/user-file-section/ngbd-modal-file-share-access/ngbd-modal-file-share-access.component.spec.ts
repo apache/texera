@@ -4,7 +4,7 @@ import { HttpClient, HttpHandler } from '@angular/common/http';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { NgbdModalFileShareAccessComponent } from "./ngbd-modal-file-share-access.component";
 import { UserFileService } from "../../../../../common/service/user/user-file/user-file.service";
-import { UserFile } from "../../../../../common/type/user-file";
+import { FileContent, UserFile } from "../../../../../common/type/user-file";
 import { StubUserFileService } from "../../../../../common/service/user/user-file/stub-user-file-service";
 import { GoogleApiService, GoogleAuthService } from "ng-gapi";
 
@@ -13,13 +13,26 @@ describe('NgbdModalFileShareAccessComponent', () => {
   let fixture: ComponentFixture<NgbdModalFileShareAccessComponent>;
   let service: UserFileService;
 
-  const file: UserFile = {
-    fileName: "test",
-    ownerName: "test",
-    size: 1,
-    description: "test",
-    access: "Test"
+  const id = 1;
+  const name = 'testFile';
+  const path = 'test/path';
+  const description = 'this is a test file';
+  const size = 1024;
+  const username = "Jim";
+  const accessLevel = "read";
+  const fileContent: FileContent = {
+    id: id,
+    name: name,
+    path: path,
+    size: size,
+    description: description
   }
+  const file: UserFile = {
+    ownerName: "Texera",
+    file: fileContent,
+    accessLevel: "Write",
+    isOwner: true,
+  };
 
   beforeEach(async(async () => {
     TestBed.configureTestingModule({

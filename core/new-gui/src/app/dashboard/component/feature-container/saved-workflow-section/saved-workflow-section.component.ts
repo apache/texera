@@ -33,7 +33,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
     private workflowPersistService: WorkflowPersistService,
     private workflowGrantAccessService: WorkflowGrantAccessService,
     private modalService: NgbModal,
-    private router: Router
+    private router: Router,
   ) {
   }
 
@@ -95,8 +95,8 @@ export class SavedWorkflowSectionComponent implements OnInit {
    */
   public onClickDuplicateWorkflow(workflowToDuplicate: Workflow): void {
     this.workflowPersistService.createWorkflow(workflowToDuplicate.content, workflowToDuplicate.name + '_copy')
-      .subscribe((duplicatedWorkflow: Workflow) => {
-        this.workflows.push({workflow: duplicatedWorkflow, isOwner: true});
+      .subscribe((duplicatedWorkflowInfo: WorkflowInfo) => {
+        this.workflows.push(duplicatedWorkflowInfo);
       }, error => {
         alert(error);
       });

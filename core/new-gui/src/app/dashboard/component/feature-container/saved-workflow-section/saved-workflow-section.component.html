@@ -30,23 +30,30 @@
         <div class="scroll">
           <mat-list-item *ngFor="let workflow of workflows" class="project-list-item">
 
-            <h3 class="workflow-name" id = "workflow-name" mat-line><label (click)="jumpToWorkflow(workflow.workflow)">{{workflow.workflow.name}}</label></h3>
+            <h3 class="workflow-name" id="workflow-name" mat-line><label
+              (click)="jumpToWorkflow(workflow.workflow)">{{workflow.workflow.name}}</label></h3>
             <p class="workflow-time" mat-line><br>
               Last Access: {{workflow.workflow.lastModifiedTime | date:'yyyy-MM-dd HH:mm'}}
               <span class="time-space"></span>
               Created: {{workflow.workflow.creationTime | date:'yyyy-MM-dd HH:mm'}}
             </p>
-            <i *ngIf = "workflow.isOwner"  ngbTooltip="You are the OWNER" nz-icon nzType="user" nzTheme="outline"></i>
-            <i *ngIf = "!workflow.isOwner"  ngbTooltip="You are a COLLABORATOR" nz-icon nzType="team" nzTheme="outline"></i>
+            <i *ngIf="workflow.isOwner" ngbTooltip="You are the OWNER" nz-icon nzType="user" nzTheme="outline"></i>
+            <i *ngIf="!workflow.isOwner" ngbTooltip="{{workflow.accessLevel}} access shared by {{workflow.ownerName}}"
+               nz-icon nzType="team" nzTheme="outline"></i>
             <button (click)="onClickOpenShareAccess(workflow.workflow)" type="button" mat-button
-                    ngbTooltip="Share the workflow {{workflow.workflow.name}} to others" placement="bottom" *ngIf="workflow.isOwner">
+                    ngbTooltip="Share the workflow {{workflow.workflow.name}} to others" placement="bottom"
+                    *ngIf="workflow.isOwner">
               <i class="fa fa-share"></i>
             </button>
-            <button (click)="onClickDuplicateWorkflow(workflow.workflow)" type="button" class="duplicate-workflow-btn" mat-button
-                    ngbTooltip="Duplicate the workflow {{workflow.workflow.name}}" placement="bottom"><i class="fa fa-copy"></i>
+            <button (click)="onClickDuplicateWorkflow(workflow.workflow)" type="button" class="duplicate-workflow-btn"
+                    mat-button
+                    ngbTooltip="Duplicate the workflow {{workflow.workflow.name}}" placement="bottom"><i
+              class="fa fa-copy"></i>
             </button>
-            <button (click)="openNgbdModalDeleteWorkflowComponent(workflow.workflow)" class="delete-workflow-btn" mat-button
-                    ngbTooltip="Delete the workflow {{workflow.workflow.name}}" placement="bottom" *ngIf="workflow.isOwner"><i class="fa fa-trash"></i>
+            <button (click)="openNgbdModalDeleteWorkflowComponent(workflow.workflow)" class="delete-workflow-btn"
+                    mat-button
+                    ngbTooltip="Delete the workflow {{workflow.workflow.name}}" placement="bottom"
+                    *ngIf="workflow.isOwner"><i class="fa fa-trash"></i>
             </button>
           </mat-list-item>
 

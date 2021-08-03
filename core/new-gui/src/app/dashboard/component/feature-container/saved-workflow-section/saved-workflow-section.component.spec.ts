@@ -71,23 +71,33 @@ describe('SavedWorkflowSectionComponent', () => {
   const TestCase: WorkflowInfo[] = [
     {
       workflow: TestWorkflow1,
-      isOwner: true
+      isOwner: true,
+      ownerName: "Texera",
+      accessLevel: "Write"
     },
     {
       workflow: TestWorkflow2,
-      isOwner: true
+      isOwner: true,
+      ownerName: "Texera",
+      accessLevel: "Write"
     },
     {
       workflow: TestWorkflow3,
-      isOwner: true
+      isOwner: true,
+      ownerName: "Texera",
+      accessLevel: "Write"
     },
     {
       workflow: TestWorkflow4,
-      isOwner: true
+      isOwner: true,
+      ownerName: "Texera",
+      accessLevel: "Write"
     },
     {
       workflow: TestWorkflow5,
-      isOwner: true
+      isOwner: true,
+      ownerName: "Texera",
+      accessLevel: "Write"
     }
   ];
 
