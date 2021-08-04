@@ -1,28 +1,37 @@
 import { Injectable } from '@angular/core';
 import { Observable, of, Subject } from 'rxjs';
 import { DashboardUserFileEntry, UserFileAccess } from '../../../type/dashboard-user-file-entry';
+import { PublicInterfaceOf } from '../../../util/stub';
+import { UserFileService } from './user-file.service';
+import { HttpClient } from '@angular/common/http';
+import { StubUserService } from '../stub-user.service';
 
 @Injectable({
   providedIn: 'root'
 })
 
-export class StubUserFileService {
+export class StubUserFileService implements PublicInterfaceOf<UserFileService> {
   public testUFAs: UserFileAccess[] = [];
   private userFiles: DashboardUserFileEntry[] = [];
   private userFilesChanged = new Subject<null>();
 
-  constructor() {
-    this.detectUserChanges();
+  constructor(private http: HttpClient,
+              private userService: StubUserService) {
+    StubUserFileService.detectUserChanges();
   }
 
-  /**
-   * this function will return the fileArray store in the service.
-   * This is required for HTML page since HTML can only loop through collection instead of index number.
-   * You can change the UserFile inside the array but do not change the array itself.
-   */
-  public getUserFiles(): ReadonlyArray<DashboardUserFileEntry> {
-    return this.userFiles;
+  public grantUserFileAccess(file: DashboardUserFileEntry, username: string, accessLevel: string): Observable<Response> {
+    return of();
   }
+
+  public getUserFileAccessList(dashboardUserFileEntry: DashboardUserFileEntry): Observable<readonly UserFileAccess[]> {
+    return of();
+  }
+
+  public revokeUserFileAccess(dashboardUserFileEntry: DashboardUserFileEntry, username: string): Observable<Response> {
+    return of();
+  }
+
 
   public getUserFilesChangedEvent(): Observable<null> {
     return of();
@@ -45,14 +54,6 @@ export class StubUserFileService {
     return;
   }
 
-  /**
-   * convert the input file size to the human readable size by adding the unit at the end.
-   * eg. 2048 -> 2.0 KB
-   * @param fileSize
-   */
-  public addFileSizeUnit(fileSize: number): string {
-    return 'lala';
-  }
 
   public grantAccess(file: DashboardUserFileEntry, username: string, accessLevel: string): Observable<Response> {
     return of();
@@ -62,22 +63,20 @@ export class StubUserFileService {
     return of(this.testUFAs);
   }
 
-  public revokeFileAccess(file: DashboardUserFileEntry, username: string): Observable<Response> {
-    return of();
+  addFileSizeUnit(fileSize: number): string {
+    return '';
   }
 
-  private fetchFileList(): Observable<DashboardUserFileEntry[]> {
-    return of(this.userFiles);
+  getUserFiles(): ReadonlyArray<DashboardUserFileEntry> {
+    return [];
   }
 
   /**
    * refresh the files in the service whenever the user changes.
    */
-  private detectUserChanges(): void {
+  private static detectUserChanges(): void {
     return;
   }
 
-  private clearUserFile(): void {
-    return;
-  }
+
 }
