@@ -5,8 +5,8 @@ import { UserFile, DashboardUserFileEntry } from '../../../type/dashboard-user-f
 
 import {
   USER_FILE_ACCESS_LIST_URL,
-  USER_FILE_SHARE_ACCESS_URL,
-  USER_REVOKE_ACCESS_URL,
+  USER_FILE_ACCESS_GRANT_URL,
+  USER_FILE_ACCESS_REVOKE_URL,
   UserFileService
 } from './user-file.service';
 import { UserService } from '../user.service';
@@ -65,7 +65,7 @@ describe('UserFileService', () => {
   it('can share access', () => {
     service.grantAccess(testFile, username, accessLevel).first().subscribe();
     const req = httpMock.expectOne(
-      `${AppSettings.getApiEndpoint()}/${USER_FILE_SHARE_ACCESS_URL}/${testFile.file.name}/
+      `${AppSettings.getApiEndpoint()}/${USER_FILE_ACCESS_GRANT_URL}/${testFile.file.name}/
       ${testFile.ownerName}/${username}/${accessLevel}`);
     expect(req.request.method).toEqual('POST');
     req.flush({code: 0, message: ''});
@@ -74,7 +74,7 @@ describe('UserFileService', () => {
   it('can revoke access', () => {
     service.revokeUserFileAccess(testFile, username).first().subscribe();
     const req = httpMock.expectOne(
-      `${AppSettings.getApiEndpoint()}/${USER_REVOKE_ACCESS_URL}/${testFile.file.name}/${testFile.ownerName}/${username}`);
+      `${AppSettings.getApiEndpoint()}/${USER_FILE_ACCESS_REVOKE_URL}/${testFile.file.name}/${testFile.ownerName}/${username}`);
     expect(req.request.method).toEqual('POST');
     req.flush({code: 0, message: ''});
   });

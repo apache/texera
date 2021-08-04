@@ -5,23 +5,25 @@ import { AppSettings } from '../../../app-setting';
 import { DashboardUserFileEntry } from '../../../type/dashboard-user-file-entry';
 import { UserService } from '../user.service';
 
-export const USER_FILE_LIST_URL = 'user/file/list';
-export const USER_FILE_DELETE_URL = 'user/file/delete';
-export const USER_FILE_SHARE_ACCESS_URL = 'user-file-access/grant';
-export const USER_FILE_ACCESS_LIST_URL = 'user-file-access/list';
-export const USER_REVOKE_ACCESS_URL = 'user-file-access/revoke';
+export const USER_FILE_BASE_URL = 'user/file';
+export const USER_FILE_LIST_URL = `${USER_FILE_BASE_URL}/list`;
+export const USER_FILE_DELETE_URL = `${USER_FILE_BASE_URL}/delete`;
+export const USER_FILE_ACCESS_BASE_URL = `${USER_FILE_BASE_URL}/access`;
+export const USER_FILE_ACCESS_GRANT_URL = `${USER_FILE_ACCESS_BASE_URL}/grant`;
+export const USER_FILE_ACCESS_LIST_URL = `${USER_FILE_ACCESS_BASE_URL}/list`;
+export const USER_FILE_ACCESS_REVOKE_URL = `${USER_FILE_ACCESS_BASE_URL}/revoke`;
 
-export interface UserFileAccess {
+export interface UserFileAccess extends Readonly<{
   username: string;
-  fileAccess: string;
-}
+  accessLevel: string;
+}> {}
+
 
 @Injectable({
   providedIn: 'root'
 })
-
 export class UserFileService {
-  private userFiles: DashboardUserFileEntry[] = [];
+  private dashboardUserFileEntries: ReadonlyArray<DashboardUserFileEntry> = [];
   private userFilesChanged = new Subject<null>();
 
 
@@ -38,7 +40,7 @@ export class UserFileService {
    * You can change the UserFile inside the array but do not change the array itself.
    */
   public getUserFiles(): ReadonlyArray<DashboardUserFileEntry> {
-    return this.userFiles;
+    return this.dashboardUserFileEntries;
   }
 
   public getUserFilesChangedEvent(): Observable<null> {
@@ -57,7 +59,7 @@ export class UserFileService {
 
     this.retrieveDashboardUserFileEntryList().subscribe(
       files => {
-        this.userFiles = files;
+        this.dashboardUserFileEntries = files;
         this.userFilesChanged.next();
       }
     );
@@ -105,33 +107,34 @@ export class UserFileService {
    */
   public grantAccess(file: DashboardUserFileEntry, username: string, accessLevel: string): Observable<Response> {
     return this.http.post<Response>(
-      `${AppSettings.getApiEndpoint()}/${USER_FILE_SHARE_ACCESS_URL}/${file.file.name}/${file.ownerName}/${username}/${accessLevel}`,
+      `${AppSettings.getApiEndpoint()}/${USER_FILE_ACCESS_GRANT_URL}/${file.file.name}/${file.ownerName}/${username}/${accessLevel}`,
       null);
   }
 
   /**
    * Retrieve all shared accesses of the given workflow
    * @param file the current file
-   * @return Readonly<UserFileAccess>[] an array of UserFileAccesses, Ex: [{username: TestUser, fileAccess: read}]
+   * @return ReadonlyArray<UserFileAccess> an array of UserFileAccesses, Ex: [{username: TestUser, fileAccess: read}]
    */
-  public getSharedAccessesOfFile(file: DashboardUserFileEntry): Observable<Readonly<UserFileAccess>[]> {
-    return this.http.get<Readonly<UserFileAccess>[]>(
+  public getSharedAccessesOfFile(file: DashboardUserFileEntry): Observable<ReadonlyArray<UserFileAccess>> {
+    return this.http.get<ReadonlyArray<UserFileAccess>>(
       `${AppSettings.getApiEndpoint()}/${USER_FILE_ACCESS_LIST_URL}/${file.file.name}/${file.ownerName}`);
   }
 
   /**
    * Remove an existing access of another user
-   * @param file the current file
+   * @param dashboardUserFileEntry the current dashboardUserFileEntry
    * @param username the username of target user
    * @return message of success
    */
-  public revokeUserFileAccess(file: DashboardUserFileEntry, username: string): Observable<Response> {
+  public revokeUserFileAccess(dashboardUserFileEntry: DashboardUserFileEntry, username: string): Observable<Response> {
     return this.http.post<Response>(
-      `${AppSettings.getApiEndpoint()}/${USER_REVOKE_ACCESS_URL}/${file.file.name}/${file.ownerName}/${username}`, null);
+      `${AppSettings.getApiEndpoint()}/${USER_FILE_ACCESS_REVOKE_URL}/${dashboardUserFileEntry.file.name}/
+      ${dashboardUserFileEntry.ownerName}/${username}`, null);
   }
 
-  private retrieveDashboardUserFileEntryList(): Observable<DashboardUserFileEntry[]> {
-    return this.http.get<DashboardUserFileEntry[]>(`${AppSettings.getApiEndpoint()}/${USER_FILE_LIST_URL}`);
+  private retrieveDashboardUserFileEntryList(): Observable<ReadonlyArray<DashboardUserFileEntry>> {
+    return this.http.get<ReadonlyArray<DashboardUserFileEntry>>(`${AppSettings.getApiEndpoint()}/${USER_FILE_LIST_URL}`);
   }
 
   /**
@@ -150,7 +153,7 @@ export class UserFileService {
   }
 
   private clearUserFile(): void {
-    this.userFiles = [];
+    this.dashboardUserFileEntries = [];
     this.userFilesChanged.next();
   }
 }

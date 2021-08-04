@@ -49,7 +49,7 @@ object UserFileAccessResource {
 
 case class FileAccess(username: String, fileAccess: String)
 
-@Path("/user-file-access")
+@Path("/user/file/access")
 @Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON))
 class UserFileAccessResource {

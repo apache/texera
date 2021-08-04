@@ -46,7 +46,7 @@ export class NgbdModalFileShareAccessComponent {
       (userFileAccess: Readonly<UserFileAccess>[]) => {
         this.allUserFileAccess = [];
         userFileAccess.map(ufa => {
-          if (ufa.fileAccess === 'Owner') { this.fileOwner = ufa.username; } else { this.allUserFileAccess.push(ufa); }
+          if (ufa.accessLevel === 'Owner') { this.fileOwner = ufa.username; } else { this.allUserFileAccess.push(ufa); }
         });
       },
       err => console.log(err.error)
