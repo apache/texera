@@ -30,7 +30,7 @@ class TwitterFullArchiveSearchSourceOpExec(
   var nextToken: String = _
   // contains tweets from the previous request.
   var tweetCache: mutable.Buffer[TweetData] = mutable.Buffer()
-  var userCache: Map[String, UserData] = _
+  var userCache: Map[String, UserData] = Map()
   var hasNextRequest: Boolean = curLimit > 0
   var lastQueryTime: Long = 0
 
@@ -153,16 +153,21 @@ class TwitterFullArchiveSearchSourceOpExec(
       enforceRateLimit()
       response = twitterClient.searchAllTweets(query, params)
       retry -= 1
+
+      if (response == null || response.getMeta == null) {
+        // Error in request, result in null responses
+        throw new RuntimeException("error in requesting Twitter API, please check your query.")
+
+      }
     } while (response.getMeta.getNextToken == null && retry > 0)
 
     nextToken = response.getMeta.getNextToken
-
-    // when there is no more pages left, no need to request any more
-    hasNextRequest = nextToken != null
-
     tweetCache = response.getData.asScala
     userCache =
       response.getIncludes.getUsers.map((userData: UserData) => userData.getId -> userData).toMap
+
+    // when there is no more pages left, no need to request any more
+    hasNextRequest = nextToken != null
 
   }
 
