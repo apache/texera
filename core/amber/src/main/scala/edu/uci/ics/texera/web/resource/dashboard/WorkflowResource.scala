@@ -19,6 +19,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
   WorkflowUserAccess
 }
 import edu.uci.ics.texera.web.resource.auth.UserResource
+import edu.uci.ics.texera.web.resource.dashboard.WorkflowResource.context
 import io.dropwizard.jersey.sessions.Session
 import org.jooq.types.UInteger
 
@@ -41,10 +42,14 @@ case class DashboardWorkflowEntry(
     ownerName: String,
     workflow: Workflow
 )
+object WorkflowResource {
+  val context = SqlServer.createDSLContext()
+}
 
 @Path("/workflow")
 @Produces(Array(MediaType.APPLICATION_JSON))
 class WorkflowResource {
+
   final private val workflowDao = new WorkflowDao(context.configuration)
   final private val workflowOfUserDao = new WorkflowOfUserDao(
     context.configuration
@@ -53,7 +58,6 @@ class WorkflowResource {
     context.configuration()
   )
   final private val userDao = new UserDao(context.configuration())
-  private var context = SqlServer.createDSLContext()
 
   /**
     * This method returns the current in-session user's workflow list based on all workflows he/she has access to
@@ -69,7 +73,8 @@ class WorkflowResource {
   ): util.List[DashboardWorkflowEntry] = {
     UserResource.getUser(session) match {
       case Some(user) =>
-        var workflowInfos: mutable.ArrayBuffer[DashboardWorkflowEntry] = mutable.ArrayBuffer()
+        val dashboardWorkflowEntries: mutable.ArrayBuffer[DashboardWorkflowEntry] =
+          mutable.ArrayBuffer()
         val workflows = context
           .select()
           .from(WORKFLOW)
@@ -82,7 +87,7 @@ class WorkflowResource {
             .fetchByWid(workflow.get(1).asInstanceOf[UInteger])
             .get(0)
             .getUid
-          val workflowinfo = DashboardWorkflowEntry(
+          val dashboardWorkflowEntry = DashboardWorkflowEntry(
             ownerID
               .eq(user.getUid),
             WorkflowAccessResource
@@ -91,9 +96,9 @@ class WorkflowResource {
             userDao.fetchOneByUid(ownerID).getName,
             workflowDao.fetchOneByWid(workflow.get(1).asInstanceOf[UInteger])
           )
-          workflowInfos += workflowinfo
+          dashboardWorkflowEntries += dashboardWorkflowEntry
         })
-        workflowInfos.toList.asJava
+        dashboardWorkflowEntries.toList.asJava
 
       case None => new util.ArrayList()
     }
@@ -164,6 +169,27 @@ class WorkflowResource {
     }
   }
 
+  private def insertWorkflow(workflow: Workflow, user: User): Unit = {
+    workflowDao.insert(workflow)
+    workflowOfUserDao.insert(new WorkflowOfUser(user.getUid, workflow.getWid))
+    workflowUserAccessDao.insert(
+      new WorkflowUserAccess(
+        user.getUid,
+        workflow.getWid,
+        true, // readPrivilege
+        true // writePrivilege
+      )
+    )
+  }
+
+  private def workflowOfUserExists(wid: UInteger, uid: UInteger): Boolean = {
+    workflowOfUserDao.existsById(
+      context
+        .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
+        .values(uid, wid)
+    )
+  }
+
   /**
     * This method creates and insert a new workflow to database
     *
@@ -195,19 +221,6 @@ class WorkflowResource {
     }
   }
 
-  private def insertWorkflow(workflow: Workflow, user: User): Unit = {
-    workflowDao.insert(workflow)
-    workflowOfUserDao.insert(new WorkflowOfUser(user.getUid, workflow.getWid))
-    workflowUserAccessDao.insert(
-      new WorkflowUserAccess(
-        user.getUid,
-        workflow.getWid,
-        true, // readPrivilege
-        true // writePrivilege
-      )
-    )
-  }
-
   /**
     * This method deletes the workflow from database
     *
@@ -228,14 +241,6 @@ class WorkflowResource {
       case None =>
         Response.status(Response.Status.UNAUTHORIZED).build()
     }
-  }
-
-  private def workflowOfUserExists(wid: UInteger, uid: UInteger): Boolean = {
-    workflowOfUserDao.existsById(
-      context
-        .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
-        .values(uid, wid)
-    )
   }
 
 }

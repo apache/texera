@@ -1,4 +1,4 @@
-import { Workflow } from "./workflow";
+import { Workflow } from './workflow';
 
 export interface DashboardWorkflowEntry extends Readonly<{
   isOwner: boolean;

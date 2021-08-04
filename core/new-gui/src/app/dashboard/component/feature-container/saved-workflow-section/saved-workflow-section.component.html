@@ -28,7 +28,7 @@
           <br/>
         </div>
         <div class="scroll">
-          <mat-list-item *ngFor="let workflow of workflows" class="project-list-item">
+          <mat-list-item *ngFor="let workflow of dashboardWorkflowEntries" class="project-list-item">
 
             <h3 class="workflow-name" id="workflow-name" mat-line><label
               (click)="jumpToWorkflow(workflow.workflow)">{{workflow.workflow.name}}</label></h3>

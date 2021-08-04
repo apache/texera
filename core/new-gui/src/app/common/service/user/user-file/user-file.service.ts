@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
 import { AppSettings } from '../../../app-setting';
-import { UserFile } from '../../../type/user-file';
+import { DashboardUserFileEntry } from '../../../type/dashboard-user-file-entry';
 import { UserService } from '../user.service';
 
 export const USER_FILE_LIST_URL = 'user/file/list';
@@ -21,7 +21,7 @@ export interface UserFileAccess {
 })
 
 export class UserFileService {
-  private userFiles: UserFile[] = [];
+  private userFiles: DashboardUserFileEntry[] = [];
   private userFilesChanged = new Subject<null>();
 
 
@@ -37,7 +37,7 @@ export class UserFileService {
    * This is required for HTML page since HTML can only loop through collection instead of index number.
    * You can change the UserFile inside the array but do not change the array itself.
    */
-  public getUserFiles(): ReadonlyArray<UserFile> {
+  public getUserFiles(): ReadonlyArray<DashboardUserFileEntry> {
     return this.userFiles;
   }
 
@@ -55,7 +55,7 @@ export class UserFileService {
       return;
     }
 
-    this.fetchFileList().subscribe(
+    this.retrieveDashboardUserFileEntryList().subscribe(
       files => {
         this.userFiles = files;
         this.userFilesChanged.next();
@@ -68,7 +68,7 @@ export class UserFileService {
    * this function will automatically refresh the files in the service when succeed.
    * @param targetFile
    */
-  public deleteFile(targetFile: UserFile): void {
+  public deleteFile(targetFile: DashboardUserFileEntry): void {
     console.log(targetFile);
     this.http.delete<Response>(
       `${AppSettings.getApiEndpoint()}/${USER_FILE_DELETE_URL}/${targetFile.file.name}/${targetFile.ownerName}`).subscribe(
@@ -103,7 +103,7 @@ export class UserFileService {
    * @param accessLevel the type of access offered
    * @return Response
    */
-  public grantAccess(file: UserFile, username: string, accessLevel: string): Observable<Response> {
+  public grantAccess(file: DashboardUserFileEntry, username: string, accessLevel: string): Observable<Response> {
     return this.http.post<Response>(
       `${AppSettings.getApiEndpoint()}/${USER_FILE_SHARE_ACCESS_URL}/${file.file.name}/${file.ownerName}/${username}/${accessLevel}`,
       null);
@@ -114,7 +114,7 @@ export class UserFileService {
    * @param file the current file
    * @return Readonly<UserFileAccess>[] an array of UserFileAccesses, Ex: [{username: TestUser, fileAccess: read}]
    */
-  public getSharedAccessesOfFile(file: UserFile): Observable<Readonly<UserFileAccess>[]> {
+  public getSharedAccessesOfFile(file: DashboardUserFileEntry): Observable<Readonly<UserFileAccess>[]> {
     return this.http.get<Readonly<UserFileAccess>[]>(
       `${AppSettings.getApiEndpoint()}/${USER_FILE_ACCESS_LIST_URL}/${file.file.name}/${file.ownerName}`);
   }
@@ -125,14 +125,13 @@ export class UserFileService {
    * @param username the username of target user
    * @return message of success
    */
-  public revokeFileAccess(file: UserFile, username: string): Observable<Response> {
+  public revokeUserFileAccess(file: DashboardUserFileEntry, username: string): Observable<Response> {
     return this.http.post<Response>(
       `${AppSettings.getApiEndpoint()}/${USER_REVOKE_ACCESS_URL}/${file.file.name}/${file.ownerName}/${username}`, null);
   }
 
-  private fetchFileList(): Observable<UserFile[]> {
-    return this.http.get<UserFile[]>(
-      `${AppSettings.getApiEndpoint()}/${USER_FILE_LIST_URL}`);
+  private retrieveDashboardUserFileEntryList(): Observable<DashboardUserFileEntry[]> {
+    return this.http.get<DashboardUserFileEntry[]>(`${AppSettings.getApiEndpoint()}/${USER_FILE_LIST_URL}`);
   }
 
   /**

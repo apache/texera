@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, of, Subject } from 'rxjs';
-import { UserFile } from '../../../type/user-file';
+import { DashboardUserFileEntry } from '../../../type/dashboard-user-file-entry';
 
 export const USER_FILE_LIST_URL = 'user/file/list';
 export const USER_FILE_DELETE_URL = 'user/file/delete';
@@ -21,7 +21,7 @@ export interface UserFileAccess {
 
 export class StubUserFileService {
   public testUFAs: UserFileAccess[] = [];
-  private userFiles: UserFile[] = [];
+  private userFiles: DashboardUserFileEntry[] = [];
   private userFilesChanged = new Subject<null>();
 
   constructor(
@@ -35,7 +35,7 @@ export class StubUserFileService {
    * This is required for HTML page since HTML can only loop through collection instead of index number.
    * You can change the UserFile inside the array but do not change the array itself.
    */
-  public getUserFiles(): ReadonlyArray<UserFile> {
+  public getUserFiles(): ReadonlyArray<DashboardUserFileEntry> {
     return this.userFiles;
   }
 
@@ -56,7 +56,7 @@ export class StubUserFileService {
    * this function will automatically refresh the files in the service when succeed.
    * @param targetFile
    */
-  public deleteFile(targetFile: UserFile): void {
+  public deleteFile(targetFile: DashboardUserFileEntry): void {
     return;
   }
 
@@ -69,19 +69,19 @@ export class StubUserFileService {
     return 'lala';
   }
 
-  public grantAccess(file: UserFile, username: string, accessLevel: string): Observable<Response> {
+  public grantAccess(file: DashboardUserFileEntry, username: string, accessLevel: string): Observable<Response> {
     return of();
   }
 
-  public getSharedAccessesOfFile(file: UserFile): Observable<Readonly<UserFileAccess>[]> {
+  public getSharedAccessesOfFile(file: DashboardUserFileEntry): Observable<Readonly<UserFileAccess>[]> {
     return of(this.testUFAs);
   }
 
-  public revokeFileAccess(file: UserFile, username: string): Observable<Response> {
+  public revokeFileAccess(file: DashboardUserFileEntry, username: string): Observable<Response> {
     return of();
   }
 
-  private fetchFileList(): Observable<UserFile[]> {
+  private fetchFileList(): Observable<DashboardUserFileEntry[]> {
     return of(this.userFiles);
   }
 

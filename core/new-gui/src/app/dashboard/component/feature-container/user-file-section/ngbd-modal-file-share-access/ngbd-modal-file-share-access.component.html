@@ -3,17 +3,15 @@
       id="modal-basic-title">
     Share This File With Someone
   </h4>
-  <button (click)=
-            "activeModal.dismiss('Cross click')" aria-label="Close"
+  <button (click)="activeModal.dismiss('Cross click')" aria-label="Close"
           class="close" type="button">
-
             <span aria-hidden="true">
                 ×
             </span>
   </button>
 </div>
 <div class="modal-body">
-  <form (ngSubmit)="onClickShareFile(file)" [formGroup]="shareForm">
+  <form (ngSubmit)="onClickShareUserFile(dashboardUserFileEntry)" [formGroup]="shareForm">
     <div class="form-group">
 
       <label for="username">
@@ -33,20 +31,21 @@
 
       </div>
       <br>
-      <button class="btn
-                            btn-primary" type="submit">Share
+      <button class="btn btn-primary" type="submit">Share
       </button>
     </div>
   </form>
   <br>
-  <button (click)="onClickGetAllSharedAccess(file)" class="btn" type="button"><i class="fa fa-refresh"></i></button>
+  <button (click)="onClickGetAllSharedAccess(dashboardUserFileEntry)" class="btn" type="button"><i
+    class="fa fa-refresh"></i></button>
   <label for="current-share">Shared Access:</label>
   <ul class="current-share" id="current-share">
-    <li>{{fileOwner}}  <span class="badge badge-primary">owner</span></li>
+    <li>{{fileOwner}} <span class="badge badge-primary">owner</span></li>
     <li *ngFor="let userFileAccess of allUserFileAccess">
       {{userFileAccess.username}} <span class="badge badge-primary">{{userFileAccess.fileAccess}}</span>
-      <button (click)="onClickRemoveAccess(file, userFileAccess.username)" class="btn" type="button"><i
-        class="fa fa-trash"></i>
+      <button (click)="onClickRemoveUserFileAccess(dashboardUserFileEntry, userFileAccess.username)" class="btn" type="button">
+        <i
+          class="fa fa-trash"></i>
       </button>
     </li>
   </ul>

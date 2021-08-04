@@ -8,7 +8,7 @@ import { WorkflowGrantAccessService } from '../../../../common/service/user/work
 import { Workflow } from '../../../../common/type/workflow';
 import { NgbdModalDeleteWorkflowComponent } from './ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component';
 import { NgbdModalShareAccessComponent } from './ngbd-modal-share-access/ngbd-modal-share-access.component';
-import { DashboardWorkflowEntry } from "../../../../common/type/dashboard-workflow-entry";
+import { DashboardWorkflowEntry } from '../../../../common/type/dashboard-workflow-entry';
 
 /**
  * SavedProjectSectionComponent is the main interface for
@@ -25,7 +25,7 @@ import { DashboardWorkflowEntry } from "../../../../common/type/dashboard-workfl
 })
 export class SavedWorkflowSectionComponent implements OnInit {
 
-  public workflows: DashboardWorkflowEntry[] = [];
+  public dashboardWorkflowEntries: DashboardWorkflowEntry[] = [];
 
   public defaultWeb: String = 'http://localhost:4200/';
 
@@ -39,8 +39,8 @@ export class SavedWorkflowSectionComponent implements OnInit {
 
 
   ngOnInit() {
-    this.workflowPersistService.getWorkflowList().subscribe(
-      workflowInfos => this.workflows = workflowInfos
+    this.workflowPersistService.retrieveWorkflowsBySessionUser().subscribe(
+      dashboardWorkflowEntries => this.dashboardWorkflowEntries = dashboardWorkflowEntries
     );
   }
 
@@ -56,30 +56,32 @@ export class SavedWorkflowSectionComponent implements OnInit {
    * sort the workflow by name in ascending order
    */
   public ascSort(): void {
-    this.workflows.sort((t1, t2) => t1.workflow.name.toLowerCase().localeCompare(t2.workflow.name.toLowerCase()));
+    this.dashboardWorkflowEntries.sort((t1, t2) => t1.workflow.name.toLowerCase().localeCompare(t2.workflow.name.toLowerCase()));
   }
 
   /**
    * sort the project by name in descending order
    */
   public dscSort(): void {
-    this.workflows.sort((t1, t2) => t2.workflow.name.toLowerCase().localeCompare(t1.workflow.name.toLowerCase()));
+    this.dashboardWorkflowEntries.sort((t1, t2) => t2.workflow.name.toLowerCase().localeCompare(t1.workflow.name.toLowerCase()));
   }
 
   /**
    * sort the project by creating time
    */
   public dateSort(): void {
-    this.workflows.sort((left: DashboardWorkflowEntry, right: DashboardWorkflowEntry) =>
-      left.workflow.creationTime !== undefined && right.workflow.creationTime !== undefined ? left.workflow.creationTime - right.workflow.creationTime : 0);
+    this.dashboardWorkflowEntries.sort((left: DashboardWorkflowEntry, right: DashboardWorkflowEntry) =>
+      left.workflow.creationTime !== undefined && right.workflow.creationTime !== undefined ?
+        left.workflow.creationTime - right.workflow.creationTime : 0);
   }
 
   /**
    * sort the project by last modified time
    */
   public lastSort(): void {
-    this.workflows.sort((left: DashboardWorkflowEntry, right: DashboardWorkflowEntry) =>
-      left.workflow.lastModifiedTime !== undefined && right.workflow.lastModifiedTime !== undefined ? left.workflow.lastModifiedTime - right.workflow.lastModifiedTime : 0);
+    this.dashboardWorkflowEntries.sort((left: DashboardWorkflowEntry, right: DashboardWorkflowEntry) =>
+      left.workflow.lastModifiedTime !== undefined && right.workflow.lastModifiedTime !== undefined ?
+        left.workflow.lastModifiedTime - right.workflow.lastModifiedTime : 0);
   }
 
   /**
@@ -96,7 +98,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
   public onClickDuplicateWorkflow(workflowToDuplicate: Workflow): void {
     this.workflowPersistService.createWorkflow(workflowToDuplicate.content, workflowToDuplicate.name + '_copy')
       .subscribe((duplicatedWorkflowInfo: DashboardWorkflowEntry) => {
-        this.workflows.push(duplicatedWorkflowInfo);
+        this.dashboardWorkflowEntries.push(duplicatedWorkflowInfo);
       }, error => {
         alert(error);
       });
@@ -114,7 +116,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
 
     Observable.from(modalRef.result).subscribe((confirmToDelete: boolean) => {
       if (confirmToDelete && workflowToDelete.wid !== undefined) {
-        this.workflows = this.workflows.filter(workflow => workflow.workflow.wid !== workflowToDelete.wid);
+        this.dashboardWorkflowEntries = this.dashboardWorkflowEntries.filter(workflow => workflow.workflow.wid !== workflowToDelete.wid);
         this.workflowPersistService.deleteWorkflow(workflowToDelete.wid).subscribe(_ => {
           }, alert // TODO: handle error messages properly.
         );

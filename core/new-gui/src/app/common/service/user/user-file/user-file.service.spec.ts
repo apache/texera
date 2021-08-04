@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { FileContent, UserFile } from '../../../type/user-file';
+import { UserFile, DashboardUserFileEntry } from '../../../type/dashboard-user-file-entry';
 
 import {
   USER_FILE_ACCESS_LIST_URL,
@@ -19,19 +19,19 @@ const name = 'testFile';
 const path = 'test/path';
 const description = 'this is a test file';
 const size = 1024;
-const username = "Jim";
-const accessLevel = "read";
-const fileContent: FileContent = {
+const username = 'Jim';
+const accessLevel = 'read';
+const fileContent: UserFile = {
   id: id,
   name: name,
   path: path,
   size: size,
   description: description
-}
-const testFile: UserFile = {
-  ownerName: "Texera",
+};
+const testFile: DashboardUserFileEntry = {
+  ownerName: 'Texera',
   file: fileContent,
-  accessLevel: "Write",
+  accessLevel: 'Write',
   isOwner: true,
 };
 
@@ -65,18 +65,19 @@ describe('UserFileService', () => {
   it('can share access', () => {
     service.grantAccess(testFile, username, accessLevel).first().subscribe();
     const req = httpMock.expectOne(
-      `${AppSettings.getApiEndpoint()}/${USER_FILE_SHARE_ACCESS_URL}/${testFile.file.name}/${testFile.ownerName}/${username}/${accessLevel}`);
+      `${AppSettings.getApiEndpoint()}/${USER_FILE_SHARE_ACCESS_URL}/${testFile.file.name}/
+      ${testFile.ownerName}/${username}/${accessLevel}`);
     expect(req.request.method).toEqual('POST');
     req.flush({code: 0, message: ''});
-  })
+  });
 
   it('can revoke access', () => {
-    service.revokeFileAccess(testFile, username).first().subscribe();
+    service.revokeUserFileAccess(testFile, username).first().subscribe();
     const req = httpMock.expectOne(
       `${AppSettings.getApiEndpoint()}/${USER_REVOKE_ACCESS_URL}/${testFile.file.name}/${testFile.ownerName}/${username}`);
     expect(req.request.method).toEqual('POST');
     req.flush({code: 0, message: ''});
-  })
+  });
 
   it('can get all access', () => {
     service.getSharedAccessesOfFile(testFile).first().subscribe();
@@ -84,6 +85,6 @@ describe('UserFileService', () => {
       `${AppSettings.getApiEndpoint()}/${USER_FILE_ACCESS_LIST_URL}/${testFile.file.name}/${testFile.ownerName}`);
     expect(req.request.method).toEqual('GET');
     req.flush({code: 0, message: ''});
-  })
+  });
 
 });

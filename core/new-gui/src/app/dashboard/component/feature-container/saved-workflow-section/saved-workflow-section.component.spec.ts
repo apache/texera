@@ -143,19 +143,19 @@ describe('SavedWorkflowSectionComponent', () => {
   });
 
   it('alphaSortTest increaseOrder', () => {
-    component.workflows = [];
-    component.workflows = component.workflows.concat(TestCase);
+    component.dashboardWorkflowEntries = [];
+    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(TestCase);
     component.ascSort();
-    const SortedCase = component.workflows.map(item => item.workflow.name);
+    const SortedCase = component.dashboardWorkflowEntries.map(item => item.workflow.name);
     expect(SortedCase)
       .toEqual(['workflow 1', 'workflow 2', 'workflow 3', 'workflow 4', 'workflow 5']);
   });
 
   it('alphaSortTest decreaseOrder', () => {
-    component.workflows = [];
-    component.workflows = component.workflows.concat(TestCase);
+    component.dashboardWorkflowEntries = [];
+    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(TestCase);
     component.dscSort();
-    const SortedCase = component.workflows.map(item => item.workflow.name);
+    const SortedCase = component.dashboardWorkflowEntries.map(item => item.workflow.name);
     expect(SortedCase)
       .toEqual(['workflow 5', 'workflow 4', 'workflow 3', 'workflow 2', 'workflow 1']);
   });
@@ -174,27 +174,27 @@ describe('SavedWorkflowSectionComponent', () => {
     });
   });
   it('alphaSortTest increaseOrder', () => {
-    component.workflows = [];
-    component.workflows = component.workflows.concat(TestCase);
+    component.dashboardWorkflowEntries = [];
+    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(TestCase);
     component.ascSort();
-    const SortedCase = component.workflows.map(item => item.workflow.name);
+    const SortedCase = component.dashboardWorkflowEntries.map(item => item.workflow.name);
     expect(SortedCase)
       .toEqual(['workflow 1', 'workflow 2', 'workflow 3', 'workflow 4', 'workflow 5']);
   });
   it('createDateSortTest', () => {
-    component.workflows = [];
-    component.workflows = component.workflows.concat(TestCase);
+    component.dashboardWorkflowEntries = [];
+    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(TestCase);
     component.dateSort();
-    const SortedCase = component.workflows.map(item => item.workflow.creationTime);
+    const SortedCase = component.dashboardWorkflowEntries.map(item => item.workflow.creationTime);
     expect(SortedCase)
       .toEqual([1, 3, 3, 3, 4]);
   });
 
   it('lastEditSortTest', () => {
-    component.workflows = [];
-    component.workflows = component.workflows.concat(TestCase);
+    component.dashboardWorkflowEntries = [];
+    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(TestCase);
     component.lastSort();
-    const SortedCase = component.workflows.map(item => item.workflow.lastModifiedTime);
+    const SortedCase = component.dashboardWorkflowEntries.map(item => item.workflow.lastModifiedTime);
     expect(SortedCase)
       .toEqual([2, 3, 4, 6, 8]);
   });

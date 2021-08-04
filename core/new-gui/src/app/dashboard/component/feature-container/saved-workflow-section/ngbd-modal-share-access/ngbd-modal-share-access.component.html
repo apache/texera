@@ -6,7 +6,6 @@
   <button (click)=
             "activeModal.dismiss('Cross click')" aria-label="Close"
           class="close" type="button">
-
             <span aria-hidden="true">
                 ×
             </span>
@@ -47,11 +46,11 @@
     <li>{{workflowOwner}}  <span class="badge badge-primary">owner</span></li>
     <li *ngFor="let userWorkflowAccess of allUserWorkflowAccess">
       {{userWorkflowAccess.userName}}   <span class="badge badge-primary">{{userWorkflowAccess.accessLevel}}</span>
-      <button (click)="onClickRemoveAccess(workflow, userWorkflowAccess.userName)" class="btn" type="button"><i class="fa fa-trash"></i>
+      <button (click)="onClickRemoveAccess(workflow, userWorkflowAccess.userName)" class="btn" type="button"><i
+        class="fa fa-trash"></i>
       </button>
     </li>
   </ul>
-
 
 </div>
 <div class="modal-footer">

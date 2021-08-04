@@ -9,7 +9,7 @@ import { UserFileService } from '../../../../common/service/user/user-file/user-
 import { UserService } from '../../../../common/service/user/user.service';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { StubUserService } from '../../../../common/service/user/stub-user.service';
-import { FileContent, UserFile } from "../../../../common/type/user-file";
+import { UserFile, DashboardUserFileEntry } from "../../../../common/type/dashboard-user-file-entry";
 import { NgbdModalFileShareAccessComponent } from "./ngbd-modal-file-share-access/ngbd-modal-file-share-access.component";
 
 describe('UserFileSectionComponent', () => {
@@ -25,14 +25,14 @@ describe('UserFileSectionComponent', () => {
   const size = 1024;
   const username = "Jim";
   const accessLevel = "read";
-  const fileContent: FileContent = {
+  const fileContent: UserFile = {
     id: id,
     name: name,
     path: path,
     size: size,
     description: description
   }
-  const testFile: UserFile = {
+  const testFile: DashboardUserFileEntry = {
     ownerName: "Texera",
     file: fileContent,
     accessLevel: "Write",

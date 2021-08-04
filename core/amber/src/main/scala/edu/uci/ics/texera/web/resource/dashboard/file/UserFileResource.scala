@@ -26,9 +26,9 @@ import scala.collection.mutable
   */
 case class DashboardFileEntry(
     ownerName: String,
-    file: File,
     accessLevel: String,
-    isOwner: Boolean
+    isOwner: Boolean,
+    file: File
 )
 
 object UserFileResource {
@@ -130,9 +130,9 @@ class UserFileResource {
       val ownerName = userDao.fetchOneByUid(file.getUid).getName
       files += DashboardFileEntry(
         ownerName,
-        file,
         accessLevel,
-        ownerName == user.getName
+        ownerName == user.getName,
+        file
       )
     })
     files.toList.asJava

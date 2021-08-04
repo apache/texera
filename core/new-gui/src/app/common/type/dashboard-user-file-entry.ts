@@ -4,16 +4,15 @@
  * Corresponds to `src/main/scala/edu/uci/ics/texera/web/resource/dashboard/file/UserFileResource.scala` (backend);
  * and `core/scripts/sql/texera_ddl.sql`, table `file` (database).
  */
-//TODO: remove uid, fid, path from UserFile interface, they should not be accessible via front-end
-export interface UserFile extends Readonly<{
+export interface DashboardUserFileEntry extends Readonly<{
   ownerName: string,
-  file: FileContent,
+  file: UserFile,
   accessLevel: string,
   isOwner: boolean,
 }> {
 }
 
-export interface FileContent extends Readonly<{
+export interface UserFile extends Readonly<{
   id: number,
   name: string,
   path: string,

@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { NgbdModalFileAddComponent } from './ngbd-modal-file-add/ngbd-modal-file-add.component';
 import { UserFileService } from '../../../../common/service/user/user-file/user-file.service';
-import { UserFile } from '../../../../common/type/user-file';
+import { DashboardUserFileEntry } from '../../../../common/type/dashboard-user-file-entry';
 import { UserService } from '../../../../common/service/user/user.service';
 import {NgbdModalFileShareAccessComponent} from './ngbd-modal-file-share-access/ngbd-modal-file-share-access.component';
 
@@ -28,12 +28,12 @@ export class UserFileSectionComponent implements OnInit {
     this.modalService.open(NgbdModalFileAddComponent);
   }
 
-  public onClickOpenShareAccess(userFile: UserFile): void {
+  public onClickOpenShareAccess(dashboardUserFileEntry: DashboardUserFileEntry): void {
     const modalRef = this.modalService.open(NgbdModalFileShareAccessComponent);
-    modalRef.componentInstance.file = userFile;
+    modalRef.componentInstance.dashboardUserFileEntry = dashboardUserFileEntry;
   }
 
-  public getFileArray(): ReadonlyArray<UserFile> {
+  public getFileArray(): ReadonlyArray<DashboardUserFileEntry> {
     const fileArray = this.userFileService.getUserFiles();
     if (!fileArray) {
       return [];
@@ -41,7 +41,7 @@ export class UserFileSectionComponent implements OnInit {
     return fileArray;
   }
 
-  public deleteFile(userFile: UserFile): void {
+  public deleteFile(userFile: DashboardUserFileEntry): void {
     this.userFileService.deleteFile(userFile);
   }
 

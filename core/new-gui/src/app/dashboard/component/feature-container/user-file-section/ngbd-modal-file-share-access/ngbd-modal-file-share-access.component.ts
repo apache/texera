@@ -1,8 +1,8 @@
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Input } from '@angular/core';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { FormBuilder, Validators } from '@angular/forms';
-import { UserFileAccess, UserFileService } from "../../../../../common/service/user/user-file/user-file.service";
-import { UserFile } from "../../../../../common/type/user-file";
+import { UserFileAccess, UserFileService } from '../../../../../common/service/user/user-file/user-file.service';
+import { DashboardUserFileEntry } from '../../../../../common/type/dashboard-user-file-entry';
 
 
 @Component({
@@ -10,9 +10,9 @@ import { UserFile } from "../../../../../common/type/user-file";
   templateUrl: './ngbd-modal-file-share-access.component.html',
   styleUrls: ['./ngbd-modal-file-share-access.component.scss']
 })
-export class NgbdModalFileShareAccessComponent implements OnInit {
+export class NgbdModalFileShareAccessComponent {
 
-  @Input() file!: UserFile;
+  @Input() dashboardUserFileEntry!: DashboardUserFileEntry;
 
   shareForm = this.formBuilder.group({
     username: ['', [Validators.required]],
@@ -21,11 +21,9 @@ export class NgbdModalFileShareAccessComponent implements OnInit {
 
   allUserFileAccess: UserFileAccess[] = [];
 
-  accessLevels = ["read", "write"]
+  accessLevels = ['read', 'write'];
 
-  fileOwner = ""
-
-  public defaultWeb: String = 'http://localhost:4200/';
+  fileOwner = '';
 
   constructor(
     public activeModal: NgbActiveModal,
@@ -34,66 +32,66 @@ export class NgbdModalFileShareAccessComponent implements OnInit {
   ) {
   }
 
-  ngOnInit(): void {
-    this.refreshGrantedList(this.file);
-  }
 
-
-  public onClickGetAllSharedAccess(file: UserFile): void {
-    this.refreshGrantedList(file);
+  public onClickGetAllSharedAccess(file: DashboardUserFileEntry): void {
+    this.refreshGrantedUserFileAccessList(file);
   }
 
   /**
-   * get all shared access of the current file
-   * @param file target/current file
+   * get all shared access of the current dashboardUserFileEntry
+   * @param dashboardUserFileEntry target/current dashboardUserFileEntry
    */
-  public refreshGrantedList(file: UserFile): void {
-    this.userFileService.getSharedAccessesOfFile(file).subscribe(
+  public refreshGrantedUserFileAccessList(dashboardUserFileEntry: DashboardUserFileEntry): void {
+    this.userFileService.getSharedAccessesOfFile(dashboardUserFileEntry).subscribe(
       (userFileAccess: Readonly<UserFileAccess>[]) => {
-        this.allUserFileAccess = []
+        this.allUserFileAccess = [];
         userFileAccess.map(ufa => {
-          if(ufa.fileAccess === "Owner") this.fileOwner = ufa.username
-          else this.allUserFileAccess.push(ufa)
-        })
+          if (ufa.fileAccess === 'Owner') { this.fileOwner = ufa.username; } else { this.allUserFileAccess.push(ufa); }
+        });
       },
       err => console.log(err.error)
     );
   }
 
   /**
-   * grant a specific level of access to a user
-   * @param file the given/target file
+   * Grant a specific level of file access to a given user
+   * @param dashboardUserFileEntry the given/target dashboardUserFileEntry
    * @param userToShareWith the target user
    * @param accessLevel the level of Access to be given
    */
-  public grantAccess(file: UserFile, userToShareWith: string, accessLevel: string): void {
-    this.userFileService.grantAccess(file, userToShareWith, accessLevel).subscribe(
-      () => this.refreshGrantedList(file),
+  public grantUserFileAccess(dashboardUserFileEntry: DashboardUserFileEntry, userToShareWith: string, accessLevel: string): void {
+    this.userFileService.grantAccess(dashboardUserFileEntry, userToShareWith, accessLevel).subscribe(
+      () => this.refreshGrantedUserFileAccessList(dashboardUserFileEntry),
       err => alert(err.error));
   }
 
 
   /**
    * triggered by clicking the SUBMIT button, offers access based on the input information
-   * @param file target/current file
+   * @param dashboardUserFileEntry target/current file
    */
-  public onClickShareFile(file: UserFile): void {
+  public onClickShareUserFile(dashboardUserFileEntry: DashboardUserFileEntry): void {
     if (this.shareForm.get('username')?.invalid) {
-      alert("Please Fill in Username")
-      return
+      alert('Please Fill in Username');
+      return;
     }
     if (this.shareForm.get('accessLevel')?.invalid) {
-      alert("Please Select Access Level")
-      return
+      alert('Please Select Access Level');
+      return;
     }
     const userToShareWith = this.shareForm.get('username')?.value;
     const accessLevel = this.shareForm.get('accessLevel')?.value;
-    this.grantAccess(file, userToShareWith, accessLevel);
+    this.grantUserFileAccess(dashboardUserFileEntry, userToShareWith, accessLevel);
   }
 
-  public onClickRemoveAccess(file: UserFile, userToRemove: string): void {
-    this.userFileService.revokeFileAccess(file, userToRemove).subscribe(
-      () => this.refreshGrantedList(file),
+  /**
+   * Remove the given user's access to the target file.
+   * @param dashboardUserFileEntry target/current file.
+   * @param userNameToRemove
+   */
+  public onClickRemoveUserFileAccess(dashboardUserFileEntry: DashboardUserFileEntry, userNameToRemove: string): void {
+    this.userFileService.revokeUserFileAccess(dashboardUserFileEntry, userNameToRemove).subscribe(
+      () => this.refreshGrantedUserFileAccessList(dashboardUserFileEntry),
       err => alert(err.error)
     );
   }

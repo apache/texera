@@ -10,6 +10,7 @@ export const WORKFLOW_ACCESS_GRANT_URL = WORKFLOW_ACCESS_URL + '/grant';
 export const WORKFLOW_ACCESS_LIST_URL = WORKFLOW_ACCESS_URL + '/list';
 export const WORKFLOW_ACCESS_REVOKE_URL = WORKFLOW_ACCESS_URL + '/revoke';
 export const WORKFLOW_OWNER_URL = WORKFLOW_ACCESS_URL + '/owner';
+
 export interface UserWorkflowAccess {
   userName: string;
   accessLevel: string;
