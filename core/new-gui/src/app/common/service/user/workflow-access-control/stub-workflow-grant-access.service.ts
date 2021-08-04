@@ -31,16 +31,16 @@ export class StubWorkflowGrantAccessService implements PublicInterfaceOf<Workflo
     this.workflow = MOCK_WORKFLOW;
   }
 
-  public retrieveGrantedList(workflow: Workflow): Observable<Readonly<UserWorkflowAccess>[]> {
+  public retrieveGrantedWorkflowAccessList(workflow: Workflow): Observable<Readonly<UserWorkflowAccess>[]> {
     return of(this.mapString);
   }
 
-  public grantAccess(workflow: Workflow, username: string, accessLevel: string): Observable<Response> {
+  public grantUserWorkflowAccess(workflow: Workflow, username: string, accessLevel: string): Observable<Response> {
     return of();
   }
 
 
-  public revokeAccess(workflow: Workflow, username: string): Observable<Response> {
+  public revokeWorkflowAccess(workflow: Workflow, username: string): Observable<Response> {
     return of();
   }
 

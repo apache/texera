@@ -24,7 +24,7 @@ describe('UserFileSectionComponent', () => {
   const size = 1024;
 
   const fileContent: UserFile = {
-    id: id,
+    fid: id,
     name: name,
     path: path,
     size: size,

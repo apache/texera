@@ -47,7 +47,7 @@ object UserFileAccessResource {
   }
 }
 
-case class FileAccess(username: String, fileAccess: String)
+case class FileAccess(username: String, accessLevel: String)
 
 @Path("/user/file/access")
 @Consumes(Array(MediaType.APPLICATION_JSON))
@@ -195,7 +195,7 @@ class UserFileAccessResource {
     */
   @POST
   @Path("/revoke/{fileName}/{ownerName}/{username}")
-  def revokeAccess(
+  def revokeFileAccess(
       @PathParam("fileName") fileName: String,
       @PathParam("ownerName") ownerName: String,
       @PathParam("username") username: String,

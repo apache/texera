@@ -52,16 +52,6 @@ object WorkflowAccessResource {
   }
 
   /**
-    * Identifies whether the given user has write access over the given workflow
-    * @param wid     workflow id
-    * @param uid     user id, works with workflow id as primary keys in database
-    * @return boolean value indicating yes/no
-    */
-  def hasWriteAccess(wid: UInteger, uid: UInteger): Boolean = {
-    checkAccessLevel(wid, uid).eq(WorkflowAccess.WRITE)
-  }
-
-  /**
     * Returns an Access Object based on given wid and uid
     * Searches in database for the given uid-wid pair, and returns Access Object based on search result
     *
@@ -83,6 +73,16 @@ object WorkflowAccessResource {
     } else {
       WorkflowAccess.NONE
     }
+  }
+
+  /**
+    * Identifies whether the given user has write access over the given workflow
+    * @param wid     workflow id
+    * @param uid     user id, works with workflow id as primary keys in database
+    * @return boolean value indicating yes/no
+    */
+  def hasWriteAccess(wid: UInteger, uid: UInteger): Boolean = {
+    checkAccessLevel(wid, uid).eq(WorkflowAccess.WRITE)
   }
 
   /**
@@ -185,7 +185,7 @@ class WorkflowAccessResource() {
     */
   @GET
   @Path("/list/{wid}")
-  def retrieveGrantedList(
+  def retrieveGrantedWorkflowAccessList(
       @PathParam("wid") wid: UInteger,
       @Session session: HttpSession
   ): Response = {
@@ -198,7 +198,7 @@ class WorkflowAccessResource() {
               .values(user.getUid, wid)
           )
         ) {
-          Response.ok(getGrantedList(wid, user.getUid)).build()
+          Response.ok(getGrantedWorkflowAccessList(wid, user.getUid)).build()
         } else {
           Response
             .status(Response.Status.UNAUTHORIZED)
@@ -217,7 +217,7 @@ class WorkflowAccessResource() {
     * @param uid     user id of current user, used to identify ownership
     * @return a List with corresponding information Ex: [{"Jim": "Read"}]
     */
-  def getGrantedList(wid: UInteger, uid: UInteger): List[UserWorkflowAccess] = {
+  def getGrantedWorkflowAccessList(wid: UInteger, uid: UInteger): List[UserWorkflowAccess] = {
     val shares = context
       .select(
         WORKFLOW_USER_ACCESS.UID,
@@ -256,7 +256,7 @@ class WorkflowAccessResource() {
   @POST
   @Path("/revoke/{wid}/{username}")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def revokeAccess(
+  def revokeWorkflowAccess(
       @PathParam("wid") wid: UInteger,
       @PathParam("username") username: String,
       @Session session: HttpSession
@@ -305,7 +305,7 @@ class WorkflowAccessResource() {
     */
   @POST
   @Path("/grant/{wid}/{username}/{accessLevel}")
-  def grantAccess(
+  def grantWorkflowAccess(
       @PathParam("wid") wid: UInteger,
       @PathParam("username") username: String,
       @PathParam("accessLevel") accessLevel: String,

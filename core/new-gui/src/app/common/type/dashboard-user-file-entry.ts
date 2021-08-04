@@ -18,7 +18,7 @@ export interface UserFileAccess extends Readonly<{
  * and `core/scripts/sql/texera_ddl.sql`, table `file` (database).
  */
 export interface UserFile extends Readonly<{
-  id: number,
+  fid: number,
   name: string,
   path: string,
   size: number,

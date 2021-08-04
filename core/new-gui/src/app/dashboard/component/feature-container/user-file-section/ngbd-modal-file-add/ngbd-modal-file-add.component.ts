@@ -9,6 +9,7 @@ import { FileUploadItem } from '../../../../../common/type/dashboard-user-file-e
   templateUrl: './ngbd-modal-file-add.component.html',
   styleUrls: ['./ngbd-modal-file-add.component.scss']
 })
+
 export class NgbdModalFileAddComponent implements OnInit {
 
   // This checks whether the user has hover a file over the file upload area

@@ -32,7 +32,7 @@ export class WorkflowGrantAccessService {
    * @param accessLevel the type of access offered
    * @return hashmap indicating all current accesses, ex: {"Jim": "Write"}
    */
-  public grantAccess(workflow: Workflow, username: string, accessLevel: string): Observable<Response> {
+  public grantUserWorkflowAccess(workflow: Workflow, username: string, accessLevel: string): Observable<Response> {
     return this.http.post<Response>(
       `${AppSettings.getApiEndpoint()}/${WORKFLOW_ACCESS_GRANT_URL}/${workflow.wid}/${username}/${accessLevel}`, null);
   }
@@ -42,7 +42,7 @@ export class WorkflowGrantAccessService {
    * @param workflow the current workflow
    * @return message of success
    */
-  public retrieveGrantedList(workflow: Workflow): Observable<Readonly<UserWorkflowAccess>[]> {
+  public retrieveGrantedWorkflowAccessList(workflow: Workflow): Observable<Readonly<UserWorkflowAccess>[]> {
     return this.http.get<Readonly<UserWorkflowAccess>[]>(
       `${AppSettings.getApiEndpoint()}/${WORKFLOW_ACCESS_LIST_URL}/${workflow.wid}`);
   }
@@ -54,7 +54,7 @@ export class WorkflowGrantAccessService {
    * @param username the username of target user
    * @return message of success
    */
-  public revokeAccess(workflow: Workflow, username: string): Observable<Response> {
+  public revokeWorkflowAccess(workflow: Workflow, username: string): Observable<Response> {
     return this.http.post<Response>(
       `${AppSettings.getApiEndpoint()}/${WORKFLOW_ACCESS_REVOKE_URL}/${workflow.wid}/${username}`, null);
   }

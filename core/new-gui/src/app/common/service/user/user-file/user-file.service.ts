@@ -95,14 +95,14 @@ export class UserFileService {
 
   /**
    * Assign a new access to/Modify an existing access of another user
-   * @param file the file that is about to be shared
+   * @param fileEntry the file entry that is selected
    * @param username the username of target user
    * @param accessLevel the type of access offered
    * @return Response
    */
-  public grantUserFileAccess(file: DashboardUserFileEntry, username: string, accessLevel: string): Observable<Response> {
+  public grantUserFileAccess(fileEntry: DashboardUserFileEntry, username: string, accessLevel: string): Observable<Response> {
     return this.http.post<Response>(
-      `${USER_FILE_ACCESS_GRANT_URL}/${file.file.name}/${file.ownerName}/${username}/${accessLevel}`,
+      `${USER_FILE_ACCESS_GRANT_URL}/${fileEntry.file.name}/${fileEntry.ownerName}/${username}/${accessLevel}`,
       null);
   }
 

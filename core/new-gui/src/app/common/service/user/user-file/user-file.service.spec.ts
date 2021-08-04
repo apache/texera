@@ -15,22 +15,22 @@ import { AppSettings } from 'src/app/common/app-setting';
 
 
 const id = 1;
-const name = 'testFile';
+const name = 'testFileEntry';
 const path = 'test/path';
 const description = 'this is a test file';
 const size = 1024;
 const username = 'Jim';
 const accessLevel = 'read';
-const fileContent: UserFile = {
-  id: id,
+const testFile: UserFile = {
+  fid: id,
   name: name,
   path: path,
   size: size,
   description: description
 };
-const testFile: DashboardUserFileEntry = {
+const testFileEntry: DashboardUserFileEntry = {
   ownerName: 'Texera',
-  file: fileContent,
+  file: testFile,
   accessLevel: 'Write',
   isOwner: true,
 };
@@ -63,26 +63,25 @@ describe('UserFileService', () => {
 
 
   it('can share access', () => {
-    service.grantUserFileAccess(testFile, username, accessLevel).first().subscribe();
+    service.grantUserFileAccess(testFileEntry, username, accessLevel).first().subscribe();
     const req = httpMock.expectOne(
-      `${AppSettings.getApiEndpoint()}/${USER_FILE_ACCESS_GRANT_URL}/${testFile.file.name}/
-      ${testFile.ownerName}/${username}/${accessLevel}`);
+      `${USER_FILE_ACCESS_GRANT_URL}/${testFileEntry.file.name}/${testFileEntry.ownerName}/${username}/${accessLevel}`);
     expect(req.request.method).toEqual('POST');
     req.flush({code: 0, message: ''});
   });
 
   it('can revoke access', () => {
-    service.revokeUserFileAccess(testFile, username).first().subscribe();
+    service.revokeUserFileAccess(testFileEntry, username).first().subscribe();
     const req = httpMock.expectOne(
-      `${AppSettings.getApiEndpoint()}/${USER_FILE_ACCESS_REVOKE_URL}/${testFile.file.name}/${testFile.ownerName}/${username}`);
+      `${USER_FILE_ACCESS_REVOKE_URL}/${testFileEntry.file.name}/${testFileEntry.ownerName}/${username}`);
     expect(req.request.method).toEqual('POST');
     req.flush({code: 0, message: ''});
   });
 
   it('can get all access', () => {
-    service.getUserFileAccessList(testFile).first().subscribe();
+    service.getUserFileAccessList(testFileEntry).first().subscribe();
     const req = httpMock.expectOne(
-      `${AppSettings.getApiEndpoint()}/${USER_FILE_ACCESS_LIST_URL}/${testFile.file.name}/${testFile.ownerName}`);
+      `${USER_FILE_ACCESS_LIST_URL}/${testFileEntry.file.name}/${testFileEntry.ownerName}`);
     expect(req.request.method).toEqual('GET');
     req.flush({code: 0, message: ''});
   });

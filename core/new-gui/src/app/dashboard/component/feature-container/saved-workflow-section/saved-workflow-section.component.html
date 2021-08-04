@@ -45,7 +45,7 @@
             ></nz-avatar>
           </nz-list-item-meta-avatar>
           <nz-list-item-meta-title>
-            <span>
+            <span class = "workflow-dashboard-entry">
                <label class="workflow-name"
                       (click)="jumpToWorkflow(dashboardWorkflowEntry.workflow)">{{dashboardWorkflowEntry.workflow.name}}</label>
                <i *ngIf="dashboardWorkflowEntry.isOwner" ngbTooltip="You are the OWNER" nz-icon nzType="user"

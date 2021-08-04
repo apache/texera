@@ -6,6 +6,7 @@ import { NgbdModalUserFileShareAccessComponent } from './ngbd-modal-user-file-sh
 import { UserFileService } from '../../../../../common/service/user/user-file/user-file.service';
 import { DashboardUserFileEntry, UserFile } from '../../../../../common/type/dashboard-user-file-entry';
 import { StubUserFileService } from '../../../../../common/service/user/user-file/stub-user-file-service';
+import { StubUserService } from 'src/app/common/service/user/stub-user.service';
 import { GoogleApiService, GoogleAuthService } from 'ng-gapi';
 
 describe('NgbdModalFileShareAccessComponent', () => {
@@ -19,7 +20,7 @@ describe('NgbdModalFileShareAccessComponent', () => {
   const description = 'this is a test file';
   const size = 1024;
   const fileContent: UserFile = {
-    id: id,
+    fid: id,
     name: name,
     path: path,
     size: size,
@@ -36,7 +37,7 @@ describe('NgbdModalFileShareAccessComponent', () => {
     TestBed.configureTestingModule({
       imports: [ReactiveFormsModule, FormsModule],
       declarations: [NgbdModalUserFileShareAccessComponent],
-      providers: [NgbActiveModal, HttpClient, HttpHandler, GoogleAuthService, GoogleApiService, {
+      providers: [NgbActiveModal, HttpClient, HttpHandler, GoogleAuthService, GoogleApiService, StubUserService, {
         provide: UserFileService,
         useClass: StubUserFileService
       }]
@@ -73,7 +74,7 @@ describe('NgbdModalFileShareAccessComponent', () => {
   });
 
   it('submitting a form', () => {
-    const mySpy = spyOn(service, 'grantUserFileAccess');
+    const mySpy = spyOn(service, 'grantUserFileAccess').and.callThrough();
     expect(component.shareForm.valid).toBeFalsy();
     component.shareForm.controls['username'].setValue('testguy');
     component.shareForm.controls['accessLevel'].setValue('read');

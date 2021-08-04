@@ -55,7 +55,7 @@ describe('NgbdModalShareAccessComponent', () => {
   });
 
   it('can get all accesses', () => {
-    const mySpy = spyOn(service, 'retrieveGrantedList').and.callThrough();
+    const mySpy = spyOn(service, 'retrieveGrantedWorkflowAccessList').and.callThrough();
     component.workflow = workflow;
     fixture.detectChanges();
     component.onClickGetAllSharedAccess(component.workflow);
@@ -64,7 +64,7 @@ describe('NgbdModalShareAccessComponent', () => {
   });
 
   it('can share accesses', () => {
-    const mySpy = spyOn(service, 'grantAccess').and.callThrough();
+    const mySpy = spyOn(service, 'grantUserWorkflowAccess').and.callThrough();
     component.workflow = workflow;
     fixture.detectChanges();
     component.grantAccess(component.workflow, 'Jim', 'read');
@@ -72,7 +72,7 @@ describe('NgbdModalShareAccessComponent', () => {
   });
 
   it('can remove accesses', () => {
-    const mySpy = spyOn(service, 'revokeAccess').and.callThrough();
+    const mySpy = spyOn(service, 'revokeWorkflowAccess').and.callThrough();
     component.onClickRemoveAccess(workflow, 'Jim');
     expect(mySpy).toHaveBeenCalled();
   });

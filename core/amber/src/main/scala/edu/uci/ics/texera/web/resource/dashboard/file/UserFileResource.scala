@@ -113,9 +113,8 @@ class UserFileResource {
   }
 
   private def getUserFileRecord(user: User): util.List[DashboardFileEntry] = {
-    // TODO: verify user in session?
     val accesses = userFileAccessDao.fetchByUid(user.getUid)
-    val files: mutable.ArrayBuffer[DashboardFileEntry] = mutable.ArrayBuffer()
+    val fileEntries: mutable.ArrayBuffer[DashboardFileEntry] = mutable.ArrayBuffer()
     accesses.asScala.toList.map(access => {
       val fid = access.getFid
       val file = fileDao.fetchOneByFid(fid)
@@ -128,14 +127,14 @@ class UserFileResource {
         accessLevel = "None"
       }
       val ownerName = userDao.fetchOneByUid(file.getUid).getName
-      files += DashboardFileEntry(
+      fileEntries += DashboardFileEntry(
         ownerName,
         accessLevel,
         ownerName == user.getName,
         file
       )
     })
-    files.toList.asJava
+    fileEntries.toList.asJava
   }
 
   /**

@@ -26,7 +26,7 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
 
   allUserWorkflowAccess: Readonly<UserWorkflowAccess>[] = [];
 
-  workflowOwner: string = "emm"
+  workflowOwner: string = '';
 
   public defaultWeb: String = 'http://localhost:4200/';
 
@@ -40,10 +40,6 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
     this.refreshGrantedList(this.workflow);
   }
 
-  public getOwnerOfWorkflow(workflow: Workflow): void{
-
-  }
-
   public onClickGetAllSharedAccess(workflow: Workflow): void {
     this.refreshGrantedList(workflow);
   }
@@ -53,13 +49,13 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
    * @param workflow target/current workflow
    */
   public refreshGrantedList(workflow: Workflow): void {
-    this.workflowGrantAccessService.retrieveGrantedList(workflow).subscribe(
+    this.workflowGrantAccessService.retrieveGrantedWorkflowAccessList(workflow).subscribe(
       (userWorkflowAccess: Readonly<UserWorkflowAccess>[]) => this.allUserWorkflowAccess = userWorkflowAccess,
       err => console.log(err.error)
     );
     this.workflowGrantAccessService.getOwner(workflow).subscribe(ownership => {
       this.workflowOwner = ownership[0];
-    })
+    });
   }
 
   /**
@@ -69,7 +65,7 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
    * @param accessLevel the type of access to be given
    */
   public grantAccess(workflow: Workflow, userToShareWith: string, accessLevel: string): void {
-    this.workflowGrantAccessService.grantAccess(workflow, userToShareWith, accessLevel).subscribe(
+    this.workflowGrantAccessService.grantUserWorkflowAccess(workflow, userToShareWith, accessLevel).subscribe(
       () => this.refreshGrantedList(workflow),
       err => alert(err.error));
   }
@@ -99,7 +95,7 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
    * @param userToRemove the target user
    */
   public onClickRemoveAccess(workflow: Workflow, userToRemove: string): void {
-    this.workflowGrantAccessService.revokeAccess(workflow, userToRemove).subscribe(
+    this.workflowGrantAccessService.revokeWorkflowAccess(workflow, userToRemove).subscribe(
       () => this.refreshGrantedList(workflow),
       err => alert(err.error)
     );

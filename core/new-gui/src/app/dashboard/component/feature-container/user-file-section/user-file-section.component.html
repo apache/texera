@@ -14,7 +14,13 @@
       <nz-list-item *ngFor="let dashboardUserFileEntry of getFileArray()" class="user-file-list-item">
         <nz-list-item-meta>
           <nz-list-item-meta-title>
-            <div class="file-name">{{dashboardUserFileEntry.file.name}}</div>
+            <div class="file-name"><h4 class = "file-title">{{dashboardUserFileEntry.file.name}}</h4>
+              <i *ngIf="dashboardUserFileEntry.isOwner" ngbTooltip="You are the OWNER" nz-icon nzType="user"
+               nzTheme="outline"></i>
+               <i *ngIf="!dashboardUserFileEntry.isOwner"
+               ngbTooltip="{{dashboardUserFileEntry.accessLevel}} access shared by {{dashboardUserFileEntry.ownerName}}"
+               nz-icon nzType="team" nzTheme="outline"></i>
+            </div>
           </nz-list-item-meta-title>
           <nz-list-item-meta-description>
             {{addFileSizeUnit(dashboardUserFileEntry.file.size)}}
