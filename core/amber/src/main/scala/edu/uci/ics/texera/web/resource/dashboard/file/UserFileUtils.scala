@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.web.resource.dashboard.file
 
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.FileDao
@@ -87,13 +86,6 @@ object UserFileUtils {
     }
   }
 
-  case class FileIOException(message: String)
-      extends WorkflowRuntimeException(
-        WorkflowRuntimeError(
-          message,
-          Thread.currentThread().getStackTrace.mkString("\n"),
-          Map.empty
-        )
-      )
-      with Serializable
+  case class FileIOException(message: String) extends WorkflowRuntimeException(message)
+
 }

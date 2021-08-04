@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
@@ -14,14 +15,12 @@ import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
-import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, WorkflowLogger}
+import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted}
 import edu.uci.ics.amber.error.ErrorUtils.safely
-import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import java.util.concurrent.{ExecutorService, Executors, Future, TimeUnit}
 
 class DataProcessor( // dependencies:
-    logger: WorkflowLogger, // logger of the worker actor
     operator: IOperatorExecutor, // core logic
     asyncRPCClient: AsyncRPCClient, // to send controls
     batchProducer: TupleToBatchConverter, // to send output tuples
@@ -29,7 +28,8 @@ class DataProcessor( // dependencies:
     breakpointManager: BreakpointManager, // to evaluate breakpoints
     stateManager: WorkerStateManager,
     asyncRPCServer: AsyncRPCServer
-) extends WorkerInternalQueue {
+) extends WorkerInternalQueue
+    with LazyLogging {
   // initialize dp thread upon construction
   private val dpThreadExecutor: ExecutorService = Executors.newSingleThreadExecutor
   private val dpThread: Future[_] = dpThreadExecutor.submit(new Runnable() {
@@ -39,11 +39,10 @@ class DataProcessor( // dependencies:
         operator.open()
         runDPThreadMainLogic()
       } catch safely {
-        case e: InterruptedException =>
-          logger.logInfo("DP Thread exits")
+        case _: InterruptedException =>
+          logger.info("DP Thread exits")
         case e =>
-          val error = WorkflowRuntimeError(e, "DP Thread internal logic")
-          logger.logError(error)
+          logger.error(e.getLocalizedMessage + "\n" + e.getStackTrace.mkString("\n"))
         // dp thread will stop here
       }
     }
@@ -157,7 +156,7 @@ class DataProcessor( // dependencies:
       }
     }
     // Send Completed signal to worker actor.
-    logger.logInfo(s"${operator.toString} completed")
+    logger.info(s"$operator completed")
     asyncRPCClient.send(WorkerExecutionCompleted(), CONTROLLER)
     stateManager.transitTo(COMPLETED)
     disableDataQueue()
@@ -176,7 +175,7 @@ class DataProcessor( // dependencies:
         CONTROLLER
       )
     }
-    logger.logWarning(e.getLocalizedMessage + "\n" + e.getStackTrace.mkString("\n"))
+    logger.warn(e.getLocalizedMessage + "\n" + e.getStackTrace.mkString("\n"))
     // invoke a pause in-place
     asyncRPCServer.execute(PauseWorker(), SELF)
   }

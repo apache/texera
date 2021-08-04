@@ -21,12 +21,12 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputPort
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.SendPythonUdfHandler.SendPythonUdf
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
 import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowControlMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.error.ErrorUtils.safely
-import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
 
 import scala.concurrent.duration._
@@ -72,14 +72,17 @@ class Controller(
     parentNetworkCommunicationActorRef: ActorRef
 ) extends WorkflowActor(CONTROLLER, parentNetworkCommunicationActorRef) {
   lazy val controlInputPort: NetworkInputPort[ControlPayload] =
-    new NetworkInputPort[ControlPayload](this.logger, this.handleControlPayloadWithTryCatch)
+    new NetworkInputPort[ControlPayload](this.handleControlPayloadWithTryCatch)
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
   val rpcHandlerInitializer: ControllerAsyncRPCHandlerInitializer =
     wire[ControllerAsyncRPCHandlerInitializer]
   var statusUpdateAskHandle: Cancellable = _
 
-  logger.setErrorLogAction(errorLogAction)
+  def availableNodes: Array[Address] =
+    Await
+      .result(context.actorSelection("/user/cluster-info") ? GetAvailableNodeAddresses, 5.seconds)
+      .asInstanceOf[Array[Address]]
 
   // register controller itself
   networkCommunicationActor ! RegisterActorRef(CONTROLLER, self)
@@ -138,7 +141,7 @@ class Controller(
       case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload)) =>
         controlInputPort.handleMessage(this.sender(), id, from, seqNum, payload)
       case other =>
-        logger.logInfo(s"unhandled message: $other")
+        log.info(s"unhandled message: $other")
     }
   }
 
@@ -162,17 +165,16 @@ class Controller(
           asyncRPCClient.logControlReply(ret, from)
           asyncRPCClient.fulfillPromise(ret)
         case other =>
-          logger.logError(
-            WorkflowRuntimeError(
-              s"unhandled control message: $other",
-              "ControlInputPort",
-              Map.empty
-            )
-          )
+          throw new WorkflowRuntimeException(s"unhandled control message: $other")
       }
     } catch safely {
-      case e =>
-        logger.logError(WorkflowRuntimeError(e, identifier.toString))
+      case err =>
+
+        // report error to frontend
+        if (eventListener.workflowExecutionErrorListener != null) {
+          eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
+        }
+        throw err
     }
   }
 
@@ -207,13 +209,11 @@ class Controller(
     if (statusUpdateAskHandle != null) {
       statusUpdateAskHandle.cancel()
     }
-    logger.logInfo("stopped!")
+    log.info("stopped!")
   }
 
-  private def errorLogAction(err: WorkflowRuntimeError): Unit = {
-    if (eventListener.workflowExecutionErrorListener != null) {
-      eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
-    }
+  private def errorLogAction(err: Throwable): Unit = {
+
   }
 
 }

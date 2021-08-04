@@ -8,7 +8,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   TupleToBatchConverter
 }
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers._
-import edu.uci.ics.amber.engine.common.{IOperatorExecutor, WorkflowLogger}
+import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.rpc.{
   AsyncRPCClient,
   AsyncRPCHandlerInitializer,
@@ -41,6 +41,5 @@ class WorkerAsyncRPCHandlerInitializer(
     with StartHandler
     with UpdateInputLinkingHandler
     with ShutdownDPThreadHandler {
-  val logger: WorkflowLogger = WorkflowLogger("WorkerControlHandler")
   var lastReportTime = 0L
 }

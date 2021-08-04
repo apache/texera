@@ -4,6 +4,7 @@ import akka.actor.{ActorRef, Props}
 import akka.util.Timeout
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   NetworkMessage,
@@ -22,6 +23,7 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
   UNINITIALIZED
 }
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.{
   ControlPayload,
   DataPayload,
@@ -33,7 +35,6 @@ import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCHandlerIniti
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
-import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
@@ -56,9 +57,9 @@ class WorkflowWorker(
   lazy val pauseManager: PauseManager = wire[PauseManager]
   lazy val dataProcessor: DataProcessor = wire[DataProcessor]
   lazy val dataInputPort: NetworkInputPort[DataPayload] =
-    new NetworkInputPort[DataPayload](this.logger, this.handleDataPayload)
+    new NetworkInputPort[DataPayload](this.handleDataPayload)
   lazy val controlInputPort: NetworkInputPort[ControlPayload] =
-    new NetworkInputPort[ControlPayload](this.logger, this.handleControlPayload)
+    new NetworkInputPort[ControlPayload](this.handleControlPayload)
   lazy val dataOutputPort: DataOutputPort = wire[DataOutputPort]
   lazy val batchProducer: TupleToBatchConverter = wire[TupleToBatchConverter]
   lazy val tupleProducer: BatchToTupleConverter = wire[BatchToTupleConverter]
@@ -81,18 +82,25 @@ class WorkflowWorker(
 
   override def receive: Receive = receiveAndProcessMessages
 
-  def receiveAndProcessMessages: Receive = {
-    disallowActorRefRelatedMessages orElse {
-      case NetworkMessage(id, WorkflowDataMessage(from, seqNum, payload)) =>
-        dataInputPort.handleMessage(this.sender(), id, from, seqNum, payload)
-      case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload)) =>
-        controlInputPort.handleMessage(this.sender(), id, from, seqNum, payload)
-      case other =>
-        logger.logError(
-          WorkflowRuntimeError(s"unhandled message: $other", identifier.toString, Map.empty)
+  def receiveAndProcessMessages: Receive =
+    try {
+      disallowActorRefRelatedMessages orElse {
+        case NetworkMessage(id, WorkflowDataMessage(from, seqNum, payload)) =>
+          dataInputPort.handleMessage(this.sender(), id, from, seqNum, payload)
+        case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload)) =>
+          controlInputPort.handleMessage(this.sender(), id, from, seqNum, payload)
+        case other =>
+          throw new WorkflowRuntimeException(s"unhandled message: $other")
+      }
+    } catch {
+      case err: WorkflowRuntimeException =>
+        log.error(err, s"Encountered fatal error, worker is shutting done.")
+        asyncRPCClient.send(
+          FatalError(err),
+          CONTROLLER
         )
+        throw err;
     }
-  }
 
   def handleDataPayload(from: ActorVirtualIdentity, dataPayload: DataPayload): Unit = {
     if (workerStateManager.getCurrentState == READY) {
@@ -115,13 +123,7 @@ class WorkflowWorker(
       case controlCommand @ (ControlInvocation(_, _) | ReturnInvocation(_, _)) =>
         dataProcessor.enqueueCommand(controlCommand, from)
       case _ =>
-        logger.logError(
-          WorkflowRuntimeError(
-            s"unhandled control payload: $controlPayload",
-            identifier.toString,
-            Map.empty
-          )
-        )
+        throw new WorkflowRuntimeException(s"unhandled control payload: $controlPayload")
     }
   }
 
@@ -131,7 +133,7 @@ class WorkflowWorker(
       ControlInvocation(AsyncRPCClient.IgnoreReply, ShutdownDPThread()),
       SELF
     )
-    logger.logInfo("stopped!")
+    log.info("stopped!")
   }
 
 }

@@ -1,8 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.common
 
-import akka.actor.{Actor, ActorRef, Stash}
+import akka.actor.{Actor, ActorLogging, ActorRef, Stash}
 import com.softwaremill.macwire.wire
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   GetActorRef,
   NetworkSenderActorRef,
@@ -12,59 +11,39 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   ControlOutputPort,
   NetworkCommunicationActor
 }
-import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.rpc.{
   AsyncRPCClient,
   AsyncRPCHandlerInitializer,
   AsyncRPCServer
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 abstract class WorkflowActor(
     val identifier: ActorVirtualIdentity,
     parentNetworkCommunicationActorRef: ActorRef
 ) extends Actor
-    with Stash {
+    with Stash
+    with ActorLogging {
 
-  val logger: WorkflowLogger = WorkflowLogger(s"$identifier")
+  lazy val controlOutputPort: ControlOutputPort = wire[ControlOutputPort]
 
-  logger.setErrorLogAction(err => {
-    asyncRPCClient.send(
-      FatalError(err),
-      CONTROLLER
-    )
-  })
+  lazy val asyncRPCClient: AsyncRPCClient = wire[AsyncRPCClient]
+  lazy val asyncRPCServer: AsyncRPCServer = wire[AsyncRPCServer]
 
   val networkCommunicationActor: NetworkSenderActorRef = NetworkSenderActorRef(
     // create a network communication actor on the same machine as the WorkflowActor itself
-    context.actorOf(NetworkCommunicationActor.props(parentNetworkCommunicationActorRef, logger))
+    context.actorOf(NetworkCommunicationActor.props(parentNetworkCommunicationActorRef))
   )
-  lazy val controlOutputPort: ControlOutputPort = wire[ControlOutputPort]
-  lazy val asyncRPCClient: AsyncRPCClient = wire[AsyncRPCClient]
-  lazy val asyncRPCServer: AsyncRPCServer = wire[AsyncRPCServer]
   // this variable cannot be lazy
   // because it should be initialized with the actor itself
   val rpcHandlerInitializer: AsyncRPCHandlerInitializer
 
   def disallowActorRefRelatedMessages: Receive = {
-    case GetActorRef(id, replyTo) =>
-      logger.logError(
-        WorkflowRuntimeError(
-          "workflow actor should never receive get actor ref message",
-          identifier.toString,
-          Map.empty
-        )
-      )
-    case RegisterActorRef(id, ref) =>
-      logger.logError(
-        WorkflowRuntimeError(
-          "workflow actor should never receive register actor ref message",
-          identifier.toString,
-          Map.empty
-        )
-      )
+    case GetActorRef =>
+      log.error("workflow actor should never receive get actor ref message")
+
+    case RegisterActorRef =>
+      log.error("workflow actor should never receive register actor ref message")
   }
 
 }

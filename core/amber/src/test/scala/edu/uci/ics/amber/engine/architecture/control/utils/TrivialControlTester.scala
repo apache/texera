@@ -15,7 +15,7 @@ class TrivialControlTester(id: ActorVirtualIdentity, parentNetworkCommunicationA
     extends WorkflowActor(id, parentNetworkCommunicationActorRef) {
 
   lazy val controlInputPort: NetworkInputPort[ControlPayload] =
-    new NetworkInputPort[ControlPayload](this.logger, this.handleControlPayloadWithTryCatch)
+    new NetworkInputPort[ControlPayload](this.handleControlPayloadWithTryCatch)
   override val rpcHandlerInitializer: AsyncRPCHandlerInitializer =
     wire[TesterAsyncRPCHandlerInitializer]
 
@@ -25,7 +25,7 @@ class TrivialControlTester(id: ActorVirtualIdentity, parentNetworkCommunicationA
             id,
             internalMessage @ WorkflowControlMessage(from, sequenceNumber, payload)
           ) =>
-        logger.logInfo(s"received $internalMessage")
+        log.info(s"received $internalMessage")
         this.controlInputPort.handleMessage(
           this.sender(),
           id,
@@ -34,7 +34,7 @@ class TrivialControlTester(id: ActorVirtualIdentity, parentNetworkCommunicationA
           payload
         )
       case other =>
-        logger.logInfo(s"unhandled message: $other")
+        log.info(s"unhandled message: $other")
     }
   }
 
@@ -42,24 +42,22 @@ class TrivialControlTester(id: ActorVirtualIdentity, parentNetworkCommunicationA
       from: ActorVirtualIdentity,
       controlPayload: ControlPayload
   ): Unit = {
-
-    controlPayload match {
-      // use control input port to pass control messages
-      case invocation: ControlInvocation =>
-        assert(from.isInstanceOf[ActorVirtualIdentity])
-        asyncRPCServer.logControlInvocation(invocation, from)
-        asyncRPCServer.receive(invocation, from)
-      case ret: ReturnInvocation =>
-        asyncRPCClient.logControlReply(ret, from)
-        asyncRPCClient.fulfillPromise(ret)
-      case other =>
-        logger.logError(
-          WorkflowRuntimeError(
-            s"unhandled control message: $other",
-            "ControlInputPort",
-            Map.empty
-          )
-        )
+    try {
+      controlPayload match {
+        // use control input port to pass control messages
+        case invocation: ControlInvocation =>
+          assert(from.isInstanceOf[ActorVirtualIdentity])
+          asyncRPCServer.logControlInvocation(invocation, from)
+          asyncRPCServer.receive(invocation, from)
+        case ret: ReturnInvocation =>
+          asyncRPCClient.logControlReply(ret, from)
+          asyncRPCClient.fulfillPromise(ret)
+        case other =>
+          log.error(s"unhandled control message: $other")
+      }
+    } catch safely {
+      case e =>
+        log.error(e, "")
     }
 
   }

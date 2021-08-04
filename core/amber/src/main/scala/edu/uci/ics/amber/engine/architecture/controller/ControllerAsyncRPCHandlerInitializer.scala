@@ -11,7 +11,6 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWor
 }
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers._
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlOutputPort
-import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.{
   AsyncRPCClient,
@@ -23,7 +22,6 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import scala.concurrent.duration.{DurationInt, FiniteDuration, MILLISECONDS}
 
 class ControllerAsyncRPCHandlerInitializer(
-    val logger: WorkflowLogger,
     val actorContext: ActorContext,
     val selfID: ActorVirtualIdentity,
     val controlOutputPort: ControlOutputPort,
