@@ -169,11 +169,12 @@ class Controller(
       }
     } catch safely {
       case err =>
-
         // report error to frontend
         if (eventListener.workflowExecutionErrorListener != null) {
           eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
         }
+
+        // re-throw the error to fail the actor
         throw err
     }
   }
@@ -211,9 +212,4 @@ class Controller(
     }
     log.info("stopped!")
   }
-
-  private def errorLogAction(err: Throwable): Unit = {
-
-  }
-
 }

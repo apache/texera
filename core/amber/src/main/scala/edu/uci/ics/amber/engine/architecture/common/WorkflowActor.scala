@@ -11,6 +11,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   ControlOutputPort,
   NetworkCommunicationActor
 }
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.rpc.{
   AsyncRPCClient,
   AsyncRPCHandlerInitializer,
@@ -40,10 +41,14 @@ abstract class WorkflowActor(
 
   def disallowActorRefRelatedMessages: Receive = {
     case GetActorRef =>
-      log.error("workflow actor should never receive get actor ref message")
+      throw new WorkflowRuntimeException(
+        "workflow actor should never receive get actor ref message"
+      )
 
     case RegisterActorRef =>
-      log.error("workflow actor should never receive register actor ref message")
+      throw new WorkflowRuntimeException(
+        "workflow actor should never receive register actor ref message"
+      )
   }
 
 }
