@@ -5,6 +5,7 @@ import akka.remote.RemoteScope
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.DeploymentFilter
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.DeployStrategy
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.RegisterActorRef
+import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.UNINITIALIZED
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
@@ -15,6 +16,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   LinkIdentity
 }
 import edu.uci.ics.amber.engine.operators.OpExecConfig
+import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
 
 import scala.collection.mutable
 
@@ -62,9 +64,15 @@ class WorkerLayer(
       val workerID = ActorVirtualIdentity(s"Worker-$id-[$i]")
       val d = deployStrategy.next()
       val ref = context.actorOf(
-        WorkflowWorker
-          .props(workerID, m, parentNetworkCommunicationActorRef)
-          .withDeploy(Deploy(scope = RemoteScope(d)))
+        if (m.isInstanceOf[PythonUDFOpExecV2]) {
+          PythonWorkflowWorker
+            .props(workerID, m, parentNetworkCommunicationActorRef)
+            .withDeploy(Deploy(scope = RemoteScope(d)))
+        } else {
+          WorkflowWorker
+            .props(workerID, m, parentNetworkCommunicationActorRef)
+            .withDeploy(Deploy(scope = RemoteScope(d)))
+        }
       )
       parentNetworkCommunicationActorRef ! RegisterActorRef(workerID, ref)
       workerToLayer(workerID) = this

@@ -25,7 +25,7 @@ class NetworkReceiver(Runnable, Stoppable):
             # TODO: OPTIMIZE:
             #   change the API to use pandas.DataFrame instead of pyarrow.Table
             data_header = PythonDataHeader().parse(command)
-            if not data_header.end:
+            if not data_header.is_end:
                 input_schema = table.schema
                 # record input schema
                 for field in input_schema:

@@ -21,7 +21,7 @@ export class CodeEditorDialogComponent implements OnInit {
     enableBasicAutocompletion: true,
     enableSnippets: true,
     enableLiveAutocompletion: true,
-    maxLines: 80,
+    maxLines: 40,
     minLines: 20,
     autoScrollEditorIntoView: false,
     highlightActiveLine: true,
