@@ -21,7 +21,7 @@ import scala.jdk.CollectionConverters.asScalaBufferConverter
 class TwitterFullArchiveSearchSourceOpExec(
     desc: TwitterFullArchiveSearchSourceOpDesc,
     operatorSchemaInfo: OperatorSchemaInfo
-) extends TwitterSourceOpExec(desc.apiKey, desc.apiSecretKey) {
+) extends TwitterSourceOpExec(desc.apiKey, desc.apiSecretKey, desc.stopWhenRateLimited) {
   val outputSchemaAttributes: Array[AttributeType] = operatorSchemaInfo.outputSchema.getAttributes
     .map((attribute: Attribute) => { attribute.getType })
     .toArray
