@@ -19,7 +19,7 @@ import scala.collection.JavaConverters._
   * A Utility Class used to for operations related to database
   */
 object UserFileAccessResource {
-  private var context: DSLContext = SqlServer.createDSLContext
+  private val context: DSLContext = SqlServer.createDSLContext
 
   def hasAccessTo(uid: UInteger, fid: UInteger): Boolean = {
     context

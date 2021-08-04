@@ -5,15 +5,13 @@ import { AppSettings } from '../../../app-setting';
 import { DashboardUserFileEntry, UserFileAccess } from '../../../type/dashboard-user-file-entry';
 import { UserService } from '../user.service';
 
-export const USER_FILE_BASE_URL = 'user/file';
+export const USER_FILE_BASE_URL = `${AppSettings.getApiEndpoint()}/user/file`;
 export const USER_FILE_LIST_URL = `${USER_FILE_BASE_URL}/list`;
 export const USER_FILE_DELETE_URL = `${USER_FILE_BASE_URL}/delete`;
 export const USER_FILE_ACCESS_BASE_URL = `${USER_FILE_BASE_URL}/access`;
 export const USER_FILE_ACCESS_GRANT_URL = `${USER_FILE_ACCESS_BASE_URL}/grant`;
 export const USER_FILE_ACCESS_LIST_URL = `${USER_FILE_ACCESS_BASE_URL}/list`;
 export const USER_FILE_ACCESS_REVOKE_URL = `${USER_FILE_ACCESS_BASE_URL}/revoke`;
-
-
 
 
 @Injectable({
@@ -70,7 +68,7 @@ export class UserFileService {
   public deleteFile(targetFile: DashboardUserFileEntry): void {
     console.log(targetFile);
     this.http.delete<Response>(
-      `${AppSettings.getApiEndpoint()}/${USER_FILE_DELETE_URL}/${targetFile.file.name}/${targetFile.ownerName}`).subscribe(
+      `${USER_FILE_DELETE_URL}/${targetFile.file.name}/${targetFile.ownerName}`).subscribe(
       () => this.refreshFiles(),
       err => alert('Can\'t delete the file: ' + err.error)
     );
@@ -104,7 +102,7 @@ export class UserFileService {
    */
   public grantUserFileAccess(file: DashboardUserFileEntry, username: string, accessLevel: string): Observable<Response> {
     return this.http.post<Response>(
-      `${AppSettings.getApiEndpoint()}/${USER_FILE_ACCESS_GRANT_URL}/${file.file.name}/${file.ownerName}/${username}/${accessLevel}`,
+      `${USER_FILE_ACCESS_GRANT_URL}/${file.file.name}/${file.ownerName}/${username}/${accessLevel}`,
       null);
   }
 
@@ -115,8 +113,7 @@ export class UserFileService {
    */
   public getUserFileAccessList(dashboardUserFileEntry: DashboardUserFileEntry): Observable<ReadonlyArray<UserFileAccess>> {
     return this.http.get<ReadonlyArray<UserFileAccess>>(
-      `${AppSettings.getApiEndpoint()}/${USER_FILE_ACCESS_LIST_URL}/${dashboardUserFileEntry.file.name}/
-      ${dashboardUserFileEntry.ownerName}`);
+      `${USER_FILE_ACCESS_LIST_URL}/${dashboardUserFileEntry.file.name}/${dashboardUserFileEntry.ownerName}`);
   }
 
   /**
@@ -126,13 +123,12 @@ export class UserFileService {
    * @return message of success
    */
   public revokeUserFileAccess(dashboardUserFileEntry: DashboardUserFileEntry, username: string): Observable<Response> {
-    return this.http.post<Response>(
-      `${AppSettings.getApiEndpoint()}/${USER_FILE_ACCESS_REVOKE_URL}/${dashboardUserFileEntry.file.name}/
+    return this.http.post<Response>(`${USER_FILE_ACCESS_REVOKE_URL}/${dashboardUserFileEntry.file.name}/
       ${dashboardUserFileEntry.ownerName}/${username}`, null);
   }
 
   private retrieveDashboardUserFileEntryList(): Observable<ReadonlyArray<DashboardUserFileEntry>> {
-    return this.http.get<ReadonlyArray<DashboardUserFileEntry>>(`${AppSettings.getApiEndpoint()}/${USER_FILE_LIST_URL}`);
+    return this.http.get<ReadonlyArray<DashboardUserFileEntry>>(`${USER_FILE_LIST_URL}`);
   }
 
   /**

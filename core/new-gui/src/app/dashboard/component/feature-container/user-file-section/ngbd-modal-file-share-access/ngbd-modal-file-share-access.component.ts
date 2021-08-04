@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, OnInit } from '@angular/core';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { FormBuilder, Validators } from '@angular/forms';
 import { UserFileService } from '../../../../../common/service/user/user-file/user-file.service';
@@ -10,7 +10,7 @@ import { DashboardUserFileEntry, UserFileAccess } from '../../../../../common/ty
   templateUrl: './ngbd-modal-file-share-access.component.html',
   styleUrls: ['./ngbd-modal-file-share-access.component.scss']
 })
-export class NgbdModalFileShareAccessComponent {
+export class NgbdModalFileShareAccessComponent implements OnInit {
 
   @Input() dashboardUserFileEntry!: DashboardUserFileEntry;
 
@@ -32,6 +32,11 @@ export class NgbdModalFileShareAccessComponent {
   ) {
   }
 
+  ngOnInit(): void {
+    this.refreshGrantedUserFileAccessList(this.dashboardUserFileEntry);
+  }
+
+
   /**
    * get all shared access of the current dashboardUserFileEntry
    * @param dashboardUserFileEntry target/current dashboardUserFileEntry
@@ -48,8 +53,6 @@ export class NgbdModalFileShareAccessComponent {
       err => console.log(err.error)
     );
   }
-
-
 
 
   /**

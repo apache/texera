@@ -32,7 +32,7 @@ case class DashboardFileEntry(
 )
 
 object UserFileResource {
-  private var context: DSLContext = SqlServer.createDSLContext
+  private val context: DSLContext = SqlServer.createDSLContext
 }
 
 @Path("/user/file")
