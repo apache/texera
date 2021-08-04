@@ -2,15 +2,15 @@ import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { HttpClient, HttpHandler } from '@angular/common/http';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
-import { NgbdModalFileShareAccessComponent } from './ngbd-modal-file-share-access.component';
+import { NgbdModalUserFileShareAccessComponent } from './ngbd-modal-user-file-share-access.component';
 import { UserFileService } from '../../../../../common/service/user/user-file/user-file.service';
 import { DashboardUserFileEntry, UserFile } from '../../../../../common/type/dashboard-user-file-entry';
 import { StubUserFileService } from '../../../../../common/service/user/user-file/stub-user-file-service';
 import { GoogleApiService, GoogleAuthService } from 'ng-gapi';
 
 describe('NgbdModalFileShareAccessComponent', () => {
-  let component: NgbdModalFileShareAccessComponent;
-  let fixture: ComponentFixture<NgbdModalFileShareAccessComponent>;
+  let component: NgbdModalUserFileShareAccessComponent;
+  let fixture: ComponentFixture<NgbdModalUserFileShareAccessComponent>;
   let service: UserFileService;
 
   const id = 1;
@@ -35,7 +35,7 @@ describe('NgbdModalFileShareAccessComponent', () => {
   beforeEach(async(async () => {
     TestBed.configureTestingModule({
       imports: [ReactiveFormsModule, FormsModule],
-      declarations: [NgbdModalFileShareAccessComponent],
+      declarations: [NgbdModalUserFileShareAccessComponent],
       providers: [NgbActiveModal, HttpClient, HttpHandler, GoogleAuthService, GoogleApiService, {
         provide: UserFileService,
         useClass: StubUserFileService
@@ -44,7 +44,7 @@ describe('NgbdModalFileShareAccessComponent', () => {
   }));
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(NgbdModalFileShareAccessComponent);
+    fixture = TestBed.createComponent(NgbdModalUserFileShareAccessComponent);
     component = fixture.componentInstance;
     service = TestBed.get(UserFileService);
     fixture.detectChanges();

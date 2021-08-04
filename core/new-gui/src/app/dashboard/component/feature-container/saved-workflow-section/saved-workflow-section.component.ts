@@ -6,7 +6,7 @@ import { Observable } from 'rxjs';
 import { WorkflowPersistService } from '../../../../common/service/user/workflow-persist/workflow-persist.service';
 import { Workflow } from '../../../../common/type/workflow';
 import { NgbdModalDeleteWorkflowComponent } from './ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component';
-import { NgbdModalShareAccessComponent } from './ngbd-modal-share-access/ngbd-modal-share-access.component';
+import { NgbdModalWorkflowShareAccessComponent } from './ngbd-modal-share-access/ngbd-modal-workflow-share-access.component';
 import { DashboardWorkflowEntry } from '../../../../common/type/dashboard-workflow-entry';
 import { UserService } from '../../../../common/service/user/user.service';
 
@@ -38,7 +38,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
    * open the Modal based on the workflow clicked on
    */
   public onClickOpenShareAccess(workflow: Workflow): void {
-    const modalRef = this.modalService.open(NgbdModalShareAccessComponent);
+    const modalRef = this.modalService.open(NgbdModalWorkflowShareAccessComponent);
     modalRef.componentInstance.workflow = workflow;
   }
 

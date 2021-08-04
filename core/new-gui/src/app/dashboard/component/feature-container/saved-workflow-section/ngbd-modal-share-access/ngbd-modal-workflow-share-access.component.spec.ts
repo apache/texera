@@ -3,14 +3,14 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { HttpClient, HttpHandler } from '@angular/common/http';
 import { WorkflowGrantAccessService } from '../../../../../common/service/user/workflow-access-control/workflow-grant-access.service';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
-import { NgbdModalShareAccessComponent } from './ngbd-modal-share-access.component';
+import { NgbdModalWorkflowShareAccessComponent } from './ngbd-modal-workflow-share-access.component';
 import { StubWorkflowGrantAccessService } from '../../../../../common/service/user/workflow-access-control/stub-workflow-grant-access.service';
 import { Workflow, WorkflowContent } from '../../../../../common/type/workflow';
 import { jsonCast } from '../../../../../common/util/storage';
 
 describe('NgbdModalShareAccessComponent', () => {
-  let component: NgbdModalShareAccessComponent;
-  let fixture: ComponentFixture<NgbdModalShareAccessComponent>;
+  let component: NgbdModalWorkflowShareAccessComponent;
+  let fixture: ComponentFixture<NgbdModalWorkflowShareAccessComponent>;
   let service: StubWorkflowGrantAccessService;
 
   const workflow: Workflow = {
@@ -28,7 +28,7 @@ describe('NgbdModalShareAccessComponent', () => {
         FormsModule
       ],
       declarations: [
-        NgbdModalShareAccessComponent
+        NgbdModalWorkflowShareAccessComponent
       ],
       providers: [
         NgbActiveModal,
@@ -40,7 +40,7 @@ describe('NgbdModalShareAccessComponent', () => {
   }));
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(NgbdModalShareAccessComponent);
+    fixture = TestBed.createComponent(NgbdModalWorkflowShareAccessComponent);
     component = fixture.componentInstance;
     service = TestBed.get(WorkflowGrantAccessService);
     fixture.detectChanges();

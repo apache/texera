@@ -82,8 +82,8 @@ import { WorkflowEditorComponent } from './workspace/component/workflow-editor/w
 import { WorkspaceComponent } from './workspace/component/workspace.component';
 import { ResultDownloadComponent } from './workspace/component/navigation/result-download/result-download.component';
 import { GoogleApiModule, NG_GAPI_CONFIG } from 'ng-gapi';
-import {NgbdModalShareAccessComponent} from './dashboard/component/feature-container/saved-workflow-section/ngbd-modal-share-access/ngbd-modal-share-access.component';
-import {NgbdModalFileShareAccessComponent} from './dashboard/component/feature-container/user-file-section/ngbd-modal-file-share-access/ngbd-modal-file-share-access.component';
+import {NgbdModalWorkflowShareAccessComponent} from './dashboard/component/feature-container/saved-workflow-section/ngbd-modal-share-access/ngbd-modal-workflow-share-access.component';
+import {NgbdModalUserFileShareAccessComponent} from './dashboard/component/feature-container/user-file-section/ngbd-modal-file-share-access/ngbd-modal-user-file-share-access.component';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzStatisticModule } from 'ng-zorro-antd/statistic';
 import { NzTagModule } from 'ng-zorro-antd/tag';
@@ -133,8 +133,8 @@ registerLocaleData(en);
     CodeEditorDialogComponent,
     TypeCastingDisplayComponent,
     ResultDownloadComponent,
-    NgbdModalShareAccessComponent,
-    NgbdModalFileShareAccessComponent
+    NgbdModalWorkflowShareAccessComponent,
+    NgbdModalUserFileShareAccessComponent
   ],
   imports: [
     BrowserModule,
@@ -196,7 +196,7 @@ registerLocaleData(en);
     NgbdModalUserLoginComponent,
     RowModalComponent,
     NgbdModalFileAddComponent,
-    NgbdModalShareAccessComponent
+    NgbdModalWorkflowShareAccessComponent
   ],
   providers: [
     HttpClientModule,

@@ -10,10 +10,10 @@ import { Workflow } from '../../../../../common/type/workflow';
 
 @Component({
   selector: 'texera-ngbd-modal-share-access',
-  templateUrl: './ngbd-modal-share-access.component.html',
-  styleUrls: ['./ngbd-modal-share-access.component.scss']
+  templateUrl: './ngbd-modal-workflow-share-access.component.html',
+  styleUrls: ['./ngbd-modal-workflow-share-access.component.scss']
 })
-export class NgbdModalShareAccessComponent implements OnInit {
+export class NgbdModalWorkflowShareAccessComponent implements OnInit {
 
   @Input() workflow!: Workflow;
 

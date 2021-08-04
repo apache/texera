@@ -10,7 +10,7 @@ import { UserService } from '../../../../common/service/user/user.service';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { StubUserService } from '../../../../common/service/user/stub-user.service';
 import { UserFile, DashboardUserFileEntry } from "../../../../common/type/dashboard-user-file-entry";
-import { NgbdModalFileShareAccessComponent } from "./ngbd-modal-file-share-access/ngbd-modal-file-share-access.component";
+import { NgbdModalUserFileShareAccessComponent } from "./ngbd-modal-file-share-access/ngbd-modal-user-file-share-access.component";
 
 describe('UserFileSectionComponent', () => {
   let component: UserFileSectionComponent;
@@ -62,7 +62,7 @@ describe('UserFileSectionComponent', () => {
     fixture = TestBed.createComponent(UserFileSectionComponent);
     component = fixture.componentInstance;
     modalService = TestBed.get(NgbModal);
-    modalRef = modalService.open(NgbdModalFileShareAccessComponent);
+    modalRef = modalService.open(NgbdModalUserFileShareAccessComponent);
     spyOn(modalService, 'open').and.returnValue(modalRef);
     fixture.detectChanges();
   });

@@ -9,7 +9,7 @@ import { MatListModule } from '@angular/material/list';
 import { MatCardModule } from '@angular/material/card';
 import { MatDialogModule } from '@angular/material/dialog';
 import { NgbActiveModal, NgbModal, NgbModalRef, NgbModule } from '@ng-bootstrap/ng-bootstrap';
-import { NgbdModalShareAccessComponent } from './ngbd-modal-share-access/ngbd-modal-share-access.component';
+import { NgbdModalWorkflowShareAccessComponent } from './ngbd-modal-share-access/ngbd-modal-workflow-share-access.component';
 import { Workflow, WorkflowContent } from '../../../../common/type/workflow';
 import { jsonCast } from '../../../../common/util/storage';
 import { HttpClient } from '@angular/common/http';
@@ -107,7 +107,7 @@ describe('SavedWorkflowSectionComponent', () => {
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       declarations: [SavedWorkflowSectionComponent,
-        NgbdModalShareAccessComponent],
+        NgbdModalWorkflowShareAccessComponent],
       providers: [
         WorkflowPersistService,
         NgbActiveModal,
@@ -165,7 +165,7 @@ describe('SavedWorkflowSectionComponent', () => {
   });
 
   it('Modal Opened, then Closed', () => {
-    const modalRef: NgbModalRef = modalService.open(NgbdModalShareAccessComponent);
+    const modalRef: NgbModalRef = modalService.open(NgbdModalWorkflowShareAccessComponent);
     spyOn(modalService, 'open').and.returnValue(modalRef);
     component.onClickOpenShareAccess(TestWorkflow);
     expect(modalService.open).toHaveBeenCalled();

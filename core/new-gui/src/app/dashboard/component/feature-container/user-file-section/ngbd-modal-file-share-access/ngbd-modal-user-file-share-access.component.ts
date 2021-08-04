@@ -7,10 +7,10 @@ import { DashboardUserFileEntry, UserFileAccess } from '../../../../../common/ty
 
 @Component({
   selector: 'texera-ngbd-modal-file-share-access',
-  templateUrl: './ngbd-modal-file-share-access.component.html',
-  styleUrls: ['./ngbd-modal-file-share-access.component.scss']
+  templateUrl: './ngbd-modal-user-file-share-access.component.html',
+  styleUrls: ['./ngbd-modal-user-file-share-access.component.scss']
 })
-export class NgbdModalFileShareAccessComponent implements OnInit {
+export class NgbdModalUserFileShareAccessComponent implements OnInit {
 
   @Input() dashboardUserFileEntry!: DashboardUserFileEntry;
 

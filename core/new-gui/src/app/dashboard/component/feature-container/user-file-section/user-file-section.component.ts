@@ -4,7 +4,7 @@ import { NgbdModalFileAddComponent } from './ngbd-modal-file-add/ngbd-modal-file
 import { UserFileService } from '../../../../common/service/user/user-file/user-file.service';
 import { DashboardUserFileEntry } from '../../../../common/type/dashboard-user-file-entry';
 import { UserService } from '../../../../common/service/user/user.service';
-import {NgbdModalFileShareAccessComponent} from './ngbd-modal-file-share-access/ngbd-modal-file-share-access.component';
+import {NgbdModalUserFileShareAccessComponent} from './ngbd-modal-file-share-access/ngbd-modal-user-file-share-access.component';
 
 @Component({
   selector: 'texera-user-file-section',
@@ -29,7 +29,7 @@ export class UserFileSectionComponent implements OnInit {
   }
 
   public onClickOpenShareAccess(dashboardUserFileEntry: DashboardUserFileEntry): void {
-    const modalRef = this.modalService.open(NgbdModalFileShareAccessComponent);
+    const modalRef = this.modalService.open(NgbdModalUserFileShareAccessComponent);
     modalRef.componentInstance.dashboardUserFileEntry = dashboardUserFileEntry;
   }
 
