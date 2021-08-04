@@ -65,7 +65,7 @@
           </nz-list-item-meta-description>
         </nz-list-item-meta>
         <ul nz-list-item-actions>
-          <nz-list-item-action>
+          <nz-list-item-action *ngIf="dashboardWorkflowEntry.isOwner">
             <button (click)="onClickOpenShareAccess(dashboardWorkflowEntry.workflow)" type="button" nz-button
                     nz-tooltip="Share the workflow {{dashboardWorkflowEntry.workflow.name}} to others"
                     nzTooltipPlacement="bottom">
