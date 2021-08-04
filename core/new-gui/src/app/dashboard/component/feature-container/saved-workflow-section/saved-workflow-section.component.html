@@ -45,13 +45,16 @@
             ></nz-avatar>
           </nz-list-item-meta-avatar>
           <nz-list-item-meta-title>
-            <label class="workflow-name"
-                   (click)="jumpToWorkflow(dashboardWorkflowEntry.workflow)">{{dashboardWorkflowEntry.workflow.name}}</label>
-            <i *ngIf="dashboardWorkflowEntry.isOwner" ngbTooltip="You are the OWNER" nz-icon nzType="user"
+            <span>
+               <label class="workflow-name"
+                      (click)="jumpToWorkflow(dashboardWorkflowEntry.workflow)">{{dashboardWorkflowEntry.workflow.name}}</label>
+               <i *ngIf="dashboardWorkflowEntry.isOwner" ngbTooltip="You are the OWNER" nz-icon nzType="user"
                nzTheme="outline"></i>
-            <i *ngIf="!dashboardWorkflowEntry.isOwner"
+               <i *ngIf="!dashboardWorkflowEntry.isOwner"
                ngbTooltip="{{dashboardWorkflowEntry.accessLevel}} access shared by {{dashboardWorkflowEntry.ownerName}}"
                nz-icon nzType="team" nzTheme="outline"></i>
+            </span>
+
           </nz-list-item-meta-title>
           <nz-list-item-meta-description>
             <p class="workflow-time">
