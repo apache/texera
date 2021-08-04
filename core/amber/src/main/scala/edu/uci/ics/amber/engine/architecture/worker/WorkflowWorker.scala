@@ -118,7 +118,6 @@ class WorkflowWorker(
       controlPayload: ControlPayload
   ): Unit = {
     // let dp thread process it
-    assert(from.isInstanceOf[ActorVirtualIdentity])
     controlPayload match {
       case controlCommand @ (ControlInvocation(_, _) | ReturnInvocation(_, _)) =>
         dataProcessor.enqueueCommand(controlCommand, from)
