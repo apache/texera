@@ -26,7 +26,7 @@
                     nz-tooltip="Share the file {{dashboardUserFileEntry.file.name}} to others"
                     nzTooltipPlacement="bottom"
                     *ngIf="dashboardUserFileEntry.accessLevel==='Write'">
-              <i class="fa fa-share"></i>
+              <i nz-icon nzType="share-alt" nzTheme="outline"></i>
             </button>
           </nz-list-item-action>
           <nz-list-item-action *ngIf="dashboardUserFileEntry.accessLevel==='Write'">
