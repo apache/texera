@@ -1,8 +1,8 @@
 import { Component, Input } from '@angular/core';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { FormBuilder, Validators } from '@angular/forms';
-import { UserFileAccess, UserFileService } from '../../../../../common/service/user/user-file/user-file.service';
-import { DashboardUserFileEntry } from '../../../../../common/type/dashboard-user-file-entry';
+import { UserFileService } from '../../../../../common/service/user/user-file/user-file.service';
+import { DashboardUserFileEntry, UserFileAccess } from '../../../../../common/type/dashboard-user-file-entry';
 
 
 @Component({
@@ -19,7 +19,7 @@ export class NgbdModalFileShareAccessComponent {
     accessLevel: ['', [Validators.required]]
   });
 
-  allUserFileAccess: UserFileAccess[] = [];
+  allUserFileAccess: ReadonlyArray<UserFileAccess> = [];
 
   accessLevels = ['read', 'write'];
 
@@ -32,38 +32,24 @@ export class NgbdModalFileShareAccessComponent {
   ) {
   }
 
-
-  public onClickGetAllSharedAccess(file: DashboardUserFileEntry): void {
-    this.refreshGrantedUserFileAccessList(file);
-  }
-
   /**
    * get all shared access of the current dashboardUserFileEntry
    * @param dashboardUserFileEntry target/current dashboardUserFileEntry
    */
   public refreshGrantedUserFileAccessList(dashboardUserFileEntry: DashboardUserFileEntry): void {
     this.userFileService.getUserFileAccessList(dashboardUserFileEntry).subscribe(
-      (userFileAccess: Readonly<UserFileAccess>[]) => {
-        this.allUserFileAccess = [];
+      (userFileAccess: ReadonlyArray<UserFileAccess>) => {
+        const newAccessList: UserFileAccess[] = [];
         userFileAccess.map(ufa => {
-          if (ufa.accessLevel === 'Owner') { this.fileOwner = ufa.username; } else { this.allUserFileAccess.push(ufa); }
+          if (ufa.accessLevel === 'Owner') { this.fileOwner = ufa.username; } else { newAccessList.push(ufa); }
         });
+        this.allUserFileAccess = newAccessList;
       },
       err => console.log(err.error)
     );
   }
 
-  /**
-   * Grant a specific level of file access to a given user
-   * @param dashboardUserFileEntry the given/target dashboardUserFileEntry
-   * @param userToShareWith the target user
-   * @param accessLevel the level of Access to be given
-   */
-  public grantUserFileAccess(dashboardUserFileEntry: DashboardUserFileEntry, userToShareWith: string, accessLevel: string): void {
-    this.userFileService.grantUserFileAccess(dashboardUserFileEntry, userToShareWith, accessLevel).subscribe(
-      () => this.refreshGrantedUserFileAccessList(dashboardUserFileEntry),
-      err => alert(err.error));
-  }
+
 
 
   /**
@@ -81,7 +67,9 @@ export class NgbdModalFileShareAccessComponent {
     }
     const userToShareWith = this.shareForm.get('username')?.value;
     const accessLevel = this.shareForm.get('accessLevel')?.value;
-    this.grantUserFileAccess(dashboardUserFileEntry, userToShareWith, accessLevel);
+    this.userFileService.grantUserFileAccess(dashboardUserFileEntry, userToShareWith, accessLevel).subscribe(
+      () => this.refreshGrantedUserFileAccessList(dashboardUserFileEntry),
+      err => alert(err.error));
   }
 
   /**

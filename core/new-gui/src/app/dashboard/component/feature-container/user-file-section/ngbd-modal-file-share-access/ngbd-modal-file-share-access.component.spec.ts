@@ -2,11 +2,11 @@ import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { HttpClient, HttpHandler } from '@angular/common/http';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
-import { NgbdModalFileShareAccessComponent } from "./ngbd-modal-file-share-access.component";
-import { UserFileService } from "../../../../../common/service/user/user-file/user-file.service";
-import { UserFile, DashboardUserFileEntry } from "../../../../../common/type/dashboard-user-file-entry";
-import { StubUserFileService } from "../../../../../common/service/user/user-file/stub-user-file-service";
-import { GoogleApiService, GoogleAuthService } from "ng-gapi";
+import { NgbdModalFileShareAccessComponent } from './ngbd-modal-file-share-access.component';
+import { UserFileService } from '../../../../../common/service/user/user-file/user-file.service';
+import { DashboardUserFileEntry, UserFile } from '../../../../../common/type/dashboard-user-file-entry';
+import { StubUserFileService } from '../../../../../common/service/user/user-file/stub-user-file-service';
+import { GoogleApiService, GoogleAuthService } from 'ng-gapi';
 
 describe('NgbdModalFileShareAccessComponent', () => {
   let component: NgbdModalFileShareAccessComponent;
@@ -18,19 +18,17 @@ describe('NgbdModalFileShareAccessComponent', () => {
   const path = 'test/path';
   const description = 'this is a test file';
   const size = 1024;
-  const username = "Jim";
-  const accessLevel = "read";
   const fileContent: UserFile = {
     id: id,
     name: name,
     path: path,
     size: size,
     description: description
-  }
+  };
   const file: DashboardUserFileEntry = {
-    ownerName: "Texera",
+    ownerName: 'Texera',
     file: fileContent,
-    accessLevel: "Write",
+    accessLevel: 'Write',
     isOwner: true,
   };
 
@@ -61,29 +59,21 @@ describe('NgbdModalFileShareAccessComponent', () => {
   });
 
   it('can get all accesses', () => {
-    const mySpy = spyOn(service, 'getSharedAccessesOfFile').and.callThrough();
+    const mySpy = spyOn(service, 'getUserFileAccessList').and.callThrough();
     component.dashboardUserFileEntry = file;
     fixture.detectChanges();
-    component.onClickGetAllSharedAccess(component.dashboardUserFileEntry);
-    expect(mySpy).toHaveBeenCalled();
-  });
-
-  it('can share accesses', () => {
-    const mySpy = spyOn(service, 'grantAccess').and.callThrough();
-    component.dashboardUserFileEntry = file;
-    fixture.detectChanges();
-    component.grantUserFileAccess(component.dashboardUserFileEntry, 'Jim', 'read');
+    component.refreshGrantedUserFileAccessList(component.dashboardUserFileEntry);
     expect(mySpy).toHaveBeenCalled();
   });
 
   it('can remove accesses', () => {
-    const mySpy = spyOn(service, 'revokeFileAccess').and.callThrough();
+    const mySpy = spyOn(service, 'revokeUserFileAccess').and.callThrough();
     component.onClickRemoveUserFileAccess(file, 'Jim');
     expect(mySpy).toHaveBeenCalled();
   });
 
   it('submitting a form', () => {
-    const mySpy = spyOn(component, 'onClickShareFile');
+    const mySpy = spyOn(service, 'grantUserFileAccess');
     expect(component.shareForm.valid).toBeFalsy();
     component.shareForm.controls['username'].setValue('testguy');
     component.shareForm.controls['accessLevel'].setValue('read');
