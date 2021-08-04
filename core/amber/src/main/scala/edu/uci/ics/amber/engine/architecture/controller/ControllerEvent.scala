@@ -4,7 +4,6 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.principal.{OperatorResult, OperatorStatistics}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.collection.mutable
 

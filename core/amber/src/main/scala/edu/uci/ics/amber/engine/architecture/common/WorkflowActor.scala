@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.common
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Stash}
+import akka.actor.{Actor, ActorRef, DiagnosticActorLogging, Stash}
+import akka.event.Logging.MDC
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   GetActorRef,
@@ -24,13 +25,11 @@ abstract class WorkflowActor(
     parentNetworkCommunicationActorRef: ActorRef
 ) extends Actor
     with Stash
-    with ActorLogging {
+    with DiagnosticActorLogging {
 
   lazy val controlOutputPort: ControlOutputPort = wire[ControlOutputPort]
-
   lazy val asyncRPCClient: AsyncRPCClient = wire[AsyncRPCClient]
   lazy val asyncRPCServer: AsyncRPCServer = wire[AsyncRPCServer]
-
   val networkCommunicationActor: NetworkSenderActorRef = NetworkSenderActorRef(
     // create a network communication actor on the same machine as the WorkflowActor itself
     context.actorOf(NetworkCommunicationActor.props(parentNetworkCommunicationActorRef))
@@ -38,6 +37,9 @@ abstract class WorkflowActor(
   // this variable cannot be lazy
   // because it should be initialized with the actor itself
   val rpcHandlerInitializer: AsyncRPCHandlerInitializer
+  override def mdc(currentMessage: Any): MDC = {
+    Map("actorId" -> identifier.toString)
+  }
 
   def disallowActorRefRelatedMessages: Receive = {
     case GetActorRef =>

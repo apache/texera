@@ -50,9 +50,9 @@ class PythonProxyClient(portNumber: Int)
         flightClient = FlightClient.builder(allocator, location).build()
         connected = new String(flightClient.doAction(new Action("heartbeat")).next.getBody) == "ack"
         if (!connected)
-          throw new FlightRuntimeException("heartbeat failed.")
+          throw new RuntimeException("heartbeat failed")
       } catch {
-        case e: FlightRuntimeException =>
+        case e: RuntimeException =>
           logger.warn("Not connected to the server in this try, retrying", e)
           flightClient.close()
           Thread.sleep(WAIT_TIME_MS)

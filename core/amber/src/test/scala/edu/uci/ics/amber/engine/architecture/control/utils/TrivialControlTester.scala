@@ -9,7 +9,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowCon
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.error.WorkflowRuntimeError
+import edu.uci.ics.amber.error.ErrorUtils.safely
 
 class TrivialControlTester(id: ActorVirtualIdentity, parentNetworkCommunicationActorRef: ActorRef)
     extends WorkflowActor(id, parentNetworkCommunicationActorRef) {
