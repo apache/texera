@@ -1,9 +1,3 @@
-/**
- * This interface stores the information about the users' files.
- * These information is used to locate the file for the operators.
- * Corresponds to `src/main/scala/edu/uci/ics/texera/web/resource/dashboard/file/UserFileResource.scala` (backend);
- * and `core/scripts/sql/texera_ddl.sql`, table `file` (database).
- */
 export interface DashboardUserFileEntry extends Readonly<{
   ownerName: string,
   file: UserFile,
@@ -12,6 +6,17 @@ export interface DashboardUserFileEntry extends Readonly<{
 }> {
 }
 
+export interface UserFileAccess extends Readonly<{
+  username: string;
+  accessLevel: string;
+}> {}
+
+/**
+ * This interface stores the information about the users' files.
+ * These information is used to locate the file for the operators.
+ * Corresponds to `src/main/scala/edu/uci/ics/texera/web/resource/dashboard/file/UserFileResource.scala` (backend);
+ * and `core/scripts/sql/texera_ddl.sql`, table `file` (database).
+ */
 export interface UserFile extends Readonly<{
   id: number,
   name: string,

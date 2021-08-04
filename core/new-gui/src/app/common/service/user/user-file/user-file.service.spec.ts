@@ -63,7 +63,7 @@ describe('UserFileService', () => {
 
 
   it('can share access', () => {
-    service.grantAccess(testFile, username, accessLevel).first().subscribe();
+    service.grantUserFileAccess(testFile, username, accessLevel).first().subscribe();
     const req = httpMock.expectOne(
       `${AppSettings.getApiEndpoint()}/${USER_FILE_ACCESS_GRANT_URL}/${testFile.file.name}/
       ${testFile.ownerName}/${username}/${accessLevel}`);
@@ -80,7 +80,7 @@ describe('UserFileService', () => {
   });
 
   it('can get all access', () => {
-    service.getSharedAccessesOfFile(testFile).first().subscribe();
+    service.getUserFileAccessList(testFile).first().subscribe();
     const req = httpMock.expectOne(
       `${AppSettings.getApiEndpoint()}/${USER_FILE_ACCESS_LIST_URL}/${testFile.file.name}/${testFile.ownerName}`);
     expect(req.request.method).toEqual('GET');

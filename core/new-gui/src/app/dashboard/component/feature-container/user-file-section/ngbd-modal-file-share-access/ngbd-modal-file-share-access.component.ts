@@ -42,7 +42,7 @@ export class NgbdModalFileShareAccessComponent {
    * @param dashboardUserFileEntry target/current dashboardUserFileEntry
    */
   public refreshGrantedUserFileAccessList(dashboardUserFileEntry: DashboardUserFileEntry): void {
-    this.userFileService.getSharedAccessesOfFile(dashboardUserFileEntry).subscribe(
+    this.userFileService.getUserFileAccessList(dashboardUserFileEntry).subscribe(
       (userFileAccess: Readonly<UserFileAccess>[]) => {
         this.allUserFileAccess = [];
         userFileAccess.map(ufa => {
@@ -60,7 +60,7 @@ export class NgbdModalFileShareAccessComponent {
    * @param accessLevel the level of Access to be given
    */
   public grantUserFileAccess(dashboardUserFileEntry: DashboardUserFileEntry, userToShareWith: string, accessLevel: string): void {
-    this.userFileService.grantAccess(dashboardUserFileEntry, userToShareWith, accessLevel).subscribe(
+    this.userFileService.grantUserFileAccess(dashboardUserFileEntry, userToShareWith, accessLevel).subscribe(
       () => this.refreshGrantedUserFileAccessList(dashboardUserFileEntry),
       err => alert(err.error));
   }

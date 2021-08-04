@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
 import { AppSettings } from '../../../app-setting';
-import { DashboardUserFileEntry } from '../../../type/dashboard-user-file-entry';
+import { DashboardUserFileEntry, UserFileAccess } from '../../../type/dashboard-user-file-entry';
 import { UserService } from '../user.service';
 
 export const USER_FILE_BASE_URL = 'user/file';
@@ -13,10 +13,7 @@ export const USER_FILE_ACCESS_GRANT_URL = `${USER_FILE_ACCESS_BASE_URL}/grant`;
 export const USER_FILE_ACCESS_LIST_URL = `${USER_FILE_ACCESS_BASE_URL}/list`;
 export const USER_FILE_ACCESS_REVOKE_URL = `${USER_FILE_ACCESS_BASE_URL}/revoke`;
 
-export interface UserFileAccess extends Readonly<{
-  username: string;
-  accessLevel: string;
-}> {}
+
 
 
 @Injectable({
@@ -105,20 +102,21 @@ export class UserFileService {
    * @param accessLevel the type of access offered
    * @return Response
    */
-  public grantAccess(file: DashboardUserFileEntry, username: string, accessLevel: string): Observable<Response> {
+  public grantUserFileAccess(file: DashboardUserFileEntry, username: string, accessLevel: string): Observable<Response> {
     return this.http.post<Response>(
       `${AppSettings.getApiEndpoint()}/${USER_FILE_ACCESS_GRANT_URL}/${file.file.name}/${file.ownerName}/${username}/${accessLevel}`,
       null);
   }
 
   /**
-   * Retrieve all shared accesses of the given workflow
-   * @param file the current file
+   * Retrieve all shared accesses of the given dashboardUserFileEntry.
+   * @param dashboardUserFileEntry the current dashboardUserFileEntry
    * @return ReadonlyArray<UserFileAccess> an array of UserFileAccesses, Ex: [{username: TestUser, fileAccess: read}]
    */
-  public getSharedAccessesOfFile(file: DashboardUserFileEntry): Observable<ReadonlyArray<UserFileAccess>> {
+  public getUserFileAccessList(dashboardUserFileEntry: DashboardUserFileEntry): Observable<ReadonlyArray<UserFileAccess>> {
     return this.http.get<ReadonlyArray<UserFileAccess>>(
-      `${AppSettings.getApiEndpoint()}/${USER_FILE_ACCESS_LIST_URL}/${file.file.name}/${file.ownerName}`);
+      `${AppSettings.getApiEndpoint()}/${USER_FILE_ACCESS_LIST_URL}/${dashboardUserFileEntry.file.name}/
+      ${dashboardUserFileEntry.ownerName}`);
   }
 
   /**

@@ -1,19 +1,6 @@
-import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, of, Subject } from 'rxjs';
-import { DashboardUserFileEntry } from '../../../type/dashboard-user-file-entry';
-
-export const USER_FILE_LIST_URL = 'user/file/list';
-export const USER_FILE_DELETE_URL = 'user/file/delete';
-export const USER_FILE_SHARE_ACCESS_URL = 'user/file/share';
-export const USER_FILE_PATH_URL = 'user/file/file-path';
-export const USER_FILE_GET_ACCESS_URL = 'user/file/all-access-of';
-export const USER_REVOKE_ACCESS_URL = 'user/file/revoke';
-
-export interface UserFileAccess {
-  username: string;
-  fileAccess: string;
-}
+import { DashboardUserFileEntry, UserFileAccess } from '../../../type/dashboard-user-file-entry';
 
 @Injectable({
   providedIn: 'root'
@@ -24,9 +11,7 @@ export class StubUserFileService {
   private userFiles: DashboardUserFileEntry[] = [];
   private userFilesChanged = new Subject<null>();
 
-  constructor(
-    private http: HttpClient
-  ) {
+  constructor() {
     this.detectUserChanges();
   }
 
