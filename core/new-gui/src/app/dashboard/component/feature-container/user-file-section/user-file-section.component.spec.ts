@@ -9,33 +9,31 @@ import { UserFileService } from '../../../../common/service/user/user-file/user-
 import { UserService } from '../../../../common/service/user/user.service';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { StubUserService } from '../../../../common/service/user/stub-user.service';
-import { UserFile, DashboardUserFileEntry } from "../../../../common/type/dashboard-user-file-entry";
-import { NgbdModalUserFileShareAccessComponent } from "./ngbd-modal-file-share-access/ngbd-modal-user-file-share-access.component";
+import { DashboardUserFileEntry, UserFile } from '../../../../common/type/dashboard-user-file-entry';
+import { NgbdModalWorkflowShareAccessComponent } from '../saved-workflow-section/ngbd-modal-share-access/ngbd-modal-workflow-share-access.component';
 
 describe('UserFileSectionComponent', () => {
   let component: UserFileSectionComponent;
   let fixture: ComponentFixture<UserFileSectionComponent>;
   let modalService: NgbModal;
-  let modalRef: NgbModalRef;
 
   const id = 1;
   const name = 'testFile';
   const path = 'test/path';
   const description = 'this is a test file';
   const size = 1024;
-  const username = "Jim";
-  const accessLevel = "read";
+
   const fileContent: UserFile = {
     id: id,
     name: name,
     path: path,
     size: size,
     description: description
-  }
+  };
   const testFile: DashboardUserFileEntry = {
-    ownerName: "Texera",
+    ownerName: 'Texera',
     file: fileContent,
-    accessLevel: "Write",
+    accessLevel: 'Write',
     isOwner: true,
   };
   beforeEach(async(() => {
@@ -62,15 +60,18 @@ describe('UserFileSectionComponent', () => {
     fixture = TestBed.createComponent(UserFileSectionComponent);
     component = fixture.componentInstance;
     modalService = TestBed.get(NgbModal);
-    modalRef = modalService.open(NgbdModalUserFileShareAccessComponent);
-    spyOn(modalService, 'open').and.returnValue(modalRef);
     fixture.detectChanges();
   });
 
-  it('Modal Opened', () => {
+  it('Modal Opened, then Closed', () => {
+    const modalRef: NgbModalRef = modalService.open(NgbdModalWorkflowShareAccessComponent);
+    spyOn(modalService, 'open').and.returnValue(modalRef);
     component.onClickOpenShareAccess(testFile);
     expect(modalService.open).toHaveBeenCalled();
+    fixture.detectChanges();
+    modalRef.dismiss();
   });
+
 
   it('should create', inject([HttpTestingController],
     (httpMock: HttpTestingController) => {
