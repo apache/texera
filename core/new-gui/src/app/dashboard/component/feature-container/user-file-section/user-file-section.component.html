@@ -17,21 +17,21 @@
           <mat-list-item *ngFor="let userFile of getFileArray()" class="user-dictionary-list-item">
             <div class="section-for-tip" placement="bottom">
               <p font-size=20px><span class="dict-name">
-                  {{userFile.ownerName}}/{{userFile.fileName}}</span>
+                  {{userFile.ownerName}}/{{userFile.file.name}}</span>
               </p>
               <p font-size=10px><span class="dict-name">
-                  {{addFileSizeUnit(userFile.size)}}</span>
+                  {{addFileSizeUnit(userFile.file.size)}}</span>
               </p>
             </div>
             <span class="gap-filler"></span>
             <button (click)="onClickOpenShareAccess(userFile)" type="button" mat-button
-                    ngbTooltip="Share the workflow {{userFile.fileName}} to others" placement="bottom"
-                    *ngIf = "userFile.access==='Write'">
+                    ngbTooltip="Share the workflow {{userFile.file.name}} to others" placement="bottom"
+                    *ngIf = "userFile.accessLevel==='Write'">
               <i class="fa fa-share"></i>
             </button>
-            <button class="delete-workflow-btn" mat-button ngbTooltip="Delete the {{userFile.fileName}}"
+            <button class="delete-workflow-btn" mat-button ngbTooltip="Delete the {{userFile.file.name}}"
                     placement="bottom"
-                    (click)="deleteFile(userFile)" *ngIf = "userFile.access==='Write'"><i class="fa fa-trash"></i></button>
+                    (click)="deleteFile(userFile)" *ngIf = "userFile.accessLevel==='Write'"><i class="fa fa-trash"></i></button>
           </mat-list-item>
         </div>
       </mat-list>

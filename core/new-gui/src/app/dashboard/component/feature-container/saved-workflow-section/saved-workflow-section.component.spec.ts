@@ -14,7 +14,7 @@ import { Workflow, WorkflowContent } from '../../../../common/type/workflow';
 import { jsonCast } from '../../../../common/util/storage';
 import { HttpClient } from '@angular/common/http';
 import { WorkflowGrantAccessService } from '../../../../common/service/user/workflow-access-control/workflow-grant-access.service';
-import { WorkflowInfo } from "../../../../common/type/workflow-info";
+import { DashboardWorkflowEntry } from "../../../../common/type/dashboard-workflow-entry";
 
 describe('SavedWorkflowSectionComponent', () => {
   let component: SavedWorkflowSectionComponent;
@@ -68,7 +68,7 @@ describe('SavedWorkflowSectionComponent', () => {
     creationTime: 3,
     lastModifiedTime: 8,
   }
-  const TestCase: WorkflowInfo[] = [
+  const TestCase: DashboardWorkflowEntry[] = [
     {
       workflow: TestWorkflow1,
       isOwner: true,

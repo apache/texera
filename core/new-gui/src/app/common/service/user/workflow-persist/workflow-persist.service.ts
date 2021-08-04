@@ -5,7 +5,7 @@ import { map } from 'rxjs/operators';
 import { AppSettings } from '../../../app-setting';
 import { Workflow, WorkflowContent } from '../../../type/workflow';
 import { jsonCast } from '../../../util/storage';
-import { WorkflowInfo } from "../../../type/workflow-info";
+import { DashboardWorkflowEntry } from "../../../type/dashboard-workflow-entry";
 
 export const WORKFLOW_URL = 'workflow';
 export const WORKFLOW_PERSIST_URL = WORKFLOW_URL + '/persist';
@@ -51,12 +51,12 @@ export class WorkflowPersistService {
    * @param newWorkflowName
    * @param newWorkflowContent
    */
-  public createWorkflow(newWorkflowContent: WorkflowContent, newWorkflowName: string = 'Untitled workflow'): Observable<WorkflowInfo> {
-    return this.http.post<WorkflowInfo>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_CREATE_URL}`, {
+  public createWorkflow(newWorkflowContent: WorkflowContent, newWorkflowName: string = 'Untitled workflow'): Observable<DashboardWorkflowEntry> {
+    return this.http.post<DashboardWorkflowEntry>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_CREATE_URL}`, {
       name: newWorkflowName,
       content: JSON.stringify(newWorkflowContent)
     })
-      .filter((createdWorkflow: WorkflowInfo) => createdWorkflow != null)
+      .filter((createdWorkflow: DashboardWorkflowEntry) => createdWorkflow != null)
 
   }
 
@@ -70,8 +70,8 @@ export class WorkflowPersistService {
       .pipe(map(WorkflowPersistService.parseWorkflowInfo));
   }
 
-  public getWorkflowList(): Observable<WorkflowInfo[]> {
-    return this.http.get<WorkflowInfo[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_LIST_URL}`);
+  public getWorkflowList(): Observable<DashboardWorkflowEntry[]> {
+    return this.http.get<DashboardWorkflowEntry[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_LIST_URL}`);
   }
 
   /**

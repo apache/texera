@@ -1,6 +1,6 @@
 import { Workflow } from "./workflow";
 
-export interface WorkflowInfo extends Readonly<{
+export interface DashboardWorkflowEntry extends Readonly<{
   isOwner: boolean;
   accessLevel: string;
   ownerName: string | undefined;

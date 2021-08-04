@@ -8,7 +8,7 @@ import { WorkflowGrantAccessService } from '../../../../common/service/user/work
 import { Workflow } from '../../../../common/type/workflow';
 import { NgbdModalDeleteWorkflowComponent } from './ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component';
 import { NgbdModalShareAccessComponent } from './ngbd-modal-share-access/ngbd-modal-share-access.component';
-import { WorkflowInfo } from "../../../../common/type/workflow-info";
+import { DashboardWorkflowEntry } from "../../../../common/type/dashboard-workflow-entry";
 
 /**
  * SavedProjectSectionComponent is the main interface for
@@ -25,7 +25,7 @@ import { WorkflowInfo } from "../../../../common/type/workflow-info";
 })
 export class SavedWorkflowSectionComponent implements OnInit {
 
-  public workflows: WorkflowInfo[] = [];
+  public workflows: DashboardWorkflowEntry[] = [];
 
   public defaultWeb: String = 'http://localhost:4200/';
 
@@ -70,7 +70,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
    * sort the project by creating time
    */
   public dateSort(): void {
-    this.workflows.sort((left: WorkflowInfo, right: WorkflowInfo) =>
+    this.workflows.sort((left: DashboardWorkflowEntry, right: DashboardWorkflowEntry) =>
       left.workflow.creationTime !== undefined && right.workflow.creationTime !== undefined ? left.workflow.creationTime - right.workflow.creationTime : 0);
   }
 
@@ -78,7 +78,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
    * sort the project by last modified time
    */
   public lastSort(): void {
-    this.workflows.sort((left: WorkflowInfo, right: WorkflowInfo) =>
+    this.workflows.sort((left: DashboardWorkflowEntry, right: DashboardWorkflowEntry) =>
       left.workflow.lastModifiedTime !== undefined && right.workflow.lastModifiedTime !== undefined ? left.workflow.lastModifiedTime - right.workflow.lastModifiedTime : 0);
   }
 
@@ -95,7 +95,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
    */
   public onClickDuplicateWorkflow(workflowToDuplicate: Workflow): void {
     this.workflowPersistService.createWorkflow(workflowToDuplicate.content, workflowToDuplicate.name + '_copy')
-      .subscribe((duplicatedWorkflowInfo: WorkflowInfo) => {
+      .subscribe((duplicatedWorkflowInfo: DashboardWorkflowEntry) => {
         this.workflows.push(duplicatedWorkflowInfo);
       }, error => {
         alert(error);
