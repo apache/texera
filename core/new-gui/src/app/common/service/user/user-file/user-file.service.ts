@@ -123,8 +123,8 @@ export class UserFileService {
    * @return message of success
    */
   public revokeUserFileAccess(dashboardUserFileEntry: DashboardUserFileEntry, username: string): Observable<Response> {
-    return this.http.post<Response>(`${USER_FILE_ACCESS_REVOKE_URL}/${dashboardUserFileEntry.file.name}/
-      ${dashboardUserFileEntry.ownerName}/${username}`, null);
+    return this.http.post<Response>(
+      `${USER_FILE_ACCESS_REVOKE_URL}/${dashboardUserFileEntry.file.name}/${dashboardUserFileEntry.ownerName}/${username}`, null);
   }
 
   private retrieveDashboardUserFileEntryList(): Observable<ReadonlyArray<DashboardUserFileEntry>> {
