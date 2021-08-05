@@ -136,22 +136,24 @@ class WorkflowResultService(val workflowCompiler: WorkflowCompiler) {
 //      }
 //    })
 
-    val webUpdateEvent = operatorResults.map(e => {
-      if (resultUpdate.operatorResults.contains(e._1)) {
-        val e1 = resultUpdate.operatorResults(e._1)
-        val opResultService = operatorResults(e._1)
-        val webUpdateEvent = opResultService.convertWebResultUpdate(e1)
-        if (workflowCompiler.workflow.getOperator(e._1).isInstanceOf[CacheSinkOpDesc]) {
-          val upID = opResultService.operatorID
-          (upID, webUpdateEvent)
+    val webUpdateEvent = operatorResults
+      .map(e => {
+        if (resultUpdate.operatorResults.contains(e._1)) {
+          val e1 = resultUpdate.operatorResults(e._1)
+          val opResultService = operatorResults(e._1)
+          val webUpdateEvent = opResultService.convertWebResultUpdate(e1)
+          if (workflowCompiler.workflow.getOperator(e._1).isInstanceOf[CacheSinkOpDesc]) {
+            val upID = opResultService.operatorID
+            (upID, webUpdateEvent)
+          } else {
+            (e._1, webUpdateEvent)
+          }
         } else {
-          (e._1, webUpdateEvent)
+          val size = operatorResults(e._1).getResult.size
+          (e._1, WebPaginationUpdate(PaginationMode(), size, List.range(0, defaultPageSize)))
         }
-      } else {
-        val size = operatorResults(e._1).getResult.size
-        (e._1, WebPaginationUpdate(PaginationMode(), size, List.range(0, defaultPageSize)))
-      }
-    }).toMap
+      })
+      .toMap
 
     // update the result snapshot of each operator
     resultUpdate.operatorResults.foreach(e => operatorResults(e._1).updateResult(e._2))
