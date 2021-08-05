@@ -17,4 +17,5 @@ class TesterAsyncRPCHandlerInitializer(
     with MultiCallHandler
     with CollectHandler
     with NestedHandler
-    with RecursionHandler {}
+    with RecursionHandler
+    with ErrorHandler {}
