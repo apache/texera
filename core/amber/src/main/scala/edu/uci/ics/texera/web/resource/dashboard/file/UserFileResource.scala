@@ -223,30 +223,45 @@ class UserFileResource {
   ): Response = {
     UserResource.getUser(session) match {
       case Some(user) =>
-        // TODO: check user and access.
-        val file: File = fileDao.fetchOneByFid(fileId)
-        val fileObject = Paths.get(file.getPath).toFile
+        val filePath: Option[java.nio.file.Path] =
+          UserFileUtils.getFilePathByIds(user.getUid, fileId)
+        if (filePath.isDefined) {
+          val fileObject = filePath.get.toFile
 
-        // sending a FileOutputStream/ByteArrayOutputStream directly will cause MessageBodyWriter
-        // not found issue for jersey
-        // so we create our own stream.
-        val fileStream = new StreamingOutput() {
-          @throws[IOException]
-          @throws[WebApplicationException]
-          def write(output: OutputStream): Unit = {
-            val data = Files.toByteArray(fileObject)
-            output.write(data)
-            output.flush()
+          // sending a FileOutputStream/ByteArrayOutputStream directly will cause MessageBodyWriter
+          // not found issue for jersey
+          // so we create our own stream.
+          val fileStream = new StreamingOutput() {
+            @throws[IOException]
+            @throws[WebApplicationException]
+            def write(output: OutputStream): Unit = {
+              val data = Files.toByteArray(fileObject)
+              output.write(data)
+              output.flush()
+            }
           }
+          Response
+            .ok(fileStream, MediaType.APPLICATION_OCTET_STREAM)
+            .header(
+              "content-disposition",
+              String.format("attachment; filename=%s", fileObject.getName)
+            )
+            .build
+        } else {
+
+          Response
+            .status(Response.Status.BAD_REQUEST)
+            .`type`(MediaType.TEXT_PLAIN)
+            .entity(s"Could not find file $fileId of ${user.getName}")
+            .build()
         }
 
-        Response
-          .ok(fileStream, MediaType.APPLICATION_OCTET_STREAM)
-          .header("content-disposition", String.format("attachment; filename=%s", file.getName))
-          .build
-
       case None =>
-        Response.status(Response.Status.UNAUTHORIZED).build()
+        Response
+          .status(Response.Status.UNAUTHORIZED)
+          .`type`(MediaType.TEXT_PLAIN)
+          .entity(s"You do not have permission to download file $fileId")
+          .build()
     }
 
   }

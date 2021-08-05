@@ -5,6 +5,7 @@ import { UserFileService } from '../../../service/user-file/user-file.service';
 import { DashboardUserFileEntry } from '../../../type/dashboard-user-file-entry';
 import { UserService } from '../../../../common/service/user/user.service';
 import { NgbdModalUserFileShareAccessComponent } from './ngbd-modal-file-share-access/ngbd-modal-user-file-share-access.component';
+import { NzMessageService } from 'ng-zorro-antd/message';
 
 @Component({
   selector: 'texera-user-file-section',
@@ -16,7 +17,8 @@ export class UserFileSectionComponent implements OnInit {
   constructor(
     private modalService: NgbModal,
     private userFileService: UserFileService,
-    private userService: UserService
+    private userService: UserService,
+    private message: NzMessageService
   ) {
     this.userFileService.refreshDashboardUserFileEntries();
   }
@@ -54,6 +56,23 @@ export class UserFileSectionComponent implements OnInit {
   }
 
   public downloadUserFile(userFileEntry: DashboardUserFileEntry): void {
-    this.userFileService.downloadUserFile(userFileEntry.file);
+    this.userFileService.requestDownloadUserFile(userFileEntry.file).subscribe(
+      (response: any) => {
+        // prepare the data to be downloaded.
+        const dataType = response.type;
+        const binaryData = [];
+        binaryData.push(response);
+
+        // create a download link and trigger it.
+        const downloadLink = document.createElement('a');
+        downloadLink.href = window.URL.createObjectURL(new Blob(binaryData, {type: dataType}));
+        downloadLink.setAttribute('download', userFileEntry.file.name);
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+      },
+      err => this.message.error(err.error)
+    );
+
+
   }
 }

@@ -129,15 +129,9 @@ export class UserFileService {
       `${USER_FILE_ACCESS_REVOKE_URL}/${userFileEntry.file.name}/${userFileEntry.ownerName}/${username}`, null);
   }
 
-  public downloadUserFile(targetFile: UserFile): void {
+  public requestDownloadUserFile(targetFile: UserFile): Observable<any> {
     const requestURL = `${USER_FILE_DOWNLOAD_URL}/${targetFile.fid}`;
-    this.http.get(
-      requestURL,
-      {responseType: 'blob'}
-    ).subscribe(
-      () => window.location.href = requestURL,
-      error => alert(error.err)
-    );
+    return this.http.get(requestURL, {responseType: 'blob'});
   }
 
   private retrieveDashboardUserFileEntryList(): Observable<ReadonlyArray<DashboardUserFileEntry>> {

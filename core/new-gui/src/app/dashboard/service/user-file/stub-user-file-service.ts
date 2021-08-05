@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Observable, of, Subject } from 'rxjs';
-import { DashboardUserFileEntry } from '../../type/dashboard-user-file-entry';
+import { DashboardUserFileEntry, UserFile } from '../../type/dashboard-user-file-entry';
 import { PublicInterfaceOf } from '../../../common/util/stub';
 import { UserFileService } from './user-file.service';
 import { HttpClient } from '@angular/common/http';
@@ -61,6 +61,14 @@ export class StubUserFileService implements PublicInterfaceOf<UserFileService> {
 
   getUserFiles(): ReadonlyArray<DashboardUserFileEntry> {
     return [];
+  }
+
+  getDownloadURL(targetFile: UserFile): string {
+    return '';
+  }
+
+  requestDownloadUserFile(targetFile: UserFile): Observable<Blob> {
+    return of();
   }
 
   /**
