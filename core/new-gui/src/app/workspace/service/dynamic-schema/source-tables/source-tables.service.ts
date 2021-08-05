@@ -201,10 +201,8 @@ export class SourceTablesService {
 export interface TableMetadata extends Readonly<{
   tableName: string,
   schema: TableSchema
-}> {
-}
+}> {}
 
 export interface TableSchema extends Readonly<{
   attributes: ReadonlyArray<SchemaAttribute>
-}> {
-}
+}> {}

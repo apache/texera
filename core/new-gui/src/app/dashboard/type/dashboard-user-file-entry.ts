@@ -3,8 +3,7 @@ export interface DashboardUserFileEntry extends Readonly<{
   file: UserFile,
   accessLevel: string,
   isOwner: boolean,
-}> {
-}
+}> {}
 
 /**
  * This interface stores the information about the users' files.
@@ -18,8 +17,7 @@ export interface UserFile extends Readonly<{
   path: string,
   size: number,
   description: string
-}> {
-}
+}> {}
 
 /**
  * This interface stores the information about the users' files when uploading.

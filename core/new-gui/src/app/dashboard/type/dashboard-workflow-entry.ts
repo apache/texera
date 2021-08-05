@@ -5,5 +5,4 @@ export interface DashboardWorkflowEntry extends Readonly<{
   accessLevel: string;
   ownerName: string | undefined;
   workflow: Workflow;
-}> {
-}
+}> {}
