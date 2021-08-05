@@ -1,3 +1,4 @@
+import traceback
 import typing
 from typing import Iterator, Optional, Union
 
@@ -14,7 +15,8 @@ from core.models.marker import SenderChangeMarker
 from core.models.tuple import InputExhausted, Tuple
 from core.udf.udf_operator import UDFOperator
 from core.util import IQueue, StoppableQueueBlockingRunnable, get_one_of, set_one_of
-from proto.edu.uci.ics.amber.engine.architecture.worker import ControlCommandV2, WorkerExecutionCompletedV2, WorkerState
+from proto.edu.uci.ics.amber.engine.architecture.worker import ControlCommandV2, LocalOperatorExceptionV2, \
+    WorkerExecutionCompletedV2, WorkerState
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlInvocationV2, ControlPayloadV2, \
     LinkIdentity, ReturnInvocationV2
 
@@ -33,6 +35,29 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         self.context = Context(self)
         self._async_rpc_server = AsyncRPCServer(output_queue, context=self.context)
         self._async_rpc_client = AsyncRPCClient(output_queue, context=self.context)
+
+    def complete(self) -> None:
+        """
+        Complete the DataProcessor, marking state to COMPLETED, and notify the controller.
+        """
+        self._udf_operator.close()
+        self.context.state_manager.transit_to(WorkerState.COMPLETED)
+        control_command = set_one_of(ControlCommandV2, WorkerExecutionCompletedV2())
+        self._async_rpc_client.send(ActorVirtualIdentity(name="CONTROLLER"), control_command)
+
+    def check_and_process_control(self) -> None:
+        """
+        Check if there exists any ControlElement(s) in the input_queue, if so, take and process
+        them one by one.
+
+        This is used very frequently as we want to prioritize the process of ControlElement ,
+        and will be invoked many times during a DataElement's processing lifecycle. Thus, this
+        method's invocation could appear in any stage while processing a DataElement.
+        """
+
+        while not self._input_queue.main_empty() or self.context.pause_manager.is_paused():
+            next_entry = self.interruptible_get()
+            self._process_control_element(next_entry)
 
     @overrides
     def pre_start(self) -> None:
@@ -69,6 +94,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
             typing.Tuple[ActorVirtualIdentity, ReturnInvocationV2], self._async_rpc_client.receive
         )
 
+    @logger.catch
     def process_input_tuple(self) -> None:
         """
         Process the current input tuple with the current input link. Send all result Tuples
@@ -79,15 +105,19 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         if isinstance(self._current_input_tuple, Tuple):
             self.context.statistics_manager.increase_input_tuple_count()
 
-        for tuple_ in self.process_tuple_with_udf(self._current_input_tuple, self._current_input_link):
+        try:
+            for tuple_ in self.process_tuple_with_udf(self._current_input_tuple, self._current_input_link):
                 self.check_and_process_control()
                 if tuple_ is not None:
                     self.context.statistics_manager.increase_output_tuple_count()
                     for to, batch in self.context.tuple_to_batch_converter.tuple_to_batch(tuple_):
                         self._output_queue.put(DataElement(tag=to, payload=batch))
+        except Exception:
+            self.report_exception()
+            self._pause()
 
     def process_tuple_with_udf(self, tuple_: Union[Tuple, InputExhausted], link: LinkIdentity) \
-                -> Iterator[Optional[Tuple]]:
+            -> Iterator[Optional[Tuple]]:
         """
         Process the Tuple/InputExhausted with the current link.
 
@@ -99,28 +129,14 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         """
         return self._udf_operator.process_texera_tuple(tuple_, link)
 
-    def complete(self) -> None:
+    def report_exception(self) -> None:
         """
-        Complete the DataProcessor, marking state to COMPLETED, and notify the controller.
+        Report the traceback of current stack when an exception occurs.
         """
-        self._udf_operator.close()
-        self.context.state_manager.transit_to(WorkerState.COMPLETED)
-        control_command = set_one_of(ControlCommandV2, WorkerExecutionCompletedV2())
+        message: str = traceback.format_exc(limit=-1)
+        control_command = set_one_of(ControlCommandV2, LocalOperatorExceptionV2(message=message))
         self._async_rpc_client.send(ActorVirtualIdentity(name="CONTROLLER"), control_command)
-
-    def check_and_process_control(self) -> None:
-        """
-        Check if there exists any ControlElement(s) in the input_queue, if so, take and process
-        them one by one.
-
-        This is used very frequently as we want to prioritize the process of ControlElement ,
-        and will be invoked many times during a DataElement's processing lifecycle. Thus, this
-        method's invocation could appear in any stage while processing a DataElement.
-        """
-
-        while not self._input_queue.main_empty() or self.context.pause_manager.is_paused():
-            next_entry = self.interruptible_get()
-            self._process_control_element(next_entry)
+        self._pause()
 
     def _process_control_element(self, control_element: ControlElement) -> None:
         """
@@ -189,3 +205,22 @@ class DataProcessor(StoppableQueueBlockingRunnable):
                 EndMarker, self._process_end_marker,
                 EndOfAllMarker, self._process_end_of_all_marker
             )
+
+    def _pause(self) -> None:
+        """
+        Pause the data processing.
+        """
+        if self.context.state_manager.confirm_state(WorkerState.RUNNING, WorkerState.READY):
+            self.context.pause_manager.pause()
+            self.context.state_manager.transit_to(WorkerState.PAUSED)
+            self._input_queue.disable_sub()
+
+    def _resume(self) -> None:
+        """
+        Resume the data processing.
+        """
+        if self.context.state_manager.confirm_state(WorkerState.PAUSED):
+            if self.context.pause_manager.is_paused():
+                self.context.pause_manager.resume()
+                self.context.input_queue.enable_sub()
+            self.context.state_manager.transit_to(WorkerState.RUNNING)

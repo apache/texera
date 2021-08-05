@@ -53,13 +53,13 @@ class QueryStatisticsV2(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class QueryStatisticsV2(betterproto.Message):
+class QueryCurrentInputTupleV2(betterproto.Message):
     pass
 
 
 @dataclass(eq=False, repr=False)
-class QueryCurrentInputTupleV2(betterproto.Message):
-    pass
+class LocalOperatorExceptionV2(betterproto.Message):
+    message: str = betterproto.string_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -85,6 +85,9 @@ class ControlCommandV2(betterproto.Message):
     query_current_input_tuple: "QueryCurrentInputTupleV2" = betterproto.message_field(
         7, group="sealed_value"
     )
+    local_operator_exception: "LocalOperatorExceptionV2" = betterproto.message_field(
+        8, group="sealed_value"
+    )
     send_python_udf: "SendPythonUdfV2" = betterproto.message_field(
         21, group="sealed_value"
     )
@@ -106,11 +109,17 @@ class CurrentInputTupleInfo(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class ControlException(betterproto.Message):
+    msg: str = betterproto.string_field(1)
+
+
+@dataclass(eq=False, repr=False)
 class ControlReturnV2(betterproto.Message):
-    worker_statistics: "WorkerStatistics" = betterproto.message_field(1, group="value")
-    worker_state: "WorkerState" = betterproto.enum_field(2, group="value")
+    control_exception: "ControlException" = betterproto.message_field(1, group="value")
+    worker_statistics: "WorkerStatistics" = betterproto.message_field(2, group="value")
+    worker_state: "WorkerState" = betterproto.enum_field(3, group="value")
     current_input_tuple_info: "CurrentInputTupleInfo" = betterproto.message_field(
-        3, group="value"
+        4, group="value"
     )
 
 

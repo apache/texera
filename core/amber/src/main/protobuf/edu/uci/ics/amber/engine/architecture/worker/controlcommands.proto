@@ -37,6 +37,10 @@ message QueryStatisticsV2 {
 message QueryCurrentInputTupleV2 {
 }
 
+message LocalOperatorExceptionV2 {
+    string message = 1;
+}
+
 message SendPythonUdfV2 {
     string udf = 1;
     bool is_source = 2;
@@ -53,6 +57,8 @@ message ControlCommandV2 {
 
         QueryStatisticsV2 query_statistics = 6;
         QueryCurrentInputTupleV2 query_current_input_tuple = 7;
+
+        LocalOperatorExceptionV2 local_operator_exception = 8;
 
         SendPythonUdfV2 send_python_udf = 21;
 
