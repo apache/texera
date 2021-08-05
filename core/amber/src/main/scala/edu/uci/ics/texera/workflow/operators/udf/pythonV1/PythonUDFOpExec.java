@@ -1,7 +1,8 @@
-package edu.uci.ics.texera.workflow.operators.pythonUDF;
+package edu.uci.ics.texera.workflow.operators.udf.pythonV1;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import edu.uci.ics.amber.engine.architecture.pythonworker.ArrowUtils;
 import edu.uci.ics.amber.engine.common.InputExhausted;
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity;
 import edu.uci.ics.texera.Utils;
@@ -13,7 +14,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import org.apache.arrow.flight.*;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.VectorSchemaRoot;
-import org.jetbrains.annotations.NotNull;
 import scala.collection.Iterator;
 import scala.collection.JavaConverters;
 import scala.util.Either;
@@ -27,9 +27,9 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
-import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFOpExec.Channel.FROM_PYTHON;
-import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFOpExec.Channel.TO_PYTHON;
-import static edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFOpExec.MSG.*;
+import static edu.uci.ics.texera.workflow.operators.udf.pythonV1.PythonUDFOpExec.Channel.FROM_PYTHON;
+import static edu.uci.ics.texera.workflow.operators.udf.pythonV1.PythonUDFOpExec.Channel.TO_PYTHON;
+import static edu.uci.ics.texera.workflow.operators.udf.pythonV1.PythonUDFOpExec.MSG.*;
 
 public class PythonUDFOpExec implements OperatorExecutor {
 
@@ -65,8 +65,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
 
     }
 
-    @NotNull
-    private static byte[] communicate(@NotNull FlightClient client, @NotNull MSG message) {
+    private static byte[] communicate(FlightClient client, MSG message) {
         return client.doAction(new Action(message.content)).next().getBody();
     }
 
@@ -400,7 +399,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
         }
     }
 
-    @NotNull
+
     private Location startFlightServer() throws IOException {
         int portNumber = getFreeLocalPort();
         Location location = new Location(URI.create("grpc+tcp://localhost:" + portNumber));
@@ -442,7 +441,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
         return location;
     }
 
-    private void cleanTerminationWithThrow(@NotNull Exception e) {
+    private void cleanTerminationWithThrow(Exception e) {
         if (isDynamic) safeDeleteTempFile(pythonScriptPath);
         closeAndThrow(flightClient, e);
     }

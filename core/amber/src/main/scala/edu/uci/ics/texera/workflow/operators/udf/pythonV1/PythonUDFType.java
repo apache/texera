@@ -1,8 +1,7 @@
-package edu.uci.ics.texera.workflow.operators.pythonUDF;
+package edu.uci.ics.texera.workflow.operators.udf.pythonV1;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 

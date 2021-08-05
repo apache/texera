@@ -32,7 +32,7 @@ class DifferenceOpExecConf[K](
 
   override def checkStartDependencies(workflow: Workflow): Unit = {
     val rightLink = inputToOrdinalMapping.find(pair => pair._2 == 1).get._1
-    topology.layers.head.metadata = _ => new DifferenceOpExec(rightLink)
+    topology.layers.head.initIOperatorExecutor = _ => new DifferenceOpExec(rightLink)
   }
 
   override def assignBreakpoint(breakpoint: GlobalBreakpoint[_]): Array[ActorVirtualIdentity] = {

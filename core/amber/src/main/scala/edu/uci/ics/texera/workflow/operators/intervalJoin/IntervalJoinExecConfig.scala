@@ -48,7 +48,7 @@ class IntervalJoinExecConfig(
       workflow.getOperator(source).topology.layers.head.startAfter(leftInputLink)
     }
     desc.leftInputLink = leftInputLink
-    topology.layers.head.metadata = _ => {
+    topology.layers.head.initIOperatorExecutor = _ => {
       new IntervalJoinOpExec(
         operatorSchemaInfo,
         desc
