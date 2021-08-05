@@ -2,7 +2,8 @@ package edu.uci.ics.texera.web.resource
 
 import edu.uci.ics.amber.engine.architecture.principal.OperatorResult
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.texera.web.resource.WorkflowResultServiceV1.{
+import edu.uci.ics.amber.engine.storage.OpResultStorage
+import edu.uci.ics.texera.web.resource.WorkflowResultService.{
   PaginationMode,
   SetDeltaMode,
   SetSnapshotMode,
@@ -14,14 +15,19 @@ import edu.uci.ics.texera.web.resource.WorkflowResultServiceV1.{
   webDataFromTuple
 }
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode.{SET_DELTA, SET_SNAPSHOT}
+import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler
-import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
+import edu.uci.ics.texera.workflow.operators.sink.{CacheSinkOpDescV2, SimpleSinkOpDesc}
 
 /**
   * OperatorResultService manages the materialized result of an operator.
   * It always keeps the latest snapshot of the computation result.
   */
-class OperatorResultService(val operatorID: String, val workflowCompiler: WorkflowCompiler) {
+class OperatorResultServiceV2(
+    val operatorID: String,
+    val workflowCompiler: WorkflowCompiler,
+    opResultStorage: OpResultStorage
+) {
 
   // derive the web output mode from the sink operator type
   val webOutputMode: WebOutputMode = {
@@ -66,6 +72,11 @@ class OperatorResultService(val operatorID: String, val workflowCompiler: Workfl
     * Produces the WebResultUpdate to send to frontend from a result update from the engine.
     */
   def convertWebResultUpdate(resultUpdate: OperatorResult): WebResultUpdate = {
+    workflowCompiler.workflow.getOperator(operatorID) match {
+      case op: CacheSinkOpDescV2 =>
+        result = opResultStorage.get(op.uuid)
+      case _ =>
+    }
     (webOutputMode, resultUpdate.outputMode) match {
       case (PaginationMode(), SET_SNAPSHOT) =>
         val dirtyPageIndices =
@@ -88,11 +99,22 @@ class OperatorResultService(val operatorID: String, val workflowCompiler: Workfl
     * Updates the current result of this operator.
     */
   def updateResult(resultUpdate: OperatorResult): Unit = {
-    resultUpdate.outputMode match {
-      case SET_SNAPSHOT =>
-        this.result = resultUpdate.result
-      case SET_DELTA =>
-        this.result = (this.result ++ resultUpdate.result)
+    workflowCompiler.workflow.getOperator(operatorID) match {
+      case op: CacheSinkOpDescV2 =>
+        resultUpdate.outputMode match {
+          case SET_SNAPSHOT =>
+            opResultStorage.put(op.uuid, resultUpdate.result.asInstanceOf[List[Tuple]])
+          case SET_DELTA =>
+            val tmp = opResultStorage.get(op.uuid)
+            opResultStorage.put(op.uuid, (tmp ++ resultUpdate.result.asInstanceOf[List[Tuple]]))
+        }
+      case _ =>
+        resultUpdate.outputMode match {
+          case SET_SNAPSHOT =>
+            this.result = resultUpdate.result
+          case SET_DELTA =>
+            this.result = (this.result ++ resultUpdate.result)
+        }
     }
   }
 
