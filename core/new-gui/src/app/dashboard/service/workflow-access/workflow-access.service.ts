@@ -13,7 +13,6 @@ export const WORKFLOW_ACCESS_REVOKE_URL = WORKFLOW_ACCESS_URL + '/revoke';
 export const WORKFLOW_OWNER_URL = WORKFLOW_ACCESS_URL + '/owner';
 
 
-
 @Injectable({
   providedIn: 'root'
 })
@@ -56,8 +55,9 @@ export class WorkflowAccessService {
       `${AppSettings.getApiEndpoint()}/${WORKFLOW_ACCESS_REVOKE_URL}/${workflow.wid}/${username}`, null);
   }
 
-  public getWorkflowOwner(workflow: Workflow): Observable<Readonly<{'ownerName': string}>> {
-    return this.http.get<Readonly<{'ownerName': string}>>(
-      `${AppSettings.getApiEndpoint()}/${WORKFLOW_OWNER_URL}/${workflow.wid}`);
+  public getWorkflowOwner(workflow: Workflow): Observable<Readonly<{ ownerName: string }>> {
+    return this.http.get<Readonly<{ ownerName: string }>>(
+      `${AppSettings.getApiEndpoint()}/${WORKFLOW_OWNER_URL}/${workflow.wid}`,
+    );
   }
 }

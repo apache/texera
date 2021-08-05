@@ -47,8 +47,12 @@ export class NgbdModalUserFileShareAccessComponent implements OnInit {
       (userFileAccess: ReadonlyArray<AccessEntry>) => {
         const newAccessList: AccessEntry[] = [];
         userFileAccess.map(accessEntry => {
-          this.fileOwner = accessEntry.accessLevel === 'Owner' ? accessEntry.userName : undefined;
-          newAccessList.push(accessEntry);
+          if (accessEntry.accessLevel === 'Owner') {
+            this.fileOwner = accessEntry.userName;
+          } else {
+            newAccessList.push(accessEntry);
+          }
+
         });
         this.allUserFileAccess = newAccessList;
       },
