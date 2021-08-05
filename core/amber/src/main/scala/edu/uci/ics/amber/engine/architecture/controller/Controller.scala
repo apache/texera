@@ -91,7 +91,7 @@ class Controller(
   def prepareWorkers(): Future[Seq[Unit]] = {
 
     // send python udf code
-    val SendPythonUdfRequests: Seq[Future[Unit]] = workflow.getPythonWorkerToOperatorExec.map {
+    val sendPythonUdfRequests: Seq[Future[Unit]] = workflow.getPythonWorkerToOperatorExec.map {
       case (workerId: ActorVirtualIdentity, pythonOperatorExec: PythonUDFOpExecV2) =>
         asyncRPCClient.send(
           SendPythonUdf(
@@ -101,6 +101,7 @@ class Controller(
           workerId
         )
     }.toSeq
+
     // activate all links
     val activateLinkRequests: Seq[Future[Unit]] =
       workflow.getAllLinks.map { link: LinkStrategy =>
@@ -112,7 +113,7 @@ class Controller(
 
     Future
       .collect(
-        SendPythonUdfRequests ++ activateLinkRequests
+        sendPythonUdfRequests ++ activateLinkRequests
       )
       .onSuccess({ _ =>
         workflow.getAllOperators.foreach(_.setAllWorkerState(READY))
