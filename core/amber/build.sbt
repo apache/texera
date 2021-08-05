@@ -62,7 +62,27 @@ val dropwizardDependencies = Seq(
   "org.glassfish.jersey.media" % "jersey-media-multipart" % jerseyMultipartVersion,
   "com.fasterxml.jackson.module" % "jackson-module-jsonSchema" % jacksonVersion,
   "com.fasterxml.jackson.module" % "jackson-module-scala_2.12" % jacksonVersion,
-  "com.kjetland" % "mbknor-jackson-jsonschema_2.12" % "1.0.39"
+)
+
+
+
+// deps from library
+//"com.kjetland" % "mbknor-jackson-jsonschema_2.12" % "1.0.39"
+
+val slf4jVersion = "1.7.26"
+val mbknorJacksonJsonSchemaDependencies  = Seq(
+  "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
+  "javax.validation" % "validation-api" % "2.0.1.Final",
+  "org.slf4j" % "slf4j-api" % slf4jVersion,
+  "io.github.classgraph" % "classgraph" % "4.8.21",
+  "org.scalatest" %% "scalatest" % "3.0.8" % "test",
+  "ch.qos.logback" % "logback-classic" % "1.2.3" % "test",
+  "com.github.java-json-tools" % "json-schema-validator" % "2.2.11" % "test",
+  "com.fasterxml.jackson.module" % "jackson-module-kotlin" % jacksonVersion % "test",
+  "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8" % jacksonVersion % "test",
+  "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % jacksonVersion % "test",
+  "joda-time" % "joda-time" % "2.10.1" % "test",
+  "com.fasterxml.jackson.datatype" % "jackson-datatype-joda" % jacksonVersion % "test"
 )
 
 /////////////////////////////////////////////////////////////////////////////
@@ -101,6 +121,7 @@ val arrowDependencies = Seq(
 libraryDependencies ++= akkaDependencies
 libraryDependencies ++= luceneDependencies
 libraryDependencies ++= dropwizardDependencies
+libraryDependencies ++= mbknorJacksonJsonSchemaDependencies
 libraryDependencies ++= arrowDependencies
 libraryDependencies ++= googleServiceDependencies
 
