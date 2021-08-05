@@ -3,7 +3,7 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 import { AppSettings } from '../../../common/app-setting';
 import { Workflow } from '../../../common/type/workflow';
-import { AccessEntry } from "../../type/access.interface";
+import { AccessEntry } from '../../type/access.interface';
 
 
 export const WORKFLOW_ACCESS_URL = 'workflow-access';

@@ -4,7 +4,7 @@ import { FormBuilder, Validators } from '@angular/forms';
 import {
   AccessEntry,
   WorkflowAccessService
-} from '../../../../service/workflow-access-control/workflow-access.service';
+} from '../../../../service/workflow-access/workflow-access.service';
 import { Workflow } from '../../../../../common/type/workflow';
 
 

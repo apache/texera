@@ -1,17 +1,17 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { HttpClient, HttpHandler } from '@angular/common/http';
-import { WorkflowAccessService } from '../../../../service/workflow-access-control/workflow-access.service';
+import { WorkflowAccessService } from '../../../../service/workflow-access/workflow-access.service';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { NgbdModalWorkflowShareAccessComponent } from './ngbd-modal-workflow-share-access.component';
-import { StubWorkflowGrantAccessService } from '../../../../service/workflow-access-control/stub-workflow-grant-access.service';
+import { StubWorkflowAccessService } from '../../../../service/workflow-access/stub-workflow-access.service';
 import { Workflow, WorkflowContent } from '../../../../../common/type/workflow';
 import { jsonCast } from '../../../../../common/util/storage';
 
 describe('NgbdModalShareAccessComponent', () => {
   let component: NgbdModalWorkflowShareAccessComponent;
   let fixture: ComponentFixture<NgbdModalWorkflowShareAccessComponent>;
-  let service: StubWorkflowGrantAccessService;
+  let service: StubWorkflowAccessService;
 
   const workflow: Workflow = {
     wid: 28,
@@ -34,7 +34,7 @@ describe('NgbdModalShareAccessComponent', () => {
         NgbActiveModal,
         HttpClient,
         HttpHandler,
-        {provide: WorkflowAccessService, useClass: StubWorkflowGrantAccessService}
+        {provide: WorkflowAccessService, useClass: StubWorkflowAccessService}
       ]
     });
   }));

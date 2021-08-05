@@ -19,7 +19,7 @@ type PublicInterfaceOf<Class> = {
 };
 
 @Injectable()
-export class StubWorkflowGrantAccessService implements PublicInterfaceOf<WorkflowAccessService> {
+export class StubWorkflowAccessService implements PublicInterfaceOf<WorkflowAccessService> {
 
 
   public workflow: Workflow;

@@ -13,7 +13,7 @@ import { NgbdModalWorkflowShareAccessComponent } from './ngbd-modal-share-access
 import { Workflow, WorkflowContent } from '../../../../common/type/workflow';
 import { jsonCast } from '../../../../common/util/storage';
 import { HttpClient } from '@angular/common/http';
-import { WorkflowAccessService } from '../../../service/workflow-access-control/workflow-access.service';
+import { WorkflowAccessService } from '../../../service/workflow-access/workflow-access.service';
 import { DashboardWorkflowEntry } from '../../../type/dashboard-workflow-entry';
 import { UserService } from '../../../../common/service/user/user.service';
 import { StubUserService } from '../../../../common/service/user/stub-user.service';

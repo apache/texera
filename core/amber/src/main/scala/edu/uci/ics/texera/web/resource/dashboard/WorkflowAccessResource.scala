@@ -1,19 +1,11 @@
 package edu.uci.ics.texera.web.resource.dashboard
 import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.texera.web.model.common.AccessEntry
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  UserDao,
-  WorkflowOfUserDao,
-  WorkflowUserAccessDao
-}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{UserDao, WorkflowOfUserDao, WorkflowUserAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess
 import edu.uci.ics.texera.web.resource.auth.UserResource
-import edu.uci.ics.texera.web.resource.dashboard.WorkflowAccessResource.{
-  checkAccessLevel,
-  context,
-  hasNoWorkflowAccessRecord
-}
-import edu.uci.ics.texera.web.resource.dashboard.file.AccessEntry
+import edu.uci.ics.texera.web.resource.dashboard.WorkflowAccessResource.{checkAccessLevel, context, hasNoWorkflowAccessRecord}
 import io.dropwizard.jersey.sessions.Session
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
