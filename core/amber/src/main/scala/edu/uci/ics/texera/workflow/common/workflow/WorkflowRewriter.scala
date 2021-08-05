@@ -2,15 +2,12 @@ package edu.uci.ics.texera.workflow.common.workflow
 
 import com.typesafe.scalalogging.Logger
 import edu.uci.ics.texera.Utils.objectMapper
-import edu.uci.ics.amber.engine.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.common.Utils.objectMapper
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowRewriter.copyOperator
-import edu.uci.ics.texera.workflow.operators.sink.{CacheSinkOpDesc, CacheSinkOpDescV2}
-import edu.uci.ics.texera.workflow.operators.source.cache.{CacheSourceOpDesc, CacheSourceOpDescV2}
+import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDesc
+import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 
-import java.util.UUID
 import scala.collection.mutable
 
 case class WorkflowVertex(
@@ -30,11 +27,8 @@ class WorkflowRewriter(
     var cachedOperatorDescriptors: mutable.HashMap[String, OperatorDescriptor],
     var cacheSourceOperatorDescriptors: mutable.HashMap[String, CacheSourceOpDesc],
     var cacheSinkOperatorDescriptors: mutable.HashMap[String, CacheSinkOpDesc],
-    var operatorRecord: mutable.HashMap[String, WorkflowVertexV2]
+    var operatorRecord: mutable.HashMap[String, WorkflowVertex]
 ) {
-
-  var opResultStorage: OpResultStorage = _
-
   private val logger = Logger(this.getClass.getName)
 
   var visitedOpID: mutable.HashSet[String] = new mutable.HashSet[String]()
@@ -453,9 +447,7 @@ class WorkflowRewriter(
 
   private def getCacheSourceOperator(operatorDescriptor: OperatorDescriptor): CacheSourceOpDesc = {
     val cacheSourceOperator = cacheSourceOperatorDescriptors(operatorDescriptor.operatorID)
-    cacheSourceOperator.schema = cacheSinkOperatorDescriptors(operatorDescriptor.operatorID)
-      .asInstanceOf[CacheSinkOpDesc]
-      .schema
+    cacheSourceOperator.schema = cacheSinkOperatorDescriptors(operatorDescriptor.operatorID).schema
     cacheSourceOperator
   }
 
@@ -469,7 +461,7 @@ class WorkflowRewriter(
     OperatorLink(srcPort, destPort)
   }
 
-  def getWorkflowVertex(op: OperatorDescriptor): WorkflowVertexV2 = {
+  def getWorkflowVertex(op: OperatorDescriptor): WorkflowVertex = {
     val opInVertex = copyOperator(op)
     val links = mutable.HashSet[OperatorLink]()
     if (!workflowDAG.operators.contains(op.operatorID)) {
@@ -477,7 +469,7 @@ class WorkflowRewriter(
     } else {
       //      workflowDAG.jgraphtDag.outgoingEdgesOf(opInVertex.operatorID).forEach(links.+=)
       workflowDAG.jgraphtDag.incomingEdgesOf(opInVertex.operatorID).forEach(link => links.+=(link))
-      WorkflowVertexV2(opInVertex, links)
+      WorkflowVertex(opInVertex, links)
     }
   }
 

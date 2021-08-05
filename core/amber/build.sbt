@@ -194,6 +194,3 @@ libraryDependencies += "org.tukaani" % "xz" % "1.5"
 
 // https://mvnrepository.com/artifact/org.jasypt/jasypt
 libraryDependencies += "org.jasypt" % "jasypt" % "1.9.3"
-
-// https://mvnrepository.com/artifact/org.apache.commons/commons-jcs3-core/3.0
-libraryDependencies += "org.apache.commons" % "commons-jcs3-core" % "3.0"

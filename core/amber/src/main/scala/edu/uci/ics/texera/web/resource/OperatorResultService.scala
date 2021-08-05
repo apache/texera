@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web.resource
 
 import edu.uci.ics.amber.engine.architecture.principal.OperatorResult
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.texera.web.resource.WorkflowResultServiceV1.{
+import edu.uci.ics.texera.web.resource.WorkflowResultService.{
   PaginationMode,
   SetDeltaMode,
   SetSnapshotMode,

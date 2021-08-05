@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowResultUpdate
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.storage.OpResultStorage
 import edu.uci.ics.texera.web.model.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.resource.WorkflowResultService.{
   PaginationMode,
@@ -14,7 +13,7 @@ import edu.uci.ics.texera.web.resource.WorkflowResultService.{
 }
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.send
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler
-import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDescV2
+import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 import javax.websocket.Session
@@ -100,32 +99,26 @@ object WorkflowResultService {
   }
 }
 
-case class WebResultUpdateEvent(updates: Map[String, WebResultUpdate])
-    extends TexeraWebSocketEvent
+case class WebResultUpdateEvent(updates: Map[String, WebResultUpdate]) extends TexeraWebSocketEvent
 
 /**
-  * WorkflowResultServiceV2 manages the materialized result of all sink operators in one workflow execution.
+  * WorkflowResultService manages the materialized result of all sink operators in one workflow execution.
   *
-  * On each result update from the engine, WorkflowResultServiceV2
+  * On each result update from the engine, WorkflowResultService
   *  - update the result data for each operator,
   *  - send result update event to the frontend
   */
-class WorkflowResultService(
-    val workflowCompiler: WorkflowCompiler,
-    opResultStorage: OpResultStorage
-) {
+class WorkflowResultService(val workflowCompiler: WorkflowCompiler) {
 
   // OperatorResultService for each sink operator
-  var operatorResults: mutable.HashMap[String, OperatorResultServiceV2] =
-    mutable.HashMap[String, OperatorResultServiceV2]()
+  var operatorResults: mutable.HashMap[String, OperatorResultService] =
+    mutable.HashMap[String, OperatorResultService]()
   workflowCompiler.workflow.getSinkOperators.map(sink => {
-    if (workflowCompiler.workflow.getOperator(sink).isInstanceOf[CacheSinkOpDescV2]) {
+    if (workflowCompiler.workflow.getOperator(sink).isInstanceOf[CacheSinkOpDesc]) {
       val upstreamID = workflowCompiler.workflow.getUpstream(sink).head.operatorID
-      val serviceV2 = new OperatorResultServiceV2(upstreamID, workflowCompiler, opResultStorage)
-      operatorResults += ((sink, serviceV2))
+      operatorResults += ((sink, new OperatorResultService(upstreamID, workflowCompiler)))
     } else {
-      val serviceV2 = new OperatorResultServiceV2(sink, workflowCompiler, opResultStorage)
-      operatorResults += ((sink, serviceV2))
+      operatorResults += ((sink, new OperatorResultService(sink, workflowCompiler)))
     }
   })
 

@@ -28,8 +28,8 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.{
   WorkflowCompiler,
   WorkflowInfo,
-  WorkflowRewriterV2,
-  WorkflowVertexV2
+  WorkflowRewriter,
+  WorkflowVertex
 }
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 
@@ -40,12 +40,10 @@ import javax.websocket.server.ServerEndpoint
 import scala.collection.{breakOut, mutable}
 import com.typesafe.scalalogging.Logger
 import edu.uci.ics.texera.Utils.objectMapper
-import edu.uci.ics.amber.engine.storage.OpResultStorage
-import edu.uci.ics.amber.engine.storage.memory.MemOpResultStorage
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowInfo.toJgraphtDAG
-import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDescV2
-import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDescV2
+import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDesc
+import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 
 object WorkflowWebsocketResource {
   // TODO should reorganize this resource.
@@ -137,7 +135,7 @@ class WorkflowWebsocketResource {
       val downstreamIDs = sessionResults(session.getId).workflowCompiler.workflow
         .getDownstream(operatorID)
       for (elem <- downstreamIDs) {
-        if (elem.isInstanceOf[CacheSinkOpDescV2]) {
+        if (elem.isInstanceOf[CacheSinkOpDesc]) {
           operatorID = elem.operatorID
           breakOut
         }
@@ -193,21 +191,13 @@ class WorkflowWebsocketResource {
     mutable.HashMap[String, mutable.HashMap[String, mutable.MutableList[Tuple]]]()
   val sessionCachedOperators: mutable.HashMap[String, mutable.HashMap[String, OperatorDescriptor]] =
     mutable.HashMap[String, mutable.HashMap[String, OperatorDescriptor]]()
-//  val sessionCacheSourceOperators
-//      : mutable.HashMap[String, mutable.HashMap[String, CacheSourceOpDesc]] =
-//    mutable.HashMap[String, mutable.HashMap[String, CacheSourceOpDesc]]()
   val sessionCacheSourceOperators
-      : mutable.HashMap[String, mutable.HashMap[String, CacheSourceOpDescV2]] =
-    mutable.HashMap[String, mutable.HashMap[String, CacheSourceOpDescV2]]()
-//  val sessionCacheSinkOperators: mutable.HashMap[String, mutable.HashMap[String, CacheSinkOpDesc]] =
-//    mutable.HashMap[String, mutable.HashMap[String, CacheSinkOpDesc]]()
-  val sessionCacheSinkOperators
-      : mutable.HashMap[String, mutable.HashMap[String, CacheSinkOpDescV2]] =
-    mutable.HashMap[String, mutable.HashMap[String, CacheSinkOpDescV2]]()
-  val sessionOperatorRecord: mutable.HashMap[String, mutable.HashMap[String, WorkflowVertexV2]] =
-    mutable.HashMap[String, mutable.HashMap[String, WorkflowVertexV2]]()
-
-  val opResultStorage: OpResultStorage = new MemOpResultStorage()
+      : mutable.HashMap[String, mutable.HashMap[String, CacheSourceOpDesc]] =
+    mutable.HashMap[String, mutable.HashMap[String, CacheSourceOpDesc]]()
+  val sessionCacheSinkOperators: mutable.HashMap[String, mutable.HashMap[String, CacheSinkOpDesc]] =
+    mutable.HashMap[String, mutable.HashMap[String, CacheSinkOpDesc]]()
+  val sessionOperatorRecord: mutable.HashMap[String, mutable.HashMap[String, WorkflowVertex]] =
+    mutable.HashMap[String, mutable.HashMap[String, WorkflowVertex]]()
 
   def executeWorkflow(session: Session, request: ExecuteWorkflowRequest): Unit = {
     var operatorOutputCache: mutable.HashMap[String, mutable.MutableList[Tuple]] = null
@@ -224,37 +214,23 @@ class WorkflowWebsocketResource {
     } else {
       cachedOperators = sessionCachedOperators(session.getId)
     }
-//    var cacheSourceOperators: mutable.HashMap[String, CacheSourceOpDesc] = null
-//    if (!sessionCacheSourceOperators.contains(session.getId)) {
-//      cacheSourceOperators = mutable.HashMap[String, CacheSourceOpDesc]()
-//      sessionCacheSourceOperators += ((session.getId, cacheSourceOperators))
-//    } else {
-//      cacheSourceOperators = sessionCacheSourceOperators(session.getId)
-//    }
-    var cacheSourceOperators: mutable.HashMap[String, CacheSourceOpDescV2] = null
+    var cacheSourceOperators: mutable.HashMap[String, CacheSourceOpDesc] = null
     if (!sessionCacheSourceOperators.contains(session.getId)) {
-      cacheSourceOperators = mutable.HashMap[String, CacheSourceOpDescV2]()
+      cacheSourceOperators = mutable.HashMap[String, CacheSourceOpDesc]()
       sessionCacheSourceOperators += ((session.getId, cacheSourceOperators))
     } else {
       cacheSourceOperators = sessionCacheSourceOperators(session.getId)
     }
-//    var cacheSinkOperators: mutable.HashMap[String, CacheSinkOpDesc] = null
-//    if (!sessionCacheSinkOperators.contains(session.getId)) {
-//      cacheSinkOperators = mutable.HashMap[String, CacheSinkOpDesc]()
-//      sessionCacheSinkOperators += ((session.getId, cacheSinkOperators))
-//    } else {
-//      cacheSinkOperators = sessionCacheSinkOperators(session.getId)
-//    }
-    var cacheSinkOperators: mutable.HashMap[String, CacheSinkOpDescV2] = null
+    var cacheSinkOperators: mutable.HashMap[String, CacheSinkOpDesc] = null
     if (!sessionCacheSinkOperators.contains(session.getId)) {
-      cacheSinkOperators = mutable.HashMap[String, CacheSinkOpDescV2]()
+      cacheSinkOperators = mutable.HashMap[String, CacheSinkOpDesc]()
       sessionCacheSinkOperators += ((session.getId, cacheSinkOperators))
     } else {
       cacheSinkOperators = sessionCacheSinkOperators(session.getId)
     }
-    var operatorRecord: mutable.HashMap[String, WorkflowVertexV2] = null
+    var operatorRecord: mutable.HashMap[String, WorkflowVertex] = null
     if (!sessionOperatorRecord.contains(session.getId)) {
-      operatorRecord = mutable.HashMap[String, WorkflowVertexV2]()
+      operatorRecord = mutable.HashMap[String, WorkflowVertex]()
       sessionOperatorRecord += ((session.getId, operatorRecord))
     } else {
       operatorRecord = sessionOperatorRecord(session.getId)
@@ -272,7 +248,7 @@ class WorkflowWebsocketResource {
     workflowInfo.cachedOperatorIDs = request.cachedOperatorIDs
     logger.info("Cached operators: {}.", cachedOperators.toString())
     logger.info("request.cachedOperatorIDs: {}.", request.cachedOperatorIDs)
-    val workflowRewriter = new WorkflowRewriterV2(
+    val workflowRewriter = new WorkflowRewriter(
       workflowInfo,
       operatorOutputCache,
       cachedOperators,
@@ -280,15 +256,6 @@ class WorkflowWebsocketResource {
       cacheSinkOperators,
       operatorRecord
     )
-//    val workflowRewriter = new WorkflowRewriter(
-//      workflowInfo,
-//      operatorOutputCache,
-//      cachedOperators,
-//      cacheSourceOperators,
-//      cacheSinkOperators,
-//      operatorRecord
-//    )
-    workflowRewriter.opResultStorage = opResultStorage
     val newWorkflowInfo = workflowRewriter.rewrite_v2
     logger.info("Original workflow: {}.", toJgraphtDAG(workflowInfo).toString)
     workflowInfo = newWorkflowInfo
@@ -304,7 +271,7 @@ class WorkflowWebsocketResource {
     val workflow = texeraWorkflowCompiler.amberWorkflow
     val workflowTag = WorkflowIdentity(jobID)
 
-    val workflowResultService = new WorkflowResultService(texeraWorkflowCompiler, opResultStorage)
+    val workflowResultService = new WorkflowResultService(texeraWorkflowCompiler)
     if (!sessionResults.contains(session.getId)) {
       sessionResults(session.getId) = workflowResultService
     } else {
