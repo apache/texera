@@ -42,8 +42,8 @@
   <ul class="current-share" id="current-share">
     <li>{{fileOwner}} <span class="badge badge-primary">owner</span></li>
     <li *ngFor="let userFileAccess of allUserFileAccess">
-      {{userFileAccess.username}} <span class="badge badge-primary">{{userFileAccess.accessLevel}}</span>
-      <button (click)="onClickRemoveUserFileAccess(dashboardUserFileEntry, userFileAccess.username)" class="btn" type="button">
+      {{userFileAccess.userName}} <span class="badge badge-primary">{{userFileAccess.accessLevel}}</span>
+      <button (click)="onClickRemoveUserFileAccess(dashboardUserFileEntry, userFileAccess.userName)" class="btn" type="button">
         <i
           class="fa fa-trash"></i>
       </button>

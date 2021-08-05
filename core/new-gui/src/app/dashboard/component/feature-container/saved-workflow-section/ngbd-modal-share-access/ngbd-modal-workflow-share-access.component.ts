@@ -1,11 +1,9 @@
 import { Component, Input, OnInit } from '@angular/core';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { FormBuilder, Validators } from '@angular/forms';
-import {
-  AccessEntry,
-  WorkflowAccessService
-} from '../../../../service/workflow-access/workflow-access.service';
+import { WorkflowAccessService } from '../../../../service/workflow-access/workflow-access.service';
 import { Workflow } from '../../../../../common/type/workflow';
+import { AccessEntry } from '../../../../type/access.interface';
 
 
 @Component({
@@ -24,7 +22,7 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
 
   accessLevels: string[] = ['read', 'write'];
 
-  allUserWorkflowAccess: Readonly<Access>[] = [];
+  allUserWorkflowAccess: ReadonlyArray<AccessEntry> = [];
 
   workflowOwner: string = '';
 
@@ -50,7 +48,7 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
    */
   public refreshGrantedList(workflow: Workflow): void {
     this.workflowGrantAccessService.retrieveGrantedWorkflowAccessList(workflow).subscribe(
-      (userWorkflowAccess: Readonly<Access>[]) => this.allUserWorkflowAccess = userWorkflowAccess,
+      (userWorkflowAccess: ReadonlyArray<AccessEntry>) => this.allUserWorkflowAccess = userWorkflowAccess,
       err => console.log(err.error)
     );
     this.workflowGrantAccessService.getWorkflowOwner(workflow).subscribe(({ownerName}) => {

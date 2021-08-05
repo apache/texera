@@ -2,7 +2,8 @@ import { Component, Input, OnInit } from '@angular/core';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { FormBuilder, Validators } from '@angular/forms';
 import { UserFileService } from '../../../../service/user-file/user-file.service';
-import { DashboardUserFileEntry, UserFileAccess } from '../../../../type/dashboard-user-file-entry';
+import { DashboardUserFileEntry } from '../../../../type/dashboard-user-file-entry';
+import { AccessEntry } from '../../../../type/access.interface';
 
 
 @Component({
@@ -14,16 +15,16 @@ export class NgbdModalUserFileShareAccessComponent implements OnInit {
 
   @Input() dashboardUserFileEntry!: DashboardUserFileEntry;
 
-  shareForm = this.formBuilder.group({
+  public shareForm = this.formBuilder.group({
     username: ['', [Validators.required]],
     accessLevel: ['', [Validators.required]]
   });
 
-  allUserFileAccess: ReadonlyArray<UserFileAccess> = [];
+  public allUserFileAccess: ReadonlyArray<AccessEntry> = [];
 
-  accessLevels = ['read', 'write'];
+  public accessLevels = ['read', 'write'];
 
-  fileOwner = '';
+  public fileOwner: string | undefined;
 
   constructor(
     public activeModal: NgbActiveModal,
@@ -43,10 +44,11 @@ export class NgbdModalUserFileShareAccessComponent implements OnInit {
    */
   public refreshGrantedUserFileAccessList(dashboardUserFileEntry: DashboardUserFileEntry): void {
     this.userFileService.getUserFileAccessList(dashboardUserFileEntry).subscribe(
-      (userFileAccess: ReadonlyArray<UserFileAccess>) => {
-        const newAccessList: UserFileAccess[] = [];
-        userFileAccess.map(ufa => {
-          if (ufa.accessLevel === 'Owner') { this.fileOwner = ufa.username; } else { newAccessList.push(ufa); }
+      (userFileAccess: ReadonlyArray<AccessEntry>) => {
+        const newAccessList: AccessEntry[] = [];
+        userFileAccess.map(accessEntry => {
+          this.fileOwner = accessEntry.accessLevel === 'Owner' ? accessEntry.userName : undefined;
+          newAccessList.push(accessEntry);
         });
         this.allUserFileAccess = newAccessList;
       },
