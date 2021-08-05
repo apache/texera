@@ -9,8 +9,8 @@ import { CustomNgMaterialModule } from '../../../../../common/custom-ng-material
 
 import { FileUploadModule } from 'ng2-file-upload';
 import { UserService } from '../../../../../common/service/user/user.service';
-import { UserDictionaryUploadService } from '../../../../../common/service/user/user-dictionary/user-dictionary-upload.service';
-import { UserDictionaryService } from '../../../../../common/service/user/user-dictionary/user-dictionary.service';
+import { UserDictionaryUploadService } from '../../../../service/user-dictionary/user-dictionary-upload.service';
+import { UserDictionaryService } from '../../../../service/user-dictionary/user-dictionary.service';
 import { StubUserService } from '../../../../../common/service/user/stub-user.service';
 
 describe('NgbdModalResourceAddComponent', () => {

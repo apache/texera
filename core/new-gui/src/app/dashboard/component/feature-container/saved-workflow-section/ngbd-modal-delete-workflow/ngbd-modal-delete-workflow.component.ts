@@ -15,14 +15,13 @@ import { Workflow } from '../../../../../common/type/workflow';
 })
 export class NgbdModalDeleteWorkflowComponent {
 
-  // TODO: rewrite this.
-  @Input() workflow: { name: string } = {name: 'name'};
+  @Input() workflow!: Workflow;
 
   constructor(public activeModal: NgbActiveModal) {
   }
 
   /**
-   * deleteSavedProject sends the user
+   * deleteSavedWorkflow sends the user
    * confirm to the main component. It does not call any method in service.
    */
   public deleteSavedWorkflow(): void {

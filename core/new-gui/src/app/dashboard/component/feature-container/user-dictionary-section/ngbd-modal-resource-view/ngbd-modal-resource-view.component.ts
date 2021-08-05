@@ -2,7 +2,7 @@ import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 
 import { UserDictionary } from '../../../../../common/type/user-dictionary';
-import { UserDictionaryService } from '../../../../../common/service/user/user-dictionary/user-dictionary.service';
+import { UserDictionaryService } from '../../../../service/user-dictionary/user-dictionary.service';
 
 const DICTIONARY_ITEM_PREVIEW_SIZE = 20;
 

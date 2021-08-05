@@ -7,7 +7,7 @@ import { NgbdModalResourceAddComponent } from './ngbd-modal-resource-add/ngbd-mo
 import { NgbdModalResourceDeleteComponent } from './ngbd-modal-resource-delete/ngbd-modal-resource-delete.component';
 import { NgbdModalResourceViewComponent } from './ngbd-modal-resource-view/ngbd-modal-resource-view.component';
 import { UserDictionary } from '../../../../common/type/user-dictionary';
-import { UserDictionaryService } from '../../../../common/service/user/user-dictionary/user-dictionary.service';
+import { UserDictionaryService } from '../../../service/user-dictionary/user-dictionary.service';
 import { UserService } from '../../../../common/service/user/user.service';
 
 

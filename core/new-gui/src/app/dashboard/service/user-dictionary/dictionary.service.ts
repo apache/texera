@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
 import { AppSettings } from 'src/app/common/app-setting';
-import { UserService } from '../user.service';
+import { UserService } from '../../../common/service/user/user.service';
 
 
 export type UserDictionary = {

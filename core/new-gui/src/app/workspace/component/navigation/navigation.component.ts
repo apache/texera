@@ -4,7 +4,7 @@ import { Component, ElementRef, Input, OnInit, ViewChild } from '@angular/core';
 import { TourService } from 'ngx-tour-ng-bootstrap';
 import { environment } from '../../../../environments/environment';
 import { UserService } from '../../../common/service/user/user.service';
-import { WorkflowPersistService } from '../../../common/service/user/workflow-persist/workflow-persist.service';
+import { WorkflowPersistService } from '../../../common/service/workflow-persist/workflow-persist.service';
 import { Workflow } from '../../../common/type/workflow';
 import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
 import { UndoRedoService } from '../../service/undo-redo/undo-redo.service';

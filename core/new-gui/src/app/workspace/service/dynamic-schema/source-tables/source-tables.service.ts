@@ -4,7 +4,7 @@ import { isEqual } from 'lodash';
 import { Observable } from 'rxjs';
 import { environment } from '../../../../../environments/environment';
 import { AppSettings } from '../../../../common/app-setting';
-import { UserFileService } from '../../../../common/service/user/user-file/user-file.service';
+import { UserFileService } from '../../../../dashboard/service/user-file/user-file.service';
 import { OperatorSchema } from '../../../types/operator-schema.interface';
 import { OperatorPredicate } from '../../../types/workflow-common.interface';
 import { WorkflowActionService } from '../../workflow-graph/model/workflow-action.service';
@@ -58,7 +58,7 @@ export class SourceTablesService {
 
     this.registerUpdateUserFileInFileSourceOp();
 
-    this.userFileService.refreshFiles();
+    this.userFileService.refreshDashboardUserFileEntries();
 
     this.registerOpPropertyDynamicUpdate();
 
@@ -159,7 +159,7 @@ export class SourceTablesService {
   private registerUpdateUserFileInFileSourceOp(): void {
     this.userFileService.getUserFilesChangedEvent().subscribe(
       _ => {
-        this.userFileNames = this.userFileService.getUserFiles().map(file => file.name);
+        this.userFileNames = this.userFileService.getUserFiles().map(file => `${file.ownerName}/${file.file.name}`);
 
         Array.from(this.dynamicSchemaService.getDynamicSchemaMap().keys())
           .forEach(operatorID => {

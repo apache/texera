@@ -6,10 +6,10 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 
 import { FileUploadModule } from 'ng2-file-upload';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
-import { UserFileService } from '../../../../../common/service/user/user-file/user-file.service';
+import { UserFileService } from '../../../../service/user-file/user-file.service';
 import { NgbdModalFileAddComponent } from './ngbd-modal-file-add.component';
 import { UserService } from '../../../../../common/service/user/user.service';
-import { UserFileUploadService } from '../../../../../common/service/user/user-file/user-file-upload.service';
+import { UserFileUploadService } from '../../../../service/user-file/user-file-upload.service';
 import { StubUserService } from '../../../../../common/service/user/stub-user.service';
 
 describe('NgbdModalFileAddComponent', () => {

@@ -2,9 +2,10 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 import { map } from 'rxjs/operators';
-import { AppSettings } from '../../../app-setting';
-import { Workflow, WorkflowContent } from '../../../type/workflow';
-import { jsonCast } from '../../../util/storage';
+import { AppSettings } from '../../app-setting';
+import { Workflow, WorkflowContent } from '../../type/workflow';
+import { jsonCast } from '../../util/storage';
+import { DashboardWorkflowEntry } from '../../../dashboard/type/dashboard-workflow-entry';
 
 export const WORKFLOW_URL = 'workflow';
 export const WORKFLOW_PERSIST_URL = WORKFLOW_URL + '/persist';
@@ -37,13 +38,14 @@ export class WorkflowPersistService {
    * @param newWorkflowName
    * @param newWorkflowContent
    */
-  public createWorkflow(newWorkflowContent: WorkflowContent, newWorkflowName: string = 'Untitled workflow'): Observable<Workflow> {
-    return this.http.post<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_CREATE_URL}`, {
+  public createWorkflow(newWorkflowContent: WorkflowContent, newWorkflowName: string = 'Untitled workflow'):
+    Observable<DashboardWorkflowEntry> {
+    return this.http.post<DashboardWorkflowEntry>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_CREATE_URL}`, {
       name: newWorkflowName,
       content: JSON.stringify(newWorkflowContent)
     })
-      .filter((createdWorkflow: Workflow) => createdWorkflow != null)
-      .pipe(map(WorkflowPersistService.parseWorkflowInfo));
+      .filter((createdWorkflow: DashboardWorkflowEntry) => createdWorkflow != null);
+
   }
 
   /**
@@ -56,12 +58,21 @@ export class WorkflowPersistService {
       .pipe(map(WorkflowPersistService.parseWorkflowInfo));
   }
 
+
   /**
    * retrieves a list of workflows from backend database that belongs to the user in the session.
    */
-  public retrieveWorkflowsBySessionUser(): Observable<Workflow[]> {
-    return this.http.get<Workflow[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_LIST_URL}`)
-      .pipe(map((workflows: Workflow[]) => workflows.map(WorkflowPersistService.parseWorkflowInfo)));
+  public retrieveWorkflowsBySessionUser(): Observable<DashboardWorkflowEntry[]> {
+    return this.http.get<DashboardWorkflowEntry[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_LIST_URL}`)
+      .pipe(map((dashboardWorkflowEntries: DashboardWorkflowEntry[]) =>
+          dashboardWorkflowEntries.map((workflowEntry: DashboardWorkflowEntry) => {
+            return {
+              ...workflowEntry,
+              dashboardWorkflowEntry: WorkflowPersistService.parseWorkflowInfo(workflowEntry.workflow)
+            };
+          })
+        )
+      );
   }
 
   /**

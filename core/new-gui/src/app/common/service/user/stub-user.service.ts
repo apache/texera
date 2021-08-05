@@ -4,6 +4,7 @@ import { Observable } from 'rxjs/Observable';
 import { Subject } from 'rxjs';
 import { User } from '../../type/user';
 import { UserService } from './user.service';
+import { PublicInterfaceOf } from '../../util/stub';
 
 export const MOCK_USER_ID = 1;
 export const MOCK_USER_NAME = 'testUser';
@@ -12,9 +13,6 @@ export const MOCK_USER = {
   uid: MOCK_USER_ID
 };
 
-type PublicInterfaceOf<Class> = {
-  [Member in keyof Class]: Class[Member];
-};
 
 /**
  * This StubUserService is to test other service's functionality that depends on UserService

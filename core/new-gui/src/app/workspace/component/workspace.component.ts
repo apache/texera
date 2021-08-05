@@ -5,7 +5,7 @@ import { Subscription } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Version } from '../../../environments/version';
 import { UserService } from '../../common/service/user/user.service';
-import { WorkflowPersistService } from '../../common/service/user/workflow-persist/workflow-persist.service';
+import { WorkflowPersistService } from '../../common/service/workflow-persist/workflow-persist.service';
 import { Workflow } from '../../common/type/workflow';
 import { SchemaPropagationService } from '../service/dynamic-schema/schema-propagation/schema-propagation.service';
 import { SourceTablesService } from '../service/dynamic-schema/source-tables/source-tables.service';
