@@ -4,7 +4,7 @@ import { NgbdModalFileAddComponent } from './ngbd-modal-file-add/ngbd-modal-file
 import { UserFileService } from '../../../service/user-file/user-file.service';
 import { DashboardUserFileEntry } from '../../../type/dashboard-user-file-entry';
 import { UserService } from '../../../../common/service/user/user.service';
-import {NgbdModalUserFileShareAccessComponent} from './ngbd-modal-file-share-access/ngbd-modal-user-file-share-access.component';
+import { NgbdModalUserFileShareAccessComponent } from './ngbd-modal-file-share-access/ngbd-modal-user-file-share-access.component';
 
 @Component({
   selector: 'texera-user-file-section',
@@ -41,8 +41,8 @@ export class UserFileSectionComponent implements OnInit {
     return fileArray;
   }
 
-  public deleteFile(userFile: DashboardUserFileEntry): void {
-    this.userFileService.deleteDashboardUserFileEntry(userFile);
+  public deleteUserFileEntry(userFileEntry: DashboardUserFileEntry): void {
+    this.userFileService.deleteDashboardUserFileEntry(userFileEntry);
   }
 
   public disableAddButton(): boolean {
@@ -52,8 +52,8 @@ export class UserFileSectionComponent implements OnInit {
   public addFileSizeUnit(fileSize: number): string {
     return this.userFileService.addFileSizeUnit(fileSize);
   }
-  public downloadFile(userFile: UserFile): void {
-    this.userFileService.downloadUserFile(userFile);
-  }
 
+  public downloadUserFile(userFileEntry: DashboardUserFileEntry): void {
+    this.userFileService.downloadUserFile(userFileEntry.file);
+  }
 }
