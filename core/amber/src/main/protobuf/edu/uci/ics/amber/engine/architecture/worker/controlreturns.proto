@@ -11,11 +11,20 @@ option (scalapb.options) = {
     no_default_values_in_constructor: true
 };
 
+message CurrentInputTupleInfo {
+}
+
+message ControlException {
+    string msg = 1;
+}
+
 message ControlReturnV2 {
     oneof value {
-        WorkerStatistics worker_statistics = 1;
-        WorkerState worker_state = 2;
+        ControlException control_exception = 1;
 
+        WorkerStatistics worker_statistics = 2;
+        WorkerState worker_state = 3;
+        CurrentInputTupleInfo current_input_tuple_info = 4;
     }
 }
 

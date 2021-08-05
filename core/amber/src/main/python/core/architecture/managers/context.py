@@ -15,7 +15,6 @@ class Context:
     def __init__(self, dp):
         self.dp = dp
         self.input_queue = dp._input_queue
-        self.udf_operator = dp._udf_operator
         self.state_manager = StateManager({
             WorkerState.UNINITIALIZED: {WorkerState.READY},
             WorkerState.READY:         {WorkerState.PAUSED, WorkerState.RUNNING},

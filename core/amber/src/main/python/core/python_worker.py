@@ -4,19 +4,18 @@ from overrides import overrides
 
 from core.models.internal_queue import InternalQueue
 from core.runnables import DataProcessor, NetworkReceiver, NetworkSender
-from core.udf.udf_operator import UDFOperator
 from core.util.runnable.runnable import Runnable
 from core.util.stoppable.stoppable import Stoppable
 
 
 class PythonWorker(Runnable, Stoppable):
-    def __init__(self, host: str, input_port: int, output_port: int, udf_operator: UDFOperator):
+    def __init__(self, host: str, input_port: int, output_port: int):
         self._input_queue = InternalQueue()
         self._output_queue = InternalQueue()
         schema_map = dict()
         self._network_receiver = NetworkReceiver(self._input_queue, host=host, port=input_port, schema_map=schema_map)
         self._network_sender = NetworkSender(self._output_queue, host=host, port=output_port, schema_map=schema_map)
-        self._data_processor = DataProcessor(self._input_queue, self._output_queue, udf_operator)
+        self._data_processor = DataProcessor(self._input_queue, self._output_queue)
         self._network_receiver.register_shutdown(self.stop)
 
     @overrides
