@@ -9,7 +9,6 @@ import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowCon
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.error.ErrorUtils.safely
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 class TrivialControlTester(id: ActorVirtualIdentity, parentNetworkCommunicationActorRef: ActorRef)
@@ -26,7 +25,7 @@ class TrivialControlTester(id: ActorVirtualIdentity, parentNetworkCommunicationA
             id,
             internalMessage @ WorkflowControlMessage(from, sequenceNumber, payload)
           ) =>
-        logger.logInfo(s"received ${internalMessage}")
+        logger.logInfo(s"received $internalMessage")
         this.controlInputPort.handleMessage(
           this.sender(),
           id,
@@ -43,28 +42,25 @@ class TrivialControlTester(id: ActorVirtualIdentity, parentNetworkCommunicationA
       from: ActorVirtualIdentity,
       controlPayload: ControlPayload
   ): Unit = {
-    try {
-      controlPayload match {
-        // use control input port to pass control messages
-        case invocation: ControlInvocation =>
-          assert(from.isInstanceOf[ActorVirtualIdentity])
-          asyncRPCServer.logControlInvocation(invocation, from)
-          asyncRPCServer.receive(invocation, from)
-        case ret: ReturnInvocation =>
-          asyncRPCClient.logControlReply(ret, from)
-          asyncRPCClient.fulfillPromise(ret)
-        case other =>
-          logger.logError(
-            WorkflowRuntimeError(
-              s"unhandled control message: $other",
-              "ControlInputPort",
-              Map.empty
-            )
+
+    controlPayload match {
+      // use control input port to pass control messages
+      case invocation: ControlInvocation =>
+        assert(from.isInstanceOf[ActorVirtualIdentity])
+        asyncRPCServer.logControlInvocation(invocation, from)
+        asyncRPCServer.receive(invocation, from)
+      case ret: ReturnInvocation =>
+        asyncRPCClient.logControlReply(ret, from)
+        asyncRPCClient.fulfillPromise(ret)
+      case other =>
+        logger.logError(
+          WorkflowRuntimeError(
+            s"unhandled control message: $other",
+            "ControlInputPort",
+            Map.empty
           )
-      }
-    } catch safely {
-      case e =>
-        logger.logError(WorkflowRuntimeError(e, identifier.toString))
+        )
     }
+
   }
 }

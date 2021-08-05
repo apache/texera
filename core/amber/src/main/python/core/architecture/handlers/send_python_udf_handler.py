@@ -1,6 +1,5 @@
 import inspect
 from importlib import util
-
 from loguru import logger
 
 from proto.edu.uci.ics.amber.engine.architecture.worker import SendPythonUdfV2
@@ -16,7 +15,6 @@ class SendPythonUdfHandler(Handler):
         spec = util.spec_from_loader('udf_module', loader=None)
         udf_module = util.module_from_spec(spec)
         exec(command.udf, udf_module.__dict__)
-
         operators = list(filter(lambda v: inspect.isclass(v)
                                           and issubclass(v, UDFOperator)
                                           and not inspect.isabstract(v),

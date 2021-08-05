@@ -4,6 +4,7 @@ import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{TestKit, TestProbe}
 import edu.uci.ics.amber.engine.architecture.control.utils.ChainHandler.Chain
 import edu.uci.ics.amber.engine.architecture.control.utils.CollectHandler.Collect
+import edu.uci.ics.amber.engine.architecture.control.utils.ErrorHandler.ErrorCommand
 import edu.uci.ics.amber.engine.architecture.control.utils.MultiCallHandler.MultiCall
 import edu.uci.ics.amber.engine.architecture.control.utils.NestedHandler.Nested
 import edu.uci.ics.amber.engine.architecture.control.utils.PingPongHandler.Ping
@@ -47,7 +48,10 @@ class TrivialControlSpec
         }
       case NetworkMessage(msgID, WorkflowControlMessage(_, _, ReturnInvocation(id, returnValue))) =>
         probe.sender() ! NetworkAck(msgID)
-        assert(returnValue.asInstanceOf[T] == expectedValues(id.toInt))
+        returnValue match {
+          case e: Throwable => throw e
+          case _            => assert(returnValue.asInstanceOf[T] == expectedValues(id.toInt))
+        }
         flag += 1
       case other =>
       //skip
@@ -133,6 +137,12 @@ class TrivialControlSpec
       testControl(1, (Nested(5), "Hello World!"))
     }
 
+    "execute ErrorCall" in {
+      assertThrows[RuntimeException] {
+        testControl(1, (ErrorCommand(), ()))
+      }
+
+    }
   }
 
 }

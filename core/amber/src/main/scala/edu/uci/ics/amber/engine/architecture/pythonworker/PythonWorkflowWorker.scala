@@ -4,16 +4,13 @@ import akka.actor.{ActorRef, Props}
 import com.typesafe.config.{Config, ConfigFactory}
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.DataElement
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
-import edu.uci.ics.amber.engine.architecture.worker.controlcommands.SendPythonUdfV2
+import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
-import edu.uci.ics.amber.engine.common.{IOperatorExecutor, ISourceOperatorExecutor}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.texera.Utils
-import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
 
 import java.io.IOException
 import java.net.ServerSocket
@@ -110,20 +107,6 @@ class PythonWorkflowWorker(
     startPythonProcess()
     startProxyServer()
     startProxyClient()
-    sendUDF()
-  }
-
-  private def sendUDF(): Unit = {
-    pythonProxyClient.enqueueCommand(
-      ControlInvocationV2(
-        -1,
-        SendPythonUdfV2(
-          udf = operator.asInstanceOf[PythonUDFOpExecV2].getCode,
-          isSource = operator.isInstanceOf[ISourceOperatorExecutor]
-        )
-      ),
-      SELF
-    )
   }
 
   private def startProxyServer(): Unit = {

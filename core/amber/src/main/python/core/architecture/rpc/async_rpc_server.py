@@ -12,7 +12,7 @@ from core.architecture.handlers.update_input_linking_handler import UpdateInputL
 from core.architecture.managers.context import Context
 from core.models.internal_queue import ControlElement, InternalQueue
 from core.util import get_one_of, set_one_of
-from proto.edu.uci.ics.amber.engine.architecture.worker import ControlCommandV2, ControlReturnV2
+from proto.edu.uci.ics.amber.engine.architecture.worker import ControlCommandV2, ControlException, ControlReturnV2
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlInvocationV2, ControlPayloadV2, \
     ReturnInvocationV2
 
@@ -34,8 +34,12 @@ class AsyncRPCServer:
     def receive(self, from_: ActorVirtualIdentity, control_invocation: ControlInvocationV2):
         command: ControlCommandV2 = get_one_of(control_invocation.command)
         logger.debug(f"PYTHON receives a ControlInvocation: {control_invocation}")
-        handler = self.look_up(command)
-        control_return: ControlReturnV2 = set_one_of(ControlReturnV2, handler(self._context, command))
+        try:
+            handler = self.look_up(command)
+            control_return: ControlReturnV2 = set_one_of(ControlReturnV2, handler(self._context, command))
+
+        except Exception as exception:
+            control_return: ControlReturnV2 = set_one_of(ControlReturnV2, ControlException(str(exception)))
 
         payload: ControlPayloadV2 = set_one_of(
             ControlPayloadV2,
