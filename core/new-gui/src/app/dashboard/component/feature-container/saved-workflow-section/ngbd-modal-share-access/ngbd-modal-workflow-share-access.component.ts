@@ -15,18 +15,16 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
 
   @Input() workflow!: Workflow;
 
-  shareForm = this.formBuilder.group({
+  public shareForm = this.formBuilder.group({
     username: ['', [Validators.required]],
     accessLevel: ['', [Validators.required]]
   });
 
-  accessLevels: string[] = ['read', 'write'];
+  public accessLevels: string[] = ['read', 'write'];
 
-  allUserWorkflowAccess: ReadonlyArray<AccessEntry> = [];
+  public allUserWorkflowAccess: ReadonlyArray<AccessEntry> = [];
 
-  workflowOwner: string = '';
-
-  public defaultWeb: String = 'http://localhost:4200/';
+  public workflowOwner: string = '';
 
   constructor(
     public activeModal: NgbActiveModal,

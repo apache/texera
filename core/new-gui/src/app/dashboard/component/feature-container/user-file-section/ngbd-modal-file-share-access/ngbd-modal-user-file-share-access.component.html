@@ -40,12 +40,12 @@
     class="fa fa-refresh"></i></button>
   <label for="current-share">Shared Access:</label>
   <ul class="current-share" id="current-share">
-    <li>{{fileOwner}} <span class="badge badge-primary">owner</span></li>
+    <li>{{fileOwner}} <span class="badge badge-primary">Owner</span></li>
     <li *ngFor="let userFileAccess of allUserFileAccess">
       {{userFileAccess.userName}} <span class="badge badge-primary">{{userFileAccess.accessLevel}}</span>
-      <button (click)="onClickRemoveUserFileAccess(dashboardUserFileEntry, userFileAccess.userName)" class="btn" type="button">
-        <i
-          class="fa fa-trash"></i>
+      <button (click)="onClickRemoveUserFileAccess(dashboardUserFileEntry, userFileAccess.userName)"
+              class="btn" type="button">
+        <i class="fa fa-trash"></i>
       </button>
     </li>
   </ul>
