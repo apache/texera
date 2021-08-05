@@ -38,7 +38,7 @@ export class ValidationWorkflowService {
   private readonly operatorValidationStream = new Subject<{ operatorID: string, validation: Validation }>();
   // stream of global validation error status is updated, only errors will be reported
   private readonly workflowValidationErrorStream = new BehaviorSubject<{ errors: Record<string, ValidationError> }>( {errors: {}});
-  private ajv = new Ajv({ schemaId: 'auto', allErrors: true });
+  private ajv = new Ajv({ schemaId: 'auto', allErrors: true, nullable: true });
 
   // this map record --> <operatorID, error string>
   private workflowErrors: Record<string, ValidationError> = {};
