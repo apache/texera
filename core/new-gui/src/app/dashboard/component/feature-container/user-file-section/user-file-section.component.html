@@ -27,17 +27,17 @@
           </nz-list-item-meta-description>
         </nz-list-item-meta>
         <ul nz-list-item-actions>
-          <nz-list-item-action *ngIf="dashboardUserFileEntry.accessLevel==='Write'">
+          <nz-list-item-action>
             <button (click)="onClickOpenShareAccess(dashboardUserFileEntry)" type="button" nz-button
                     nz-tooltip="Share the file {{dashboardUserFileEntry.file.name}} to others"
                     nzTooltipPlacement="bottom"
-                    *ngIf="dashboardUserFileEntry.accessLevel==='Write'">
+                    [disabled]="dashboardUserFileEntry.accessLevel!=='Write'">
               <i nz-icon nzType="share-alt" nzTheme="outline"></i>
             </button>
           </nz-list-item-action>
-          <nz-list-item-action *ngIf="dashboardUserFileEntry.accessLevel==='Write'">
+          <nz-list-item-action>
             <button nz-button nz-tooltip="Delete the file {{dashboardUserFileEntry.file.name}}"
-                    nzTooltipPlacement="bottom" (click)="deleteFile(dashboardUserFileEntry)" type="button">
+                    nzTooltipPlacement="bottom" (click)="deleteFile(dashboardUserFileEntry)" type="button" [disabled]="dashboardUserFileEntry.accessLevel!=='Write'">
               <i nz-icon nzType="delete" nzTheme="outline"></i>
             </button>
           </nz-list-item-action>

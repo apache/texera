@@ -65,10 +65,11 @@
           </nz-list-item-meta-description>
         </nz-list-item-meta>
         <ul nz-list-item-actions>
-          <nz-list-item-action *ngIf="dashboardWorkflowEntry.isOwner">
+          <nz-list-item-action>
             <button (click)="onClickOpenShareAccess(dashboardWorkflowEntry.workflow)" type="button" nz-button
                     nz-tooltip="Share the workflow {{dashboardWorkflowEntry.workflow.name}} to others"
-                    nzTooltipPlacement="bottom">
+                    nzTooltipPlacement="bottom"
+                    [disabled] = "!dashboardWorkflowEntry.isOwner">
               <i nz-icon nzType="share-alt" nzTheme="outline"></i>
             </button>
           </nz-list-item-action>
@@ -80,11 +81,12 @@
               <i nz-icon nzType="copy" nzTheme="outline"></i>
             </button>
           </nz-list-item-action>
-          <nz-list-item-action *ngIf="dashboardWorkflowEntry.isOwner">
+          <nz-list-item-action>
             <button (click)="openNgbdModalDeleteWorkflowComponent(dashboardWorkflowEntry.workflow)"
                     class="delete-workflow-btn" nz-button
                     nz-tooltip="Delete the workflow {{dashboardWorkflowEntry.workflow.name}}"
-                    nzTooltipPlacement="bottom">
+                    nzTooltipPlacement="bottom"
+                    [disabled] = "!dashboardWorkflowEntry.isOwner">
               <i nz-icon nzType="delete" nzTheme="outline"></i>
             </button>
           </nz-list-item-action>
