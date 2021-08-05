@@ -22,7 +22,7 @@ import scala.collection.mutable
 
 class WorkerLayer(
     val id: LayerIdentity,
-    var metadata: Int => IOperatorExecutor,
+    var initIOperatorExecutor: Int => IOperatorExecutor,
     var numWorkers: Int,
     val deploymentFilter: DeploymentFilter,
     val deployStrategy: DeployStrategy
@@ -56,28 +56,30 @@ class WorkerLayer(
       all: Array[Address],
       parentNetworkCommunicationActorRef: ActorRef,
       context: ActorContext,
-      workerToLayer: mutable.HashMap[ActorVirtualIdentity, WorkerLayer]
+      workerToLayer: mutable.HashMap[ActorVirtualIdentity, WorkerLayer],
+      workerToOperatorExec: mutable.HashMap[ActorVirtualIdentity, IOperatorExecutor]
   ): Unit = {
     deployStrategy.initialize(deploymentFilter.filter(prev, all, context.self.path.address))
     workers = (0 until numWorkers).map { i =>
-      val m = metadata(i)
-      val workerID = ActorVirtualIdentity(s"Worker-$id-[$i]")
-      val d = deployStrategy.next()
-      val ref = context.actorOf(
-        if (m.isInstanceOf[PythonUDFOpExecV2]) {
+      val operatorExecutor: IOperatorExecutor = initIOperatorExecutor(i)
+      val workerId: ActorVirtualIdentity = ActorVirtualIdentity(s"Worker-$id-[$i]")
+      val address: Address = deployStrategy.next()
+      workerToOperatorExec(workerId) = operatorExecutor
+      val ref: ActorRef = context.actorOf(
+        if (operatorExecutor.isInstanceOf[PythonUDFOpExecV2]) {
           PythonWorkflowWorker
-            .props(workerID, m, parentNetworkCommunicationActorRef)
-            .withDeploy(Deploy(scope = RemoteScope(d)))
+            .props(workerId, operatorExecutor, parentNetworkCommunicationActorRef)
+            .withDeploy(Deploy(scope = RemoteScope(address)))
         } else {
           WorkflowWorker
-            .props(workerID, m, parentNetworkCommunicationActorRef)
-            .withDeploy(Deploy(scope = RemoteScope(d)))
+            .props(workerId, operatorExecutor, parentNetworkCommunicationActorRef)
+            .withDeploy(Deploy(scope = RemoteScope(address)))
         }
       )
-      parentNetworkCommunicationActorRef ! RegisterActorRef(workerID, ref)
-      workerToLayer(workerID) = this
-      workerID -> WorkerInfo(
-        workerID,
+      parentNetworkCommunicationActorRef ! RegisterActorRef(workerId, ref)
+      workerToLayer(workerId) = this
+      workerId -> WorkerInfo(
+        workerId,
         UNINITIALIZED,
         WorkerStatistics(UNINITIALIZED, 0, 0)
       )
