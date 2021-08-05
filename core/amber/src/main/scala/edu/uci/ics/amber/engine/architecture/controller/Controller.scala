@@ -12,6 +12,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   WorkflowStatusUpdate
 }
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
+import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   NetworkMessage,
   RegisterActorRef
@@ -80,79 +81,53 @@ class Controller(
 
   logger.setErrorLogAction(errorLogAction)
 
-  def availableNodes: Array[Address] =
-    Await
-      .result(context.actorSelection("/user/cluster-info") ? GetAvailableNodeAddresses, 5.seconds)
-      .asInstanceOf[Array[Address]]
-
   // register controller itself
   networkCommunicationActor ! RegisterActorRef(CONTROLLER, self)
-
   // build whole workflow
   workflow.build(availableNodes, networkCommunicationActor, context)
-  Future
-  // TODO: flatten it
-    .collect( // send python udf code
-      workflow.getPythonWorkerToOperatorExec
-        .map({
-          case (workerId: ActorVirtualIdentity, pythonOperatorExec: PythonUDFOpExecV2) =>
-            asyncRPCClient.send(
-              SendPythonUdf(
-                pythonOperatorExec.getCode,
-                pythonOperatorExec.isInstanceOf[ISourceOperatorExecutor]
-              ),
-              workerId
-            )
-        })
-        .toSeq
-    )
-    .onSuccess(_ =>
-      Future
-        .collect(
-          // activate all links
-          workflow.getAllLinks.map { link =>
-            asyncRPCClient.send(
-              LinkWorkers(link),
-              CONTROLLER
-            )
-          }.toSeq
+
+  prepareWorkers()
+
+  def prepareWorkers(): Future[Seq[Unit]] = {
+
+    // send python udf code
+    val SendPythonUdfRequests: Seq[Future[Unit]] = workflow.getPythonWorkerToOperatorExec.map {
+      case (workerId: ActorVirtualIdentity, pythonOperatorExec: PythonUDFOpExecV2) =>
+        asyncRPCClient.send(
+          SendPythonUdf(
+            pythonOperatorExec.getCode,
+            pythonOperatorExec.isInstanceOf[ISourceOperatorExecutor]
+          ),
+          workerId
         )
-        .onSuccess { _ =>
-          workflow.getAllOperators.foreach(_.setAllWorkerState(READY))
-          if (eventListener.workflowStatusUpdateListener != null) {
-            eventListener.workflowStatusUpdateListener
-              .apply(WorkflowStatusUpdate(workflow.getWorkflowStatus))
-          }
-          // for testing, report ready state to parent
-          context.parent ! ControllerState.Ready
-          context.become(running)
-          unstashAll()
-        }
-    )
-    .onFailure((x: Throwable) =>
-      logger.logError(new WorkflowRuntimeError(x.getMessage, "PythonUDFV2", Map.empty))
-    )
+    }.toSeq
+    // activate all links
+    val activateLinkRequests: Seq[Future[Unit]] =
+      workflow.getAllLinks.map { link: LinkStrategy =>
+        asyncRPCClient.send(
+          LinkWorkers(link),
+          CONTROLLER
+        )
+      }.toSeq
 
-  override def receive: Receive = initializing
-
-  def initializing: Receive = {
-    case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload: ReturnInvocation)) =>
-      //process reply messages
-      controlInputPort.handleMessage(this.sender(), id, from, seqNum, payload)
-    case NetworkMessage(
-          id,
-          WorkflowControlMessage(CONTROLLER, seqNum, payload)
-        ) =>
-      //process control messages from self
-      controlInputPort.handleMessage(
-        this.sender(),
-        id,
-        CONTROLLER,
-        seqNum,
-        payload
+    Future
+      .collect(
+        SendPythonUdfRequests ++ activateLinkRequests
       )
-    case _ =>
-      stash() //prevent other messages to be executed until initialized
+      .onSuccess({ _ =>
+        workflow.getAllOperators.foreach(_.setAllWorkerState(READY))
+        if (eventListener.workflowStatusUpdateListener != null) {
+          eventListener.workflowStatusUpdateListener
+            .apply(WorkflowStatusUpdate(workflow.getWorkflowStatus))
+        }
+        // for testing, report ready state to parent
+        context.parent ! ControllerState.Ready
+        context.become(running)
+        unstashAll()
+      })
+      .onFailure((x: Throwable) =>
+        logger.logError(new WorkflowRuntimeError(x.getMessage, "PythonUDFV2", Map.empty))
+      )
   }
 
   def running: Receive = {
@@ -196,6 +171,33 @@ class Controller(
       case e =>
         logger.logError(WorkflowRuntimeError(e, identifier.toString))
     }
+  }
+
+  def availableNodes: Array[Address] =
+    Await
+      .result(context.actorSelection("/user/cluster-info") ? GetAvailableNodeAddresses, 5.seconds)
+      .asInstanceOf[Array[Address]]
+
+  override def receive: Receive = initializing
+
+  def initializing: Receive = {
+    case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload: ReturnInvocation)) =>
+      //process reply messages
+      controlInputPort.handleMessage(this.sender(), id, from, seqNum, payload)
+    case NetworkMessage(
+          id,
+          WorkflowControlMessage(CONTROLLER, seqNum, payload)
+        ) =>
+      //process control messages from self
+      controlInputPort.handleMessage(
+        this.sender(),
+        id,
+        CONTROLLER,
+        seqNum,
+        payload
+      )
+    case _ =>
+      stash() //prevent other messages to be executed until initialized
   }
 
   override def postStop(): Unit = {
