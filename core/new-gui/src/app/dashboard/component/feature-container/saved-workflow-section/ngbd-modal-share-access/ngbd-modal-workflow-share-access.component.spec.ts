@@ -1,17 +1,17 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { HttpClient, HttpHandler } from '@angular/common/http';
-import { WorkflowGrantAccessService } from '../../../../../common/service/user/workflow-access-control/workflow-grant-access.service';
+import { WorkflowAccessService } from '../../../../service/workflow-access/workflow-access.service';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
-import { NgbdModalShareAccessComponent } from './ngbd-modal-share-access.component';
-import { StubWorkflowGrantAccessService } from '../../../../../common/service/user/workflow-access-control/stub-workflow-grant-access.service';
+import { NgbdModalWorkflowShareAccessComponent } from './ngbd-modal-workflow-share-access.component';
+import { StubWorkflowAccessService } from '../../../../service/workflow-access/stub-workflow-access.service';
 import { Workflow, WorkflowContent } from '../../../../../common/type/workflow';
 import { jsonCast } from '../../../../../common/util/storage';
 
 describe('NgbdModalShareAccessComponent', () => {
-  let component: NgbdModalShareAccessComponent;
-  let fixture: ComponentFixture<NgbdModalShareAccessComponent>;
-  let service: StubWorkflowGrantAccessService;
+  let component: NgbdModalWorkflowShareAccessComponent;
+  let fixture: ComponentFixture<NgbdModalWorkflowShareAccessComponent>;
+  let service: StubWorkflowAccessService;
 
   const workflow: Workflow = {
     wid: 28,
@@ -28,21 +28,21 @@ describe('NgbdModalShareAccessComponent', () => {
         FormsModule
       ],
       declarations: [
-        NgbdModalShareAccessComponent
+        NgbdModalWorkflowShareAccessComponent
       ],
       providers: [
         NgbActiveModal,
         HttpClient,
         HttpHandler,
-        {provide: WorkflowGrantAccessService, useClass: StubWorkflowGrantAccessService}
+        {provide: WorkflowAccessService, useClass: StubWorkflowAccessService}
       ]
     });
   }));
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(NgbdModalShareAccessComponent);
+    fixture = TestBed.createComponent(NgbdModalWorkflowShareAccessComponent);
     component = fixture.componentInstance;
-    service = TestBed.get(WorkflowGrantAccessService);
+    service = TestBed.get(WorkflowAccessService);
     fixture.detectChanges();
   });
 
@@ -55,7 +55,7 @@ describe('NgbdModalShareAccessComponent', () => {
   });
 
   it('can get all accesses', () => {
-    const mySpy = spyOn(service, 'retrieveGrantedList').and.callThrough();
+    const mySpy = spyOn(service, 'retrieveGrantedWorkflowAccessList').and.callThrough();
     component.workflow = workflow;
     fixture.detectChanges();
     component.onClickGetAllSharedAccess(component.workflow);
@@ -64,15 +64,15 @@ describe('NgbdModalShareAccessComponent', () => {
   });
 
   it('can share accesses', () => {
-    const mySpy = spyOn(service, 'grantAccess').and.callThrough();
+    const mySpy = spyOn(service, 'grantUserWorkflowAccess').and.callThrough();
     component.workflow = workflow;
     fixture.detectChanges();
-    component.grantAccess(component.workflow, 'Jim', 'read');
+    component.grantWorkflowAccess(component.workflow, 'Jim', 'read');
     expect(mySpy).toHaveBeenCalled();
   });
 
   it('can remove accesses', () => {
-    const mySpy = spyOn(service, 'revokeAccess').and.callThrough();
+    const mySpy = spyOn(service, 'revokeWorkflowAccess').and.callThrough();
     component.onClickRemoveAccess(workflow, 'Jim');
     expect(mySpy).toHaveBeenCalled();
   });

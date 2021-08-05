@@ -1,8 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { WorkflowPersistService } from './workflow-persist.service';
-import { jsonCast } from '../../../util/storage';
-import { WorkflowContent } from '../../../type/workflow';
+import { jsonCast } from '../../util/storage';
+import { WorkflowContent } from '../../type/workflow';
 
 describe('WorkflowPersistService', () => {
   let service: WorkflowPersistService;
@@ -56,8 +56,8 @@ describe('WorkflowPersistService', () => {
   it('should check if workflow content and name returned correctly', () => {
     service.createWorkflow(jsonCast<WorkflowContent>(testContent), 'testname').last().subscribe(
       (value) => {
-        expect(value.name).toEqual('testname_copy');
-        expect(value.content).toEqual(jsonCast<WorkflowContent>(testContent));
+        expect(value.workflow.name).toEqual('testname_copy');
+        expect(value.workflow.content).toEqual(jsonCast<WorkflowContent>(testContent));
       }
     );
   });

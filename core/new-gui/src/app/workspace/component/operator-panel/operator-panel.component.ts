@@ -101,7 +101,7 @@ export class OperatorPanelComponent implements OnInit {
    * handles the event when an operator search option is selected.
    * adds the operator to the canvas and clears the text in the search box
    */
-  onSearchOperatorSelected(event: MatAutocompleteSelectedEvent): void  {
+  onSearchOperatorSelected(event: MatAutocompleteSelectedEvent): void {
     const userFriendlyName = event.option.value as string;
     const operator = this.operatorSchemaList.filter(
       op => op.additionalMetadata.userFriendlyName === userFriendlyName)[0];

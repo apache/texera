@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.web.resource.dashboard
 import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.texera.web.model.common.AccessEntry
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   UserDao,
@@ -9,7 +10,6 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess
 import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.web.resource.dashboard.WorkflowAccessResource.{
-  UserWorkflowAccess,
   checkAccessLevel,
   context,
   hasNoWorkflowAccessRecord
@@ -52,6 +52,30 @@ object WorkflowAccessResource {
   }
 
   /**
+    * Returns an Access Object based on given wid and uid
+    * Searches in database for the given uid-wid pair, and returns Access Object based on search result
+    *
+    * @param wid     workflow id
+    * @param uid     user id, works with workflow id as primary keys in database
+    * @return Access Object indicating the access level
+    */
+  def checkAccessLevel(wid: UInteger, uid: UInteger): WorkflowAccess.Value = {
+    val accessDetail = context
+      .select(WORKFLOW_USER_ACCESS.READ_PRIVILEGE, WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE)
+      .from(WORKFLOW_USER_ACCESS)
+      .where(WORKFLOW_USER_ACCESS.WID.eq(wid).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
+      .fetch()
+    if (accessDetail.isEmpty) return WorkflowAccess.NO_RECORD
+    if (accessDetail.getValue(0, 1) == true) {
+      WorkflowAccess.WRITE
+    } else if (accessDetail.getValue(0, 0) == true) {
+      WorkflowAccess.READ
+    } else {
+      WorkflowAccess.NONE
+    }
+  }
+
+  /**
     * Identifies whether the given user has write access over the given workflow
     * @param wid     workflow id
     * @param uid     user id, works with workflow id as primary keys in database
@@ -81,32 +105,6 @@ object WorkflowAccessResource {
     checkAccessLevel(wid, uid).eq(WorkflowAccess.NO_RECORD)
   }
 
-  /**
-    * Returns an Access Object based on given wid and uid
-    * Searches in database for the given uid-wid pair, and returns Access Object based on search result
-    *
-    * @param wid     workflow id
-    * @param uid     user id, works with workflow id as primary keys in database
-    * @return Access Object indicating the access level
-    */
-  def checkAccessLevel(wid: UInteger, uid: UInteger): WorkflowAccess.Value = {
-    val accessDetail = context
-      .select(WORKFLOW_USER_ACCESS.READ_PRIVILEGE, WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE)
-      .from(WORKFLOW_USER_ACCESS)
-      .where(WORKFLOW_USER_ACCESS.WID.eq(wid).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
-      .fetch()
-    if (accessDetail.isEmpty) return WorkflowAccess.NO_RECORD
-    if (accessDetail.getValue(0, 1) == true) {
-      WorkflowAccess.WRITE
-    } else if (accessDetail.getValue(0, 0) == true) {
-      WorkflowAccess.READ
-    } else {
-      WorkflowAccess.NONE
-    }
-  }
-
-  case class UserWorkflowAccess(userName: String, accessLevel: String) {}
-
   object WorkflowAccess extends Enumeration {
     type Access = Value
     val READ: WorkflowAccess.Value = Value("Read")
@@ -122,7 +120,6 @@ object WorkflowAccessResource {
 @Path("/workflow-access")
 @Produces(Array(MediaType.APPLICATION_JSON))
 class WorkflowAccessResource() {
-
   private val userDao = new UserDao(context.configuration())
   private val workflowOfUserDao = new WorkflowOfUserDao(
     context.configuration
@@ -134,6 +131,21 @@ class WorkflowAccessResource() {
   def this(dslContext: DSLContext) {
     this()
     context = dslContext
+  }
+
+  /**
+    * This method returns the owner of a workflow
+    *
+    * @param wid,     the given workflow
+    * @return ownerName,  the owner's name
+    */
+  @GET
+  @Path("/owner/{wid}")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def getWorkflowOwner(@PathParam("wid") wid: UInteger): Response = {
+    val uid = workflowOfUserDao.fetchByWid(wid).get(0).getUid
+    val ownerName = userDao.fetchOneByUid(uid).getName
+    Response.ok(Map("ownerName" -> ownerName)).build()
   }
 
   /**
@@ -170,7 +182,7 @@ class WorkflowAccessResource() {
     */
   @GET
   @Path("/list/{wid}")
-  def retrieveGrantedList(
+  def retrieveGrantedWorkflowAccessList(
       @PathParam("wid") wid: UInteger,
       @Session session: HttpSession
   ): Response = {
@@ -183,7 +195,7 @@ class WorkflowAccessResource() {
               .values(user.getUid, wid)
           )
         ) {
-          Response.ok(getGrantedList(wid, user.getUid)).build()
+          Response.ok(getGrantedWorkflowAccessList(wid, user.getUid)).build()
         } else {
           Response
             .status(Response.Status.UNAUTHORIZED)
@@ -202,7 +214,7 @@ class WorkflowAccessResource() {
     * @param uid     user id of current user, used to identify ownership
     * @return a List with corresponding information Ex: [{"Jim": "Read"}]
     */
-  def getGrantedList(wid: UInteger, uid: UInteger): List[UserWorkflowAccess] = {
+  def getGrantedWorkflowAccessList(wid: UInteger, uid: UInteger): List[AccessEntry] = {
     val shares = context
       .select(
         WORKFLOW_USER_ACCESS.UID,
@@ -222,9 +234,9 @@ class WorkflowAccessResource() {
         case (id, index) =>
           val userName = userDao.fetchOneByUid(id.asInstanceOf[UInteger]).getName
           if (shares.getValue(index, 2) == true) {
-            UserWorkflowAccess(userName, "Write")
+            AccessEntry(userName, "Write")
           } else {
-            UserWorkflowAccess(userName, "Read")
+            AccessEntry(userName, "Read")
           }
       })
 
@@ -241,7 +253,7 @@ class WorkflowAccessResource() {
   @POST
   @Path("/revoke/{wid}/{username}")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def revokeAccess(
+  def revokeWorkflowAccess(
       @PathParam("wid") wid: UInteger,
       @PathParam("username") username: String,
       @Session session: HttpSession
@@ -290,7 +302,7 @@ class WorkflowAccessResource() {
     */
   @POST
   @Path("/grant/{wid}/{username}/{accessLevel}")
-  def grantAccess(
+  def grantWorkflowAccess(
       @PathParam("wid") wid: UInteger,
       @PathParam("username") username: String,
       @PathParam("accessLevel") accessLevel: String,

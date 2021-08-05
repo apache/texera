@@ -2,13 +2,15 @@ package edu.uci.ics.texera.web.resource.dashboard.file
 
 import com.google.common.io.Files
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.FILE
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.FileDao
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.File
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER_FILE_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileDao, UserDao, UserFileAccessDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, User, UserFileAccess}
 import edu.uci.ics.texera.web.resource.auth.UserResource
+import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.context
 import io.dropwizard.jersey.sessions.Session
 import org.apache.commons.lang3.tuple.Pair
 import org.glassfish.jersey.media.multipart.{FormDataContentDisposition, FormDataParam}
+import org.jooq.DSLContext
 import org.jooq.types.UInteger
 
 import java.io.{IOException, InputStream, OutputStream}
@@ -17,17 +19,32 @@ import java.util
 import javax.servlet.http.HttpSession
 import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
 import javax.ws.rs.{WebApplicationException, _}
+import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 /**
   * Model `File` corresponds to `core/new-gui/src/app/common/type/user-file.ts` (frontend).
   */
+case class DashboardFileEntry(
+    ownerName: String,
+    accessLevel: String,
+    isOwner: Boolean,
+    file: File
+)
+
+object UserFileResource {
+  private val context: DSLContext = SqlServer.createDSLContext
+}
 
 @Path("/user/file")
 @Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON))
 class UserFileResource {
-
-  final private val fileDao = new FileDao(SqlServer.createDSLContext.configuration)
+  final private val fileDao = new FileDao(context.configuration)
+  final private val userFileAccessDao = new UserFileAccessDao(
+    context.configuration
+  )
+  final private val userDao = new UserDao(context.configuration)
 
   /**
     * This method will handle the request to upload a single file.
@@ -66,42 +83,98 @@ class UserFileResource {
             description
           )
         )
+        val fid = context
+          .select(FILE.FID)
+          .from(FILE)
+          .where(FILE.UID.eq(userID).and(FILE.NAME.eq(fileName)))
+          .fetch()
+          .getValue(0, 0)
+          .asInstanceOf[UInteger]
+        userFileAccessDao.insert(
+          new UserFileAccess(userID, fid, true, true)
+        )
         Response.ok().build()
       case None =>
         Response.status(Response.Status.UNAUTHORIZED).build()
     }
   }
 
+  /**
+    * This method returns a list fo all files accessible by the current user
+    * @param session the session indicating current logged-in user
+    * @return
+    */
   @GET
   @Path("/list")
-  def listUserFiles(@Session session: HttpSession): util.List[File] = {
+  def listUserFiles(@Session session: HttpSession): util.List[DashboardFileEntry] = {
     UserResource.getUser(session) match {
-      case Some(user) => getUserFileRecord(user.getUid)
-      case None       => new util.ArrayList[File]()
+      case Some(user) => getUserFileRecord(user)
+      case None       => new util.ArrayList[DashboardFileEntry]()
     }
   }
 
-  private def getUserFileRecord(userID: UInteger): util.List[File] = {
-
-    // TODO: verify user in session?
-    fileDao.fetchByUid(userID)
+  private def getUserFileRecord(user: User): util.List[DashboardFileEntry] = {
+    val accesses = userFileAccessDao.fetchByUid(user.getUid)
+    val fileEntries: mutable.ArrayBuffer[DashboardFileEntry] = mutable.ArrayBuffer()
+    accesses.asScala.toList.map(access => {
+      val fid = access.getFid
+      val file = fileDao.fetchOneByFid(fid)
+      var accessLevel = "None"
+      if (access.getWriteAccess) {
+        accessLevel = "Write"
+      } else if (access.getReadAccess) {
+        accessLevel = "Read"
+      } else {
+        accessLevel = "None"
+      }
+      val ownerName = userDao.fetchOneByUid(file.getUid).getName
+      fileEntries += DashboardFileEntry(
+        ownerName,
+        accessLevel,
+        ownerName == user.getName,
+        file
+      )
+    })
+    fileEntries.toList.asJava
   }
 
+  /**
+    * This method deletes a file from a user's repository
+    * @param fileName the name of file being deleted
+    * @param ownerName the name of the file's owner
+    * @param session the session indicating the current user
+    * @return
+    */
   @DELETE
-  @Path("/delete/{fileID}")
+  @Path("/delete/{fileName}/{ownerName}")
   def deleteUserFile(
-      @PathParam("fileID") fileID: UInteger,
+      @PathParam("fileName") fileName: String,
+      @PathParam("ownerName") ownerName: String,
       @Session session: HttpSession
   ): Response = {
 
     UserResource.getUser(session) match {
       case Some(user) =>
+        val fileID = UserFileAccessResource.getFileId(ownerName, fileName)
         val userID = user.getUid
-        // TODO: add user check
-        val filePath = fileDao.fetchOneByFid(fileID).getPath
-        UserFileUtils.deleteFile(Paths.get(filePath))
-        fileDao.deleteById(fileID)
-        Response.ok().build()
+        val hasWriteAccess = context
+          .select(USER_FILE_ACCESS.WRITE_ACCESS)
+          .from(USER_FILE_ACCESS)
+          .where(USER_FILE_ACCESS.UID.eq(userID).and(USER_FILE_ACCESS.FID.eq(fileID)))
+          .fetch()
+          .getValue(0, 0)
+        if (hasWriteAccess == false) {
+          Response
+            .status(Response.Status.UNAUTHORIZED)
+            .entity("You do not have the access to deleting the file")
+            .build()
+        } else {
+          val filePath = fileDao.fetchOneByFid(fileID).getPath
+          UserFileUtils.deleteFile(Paths.get(filePath))
+          fileDao.deleteById(fileID)
+          Response.ok().build()
+        }
+
       case None =>
         Response.status(Response.Status.UNAUTHORIZED).build()
     }
@@ -136,8 +209,8 @@ class UserFileResource {
   }
 
   private def isFileNameExisted(fileName: String, userID: UInteger): Boolean =
-    SqlServer.createDSLContext.fetchExists(
-      SqlServer.createDSLContext
+    context.fetchExists(
+      context
         .selectFrom(FILE)
         .where(FILE.UID.equal(userID).and(FILE.NAME.equal(fileName)))
     )

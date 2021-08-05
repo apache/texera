@@ -3,9 +3,9 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { AppSettings } from 'src/app/common/app-setting';
 
-import { GenericWebResponse, GenericWebResponseCode } from '../../../type/generic-web-response';
-import { DictionaryUploadItem, ManualDictionaryUploadItem } from '../../../type/user-dictionary';
-import { UserService } from '../user.service';
+import { GenericWebResponse, GenericWebResponseCode } from '../../../common/type/generic-web-response';
+import { DictionaryUploadItem, ManualDictionaryUploadItem } from '../../../common/type/user-dictionary';
+import { UserService } from '../../../common/service/user/user.service';
 import { UserDictionaryService } from './user-dictionary.service';
 
 export const USER_DICTIONARY_UPLOAD_URL = 'user/dictionary/upload';

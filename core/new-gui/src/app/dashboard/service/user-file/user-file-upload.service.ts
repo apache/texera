@@ -1,9 +1,9 @@
 import { HttpClient, HttpEventType } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { AppSettings } from '../../../app-setting';
-import { FileUploadItem } from '../../../type/user-file';
-import { UserService } from '../user.service';
+import { AppSettings } from '../../../common/app-setting';
+import { FileUploadItem } from '../../type/dashboard-user-file-entry';
+import { UserService } from '../../../common/service/user/user.service';
 import { UserFileService } from './user-file.service';
 
 export const USER_FILE_UPLOAD_URL = 'user/file/upload';
@@ -62,7 +62,7 @@ export class UserFileUploadService {
           this.uploadFile(fileUploadItem)
             .subscribe(() => {
               this.removeFileFromUploadArray(fileUploadItem);
-              this.userFileService.refreshFiles();
+              this.userFileService.refreshDashboardUserFileEntries();
             }, err => {
               // TODO: user friendly error message.
               alert(`Uploading file ${fileUploadItem.name} failed\nMessage: ${err.error}`);

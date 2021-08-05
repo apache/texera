@@ -7,6 +7,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
   WORKFLOW_USER_ACCESS
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+  UserDao,
   WorkflowDao,
   WorkflowOfUserDao,
   WorkflowUserAccessDao
@@ -18,6 +19,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
   WorkflowUserAccess
 }
 import edu.uci.ics.texera.web.resource.auth.UserResource
+import edu.uci.ics.texera.web.resource.dashboard.WorkflowResource.context
 import io.dropwizard.jersey.sessions.Session
 import org.jooq.types.UInteger
 
@@ -25,22 +27,37 @@ import java.util
 import javax.servlet.http.HttpSession
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
+import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 /**
   * This file handles various request related to saved-workflows.
   * It sends mysql queries to the MysqlDB regarding the UserWorkflow Table
   * The details of UserWorkflowTable can be found in /core/scripts/sql/texera_ddl.sql
   */
+
+case class DashboardWorkflowEntry(
+    isOwner: Boolean,
+    accessLevel: String,
+    ownerName: String,
+    workflow: Workflow
+)
+object WorkflowResource {
+  val context = SqlServer.createDSLContext()
+}
+
 @Path("/workflow")
 @Produces(Array(MediaType.APPLICATION_JSON))
 class WorkflowResource {
-  final private val workflowDao = new WorkflowDao(SqlServer.createDSLContext.configuration)
+
+  final private val workflowDao = new WorkflowDao(context.configuration)
   final private val workflowOfUserDao = new WorkflowOfUserDao(
-    SqlServer.createDSLContext.configuration
+    context.configuration
   )
   final private val workflowUserAccessDao = new WorkflowUserAccessDao(
-    SqlServer.createDSLContext().configuration()
+    context.configuration()
   )
+  final private val userDao = new UserDao(context.configuration())
 
   /**
     * This method returns the current in-session user's workflow list based on all workflows he/she has access to
@@ -51,16 +68,37 @@ class WorkflowResource {
   @GET
   @Path("/list")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def retrieveWorkflowsBySessionUser(@Session session: HttpSession): util.List[Workflow] = {
+  def retrieveWorkflowsBySessionUser(
+      @Session session: HttpSession
+  ): util.List[DashboardWorkflowEntry] = {
     UserResource.getUser(session) match {
       case Some(user) =>
-        SqlServer.createDSLContext
+        val dashboardWorkflowEntries: mutable.ArrayBuffer[DashboardWorkflowEntry] =
+          mutable.ArrayBuffer()
+        val workflows = context
           .select()
           .from(WORKFLOW)
           .join(WORKFLOW_USER_ACCESS)
           .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
           .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
-          .fetchInto(classOf[Workflow])
+          .fetch()
+        workflows.asScala.toList.map(workflow => {
+          val ownerID = workflowOfUserDao
+            .fetchByWid(workflow.get(1).asInstanceOf[UInteger])
+            .get(0)
+            .getUid
+          val dashboardWorkflowEntry = DashboardWorkflowEntry(
+            ownerID
+              .eq(user.getUid),
+            WorkflowAccessResource
+              .checkAccessLevel(workflow.get(1).asInstanceOf[UInteger], user.getUid)
+              .toString,
+            userDao.fetchOneByUid(ownerID).getName,
+            workflowDao.fetchOneByWid(workflow.get(1).asInstanceOf[UInteger])
+          )
+          dashboardWorkflowEntries += dashboardWorkflowEntry
+        })
+        dashboardWorkflowEntries.toList.asJava
 
       case None => new util.ArrayList()
     }
@@ -131,11 +169,32 @@ class WorkflowResource {
     }
   }
 
+  private def insertWorkflow(workflow: Workflow, user: User): Unit = {
+    workflowDao.insert(workflow)
+    workflowOfUserDao.insert(new WorkflowOfUser(user.getUid, workflow.getWid))
+    workflowUserAccessDao.insert(
+      new WorkflowUserAccess(
+        user.getUid,
+        workflow.getWid,
+        true, // readPrivilege
+        true // writePrivilege
+      )
+    )
+  }
+
+  private def workflowOfUserExists(wid: UInteger, uid: UInteger): Boolean = {
+    workflowOfUserDao.existsById(
+      context
+        .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
+        .values(uid, wid)
+    )
+  }
+
   /**
     * This method creates and insert a new workflow to database
     *
     * @param session  HttpSession
-    * @param workflow , a workflow
+    * @param workflow , a workflow to be created
     * @return Workflow, which contains the generated wid if not provided
     */
   @POST
@@ -149,24 +208,17 @@ class WorkflowResource {
           Response.status(Response.Status.BAD_REQUEST).build()
         } else {
           insertWorkflow(workflow, user)
-          Response.ok(workflowDao.fetchOneByWid(workflow.getWid)).build()
+          val resp = DashboardWorkflowEntry(
+            isOwner = true,
+            "Write",
+            user.getName,
+            workflowDao.fetchOneByWid(workflow.getWid)
+          )
+          Response.ok(resp).build()
         }
       case None =>
         Response.status(Response.Status.UNAUTHORIZED).build()
     }
-  }
-
-  private def insertWorkflow(workflow: Workflow, user: User): Unit = {
-    workflowDao.insert(workflow)
-    workflowOfUserDao.insert(new WorkflowOfUser(user.getUid, workflow.getWid))
-    workflowUserAccessDao.insert(
-      new WorkflowUserAccess(
-        user.getUid,
-        workflow.getWid,
-        true, // readPrivilege
-        true // writePrivilege
-      )
-    )
   }
 
   /**
@@ -189,14 +241,6 @@ class WorkflowResource {
       case None =>
         Response.status(Response.Status.UNAUTHORIZED).build()
     }
-  }
-
-  private def workflowOfUserExists(wid: UInteger, uid: UInteger): Boolean = {
-    workflowOfUserDao.existsById(
-      SqlServer.createDSLContext
-        .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
-        .values(uid, wid)
-    )
   }
 
 }

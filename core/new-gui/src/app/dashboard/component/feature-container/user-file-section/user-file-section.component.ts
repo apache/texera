@@ -1,9 +1,10 @@
 import { Component, OnInit } from '@angular/core';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { NgbdModalFileAddComponent } from './ngbd-modal-file-add/ngbd-modal-file-add.component';
-import { UserFileService } from '../../../../common/service/user/user-file/user-file.service';
-import { UserFile } from '../../../../common/type/user-file';
+import { UserFileService } from '../../../service/user-file/user-file.service';
+import { DashboardUserFileEntry } from '../../../type/dashboard-user-file-entry';
 import { UserService } from '../../../../common/service/user/user.service';
+import {NgbdModalUserFileShareAccessComponent} from './ngbd-modal-file-share-access/ngbd-modal-user-file-share-access.component';
 
 @Component({
   selector: 'texera-user-file-section',
@@ -17,7 +18,7 @@ export class UserFileSectionComponent implements OnInit {
     private userFileService: UserFileService,
     private userService: UserService
   ) {
-    this.userFileService.refreshFiles();
+    this.userFileService.refreshDashboardUserFileEntries();
   }
 
   ngOnInit() {
@@ -27,7 +28,12 @@ export class UserFileSectionComponent implements OnInit {
     this.modalService.open(NgbdModalFileAddComponent);
   }
 
-  public getFileArray(): ReadonlyArray<UserFile> {
+  public onClickOpenShareAccess(dashboardUserFileEntry: DashboardUserFileEntry): void {
+    const modalRef = this.modalService.open(NgbdModalUserFileShareAccessComponent);
+    modalRef.componentInstance.dashboardUserFileEntry = dashboardUserFileEntry;
+  }
+
+  public getFileArray(): ReadonlyArray<DashboardUserFileEntry> {
     const fileArray = this.userFileService.getUserFiles();
     if (!fileArray) {
       return [];
@@ -35,8 +41,8 @@ export class UserFileSectionComponent implements OnInit {
     return fileArray;
   }
 
-  public deleteFile(userFile: UserFile): void {
-    this.userFileService.deleteFile(userFile);
+  public deleteFile(userFile: DashboardUserFileEntry): void {
+    this.userFileService.deleteDashboardUserFileEntry(userFile);
   }
 
   public disableAddButton(): boolean {

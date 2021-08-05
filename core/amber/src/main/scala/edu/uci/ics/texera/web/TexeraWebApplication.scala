@@ -4,11 +4,11 @@ import akka.actor.ActorSystem
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
 import edu.uci.ics.amber.engine.common.AmberUtils
-import edu.uci.ics.texera.Utils
-import edu.uci.ics.texera.web.resource.auth.UserResource
-import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource
-import edu.uci.ics.texera.web.resource.dashboard.{WorkflowAccessResource, WorkflowResource}
 import edu.uci.ics.texera.web.resource.{UserDictionaryResource, _}
+import edu.uci.ics.texera.web.resource.auth.UserResource
+import edu.uci.ics.texera.web.resource.dashboard.file.{UserFileAccessResource, UserFileResource}
+import edu.uci.ics.texera.web.resource.dashboard.{WorkflowAccessResource, WorkflowResource}
+import edu.uci.ics.texera.Utils
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
 import org.eclipse.jetty.server.session.SessionHandler
@@ -78,13 +78,15 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
     environment.jersey.register(classOf[MultiPartFeature])
 
     environment.jersey().register(classOf[SystemMetadataResource])
-//    environment.jersey().register(classOf[MockKillWorkerResource])
+    //    environment.jersey().register(classOf[MockKillWorkerResource])
     environment.jersey().register(classOf[SchemaPropagationResource])
     environment.jersey().register(classOf[UserResource])
     environment.jersey().register(classOf[UserDictionaryResource])
-    environment.jersey().register(classOf[WorkflowResource])
+    environment.jersey().register(classOf[UserFileAccessResource])
     environment.jersey().register(classOf[UserFileResource])
     environment.jersey().register(classOf[WorkflowAccessResource])
+    environment.jersey().register(classOf[WorkflowResource])
+
   }
 
 }
