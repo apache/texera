@@ -1,17 +1,18 @@
 import { Injectable } from '@angular/core';
 import { Observable, of, Subject } from 'rxjs';
-import { DashboardUserFileEntry, UserFileAccess } from '../../../type/dashboard-user-file-entry';
-import { PublicInterfaceOf } from '../../../util/stub';
+import { DashboardUserFileEntry } from '../../type/dashboard-user-file-entry';
+import { PublicInterfaceOf } from '../../../common/util/stub';
 import { UserFileService } from './user-file.service';
 import { HttpClient } from '@angular/common/http';
-import { StubUserService } from '../stub-user.service';
+import { StubUserService } from '../../../common/service/user/stub-user.service';
+import { AccessEntry } from '../../type/access.interface';
 
 @Injectable({
   providedIn: 'root'
 })
 
 export class StubUserFileService implements PublicInterfaceOf<UserFileService> {
-  public testUFAs: UserFileAccess[] = [];
+  public testUFAs: AccessEntry[] = [];
   private userFiles: DashboardUserFileEntry[] = [];
   private userFilesChanged = new Subject<null>();
 
@@ -24,7 +25,7 @@ export class StubUserFileService implements PublicInterfaceOf<UserFileService> {
     return of();
   }
 
-  public getUserFileAccessList(dashboardUserFileEntry: DashboardUserFileEntry): Observable<readonly UserFileAccess[]> {
+  public getUserFileAccessList(dashboardUserFileEntry: DashboardUserFileEntry): Observable<ReadonlyArray<AccessEntry>> {
     return of();
   }
 
@@ -52,15 +53,6 @@ export class StubUserFileService implements PublicInterfaceOf<UserFileService> {
    */
   public deleteDashboardUserFileEntry(targetFile: DashboardUserFileEntry): void {
     return;
-  }
-
-
-  public grantAccess(file: DashboardUserFileEntry, username: string, accessLevel: string): Observable<Response> {
-    return of();
-  }
-
-  public getSharedAccessesOfFile(file: DashboardUserFileEntry): Observable<Readonly<UserFileAccess>[]> {
-    return of(this.testUFAs);
   }
 
   addFileSizeUnit(fileSize: number): string {

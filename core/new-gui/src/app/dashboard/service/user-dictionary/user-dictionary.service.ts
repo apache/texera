@@ -2,11 +2,11 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Subject } from 'rxjs';
 import { Observable } from 'rxjs/Observable';
-import { AppSettings } from '../../../app-setting';
-import { GenericWebResponse } from '../../../type/generic-web-response';
+import { AppSettings } from '../../../common/app-setting';
+import { GenericWebResponse } from '../../../common/type/generic-web-response';
 
-import { UserDictionary } from '../../../type/user-dictionary';
-import { UserService } from '../user.service';
+import { UserDictionary } from '../../../common/type/user-dictionary';
+import { UserService } from '../../../common/service/user/user.service';
 
 export const USER_DICTIONARY_LIST_URL = 'user/dictionary/list';
 export const USER_DICTIONARY_DELETE_URL = 'user/dictionary/delete';

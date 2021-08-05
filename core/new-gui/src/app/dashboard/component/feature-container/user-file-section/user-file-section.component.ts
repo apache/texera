@@ -1,8 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { NgbdModalFileAddComponent } from './ngbd-modal-file-add/ngbd-modal-file-add.component';
-import { UserFileService } from '../../../../common/service/user/user-file/user-file.service';
-import { DashboardUserFileEntry } from '../../../../common/type/dashboard-user-file-entry';
+import { UserFileService } from '../../../service/user-file/user-file.service';
+import { DashboardUserFileEntry } from '../../../type/dashboard-user-file-entry';
 import { UserService } from '../../../../common/service/user/user.service';
 import {NgbdModalUserFileShareAccessComponent} from './ngbd-modal-file-share-access/ngbd-modal-user-file-share-access.component';
 

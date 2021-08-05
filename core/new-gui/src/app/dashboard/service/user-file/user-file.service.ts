@@ -1,9 +1,10 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
-import { AppSettings } from '../../../app-setting';
-import { DashboardUserFileEntry, UserFileAccess } from '../../../type/dashboard-user-file-entry';
-import { UserService } from '../user.service';
+import { AppSettings } from '../../../common/app-setting';
+import { DashboardUserFileEntry } from '../../type/dashboard-user-file-entry';
+import { UserService } from '../../../common/service/user/user.service';
+import { AccessEntry } from '../../type/access.interface';
 
 export const USER_FILE_BASE_URL = `${AppSettings.getApiEndpoint()}/user/file`;
 export const USER_FILE_LIST_URL = `${USER_FILE_BASE_URL}/list`;
@@ -109,10 +110,10 @@ export class UserFileService {
   /**
    * Retrieve all shared accesses of the given dashboardUserFileEntry.
    * @param userFileEntry the current dashboardUserFileEntry
-   * @return ReadonlyArray<UserFileAccess> an array of UserFileAccesses, Ex: [{username: TestUser, fileAccess: read}]
+   * @return ReadonlyArray<AccessEntry> an array of UserFileAccesses, Ex: [{username: TestUser, fileAccess: read}]
    */
-  public getUserFileAccessList(userFileEntry: DashboardUserFileEntry): Observable<ReadonlyArray<UserFileAccess>> {
-    return this.http.get<ReadonlyArray<UserFileAccess>>(
+  public getUserFileAccessList(userFileEntry: DashboardUserFileEntry): Observable<ReadonlyArray<AccessEntry>> {
+    return this.http.get<ReadonlyArray<AccessEntry>>(
       `${USER_FILE_ACCESS_LIST_URL}/${userFileEntry.file.name}/${userFileEntry.ownerName}`);
   }
 

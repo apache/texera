@@ -1,9 +1,10 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 import { of } from 'rxjs';
-import { UserWorkflowAccess, WorkflowGrantAccessService } from './workflow-grant-access.service';
-import { Workflow, WorkflowContent } from '../../../type/workflow';
-import { jsonCast } from '../../../util/storage';
+import { WorkflowAccessService } from './workflow-access.service';
+import { Workflow, WorkflowContent } from '../../../common/type/workflow';
+import { jsonCast } from '../../../common/util/storage';
+import { AccessEntry } from "../../type/access.interface";
 
 export const MOCK_WORKFLOW: Workflow = {
   wid: 1,
@@ -18,20 +19,20 @@ type PublicInterfaceOf<Class> = {
 };
 
 @Injectable()
-export class StubWorkflowGrantAccessService implements PublicInterfaceOf<WorkflowGrantAccessService> {
+export class StubWorkflowGrantAccessService implements PublicInterfaceOf<WorkflowAccessService> {
 
 
   public workflow: Workflow;
 
   public message: string = 'This is testing';
 
-  public mapString: UserWorkflowAccess[] = [];
+  public mapString: AccessEntry[] = [];
 
   constructor() {
     this.workflow = MOCK_WORKFLOW;
   }
 
-  public retrieveGrantedWorkflowAccessList(workflow: Workflow): Observable<Readonly<UserWorkflowAccess>[]> {
+  public retrieveGrantedWorkflowAccessList(workflow: Workflow): Observable<ReadonlyArray<AccessEntry>> {
     return of(this.mapString);
   }
 

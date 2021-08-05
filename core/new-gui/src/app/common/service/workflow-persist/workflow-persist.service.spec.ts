@@ -1,8 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { WorkflowPersistService } from './workflow-persist.service';
-import { jsonCast } from '../../../util/storage';
-import { WorkflowContent } from '../../../type/workflow';
+import { jsonCast } from '../../util/storage';
+import { WorkflowContent } from '../../type/workflow';
 
 describe('WorkflowPersistService', () => {
   let service: WorkflowPersistService;

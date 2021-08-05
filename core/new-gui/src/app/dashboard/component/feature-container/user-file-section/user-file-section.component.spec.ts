@@ -5,11 +5,11 @@ import { CustomNgMaterialModule } from '../../../../common/custom-ng-material.mo
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatListModule } from '@angular/material/list';
 import { UserFileSectionComponent } from './user-file-section.component';
-import { UserFileService } from '../../../../common/service/user/user-file/user-file.service';
+import { UserFileService } from '../../../service/user-file/user-file.service';
 import { UserService } from '../../../../common/service/user/user.service';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { StubUserService } from '../../../../common/service/user/stub-user.service';
-import { DashboardUserFileEntry, UserFile } from '../../../../common/type/dashboard-user-file-entry';
+import { DashboardUserFileEntry, UserFile } from '../../../type/dashboard-user-file-entry';
 import { NgbdModalWorkflowShareAccessComponent } from '../saved-workflow-section/ngbd-modal-share-access/ngbd-modal-workflow-share-access.component';
 
 describe('UserFileSectionComponent', () => {

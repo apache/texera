@@ -6,11 +6,6 @@ export interface DashboardUserFileEntry extends Readonly<{
 }> {
 }
 
-export interface UserFileAccess extends Readonly<{
-  username: string;
-  accessLevel: string;
-}> {}
-
 /**
  * This interface stores the information about the users' files.
  * These information is used to locate the file for the operators.

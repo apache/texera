@@ -1,8 +1,9 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
-import { AppSettings } from '../../../app-setting';
-import { Workflow } from '../../../type/workflow';
+import { AppSettings } from '../../../common/app-setting';
+import { Workflow } from '../../../common/type/workflow';
+import { AccessEntry } from "../../type/access.interface";
 
 
 export const WORKFLOW_ACCESS_URL = 'workflow-access';
@@ -11,16 +12,12 @@ export const WORKFLOW_ACCESS_LIST_URL = WORKFLOW_ACCESS_URL + '/list';
 export const WORKFLOW_ACCESS_REVOKE_URL = WORKFLOW_ACCESS_URL + '/revoke';
 export const WORKFLOW_OWNER_URL = WORKFLOW_ACCESS_URL + '/owner';
 
-export interface UserWorkflowAccess {
-  userName: string;
-  accessLevel: string;
 
-}
 
 @Injectable({
   providedIn: 'root'
 })
-export class WorkflowGrantAccessService {
+export class WorkflowAccessService {
 
   constructor(private http: HttpClient) {
   }
@@ -42,8 +39,8 @@ export class WorkflowGrantAccessService {
    * @param workflow the current workflow
    * @return message of success
    */
-  public retrieveGrantedWorkflowAccessList(workflow: Workflow): Observable<Readonly<UserWorkflowAccess>[]> {
-    return this.http.get<Readonly<UserWorkflowAccess>[]>(
+  public retrieveGrantedWorkflowAccessList(workflow: Workflow): Observable<ReadonlyArray<AccessEntry>> {
+    return this.http.get<ReadonlyArray<AccessEntry>>(
       `${AppSettings.getApiEndpoint()}/${WORKFLOW_ACCESS_LIST_URL}/${workflow.wid}`);
   }
 

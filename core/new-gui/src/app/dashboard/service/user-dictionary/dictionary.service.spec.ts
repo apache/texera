@@ -2,8 +2,8 @@ import { HttpClientTestingModule, HttpTestingController } from '@angular/common/
 import { fakeAsync, flush, inject, TestBed, tick } from '@angular/core/testing';
 import { AppSettings } from 'src/app/common/app-setting';
 import { DictionaryService, UserDictionary } from './dictionary.service';
-import { UserService } from '../user.service';
-import { StubUserService } from '../stub-user.service';
+import { UserService } from '../../../common/service/user/user.service';
+import { StubUserService } from '../../../common/service/user/stub-user.service';
 
 describe('DictionaryService', () => {
   let dictionaryService: DictionaryService;

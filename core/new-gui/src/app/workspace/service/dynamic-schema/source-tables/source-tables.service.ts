@@ -4,7 +4,7 @@ import { isEqual } from 'lodash';
 import { Observable } from 'rxjs';
 import { environment } from '../../../../../environments/environment';
 import { AppSettings } from '../../../../common/app-setting';
-import { UserFileService } from '../../../../common/service/user/user-file/user-file.service';
+import { UserFileService } from '../../../../dashboard/service/user-file/user-file.service';
 import { OperatorSchema } from '../../../types/operator-schema.interface';
 import { OperatorPredicate } from '../../../types/workflow-common.interface';
 import { WorkflowActionService } from '../../workflow-graph/model/workflow-action.service';

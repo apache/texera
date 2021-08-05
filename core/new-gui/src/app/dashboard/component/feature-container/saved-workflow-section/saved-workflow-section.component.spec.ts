@@ -3,7 +3,7 @@ import { RouterTestingModule } from '@angular/router/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { SavedWorkflowSectionComponent } from './saved-workflow-section.component';
-import { WorkflowPersistService } from '../../../../common/service/user/workflow-persist/workflow-persist.service';
+import { WorkflowPersistService } from '../../../../common/service/workflow-persist/workflow-persist.service';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatListModule } from '@angular/material/list';
 import { MatCardModule } from '@angular/material/card';
@@ -13,8 +13,8 @@ import { NgbdModalWorkflowShareAccessComponent } from './ngbd-modal-share-access
 import { Workflow, WorkflowContent } from '../../../../common/type/workflow';
 import { jsonCast } from '../../../../common/util/storage';
 import { HttpClient } from '@angular/common/http';
-import { WorkflowGrantAccessService } from '../../../../common/service/user/workflow-access-control/workflow-grant-access.service';
-import { DashboardWorkflowEntry } from '../../../../common/type/dashboard-workflow-entry';
+import { WorkflowAccessService } from '../../../service/workflow-access-control/workflow-access.service';
+import { DashboardWorkflowEntry } from '../../../type/dashboard-workflow-entry';
 import { UserService } from '../../../../common/service/user/user.service';
 import { StubUserService } from '../../../../common/service/user/stub-user.service';
 import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
@@ -105,7 +105,7 @@ describe('SavedWorkflowSectionComponent', () => {
         NgbActiveModal,
         HttpClient,
         NgbActiveModal,
-        WorkflowGrantAccessService,
+        WorkflowAccessService,
         {provide: UserService, useClass: StubUserService},
       ],
       imports: [MatDividerModule,

@@ -3,9 +3,9 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { HttpClient, HttpHandler } from '@angular/common/http';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { NgbdModalUserFileShareAccessComponent } from './ngbd-modal-user-file-share-access.component';
-import { UserFileService } from '../../../../../common/service/user/user-file/user-file.service';
-import { DashboardUserFileEntry, UserFile } from '../../../../../common/type/dashboard-user-file-entry';
-import { StubUserFileService } from '../../../../../common/service/user/user-file/stub-user-file-service';
+import { UserFileService } from '../../../../service/user-file/user-file.service';
+import { DashboardUserFileEntry, UserFile } from '../../../../type/dashboard-user-file-entry';
+import { StubUserFileService } from '../../../../service/user-file/stub-user-file-service';
 import { StubUserService } from 'src/app/common/service/user/stub-user.service';
 import { GoogleApiService, GoogleAuthService } from 'ng-gapi';
 

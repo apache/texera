@@ -2,10 +2,10 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 import { map } from 'rxjs/operators';
-import { AppSettings } from '../../../app-setting';
-import { Workflow, WorkflowContent } from '../../../type/workflow';
-import { jsonCast } from '../../../util/storage';
-import { DashboardWorkflowEntry } from '../../../type/dashboard-workflow-entry';
+import { AppSettings } from '../../app-setting';
+import { Workflow, WorkflowContent } from '../../type/workflow';
+import { jsonCast } from '../../util/storage';
+import { DashboardWorkflowEntry } from '../../../dashboard/type/dashboard-workflow-entry';
 
 export const WORKFLOW_URL = 'workflow';
 export const WORKFLOW_PERSIST_URL = WORKFLOW_URL + '/persist';

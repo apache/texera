@@ -3,10 +3,10 @@ import { Router } from '@angular/router';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { cloneDeep } from 'lodash';
 import { Observable } from 'rxjs';
-import { WorkflowPersistService } from '../../../../common/service/user/workflow-persist/workflow-persist.service';
+import { WorkflowPersistService } from '../../../../common/service/workflow-persist/workflow-persist.service';
 import { NgbdModalDeleteWorkflowComponent } from './ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component';
 import { NgbdModalWorkflowShareAccessComponent } from './ngbd-modal-share-access/ngbd-modal-workflow-share-access.component';
-import { DashboardWorkflowEntry } from '../../../../common/type/dashboard-workflow-entry';
+import { DashboardWorkflowEntry } from '../../../type/dashboard-workflow-entry';
 import { UserService } from '../../../../common/service/user/user.service';
 
 export const ROUTER_WORKFLOW_BASE_URL = `/workflow`;

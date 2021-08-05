@@ -9,11 +9,11 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess
 import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.web.resource.dashboard.WorkflowAccessResource.{
-  UserWorkflowAccess,
   checkAccessLevel,
   context,
   hasNoWorkflowAccessRecord
 }
+import edu.uci.ics.texera.web.resource.dashboard.file.AccessEntry
 import io.dropwizard.jersey.sessions.Session
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
@@ -104,8 +104,6 @@ object WorkflowAccessResource {
   def hasNoWorkflowAccessRecord(wid: UInteger, uid: UInteger): Boolean = {
     checkAccessLevel(wid, uid).eq(WorkflowAccess.NO_RECORD)
   }
-
-  case class UserWorkflowAccess(userName: String, accessLevel: String) {}
 
   object WorkflowAccess extends Enumeration {
     type Access = Value
@@ -216,7 +214,7 @@ class WorkflowAccessResource() {
     * @param uid     user id of current user, used to identify ownership
     * @return a List with corresponding information Ex: [{"Jim": "Read"}]
     */
-  def getGrantedWorkflowAccessList(wid: UInteger, uid: UInteger): List[UserWorkflowAccess] = {
+  def getGrantedWorkflowAccessList(wid: UInteger, uid: UInteger): List[AccessEntry] = {
     val shares = context
       .select(
         WORKFLOW_USER_ACCESS.UID,
@@ -236,9 +234,9 @@ class WorkflowAccessResource() {
         case (id, index) =>
           val userName = userDao.fetchOneByUid(id.asInstanceOf[UInteger]).getName
           if (shares.getValue(index, 2) == true) {
-            UserWorkflowAccess(userName, "Write")
+            AccessEntry(userName, "Write")
           } else {
-            UserWorkflowAccess(userName, "Read")
+            AccessEntry(userName, "Read")
           }
       })
 

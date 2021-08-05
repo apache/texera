@@ -1,8 +1,8 @@
 import { Component, Input, OnInit } from '@angular/core';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { FormBuilder, Validators } from '@angular/forms';
-import { UserFileService } from '../../../../../common/service/user/user-file/user-file.service';
-import { DashboardUserFileEntry, UserFileAccess } from '../../../../../common/type/dashboard-user-file-entry';
+import { UserFileService } from '../../../../service/user-file/user-file.service';
+import { DashboardUserFileEntry, UserFileAccess } from '../../../../type/dashboard-user-file-entry';
 
 
 @Component({

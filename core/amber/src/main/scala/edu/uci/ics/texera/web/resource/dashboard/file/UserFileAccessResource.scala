@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.web.resource.dashboard.file
 
 import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.texera.web.model.common.AccessEntry
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER_FILE_ACCESS}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{UserDao, UserFileAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserFileAccess
@@ -47,8 +48,6 @@ object UserFileAccessResource {
   }
 }
 
-case class FileAccess(username: String, accessLevel: String)
-
 @Path("/user/file/access")
 @Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON))
@@ -89,13 +88,13 @@ class UserFileAccessResource {
               .zipWithIndex
               .map({
                 case (uid, index) =>
-                  val uname = userDao.fetchOneByUid(uid.asInstanceOf[UInteger]).getName
-                  if (uname == ownerName) {
-                    FileAccess(uname, "Owner")
+                  val userName = userDao.fetchOneByUid(uid.asInstanceOf[UInteger]).getName
+                  if (userName == ownerName) {
+                    AccessEntry(userName, "Owner")
                   } else if (fileAccess.getValue(index, 2) == true) {
-                    FileAccess(uname, "Write")
+                    AccessEntry(userName, "Write")
                   } else {
-                    FileAccess(uname, "Read")
+                    AccessEntry(userName, "Read")
                   }
               })
           )

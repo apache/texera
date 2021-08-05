@@ -1,14 +1,14 @@
 import { TestBed } from '@angular/core/testing';
-import { Workflow, WorkflowContent } from '../../../type/workflow';
-import { jsonCast } from '../../../util/storage';
+import { Workflow, WorkflowContent } from '../../../common/type/workflow';
+import { jsonCast } from '../../../common/util/storage';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import {
   WORKFLOW_ACCESS_GRANT_URL,
   WORKFLOW_ACCESS_LIST_URL,
   WORKFLOW_ACCESS_REVOKE_URL,
-  WorkflowGrantAccessService
-} from './workflow-grant-access.service';
-import { AppSettings } from '../../../app-setting';
+  WorkflowAccessService
+} from './workflow-access.service';
+import { AppSettings } from '../../../common/app-setting';
 
 describe('WorkflowGrantAccessService', () => {
 
@@ -23,19 +23,19 @@ describe('WorkflowGrantAccessService', () => {
   const username = 'Jim';
   const accessType = 'read';
 
-  let service: WorkflowGrantAccessService;
+  let service: WorkflowAccessService;
   let httpMock: HttpTestingController;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
-        WorkflowGrantAccessService
+        WorkflowAccessService
       ],
       imports: [
         HttpClientTestingModule
       ]
     });
-    service = TestBed.get(WorkflowGrantAccessService);
+    service = TestBed.get(WorkflowAccessService);
     httpMock = TestBed.get(HttpTestingController);
   });
 
