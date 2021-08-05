@@ -55,6 +55,9 @@ object OperatorMetadataGenerator {
 
   val texeraSchemaGeneratorConfig: JsonSchemaConfig = html5EnabledSchema.copy(
     useOneOfForOption = false,
+    useOneOfForNullables = false,
+    useNullableForOption = true,
+    useNullableForNullables = true,
     defaultArrayFormat = None,
     jsonSchemaDraft = JsonSchemaDraft.DRAFT_07
   )

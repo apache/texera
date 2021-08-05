@@ -30,6 +30,8 @@ object JsonSchemaConfig {
     defaultArrayFormat = None,
     useOneOfForOption = false,
     useOneOfForNullables = false,
+    useNullableForOption = false,
+    useNullableForNullables = false,
     usePropertyOrdering = false,
     hidePolymorphismTypeProperty = false,
     disableWarnings = false,
@@ -53,6 +55,8 @@ object JsonSchemaConfig {
     defaultArrayFormat = Some("table"),
     useOneOfForOption = true,
     useOneOfForNullables = false,
+    useNullableForOption = false,
+    useNullableForNullables = false,
     usePropertyOrdering = true,
     hidePolymorphismTypeProperty = true,
     disableWarnings = false,
@@ -91,6 +95,8 @@ object JsonSchemaConfig {
     defaultArrayFormat = None,
     useOneOfForOption = true,
     useOneOfForNullables = true,
+    useNullableForOption = false,
+    useNullableForNullables = false,
     usePropertyOrdering = false,
     hidePolymorphismTypeProperty = false,
     disableWarnings = false,
@@ -109,6 +115,8 @@ object JsonSchemaConfig {
               defaultArrayFormat:Optional[String],
               useOneOfForOption:Boolean,
               useOneOfForNullables:Boolean,
+              useNullableForOption:Boolean,
+              useNullableForNullables:Boolean,
               usePropertyOrdering:Boolean,
               hidePolymorphismTypeProperty:Boolean,
               disableWarnings:Boolean,
@@ -131,6 +139,8 @@ object JsonSchemaConfig {
       Option(defaultArrayFormat.orElse(null)),
       useOneOfForOption,
       useOneOfForNullables,
+      useNullableForOption,
+      useNullableForNullables,
       usePropertyOrdering,
       hidePolymorphismTypeProperty,
       disableWarnings,
@@ -232,6 +242,8 @@ case class JsonSchemaConfig
   defaultArrayFormat:Option[String],
   useOneOfForOption:Boolean,
   useOneOfForNullables:Boolean,
+  useNullableForOption:Boolean,
+  useNullableForNullables:Boolean,
   usePropertyOrdering:Boolean,
   hidePolymorphismTypeProperty:Boolean,
   disableWarnings:Boolean,
@@ -1164,6 +1176,12 @@ class JsonSchemaGenerator
 
                       // Return oneOfReal which, from now on, will be used as the node representing this property
                       PropertyNode(oneOfReal, thisPropertyNode)
+                    } else if (!requiredProperty && ((config.useNullableForOption && optionalType) ||
+                      (config.useNullableForNullables && !optionalType))) {
+                      // add {nullable: true} in the json schema following OpenAPI and AJV specification
+                      // see https://ajv.js.org/json-schema.html#openapi-support
+                      thisPropertyNode.put("nullable", true)
+                      PropertyNode(thisPropertyNode, thisPropertyNode)
                     } else {
                       // Our type must not be null: primitives, @NotNull annotations, @JsonProperty annotations marked required etc.
                       PropertyNode(thisPropertyNode, thisPropertyNode)
