@@ -36,9 +36,9 @@ export class SavedWorkflowSectionComponent implements OnInit {
   /**
    * open the Modal based on the workflow clicked on
    */
-  public onClickOpenShareAccess(dashboardWorkflowEntry: DashboardWorkflowEntry): void {
+  public onClickOpenShareAccess({workflow}: DashboardWorkflowEntry): void {
     const modalRef = this.modalService.open(NgbdModalWorkflowShareAccessComponent);
-    modalRef.componentInstance.dashboardWorkflowEntry = dashboardWorkflowEntry;
+    modalRef.componentInstance.workflow = workflow;
   }
 
   /**
@@ -99,15 +99,16 @@ export class SavedWorkflowSectionComponent implements OnInit {
    * message to frontend and delete the workflow on frontend. It
    * calls the deleteProject method in service which implements backend API.
    */
-  public openNgbdModalDeleteWorkflowComponent(workflowEntryToDelete: DashboardWorkflowEntry): void {
+  public openNgbdModalDeleteWorkflowComponent({workflow}: DashboardWorkflowEntry): void {
     const modalRef = this.modalService.open(NgbdModalDeleteWorkflowComponent);
-    modalRef.componentInstance.dashboardWorkflowEntry = cloneDeep(workflowEntryToDelete);
+    modalRef.componentInstance.workflow = cloneDeep(workflow);
 
     Observable.from(modalRef.result).subscribe((confirmToDelete: boolean) => {
-      const wid = workflowEntryToDelete.workflow.wid;
+      const wid = workflow.wid;
       if (confirmToDelete && wid !== undefined) {
-        this.dashboardWorkflowEntries = this.dashboardWorkflowEntries.filter(workflowEntry => workflowEntry.workflow.wid !== wid);
+
         this.workflowPersistService.deleteWorkflow(wid).subscribe(_ => {
+            this.dashboardWorkflowEntries = this.dashboardWorkflowEntries.filter(workflowEntry => workflowEntry.workflow.wid !== wid);
           }, err => alert(err.error) // TODO: handle error messages properly.
         );
       }

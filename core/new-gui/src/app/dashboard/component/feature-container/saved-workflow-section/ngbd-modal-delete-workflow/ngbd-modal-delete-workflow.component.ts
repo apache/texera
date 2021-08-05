@@ -1,6 +1,6 @@
 import { Component, Input } from '@angular/core';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
-import { DashboardWorkflowEntry } from '../../../../../common/type/dashboard-workflow-entry';
+import { Workflow } from '../../../../../common/type/workflow';
 
 /**
  * NgbdModalDeleteProjectComponent is the pop-up component
@@ -15,16 +15,16 @@ import { DashboardWorkflowEntry } from '../../../../../common/type/dashboard-wor
 })
 export class NgbdModalDeleteWorkflowComponent {
 
-  @Input() dashboardWorkflowEntry!: DashboardWorkflowEntry;
+  @Input() workflow!: Workflow;
 
   constructor(public activeModal: NgbActiveModal) {
   }
 
   /**
-   * deleteSavedProject sends the user
+   * deleteSavedWorkflow sends the user
    * confirm to the main component. It does not call any method in service.
    */
-  public deleteSavedWorkflowEntry(): void {
+  public deleteSavedWorkflow(): void {
     this.activeModal.close(true);
   }
 

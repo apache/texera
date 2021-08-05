@@ -6,7 +6,6 @@ import {
   WorkflowGrantAccessService
 } from '../../../../../common/service/user/workflow-access-control/workflow-grant-access.service';
 import { Workflow } from '../../../../../common/type/workflow';
-import { DashboardWorkflowEntry } from '../../../../../common/type/dashboard-workflow-entry';
 
 
 @Component({
@@ -16,7 +15,7 @@ import { DashboardWorkflowEntry } from '../../../../../common/type/dashboard-wor
 })
 export class NgbdModalWorkflowShareAccessComponent implements OnInit {
 
-  @Input() dashboardWorkflowEntry!: DashboardWorkflowEntry;
+  @Input() workflow!: Workflow;
 
   shareForm = this.formBuilder.group({
     username: ['', [Validators.required]],
@@ -38,7 +37,7 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.refreshGrantedList(this.dashboardWorkflowEntry.workflow);
+    this.refreshGrantedList(this.workflow);
   }
 
   public onClickGetAllSharedAccess(workflow: Workflow): void {

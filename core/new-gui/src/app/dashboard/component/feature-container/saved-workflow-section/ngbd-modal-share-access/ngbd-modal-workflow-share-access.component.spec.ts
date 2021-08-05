@@ -67,7 +67,7 @@ describe('NgbdModalShareAccessComponent', () => {
     const mySpy = spyOn(service, 'grantUserWorkflowAccess').and.callThrough();
     component.workflow = workflow;
     fixture.detectChanges();
-    component.grantAccess(component.workflow, 'Jim', 'read');
+    component.grantWorkflowAccess(component.workflow, 'Jim', 'read');
     expect(mySpy).toHaveBeenCalled();
   });
 

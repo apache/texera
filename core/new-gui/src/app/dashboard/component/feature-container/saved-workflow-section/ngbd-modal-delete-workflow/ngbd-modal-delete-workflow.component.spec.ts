@@ -8,8 +8,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
 
 import { NgbdModalDeleteWorkflowComponent } from './ngbd-modal-delete-workflow.component';
-import { DashboardWorkflowEntry } from '../../../../../common/type/dashboard-workflow-entry';
-import { WorkflowContent } from '../../../../../common/type/workflow';
+import { Workflow, WorkflowContent } from '../../../../../common/type/workflow';
 import { jsonCast } from '../../../../../common/util/storage';
 
 describe('NgbdModalDeleteProjectComponent', () => {
@@ -18,18 +17,12 @@ describe('NgbdModalDeleteProjectComponent', () => {
 
   let deleteComponent: NgbdModalDeleteWorkflowComponent;
   let deleteFixture: ComponentFixture<NgbdModalDeleteWorkflowComponent>;
-
-  const targetWorkflowEntry: DashboardWorkflowEntry = {
-    workflow: {
-      name: 'workflow 1',
-      wid: 4,
-      content: jsonCast<WorkflowContent>('{}'),
-      creationTime: 1,
-      lastModifiedTime: 2,
-    },
-    isOwner: true,
-    ownerName: 'Texera',
-    accessLevel: 'Write'
+  const targetWorkflow: Workflow = {
+    name: 'workflow 1',
+    wid: 4,
+    content: jsonCast<WorkflowContent>('{}'),
+    creationTime: 1,
+    lastModifiedTime: 2,
   };
 
   beforeEach(async(() => {
@@ -59,10 +52,10 @@ describe('NgbdModalDeleteProjectComponent', () => {
   it('deleteProjectComponent deleteSavedProject return a result of true', () => {
     deleteFixture = TestBed.createComponent(NgbdModalDeleteWorkflowComponent);
     deleteComponent = deleteFixture.componentInstance;
-    deleteComponent.dashboardWorkflowEntry = targetWorkflowEntry;
+    deleteComponent.workflow = targetWorkflow;
 
     spyOn(deleteComponent.activeModal, 'close');
-    deleteComponent.deleteSavedWorkflowEntry();
+    deleteComponent.deleteSavedWorkflow();
     expect(deleteComponent.activeModal.close).toHaveBeenCalledWith(true);
   });
 });
