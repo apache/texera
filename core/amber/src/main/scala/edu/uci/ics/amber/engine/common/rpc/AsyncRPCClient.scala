@@ -74,6 +74,8 @@ class AsyncRPCClient(controlOutputPort: ControlOutputPort, logger: WorkflowLogge
       val p = unfulfilledPromises(ret.originalCommandID)
 
       ret.controlReturn match {
+          // TODO: test case
+        case e: Throwable => p.setException(e)
         case ControlException(msg) =>
           p.setException(new RuntimeException(msg))
         case _ =>

@@ -91,6 +91,7 @@ class Controller(
   // build whole workflow
   workflow.build(availableNodes, networkCommunicationActor, context)
   Future
+  // TODO: flatten it
     .collect( // send python udf code
       workflow.getPythonWorkerToOperatorExec
         .map({
