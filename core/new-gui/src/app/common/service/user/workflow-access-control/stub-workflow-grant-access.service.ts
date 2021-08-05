@@ -44,7 +44,7 @@ export class StubWorkflowGrantAccessService implements PublicInterfaceOf<Workflo
     return of();
   }
 
-  public getOwner(workflow: Workflow): Observable<Readonly<string[]>> {
+  public getWorkflowOwner(workflow: Workflow): Observable<Readonly<string>> {
     return of();
   }
 

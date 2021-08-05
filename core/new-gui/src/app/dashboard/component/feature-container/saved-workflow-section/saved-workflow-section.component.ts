@@ -4,7 +4,6 @@ import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { cloneDeep } from 'lodash';
 import { Observable } from 'rxjs';
 import { WorkflowPersistService } from '../../../../common/service/user/workflow-persist/workflow-persist.service';
-import { Workflow } from '../../../../common/type/workflow';
 import { NgbdModalDeleteWorkflowComponent } from './ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component';
 import { NgbdModalWorkflowShareAccessComponent } from './ngbd-modal-share-access/ngbd-modal-workflow-share-access.component';
 import { DashboardWorkflowEntry } from '../../../../common/type/dashboard-workflow-entry';
@@ -31,13 +30,13 @@ export class SavedWorkflowSectionComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.registerWorkflowRefresh();
+    this.registerDashboardWorkflowEntriesRefresh();
   }
 
   /**
    * open the Modal based on the workflow clicked on
    */
-  public onClickOpenShareAccess(workflow: Workflow): void {
+  public onClickOpenShareAccess({workflow}: DashboardWorkflowEntry): void {
     const modalRef = this.modalService.open(NgbdModalWorkflowShareAccessComponent);
     modalRef.componentInstance.workflow = workflow;
   }
@@ -85,8 +84,8 @@ export class SavedWorkflowSectionComponent implements OnInit {
    * duplicate the current workflow. A new record will appear in frontend
    * workflow list and backend database.
    */
-  public onClickDuplicateWorkflow(workflowToDuplicate: Workflow): void {
-    this.workflowPersistService.createWorkflow(workflowToDuplicate.content, workflowToDuplicate.name + '_copy')
+  public onClickDuplicateWorkflow({workflow: {content, name}}: DashboardWorkflowEntry): void {
+    this.workflowPersistService.createWorkflow(content, name + '_copy')
       .subscribe((duplicatedWorkflowInfo: DashboardWorkflowEntry) => {
         this.dashboardWorkflowEntries.push(duplicatedWorkflowInfo);
       }, err => {
@@ -100,14 +99,15 @@ export class SavedWorkflowSectionComponent implements OnInit {
    * message to frontend and delete the workflow on frontend. It
    * calls the deleteProject method in service which implements backend API.
    */
-  public openNgbdModalDeleteWorkflowComponent(workflowToDelete: Workflow): void {
+  public openNgbdModalDeleteWorkflowComponent(workflowEntryToDelete: DashboardWorkflowEntry): void {
     const modalRef = this.modalService.open(NgbdModalDeleteWorkflowComponent);
-    modalRef.componentInstance.workflow = cloneDeep(workflowToDelete);
+    modalRef.componentInstance.workflow = cloneDeep(workflowEntryToDelete);
 
     Observable.from(modalRef.result).subscribe((confirmToDelete: boolean) => {
-      if (confirmToDelete && workflowToDelete.wid !== undefined) {
-        this.dashboardWorkflowEntries = this.dashboardWorkflowEntries.filter(workflow => workflow.workflow.wid !== workflowToDelete.wid);
-        this.workflowPersistService.deleteWorkflow(workflowToDelete.wid).subscribe(_ => {
+      const wid = workflowEntryToDelete.workflow.wid;
+      if (confirmToDelete && wid !== undefined) {
+        this.dashboardWorkflowEntries = this.dashboardWorkflowEntries.filter(workflowEntry => workflowEntry.workflow.wid !== wid);
+        this.workflowPersistService.deleteWorkflow(wid).subscribe(_ => {
           }, err => alert(err.error) // TODO: handle error messages properly.
         );
       }
@@ -117,30 +117,30 @@ export class SavedWorkflowSectionComponent implements OnInit {
   /**
    * jump to the target workflow canvas
    */
-  public jumpToWorkflow(workflow: Workflow): void {
-    this.router.navigate([`${ROUTER_WORKFLOW_BASE_URL}/${workflow.wid}`]).then(null);
+  public jumpToWorkflow({workflow: {wid}}: DashboardWorkflowEntry): void {
+    this.router.navigate([`${ROUTER_WORKFLOW_BASE_URL}/${wid}`]).then(null);
   }
 
-  private registerWorkflowRefresh(): void {
+  private registerDashboardWorkflowEntriesRefresh(): void {
     this.userService.userChanged().subscribe(
       () => {
         if (this.userService.isLogin()) {
-          this.refreshWorkflows();
+          this.refreshDashboardWorkflowEntries();
         } else {
-          this.clearWorkflows();
+          this.clearDashboardWorkflowEntries();
         }
       }
     );
 
   }
 
-  private refreshWorkflows(): void {
+  private refreshDashboardWorkflowEntries(): void {
     this.workflowPersistService.retrieveWorkflowsBySessionUser().subscribe(
       dashboardWorkflowEntries => this.dashboardWorkflowEntries = dashboardWorkflowEntries
     );
   }
 
-  private clearWorkflows(): void {
+  private clearDashboardWorkflowEntries(): void {
     this.dashboardWorkflowEntries = [];
   }
 

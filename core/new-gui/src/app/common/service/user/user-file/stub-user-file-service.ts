@@ -41,7 +41,7 @@ export class StubUserFileService implements PublicInterfaceOf<UserFileService> {
    * retrieve the files from the backend and store in the user-file service.
    * these file can be accessed by function {@link getFileArray}
    */
-  public refreshFiles(): void {
+  public refreshDashboardUserFileEntries(): void {
     return;
   }
 
@@ -50,7 +50,7 @@ export class StubUserFileService implements PublicInterfaceOf<UserFileService> {
    * this function will automatically refresh the files in the service when succeed.
    * @param targetFile
    */
-  public deleteFile(targetFile: DashboardUserFileEntry): void {
+  public deleteDashboardUserFileEntry(targetFile: DashboardUserFileEntry): void {
     return;
   }
 
@@ -77,6 +77,5 @@ export class StubUserFileService implements PublicInterfaceOf<UserFileService> {
   private static detectUserChanges(): void {
     return;
   }
-
 
 }

@@ -18,7 +18,7 @@ export class UserFileSectionComponent implements OnInit {
     private userFileService: UserFileService,
     private userService: UserService
   ) {
-    this.userFileService.refreshFiles();
+    this.userFileService.refreshDashboardUserFileEntries();
   }
 
   ngOnInit() {
@@ -42,7 +42,7 @@ export class UserFileSectionComponent implements OnInit {
   }
 
   public deleteFile(userFile: DashboardUserFileEntry): void {
-    this.userFileService.deleteFile(userFile);
+    this.userFileService.deleteDashboardUserFileEntry(userFile);
   }
 
   public disableAddButton(): boolean {

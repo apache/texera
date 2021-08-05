@@ -19,7 +19,7 @@ export const USER_FILE_ACCESS_REVOKE_URL = `${USER_FILE_ACCESS_BASE_URL}/revoke`
 })
 export class UserFileService {
   private dashboardUserFileEntries: ReadonlyArray<DashboardUserFileEntry> = [];
-  private userFilesChanged = new Subject<null>();
+  private dashboardUserFileEntryChanged = new Subject<null>();
 
 
   constructor(
@@ -39,23 +39,23 @@ export class UserFileService {
   }
 
   public getUserFilesChangedEvent(): Observable<null> {
-    return this.userFilesChanged.asObservable();
+    return this.dashboardUserFileEntryChanged.asObservable();
   }
 
   /**
    * retrieve the files from the backend and store in the user-file service.
    * these file can be accessed by function {@link getFileArray}
    */
-  public refreshFiles(): void {
+  public refreshDashboardUserFileEntries(): void {
     if (!this.userService.isLogin()) {
-      this.clearUserFile();
+      this.clearDashboardUserFileEntries();
       return;
     }
 
     this.retrieveDashboardUserFileEntryList().subscribe(
-      files => {
-        this.dashboardUserFileEntries = files;
-        this.userFilesChanged.next();
+      dashboardUserFileEntries => {
+        this.dashboardUserFileEntries = dashboardUserFileEntries;
+        this.dashboardUserFileEntryChanged.next();
       }
     );
   }
@@ -63,14 +63,14 @@ export class UserFileService {
   /**
    * delete the targetFile in the backend.
    * this function will automatically refresh the files in the service when succeed.
-   * @param targetFile
+   * @param targetUserFileEntry
    */
-  public deleteFile(targetFile: DashboardUserFileEntry): void {
-    console.log(targetFile);
+  public deleteDashboardUserFileEntry(targetUserFileEntry: DashboardUserFileEntry): void {
+
     this.http.delete<Response>(
-      `${USER_FILE_DELETE_URL}/${targetFile.file.name}/${targetFile.ownerName}`).subscribe(
-      () => this.refreshFiles(),
-      err => alert('Can\'t delete the file: ' + err.error)
+      `${USER_FILE_DELETE_URL}/${targetUserFileEntry.file.name}/${targetUserFileEntry.ownerName}`).subscribe(
+      () => this.refreshDashboardUserFileEntries(),
+      err => alert('Can\'t delete the file entry: ' + err.error)
     );
   }
 
@@ -95,36 +95,36 @@ export class UserFileService {
 
   /**
    * Assign a new access to/Modify an existing access of another user
-   * @param fileEntry the file entry that is selected
+   * @param userFileEntry the file entry that is selected
    * @param username the username of target user
    * @param accessLevel the type of access offered
    * @return Response
    */
-  public grantUserFileAccess(fileEntry: DashboardUserFileEntry, username: string, accessLevel: string): Observable<Response> {
+  public grantUserFileAccess(userFileEntry: DashboardUserFileEntry, username: string, accessLevel: string): Observable<Response> {
     return this.http.post<Response>(
-      `${USER_FILE_ACCESS_GRANT_URL}/${fileEntry.file.name}/${fileEntry.ownerName}/${username}/${accessLevel}`,
+      `${USER_FILE_ACCESS_GRANT_URL}/${userFileEntry.file.name}/${userFileEntry.ownerName}/${username}/${accessLevel}`,
       null);
   }
 
   /**
    * Retrieve all shared accesses of the given dashboardUserFileEntry.
-   * @param dashboardUserFileEntry the current dashboardUserFileEntry
+   * @param userFileEntry the current dashboardUserFileEntry
    * @return ReadonlyArray<UserFileAccess> an array of UserFileAccesses, Ex: [{username: TestUser, fileAccess: read}]
    */
-  public getUserFileAccessList(dashboardUserFileEntry: DashboardUserFileEntry): Observable<ReadonlyArray<UserFileAccess>> {
+  public getUserFileAccessList(userFileEntry: DashboardUserFileEntry): Observable<ReadonlyArray<UserFileAccess>> {
     return this.http.get<ReadonlyArray<UserFileAccess>>(
-      `${USER_FILE_ACCESS_LIST_URL}/${dashboardUserFileEntry.file.name}/${dashboardUserFileEntry.ownerName}`);
+      `${USER_FILE_ACCESS_LIST_URL}/${userFileEntry.file.name}/${userFileEntry.ownerName}`);
   }
 
   /**
    * Remove an existing access of another user
-   * @param dashboardUserFileEntry the current dashboardUserFileEntry
+   * @param userFileEntry the current dashboardUserFileEntry
    * @param username the username of target user
    * @return message of success
    */
-  public revokeUserFileAccess(dashboardUserFileEntry: DashboardUserFileEntry, username: string): Observable<Response> {
+  public revokeUserFileAccess(userFileEntry: DashboardUserFileEntry, username: string): Observable<Response> {
     return this.http.post<Response>(
-      `${USER_FILE_ACCESS_REVOKE_URL}/${dashboardUserFileEntry.file.name}/${dashboardUserFileEntry.ownerName}/${username}`, null);
+      `${USER_FILE_ACCESS_REVOKE_URL}/${userFileEntry.file.name}/${userFileEntry.ownerName}/${username}`, null);
   }
 
   private retrieveDashboardUserFileEntryList(): Observable<ReadonlyArray<DashboardUserFileEntry>> {
@@ -138,16 +138,16 @@ export class UserFileService {
     this.userService.userChanged().subscribe(
       () => {
         if (this.userService.isLogin()) {
-          this.refreshFiles();
+          this.refreshDashboardUserFileEntries();
         } else {
-          this.clearUserFile();
+          this.clearDashboardUserFileEntries();
         }
       }
     );
   }
 
-  private clearUserFile(): void {
+  private clearDashboardUserFileEntries(): void {
     this.dashboardUserFileEntries = [];
-    this.userFilesChanged.next();
+    this.dashboardUserFileEntryChanged.next();
   }
 }

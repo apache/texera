@@ -58,7 +58,7 @@ export class SourceTablesService {
 
     this.registerUpdateUserFileInFileSourceOp();
 
-    this.userFileService.refreshFiles();
+    this.userFileService.refreshDashboardUserFileEntries();
 
     this.registerOpPropertyDynamicUpdate();
 

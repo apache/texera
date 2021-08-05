@@ -45,14 +45,14 @@
             ></nz-avatar>
           </nz-list-item-meta-avatar>
           <nz-list-item-meta-title>
-            <span class = "workflow-dashboard-entry">
+            <span class="workflow-dashboard-entry">
                <label class="workflow-name"
-                      (click)="jumpToWorkflow(dashboardWorkflowEntry.workflow)">{{dashboardWorkflowEntry.workflow.name}}</label>
+                      (click)="jumpToWorkflow(dashboardWorkflowEntry)">{{dashboardWorkflowEntry.workflow.name}}</label>
                <i *ngIf="dashboardWorkflowEntry.isOwner" ngbTooltip="You are the OWNER" nz-icon nzType="user"
-               nzTheme="outline"></i>
+                  nzTheme="outline"></i>
                <i *ngIf="!dashboardWorkflowEntry.isOwner"
-               ngbTooltip="{{dashboardWorkflowEntry.accessLevel}} access shared by {{dashboardWorkflowEntry.ownerName}}"
-               nz-icon nzType="team" nzTheme="outline"></i>
+                  ngbTooltip="{{dashboardWorkflowEntry.accessLevel}} access shared by {{dashboardWorkflowEntry.ownerName}}"
+                  nz-icon nzType="team" nzTheme="outline"></i>
             </span>
 
           </nz-list-item-meta-title>
@@ -69,12 +69,12 @@
             <button (click)="onClickOpenShareAccess(dashboardWorkflowEntry.workflow)" type="button" nz-button
                     nz-tooltip="Share the workflow {{dashboardWorkflowEntry.workflow.name}} to others"
                     nzTooltipPlacement="bottom"
-                    [disabled] = "!dashboardWorkflowEntry.isOwner">
+                    [disabled]="!dashboardWorkflowEntry.isOwner">
               <i nz-icon nzType="share-alt" nzTheme="outline"></i>
             </button>
           </nz-list-item-action>
           <nz-list-item-action>
-            <button (click)="onClickDuplicateWorkflow(dashboardWorkflowEntry.workflow)" type="button"
+            <button (click)="onClickDuplicateWorkflow(dashboardWorkflowEntry)" type="button"
                     class="duplicate-workflow-btn" nz-button
                     nz-tooltip="Duplicate the workflow {{dashboardWorkflowEntry.workflow.name}}"
                     nzTooltipPlacement="bottom">
@@ -82,11 +82,11 @@
             </button>
           </nz-list-item-action>
           <nz-list-item-action>
-            <button (click)="openNgbdModalDeleteWorkflowComponent(dashboardWorkflowEntry.workflow)"
+            <button (click)="openNgbdModalDeleteWorkflowComponent(dashboardWorkflowEntry)"
                     class="delete-workflow-btn" nz-button
                     nz-tooltip="Delete the workflow {{dashboardWorkflowEntry.workflow.name}}"
                     nzTooltipPlacement="bottom"
-                    [disabled] = "!dashboardWorkflowEntry.isOwner">
+                    [disabled]="!dashboardWorkflowEntry.isOwner">
               <i nz-icon nzType="delete" nzTheme="outline"></i>
             </button>
           </nz-list-item-action>

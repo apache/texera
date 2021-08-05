@@ -53,8 +53,8 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
       (userWorkflowAccess: Readonly<UserWorkflowAccess>[]) => this.allUserWorkflowAccess = userWorkflowAccess,
       err => console.log(err.error)
     );
-    this.workflowGrantAccessService.getOwner(workflow).subscribe(ownership => {
-      this.workflowOwner = ownership[0];
+    this.workflowGrantAccessService.getWorkflowOwner(workflow).subscribe(ownerName => {
+      this.workflowOwner = ownerName;
     });
   }
 

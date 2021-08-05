@@ -62,7 +62,7 @@ export class UserFileUploadService {
           this.uploadFile(fileUploadItem)
             .subscribe(() => {
               this.removeFileFromUploadArray(fileUploadItem);
-              this.userFileService.refreshFiles();
+              this.userFileService.refreshDashboardUserFileEntries();
             }, err => {
               // TODO: user friendly error message.
               alert(`Uploading file ${fileUploadItem.name} failed\nMessage: ${err.error}`);

@@ -27,77 +27,69 @@ describe('SavedWorkflowSectionComponent', () => {
   let mockWorkflowPersistService: WorkflowPersistService;
   let httpClient: HttpClient;
   let httpTestingController: HttpTestingController;
-  const testContent = ' {"operators":[],"operatorPositions":{},"links":[],"groups":[],"breakpoints":{}}';
-  const TestWorkflow: Workflow = {
-    wid: 1,
-    name: 'workflow',
-    content: jsonCast<WorkflowContent>(testContent),
-    creationTime: 1,
-    lastModifiedTime: 2,
-  };
 
-  const TestWorkflow1: Workflow = {
+  const testWorkflow1: Workflow = {
     wid: 1,
     name: 'workflow 1',
     content: jsonCast<WorkflowContent>('{}'),
     creationTime: 1,
     lastModifiedTime: 2,
   };
-  const TestWorkflow2: Workflow = {
+  const testWorkflow2: Workflow = {
     wid: 2,
     name: 'workflow 2',
     content: jsonCast<WorkflowContent>('{}'),
     creationTime: 3,
     lastModifiedTime: 4,
   };
-  const TestWorkflow3: Workflow = {
+  const testWorkflow3: Workflow = {
     wid: 3,
     name: 'workflow 3',
     content: jsonCast<WorkflowContent>('{}'),
     creationTime: 3,
     lastModifiedTime: 3,
   };
-  const TestWorkflow4: Workflow = {
+  const testWorkflow4: Workflow = {
     wid: 4,
     name: 'workflow 4',
     content: jsonCast<WorkflowContent>('{}'),
     creationTime: 4,
     lastModifiedTime: 6,
   };
-  const TestWorkflow5: Workflow = {
+  const testWorkflow5: Workflow = {
     wid: 5,
     name: 'workflow 5',
     content: jsonCast<WorkflowContent>('{}'),
     creationTime: 3,
     lastModifiedTime: 8,
   };
-  const TestCase: DashboardWorkflowEntry[] = [
+  const testWorkflowEntries: DashboardWorkflowEntry[] = [
     {
-      workflow: TestWorkflow1,
+      workflow: testWorkflow1,
       isOwner: true,
       ownerName: 'Texera',
       accessLevel: 'Write'
     },
     {
-      workflow: TestWorkflow2,
+      workflow: testWorkflow2,
       isOwner: true,
       ownerName: 'Texera',
       accessLevel: 'Write'
     },
     {
-      workflow: TestWorkflow3,
+      workflow: testWorkflow3,
       isOwner: true,
       ownerName: 'Texera',
       accessLevel: 'Write'
     },
     {
-      workflow: TestWorkflow4,
+      workflow: testWorkflow4,
       isOwner: true,
       ownerName: 'Texera',
       accessLevel: 'Write'
     },
     {
-      workflow: TestWorkflow5,
+      workflow: testWorkflow5,
       isOwner: true,
       ownerName: 'Texera',
       accessLevel: 'Write'
@@ -148,7 +140,7 @@ describe('SavedWorkflowSectionComponent', () => {
 
   it('alphaSortTest increaseOrder', () => {
     component.dashboardWorkflowEntries = [];
-    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(TestCase);
+    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
     component.ascSort();
     const SortedCase = component.dashboardWorkflowEntries.map(item => item.workflow.name);
     expect(SortedCase)
@@ -157,7 +149,7 @@ describe('SavedWorkflowSectionComponent', () => {
 
   it('alphaSortTest decreaseOrder', () => {
     component.dashboardWorkflowEntries = [];
-    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(TestCase);
+    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
     component.dscSort();
     const SortedCase = component.dashboardWorkflowEntries.map(item => item.workflow.name);
     expect(SortedCase)
@@ -167,7 +159,7 @@ describe('SavedWorkflowSectionComponent', () => {
   it('Modal Opened, then Closed', () => {
     const modalRef: NgbModalRef = modalService.open(NgbdModalWorkflowShareAccessComponent);
     spyOn(modalService, 'open').and.returnValue(modalRef);
-    component.onClickOpenShareAccess(TestWorkflow);
+    component.onClickOpenShareAccess(testWorkflowEntries[0]);
     expect(modalService.open).toHaveBeenCalled();
     fixture.detectChanges();
     modalRef.dismiss();
@@ -175,7 +167,7 @@ describe('SavedWorkflowSectionComponent', () => {
 
   it('createDateSortTest', () => {
     component.dashboardWorkflowEntries = [];
-    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(TestCase);
+    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
     component.dateSort();
     const SortedCase = component.dashboardWorkflowEntries.map(item => item.workflow.creationTime);
     expect(SortedCase)
@@ -184,17 +176,11 @@ describe('SavedWorkflowSectionComponent', () => {
 
   it('lastEditSortTest', () => {
     component.dashboardWorkflowEntries = [];
-    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(TestCase);
+    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
     component.lastSort();
     const SortedCase = component.dashboardWorkflowEntries.map(item => item.workflow.lastModifiedTime);
     expect(SortedCase)
       .toEqual([2, 3, 4, 6, 8]);
   });
-
-
-  /*
-  * more tests of testing return value from pop-up components(windows)
-  * should be removed to here
-  */
 
 });
