@@ -18,7 +18,7 @@ import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, Workf
 import edu.uci.ics.amber.error.ErrorUtils.safely
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
-import java.util.concurrent.{ExecutorService, Executors, Future}
+import java.util.concurrent.{ExecutorService, Executors, Future, TimeUnit}
 
 class DataProcessor( // dependencies:
     logger: WorkflowLogger, // logger of the worker actor
