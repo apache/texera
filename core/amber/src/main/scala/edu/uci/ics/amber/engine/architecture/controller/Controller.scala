@@ -83,9 +83,11 @@ class Controller(
 
   // register controller itself
   networkCommunicationActor ! RegisterActorRef(CONTROLLER, self)
+
   // build whole workflow
   workflow.build(availableNodes, networkCommunicationActor, context)
 
+  // bring all workers into a ready state
   prepareWorkers()
 
   def prepareWorkers(): Future[Seq[Unit]] = {
