@@ -10,7 +10,7 @@
   </button>
 </div>
 <div class="modal-body">
-  <form (ngSubmit)="onClickShareWorkflow(workflow)" [formGroup]="shareForm">
+  <form (ngSubmit)="onClickShareWorkflow(dashboardWorkflowEntry.workflow)" [formGroup]="shareForm">
     <div class="form-group">
       <label for="username">
         Username of the target user to share
@@ -34,7 +34,7 @@
     </div>
   </form>
   <br>
-  <button (click)="onClickGetAllSharedAccess(workflow)" class="btn" type="button">
+  <button (click)="onClickGetAllSharedAccess(dashboardWorkflowEntry.workflow)" class="btn" type="button">
     <i class="fa fa-refresh"></i>
   </button>
   <label for="current-share">Access:</label>
@@ -42,9 +42,8 @@
     <li>{{workflowOwner}}  <span class="badge badge-primary">owner</span></li>
     <li *ngFor="let userWorkflowAccess of allUserWorkflowAccess">
       {{userWorkflowAccess.userName}}   <span class="badge badge-primary">{{userWorkflowAccess.accessLevel}}</span>
-      <button (click)="onClickRemoveAccess(workflow, userWorkflowAccess.userName)" class="btn" type="button">
-        <i
-        class="fa fa-trash"></i>
+      <button (click)="onClickRemoveAccess(dashboardWorkflowEntry.workflow, userWorkflowAccess.userName)" class="btn" type="button">
+        <i class="fa fa-trash"></i>
       </button>
     </li>
   </ul>

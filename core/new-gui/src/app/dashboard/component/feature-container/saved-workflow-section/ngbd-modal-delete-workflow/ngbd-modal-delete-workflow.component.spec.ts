@@ -8,20 +8,28 @@ import { FormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
 
 import { NgbdModalDeleteWorkflowComponent } from './ngbd-modal-delete-workflow.component';
+import { DashboardWorkflowEntry } from '../../../../../common/type/dashboard-workflow-entry';
+import { WorkflowContent } from '../../../../../common/type/workflow';
+import { jsonCast } from '../../../../../common/util/storage';
 
 describe('NgbdModalDeleteProjectComponent', () => {
   let component: NgbdModalDeleteWorkflowComponent;
   let fixture: ComponentFixture<NgbdModalDeleteWorkflowComponent>;
 
-  let deletecomponent: NgbdModalDeleteWorkflowComponent;
-  let deletefixture: ComponentFixture<NgbdModalDeleteWorkflowComponent>;
+  let deleteComponent: NgbdModalDeleteWorkflowComponent;
+  let deleteFixture: ComponentFixture<NgbdModalDeleteWorkflowComponent>;
 
-  const sampleProject = {
-    name: 'project 1',
-    wid: 4,
-    content: '{}',
-    creationTime: '2017-10-25T12:34:50Z',
-    lastModifiedTime: '2018-01-17T06:26:50Z',
+  const targetWorkflowEntry: DashboardWorkflowEntry = {
+    workflow: {
+      name: 'workflow 1',
+      wid: 4,
+      content: jsonCast<WorkflowContent>('{}'),
+      creationTime: 1,
+      lastModifiedTime: 2,
+    },
+    isOwner: true,
+    ownerName: 'Texera',
+    accessLevel: 'Write'
   };
 
   beforeEach(async(() => {
@@ -49,12 +57,12 @@ describe('NgbdModalDeleteProjectComponent', () => {
   });
 
   it('deleteProjectComponent deleteSavedProject return a result of true', () => {
-    deletefixture = TestBed.createComponent(NgbdModalDeleteWorkflowComponent);
-    deletecomponent = deletefixture.componentInstance;
-    deletecomponent.workflow = sampleProject;
+    deleteFixture = TestBed.createComponent(NgbdModalDeleteWorkflowComponent);
+    deleteComponent = deleteFixture.componentInstance;
+    deleteComponent.dashboardWorkflowEntry = targetWorkflowEntry;
 
-    spyOn(deletecomponent.activeModal, 'close');
-    deletecomponent.deleteSavedWorkflow();
-    expect(deletecomponent.activeModal.close).toHaveBeenCalledWith(true);
+    spyOn(deleteComponent.activeModal, 'close');
+    deleteComponent.deleteSavedWorkflowEntry();
+    expect(deleteComponent.activeModal.close).toHaveBeenCalledWith(true);
   });
 });

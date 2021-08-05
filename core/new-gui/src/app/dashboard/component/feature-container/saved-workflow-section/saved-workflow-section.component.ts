@@ -36,9 +36,9 @@ export class SavedWorkflowSectionComponent implements OnInit {
   /**
    * open the Modal based on the workflow clicked on
    */
-  public onClickOpenShareAccess({workflow}: DashboardWorkflowEntry): void {
+  public onClickOpenShareAccess(dashboardWorkflowEntry: DashboardWorkflowEntry): void {
     const modalRef = this.modalService.open(NgbdModalWorkflowShareAccessComponent);
-    modalRef.componentInstance.workflow = workflow;
+    modalRef.componentInstance.dashboardWorkflowEntry = dashboardWorkflowEntry;
   }
 
   /**
@@ -101,7 +101,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
    */
   public openNgbdModalDeleteWorkflowComponent(workflowEntryToDelete: DashboardWorkflowEntry): void {
     const modalRef = this.modalService.open(NgbdModalDeleteWorkflowComponent);
-    modalRef.componentInstance.workflow = cloneDeep(workflowEntryToDelete);
+    modalRef.componentInstance.dashboardWorkflowEntry = cloneDeep(workflowEntryToDelete);
 
     Observable.from(modalRef.result).subscribe((confirmToDelete: boolean) => {
       const wid = workflowEntryToDelete.workflow.wid;

@@ -146,8 +146,8 @@ class WorkflowAccessResource() {
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getWorkflowOwner(@PathParam("wid") wid: UInteger): Response = {
     val uid = workflowOfUserDao.fetchByWid(wid).get(0).getUid
-    val username = userDao.fetchOneByUid(uid).getName
-    Response.ok(username).build()
+    val ownerName = userDao.fetchOneByUid(uid).getName
+    Response.ok({"ownerName" -> ownerName}).build()
   }
 
   /**

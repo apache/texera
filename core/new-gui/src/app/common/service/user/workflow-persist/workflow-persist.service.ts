@@ -65,10 +65,10 @@ export class WorkflowPersistService {
   public retrieveWorkflowsBySessionUser(): Observable<DashboardWorkflowEntry[]> {
     return this.http.get<DashboardWorkflowEntry[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_LIST_URL}`)
       .pipe(map((dashboardWorkflowEntries: DashboardWorkflowEntry[]) =>
-          dashboardWorkflowEntries.map((entry: DashboardWorkflowEntry) => {
+          dashboardWorkflowEntries.map((workflowEntry: DashboardWorkflowEntry) => {
             return {
-              ...entry,
-              workflow: WorkflowPersistService.parseWorkflowInfo(entry.workflow)
+              ...workflowEntry,
+              dashboardWorkflowEntry: WorkflowPersistService.parseWorkflowInfo(workflowEntry.workflow)
             };
           })
         )

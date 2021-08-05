@@ -6,6 +6,7 @@ import {
   WorkflowGrantAccessService
 } from '../../../../../common/service/user/workflow-access-control/workflow-grant-access.service';
 import { Workflow } from '../../../../../common/type/workflow';
+import { DashboardWorkflowEntry } from '../../../../../common/type/dashboard-workflow-entry';
 
 
 @Component({
@@ -15,7 +16,7 @@ import { Workflow } from '../../../../../common/type/workflow';
 })
 export class NgbdModalWorkflowShareAccessComponent implements OnInit {
 
-  @Input() workflow!: Workflow;
+  @Input() dashboardWorkflowEntry!: DashboardWorkflowEntry;
 
   shareForm = this.formBuilder.group({
     username: ['', [Validators.required]],
@@ -37,7 +38,7 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.refreshGrantedList(this.workflow);
+    this.refreshGrantedList(this.dashboardWorkflowEntry.workflow);
   }
 
   public onClickGetAllSharedAccess(workflow: Workflow): void {
@@ -53,7 +54,7 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
       (userWorkflowAccess: Readonly<UserWorkflowAccess>[]) => this.allUserWorkflowAccess = userWorkflowAccess,
       err => console.log(err.error)
     );
-    this.workflowGrantAccessService.getWorkflowOwner(workflow).subscribe(ownerName => {
+    this.workflowGrantAccessService.getWorkflowOwner(workflow).subscribe(({ownerName}) => {
       this.workflowOwner = ownerName;
     });
   }
@@ -64,7 +65,7 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
    * @param userToShareWith the target user
    * @param accessLevel the type of access to be given
    */
-  public grantAccess(workflow: Workflow, userToShareWith: string, accessLevel: string): void {
+  public grantWorkflowAccess(workflow: Workflow, userToShareWith: string, accessLevel: string): void {
     this.workflowGrantAccessService.grantUserWorkflowAccess(workflow, userToShareWith, accessLevel).subscribe(
       () => this.refreshGrantedList(workflow),
       err => alert(err.error));
@@ -86,7 +87,7 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
     }
     const userToShareWith = this.shareForm.get('username')?.value;
     const accessLevel = this.shareForm.get('accessLevel')?.value;
-    this.grantAccess(workflow, userToShareWith, accessLevel);
+    this.grantWorkflowAccess(workflow, userToShareWith, accessLevel);
   }
 
   /**

@@ -59,8 +59,8 @@ export class WorkflowGrantAccessService {
       `${AppSettings.getApiEndpoint()}/${WORKFLOW_ACCESS_REVOKE_URL}/${workflow.wid}/${username}`, null);
   }
 
-  public getWorkflowOwner(workflow: Workflow): Observable<Readonly<string>> {
-    return this.http.get<Readonly<string>>(
+  public getWorkflowOwner(workflow: Workflow): Observable<Readonly<{'ownerName': string}>> {
+    return this.http.get<Readonly<{'ownerName': string}>>(
       `${AppSettings.getApiEndpoint()}/${WORKFLOW_OWNER_URL}/${workflow.wid}`);
   }
 }
