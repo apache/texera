@@ -1,9 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.common
 
-import akka.actor.{Actor, ActorRef, DiagnosticActorLogging, Stash}
-import akka.event.Logging.MDC
+import akka.actor.{Actor, ActorRef, Stash}
 import com.softwaremill.macwire.wire
-import com.typesafe.scalalogging.{CanLog, LazyLogging, Logger, LoggerTakingImplicit}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   GetActorRef,
   NetworkSenderActorRef,
@@ -21,7 +19,6 @@ import edu.uci.ics.amber.engine.common.rpc.{
   AsyncRPCServer
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import org.slf4j.MDC
 
 abstract class WorkflowActor(
     val actorId: ActorVirtualIdentity,

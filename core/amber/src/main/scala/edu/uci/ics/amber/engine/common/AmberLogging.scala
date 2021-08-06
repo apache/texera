@@ -2,10 +2,14 @@ package edu.uci.ics.amber.engine.common
 
 import com.typesafe.scalalogging.Logger
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import org.slf4j.LoggerFactory
 
 trait AmberLogging {
 
-  def actorId: ActorVirtualIdentity
+  @transient
+  protected lazy val logger: Logger = Logger(
+    LoggerFactory.getLogger(s"${actorId.name}] [${getClass.getSimpleName}")
+  )
 
-  val logger: Logger = Logger(actorId.toString + "] [" + getClass.getName)
+  def actorId: ActorVirtualIdentity
 }
