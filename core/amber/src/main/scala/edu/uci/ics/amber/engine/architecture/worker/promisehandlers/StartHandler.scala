@@ -25,7 +25,7 @@ trait StartHandler {
       stateManager.getCurrentState
     } else {
       throw new WorkflowRuntimeException(
-        s"non-source worker $selfID received unexpected StartWorker!"
+        s"non-source worker $actorId received unexpected StartWorker!"
       )
     }
   }

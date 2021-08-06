@@ -45,6 +45,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       LayerIdentity("testDP", "mockOp", "src"),
       LayerIdentity("testDP", "mockOp", "dst")
     )
+  val identifier = ActorVirtualIdentity("DP mock")
   val tuples: Seq[ITuple] = (0 until 400).map(ITuple(_))
 
   def sendDataToDP(dp: DataProcessor, data: Seq[ITuple], interval: Long = -1): Future[_] = {

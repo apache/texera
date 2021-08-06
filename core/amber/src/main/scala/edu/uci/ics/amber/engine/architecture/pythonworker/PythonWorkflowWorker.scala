@@ -69,7 +69,7 @@ class PythonWorkflowWorker(
       case ControlInvocation(_, _) | ReturnInvocation(_, _) =>
         pythonProxyClient.enqueueCommand(controlPayload, from)
       case _ =>
-        log.error(s"unhandled control payload: $controlPayload")
+        logger.error(s"unhandled control payload: $controlPayload")
     }
   }
 
@@ -87,7 +87,7 @@ class PythonWorkflowWorker(
       pythonServerProcess.destroy()
     } catch {
       case e: Exception =>
-        log.error(s"$e - happened during shutdown")
+        logger.error(s"$e - happened during shutdown")
     }
   }
 

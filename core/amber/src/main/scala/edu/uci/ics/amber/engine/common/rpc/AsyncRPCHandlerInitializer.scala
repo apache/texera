@@ -35,7 +35,7 @@ import scala.reflect.ClassTag
 class AsyncRPCHandlerInitializer(
     ctrlSource: AsyncRPCClient,
     ctrlReceiver: AsyncRPCServer
-) extends LazyLogging {
+) {
 
   /** register a sync handler for one type of control command
     * note that register handler allows multiple handlers for a control message and uses the latest handler.

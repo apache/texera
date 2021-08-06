@@ -15,7 +15,7 @@ class TrivialControlTester(id: ActorVirtualIdentity, parentNetworkCommunicationA
     extends WorkflowActor(id, parentNetworkCommunicationActorRef) {
 
   lazy val controlInputPort: NetworkInputPort[ControlPayload] =
-    new NetworkInputPort[ControlPayload](this.handleControlPayloadWithTryCatch)
+    new NetworkInputPort[ControlPayload](id, this.handleControlPayloadWithTryCatch)
   override val rpcHandlerInitializer: AsyncRPCHandlerInitializer =
     wire[TesterAsyncRPCHandlerInitializer]
 
@@ -25,7 +25,7 @@ class TrivialControlTester(id: ActorVirtualIdentity, parentNetworkCommunicationA
             id,
             internalMessage @ WorkflowControlMessage(from, sequenceNumber, payload)
           ) =>
-        log.info(s"received $internalMessage")
+        logger.info(s"received $internalMessage")
         this.controlInputPort.handleMessage(
           this.sender(),
           id,
@@ -34,7 +34,7 @@ class TrivialControlTester(id: ActorVirtualIdentity, parentNetworkCommunicationA
           payload
         )
       case other =>
-        log.info(s"unhandled message: $other")
+        logger.info(s"unhandled message: $other")
     }
   }
 
@@ -53,11 +53,11 @@ class TrivialControlTester(id: ActorVirtualIdentity, parentNetworkCommunicationA
           asyncRPCClient.logControlReply(ret, from)
           asyncRPCClient.fulfillPromise(ret)
         case other =>
-          log.error(s"unhandled control message: $other")
+          logger.error(s"unhandled control message: $other")
       }
     } catch safely {
       case e =>
-        log.error(e, "")
+        logger.error("", e)
     }
 
   }

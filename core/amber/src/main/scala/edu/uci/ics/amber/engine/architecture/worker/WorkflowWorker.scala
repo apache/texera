@@ -57,9 +57,9 @@ class WorkflowWorker(
   lazy val pauseManager: PauseManager = wire[PauseManager]
   lazy val dataProcessor: DataProcessor = wire[DataProcessor]
   lazy val dataInputPort: NetworkInputPort[DataPayload] =
-    new NetworkInputPort[DataPayload](this.handleDataPayload)
+    new NetworkInputPort[DataPayload](identifier, this.handleDataPayload)
   lazy val controlInputPort: NetworkInputPort[ControlPayload] =
-    new NetworkInputPort[ControlPayload](this.handleControlPayload)
+    new NetworkInputPort[ControlPayload](identifier, this.handleControlPayload)
   lazy val dataOutputPort: DataOutputPort = wire[DataOutputPort]
   lazy val batchProducer: TupleToBatchConverter = wire[TupleToBatchConverter]
   lazy val tupleProducer: BatchToTupleConverter = wire[BatchToTupleConverter]
@@ -94,7 +94,7 @@ class WorkflowWorker(
       }
     } catch {
       case err: WorkflowRuntimeException =>
-        log.error(err, s"Encountered fatal error, worker is shutting done.")
+        logger.error(s"Encountered fatal error, worker is shutting done.", err)
         asyncRPCClient.send(
           FatalError(err),
           CONTROLLER
@@ -132,7 +132,8 @@ class WorkflowWorker(
       ControlInvocation(AsyncRPCClient.IgnoreReply, ShutdownDPThread()),
       SELF
     )
-    log.info("stopped!")
+
+    logger.info("stopped!")
   }
 
 }

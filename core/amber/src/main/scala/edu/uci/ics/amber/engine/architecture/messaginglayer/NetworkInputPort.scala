@@ -3,13 +3,15 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 import akka.actor.ActorRef
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkAck
+import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 import scala.collection.mutable
 
 class NetworkInputPort[T](
+    val actorId: ActorVirtualIdentity,
     val handler: (ActorVirtualIdentity, T) => Unit
-) extends LazyLogging {
+) extends AmberLogging {
 
   private val idToOrderingEnforcers =
     new mutable.AnyRefMap[ActorVirtualIdentity, OrderingEnforcer[T]]()

@@ -4,6 +4,7 @@ import com.twitter.util.Future
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlOutputPort
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
+import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{
   ControlInvocation,
   ReturnInvocation,
@@ -36,7 +37,8 @@ object AsyncRPCServer {
 
 }
 
-class AsyncRPCServer(controlOutputPort: ControlOutputPort) extends LazyLogging {
+class AsyncRPCServer(controlOutputPort: ControlOutputPort, val actorId: ActorVirtualIdentity)
+    extends AmberLogging {
 
   // all handlers
   protected var handlers: PartialFunction[(ControlCommand[_], ActorVirtualIdentity), Future[_]] =

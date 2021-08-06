@@ -11,6 +11,7 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWor
 }
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers._
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlOutputPort
+import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.{
   AsyncRPCClient,
@@ -23,7 +24,7 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration, MILLISECONDS}
 
 class ControllerAsyncRPCHandlerInitializer(
     val actorContext: ActorContext,
-    val selfID: ActorVirtualIdentity,
+    val actorId: ActorVirtualIdentity,
     val controlOutputPort: ControlOutputPort,
     val eventListener: ControllerEventListener,
     val workflow: Workflow,
@@ -31,6 +32,7 @@ class ControllerAsyncRPCHandlerInitializer(
     source: AsyncRPCClient,
     receiver: AsyncRPCServer
 ) extends AsyncRPCHandlerInitializer(source, receiver)
+    with AmberLogging
     with LinkWorkersHandler
     with AssignBreakpointHandler
     with WorkerExecutionCompletedHandler

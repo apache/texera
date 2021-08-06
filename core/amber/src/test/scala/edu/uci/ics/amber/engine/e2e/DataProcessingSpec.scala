@@ -27,6 +27,7 @@ import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.flatspec.AnyFlatSpecLike
 import java.sql.PreparedStatement
 
+import com.typesafe.config.ConfigFactory
 import edu.uci.ics.amber.engine.architecture.principal.OperatorResult
 
 import scala.collection.mutable
@@ -34,7 +35,7 @@ import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
 
 class DataProcessingSpec
-    extends TestKit(ActorSystem("DataProcessingSpec"))
+    extends TestKit(ActorSystem("DataProcessingSpec", ConfigFactory.load("cluster")))
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll

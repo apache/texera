@@ -2,6 +2,7 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor._
+import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
@@ -11,8 +12,8 @@ import scala.concurrent.duration._
 
 object NetworkCommunicationActor {
 
-  def props(parentSender: ActorRef): Props =
-    Props(new NetworkCommunicationActor(parentSender))
+  def props(parentSender: ActorRef, actorId:ActorVirtualIdentity): Props =
+    Props(new NetworkCommunicationActor(parentSender, actorId))
 
   /** to distinguish between main actor self ref and
     * network sender actor
@@ -55,7 +56,7 @@ object NetworkCommunicationActor {
   * and also sends message to other actors. This is the most outer part of
   * the messaging layer.
   */
-class NetworkCommunicationActor(parentRef: ActorRef) extends Actor with ActorLogging {
+class NetworkCommunicationActor(parentRef: ActorRef, val actorId:ActorVirtualIdentity) extends Actor with AmberLogging {
 
   val idToActorRefs = new mutable.HashMap[ActorVirtualIdentity, ActorRef]()
   val idToCongestionControls = new mutable.HashMap[ActorVirtualIdentity, CongestionControl]()
@@ -94,7 +95,7 @@ class NetworkCommunicationActor(parentRef: ActorRef) extends Actor with ActorLog
       } else if (parentRef != null) {
         parentRef ! GetActorRef(actorID, replyTo + self)
       } else {
-        log.error(s"unknown identifier: $actorID")
+        logger.error(s"unknown identifier: $actorID")
       }
     case RegisterActorRef(actorID, ref) =>
       registerActorRef(actorID, ref)
@@ -156,7 +157,7 @@ class NetworkCommunicationActor(parentRef: ActorRef) extends Actor with ActorLog
         case (actorID, ctrl) =>
           val msgsNeedResend = ctrl.getTimedOutInTransitMessages
           if (msgsNeedResend.nonEmpty) {
-            log.info(s"output channel for $actorID: ${ctrl.getStatusReport}")
+            logger.info(s"output channel for $actorID: ${ctrl.getStatusReport}")
           }
           msgsNeedResend.foreach { msg =>
             sendOrGetActorRef(actorID, msg)
@@ -166,7 +167,7 @@ class NetworkCommunicationActor(parentRef: ActorRef) extends Actor with ActorLog
       // only remove the mapping from id to actorRef
       // to trigger discover mechanism
       val actorID = messageIDToIdentity(msg.messageId)
-      log.warning(s"actor for $actorID might have crashed or failed")
+      logger.warn(s"actor for $actorID might have crashed or failed")
       idToActorRefs.remove(actorID)
       if (parentRef != null) {
         fetchActorRefMappingFromParent(actorID)
@@ -179,7 +180,7 @@ class NetworkCommunicationActor(parentRef: ActorRef) extends Actor with ActorLog
 
   override def postStop(): Unit = {
     resendHandle.cancel()
-    log.info(s"network communication actor stopped!")
+    logger.info(s"network communication actor stopped!")
   }
 
   @inline

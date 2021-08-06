@@ -15,9 +15,8 @@ import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
-import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted}
+import edu.uci.ics.amber.engine.common.{AmberLogging, IOperatorExecutor, InputExhausted}
 import edu.uci.ics.amber.error.ErrorUtils.safely
-
 import java.util.concurrent.{ExecutorService, Executors, Future, TimeUnit}
 
 class DataProcessor( // dependencies:
@@ -27,9 +26,10 @@ class DataProcessor( // dependencies:
     pauseManager: PauseManager, // to pause/resume
     breakpointManager: BreakpointManager, // to evaluate breakpoints
     stateManager: WorkerStateManager,
-    asyncRPCServer: AsyncRPCServer
+    asyncRPCServer: AsyncRPCServer,
+    val actorId: ActorVirtualIdentity
 ) extends WorkerInternalQueue
-    with LazyLogging {
+    with AmberLogging {
   // initialize dp thread upon construction
   private val dpThreadExecutor: ExecutorService = Executors.newSingleThreadExecutor
   private val dpThread: Future[_] = dpThreadExecutor.submit(new Runnable() {

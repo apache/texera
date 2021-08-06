@@ -4,7 +4,7 @@
         <!-- encoders are assigned the type ch.qos.logback.classic.encoder.PatternLayoutEncoder
             by default -->
         <encoder>
-            <pattern>[%date{ISO8601}] [%level] [%logger] [%marker] [%thread] [%X{actor-id}] - %msg %n
+            <pattern>[%date{ISO8601}] [%level] [%logger] [%thread] - %msg %n
             </pattern>
         </encoder>
     </appender>
@@ -17,7 +17,7 @@
             <fileNamePattern>worker_%d{yyyy-MM-dd}.log</fileNamePattern>
         </rollingPolicy>
         <encoder>
-            <pattern>[%date{ISO8601}] [%level] [%logger] [%thread] [%X{actorId}] - %msg %n</pattern>
+            <pattern>[%date{ISO8601}] [%level] [%logger] [%thread] - %msg %n</pattern>
         </encoder>
     </appender>
 

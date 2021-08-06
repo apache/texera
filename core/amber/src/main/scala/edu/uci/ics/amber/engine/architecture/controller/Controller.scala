@@ -72,7 +72,7 @@ class Controller(
     parentNetworkCommunicationActorRef: ActorRef
 ) extends WorkflowActor(CONTROLLER, parentNetworkCommunicationActorRef) {
   lazy val controlInputPort: NetworkInputPort[ControlPayload] =
-    new NetworkInputPort[ControlPayload](this.handleControlPayloadWithTryCatch)
+    new NetworkInputPort[ControlPayload](CONTROLLER, this.handleControlPayloadWithTryCatch)
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
   val rpcHandlerInitializer: ControllerAsyncRPCHandlerInitializer =
@@ -141,7 +141,7 @@ class Controller(
       case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload)) =>
         controlInputPort.handleMessage(this.sender(), id, from, seqNum, payload)
       case other =>
-        log.info(s"unhandled message: $other")
+        logger.info(s"unhandled message: $other")
     }
   }
 
@@ -210,6 +210,6 @@ class Controller(
     if (statusUpdateAskHandle != null) {
       statusUpdateAskHandle.cancel()
     }
-    log.info("stopped!")
+    logger.info("stopped!")
   }
 }
