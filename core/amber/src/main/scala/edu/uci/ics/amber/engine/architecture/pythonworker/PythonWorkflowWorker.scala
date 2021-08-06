@@ -2,6 +2,7 @@ package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import akka.actor.{ActorRef, Props}
 import com.typesafe.config.{Config, ConfigFactory}
+import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker.getFreeLocalPort
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.DataElement
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
@@ -25,6 +26,28 @@ object PythonWorkflowWorker {
       parentNetworkCommunicationActorRef: ActorRef
   ): Props =
     Props(new PythonWorkflowWorker(id, op, parentNetworkCommunicationActorRef))
+
+  /**
+    * Get a random free port.
+    *
+    * @return The port number.
+    * @throws IOException, might happen when getting a free port.
+    */
+  @throws[IOException]
+  def getFreeLocalPort: Int = {
+    var s: ServerSocket = null
+    try {
+      // ServerSocket(0) results in availability of a free random port
+      s = new ServerSocket(0)
+      s.getLocalPort
+    } catch {
+      case e: Exception =>
+        throw new RuntimeException(e)
+    } finally {
+      assert(s != null)
+      s.close()
+    }
+  }
 }
 
 class PythonWorkflowWorker(
@@ -133,25 +156,4 @@ class PythonWorkflowWorker(
     ).run(BasicIO.standard(false))
   }
 
-  /**
-    * Get a random free port.
-    *
-    * @return The port number.
-    * @throws IOException, might happen when getting a free port.
-    */
-  @throws[IOException]
-  private def getFreeLocalPort: Int = {
-    var s: ServerSocket = null
-    try {
-      // ServerSocket(0) results in availability of a free random port
-      s = new ServerSocket(0)
-      s.getLocalPort
-    } catch {
-      case e: Exception =>
-        throw new RuntimeException(e)
-    } finally {
-      assert(s != null)
-      s.close()
-    }
-  }
 }

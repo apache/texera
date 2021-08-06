@@ -62,26 +62,23 @@ private class AmberProducer(
     val isEnd: Boolean = dataHeader.isEnd
 
     val root = flightStream.getRoot
-    try {
-      // consume all data in the stream, it will store on the root vectors.
-      while (flightStream.next) {
-        ackStream.onNext(PutResult.metadata(flightStream.getLatestMetadata))
-      }
-      // closing the stream will release the dictionaries
-      flightStream.takeDictionaryOwnership
+    // consume all data in the stream, it will store on the root vectors.
+    while (flightStream.next) {
+      ackStream.onNext(PutResult.metadata(flightStream.getLatestMetadata))
+    }
+    // closing the stream will release the dictionaries
+    flightStream.takeDictionaryOwnership
 
-      if (isEnd) {
-        // EndOfUpstream
-        assert(root.getRowCount == 0)
-        dataOutputPort.sendTo(to, EndOfUpstream())
-      } else {
-        // normal data batches
-        val queue = mutable.Queue[Tuple]()
-        for (i <- 0 until root.getRowCount)
-          queue.enqueue(ArrowUtils.getTexeraTuple(i, root))
-        dataOutputPort.sendTo(to, DataFrame(queue.toArray))
-      }
-
+    if (isEnd) {
+      // EndOfUpstream
+      assert(root.getRowCount == 0)
+      dataOutputPort.sendTo(to, EndOfUpstream())
+    } else {
+      // normal data batches
+      val queue = mutable.Queue[Tuple]()
+      for (i <- 0 until root.getRowCount)
+        queue.enqueue(ArrowUtils.getTexeraTuple(i, root))
+      dataOutputPort.sendTo(to, DataFrame(queue.toArray))
     }
 
   }
@@ -98,7 +95,8 @@ class PythonProxyServer(
   val allocator: BufferAllocator =
     new RootAllocator().newChildAllocator("flight-server", 0, Long.MaxValue);
   val location: Location = Location.forGrpcInsecure("localhost", portNumber)
-  val mem: InMemoryStore = new AmberProducer(allocator, location, controlOutputPort, dataOutputPort)
+  val mem: InMemoryStore =
+    new AmberProducer(allocator, location, controlOutputPort, dataOutputPort)
   val server: FlightServer = FlightServer.builder(allocator, location, mem).build()
 
   override def run(): Unit = {
