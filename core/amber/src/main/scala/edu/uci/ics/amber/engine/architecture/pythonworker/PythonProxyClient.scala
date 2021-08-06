@@ -150,7 +150,7 @@ class PythonProxyClient(portNumber: Int, logger: WorkflowLogger)
   ): Result = {
     val controlMessage = PythonControlMessage(from, payload)
     val action: Action = new Action("control", controlMessage.toByteArray)
-    logger.logInfo(s"send $controlMessage")
+    logger.logInfo(s"sending control $controlMessage")
     flightClient.doAction(action).next()
   }
 
