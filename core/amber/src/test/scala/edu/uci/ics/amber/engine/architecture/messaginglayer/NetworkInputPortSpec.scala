@@ -43,7 +43,7 @@ class NetworkInputPortSpec extends AnyFlatSpec with MockFactory {
 
   "network input port" should "de-duplicate payload" in {
     val testActor = TestProbe.apply("test")(ActorSystem())
-    val inputPort = new NetworkInputPort[DataPayload](fakeID,mockHandler)
+    val inputPort = new NetworkInputPort[DataPayload](fakeID, mockHandler)
 
     val payload = DataFrame(Array(ITuple(0)))
     val message = WorkflowDataMessage(fakeID, 0, payload)
@@ -66,7 +66,7 @@ class NetworkInputPortSpec extends AnyFlatSpec with MockFactory {
 
   "network input port" should "send ack to the sender actor ref" in {
     val testActor = TestProbe.apply("test")(ActorSystem())
-    val inputPort = new NetworkInputPort[DataPayload](fakeID,(_, _) => {})
+    val inputPort = new NetworkInputPort[DataPayload](fakeID, (_, _) => {})
 
     val payload = DataFrame(Array(ITuple(0)))
     val message = WorkflowDataMessage(fakeID, 0, payload)

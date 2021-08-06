@@ -12,7 +12,7 @@ import scala.concurrent.duration._
 
 object NetworkCommunicationActor {
 
-  def props(parentSender: ActorRef, actorId:ActorVirtualIdentity): Props =
+  def props(parentSender: ActorRef, actorId: ActorVirtualIdentity): Props =
     Props(new NetworkCommunicationActor(parentSender, actorId))
 
   /** to distinguish between main actor self ref and
@@ -56,7 +56,9 @@ object NetworkCommunicationActor {
   * and also sends message to other actors. This is the most outer part of
   * the messaging layer.
   */
-class NetworkCommunicationActor(parentRef: ActorRef, val actorId:ActorVirtualIdentity) extends Actor with AmberLogging {
+class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualIdentity)
+    extends Actor
+    with AmberLogging {
 
   val idToActorRefs = new mutable.HashMap[ActorVirtualIdentity, ActorRef]()
   val idToCongestionControls = new mutable.HashMap[ActorVirtualIdentity, CongestionControl]()
