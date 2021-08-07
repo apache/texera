@@ -50,16 +50,16 @@ object WorkflowWorker {
 }
 
 class WorkflowWorker(
-    identifier: ActorVirtualIdentity,
+    actorId: ActorVirtualIdentity,
     operator: IOperatorExecutor,
     parentNetworkCommunicationActorRef: ActorRef
-) extends WorkflowActor(identifier, parentNetworkCommunicationActorRef) {
+) extends WorkflowActor(actorId, parentNetworkCommunicationActorRef) {
   lazy val pauseManager: PauseManager = wire[PauseManager]
   lazy val dataProcessor: DataProcessor = wire[DataProcessor]
   lazy val dataInputPort: NetworkInputPort[DataPayload] =
-    new NetworkInputPort[DataPayload](identifier, this.handleDataPayload)
+    new NetworkInputPort[DataPayload](this.actorId, this.handleDataPayload)
   lazy val controlInputPort: NetworkInputPort[ControlPayload] =
-    new NetworkInputPort[ControlPayload](identifier, this.handleControlPayload)
+    new NetworkInputPort[ControlPayload](this.actorId, this.handleControlPayload)
   lazy val dataOutputPort: DataOutputPort = wire[DataOutputPort]
   lazy val batchProducer: TupleToBatchConverter = wire[TupleToBatchConverter]
   lazy val tupleProducer: BatchToTupleConverter = wire[BatchToTupleConverter]
@@ -74,7 +74,7 @@ class WorkflowWorker(
   var isCompleted = false
 
   if (parentNetworkCommunicationActorRef != null) {
-    parentNetworkCommunicationActorRef ! RegisterActorRef(identifier, self)
+    parentNetworkCommunicationActorRef ! RegisterActorRef(this.actorId, self)
   }
 
   workerStateManager.assertState(UNINITIALIZED)

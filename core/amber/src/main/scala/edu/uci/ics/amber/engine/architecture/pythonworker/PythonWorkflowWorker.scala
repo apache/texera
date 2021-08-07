@@ -29,10 +29,10 @@ object PythonWorkflowWorker {
 }
 
 class PythonWorkflowWorker(
-    identifier: ActorVirtualIdentity,
+    actorId: ActorVirtualIdentity,
     operator: IOperatorExecutor,
     parentNetworkCommunicationActorRef: ActorRef
-) extends WorkflowWorker(identifier, operator, parentNetworkCommunicationActorRef) {
+) extends WorkflowWorker(actorId, operator, parentNetworkCommunicationActorRef) {
 
   // Input/Output port used in between Python and Java processes.
   private lazy val inputPortNum: Int = getFreeLocalPort
@@ -41,9 +41,9 @@ class PythonWorkflowWorker(
   private lazy val serverThreadExecutor: ExecutorService = Executors.newSingleThreadExecutor
   private lazy val clientThreadExecutor: ExecutorService = Executors.newSingleThreadExecutor
   private lazy val pythonProxyClient: PythonProxyClient =
-    new PythonProxyClient(outputPortNum)
+    new PythonProxyClient(outputPortNum, actorId)
   private lazy val pythonProxyServer: PythonProxyServer =
-    new PythonProxyServer(inputPortNum, controlOutputPort, dataOutputPort)
+    new PythonProxyServer(inputPortNum, controlOutputPort, dataOutputPort, actorId)
 
   // TODO: find a better way to send Error log to frontend.
   override val rpcHandlerInitializer: AsyncRPCHandlerInitializer = null

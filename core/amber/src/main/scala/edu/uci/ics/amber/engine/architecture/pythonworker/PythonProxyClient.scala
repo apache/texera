@@ -1,11 +1,11 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
-import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
   ControlElement,
   ControlElementV2,
   DataElement
 }
+import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
   controlInvocationToV2,
@@ -22,11 +22,11 @@ import org.apache.arrow.vector.VectorSchemaRoot
 
 import scala.collection.mutable
 
-class PythonProxyClient(portNumber: Int)
+class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
     extends Runnable
+    with AmberLogging
     with AutoCloseable
-    with WorkerBatchInternalQueue
-    with LazyLogging {
+    with WorkerBatchInternalQueue {
 
   val allocator: BufferAllocator =
     new RootAllocator().newChildAllocator("flight-client", 0, Long.MaxValue)

@@ -1,6 +1,5 @@
 package edu.uci.ics.amber.engine.operators
 
-import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{WorkerInfo, WorkerLayer}
@@ -17,7 +16,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 
 import scala.collection.mutable
 
-abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable with LazyLogging {
+abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
 
   lazy val topology: Topology = null
   var inputToOrdinalMapping = new mutable.HashMap[LinkIdentity, Int]()

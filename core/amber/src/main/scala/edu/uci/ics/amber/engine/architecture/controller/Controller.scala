@@ -72,7 +72,7 @@ class Controller(
     parentNetworkCommunicationActorRef: ActorRef
 ) extends WorkflowActor(CONTROLLER, parentNetworkCommunicationActorRef) {
   lazy val controlInputPort: NetworkInputPort[ControlPayload] =
-    new NetworkInputPort[ControlPayload](CONTROLLER, this.handleControlPayloadWithTryCatch)
+    new NetworkInputPort[ControlPayload](this.actorId, this.handleControlPayloadWithTryCatch)
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
   val rpcHandlerInitializer: ControllerAsyncRPCHandlerInitializer =
