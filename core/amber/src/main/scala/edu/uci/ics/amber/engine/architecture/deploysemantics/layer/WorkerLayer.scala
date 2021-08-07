@@ -62,7 +62,8 @@ class WorkerLayer(
     deployStrategy.initialize(deploymentFilter.filter(prev, all, context.self.path.address))
     workers = (0 until numWorkers).map { i =>
       val operatorExecutor: IOperatorExecutor = initIOperatorExecutor(i)
-      val workerId: ActorVirtualIdentity = ActorVirtualIdentity(s"Worker:WF${id.workflow}-${id.operator}-${id.layerID}-$i")
+      val workerId: ActorVirtualIdentity =
+        ActorVirtualIdentity(s"Worker:WF${id.workflow}-${id.operator}-${id.layerID}-$i")
       val address: Address = deployStrategy.next()
       workerToOperatorExec(workerId) = operatorExecutor
       val ref: ActorRef = context.actorOf(
