@@ -27,14 +27,15 @@ class PythonProxyClient(portNumber: Int, logger: WorkflowLogger)
     with AutoCloseable
     with WorkerBatchInternalQueue {
 
+  final val CHUNK_SIZE: Int = 100
   val allocator: BufferAllocator =
     new RootAllocator().newChildAllocator("flight-client", 0, Long.MaxValue)
   val location: Location = Location.forGrpcInsecure("localhost", portNumber)
-
   private val MAX_TRY_COUNT: Int = 6
   private val WAIT_TIME_MS = 500
   private var flightClient: FlightClient = _
   private var running: Boolean = true
+
   override def run(): Unit = {
     establishConnection()
     mainLoop()
@@ -102,22 +103,34 @@ class PythonProxyClient(portNumber: Int, logger: WorkflowLogger)
       from: ActorVirtualIdentity,
       isEnd: Boolean
   ): Unit = {
+
     val schema = if (tuples.isEmpty) new Schema() else tuples.front.getSchema
     val descriptor = FlightDescriptor.command(PythonDataHeader(from, isEnd).toByteArray)
+    logger.logInfo(
+      s"sending data with descriptor ${PythonDataHeader(from, isEnd)}, schema $schema, size of batch ${tuples.size}"
+    )
     val flightListener = new SyncPutListener
     val schemaRoot = VectorSchemaRoot.create(ArrowUtils.fromTexeraSchema(schema), allocator)
     val writer = flightClient.startPut(descriptor, schemaRoot, flightListener)
 
     while (tuples.nonEmpty) {
-      schemaRoot.allocateNew()
-      while (tuples.nonEmpty)
-        ArrowUtils.appendTexeraTuple(tuples.dequeue(), schemaRoot)
-      writer.putNext()
-      schemaRoot.clear()
+      writeChunk(tuples, schemaRoot, writer)
     }
     writer.completed()
     flightListener.getResult()
     flightListener.close()
+  }
+
+  private def writeChunk(
+      tuples: mutable.Queue[Tuple],
+      schemaRoot: VectorSchemaRoot,
+      writer: FlightClient.ClientStreamListener
+  ): Unit = {
+    schemaRoot.allocateNew()
+    while (schemaRoot.getRowCount < CHUNK_SIZE && tuples.nonEmpty)
+      ArrowUtils.appendTexeraTuple(tuples.dequeue(), schemaRoot)
+    writer.putNext()
+    schemaRoot.clear()
   }
 
   def sendControlV1(from: ActorVirtualIdentity, payload: ControlPayload): Unit = {
@@ -127,10 +140,7 @@ class PythonProxyClient(portNumber: Int, logger: WorkflowLogger)
         sendControlV2(from, controlInvocationV2)
       case returnInvocation: ReturnInvocation =>
         val returnInvocationV2: ReturnInvocationV2 = returnInvocationToV2(returnInvocation)
-        // Let python handle -1
-        if (returnInvocationV2.originalCommandId != -1) {
-          sendControlV2(from, returnInvocationV2)
-        }
+        sendControlV2(from, returnInvocationV2)
     }
   }
 
@@ -140,6 +150,7 @@ class PythonProxyClient(portNumber: Int, logger: WorkflowLogger)
   ): Result = {
     val controlMessage = PythonControlMessage(from, payload)
     val action: Action = new Action("control", controlMessage.toByteArray)
+    logger.logInfo(s"sending control $controlMessage")
     flightClient.doAction(action).next()
   }
 
