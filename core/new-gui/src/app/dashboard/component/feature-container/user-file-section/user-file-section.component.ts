@@ -72,8 +72,7 @@ export class UserFileSectionComponent implements OnInit {
         URL.revokeObjectURL(downloadLink.href);
       },
       err => {
-        console.log(err.error);
-        this.message.error(err.error);
+        this.message.error(err.error.message);
       }
     );
 

@@ -203,7 +203,6 @@ registerLocaleData(en);
     NgbdModalWorkflowShareAccessComponent
   ],
   providers: [
-    HttpClientModule,
     UserService,
     UserFileService,
     UserFileUploadService,
