@@ -88,6 +88,7 @@ import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzStatisticModule } from 'ng-zorro-antd/statistic';
 import { NzTagModule } from 'ng-zorro-antd/tag';
 import { NzAvatarModule } from 'ng-zorro-antd/avatar';
+import { NzMessageModule } from "ng-zorro-antd/message";
 
 registerLocaleData(en);
 
@@ -172,6 +173,7 @@ registerLocaleData(en);
     NzListModule,
     NzInputModule,
     NzMenuModule,
+    NzMessageModule,
     NzCollapseModule,
     NzToolTipModule,
     NzTableModule,

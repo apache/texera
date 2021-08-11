@@ -1,6 +1,4 @@
 import { Injectable } from '@angular/core';
-import { UserService } from '../../../common/service/user/user.service';
-import { User } from '../../../common/type/user';
 import { Workflow } from '../../../common/type/workflow';
 import { localGetObject, localRemoveObject, localSetObject } from '../../../common/util/storage';
 
@@ -10,12 +8,6 @@ import { localGetObject, localRemoveObject, localSetObject } from '../../../comm
 export class WorkflowCacheService {
   private static readonly WORKFLOW_KEY: string = 'workflow';
 
-  constructor(
-    private userService: UserService
-  ) {
-    // reset the cache upon change of user
-    this.registerUserChangeClearCache();
-  }
 
   public getCachedWorkflow(): Workflow | undefined {
     return localGetObject<Workflow>(WorkflowCacheService.WORKFLOW_KEY);
@@ -29,11 +21,11 @@ export class WorkflowCacheService {
     localSetObject(WorkflowCacheService.WORKFLOW_KEY, workflow);
   }
 
-  private registerUserChangeClearCache(): void {
-    this.userService.userChanged().subscribe((user: User | undefined) => {
-      if (user === undefined) {
-        this.resetCachedWorkflow();
-      }
-    });
-  }
+  // private registerUserChangeClearCache(): void {
+  //   this.userService.userChanged().subscribe((user: User | undefined) => {
+  //     if (user === undefined) {
+  //       this.resetCachedWorkflow();
+  //     }
+  //   });
+  // }
 }

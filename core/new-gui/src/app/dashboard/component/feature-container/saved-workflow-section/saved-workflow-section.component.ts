@@ -10,7 +10,7 @@ import { DashboardWorkflowEntry } from '../../../type/dashboard-workflow-entry';
 import { UserService } from '../../../../common/service/user/user.service';
 
 export const ROUTER_WORKFLOW_BASE_URL = `/workflow`;
-export const ROUTER_WORKFLOW_CREATE_NEW_URL = `${ROUTER_WORKFLOW_BASE_URL}/new`;
+export const ROUTER_WORKFLOW_CREATE_NEW_URL = `/`;
 
 @Component({
   selector: 'texera-saved-workflow-section',
