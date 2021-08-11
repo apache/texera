@@ -57,7 +57,7 @@ export class UserFileSectionComponent implements OnInit {
 
   public downloadUserFile(userFileEntry: DashboardUserFileEntry): void {
     this.userFileService.requestDownloadUserFile(userFileEntry.file).subscribe(
-      (response: any) => {
+      (response: Blob) => {
         // prepare the data to be downloaded.
         const dataType = response.type;
         const binaryData = [];
@@ -65,12 +65,16 @@ export class UserFileSectionComponent implements OnInit {
 
         // create a download link and trigger it.
         const downloadLink = document.createElement('a');
-        downloadLink.href = window.URL.createObjectURL(new Blob(binaryData, {type: dataType}));
+        downloadLink.href = URL.createObjectURL(new Blob(binaryData, {type: dataType}));
         downloadLink.setAttribute('download', userFileEntry.file.name);
         document.body.appendChild(downloadLink);
         downloadLink.click();
+        URL.revokeObjectURL(downloadLink.href);
       },
-      err => this.message.error(err.error)
+      err => {
+        console.log(err.error);
+        this.message.error(err.error);
+      }
     );
 
 

@@ -89,6 +89,8 @@ import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzStatisticModule } from 'ng-zorro-antd/statistic';
 import { NzTagModule } from 'ng-zorro-antd/tag';
 import { NzAvatarModule } from 'ng-zorro-antd/avatar';
+import { HTTP_INTERCEPTORS } from '@angular/common/http';
+import { BlobErrorHttpInterceptor } from './common/service/blob-error-http-interceptor.service';
 
 registerLocaleData(en);
 
@@ -207,7 +209,12 @@ registerLocaleData(en);
     UserFileUploadService,
     UserDictionaryService,
     UserDictionaryUploadService,
-    {provide: NZ_I18N, useValue: en_US}
+    {provide: NZ_I18N, useValue: en_US},
+    {
+      provide: HTTP_INTERCEPTORS,
+      useClass: BlobErrorHttpInterceptor,
+      multi: true
+    },
   ],
   bootstrap: [AppComponent]
   // dynamically created component must be placed in the entryComponents attribute
