@@ -149,7 +149,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
         this.undoRedoService.clearUndoStack();
         this.undoRedoService.clearRedoStack();
       },
-      () => { this.message.error('You don\'t have access to this workflow, please log in with another account'); }
+      () => { this.message.error('You don\'t have access to this workflow, please log in with an appropriate account'); }
     ));
   }
 }

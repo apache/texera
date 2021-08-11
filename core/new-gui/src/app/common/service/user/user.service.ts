@@ -6,6 +6,7 @@ import { environment } from '../../../../environments/environment';
 import { AppSettings } from '../../app-setting';
 import { User } from '../../type/user';
 import { GoogleAuthService } from 'ng-gapi';
+
 /**
  * User Service contains the function of registering and logging the user.
  * It will save the user account inside for future use.
@@ -44,7 +45,10 @@ export class UserService {
       throw new Error('Already logged in when register.');
     }
 
-    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`, {userName, password});
+    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`, {
+      userName,
+      password
+    });
 
   }
 
@@ -52,7 +56,7 @@ export class UserService {
    * this method returns a Google OAuth Instance
    */
   public getGoogleAuthInstance(): Observable<gapi.auth2.GoogleAuth> {
-      return this.googleAuth.getAuth();
+    return this.googleAuth.getAuth();
   }
 
 
@@ -66,7 +70,7 @@ export class UserService {
       throw new Error('Already logged in when login in.');
     }
     return this.http.post<User>(`${AppSettings.getApiEndpoint()}/${UserService.GOOGLE_LOGIN_ENDPOINT}`, {authCode})
-          .filter((user: User) => user != null);
+      .filter((user: User) => user != null);
   }
 
   /**
@@ -79,7 +83,10 @@ export class UserService {
     if (this.currentUser) {
       throw new Error('Already logged in when login in.');
     }
-    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`, {userName, password});
+    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`, {
+      userName,
+      password
+    });
   }
 
   /**
@@ -103,10 +110,8 @@ export class UserService {
    * @param user
    */
   public changeUser(user: User | undefined): void {
-    if (this.currentUser !== user) {
-      this.currentUser = user;
-      this.userChangeSubject.next(this.currentUser);
-    }
+    this.currentUser = user;
+    this.userChangeSubject.next(this.currentUser);
   }
 
   /**
@@ -127,8 +132,7 @@ export class UserService {
 
   private loginFromSession(): void {
     this.http.get<User>(`${AppSettings.getApiEndpoint()}/${UserService.AUTH_STATUS_ENDPOINT}`)
-      .filter(user => user != null)
-      .subscribe(user => this.changeUser(user));
+      .subscribe(user => this.changeUser(user != null ? user : undefined));
   }
 
 }
