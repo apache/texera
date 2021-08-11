@@ -20,12 +20,4 @@ export class WorkflowCacheService {
   public setCacheWorkflow(workflow: Workflow | undefined): void {
     localSetObject(WorkflowCacheService.WORKFLOW_KEY, workflow);
   }
-
-  // private registerUserChangeClearCache(): void {
-  //   this.userService.userChanged().subscribe((user: User | undefined) => {
-  //     if (user === undefined) {
-  //       this.resetCachedWorkflow();
-  //     }
-  //   });
-  // }
 }
