@@ -71,6 +71,10 @@ export class StubUserFileService implements PublicInterfaceOf<UserFileService> {
     return of();
   }
 
+  downloadUserFile(targetFile: UserFile): Observable<Blob> {
+    return of();
+  }
+
   /**
    * refresh the files in the service whenever the user changes.
    */

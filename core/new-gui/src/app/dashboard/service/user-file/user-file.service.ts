@@ -129,7 +129,7 @@ export class UserFileService {
       `${USER_FILE_ACCESS_REVOKE_URL}/${userFileEntry.file.name}/${userFileEntry.ownerName}/${username}`, null);
   }
 
-  public requestDownloadUserFile(targetFile: UserFile): Observable<Blob> {
+  public downloadUserFile(targetFile: UserFile): Observable<Blob> {
     const requestURL = `${USER_FILE_DOWNLOAD_URL}/${targetFile.fid}`;
     return this.http.get(requestURL, {responseType: 'blob'});
   }

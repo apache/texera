@@ -56,7 +56,7 @@ export class UserFileSectionComponent implements OnInit {
   }
 
   public downloadUserFile(userFileEntry: DashboardUserFileEntry): void {
-    this.userFileService.requestDownloadUserFile(userFileEntry.file).subscribe(
+    this.userFileService.downloadUserFile(userFileEntry.file).subscribe(
       (response: Blob) => {
         // prepare the data to be downloaded.
         const dataType = response.type;
