@@ -11,6 +11,7 @@ import { HttpClientTestingModule, HttpTestingController } from '@angular/common/
 import { StubUserService } from '../../../../common/service/user/stub-user.service';
 import { DashboardUserFileEntry, UserFile } from '../../../type/dashboard-user-file-entry';
 import { NgbdModalWorkflowShareAccessComponent } from '../saved-workflow-section/ngbd-modal-share-access/ngbd-modal-workflow-share-access.component';
+import { NzMessageModule } from 'ng-zorro-antd/message';
 
 describe('UserFileSectionComponent', () => {
   let component: UserFileSectionComponent;
@@ -45,6 +46,7 @@ describe('UserFileSectionComponent', () => {
         UserFileService
       ],
       imports: [
+        NzMessageModule,
         CustomNgMaterialModule,
         NgbModule,
         FormsModule,

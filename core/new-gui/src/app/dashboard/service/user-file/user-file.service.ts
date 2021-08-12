@@ -2,13 +2,14 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
 import { AppSettings } from '../../../common/app-setting';
-import { DashboardUserFileEntry } from '../../type/dashboard-user-file-entry';
+import { DashboardUserFileEntry, UserFile } from '../../type/dashboard-user-file-entry';
 import { UserService } from '../../../common/service/user/user.service';
 import { AccessEntry } from '../../type/access.interface';
 
 export const USER_FILE_BASE_URL = `${AppSettings.getApiEndpoint()}/user/file`;
 export const USER_FILE_LIST_URL = `${USER_FILE_BASE_URL}/list`;
 export const USER_FILE_DELETE_URL = `${USER_FILE_BASE_URL}/delete`;
+export const USER_FILE_DOWNLOAD_URL = `${USER_FILE_BASE_URL}/download`;
 export const USER_FILE_ACCESS_BASE_URL = `${USER_FILE_BASE_URL}/access`;
 export const USER_FILE_ACCESS_GRANT_URL = `${USER_FILE_ACCESS_BASE_URL}/grant`;
 export const USER_FILE_ACCESS_LIST_URL = `${USER_FILE_ACCESS_BASE_URL}/list`;
@@ -126,6 +127,11 @@ export class UserFileService {
   public revokeUserFileAccess(userFileEntry: DashboardUserFileEntry, username: string): Observable<Response> {
     return this.http.post<Response>(
       `${USER_FILE_ACCESS_REVOKE_URL}/${userFileEntry.file.name}/${userFileEntry.ownerName}/${username}`, null);
+  }
+
+  public downloadUserFile(targetFile: UserFile): Observable<Blob> {
+    const requestURL = `${USER_FILE_DOWNLOAD_URL}/${targetFile.fid}`;
+    return this.http.get(requestURL, {responseType: 'blob'});
   }
 
   private retrieveDashboardUserFileEntryList(): Observable<ReadonlyArray<DashboardUserFileEntry>> {
