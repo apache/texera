@@ -22,6 +22,7 @@ import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzListModule } from 'ng-zorro-antd/list';
 import { NzMenuModule } from 'ng-zorro-antd/menu';
+import { NzMessageModule } from 'ng-zorro-antd/message';
 import { NzModalModule } from 'ng-zorro-antd/modal';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
@@ -88,6 +89,8 @@ import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzStatisticModule } from 'ng-zorro-antd/statistic';
 import { NzTagModule } from 'ng-zorro-antd/tag';
 import { NzAvatarModule } from 'ng-zorro-antd/avatar';
+import { HTTP_INTERCEPTORS } from '@angular/common/http';
+import { BlobErrorHttpInterceptor } from './common/service/blob-error-http-interceptor.service';
 
 registerLocaleData(en);
 
@@ -172,6 +175,7 @@ registerLocaleData(en);
     NzListModule,
     NzInputModule,
     NzMenuModule,
+    NzMessageModule,
     NzCollapseModule,
     NzToolTipModule,
     NzTableModule,
@@ -199,13 +203,17 @@ registerLocaleData(en);
     NgbdModalWorkflowShareAccessComponent
   ],
   providers: [
-    HttpClientModule,
     UserService,
     UserFileService,
     UserFileUploadService,
     UserDictionaryService,
     UserDictionaryUploadService,
-    {provide: NZ_I18N, useValue: en_US}
+    {provide: NZ_I18N, useValue: en_US},
+    {
+      provide: HTTP_INTERCEPTORS,
+      useClass: BlobErrorHttpInterceptor,
+      multi: true
+    },
   ],
   bootstrap: [AppComponent]
   // dynamically created component must be placed in the entryComponents attribute
