@@ -45,10 +45,7 @@ export class UserService {
       throw new Error('Already logged in when register.');
     }
 
-    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`, {
-      userName,
-      password
-    });
+    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`, {userName, password});
 
   }
 
@@ -83,10 +80,7 @@ export class UserService {
     if (this.currentUser) {
       throw new Error('Already logged in when login in.');
     }
-    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`, {
-      userName,
-      password
-    });
+    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`, {userName, password});
   }
 
   /**
