@@ -87,9 +87,9 @@ export class WorkspaceComponent implements OnDestroy, AfterViewInit {
         this.workflowActionService.disableWorkflowModification();
         // load workflow with wid if presented in the URL
         if (this.route.snapshot.params.id) {
-          const id = this.route.snapshot.params.id;
+          const wid = this.route.snapshot.params.id;
           // if wid is present in the url, load it from the backend
-          this.subscriptions.add(this.userService.userChanged().subscribe(() => this.loadWorkflowWithId(id)));
+          this.subscriptions.add(this.userService.userChanged().subscribe(() => this.loadWorkflowWithId(wid)));
         }
       } else {
         // load the cached workflow
