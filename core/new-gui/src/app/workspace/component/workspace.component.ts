@@ -1,5 +1,5 @@
 import { Location } from '@angular/common';
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { AfterViewInit, Component, OnDestroy } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { environment } from '../../../environments/environment';
@@ -26,7 +26,7 @@ import { NzMessageService } from 'ng-zorro-antd/message';
     // { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
   ]
 })
-export class WorkspaceComponent implements OnInit, OnDestroy {
+export class WorkspaceComponent implements OnDestroy, AfterViewInit {
 
   public gitCommitHash: string = Version.raw;
   public showResultPanel: boolean = false;
@@ -55,7 +55,7 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     ));
   }
 
-  ngOnInit(): void {
+  ngAfterViewInit(): void {
 
     /**
      * On initialization of the workspace, there could be three cases:
@@ -78,48 +78,34 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
      * reflecting changes from WorkflowActionService.
      */
 
-
-    if (environment.userSystemEnabled) {
-      // clear the current workspace, reset as `WorkflowActionService.DEFAULT_WORKFLOW`
-      this.workflowActionService.resetAsNewWorkflow();
-
-      // responsible for persisting the workflow to the backend.
-      this.registerAutoPersistWorkflow();
-
-      // load workflow with wid if presented in the URL
-      if (this.route.snapshot.params.id) {
-        const id = this.route.snapshot.params.id;
-        // if wid is present in the url, load it from backend
-        this.subscriptions.add(this.userService.userChanged().combineLatest(this.operatorMetadataService.getOperatorMetadata()
-          .filter(metadata => metadata.operators.length !== 0))
-          .subscribe(() => this.loadWorkflowWithID(id)));
+    this.operatorMetadataService.getOperatorMetadata()
+      .filter(metadata => metadata.operators.length !== 0).subscribe(() => {
+      if (environment.userSystemEnabled) {
+        // clear the current workspace, reset as `WorkflowActionService.DEFAULT_WORKFLOW`
+        this.workflowActionService.resetAsNewWorkflow();
+        // disable the workspace until the workflow is fetched from the backend
+        this.workflowActionService.disableWorkflowModification();
+        // load workflow with wid if presented in the URL
+        if (this.route.snapshot.params.id) {
+          const id = this.route.snapshot.params.id;
+          // if wid is present in the url, load it from the backend
+          this.subscriptions.add(this.userService.userChanged().subscribe(() => this.loadWorkflowWithId(id)));
+        }
+      } else {
+        // load the cached workflow
+        this.workflowActionService.reloadWorkflow(this.workflowCacheService.getCachedWorkflow());
+        // clear stack
+        this.undoRedoService.clearUndoStack();
+        this.undoRedoService.clearRedoStack();
+        // responsible for saving the existing workflow in cache
+        this.registerAutoCacheWorkFlow();
       }
-
-    } else {
-
-      // load wid from cache
-      const workflow = this.workflowCacheService.getCachedWorkflow();
-      const id = workflow?.wid;
-      if (id !== undefined) { this.location.go(`/workflow/${id}`); }
-
-      // responsible for saving the existing workflow in cache.
-      this.registerAutoCacheWorkFlow();
-
-      // responsible for reloading workflow back to the JointJS paper when the browser refreshes.
-      this.registerAutoReloadWorkflowFromCache();
-
-    }
+    });
 
   }
 
   public ngOnDestroy(): void {
     this.subscriptions.unsubscribe();
-  }
-
-  private registerAutoReloadWorkflowFromCache(): void {
-    this.subscriptions.add(this.operatorMetadataService.getOperatorMetadata()
-      .filter(metadata => metadata.operators.length !== 0)
-      .subscribe(() => { this.workflowActionService.reloadWorkflow(this.workflowCacheService.getCachedWorkflow()); }));
   }
 
   private registerAutoCacheWorkFlow(): void {
@@ -142,14 +128,20 @@ export class WorkspaceComponent implements OnInit, OnDestroy {
     }));
   }
 
-  private loadWorkflowWithID(id: number): void {
-    this.subscriptions.add(this.workflowPersistService.retrieveWorkflow(id).subscribe(
+  private loadWorkflowWithId(wid: number): void {
+    this.workflowPersistService.retrieveWorkflow(wid).subscribe(
       (workflow: Workflow) => {
+        // enable workspace for modification
+        this.workflowActionService.enableWorkflowModification();
+        // load the fetched workflow
         this.workflowActionService.reloadWorkflow(workflow);
+        // clear stack
         this.undoRedoService.clearUndoStack();
         this.undoRedoService.clearRedoStack();
+        // responsible for persisting the workflow to the backend
+        this.registerAutoPersistWorkflow();
       },
       () => { this.message.error('You don\'t have access to this workflow, please log in with an appropriate account'); }
-    ));
+    );
   }
 }

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
@@ -16,8 +16,8 @@ import {
 } from '../../types/execute-workflow.interface';
 import { environment } from '../../../../environments/environment';
 import { WorkflowWebsocketService } from '../workflow-websocket/workflow-websocket.service';
-import { BreakpointTriggerInfo, BreakpointRequest, Breakpoint } from '../../types/workflow-common.interface';
-import { TexeraWebsocketEvent, OperatorCurrentTuples, ResultDownloadResponse } from '../../types/workflow-websocket.interface';
+import { Breakpoint, BreakpointRequest, BreakpointTriggerInfo } from '../../types/workflow-common.interface';
+import { OperatorCurrentTuples, ResultDownloadResponse, TexeraWebsocketEvent } from '../../types/workflow-websocket.interface';
 import { isEqual } from 'lodash';
 import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from '../../types/result-table.interface';
 import { sessionGetObject, sessionSetObject } from '../../../common/util/storage';
@@ -68,25 +68,20 @@ export class ExecuteWorkflowService {
     private http: HttpClient
   ) {
     if (environment.amberEngineEnabled) {
+      workflowWebsocketService.subscribeToEvent('ResultDownloadResponse')
+        .subscribe((event) => this.resultDownloadStream.next(event));
+
       workflowWebsocketService.websocketEvent().subscribe(event => {
-        switch (event.type) {
-          case 'ResultDownloadResponse': {
-            this.resultDownloadStream.next(event);
-            break;
-          } default: {
-            // workflow status related event
-            if (event.type !== 'WebWorkflowStatusUpdateEvent') {
-              console.log(event);
-            }
-            const newState = this.handleExecutionEvent(event);
-            this.updateExecutionState(newState);
-          }
+        // workflow status related event
+        const newState = this.handleExecutionEvent(event);
+        if (newState !== undefined) {
+          this.updateExecutionState(newState);
         }
       });
     }
   }
 
-  public handleExecutionEvent(event: TexeraWebsocketEvent): ExecutionStateInfo {
+  public handleExecutionEvent(event: TexeraWebsocketEvent): ExecutionStateInfo | undefined {
     switch (event.type) {
       case 'WorkflowStartedEvent':
         return {state: ExecutionState.Running};
@@ -139,7 +134,7 @@ export class ExecuteWorkflowService {
         });
         return {state: ExecutionState.Failed, errorMessages: backendErrorMessages};
       default:
-        return this.currentState;
+        return undefined;
     }
   }
 
@@ -195,7 +190,7 @@ export class ExecuteWorkflowService {
       return;
     }
     if (this.currentState === undefined || this.currentState.state !== ExecutionState.Running) {
-      throw new Error('cannot pause workflow, current execution state is ' + this.currentState.state);
+      throw new Error('cannot pause workflow, current execution state is ' + this.currentState?.state);
     }
     this.workflowWebsocketService.send('PauseWorkflowRequest', {});
     this.updateExecutionState({state: ExecutionState.Pausing});
@@ -303,13 +298,10 @@ export class ExecuteWorkflowService {
   }
 
   private updateExecutionState(stateInfo: ExecutionStateInfo): void {
-    this.updateWorkflowActionLock(stateInfo);
     if (isEqual(this.currentState, stateInfo)) {
       return;
     }
-    console.log('stateInfo', stateInfo);
-    console.log(this.clearTimeoutState);
-    console.log(this.clearTimeoutState?.includes(stateInfo.state));
+    this.updateWorkflowActionLock(stateInfo);
     if (this.clearTimeoutState?.includes(stateInfo.state)) {
       this.clearExecutionTimeout();
     }
@@ -375,8 +367,14 @@ export class ExecuteWorkflowService {
     const links: LogicalLink[] = workflowGraph
       .getAllEnabledLinks()
       .map(link => ({
-        origin: {operatorID: link.source.operatorID, portOrdinal: getOutputPortOrdinal(link.source.operatorID, link.source.portID)},
-        destination: {operatorID: link.target.operatorID, portOrdinal: getInputPortOrdinal(link.target.operatorID, link.target.portID)}
+        origin: {
+          operatorID: link.source.operatorID,
+          portOrdinal: getOutputPortOrdinal(link.source.operatorID, link.source.portID)
+        },
+        destination: {
+          operatorID: link.target.operatorID,
+          portOrdinal: getInputPortOrdinal(link.target.operatorID, link.target.portID)
+        }
       }));
 
     const breakpoints: BreakpointInfo[] = Array.from(workflowGraph.getAllEnabledLinkBreakpoints().entries())
