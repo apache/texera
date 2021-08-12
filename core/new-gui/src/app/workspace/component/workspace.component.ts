@@ -83,13 +83,16 @@ export class WorkspaceComponent implements OnDestroy, AfterViewInit {
     this.operatorMetadataService.getOperatorMetadata()
       .filter(metadata => metadata.operators.length !== 0).subscribe(() => {
       if (environment.userSystemEnabled) {
-
         // load workflow with wid if presented in the URL
         if (this.route.snapshot.params.id) {
           const wid = this.route.snapshot.params.id;
           // if wid is present in the url, load it from the backend
           this.subscriptions.add(this.userService.userChanged().subscribe(() => this.loadWorkflowWithId(wid)));
+        } else {
+          // no workflow to load, pending to create a new workflow
         }
+        // responsible for persisting the workflow to the backend
+        this.registerAutoPersistWorkflow();
       } else {
         // load the cached workflow
         this.workflowActionService.reloadWorkflow(this.workflowCacheService.getCachedWorkflow());
@@ -139,8 +142,6 @@ export class WorkspaceComponent implements OnDestroy, AfterViewInit {
         // clear stack
         this.undoRedoService.clearUndoStack();
         this.undoRedoService.clearRedoStack();
-        // responsible for persisting the workflow to the backend
-        this.registerAutoPersistWorkflow();
       },
       () => { this.message.error('You don\'t have access to this workflow, please log in with an appropriate account'); }
     );
