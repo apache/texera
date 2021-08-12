@@ -1,11 +1,9 @@
-import { DragDropService } from './../../../service/drag-drop/drag-drop.service';
-import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service' ;
-import { Component, Input, AfterViewInit, OnInit, ElementRef, OnDestroy } from '@angular/core';
-import { Observable, of, Subject, Subscription, zip } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { DragDropService } from '../../../service/drag-drop/drag-drop.service';
+import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
+import { AfterViewInit, Component, Input, OnDestroy, OnInit } from '@angular/core';
+import { Subscription } from 'rxjs';
 
 import { OperatorSchema } from '../../../types/operator-schema.interface';
-import { assertType } from 'src/app/common/util/assert';
 
 /**
  * OperatorLabelComponent is one operator box in the operator panel.
@@ -47,7 +45,7 @@ export class OperatorLabelComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   ngOnInit() {
-    if (! this.operator) {
+    if (!this.operator) {
       throw new Error('operator label component: operator is not specified');
     }
     if (this.fromSearchBox) {
@@ -58,7 +56,7 @@ export class OperatorLabelComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   ngAfterViewInit() {
-    if (! this.operatorLabelID || ! this.operator) {
+    if (!this.operatorLabelID || !this.operator) {
       throw new Error('operator label component: operator is not specified');
     }
     this.dragDropService.registerOperatorLabelDrag(this.operatorLabelID, this.operator.operatorType);
@@ -96,8 +94,8 @@ export class OperatorLabelComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   private handleWorkFlowModificationEnabled(): Subscription {
-    return this.workflowActionService.getWorkflowModificationEnabledStream().subscribe( enabled => {
-      this.draggable = enabled;
+    return this.workflowActionService.getWorkflowModificationEnabledStream().subscribe(canModify => {
+      this.draggable = canModify;
     });
   }
 
