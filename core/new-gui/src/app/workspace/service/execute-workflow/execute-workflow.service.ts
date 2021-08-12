@@ -367,14 +367,8 @@ export class ExecuteWorkflowService {
     const links: LogicalLink[] = workflowGraph
       .getAllEnabledLinks()
       .map(link => ({
-        origin: {
-          operatorID: link.source.operatorID,
-          portOrdinal: getOutputPortOrdinal(link.source.operatorID, link.source.portID)
-        },
-        destination: {
-          operatorID: link.target.operatorID,
-          portOrdinal: getInputPortOrdinal(link.target.operatorID, link.target.portID)
-        }
+        origin: {operatorID: link.source.operatorID, portOrdinal: getOutputPortOrdinal(link.source.operatorID, link.source.portID)},
+        destination: {operatorID: link.target.operatorID, portOrdinal: getInputPortOrdinal(link.target.operatorID, link.target.portID)}
       }));
 
     const breakpoints: BreakpointInfo[] = Array.from(workflowGraph.getAllEnabledLinkBreakpoints().entries())
