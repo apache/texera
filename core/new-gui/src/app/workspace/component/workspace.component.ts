@@ -77,14 +77,13 @@ export class WorkspaceComponent implements OnDestroy, AfterViewInit {
      * WorkflowActionService is the single source of the workflow representation. Both WorkflowCacheService and WorkflowPersistService are
      * reflecting changes from WorkflowActionService.
      */
+    // clear the current workspace, reset as `WorkflowActionService.DEFAULT_WORKFLOW`
+    this.workflowActionService.resetAsNewWorkflow();
 
     this.operatorMetadataService.getOperatorMetadata()
       .filter(metadata => metadata.operators.length !== 0).subscribe(() => {
       if (environment.userSystemEnabled) {
-        // clear the current workspace, reset as `WorkflowActionService.DEFAULT_WORKFLOW`
-        this.workflowActionService.resetAsNewWorkflow();
-        // disable the workspace until the workflow is fetched from the backend
-        this.workflowActionService.disableWorkflowModification();
+
         // load workflow with wid if presented in the URL
         if (this.route.snapshot.params.id) {
           const wid = this.route.snapshot.params.id;
@@ -129,6 +128,8 @@ export class WorkspaceComponent implements OnDestroy, AfterViewInit {
   }
 
   private loadWorkflowWithId(wid: number): void {
+    // disable the workspace until the workflow is fetched from the backend
+    this.workflowActionService.disableWorkflowModification();
     this.workflowPersistService.retrieveWorkflow(wid).subscribe(
       (workflow: Workflow) => {
         // enable workspace for modification
@@ -144,4 +145,5 @@ export class WorkspaceComponent implements OnDestroy, AfterViewInit {
       () => { this.message.error('You don\'t have access to this workflow, please log in with an appropriate account'); }
     );
   }
+
 }
