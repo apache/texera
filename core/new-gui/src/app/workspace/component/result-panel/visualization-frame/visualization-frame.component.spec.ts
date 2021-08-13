@@ -2,21 +2,21 @@ import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
-import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
-import { JointUIService } from '../../service/joint-ui/joint-ui.service';
-import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
-import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
-import { UndoRedoService } from '../../service/undo-redo/undo-redo.service';
-import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
-import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
-import { VisualizationPanelComponent } from './visualization-panel.component';
-import { WorkflowResultService, OperatorResultService } from '../../service/workflow-result/workflow-result.service';
-import { WebDataUpdate } from '../../types/execute-workflow.interface';
-import { ChartType } from '../../types/visualization.interface';
+import { ExecuteWorkflowService } from '../../../service/execute-workflow/execute-workflow.service';
+import { JointUIService } from '../../../service/joint-ui/joint-ui.service';
+import { OperatorMetadataService } from '../../../service/operator-metadata/operator-metadata.service';
+import { StubOperatorMetadataService } from '../../../service/operator-metadata/stub-operator-metadata.service';
+import { UndoRedoService } from '../../../service/undo-redo/undo-redo.service';
+import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
+import { WorkflowUtilService } from '../../../service/workflow-graph/util/workflow-util.service';
+import { VisualizationFrameComponent } from './visualization-frame.component';
+import { WorkflowResultService, OperatorResultService } from '../../../service/workflow-result/workflow-result.service';
+import { WebDataUpdate } from '../../../types/execute-workflow.interface';
+import { ChartType } from '../../../types/visualization.interface';
 
 describe('VisualizationPanelComponent', () => {
-  let component: VisualizationPanelComponent;
-  let fixture: ComponentFixture<VisualizationPanelComponent>;
+  let component: VisualizationFrameComponent;
+  let fixture: ComponentFixture<VisualizationFrameComponent>;
   let workflowResultService: WorkflowResultService;
   const operatorID = 'operator1';
   const testData: WebDataUpdate = {
@@ -32,7 +32,7 @@ describe('VisualizationPanelComponent', () => {
         NzButtonModule,
         HttpClientTestingModule
       ],
-      declarations: [VisualizationPanelComponent],
+      declarations: [VisualizationFrameComponent],
       providers: [
         JointUIService,
         WorkflowUtilService,
@@ -47,7 +47,7 @@ describe('VisualizationPanelComponent', () => {
   }));
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(VisualizationPanelComponent);
+    fixture = TestBed.createComponent(VisualizationFrameComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
 

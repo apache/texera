@@ -8,7 +8,7 @@ import { ExecutionState, ExecutionStateInfo } from '../../types/execute-workflow
 import { ResultTableFrameComponent } from './result-table-frame/result-table-frame.component';
 import { ConsoleFrameComponent } from './console-frame/console-frame.component';
 import { WorkflowResultService } from '../../service/workflow-result/workflow-result.service';
-import { VisualizationPanelComponent } from '../visualization-panel/visualization-panel.component';
+import { VisualizationFrameComponent } from './visualization-frame/visualization-frame.component';
 
 /**
  * ResultPanelComponent is the bottom level area that displays the
@@ -99,7 +99,7 @@ export class ResultPanelComponent {
         if (paginatedResultService) {
           this.component = ResultTableFrameComponent;
         } else if (resultService && resultService.getChartType()) {
-          this.component = VisualizationPanelComponent;
+          this.component = VisualizationFrameComponent;
         }
       }
     }

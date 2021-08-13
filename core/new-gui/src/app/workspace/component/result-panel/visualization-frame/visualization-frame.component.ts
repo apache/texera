@@ -1,11 +1,11 @@
 import { Component } from '@angular/core';
 import { NzModalRef, NzModalService } from 'ng-zorro-antd/modal';
-import { VisualizationPanelContentComponent } from '../visualization-panel-content/visualization-panel-content.component';
-import { WorkflowResultService } from '../../service/workflow-result/workflow-result.service';
-import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
+import { VisualizationPanelContentComponent } from '../../visualization-panel-content/visualization-panel-content.component';
+import { WorkflowResultService } from '../../../service/workflow-result/workflow-result.service';
+import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
 
 /**
- * VisualizationPanelComponent displays the button for visualization in ResultPanel when the result type is chart.
+ * VisualizationFrameComponent displays the button for visualization in ResultPanel when the result type is chart.
  *
  * It receives the data for visualization and chart type.
  * When user click on button, this component will open VisualizationPanelContentComponent and display figure.
@@ -14,10 +14,10 @@ import { WorkflowActionService } from '../../service/workflow-graph/model/workfl
  */
 @Component({
   selector: 'texera-visualization-panel',
-  templateUrl: './visualization-panel.component.html',
-  styleUrls: ['./visualization-panel.component.scss']
+  templateUrl: './visualization-frame.component.html',
+  styleUrls: ['./visualization-frame.component.scss']
 })
-export class VisualizationPanelComponent {
+export class VisualizationFrameComponent {
 
   resultPanelOperatorID: string | undefined;
   modalRef: NzModalRef | undefined;

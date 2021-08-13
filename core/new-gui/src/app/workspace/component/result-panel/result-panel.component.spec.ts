@@ -21,7 +21,7 @@ import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
 import { ExecutionState } from '../../types/execute-workflow.interface';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { NzTableModule } from 'ng-zorro-antd/table';
-import { VisualizationPanelComponent } from '../visualization-panel/visualization-panel.component';
+import { VisualizationFrameComponent } from './visualization-frame/visualization-frame.component';
 import { VisualizationPanelContentComponent } from '../visualization-panel-content/visualization-panel-content.component';
 import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
 import { mockData } from '../../service/execute-workflow/mock-result-data';
@@ -51,7 +51,7 @@ describe('ResultPanelComponent', () => {
     TestBed.configureTestingModule({
       declarations: [
         ResultPanelComponent,
-        VisualizationPanelComponent,
+        VisualizationFrameComponent,
         VisualizationPanelContentComponent,
       ],
       imports: [

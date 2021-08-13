@@ -78,7 +78,7 @@ import { TypeCastingDisplayComponent } from './workspace/component/property-edit
 import { ResultPanelToggleComponent } from './workspace/component/result-panel-toggle/result-panel-toggle.component';
 import { ResultPanelComponent } from './workspace/component/result-panel/result-panel.component';
 import { VisualizationPanelContentComponent } from './workspace/component/visualization-panel-content/visualization-panel-content.component';
-import { VisualizationPanelComponent } from './workspace/component/visualization-panel/visualization-panel.component';
+import { VisualizationFrameComponent } from './workspace/component/result-panel/visualization-frame/visualization-frame.component';
 import { WorkflowEditorComponent } from './workspace/component/workflow-editor/workflow-editor.component';
 import { WorkspaceComponent } from './workspace/component/workspace.component';
 import { ResultDownloadComponent } from './workspace/component/navigation/result-download/result-download.component';
@@ -133,7 +133,7 @@ registerLocaleData(en);
     ObjectTypeComponent,
     MultiSchemaTypeComponent,
     NullTypeComponent,
-    VisualizationPanelComponent,
+    VisualizationFrameComponent,
     VisualizationPanelContentComponent,
     CodeareaCustomTemplateComponent,
     CodeEditorDialogComponent,
