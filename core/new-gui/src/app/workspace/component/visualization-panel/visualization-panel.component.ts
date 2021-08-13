@@ -38,18 +38,6 @@ export class VisualizationPanelComponent {
     const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
     this.resultPanelOperatorID = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
 
-    if (!this.resultPanelOperatorID) {
-      return;
-    }
-
-    const operatorResultService = this.workflowResultService.getResultService(this.resultPanelOperatorID);
-    if (!operatorResultService) {
-      return;
-    }
-
-    const chartType = operatorResultService.getChartType();
-    console.log('getting chartType', chartType);
-
   }
 
   onClickVisualize(): void {
