@@ -10,7 +10,7 @@ import { UndoRedoService } from '../../../service/undo-redo/undo-redo.service';
 import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
 import { WorkflowUtilService } from '../../../service/workflow-graph/util/workflow-util.service';
 import { VisualizationFrameComponent } from './visualization-frame.component';
-import { WorkflowResultService, OperatorResultService } from '../../../service/workflow-result/workflow-result.service';
+import { OperatorResultService, WorkflowResultService } from '../../../service/workflow-result/workflow-result.service';
 import { WebDataUpdate } from '../../../types/execute-workflow.interface';
 import { ChartType } from '../../../types/visualization.interface';
 
@@ -38,7 +38,7 @@ describe('VisualizationPanelComponent', () => {
         WorkflowUtilService,
         UndoRedoService,
         WorkflowActionService,
-        {provide: OperatorMetadataService, useClass: StubOperatorMetadataService},
+        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         WorkflowResultService,
         ExecuteWorkflowService
       ]
@@ -63,27 +63,12 @@ describe('VisualizationPanelComponent', () => {
   });
 
   it('should have button', () => {
-    component.resu = operatorID;
-
-    // fixture.detectChanges() doesn't call ngOnChanges in tests because of Angular bug
-    component.ngOnChanges();
-    fixture.detectChanges();
-
-
-
     const element: HTMLElement = fixture.nativeElement;
     const button = element.querySelector('button');
     expect(button).toBeTruthy();
   });
 
   it('should open dialog', () => {
-    // make button appear
-    component.operatorID = operatorID;
-
-    // fixture.detectChanges() doesn't call ngOnChanges in tests because of Angular bug
-    component.ngOnChanges();
-    fixture.detectChanges();
-
     const element: HTMLElement = fixture.nativeElement;
     const button = element.querySelector('button');
 
