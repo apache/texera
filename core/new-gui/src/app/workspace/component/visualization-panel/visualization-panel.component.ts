@@ -27,7 +27,6 @@ export class VisualizationPanelComponent {
     private workflowResultService: WorkflowResultService,
     private workflowActionService: WorkflowActionService
   ) {
-    console.log('vis constructed');
     this.updateDisplayVisualizationPanel();
     this.workflowResultService.getResultUpdateStream().subscribe(event => {
       this.updateDisplayVisualizationPanel();
@@ -36,10 +35,9 @@ export class VisualizationPanelComponent {
 
   updateDisplayVisualizationPanel() {
     // update highlighted operator
-    console.log('updating');
     const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
     this.resultPanelOperatorID = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
-    console.log('getting', this.resultPanelOperatorID);
+
     if (!this.resultPanelOperatorID) {
       return;
     }

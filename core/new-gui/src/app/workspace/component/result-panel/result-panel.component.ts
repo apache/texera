@@ -46,39 +46,8 @@ export class ResultPanelComponent {
     private workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService
   ) {
-
-    Observable.merge(
-      this.executeWorkflowService.getExecutionStateStream().filter(event => this.needRerenderOnStateChange(event)),
-      this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
-      this.resultPanelToggleService.getToggleChangeStream()
-    ).subscribe(trigger => {
-      this.rerenderResultPanel();
-    });
-
-    this.executeWorkflowService.getExecutionStateStream().subscribe(event => {
-      if (event.current.state === ExecutionState.BreakpointTriggered) {
-        const breakpointOperator = this.executeWorkflowService.getBreakpointTriggerInfo()?.operatorID;
-        if (breakpointOperator) {
-          this.workflowActionService.getJointGraphWrapper().highlightOperators(breakpointOperator);
-        }
-        this.resultPanelToggleService.openResultPanel();
-      }
-      if (event.current.state === ExecutionState.Failed) {
-        this.resultPanelToggleService.openResultPanel();
-      }
-      if (event.current.state === ExecutionState.Completed || event.current.state === ExecutionState.Running) {
-        const sinkOperators = this.workflowActionService.getTexeraGraph().getAllOperators()
-          .filter(op => op.operatorType.toLowerCase().includes('sink'));
-        if (sinkOperators.length > 0 && !this.resultPanelOperatorID) {
-          const currentlyHighlighted = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-          this.workflowActionService.getJointGraphWrapper().unhighlightOperators(...currentlyHighlighted);
-          this.workflowActionService.getJointGraphWrapper().highlightOperators(sinkOperators[0].operatorID);
-        }
-        this.resultPanelToggleService.openResultPanel();
-      }
-    });
-
+    this.registerAutoRerenderResultPanel();
+    this.registerAutoOpenResultPanel();
   }
 
   public needRerenderOnStateChange(event: { previous: ExecutionStateInfo, current: ExecutionStateInfo }): boolean {
@@ -140,6 +109,41 @@ export class ResultPanelComponent {
     this.component = undefined;
   }
 
+  private registerAutoOpenResultPanel() {
+    this.executeWorkflowService.getExecutionStateStream().subscribe(event => {
+      if (event.current.state === ExecutionState.BreakpointTriggered) {
+        const breakpointOperator = this.executeWorkflowService.getBreakpointTriggerInfo()?.operatorID;
+        if (breakpointOperator) {
+          this.workflowActionService.getJointGraphWrapper().highlightOperators(breakpointOperator);
+        }
+        this.resultPanelToggleService.openResultPanel();
+      }
+      if (event.current.state === ExecutionState.Failed) {
+        this.resultPanelToggleService.openResultPanel();
+      }
+      if (event.current.state === ExecutionState.Completed || event.current.state === ExecutionState.Running) {
+        const sinkOperators = this.workflowActionService.getTexeraGraph().getAllOperators()
+          .filter(op => op.operatorType.toLowerCase().includes('sink'));
+        if (sinkOperators.length > 0 && !this.resultPanelOperatorID) {
+          const currentlyHighlighted = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+          this.workflowActionService.getJointGraphWrapper().unhighlightOperators(...currentlyHighlighted);
+          this.workflowActionService.getJointGraphWrapper().highlightOperators(sinkOperators[0].operatorID);
+        }
+        this.resultPanelToggleService.openResultPanel();
+      }
+    });
+  }
+
+  private registerAutoRerenderResultPanel() {
+    Observable.merge(
+      this.executeWorkflowService.getExecutionStateStream().filter(event => this.needRerenderOnStateChange(event)),
+      this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
+      this.resultPanelToggleService.getToggleChangeStream()
+    ).subscribe(trigger => {
+      this.rerenderResultPanel();
+    });
+  }
 }
 
 
