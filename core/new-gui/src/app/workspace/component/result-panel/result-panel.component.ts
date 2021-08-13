@@ -1,5 +1,4 @@
 import { Component } from '@angular/core';
-import { NzModalService } from 'ng-zorro-antd/modal';
 import { Observable } from 'rxjs/Observable';
 import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
 import { ResultPanelToggleService } from '../../service/result-panel-toggle/result-panel-toggle.service';
@@ -34,14 +33,12 @@ export class ResultPanelComponent {
   component: any | undefined = undefined;
 
   // the highlighted operator ID for display result table / visualization / breakpoint
-  public resultPanelOperatorID: string | undefined;
+  resultPanelOperatorID: string | undefined;
 
-  public showResultPanel: boolean = false;
-
+  showResultPanel: boolean = false;
 
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
-    private modalService: NzModalService,
     private resultPanelToggleService: ResultPanelToggleService,
     private workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService
@@ -50,61 +47,7 @@ export class ResultPanelComponent {
     this.registerAutoOpenResultPanel();
   }
 
-  public needRerenderOnStateChange(event: { previous: ExecutionStateInfo, current: ExecutionStateInfo }): boolean {
-    // transitioning from any state to failed state
-    if (event.current.state === ExecutionState.Failed) {
-      return true;
-    }
-    // transitioning from any state to breakpoint triggered state
-    if (event.current.state === ExecutionState.BreakpointTriggered) {
-      return true;
-    }
-
-    // transition from uninitialized / completed to anything else indicates a new execution of the workflow
-    if (event.previous.state === ExecutionState.Uninitialized || event.previous.state === ExecutionState.Completed) {
-      return true;
-    }
-    return false;
-  }
-
-  public rerenderResultPanel(): void {
-    // current result panel is closed, do nothing
-    this.showResultPanel = this.resultPanelToggleService.isResultPanelOpen();
-    if (!this.showResultPanel) {
-      return;
-    }
-
-    // clear everything, prepare for state change
-    this.clearResultPanel();
-
-    // update highlighted operator
-    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    this.resultPanelOperatorID = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
-
-    const executionState = this.executeWorkflowService.getExecutionState();
-
-    if (executionState.state === ExecutionState.Failed) {
-      this.component = ConsoleFrameComponent;
-    } else if (executionState.state === ExecutionState.BreakpointTriggered) {
-      this.component = ConsoleFrameComponent;
-    } else {
-      if (this.resultPanelOperatorID) {
-        const resultService = this.workflowResultService.getResultService(this.resultPanelOperatorID);
-        const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.resultPanelOperatorID);
-        if (paginatedResultService) {
-          this.component = ResultTableFrameComponent;
-        } else if (resultService && resultService.getChartType()) {
-          this.component = VisualizationFrameComponent;
-        }
-      }
-    }
-  }
-
-  public clearResultPanel(): void {
-    this.component = undefined;
-  }
-
-  private registerAutoOpenResultPanel() {
+  registerAutoOpenResultPanel() {
     this.executeWorkflowService.getExecutionStateStream().subscribe(event => {
       if (event.current.state === ExecutionState.BreakpointTriggered) {
         const breakpointOperator = this.executeWorkflowService.getBreakpointTriggerInfo()?.operatorID;
@@ -129,16 +72,72 @@ export class ResultPanelComponent {
     });
   }
 
-  private registerAutoRerenderResultPanel() {
+  registerAutoRerenderResultPanel() {
     Observable.merge(
-      this.executeWorkflowService.getExecutionStateStream().filter(event => this.needRerenderOnStateChange(event)),
+      this.executeWorkflowService.getExecutionStateStream().filter(event => ResultPanelComponent.needRerenderOnStateChange(event)),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
       this.resultPanelToggleService.getToggleChangeStream(),
+      // TODO: replace with an initial event for existence of result
       this.workflowResultService.getResultUpdateStream()
     ).subscribe(_ => {
       this.rerenderResultPanel();
     });
+  }
+
+  rerenderResultPanel(): void {
+    // update highlighted operator
+    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    this.resultPanelOperatorID = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
+
+    // current result panel is closed, do nothing
+    this.showResultPanel = this.resultPanelToggleService.isResultPanelOpen();
+    if (!this.showResultPanel) {
+      return;
+    }
+
+    // clear everything, prepare for state change
+    this.clearResultPanel();
+
+    const executionState = this.executeWorkflowService.getExecutionState();
+
+    if (executionState.state === ExecutionState.Failed) {
+      this.component = ConsoleFrameComponent;
+    } else if (executionState.state === ExecutionState.BreakpointTriggered) {
+      this.component = ConsoleFrameComponent;
+    } else {
+      if (this.resultPanelOperatorID) {
+        const resultService = this.workflowResultService.getResultService(this.resultPanelOperatorID);
+        const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.resultPanelOperatorID);
+        if (paginatedResultService) {
+          this.component = ResultTableFrameComponent;
+        } else if (resultService && resultService.getChartType()) {
+          this.component = VisualizationFrameComponent;
+        }
+      }
+    }
+  }
+
+  clearResultPanel(): void {
+    this.component = undefined;
+  }
+
+
+  private static needRerenderOnStateChange(event: { previous: ExecutionStateInfo, current: ExecutionStateInfo }): boolean {
+    // transitioning from any state to failed state
+    if (event.current.state === ExecutionState.Failed) {
+      return true;
+    }
+    // transitioning from any state to breakpoint triggered state
+    if (event.current.state === ExecutionState.BreakpointTriggered) {
+      return true;
+    }
+
+    // transition from uninitialized / completed to anything else indicates a new execution of the workflow
+    if (event.previous.state === ExecutionState.Uninitialized || event.previous.state === ExecutionState.Completed) {
+      return true;
+    }
+    return false;
   }
 }
 
