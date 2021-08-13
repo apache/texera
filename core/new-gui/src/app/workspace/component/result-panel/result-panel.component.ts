@@ -60,11 +60,6 @@ export class ResultPanelComponent {
       return true;
     }
 
-    // transitioning from any state to completed state
-    if (event.current.state === ExecutionState.Completed) {
-      return true;
-    }
-
     // transition from uninitialized / completed to anything else indicates a new execution of the workflow
     if (event.previous.state === ExecutionState.Uninitialized || event.previous.state === ExecutionState.Completed) {
       return true;
@@ -139,8 +134,9 @@ export class ResultPanelComponent {
       this.executeWorkflowService.getExecutionStateStream().filter(event => this.needRerenderOnStateChange(event)),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
-      this.resultPanelToggleService.getToggleChangeStream()
-    ).subscribe(trigger => {
+      this.resultPanelToggleService.getToggleChangeStream(),
+      this.workflowResultService.getResultUpdateStream()
+    ).subscribe(_ => {
       this.rerenderResultPanel();
     });
   }

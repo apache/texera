@@ -63,7 +63,7 @@ describe('VisualizationPanelComponent', () => {
   });
 
   it('should have button', () => {
-    component.operatorID = operatorID;
+    component.resu = operatorID;
 
     // fixture.detectChanges() doesn't call ngOnChanges in tests because of Angular bug
     component.ngOnChanges();

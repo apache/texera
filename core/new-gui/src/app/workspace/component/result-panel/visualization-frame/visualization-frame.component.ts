@@ -26,21 +26,13 @@ export class VisualizationFrameComponent {
     private modalService: NzModalService,
     private workflowResultService: WorkflowResultService,
     private workflowActionService: WorkflowActionService
-  ) {
-    this.updateDisplayVisualizationPanel();
-    this.workflowResultService.getResultUpdateStream().subscribe(event => {
-      this.updateDisplayVisualizationPanel();
-    });
-  }
+  ) { }
 
-  updateDisplayVisualizationPanel() {
-    // update highlighted operator
+
+  onClickVisualize(): void {
     const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
     this.resultPanelOperatorID = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
 
-  }
-
-  onClickVisualize(): void {
     if (!this.resultPanelOperatorID) {
       return;
     }
