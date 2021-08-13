@@ -4,7 +4,7 @@ import { Primitive, PrimitiveArray } from 'c3';
 import * as d3 from 'd3';
 import * as cloud from 'd3-cloud';
 import { ChartType, WordCloudTuple } from '../../types/visualization.interface';
-import { Subscription, Subject, Observable } from 'rxjs';
+import { Observable, Subject, Subscription } from 'rxjs';
 import { environment } from 'src/environments/environment';
 import * as mapboxgl from 'mapbox-gl';
 import { MapboxLayer } from '@deck.gl/mapbox';
@@ -69,8 +69,8 @@ export class VisualizationFrameContentComponent implements AfterContentInit, OnD
   @Input()
   operatorID: string | undefined;
   displayHTML: boolean = false; // variable to decide whether to display the container to display the HTML container(iFrame)
-  displayWordCloud: boolean = false; // variable to decide whether to display the container for worldcloud visualization
-  displayMap: boolean = true; // variable to decide whether to hide/unhide the map
+  displayWordCloud: boolean = false; // variable to decide whether to display the container for world cloud visualization
+  displayMap: boolean = true; // variable to decide whether to hide/un-hide the map
   data: ReadonlyArray<object> | undefined;
   chartType: ChartType | undefined;
   columns: string[] = [];
@@ -122,12 +122,12 @@ export class VisualizationFrameContentComponent implements AfterContentInit, OnD
     if (!this.operatorID) {
       return;
     }
-    const opratorResultService = this.workflowResultService.getResultService(this.operatorID);
-    if (! opratorResultService) {
+    const operatorResultService = this.workflowResultService.getResultService(this.operatorID);
+    if (!operatorResultService) {
       return;
     }
-    this.data = opratorResultService.getCurrentResultSnapshot();
-    this.chartType = opratorResultService.getChartType();
+    this.data = operatorResultService.getCurrentResultSnapshot();
+    this.chartType = operatorResultService.getChartType();
     if (!this.data || !this.chartType) {
       return;
     }
@@ -156,10 +156,10 @@ export class VisualizationFrameContentComponent implements AfterContentInit, OnD
         break;
       case ChartType.SPATIAL_SCATTERPLOT:
         this.displayMap = false;
-        this.generateSpatialScatterplot();
+        this.generateSpatialScatterPlot();
         break;
       case ChartType.SIMPLE_SCATTERPLOT:
-        this.generateSimpleScatterplot();
+        this.generateSimpleScatterPlot();
         break;
       case ChartType.HTML_VIZ:
         this.displayHTML = true;
@@ -168,7 +168,7 @@ export class VisualizationFrameContentComponent implements AfterContentInit, OnD
     }
   }
 
-  generateSimpleScatterplot() {
+  generateSimpleScatterPlot() {
     if (this.c3ChartElement) {
       this.c3ChartElement.destroy();
     }
@@ -204,14 +204,14 @@ export class VisualizationFrameContentComponent implements AfterContentInit, OnD
     });
   }
 
-  generateSpatialScatterplot() {
+  generateSpatialScatterPlot() {
     if (this.map === undefined) {
       this.initMap();
     }
     /* after the map is defined and the base
     style is loaded, we add a layer of the data points */
     this.map?.on('styledata', () => {
-      this.addNeworReplaceExistingLayer();
+      this.addNewOrReplaceExistingLayer();
     });
   }
 
@@ -227,7 +227,7 @@ export class VisualizationFrameContentComponent implements AfterContentInit, OnD
     });
   }
 
-  addNeworReplaceExistingLayer() {
+  addNewOrReplaceExistingLayer() {
     if (!this.map) {
       return;
     }

@@ -19,10 +19,12 @@ export class ConsoleFrameComponent implements OnInit {
   public breakpointTriggerInfo: BreakpointTriggerInfo | undefined;
   public breakpointAction: boolean = false;
 
-  constructor(private executeWorkflowService: ExecuteWorkflowService,
-              private modalService: NzModalService,
-              private resultPanelToggleService: ResultPanelToggleService,
-              private workflowActionService: WorkflowActionService) { }
+  constructor(
+    private executeWorkflowService: ExecuteWorkflowService,
+    private modalService: NzModalService,
+    private resultPanelToggleService: ResultPanelToggleService,
+    private workflowActionService: WorkflowActionService
+  ) { }
 
   ngOnInit(): void {
     // update highlighted operator

@@ -26,8 +26,9 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
   public currentColumns: TableColumn[] | undefined;
   public currentResult: object[] = [];
   //   for more details
-  public isFrontPagination: boolean = true;
   //   see https://ng.ant.design/components/table/en#components-table-demo-ajax
+  public isFrontPagination: boolean = true;
+
   public isLoadingResult: boolean = false;
 
   // paginator section, used when displaying rows
@@ -43,11 +44,13 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
   private readonly TABLE_COLUMN_TEXT_LIMIT: number = 1000;
   private readonly PRETTY_JSON_TEXT_LIMIT: number = 50000;
 
-  constructor(private executeWorkflowService: ExecuteWorkflowService,
-              private modalService: NzModalService,
-              private resultPanelToggleService: ResultPanelToggleService,
-              private workflowActionService: WorkflowActionService,
-              private workflowResultService: WorkflowResultService) {}
+  constructor(
+    private executeWorkflowService: ExecuteWorkflowService,
+    private modalService: NzModalService,
+    private resultPanelToggleService: ResultPanelToggleService,
+    private workflowActionService: WorkflowActionService,
+    private workflowResultService: WorkflowResultService
+  ) { }
 
   ngOnInit(): void {
     // update highlighted operator
@@ -57,8 +60,6 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
     // display result table by default
     if (this.resultPanelOperatorID) {
       const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.resultPanelOperatorID);
-      const resultService = this.workflowResultService.getResultService(this.resultPanelOperatorID);
-
       this.resultUpdateSubscription = this.workflowResultService.getResultUpdateStream().subscribe(update => {
         if (!this.resultPanelOperatorID) {
           return;
@@ -73,13 +74,11 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
           this.changePaginatedResultData();
         }
       });
-
       if (paginatedResultService) {
         this.isFrontPagination = false;
         this.totalNumTuples = paginatedResultService.getCurrentTotalNumTuples();
         this.currentPageIndex = paginatedResultService.getCurrentPageIndex();
         this.changePaginatedResultData();
-
       }
     }
   }
@@ -152,7 +151,7 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
           },
           disabled: () => selectedRowIndex === this.currentResult.length - 1
         },
-        {label: 'OK', onClick: () => { modalRef.destroy(); }, type: 'primary'}
+        { label: 'OK', onClick: () => { modalRef.destroy(); }, type: 'primary' }
       ]
     });
   }
@@ -212,7 +211,7 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
     let columns: { columnKey: any, columnText: string }[];
 
     const columnKeys = Object.keys(resultData[0]).filter(x => x !== '_id');
-    columns = columnKeys.map(v => ({columnKey: v, columnText: v}));
+    columns = columnKeys.map(v => ({ columnKey: v, columnText: v }));
 
     // generate columnDef from first row, column definition is in order
     this.currentColumns = this.generateColumns(columns);

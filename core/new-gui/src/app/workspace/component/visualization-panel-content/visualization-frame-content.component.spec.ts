@@ -94,7 +94,7 @@ describe('VisualizationPanelContentComponent', () => {
 
     component.ngAfterContentInit();
 
-    expect(component.generateSpatialScatterplot).toHaveBeenCalled();
+    expect(component.generateSpatialScatterPlot).toHaveBeenCalled();
   });
 
   it('should draw the simple scatteplot chart', () => {
@@ -109,7 +109,7 @@ describe('VisualizationPanelContentComponent', () => {
 
     component.ngAfterContentInit();
 
-    expect(component.generateSimpleScatterplot).toHaveBeenCalled();
+    expect(component.generateSimpleScatterPlot).toHaveBeenCalled();
   });
 
   it('should draw a sample html', () => {
