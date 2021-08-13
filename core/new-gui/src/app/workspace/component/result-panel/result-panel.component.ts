@@ -53,7 +53,6 @@ export class ResultPanelComponent {
       this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
       this.resultPanelToggleService.getToggleChangeStream()
     ).subscribe(trigger => {
-      console.log('triggered by', trigger);
       this.rerenderResultPanel();
     });
 
@@ -105,8 +104,6 @@ export class ResultPanelComponent {
   }
 
   public rerenderResultPanel(): void {
-    console.log('rerender');
-
     // current result panel is closed, do nothing
     this.showResultPanel = this.resultPanelToggleService.isResultPanelOpen();
     if (!this.showResultPanel) {
@@ -127,12 +124,9 @@ export class ResultPanelComponent {
     } else if (executionState.state === ExecutionState.BreakpointTriggered) {
       this.component = ConsoleFrameComponent;
     } else {
-      console.log('this is other case');
-      console.log(this.resultPanelOperatorID);
       if (this.resultPanelOperatorID) {
         const resultService = this.workflowResultService.getResultService(this.resultPanelOperatorID);
         const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.resultPanelOperatorID);
-        console.log(paginatedResultService, resultService);
         if (paginatedResultService) {
           this.component = ResultTableFrameComponent;
         } else if (resultService && resultService.getChartType()) {
