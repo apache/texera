@@ -11,12 +11,12 @@ import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { WebDataUpdate } from '../../types/execute-workflow.interface';
 import { ChartType } from '../../types/visualization.interface';
-import { VisualizationPanelContentComponent } from './visualization-panel-content.component';
+import { VisualizationFrameContentComponent } from './visualization-frame-content.component';
 import { WorkflowResultService, OperatorResultService } from '../../service/workflow-result/workflow-result.service';
 
 describe('VisualizationPanelContentComponent', () => {
-  let component: VisualizationPanelContentComponent;
-  let fixture: ComponentFixture<VisualizationPanelContentComponent>;
+  let component: VisualizationFrameContentComponent;
+  let fixture: ComponentFixture<VisualizationFrameContentComponent>;
   let workflowResultService: WorkflowResultService;
   const operatorID = 'operator1';
   let operatorResultService: OperatorResultService;
@@ -24,7 +24,7 @@ describe('VisualizationPanelContentComponent', () => {
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       imports: [MatDialogModule, HttpClientTestingModule],
-      declarations: [VisualizationPanelContentComponent],
+      declarations: [VisualizationFrameContentComponent],
       providers: [
         JointUIService,
         WorkflowUtilService,
@@ -39,7 +39,7 @@ describe('VisualizationPanelContentComponent', () => {
   }));
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(VisualizationPanelContentComponent);
+    fixture = TestBed.createComponent(VisualizationFrameContentComponent);
     component = fixture.componentInstance;
     component.operatorID = operatorID;
     workflowResultService = TestBed.get(WorkflowResultService);
@@ -48,7 +48,7 @@ describe('VisualizationPanelContentComponent', () => {
   });
 
   it('should create', () => {
-    fixture = TestBed.createComponent(VisualizationPanelContentComponent);
+    fixture = TestBed.createComponent(VisualizationFrameContentComponent);
     expect(component).toBeTruthy();
   });
 

@@ -22,7 +22,7 @@ import { ExecutionState } from '../../types/execute-workflow.interface';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { VisualizationFrameComponent } from './visualization-frame/visualization-frame.component';
-import { VisualizationPanelContentComponent } from '../visualization-panel-content/visualization-panel-content.component';
+import { VisualizationFrameContentComponent } from '../visualization-panel-content/visualization-frame-content.component';
 import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
 import { mockData } from '../../service/execute-workflow/mock-result-data';
 
@@ -52,7 +52,7 @@ describe('ResultPanelComponent', () => {
       declarations: [
         ResultPanelComponent,
         VisualizationFrameComponent,
-        VisualizationPanelContentComponent,
+        VisualizationFrameContentComponent,
       ],
       imports: [
         NgbModule,

@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { NzModalRef, NzModalService } from 'ng-zorro-antd/modal';
-import { VisualizationPanelContentComponent } from '../../visualization-panel-content/visualization-panel-content.component';
+import { VisualizationFrameContentComponent } from '../../visualization-panel-content/visualization-frame-content.component';
 import { WorkflowResultService } from '../../../service/workflow-result/workflow-result.service';
 import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
 
@@ -50,7 +50,7 @@ export class VisualizationFrameComponent {
       nzStyle: {top: '20px'},
       nzWidth: 1100,
       nzFooter: null, // null indicates that the footer of the window would be hidden
-      nzContent: VisualizationPanelContentComponent,
+      nzContent: VisualizationFrameContentComponent,
       nzComponentParams: {
         operatorID: this.resultPanelOperatorID
       }
