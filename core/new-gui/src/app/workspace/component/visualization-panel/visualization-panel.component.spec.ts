@@ -69,7 +69,7 @@ describe('VisualizationPanelComponent', () => {
     component.ngOnChanges();
     fixture.detectChanges();
 
-    console.log(component.displayVisualizationPanel);
+
 
     const element: HTMLElement = fixture.nativeElement;
     const button = element.querySelector('button');

@@ -1,7 +1,8 @@
-import { Component, Input, OnChanges } from '@angular/core';
+import { Component } from '@angular/core';
 import { NzModalRef, NzModalService } from 'ng-zorro-antd/modal';
 import { VisualizationPanelContentComponent } from '../visualization-panel-content/visualization-panel-content.component';
 import { WorkflowResultService } from '../../service/workflow-result/workflow-result.service';
+import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 
 /**
  * VisualizationPanelComponent displays the button for visualization in ResultPanel when the result type is chart.
@@ -16,41 +17,45 @@ import { WorkflowResultService } from '../../service/workflow-result/workflow-re
   templateUrl: './visualization-panel.component.html',
   styleUrls: ['./visualization-panel.component.scss']
 })
-export class VisualizationPanelComponent implements OnChanges {
+export class VisualizationPanelComponent {
 
-  @Input() operatorID: string | undefined;
-  displayVisualizationPanel: boolean = false;
+  resultPanelOperatorID: string | undefined;
   modalRef: NzModalRef | undefined;
 
   constructor(
     private modalService: NzModalService,
-    private workflowResultService: WorkflowResultService
+    private workflowResultService: WorkflowResultService,
+    private workflowActionService: WorkflowActionService
   ) {
+    console.log('vis constructed');
+    this.updateDisplayVisualizationPanel();
     this.workflowResultService.getResultUpdateStream().subscribe(event => {
       this.updateDisplayVisualizationPanel();
     });
   }
 
-  ngOnChanges() {
-    this.updateDisplayVisualizationPanel();
-  }
-
   updateDisplayVisualizationPanel() {
-    if (!this.operatorID) {
-      this.displayVisualizationPanel = false;
+    // update highlighted operator
+    console.log('updating');
+    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    this.resultPanelOperatorID = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
+    console.log('getting', this.resultPanelOperatorID);
+    if (!this.resultPanelOperatorID) {
       return;
     }
-    const opratorResultService = this.workflowResultService.getResultService(this.operatorID);
-    if (! opratorResultService) {
-      this.displayVisualizationPanel = false;
+
+    const operatorResultService = this.workflowResultService.getResultService(this.resultPanelOperatorID);
+    if (!operatorResultService) {
       return;
     }
-    const chartType = opratorResultService.getChartType();
-    this.displayVisualizationPanel = chartType !== undefined && chartType !== null;
+
+    const chartType = operatorResultService.getChartType();
+    console.log('getting chartType', chartType);
+
   }
 
   onClickVisualize(): void {
-    if (!this.operatorID) {
+    if (!this.resultPanelOperatorID) {
       return;
     }
 
@@ -61,7 +66,7 @@ export class VisualizationPanelComponent implements OnChanges {
       nzFooter: null, // null indicates that the footer of the window would be hidden
       nzContent: VisualizationPanelContentComponent,
       nzComponentParams: {
-        operatorID: this.operatorID
+        operatorID: this.resultPanelOperatorID
       }
     });
   }
