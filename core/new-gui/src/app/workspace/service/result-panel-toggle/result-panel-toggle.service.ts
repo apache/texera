@@ -41,7 +41,7 @@ export class ResultPanelToggleService {
    *
    */
   public openResultPanel(): void {
-    if (this.currentResultPanelStatus === true) {
+    if (this.currentResultPanelStatus) {
       return;
     }
     this.currentResultPanelStatus = true;

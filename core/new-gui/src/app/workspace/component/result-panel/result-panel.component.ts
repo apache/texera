@@ -91,6 +91,12 @@ export class ResultPanelComponent {
     if (event.current.state === ExecutionState.BreakpointTriggered) {
       return true;
     }
+
+    // transitioning from any state to completed state
+    if (event.current.state === ExecutionState.Completed) {
+      return true;
+    }
+
     // transition from uninitialized / completed to anything else indicates a new execution of the workflow
     if (event.previous.state === ExecutionState.Uninitialized || event.previous.state === ExecutionState.Completed) {
       return true;
@@ -106,7 +112,6 @@ export class ResultPanelComponent {
     if (!this.showResultPanel) {
       return;
     }
-
 
     // clear everything, prepare for state change
     this.clearResultPanel();
