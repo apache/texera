@@ -50,6 +50,16 @@ export class ResultPanelComponent {
 
   registerAutoOpenResultPanel() {
     this.executeWorkflowService.getExecutionStateStream().subscribe(event => {
+      if (event.current.state === ExecutionState.Running) {
+        const pythonPrintOperator = this.executeWorkflowService.getPythonPrintTriggerInfo()?.operatorID;
+        if (pythonPrintOperator) {
+          const currentlyHighlighted = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+          this.workflowActionService.getJointGraphWrapper().unhighlightOperators(...currentlyHighlighted);
+          this.workflowActionService.getJointGraphWrapper().highlightOperators(pythonPrintOperator);
+        }
+        this.resultPanelToggleService.openResultPanel();
+      }
+
       if (event.current.state === ExecutionState.BreakpointTriggered) {
         const breakpointOperator = this.executeWorkflowService.getBreakpointTriggerInfo()?.operatorID;
         if (breakpointOperator) {
@@ -112,6 +122,8 @@ export class ResultPanelComponent {
         this.switchFrameComponent(ConsoleFrameComponent);
       } else {
         if (this.resultPanelOperatorID) {
+          if (this.workflowActionService.getTexeraGraph().getOperator(this.resultPanelOperatorID).operatorType.toLowerCase()
+          .includes('sink')) {
           const resultService = this.workflowResultService.getResultService(this.resultPanelOperatorID);
           const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.resultPanelOperatorID);
           if (paginatedResultService) {
@@ -119,6 +131,10 @@ export class ResultPanelComponent {
           } else if (resultService && resultService.getChartType()) {
             this.switchFrameComponent(VisualizationFrameComponent);
           }
+        } else {
+          this.switchFrameComponent(ConsoleFrameComponent);
+        }
+
         }
       }
     });

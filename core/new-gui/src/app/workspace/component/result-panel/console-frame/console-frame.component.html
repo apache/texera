@@ -1,4 +1,7 @@
-<div class="texera-panel-message" *ngIf="errorMessages !== undefined">
+<div class="texera-panel-message">
+  <div *ngFor="let message of consoleMessages">
+    {{message}}
+  </div>
   <div *ngFor="let item of errorMessages | keyvalue">
     {{item.key}}:{{item.value}}
   </div>

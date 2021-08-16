@@ -30,6 +30,7 @@ object ControlCommandV2 {
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryCurrentInputTuple => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.LocalOperatorException => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.SendPythonUdf => __v.value
+      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PythonPrint => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerExecutionCompleted => __v.value
       case edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.Empty => Empty
     }
@@ -43,6 +44,7 @@ object ControlCommandV2 {
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryCurrentInputTupleV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryCurrentInputTuple(__v)
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.LocalOperatorExceptionV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.LocalOperatorException(__v)
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.SendPythonUdfV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.SendPythonUdf(__v)
+      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PythonPrint(__v)
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerExecutionCompleted(__v)
       case Empty => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.Empty
     })
@@ -90,6 +92,10 @@ final case class ControlCommandV2Message(
       };
       if (sealedValue.sendPythonUdf.isDefined) {
         val __value = sealedValue.sendPythonUdf.get
+        __size += 2 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+      };
+      if (sealedValue.pythonPrint.isDefined) {
+        val __value = sealedValue.pythonPrint.get
         __size += 2 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       };
       if (sealedValue.workerExecutionCompleted.isDefined) {
@@ -161,6 +167,12 @@ final case class ControlCommandV2Message(
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
+      sealedValue.pythonPrint.foreach { __v =>
+        val __m = __v
+        _output__.writeTag(22, 2)
+        _output__.writeUInt32NoTag(__m.serializedSize)
+        __m.writeTo(_output__)
+      };
       sealedValue.workerExecutionCompleted.foreach { __v =>
         val __m = __v
         _output__.writeTag(101, 2)
@@ -186,6 +198,8 @@ final case class ControlCommandV2Message(
     def withLocalOperatorException(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.LocalOperatorExceptionV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.LocalOperatorException(__v))
     def getSendPythonUdf: edu.uci.ics.amber.engine.architecture.worker.controlcommands.SendPythonUdfV2 = sealedValue.sendPythonUdf.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.SendPythonUdfV2.defaultInstance)
     def withSendPythonUdf(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.SendPythonUdfV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.SendPythonUdf(__v))
+    def getPythonPrint: edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2 = sealedValue.pythonPrint.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2.defaultInstance)
+    def withPythonPrint(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PythonPrint(__v))
     def getWorkerExecutionCompleted: edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2 = sealedValue.workerExecutionCompleted.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2.defaultInstance)
     def withWorkerExecutionCompleted(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerExecutionCompleted(__v))
     def clearSealedValue: ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.Empty)
@@ -201,6 +215,7 @@ final case class ControlCommandV2Message(
         case 7 => sealedValue.queryCurrentInputTuple.orNull
         case 8 => sealedValue.localOperatorException.orNull
         case 21 => sealedValue.sendPythonUdf.orNull
+        case 22 => sealedValue.pythonPrint.orNull
         case 101 => sealedValue.workerExecutionCompleted.orNull
       }
     }
@@ -216,6 +231,7 @@ final case class ControlCommandV2Message(
         case 7 => sealedValue.queryCurrentInputTuple.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 8 => sealedValue.localOperatorException.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 21 => sealedValue.sendPythonUdf.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 22 => sealedValue.pythonPrint.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 101 => sealedValue.workerExecutionCompleted.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
       }
     }
@@ -252,6 +268,8 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
           __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.LocalOperatorException(__sealedValue.localOperatorException.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.LocalOperatorExceptionV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 170 =>
           __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.SendPythonUdf(__sealedValue.sendPythonUdf.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.SendPythonUdfV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+        case 178 =>
+          __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PythonPrint(__sealedValue.pythonPrint.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 810 =>
           __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerExecutionCompleted(__sealedValue.workerExecutionCompleted.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case tag => _input__.skipField(tag)
@@ -274,13 +292,14 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(7).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryCurrentInputTupleV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryCurrentInputTuple(_)))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(8).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.LocalOperatorExceptionV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.LocalOperatorException(_)))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(21).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.SendPythonUdfV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.SendPythonUdf(_)))
+            .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(22).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PythonPrint(_)))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(101).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerExecutionCompleted(_)))
             .getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.Empty)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(10)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(10)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(11)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(11)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
@@ -293,6 +312,7 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
       case 7 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryCurrentInputTupleV2
       case 8 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.LocalOperatorExceptionV2
       case 21 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.SendPythonUdfV2
+      case 22 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2
       case 101 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2
     }
     __out
@@ -314,6 +334,7 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
     def isQueryCurrentInputTuple: _root_.scala.Boolean = false
     def isLocalOperatorException: _root_.scala.Boolean = false
     def isSendPythonUdf: _root_.scala.Boolean = false
+    def isPythonPrint: _root_.scala.Boolean = false
     def isWorkerExecutionCompleted: _root_.scala.Boolean = false
     def startWorker: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.StartWorkerV2] = _root_.scala.None
     def pauseWorker: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.PauseWorkerV2] = _root_.scala.None
@@ -324,6 +345,7 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
     def queryCurrentInputTuple: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryCurrentInputTupleV2] = _root_.scala.None
     def localOperatorException: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.LocalOperatorExceptionV2] = _root_.scala.None
     def sendPythonUdf: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.SendPythonUdfV2] = _root_.scala.None
+    def pythonPrint: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2] = _root_.scala.None
     def workerExecutionCompleted: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2] = _root_.scala.None
   }
   object SealedValue {
@@ -400,6 +422,13 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
       override def number: _root_.scala.Int = 21
     }
     @SerialVersionUID(0L)
+    final case class PythonPrint(value: edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2) extends edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue {
+      type ValueType = edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2
+      override def isPythonPrint: _root_.scala.Boolean = true
+      override def pythonPrint: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2] = Some(value)
+      override def number: _root_.scala.Int = 22
+    }
+    @SerialVersionUID(0L)
     final case class WorkerExecutionCompleted(value: edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2) extends edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue {
       type ValueType = edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2
       override def isWorkerExecutionCompleted: _root_.scala.Boolean = true
@@ -417,6 +446,7 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
     def queryCurrentInputTuple: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryCurrentInputTupleV2] = field(_.getQueryCurrentInputTuple)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryCurrentInputTuple(f_)))
     def localOperatorException: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.LocalOperatorExceptionV2] = field(_.getLocalOperatorException)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.LocalOperatorException(f_)))
     def sendPythonUdf: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.SendPythonUdfV2] = field(_.getSendPythonUdf)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.SendPythonUdf(f_)))
+    def pythonPrint: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2] = field(_.getPythonPrint)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PythonPrint(f_)))
     def workerExecutionCompleted: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2] = field(_.getWorkerExecutionCompleted)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerExecutionCompleted(f_)))
     def sealedValue: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue] = field(_.sealedValue)((c_, f_) => c_.copy(sealedValue = f_))
   }
@@ -429,6 +459,7 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
   final val QUERY_CURRENT_INPUT_TUPLE_FIELD_NUMBER = 7
   final val LOCAL_OPERATOR_EXCEPTION_FIELD_NUMBER = 8
   final val SEND_PYTHON_UDF_FIELD_NUMBER = 21
+  final val PYTHON_PRINT_FIELD_NUMBER = 22
   final val WORKER_EXECUTION_COMPLETED_FIELD_NUMBER = 101
   def of(
     sealedValue: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue
@@ -1191,6 +1222,105 @@ object SendPythonUdfV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amb
     isSource
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.SendPythonUdfV2])
+}
+
+@SerialVersionUID(0L)
+final case class PythonPrintV2(
+    message: _root_.scala.Predef.String
+    ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[PythonPrintV2] {
+    @transient
+    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
+    private[this] def __computeSerializedValue(): _root_.scala.Int = {
+      var __size = 0
+      
+      {
+        val __value = message
+        if (!__value.isEmpty) {
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(1, __value)
+        }
+      };
+      __size
+    }
+    override def serializedSize: _root_.scala.Int = {
+      var read = __serializedSizeCachedValue
+      if (read == 0) {
+        read = __computeSerializedValue()
+        __serializedSizeCachedValue = read
+      }
+      read
+    }
+    def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
+      {
+        val __v = message
+        if (!__v.isEmpty) {
+          _output__.writeString(1, __v)
+        }
+      };
+    }
+    def withMessage(__v: _root_.scala.Predef.String): PythonPrintV2 = copy(message = __v)
+    def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
+      (__fieldNumber: @_root_.scala.unchecked) match {
+        case 1 => {
+          val __t = message
+          if (__t != "") __t else null
+        }
+      }
+    }
+    def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
+      _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
+      (__field.number: @_root_.scala.unchecked) match {
+        case 1 => _root_.scalapb.descriptors.PString(message)
+      }
+    }
+    def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2
+    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.PythonPrintV2])
+}
+
+object PythonPrintV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2 = {
+    var __message: _root_.scala.Predef.String = ""
+    var _done__ = false
+    while (!_done__) {
+      val _tag__ = _input__.readTag()
+      _tag__ match {
+        case 0 => _done__ = true
+        case 10 =>
+          __message = _input__.readStringRequireUtf8()
+        case tag => _input__.skipField(tag)
+      }
+    }
+    edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2(
+        message = __message
+    )
+  }
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2] = _root_.scalapb.descriptors.Reads{
+    case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
+      _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
+      edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2(
+        message = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Predef.String]).getOrElse("")
+      )
+    case _ => throw new RuntimeException("Expected PMessage")
+  }
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(10)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(10)
+  def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
+  lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
+  def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
+  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2(
+    message = ""
+  )
+  implicit class PythonPrintV2Lens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2](_l) {
+    def message: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.message)((c_, f_) => c_.copy(message = f_))
+  }
+  final val MESSAGE_FIELD_NUMBER = 1
+  def of(
+    message: _root_.scala.Predef.String
+  ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2 = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2(
+    message
+  )
+  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.PythonPrintV2])
 }
 
 @SerialVersionUID(0L)

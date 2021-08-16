@@ -5,7 +5,7 @@
  */
 
 import { ChartType } from './visualization.interface';
-import { BreakpointRequest, BreakpointTriggerInfo } from './workflow-common.interface';
+import { BreakpointRequest, BreakpointTriggerInfo, PythonPrintTriggerInfo } from './workflow-common.interface';
 import { OperatorCurrentTuples } from './workflow-websocket.interface';
 
 export interface LogicalLink extends Readonly<{
@@ -35,7 +35,7 @@ export interface LogicalPlan extends Readonly<{
   operators: LogicalOperator[],
   links: LogicalLink[],
   breakpoints: BreakpointInfo[]
-}> { }
+}> {}
 
 /**
  * The backend interface of the return object of a successful execution
@@ -44,7 +44,7 @@ export interface WebOperatorResult extends Readonly<{
   operatorID: string,
   table: ReadonlyArray<object>,
   chartType: ChartType | undefined,
-}> { }
+}> {}
 
 export enum OperatorState {
   Uninitialized = 'Uninitialized',
@@ -67,11 +67,11 @@ export interface OperatorStatistics extends Readonly<{
 
 export interface WorkflowStatusUpdate extends Readonly<{
   operatorStatistics: Record<string, OperatorStatistics>
-}> { }
+}> {}
 
-export type PaginationMode = {'type': 'PaginationMode'};
-export type SetSnapshotMode = {'type': 'SetSnapshotMode'};
-export type SetDeltaMode = {'type': 'SetDeltaMode'};
+export type PaginationMode = { 'type': 'PaginationMode' };
+export type SetSnapshotMode = { 'type': 'SetSnapshotMode' };
+export type SetDeltaMode = { 'type': 'SetDeltaMode' };
 export type WebOutputMode = PaginationMode | SetSnapshotMode | SetDeltaMode;
 
 export interface WebPaginationUpdate extends Readonly<{
@@ -119,8 +119,8 @@ export enum ExecutionState {
 }
 
 export type ExecutionStateInfo = Readonly<{
-  state: ExecutionState.Uninitialized | ExecutionState.WaitingToRun | ExecutionState.Running
-  | ExecutionState.Pausing | ExecutionState.Resuming | ExecutionState.Recovering
+  state: ExecutionState.Uninitialized | ExecutionState.WaitingToRun
+    | ExecutionState.Pausing | ExecutionState.Resuming | ExecutionState.Recovering
 } | {
   state: ExecutionState.Paused, currentTuples: Readonly<Record<string, OperatorCurrentTuples>>
 } | {
@@ -129,4 +129,6 @@ export type ExecutionStateInfo = Readonly<{
   state: ExecutionState.Completed
 } | {
   state: ExecutionState.Failed, errorMessages: Readonly<Record<string, string>>
+} | {
+  state: ExecutionState.Running, consoleMessages: PythonPrintTriggerInfo | undefined
 }>;

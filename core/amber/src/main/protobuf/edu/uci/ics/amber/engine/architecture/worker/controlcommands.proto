@@ -46,6 +46,10 @@ message SendPythonUdfV2 {
     bool is_source = 2;
 }
 
+message PythonPrintV2 {
+    string message = 1;
+}
+
 message ControlCommandV2 {
     oneof sealed_value {
         StartWorkerV2 start_worker = 1;
@@ -61,6 +65,7 @@ message ControlCommandV2 {
         LocalOperatorExceptionV2 local_operator_exception = 8;
 
         SendPythonUdfV2 send_python_udf = 21;
+        PythonPrintV2 python_print = 22;
 
         WorkerExecutionCompletedV2 worker_execution_completed = 101;
     }
