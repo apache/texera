@@ -2,9 +2,12 @@
   <div *ngFor="let message of consoleMessages">
     {{message}}
   </div>
-  <div *ngFor="let item of errorMessages | keyvalue">
-    {{item.key}}:{{item.value}}
+  <div *ngIf="errorMessages">
+    <div *ngFor="let item of errorMessages | keyvalue">
+      {{item.key}}:{{item.value}}
+    </div>
   </div>
+
 </div>
 <button class="btn btn-secondary" *ngIf="breakpointTriggerInfo !== undefined" (click)="onClickSkipTuples()"
         [disabled]="!breakpointAction">
