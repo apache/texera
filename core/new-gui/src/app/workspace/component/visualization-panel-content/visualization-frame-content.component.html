@@ -11,10 +11,10 @@
   </nz-space>
 </div>
 
-<!-- this id should be identical to VisualizationPanelContentComponent.CHART_ID -->
+<!-- this id should be identical to VisualizationFrameContentComponent.CHART_ID -->
 <div id="texera-result-chart-content">
 </div>
-<!-- this id should be identical to VisualizationPanelContentComponent.MAP_CONTAINER -->
+<!-- this id should be identical to VisualizationFrameContentComponent.MAP_CONTAINER -->
 <div [hidden]="displayMap" id="texera-result-map-container">
 </div>
 <iframe *ngIf="displayHTML" id="texera-result-html-content-container" [srcdoc]="htmlData"></iframe>

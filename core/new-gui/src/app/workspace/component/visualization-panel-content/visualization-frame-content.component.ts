@@ -22,7 +22,7 @@ type WordCloudControlsType = {
 
 // TODO: The current design doesn't decouple the visualization types into different modules
 /**
- * VisualizationPanelContentComponent displays the chart based on the chart type and data in table.
+ * VisualizationFrameContentComponent displays the chart based on the chart type and data in table.
  *
  * It will convert the table into data format required by c3.js.
  * Then it passes the data and figure type to c3.js for rendering the figure.

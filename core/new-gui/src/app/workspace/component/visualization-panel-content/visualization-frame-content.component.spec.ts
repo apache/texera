@@ -14,7 +14,7 @@ import { ChartType } from '../../types/visualization.interface';
 import { VisualizationFrameContentComponent } from './visualization-frame-content.component';
 import { OperatorResultService, WorkflowResultService } from '../../service/workflow-result/workflow-result.service';
 
-describe('VisualizationPanelContentComponent', () => {
+describe('VisualizationFrameContentComponent', () => {
   let component: VisualizationFrameContentComponent;
   let fixture: ComponentFixture<VisualizationFrameContentComponent>;
   let workflowResultService: WorkflowResultService;
