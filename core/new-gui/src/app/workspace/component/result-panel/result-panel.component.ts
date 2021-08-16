@@ -52,6 +52,8 @@ export class ResultPanelComponent {
       if (event.current.state === ExecutionState.BreakpointTriggered) {
         const breakpointOperator = this.executeWorkflowService.getBreakpointTriggerInfo()?.operatorID;
         if (breakpointOperator) {
+          const currentlyHighlighted = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+          this.workflowActionService.getJointGraphWrapper().unhighlightOperators(...currentlyHighlighted);
           this.workflowActionService.getJointGraphWrapper().highlightOperators(breakpointOperator);
         }
         this.resultPanelToggleService.openResultPanel();
@@ -78,8 +80,7 @@ export class ResultPanelComponent {
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
       this.resultPanelToggleService.getToggleChangeStream(),
-      // TODO: replace with an initial event for existence of result
-      this.workflowResultService.getResultUpdateStream()
+      this.workflowResultService.getResultInitiateStream()
     ).subscribe(_ => {
       this.rerenderResultPanel();
     });
