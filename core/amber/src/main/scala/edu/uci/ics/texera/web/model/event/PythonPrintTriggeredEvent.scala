@@ -9,6 +9,6 @@ object PythonPrintTriggeredEvent {
 }
 
 case class PythonPrintTriggeredEvent(
-                                        message: String,
-                                        operatorID: String
-                                    ) extends TexeraWebSocketEvent
+    message: String,
+    operatorID: String
+) extends TexeraWebSocketEvent

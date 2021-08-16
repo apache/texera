@@ -13,7 +13,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import scala.concurrent.duration.{DurationInt, FiniteDuration, MILLISECONDS}
 
 class ControllerAsyncRPCHandlerInitializer(
-                                              val logger: WorkflowLogger,
+    val logger: WorkflowLogger,
     val actorContext: ActorContext,
     val selfID: ActorVirtualIdentity,
     val controlOutputPort: ControlOutputPort,
