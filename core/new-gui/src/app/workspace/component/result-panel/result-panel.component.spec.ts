@@ -89,21 +89,7 @@ describe('ResultPanelComponent', () => {
     fixture.detectChanges();
   });
 
-  // it('should create', () => {
-  //   const messageDiv = fixture.debugElement.query(By.css('.texera-panel-message'));
-  //   const tableDiv = fixture.debugElement.query(By.css('.result-table'));
-  //   const tableHtmlElement: HTMLElement = tableDiv.nativeElement;
-  //
-  //   // Tests to check if, initially, messageDiv does not exist while result-table
-  //   //  exists but no visible.
-  //   expect(messageDiv).toBeFalsy();
-  //   expect(tableDiv).toBeTruthy();
-  //
-  //   // We only test its attribute because the style isn't directly accessbile
-  //   //  by the element, rather it was used through this attribute 'hidden'
-  //   expect(tableHtmlElement.hasAttribute('hidden')).toBeTruthy();
-  //   expect(component).toBeTruthy();
-  // });
+  it('should create', () => expect(component).toBeTruthy());
 
 
   // it('should change the content of result panel correctly when selected operator is a sink operator with result', marbles((m) => {
