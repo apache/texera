@@ -12,7 +12,7 @@ import { WorkflowStatusService } from '../../service/workflow-status/workflow-st
 import { WebDataUpdate } from '../../types/execute-workflow.interface';
 import { ChartType } from '../../types/visualization.interface';
 import { VisualizationFrameContentComponent } from './visualization-frame-content.component';
-import { WorkflowResultService, OperatorResultService } from '../../service/workflow-result/workflow-result.service';
+import { OperatorResultService, WorkflowResultService } from '../../service/workflow-result/workflow-result.service';
 
 describe('VisualizationPanelContentComponent', () => {
   let component: VisualizationFrameContentComponent;
@@ -82,7 +82,7 @@ describe('VisualizationPanelContentComponent', () => {
     expect(component.generateWordCloud).toHaveBeenCalled();
   });
 
-  it('should draw the spatial scatteplot map', () => {
+  it('should draw the spatial scatter plot map', () => {
     const testData: WebDataUpdate = {
       mode: { type: 'SetSnapshotMode' },
       table: [{ 'xColumn': -90.285434, 'yColumn': 29.969126 }, { 'xColumn': -76.711521, 'yColumn': 39.197211 }],
@@ -90,14 +90,14 @@ describe('VisualizationPanelContentComponent', () => {
     };
     operatorResultService.handleResultUpdate(testData);
 
-    spyOn(component, 'generateSpatialScatterplot');
+    spyOn(component, 'generateSpatialScatterPlot');
 
     component.ngAfterContentInit();
 
     expect(component.generateSpatialScatterPlot).toHaveBeenCalled();
   });
 
-  it('should draw the simple scatteplot chart', () => {
+  it('should draw the simple scatter plot chart', () => {
     const testData: WebDataUpdate = {
       mode: { type: 'SetSnapshotMode' },
       table: [{ 'employees': 1000, 'sales': 30000 }, { 'employees': 500, 'sales': 21000 }],
@@ -105,7 +105,7 @@ describe('VisualizationPanelContentComponent', () => {
     };
     operatorResultService.handleResultUpdate(testData);
 
-    spyOn(component, 'generateSimpleScatterplot');
+    spyOn(component, 'generateSimpleScatterPlot');
 
     component.ngAfterContentInit();
 

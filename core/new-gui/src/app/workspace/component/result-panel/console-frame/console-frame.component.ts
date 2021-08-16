@@ -1,6 +1,5 @@
 import { Component, OnInit } from '@angular/core';
 import { ExecuteWorkflowService } from '../../../service/execute-workflow/execute-workflow.service';
-import { NzModalService } from 'ng-zorro-antd/modal';
 import { ResultPanelToggleService } from '../../../service/result-panel-toggle/result-panel-toggle.service';
 import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
 import { BreakpointTriggerInfo } from '../../../types/workflow-common.interface';
@@ -22,7 +21,6 @@ export class ConsoleFrameComponent implements OnInit {
 
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
-    private modalService: NzModalService,
     private resultPanelToggleService: ResultPanelToggleService,
     private workflowActionService: WorkflowActionService
   ) { }

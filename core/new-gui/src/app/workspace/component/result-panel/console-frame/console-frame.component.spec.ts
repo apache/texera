@@ -1,6 +1,9 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { ConsoleFrameComponent } from './console-frame.component';
+import { OperatorMetadataService } from '../../../service/operator-metadata/operator-metadata.service';
+import { StubOperatorMetadataService } from '../../../service/operator-metadata/stub-operator-metadata.service';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
 
 describe('ConsoleFrameComponent', () => {
   let component: ConsoleFrameComponent;
@@ -8,9 +11,11 @@ describe('ConsoleFrameComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ ConsoleFrameComponent ]
+      imports: [HttpClientTestingModule],
+      declarations: [ConsoleFrameComponent],
+      providers: [{ provide: OperatorMetadataService, useClass: StubOperatorMetadataService }]
     })
-    .compileComponents();
+      .compileComponents();
   }));
 
   beforeEach(() => {

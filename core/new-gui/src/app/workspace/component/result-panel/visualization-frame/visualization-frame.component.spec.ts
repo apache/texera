@@ -1,7 +1,7 @@
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { NzButtonModule } from 'ng-zorro-antd/button';
-import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
+import { NzModalModule } from 'ng-zorro-antd/modal';
 import { ExecuteWorkflowService } from '../../../service/execute-workflow/execute-workflow.service';
 import { JointUIService } from '../../../service/joint-ui/joint-ui.service';
 import { OperatorMetadataService } from '../../../service/operator-metadata/operator-metadata.service';
@@ -14,7 +14,8 @@ import { OperatorResultService, WorkflowResultService } from '../../../service/w
 import { WebDataUpdate } from '../../../types/execute-workflow.interface';
 import { ChartType } from '../../../types/visualization.interface';
 
-describe('VisualizationPanelComponent', () => {
+
+describe('VisualizationFameComponent', () => {
   let component: VisualizationFrameComponent;
   let fixture: ComponentFixture<VisualizationFrameComponent>;
   let workflowResultService: WorkflowResultService;
@@ -66,17 +67,5 @@ describe('VisualizationPanelComponent', () => {
     const element: HTMLElement = fixture.nativeElement;
     const button = element.querySelector('button');
     expect(button).toBeTruthy();
-  });
-
-  it('should open dialog', () => {
-    const element: HTMLElement = fixture.nativeElement;
-    const button = element.querySelector('button');
-
-    const modalService = TestBed.get(NzModalService);
-    const createSpy = spyOn(modalService, 'create');
-
-    // click button
-    button?.click();
-    expect(createSpy).toHaveBeenCalled();
   });
 });

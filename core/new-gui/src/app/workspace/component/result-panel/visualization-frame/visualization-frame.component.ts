@@ -13,7 +13,7 @@ import { WorkflowActionService } from '../../../service/workflow-graph/model/wor
  * @author Mingji Han
  */
 @Component({
-  selector: 'texera-visualization-panel',
+  selector: 'texera-visualization-frame',
   templateUrl: './visualization-frame.component.html',
   styleUrls: ['./visualization-frame.component.scss']
 })
