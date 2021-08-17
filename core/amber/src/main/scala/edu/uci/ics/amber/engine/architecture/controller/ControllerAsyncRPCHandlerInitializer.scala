@@ -1,13 +1,23 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import akka.actor.{ActorContext, Cancellable}
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{WorkflowResultUpdate, WorkflowStatusUpdate}
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.{ControllerInitiateQueryResults, ControllerInitiateQueryStatistics}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
+  WorkflowResultUpdate,
+  WorkflowStatusUpdate
+}
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.{
+  ControllerInitiateQueryResults,
+  ControllerInitiateQueryStatistics
+}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers._
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlOutputPort
 import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCHandlerInitializer, AsyncRPCServer}
+import edu.uci.ics.amber.engine.common.rpc.{
+  AsyncRPCClient,
+  AsyncRPCHandlerInitializer,
+  AsyncRPCServer
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration, MILLISECONDS}
