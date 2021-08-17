@@ -23,7 +23,7 @@ export const CODE_SAVE_ON_EDITION_DEBOUNCE_TIME_MS = 100;
 })
 export class CodeEditorDialogComponent implements OnInit, OnDestroy {
 
-  editorOptions = { theme: 'vs-dark', language: 'python', fontSize: '11' };
+  editorOptions = { theme: 'vs-dark', language: 'python', fontSize: '11', automaticLayout: true};
   code: string;
   subscriptions: Subscription = new Subscription();
 
