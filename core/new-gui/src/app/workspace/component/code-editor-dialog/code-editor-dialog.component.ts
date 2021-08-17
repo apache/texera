@@ -1,4 +1,4 @@
-import { Component, OnInit, Inject } from '@angular/core';
+import { Component, Inject, OnInit } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 
 /**
@@ -17,41 +17,30 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 })
 export class CodeEditorDialogComponent implements OnInit {
 
-  aclOptions = {
-    enableBasicAutocompletion: true,
-    enableSnippets: true,
-    enableLiveAutocompletion: true,
-    maxLines: 40,
-    minLines: 20,
-    autoScrollEditorIntoView: false,
-    highlightActiveLine: true,
-    highlightSelectedWord: true,
-    highlightGutterLine: true,
-    animatedScroll: true
-  };
-
+  editorOptions = { theme: 'vs-dark', language: 'python' };
   text: string;
 
   constructor(
     private dialogRef: MatDialogRef<CodeEditorDialogComponent>,
-    @Inject(MAT_DIALOG_DATA) data: any) {
-      this.text = data;
-    }
+    @Inject(MAT_DIALOG_DATA) data: any
+  ) {
+    this.text = data;
+  }
 
   ngOnInit() {
     this.dialogRef.keydownEvents().subscribe(event => {
       if (event.key === 'Escape') {
-          this.onCancel();
+        this.onCancel();
       }
-  });
+    });
 
-  this.dialogRef.backdropClick().subscribe(event => {
+    this.dialogRef.backdropClick().subscribe(event => {
       this.onCancel();
-  });
+    });
   }
 
   onCancel(): void {
     this.dialogRef.close(this.text);
-}
+  }
 
 }
