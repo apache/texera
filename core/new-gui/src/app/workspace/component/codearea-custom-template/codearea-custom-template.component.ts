@@ -1,4 +1,4 @@
-import { Component, ChangeDetectorRef } from '@angular/core';
+import { Component } from '@angular/core';
 import { FieldType } from '@ngx-formly/core';
 import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { CodeEditorDialogComponent } from '../code-editor-dialog/code-editor-dialog.component';
@@ -21,6 +21,7 @@ import { CodeEditorDialogComponent } from '../code-editor-dialog/code-editor-dia
   styleUrls: ['./codearea-custom-template.component.scss']
 })
 export class CodeareaCustomTemplateComponent extends FieldType {
+  isVisible: boolean = false;
 
   constructor(public dialog: MatDialog) {
     super();
@@ -28,7 +29,6 @@ export class CodeareaCustomTemplateComponent extends FieldType {
 
   onClickEditor(): void {
     const dialogConfig = new MatDialogConfig();
-    dialogConfig.minWidth = '1000px';
     dialogConfig.data = this?.formControl?.value || '';
 
     const dialogRef = this.dialog.open(CodeEditorDialogComponent, dialogConfig);
@@ -36,7 +36,7 @@ export class CodeareaCustomTemplateComponent extends FieldType {
     dialogRef.afterClosed().subscribe(
       data => {
         this.formControl.setValue(data);
-       }
+      }
     );
   }
 

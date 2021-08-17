@@ -4,10 +4,10 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 /**
  * CodeEditorDialogComponent is the content of the dialogue invoked by CodeareaCustomTemplateComponent.
  *
- * It contains an Ace editor which is inside a resizable mat-dialog-content. When the dialogue is invoked by
+ * It contains a Monaco editor which is inside a mat-dialog-content. When the dialogue is invoked by
  * the button in CodeareaCustomTemplateComponent, the data of the custom field (or empty String if no data)
- * will be sent to the Ace editor as its text. The dialogue can be closed with ESC key or by clicking on areas outside
- * the dialogue. Closing the dialogue will send the eidted contend back to the custom template field.
+ * will be sent to the Monaco editor as its text. The dialogue can be closed with ESC key or by clicking on areas outside
+ * the dialogue. Closing the dialogue will send the edited contend back to the custom template field.
  * @author Xiaozhen Liu
  */
 @Component({
