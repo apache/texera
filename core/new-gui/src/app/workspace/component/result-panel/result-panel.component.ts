@@ -50,11 +50,10 @@ export class ResultPanelComponent {
 
   registerAutoOpenResultPanel() {
     this.executeWorkflowService.getExecutionStateStream().subscribe(event => {
+      const currentlyHighlighted = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
       if (event.current.state === ExecutionState.Running) {
         const pythonPrintOperator = this.executeWorkflowService.getPythonPrintTriggerInfo()?.operatorID;
-        if (pythonPrintOperator) {
-          const currentlyHighlighted = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-          this.workflowActionService.getJointGraphWrapper().unhighlightOperators(...currentlyHighlighted);
+        if (!currentlyHighlighted && pythonPrintOperator) {
           this.workflowActionService.getJointGraphWrapper().highlightOperators(pythonPrintOperator);
         }
         this.resultPanelToggleService.openResultPanel();
@@ -63,7 +62,6 @@ export class ResultPanelComponent {
       if (event.current.state === ExecutionState.BreakpointTriggered) {
         const breakpointOperator = this.executeWorkflowService.getBreakpointTriggerInfo()?.operatorID;
         if (breakpointOperator) {
-          const currentlyHighlighted = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
           this.workflowActionService.getJointGraphWrapper().unhighlightOperators(...currentlyHighlighted);
           this.workflowActionService.getJointGraphWrapper().highlightOperators(breakpointOperator);
         }
@@ -76,7 +74,6 @@ export class ResultPanelComponent {
         const sinkOperators = this.workflowActionService.getTexeraGraph().getAllOperators()
           .filter(op => op.operatorType.toLowerCase().includes('sink'));
         if (sinkOperators.length > 0 && !this.resultPanelOperatorID) {
-          const currentlyHighlighted = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
           this.workflowActionService.getJointGraphWrapper().unhighlightOperators(...currentlyHighlighted);
           this.workflowActionService.getJointGraphWrapper().highlightOperators(sinkOperators[0].operatorID);
         }
