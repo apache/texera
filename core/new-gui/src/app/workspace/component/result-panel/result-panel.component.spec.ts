@@ -221,7 +221,7 @@ describe('ResultPanelComponent', () => {
 
 
   it('should show nothing by default', () => {
-    expect(component.component).toBeUndefined();
+    expect(component.frameComponent).toBeUndefined();
   });
 
   it('should show the result panel if a workflow finishes execution', () => {

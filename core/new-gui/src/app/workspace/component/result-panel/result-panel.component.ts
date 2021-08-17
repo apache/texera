@@ -8,6 +8,7 @@ import { ResultTableFrameComponent } from './result-table-frame/result-table-fra
 import { ConsoleFrameComponent } from './console-frame/console-frame.component';
 import { WorkflowResultService } from '../../service/workflow-result/workflow-result.service';
 import { VisualizationFrameComponent } from './visualization-frame/visualization-frame.component';
+import { timer } from 'rxjs';
 
 /**
  * ResultPanelComponent is the bottom level area that displays the
@@ -30,7 +31,7 @@ import { VisualizationFrameComponent } from './visualization-frame/visualization
 })
 export class ResultPanelComponent {
 
-  component: any | undefined = undefined;
+  frameComponent: any | undefined = undefined;
 
   // the highlighted operator ID for display result table / visualization / breakpoint
   resultPanelOperatorID: string | undefined;
@@ -89,38 +90,42 @@ export class ResultPanelComponent {
   rerenderResultPanel(): void {
     // update highlighted operator
     const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    this.resultPanelOperatorID = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
+    const currentHighlightedOperator = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
+    if (this.resultPanelOperatorID !== currentHighlightedOperator) {
+      // clear everything, prepare for state change
 
-    // current result panel is closed, do nothing
+      this.clearResultPanel();
+      this.resultPanelOperatorID = currentHighlightedOperator;
+    }
+    // current result panel is closed or there is no operator highlighted, do nothing
     this.showResultPanel = this.resultPanelToggleService.isResultPanelOpen();
-    if (!this.showResultPanel) {
+    if (!this.showResultPanel || !this.resultPanelOperatorID) {
       return;
     }
 
-    // clear everything, prepare for state change
-    this.clearResultPanel();
-
-    const executionState = this.executeWorkflowService.getExecutionState();
-
-    if (executionState.state === ExecutionState.Failed) {
-      this.component = ConsoleFrameComponent;
-    } else if (executionState.state === ExecutionState.BreakpointTriggered) {
-      this.component = ConsoleFrameComponent;
-    } else {
-      if (this.resultPanelOperatorID) {
-        const resultService = this.workflowResultService.getResultService(this.resultPanelOperatorID);
-        const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.resultPanelOperatorID);
-        if (paginatedResultService) {
-          this.component = ResultTableFrameComponent;
-        } else if (resultService && resultService.getChartType()) {
-          this.component = VisualizationFrameComponent;
+    // break this into another detect cycle, so that the dynamic component can be reloaded
+    timer(0).subscribe(() => {
+      const executionState = this.executeWorkflowService.getExecutionState();
+      if (executionState.state === ExecutionState.Failed) {
+        this.frameComponent = ConsoleFrameComponent;
+      } else if (executionState.state === ExecutionState.BreakpointTriggered) {
+        this.frameComponent = ConsoleFrameComponent;
+      } else {
+        if (this.resultPanelOperatorID) {
+          const resultService = this.workflowResultService.getResultService(this.resultPanelOperatorID);
+          const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.resultPanelOperatorID);
+          if (paginatedResultService) {
+            this.frameComponent = ResultTableFrameComponent;
+          } else if (resultService && resultService.getChartType()) {
+            this.frameComponent = VisualizationFrameComponent;
+          }
         }
       }
-    }
+    });
   }
 
   clearResultPanel(): void {
-    this.component = undefined;
+    this.frameComponent = undefined;
   }
 
 
