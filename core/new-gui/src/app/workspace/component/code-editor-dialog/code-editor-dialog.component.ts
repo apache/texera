@@ -17,7 +17,7 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 })
 export class CodeEditorDialogComponent implements OnInit {
 
-  editorOptions = { theme: 'vs-dark', language: 'python' };
+  editorOptions = { theme: 'vs-dark', language: 'python' , fontSize: '11'};
   text: string;
 
   constructor(
