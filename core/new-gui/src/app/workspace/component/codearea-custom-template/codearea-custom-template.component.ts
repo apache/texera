@@ -21,7 +21,6 @@ import { CodeEditorDialogComponent } from '../code-editor-dialog/code-editor-dia
   styleUrls: ['./codearea-custom-template.component.scss']
 })
 export class CodeareaCustomTemplateComponent extends FieldType {
-  isVisible: boolean = false;
 
   constructor(public dialog: MatDialog) {
     super();
@@ -33,11 +32,7 @@ export class CodeareaCustomTemplateComponent extends FieldType {
 
     const dialogRef = this.dialog.open(CodeEditorDialogComponent, dialogConfig);
 
-    dialogRef.afterClosed().subscribe(
-      data => {
-        this.formControl.setValue(data);
-      }
-    );
+    dialogRef.afterClosed().subscribe(data => this.formControl.setValue(data));
   }
 
 }
