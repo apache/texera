@@ -60,15 +60,19 @@ object WorkflowAccessResource {
     * @return Access Object indicating the access level
     */
   def checkAccessLevel(wid: UInteger, uid: UInteger): WorkflowAccess.Value = {
-    val accessDetail = context
-      .select(WORKFLOW_USER_ACCESS.READ_PRIVILEGE, WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE)
-      .from(WORKFLOW_USER_ACCESS)
-      .where(WORKFLOW_USER_ACCESS.WID.eq(wid).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
-      .fetch()
-    if (accessDetail.isEmpty) return WorkflowAccess.NO_RECORD
-    if (accessDetail.getValue(0, 1) == true) {
+    val workflowUserAccess = context
+        .select(WORKFLOW_USER_ACCESS.READ_PRIVILEGE, WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE)
+        .from(WORKFLOW_USER_ACCESS)
+        .where(WORKFLOW_USER_ACCESS.WID.eq(wid).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
+        .fetchOneInto(classOf[WorkflowUserAccess])
+    toAccessLevel(workflowUserAccess)
+  }
+
+  def toAccessLevel(workflowUserAccess: WorkflowUserAccess): WorkflowAccess.Value = {
+    if (workflowUserAccess == null) return WorkflowAccess.NO_RECORD
+    if (workflowUserAccess.getWritePrivilege == true) {
       WorkflowAccess.WRITE
-    } else if (accessDetail.getValue(0, 0) == true) {
+    } else if (workflowUserAccess.getReadPrivilege == true) {
       WorkflowAccess.READ
     } else {
       WorkflowAccess.NONE
