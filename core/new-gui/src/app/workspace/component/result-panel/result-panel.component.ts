@@ -120,17 +120,17 @@ export class ResultPanelComponent {
       } else {
         if (this.resultPanelOperatorID) {
           if (this.workflowActionService.getTexeraGraph().getOperator(this.resultPanelOperatorID).operatorType.toLowerCase()
-          .includes('sink')) {
-          const resultService = this.workflowResultService.getResultService(this.resultPanelOperatorID);
-          const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.resultPanelOperatorID);
-          if (paginatedResultService) {
-            this.switchFrameComponent(ResultTableFrameComponent);
-          } else if (resultService && resultService.getChartType()) {
-            this.switchFrameComponent(VisualizationFrameComponent);
+            .includes('sink')) {
+            const resultService = this.workflowResultService.getResultService(this.resultPanelOperatorID);
+            const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.resultPanelOperatorID);
+            if (paginatedResultService) {
+              this.switchFrameComponent(ResultTableFrameComponent);
+            } else if (resultService && resultService.getChartType()) {
+              this.switchFrameComponent(VisualizationFrameComponent);
+            }
+          } else {
+            this.switchFrameComponent(ConsoleFrameComponent);
           }
-        } else {
-          this.switchFrameComponent(ConsoleFrameComponent);
-        }
 
         }
       }
