@@ -107,17 +107,17 @@ export class ResultPanelComponent {
     timer(0).subscribe(() => {
       const executionState = this.executeWorkflowService.getExecutionState();
       if (executionState.state === ExecutionState.Failed) {
-        this.frameComponent = ConsoleFrameComponent;
+        this.switchFrameComponent(ConsoleFrameComponent);
       } else if (executionState.state === ExecutionState.BreakpointTriggered) {
-        this.frameComponent = ConsoleFrameComponent;
+        this.switchFrameComponent(ConsoleFrameComponent);
       } else {
         if (this.resultPanelOperatorID) {
           const resultService = this.workflowResultService.getResultService(this.resultPanelOperatorID);
           const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.resultPanelOperatorID);
           if (paginatedResultService) {
-            this.frameComponent = ResultTableFrameComponent;
+            this.switchFrameComponent(ResultTableFrameComponent);
           } else if (resultService && resultService.getChartType()) {
-            this.frameComponent = VisualizationFrameComponent;
+            this.switchFrameComponent(VisualizationFrameComponent);
           }
         }
       }
@@ -125,9 +125,15 @@ export class ResultPanelComponent {
   }
 
   clearResultPanel(): void {
-    this.frameComponent = undefined;
+    this.switchFrameComponent(undefined);
   }
 
+  switchFrameComponent(targetComponent: any) {
+    if (this.frameComponent === targetComponent) {
+      return;
+    }
+    this.frameComponent = targetComponent;
+  }
 
   private static needRerenderOnStateChange(event: { previous: ExecutionStateInfo, current: ExecutionStateInfo }): boolean {
     // transitioning from any state to failed state
