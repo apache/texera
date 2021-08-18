@@ -61,10 +61,10 @@ object WorkflowAccessResource {
     */
   def checkAccessLevel(wid: UInteger, uid: UInteger): WorkflowAccess.Value = {
     val workflowUserAccess = context
-        .select(WORKFLOW_USER_ACCESS.READ_PRIVILEGE, WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE)
-        .from(WORKFLOW_USER_ACCESS)
-        .where(WORKFLOW_USER_ACCESS.WID.eq(wid).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
-        .fetchOneInto(classOf[WorkflowUserAccess])
+      .select(WORKFLOW_USER_ACCESS.READ_PRIVILEGE, WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE)
+      .from(WORKFLOW_USER_ACCESS)
+      .where(WORKFLOW_USER_ACCESS.WID.eq(wid).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
+      .fetchOneInto(classOf[WorkflowUserAccess])
     toAccessLevel(workflowUserAccess)
   }
 
