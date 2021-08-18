@@ -1,8 +1,8 @@
 import { Component, Inject, OnDestroy, OnInit } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { merge, Subscription } from 'rxjs';
-import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
-import { OperatorPredicate } from "../../types/workflow-common.interface";
+import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
+import { OperatorPredicate } from '../../types/workflow-common.interface';
 
 
 export const CODE_SAVE_ON_EDITION_DEBOUNCE_TIME_MS = 100;
