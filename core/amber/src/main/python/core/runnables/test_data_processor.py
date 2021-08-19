@@ -14,7 +14,9 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import AddPartitioningV2
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlInvocationV2, ControlPayloadV2, \
     LayerIdentity, LinkIdentity, ReturnInvocationV2
 
-new_level = logger.level("PRINT", no=38)
+logger.level("PRINT", no=38)
+
+
 class TestDataProcessor:
     @pytest.fixture
     def command_sequence(self):

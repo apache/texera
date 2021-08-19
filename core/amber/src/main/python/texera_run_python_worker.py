@@ -1,19 +1,20 @@
 import contextlib
 import sys
+from typing import IO, Optional, TypeVar
 
 from loguru import logger
 
 from core.python_worker import PythonWorker
 
-new_level = logger.level("PRINT", no=38)
+_T_io = TypeVar("_T_io", bound=Optional[IO[str]])
 
 
-class StreamToLogger(object):
+class StreamToLogger(_T_io):
     """
     This class is used to redirect `print` to loguru's logger, instead of stdout.
     """
 
-    def __init__(self, level=new_level):
+    def __init__(self, level=logger.level("PRINT", no=38)):
         self._level = level
 
     def write(self, buffer):
