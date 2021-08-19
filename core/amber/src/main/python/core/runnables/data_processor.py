@@ -36,13 +36,14 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         self.context = Context(self)
         self._async_rpc_server = AsyncRPCServer(output_queue, context=self.context)
         self._async_rpc_client = AsyncRPCClient(output_queue, context=self.context)
+        self._print_writer = PrintWriter(
+            lambda msg:
+            self._async_rpc_client.send(
+                ActorVirtualIdentity(name="CONTROLLER"),
+                set_one_of(ControlCommandV2, PythonPrintV2(message=msg)))
+        )
         logger.add(
-            PrintWriter(
-                lambda msg:
-                self._async_rpc_client.send(
-                    ActorVirtualIdentity(name="CONTROLLER"),
-                    set_one_of(ControlCommandV2, PythonPrintV2(message=msg)))
-            ),
+            self._print_writer,
             level='PRINT'
         )
 
@@ -50,6 +51,8 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         """
         Complete the DataProcessor, marking state to COMPLETED, and notify the controller.
         """
+        # flush the buffered console prints
+        self._print_writer.flush()
         self._udf_operator.close()
         self.context.state_manager.transit_to(WorkerState.COMPLETED)
         control_command = set_one_of(ControlCommandV2, WorkerExecutionCompletedV2())

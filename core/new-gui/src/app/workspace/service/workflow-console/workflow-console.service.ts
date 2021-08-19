@@ -15,13 +15,10 @@ export class WorkflowConsoleService {
 
   private registerPythonPrintEventHandler() {
     this.workflowWebsocketService.subscribeToEvent('PythonPrintTriggeredEvent')
-      .subscribe((a: PythonPrintTriggerInfo) => {
-        const operatorID = a.operatorID;
-        let messages = this.consoleMessages.get(operatorID);
-        if (!messages) {
-          messages = [];
-        }
-        messages.push(a.message);
+      .subscribe((pythonPrintTriggerInfo: PythonPrintTriggerInfo) => {
+        const operatorID = pythonPrintTriggerInfo.operatorID;
+        let messages = this.consoleMessages.get(operatorID) || [];
+        messages = messages.concat(pythonPrintTriggerInfo.message.split('\n'));
         this.consoleMessages.set(operatorID, messages);
       });
   }

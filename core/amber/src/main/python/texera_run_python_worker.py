@@ -1,15 +1,12 @@
 import contextlib
 import sys
-from typing import IO, Optional, TypeVar
 
 from loguru import logger
 
 from core.python_worker import PythonWorker
 
-_T_io = TypeVar("_T_io", bound=Optional[IO[str]])
 
-
-class StreamToLogger(_T_io):
+class StreamToLogger:
     """
     This class is used to redirect `print` to loguru's logger, instead of stdout.
     """
