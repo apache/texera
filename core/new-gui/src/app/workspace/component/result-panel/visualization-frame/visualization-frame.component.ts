@@ -19,7 +19,6 @@ import { WorkflowActionService } from '../../../service/workflow-graph/model/wor
 })
 export class VisualizationFrameComponent {
 
-  resultPanelOperatorID: string | undefined;
   modalRef: NzModalRef | undefined;
 
   constructor(
@@ -28,12 +27,11 @@ export class VisualizationFrameComponent {
     private workflowActionService: WorkflowActionService
   ) { }
 
-
   onClickVisualize(): void {
     const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    this.resultPanelOperatorID = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
+    const resultPanelOperatorID = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
 
-    if (!this.resultPanelOperatorID) {
+    if (!resultPanelOperatorID) {
       return;
     }
 
@@ -44,7 +42,7 @@ export class VisualizationFrameComponent {
       nzFooter: null, // null indicates that the footer of the window would be hidden
       nzContent: VisualizationFrameContentComponent,
       nzComponentParams: {
-        operatorID: this.resultPanelOperatorID
+        operatorID: resultPanelOperatorID
       }
     });
   }
