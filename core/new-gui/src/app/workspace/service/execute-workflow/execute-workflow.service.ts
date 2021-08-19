@@ -16,7 +16,7 @@ import {
 } from '../../types/execute-workflow.interface';
 import { environment } from '../../../../environments/environment';
 import { WorkflowWebsocketService } from '../workflow-websocket/workflow-websocket.service';
-import { Breakpoint, BreakpointRequest, BreakpointTriggerInfo, PythonPrintTriggerInfo } from '../../types/workflow-common.interface';
+import { Breakpoint, BreakpointRequest, BreakpointTriggerInfo } from '../../types/workflow-common.interface';
 import { OperatorCurrentTuples, ResultDownloadResponse, TexeraWebsocketEvent } from '../../types/workflow-websocket.interface';
 import { isEqual } from 'lodash';
 import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from '../../types/result-table.interface';
@@ -45,7 +45,7 @@ export const EXECUTION_TIMEOUT = 3000;
  *  in order to capture the event of workflow graph starts executing.
  *
  * Components and Services subscribe to getExecuteEndedStream()
- *  for the event of the execution result (or error) returned by the backend.
+ *  for the event of the execution result (or errro) returned by the backend.
  *
  * @author Zuozhi Wang
  * @author Henry Chen
@@ -55,7 +55,7 @@ export const EXECUTION_TIMEOUT = 3000;
 })
 export class ExecuteWorkflowService {
 
-  private currentState: ExecutionStateInfo = { state: ExecutionState.Uninitialized };
+  private currentState: ExecutionStateInfo = {state: ExecutionState.Uninitialized};
   private executionStateStream = new Subject<{ previous: ExecutionStateInfo, current: ExecutionStateInfo }>();
   private resultDownloadStream = new Subject<ResultDownloadResponse>();
 
@@ -81,22 +81,21 @@ export class ExecuteWorkflowService {
     }
   }
 
-
   public handleExecutionEvent(event: TexeraWebsocketEvent): ExecutionStateInfo | undefined {
     switch (event.type) {
       case 'WorkflowStartedEvent':
-        return { state: ExecutionState.Running};
+        return {state: ExecutionState.Running};
       case 'WorkflowCompletedEvent':
-        return { state: ExecutionState.Completed };
+        return {state: ExecutionState.Completed};
       case 'WorkflowPausedEvent':
         if (this.currentState.state === ExecutionState.BreakpointTriggered ||
           this.currentState.state === ExecutionState.Paused) {
           return this.currentState;
         } else {
-          return { state: ExecutionState.Paused, currentTuples: {} };
+          return {state: ExecutionState.Paused, currentTuples: {}};
         }
       case 'RecoveryStartedEvent':
-        return { state: ExecutionState.Recovering };
+        return {state: ExecutionState.Recovering};
       case 'OperatorCurrentTuplesUpdateEvent':
         if (this.currentState.state === ExecutionState.BreakpointTriggered) {
           return this.currentState;
@@ -113,11 +112,11 @@ export class ExecuteWorkflowService {
           ...currentTupleUpdate,
           ...pausedCurrentTuples
         };
-        return { state: ExecutionState.Paused, currentTuples: newCurrentTuples };
+        return {state: ExecutionState.Paused, currentTuples: newCurrentTuples};
       case 'WorkflowResumedEvent':
-        return { state: ExecutionState.Running};
+        return {state: ExecutionState.Running};
       case 'BreakpointTriggeredEvent':
-        return { state: ExecutionState.BreakpointTriggered, breakpoint: event };
+        return {state: ExecutionState.BreakpointTriggered, breakpoint: event};
       case 'WorkflowErrorEvent':
         const errorMessages: Record<string, string> = {};
         Object.entries(event.operatorErrors).forEach(entry => {
@@ -126,14 +125,14 @@ export class ExecuteWorkflowService {
         Object.entries(event.generalErrors).forEach(entry => {
           errorMessages[entry[0]] = entry[1];
         });
-        return { state: ExecutionState.Failed, errorMessages: errorMessages };
+        return {state: ExecutionState.Failed, errorMessages: errorMessages};
       // TODO: Merge WorkflowErrorEvent and ErrorEvent
       case 'WorkflowExecutionErrorEvent':
         const backendErrorMessages: Record<string, string> = {};
         Object.entries(event.errorMap).forEach(entry => {
           backendErrorMessages[entry[0]] = entry[1];
         });
-        return { state: ExecutionState.Failed, errorMessages: backendErrorMessages };
+        return {state: ExecutionState.Failed, errorMessages: backendErrorMessages};
       default:
         return undefined;
     }
@@ -174,7 +173,7 @@ export class ExecuteWorkflowService {
     window.setTimeout(() => {
       this.workflowWebsocketService.send('ExecuteWorkflowRequest', logicalPlan);
     }, FORM_DEBOUNCE_TIME_MS);
-    this.updateExecutionState({ state: ExecutionState.WaitingToRun });
+    this.updateExecutionState({state: ExecutionState.WaitingToRun});
     this.setExecutionTimeout('submit workflow timeout', ExecutionState.Running, ExecutionState.Failed);
 
     // add flag for new execution of workflow
@@ -182,7 +181,7 @@ export class ExecuteWorkflowService {
     // instead of those stored in the session storage
     const resultPaginationInfo = sessionGetObject<ResultPaginationInfo>(PAGINATION_INFO_STORAGE_KEY);
     if (resultPaginationInfo) {
-      sessionSetObject(PAGINATION_INFO_STORAGE_KEY, { ...resultPaginationInfo, newWorkflowExecuted: true });
+      sessionSetObject(PAGINATION_INFO_STORAGE_KEY, {...resultPaginationInfo, newWorkflowExecuted: true});
     }
   }
 
@@ -194,7 +193,7 @@ export class ExecuteWorkflowService {
       throw new Error('cannot pause workflow, current execution state is ' + this.currentState?.state);
     }
     this.workflowWebsocketService.send('PauseWorkflowRequest', {});
-    this.updateExecutionState({ state: ExecutionState.Pausing });
+    this.updateExecutionState({state: ExecutionState.Pausing});
     this.setExecutionTimeout('pause operation timeout', ExecutionState.Paused, ExecutionState.Failed);
   }
 
@@ -206,7 +205,7 @@ export class ExecuteWorkflowService {
       throw new Error('cannot kill workflow, current execution state is ' + this.currentState.state);
     }
     this.workflowWebsocketService.send('KillWorkflowRequest', {});
-    this.updateExecutionState({ state: ExecutionState.Completed });
+    this.updateExecutionState({state: ExecutionState.Completed});
   }
 
   public resumeWorkflow(): void {
@@ -217,7 +216,7 @@ export class ExecuteWorkflowService {
       throw new Error('cannot resume workflow, current execution state is ' + this.currentState.state);
     }
     this.workflowWebsocketService.send('ResumeWorkflowRequest', {});
-    this.updateExecutionState({ state: ExecutionState.Resuming });
+    this.updateExecutionState({state: ExecutionState.Resuming});
     this.setExecutionTimeout('resume operation timeout', ExecutionState.Running, ExecutionState.Failed);
   }
 
@@ -242,7 +241,7 @@ export class ExecuteWorkflowService {
       throw new Error('cannot skip tuples, current execution state is ' + this.currentState.state);
     }
     this.currentState.breakpoint.report.forEach(fault => {
-      this.workflowWebsocketService.send('SkipTupleRequest', { faultedTuple: fault.faultedTuple, actorPath: fault.actorPath });
+      this.workflowWebsocketService.send('SkipTupleRequest', {faultedTuple: fault.faultedTuple, actorPath: fault.actorPath});
     });
   }
 
@@ -259,7 +258,7 @@ export class ExecuteWorkflowService {
       operatorID: op.operatorID,
       operatorType: op.operatorType
     };
-    this.workflowWebsocketService.send('ModifyLogicRequest', { operator });
+    this.workflowWebsocketService.send('ModifyLogicRequest', {operator});
   }
 
   /**
@@ -269,7 +268,7 @@ export class ExecuteWorkflowService {
     if (!environment.downloadExecutionResultEnabled) {
       return;
     }
-    this.workflowWebsocketService.send('ResultDownloadRequest', { downloadType: downloadType, workflowName: workflowName });
+    this.workflowWebsocketService.send('ResultDownloadRequest', {downloadType: downloadType, workflowName: workflowName});
   }
 
   public getExecutionStateStream(): Observable<{ previous: ExecutionStateInfo, current: ExecutionStateInfo }> {
@@ -285,7 +284,7 @@ export class ExecuteWorkflowService {
       this.clearExecutionTimeout();
     }
     this.executionTimeoutID = window.setTimeout(() => {
-      this.updateExecutionState({ state: ExecutionState.Failed, errorMessages: { 'timeout': message } });
+      this.updateExecutionState({state: ExecutionState.Failed, errorMessages: {'timeout': message}});
     }, EXECUTION_TIMEOUT);
     this.clearTimeoutState = clearTimeoutState;
   }
@@ -310,7 +309,7 @@ export class ExecuteWorkflowService {
     // update current state
     this.currentState = stateInfo;
     // emit event
-    this.executionStateStream.next({ previous: previousState, current: this.currentState });
+    this.executionStateStream.next({previous: previousState, current: this.currentState});
   }
 
   /**
@@ -368,14 +367,14 @@ export class ExecuteWorkflowService {
     const links: LogicalLink[] = workflowGraph
       .getAllEnabledLinks()
       .map(link => ({
-        origin: { operatorID: link.source.operatorID, portOrdinal: getOutputPortOrdinal(link.source.operatorID, link.source.portID) },
-        destination: { operatorID: link.target.operatorID, portOrdinal: getInputPortOrdinal(link.target.operatorID, link.target.portID) }
+        origin: {operatorID: link.source.operatorID, portOrdinal: getOutputPortOrdinal(link.source.operatorID, link.source.portID)},
+        destination: {operatorID: link.target.operatorID, portOrdinal: getInputPortOrdinal(link.target.operatorID, link.target.portID)}
       }));
 
     const breakpoints: BreakpointInfo[] = Array.from(workflowGraph.getAllEnabledLinkBreakpoints().entries())
       .map(e => ExecuteWorkflowService.transformBreakpoint(workflowGraph, e[0], e[1]));
 
-    return { operators, links, breakpoints };
+    return {operators, links, breakpoints};
   }
 
   public static transformBreakpoint(
@@ -383,13 +382,13 @@ export class ExecuteWorkflowService {
     const operatorID = workflowGraph.getLinkWithID(linkID).source.operatorID;
     let breakpoint: BreakpointRequest;
     if ('condition' in breakpointData) {
-      breakpoint = { ...breakpointData, type: 'ConditionBreakpoint' };
+      breakpoint = {...breakpointData, type: 'ConditionBreakpoint'};
     } else if ('count' in breakpointData) {
-      breakpoint = { ...breakpointData, type: 'CountBreakpoint' };
+      breakpoint = {...breakpointData, type: 'CountBreakpoint'};
     } else {
       throw new Error('unhandled breakpoint data ' + breakpointData);
     }
-    return { operatorID, breakpoint };
+    return {operatorID, breakpoint};
   }
 
 }
