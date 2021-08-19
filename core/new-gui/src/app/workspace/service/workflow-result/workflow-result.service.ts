@@ -1,10 +1,15 @@
 import { Injectable } from '@angular/core';
 import {
-  WorkflowResultUpdate, isWebPaginationUpdate, isWebDataUpdate, WebPaginationUpdate, WebDataUpdate, WebResultUpdate
+  isWebDataUpdate,
+  isWebPaginationUpdate,
+  WebDataUpdate,
+  WebPaginationUpdate,
+  WebResultUpdate,
+  WorkflowResultUpdate
 } from '../../types/execute-workflow.interface';
 import { WorkflowWebsocketService } from '../workflow-websocket/workflow-websocket.service';
 import { PaginatedResultEvent } from '../../types/workflow-websocket.interface';
-import { Subject, Observable } from 'rxjs';
+import { Observable, Subject } from 'rxjs';
 import * as uuid from 'uuid';
 import { ChartType } from '../../types/visualization.interface';
 
@@ -22,13 +27,18 @@ export class WorkflowResultService {
   private operatorResultServices = new Map<string, OperatorResultService>();
 
   private resultUpdateStream = new Subject<Record<string, WebResultUpdate>>();
+  private resultInitiateStream = new Subject<string>();
 
   constructor(private wsService: WorkflowWebsocketService) {
     this.wsService.subscribeToEvent('WebResultUpdateEvent').subscribe(event => this.handleResultUpdate(event.updates));
   }
 
+  public getResultInitiateStream(): Observable<string> {
+    return this.resultInitiateStream.asObservable();
+  }
+
   public getResultUpdateStream(): Observable<Record<string, WebResultUpdate>> {
-    return this.resultUpdateStream;
+    return this.resultUpdateStream.asObservable();
   }
 
   public getPaginatedResultService(operatorID: string): OperatorPaginationResultService | undefined {
@@ -60,6 +70,7 @@ export class WorkflowResultService {
     if (!service) {
       service = new OperatorPaginationResultService(operatorID, this.wsService);
       this.paginatedResultServices.set(operatorID, service);
+      this.resultInitiateStream.next(operatorID);
     }
     return service;
   }
@@ -69,6 +80,7 @@ export class WorkflowResultService {
     if (!service) {
       service = new OperatorResultService(operatorID);
       this.operatorResultServices.set(operatorID, service);
+      this.resultInitiateStream.next(operatorID);
     }
     return service;
   }

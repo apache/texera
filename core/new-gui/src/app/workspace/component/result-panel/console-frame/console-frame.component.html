@@ -1,0 +1,9 @@
+<div class="texera-panel-message" *ngIf="errorMessages !== undefined">
+  <div *ngFor="let item of errorMessages | keyvalue">
+    {{item.key}}:{{item.value}}
+  </div>
+</div>
+<button class="btn btn-secondary" *ngIf="breakpointTriggerInfo !== undefined" (click)="onClickSkipTuples()"
+        [disabled]="!breakpointAction">
+  Skip Records
+</button>

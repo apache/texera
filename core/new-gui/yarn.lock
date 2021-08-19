@@ -8886,6 +8886,11 @@ next-tick@~1.0.0:
   resolved "https://registry.yarnpkg.com/next-tick/-/next-tick-1.0.0.tgz#ca86d1fe8828169b0120208e3dc8424b9db8342c"
   integrity sha1-yobR/ogoFpsBICCOPchCS524NCw=
 
+ng-dynamic-component@^6.0.1:
+  version "6.1.0"
+  resolved "https://registry.yarnpkg.com/ng-dynamic-component/-/ng-dynamic-component-6.1.0.tgz#73c3c8d74e7eed5df7c7e1ad19d783b5d31bce88"
+  integrity sha512-h+j2xfbAwRkybjmx7I0jO+7f/MGkF/WwEqO7qudQwGAVF81Xw5LVfgZ8hTKTXPA+CeCS+3I/Rl99GFRhj0TYwA==
+
 ng-gapi@0.0.94:
   version "0.0.94"
   resolved "https://registry.yarnpkg.com/ng-gapi/-/ng-gapi-0.0.94.tgz#6811b2f49bdbe5d2120a224437e01419752d7d93"
