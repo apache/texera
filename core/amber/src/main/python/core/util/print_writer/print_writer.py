@@ -3,9 +3,9 @@ from typing import Iterator, List
 
 
 class SimpleBuffer:
-    def __init__(self, maximum_size=10, maximum_window=2):
-        self._max_size = maximum_size
-        self._max_interval = maximum_window
+    def __init__(self, max_message_num=10, max_flush_interval_in_ms=500):
+        self._max_message_num = max_message_num
+        self._max_flush_interval_in_ms = max_flush_interval_in_ms
         self._buffer: List[str]() = list()
         self._last_output_time = datetime.now()
 
@@ -13,8 +13,8 @@ class SimpleBuffer:
         self._buffer.append(message)
 
     def output(self, flush=False) -> Iterator[str]:
-        if flush or len(self._buffer) >= self._max_size or (
-                datetime.now() - self._last_output_time).seconds >= self._max_interval:
+        if flush or len(self._buffer) >= self._max_message_num or (
+                datetime.now() - self._last_output_time).seconds >= self._max_flush_interval_in_ms / 1000:
             self._last_output_time = datetime.now()
             if self._buffer:
                 yield "\n".join(self._buffer)
