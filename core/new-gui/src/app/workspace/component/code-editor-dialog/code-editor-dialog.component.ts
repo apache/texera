@@ -1,6 +1,5 @@
-import { Component, Inject, OnDestroy, OnInit } from '@angular/core';
+import { Component, Inject } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
-import { merge, Subscription } from 'rxjs';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 import { OperatorPredicate } from '../../types/workflow-common.interface';
 
@@ -19,12 +18,10 @@ import { OperatorPredicate } from '../../types/workflow-common.interface';
   templateUrl: './code-editor-dialog.component.html',
   styleUrls: ['./code-editor-dialog.component.scss']
 })
-export class CodeEditorDialogComponent implements OnInit, OnDestroy {
+export class CodeEditorDialogComponent {
 
   editorOptions = { theme: 'vs-dark', language: 'python', fontSize: '11', automaticLayout: true };
   code: string;
-  subscriptions: Subscription = new Subscription();
-
 
   constructor(
     private dialogRef: MatDialogRef<CodeEditorDialogComponent>,
@@ -34,17 +31,6 @@ export class CodeEditorDialogComponent implements OnInit, OnDestroy {
     this.code = code;
   }
 
-  ngOnInit() {
-    this.registerAutoSaveUponClosure();
-  }
-
-  registerAutoSaveUponClosure() {
-    this.subscriptions.add(merge(
-      this.dialogRef.keydownEvents().filter(event => event.key === 'Escape'),
-      this.dialogRef.backdropClick()
-    ).subscribe(_ => this.dialogRef.close(this.code)));
-  }
-
   onCodeChange(code: string): void {
     this.code = code;
     // here the assumption is the operator being edited must be highlighted
@@ -52,10 +38,4 @@ export class CodeEditorDialogComponent implements OnInit, OnDestroy {
     const currentOperatorPredicate: OperatorPredicate = this.workflowActionService.getTexeraGraph().getOperator(currentOperatorId);
     this.workflowActionService.setOperatorProperty(currentOperatorId, { ...currentOperatorPredicate.operatorProperties, code });
   }
-
-  ngOnDestroy(): void {
-    this.subscriptions.unsubscribe();
-  }
-
-
 }

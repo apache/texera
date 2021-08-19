@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { FieldType } from '@ngx-formly/core';
-import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
+import { MatDialog } from '@angular/material/dialog';
 import { CodeEditorDialogComponent } from '../code-editor-dialog/code-editor-dialog.component';
 
 /**
@@ -10,9 +10,7 @@ import { CodeEditorDialogComponent } from '../code-editor-dialog/code-editor-dia
  * with this component.
  *
  * Clicking on the 'Edit code content' button will create a new dialogue with CodeEditorComponent
- * as its content. The data of this field will be sent to this dialogue, which contains a Ace editor.
- * After the editor is closed, the text content of the editor will be sent back and override the data
- * of the field. If the field initially contains no data, then an empty string input will be sent instead.
+ * as its content. The data of this field will be sent to this dialogue, which contains a Monaco editor.
  * @author Xiaozhen Liu
  */
 @Component({
@@ -27,12 +25,7 @@ export class CodeareaCustomTemplateComponent extends FieldType {
   }
 
   onClickEditor(): void {
-    const dialogConfig = new MatDialogConfig();
-    dialogConfig.data = this?.formControl?.value || '';
-
-    const dialogRef = this.dialog.open(CodeEditorDialogComponent, dialogConfig);
-
-    dialogRef.afterClosed().subscribe(data => this.formControl.setValue(data));
+    this.dialog.open(CodeEditorDialogComponent, { data: this?.formControl?.value || '' });
   }
 
 }
