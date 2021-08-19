@@ -21,7 +21,7 @@ export class ConsoleFrameComponent implements OnInit, OnDestroy {
   breakpointAction: boolean = false;
 
   // display print
-  consoleMessages: string[] = [];
+  consoleMessages: ReadonlyArray<string> = [];
 
   subscriptions = new Subscription();
 
@@ -30,8 +30,11 @@ export class ConsoleFrameComponent implements OnInit, OnDestroy {
     private resultPanelToggleService: ResultPanelToggleService,
     private workflowActionService: WorkflowActionService,
     private workflowConsoleService: WorkflowConsoleService
-  ) {
+  ) { }
 
+  ngOnInit(): void {
+    this.renderConsole();
+    this.registerAutoConsoleRerender();
   }
 
   registerAutoConsoleRerender() {
@@ -57,10 +60,6 @@ export class ConsoleFrameComponent implements OnInit, OnDestroy {
     this.subscriptions.unsubscribe();
   }
 
-  ngOnInit(): void {
-    this.renderConsole();
-    this.registerAutoConsoleRerender();
-  }
 
   private clearConsole() {
     this.consoleMessages = [];
@@ -70,21 +69,21 @@ export class ConsoleFrameComponent implements OnInit, OnDestroy {
   private renderConsole() {
     // update highlighted operator
     const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    this.resultPanelOperatorID = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
+    const resultPanelOperatorID = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
     const breakpointTriggerInfo = this.executeWorkflowService.getBreakpointTriggerInfo();
     this.errorMessages = this.executeWorkflowService.getErrorMessages();
-    if (this.resultPanelOperatorID) {
-      if (this.resultPanelOperatorID === breakpointTriggerInfo?.operatorID) {
+    if (resultPanelOperatorID) {
+      if (resultPanelOperatorID === breakpointTriggerInfo?.operatorID) {
         this.displayBreakpoint(breakpointTriggerInfo);
       } else {
-        this.displayConsoleMessages();
+        this.displayConsoleMessages(resultPanelOperatorID);
       }
     }
   }
 
-  private displayConsoleMessages() {
-    this.consoleMessages = this.resultPanelOperatorID ?
-      this.workflowConsoleService.consoleMessages.get(this.resultPanelOperatorID) || [] : [];
+  private displayConsoleMessages(operatorID: string) {
+    this.consoleMessages = operatorID ?
+      this.workflowConsoleService.getConsoleMessages(operatorID) || [] : [];
   }
 
   private displayBreakpoint(breakpointTriggerInfo: BreakpointTriggerInfo) {

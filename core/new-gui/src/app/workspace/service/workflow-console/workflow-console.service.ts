@@ -8,20 +8,16 @@ import { Observable } from 'rxjs/Observable';
   providedIn: 'root'
 })
 export class WorkflowConsoleService {
-  consoleMessages: Map<string, string[]> = new Map();
 
-  consoleMessagesUpdateStream = new Subject<void>();
+  private consoleMessages: Map<string, ReadonlyArray<string>> = new Map();
+  private consoleMessagesUpdateStream = new Subject<void>();
 
   constructor(private workflowWebsocketService: WorkflowWebsocketService) {
     this.registerAutoClearConsoleMessages();
     this.registerPythonPrintEventHandler();
   }
 
-  getConsoleMessageUpdateStream(): Observable<void> {
-    return this.consoleMessagesUpdateStream.asObservable();
-  }
-
-  private registerPythonPrintEventHandler() {
+  registerPythonPrintEventHandler() {
     this.workflowWebsocketService.subscribeToEvent('PythonPrintTriggeredEvent')
       .subscribe((pythonPrintTriggerInfo: PythonPrintTriggerInfo) => {
         const operatorID = pythonPrintTriggerInfo.operatorID;
@@ -32,9 +28,18 @@ export class WorkflowConsoleService {
       });
   }
 
-  private registerAutoClearConsoleMessages() {
+  registerAutoClearConsoleMessages() {
     this.workflowWebsocketService.subscribeToEvent('WorkflowStartedEvent').subscribe(_ => {
       this.consoleMessages.clear();
     });
   }
+
+  getConsoleMessages(operatorID: string): ReadonlyArray<string> | undefined {
+    return this.consoleMessages.get(operatorID);
+  }
+
+  getConsoleMessageUpdateStream(): Observable<void> {
+    return this.consoleMessagesUpdateStream.asObservable();
+  }
+
 }
