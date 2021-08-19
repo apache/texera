@@ -70,6 +70,7 @@
     "ngx-tour-core": "^4.1.1",
     "ngx-tour-ng-bootstrap": "^4.1.1",
     "popper.js": "^1.16.1",
+    "ring-buffer-ts": "^1.0.3",
     "rxjs": "^6.5.5",
     "rxjs-compat": "^6.5.5",
     "tinyqueue": "^2.0.3",
