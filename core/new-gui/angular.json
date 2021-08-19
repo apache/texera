@@ -24,6 +24,11 @@
                 "glob": "**/*",
                 "input": "./node_modules/@ant-design/icons-angular/src/inline-svg/",
                 "output": "/assets/"
+              },
+              {
+                "glob": "**/*",
+                "input": "node_modules/ngx-monaco-editor/assets/monaco",
+                "output": "./assets/monaco/"
               }
             ],
             "styles": [
@@ -35,8 +40,7 @@
               "src/styles.scss"
             ],
             "scripts": [
-              "./node_modules/ace-builds/src-min/ace.js",
-              "./node_modules/ace-builds/src-min/mode-python.js"
+              "./node_modules/ngx-monaco-editor/assets/monaco/vs/loader.js"
             ]
           },
           "configurations": {

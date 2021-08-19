@@ -31,7 +31,6 @@ import { NzSliderModule } from 'ng-zorro-antd/slider';
 import { NzSpaceModule } from 'ng-zorro-antd/space';
 import { NzBadgeModule } from 'ng-zorro-antd/badge';
 import { FileUploadModule } from 'ng2-file-upload';
-import { NgxAceModule } from 'ngx-ace-icy';
 import { NgxJsonViewerModule } from 'ngx-json-viewer';
 import { LoggerModule, NgxLoggerLevel } from 'ngx-logger';
 import { TourNgBootstrapModule } from 'ngx-tour-ng-bootstrap';
@@ -94,6 +93,7 @@ import { ConsoleFrameComponent } from './workspace/component/result-panel/consol
 import { ResultTableFrameComponent } from './workspace/component/result-panel/result-table-frame/result-table-frame.component';
 import { DynamicModule } from 'ng-dynamic-component';
 import { RowModalComponent } from './workspace/component/result-panel/result-panel-modal.component';
+import { MonacoEditorModule } from 'ngx-monaco-editor';
 
 registerLocaleData(en);
 
@@ -189,13 +189,13 @@ registerLocaleData(en);
     NzSliderModule,
     NzSpaceModule,
     NzBadgeModule,
-    NgxAceModule,
     MatDialogModule,
     NzCardModule,
     NzStatisticModule,
     NzTagModule,
     NzAvatarModule,
-    DynamicModule
+    DynamicModule,
+    MonacoEditorModule.forRoot()
   ],
   entryComponents: [
     NgbdModalAddWorkflowComponent,
@@ -214,12 +214,12 @@ registerLocaleData(en);
     UserFileUploadService,
     UserDictionaryService,
     UserDictionaryUploadService,
-    {provide: NZ_I18N, useValue: en_US},
+    { provide: NZ_I18N, useValue: en_US },
     {
       provide: HTTP_INTERCEPTORS,
       useClass: BlobErrorHttpInterceptor,
       multi: true
-    },
+    }
   ],
   bootstrap: [AppComponent]
   // dynamically created component must be placed in the entryComponents attribute
