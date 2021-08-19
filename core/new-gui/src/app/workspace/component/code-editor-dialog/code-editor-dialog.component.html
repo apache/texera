@@ -1,3 +1,8 @@
 <h1 mat-dialog-title>Python Script</h1>
-<ngx-monaco-editor [(ngModel)]="code" [options]="editorOptions" class="code-editor"></ngx-monaco-editor>
+<ngx-monaco-editor
+  [ngModel] = 'code'
+  (ngModelChange)="onCodeChange($event)"
+  [options]="editorOptions"
+  class="code-editor">
+</ngx-monaco-editor>
 

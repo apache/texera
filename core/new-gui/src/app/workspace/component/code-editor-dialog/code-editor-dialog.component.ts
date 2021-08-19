@@ -5,8 +5,6 @@ import { WorkflowActionService } from '../../service/workflow-graph/model/workfl
 import { OperatorPredicate } from '../../types/workflow-common.interface';
 
 
-export const CODE_SAVE_ON_EDITION_DEBOUNCE_TIME_MS = 100;
-
 /**
  * CodeEditorDialogComponent is the content of the dialogue invoked by CodeareaCustomTemplateComponent.
  *
@@ -23,9 +21,10 @@ export const CODE_SAVE_ON_EDITION_DEBOUNCE_TIME_MS = 100;
 })
 export class CodeEditorDialogComponent implements OnInit, OnDestroy {
 
-  editorOptions = { theme: 'vs-dark', language: 'python', fontSize: '11', automaticLayout: true};
+  editorOptions = { theme: 'vs-dark', language: 'python', fontSize: '11', automaticLayout: true };
   code: string;
   subscriptions: Subscription = new Subscription();
+
 
   constructor(
     private dialogRef: MatDialogRef<CodeEditorDialogComponent>,
@@ -37,30 +36,26 @@ export class CodeEditorDialogComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.registerAutoSaveUponClosure();
-    this.registerAutoSaveUponEdition();
   }
 
-  ngOnDestroy(): void {
-    this.subscriptions.unsubscribe();
-  }
-
-  private registerAutoSaveUponClosure() {
+  registerAutoSaveUponClosure() {
     this.subscriptions.add(merge(
       this.dialogRef.keydownEvents().filter(event => event.key === 'Escape'),
       this.dialogRef.backdropClick()
     ).subscribe(_ => this.dialogRef.close(this.code)));
   }
 
-  private registerAutoSaveUponEdition() {
-    this.subscriptions.add(this.dialogRef.keydownEvents().debounceTime(CODE_SAVE_ON_EDITION_DEBOUNCE_TIME_MS).subscribe(_ => {
-
-      // here the assumption is the operator being edited must be highlighted
-      const currentOperatorId: string = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
-      const currentOperatorPredicate: OperatorPredicate = this.workflowActionService.getTexeraGraph().getOperator(currentOperatorId);
-      this.workflowActionService.setOperatorProperty(currentOperatorId, {
-        ...currentOperatorPredicate.operatorProperties,
-        code: this.code
-      });
-    }));
+  onCodeChange(code: string): void {
+    this.code = code;
+    // here the assumption is the operator being edited must be highlighted
+    const currentOperatorId: string = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
+    const currentOperatorPredicate: OperatorPredicate = this.workflowActionService.getTexeraGraph().getOperator(currentOperatorId);
+    this.workflowActionService.setOperatorProperty(currentOperatorId, { ...currentOperatorPredicate.operatorProperties, code });
   }
+
+  ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
+  }
+
+
 }
