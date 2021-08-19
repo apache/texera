@@ -11,13 +11,12 @@ import { ExecutionState } from 'src/app/workspace/types/execute-workflow.interfa
   styleUrls: ['./console-frame.component.scss']
 })
 export class ConsoleFrameComponent implements OnInit {
-  // the highlighted operator ID for display result table / visualization / breakpoint
-  public resultPanelOperatorID: string | undefined;
+
   // display error message:
-  public errorMessages: Readonly<Record<string, string>> | undefined;
+  errorMessages: Readonly<Record<string, string>> | undefined;
   // display breakpoint
-  public breakpointTriggerInfo: BreakpointTriggerInfo | undefined;
-  public breakpointAction: boolean = false;
+  breakpointTriggerInfo: BreakpointTriggerInfo | undefined;
+  breakpointAction: boolean = false;
 
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
@@ -33,9 +32,9 @@ export class ConsoleFrameComponent implements OnInit {
     } else {
       // update highlighted operator
       const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-      this.resultPanelOperatorID = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
+      const resultPanelOperatorID = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
       const breakpointTriggerInfo = this.executeWorkflowService.getBreakpointTriggerInfo();
-      if (this.resultPanelOperatorID && this.resultPanelOperatorID === breakpointTriggerInfo?.operatorID) {
+      if (resultPanelOperatorID && resultPanelOperatorID === breakpointTriggerInfo?.operatorID) {
         this.breakpointTriggerInfo = breakpointTriggerInfo;
         this.breakpointAction = true;
         // const result = breakpointTriggerInfo.report.map(r => r.faultedTuple.tuple).filter(t => t !== undefined);
@@ -55,7 +54,7 @@ export class ConsoleFrameComponent implements OnInit {
 
   }
 
-  public onClickSkipTuples(): void {
+  onClickSkipTuples(): void {
     this.executeWorkflowService.skipTuples();
     this.breakpointAction = false;
   }

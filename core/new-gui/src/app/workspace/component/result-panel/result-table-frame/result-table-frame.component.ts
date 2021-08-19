@@ -20,26 +20,26 @@ import { RowModalComponent } from '../result-panel-modal.component';
 })
 export class ResultTableFrameComponent implements OnInit, OnDestroy {
   // the highlighted operator ID for display result table / visualization / breakpoint
-  public resultPanelOperatorID: string | undefined;
+  resultPanelOperatorID: string | undefined;
 
   // display result table
-  public currentColumns: TableColumn[] | undefined;
-  public currentResult: object[] = [];
+  currentColumns: TableColumn[] | undefined;
+  currentResult: object[] = [];
   //   for more details
   //   see https://ng.ant.design/components/table/en#components-table-demo-ajax
-  public isFrontPagination: boolean = true;
+  isFrontPagination: boolean = true;
 
-  public isLoadingResult: boolean = false;
+  isLoadingResult: boolean = false;
 
   // paginator section, used when displaying rows
 
   // this attribute stores whether front-end should handle pagination
   //   if false, it means the pagination is managed by the server
   // this starts from **ONE**, not zero
-  public currentPageIndex: number = 1;
-  public totalNumTuples: number = 0;
-  public pageSize = DEFAULT_PAGE_SIZE;
-  public resultUpdateSubscription: Subscription | undefined;
+  currentPageIndex: number = 1;
+  totalNumTuples: number = 0;
+  pageSize = DEFAULT_PAGE_SIZE;
+  resultUpdateSubscription: Subscription | undefined;
 
   private readonly TABLE_COLUMN_TEXT_LIMIT: number = 1000;
   private readonly PRETTY_JSON_TEXT_LIMIT: number = 50000;
@@ -91,7 +91,7 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
    *
    * @param params new parameters
    */
-  public onTableQueryParamsChange(params: NzTableQueryParams) {
+  onTableQueryParamsChange(params: NzTableQueryParams) {
     if (this.isFrontPagination) {
       return;
     }
@@ -110,7 +110,7 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
    *
    * @param rowData the object containing the data of the current row in columnDef and cellData pairs
    */
-  public open(rowData: object): void {
+  open(rowData: object): void {
 
     let selectedRowIndex = this.currentResult.findIndex(eachRow => isEqual(eachRow, rowData));
 
@@ -161,7 +161,7 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
   // 1. result panel is opened - must display currently selected page
   // 2. user selects a new page - must display new page data
   // 3. current page is dirty - must re-fetch data
-  public changePaginatedResultData(): void {
+  changePaginatedResultData(): void {
     if (!this.resultPanelOperatorID) {
       return;
     }
