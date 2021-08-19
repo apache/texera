@@ -1,6 +1,6 @@
 <div class="texera-panel-message">
   <div *ngFor="let message of consoleMessages">
-    {{message}}
+    <div class="console-message">{{message}}</div>
   </div>
   <div *ngIf="errorMessages">
     <div *ngFor="let item of errorMessages | keyvalue">

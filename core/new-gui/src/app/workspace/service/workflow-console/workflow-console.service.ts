@@ -1,6 +1,8 @@
 import { Injectable } from '@angular/core';
 import { WorkflowWebsocketService } from '../workflow-websocket/workflow-websocket.service';
 import { PythonPrintTriggerInfo } from '../../types/workflow-common.interface';
+import { Subject } from 'rxjs/Subject';
+import { Observable } from 'rxjs/Observable';
 
 @Injectable({
   providedIn: 'root'
@@ -8,9 +10,15 @@ import { PythonPrintTriggerInfo } from '../../types/workflow-common.interface';
 export class WorkflowConsoleService {
   consoleMessages: Map<string, string[]> = new Map();
 
+  consoleMessagesUpdateStream = new Subject<void>();
+
   constructor(private workflowWebsocketService: WorkflowWebsocketService) {
     this.registerAutoClearConsoleMessages();
     this.registerPythonPrintEventHandler();
+  }
+
+  getConsoleMessageUpdateStream(): Observable<void> {
+    return this.consoleMessagesUpdateStream.asObservable();
   }
 
   private registerPythonPrintEventHandler() {
@@ -20,6 +28,7 @@ export class WorkflowConsoleService {
         let messages = this.consoleMessages.get(operatorID) || [];
         messages = messages.concat(pythonPrintTriggerInfo.message.split('\n'));
         this.consoleMessages.set(operatorID, messages);
+        this.consoleMessagesUpdateStream.next();
       });
   }
 
