@@ -69,6 +69,11 @@ class SendPythonUdfV2(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class PythonPrintV2(betterproto.Message):
+    message: str = betterproto.string_field(1)
+
+
+@dataclass(eq=False, repr=False)
 class ControlCommandV2(betterproto.Message):
     start_worker: "StartWorkerV2" = betterproto.message_field(1, group="sealed_value")
     pause_worker: "PauseWorkerV2" = betterproto.message_field(2, group="sealed_value")
@@ -91,6 +96,7 @@ class ControlCommandV2(betterproto.Message):
     send_python_udf: "SendPythonUdfV2" = betterproto.message_field(
         21, group="sealed_value"
     )
+    python_print: "PythonPrintV2" = betterproto.message_field(22, group="sealed_value")
     worker_execution_completed: "WorkerExecutionCompletedV2" = (
         betterproto.message_field(101, group="sealed_value")
     )

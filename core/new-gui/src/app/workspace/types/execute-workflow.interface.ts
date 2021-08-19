@@ -11,7 +11,7 @@ import { OperatorCurrentTuples } from './workflow-websocket.interface';
 export interface LogicalLink extends Readonly<{
   origin: { operatorID: string, portOrdinal: number },
   destination: { operatorID: string, portOrdinal: number },
-}> { }
+}> {}
 
 export interface LogicalOperator extends Readonly<{
   operatorID: string,
@@ -19,12 +19,12 @@ export interface LogicalOperator extends Readonly<{
   // reason for not using `any` in this case is to
   //  prevent types such as `undefined` or `null`
   [uniqueAttributes: string]: string | number | boolean | object
-}> { }
+}> {}
 
 export interface BreakpointInfo extends Readonly<{
   operatorID: string,
   breakpoint: BreakpointRequest
-}> { }
+}> {}
 
 /**
  * LogicalPlan is the backend interface equivalent of frontend interface WorkflowGraph,
@@ -35,7 +35,7 @@ export interface LogicalPlan extends Readonly<{
   operators: LogicalOperator[],
   links: LogicalLink[],
   breakpoints: BreakpointInfo[]
-}> { }
+}> {}
 
 /**
  * The backend interface of the return object of a successful execution
@@ -44,7 +44,7 @@ export interface WebOperatorResult extends Readonly<{
   operatorID: string,
   table: ReadonlyArray<object>,
   chartType: ChartType | undefined,
-}> { }
+}> {}
 
 export enum OperatorState {
   Uninitialized = 'Uninitialized',
@@ -67,11 +67,11 @@ export interface OperatorStatistics extends Readonly<{
 
 export interface WorkflowStatusUpdate extends Readonly<{
   operatorStatistics: Record<string, OperatorStatistics>
-}> { }
+}> {}
 
-export type PaginationMode = {'type': 'PaginationMode'};
-export type SetSnapshotMode = {'type': 'SetSnapshotMode'};
-export type SetDeltaMode = {'type': 'SetDeltaMode'};
+export type PaginationMode = { 'type': 'PaginationMode' };
+export type SetSnapshotMode = { 'type': 'SetSnapshotMode' };
+export type SetDeltaMode = { 'type': 'SetDeltaMode' };
 export type WebOutputMode = PaginationMode | SetSnapshotMode | SetDeltaMode;
 
 export interface WebPaginationUpdate extends Readonly<{
@@ -119,8 +119,8 @@ export enum ExecutionState {
 }
 
 export type ExecutionStateInfo = Readonly<{
-  state: ExecutionState.Uninitialized | ExecutionState.WaitingToRun | ExecutionState.Running
-  | ExecutionState.Pausing | ExecutionState.Resuming | ExecutionState.Recovering
+  state: ExecutionState.Uninitialized | ExecutionState.WaitingToRun
+    | ExecutionState.Pausing | ExecutionState.Running | ExecutionState.Resuming | ExecutionState.Recovering
 } | {
   state: ExecutionState.Paused, currentTuples: Readonly<Record<string, OperatorCurrentTuples>>
 } | {

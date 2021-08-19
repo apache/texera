@@ -1,7 +1,11 @@
 import {
-  LogicalPlan, WorkflowStatusUpdate, LogicalOperator, BreakpointInfo, WorkflowResultUpdateEvent
+  BreakpointInfo,
+  LogicalOperator,
+  LogicalPlan,
+  WorkflowResultUpdateEvent,
+  WorkflowStatusUpdate
 } from './execute-workflow.interface';
-import { BreakpointTriggerInfo, BreakpointFaultedTuple } from './workflow-common.interface';
+import { BreakpointFaultedTuple, BreakpointTriggerInfo, PythonPrintTriggerInfo } from './workflow-common.interface';
 
 
 /**
@@ -98,6 +102,7 @@ export type TexeraWebsocketEventTypeMap = {
   'WorkflowResumedEvent': {},
   'RecoveryStartedEvent': {},
   'BreakpointTriggeredEvent': BreakpointTriggerInfo,
+  'PythonPrintTriggeredEvent': PythonPrintTriggerInfo,
   'ModifyLogicCompletedEvent': {},
   'OperatorCurrentTuplesUpdateEvent': OperatorCurrentTuples,
   'PaginatedResultEvent': PaginatedResultEvent,
