@@ -146,6 +146,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         """
         Report the traceback of current stack when an exception occurs.
         """
+        self._print_writer.flush()
         message: str = traceback.format_exc(limit=-1)
         control_command = set_one_of(ControlCommandV2, LocalOperatorExceptionV2(message=message))
         self._async_rpc_client.send(ActorVirtualIdentity(name="CONTROLLER"), control_command)
@@ -223,6 +224,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         """
         Pause the data processing.
         """
+        self._print_writer.flush()
         if self.context.state_manager.confirm_state(WorkerState.RUNNING, WorkerState.READY):
             self.context.pause_manager.pause()
             self.context.state_manager.transit_to(WorkerState.PAUSED)
