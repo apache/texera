@@ -15,19 +15,11 @@ from core.models.marker import SenderChangeMarker
 from core.models.tuple import InputExhausted, Tuple
 from core.udf.udf_operator import UDFOperator
 from core.util import IQueue, StoppableQueueBlockingRunnable, get_one_of, set_one_of
+from core.util.print_writer.print_writer import PrintWriter
 from proto.edu.uci.ics.amber.engine.architecture.worker import ControlCommandV2, LocalOperatorExceptionV2, \
     PythonPrintV2, WorkerExecutionCompletedV2, WorkerState
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlInvocationV2, ControlPayloadV2, \
     LinkIdentity, ReturnInvocationV2
-
-
-class PrintWriter:
-    def __init__(self, dp):
-        self.dp = dp
-
-    def write(self, message: str):
-        control_command = set_one_of(ControlCommandV2, PythonPrintV2(message=message))
-        self.dp._async_rpc_client.send(ActorVirtualIdentity(name="CONTROLLER"), control_command)
 
 
 class DataProcessor(StoppableQueueBlockingRunnable):
@@ -44,7 +36,15 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         self.context = Context(self)
         self._async_rpc_server = AsyncRPCServer(output_queue, context=self.context)
         self._async_rpc_client = AsyncRPCClient(output_queue, context=self.context)
-        logger.add(PrintWriter(self), level='PRINT')
+        logger.add(
+            PrintWriter(
+                lambda msg:
+                self._async_rpc_client.send(
+                    ActorVirtualIdentity(name="CONTROLLER"),
+                    set_one_of(ControlCommandV2, PythonPrintV2(message=msg)))
+            ),
+            level='PRINT'
+        )
 
     def complete(self) -> None:
         """
