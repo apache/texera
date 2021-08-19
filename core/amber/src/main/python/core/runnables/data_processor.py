@@ -15,8 +15,9 @@ from core.models.marker import SenderChangeMarker
 from core.models.tuple import InputExhausted, Tuple
 from core.udf.udf_operator import UDFOperator
 from core.util import IQueue, StoppableQueueBlockingRunnable, get_one_of, set_one_of
+from core.util.print_writer.print_writer import PrintWriter
 from proto.edu.uci.ics.amber.engine.architecture.worker import ControlCommandV2, LocalOperatorExceptionV2, \
-    WorkerExecutionCompletedV2, WorkerState
+    PythonPrintV2, WorkerExecutionCompletedV2, WorkerState
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlInvocationV2, ControlPayloadV2, \
     LinkIdentity, ReturnInvocationV2
 
@@ -35,11 +36,23 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         self.context = Context(self)
         self._async_rpc_server = AsyncRPCServer(output_queue, context=self.context)
         self._async_rpc_client = AsyncRPCClient(output_queue, context=self.context)
+        self._print_writer = PrintWriter(
+            lambda msg:
+            self._async_rpc_client.send(
+                ActorVirtualIdentity(name="CONTROLLER"),
+                set_one_of(ControlCommandV2, PythonPrintV2(message=msg)))
+        )
+        logger.add(
+            self._print_writer,
+            level='PRINT'
+        )
 
     def complete(self) -> None:
         """
         Complete the DataProcessor, marking state to COMPLETED, and notify the controller.
         """
+        # flush the buffered console prints
+        self._print_writer.flush()
         self._udf_operator.close()
         self.context.state_manager.transit_to(WorkerState.COMPLETED)
         control_command = set_one_of(ControlCommandV2, WorkerExecutionCompletedV2())
@@ -133,6 +146,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         """
         Report the traceback of current stack when an exception occurs.
         """
+        self._print_writer.flush()
         message: str = traceback.format_exc(limit=-1)
         control_command = set_one_of(ControlCommandV2, LocalOperatorExceptionV2(message=message))
         self._async_rpc_client.send(ActorVirtualIdentity(name="CONTROLLER"), control_command)
@@ -210,6 +224,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         """
         Pause the data processing.
         """
+        self._print_writer.flush()
         if self.context.state_manager.confirm_state(WorkerState.RUNNING, WorkerState.READY):
             self.context.pause_manager.pause()
             self.context.state_manager.transit_to(WorkerState.PAUSED)

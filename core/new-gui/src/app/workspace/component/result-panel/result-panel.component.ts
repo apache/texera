@@ -50,10 +50,10 @@ export class ResultPanelComponent {
 
   registerAutoOpenResultPanel() {
     this.executeWorkflowService.getExecutionStateStream().subscribe(event => {
+      const currentlyHighlighted = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
       if (event.current.state === ExecutionState.BreakpointTriggered) {
         const breakpointOperator = this.executeWorkflowService.getBreakpointTriggerInfo()?.operatorID;
         if (breakpointOperator) {
-          const currentlyHighlighted = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
           this.workflowActionService.getJointGraphWrapper().unhighlightOperators(...currentlyHighlighted);
           this.workflowActionService.getJointGraphWrapper().highlightOperators(breakpointOperator);
         }
@@ -66,7 +66,6 @@ export class ResultPanelComponent {
         const sinkOperators = this.workflowActionService.getTexeraGraph().getAllOperators()
           .filter(op => op.operatorType.toLowerCase().includes('sink'));
         if (sinkOperators.length > 0 && !this.resultPanelOperatorID) {
-          const currentlyHighlighted = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
           this.workflowActionService.getJointGraphWrapper().unhighlightOperators(...currentlyHighlighted);
           this.workflowActionService.getJointGraphWrapper().highlightOperators(sinkOperators[0].operatorID);
         }
@@ -112,13 +111,19 @@ export class ResultPanelComponent {
         this.switchFrameComponent(ConsoleFrameComponent);
       } else {
         if (this.resultPanelOperatorID) {
-          const resultService = this.workflowResultService.getResultService(this.resultPanelOperatorID);
-          const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.resultPanelOperatorID);
-          if (paginatedResultService) {
-            this.switchFrameComponent(ResultTableFrameComponent);
-          } else if (resultService && resultService.getChartType()) {
-            this.switchFrameComponent(VisualizationFrameComponent);
+          if (this.workflowActionService.getTexeraGraph().getOperator(this.resultPanelOperatorID).operatorType.toLowerCase()
+            .includes('sink')) {
+            const resultService = this.workflowResultService.getResultService(this.resultPanelOperatorID);
+            const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.resultPanelOperatorID);
+            if (paginatedResultService) {
+              this.switchFrameComponent(ResultTableFrameComponent);
+            } else if (resultService && resultService.getChartType()) {
+              this.switchFrameComponent(VisualizationFrameComponent);
+            }
+          } else {
+            this.switchFrameComponent(ConsoleFrameComponent);
           }
+
         }
       }
     });

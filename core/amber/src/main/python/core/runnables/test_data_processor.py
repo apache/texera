@@ -2,6 +2,7 @@ from threading import Thread
 
 import pandas
 import pytest
+from loguru import logger
 
 from core.models import ControlElement, DataElement, DataFrame, EndOfUpstream, InternalQueue
 from core.runnables import DataProcessor
@@ -13,8 +14,10 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import AddPartitioningV2
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlInvocationV2, ControlPayloadV2, \
     LayerIdentity, LinkIdentity, ReturnInvocationV2
 
+logger.level("PRINT", no=38)
 
-class TestDpTread:
+
+class TestDataProcessor:
     @pytest.fixture
     def command_sequence(self):
         return 1
