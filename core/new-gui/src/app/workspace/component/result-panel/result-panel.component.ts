@@ -51,14 +51,6 @@ export class ResultPanelComponent {
   registerAutoOpenResultPanel() {
     this.executeWorkflowService.getExecutionStateStream().subscribe(event => {
       const currentlyHighlighted = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-      if (event.current.state === ExecutionState.Running) {
-        const pythonPrintOperator = this.executeWorkflowService.getPythonPrintTriggerInfo()?.operatorID;
-        if (!currentlyHighlighted && pythonPrintOperator) {
-          this.workflowActionService.getJointGraphWrapper().highlightOperators(pythonPrintOperator);
-        }
-        this.resultPanelToggleService.openResultPanel();
-      }
-
       if (event.current.state === ExecutionState.BreakpointTriggered) {
         const breakpointOperator = this.executeWorkflowService.getBreakpointTriggerInfo()?.operatorID;
         if (breakpointOperator) {

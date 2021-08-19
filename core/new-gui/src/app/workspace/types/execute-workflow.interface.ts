@@ -5,13 +5,13 @@
  */
 
 import { ChartType } from './visualization.interface';
-import { BreakpointRequest, BreakpointTriggerInfo, PythonPrintTriggerInfo } from './workflow-common.interface';
+import { BreakpointRequest, BreakpointTriggerInfo } from './workflow-common.interface';
 import { OperatorCurrentTuples } from './workflow-websocket.interface';
 
 export interface LogicalLink extends Readonly<{
   origin: { operatorID: string, portOrdinal: number },
   destination: { operatorID: string, portOrdinal: number },
-}> { }
+}> {}
 
 export interface LogicalOperator extends Readonly<{
   operatorID: string,
@@ -19,12 +19,12 @@ export interface LogicalOperator extends Readonly<{
   // reason for not using `any` in this case is to
   //  prevent types such as `undefined` or `null`
   [uniqueAttributes: string]: string | number | boolean | object
-}> { }
+}> {}
 
 export interface BreakpointInfo extends Readonly<{
   operatorID: string,
   breakpoint: BreakpointRequest
-}> { }
+}> {}
 
 /**
  * LogicalPlan is the backend interface equivalent of frontend interface WorkflowGraph,
@@ -120,7 +120,7 @@ export enum ExecutionState {
 
 export type ExecutionStateInfo = Readonly<{
   state: ExecutionState.Uninitialized | ExecutionState.WaitingToRun
-    | ExecutionState.Pausing | ExecutionState.Resuming | ExecutionState.Recovering
+    | ExecutionState.Pausing | ExecutionState.Running | ExecutionState.Resuming | ExecutionState.Recovering
 } | {
   state: ExecutionState.Paused, currentTuples: Readonly<Record<string, OperatorCurrentTuples>>
 } | {
@@ -129,6 +129,4 @@ export type ExecutionStateInfo = Readonly<{
   state: ExecutionState.Completed
 } | {
   state: ExecutionState.Failed, errorMessages: Readonly<Record<string, string>>
-} | {
-  state: ExecutionState.Running, consoleMessages: PythonPrintTriggerInfo | undefined
 }>;

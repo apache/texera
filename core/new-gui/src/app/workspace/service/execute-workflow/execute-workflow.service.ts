@@ -85,7 +85,7 @@ export class ExecuteWorkflowService {
   public handleExecutionEvent(event: TexeraWebsocketEvent): ExecutionStateInfo | undefined {
     switch (event.type) {
       case 'WorkflowStartedEvent':
-        return { state: ExecutionState.Running, consoleMessages: undefined };
+        return { state: ExecutionState.Running};
       case 'WorkflowCompletedEvent':
         return { state: ExecutionState.Completed };
       case 'WorkflowPausedEvent':
@@ -115,7 +115,7 @@ export class ExecuteWorkflowService {
         };
         return { state: ExecutionState.Paused, currentTuples: newCurrentTuples };
       case 'WorkflowResumedEvent':
-        return { state: ExecutionState.Running, consoleMessages: undefined };
+        return { state: ExecutionState.Running};
       case 'BreakpointTriggeredEvent':
         return { state: ExecutionState.BreakpointTriggered, breakpoint: event };
       case 'WorkflowErrorEvent':
@@ -134,8 +134,6 @@ export class ExecuteWorkflowService {
           backendErrorMessages[entry[0]] = entry[1];
         });
         return { state: ExecutionState.Failed, errorMessages: backendErrorMessages };
-      case 'PythonPrintTriggeredEvent':
-        return { state: ExecutionState.Running, consoleMessages: event };
       default:
         return undefined;
     }
@@ -155,13 +153,6 @@ export class ExecuteWorkflowService {
   public getBreakpointTriggerInfo(): BreakpointTriggerInfo | undefined {
     if (this.currentState?.state === ExecutionState.BreakpointTriggered) {
       return this.currentState.breakpoint;
-    }
-    return undefined;
-  }
-
-  public getPythonPrintTriggerInfo(): PythonPrintTriggerInfo | undefined {
-    if (this.currentState?.state === ExecutionState.Running) {
-      return this.currentState.consoleMessages;
     }
     return undefined;
   }
