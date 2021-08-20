@@ -160,7 +160,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
           val columnType = attr.getType
 
           var value: String = null
-          Try(value = values.get(i))
+          Try({ value = values.get(i) })
 
           if (value == null || value.equals("null")) {
             // add the field as null
