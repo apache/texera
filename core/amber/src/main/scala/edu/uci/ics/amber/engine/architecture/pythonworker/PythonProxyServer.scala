@@ -42,6 +42,8 @@ private class AmberProducer(
               to = pythonControlMessage.tag,
               payload = controlInvocationToV1(controlInvocation)
             )
+          case payload =>
+            throw new RuntimeException(s"not supported payload $payload")
 
         }
         listener.onNext(new Result("ack".getBytes))

@@ -1,11 +1,11 @@
 package edu.uci.ics.texera.workflow.common.metadata
 
 import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.introspect.AnnotatedClass
+import com.fasterxml.jackson.databind.introspect.AnnotatedClassResolver
 import com.fasterxml.jackson.databind.jsontype.NamedType
 import com.fasterxml.jackson.databind.node.{ArrayNode, ObjectNode}
-import com.kjetland.jackson.jsonSchema.{JsonSchemaConfig, JsonSchemaDraft, JsonSchemaGenerator}
 import com.kjetland.jackson.jsonSchema.JsonSchemaConfig.html5EnabledSchema
+import com.kjetland.jackson.jsonSchema.{JsonSchemaConfig, JsonSchemaDraft, JsonSchemaGenerator}
 import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.operators.source.scan.csv.CSVScanSourceOpDesc
@@ -67,9 +67,9 @@ object OperatorMetadataGenerator {
     // find all the operator type declarations in PredicateBase annotation
     val types = objectMapper.getSubtypeResolver.collectAndResolveSubtypesByClass(
       objectMapper.getDeserializationConfig,
-      AnnotatedClass.construct(
-        objectMapper.constructType(classOf[OperatorDescriptor]),
-        objectMapper.getDeserializationConfig
+      AnnotatedClassResolver.resolveWithoutSuperTypes(
+        objectMapper.getDeserializationConfig,
+        objectMapper.constructType(classOf[OperatorDescriptor]).getRawClass
       )
     )
     JavaConverters

@@ -151,7 +151,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
     var values: Option[List[String]] = None
     try {
       values = CSVParser.parse(row, '\\', ',', '"')
-      if (values == null){
+      if (values == null) {
         return null
       }
       for (i <- 0 until schema.getAttributes.size()) {
