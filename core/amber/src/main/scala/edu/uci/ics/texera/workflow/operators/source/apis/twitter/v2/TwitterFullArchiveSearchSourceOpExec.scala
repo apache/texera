@@ -88,6 +88,18 @@ class TwitterFullArchiveSearchSourceOpExec(
             java.lang.Long.valueOf(tweet.getQuoteCount),
             java.lang.Long.valueOf(tweet.getReplyCount),
             java.lang.Long.valueOf(tweet.getRetweetCount),
+            Option(tweet.getEntities)
+              .map(e => Option(e.getHashtags).map(_.map(x => x.getText).mkString(",")).orNull)
+              .orNull,
+            Option(tweet.getEntities)
+              .map(e => Option(e.getSymbols).map(_.map(x => x.getText).mkString(",")).orNull)
+              .orNull,
+            Option(tweet.getEntities)
+              .map(e => Option(e.getUrls).map(_.map(x => x.getExpandedUrl).mkString(",")).orNull)
+              .orNull,
+            Option(tweet.getEntities)
+              .map(e => Option(e.getUserMentions).map(_.map(x => x.getText).mkString(",")).orNull)
+              .orNull,
             user.get.getId,
             user.get.getCreatedAt,
             user.get.getName,
