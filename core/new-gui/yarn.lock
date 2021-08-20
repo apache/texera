@@ -10849,6 +10849,11 @@ rimraf@3.0.2, rimraf@^3.0.2:
   dependencies:
     glob "^7.1.3"
 
+ring-buffer-ts@^1.0.3:
+  version "1.0.3"
+  resolved "https://registry.yarnpkg.com/ring-buffer-ts/-/ring-buffer-ts-1.0.3.tgz#a6c40650bba57ae994af067d3ea10108a720db1a"
+  integrity sha512-LCvfEZ+Yth4FxMXJSLTdc0nA9h6cXJua14zu1ljMjRkwSe/GM3PC+mlt/5UL3dqw+1wyy0DtpFKoROO9Pg2Mnw==
+
 ripemd160@^2.0.0, ripemd160@^2.0.1:
   version "2.0.2"
   resolved "https://registry.yarnpkg.com/ripemd160/-/ripemd160-2.0.2.tgz#a1c1a6f624751577ba5d07914cbc92850585890c"
