@@ -120,7 +120,7 @@ object ArrowUtils {
       case _: ArrowType.Timestamp =>
         AttributeType.TIMESTAMP
 
-      case _: ArrowType.Utf8 | _: ArrowType.LargeUtf8 =>
+      case _: ArrowType.Utf8 =>
         AttributeType.STRING
 
       case _ =>
