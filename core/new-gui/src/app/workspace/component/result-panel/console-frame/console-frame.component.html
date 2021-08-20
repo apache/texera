@@ -1,14 +1,15 @@
 <div class="texera-panel-message">
-  <div *ngFor="let message of consoleMessages">
-    <div class="console-message">{{message}}</div>
-  </div>
   <div *ngIf="errorMessages">
     <div *ngFor="let item of errorMessages | keyvalue">
       {{item.key}}:{{item.value}}
     </div>
   </div>
+  <div *ngFor="let message of consoleMessages">
+    <div class="console-message">{{message}}</div>
+  </div>
 </div>
-<button class="btn btn-secondary" *ngIf="breakpointTriggerInfo !== undefined" (click)="onClickSkipTuples()"
+<button (click)="onClickSkipTuples()" *ngIf="breakpointTriggerInfo !== undefined"
+        nz-button
         [disabled]="!breakpointAction">
   Skip Records
 </button>

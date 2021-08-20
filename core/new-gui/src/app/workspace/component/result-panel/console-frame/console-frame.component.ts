@@ -82,8 +82,7 @@ export class ConsoleFrameComponent implements OnInit, OnDestroy {
     const breakpointTriggerInfo = this.executeWorkflowService.getBreakpointTriggerInfo();
 
     if (resultPanelOperatorID) {
-      this.displayConsoleMessages(resultPanelOperatorID);
-
+      // first display error messages if applicable
       if (resultPanelOperatorID === breakpointTriggerInfo?.operatorID) {
         // if we hit a breakpoint
         this.displayBreakpoint(breakpointTriggerInfo);
@@ -91,6 +90,9 @@ export class ConsoleFrameComponent implements OnInit, OnDestroy {
         // otherwise we assume it's a fault
         this.displayFault();
       }
+
+      // always display console messages
+      this.displayConsoleMessages(resultPanelOperatorID);
     }
   }
 
