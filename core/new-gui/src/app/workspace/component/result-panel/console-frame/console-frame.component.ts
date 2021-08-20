@@ -40,10 +40,10 @@ export class ConsoleFrameComponent implements OnInit, OnDestroy {
   registerAutoConsoleRerender() {
     this.subscriptions.add(this.executeWorkflowService.getExecutionStateStream()
       .subscribe(event => {
-        if (event.previous.state === ExecutionState.Completed && event.current.state === ExecutionState.WaitingToRun) {
+        if (event.previous.state === ExecutionState.BreakpointTriggered && event.current.state === ExecutionState.Completed) {
+          // intentionally do nothing
+        } else if (event.previous.state === ExecutionState.WaitingToRun && event.current.state === ExecutionState.Running) {
           this.clearConsole();
-        } else if (event.current.state === ExecutionState.Failed) {
-          this.renderConsole();
         } else {
           this.renderConsole();
         }
@@ -64,6 +64,7 @@ export class ConsoleFrameComponent implements OnInit, OnDestroy {
   private clearConsole() {
     this.consoleMessages = [];
     this.errorMessages = undefined;
+    this.breakpointTriggerInfo = undefined;
   }
 
   private renderConsole() {
@@ -71,12 +72,14 @@ export class ConsoleFrameComponent implements OnInit, OnDestroy {
     const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
     const resultPanelOperatorID = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
     const breakpointTriggerInfo = this.executeWorkflowService.getBreakpointTriggerInfo();
-    this.errorMessages = this.executeWorkflowService.getErrorMessages();
+
     if (resultPanelOperatorID) {
+      this.displayConsoleMessages(resultPanelOperatorID);
       if (resultPanelOperatorID === breakpointTriggerInfo?.operatorID) {
         this.displayBreakpoint(breakpointTriggerInfo);
       } else {
-        this.displayConsoleMessages(resultPanelOperatorID);
+        this.displayFault();
+
       }
     }
   }
@@ -101,5 +104,9 @@ export class ConsoleFrameComponent implements OnInit, OnDestroy {
       }
     });
     this.errorMessages = errorsMessages;
+  }
+
+  private displayFault() {
+    this.errorMessages = this.executeWorkflowService.getErrorMessages();
   }
 }
