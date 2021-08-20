@@ -182,7 +182,7 @@ class WorkflowResource {
   @Path("/duplicate")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def duplicateWorkflow(@Session session: HttpSession, workflow:Workflow): Response = {
+  def duplicateWorkflow(@Session session: HttpSession, workflow: Workflow): Response = {
     val wid = workflow.getWid
     UserResource.getUser(session) match {
       case Some(user) =>
