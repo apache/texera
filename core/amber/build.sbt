@@ -177,7 +177,7 @@ libraryDependencies += "com.konghq" % "unirest-java" % "3.11.11"
 libraryDependencies += "com.github.marianobarrios" % "lbmq" % "0.5.0"
 
 // https://mvnrepository.com/artifact/io.github.redouane59.twitter/twittered
-libraryDependencies += "io.github.redouane59.twitter" % "twittered" % "2.6"
+libraryDependencies += "io.github.redouane59.twitter" % "twittered" % "2.7"
 
 // https://mvnrepository.com/artifact/org.jooq/jooq
 libraryDependencies += "org.jooq" % "jooq" % "3.14.4"
