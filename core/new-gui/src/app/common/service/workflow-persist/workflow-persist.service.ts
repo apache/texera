@@ -7,10 +7,11 @@ import { Workflow, WorkflowContent } from '../../type/workflow';
 import { jsonCast } from '../../util/storage';
 import { DashboardWorkflowEntry } from '../../../dashboard/type/dashboard-workflow-entry';
 
-export const WORKFLOW_URL = 'workflow';
-export const WORKFLOW_PERSIST_URL = WORKFLOW_URL + '/persist';
-export const WORKFLOW_LIST_URL = WORKFLOW_URL + '/list';
-export const WORKFLOW_CREATE_URL = WORKFLOW_URL + '/create';
+export const WORKFLOW_BASE_URL = 'workflow';
+export const WORKFLOW_PERSIST_URL = WORKFLOW_BASE_URL + '/persist';
+export const WORKFLOW_LIST_URL = WORKFLOW_BASE_URL + '/list';
+export const WORKFLOW_CREATE_URL = WORKFLOW_BASE_URL + '/create';
+export const WORKFLOW_DUPLICATE_URL = WORKFLOW_BASE_URL + '/duplicate';
 
 @Injectable({
   providedIn: 'root'
@@ -49,11 +50,23 @@ export class WorkflowPersistService {
   }
 
   /**
+   * creates a workflow and insert it to backend database and return its information
+   * @param targetWid
+   */
+  public duplicateWorkflow(targetWid: number):
+    Observable<DashboardWorkflowEntry> {
+    return this.http.post<DashboardWorkflowEntry>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_DUPLICATE_URL}`,
+      { wid: targetWid })
+      .filter((createdWorkflow: DashboardWorkflowEntry) => createdWorkflow != null);
+
+  }
+
+  /**
    * retrieves a workflow from backend database given its id. The user in the session must have access to the workflow.
    * @param wid, the workflow id.
    */
   public retrieveWorkflow(wid: number): Observable<Workflow> {
-    return this.http.get<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_URL}/${wid}`)
+    return this.http.get<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/${wid}`)
       .filter((workflow: Workflow) => workflow != null)
       .pipe(map(WorkflowPersistService.parseWorkflowInfo));
   }
@@ -79,7 +92,7 @@ export class WorkflowPersistService {
    * deletes the given workflow, the user in the session must own the workflow.
    */
   public deleteWorkflow(wid: number): Observable<Response> {
-    return this.http.delete<Response>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_URL}/${wid}`);
+    return this.http.delete<Response>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/${wid}`);
   }
 
   /**

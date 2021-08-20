@@ -1,38 +1,18 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
-  USER,
-  WORKFLOW,
-  WORKFLOW_OF_USER,
-  WORKFLOW_USER_ACCESS
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  UserDao,
-  WorkflowDao,
-  WorkflowOfUserDao,
-  WorkflowUserAccessDao
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
-  User,
-  Workflow,
-  WorkflowOfUser,
-  WorkflowUserAccess
-}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowOfUserDao, WorkflowUserAccessDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{User, Workflow, WorkflowOfUser, WorkflowUserAccess}
 import edu.uci.ics.texera.web.resource.auth.UserResource
-import edu.uci.ics.texera.web.resource.dashboard.WorkflowAccessResource.{
-  WorkflowAccess,
-  toAccessLevel
-}
+import edu.uci.ics.texera.web.resource.dashboard.WorkflowAccessResource.{WorkflowAccess, toAccessLevel}
 import edu.uci.ics.texera.web.resource.dashboard.WorkflowResource.context
 import io.dropwizard.jersey.sessions.Session
 import org.jooq.types.UInteger
 
-import java.util
 import javax.servlet.http.HttpSession
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
-import scala.collection.JavaConverters._
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 /**
@@ -62,7 +42,6 @@ class WorkflowResource {
   final private val workflowUserAccessDao = new WorkflowUserAccessDao(
     context.configuration()
   )
-  final private val userDao = new UserDao(context.configuration())
 
   /**
     * This method returns the current in-session user's workflow list based on all workflows he/she has access to
@@ -75,7 +54,7 @@ class WorkflowResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   def retrieveWorkflowsBySessionUser(
       @Session session: HttpSession
-  ): util.List[DashboardWorkflowEntry] = {
+  ): List[DashboardWorkflowEntry] = {
     UserResource.getUser(session) match {
       case Some(user) =>
         val workflowEntries = context
@@ -110,8 +89,7 @@ class WorkflowResource {
             )
           )
           .toList
-          .asJava
-      case None => new util.ArrayList()
+      case None => List()
     }
   }
 
@@ -180,6 +158,54 @@ class WorkflowResource {
     }
   }
 
+  private def insertWorkflow(workflow: Workflow, user: User): Unit = {
+    workflowDao.insert(workflow)
+    workflowOfUserDao.insert(new WorkflowOfUser(user.getUid, workflow.getWid))
+    workflowUserAccessDao.insert(
+      new WorkflowUserAccess(
+        user.getUid,
+        workflow.getWid,
+        true, // readPrivilege
+        true // writePrivilege
+      )
+    )
+  }
+
+  /**
+    * This method creates and insert a new workflow to database
+    *
+    * @param session  HttpSession
+    * @param workflow , a workflow to be created
+    * @return Workflow, which contains the generated wid if not provided
+    */
+  @POST
+  @Path("/duplicate")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def duplicateWorkflow(@Session session: HttpSession, workflow:Workflow): Response = {
+    val wid = workflow.getWid
+    UserResource.getUser(session) match {
+      case Some(user) =>
+        if (
+          WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid) ||
+          WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, user.getUid)
+        ) {
+          Response.status(Response.Status.UNAUTHORIZED).build()
+        } else {
+          val workflow: Workflow = workflowDao.fetchOneByWid(wid)
+          workflow.getContent
+          workflow.getName
+          createWorkflow(
+            session,
+            new Workflow(workflow.getName + "_copy", null, workflow.getContent, null, null)
+          )
+
+        }
+      case None =>
+        Response.status(Response.Status.UNAUTHORIZED).build()
+    }
+  }
+
   /**
     * This method creates and insert a new workflow to database
     *
@@ -209,19 +235,6 @@ class WorkflowResource {
       case None =>
         Response.status(Response.Status.UNAUTHORIZED).build()
     }
-  }
-
-  private def insertWorkflow(workflow: Workflow, user: User): Unit = {
-    workflowDao.insert(workflow)
-    workflowOfUserDao.insert(new WorkflowOfUser(user.getUid, workflow.getWid))
-    workflowUserAccessDao.insert(
-      new WorkflowUserAccess(
-        user.getUid,
-        workflow.getWid,
-        true, // readPrivilege
-        true // writePrivilege
-      )
-    )
   }
 
   /**
