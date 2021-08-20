@@ -172,10 +172,10 @@ class WorkflowResource {
   }
 
   /**
-    * This method creates and insert a new workflow to database
+    * This method duplicates the target workflow, the new workflow name is appended with `_copy`
     *
     * @param session  HttpSession
-    * @param workflow , a workflow to be created
+    * @param workflow , a workflow to be duplicated
     * @return Workflow, which contains the generated wid if not provided
     */
   @POST
