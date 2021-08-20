@@ -16,6 +16,7 @@ import { WorkflowCacheService } from '../service/workflow-cache/workflow-cache.s
 import { WorkflowActionService } from '../service/workflow-graph/model/workflow-action.service';
 import { WorkflowWebsocketService } from '../service/workflow-websocket/workflow-websocket.service';
 import { NzMessageService } from 'ng-zorro-antd/message';
+import { WorkflowConsoleService } from '../service/workflow-console/workflow-console.service';
 
 @Component({
   selector: 'texera-workspace',
@@ -45,6 +46,7 @@ export class WorkspaceComponent implements OnDestroy, AfterViewInit {
     private workflowPersistService: WorkflowPersistService,
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowActionService: WorkflowActionService,
+    private workflowConsoleService: WorkflowConsoleService,
     private location: Location,
     private route: ActivatedRoute,
     private operatorMetadataService: OperatorMetadataService,

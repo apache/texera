@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.worker.controlcommands
 
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PythonPrintHandler.PythonPrint
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.SendPythonUdfHandler.SendPythonUdf
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
@@ -54,12 +55,13 @@ object ControlCommandConvertUtils {
         WorkerExecutionCompleted()
       case LocalOperatorExceptionV2(message) =>
         LocalOperatorException(null, new RuntimeException(message))
+      case PythonPrintV2(message) =>
+        PythonPrint(message)
       case _ =>
         throw new UnsupportedOperationException(
           s"V2 controlCommand $controlCommand cannot be converted to V1"
         )
     }
-
   }
 
   def controlReturnToV1(
@@ -74,7 +76,8 @@ object ControlCommandConvertUtils {
 
   def controlReturnToV2(controlReturn: Any): ControlReturnV2 = {
     controlReturn match {
-      case Unit => ControlReturnV2(Empty)
+      case _: Unit =>
+        ControlReturnV2(Empty)
       case workerState: WorkerState =>
         ControlReturnV2(
           ControlReturnV2.Value.WorkerState(workerState)

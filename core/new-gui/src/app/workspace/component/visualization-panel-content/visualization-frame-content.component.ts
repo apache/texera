@@ -4,7 +4,7 @@ import { Primitive, PrimitiveArray } from 'c3';
 import * as d3 from 'd3';
 import * as cloud from 'd3-cloud';
 import { ChartType, WordCloudTuple } from '../../types/visualization.interface';
-import { Subscription, Subject, Observable } from 'rxjs';
+import { Observable, Subject, Subscription } from 'rxjs';
 import { environment } from 'src/environments/environment';
 import * as mapboxgl from 'mapbox-gl';
 import { MapboxLayer } from '@deck.gl/mapbox';
@@ -22,7 +22,7 @@ type WordCloudControlsType = {
 
 // TODO: The current design doesn't decouple the visualization types into different modules
 /**
- * VisualizationPanelContentComponent displays the chart based on the chart type and data in table.
+ * VisualizationFrameContentComponent displays the chart based on the chart type and data in table.
  *
  * It will convert the table into data format required by c3.js.
  * Then it passes the data and figure type to c3.js for rendering the figure.
@@ -30,10 +30,10 @@ type WordCloudControlsType = {
  */
 @Component({
   selector: 'texera-visualization-panel-content',
-  templateUrl: './visualization-panel-content.component.html',
-  styleUrls: ['./visualization-panel-content.component.scss']
+  templateUrl: './visualization-frame-content.component.html',
+  styleUrls: ['./visualization-frame-content.component.scss']
 })
-export class VisualizationPanelContentComponent implements AfterContentInit, OnDestroy {
+export class VisualizationFrameContentComponent implements AfterContentInit, OnDestroy {
   // this readonly variable must be the same as HTML element ID for visualization
   public static readonly CHART_ID = '#texera-result-chart-content';
   public static readonly MAP_CONTAINER = 'texera-result-map-container';
@@ -69,8 +69,8 @@ export class VisualizationPanelContentComponent implements AfterContentInit, OnD
   @Input()
   operatorID: string | undefined;
   displayHTML: boolean = false; // variable to decide whether to display the container to display the HTML container(iFrame)
-  displayWordCloud: boolean = false; // variable to decide whether to display the container for worldcloud visualization
-  displayMap: boolean = true; // variable to decide whether to hide/unhide the map
+  displayWordCloud: boolean = false; // variable to decide whether to display the container for world cloud visualization
+  displayMap: boolean = true; // variable to decide whether to hide/un-hide the map
   data: ReadonlyArray<object> | undefined;
   chartType: ChartType | undefined;
   columns: string[] = [];
@@ -94,9 +94,9 @@ export class VisualizationPanelContentComponent implements AfterContentInit, OnD
     // setup an event lister that re-draws the chart content every (n) milliseconds
     // auditTime makes sure the first re-draw happens after (n) milliseconds has elapsed
     const resultUpdate = this.workflowResultService.getResultUpdateStream()
-      .auditTime(VisualizationPanelContentComponent.UPDATE_INTERVAL_MS);
+      .auditTime(VisualizationFrameContentComponent.UPDATE_INTERVAL_MS);
     const controlUpdate = this.wordCloudControlUpdateObservable
-      .debounceTime(VisualizationPanelContentComponent.WORD_CLOUD_CONTROL_UPDATE_INTERVAL_MS);
+      .debounceTime(VisualizationFrameContentComponent.WORD_CLOUD_CONTROL_UPDATE_INTERVAL_MS);
 
     this.updateSubscription = Observable.merge(resultUpdate, controlUpdate).subscribe(() => {
       this.drawChart();
@@ -122,12 +122,12 @@ export class VisualizationPanelContentComponent implements AfterContentInit, OnD
     if (!this.operatorID) {
       return;
     }
-    const opratorResultService = this.workflowResultService.getResultService(this.operatorID);
-    if (! opratorResultService) {
+    const operatorResultService = this.workflowResultService.getResultService(this.operatorID);
+    if (!operatorResultService) {
       return;
     }
-    this.data = opratorResultService.getCurrentResultSnapshot();
-    this.chartType = opratorResultService.getChartType();
+    this.data = operatorResultService.getCurrentResultSnapshot();
+    this.chartType = operatorResultService.getChartType();
     if (!this.data || !this.chartType) {
       return;
     }
@@ -156,10 +156,10 @@ export class VisualizationPanelContentComponent implements AfterContentInit, OnD
         break;
       case ChartType.SPATIAL_SCATTERPLOT:
         this.displayMap = false;
-        this.generateSpatialScatterplot();
+        this.generateSpatialScatterPlot();
         break;
       case ChartType.SIMPLE_SCATTERPLOT:
-        this.generateSimpleScatterplot();
+        this.generateSimpleScatterPlot();
         break;
       case ChartType.HTML_VIZ:
         this.displayHTML = true;
@@ -168,7 +168,7 @@ export class VisualizationPanelContentComponent implements AfterContentInit, OnD
     }
   }
 
-  generateSimpleScatterplot() {
+  generateSimpleScatterPlot() {
     if (this.c3ChartElement) {
       this.c3ChartElement.destroy();
     }
@@ -178,8 +178,8 @@ export class VisualizationPanelContentComponent implements AfterContentInit, OnD
 
     this.c3ChartElement = c3.generate({
       size: {
-        height: VisualizationPanelContentComponent.HEIGHT,
-        width: VisualizationPanelContentComponent.WIDTH
+        height: VisualizationFrameContentComponent.HEIGHT,
+        width: VisualizationFrameContentComponent.WIDTH
       },
       data: {
         json: result,
@@ -200,25 +200,25 @@ export class VisualizationPanelContentComponent implements AfterContentInit, OnD
           label: yLabel
         }
       },
-      bindto: VisualizationPanelContentComponent.CHART_ID
+      bindto: VisualizationFrameContentComponent.CHART_ID
     });
   }
 
-  generateSpatialScatterplot() {
+  generateSpatialScatterPlot() {
     if (this.map === undefined) {
       this.initMap();
     }
     /* after the map is defined and the base
     style is loaded, we add a layer of the data points */
     this.map?.on('styledata', () => {
-      this.addNeworReplaceExistingLayer();
+      this.addNewOrReplaceExistingLayer();
     });
   }
 
   initMap() {
     /* mapbox object with default configuration */
     this.map = new mapboxgl.Map({
-      container: VisualizationPanelContentComponent.MAP_CONTAINER,
+      container: VisualizationFrameContentComponent.MAP_CONTAINER,
       style: 'mapbox://styles/mapbox/light-v9',
       center: [-96.35, 39.5],
       zoom: 3,
@@ -227,7 +227,7 @@ export class VisualizationPanelContentComponent implements AfterContentInit, OnD
     });
   }
 
-  addNeworReplaceExistingLayer() {
+  addNewOrReplaceExistingLayer() {
     if (!this.map) {
       return;
     }
@@ -241,7 +241,7 @@ export class VisualizationPanelContentComponent implements AfterContentInit, OnD
       data: this.data,
       pickable: true,
     });
-    clusterLayer.setProps(VisualizationPanelContentComponent.props);
+    clusterLayer.setProps(VisualizationFrameContentComponent.props);
     this.map.addLayer(clusterLayer);
   }
 
@@ -260,14 +260,14 @@ export class VisualizationPanelContentComponent implements AfterContentInit, OnD
 
     if (this.wordCloudElement === undefined) {
       this.wordCloudElement =
-        d3.select(VisualizationPanelContentComponent.CHART_ID)
+        d3.select(VisualizationFrameContentComponent.CHART_ID)
           .append('svg')
-          .attr('width', VisualizationPanelContentComponent.WIDTH)
-          .attr('height', VisualizationPanelContentComponent.HEIGHT)
+          .attr('width', VisualizationFrameContentComponent.WIDTH)
+          .attr('height', VisualizationFrameContentComponent.HEIGHT)
           .append('g')
           .attr('transform',
-            'translate(' + VisualizationPanelContentComponent.WIDTH / 2 + ','
-            + VisualizationPanelContentComponent.HEIGHT / 2 + ')');
+            'translate(' + VisualizationFrameContentComponent.WIDTH / 2 + ','
+            + VisualizationFrameContentComponent.HEIGHT / 2 + ')');
     }
 
     const wordCloudTuples = this.data as ReadonlyArray<WordCloudTuple>;
@@ -328,7 +328,7 @@ export class VisualizationPanelContentComponent implements AfterContentInit, OnD
     d3Scale.domain([minCount, maxCount]).range([minFontSize, maxFontSize]);
 
     const layout = cloud()
-      .size([VisualizationPanelContentComponent.WIDTH, VisualizationPanelContentComponent.HEIGHT])
+      .size([VisualizationFrameContentComponent.WIDTH, VisualizationFrameContentComponent.HEIGHT])
       .words(wordCloudTuples.map(t => ({ text: t.word, size: d3Scale(t.count) })))
       .text(d => d.text ?? '')
       .padding(5)
@@ -367,8 +367,8 @@ export class VisualizationPanelContentComponent implements AfterContentInit, OnD
     }
     this.c3ChartElement = c3.generate({
       size: {
-        height: VisualizationPanelContentComponent.HEIGHT,
-        width: VisualizationPanelContentComponent.WIDTH
+        height: VisualizationFrameContentComponent.HEIGHT,
+        width: VisualizationFrameContentComponent.WIDTH
       },
       data: {
         columns: dataToDisplay,
@@ -380,7 +380,7 @@ export class VisualizationPanelContentComponent implements AfterContentInit, OnD
           categories: category
         }
       },
-      bindto: VisualizationPanelContentComponent.CHART_ID
+      bindto: VisualizationFrameContentComponent.CHART_ID
     });
 
   }

@@ -11,12 +11,12 @@ import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { WebDataUpdate } from '../../types/execute-workflow.interface';
 import { ChartType } from '../../types/visualization.interface';
-import { VisualizationPanelContentComponent } from './visualization-panel-content.component';
-import { WorkflowResultService, OperatorResultService } from '../../service/workflow-result/workflow-result.service';
+import { VisualizationFrameContentComponent } from './visualization-frame-content.component';
+import { OperatorResultService, WorkflowResultService } from '../../service/workflow-result/workflow-result.service';
 
-describe('VisualizationPanelContentComponent', () => {
-  let component: VisualizationPanelContentComponent;
-  let fixture: ComponentFixture<VisualizationPanelContentComponent>;
+describe('VisualizationFrameContentComponent', () => {
+  let component: VisualizationFrameContentComponent;
+  let fixture: ComponentFixture<VisualizationFrameContentComponent>;
   let workflowResultService: WorkflowResultService;
   const operatorID = 'operator1';
   let operatorResultService: OperatorResultService;
@@ -24,7 +24,7 @@ describe('VisualizationPanelContentComponent', () => {
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       imports: [MatDialogModule, HttpClientTestingModule],
-      declarations: [VisualizationPanelContentComponent],
+      declarations: [VisualizationFrameContentComponent],
       providers: [
         JointUIService,
         WorkflowUtilService,
@@ -39,7 +39,7 @@ describe('VisualizationPanelContentComponent', () => {
   }));
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(VisualizationPanelContentComponent);
+    fixture = TestBed.createComponent(VisualizationFrameContentComponent);
     component = fixture.componentInstance;
     component.operatorID = operatorID;
     workflowResultService = TestBed.get(WorkflowResultService);
@@ -48,7 +48,7 @@ describe('VisualizationPanelContentComponent', () => {
   });
 
   it('should create', () => {
-    fixture = TestBed.createComponent(VisualizationPanelContentComponent);
+    fixture = TestBed.createComponent(VisualizationFrameContentComponent);
     expect(component).toBeTruthy();
   });
 
@@ -82,7 +82,7 @@ describe('VisualizationPanelContentComponent', () => {
     expect(component.generateWordCloud).toHaveBeenCalled();
   });
 
-  it('should draw the spatial scatteplot map', () => {
+  it('should draw the spatial scatter plot map', () => {
     const testData: WebDataUpdate = {
       mode: { type: 'SetSnapshotMode' },
       table: [{ 'xColumn': -90.285434, 'yColumn': 29.969126 }, { 'xColumn': -76.711521, 'yColumn': 39.197211 }],
@@ -90,14 +90,14 @@ describe('VisualizationPanelContentComponent', () => {
     };
     operatorResultService.handleResultUpdate(testData);
 
-    spyOn(component, 'generateSpatialScatterplot');
+    spyOn(component, 'generateSpatialScatterPlot');
 
     component.ngAfterContentInit();
 
-    expect(component.generateSpatialScatterplot).toHaveBeenCalled();
+    expect(component.generateSpatialScatterPlot).toHaveBeenCalled();
   });
 
-  it('should draw the simple scatteplot chart', () => {
+  it('should draw the simple scatter plot chart', () => {
     const testData: WebDataUpdate = {
       mode: { type: 'SetSnapshotMode' },
       table: [{ 'employees': 1000, 'sales': 30000 }, { 'employees': 500, 'sales': 21000 }],
@@ -105,11 +105,11 @@ describe('VisualizationPanelContentComponent', () => {
     };
     operatorResultService.handleResultUpdate(testData);
 
-    spyOn(component, 'generateSimpleScatterplot');
+    spyOn(component, 'generateSimpleScatterPlot');
 
     component.ngAfterContentInit();
 
-    expect(component.generateSimpleScatterplot).toHaveBeenCalled();
+    expect(component.generateSimpleScatterPlot).toHaveBeenCalled();
   });
 
   it('should draw a sample html', () => {
