@@ -27,7 +27,6 @@ class PythonProxyClient(portNumber: Int, logger: WorkflowLogger)
     with AutoCloseable
     with WorkerBatchInternalQueue {
 
-  final val CHUNK_SIZE: Int = 100
   val allocator: BufferAllocator =
     new RootAllocator().newChildAllocator("flight-client", 0, Long.MaxValue)
   val location: Location = Location.forGrpcInsecure("localhost", portNumber)
@@ -112,25 +111,16 @@ class PythonProxyClient(portNumber: Int, logger: WorkflowLogger)
     val flightListener = new SyncPutListener
     val schemaRoot = VectorSchemaRoot.create(ArrowUtils.fromTexeraSchema(schema), allocator)
     val writer = flightClient.startPut(descriptor, schemaRoot, flightListener)
-
+    schemaRoot.allocateNew()
     while (tuples.nonEmpty) {
-      writeChunk(tuples, schemaRoot, writer)
+      ArrowUtils.appendTexeraTuple(tuples.dequeue(), schemaRoot)
     }
+    writer.putNext()
+    schemaRoot.clear()
     writer.completed()
     flightListener.getResult()
     flightListener.close()
-  }
 
-  private def writeChunk(
-      tuples: mutable.Queue[Tuple],
-      schemaRoot: VectorSchemaRoot,
-      writer: FlightClient.ClientStreamListener
-  ): Unit = {
-    schemaRoot.allocateNew()
-    while (schemaRoot.getRowCount < CHUNK_SIZE && tuples.nonEmpty)
-      ArrowUtils.appendTexeraTuple(tuples.dequeue(), schemaRoot)
-    writer.putNext()
-    schemaRoot.clear()
   }
 
   def sendControlV1(from: ActorVirtualIdentity, payload: ControlPayload): Unit = {
