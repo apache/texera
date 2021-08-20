@@ -33,7 +33,10 @@ export class ConsoleFrameComponent implements OnInit, OnDestroy {
   ) { }
 
   ngOnInit(): void {
+    // trigger the initial render
     this.renderConsole();
+
+    // make sure the console is re-rendered upon state changes
     this.registerAutoConsoleRerender();
   }
 
@@ -41,10 +44,13 @@ export class ConsoleFrameComponent implements OnInit, OnDestroy {
     this.subscriptions.add(this.executeWorkflowService.getExecutionStateStream()
       .subscribe(event => {
         if (event.previous.state === ExecutionState.BreakpointTriggered && event.current.state === ExecutionState.Completed) {
-          // intentionally do nothing
+          // intentionally do nothing to leave the information displayed as it is
+          // when kill a workflow after hitting breakpoint
         } else if (event.previous.state === ExecutionState.WaitingToRun && event.current.state === ExecutionState.Running) {
+          // clear the console for the next execution
           this.clearConsole();
         } else {
+          // re-render the console, this may update the console with error messages or console messages
           this.renderConsole();
         }
       }));
@@ -71,15 +77,19 @@ export class ConsoleFrameComponent implements OnInit, OnDestroy {
     // update highlighted operator
     const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
     const resultPanelOperatorID = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
+
+    // try to fetch if we have breakpoint info
     const breakpointTriggerInfo = this.executeWorkflowService.getBreakpointTriggerInfo();
 
     if (resultPanelOperatorID) {
       this.displayConsoleMessages(resultPanelOperatorID);
+
       if (resultPanelOperatorID === breakpointTriggerInfo?.operatorID) {
+        // if we hit a breakpoint
         this.displayBreakpoint(breakpointTriggerInfo);
       } else {
+        // otherwise we assume it's a fault
         this.displayFault();
-
       }
     }
   }
