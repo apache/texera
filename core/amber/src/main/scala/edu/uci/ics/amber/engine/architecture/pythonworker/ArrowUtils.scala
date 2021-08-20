@@ -18,6 +18,7 @@ import org.apache.arrow.vector.{
   FieldVector,
   Float8Vector,
   IntVector,
+  LargeVarCharVector,
   TimeStampVector,
   VarCharVector,
   VectorSchemaRoot
@@ -120,7 +121,7 @@ object ArrowUtils {
       case _: ArrowType.Timestamp =>
         AttributeType.TIMESTAMP
 
-      case _: ArrowType.Utf8 =>
+      case _: ArrowType.Utf8 | _: ArrowType.LargeUtf8 =>
         AttributeType.STRING
 
       case _ =>
@@ -150,7 +151,7 @@ object ArrowUtils {
     val arrowFields = arrowSchema.getFields.toList
 
     for (i <- arrowFields.indices) {
-      val vector = vectorSchemaRoot.getVector(i)
+      val vector: FieldVector = vectorSchemaRoot.getVector(i)
       val value = tuple.get(i)
       val isNull = value == null
       arrowFields.apply(i).getFieldType.getType match {
@@ -159,28 +160,28 @@ object ArrowUtils {
             case 16 | 32 =>
               vector
                 .asInstanceOf[IntVector]
-                .set(index, !isNull, if (isNull) 0 else value.asInstanceOf[Int])
+                .setSafe(index, !isNull, if (isNull) 0 else value.asInstanceOf[Int])
 
             case 64 | _ =>
               vector
                 .asInstanceOf[BigIntVector]
-                .set(index, !isNull, if (isNull) 0 else value.asInstanceOf[Long])
+                .setSafe(index, !isNull, if (isNull) 0 else value.asInstanceOf[Long])
           }
 
         case _: ArrowType.Bool =>
           vector
             .asInstanceOf[BitVector]
-            .set(index, !isNull, if (isNull) 0 else value.asInstanceOf[Boolean])
+            .setSafe(index, !isNull, if (isNull) 0 else value.asInstanceOf[Boolean])
 
         case _: ArrowType.FloatingPoint =>
           vector
             .asInstanceOf[Float8Vector]
-            .set(index, !isNull, if (isNull) 0 else value.asInstanceOf[Double])
+            .setSafe(index, !isNull, if (isNull) 0 else value.asInstanceOf[Double])
 
         case _: ArrowType.Timestamp =>
           vector
             .asInstanceOf[TimeStampVector]
-            .set(
+            .setSafe(
               index,
               !isNull,
               if (isNull) 0L
@@ -192,8 +193,14 @@ object ArrowUtils {
           else
             vector
               .asInstanceOf[VarCharVector]
-              .set(index, value.asInstanceOf[String].getBytes(StandardCharsets.UTF_8))
+              .setSafe(index, value.asInstanceOf[String].getBytes(StandardCharsets.UTF_8))
 
+        case _: ArrowType.LargeUtf8 =>
+          if (isNull) vector.asInstanceOf[LargeVarCharVector].setNull(index)
+          else
+            vector
+              .asInstanceOf[LargeVarCharVector]
+              .setSafe(index, value.asInstanceOf[String].getBytes(StandardCharsets.UTF_8))
       }
     }
 
@@ -243,7 +250,7 @@ object ArrowUtils {
         new ArrowType.Timestamp(MILLISECOND, "UTC")
 
       case AttributeType.STRING | AttributeType.ANY =>
-        ArrowType.Utf8.INSTANCE
+        ArrowType.LargeUtf8.INSTANCE
       case _ =>
         throw new AttributeTypeUtils.AttributeTypeException("Unexpected value: " + srcType)
     }
