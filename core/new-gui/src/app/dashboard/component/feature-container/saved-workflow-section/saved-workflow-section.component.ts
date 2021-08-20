@@ -36,7 +36,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
   /**
    * open the Modal based on the workflow clicked on
    */
-  public onClickOpenShareAccess({workflow}: DashboardWorkflowEntry): void {
+  public onClickOpenShareAccess({ workflow }: DashboardWorkflowEntry): void {
     const modalRef = this.modalService.open(NgbdModalWorkflowShareAccessComponent);
     modalRef.componentInstance.workflow = workflow;
   }
@@ -84,13 +84,16 @@ export class SavedWorkflowSectionComponent implements OnInit {
    * duplicate the current workflow. A new record will appear in frontend
    * workflow list and backend database.
    */
-  public onClickDuplicateWorkflow({workflow: {content, name}}: DashboardWorkflowEntry): void {
-    this.workflowPersistService.createWorkflow(content, name + '_copy')
-      .subscribe((duplicatedWorkflowInfo: DashboardWorkflowEntry) => {
-        this.dashboardWorkflowEntries.push(duplicatedWorkflowInfo);
-      }, err => {
-        alert(err.error);
-      });
+  public onClickDuplicateWorkflow({ workflow: { wid } }: DashboardWorkflowEntry): void {
+    if (wid) {
+      this.workflowPersistService.duplicateWorkflow(wid)
+        .subscribe((duplicatedWorkflowInfo: DashboardWorkflowEntry) => {
+          this.dashboardWorkflowEntries.push(duplicatedWorkflowInfo);
+        }, err => {
+          alert(err.error);
+        });
+    }
+
   }
 
   /**
@@ -99,7 +102,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
    * message to frontend and delete the workflow on frontend. It
    * calls the deleteProject method in service which implements backend API.
    */
-  public openNgbdModalDeleteWorkflowComponent({workflow}: DashboardWorkflowEntry): void {
+  public openNgbdModalDeleteWorkflowComponent({ workflow }: DashboardWorkflowEntry): void {
     const modalRef = this.modalService.open(NgbdModalDeleteWorkflowComponent);
     modalRef.componentInstance.workflow = cloneDeep(workflow);
 
@@ -118,7 +121,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
   /**
    * jump to the target workflow canvas
    */
-  public jumpToWorkflow({workflow: {wid}}: DashboardWorkflowEntry): void {
+  public jumpToWorkflow({ workflow: { wid } }: DashboardWorkflowEntry): void {
     this.router.navigate([`${ROUTER_WORKFLOW_BASE_URL}/${wid}`]).then(null);
   }
 

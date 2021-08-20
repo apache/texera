@@ -2,12 +2,12 @@ package edu.uci.ics.texera.web.resource.dashboard
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
+  USER,
   WORKFLOW,
   WORKFLOW_OF_USER,
   WORKFLOW_USER_ACCESS
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  UserDao,
   WorkflowDao,
   WorkflowOfUserDao,
   WorkflowUserAccessDao
@@ -19,16 +19,18 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
   WorkflowUserAccess
 }
 import edu.uci.ics.texera.web.resource.auth.UserResource
+import edu.uci.ics.texera.web.resource.dashboard.WorkflowAccessResource.{
+  WorkflowAccess,
+  toAccessLevel
+}
 import edu.uci.ics.texera.web.resource.dashboard.WorkflowResource.context
 import io.dropwizard.jersey.sessions.Session
 import org.jooq.types.UInteger
 
-import java.util
 import javax.servlet.http.HttpSession
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
-import scala.collection.JavaConverters._
-import scala.collection.mutable
+import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 /**
   * This file handles various request related to saved-workflows.
@@ -57,7 +59,6 @@ class WorkflowResource {
   final private val workflowUserAccessDao = new WorkflowUserAccessDao(
     context.configuration()
   )
-  final private val userDao = new UserDao(context.configuration())
 
   /**
     * This method returns the current in-session user's workflow list based on all workflows he/she has access to
@@ -70,37 +71,42 @@ class WorkflowResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   def retrieveWorkflowsBySessionUser(
       @Session session: HttpSession
-  ): util.List[DashboardWorkflowEntry] = {
+  ): List[DashboardWorkflowEntry] = {
     UserResource.getUser(session) match {
       case Some(user) =>
-        val dashboardWorkflowEntries: mutable.ArrayBuffer[DashboardWorkflowEntry] =
-          mutable.ArrayBuffer()
-        val workflows = context
-          .select()
+        val workflowEntries = context
+          .select(
+            WORKFLOW.WID,
+            WORKFLOW.NAME,
+            WORKFLOW.CREATION_TIME,
+            WORKFLOW.LAST_MODIFIED_TIME,
+            WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
+            WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
+            WORKFLOW_OF_USER.UID,
+            USER.NAME
+          )
           .from(WORKFLOW)
-          .join(WORKFLOW_USER_ACCESS)
+          .leftJoin(WORKFLOW_USER_ACCESS)
           .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
+          .leftJoin(WORKFLOW_OF_USER)
+          .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
+          .leftJoin(USER)
+          .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
           .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
           .fetch()
-        workflows.asScala.toList.map(workflow => {
-          val ownerID = workflowOfUserDao
-            .fetchByWid(workflow.get(1).asInstanceOf[UInteger])
-            .get(0)
-            .getUid
-          val dashboardWorkflowEntry = DashboardWorkflowEntry(
-            ownerID
-              .eq(user.getUid),
-            WorkflowAccessResource
-              .checkAccessLevel(workflow.get(1).asInstanceOf[UInteger], user.getUid)
-              .toString,
-            userDao.fetchOneByUid(ownerID).getName,
-            workflowDao.fetchOneByWid(workflow.get(1).asInstanceOf[UInteger])
+        workflowEntries
+          .map(workflowRecord =>
+            DashboardWorkflowEntry(
+              workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
+              toAccessLevel(
+                workflowRecord.into(WORKFLOW_USER_ACCESS).into(classOf[WorkflowUserAccess])
+              ).toString,
+              workflowRecord.into(USER).getName,
+              workflowRecord.into(WORKFLOW).into(classOf[Workflow])
+            )
           )
-          dashboardWorkflowEntries += dashboardWorkflowEntry
-        })
-        dashboardWorkflowEntries.toList.asJava
-
-      case None => new util.ArrayList()
+          .toList
+      case None => List()
     }
   }
 
@@ -182,12 +188,39 @@ class WorkflowResource {
     )
   }
 
-  private def workflowOfUserExists(wid: UInteger, uid: UInteger): Boolean = {
-    workflowOfUserDao.existsById(
-      context
-        .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
-        .values(uid, wid)
-    )
+  /**
+    * This method duplicates the target workflow, the new workflow name is appended with `_copy`
+    *
+    * @param session  HttpSession
+    * @param workflow , a workflow to be duplicated
+    * @return Workflow, which contains the generated wid if not provided
+    */
+  @POST
+  @Path("/duplicate")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def duplicateWorkflow(@Session session: HttpSession, workflow: Workflow): Response = {
+    val wid = workflow.getWid
+    UserResource.getUser(session) match {
+      case Some(user) =>
+        if (
+          WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid) ||
+          WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, user.getUid)
+        ) {
+          Response.status(Response.Status.UNAUTHORIZED).build()
+        } else {
+          val workflow: Workflow = workflowDao.fetchOneByWid(wid)
+          workflow.getContent
+          workflow.getName
+          createWorkflow(
+            session,
+            new Workflow(workflow.getName + "_copy", null, workflow.getContent, null, null)
+          )
+
+        }
+      case None =>
+        Response.status(Response.Status.UNAUTHORIZED).build()
+    }
   }
 
   /**
@@ -210,7 +243,7 @@ class WorkflowResource {
           insertWorkflow(workflow, user)
           val resp = DashboardWorkflowEntry(
             isOwner = true,
-            "Write",
+            WorkflowAccess.WRITE.toString,
             user.getName,
             workflowDao.fetchOneByWid(workflow.getWid)
           )
@@ -241,6 +274,14 @@ class WorkflowResource {
       case None =>
         Response.status(Response.Status.UNAUTHORIZED).build()
     }
+  }
+
+  private def workflowOfUserExists(wid: UInteger, uid: UInteger): Boolean = {
+    workflowOfUserDao.existsById(
+      context
+        .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
+        .values(uid, wid)
+    )
   }
 
 }
