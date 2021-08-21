@@ -10,7 +10,6 @@ import org.jooq.types.UInteger
 import java.io._
 import java.nio.file.{Files, Path, Paths}
 
-
 object UserFileUtils {
   private val FILE_CONTAINER_PATH: Path = {
     Utils.amberHomePath.resolve("user-resources").resolve("files")
