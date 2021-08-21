@@ -22,6 +22,33 @@ object UserFileUtils {
     writeToFile(UserFileUtils.getFilePath(userID, fileName), fileStream)
   }
 
+  def storeFileSafe(fileStream: InputStream, fileName: String, userID: UInteger): String = {
+    createFileDirectoryIfNotExist(UserFileUtils.getFileDirectory(userID))
+    var fileNameToStore = fileName
+    val fileNameComponents = fileName.split("\\.")
+    val fileNameRaw = fileNameComponents.apply(0)
+    val fileExtension = if (fileNameComponents.length == 2) fileNameComponents.apply(1) else ""
+    var copyId = 0
+    while (
+      Files.exists(
+        UserFileUtils.getFilePath(
+          userID,
+          fileNameToStore
+        )
+      )
+    ) {
+      copyId += 1
+      fileNameToStore = s"${fileNameRaw}_$copyId.$fileExtension"
+    }
+    writeToFile(UserFileUtils.getFilePath(userID, fileNameToStore), fileStream)
+    fileNameToStore
+  }
+
+  @throws[FileIOException]
+  private def checkFileDuplicate(filePath: Path): Unit = {
+    if (Files.exists(filePath)) throw FileIOException("File already exists.")
+  }
+
   def getFilePath(userID: UInteger, fileName: String): Path = {
     getFileDirectory(userID).resolve(fileName)
   }
@@ -36,11 +63,6 @@ object UserFileUtils {
         case e: IOException =>
           throw FileIOException(e.getMessage)
       }
-  }
-
-  @throws[FileIOException]
-  private def checkFileDuplicate(filePath: Path): Unit = {
-    if (Files.exists(filePath)) throw FileIOException("File already exists.")
   }
 
   @throws[FileIOException]

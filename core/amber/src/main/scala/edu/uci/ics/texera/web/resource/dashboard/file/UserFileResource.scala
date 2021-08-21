@@ -41,10 +41,10 @@ object UserFileResource {
       fileName: String,
       uploadedInputStream: InputStream,
       size: UInteger,
-      description: String
+      description: String,
   ): Unit = {
 
-    UserFileUtils.storeFile(uploadedInputStream, fileName, uid)
+   val fileNameStored= UserFileUtils.storeFileSafe(uploadedInputStream, fileName, uid)
 
     // insert record after completely storing the file on the file system.
     fileDao.insert(
@@ -52,8 +52,8 @@ object UserFileResource {
         uid,
         null,
         size,
-        fileName,
-        UserFileUtils.getFilePath(uid, fileName).toString,
+        fileNameStored,
+        UserFileUtils.getFilePath(uid, fileNameStored).toString,
         description
       )
     )
@@ -62,7 +62,7 @@ object UserFileResource {
     val fid = context
       .select(FILE.FID)
       .from(FILE)
-      .where(FILE.UID.eq(uid).and(FILE.NAME.eq(fileName)))
+      .where(FILE.UID.eq(uid).and(FILE.NAME.eq(fileNameStored)))
       .fetchOneInto(FILE)
       .getFid
     UserFileAccessResource.grantAccess(uid, fid, "write")
