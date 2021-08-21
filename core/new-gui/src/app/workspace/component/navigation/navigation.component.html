@@ -49,22 +49,23 @@
         <button (click)="onClickRestoreZoomOffsetDefault()" nz-button title="reset zoom">
           <i nz-icon nzType="fullscreen" nzTheme="outline"></i>
         </button>
-        <button nz-button [disabled]="isDownloadDisabled()" [nzDisabled]="isDownloadDisabled()" [nzDropdownMenu]="menu"
-                id="downloadExcelOptions" nz-dropdown title="download execution result">
+        <button [disabled]="workflowResultExportService.isResultExportDisabled()" [nzDropdownMenu]="menu"
+                id="downloadExcelOptions"
+                nz-button nz-dropdown title="export execution result">
           <i nz-icon nzType="cloud-download" nzTheme="outline"></i>
         </button>
         <nz-dropdown-menu #menu="nzDropdownMenu">
           <ul nz-menu nzSelectable>
-<!--             <li nz-menu-item class="drop-down-item" (click)="onClickDownloadExecutionResult('json')">Json File-->
-<!--              (*.json)-->
-            <li nz-menu-item class="drop-down-item" (click)="onClickDownloadExecutionResult('csv')"> CSV File
+            <!--             <li nz-menu-item class="drop-down-item" (click)="onClickDownloadExecutionResult('json')">Json File-->
+            <!--              (*.json)-->
+            <li (click)="onClickExportExecutionResult('csv')" class="drop-down-item" nz-menu-item> CSV File
               (*.csv)
             </li>
-<!--            <li nz-menu-item class="drop-down-item" (click)="onClickDownloadExecutionResult('xlsx')">XLSX-->
-<!--              File-->
-<!--              (*.xlsx)-->
-<!--            </li> -->
-            <li nz-menu-item class="drop-down-item" (click)="onClickDownloadExecutionResult('google_sheet')">Google
+            <!--            <li nz-menu-item class="drop-down-item" (click)="onClickDownloadExecutionResult('xlsx')">XLSX-->
+            <!--              File-->
+            <!--              (*.xlsx)-->
+            <!--            </li> -->
+            <li (click)="onClickExportExecutionResult('google_sheet')" class="drop-down-item" nz-menu-item>Google
               Sheet
             </li>
           </ul>

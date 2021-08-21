@@ -99,7 +99,7 @@ object ResultDownloadResource {
       )
     )
     writer.close()
-    val fileName = request.workflowName + ".csv"
+    val fileName = s"${request.workflowName}_${request.operatorId}.csv"
     UserFileResource.saveUserFile(
       UInteger.valueOf(1),
       fileName,
