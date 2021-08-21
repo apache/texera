@@ -16,6 +16,7 @@ import io.github.redouane59.twitter.dto.user.UserV2.UserData
 import java.time.format.DateTimeFormatter
 import java.time.{LocalDateTime, ZoneId, ZoneOffset}
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
+import scala.collection.mutable.ListBuffer
 import scala.collection.{Iterator, mutable}
 import scala.jdk.CollectionConverters.asScalaBufferConverter
 class TwitterFullArchiveSearchSourceOpExec(
@@ -87,6 +88,18 @@ class TwitterFullArchiveSearchSourceOpExec(
             java.lang.Long.valueOf(tweet.getQuoteCount),
             java.lang.Long.valueOf(tweet.getReplyCount),
             java.lang.Long.valueOf(tweet.getRetweetCount),
+            Option(tweet.getEntities)
+              .map(e => Option(e.getHashtags).map(_.map(x => x.getText).mkString(",")).orNull)
+              .orNull,
+            Option(tweet.getEntities)
+              .map(e => Option(e.getSymbols).map(_.map(x => x.getText).mkString(",")).orNull)
+              .orNull,
+            Option(tweet.getEntities)
+              .map(e => Option(e.getUrls).map(_.map(x => x.getExpandedUrl).mkString(",")).orNull)
+              .orNull,
+            Option(tweet.getEntities)
+              .map(e => Option(e.getUserMentions).map(_.map(x => x.getText).mkString(",")).orNull)
+              .orNull,
             user.get.getId,
             user.get.getCreatedAt,
             user.get.getName,
@@ -162,9 +175,16 @@ class TwitterFullArchiveSearchSourceOpExec(
     } while (response.getMeta.getNextToken == null && retry > 0)
 
     nextToken = response.getMeta.getNextToken
-    tweetCache = response.getData.asScala
+
+    tweetCache =
+      if (response != null && response.getData != null) response.getData.asScala else ListBuffer()
+
     userCache =
-      response.getIncludes.getUsers.map((userData: UserData) => userData.getId -> userData).toMap
+      if (response != null && response.getIncludes != null && response.getIncludes.getUsers != null)
+        response.getIncludes.getUsers
+          .map((userData: UserData) => userData.getId -> userData)
+          .toMap
+      else Map()
 
     // when there is no more pages left, no need to request any more
     hasNextRequest = nextToken != null
