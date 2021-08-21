@@ -42,6 +42,8 @@ private class AmberProducer(
               to = pythonControlMessage.tag,
               payload = controlInvocationToV1(controlInvocation)
             )
+          case payload =>
+            throw new RuntimeException(s"not supported payload $payload")
 
         }
         listener.onNext(new Result("ack".getBytes))
@@ -62,25 +64,24 @@ private class AmberProducer(
     val isEnd: Boolean = dataHeader.isEnd
 
     val root = flightStream.getRoot
-    try {
-      // consume all data in the stream, it will store on the root vectors.
-      while (flightStream.next) {
-        ackStream.onNext(PutResult.metadata(flightStream.getLatestMetadata))
-      }
-      // closing the stream will release the dictionaries
-      flightStream.takeDictionaryOwnership
 
-      if (isEnd) {
-        // EndOfUpstream
-        assert(root.getRowCount == 0)
-        dataOutputPort.sendTo(to, EndOfUpstream())
-      } else {
-        // normal data batches
-        val queue = mutable.Queue[Tuple]()
-        for (i <- 0 until root.getRowCount)
-          queue.enqueue(ArrowUtils.getTexeraTuple(i, root))
-        dataOutputPort.sendTo(to, DataFrame(queue.toArray))
-      }
+    // consume all data in the stream, it will store on the root vectors.
+    while (flightStream.next) {
+      ackStream.onNext(PutResult.metadata(flightStream.getLatestMetadata))
+    }
+    // closing the stream will release the dictionaries
+    flightStream.takeDictionaryOwnership
+
+    if (isEnd) {
+      // EndOfUpstream
+      assert(root.getRowCount == 0)
+      dataOutputPort.sendTo(to, EndOfUpstream())
+    } else {
+      // normal data batches
+      val queue = mutable.Queue[Tuple]()
+      for (i <- 0 until root.getRowCount)
+        queue.enqueue(ArrowUtils.getTexeraTuple(i, root))
+      dataOutputPort.sendTo(to, DataFrame(queue.toArray))
 
     }
 

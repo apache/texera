@@ -119,14 +119,14 @@ class UserFileAccessResource {
   ): Response = {
     UserResource.getUser(session) match {
       case Some(_) =>
-        val existence = context
+        val exist = context
           .fetchExists(
             context
               .selectFrom(USER_FILE_ACCESS)
               .where(USER_FILE_ACCESS.UID.eq(uid).and(USER_FILE_ACCESS.FID.eq(fid)))
           )
-        if (existence) {
-          Response.ok().entity().build()
+        if (exist) {
+          Response.ok().build()
         } else {
           Response.status(Response.Status.BAD_REQUEST).entity("user has no access to file").build()
         }
@@ -181,6 +181,7 @@ class UserFileAccessResource {
           }
           Response.ok().build()
         }
+      case None => Response.status(Response.Status.UNAUTHORIZED).entity("please login").build()
     }
   }
 
