@@ -72,7 +72,6 @@ export type PaginatedResultEvent = Readonly<{
 
 export type ResultDownloadResponse = Readonly<{
   downloadType: string,
-  link: string,
   message: string
 }>;
 
