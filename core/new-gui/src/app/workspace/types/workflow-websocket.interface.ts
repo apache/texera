@@ -21,21 +21,21 @@ import { BreakpointFaultedTuple, BreakpointTriggerInfo, PythonPrintTriggerInfo }
  * 2. value is the payload this request/event needs
  */
 
-export interface WebSocketHelloWorld extends Readonly<{ message: string }> { }
+export interface WebSocketHelloWorld extends Readonly<{ message: string }> {}
 
 export interface TexeraConstraintViolation extends Readonly<{
   message: string;
   propertyPath: string;
-}> { }
+}> {}
 
 export interface WorkflowError extends Readonly<{
   operatorErrors: Record<string, TexeraConstraintViolation>,
   generalErrors: Record<string, string>
-}> { }
+}> {}
 
 export interface WorkflowExecutionError extends Readonly<{
   message: string
-}> { }
+}> {}
 
 export type ModifyOperatorLogic = Readonly<{
   operator: LogicalOperator
@@ -70,8 +70,13 @@ export type PaginatedResultEvent = Readonly<{
   table: ReadonlyArray<object>,
 }>;
 
-export type ResultDownloadResponse = Readonly<{
+export type ResultDownloadRequest = Readonly<{
   downloadType: string,
+  workflowName: string,
+  operatorId: string
+}>;
+
+export type ResultDownloadResponse = Readonly<{
   message: string
 }>;
 
@@ -86,7 +91,7 @@ export type TexeraWebsocketRequestTypeMap = {
   'SkipTupleRequest': SkipTuple,
   'AddBreakpointRequest': BreakpointInfo,
   'ResultPaginationRequest': PaginationRequest,
-  'ResultDownloadRequest': { downloadType: string, workflowName: string , operatorId: string}
+  'ResultDownloadRequest': ResultDownloadRequest,
 };
 
 export type TexeraWebsocketEventTypeMap = {

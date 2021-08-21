@@ -47,7 +47,6 @@ object ResultDownloadResource {
       )
     ) {
       return ResultDownloadResponse(
-        request.downloadType,
         s"Link retrieved from cache ${sessionDownloadCache(sessionId)(request.downloadType)}"
       )
     }
@@ -57,7 +56,6 @@ object ResultDownloadResource {
       sessionResults(sessionId).operatorResults.get(request.operatorId)
     if (operatorWithResult.isEmpty) {
       return ResultDownloadResponse(
-        request.downloadType,
         "The workflow contains no results"
       )
     }
@@ -76,7 +74,6 @@ object ResultDownloadResource {
 
       case _ =>
         ResultDownloadResponse(
-          request.downloadType,
           s"Unknown download type: ${request.downloadType}"
         )
     }
@@ -110,7 +107,7 @@ object ResultDownloadResource {
 
     val message: String =
       s"File saved to User Dashboard as $fileName"
-    ResultDownloadResponse(request.downloadType, message)
+    ResultDownloadResponse(message)
   }
 
   private def handleGoogleSheetRequest(
@@ -125,7 +122,6 @@ object ResultDownloadResource {
       createGoogleSheet(sheetService, request.workflowName)
     if (sheetId == null)
       return ResultDownloadResponse(
-        request.downloadType,
         "Fail to create google sheet"
       )
 
@@ -164,7 +160,7 @@ object ResultDownloadResource {
       sessionDownloadCache(sessionId)
         .put(request.downloadType, link)
     }
-    ResultDownloadResponse(request.downloadType, message)
+    ResultDownloadResponse(message)
   }
 
   /**
