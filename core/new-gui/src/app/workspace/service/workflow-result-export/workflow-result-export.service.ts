@@ -19,7 +19,7 @@ export class WorkflowResultExportService {
     private notificationService: NotificationService
   ) {
     this.workflowWebsocketService.subscribeToEvent('ResultDownloadResponse').subscribe((response: ResultDownloadResponse) => {
-      this.notificationService.sendNotification({ type: 'info', message: response.message });
+      this.notificationService.info(response.message);
     });
   }
 
