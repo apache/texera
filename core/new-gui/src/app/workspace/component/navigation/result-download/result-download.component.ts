@@ -1,5 +1,7 @@
-import { Component, OnInit, Input } from '@angular/core';
+import { Component, Input } from '@angular/core';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
+import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
+import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 
 /**
  * ResultDownloadComponent is the popup when the download finish
@@ -9,14 +11,19 @@ import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
   templateUrl: './result-download.component.html',
   styleUrls: ['./result-download.component.scss']
 })
-export class ResultDownloadComponent implements OnInit {
+export class ResultDownloadComponent {
   @Input() message: string | undefined;
+  @Input() downloadType: String | undefined;
   @Input() link: string | undefined;
-  constructor(public activeModal: NgbActiveModal) { }
+  @Input() workflowName: string | undefined;
 
-  ngOnInit(): void {
+  constructor(
+    public activeModal: NgbActiveModal,
+    private executeWorkflowService: ExecuteWorkflowService,
+    private workflowActionService: WorkflowActionService
+  ) {
+
   }
-
 
   /**
    * open the link in the new tab

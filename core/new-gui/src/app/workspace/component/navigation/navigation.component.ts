@@ -1,4 +1,3 @@
-import { UserIconComponent } from './../../../dashboard/component/top-bar/user-icon/user-icon.component';
 import { DatePipe, Location } from '@angular/common';
 import { Component, ElementRef, Input, OnInit, ViewChild } from '@angular/core';
 import { TourService } from 'ngx-tour-ng-bootstrap';
@@ -14,10 +13,10 @@ import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-grap
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { ExecutionState } from '../../types/execute-workflow.interface';
-import { NgbActiveModal, NgbModal, NgbModalRef } from '@ng-bootstrap/ng-bootstrap';
-import { ResultDownloadComponent } from './result-download/result-download.component';
+import { NgbModal, NgbModalRef } from '@ng-bootstrap/ng-bootstrap';
 import { WorkflowWebsocketService } from '../../service/workflow-websocket/workflow-websocket.service';
 import { Observable } from 'rxjs';
+import { WorkflowResultExportService } from '../../service/workflow-result-export/workflow-result-export.service';
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -78,7 +77,8 @@ export class NavigationComponent implements OnInit {
     public userService: UserService,
     private workflowCacheService: WorkflowCacheService,
     private datePipe: DatePipe,
-    private modalService: NgbModal
+    private modalService: NgbModal,
+    private workflowResultExportService: WorkflowResultExportService
   ) {
     this.executionState = executeWorkflowService.getExecutionState().state;
     // return the run button after the execution is finished, either
@@ -94,17 +94,6 @@ export class NavigationComponent implements OnInit {
       event => {
         this.executionState = event.current.state;
         this.applyRunButtonBehavior(this.getRunButtonBehavior(this.executionState, this.isWorkflowValid));
-      }
-    );
-
-    executeWorkflowService.getResultDownloadStream().subscribe(
-      response => {
-        if (!this.downloadResultPopup) {
-          this.downloadResultPopup = this.modalService.open(ResultDownloadComponent);
-        }
-        this.downloadResultPopup.componentInstance.message = response.message;
-        this.downloadResultPopup.componentInstance.link = response.link;
-        this.downloadResultPopup.componentInstance.openInNewTab();
       }
     );
 
@@ -232,7 +221,7 @@ export class NavigationComponent implements OnInit {
 
     // make the ratio small.
     this.workflowActionService.getJointGraphWrapper()
-        .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() - JointGraphWrapper.ZOOM_CLICK_DIFF);
+      .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() - JointGraphWrapper.ZOOM_CLICK_DIFF);
   }
 
   /**
@@ -251,7 +240,7 @@ export class NavigationComponent implements OnInit {
 
     // make the ratio big.
     this.workflowActionService.getJointGraphWrapper()
-        .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_CLICK_DIFF);
+      .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_CLICK_DIFF);
   }
 
   /**
@@ -265,11 +254,9 @@ export class NavigationComponent implements OnInit {
     if (this.isDownloadDisabled()) {
       return;
     }
-    this.executeWorkflowService.downloadWorkflowExecutionResult(downloadType, this.currentWorkflowName);
-    this.downloadResultPopup = this.modalService.open(ResultDownloadComponent);
-    this.downloadResultPopup.componentInstance.message = 'Collecting results. It may takes a while';
-    // set the variable to undefined when user closes the popup
-    this.downloadResultPopup.result.then(() => {this.downloadResultPopup = undefined; });
+
+    this.workflowResultExportService.downloadWorkflowExecutionResult(downloadType, this.currentWorkflowName);
+
   }
 
   /**
@@ -390,7 +377,7 @@ export class NavigationComponent implements OnInit {
         this.currentWorkflowName = this.workflowActionService.getWorkflowMetadata()?.name;
         this.autoSaveState = this.workflowActionService.getWorkflowMetadata().lastModifiedTime === undefined ?
           '' : 'Saved at ' + this.datePipe.transform(this.workflowActionService.getWorkflowMetadata().lastModifiedTime,
-            'MM/dd/yyyy HH:mm:ss zzz', Intl.DateTimeFormat().resolvedOptions().timeZone, 'en');
+          'MM/dd/yyyy HH:mm:ss zzz', Intl.DateTimeFormat().resolvedOptions().timeZone, 'en');
 
       });
   }
@@ -412,7 +399,7 @@ export class NavigationComponent implements OnInit {
       const allDisabled = this.effectivelyHighlightedOperators().every(
         op => this.workflowActionService.getTexeraGraph().isOperatorDisabled(op));
 
-      this.isDisableOperator = ! allDisabled;
+      this.isDisableOperator = !allDisabled;
       this.isDisableOperatorClickable = effectiveHighlightedOperators.length !== 0;
     });
   }

@@ -4,28 +4,30 @@ import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.FileDao
+import org.apache.commons.io.IOUtils
 import org.jooq.types.UInteger
 
 import java.io._
 import java.nio.file.{Files, Path, Paths}
 
+
 object UserFileUtils {
   private val FILE_CONTAINER_PATH: Path = {
     Utils.amberHomePath.resolve("user-resources").resolve("files")
   }
-
   private val fileDao = new FileDao(SqlServer.createDSLContext.configuration)
-  def storeFile(fileStream: InputStream, fileName: String, userID: String): Unit = {
+
+  def storeFile(fileStream: InputStream, fileName: String, userID: UInteger): Unit = {
     createFileDirectoryIfNotExist(UserFileUtils.getFileDirectory(userID))
     checkFileDuplicate(UserFileUtils.getFilePath(userID, fileName))
     writeToFile(UserFileUtils.getFilePath(userID, fileName), fileStream)
   }
 
-  def getFilePath(userID: String, fileName: String): Path = {
+  def getFilePath(userID: UInteger, fileName: String): Path = {
     getFileDirectory(userID).resolve(fileName)
   }
 
-  def getFileDirectory(userID: String): Path = FILE_CONTAINER_PATH.resolve(userID)
+  def getFileDirectory(userID: UInteger): Path = FILE_CONTAINER_PATH.resolve(userID.toString)
 
   @throws[FileIOException]
   private def createFileDirectoryIfNotExist(directoryPath: Path): Unit = {
@@ -44,21 +46,7 @@ object UserFileUtils {
 
   @throws[FileIOException]
   private def writeToFile(filePath: Path, fileStream: InputStream): Unit = {
-    val charArray = new Array[Char](1024)
-    val reader = new BufferedReader(new InputStreamReader(fileStream))
-    val writer = new BufferedWriter(new FileWriter(filePath.toString))
-    var bytesRead = 0
-    try while ({
-      bytesRead = reader.read(charArray)
-      bytesRead
-    } != -1) writer.write(charArray, 0, bytesRead)
-    catch {
-      case e: IOException =>
-        throw FileIOException("Error occurred while writing file on disk: " + e.getMessage)
-    } finally {
-      if (reader != null) reader.close()
-      if (writer != null) writer.close()
-    }
+    IOUtils.copy(fileStream, new FileWriter(filePath.toString))
   }
 
   def getFilePathByInfo(ownerName: String, fileName: String, uid: UInteger): Option[Path] = {

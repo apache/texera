@@ -61,7 +61,7 @@ export class ExecuteWorkflowService {
 
   private currentState: ExecutionStateInfo = {state: ExecutionState.Uninitialized};
   private executionStateStream = new Subject<{ previous: ExecutionStateInfo, current: ExecutionStateInfo }>();
-  private resultDownloadStream = new Subject<ResultDownloadResponse>();
+
 
   private executionTimeoutID: number | undefined;
   private clearTimeoutState: ExecutionState[] | undefined;
@@ -72,9 +72,6 @@ export class ExecuteWorkflowService {
     private http: HttpClient
   ) {
     if (environment.amberEngineEnabled) {
-      workflowWebsocketService.subscribeToEvent('ResultDownloadResponse')
-        .subscribe((event) => this.resultDownloadStream.next(event));
-
       workflowWebsocketService.websocketEvent().subscribe(event => {
         // workflow status related event
         const newState = this.handleExecutionEvent(event);
@@ -264,26 +261,11 @@ export class ExecuteWorkflowService {
     this.workflowWebsocketService.send('ModifyLogicRequest', {operator});
   }
 
-  /**
-   * download the workflow execution result according the download type
-   */
-  public downloadWorkflowExecutionResult(downloadType: string, workflowName: string): void {
-    if (!environment.downloadExecutionResultEnabled) {
-      return;
-    }
-    this.workflowWebsocketService.send('ResultDownloadRequest', {
-      downloadType: downloadType,
-      workflowName: workflowName
-    });
-  }
-
   public getExecutionStateStream(): Observable<{ previous: ExecutionStateInfo, current: ExecutionStateInfo }> {
     return this.executionStateStream.asObservable();
   }
 
-  public getResultDownloadStream(): Observable<ResultDownloadResponse> {
-    return this.resultDownloadStream.asObservable();
-  }
+
 
   private setExecutionTimeout(message: string, ...clearTimeoutState: ExecutionState[]) {
     if (this.executionTimeoutID !== undefined) {

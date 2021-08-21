@@ -100,6 +100,7 @@ class WorkflowWebsocketResource {
       }
     } catch {
       case e: Throwable =>
+        e.printStackTrace()
         send(
           session,
           WorkflowErrorEvent(generalErrors =
@@ -107,6 +108,7 @@ class WorkflowWebsocketResource {
           )
         )
         throw e
+
     }
 
   }
