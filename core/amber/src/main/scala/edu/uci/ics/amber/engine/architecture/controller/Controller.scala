@@ -131,9 +131,7 @@ class Controller(
         context.become(running)
         unstashAll()
       })
-      .onFailure((x: Throwable) =>
-        logger.logError(new WorkflowRuntimeError(x.getMessage, "PythonUDFV2", Map.empty))
-      )
+      .onFailure((e: Throwable) => logger.error("Failure when sending Python UDF code", e))
   }
 
   def running: Receive = {
@@ -178,11 +176,6 @@ class Controller(
         throw err
     }
   }
-
-  def availableNodes: Array[Address] =
-    Await
-      .result(context.actorSelection("/user/cluster-info") ? GetAvailableNodeAddresses, 5.seconds)
-      .asInstanceOf[Array[Address]]
 
   override def receive: Receive = initializing
 

@@ -89,6 +89,27 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
     }
   }
 
+  def sendControlV2(
+      from: ActorVirtualIdentity,
+      payload: ControlPayloadV2
+  ): Result = {
+    val controlMessage = PythonControlMessage(from, payload)
+    val action: Action = new Action("control", controlMessage.toByteArray)
+    logger.info(s"sending control $controlMessage")
+    flightClient.doAction(action).next()
+  }
+
+  def sendControlV1(from: ActorVirtualIdentity, payload: ControlPayload): Unit = {
+    payload match {
+      case controlInvocation: ControlInvocation =>
+        val controlInvocationV2: ControlInvocationV2 = controlInvocationToV2(controlInvocation)
+        sendControlV2(from, controlInvocationV2)
+      case returnInvocation: ReturnInvocation =>
+        val returnInvocationV2: ReturnInvocationV2 = returnInvocationToV2(returnInvocation)
+        sendControlV2(from, returnInvocationV2)
+    }
+  }
+
   private def writeArrowStream(
       tuples: mutable.Queue[Tuple],
       from: ActorVirtualIdentity,
@@ -97,7 +118,7 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
 
     val schema = if (tuples.isEmpty) new Schema() else tuples.front.getSchema
     val descriptor = FlightDescriptor.command(PythonDataHeader(from, isEnd).toByteArray)
-    logger.logInfo(
+    logger.info(
       s"sending data with descriptor ${PythonDataHeader(from, isEnd)}, schema $schema, size of batch ${tuples.size}"
     )
     val flightListener = new SyncPutListener
@@ -113,27 +134,6 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
     flightListener.getResult()
     flightListener.close()
 
-  }
-
-  def sendControlV1(from: ActorVirtualIdentity, payload: ControlPayload): Unit = {
-    payload match {
-      case controlInvocation: ControlInvocation =>
-        val controlInvocationV2: ControlInvocationV2 = controlInvocationToV2(controlInvocation)
-        sendControlV2(from, controlInvocationV2)
-      case returnInvocation: ReturnInvocation =>
-        val returnInvocationV2: ReturnInvocationV2 = returnInvocationToV2(returnInvocation)
-        sendControlV2(from, returnInvocationV2)
-    }
-  }
-
-  def sendControlV2(
-      from: ActorVirtualIdentity,
-      payload: ControlPayloadV2
-  ): Result = {
-    val controlMessage = PythonControlMessage(from, payload)
-    val action: Action = new Action("control", controlMessage.toByteArray)
-    logger.logInfo(s"sending control $controlMessage")
-    flightClient.doAction(action).next()
   }
 
   override def close(): Unit = {
