@@ -38,7 +38,7 @@ object UserFileUtils {
       )
     ) {
       copyId += 1
-      fileNameToStore = s"${fileNameRaw}_$copyId.$fileExtension"
+      fileNameToStore = s"$fileNameRaw-$copyId.$fileExtension"
     }
     writeToFile(UserFileUtils.getFilePath(userID, fileNameToStore), fileStream)
     fileNameToStore

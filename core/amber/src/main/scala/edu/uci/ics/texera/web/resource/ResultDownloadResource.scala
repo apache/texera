@@ -11,10 +11,8 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.texera.Utils.retry
 import edu.uci.ics.texera.web.model.event.ResultDownloadResponse
 import edu.uci.ics.texera.web.model.request.ResultDownloadRequest
-import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
-  sessionDownloadCache,
-  sessionResults
-}
+import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{sessionDownloadCache, sessionMap, sessionResults}
+import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import org.jooq.types.UInteger
@@ -96,9 +94,12 @@ object ResultDownloadResource {
       )
     )
     writer.close()
-    val fileName = s"${request.workflowName}_${request.operatorId}.csv"
+    val fileName = s"${request.workflowName}-${request.operatorId}.csv"
+    val uid = UserResource
+      .getUser(sessionMap(sessionId)._2)
+      .map(u => u.getUid).get
     UserFileResource.saveUserFile(
-      UInteger.valueOf(1),
+      uid,
       fileName,
       new ByteArrayInputStream(stream.toByteArray),
       UInteger.valueOf(stream.toByteArray.length),
