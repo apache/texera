@@ -19,10 +19,16 @@ export class NotificationComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.subscriptions.add(this.notificationService.getNotificationStream().subscribe((notification: Notification) => {
-      if (notification.type === 'info') {
+      if (notification.type === 'success') {
+        this.message.success(notification.message);
+      } else if (notification.type === 'info') {
         this.message.info(notification.message);
       } else if (notification.type === 'error') {
         this.message.error(notification.message);
+      } else if (notification.type === 'warning') {
+        this.message.warning(notification.message);
+      } else if (notification.type === 'loading') {
+        this.message.loading(notification.message);
       }
     }));
   }
