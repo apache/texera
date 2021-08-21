@@ -6,7 +6,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER_FILE_ACCES
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileDao, UserDao, UserFileAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, User}
 import edu.uci.ics.texera.web.resource.auth.UserResource
-import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.{context, saveUserFile}
+import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.{context, saveUserFileSafe}
 import io.dropwizard.jersey.sessions.Session
 import org.apache.commons.lang3.tuple.Pair
 import org.glassfish.jersey.media.multipart.{FormDataContentDisposition, FormDataParam}
@@ -36,13 +36,13 @@ object UserFileResource {
   private val context: DSLContext = SqlServer.createDSLContext
   private val fileDao = new FileDao(context.configuration)
 
-  def saveUserFile(
+  def saveUserFileSafe(
       uid: UInteger,
       fileName: String,
       uploadedInputStream: InputStream,
       size: UInteger,
       description: String,
-  ): Unit = {
+  ): String = {
 
    val fileNameStored= UserFileUtils.storeFileSafe(uploadedInputStream, fileName, uid)
 
@@ -66,6 +66,7 @@ object UserFileResource {
       .fetchOneInto(FILE)
       .getFid
     UserFileAccessResource.grantAccess(uid, fid, "write")
+    fileNameStored
   }
 }
 
@@ -103,7 +104,7 @@ class UserFileResource {
             .entity(validationResult.getRight)
             .build()
         }
-        saveUserFile(uid, fileName, uploadedInputStream, size, description)
+        saveUserFileSafe(uid, fileName, uploadedInputStream, size, description)
         Response.ok().build()
       case None =>
         Response.status(Response.Status.UNAUTHORIZED).build()

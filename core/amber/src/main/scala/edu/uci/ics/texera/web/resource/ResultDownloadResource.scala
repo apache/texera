@@ -98,7 +98,7 @@ object ResultDownloadResource {
     val uid = UserResource
       .getUser(sessionMap(sessionId)._2)
       .map(u => u.getUid).get
-    UserFileResource.saveUserFile(
+    val fileNameStored = UserFileResource.saveUserFileSafe(
       uid,
       fileName,
       new ByteArrayInputStream(stream.toByteArray),
@@ -107,7 +107,7 @@ object ResultDownloadResource {
     )
 
     val message: String =
-      s"File saved to User Dashboard as $fileName"
+      s"File saved to User Dashboard as $fileNameStored"
     ResultDownloadResponse(message)
   }
 
