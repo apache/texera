@@ -96,8 +96,8 @@ import { MonacoEditorModule } from 'ngx-monaco-editor';
 import { OperatorPropertyEditFrameComponent } from './workspace/component/property-editor/operator-property-edit-frame/operator-property-edit-frame.component';
 import { BreakpointPropertyEditFrameComponent } from './workspace/component/property-editor/breakpoint-property-edit-frame/breakpoint-property-edit-frame.component';
 import { NotificationComponent } from './common/component/notification/notification/notification.component';
-import { FormlyFormFrameComponent } from './workspace/component/property-editor/formly-form-frame/formly-form-frame/formly-form-frame.component';
-import { BreakpointFrameComponent } from './workspace/component/property-editor/breakpoint-frame/breakpoint-frame/breakpoint-frame.component';
+import { OperatorPropertyEditFrameComponent } from './workspace/component/property-editor/operator-property-edit-frame/operator-property-edit-frame.component';
+import { BreakpointPropertyEditFrameComponent } from './workspace/component/property-editor/breakpoint-property-edit-frame/breakpoint-property-edit-frame.component';
 
 registerLocaleData(en);
 
@@ -150,8 +150,8 @@ registerLocaleData(en);
     BreakpointPropertyEditFrameComponent,
     NotificationComponent,
     ResultTableFrameComponent,
-    FormlyFormFrameComponent,
-    BreakpointFrameComponent
+    OperatorPropertyEditFrameComponent,
+    BreakpointPropertyEditFrameComponent
   ],
   imports: [
     BrowserModule,
