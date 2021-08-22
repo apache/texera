@@ -6,7 +6,7 @@ class StreamToLoggerAdaptor:
     This class is used to redirect `print` to loguru's logger, instead of stdout.
     """
 
-    def __init__(self, level=logger.level("PRINT", no=38)):
+    def __init__(self, level="PRINT"):
         self._level = level
 
     def write(self, buffer):

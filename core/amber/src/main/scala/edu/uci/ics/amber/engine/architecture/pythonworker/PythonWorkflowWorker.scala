@@ -116,7 +116,8 @@ class PythonWorkflowWorker(
         "-u",
         udfEntryScriptPath,
         Integer.toString(outputPortNum),
-        Integer.toString(inputPortNum)
+        Integer.toString(inputPortNum),
+        config.getString("python.log.streamHandler.level")
       )
     ).run(BasicIO.standard(false))
   }
