@@ -41,10 +41,10 @@ object UserFileResource {
       fileName: String,
       uploadedInputStream: InputStream,
       size: UInteger,
-      description: String,
+      description: String
   ): String = {
 
-   val fileNameStored= UserFileUtils.storeFileSafe(uploadedInputStream, fileName, uid)
+    val fileNameStored = UserFileUtils.storeFileSafe(uploadedInputStream, fileName, uid)
 
     // insert record after completely storing the file on the file system.
     fileDao.insert(
