@@ -1,20 +1,20 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { FormlyFormFrameComponent } from './formly-form-frame.component';
+import { OperatorPropertyEditFrameComponent } from './operator-property-edit-frame.component';
 
 describe('FormlyFormFrameComponent', () => {
-  let component: FormlyFormFrameComponent;
-  let fixture: ComponentFixture<FormlyFormFrameComponent>;
+  let component: OperatorPropertyEditFrameComponent;
+  let fixture: ComponentFixture<OperatorPropertyEditFrameComponent>;
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ FormlyFormFrameComponent ]
+      declarations: [ OperatorPropertyEditFrameComponent ]
     })
     .compileComponents();
   }));
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(FormlyFormFrameComponent);
+    fixture = TestBed.createComponent(OperatorPropertyEditFrameComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

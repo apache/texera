@@ -1,27 +1,27 @@
 import { Component, OnInit } from '@angular/core';
 import { cloneDeep, isEqual } from 'lodash';
-import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from '../../../../service/execute-workflow/execute-workflow.service';
+import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from '../../../service/execute-workflow/execute-workflow.service';
 import {
   SchemaAttribute,
   SchemaPropagationService
-} from '../../../../service/dynamic-schema/schema-propagation/schema-propagation.service';
-import { DynamicSchemaService } from '../../../../service/dynamic-schema/dynamic-schema.service';
-import { WorkflowActionService } from '../../../../service/workflow-graph/model/workflow-action.service';
+} from '../../../service/dynamic-schema/schema-propagation/schema-propagation.service';
+import { DynamicSchemaService } from '../../../service/dynamic-schema/dynamic-schema.service';
+import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
 import { FormlyJsonschema } from '@ngx-formly/core/json-schema';
 import { ExecutionState } from 'src/app/workspace/types/execute-workflow.interface';
 import { FormGroup } from '@angular/forms';
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
 import { FormlyFieldConfig, FormlyFormOptions } from '@ngx-formly/core';
-import { CustomJSONSchema7 } from '../../../../types/custom-json-schema.interface';
+import { CustomJSONSchema7 } from '../../../types/custom-json-schema.interface';
 import { setChildTypeDependency, setHideExpression } from 'src/app/common/formly/formly-utils';
 
 @Component({
   selector: 'texera-breakpoint-frame',
-  templateUrl: './breakpoint-frame.component.html',
-  styleUrls: ['./breakpoint-frame.component.scss']
+  templateUrl: './breakpoint-property-edit-frame.component.html',
+  styleUrls: ['./breakpoint-property-edit-frame.component.scss']
 })
-export class BreakpointFrameComponent implements OnInit {
+export class BreakpointPropertyEditFrameComponent implements OnInit {
 
 
   // re-declare enum for angular template to access it

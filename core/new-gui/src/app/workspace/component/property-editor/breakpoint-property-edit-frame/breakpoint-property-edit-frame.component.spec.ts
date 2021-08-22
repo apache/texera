@@ -1,20 +1,20 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { BreakpointFrameComponent } from './breakpoint-frame.component';
+import { BreakpointPropertyEditFrameComponent } from './breakpoint-property-edit-frame.component';
 
 describe('BreakpointFrameComponent', () => {
-  let component: BreakpointFrameComponent;
-  let fixture: ComponentFixture<BreakpointFrameComponent>;
+  let component: BreakpointPropertyEditFrameComponent;
+  let fixture: ComponentFixture<BreakpointPropertyEditFrameComponent>;
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ BreakpointFrameComponent ]
+      declarations: [ BreakpointPropertyEditFrameComponent ]
     })
     .compileComponents();
   }));
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(BreakpointFrameComponent);
+    fixture = TestBed.createComponent(BreakpointPropertyEditFrameComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

@@ -2,8 +2,8 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
-import { FormlyFormFrameComponent } from './formly-form-frame/formly-form-frame/formly-form-frame.component';
-import { BreakpointFrameComponent } from './breakpoint-frame/breakpoint-frame/breakpoint-frame.component';
+import { OperatorPropertyEditFrameComponent } from './operator-property-edit-frame/operator-property-edit-frame.component';
+import { BreakpointPropertyEditFrameComponent } from './breakpoint-property-edit-frame/breakpoint-property-edit-frame.component';
 import { Subscription, timer } from 'rxjs';
 
 /**
@@ -83,9 +83,9 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
 
       timer(0).subscribe(() => {
         if (highlightedOperators.length === 1 && highlightedGroups.length === 0 && highlightLinks.length === 0) {
-          this.switchFrameComponent(FormlyFormFrameComponent);
+          this.switchFrameComponent(OperatorPropertyEditFrameComponent);
         } else if (highlightLinks.length === 1 && highlightedGroups.length === 0 && highlightedOperators.length === 0) {
-          this.switchFrameComponent(BreakpointFrameComponent);
+          this.switchFrameComponent(BreakpointPropertyEditFrameComponent);
         }
       });
 

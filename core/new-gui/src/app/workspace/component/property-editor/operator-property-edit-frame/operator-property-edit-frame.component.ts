@@ -1,29 +1,29 @@
 import { Component, OnInit } from '@angular/core';
-import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from '../../../../service/execute-workflow/execute-workflow.service';
+import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from '../../../service/execute-workflow/execute-workflow.service';
 import { Subject } from 'rxjs/Subject';
 import { FormGroup } from '@angular/forms';
 import { FormlyFieldConfig, FormlyFormOptions } from '@ngx-formly/core';
 import * as Ajv from 'ajv';
 import { FormlyJsonschema } from '@ngx-formly/core/json-schema';
-import { WorkflowActionService } from '../../../../service/workflow-graph/model/workflow-action.service';
+import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
 import { cloneDeep, isEqual } from 'lodash';
 import { Observable } from 'rxjs/Observable';
-import { CustomJSONSchema7 } from '../../../../types/custom-json-schema.interface';
-import { isDefined } from '../../../../../common/util/predicate';
+import { CustomJSONSchema7 } from '../../../types/custom-json-schema.interface';
+import { isDefined } from '../../../../common/util/predicate';
 import { ExecutionState } from 'src/app/workspace/types/execute-workflow.interface';
-import { DynamicSchemaService } from '../../../../service/dynamic-schema/dynamic-schema.service';
+import { DynamicSchemaService } from '../../../service/dynamic-schema/dynamic-schema.service';
 import {
   SchemaAttribute,
   SchemaPropagationService
-} from '../../../../service/dynamic-schema/schema-propagation/schema-propagation.service';
+} from '../../../service/dynamic-schema/schema-propagation/schema-propagation.service';
 import { setChildTypeDependency, setHideExpression } from 'src/app/common/formly/formly-utils';
 
 @Component({
   selector: 'texera-formly-form-frame',
-  templateUrl: './formly-form-frame.component.html',
-  styleUrls: ['./formly-form-frame.component.scss']
+  templateUrl: './operator-property-edit-frame.component.html',
+  styleUrls: ['./operator-property-edit-frame.component.scss']
 })
-export class FormlyFormFrameComponent implements OnInit {
+export class OperatorPropertyEditFrameComponent implements OnInit {
 
   // re-declare enum for angular template to access it
   public readonly ExecutionState = ExecutionState;
