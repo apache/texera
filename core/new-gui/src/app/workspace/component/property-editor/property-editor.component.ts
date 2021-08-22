@@ -40,9 +40,6 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
 
   subscriptions = new Subscription();
 
-  // operatorID if the component is displaying operator property editor
-  public currentOperatorID: string | undefined;
-
   constructor(public workflowActionService: WorkflowActionService) {}
 
   ngOnDestroy(): void {

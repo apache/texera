@@ -12,11 +12,9 @@ import { CustomJSONSchema7 } from '../../../types/custom-json-schema.interface';
 import { isDefined } from '../../../../common/util/predicate';
 import { ExecutionState } from 'src/app/workspace/types/execute-workflow.interface';
 import { DynamicSchemaService } from '../../../service/dynamic-schema/dynamic-schema.service';
-import {
-  SchemaAttribute,
-  SchemaPropagationService
-} from '../../../service/dynamic-schema/schema-propagation/schema-propagation.service';
+import { SchemaAttribute, SchemaPropagationService } from '../../../service/dynamic-schema/schema-propagation/schema-propagation.service';
 import { setChildTypeDependency, setHideExpression } from 'src/app/common/formly/formly-utils';
+import { TypeCastingDisplayComponent } from "../typecasting-display/type-casting-display.component";
 
 @Component({
   selector: 'texera-formly-form-frame',
@@ -48,7 +46,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit {
   public formlyOptions: FormlyFormOptions | undefined;
   public formlyFields: FormlyFieldConfig[] | undefined;
   public formTitle: string | undefined;
-
+  extraDisplayComponent: any | undefined = undefined;
+  extraDisplayComponentInputs: any | undefined = undefined;
   // used to fill in default values in json schema to initialize new operator
   private ajv = new Ajv({ useDefaults: true });
 
@@ -71,6 +70,14 @@ export class OperatorPropertyEditFrameComponent implements OnInit {
 
     this.registerDisableEditorInteractivityHandler();
 
+  }
+
+  switchDisplayComponent(targetComponent: any, inputs: any) {
+    if (this.extraDisplayComponent === targetComponent) {
+      return;
+    }
+    this.extraDisplayComponentInputs = inputs;
+    this.extraDisplayComponent = targetComponent;
   }
 
   /**
@@ -152,6 +159,15 @@ export class OperatorPropertyEditFrameComponent implements OnInit {
 
     // manually trigger a form change event because default value might be filled in
     this.onFormChanges(this.formData);
+
+    // OPTIMIZE: find a better way to do this mapping
+    if (this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorID).operatorType.toLowerCase()
+      .includes('type casting')) {
+      this.switchDisplayComponent(TypeCastingDisplayComponent, { operatorID: this.currentOperatorID});
+    } else {
+      this.switchDisplayComponent(undefined, undefined);
+    }
+
 
     const interactive = this.executeWorkflowService.getExecutionState().state === ExecutionState.Uninitialized ||
       this.executeWorkflowService.getExecutionState().state === ExecutionState.Completed;
