@@ -131,7 +131,13 @@ class Controller(
         context.become(running)
         unstashAll()
       })
-      .onFailure((e: Throwable) => logger.error("Failure when sending Python UDF code", e))
+      .onFailure((err: Throwable) => {
+        logger.error("Failure when sending Python UDF code", err)
+        // report error to frontend
+        if (eventListener.workflowExecutionErrorListener != null) {
+          eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
+        }
+      })
   }
 
   def running: Receive = {
