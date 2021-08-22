@@ -8,7 +8,21 @@ server:
   adminConnectors:
     - type: http
       port: 8081
-
+  requestLog:
+    type: classic
+    timeZone: UTC
+    appenders:
+      - type: console
+      - type: file
+        currentLogFilename: ../log/server.log
+        threshold: ALL
+        queueSize: 512
+        discardingThreshold: 0
+        archive: true
+        archivedLogFilenamePattern: ../log/server-%d{yyyy-MM-dd}.log.gz
+        archivedFileCount: 7
+        bufferSize: 8KiB
+        immediateFlush: true
 logging:
   level: INFO
   loggers:
@@ -16,3 +30,13 @@ logging:
   appenders:
     - type: console
       logFormat: "[%date{ISO8601}] [%level] [%logger] [%thread] - %msg %n"
+    - type: file
+      currentLogFilename: ../log/amber.log
+      threshold: ALL
+      queueSize: 512
+      discardingThreshold: 0
+      archive: false
+      timeZone: UTC
+      logFormat: "[%date{ISO8601}] [%level] [%logger] [%thread] - %msg %n"
+      bufferSize: 8KiB
+      immediateFlush: true

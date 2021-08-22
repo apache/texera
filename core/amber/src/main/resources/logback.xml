@@ -11,10 +11,10 @@
 
 
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>worker.log</file>
-        <immediateFlush>false</immediateFlush>
+        <file>../log/amber.log</file>
+        <immediateFlush>true</immediateFlush>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>amber_%d{yyyy-MM-dd}.log</fileNamePattern>
+            <fileNamePattern>../log/amber-%d{yyyy-MM-dd}.log.gz</fileNamePattern>
         </rollingPolicy>
         <encoder>
             <pattern>[%date{ISO8601}] [%level] [%logger] [%thread] - %msg %n</pattern>
