@@ -19,7 +19,7 @@ def init_loguru_logger(stream_log_level) -> None:
     # re-configure them.
     logger.remove()
 
-    # set up stream handler, which outputs to stdout and stderr
+    # set up stream handler, which outputs to stderr
     logger.add(sys.stderr, level=stream_log_level)
 
     # initialize a custom logger level for print to use

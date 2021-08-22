@@ -11,7 +11,7 @@ class StreamToLoggerAdaptor:
 
     def write(self, buffer):
         for line in buffer.rstrip().splitlines():
-            logger.opt(depth=1).log("PRINT", line.rstrip())
+            logger.opt(depth=1).log(self._level, line.rstrip())
 
     def flush(self):
         pass
