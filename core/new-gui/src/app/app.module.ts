@@ -94,6 +94,8 @@ import { ResultTableFrameComponent } from './workspace/component/result-panel/re
 import { DynamicModule } from 'ng-dynamic-component';
 import { RowModalComponent } from './workspace/component/result-panel/result-panel-modal.component';
 import { MonacoEditorModule } from 'ngx-monaco-editor';
+import { FormlyFormFrameComponent } from './workspace/component/property-editor/formly-form-frame/formly-form-frame/formly-form-frame.component';
+import { BreakpointFrameComponent } from './workspace/component/property-editor/breakpoint-frame/breakpoint-frame/breakpoint-frame.component';
 
 registerLocaleData(en);
 
@@ -142,7 +144,9 @@ registerLocaleData(en);
     NgbdModalWorkflowShareAccessComponent,
     NgbdModalUserFileShareAccessComponent,
     ConsoleFrameComponent,
-    ResultTableFrameComponent
+    ResultTableFrameComponent,
+    FormlyFormFrameComponent,
+    BreakpointFrameComponent
   ],
   imports: [
     BrowserModule,
