@@ -8,3 +8,11 @@ server:
   adminConnectors:
     - type: http
       port: 8081
+
+logging:
+  level: INFO
+  loggers:
+    "io.dropwizard": INFO
+  appenders:
+    - type: console
+      logFormat: "[%date{ISO8601}] [%level] [%logger] [%thread] - %msg %n"
