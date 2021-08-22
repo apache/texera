@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { cloneDeep, isEqual } from 'lodash';
 import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from '../../../service/execute-workflow/execute-workflow.service';
 import {
@@ -15,14 +15,15 @@ import { Observable } from 'rxjs/Observable';
 import { FormlyFieldConfig, FormlyFormOptions } from '@ngx-formly/core';
 import { CustomJSONSchema7 } from '../../../types/custom-json-schema.interface';
 import { setChildTypeDependency, setHideExpression } from 'src/app/common/formly/formly-utils';
+import { Subscription } from "rxjs";
 
 @Component({
   selector: 'texera-breakpoint-frame',
   templateUrl: './breakpoint-property-edit-frame.component.html',
   styleUrls: ['./breakpoint-property-edit-frame.component.scss']
 })
-export class BreakpointPropertyEditFrameComponent implements OnInit {
-
+export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy {
+  subscriptions = new Subscription();
 
   // re-declare enum for angular template to access it
   public readonly ExecutionState = ExecutionState;
@@ -61,6 +62,10 @@ export class BreakpointPropertyEditFrameComponent implements OnInit {
     public executeWorkflowService: ExecuteWorkflowService,
     private schemaPropagationService: SchemaPropagationService
   ) { }
+
+  ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
+    }
 
   ngOnInit(): void {
     const highlightLinks = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
@@ -234,11 +239,11 @@ export class BreakpointPropertyEditFrameComponent implements OnInit {
    *  invalid fields, this form will capture those events.
    */
   private registerOperatorPropertyChangeHandler(): void {
-    this.workflowActionService.getTexeraGraph().getBreakpointChangeStream()
+    this.subscriptions.add(this.workflowActionService.getTexeraGraph().getBreakpointChangeStream()
       .filter(_ => this.currentLinkID !== undefined)
       .filter(event => event.linkID === this.currentLinkID)
       .filter(event => !isEqual(this.formData, this.workflowActionService.getTexeraGraph().getLinkBreakpoint(event.linkID)))
-      .subscribe(event => this.formData = cloneDeep(this.workflowActionService.getTexeraGraph().getLinkBreakpoint(event.linkID)));
+      .subscribe(event => this.formData = cloneDeep(this.workflowActionService.getTexeraGraph().getLinkBreakpoint(event.linkID))));
   }
 
   private setFormlyFormBinding(schema: CustomJSONSchema7) {

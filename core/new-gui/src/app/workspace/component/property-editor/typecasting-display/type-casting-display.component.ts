@@ -1,10 +1,11 @@
-import { Component, Input, OnChanges } from '@angular/core';
+import { Component, Input, OnChanges, OnDestroy, OnInit } from '@angular/core';
 import { WorkflowActionService } from 'src/app/workspace/service/workflow-graph/model/workflow-action.service';
 import {
   SchemaAttribute,
   SchemaPropagationService
 } from 'src/app/workspace/service/dynamic-schema/schema-propagation/schema-propagation.service';
 import { OperatorPredicate } from 'src/app/workspace/types/workflow-common.interface';
+import { Subscription } from 'rxjs';
 
 // correspond to operator type specified in backend OperatorDescriptor
 export const TYPE_CASTING_OPERATOR_TYPE = 'TypeCasting';
@@ -16,26 +17,28 @@ export const TYPE_CASTING_OPERATOR_TYPE = 'TypeCasting';
 })
 
 
-export class TypeCastingDisplayComponent implements OnChanges {
+export class TypeCastingDisplayComponent implements OnInit, OnDestroy, OnChanges {
 
   public schemaToDisplay: Partial<SchemaAttribute>[] = [];
   public columnNamesToDisplay: string[] = ['attributeName', 'attributeType'];
   public displayTypeCastingSchemaInformation: boolean = false;
+  subscriptions = new Subscription();
 
   @Input() operatorID: string | undefined;
 
   constructor(
     private workflowActionService: WorkflowActionService,
     private schemaPropagationService: SchemaPropagationService,
-  ) {
-    this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream()
-      .filter(op => op.operator.operatorID === this.operatorID)
-      .filter(op => op.operator.operatorType === TYPE_CASTING_OPERATOR_TYPE)
-      .map(event => event.operator)
-      .subscribe(op => {
-        this.updateComponent(op);
-      });
+  ) { }
+
+  ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
   }
+
+  ngOnInit(): void {
+    this.registerTypeCastingPropertyChangeHandler();
+  }
+
 
   // invoke on first init and every time the input binding is changed
   ngOnChanges(): void {
@@ -50,6 +53,16 @@ export class TypeCastingDisplayComponent implements OnChanges {
     }
     this.displayTypeCastingSchemaInformation = true;
     this.updateComponent(op);
+  }
+
+  registerTypeCastingPropertyChangeHandler(): void {
+    this.subscriptions.add(this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream()
+      .filter(op => op.operator.operatorID === this.operatorID)
+      .filter(op => op.operator.operatorType === TYPE_CASTING_OPERATOR_TYPE)
+      .map(event => event.operator)
+      .subscribe(op => {
+        this.updateComponent(op);
+      }));
   }
 
   private updateComponent(op: OperatorPredicate): void {
