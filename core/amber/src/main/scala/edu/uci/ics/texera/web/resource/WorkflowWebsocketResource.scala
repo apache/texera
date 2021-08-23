@@ -3,6 +3,7 @@ package edu.uci.ics.texera.web.resource
 import akka.actor.{ActorRef, PoisonPill}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.RetryWorkflowHandler.RetryWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.{
   Controller,
@@ -91,6 +92,8 @@ class WorkflowWebsocketResource {
           killWorkflow(session)
         case skipTupleMsg: SkipTupleRequest =>
           skipTuple(session, skipTupleMsg)
+        case retryRequest: RetryRequest =>
+          retry(session)
         case breakpoint: AddBreakpointRequest =>
           addBreakpoint(session, breakpoint)
         case paginationRequest: ResultPaginationRequest =>
@@ -143,6 +146,11 @@ class WorkflowWebsocketResource {
 //    compiler.initOperator(texeraOperator)
 //    controller ! ModifyLogic(texeraOperator.operatorExecutor)
     throw new RuntimeException("modify logic is temporarily disabled")
+  }
+
+  def retry(session: Session): Unit = {
+    val (compiler, controller) = WorkflowWebsocketResource.sessionJobs(session.getId)
+    controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, RetryWorkflow())
   }
 
   def pauseWorkflow(session: Session): Unit = {

@@ -46,6 +46,9 @@ message SendPythonUdfV2 {
     bool is_source = 2;
 }
 
+message RetryPythonV2 {
+}
+
 message PythonPrintV2 {
     string message = 1;
 }
@@ -66,6 +69,7 @@ message ControlCommandV2 {
 
         SendPythonUdfV2 send_python_udf = 21;
         PythonPrintV2 python_print = 22;
+        RetryPythonV2 retry_python = 23;
 
         WorkerExecutionCompletedV2 worker_execution_completed = 101;
     }

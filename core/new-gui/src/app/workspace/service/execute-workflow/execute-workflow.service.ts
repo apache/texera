@@ -239,6 +239,14 @@ export class ExecuteWorkflowService {
     });
   }
 
+  public retryExecution(): void {
+
+    // if (this.currentState.state !== ExecutionState.Paused) {
+    //   throw new Error('cannot skip tuples, current execution state is ' + this.currentState.state);
+    // }
+    this.workflowWebsocketService.send('RetryRequest', {});
+  }
+
   public changeOperatorLogic(operatorID: string): void {
     if (!environment.amberEngineEnabled) {
       return;

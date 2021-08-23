@@ -66,6 +66,10 @@ export class ConsoleFrameComponent implements OnInit, OnDestroy {
     this.subscriptions.unsubscribe();
   }
 
+  onClickRetry() {
+    this.executeWorkflowService.retryExecution();
+    this.breakpointAction = false;
+  }
 
   private clearConsole() {
     this.consoleMessages = [];

@@ -6,10 +6,17 @@
 <!-- hide this button to temporarily disable this feature         -->
 <button (click)="onClickSkipTuples()" *ngIf="breakpointTriggerInfo !== undefined"
         nz-button
-        [hidden]="true"
+        [hidden]="false"
         [disabled]="!breakpointAction">
   Skip Records
 </button>
+
+<button (click)="onClickRetry()" *ngIf="breakpointTriggerInfo !== undefined"
+        [disabled]="!breakpointAction"
+        nz-button>
+  Retry
+</button>
+
 <div *ngFor="let message of consoleMessages">
   <div class="console-message">{{message}}</div>
 </div>
