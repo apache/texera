@@ -20,14 +20,14 @@ class CountGlobalBreakpoint(id: String, val target: Long)
     val length = workers.length
     var i = 0
     val ret = ArrayBuffer[(ActorVirtualIdentity, LocalBreakpoint)]()
-    if (remaining / length > 0) {
-      while (i < length - 1) {
+    while (i < length) {
+      if (remaining / length > 0) {
         ret.append((workers(i), new CountLocalBreakpoint(id, version, remaining / length)))
         currentSum += remaining / length
-        i += 1
+      } else {
+        ret.append((workers(i), new CountLocalBreakpoint(id, version, remaining - currentSum)))
       }
-    } else {
-      ret.append((workers(i), new CountLocalBreakpoint(id, version, remaining - currentSum)))
+      i += 1
     }
     ret.toArray
   }

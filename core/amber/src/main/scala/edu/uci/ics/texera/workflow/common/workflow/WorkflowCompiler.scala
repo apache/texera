@@ -1,8 +1,20 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
 import akka.actor.ActorRef
+import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{
+  ConditionalGlobalBreakpoint,
+  CountGlobalBreakpoint
+}
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
-import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.AssignBreakpointHandler.AssignGlobalBreakpoint
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  LinkIdentity,
+  OperatorIdentity,
+  WorkflowIdentity
+}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
@@ -61,7 +73,7 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
       .toMap
       .filter(pair => pair._2.nonEmpty)
 
-  def amberWorkflow: Workflow = {
+  def amberWorkflow(workflowId: WorkflowIdentity): Workflow = {
     // pre-process: set output mode for sink based on the visualization operator before it
     this.workflow.getSinkOperators.foreach(sinkOpId => {
       val sinkOp = this.workflow.getOperator(sinkOpId)
@@ -109,7 +121,7 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
     val outLinksImmutable: Map[OperatorIdentity, Set[OperatorIdentity]] =
       outLinksImmutableValue.toMap
 
-    new Workflow(amberOperators, outLinksImmutable)
+    new Workflow(workflowId, amberOperators, outLinksImmutable)
   }
 
   def initializeBreakpoint(controller: ActorRef): Unit = {
@@ -123,7 +135,7 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
       operatorID: String,
       breakpoint: Breakpoint
   ): Unit = {
-    val breakpointID = "breakpoint-" + operatorID
+    val breakpointID = "breakpoint-" + operatorID + "-" + System.currentTimeMillis()
     breakpoint match {
       case conditionBp: ConditionBreakpoint =>
         val column = conditionBp.column
@@ -147,22 +159,25 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
           case BreakpointCondition.NOT_CONTAINS =>
             tuple => !tuple.getField(column).toString.trim.contains(conditionBp.value)
         }
-      //TODO: add new handling logic here
-//        controller ! PassBreakpointTo(
-//          operatorID,
-//          new ConditionalGlobalBreakpoint(
-//            breakpointID,
-//            tuple => {
-//              val texeraTuple = tuple.asInstanceOf[Tuple]
-//              predicate.apply(texeraTuple)
-//            }
-//          )
-//        )
+
+        controller ! ControlInvocation(
+          AsyncRPCClient.IgnoreReply,
+          AssignGlobalBreakpoint(
+            new ConditionalGlobalBreakpoint(
+              breakpointID,
+              tuple => {
+                val texeraTuple = tuple.asInstanceOf[Tuple]
+                predicate.apply(texeraTuple)
+              }
+            ),
+            operatorID
+          )
+        )
       case countBp: CountBreakpoint =>
-//        controller ! PassBreakpointTo(
-//          operatorID,
-//          new CountGlobalBreakpoint("breakpointID", countBp.count)
-//        )
+        controller ! ControlInvocation(
+          AsyncRPCClient.IgnoreReply,
+          AssignGlobalBreakpoint(new CountGlobalBreakpoint(breakpointID, countBp.count), operatorID)
+        )
     }
   }
 

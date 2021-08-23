@@ -11,7 +11,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 object AssignBreakpointHandler {
   final case class AssignGlobalBreakpoint[T](
       breakpoint: GlobalBreakpoint[T],
-      operatorID: OperatorIdentity
+      operatorID: String
   ) extends ControlCommand[Unit]
 }
 
@@ -31,17 +31,13 @@ trait AssignBreakpointHandler {
       // get target workers from the operator given a breakpoint
       val targetWorkers = operator.assignBreakpoint(msg.breakpoint)
       // send AssignLocalBreakpoint message to each worker
-      Future
-        .collect(
-          msg.breakpoint
-            .partition(targetWorkers)
-            .map {
-              case (identity, breakpoint) =>
-                send(AssignLocalBreakpoint(breakpoint), identity)
-            }
-            .toSeq
-        )
-        .map { _ => }
+      val results = msg.breakpoint
+        .partition(targetWorkers)
+        .map {
+          case (identity, breakpoint) =>
+            send(AssignLocalBreakpoint(breakpoint), identity)
+        }
+      Future.collect(results).unit
     }
   }
 

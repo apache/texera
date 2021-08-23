@@ -78,7 +78,7 @@ trait LocalBreakpointTriggeredHandler {
                   .map { gbp =>
                     // attach new version if not resolved
                     execute(
-                      AssignGlobalBreakpoint(gbp, targetOp.id),
+                      AssignGlobalBreakpoint(gbp, targetOp.id.operator),
                       CONTROLLER
                     )
                   }

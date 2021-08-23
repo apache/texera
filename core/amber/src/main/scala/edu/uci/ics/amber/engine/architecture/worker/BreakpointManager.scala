@@ -52,9 +52,8 @@ class BreakpointManager(asyncRPCClient: AsyncRPCClient) {
         isTriggered = true
         if (triggeredBreakpoints == null) {
           triggeredBreakpoints = ArrayBuffer[(String, Long)]()
-        } else {
-          triggeredBreakpoints.append((breakpoints(i).id, breakpoints(i).version))
         }
+        triggeredBreakpoints.append((breakpoints(i).id, breakpoints(i).version))
       }
     }
     if (isTriggered) {
