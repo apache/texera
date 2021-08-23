@@ -31,4 +31,20 @@
         type="button">Confirm Change
 </button>
 
+<button (click)="allowChangeOperatorLogic()"
+        *ngIf="currentOperatorID !== undefined &&
+    (this.executeWorkflowService.getExecutionState().state === ExecutionState.Paused ||
+      this.executeWorkflowService.getExecutionState().state === ExecutionState.BreakpointTriggered) &&
+    this.interactive === false" class="breakpointRemoveButton"
+        type="button">Change Logic
+</button>
+
+<button (click)="confirmChangeOperatorLogic()"
+        *ngIf="currentOperatorID !== undefined &&
+    (this.executeWorkflowService.getExecutionState().state === ExecutionState.Paused ||
+      this.executeWorkflowService.getExecutionState().state === ExecutionState.BreakpointTriggered) &&
+    this.interactive === true" class="breakpointRemoveButton"
+        type="button">Confirm Change
+</button>
+
 

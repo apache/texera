@@ -52,6 +52,9 @@ message RetryPythonV2 {
 message PythonPrintV2 {
     string message = 1;
 }
+message ModifyPythonLogicV2 {
+    string code = 1;
+}
 
 message ControlCommandV2 {
     oneof sealed_value {
@@ -70,6 +73,7 @@ message ControlCommandV2 {
         SendPythonUdfV2 send_python_udf = 21;
         PythonPrintV2 python_print = 22;
         RetryPythonV2 retry_python = 23;
+        ModifyPythonLogicV2 modify_python_logic = 24;
 
         WorkerExecutionCompletedV2 worker_execution_completed = 101;
     }

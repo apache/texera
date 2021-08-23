@@ -47,7 +47,8 @@ class ControllerAsyncRPCHandlerInitializer(
     with LinkCompletedHandler
     with FatalErrorHandler
     with PythonPrintHandler
-    with RetryWorkflowHandler {
+    with RetryWorkflowHandler
+    with ModifyLogicHandler {
 
   var statusUpdateAskHandle: Option[Cancellable] = None
   var resultUpdateAskHandle: Option[Cancellable] = None

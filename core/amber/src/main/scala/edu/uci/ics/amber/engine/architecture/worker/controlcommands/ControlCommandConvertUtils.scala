@@ -3,6 +3,7 @@ package edu.uci.ics.amber.engine.architecture.worker.controlcommands
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PythonPrintHandler.PythonPrint
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
+import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.ModifyPythonLogicHandler.ModifyPythonLogic
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.RetryPythonHandler.RetryPython
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.SendPythonUdfHandler.SendPythonUdf
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
@@ -42,6 +43,8 @@ object ControlCommandConvertUtils {
         SendPythonUdfV2(code, isSource)
       case RetryPython() =>
         RetryPythonV2()
+      case ModifyPythonLogic(code) =>
+        ModifyPythonLogicV2(code)
       case _ =>
         throw new UnsupportedOperationException(
           s"V1 controlCommand $controlCommand cannot be converted to V2"

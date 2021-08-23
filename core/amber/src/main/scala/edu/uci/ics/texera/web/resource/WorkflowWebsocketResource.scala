@@ -1,15 +1,12 @@
 package edu.uci.ics.texera.web.resource
 
 import akka.actor.{ActorRef, PoisonPill}
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ModifyLogicHandler.ModifyLogic
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.RetryWorkflowHandler.RetryWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
-import edu.uci.ics.amber.engine.architecture.controller.{
-  Controller,
-  ControllerConfig,
-  ControllerEventListener
-}
+import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, ControllerEventListener}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
@@ -141,11 +138,11 @@ class WorkflowWebsocketResource {
   }
 
   def modifyLogic(session: Session, newLogic: ModifyLogicRequest): Unit = {
-//    val texeraOperator = newLogic.operator
-//    val (compiler, controller) = WorkflowWebsocketResource.sessionJobs(session.getId)
-//    compiler.initOperator(texeraOperator)
-//    controller ! ModifyLogic(texeraOperator.operatorExecutor)
-    throw new RuntimeException("modify logic is temporarily disabled")
+    val texeraOperator = newLogic.operator
+    val (compiler, controller) = WorkflowWebsocketResource.sessionJobs(session.getId)
+    compiler.initOperator(texeraOperator)
+    controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, ModifyLogic(texeraOperator))
+//    throw new RuntimeException("modify logic is temporarily disabled")
   }
 
   def retry(session: Session): Unit = {

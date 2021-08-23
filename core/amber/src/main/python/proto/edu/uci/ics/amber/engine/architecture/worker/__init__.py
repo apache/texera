@@ -79,6 +79,11 @@ class PythonPrintV2(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class ModifyPythonLogicV2(betterproto.Message):
+    code: str = betterproto.string_field(1)
+
+
+@dataclass(eq=False, repr=False)
 class ControlCommandV2(betterproto.Message):
     start_worker: "StartWorkerV2" = betterproto.message_field(1, group="sealed_value")
     pause_worker: "PauseWorkerV2" = betterproto.message_field(2, group="sealed_value")
@@ -103,6 +108,9 @@ class ControlCommandV2(betterproto.Message):
     )
     python_print: "PythonPrintV2" = betterproto.message_field(22, group="sealed_value")
     retry_python: "RetryPythonV2" = betterproto.message_field(23, group="sealed_value")
+    modify_python_logic: "ModifyPythonLogicV2" = betterproto.message_field(
+        24, group="sealed_value"
+    )
     worker_execution_completed: "WorkerExecutionCompletedV2" = (
         betterproto.message_field(101, group="sealed_value")
     )
