@@ -99,15 +99,14 @@ class WorkflowWebsocketResource {
           exportResult(session, resultExportRequest)
       }
     } catch {
-      case e: Throwable =>
-        e.printStackTrace()
+      case err: Exception =>
         send(
           session,
           WorkflowErrorEvent(generalErrors =
-            Map("exception" -> (e.getMessage + "\n" + e.getStackTrace.mkString("\n")))
+            Map("exception" -> (err.getMessage + "\n" + err.getStackTrace.mkString("\n")))
           )
         )
-        throw e
+        throw err
 
     }
 
