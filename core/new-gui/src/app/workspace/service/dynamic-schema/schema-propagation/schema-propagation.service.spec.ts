@@ -260,6 +260,7 @@ describe('SchemaPropagationService', () => {
       outputPorts: [],
       showAdvanced: true,
       isDisabled: false,
+      customOperatorName: '',
     };
 
     workflowActionService.addOperator(mockKeywordSearchOperator, mockPoint);
@@ -314,6 +315,7 @@ describe('SchemaPropagationService', () => {
       outputPorts: [],
       showAdvanced: true,
       isDisabled: false,
+      customOperatorName: '',
     };
 
     workflowActionService.addOperator(mockAggregationPredicate, mockPoint);
