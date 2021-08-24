@@ -45,6 +45,10 @@ object AmberUtils {
     system
   }
 
+  def akkaConfig: Config = ConfigFactory.load("cluster").withFallback(amberConfig)
+
+  def amberConfig: Config = ConfigFactory.load()
+
   def startActorWorker(mainNodeAddress: Option[String]): ActorSystem = {
     val addr = mainNodeAddress.getOrElse("localhost")
     val localIpAddress = "localhost"
@@ -63,8 +67,4 @@ object AmberUtils {
     Constants.masterNodeAddr = Option(addr)
     system
   }
-
-  def akkaConfig: Config = ConfigFactory.load("cluster")
-
-  def amberConfig: Config = ConfigFactory.load()
 }

@@ -1,16 +1,14 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
-import java.util.concurrent.atomic.AtomicLong
-import edu.uci.ics.amber.engine.common.ambermessage.WorkflowControlMessage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   NetworkSenderActorRef,
   SendRequest
 }
-import edu.uci.ics.amber.engine.common.WorkflowLogger
-import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
+import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowControlMessage}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 
+import java.util.concurrent.atomic.AtomicLong
 import scala.collection.mutable
 
 /** This class handles the assignment of sequence numbers to controls
@@ -18,9 +16,6 @@ import scala.collection.mutable
   * where the actor is and without determining the sequence number.
   */
 class ControlOutputPort(selfID: ActorVirtualIdentity, networkSenderActor: NetworkSenderActorRef) {
-
-  protected val logger: WorkflowLogger = WorkflowLogger("ControlOutputPort")
-
   private val idToSequenceNums = new mutable.AnyRefMap[ActorVirtualIdentity, AtomicLong]()
 
   def sendTo(to: ActorVirtualIdentity, payload: ControlPayload): Unit = {

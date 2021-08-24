@@ -15,7 +15,7 @@ from core.models.marker import SenderChangeMarker
 from core.models.tuple import InputExhausted, Tuple
 from core.udf.udf_operator import UDFOperator
 from core.util import IQueue, StoppableQueueBlockingRunnable, get_one_of, set_one_of
-from core.util.print_writer.print_writer import PrintWriter
+from core.util.print_writer.print_log_handler import PrintLogHandler
 from proto.edu.uci.ics.amber.engine.architecture.worker import ControlCommandV2, LocalOperatorExceptionV2, \
     PythonPrintV2, WorkerExecutionCompletedV2, WorkerState
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlInvocationV2, ControlPayloadV2, \
@@ -36,15 +36,16 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         self.context = Context(self)
         self._async_rpc_server = AsyncRPCServer(output_queue, context=self.context)
         self._async_rpc_client = AsyncRPCClient(output_queue, context=self.context)
-        self._print_writer = PrintWriter(
+        self._print_log_handler = PrintLogHandler(
             lambda msg:
             self._async_rpc_client.send(
                 ActorVirtualIdentity(name="CONTROLLER"),
                 set_one_of(ControlCommandV2, PythonPrintV2(message=msg)))
         )
         logger.add(
-            self._print_writer,
-            level='PRINT'
+            self._print_log_handler,
+            level='PRINT',
+            filter="udf_module"
         )
 
     def complete(self) -> None:
@@ -52,7 +53,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         Complete the DataProcessor, marking state to COMPLETED, and notify the controller.
         """
         # flush the buffered console prints
-        self._print_writer.flush()
+        self._print_log_handler.flush()
         self._udf_operator.close()
         self.context.state_manager.transit_to(WorkerState.COMPLETED)
         control_command = set_one_of(ControlCommandV2, WorkerExecutionCompletedV2())
@@ -125,7 +126,8 @@ class DataProcessor(StoppableQueueBlockingRunnable):
                     self.context.statistics_manager.increase_output_tuple_count()
                     for to, batch in self.context.tuple_to_batch_converter.tuple_to_batch(tuple_):
                         self._output_queue.put(DataElement(tag=to, payload=batch))
-        except Exception:
+        except Exception as err:
+            logger.exception(err)
             self.report_exception()
             self._pause()
 
@@ -146,7 +148,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         """
         Report the traceback of current stack when an exception occurs.
         """
-        self._print_writer.flush()
+        self._print_log_handler.flush()
         message: str = traceback.format_exc(limit=-1)
         control_command = set_one_of(ControlCommandV2, LocalOperatorExceptionV2(message=message))
         self._async_rpc_client.send(ActorVirtualIdentity(name="CONTROLLER"), control_command)
@@ -224,7 +226,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         """
         Pause the data processing.
         """
-        self._print_writer.flush()
+        self._print_log_handler.flush()
         if self.context.state_manager.confirm_state(WorkerState.RUNNING, WorkerState.READY):
             self.context.pause_manager.pause()
             self.context.state_manager.transit_to(WorkerState.PAUSED)

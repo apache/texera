@@ -26,7 +26,7 @@ class SimpleBuffer:
         return len(self._buffer)
 
 
-class PrintWriter:
+class PrintLogHandler:
     def __init__(self, callback):
         self.callback = callback
         self._buffer = SimpleBuffer()

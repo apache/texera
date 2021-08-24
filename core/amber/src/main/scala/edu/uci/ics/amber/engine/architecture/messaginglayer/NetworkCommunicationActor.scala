@@ -1,20 +1,19 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
-import akka.actor.{Actor, ActorRef, Cancellable, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor._
-import edu.uci.ics.amber.engine.common.WorkflowLogger
+import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
-import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.collection.mutable
 import scala.concurrent.duration._
 
 object NetworkCommunicationActor {
 
-  def props(parentSender: ActorRef, workerLogger: WorkflowLogger): Props =
-    Props(new NetworkCommunicationActor(parentSender, workerLogger))
+  def props(parentSender: ActorRef, actorId: ActorVirtualIdentity): Props =
+    Props(new NetworkCommunicationActor(parentSender, actorId))
 
   /** to distinguish between main actor self ref and
     * network sender actor
@@ -36,16 +35,17 @@ object NetworkCommunicationActor {
   final case class RegisterActorRef(id: ActorVirtualIdentity, ref: ActorRef)
 
   /** All outgoing message should be eventually NetworkMessage
-    * @param messageID
-    * @param internalMessage
+    * @param messageId Long, id for a NetworkMessage, used for FIFO and ExactlyOnce
+    * @param internalMessage WorkflowMessage, the message payload
     */
-  final case class NetworkMessage(messageID: Long, internalMessage: WorkflowMessage)
+  final case class NetworkMessage(messageId: Long, internalMessage: WorkflowMessage)
 
   /** Ack for NetworkMessage
     * note that it should NEVER be handled by the main thread
-    * @param messageID
+    *
+    * @param messageId Long, id for a NetworkMessage, used for FIFO and ExactlyOnce
     */
-  final case class NetworkAck(messageID: Long)
+  final case class NetworkAck(messageId: Long)
 
   final case class ResendMessages()
 
@@ -56,7 +56,9 @@ object NetworkCommunicationActor {
   * and also sends message to other actors. This is the most outer part of
   * the messaging layer.
   */
-class NetworkCommunicationActor(parentRef: ActorRef, workerLogger: WorkflowLogger) extends Actor {
+class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualIdentity)
+    extends Actor
+    with AmberLogging {
 
   val idToActorRefs = new mutable.HashMap[ActorVirtualIdentity, ActorRef]()
   val idToCongestionControls = new mutable.HashMap[ActorVirtualIdentity, CongestionControl]()
@@ -95,13 +97,7 @@ class NetworkCommunicationActor(parentRef: ActorRef, workerLogger: WorkflowLogge
       } else if (parentRef != null) {
         parentRef ! GetActorRef(actorID, replyTo + self)
       } else {
-        workerLogger.logError(
-          WorkflowRuntimeError(
-            s"unknown identifier: $actorID",
-            actorID.toString,
-            Map.empty
-          )
-        )
+        logger.error(s"unknown identifier: $actorID")
       }
     case RegisterActorRef(actorID, ref) =>
       registerActorRef(actorID, ref)
@@ -127,15 +123,15 @@ class NetworkCommunicationActor(parentRef: ActorRef, workerLogger: WorkflowLogge
 
   /** Add one mapping from Identifier to ActorRef into its state.
     * If there are unsent messages for the actor, send them.
-    * @param actorID
-    * @param ref
+    * @param actorId ActorVirtualIdentity, virtual ID of the Actor.
+    * @param ref ActorRef, the actual reference of the Actor.
     */
-  def registerActorRef(actorID: ActorVirtualIdentity, ref: ActorRef): Unit = {
-    idToActorRefs(actorID) = ref
-    if (messageStash.contains(actorID)) {
-      val stash = messageStash(actorID)
+  def registerActorRef(actorId: ActorVirtualIdentity, ref: ActorRef): Unit = {
+    idToActorRefs(actorId) = ref
+    if (messageStash.contains(actorId)) {
+      val stash = messageStash(actorId)
       while (stash.nonEmpty) {
-        forwardMessage(actorID, stash.dequeue())
+        forwardMessage(actorId, stash.dequeue())
       }
     }
   }
@@ -147,7 +143,7 @@ class NetworkCommunicationActor(parentRef: ActorRef, workerLogger: WorkflowLogge
       } else {
         val stash = messageStash.getOrElseUpdate(id, new mutable.Queue[WorkflowMessage]())
         stash.enqueue(msg)
-        getActorRefMappingFromParent(id)
+        fetchActorRefMappingFromParent(id)
       }
     case NetworkAck(id) =>
       val actorID = messageIDToIdentity(id)
@@ -163,7 +159,7 @@ class NetworkCommunicationActor(parentRef: ActorRef, workerLogger: WorkflowLogge
         case (actorID, ctrl) =>
           val msgsNeedResend = ctrl.getTimedOutInTransitMessages
           if (msgsNeedResend.nonEmpty) {
-            workerLogger.logInfo(s"output channel for $actorID: ${ctrl.getStatusReport}")
+            logger.info(s"output channel for $actorID: ${ctrl.getStatusReport}")
           }
           msgsNeedResend.foreach { msg =>
             sendOrGetActorRef(actorID, msg)
@@ -172,11 +168,11 @@ class NetworkCommunicationActor(parentRef: ActorRef, workerLogger: WorkflowLogge
     case MessageBecomesDeadLetter(msg) =>
       // only remove the mapping from id to actorRef
       // to trigger discover mechanism
-      val actorID = messageIDToIdentity(msg.messageID)
-      workerLogger.logWarning(s"actor for $actorID might have crashed or failed")
+      val actorID = messageIDToIdentity(msg.messageId)
+      logger.warn(s"actor for $actorID might have crashed or failed")
       idToActorRefs.remove(actorID)
       if (parentRef != null) {
-        getActorRefMappingFromParent(actorID)
+        fetchActorRefMappingFromParent(actorID)
       }
   }
 
@@ -186,7 +182,7 @@ class NetworkCommunicationActor(parentRef: ActorRef, workerLogger: WorkflowLogge
 
   override def postStop(): Unit = {
     resendHandle.cancel()
-    workerLogger.logInfo(s"network communication actor stopped!")
+    logger.info(s"network communication actor stopped!")
   }
 
   @inline
@@ -197,13 +193,13 @@ class NetworkCommunicationActor(parentRef: ActorRef, workerLogger: WorkflowLogge
     } else {
       // otherwise, we ask the parent for the actorRef.
       if (parentRef != null) {
-        getActorRefMappingFromParent(actorID)
+        fetchActorRefMappingFromParent(actorID)
       }
     }
   }
 
   @inline
-  private[this] def getActorRefMappingFromParent(actorID: ActorVirtualIdentity): Unit = {
+  private[this] def fetchActorRefMappingFromParent(actorID: ActorVirtualIdentity): Unit = {
     if (!queriedActorVirtualIdentities.contains(actorID)) {
       parentRef ! GetActorRef(actorID, Set(self))
       queriedActorVirtualIdentities.add(actorID)

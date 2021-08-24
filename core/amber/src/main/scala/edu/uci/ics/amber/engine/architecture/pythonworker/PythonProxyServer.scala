@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{ControlOutputPort, DataOutputPort}
+import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
   controlInvocationToV1,
   returnInvocationToV1
@@ -92,9 +93,11 @@ private class AmberProducer(
 class PythonProxyServer(
     portNumber: Int,
     controlOutputPort: ControlOutputPort,
-    dataOutputPort: DataOutputPort
+    dataOutputPort: DataOutputPort,
+    val actorId: ActorVirtualIdentity
 ) extends Runnable
-    with AutoCloseable {
+    with AutoCloseable
+    with AmberLogging {
 
   val allocator: BufferAllocator =
     new RootAllocator().newChildAllocator("flight-server", 0, Long.MaxValue);

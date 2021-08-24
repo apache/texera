@@ -9,7 +9,8 @@ import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.error.WorkflowRuntimeError
+import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
+import edu.uci.ics.amber.engine.common.{IOperatorExecutor, ISourceOperatorExecutor}
 import edu.uci.ics.texera.Utils
 
 import java.io.IOException
@@ -28,10 +29,10 @@ object PythonWorkflowWorker {
 }
 
 class PythonWorkflowWorker(
-    identifier: ActorVirtualIdentity,
+    actorId: ActorVirtualIdentity,
     operator: IOperatorExecutor,
     parentNetworkCommunicationActorRef: ActorRef
-) extends WorkflowWorker(identifier, operator, parentNetworkCommunicationActorRef) {
+) extends WorkflowWorker(actorId, operator, parentNetworkCommunicationActorRef) {
 
   // Input/Output port used in between Python and Java processes.
   private lazy val inputPortNum: Int = getFreeLocalPort
@@ -40,13 +41,12 @@ class PythonWorkflowWorker(
   private lazy val serverThreadExecutor: ExecutorService = Executors.newSingleThreadExecutor
   private lazy val clientThreadExecutor: ExecutorService = Executors.newSingleThreadExecutor
   private lazy val pythonProxyClient: PythonProxyClient =
-    new PythonProxyClient(outputPortNum, logger)
+    new PythonProxyClient(outputPortNum, actorId)
   private lazy val pythonProxyServer: PythonProxyServer =
-    new PythonProxyServer(inputPortNum, controlOutputPort, dataOutputPort)
+    new PythonProxyServer(inputPortNum, controlOutputPort, dataOutputPort, actorId)
 
   // TODO: find a better way to send Error log to frontend.
   override val rpcHandlerInitializer: AsyncRPCHandlerInitializer = null
-  logger.setErrorLogAction(null)
 
   val pythonSrcDirectory: Path = Utils.amberHomePath
     .resolve("src")
@@ -69,13 +69,7 @@ class PythonWorkflowWorker(
       case ControlInvocation(_, _) | ReturnInvocation(_, _) =>
         pythonProxyClient.enqueueCommand(controlPayload, from)
       case _ =>
-        logger.logError(
-          WorkflowRuntimeError(
-            s"unhandled control payload: $controlPayload",
-            identifier.toString,
-            Map.empty
-          )
-        )
+        logger.error(s"unhandled control payload: $controlPayload")
     }
   }
 
@@ -93,13 +87,7 @@ class PythonWorkflowWorker(
       pythonServerProcess.destroy()
     } catch {
       case e: Exception =>
-        logger.logError(
-          WorkflowRuntimeError(
-            s"$e - happened during shutdown",
-            identifier.toString,
-            Map("stacktrace" -> e.getStackTrace.mkString("\n"))
-          )
-        )
+        logger.error(s"$e - happened during shutdown")
     }
   }
 
@@ -128,7 +116,8 @@ class PythonWorkflowWorker(
         "-u",
         udfEntryScriptPath,
         Integer.toString(outputPortNum),
-        Integer.toString(inputPortNum)
+        Integer.toString(inputPortNum),
+        config.getString("python.log.streamHandler.level")
       )
     ).run(BasicIO.standard(false))
   }

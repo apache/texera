@@ -13,6 +13,7 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{COMPLETED, RUNNING}
+import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
@@ -25,7 +26,6 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   LayerIdentity,
   LinkIdentity
 }
-import edu.uci.ics.amber.engine.common.{InputExhausted, WorkflowLogger}
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
@@ -35,7 +35,6 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{Await, ExecutionContext, Future}
 
 class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfterEach {
-  lazy val logger: WorkflowLogger = WorkflowLogger("testDP")
   lazy val pauseManager: PauseManager = wire[PauseManager]
   lazy val dataOutputPort: DataOutputPort = mock[DataOutputPort]
   lazy val batchProducer: TupleToBatchConverter = mock[TupleToBatchConverter]
@@ -46,6 +45,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       LayerIdentity("testDP", "mockOp", "src"),
       LayerIdentity("testDP", "mockOp", "dst")
     )
+  val identifier = ActorVirtualIdentity("DP mock")
   val tuples: Seq[ITuple] = (0 until 400).map(ITuple(_))
 
   def sendDataToDP(dp: DataProcessor, data: Seq[ITuple], interval: Long = -1): Future[_] = {

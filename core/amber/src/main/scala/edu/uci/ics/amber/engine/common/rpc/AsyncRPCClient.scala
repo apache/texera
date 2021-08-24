@@ -1,10 +1,11 @@
 package edu.uci.ics.amber.engine.common.rpc
 
 import com.twitter.util.{Future, Promise}
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlOutputPort
 import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlException
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
-import edu.uci.ics.amber.engine.common.WorkflowLogger
+import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
@@ -51,7 +52,8 @@ object AsyncRPCClient {
 
 }
 
-class AsyncRPCClient(controlOutputPort: ControlOutputPort, logger: WorkflowLogger) {
+class AsyncRPCClient(controlOutputPort: ControlOutputPort, val actorId: ActorVirtualIdentity)
+    extends AmberLogging {
 
   private val unfulfilledPromises = mutable.LongMap[WorkflowPromise[_]]()
   private var promiseID = 0L
@@ -95,12 +97,12 @@ class AsyncRPCClient(controlOutputPort: ControlOutputPort, logger: WorkflowLogge
       if (ret.controlReturn.isInstanceOf[WorkerStatistics]) {
         return
       }
-      logger.logInfo(
-        s"receive reply: ${ret.controlReturn.getClass.getSimpleName} from ${sender.toString} (controlID: ${ret.originalCommandID})"
+      logger.info(
+        s"receive reply: ${ret.controlReturn.getClass.getSimpleName} from $sender (controlID: ${ret.originalCommandID})"
       )
     } else {
-      logger.logInfo(
-        s"receive reply: null from ${sender.toString} (controlID: ${ret.originalCommandID})"
+      logger.info(
+        s"receive reply: null from $sender (controlID: ${ret.originalCommandID})"
       )
     }
   }

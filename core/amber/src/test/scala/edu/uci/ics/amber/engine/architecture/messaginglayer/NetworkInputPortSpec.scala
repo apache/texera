@@ -3,7 +3,6 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkAck
-import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, DataPayload, WorkflowDataMessage}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
@@ -14,11 +13,10 @@ class NetworkInputPortSpec extends AnyFlatSpec with MockFactory {
 
   private val mockHandler = mock[(ActorVirtualIdentity, DataPayload) => Unit]
   private val fakeID = ActorVirtualIdentity("testReceiver")
-  private val logger: WorkflowLogger = WorkflowLogger("NetworkInputPortSpec")
 
   "network input port" should "output payload in FIFO order" in {
     val testActor = TestProbe.apply("test")(ActorSystem())
-    val inputPort = new NetworkInputPort[DataPayload](logger, mockHandler)
+    val inputPort = new NetworkInputPort[DataPayload](fakeID, mockHandler)
     val payloads = (0 until 4).map { i =>
       DataFrame(Array(ITuple(i)))
     }.toArray
@@ -45,7 +43,7 @@ class NetworkInputPortSpec extends AnyFlatSpec with MockFactory {
 
   "network input port" should "de-duplicate payload" in {
     val testActor = TestProbe.apply("test")(ActorSystem())
-    val inputPort = new NetworkInputPort[DataPayload](logger, mockHandler)
+    val inputPort = new NetworkInputPort[DataPayload](fakeID, mockHandler)
 
     val payload = DataFrame(Array(ITuple(0)))
     val message = WorkflowDataMessage(fakeID, 0, payload)
@@ -68,7 +66,7 @@ class NetworkInputPortSpec extends AnyFlatSpec with MockFactory {
 
   "network input port" should "send ack to the sender actor ref" in {
     val testActor = TestProbe.apply("test")(ActorSystem())
-    val inputPort = new NetworkInputPort[DataPayload](logger, (_, _) => {})
+    val inputPort = new NetworkInputPort[DataPayload](fakeID, (_, _) => {})
 
     val payload = DataFrame(Array(ITuple(0)))
     val message = WorkflowDataMessage(fakeID, 0, payload)
