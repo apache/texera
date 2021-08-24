@@ -3,7 +3,7 @@ import { environment } from '../../../../environments/environment';
 import { WorkflowWebsocketService } from '../workflow-websocket/workflow-websocket.service';
 import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
 import { Observable } from 'rxjs/Observable';
-import { ResultDownloadResponse } from '../../types/workflow-websocket.interface';
+import { ResultExportResponse } from '../../types/workflow-websocket.interface';
 import { NotificationService } from '../../../common/service/notification/notification.service';
 import { ExecuteWorkflowService } from '../execute-workflow/execute-workflow.service';
 import { ExecutionState } from '../../types/execute-workflow.interface';
@@ -26,9 +26,13 @@ export class WorkflowResultExportService {
   }
 
   registerResultExportResponseHandler() {
-    this.workflowWebsocketService.subscribeToEvent('ResultDownloadResponse')
-      .subscribe((response: ResultDownloadResponse) => {
-        this.notificationService.success(response.message);
+    this.workflowWebsocketService.subscribeToEvent('ResultExportResponse')
+      .subscribe((response: ResultExportResponse) => {
+        if (response.status === 'success') {
+          this.notificationService.success(response.message);
+        } else {
+          this.notificationService.error(response.message);
+        }
       });
 
   }
@@ -60,8 +64,8 @@ export class WorkflowResultExportService {
     this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs().filter((operatorId) =>
       this.workflowActionService.getTexeraGraph().getOperator(operatorId).operatorType.toLowerCase().includes('sink'))
       .forEach(operatorId => {
-        this.workflowWebsocketService.send('ResultDownloadRequest', {
-          downloadType: downloadType,
+        this.workflowWebsocketService.send('ResultExportRequest', {
+          exportType: downloadType,
           workflowName: workflowName,
           operatorId: operatorId
         });

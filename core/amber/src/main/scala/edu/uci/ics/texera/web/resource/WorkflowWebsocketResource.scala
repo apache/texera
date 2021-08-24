@@ -43,8 +43,8 @@ object WorkflowWebsocketResource {
   // Map[sessionId, Map[operatorId, List[ITuple]]]
   val sessionResults = new mutable.HashMap[String, WorkflowResultService]
 
-  // Map[sessionId, Map[downloadType, googleSheetLink]
-  val sessionDownloadCache = new mutable.HashMap[String, mutable.HashMap[String, String]]
+  // Map[sessionId, Map[exportType, googleSheetLink]
+  val sessionExportCache = new mutable.HashMap[String, mutable.HashMap[String, String]]
 
   def send(session: Session, event: TexeraWebSocketEvent): Unit = {
     session.getAsyncRemote.sendText(objectMapper.writeValueAsString(event))
@@ -95,7 +95,7 @@ class WorkflowWebsocketResource {
           addBreakpoint(session, breakpoint)
         case paginationRequest: ResultPaginationRequest =>
           resultPagination(session, paginationRequest)
-        case resultDownloadRequest: ResultDownloadRequest =>
+        case resultDownloadRequest: ResultExportRequest =>
           downloadResult(session, resultDownloadRequest)
       }
     } catch {
@@ -186,7 +186,7 @@ class WorkflowWebsocketResource {
 
     val eventListener = ControllerEventListener(
       workflowCompletedListener = completed => {
-        sessionDownloadCache.remove(session.getId)
+        sessionExportCache.remove(session.getId)
         send(session, WorkflowCompletedEvent())
         WorkflowWebsocketResource.sessionJobs.remove(session.getId)
       },
@@ -235,8 +235,8 @@ class WorkflowWebsocketResource {
 
   }
 
-  def downloadResult(session: Session, request: ResultDownloadRequest): Unit = {
-    val resultDownloadResponse = ResultDownloadResource.apply(session.getId, request)
+  def downloadResult(session: Session, request: ResultExportRequest): Unit = {
+    val resultDownloadResponse = ResultExportResource.apply(session.getId, request)
     send(session, resultDownloadResponse)
   }
 
@@ -255,7 +255,7 @@ class WorkflowWebsocketResource {
     sessionResults.remove(session.getId)
     sessionJobs.remove(session.getId)
     sessionMap.remove(session.getId)
-    sessionDownloadCache.remove(session.getId)
+    sessionExportCache.remove(session.getId)
   }
 
   def removeBreakpoint(session: Session, removeBreakpoint: RemoveBreakpointRequest): Unit = {

@@ -70,13 +70,14 @@ export type PaginatedResultEvent = Readonly<{
   table: ReadonlyArray<object>,
 }>;
 
-export type ResultDownloadRequest = Readonly<{
-  downloadType: string,
+export type ResultExportRequest = Readonly<{
+  exportType: string,
   workflowName: string,
   operatorId: string
 }>;
 
-export type ResultDownloadResponse = Readonly<{
+export type ResultExportResponse = Readonly<{
+  status: 'success' | 'error'
   message: string
 }>;
 
@@ -91,7 +92,7 @@ export type TexeraWebsocketRequestTypeMap = {
   'SkipTupleRequest': SkipTuple,
   'AddBreakpointRequest': BreakpointInfo,
   'ResultPaginationRequest': PaginationRequest,
-  'ResultDownloadRequest': ResultDownloadRequest,
+  'ResultExportRequest': ResultExportRequest,
 };
 
 export type TexeraWebsocketEventTypeMap = {
@@ -111,7 +112,7 @@ export type TexeraWebsocketEventTypeMap = {
   'OperatorCurrentTuplesUpdateEvent': OperatorCurrentTuples,
   'PaginatedResultEvent': PaginatedResultEvent,
   'WorkflowExecutionErrorEvent': WorkflowExecutionError,
-  'ResultDownloadResponse': ResultDownloadResponse
+  'ResultExportResponse': ResultExportResponse
 };
 
 // helper type definitions to generate the request and event types
