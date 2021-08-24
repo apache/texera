@@ -14,12 +14,12 @@ server:
     appenders:
       - type: console
       - type: file
-        currentLogFilename: ../log/server.log
+        currentLogFilename: ../log/access.log
         threshold: ALL
         queueSize: 512
         discardingThreshold: 0
         archive: true
-        archivedLogFilenamePattern: ../log/server-%d{yyyy-MM-dd}.log.gz
+        archivedLogFilenamePattern: ../log/access-%d{yyyy-MM-dd}.log.gz
         archivedFileCount: 7
         bufferSize: 8KiB
         immediateFlush: true
