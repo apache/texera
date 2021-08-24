@@ -1,7 +1,7 @@
 import { WorkflowEditorComponent } from './../workflow-editor/workflow-editor.component';
 import { JointUIService } from './../../service/joint-ui/joint-ui.service';
 import { Component } from '@angular/core';
-import { FormGroup, FormBuilder } from '@angular/forms';
+import { FormGroup, FormBuilder, Validators } from '@angular/forms';
 import { FormlyFieldConfig, FormlyFormOptions } from '@ngx-formly/core';
 import { FormlyJsonschema } from '@ngx-formly/core/json-schema';
 import * as Ajv from 'ajv';
@@ -85,12 +85,10 @@ export class PropertyEditorComponent {
   public formTitle: string | undefined;
   public currOperatorName: string | undefined;
 
-  /**********CODE PART 2-1 FORM BUILDER  ***********/
   public operatorNameForm = this.formBuilder.group({
-    opName: ''
+    opName: [ '', [Validators.required]]
 });
 
-  /**********CODE PART 2-1 FORM BUILDER  ***********/
 
   // show TypeInformation only when operator type is TypeCasting
   public showTypeCastingTypeInformation = false;
@@ -227,7 +225,6 @@ export class PropertyEditorComponent {
   }
 
 
-  /*********** CODE PART 2-2: operatorNameChange *******/
   public jointOperatorNameChange(opName: string): void {
     if (this.currentOperatorID) {
       this.workflowActionService.getTexeraGraph().changeName(this.currentOperatorID, opName);
@@ -235,11 +232,18 @@ export class PropertyEditorComponent {
   }
 
   public onClickChangeName(): void {
-      const newName = this.operatorNameForm.get('opName')?.value;
-      this.jointOperatorNameChange(newName);
+
+    if (this.operatorNameForm.get('opName')?.invalid) {
+      if (this.formTitle) {
+        this.jointOperatorNameChange(this.formTitle);
+        this.currOperatorName = '';
+      }
+    }
+
+      const newOperatorName = this.operatorNameForm.get('opName')?.value;
+      this.jointOperatorNameChange(newOperatorName);
       this.currOperatorName = '';
   }
-    /*********** CODE PART 2-2: operatorNameChange *******/
 
 
 
@@ -254,7 +258,6 @@ export class PropertyEditorComponent {
     const currentOperatorSchema = this.autocompleteService.getDynamicSchema(this.currentOperatorID);
     this.setFormlyFormBinding(currentOperatorSchema.jsonSchema);
     this.formTitle = currentOperatorSchema.additionalMetadata.userFriendlyName;
-    // currentOperatorSchema.additionalMetadata.userFriendlyName;
     this.currOperatorName = operator.customOperatorName;
 
     /**
