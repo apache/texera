@@ -15,7 +15,7 @@ import { Observable } from 'rxjs/Observable';
 import { FormlyFieldConfig, FormlyFormOptions } from '@ngx-formly/core';
 import { CustomJSONSchema7 } from '../../../types/custom-json-schema.interface';
 import { setChildTypeDependency, setHideExpression } from 'src/app/common/formly/formly-utils';
-import { Subscription } from "rxjs";
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'texera-breakpoint-frame',
@@ -42,7 +42,6 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy {
 
   // the source event stream of form change triggered by library at each user input
   public sourceFormChangeEventStream = new Subject<object>();
-
 
   public breakpointChangeStream = this.createOutputFormChangeEventStream(
     this.sourceFormChangeEventStream, data => this.checkBreakpoint(data));
