@@ -11,11 +11,7 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.texera.Utils.retry
 import edu.uci.ics.texera.web.model.event.ResultDownloadResponse
 import edu.uci.ics.texera.web.model.request.ResultDownloadRequest
-import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
-  sessionDownloadCache,
-  sessionMap,
-  sessionResults
-}
+import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{sessionDownloadCache, sessionMap, sessionResults}
 import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -92,11 +88,7 @@ object ResultDownloadResource {
     val stream = new ByteArrayOutputStream()
     val writer = CSVWriter.open(stream)
     writer.writeRow(headers)
-    writer.writeAll(
-      results.map(tuple =>
-        tuple.getFields.map(field => Option(field).map(_.toString).getOrElse("")).toSeq
-      )
-    )
+    writer.writeAll(results.map(tuple => tuple.getFields.toList))
     writer.close()
     val fileName = s"${request.workflowName}-${request.operatorId}.csv"
     val uid = UserResource

@@ -22,6 +22,11 @@ object UserFileUtils {
     writeToFile(UserFileUtils.getFilePath(userID, fileName), fileStream)
   }
 
+  @throws[FileIOException]
+  private def checkFileDuplicate(filePath: Path): Unit = {
+    if (Files.exists(filePath)) throw FileIOException("File already exists.")
+  }
+
   def storeFileSafe(fileStream: InputStream, fileName: String, userID: UInteger): String = {
     createFileDirectoryIfNotExist(UserFileUtils.getFileDirectory(userID))
     var fileNameToStore = fileName
@@ -44,11 +49,6 @@ object UserFileUtils {
     fileNameToStore
   }
 
-  @throws[FileIOException]
-  private def checkFileDuplicate(filePath: Path): Unit = {
-    if (Files.exists(filePath)) throw FileIOException("File already exists.")
-  }
-
   def getFilePath(userID: UInteger, fileName: String): Path = {
     getFileDirectory(userID).resolve(fileName)
   }
@@ -67,7 +67,11 @@ object UserFileUtils {
 
   @throws[FileIOException]
   private def writeToFile(filePath: Path, fileStream: InputStream): Unit = {
-    IOUtils.copy(fileStream, new FileWriter(filePath.toString))
+    val charset: String = null
+    val outputStream = new FileWriter(filePath.toString)
+    IOUtils.copy(fileStream, outputStream, charset)
+    IOUtils.closeQuietly(fileStream)
+    IOUtils.closeQuietly(outputStream)
   }
 
   def getFilePathByInfo(ownerName: String, fileName: String, uid: UInteger): Option[Path] = {
