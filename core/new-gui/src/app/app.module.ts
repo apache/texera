@@ -94,6 +94,7 @@ import { ResultTableFrameComponent } from './workspace/component/result-panel/re
 import { DynamicModule } from 'ng-dynamic-component';
 import { RowModalComponent } from './workspace/component/result-panel/result-panel-modal.component';
 import { MonacoEditorModule } from 'ngx-monaco-editor';
+import { NotificationComponent } from './common/component/notification/notification/notification.component';
 
 registerLocaleData(en);
 
@@ -142,7 +143,8 @@ registerLocaleData(en);
     NgbdModalWorkflowShareAccessComponent,
     NgbdModalUserFileShareAccessComponent,
     ConsoleFrameComponent,
-    ResultTableFrameComponent
+    ResultTableFrameComponent,
+    NotificationComponent
   ],
   imports: [
     BrowserModule,
