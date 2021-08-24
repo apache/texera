@@ -1,49 +1,43 @@
 package edu.uci.ics.texera.web.resource
 
 import akka.actor.{ActorRef, PoisonPill}
+import com.typesafe.scalalogging.Logger
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.{
   Controller,
   ControllerConfig,
   ControllerEventListener
 }
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.Utils
-import edu.uci.ics.texera.web.{ServletAwareConfigurator, TexeraWebApplication}
+import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.web.model.event._
 import edu.uci.ics.texera.web.model.request._
-import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
-  send,
-  sessionDownloadCache,
-  sessionJobs,
-  sessionMap,
-  sessionResults
-}
+import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource._
 import edu.uci.ics.texera.web.resource.auth.UserResource
+import edu.uci.ics.texera.web.{ServletAwareConfigurator, TexeraWebApplication}
+import edu.uci.ics.texera.workflow.common.WorkflowContext
+import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.texera.workflow.common.workflow.WorkflowInfo.toJgraphtDAG
 import edu.uci.ics.texera.workflow.common.workflow.{
   WorkflowCompiler,
   WorkflowInfo,
   WorkflowRewriter,
   WorkflowVertex
 }
-import edu.uci.ics.texera.workflow.common.WorkflowContext
+import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDesc
+import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 
 import java.util.concurrent.atomic.AtomicInteger
 import javax.servlet.http.HttpSession
-import javax.websocket.{EndpointConfig, _}
+import javax.websocket._
 import javax.websocket.server.ServerEndpoint
 import scala.collection.{breakOut, mutable}
-import com.typesafe.scalalogging.Logger
-import edu.uci.ics.texera.Utils.objectMapper
-import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
-import edu.uci.ics.texera.workflow.common.workflow.WorkflowInfo.toJgraphtDAG
-import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDesc
-import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 
 object WorkflowWebsocketResource {
   // TODO should reorganize this resource.
@@ -244,6 +238,23 @@ class WorkflowWebsocketResource {
       .getUser(sessionMap(session.getId)._2)
       .map(u => u.getUid)
 
+    val cacheStatusMap = new mutable.HashMap[String, CacheStatusUpdateEvent.CacheStatus]()
+    request.operators
+      .map(e => e.operatorID)
+      .foreach(id => {
+        if (request.operators.contains(id)) {
+          if (cachedOperators.contains(id)) {
+            cacheStatusMap.put(id, CacheStatusUpdateEvent.CacheStatus.CACHE_VALID)
+          } else {
+            cacheStatusMap.put(id, CacheStatusUpdateEvent.CacheStatus.CACHE_INVALID)
+          }
+        } else {
+          cacheStatusMap.put(id, CacheStatusUpdateEvent.CacheStatus.CACHE_NOT_ENABLED)
+        }
+      })
+    val cacheStatusUpdateEvent = new CacheStatusUpdateEvent(cacheStatusMap)
+    send(session, cacheStatusUpdateEvent)
+
     var workflowInfo = WorkflowInfo(request.operators, request.links, request.breakpoints)
     workflowInfo.cachedOperatorIDs = request.cachedOperatorIDs
     logger.info("Cached operators: {}.", cachedOperators.toString())
@@ -257,8 +268,9 @@ class WorkflowWebsocketResource {
       operatorRecord
     )
     val newWorkflowInfo = workflowRewriter.rewrite_v2
-    logger.info("Original workflow: {}.", toJgraphtDAG(workflowInfo).toString)
+    val oldWorkflowInfo = workflowInfo
     workflowInfo = newWorkflowInfo
+    logger.info("Original workflow: {}.", toJgraphtDAG(oldWorkflowInfo).toString)
     logger.info("Rewritten workflow: {}.", toJgraphtDAG(workflowInfo).toString)
     val texeraWorkflowCompiler = new WorkflowCompiler(workflowInfo, context)
     logger.info("TexeraWorkflowCompiler constructed: {}.", texeraWorkflowCompiler)
@@ -320,6 +332,22 @@ class WorkflowWebsocketResource {
         sessionDownloadCache.remove(session.getId)
         send(session, WorkflowCompletedEvent())
         WorkflowWebsocketResource.sessionJobs.remove(session.getId)
+        val cacheStatusMap = new mutable.HashMap[String, CacheStatusUpdateEvent.CacheStatus]()
+        request.operators
+          .map(e => e.operatorID)
+          .foreach(id => {
+            if (request.operators.contains(id)) {
+              if (cachedOperators.contains(id)) {
+                cacheStatusMap.put(id, CacheStatusUpdateEvent.CacheStatus.CACHE_VALID)
+              } else {
+                cacheStatusMap.put(id, CacheStatusUpdateEvent.CacheStatus.CACHE_INVALID)
+              }
+            } else {
+              cacheStatusMap.put(id, CacheStatusUpdateEvent.CacheStatus.CACHE_NOT_ENABLED)
+            }
+          })
+        val cacheStatusUpdateEvent = new CacheStatusUpdateEvent(cacheStatusMap)
+        send(session, cacheStatusUpdateEvent)
       },
       workflowStatusUpdateListener = statusUpdate => {
         send(session, WebWorkflowStatusUpdateEvent.apply(statusUpdate))
