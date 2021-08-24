@@ -7,7 +7,6 @@ import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.principal.{OperatorState, OperatorStatistics}
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState._
-import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   LayerIdentity,
@@ -17,13 +16,9 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 
 import scala.collection.mutable
 
-/**
-  * @param id
-  */
 abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
 
   lazy val topology: Topology = null
-  val opExecConfigLogger: WorkflowLogger = WorkflowLogger(s"OpExecConfig $id")
   var inputToOrdinalMapping = new mutable.HashMap[LinkIdentity, Int]()
   var attachedBreakpoints = new mutable.HashMap[String, GlobalBreakpoint[_]]()
 

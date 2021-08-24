@@ -17,7 +17,11 @@ import {
 import { environment } from '../../../../environments/environment';
 import { WorkflowWebsocketService } from '../workflow-websocket/workflow-websocket.service';
 import { Breakpoint, BreakpointRequest, BreakpointTriggerInfo } from '../../types/workflow-common.interface';
-import { OperatorCurrentTuples, ResultDownloadResponse, TexeraWebsocketEvent } from '../../types/workflow-websocket.interface';
+import {
+  OperatorCurrentTuples,
+  ResultDownloadResponse,
+  TexeraWebsocketEvent
+} from '../../types/workflow-websocket.interface';
 import { isEqual } from 'lodash';
 import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from '../../types/result-table.interface';
 import { sessionGetObject, sessionSetObject } from '../../../common/util/storage';
@@ -128,11 +132,7 @@ export class ExecuteWorkflowService {
         return {state: ExecutionState.Failed, errorMessages: errorMessages};
       // TODO: Merge WorkflowErrorEvent and ErrorEvent
       case 'WorkflowExecutionErrorEvent':
-        const backendErrorMessages: Record<string, string> = {};
-        Object.entries(event.errorMap).forEach(entry => {
-          backendErrorMessages[entry[0]] = entry[1];
-        });
-        return {state: ExecutionState.Failed, errorMessages: backendErrorMessages};
+        return {state: ExecutionState.Failed, errorMessages: {'WorkflowExecutionError': event.message}};
       default:
         return undefined;
     }
@@ -241,7 +241,10 @@ export class ExecuteWorkflowService {
       throw new Error('cannot skip tuples, current execution state is ' + this.currentState.state);
     }
     this.currentState.breakpoint.report.forEach(fault => {
-      this.workflowWebsocketService.send('SkipTupleRequest', {faultedTuple: fault.faultedTuple, actorPath: fault.actorPath});
+      this.workflowWebsocketService.send('SkipTupleRequest', {
+        faultedTuple: fault.faultedTuple,
+        actorPath: fault.actorPath
+      });
     });
   }
 
@@ -268,7 +271,10 @@ export class ExecuteWorkflowService {
     if (!environment.downloadExecutionResultEnabled) {
       return;
     }
-    this.workflowWebsocketService.send('ResultDownloadRequest', {downloadType: downloadType, workflowName: workflowName});
+    this.workflowWebsocketService.send('ResultDownloadRequest', {
+      downloadType: downloadType,
+      workflowName: workflowName
+    });
   }
 
   public getExecutionStateStream(): Observable<{ previous: ExecutionStateInfo, current: ExecutionStateInfo }> {
@@ -367,8 +373,14 @@ export class ExecuteWorkflowService {
     const links: LogicalLink[] = workflowGraph
       .getAllEnabledLinks()
       .map(link => ({
-        origin: {operatorID: link.source.operatorID, portOrdinal: getOutputPortOrdinal(link.source.operatorID, link.source.portID)},
-        destination: {operatorID: link.target.operatorID, portOrdinal: getInputPortOrdinal(link.target.operatorID, link.target.portID)}
+        origin: {
+          operatorID: link.source.operatorID,
+          portOrdinal: getOutputPortOrdinal(link.source.operatorID, link.source.portID)
+        },
+        destination: {
+          operatorID: link.target.operatorID,
+          portOrdinal: getInputPortOrdinal(link.target.operatorID, link.target.portID)
+        }
       }));
 
     const breakpoints: BreakpointInfo[] = Array.from(workflowGraph.getAllEnabledLinkBreakpoints().entries())

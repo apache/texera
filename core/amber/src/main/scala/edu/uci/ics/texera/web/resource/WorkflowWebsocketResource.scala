@@ -216,7 +216,7 @@ class WorkflowWebsocketResource {
         send(session, RecoveryStartedEvent())
       },
       workflowExecutionErrorListener = errorOccurred => {
-        send(session, WorkflowExecutionErrorEvent(errorOccurred.error.convertToMap()))
+        send(session, WorkflowExecutionErrorEvent(errorOccurred.error.getLocalizedMessage))
       }
     )
 
