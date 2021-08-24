@@ -64,6 +64,8 @@ val dropwizardDependencies = Seq(
   "org.glassfish.jersey.media" % "jersey-media-multipart" % jerseyMultipartVersion,
   "com.fasterxml.jackson.module" % "jackson-module-jsonSchema" % jacksonVersion,
   "com.fasterxml.jackson.module" % "jackson-module-scala_2.12" % jacksonVersion,
+  // https://mvnrepository.com/artifact/commons-io/commons-io
+   "commons-io" % "commons-io" % "2.11.0"
 )
 
 
