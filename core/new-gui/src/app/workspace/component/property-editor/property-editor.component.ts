@@ -238,6 +238,7 @@ export class PropertyEditorComponent {
         this.jointOperatorNameChange(this.formTitle);
         this.currOperatorName = '';
       }
+        return;
     }
 
       const newOperatorName = this.operatorNameForm.get('opName')?.value;
