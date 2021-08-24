@@ -5,7 +5,7 @@
     </h3>
 
     <form (ngSubmit) = "onClickChangeName()" [formGroup]="operatorNameForm" >
-        <input type="text" formControlName="opName" placeholder={{formTitle}} value={{currOperatorName}}>
+        <input type="text" formControlName="opName" value={{currOperatorName}}>
         <button value="Submit">Change</button>
     </form>
 
