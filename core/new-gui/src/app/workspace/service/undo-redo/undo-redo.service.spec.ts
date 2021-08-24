@@ -1,5 +1,3 @@
-import { MOCK_WORKFLOW } from './../../../common/service/user/workflow-access-control/stub-workflow-grant-access.service';
-import { Workflow } from './../../../common/type/workflow';
 import { StubOperatorMetadataService } from './../operator-metadata/stub-operator-metadata.service';
 import { JointUIService } from './../joint-ui/joint-ui.service';
 import { OperatorMetadataService } from './../operator-metadata/operator-metadata.service';
