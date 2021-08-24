@@ -53,22 +53,22 @@ class AsyncRPCServer(controlOutputPort: ControlOutputPort, logger: WorkflowLogge
 
   def receive(control: ControlInvocation, senderID: ActorVirtualIdentity): Unit = {
     try {
-      execute((control.command, senderID)) match {
-        case f: Future[_] =>
-          // user's code returns a future
-          // the result should be returned after the future is resolved.
-          f.onSuccess { ret =>
-            returnResult(senderID, control.commandID, ret)
-          }
-          f.onFailure { err =>
-            returnResult(senderID, control.commandID, err)
-          }
-      }
+      execute((control.command, senderID))
+        .onSuccess { ret =>
+          returnResult(senderID, control.commandID, ret)
+        }
+        .onFailure { err =>
+          returnResult(senderID, control.commandID, err)
+        }
+
     } catch {
-      case e: Throwable =>
+      case err: Throwable =>
         // if error occurs, return it to the sender.
-        returnResult(senderID, control.commandID, e)
-        throw e
+        returnResult(senderID, control.commandID, err)
+
+      // if throw this exception right now, the above message might not be able
+      // to be sent out. We do not throw for now.
+      //        throw err
     }
   }
 

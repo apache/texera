@@ -36,6 +36,7 @@ class TupleToBatchConverter(
         RoundRobinPartitioner(roundRobinPartitioning)
       case hashBasedShufflePartitioning: HashBasedShufflePartitioning =>
         HashBasedShufflePartitioner(hashBasedShufflePartitioning)
+      case _ => throw new RuntimeException(s"partitioning $partitioning not supported")
     }
 
     // update the existing partitioners.

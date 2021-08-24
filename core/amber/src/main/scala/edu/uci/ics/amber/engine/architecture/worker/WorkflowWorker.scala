@@ -16,6 +16,11 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   TupleToBatchConverter
 }
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ShutdownDPThreadHandler.ShutdownDPThread
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
+  READY,
+  RUNNING,
+  UNINITIALIZED
+}
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.ambermessage.{
   ControlPayload,
@@ -28,7 +33,6 @@ import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCHandlerIniti
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
-import edu.uci.ics.amber.engine.common.worker.WorkerState.{Ready, Running, Uninitialized}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.collection.mutable
@@ -72,8 +76,8 @@ class WorkflowWorker(
     parentNetworkCommunicationActorRef ! RegisterActorRef(identifier, self)
   }
 
-  workerStateManager.assertState(Uninitialized)
-  workerStateManager.transitTo(Ready)
+  workerStateManager.assertState(UNINITIALIZED)
+  workerStateManager.transitTo(READY)
 
   override def receive: Receive = receiveAndProcessMessages
 
@@ -90,9 +94,9 @@ class WorkflowWorker(
     }
   }
 
-  final def handleDataPayload(from: ActorVirtualIdentity, dataPayload: DataPayload): Unit = {
-    if (workerStateManager.getCurrentState == Ready) {
-      workerStateManager.transitTo(Running)
+  def handleDataPayload(from: ActorVirtualIdentity, dataPayload: DataPayload): Unit = {
+    if (workerStateManager.getCurrentState == READY) {
+      workerStateManager.transitTo(RUNNING)
       asyncRPCClient.send(
         WorkerStateUpdated(workerStateManager.getCurrentState),
         CONTROLLER
@@ -101,7 +105,7 @@ class WorkflowWorker(
     tupleProducer.processDataPayload(from, dataPayload)
   }
 
-  final def handleControlPayload(
+  def handleControlPayload(
       from: ActorVirtualIdentity,
       controlPayload: ControlPayload
   ): Unit = {

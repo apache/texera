@@ -7,9 +7,9 @@ import { map } from 'rxjs/operators';
 import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
 
 import { GroupInfo, OperatorMetadata, OperatorSchema } from '../../types/operator-schema.interface';
-import { DragDropService } from './../../service/drag-drop/drag-drop.service';
-import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
-import { WorkflowUtilService } from './../../service/workflow-graph/util/workflow-util.service';
+import { DragDropService } from '../../service/drag-drop/drag-drop.service';
+import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
+import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
 import { OperatorLabelComponent } from './operator-label/operator-label.component';
 
 /**
@@ -101,7 +101,7 @@ export class OperatorPanelComponent implements OnInit {
    * handles the event when an operator search option is selected.
    * adds the operator to the canvas and clears the text in the search box
    */
-  onSearchOperatorSelected(event: MatAutocompleteSelectedEvent): void  {
+  onSearchOperatorSelected(event: MatAutocompleteSelectedEvent): void {
     const userFriendlyName = event.option.value as string;
     const operator = this.operatorSchemaList.filter(
       op => op.additionalMetadata.userFriendlyName === userFriendlyName)[0];
@@ -127,7 +127,7 @@ export class OperatorPanelComponent implements OnInit {
 }
 
 // generates a list of group names sorted by the order
-// slice() will make a copy of the list, because we don't want to sort the orignal list
+// slice() will make a copy of the list, because we don't want to sort the original list
 export function getGroupNamesSorted(groupInfoList: ReadonlyArray<GroupInfo>): string[] {
   return groupInfoList.slice()
     .sort((a, b) => (a.groupOrder - b.groupOrder))
