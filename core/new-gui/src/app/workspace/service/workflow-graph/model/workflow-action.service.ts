@@ -533,32 +533,25 @@ export class WorkflowActionService {
    * @param Workflow
    */
   // Originally: drag Operator
-    public handleAutoLayout(workflow: Workflow | undefined): void {
-      const oldOperatorsAndPositions: { operator: OperatorPredicate, pos: Point }[] = [];
-      // remeber old position
-      if (workflow === undefined) {
-        return;
+  public autoLayoutWorkflow(): void {
+    // remeber old position
+    const operatorPositions: { [key: string]: Point } = {};
+    this.texeraGraph.getAllOperators().forEach(op => operatorPositions[op.operatorID] =
+      this.getJointGraphWrapper().getElementPosition(op.operatorID));
+    const command: Command = {
+      modifiesWorkflow: false,
+      execute: () => {
+        this.jointGraphWrapper.autoLayoutJoint();
+      },
+      undo: () => {
+        Object.entries(operatorPositions).forEach(opPosition => {
+          this.jointGraphWrapper.setAbsolutePosition(opPosition[0], opPosition[1].x, opPosition[1].y);
+        });
       }
-      const workflowContent: WorkflowContent = workflow.content;
-      workflowContent.operators.forEach(op => {
-        const oldPosition = workflowContent.operatorPositions[op.operatorID];
-        oldOperatorsAndPositions.push({operator: op, pos: oldPosition});
-      });
-        const command: Command = {
-        modifiesWorkflow: false,
-        execute: () => {
-          this.jointGraphWrapper.setAutoLayout();
-        },
-        undo: () => {
-          oldOperatorsAndPositions.forEach(op => {
-          this.jointGraphWrapper.setAbsolutePosition(op.operator.operatorID, op.pos.x, op.pos.y);
-          });
-        }
-      };
-      this.executeAndStoreCommand(command);
-    }
+    };
+    this.executeAndStoreCommand(command);
+  }
 
-  // not used I believe
   /**
    * Adds a link to the workflow graph
    * Throws an Error if the link ID or the link with same source and target already exists.

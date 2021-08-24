@@ -262,7 +262,7 @@ export class NavigationComponent implements OnInit {
       if (!this.hasOperators()) {
         return;
       }
-      this.workflowActionService.handleAutoLayout(this.workflowActionService.getWorkflow());
+      this.workflowActionService.autoLayoutWorkflow();
   }
 
   /**

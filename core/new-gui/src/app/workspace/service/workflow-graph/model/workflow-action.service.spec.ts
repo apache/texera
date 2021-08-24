@@ -19,6 +19,7 @@ import { WorkflowUtilService } from '../util/workflow-util.service';
 describe('WorkflowActionService', () => {
 
   let service: WorkflowActionService;
+  let undoRedo: UndoRedoService;
   let texeraGraph: WorkflowGraph;
   let jointGraph: joint.dia.Graph;
 
@@ -33,7 +34,8 @@ describe('WorkflowActionService', () => {
       ],
       imports: []
     });
-    service = TestBed.get(WorkflowActionService);
+    service = TestBed.inject(WorkflowActionService);
+    undoRedo = TestBed.inject(UndoRedoService);
     texeraGraph = (service as any).texeraGraph;
     jointGraph = (service as any).jointGraph;
   });
@@ -214,6 +216,35 @@ describe('WorkflowActionService', () => {
 
     expect(texeraGraph.getAllOperators().length).toEqual(2);
     expect(texeraGraph.getAllLinks().length).toEqual(0);
+
+  });
+
+  it('should reformat the workflow', () => {
+    service.addOperator(mockScanPredicate, mockPoint);
+    service.addOperator(mockSentimentPredicate, mockPoint);
+    service.addOperator(mockResultPredicate, mockPoint);
+    // add link scan -> result, and sentiment -> result
+    service.addLink(mockScanResultLink);
+    service.addLink(mockSentimentResultLink);
+
+    service.autoLayoutWorkflow();
+
+    // test it's actually reformated
+    let sentimentOpPos = service.getJointGraphWrapper().getElementPosition(mockSentimentPredicate.operatorID);
+    let resultOpPos = service.getJointGraphWrapper().getElementPosition(mockResultPredicate.operatorID);
+
+    expect(sentimentOpPos).not.toEqual(mockPoint);
+    expect(resultOpPos).not.toEqual(mockPoint);
+
+    // test undo reformat restoring the original positions
+    expect(undoRedo.canUndo()).toBeTruthy();
+
+    undoRedo.undoAction();
+    sentimentOpPos = service.getJointGraphWrapper().getElementPosition(mockSentimentPredicate.operatorID);
+    resultOpPos = service.getJointGraphWrapper().getElementPosition(mockResultPredicate.operatorID);
+
+    expect(sentimentOpPos).toEqual(mockPoint);
+    expect(resultOpPos).toEqual(mockPoint);
 
   });
 

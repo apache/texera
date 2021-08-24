@@ -272,7 +272,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     });
   }
 
-
   /**
    * Handles zoom events when user slides the mouse wheel.
    *

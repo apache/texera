@@ -33,13 +33,6 @@ describe('UndoRedoService', () => {
     expect(injectedService).toBeTruthy();
   }));
 
-  it('command should append to stack', () => {
-    workflowActionService.handleAutoLayout(MOCK_WORKFLOW);
-
-    expect(service.getUndoLength()).toEqual(1);
-    expect(service.getRedoLength()).toEqual(0);
-  });
-
   it('executing command should append to stack', () => {
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
 

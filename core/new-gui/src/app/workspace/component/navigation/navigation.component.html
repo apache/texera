@@ -71,13 +71,13 @@
             </li>
           </ul>
         </nz-dropdown-menu>
-        <button (click)="onClickGroupOperators()" [disabled]="!highlightedElementsGroupable()" nz-button title="group">
+        <!-- <button (click)="onClickGroupOperators()" [disabled]="!highlightedElementsGroupable()" nz-button title="group">
           <i nz-icon nzType="group" nzTheme="outline"></i>
         </button>
         <button (click)="onClickUngroupOperators()" [disabled]="!highlightedElementsUngroupable()" nz-button
                 title="ungroup">
           <i nz-icon nzType="ungroup" nzTheme="outline"></i>
-        </button>
+        </button> -->
         <button *ngIf="isDisableOperator || ! isDisableOperatorClickable" [disabled]="! isDisableOperatorClickable"
           (click)="onClickDisableOperators()" nz-button title="disable operators">
           <i nz-icon nzType="stop" nzTheme="outline"></i>

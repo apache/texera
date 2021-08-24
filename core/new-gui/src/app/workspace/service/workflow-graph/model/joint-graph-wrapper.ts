@@ -583,7 +583,7 @@ export class JointGraphWrapper {
     return this.zoomRatio;
   }
 
-  public setAutoLayout(): void {
+  public autoLayoutJoint(): void {
     joint.layout.DirectedGraph.layout(this.jointGraph, {
       dagre: dagre,
       graphlib: graphlib,
