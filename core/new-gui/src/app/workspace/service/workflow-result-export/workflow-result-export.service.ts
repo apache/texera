@@ -12,7 +12,8 @@ import { ExecutionState } from '../../types/execute-workflow.interface';
   providedIn: 'root'
 })
 export class WorkflowResultExportService {
-  private hasResultToExport: boolean = false;
+  hasResultToExport: boolean = false;
+  downloadExecutionResultEnabled: boolean = environment.downloadExecutionResultEnabled;
 
   constructor(
     private workflowWebsocketService: WorkflowWebsocketService,
@@ -20,10 +21,19 @@ export class WorkflowResultExportService {
     private notificationService: NotificationService,
     private executeWorkflowService: ExecuteWorkflowService
   ) {
-    this.workflowWebsocketService.subscribeToEvent('ResultDownloadResponse').subscribe((response: ResultDownloadResponse) => {
-      this.notificationService.success(response.message);
-    });
+    this.registerResultExportResponseHandler();
+    this.registerResultToExportUpdateHandler();
+  }
 
+  registerResultExportResponseHandler() {
+    this.workflowWebsocketService.subscribeToEvent('ResultDownloadResponse')
+      .subscribe((response: ResultDownloadResponse) => {
+        this.notificationService.success(response.message);
+      });
+
+  }
+
+  registerResultToExportUpdateHandler() {
     Observable.merge(
       this.executeWorkflowService.getExecutionStateStream().filter(
         ({ previous, current }) => current.state === ExecutionState.Completed),
@@ -38,12 +48,11 @@ export class WorkflowResultExportService {
       });
   }
 
-
   /**
    * export the workflow execution result according the download type
    */
-  public exportWorkflowExecutionResult(downloadType: string, workflowName: string): void {
-    if (this.isResultExportDisabled()) {
+  exportWorkflowExecutionResult(downloadType: string, workflowName: string): void {
+    if (!environment.downloadExecutionResultEnabled || !this.hasResultToExport) {
       return;
     }
 
@@ -60,7 +69,5 @@ export class WorkflowResultExportService {
 
   }
 
-  public isResultExportDisabled(): boolean {
-    return !environment.downloadExecutionResultEnabled || !this.hasResultToExport;
-  }
+
 }

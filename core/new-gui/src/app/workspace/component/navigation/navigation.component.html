@@ -49,9 +49,11 @@
         <button (click)="onClickRestoreZoomOffsetDefault()" nz-button title="reset zoom">
           <i nz-icon nzType="fullscreen" nzTheme="outline"></i>
         </button>
-        <button [disabled]="workflowResultExportService.isResultExportDisabled()" [nzDropdownMenu]="menu"
-                id="downloadExcelOptions"
-                nz-button nz-dropdown title="export execution result">
+        <button
+          [disabled]="!workflowResultExportService.downloadExecutionResultEnabled || !workflowResultExportService.hasResultToExport"
+          [nzDropdownMenu]="menu"
+          id="downloadExcelOptions"
+          nz-button nz-dropdown title="export execution result">
           <i nz-icon nzType="cloud-download" nzTheme="outline"></i>
         </button>
         <nz-dropdown-menu #menu="nzDropdownMenu">
