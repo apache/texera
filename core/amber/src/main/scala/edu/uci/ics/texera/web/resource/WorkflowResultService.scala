@@ -12,9 +12,9 @@ import edu.uci.ics.texera.web.resource.WorkflowResultService.{
   defaultPageSize
 }
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.send
+import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler
 import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDesc
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 import javax.websocket.Session
 import scala.collection.mutable
@@ -122,6 +122,10 @@ class WorkflowResultService(val workflowCompiler: WorkflowCompiler) {
     }
   })
 
+  val updatedSet: mutable.Set[String] = mutable.HashSet[String]()
+
+  val updated: mutable.Map[String, Integer] = mutable.HashMap[String, Integer]()
+
   def onResultUpdate(resultUpdate: WorkflowResultUpdate, session: Session): Unit = {
 
     // prepare web update event to frontend
@@ -136,6 +140,30 @@ class WorkflowResultService(val workflowCompiler: WorkflowCompiler) {
 //      }
 //    })
 
+    val mutableWebUpdateEvent = new mutable.HashMap[String, WebResultUpdate]()
+    operatorResults.foreach(e => {
+      if (resultUpdate.operatorResults.contains(e._1)) {
+        val e1 = resultUpdate.operatorResults(e._1)
+        val opResultService = operatorResults(e._1)
+        val webUpdateEvent = opResultService.convertWebResultUpdate(e1)
+        if (workflowCompiler.workflow.getOperator(e._1).isInstanceOf[CacheSinkOpDesc]) {
+          val upID = opResultService.operatorID
+          mutableWebUpdateEvent += ((upID, webUpdateEvent))
+        } else {
+          mutableWebUpdateEvent += ((e._1, webUpdateEvent))
+        }
+      } else {
+        val size = operatorResults(e._1).getResult.size
+        if (!updated.contains(e._1) || size != updated(e._1)) {
+          updated(e._1) = size
+          mutableWebUpdateEvent += (
+          (e._1, WebPaginationUpdate(PaginationMode(), size, List.range(0, size + 1 / defaultPageSize))))
+        }
+      }
+    })
+    val webUpdateEvent = mutableWebUpdateEvent.toMap
+
+    /*
     val webUpdateEvent = operatorResults
       .map(e => {
         if (resultUpdate.operatorResults.contains(e._1)) {
@@ -154,6 +182,7 @@ class WorkflowResultService(val workflowCompiler: WorkflowCompiler) {
         }
       })
       .toMap
+     */
 
     // update the result snapshot of each operator
     resultUpdate.operatorResults.foreach(e => operatorResults(e._1).updateResult(e._2))
