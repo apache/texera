@@ -34,7 +34,7 @@ export interface WorkflowError extends Readonly<{
 }> { }
 
 export interface WorkflowExecutionError extends Readonly<{
-  errorMap: Record<string, string>
+  message: string
 }> { }
 
 export type ModifyOperatorLogic = Readonly<{

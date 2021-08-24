@@ -63,15 +63,15 @@ class CongestionControl {
     messageBuffer.clear()
     while (inTransit.size < windowSize && toBeSent.nonEmpty) {
       val msg = toBeSent.dequeue()
-      inTransit(msg.messageID) = msg
+      inTransit(msg.messageId) = msg
       messageBuffer.append(msg)
     }
     messageBuffer.toArray
   }
 
   def markMessageInTransit(data: NetworkMessage): Unit = {
-    inTransit(data.messageID) = data
-    sentTime(data.messageID) = System.currentTimeMillis()
+    inTransit(data.messageId) = data
+    sentTime(data.messageId) = System.currentTimeMillis()
   }
 
   def getTimedOutInTransitMessages: Iterable[NetworkMessage] = {
