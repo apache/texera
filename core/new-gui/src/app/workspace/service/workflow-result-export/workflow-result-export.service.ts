@@ -13,7 +13,7 @@ import { ExecutionState } from '../../types/execute-workflow.interface';
 })
 export class WorkflowResultExportService {
   hasResultToExport: boolean = false;
-  downloadExecutionResultEnabled: boolean = environment.exportExecutionResultEnabled;
+  exportExecutionResultEnabled: boolean = environment.exportExecutionResultEnabled;
 
   constructor(
     private workflowWebsocketService: WorkflowWebsocketService,

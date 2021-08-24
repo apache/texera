@@ -50,7 +50,7 @@
           <i nz-icon nzType="fullscreen" nzTheme="outline"></i>
         </button>
         <button
-          [disabled]="!workflowResultExportService.downloadExecutionResultEnabled || !workflowResultExportService.hasResultToExport"
+          [disabled]="!workflowResultExportService.exportExecutionResultEnabled || !workflowResultExportService.hasResultToExport"
           [nzDropdownMenu]="menu"
           id="downloadExcelOptions"
           nz-button nz-dropdown title="export execution result">
