@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
-import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
@@ -8,6 +8,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.TupleToBatchConverte
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue._
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.COMPLETED
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
@@ -17,7 +18,8 @@ import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 import edu.uci.ics.amber.engine.common.{AmberLogging, IOperatorExecutor, InputExhausted}
 import edu.uci.ics.amber.error.ErrorUtils.safely
-import java.util.concurrent.{ExecutorService, Executors, Future, TimeUnit}
+
+import java.util.concurrent.{ExecutorService, Executors, Future}
 
 class DataProcessor( // dependencies:
     operator: IOperatorExecutor, // core logic
@@ -41,8 +43,12 @@ class DataProcessor( // dependencies:
       } catch safely {
         case _: InterruptedException =>
           logger.info("DP Thread exits")
-        case e =>
-          logger.error(e.getLocalizedMessage + "\n" + e.getStackTrace.mkString("\n"))
+        case err: Exception =>
+          logger.error("DP Thread exists unexpectedly", err)
+          asyncRPCClient.send(
+            FatalError(new WorkflowRuntimeException("DP Thread exists unexpectedly", err)),
+            CONTROLLER
+          )
         // dp thread will stop here
       }
     }
