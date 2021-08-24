@@ -4,9 +4,9 @@
       {{formTitle}}
     </h3>
 
-    <form (ngSubmit) = "onClickChangeName()" [formGroup]="operatorNameForm" >
-        <input type="text" formControlName="opName" value={{currOperatorName}}>
-        <button value="Submit">Change</button>
+    <form  id="joint-operator-name" (ngSubmit)="onClickChangeName()" [formGroup]="operatorNameForm" >
+        <input type="text" formControlName="opName" value={{currentOperatorName}} placeholder="{{formTitle}}">
+        <button type="reset" value="Submit">Change</button>
     </form>
 
     <form class="texera-workspace-property-editor-form" [formGroup]="formlyFormGroup" *ngIf="formlyFields">

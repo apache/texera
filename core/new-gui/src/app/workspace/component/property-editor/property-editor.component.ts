@@ -83,7 +83,7 @@ export class PropertyEditorComponent {
   public formlyOptions: FormlyFormOptions | undefined;
   public formlyFields: FormlyFieldConfig[] | undefined;
   public formTitle: string | undefined;
-  public currOperatorName: string | undefined;
+  public currentOperatorName: string | undefined;
 
   public operatorNameForm = this.formBuilder.group({
     opName: [ '', [Validators.required]]
@@ -198,7 +198,12 @@ export class PropertyEditorComponent {
     this.formData = undefined;
     this.formlyFields = undefined;
     this.formTitle = undefined;
-    this.currOperatorName = undefined;
+    this.currentOperatorName = undefined;
+    let resetForm: HTMLFormElement;
+      resetForm = <HTMLFormElement>document.getElementById('joint-operator-name');
+      if (resetForm) {
+        resetForm.reset();
+      }
   }
 
   public showBreakpointEditor(linkID: string): void {
@@ -236,14 +241,12 @@ export class PropertyEditorComponent {
     if (this.operatorNameForm.get('opName')?.invalid) {
       if (this.formTitle) {
         this.jointOperatorNameChange(this.formTitle);
-        this.currOperatorName = '';
       }
         return;
     }
 
       const newOperatorName = this.operatorNameForm.get('opName')?.value;
       this.jointOperatorNameChange(newOperatorName);
-      this.currOperatorName = '';
   }
 
 
@@ -256,10 +259,10 @@ export class PropertyEditorComponent {
   public showOperatorPropertyEditor(operator: OperatorPredicate): void {
     // set the operator data needed
     this.currentOperatorID = operator.operatorID;
+    this.currentOperatorName = operator.customOperatorName;
     const currentOperatorSchema = this.autocompleteService.getDynamicSchema(this.currentOperatorID);
     this.setFormlyFormBinding(currentOperatorSchema.jsonSchema);
     this.formTitle = currentOperatorSchema.additionalMetadata.userFriendlyName;
-    this.currOperatorName = operator.customOperatorName;
 
     /**
      * Important: make a deep copy of the initial property data object.
