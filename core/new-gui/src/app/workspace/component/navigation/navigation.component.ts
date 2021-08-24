@@ -238,7 +238,7 @@ export class NavigationComponent implements OnInit {
   }
 
   /**
-   * This is the handler for the execution result download button.
+   * This is the handler for the execution result export button.
    *
    */
   public onClickExportExecutionResult(exportType: string): void {

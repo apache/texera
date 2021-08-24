@@ -13,7 +13,7 @@ import { ExecutionState } from '../../types/execute-workflow.interface';
 })
 export class WorkflowResultExportService {
   hasResultToExport: boolean = false;
-  downloadExecutionResultEnabled: boolean = environment.downloadExecutionResultEnabled;
+  downloadExecutionResultEnabled: boolean = environment.exportExecutionResultEnabled;
 
   constructor(
     private workflowWebsocketService: WorkflowWebsocketService,
@@ -53,10 +53,10 @@ export class WorkflowResultExportService {
   }
 
   /**
-   * export the workflow execution result according the download type
+   * export the workflow execution result according the export type
    */
-  exportWorkflowExecutionResult(downloadType: string, workflowName: string): void {
-    if (!environment.downloadExecutionResultEnabled || !this.hasResultToExport) {
+  exportWorkflowExecutionResult(exportType: string, workflowName: string): void {
+    if (!environment.exportExecutionResultEnabled || !this.hasResultToExport) {
       return;
     }
 
@@ -65,9 +65,9 @@ export class WorkflowResultExportService {
       this.workflowActionService.getTexeraGraph().getOperator(operatorId).operatorType.toLowerCase().includes('sink'))
       .forEach(operatorId => {
         this.workflowWebsocketService.send('ResultExportRequest', {
-          exportType: downloadType,
-          workflowName: workflowName,
-          operatorId: operatorId
+          exportType,
+          workflowName,
+          operatorId
         });
       });
 

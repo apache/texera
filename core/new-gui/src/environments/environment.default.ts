@@ -29,7 +29,7 @@ export const defaultEnvironment = {
    */
   executionStatusEnabled: true,
   /**
-   * whether download execution result is supported
+   * whether export execution result is supported
    */
   downloadExecutionResultEnabled: false,
 

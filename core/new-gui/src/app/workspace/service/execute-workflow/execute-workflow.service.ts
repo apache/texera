@@ -27,7 +27,6 @@ export const FORM_DEBOUNCE_TIME_MS = 150;
 
 export const EXECUTE_WORKFLOW_ENDPOINT = 'queryplan/execute';
 
-export const DOWNLOAD_WORKFLOW_ENDPOINT = 'download/result';
 export const PAUSE_WORKFLOW_ENDPOINT = 'pause';
 export const RESUME_WORKFLOW_ENDPOINT = 'resume';
 

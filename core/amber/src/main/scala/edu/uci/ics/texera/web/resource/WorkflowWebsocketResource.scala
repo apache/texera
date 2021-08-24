@@ -95,8 +95,8 @@ class WorkflowWebsocketResource {
           addBreakpoint(session, breakpoint)
         case paginationRequest: ResultPaginationRequest =>
           resultPagination(session, paginationRequest)
-        case resultDownloadRequest: ResultExportRequest =>
-          downloadResult(session, resultDownloadRequest)
+        case resultExportRequest: ResultExportRequest =>
+          exportResult(session, resultExportRequest)
       }
     } catch {
       case e: Throwable =>
@@ -235,9 +235,9 @@ class WorkflowWebsocketResource {
 
   }
 
-  def downloadResult(session: Session, request: ResultExportRequest): Unit = {
-    val resultDownloadResponse = ResultExportResource.apply(session.getId, request)
-    send(session, resultDownloadResponse)
+  def exportResult(session: Session, request: ResultExportRequest): Unit = {
+    val resultExportResponse = ResultExportResource.apply(session.getId, request)
+    send(session, resultExportResponse)
   }
 
   def killWorkflow(session: Session): Unit = {
