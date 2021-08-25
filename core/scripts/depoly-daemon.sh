@@ -29,11 +29,12 @@ echo "${green}Starting TexeraWebApplication in daemon...${reset}"
 setsid nohup ./scripts/server.sh >/dev/null 2>&1 &
 echo "${green}Waiting TexeraWebApplication to launch on 8080...${reset}"
 while ! nc -z localhost 8080; do   
-	sleep 0.1 # wait for 1/10 of the second before check again
+	sleep 0.1 # wait 100ms before check again
 done
 echo "${green}TexeraWebApplication launched at $(pgrep -f TexeraWebApplication)${reset}"
 echo
 
 echo "${green}Starting TexeraRunWorker in daemon...${reset}"
 setsid nohup ./scripts/worker.sh >/dev/null 2>&1 &
+sleep 0.2 # wait for 200ms to get the pid
 echo "${green}TexeraRunWorker launched at $(pgrep -f TexeraRunWorker)${reset}"
