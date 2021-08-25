@@ -1,5 +1,5 @@
 import { Component, Input, OnChanges, OnDestroy, OnInit } from '@angular/core';
-import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from '../../../service/execute-workflow/execute-workflow.service';
+import { ExecuteWorkflowService } from '../../../service/execute-workflow/execute-workflow.service';
 import { Subject } from 'rxjs/Subject';
 import { FormGroup } from '@angular/forms';
 import { FormlyFieldConfig, FormlyFormOptions } from '@ngx-formly/core';
@@ -16,6 +16,7 @@ import { SchemaAttribute, SchemaPropagationService } from '../../../service/dyna
 import { setChildTypeDependency, setHideExpression } from 'src/app/common/formly/formly-utils';
 import { TypeCastingDisplayComponent } from '../typecasting-display/type-casting-display.component';
 import { Subscription } from 'rxjs';
+import { FORM_DEBOUNCE_TIME_MS } from '../property-editor.component';
 
 @Component({
   selector: 'texera-formly-form-frame',

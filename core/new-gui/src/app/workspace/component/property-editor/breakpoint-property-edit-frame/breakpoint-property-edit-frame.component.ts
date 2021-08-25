@@ -1,6 +1,6 @@
 import { Component, Input, OnChanges, OnDestroy, OnInit } from '@angular/core';
 import { cloneDeep, isEqual } from 'lodash';
-import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from '../../../service/execute-workflow/execute-workflow.service';
+import { ExecuteWorkflowService } from '../../../service/execute-workflow/execute-workflow.service';
 import { DynamicSchemaService } from '../../../service/dynamic-schema/dynamic-schema.service';
 import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
 import { FormlyJsonschema } from '@ngx-formly/core/json-schema';
@@ -11,6 +11,7 @@ import { Observable } from 'rxjs/Observable';
 import { FormlyFieldConfig, FormlyFormOptions } from '@ngx-formly/core';
 import { CustomJSONSchema7 } from '../../../types/custom-json-schema.interface';
 import { Subscription } from 'rxjs';
+import { FORM_DEBOUNCE_TIME_MS } from '../property-editor.component';
 
 @Component({
   selector: 'texera-breakpoint-frame',

@@ -1,10 +1,8 @@
 import { async, ComponentFixture, discardPeriodicTasks, fakeAsync, TestBed, tick } from '@angular/core/testing';
-
 import { OperatorPropertyEditFrameComponent } from './operator-property-edit-frame.component';
 import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
 import { OperatorMetadataService } from '../../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../../../service/operator-metadata/stub-operator-metadata.service';
-import { FORM_DEBOUNCE_TIME_MS } from '../../../service/execute-workflow/execute-workflow.service';
 import { LoggerConfig } from 'ngx-logger';
 import { DatePipe } from '@angular/common';
 import { By } from '@angular/platform-browser';
@@ -19,6 +17,7 @@ import { mockScanSourceSchema } from '../../../service/operator-metadata/mock-op
 import { JSONSchema7 } from 'json-schema';
 import { configure } from 'rxjs-marbles';
 import { SimpleChange } from '@angular/core';
+import { FORM_DEBOUNCE_TIME_MS } from '../property-editor.component';
 
 const { marbles } = configure({ run: false });
 describe('OperatorPropertyEditFrameComponent', () => {
