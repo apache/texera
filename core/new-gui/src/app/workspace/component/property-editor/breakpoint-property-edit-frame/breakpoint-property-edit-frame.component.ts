@@ -48,6 +48,7 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy, 
   ) { }
 
   ngOnChanges(changes: import('@angular/core').SimpleChanges): void {
+    this.currentLinkID = changes.currentLinkID?.currentValue;
     if (this.currentLinkID) {
       this.showBreakpointEditor(this.currentLinkID);
     }
@@ -171,6 +172,10 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy, 
    */
   clearPropertyEditor(): void {
     this.currentLinkID = undefined;
+    this.formlyFormGroup = undefined;
+    this.formData = undefined;
+    this.formlyFields = undefined;
+    this.formTitle = undefined;
   }
 
   /**

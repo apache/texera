@@ -18,7 +18,7 @@ import { OperatorMetadataService } from '../../service/operator-metadata/operato
 import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
 
 
-fdescribe('PropertyEditorComponent', () => {
+describe('PropertyEditorComponent', () => {
   let component: PropertyEditorComponent;
   let fixture: ComponentFixture<PropertyEditorComponent>;
   let workflowActionService: WorkflowActionService;
