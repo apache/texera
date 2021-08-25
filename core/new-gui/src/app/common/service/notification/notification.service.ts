@@ -42,6 +42,6 @@ export class NotificationService {
   }
 
   loading(message: string) {
-    this.sendNotification({ type: 'loading', message });
+    return this.sendNotification({ type: 'loading', message });
   }
 }

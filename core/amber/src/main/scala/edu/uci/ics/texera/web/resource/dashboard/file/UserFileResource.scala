@@ -4,9 +4,9 @@ import com.google.common.io.Files
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER_FILE_ACCESS}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileDao, UserDao, UserFileAccessDao}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, User, UserFileAccess}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, User}
 import edu.uci.ics.texera.web.resource.auth.UserResource
-import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.context
+import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.{context, saveUserFileSafe}
 import io.dropwizard.jersey.sessions.Session
 import org.apache.commons.lang3.tuple.Pair
 import org.glassfish.jersey.media.multipart.{FormDataContentDisposition, FormDataParam}
@@ -34,6 +34,40 @@ case class DashboardFileEntry(
 
 object UserFileResource {
   private val context: DSLContext = SqlServer.createDSLContext
+  private val fileDao = new FileDao(context.configuration)
+
+  def saveUserFileSafe(
+      uid: UInteger,
+      fileName: String,
+      uploadedInputStream: InputStream,
+      size: UInteger,
+      description: String
+  ): String = {
+
+    val fileNameStored = UserFileUtils.storeFileSafe(uploadedInputStream, fileName, uid)
+
+    // insert record after completely storing the file on the file system.
+    fileDao.insert(
+      new File(
+        uid,
+        null,
+        size,
+        fileNameStored,
+        UserFileUtils.getFilePath(uid, fileNameStored).toString,
+        description
+      )
+    )
+
+    // insert UserFileAccess record to grant write access
+    val fid = context
+      .select(FILE.FID)
+      .from(FILE)
+      .where(FILE.UID.eq(uid).and(FILE.NAME.eq(fileNameStored)))
+      .fetchOneInto(FILE)
+      .getFid
+    UserFileAccessResource.grantAccess(uid, fid, "write")
+    fileNameStored
+  }
 }
 
 @Path("/user/file")
@@ -61,38 +95,16 @@ class UserFileResource {
   ): Response = {
     UserResource.getUser(session) match {
       case Some(user) =>
-        val userID = user.getUid
+        val uid = user.getUid
         val fileName = fileDetail.getFileName
-        val validationResult = validateFileName(fileName, userID)
-        if (!validationResult.getLeft)
+        val validationResult = validateFileName(fileName, uid)
+        if (!validationResult.getLeft) {
           return Response
             .status(Response.Status.BAD_REQUEST)
             .entity(validationResult.getRight)
             .build()
-
-        UserFileUtils.storeFile(uploadedInputStream, fileName, userID.toString)
-
-        // insert record after completely storing the file on the file system.
-        fileDao.insert(
-          new File(
-            userID,
-            null,
-            size,
-            fileName,
-            UserFileUtils.getFilePath(userID.toString, fileName).toString,
-            description
-          )
-        )
-        val fid = context
-          .select(FILE.FID)
-          .from(FILE)
-          .where(FILE.UID.eq(userID).and(FILE.NAME.eq(fileName)))
-          .fetch()
-          .getValue(0, 0)
-          .asInstanceOf[UInteger]
-        userFileAccessDao.insert(
-          new UserFileAccess(userID, fid, true, true)
-        )
+        }
+        saveUserFileSafe(uid, fileName, uploadedInputStream, size, description)
         Response.ok().build()
       case None =>
         Response.status(Response.Status.UNAUTHORIZED).build()
@@ -101,6 +113,7 @@ class UserFileResource {
 
   /**
     * This method returns a list fo all files accessible by the current user
+    *
     * @param session the session indicating current logged-in user
     * @return
     */
