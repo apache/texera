@@ -56,14 +56,15 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy, On
   extraDisplayComponentInputs: any | undefined = undefined;
 
   constructor(
-    public formlyJsonschema: FormlyJsonschema,
-    public workflowActionService: WorkflowActionService,
+    private formlyJsonschema: FormlyJsonschema,
+    private workflowActionService: WorkflowActionService,
     public executeWorkflowService: ExecuteWorkflowService,
-    public dynamicSchemaService: DynamicSchemaService,
+    private dynamicSchemaService: DynamicSchemaService,
     private schemaPropagationService: SchemaPropagationService
   ) { }
 
   ngOnChanges(changes: import('@angular/core').SimpleChanges): void {
+    this.currentOperatorId = changes.currentOperatorId?.currentValue;
     if (!this.currentOperatorId) {
       return;
     }
