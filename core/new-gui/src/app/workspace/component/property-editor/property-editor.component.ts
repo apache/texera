@@ -6,9 +6,6 @@ import { OperatorPropertyEditFrameComponent } from './operator-property-edit-fra
 import { BreakpointPropertyEditFrameComponent } from './breakpoint-property-edit-frame/breakpoint-property-edit-frame.component';
 import { Subscription } from 'rxjs';
 
-
-export const FORM_DEBOUNCE_TIME_MS = 150;
-
 /**
  * PropertyEditorComponent is the panel that allows user to edit operator properties.
  *
