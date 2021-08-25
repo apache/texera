@@ -54,6 +54,10 @@ __pycache__/
 .ipynb_checkpoints
 .pytype/
 
+# Ignoring python generated files
+*.model
+*.pkl
+
 # Ingoring user generated resources
 user-resources/
 
