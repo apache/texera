@@ -3,7 +3,7 @@
 </h3>
 
 <form *ngIf="formlyFields" [formGroup]="formlyFormGroup" class="texera-workspace-property-editor-form">
-  <formly-form (modelChange) = "onFormChanges($event)"
+  <formly-form (modelChange)="onFormChanges($event)"
                [fields]="formlyFields"
                [form]="formlyFormGroup"
                [model]="formData"
@@ -16,6 +16,20 @@
   ></ndc-dynamic>
 </form>
 
-<texera-type-casting-display [operatorID]='currentOperatorID'></texera-type-casting-display>
+<button (click)="allowChangeOperatorLogic()"
+        *ngIf="currentOperatorId !== undefined &&
+    (this.executeWorkflowService.getExecutionState().state === ExecutionState.Paused ||
+      this.executeWorkflowService.getExecutionState().state === ExecutionState.BreakpointTriggered) &&
+    this.interactive === false" class="breakpointRemoveButton"
+        type="button">Change Logic
+</button>
+
+<button (click)="confirmChangeOperatorLogic()"
+        *ngIf="currentOperatorId !== undefined &&
+    (this.executeWorkflowService.getExecutionState().state === ExecutionState.Paused ||
+      this.executeWorkflowService.getExecutionState().state === ExecutionState.BreakpointTriggered) &&
+    this.interactive === true" class="breakpointRemoveButton"
+        type="button">Confirm Change
+</button>
 
 

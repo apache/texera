@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, Input, OnChanges, OnDestroy, OnInit } from '@angular/core';
 import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from '../../../service/execute-workflow/execute-workflow.service';
 import { Subject } from 'rxjs/Subject';
 import { FormGroup } from '@angular/forms';
@@ -22,14 +22,13 @@ import { Subscription } from 'rxjs';
   templateUrl: './operator-property-edit-frame.component.html',
   styleUrls: ['./operator-property-edit-frame.component.scss']
 })
-export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy {
+export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy, OnChanges {
+  @Input() currentOperatorId: string | undefined = undefined;
+
   subscriptions = new Subscription();
 
   // re-declare enum for angular template to access it
   readonly ExecutionState = ExecutionState;
-
-  // operatorID if the component is displaying operator property editor
-  currentOperatorID: string | undefined;
 
   // whether the editor can be edited
   interactive: boolean = true;
@@ -63,6 +62,13 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy {
     public dynamicSchemaService: DynamicSchemaService,
     private schemaPropagationService: SchemaPropagationService
   ) { }
+
+  ngOnChanges(changes: import('@angular/core').SimpleChanges): void {
+    if (!this.currentOperatorId) {
+      return;
+    }
+    this.showOperatorPropertyEditor(this.currentOperatorId);
+  }
 
   ngOnDestroy(): void {
     this.subscriptions.unsubscribe();
@@ -108,13 +114,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    if (highlightedOperators.length !== 1) {
-      return;
-    }
-    this.currentOperatorID = highlightedOperators[0];
-    this.showOperatorPropertyEditor(this.currentOperatorID);
-
     // listen to the autocomplete event, remove invalid properties, and update the schema displayed on the form
     this.registerOperatorSchemaChangeHandler();
 
@@ -147,8 +146,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy {
   showOperatorPropertyEditor(operatorId: string): void {
     const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorId);
     // set the operator data needed
-    this.currentOperatorID = operatorId;
-    const currentOperatorSchema = this.dynamicSchemaService.getDynamicSchema(this.currentOperatorID);
+    this.currentOperatorId = operatorId;
+    const currentOperatorSchema = this.dynamicSchemaService.getDynamicSchema(this.currentOperatorId);
     this.setFormlyFormBinding(currentOperatorSchema.jsonSchema);
     this.formTitle = currentOperatorSchema.additionalMetadata.userFriendlyName;
 
@@ -171,13 +170,12 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy {
     this.onFormChanges(this.formData);
 
     // OPTIMIZE: find a better way to do this mapping
-    if (this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorID).operatorType.toLowerCase()
-      .includes('type casting')) {
-      this.switchDisplayComponent(TypeCastingDisplayComponent, { operatorID: this.currentOperatorID });
+    if (this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType.toLowerCase()
+      .includes('typecasting')) {
+      this.switchDisplayComponent(TypeCastingDisplayComponent, { operatorID: this.currentOperatorId });
     } else {
       this.switchDisplayComponent(undefined, undefined);
     }
-
 
     const interactive = this.executeWorkflowService.getExecutionState().state === ExecutionState.Uninitialized ||
       this.executeWorkflowService.getExecutionState().state === ExecutionState.Completed;
@@ -193,11 +191,11 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy {
 
   checkOperatorProperty(formData: object): boolean {
     // check if the component is displaying operator property
-    if (this.currentOperatorID === undefined) {
+    if (this.currentOperatorId === undefined) {
       return false;
     }
     // check if the operator still exists, it might be deleted during debounce time
-    const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorID);
+    const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
     if (!operator) {
       return false;
     }
@@ -218,8 +216,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy {
   registerOperatorSchemaChangeHandler(): void {
     this.subscriptions.add(this.dynamicSchemaService.getOperatorDynamicSchemaChangedStream().subscribe(
       event => {
-        if (event.operatorID === this.currentOperatorID) {
-          const currentOperatorSchema = this.dynamicSchemaService.getDynamicSchema(this.currentOperatorID);
+        if (event.operatorID === this.currentOperatorId) {
+          const currentOperatorSchema = this.dynamicSchemaService.getDynamicSchema(this.currentOperatorId);
           const operator = this.workflowActionService.getTexeraGraph().getOperator(event.operatorID);
           if (!operator) {
             throw new Error(`operator ${event.operatorID} does not exist`);
@@ -239,8 +237,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy {
    */
   registerOperatorPropertyChangeHandler(): void {
     this.subscriptions.add(this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream()
-      .filter(_ => this.currentOperatorID !== undefined)
-      .filter(operatorChanged => operatorChanged.operator.operatorID === this.currentOperatorID)
+      .filter(_ => this.currentOperatorId !== undefined)
+      .filter(operatorChanged => operatorChanged.operator.operatorID === this.currentOperatorId)
       .filter(operatorChanged => !isEqual(this.formData, operatorChanged.operator.operatorProperties))
       .subscribe(operatorChanged => this.formData = cloneDeep(operatorChanged.operator.operatorProperties)));
   }
@@ -252,15 +250,15 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy {
   registerOnFormChangeHandler(): void {
     this.subscriptions.add(this.operatorPropertyChangeStream.subscribe(formData => {
       // set the operator property to be the new form data
-      if (this.currentOperatorID) {
-        this.workflowActionService.setOperatorProperty(this.currentOperatorID, cloneDeep(formData));
+      if (this.currentOperatorId) {
+        this.workflowActionService.setOperatorProperty(this.currentOperatorId, cloneDeep(formData));
       }
     }));
   }
 
   registerDisableEditorInteractivityHandler(): void {
     this.subscriptions.add(this.executeWorkflowService.getExecutionStateStream().subscribe(event => {
-      if (this.currentOperatorID) {
+      if (this.currentOperatorId) {
         if (event.current.state === ExecutionState.Completed || event.current.state === ExecutionState.Failed) {
           this.setInteractivity(true);
         } else {
@@ -310,9 +308,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy {
         }
 
         if (propertyValue.dependOn) {
-          if (isDefined(this.currentOperatorID)) {
+          if (isDefined(this.currentOperatorId)) {
             const attributes: ReadonlyArray<ReadonlyArray<SchemaAttribute> | null> | undefined =
-              this.schemaPropagationService.getOperatorInputSchema(this.currentOperatorID);
+              this.schemaPropagationService.getOperatorInputSchema(this.currentOperatorId);
             setChildTypeDependency(attributes, propertyValue.dependOn, fields, propertyName);
           }
 
@@ -324,5 +322,14 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy {
 
   }
 
+  allowChangeOperatorLogic() {
+    this.setInteractivity(true);
+  }
 
+  confirmChangeOperatorLogic() {
+    this.setInteractivity(false);
+    if (this.currentOperatorId) {
+      this.executeWorkflowService.changeOperatorLogic(this.currentOperatorId);
+    }
+  }
 }

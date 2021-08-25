@@ -27,10 +27,8 @@ import { TEXERA_FORMLY_CONFIG } from '../../../../common/formly/formly-config';
 import { FormlyMaterialModule } from '@ngx-formly/material';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { mockPoint, mockResultPredicate, mockScanPredicate } from '../../../service/workflow-graph/model/mock-workflow-data';
-import { mockScanSourceSchema, mockViewResultsSchema } from '../../../service/operator-metadata/mock-operator-metadata.data';
+import { mockScanSourceSchema } from '../../../service/operator-metadata/mock-operator-metadata.data';
 import { JSONSchema7 } from 'json-schema';
-import * as Ajv from 'ajv';
-import { cloneDeep } from 'lodash';
 import { configure } from 'rxjs-marbles';
 
 const { marbles } = configure({ run: false });
@@ -121,7 +119,7 @@ describe('OperatorPropertyEditFrameComponent', () => {
     component = fixture.componentInstance;
     fixture.detectChanges();
     // check variables are set correctly
-    expect(component.currentOperatorID).toEqual(predicate.operatorID);
+    expect(component.currentOperatorId).toEqual(predicate.operatorID);
     expect(component.formData).toEqual(predicate.operatorProperties);
 
     // check HTML form are displayed
@@ -144,8 +142,6 @@ describe('OperatorPropertyEditFrameComponent', () => {
     });
 
   });
-
-
 
 
   /**
@@ -173,7 +169,7 @@ describe('OperatorPropertyEditFrameComponent', () => {
     //  is unhighlighted has correctly updated the variables
 
     // check variables are set correctly
-    expect(component.currentOperatorID).toEqual(predicate.operatorID);
+    expect(component.currentOperatorId).toEqual(predicate.operatorID);
     expect(component.formData).toEqual(predicate.operatorProperties);
 
 
@@ -190,7 +186,6 @@ describe('OperatorPropertyEditFrameComponent', () => {
       expect((jsonSchemaFormElement.nativeElement as HTMLElement).innerHTML).toContain(propertyName);
     });
   });
-
 
 
   it('should change Texera graph property when the form is edited by the user', fakeAsync(() => {

@@ -4,7 +4,7 @@ import '../../../common/rxjs-operators';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 import { OperatorPropertyEditFrameComponent } from './operator-property-edit-frame/operator-property-edit-frame.component';
 import { BreakpointPropertyEditFrameComponent } from './breakpoint-property-edit-frame/breakpoint-property-edit-frame.component';
-import { Subscription, timer } from 'rxjs';
+import { Subscription } from 'rxjs';
 
 /**
  * PropertyEditorComponent is the panel that allows user to edit operator properties.
@@ -37,8 +37,10 @@ import { Subscription, timer } from 'rxjs';
 export class PropertyEditorComponent implements OnInit, OnDestroy {
 
   frameComponent: any | undefined = undefined;
+  frameComponentInputs: object | undefined = undefined;
 
   subscriptions = new Subscription();
+
 
   constructor(public workflowActionService: WorkflowActionService) {}
 
@@ -50,11 +52,13 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
     this.registerHighlightEventsHandler();
   }
 
-  switchFrameComponent(targetComponent: any) {
-    if (this.frameComponent === targetComponent) {
+  switchFrameComponent(targetComponent: any, inputs: object | undefined) {
+    if (this.frameComponent === targetComponent && this.frameComponentInputs === inputs) {
       return;
     }
+
     this.frameComponent = targetComponent;
+    this.frameComponentInputs = inputs;
   }
 
   /**
@@ -76,15 +80,14 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
       const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
       const highlightedGroups = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
       const highlightLinks = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
-      this.switchFrameComponent(undefined);
 
-      timer(0).subscribe(() => {
-        if (highlightedOperators.length === 1 && highlightedGroups.length === 0 && highlightLinks.length === 0) {
-          this.switchFrameComponent(OperatorPropertyEditFrameComponent);
-        } else if (highlightLinks.length === 1 && highlightedGroups.length === 0 && highlightedOperators.length === 0) {
-          this.switchFrameComponent(BreakpointPropertyEditFrameComponent);
-        }
-      });
+      if (highlightedOperators.length === 1 && highlightedGroups.length === 0 && highlightLinks.length === 0) {
+        this.switchFrameComponent(OperatorPropertyEditFrameComponent, { currentOperatorId: highlightedOperators[0] });
+      } else if (highlightLinks.length === 1 && highlightedGroups.length === 0 && highlightedOperators.length === 0) {
+        this.switchFrameComponent(BreakpointPropertyEditFrameComponent, { currentLinkID: highlightLinks[0] });
+      } else {
+        this.switchFrameComponent(undefined, undefined);
+      }
 
     }));
   }

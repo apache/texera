@@ -10,15 +10,9 @@ import {
   mockSentimentPredicate,
   mockSentimentResultLink
 } from '../../service/workflow-graph/model/mock-workflow-data';
-import { By } from '@angular/platform-browser';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 import { OperatorPropertyEditFrameComponent } from './operator-property-edit-frame/operator-property-edit-frame.component';
-import * as Ajv from 'ajv';
-import { cloneDeep } from 'lodash';
-import { mockBreakpointSchema, mockViewResultsSchema } from '../../service/operator-metadata/mock-operator-metadata.data';
-import { JSONSchema7 } from 'json-schema';
 import { BreakpointPropertyEditFrameComponent } from './breakpoint-property-edit-frame/breakpoint-property-edit-frame.component';
-import { assertType } from '../../../common/util/assert';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
@@ -70,19 +64,11 @@ fdescribe('PropertyEditorComponent', () => {
     // unhighlight the operator
     jointGraphWrapper.unhighlightOperators(mockScanPredicate.operatorID);
     expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toEqual([]);
-
     fixture.detectChanges();
 
     // check if the clearPropertyEditor called after the operator
     //  is unhighlighted has correctly updated the variables
-    expect(component.frameComponent === undefined);
-
-    // check HTML form are not displayed
-    const formTitleElement = fixture.debugElement.query(By.css('.texera-workspace-property-editor-title'));
-    const jsonSchemaFormElement = fixture.debugElement.query(By.css('.texera-workspace-property-editor-form'));
-
-    expect(formTitleElement).toBeFalsy();
-    expect(jsonSchemaFormElement).toBeFalsy();
+    expect(component.frameComponent).toBeUndefined();
   });
 
   it('should clear and hide the property editor panel correctly when multiple operators are highlighted', () => {
@@ -96,21 +82,13 @@ fdescribe('PropertyEditorComponent', () => {
     // assert that multiple operators are highlighted
     expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockResultPredicate.operatorID);
     expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockScanPredicate.operatorID);
-
     fixture.detectChanges();
 
     // expect that the property editor is cleared
-    expect(component.frameComponent === undefined);
-
-    // check HTML form are not displayed
-    const formTitleElement = fixture.debugElement.query(By.css('.texera-workspace-property-editor-title'));
-    const jsonSchemaFormElement = fixture.debugElement.query(By.css('.texera-workspace-property-editor-form'));
-
-    expect(formTitleElement).toBeFalsy();
-    expect(jsonSchemaFormElement).toBeFalsy();
+    expect(component.frameComponent).toBeUndefined();
   });
 
-  fit('should switch the content of property editor to another operator from the former operator correctly', () => {
+  it('should switch the content of property editor to another operator from the former operator correctly', () => {
     const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
     // add two operators
@@ -119,79 +97,77 @@ fdescribe('PropertyEditorComponent', () => {
 
     // highlight the first operator
     jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
-
     fixture.detectChanges();
 
     // check the variables
     expect(component.frameComponent === OperatorPropertyEditFrameComponent);
 
+
+    // unhighlight the operator
     jointGraphWrapper.unhighlightOperators(mockScanPredicate.operatorID);
     fixture.detectChanges();
 
-    expect(component.frameComponent === undefined);
+    expect(component.frameComponent).toBeUndefined();
 
     // highlight the second operator
     jointGraphWrapper.highlightOperators(mockResultPredicate.operatorID);
     fixture.detectChanges();
 
-    // result operator has default values, use ajv to fill in default values
-    // expected form output should fill in all default values instead of an empty object
-    const ajv = new Ajv({ useDefaults: true });
-    const expectedResultOperatorProperties = cloneDeep(mockResultPredicate.operatorProperties);
-    ajv.validate(mockViewResultsSchema.jsonSchema, expectedResultOperatorProperties);
-
     expect(component.frameComponent === OperatorPropertyEditFrameComponent);
-    const injectedElem = fixture.debugElement.query(
-      By.directive(OperatorPropertyEditFrameComponent),
-    );
-    fixture.detectChanges();
-    expect(injectedElem).not.toBeNull();
 
-    // check HTML form are displayed
-    const formTitleElementAfterChange = fixture.debugElement.query(By.css('.texera-workspace-property-editor-title'));
-    const jsonSchemaFormElementAfterChange = fixture.debugElement.query(By.css('.texera-workspace-property-editor-form'));
+    // // result operator has default values, use ajv to fill in default values
+    // // expected form output should fill in all default values instead of an empty object
+    // const ajv = new Ajv({ useDefaults: true });
+    // const expectedResultOperatorProperties = cloneDeep(mockResultPredicate.operatorProperties);
+    // ajv.validate(mockViewResultsSchema.jsonSchema, expectedResultOperatorProperties);
+    //
 
-    // check the panel title
-    expect((formTitleElementAfterChange.nativeElement as HTMLElement).innerText).toEqual(
-      mockViewResultsSchema.additionalMetadata.userFriendlyName);
-
-    // check if the form has the all the json schema property names
-    Object.entries(mockViewResultsSchema.jsonSchema.properties as any).forEach((entry) => {
-      const propertyTitle = (entry[1] as JSONSchema7).title;
-      if (propertyTitle) {
-        expect((jsonSchemaFormElementAfterChange.nativeElement as HTMLElement).innerHTML).toContain(propertyTitle);
-      }
-      const propertyDescription = (entry[1] as JSONSchema7).description;
-      if (propertyDescription) {
-        expect((jsonSchemaFormElementAfterChange.nativeElement as HTMLElement).innerHTML).toContain(propertyDescription);
-      }
-    });
+    // const injectedElem = fixture.debugElement.query(
+    //   By.directive(OperatorPropertyEditFrameComponent),
+    // );
+    // fixture.detectChanges();
+    // expect(injectedElem).not.toBeNull();
+    //
+    // // check HTML form are displayed
+    // const formTitleElementAfterChange = fixture.debugElement.query(By.css('.texera-workspace-property-editor-title'));
+    // const jsonSchemaFormElementAfterChange = fixture.debugElement.query(By.css('.texera-workspace-property-editor-form'));
+    //
+    // // check the panel title
+    // expect((formTitleElementAfterChange.nativeElement as HTMLElement).innerText).toEqual(
+    //   mockViewResultsSchema.additionalMetadata.userFriendlyName);
+    //
+    // // check if the form has the all the json schema property names
+    // Object.entries(mockViewResultsSchema.jsonSchema.properties as any).forEach((entry) => {
+    //   const propertyTitle = (entry[1] as JSONSchema7).title;
+    //   if (propertyTitle) {
+    //     expect((jsonSchemaFormElementAfterChange.nativeElement as HTMLElement).innerHTML).toContain(propertyTitle);
+    //   }
+    //   const propertyDescription = (entry[1] as JSONSchema7).description;
+    //   if (propertyDescription) {
+    //     expect((jsonSchemaFormElementAfterChange.nativeElement as HTMLElement).innerHTML).toContain(propertyDescription);
+    //   }
+    // });
 
   });
 
-  it('should clear and hide the property editor panel correctly on unhighlighting an link', () => {
+  it('should clear and hide the property editor panel correctly upon unhighlighting a link', () => {
     const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
     workflowActionService.addOperator(mockResultPredicate, mockPoint);
     workflowActionService.addLink(mockScanResultLink);
 
+    // highlight the link
     jointGraphWrapper.highlightLink(mockScanResultLink.linkID);
     fixture.detectChanges();
 
     expect(component.frameComponent instanceof BreakpointPropertyEditFrameComponent);
+
     // unhighlight the highlighted link
     jointGraphWrapper.unhighlightLink(mockScanResultLink.linkID);
     fixture.detectChanges();
 
     expect(component.frameComponent).toBeUndefined();
-
-    // check HTML form are not displayed
-    const formTitleElement = fixture.debugElement.query(By.css('.texera-workspace-property-editor-title'));
-    const jsonSchemaFormElement = fixture.debugElement.query(By.css('.texera-workspace-property-editor-form'));
-
-    expect(formTitleElement).toBeFalsy();
-    expect(jsonSchemaFormElement).toBeFalsy();
   });
 
   it('should switch the content of property editor to another link-breakpoint from the former link-breakpoint correctly', () => {
@@ -207,24 +183,18 @@ fdescribe('PropertyEditorComponent', () => {
     jointGraphWrapper.highlightLink(mockScanSentimentLink.linkID);
 
     fixture.detectChanges();
+    expect(component.frameComponent).toBe(BreakpointPropertyEditFrameComponent);
 
-    // check the variables
-    // expect(component.currentLinkID).toEqual(mockScanSentimentLink.linkID);
+    // unhighlight the link
+    jointGraphWrapper.unhighlightLink(mockScanSentimentLink.linkID);
+    fixture.detectChanges();
+    expect(component.frameComponent).toBeUndefined();
 
     // highlight the second link
     jointGraphWrapper.highlightLink(mockSentimentResultLink.linkID);
     fixture.detectChanges();
+    expect(component.frameComponent).toBe(BreakpointPropertyEditFrameComponent);
 
-    // expect(component.currentLinkID).toEqual(mockSentimentResultLink.linkID);
-
-    // check HTML form are displayed
-    const jsonSchemaFormElement = fixture.debugElement.query(By.css('.texera-workspace-property-editor-form'));
-
-    // check if the form has the all the json schema property names
-    Object.values((mockBreakpointSchema.jsonSchema.oneOf as any)[0].properties).forEach((property: unknown) => {
-      assertType<{ type: string, title: string }>(property);
-      expect((jsonSchemaFormElement.nativeElement as HTMLElement).innerHTML).toContain(property.title);
-    });
   });
 
 

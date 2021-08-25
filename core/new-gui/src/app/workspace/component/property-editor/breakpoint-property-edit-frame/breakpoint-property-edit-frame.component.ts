@@ -1,10 +1,6 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, Input, OnChanges, OnDestroy, OnInit } from '@angular/core';
 import { cloneDeep, isEqual } from 'lodash';
 import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from '../../../service/execute-workflow/execute-workflow.service';
-import {
-  SchemaAttribute,
-  SchemaPropagationService
-} from '../../../service/dynamic-schema/schema-propagation/schema-propagation.service';
 import { DynamicSchemaService } from '../../../service/dynamic-schema/dynamic-schema.service';
 import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
 import { FormlyJsonschema } from '@ngx-formly/core/json-schema';
@@ -14,7 +10,6 @@ import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
 import { FormlyFieldConfig, FormlyFormOptions } from '@ngx-formly/core';
 import { CustomJSONSchema7 } from '../../../types/custom-json-schema.interface';
-import { setChildTypeDependency, setHideExpression } from 'src/app/common/formly/formly-utils';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -22,53 +17,49 @@ import { Subscription } from 'rxjs';
   templateUrl: './breakpoint-property-edit-frame.component.html',
   styleUrls: ['./breakpoint-property-edit-frame.component.scss']
 })
-export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy {
+export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy, OnChanges {
   subscriptions = new Subscription();
 
-  // re-declare enum for angular template to access it
-  public readonly ExecutionState = ExecutionState;
-
-  // operatorID if the component is displaying operator property editor
-  public currentOperatorID: string | undefined;
-
   // the linkID if the component is displaying breakpoint editor
-  public currentLinkID: string | undefined;
-
-  // used in HTML template to control if the form is displayed
-  public displayForm: boolean = false;
+  @Input() currentLinkID: string | undefined;
 
   // whether the editor can be edited
-  public interactive: boolean = true;
+  interactive: boolean = true;
 
   // the source event stream of form change triggered by library at each user input
-  public sourceFormChangeEventStream = new Subject<object>();
+  sourceFormChangeEventStream = new Subject<object>();
 
-  public breakpointChangeStream = this.createOutputFormChangeEventStream(
+  breakpointChangeStream = this.createOutputFormChangeEventStream(
     this.sourceFormChangeEventStream, data => this.checkBreakpoint(data));
 
   // inputs and two-way bindings to formly component
-  public formlyFormGroup: FormGroup | undefined;
-  public formData: any;
-  public formlyOptions: FormlyFormOptions | undefined;
-  public formlyFields: FormlyFieldConfig[] | undefined;
-  public formTitle: string | undefined;
+  formlyFormGroup: FormGroup | undefined;
+  formData: any;
+  formlyOptions: FormlyFormOptions | undefined;
+  formlyFields: FormlyFieldConfig[] | undefined;
+  formTitle: string | undefined;
 
 
   constructor(
-    public formlyJsonschema: FormlyJsonschema,
-    public workflowActionService: WorkflowActionService,
-    public autocompleteService: DynamicSchemaService,
-    public executeWorkflowService: ExecuteWorkflowService,
-    private schemaPropagationService: SchemaPropagationService
+    private formlyJsonschema: FormlyJsonschema,
+    private workflowActionService: WorkflowActionService,
+    private autocompleteService: DynamicSchemaService,
+    private executeWorkflowService: ExecuteWorkflowService
   ) { }
+
+  ngOnChanges(changes: import('@angular/core').SimpleChanges): void {
+    if (this.currentLinkID) {
+      this.showBreakpointEditor(this.currentLinkID);
+    }
+
+  }
 
   ngOnDestroy(): void {
     this.subscriptions.unsubscribe();
-    }
+  }
 
   ngOnInit(): void {
-    const highlightLinks = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
-    this.showBreakpointEditor(highlightLinks[0]);
+
     // when the operator's property is updated via program instead of user updating the json schema form,
     //  this observable will be responsible in handling these events.
     this.registerOperatorPropertyChangeHandler();
@@ -76,6 +67,7 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy {
     // handle the form change event on the user interface to actually set the operator property
     this.registerOnFormChangeHandler();
   }
+
 
   /**
    * This method handles the form change event
@@ -115,17 +107,6 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy {
     this.clearPropertyEditor();
   }
 
-  public allowChangeOperatorLogic() {
-    this.setInteractivity(true);
-  }
-
-  public confirmChangeOperatorLogic() {
-    this.setInteractivity(false);
-    if (this.currentOperatorID) {
-      this.executeWorkflowService.changeOperatorLogic(this.currentOperatorID);
-    }
-  }
-
   public showBreakpointEditor(linkID: string): void {
     if (!this.workflowActionService.getTexeraGraph().hasLinkWithID(linkID)) {
       throw new Error(`change property editor: link does not exist`);
@@ -139,13 +120,8 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy {
     this.formData = breakpoint !== undefined ? cloneDeep(breakpoint) : {};
     this.setFormlyFormBinding(breakpointSchema);
 
-    // show breakpoint editor
-    this.displayForm = true;
-
-    const interactive = this.executeWorkflowService.getExecutionState().state === ExecutionState.Uninitialized ||
-      this.executeWorkflowService.getExecutionState().state === ExecutionState.Paused ||
-      this.executeWorkflowService.getExecutionState().state === ExecutionState.BreakpointTriggered ||
-      this.executeWorkflowService.getExecutionState().state === ExecutionState.Completed;
+    const interactive = this.executeWorkflowService.getExecutionState().state in [ExecutionState.Uninitialized,
+      ExecutionState.Paused, ExecutionState.BreakpointTriggered, ExecutionState.Completed];
     this.setInteractivity(interactive);
   }
 
@@ -193,17 +169,8 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy {
   /**
    * Hides the form and clears all the data of the current the property editor
    */
-  public clearPropertyEditor(): void {
-    // set displayForm to false in the very beginning
-    // hide the view first and then make everything null
-    this.displayForm = false;
-    this.currentOperatorID = undefined;
+  clearPropertyEditor(): void {
     this.currentLinkID = undefined;
-
-    this.formlyFormGroup = undefined;
-    this.formData = undefined;
-    this.formlyFields = undefined;
-    this.formTitle = undefined;
   }
 
   /**
@@ -216,7 +183,7 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy {
     this.sourceFormChangeEventStream.next(event);
   }
 
-  private checkBreakpoint(formData: object): boolean {
+  checkBreakpoint(formData: object): boolean {
     // check if the component is displaying breakpoint
     if (!this.currentLinkID) {
       return false;
@@ -237,7 +204,7 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy {
    * For instance, when the input doesn't matching the new json schema and the UI needs to remove the
    *  invalid fields, this form will capture those events.
    */
-  private registerOperatorPropertyChangeHandler(): void {
+  registerOperatorPropertyChangeHandler(): void {
     this.subscriptions.add(this.workflowActionService.getTexeraGraph().getBreakpointChangeStream()
       .filter(_ => this.currentLinkID !== undefined)
       .filter(event => event.linkID === this.currentLinkID)
@@ -270,33 +237,6 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy {
         }
       }
     };
-
-    const schemaProperties = schema.properties;
-    const fields = field.fieldGroup;
-
-    // adding custom options, relational N-to-M mapping.
-    if (schemaProperties && fields) {
-      Object.entries(schemaProperties).forEach(([propertyName, propertyValue]) => {
-        if (typeof propertyValue === 'boolean') {
-          return;
-        }
-        if (propertyValue.toggleHidden) {
-          setHideExpression(propertyValue.toggleHidden, fields, propertyName);
-        }
-
-        if (propertyValue.dependOn) {
-          if (this.currentOperatorID) {
-            const attributes: ReadonlyArray<ReadonlyArray<SchemaAttribute> | null> | undefined =
-              this.schemaPropagationService.getOperatorInputSchema(this.currentOperatorID);
-            setChildTypeDependency(attributes, propertyValue.dependOn, fields, propertyName);
-          }
-        }
-      });
-    }
-
-    this.formlyFields = fields;
-
+    this.formlyFields = field.fieldGroup;
   }
-
-
 }
