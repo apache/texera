@@ -86,5 +86,4 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
     }));
   }
 
-
 }

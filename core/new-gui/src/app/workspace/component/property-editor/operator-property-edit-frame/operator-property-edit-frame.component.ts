@@ -317,12 +317,14 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy, On
 
   allowChangeOperatorLogic() {
     this.setInteractivity(true);
+    this.workflowActionService.enableWorkflowModification();
   }
 
   confirmChangeOperatorLogic() {
-    this.setInteractivity(false);
     if (this.currentOperatorId) {
       this.executeWorkflowService.changeOperatorLogic(this.currentOperatorId);
     }
+    this.setInteractivity(false);
+    this.workflowActionService.disableWorkflowModification();
   }
 }
