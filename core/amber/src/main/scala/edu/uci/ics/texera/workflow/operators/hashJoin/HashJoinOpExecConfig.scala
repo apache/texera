@@ -29,7 +29,7 @@ class HashJoinOpExecConfig[K](
         new WorkerLayer(
           makeLayer(id, "main"),
           null,
-          Constants.defaultNumWorkers,
+          Constants.currentWorkerNum,
           UseAll(),
           RoundRobinDeployment()
         )
@@ -46,7 +46,7 @@ class HashJoinOpExecConfig[K](
     workflow.getSources(toOperatorIdentity(probeLink.from)).foreach { source =>
       workflow.getOperator(source).topology.layers.head.startAfter(buildLink)
     }
-    topology.layers.head.metadata = _ =>
+    topology.layers.head.initIOperatorExecutor = _ =>
       new HashJoinOpExec[K](
         buildTable,
         buildAttributeName,

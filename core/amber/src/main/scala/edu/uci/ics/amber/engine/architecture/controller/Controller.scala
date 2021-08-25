@@ -12,18 +12,22 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   WorkflowStatusUpdate
 }
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
+import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   NetworkMessage,
   RegisterActorRef
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputPort
+import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.SendPythonUdfHandler.SendPythonUdf
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
+import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowControlMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
-import edu.uci.ics.amber.engine.common.worker.WorkerState.Ready
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.error.ErrorUtils.safely
-import edu.uci.ics.amber.error.WorkflowRuntimeError
+import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
@@ -68,14 +72,12 @@ class Controller(
     parentNetworkCommunicationActorRef: ActorRef
 ) extends WorkflowActor(CONTROLLER, parentNetworkCommunicationActorRef) {
   lazy val controlInputPort: NetworkInputPort[ControlPayload] =
-    new NetworkInputPort[ControlPayload](this.logger, this.handleControlPayloadWithTryCatch)
+    new NetworkInputPort[ControlPayload](this.actorId, this.handleControlPayloadWithTryCatch)
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
   val rpcHandlerInitializer: ControllerAsyncRPCHandlerInitializer =
     wire[ControllerAsyncRPCHandlerInitializer]
   var statusUpdateAskHandle: Cancellable = _
-
-  logger.setErrorLogAction(errorLogAction)
 
   def availableNodes: Array[Address] =
     Await
@@ -88,25 +90,98 @@ class Controller(
   // build whole workflow
   workflow.build(availableNodes, networkCommunicationActor, context)
 
-  // activate all links
-  Future
-    .collect(workflow.getAllLinks.map { link =>
-      asyncRPCClient.send(
-        LinkWorkers(link),
-        CONTROLLER
+  // bring all workers into a ready state
+  prepareWorkers()
+
+  def prepareWorkers(): Future[Seq[Unit]] = {
+
+    // send python udf code
+    val sendPythonUdfRequests: Seq[Future[Unit]] = workflow.getPythonWorkerToOperatorExec.map {
+      case (workerId: ActorVirtualIdentity, pythonOperatorExec: PythonUDFOpExecV2) =>
+        asyncRPCClient.send(
+          SendPythonUdf(
+            pythonOperatorExec.getCode,
+            pythonOperatorExec.isInstanceOf[ISourceOperatorExecutor]
+          ),
+          workerId
+        )
+    }.toSeq
+
+    // activate all links
+    val activateLinkRequests: Seq[Future[Unit]] =
+      workflow.getAllLinks.map { link: LinkStrategy =>
+        asyncRPCClient.send(
+          LinkWorkers(link),
+          CONTROLLER
+        )
+      }.toSeq
+
+    Future
+      .collect(
+        sendPythonUdfRequests ++ activateLinkRequests
       )
-    }.toSeq)
-    .onSuccess { ret =>
-      workflow.getAllOperators.foreach(_.setAllWorkerState(Ready))
-      if (eventListener.workflowStatusUpdateListener != null) {
-        eventListener.workflowStatusUpdateListener
-          .apply(WorkflowStatusUpdate(workflow.getWorkflowStatus))
-      }
-      // for testing, report ready state to parent
-      context.parent ! ControllerState.Ready
-      context.become(running)
-      unstashAll()
+      .onSuccess({ _ =>
+        workflow.getAllOperators.foreach(_.setAllWorkerState(READY))
+        if (eventListener.workflowStatusUpdateListener != null) {
+          eventListener.workflowStatusUpdateListener
+            .apply(WorkflowStatusUpdate(workflow.getWorkflowStatus))
+        }
+        // for testing, report ready state to parent
+        context.parent ! ControllerState.Ready
+        context.become(running)
+        unstashAll()
+      })
+      .onFailure((err: Throwable) => {
+        logger.error("Failure when sending Python UDF code", err)
+        // report error to frontend
+        if (eventListener.workflowExecutionErrorListener != null) {
+          eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
+        }
+      })
+  }
+
+  def running: Receive = {
+    acceptDirectInvocations orElse {
+      case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload)) =>
+        controlInputPort.handleMessage(this.sender(), id, from, seqNum, payload)
+      case other =>
+        logger.info(s"unhandled message: $other")
     }
+  }
+
+  def acceptDirectInvocations: Receive = {
+    case invocation: ControlInvocation =>
+      this.handleControlPayloadWithTryCatch(CONTROLLER, invocation)
+  }
+
+  def handleControlPayloadWithTryCatch(
+      from: ActorVirtualIdentity,
+      controlPayload: ControlPayload
+  ): Unit = {
+    try {
+      controlPayload match {
+        // use control input port to pass control messages
+        case invocation: ControlInvocation =>
+          assert(from.isInstanceOf[ActorVirtualIdentity])
+          asyncRPCServer.logControlInvocation(invocation, from)
+          asyncRPCServer.receive(invocation, from)
+        case ret: ReturnInvocation =>
+          asyncRPCClient.logControlReply(ret, from)
+          asyncRPCClient.fulfillPromise(ret)
+        case other =>
+          throw new WorkflowRuntimeException(s"unhandled control message: $other")
+      }
+    } catch safely {
+      case err =>
+        // report error to frontend
+        if (eventListener.workflowExecutionErrorListener != null) {
+          eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
+        }
+
+        // re-throw the error to fail the actor
+        throw err
+    }
+  }
 
   override def receive: Receive = initializing
 
@@ -130,60 +205,10 @@ class Controller(
       stash() //prevent other messages to be executed until initialized
   }
 
-  def running: Receive = {
-    acceptDirectInvocations orElse {
-      case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload)) =>
-        controlInputPort.handleMessage(this.sender(), id, from, seqNum, payload)
-      case other =>
-        logger.logInfo(s"unhandled message: $other")
-    }
-  }
-
-  def acceptDirectInvocations: Receive = {
-    case invocation: ControlInvocation =>
-      this.handleControlPayloadWithTryCatch(CONTROLLER, invocation)
-  }
-
-  def handleControlPayloadWithTryCatch(
-      from: ActorVirtualIdentity,
-      controlPayload: ControlPayload
-  ): Unit = {
-    try {
-      controlPayload match {
-        // use control input port to pass control messages
-        case invocation: ControlInvocation =>
-          assert(from.isInstanceOf[ActorVirtualIdentity])
-          asyncRPCServer.logControlInvocation(invocation, from)
-          asyncRPCServer.receive(invocation, from.asInstanceOf[ActorVirtualIdentity])
-        case ret: ReturnInvocation =>
-          asyncRPCClient.logControlReply(ret, from)
-          asyncRPCClient.fulfillPromise(ret)
-        case other =>
-          logger.logError(
-            WorkflowRuntimeError(
-              s"unhandled control message: $other",
-              "ControlInputPort",
-              Map.empty
-            )
-          )
-      }
-    } catch safely {
-      case e =>
-        logger.logError(WorkflowRuntimeError(e, identifier.toString))
-    }
-  }
-
   override def postStop(): Unit = {
     if (statusUpdateAskHandle != null) {
       statusUpdateAskHandle.cancel()
     }
-    logger.logInfo("stopped!")
+    logger.info("stopped!")
   }
-
-  private def errorLogAction(err: WorkflowRuntimeError): Unit = {
-    if (eventListener.workflowExecutionErrorListener != null) {
-      eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
-    }
-  }
-
 }

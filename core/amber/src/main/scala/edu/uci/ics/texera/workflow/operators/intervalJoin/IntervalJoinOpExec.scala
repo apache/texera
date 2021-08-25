@@ -1,10 +1,8 @@
 package edu.uci.ics.texera.workflow.operators.intervalJoin
 
-import java.sql.Timestamp
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
-import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
@@ -14,6 +12,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Schema
 }
 
+import java.sql.Timestamp
 import scala.collection.mutable.ListBuffer
 
 /** This Operator have two assumptions:
@@ -25,50 +24,10 @@ class IntervalJoinOpExec(
     val desc: IntervalJoinOpDesc
 ) extends OperatorExecutor {
 
-  var leftTable: ListBuffer[Tuple] = new ListBuffer[Tuple]()
-  var rightTable: ListBuffer[Tuple] = new ListBuffer[Tuple]()
   val leftTableSchema: Schema = operatorSchemaInfo.inputSchemas(0)
   val rightTableSchema: Schema = operatorSchemaInfo.inputSchemas(1)
-
-  //if right table has tuple smaller than smallest tuple in left table, delete it
-  private def removeTooSmallTupleInRightCache(leftTableSmallestTuple: Tuple): Unit = {
-    while (rightTable.nonEmpty) {
-      if (
-        intervalCompare(
-          leftTableSmallestTuple.getField(desc.leftAttributeName),
-          rightTable.head.getField(desc.rightAttributeName),
-          leftTableSchema
-            .getAttribute(desc.leftAttributeName)
-            .getType
-        ) > 0
-      ) {
-        rightTable.remove(0)
-      } else {
-        return
-      }
-    }
-
-  }
-
-  //if left table has tuple smaller than smallest tuple in right table, delete it
-  private def removeTooSmallTupleInLeftCache(rightTableSmallestTuple: Tuple): Unit = {
-    while (leftTable.nonEmpty) {
-      if (
-        intervalCompare(
-          leftTable.head.getField(desc.leftAttributeName),
-          rightTableSmallestTuple.getField(desc.rightAttributeName),
-          leftTableSchema
-            .getAttribute(desc.leftAttributeName)
-            .getType
-        ) < 0
-      ) {
-        leftTable.remove(0)
-      } else {
-        return
-      }
-    }
-
-  }
+  var leftTable: ListBuffer[Tuple] = new ListBuffer[Tuple]()
+  var rightTable: ListBuffer[Tuple] = new ListBuffer[Tuple]()
 
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
@@ -118,6 +77,50 @@ class IntervalJoinOpExec(
       case Right(_) =>
         Iterator()
     }
+  }
+
+  override def open(): Unit = {}
+
+  override def close(): Unit = {}
+
+  //if right table has tuple smaller than smallest tuple in left table, delete it
+  private def removeTooSmallTupleInRightCache(leftTableSmallestTuple: Tuple): Unit = {
+    while (rightTable.nonEmpty) {
+      if (
+        intervalCompare(
+          leftTableSmallestTuple.getField(desc.leftAttributeName),
+          rightTable.head.getField(desc.rightAttributeName),
+          leftTableSchema
+            .getAttribute(desc.leftAttributeName)
+            .getType
+        ) > 0
+      ) {
+        rightTable.remove(0)
+      } else {
+        return
+      }
+    }
+
+  }
+
+  //if left table has tuple smaller than smallest tuple in right table, delete it
+  private def removeTooSmallTupleInLeftCache(rightTableSmallestTuple: Tuple): Unit = {
+    while (leftTable.nonEmpty) {
+      if (
+        intervalCompare(
+          leftTable.head.getField(desc.leftAttributeName),
+          rightTableSmallestTuple.getField(desc.rightAttributeName),
+          leftTableSchema
+            .getAttribute(desc.leftAttributeName)
+            .getType
+        ) < 0
+      ) {
+        leftTable.remove(0)
+      } else {
+        return
+      }
+    }
+
   }
 
   private def joinTuples(leftTuple: Tuple, rightTuple: Tuple): Tuple = {
@@ -227,18 +230,9 @@ class IntervalJoinOpExec(
         rightBoundValue.getTime
       )
     } else {
-      val err = WorkflowRuntimeError(
-        "The data type can not support comparation: " + dataType.toString,
-        "HashJoinOpExec",
-        Map("stacktrace" -> Thread.currentThread().getStackTrace.mkString("\n"))
-      )
-      throw new WorkflowRuntimeException(err)
+      throw new WorkflowRuntimeException(s"The data type can not support comparison: $dataType")
     }
     result
 
   }
-
-  override def open(): Unit = {}
-
-  override def close(): Unit = {}
 }

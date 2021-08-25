@@ -1,7 +1,11 @@
 import {
-  LogicalPlan, WorkflowStatusUpdate, LogicalOperator, BreakpointInfo, WorkflowResultUpdateEvent
+  BreakpointInfo,
+  LogicalOperator,
+  LogicalPlan,
+  WorkflowResultUpdateEvent,
+  WorkflowStatusUpdate
 } from './execute-workflow.interface';
-import { BreakpointTriggerInfo, BreakpointFaultedTuple } from './workflow-common.interface';
+import { BreakpointFaultedTuple, BreakpointTriggerInfo, PythonPrintTriggerInfo } from './workflow-common.interface';
 
 
 /**
@@ -17,21 +21,21 @@ import { BreakpointTriggerInfo, BreakpointFaultedTuple } from './workflow-common
  * 2. value is the payload this request/event needs
  */
 
-export interface WebSocketHelloWorld extends Readonly<{ message: string }> { }
+export interface WebSocketHelloWorld extends Readonly<{ message: string }> {}
 
 export interface TexeraConstraintViolation extends Readonly<{
   message: string;
   propertyPath: string;
-}> { }
+}> {}
 
 export interface WorkflowError extends Readonly<{
   operatorErrors: Record<string, TexeraConstraintViolation>,
   generalErrors: Record<string, string>
-}> { }
+}> {}
 
 export interface WorkflowExecutionError extends Readonly<{
-  errorMap: Record<string, string>
-}> { }
+  message: string
+}> {}
 
 export type ModifyOperatorLogic = Readonly<{
   operator: LogicalOperator
@@ -66,9 +70,14 @@ export type PaginatedResultEvent = Readonly<{
   table: ReadonlyArray<object>,
 }>;
 
-export type ResultDownloadResponse = Readonly<{
-  downloadType: string,
-  link: string,
+export type ResultExportRequest = Readonly<{
+  exportType: string,
+  workflowName: string,
+  operatorId: string
+}>;
+
+export type ResultExportResponse = Readonly<{
+  status: 'success' | 'error'
   message: string
 }>;
 
@@ -83,7 +92,7 @@ export type TexeraWebsocketRequestTypeMap = {
   'SkipTupleRequest': SkipTuple,
   'AddBreakpointRequest': BreakpointInfo,
   'ResultPaginationRequest': PaginationRequest,
-  'ResultDownloadRequest': { downloadType: string, workflowName: string }
+  'ResultExportRequest': ResultExportRequest,
 };
 
 export type TexeraWebsocketEventTypeMap = {
@@ -98,11 +107,12 @@ export type TexeraWebsocketEventTypeMap = {
   'WorkflowResumedEvent': {},
   'RecoveryStartedEvent': {},
   'BreakpointTriggeredEvent': BreakpointTriggerInfo,
+  'PythonPrintTriggeredEvent': PythonPrintTriggerInfo,
   'ModifyLogicCompletedEvent': {},
   'OperatorCurrentTuplesUpdateEvent': OperatorCurrentTuples,
   'PaginatedResultEvent': PaginatedResultEvent,
   'WorkflowExecutionErrorEvent': WorkflowExecutionError,
-  'ResultDownloadResponse': ResultDownloadResponse
+  'ResultExportResponse': ResultExportResponse
 };
 
 // helper type definitions to generate the request and event types

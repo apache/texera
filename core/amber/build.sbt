@@ -42,7 +42,9 @@ val akkaDependencies = Seq(
   "com.softwaremill.macwire" %% "macros" % "2.3.6" % Provided,
   "com.softwaremill.macwire" %% "macrosakka" % "2.3.6" % Provided,
   "com.softwaremill.macwire" %% "util" % "2.3.6",
-  "com.softwaremill.macwire" %% "proxy" % "2.3.6"
+  "com.softwaremill.macwire" %% "proxy" % "2.3.6",
+  "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
+  "ch.qos.logback" % "logback-classic" % "1.2.3"
 )
 
 // dropwizard web framework
@@ -62,7 +64,29 @@ val dropwizardDependencies = Seq(
   "org.glassfish.jersey.media" % "jersey-media-multipart" % jerseyMultipartVersion,
   "com.fasterxml.jackson.module" % "jackson-module-jsonSchema" % jacksonVersion,
   "com.fasterxml.jackson.module" % "jackson-module-scala_2.12" % jacksonVersion,
-  "com.kjetland" % "mbknor-jackson-jsonschema_2.12" % "1.0.39"
+  // https://mvnrepository.com/artifact/commons-io/commons-io
+   "commons-io" % "commons-io" % "2.11.0"
+)
+
+
+
+// deps from library
+//"com.kjetland" % "mbknor-jackson-jsonschema_2.12" % "1.0.39"
+
+val slf4jVersion = "1.7.26"
+val mbknorJacksonJsonSchemaDependencies  = Seq(
+  "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
+  "javax.validation" % "validation-api" % "2.0.1.Final",
+  "org.slf4j" % "slf4j-api" % slf4jVersion,
+  "io.github.classgraph" % "classgraph" % "4.8.21",
+  "org.scalatest" %% "scalatest" % "3.0.8" % "test",
+  "ch.qos.logback" % "logback-classic" % "1.2.3" % "test",
+  "com.github.java-json-tools" % "json-schema-validator" % "2.2.11" % "test",
+  "com.fasterxml.jackson.module" % "jackson-module-kotlin" % jacksonVersion % "test",
+  "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8" % jacksonVersion % "test",
+  "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % jacksonVersion % "test",
+  "joda-time" % "joda-time" % "2.10.1" % "test",
+  "com.fasterxml.jackson.datatype" % "jackson-datatype-joda" % jacksonVersion % "test"
 )
 
 /////////////////////////////////////////////////////////////////////////////
@@ -101,6 +125,7 @@ val arrowDependencies = Seq(
 libraryDependencies ++= akkaDependencies
 libraryDependencies ++= luceneDependencies
 libraryDependencies ++= dropwizardDependencies
+libraryDependencies ++= mbknorJacksonJsonSchemaDependencies
 libraryDependencies ++= arrowDependencies
 libraryDependencies ++= googleServiceDependencies
 
@@ -156,7 +181,7 @@ libraryDependencies += "com.konghq" % "unirest-java" % "3.11.11"
 libraryDependencies += "com.github.marianobarrios" % "lbmq" % "0.5.0"
 
 // https://mvnrepository.com/artifact/io.github.redouane59.twitter/twittered
-libraryDependencies += "io.github.redouane59.twitter" % "twittered" % "2.5"
+libraryDependencies += "io.github.redouane59.twitter" % "twittered" % "2.7"
 
 // https://mvnrepository.com/artifact/org.jooq/jooq
 libraryDependencies += "org.jooq" % "jooq" % "3.14.4"

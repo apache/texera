@@ -20,7 +20,7 @@ class OneToOneOpExecConfig(
         new WorkerLayer(
           makeLayer(id, "main"),
           opExec,
-          Constants.defaultNumWorkers,
+          Constants.currentWorkerNum,
           FollowPrevious(),
           RoundRobinDeployment()
         )

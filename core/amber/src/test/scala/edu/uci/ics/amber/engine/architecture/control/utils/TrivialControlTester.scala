@@ -10,13 +10,12 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, Re
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.error.ErrorUtils.safely
-import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 class TrivialControlTester(id: ActorVirtualIdentity, parentNetworkCommunicationActorRef: ActorRef)
     extends WorkflowActor(id, parentNetworkCommunicationActorRef) {
 
   lazy val controlInputPort: NetworkInputPort[ControlPayload] =
-    new NetworkInputPort[ControlPayload](this.logger, this.handleControlPayloadWithTryCatch)
+    new NetworkInputPort[ControlPayload](id, this.handleControlPayloadWithTryCatch)
   override val rpcHandlerInitializer: AsyncRPCHandlerInitializer =
     wire[TesterAsyncRPCHandlerInitializer]
 
@@ -26,7 +25,7 @@ class TrivialControlTester(id: ActorVirtualIdentity, parentNetworkCommunicationA
             id,
             internalMessage @ WorkflowControlMessage(from, sequenceNumber, payload)
           ) =>
-        logger.logInfo(s"received ${internalMessage}")
+        logger.info(s"received $internalMessage")
         this.controlInputPort.handleMessage(
           this.sender(),
           id,
@@ -35,7 +34,7 @@ class TrivialControlTester(id: ActorVirtualIdentity, parentNetworkCommunicationA
           payload
         )
       case other =>
-        logger.logInfo(s"unhandled message: $other")
+        logger.info(s"unhandled message: $other")
     }
   }
 
@@ -54,17 +53,12 @@ class TrivialControlTester(id: ActorVirtualIdentity, parentNetworkCommunicationA
           asyncRPCClient.logControlReply(ret, from)
           asyncRPCClient.fulfillPromise(ret)
         case other =>
-          logger.logError(
-            WorkflowRuntimeError(
-              s"unhandled control message: $other",
-              "ControlInputPort",
-              Map.empty
-            )
-          )
+          logger.error(s"unhandled control message: $other")
       }
     } catch safely {
       case e =>
-        logger.logError(WorkflowRuntimeError(e, identifier.toString))
+        logger.error("", e)
     }
+
   }
 }

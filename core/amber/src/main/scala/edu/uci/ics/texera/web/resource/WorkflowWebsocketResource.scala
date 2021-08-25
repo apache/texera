@@ -1,39 +1,32 @@
 package edu.uci.ics.texera.web.resource
 
 import akka.actor.{ActorRef, PoisonPill}
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.{
   Controller,
   ControllerConfig,
   ControllerEventListener
 }
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
-import edu.uci.ics.texera.web.{ServletAwareConfigurator, TexeraWebApplication}
+import edu.uci.ics.texera.Utils
+import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.web.model.event._
 import edu.uci.ics.texera.web.model.request._
-import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
-  send,
-  sessionDownloadCache,
-  sessionJobs,
-  sessionMap,
-  sessionResults
-}
+import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource._
 import edu.uci.ics.texera.web.resource.auth.UserResource
-import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
+import edu.uci.ics.texera.web.{ServletAwareConfigurator, TexeraWebApplication}
+import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo}
+
 import java.util.concurrent.atomic.AtomicInteger
-
-import edu.uci.ics.texera.workflow.common.Utils.objectMapper
 import javax.servlet.http.HttpSession
-import javax.websocket.{EndpointConfig, _}
 import javax.websocket.server.ServerEndpoint
-
+import javax.websocket.{EndpointConfig, _}
 import scala.collection.mutable
 
 object WorkflowWebsocketResource {
@@ -50,8 +43,8 @@ object WorkflowWebsocketResource {
   // Map[sessionId, Map[operatorId, List[ITuple]]]
   val sessionResults = new mutable.HashMap[String, WorkflowResultService]
 
-  // Map[sessionId, Map[downloadType, googleSheetLink]
-  val sessionDownloadCache = new mutable.HashMap[String, mutable.HashMap[String, String]]
+  // Map[sessionId, Map[exportType, googleSheetLink]
+  val sessionExportCache = new mutable.HashMap[String, mutable.HashMap[String, String]]
 
   def send(session: Session, event: TexeraWebSocketEvent): Unit = {
     session.getAsyncRemote.sendText(objectMapper.writeValueAsString(event))
@@ -102,18 +95,19 @@ class WorkflowWebsocketResource {
           addBreakpoint(session, breakpoint)
         case paginationRequest: ResultPaginationRequest =>
           resultPagination(session, paginationRequest)
-        case resultDownloadRequest: ResultDownloadRequest =>
-          downloadResult(session, resultDownloadRequest)
+        case resultExportRequest: ResultExportRequest =>
+          exportResult(session, resultExportRequest)
       }
     } catch {
-      case e: Throwable =>
+      case err: Exception =>
         send(
           session,
           WorkflowErrorEvent(generalErrors =
-            Map("exception" -> (e.getMessage + "\n" + e.getStackTrace.mkString("\n")))
+            Map("exception" -> (err.getMessage + "\n" + err.getStackTrace.mkString("\n")))
           )
         )
-        throw e
+        throw err
+
     }
 
   }
@@ -191,7 +185,7 @@ class WorkflowWebsocketResource {
 
     val eventListener = ControllerEventListener(
       workflowCompletedListener = completed => {
-        sessionDownloadCache.remove(session.getId)
+        sessionExportCache.remove(session.getId)
         send(session, WorkflowCompletedEvent())
         WorkflowWebsocketResource.sessionJobs.remove(session.getId)
       },
@@ -207,6 +201,9 @@ class WorkflowWebsocketResource {
       breakpointTriggeredListener = breakpointTriggered => {
         send(session, BreakpointTriggeredEvent.apply(breakpointTriggered))
       },
+      pythonPrintTriggeredListener = pythonPrintTriggered => {
+        send(session, PythonPrintTriggeredEvent.apply(pythonPrintTriggered))
+      },
       workflowPausedListener = _ => {
         send(session, WorkflowPausedEvent())
       },
@@ -214,13 +211,13 @@ class WorkflowWebsocketResource {
         send(session, SkipTupleResponseEvent())
       },
       reportCurrentTuplesListener = report => {
-//        send(session, OperatorCurrentTuplesUpdateEvent.apply(report))
+        //        send(session, OperatorCurrentTuplesUpdateEvent.apply(report))
       },
       recoveryStartedListener = _ => {
         send(session, RecoveryStartedEvent())
       },
       workflowExecutionErrorListener = errorOccurred => {
-        send(session, WorkflowExecutionErrorEvent(errorOccurred.error.convertToMap()))
+        send(session, WorkflowExecutionErrorEvent(errorOccurred.error.getLocalizedMessage))
       }
     )
 
@@ -237,9 +234,9 @@ class WorkflowWebsocketResource {
 
   }
 
-  def downloadResult(session: Session, request: ResultDownloadRequest): Unit = {
-    val resultDownloadResponse = ResultDownloadResource.apply(session.getId, request)
-    send(session, resultDownloadResponse)
+  def exportResult(session: Session, request: ResultExportRequest): Unit = {
+    val resultExportResponse = ResultExportResource.apply(session.getId, request)
+    send(session, resultExportResponse)
   }
 
   def killWorkflow(session: Session): Unit = {
@@ -257,7 +254,7 @@ class WorkflowWebsocketResource {
     sessionResults.remove(session.getId)
     sessionJobs.remove(session.getId)
     sessionMap.remove(session.getId)
-    sessionDownloadCache.remove(session.getId)
+    sessionExportCache.remove(session.getId)
   }
 
   def removeBreakpoint(session: Session, removeBreakpoint: RemoveBreakpointRequest): Unit = {
