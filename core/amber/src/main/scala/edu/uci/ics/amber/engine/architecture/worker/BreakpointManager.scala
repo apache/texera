@@ -27,10 +27,14 @@ class BreakpointManager(asyncRPCClient: AsyncRPCClient) {
   }
 
   def getBreakpoints(ids: Array[String]): Array[LocalBreakpoint] = {
-    ids.map(id => {
+    val lbps = ArrayBuffer[LocalBreakpoint]()
+    ids.foreach(id => {
       val idx = breakpoints.indexWhere(_.id == id)
-      breakpoints(idx)
+      if(idx != -1){
+        lbps.append(breakpoints(idx))
+      }
     })
+    lbps.toArray
   }
 
   def removeBreakpoint(breakpointID: String): Unit = {

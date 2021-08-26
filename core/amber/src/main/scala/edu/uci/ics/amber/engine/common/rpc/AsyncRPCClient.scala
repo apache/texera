@@ -78,11 +78,8 @@ class AsyncRPCClient(controlOutputPort: ControlOutputPort, val actorId: ActorVir
       ret.controlReturn match {
         case error: Throwable =>
           p.setException(error)
-          logger.error(s"receive Exception as reply of Control ${ret.originalCommandID}", error)
-          error.printStackTrace()
         case ControlException(msg) =>
           p.setException(new RuntimeException(msg))
-
         case _ =>
           p.setValue(ret.controlReturn.asInstanceOf[p.returnType])
       }

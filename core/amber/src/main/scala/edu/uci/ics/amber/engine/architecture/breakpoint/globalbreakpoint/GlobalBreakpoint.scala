@@ -6,8 +6,6 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 abstract class GlobalBreakpoint[T](val id: String) extends Serializable {
   type localBreakpointType = T
 
-  var assignedWorkers: Array[ActorVirtualIdentity] = Array()
-
   protected var version: Long = 0
 
   def hasSameVersion(ver: Long): Boolean = ver == version

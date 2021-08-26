@@ -30,8 +30,6 @@ class CountGlobalBreakpoint(id: String, val target: Long)
         i += 1
       }
     }
-    // assign it to GBP
-    assignedWorkers = assigned.map({case (workerId, _) => workerId}).toArray
     assigned.toArray
   }
 

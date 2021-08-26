@@ -58,11 +58,6 @@ trait LocalBreakpointTriggeredHandler {
         Future
           .collect(
             targetOp.getAllWorkers
-              .filter(worker => {
-                targetOp.attachedBreakpoints.values
-                  .flatMap(gbp => gbp.assignedWorkers)
-                  .contains(worker)
-              })
               .map { worker =>
                 send(PauseWorker(), worker).flatMap { ret =>
                   send(QueryAndRemoveBreakpoints(unResolved), worker)
@@ -102,12 +97,10 @@ trait LocalBreakpointTriggeredHandler {
                   // if no triggered breakpoints, resume the workers of the current operator who has breakpoint assigned
                   Future
                     .collect(
-                      targetOp.getAllWorkers
-                        .filter(worker => workersAssignedBreakpoint.flatten.contains(worker))
-                        .map { worker => send(ResumeWorker(), worker) }
-                        .toSeq
+                      workersAssignedBreakpoint.flatten.toSet[ActorVirtualIdentity]
+                        .map { worker => send(ResumeWorker(), worker) }.toSeq
                     )
-                    .map { _ => {} }
+                    .unit
                 } else {
                   // other wise, report to frontend and pause entire workflow
                   if (eventListener.breakpointTriggeredListener != null) {
