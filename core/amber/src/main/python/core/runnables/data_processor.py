@@ -213,29 +213,28 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         if self.context.state_manager.confirm_state(WorkerState.READY):
             self.context.state_manager.transit_to(WorkerState.RUNNING)
 
+        self._current_input_tuple_iter = self.context.batch_to_tuple_converter.process_data_payload(
+            data_element.tag, data_element.payload)
         # here the self._current_input_tuple_iter could be modified during iteration,
         # thus we are using the try-while-stop_iteration way to iterate through the
         # iterator, instead of the for-each-loop syntax sugar.
-        self._current_input_tuple_iter = self.context.batch_to_tuple_converter.process_data_payload(
-            data_element.tag, data_element.payload)
-        try:
-            while True:
-                # In Python@3.8 there is a new `:=` operator to simplify this assignment
-                # in while-loop. For now we keep it this way to support versions below
-                # 3.8.
+        while True:
+            # In Python@3.8 there is a new `:=` operator to simplify this assignment
+            # in while-loop. For now we keep it this way to support versions below
+            # 3.8.
+            try:
                 element = next(self._current_input_tuple_iter)
-                match(
-                    element,
-                    Tuple, self._process_tuple,
-                    SenderChangeMarker, self._process_sender_change_marker,
-                    EndMarker, self._process_end_marker,
-                    EndOfAllMarker, self._process_end_of_all_marker
-                )
-        except StopIteration:
-            # StopIteration is the standard way for an iterator to end, we handle it and do
-            # nothing. We do not handle other Exceptions, as they are intended to be handled
-            # by outer scopes.
-            pass
+            except StopIteration:
+                # StopIteration is the standard way for an iterator to end, we handle it and terminate
+                # the loop.
+                break
+            match(
+                element,
+                Tuple, self._process_tuple,
+                SenderChangeMarker, self._process_sender_change_marker,
+                EndMarker, self._process_end_marker,
+                EndOfAllMarker, self._process_end_of_all_marker
+            )
 
     def _pause(self) -> None:
         """
