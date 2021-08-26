@@ -32,7 +32,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         self._udf_operator: Optional[UDFOperator] = None
         self._current_input_tuple: Optional[Union[Tuple, InputExhausted]] = None
         self._current_input_link: Optional[LinkIdentity] = None
-        self._current_batch: Optional[Iterator[Union[Tuple, InputExhausted]]] = None
+        self._current_input_tuple_iter: Optional[Iterator[Union[Tuple, InputExhausted]]] = None
 
         self.context = Context(self)
         self._async_rpc_server = AsyncRPCServer(output_queue, context=self.context)
@@ -213,17 +213,17 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         if self.context.state_manager.confirm_state(WorkerState.READY):
             self.context.state_manager.transit_to(WorkerState.RUNNING)
 
-        # here the self._current_batch iterator could be modified during iteration,
+        # here the self._current_input_tuple_iter could be modified during iteration,
         # thus we are using the try-while-stop_iteration way to iterate through the
         # iterator, instead of the for-each-loop syntax sugar.
-        self._current_batch = self.context.batch_to_tuple_converter.process_data_payload(
+        self._current_input_tuple_iter = self.context.batch_to_tuple_converter.process_data_payload(
             data_element.tag, data_element.payload)
         try:
             while True:
                 # In Python@3.8 there is a new `:=` operator to simplify this assignment
                 # in while-loop. For now we keep it this way to support versions below
                 # 3.8.
-                element = next(self._current_batch)
+                element = next(self._current_input_tuple_iter)
                 match(
                     element,
                     Tuple, self._process_tuple,
