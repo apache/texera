@@ -1,9 +1,10 @@
 import traceback
 import typing
+from typing import Iterator, Optional, Union
+
 from loguru import logger
 from overrides import overrides
 from pampy import match
-from typing import Iterator, Optional, Union
 
 from core.architecture.managers.context import Context
 from core.architecture.packaging.batch_to_tuple_converter import EndMarker, EndOfAllMarker
@@ -31,6 +32,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         self._udf_operator: Optional[UDFOperator] = None
         self._current_input_tuple: Optional[Union[Tuple, InputExhausted]] = None
         self._current_input_link: Optional[LinkIdentity] = None
+        self._current_batch: Optional[Iterator[Union[Tuple, InputExhausted]]] = None
 
         self.context = Context(self)
         self._async_rpc_server = AsyncRPCServer(output_queue, context=self.context)
@@ -46,7 +48,6 @@ class DataProcessor(StoppableQueueBlockingRunnable):
             level='PRINT',
             filter="udf_module"
         )
-        self.retry = False
 
     def complete(self) -> None:
         """
@@ -166,9 +167,6 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         self._current_input_tuple = tuple_
         self.process_input_tuple()
         self.check_and_process_control()
-        if self.retry:
-            self.retry = False
-            self._process_tuple(tuple_)
 
     def _process_sender_change_marker(self, sender_change_marker: SenderChangeMarker) -> None:
         """
@@ -214,16 +212,20 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         # Update state to RUNNING
         if self.context.state_manager.confirm_state(WorkerState.READY):
             self.context.state_manager.transit_to(WorkerState.RUNNING)
-
-        for element in self.context.batch_to_tuple_converter.process_data_payload(
-                data_element.tag, data_element.payload):
-            match(
-                element,
-                Tuple, self._process_tuple,
-                SenderChangeMarker, self._process_sender_change_marker,
-                EndMarker, self._process_end_marker,
-                EndOfAllMarker, self._process_end_of_all_marker
-            )
+        self._current_batch = self.context.batch_to_tuple_converter.process_data_payload(
+            data_element.tag, data_element.payload)
+        try:
+            while True:
+                element = next(self._current_batch)
+                match(
+                    element,
+                    Tuple, self._process_tuple,
+                    SenderChangeMarker, self._process_sender_change_marker,
+                    EndMarker, self._process_end_marker,
+                    EndOfAllMarker, self._process_end_of_all_marker
+                )
+        except StopIteration:
+            pass
 
     def _pause(self) -> None:
         """
@@ -235,7 +237,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
             self.context.state_manager.transit_to(WorkerState.PAUSED)
             self._input_queue.disable_sub()
 
-    def _resume(self, retry=False) -> None:
+    def _resume(self) -> None:
         """
         Resume the data processing.
         """
@@ -245,5 +247,3 @@ class DataProcessor(StoppableQueueBlockingRunnable):
                 self.context.pause_manager.resume()
                 self.context.input_queue.enable_sub()
             self.context.state_manager.transit_to(WorkerState.RUNNING)
-
-        self.retry = retry

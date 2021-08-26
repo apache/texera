@@ -1,6 +1,7 @@
+import itertools
+
 from core.architecture.handlers.handler_base import Handler
 from core.architecture.managers.context import Context
-
 from proto.edu.uci.ics.amber.engine.architecture.worker import RetryPythonV2
 
 
@@ -8,6 +9,7 @@ class RetryPythonHandler(Handler):
     cmd = RetryPythonV2
 
     def __call__(self, context: Context, command: cmd, *args, **kwargs):
-        context.dp._resume(retry=True)
+        context.dp._current_batch = itertools.chain([context.dp._current_input_tuple], context.dp._current_batch)
+        context.dp._resume()
         state = context.state_manager.get_current_state()
         return state
