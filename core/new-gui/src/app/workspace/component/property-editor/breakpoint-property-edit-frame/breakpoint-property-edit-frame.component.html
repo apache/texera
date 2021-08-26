@@ -11,12 +11,12 @@
   </formly-form>
 </form>
 
-<button (click)="handleAddBreakpoint()" *ngIf="currentLinkID !== undefined && !hasBreakpoint()"
+<button (click)="handleAddBreakpoint()" *ngIf="currentLinkId !== undefined && !hasBreakpoint()"
         class="breakpointRemoveButton"
         type="button">Add Breakpoint
 </button>
 
-<button (click)="handleRemoveBreakpoint()" *ngIf="currentLinkID !== undefined && hasBreakpoint()"
+<button (click)="handleRemoveBreakpoint()" *ngIf="currentLinkId !== undefined && hasBreakpoint()"
         class="breakpointRemoveButton"
         type="button">Remove Breakpoint
 </button>

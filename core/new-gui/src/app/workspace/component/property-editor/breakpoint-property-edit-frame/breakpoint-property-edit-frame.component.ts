@@ -21,7 +21,7 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy, 
   subscriptions = new Subscription();
 
   // the linkID if the component is displaying breakpoint editor
-  @Input() currentLinkID: string | undefined;
+  @Input() currentLinkId: string | undefined;
 
   // whether the editor can be edited
   interactive: boolean = true;
@@ -48,9 +48,9 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy, 
   ) { }
 
   ngOnChanges(changes: import('@angular/core').SimpleChanges): void {
-    this.currentLinkID = changes.currentLinkID?.currentValue;
-    if (this.currentLinkID) {
-      this.showBreakpointEditor(this.currentLinkID);
+    this.currentLinkId = changes.currentLinkID?.currentValue;
+    if (this.currentLinkId) {
+      this.showBreakpointEditor(this.currentLinkId);
     }
 
   }
@@ -78,18 +78,18 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy, 
   }
 
   public hasBreakpoint(): boolean {
-    if (!this.currentLinkID) {
+    if (!this.currentLinkId) {
       return false;
     }
-    return this.workflowActionService.getTexeraGraph().getLinkBreakpoint(this.currentLinkID) !== undefined;
+    return this.workflowActionService.getTexeraGraph().getLinkBreakpoint(this.currentLinkId) !== undefined;
   }
 
   public handleAddBreakpoint() {
-    if (this.currentLinkID && this.workflowActionService.getTexeraGraph().hasLinkWithID(this.currentLinkID)) {
-      this.workflowActionService.setLinkBreakpoint(this.currentLinkID, this.formData);
+    if (this.currentLinkId && this.workflowActionService.getTexeraGraph().hasLinkWithID(this.currentLinkId)) {
+      this.workflowActionService.setLinkBreakpoint(this.currentLinkId, this.formData);
       if (this.executeWorkflowService.getExecutionState().state === ExecutionState.Paused ||
         this.executeWorkflowService.getExecutionState().state === ExecutionState.BreakpointTriggered) {
-        this.executeWorkflowService.addBreakpointRuntime(this.currentLinkID, this.formData);
+        this.executeWorkflowService.addBreakpointRuntime(this.currentLinkId, this.formData);
       }
     }
   }
@@ -100,10 +100,10 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy, 
    * Then unhighlight the link and remove it from the workflow.
    */
   public handleRemoveBreakpoint() {
-    if (this.currentLinkID) {
+    if (this.currentLinkId) {
       // remove breakpoint in texera workflow first, then unhighlight it
-      this.workflowActionService.removeLinkBreakpoint(this.currentLinkID);
-      this.workflowActionService.getJointGraphWrapper().unhighlightLinks(this.currentLinkID);
+      this.workflowActionService.removeLinkBreakpoint(this.currentLinkId);
+      this.workflowActionService.getJointGraphWrapper().unhighlightLinks(this.currentLinkId);
     }
     this.clearPropertyEditor();
   }
@@ -113,7 +113,7 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy, 
       throw new Error(`change property editor: link does not exist`);
     }
     // set the operator data needed
-    this.currentLinkID = linkID;
+    this.currentLinkId = linkID;
     const breakpointSchema = this.autocompleteService.getDynamicBreakpointSchema(linkID).jsonSchema;
 
     this.formTitle = 'Breakpoint';
@@ -171,7 +171,7 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy, 
    * Hides the form and clears all the data of the current the property editor
    */
   clearPropertyEditor(): void {
-    this.currentLinkID = undefined;
+    this.currentLinkId = undefined;
     this.formlyFormGroup = undefined;
     this.formData = undefined;
     this.formlyFields = undefined;
@@ -190,11 +190,11 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy, 
 
   checkBreakpoint(formData: object): boolean {
     // check if the component is displaying breakpoint
-    if (!this.currentLinkID) {
+    if (!this.currentLinkId) {
       return false;
     }
     // check if the link still exists
-    const link = this.workflowActionService.getTexeraGraph().getLinkWithID(this.currentLinkID);
+    const link = this.workflowActionService.getTexeraGraph().getLinkWithID(this.currentLinkId);
     if (!link) {
       return false;
     }
@@ -211,8 +211,8 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy, 
    */
   registerOperatorPropertyChangeHandler(): void {
     this.subscriptions.add(this.workflowActionService.getTexeraGraph().getBreakpointChangeStream()
-      .filter(_ => this.currentLinkID !== undefined)
-      .filter(event => event.linkID === this.currentLinkID)
+      .filter(_ => this.currentLinkId !== undefined)
+      .filter(event => event.linkID === this.currentLinkId)
       .filter(event => !isEqual(this.formData, this.workflowActionService.getTexeraGraph().getLinkBreakpoint(event.linkID)))
       .subscribe(event => this.formData = cloneDeep(this.workflowActionService.getTexeraGraph().getLinkBreakpoint(event.linkID))));
   }

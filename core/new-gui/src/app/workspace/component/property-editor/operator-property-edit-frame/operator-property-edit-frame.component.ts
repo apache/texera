@@ -14,8 +14,12 @@ import { ExecutionState } from 'src/app/workspace/types/execute-workflow.interfa
 import { DynamicSchemaService } from '../../../service/dynamic-schema/dynamic-schema.service';
 import { SchemaAttribute, SchemaPropagationService } from '../../../service/dynamic-schema/schema-propagation/schema-propagation.service';
 import { setChildTypeDependency, setHideExpression } from 'src/app/common/formly/formly-utils';
-import { TypeCastingDisplayComponent } from '../typecasting-display/type-casting-display.component';
+import { TYPE_CASTING_OPERATOR_TYPE, TypeCastingDisplayComponent } from '../typecasting-display/type-casting-display.component';
 import { Subscription } from 'rxjs';
+import { ComponentType } from '@angular/cdk/overlay';
+
+export type PropertyDisplayComponent = ComponentType<TypeCastingDisplayComponent>;
+export type PropertyDisplayComponentInput = Readonly<{ currentOperatorId: string }>;
 
 @Component({
   selector: 'texera-formly-form-frame',
@@ -76,8 +80,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy, On
   }
 
 
-  switchDisplayComponent(targetComponent: any, inputs: any) {
-    if (this.extraDisplayComponent === targetComponent) {
+  switchDisplayComponent(targetComponent: PropertyDisplayComponent | undefined, inputs: PropertyDisplayComponentInput | undefined) {
+    if (this.extraDisplayComponent === targetComponent && this.extraDisplayComponentInputs === inputs) {
       return;
     }
     this.extraDisplayComponentInputs = inputs;
@@ -170,10 +174,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy, On
     // manually trigger a form change event because default value might be filled in
     this.onFormChanges(this.formData);
 
-    // OPTIMIZE: find a better way to do this mapping
-    if (this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType.toLowerCase()
-      .includes('typecasting')) {
-      this.switchDisplayComponent(TypeCastingDisplayComponent, { operatorID: this.currentOperatorId });
+    if (this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType
+      .includes(TYPE_CASTING_OPERATOR_TYPE)) {
+      this.switchDisplayComponent(TypeCastingDisplayComponent, { currentOperatorId: this.currentOperatorId });
     } else {
       this.switchDisplayComponent(undefined, undefined);
     }

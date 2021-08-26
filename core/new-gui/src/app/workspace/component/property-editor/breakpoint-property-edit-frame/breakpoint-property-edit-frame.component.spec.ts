@@ -151,7 +151,7 @@ describe('BreakpointPropertyEditFrameComponent', () => {
 
       buttonState.triggerEventHandler('click', null);
       fixture.detectChanges();
-      expect(component.currentLinkID).toBeUndefined();
+      expect(component.currentLinkId).toBeUndefined();
       // check HTML form are not displayed
       const formTitleElement = fixture.debugElement.query(By.css('.texera-workspace-property-editor-title'));
       const jsonSchemaFormElement = fixture.debugElement.query(By.css('.texera-workspace-property-editor-form'));

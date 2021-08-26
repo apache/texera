@@ -5,6 +5,11 @@ import { WorkflowActionService } from '../../service/workflow-graph/model/workfl
 import { OperatorPropertyEditFrameComponent } from './operator-property-edit-frame/operator-property-edit-frame.component';
 import { BreakpointPropertyEditFrameComponent } from './breakpoint-property-edit-frame/breakpoint-property-edit-frame.component';
 import { Subscription } from 'rxjs';
+import { ComponentType } from '@angular/cdk/overlay';
+
+export type PropertyEditFrameComponent = ComponentType<OperatorPropertyEditFrameComponent | BreakpointPropertyEditFrameComponent>;
+
+export type PropertyEditFrameComponentInput = Readonly<{ currentOperatorId: string } | { currentLinkId: string; }>;
 
 /**
  * PropertyEditorComponent is the panel that allows user to edit operator properties.
@@ -52,7 +57,7 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
     this.registerHighlightEventsHandler();
   }
 
-  switchFrameComponent(targetComponent: any, inputs: object | undefined) {
+  switchFrameComponent(targetComponent: PropertyEditFrameComponent | undefined, inputs: PropertyEditFrameComponentInput | undefined) {
     if (this.frameComponent === targetComponent && this.frameComponentInputs === inputs) {
       return;
     }
@@ -84,7 +89,7 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
       if (highlightedOperators.length === 1 && highlightedGroups.length === 0 && highlightLinks.length === 0) {
         this.switchFrameComponent(OperatorPropertyEditFrameComponent, { currentOperatorId: highlightedOperators[0] });
       } else if (highlightLinks.length === 1 && highlightedGroups.length === 0 && highlightedOperators.length === 0) {
-        this.switchFrameComponent(BreakpointPropertyEditFrameComponent, { currentLinkID: highlightLinks[0] });
+        this.switchFrameComponent(BreakpointPropertyEditFrameComponent, { currentLinkId: highlightLinks[0] });
       } else {
         this.switchFrameComponent(undefined, undefined);
       }

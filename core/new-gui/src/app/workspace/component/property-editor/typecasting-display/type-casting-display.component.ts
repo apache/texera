@@ -15,16 +15,14 @@ export const TYPE_CASTING_OPERATOR_TYPE = 'TypeCasting';
   templateUrl: './type-casting-display.component.html',
   styleUrls: ['./type-casting-display.component.scss']
 })
-
-
 export class TypeCastingDisplayComponent implements OnInit, OnDestroy, OnChanges {
 
-  public schemaToDisplay: Partial<SchemaAttribute>[] = [];
-  public columnNamesToDisplay: string[] = ['attributeName', 'attributeType'];
-  public displayTypeCastingSchemaInformation: boolean = false;
-  subscriptions = new Subscription();
+  @Input() currentOperatorId: string | undefined;
 
-  @Input() operatorID: string | undefined;
+  schemaToDisplay: Partial<SchemaAttribute>[] = [];
+  columnNamesToDisplay: string[] = ['attributeName', 'attributeType'];
+  displayTypeCastingSchemaInformation: boolean = false;
+  subscriptions = new Subscription();
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -42,11 +40,11 @@ export class TypeCastingDisplayComponent implements OnInit, OnDestroy, OnChanges
 
   // invoke on first init and every time the input binding is changed
   ngOnChanges(): void {
-    if (!this.operatorID) {
+    if (!this.currentOperatorId) {
       this.displayTypeCastingSchemaInformation = false;
       return;
     }
-    const op = this.workflowActionService.getTexeraGraph().getOperator(this.operatorID);
+    const op = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
     if (op.operatorType !== TYPE_CASTING_OPERATOR_TYPE) {
       this.displayTypeCastingSchemaInformation = false;
       return;
@@ -57,7 +55,7 @@ export class TypeCastingDisplayComponent implements OnInit, OnDestroy, OnChanges
 
   registerTypeCastingPropertyChangeHandler(): void {
     this.subscriptions.add(this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream()
-      .filter(op => op.operator.operatorID === this.operatorID)
+      .filter(op => op.operator.operatorID === this.currentOperatorId)
       .filter(op => op.operator.operatorType === TYPE_CASTING_OPERATOR_TYPE)
       .map(event => event.operator)
       .subscribe(op => {
@@ -65,13 +63,13 @@ export class TypeCastingDisplayComponent implements OnInit, OnDestroy, OnChanges
       }));
   }
 
-  private updateComponent(op: OperatorPredicate): void {
+  updateComponent(op: OperatorPredicate): void {
 
-    if (!this.operatorID) {
+    if (!this.currentOperatorId) {
       return;
     }
     this.schemaToDisplay = [];
-    const inputSchema = this.schemaPropagationService.getOperatorInputSchema(this.operatorID);
+    const inputSchema = this.schemaPropagationService.getOperatorInputSchema(this.currentOperatorId);
 
     const castTypeMap = op.operatorProperties['typeCastingUnits']
       .reduce((map: { [x: string]: any; }, castTo: { attribute: string; resultType: string; }) =>
