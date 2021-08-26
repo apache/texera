@@ -16,3 +16,4 @@ class RetryPythonHandler(Handler):
                 [context.dp._current_input_tuple],
                 context.dp._current_input_tuple_iter
             )
+        return None
