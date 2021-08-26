@@ -1,10 +1,7 @@
 <div class='texera-navigation-body'>
   <div class='texera-navigation-padded'>
-    <div class='texera-navigation-title' [ngClass]="{'user-system-enabled': userSystemEnabled}">
-      <a href="#">
-        Texera
-      </a>
-    </div>
+     <img [ngClass]="{'user-system-enabled': userSystemEnabled}" alt="Texera" class='texera-navigation-title'
+           src="assets/logos/full_logo_small.png"/>
 
     <!-- workflow metadata display -->
     <div *ngIf="userSystemEnabled" class="texera-navigation-workflow-metadata">
