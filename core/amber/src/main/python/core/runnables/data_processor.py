@@ -225,8 +225,8 @@ class DataProcessor(StoppableQueueBlockingRunnable):
             try:
                 element = next(self._current_input_tuple_iter)
             except StopIteration:
-                # StopIteration is the standard way for an iterator to end, we handle it and terminate
-                # the loop.
+                # StopIteration is the standard way for an iterator to end, we handle
+                # it and terminate the loop.
                 break
             match(
                 element,
