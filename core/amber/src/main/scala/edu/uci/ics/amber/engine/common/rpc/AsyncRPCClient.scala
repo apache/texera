@@ -76,8 +76,10 @@ class AsyncRPCClient(controlOutputPort: ControlOutputPort, val actorId: ActorVir
       val p = unfulfilledPromises(ret.originalCommandID)
 
       ret.controlReturn match {
-        case error: Throwable => p.setException(error)
-
+        case error: Throwable =>
+          p.setException(error)
+          logger.error(s"receive Exception as reply of Control ${ret.originalCommandID}", error)
+          error.printStackTrace()
         case ControlException(msg) =>
           p.setException(new RuntimeException(msg))
 

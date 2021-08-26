@@ -48,14 +48,8 @@ object WorkflowCompiler {
 }
 
 class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowContext) {
-
   val workflow = new WorkflowDAG(workflowInfo)
-
-  init()
-
-  def init(): Unit = {
-    this.workflowInfo.operators.foreach(initOperator)
-  }
+  workflow.operators.values.foreach(initOperator)
 
   def initOperator(operator: OperatorDescriptor): Unit = {
     operator.setContext(context)

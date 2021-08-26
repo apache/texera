@@ -10,8 +10,10 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryAndRemoveBreakpointsHandler.QueryAndRemoveBreakpoints
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 
+import scala.collection.convert.ImplicitConversions.`collection asJava`
 import scala.collection.mutable
 
 object LocalBreakpointTriggeredHandler {
@@ -54,11 +56,20 @@ trait LocalBreakpointTriggeredHandler {
         }
         // first pause the workers, then get their local breakpoints
         Future
-          .collect(targetOp.getAllWorkers.map { worker =>
-            send(PauseWorker(), worker).flatMap { ret =>
-              send(QueryAndRemoveBreakpoints(unResolved), worker)
-            }
-          }.toSeq)
+          .collect(
+            targetOp.getAllWorkers
+              .filter(worker => {
+                targetOp.attachedBreakpoints.values
+                  .flatMap(gbp => gbp.assignedWorkers)
+                  .contains(worker)
+              })
+              .map { worker =>
+                send(PauseWorker(), worker).flatMap { ret =>
+                  send(QueryAndRemoveBreakpoints(unResolved), worker)
+                }
+              }
+              .toSeq
+          )
           .flatMap { bps =>
             // collect and handle breakpoints
             val collectedGlobalBreakpoints = bps.flatten
@@ -84,15 +95,18 @@ trait LocalBreakpointTriggeredHandler {
                   }
                   .toSeq
               )
-              .flatMap { ret =>
+              .flatMap { workersAssignedBreakpoint: Seq[List[ActorVirtualIdentity]] =>
                 // report triggered breakpoints
                 val triggeredBreakpoints = collectedGlobalBreakpoints.filter(_.isTriggered)
                 if (triggeredBreakpoints.isEmpty) {
-                  // if no triggered breakpoints, resume the current operator
+                  // if no triggered breakpoints, resume the workers of the current operator who has breakpoint assigned
                   Future
-                    .collect(targetOp.getAllWorkers.map { worker =>
-                      send(ResumeWorker(), worker)
-                    }.toSeq)
+                    .collect(
+                      targetOp.getAllWorkers
+                        .filter(worker => workersAssignedBreakpoint.flatten.contains(worker))
+                        .map { worker => send(ResumeWorker(), worker) }
+                        .toSeq
+                    )
                     .map { _ => {} }
                 } else {
                   // other wise, report to frontend and pause entire workflow

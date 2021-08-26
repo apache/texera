@@ -60,6 +60,8 @@ class AsyncRPCServer(controlOutputPort: ControlOutputPort, val actorId: ActorVir
           returnResult(senderID, control.commandID, ret)
         }
         .onFailure { err =>
+          logger.error("Exception occurred", err)
+          err.printStackTrace()
           returnResult(senderID, control.commandID, err)
         }
 

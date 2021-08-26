@@ -1,11 +1,9 @@
 package edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint
-import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.{
-  CountLocalBreakpoint,
-  LocalBreakpoint
-}
+import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.{CountLocalBreakpoint, LocalBreakpoint}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 import scala.collection.mutable.ArrayBuffer
+import scala.util.control.Breaks.{break, breakable}
 
 class CountGlobalBreakpoint(id: String, val target: Long)
     extends GlobalBreakpoint[CountLocalBreakpoint](id) {
@@ -17,19 +15,24 @@ class CountGlobalBreakpoint(id: String, val target: Long)
   ): Array[(ActorVirtualIdentity, LocalBreakpoint)] = {
     val remaining = target - current
     var currentSum = 0L
-    val length = workers.length
+    val workerNum = workers.length
     var i = 0
-    val ret = ArrayBuffer[(ActorVirtualIdentity, LocalBreakpoint)]()
-    while (i < length) {
-      if (remaining / length > 0) {
-        ret.append((workers(i), new CountLocalBreakpoint(id, version, remaining / length)))
-        currentSum += remaining / length
-      } else {
-        ret.append((workers(i), new CountLocalBreakpoint(id, version, remaining - currentSum)))
+    val assigned = ArrayBuffer[(ActorVirtualIdentity, LocalBreakpoint)]()
+    breakable{
+      while (i < workerNum) {
+        if (remaining / workerNum > 0) {
+          assigned.append((workers(i), new CountLocalBreakpoint(id, version, remaining / workerNum)))
+          currentSum += remaining / workerNum
+        } else {
+          assigned.append((workers(i), new CountLocalBreakpoint(id, version, remaining - currentSum)))
+          break
+        }
+        i += 1
       }
-      i += 1
     }
-    ret.toArray
+    // assign it to GBP
+    assignedWorkers = assigned.map({case (workerId, _) => workerId}).toArray
+    assigned.toArray
   }
 
   override def collect(results: Iterable[CountLocalBreakpoint]): Unit = {

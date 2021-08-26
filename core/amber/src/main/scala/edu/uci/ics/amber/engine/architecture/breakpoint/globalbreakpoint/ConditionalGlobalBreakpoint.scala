@@ -15,6 +15,7 @@ class ConditionalGlobalBreakpoint(id: String, val predicate: ITuple => Boolean)
   override def partition(
       workers: Array[ActorVirtualIdentity]
   ): Array[(ActorVirtualIdentity, LocalBreakpoint)] = {
+    assignedWorkers = workers
     workers.map(v => (v, new ConditionalLocalBreakpoint(id, version, predicate)))
   }
 
