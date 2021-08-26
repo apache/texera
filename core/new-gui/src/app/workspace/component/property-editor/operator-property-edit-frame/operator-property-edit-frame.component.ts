@@ -1,5 +1,5 @@
-import { Component, Input, OnChanges, OnDestroy, OnInit } from '@angular/core';
-import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from '../../../service/execute-workflow/execute-workflow.service';
+import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
+import { ExecuteWorkflowService } from '../../../service/execute-workflow/execute-workflow.service';
 import { Subject } from 'rxjs/Subject';
 import { FormGroup } from '@angular/forms';
 import { FormlyFieldConfig, FormlyFormOptions } from '@ngx-formly/core';
@@ -7,31 +7,45 @@ import * as Ajv from 'ajv';
 import { FormlyJsonschema } from '@ngx-formly/core/json-schema';
 import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
 import { cloneDeep, isEqual } from 'lodash';
-import { Observable } from 'rxjs/Observable';
 import { CustomJSONSchema7 } from '../../../types/custom-json-schema.interface';
 import { isDefined } from '../../../../common/util/predicate';
 import { ExecutionState } from 'src/app/workspace/types/execute-workflow.interface';
 import { DynamicSchemaService } from '../../../service/dynamic-schema/dynamic-schema.service';
 import { SchemaAttribute, SchemaPropagationService } from '../../../service/dynamic-schema/schema-propagation/schema-propagation.service';
-import { setChildTypeDependency, setHideExpression } from 'src/app/common/formly/formly-utils';
+import { createOutputFormChangeEventStream, setChildTypeDependency, setHideExpression } from 'src/app/common/formly/formly-utils';
 import { TYPE_CASTING_OPERATOR_TYPE, TypeCastingDisplayComponent } from '../typecasting-display/type-casting-display.component';
 import { Subscription } from 'rxjs';
 import { DynamicComponentConfig } from '../../../../common/type/dynamic-component-config';
-
 
 export type PropertyDisplayComponent = TypeCastingDisplayComponent;
 
 export type PropertyDisplayComponentConfig = DynamicComponentConfig<PropertyDisplayComponent>;
 
+/**
+ * Property Editor uses JSON Schema to automatically generate the form from the JSON Schema of an operator.
+ * For example, the JSON Schema of Sentiment Analysis could be:
+ *  'properties': {
+ *    'attribute': { 'type': 'string' },
+ *    'resultAttribute': { 'type': 'string' }
+ *  }
+ * The automatically generated form will show two input boxes, one titled 'attribute' and one titled 'resultAttribute'.
+ * More examples of the operator JSON schema can be found in `mock-operator-metadata.data.ts`
+ * More about JSON Schema: Understanding JSON Schema - https://spacetelescope.github.io/understanding-json-schema/
+ *
+ * OperatorMetadataService will fetch metadata about the operators, which includes the JSON Schema, from the backend.
+ *
+ * We use library `@ngx-formly` to generate form from json schema
+ * https://github.com/ngx-formly/ngx-formly
+ */
 @Component({
   selector: 'texera-formly-form-frame',
   templateUrl: './operator-property-edit-frame.component.html',
   styleUrls: ['./operator-property-edit-frame.component.scss']
 })
 export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy, OnChanges {
-  @Input() currentOperatorId: string | undefined = undefined;
-
   subscriptions = new Subscription();
+
+  @Input() currentOperatorId: string | undefined = undefined;
 
   // re-declare enum for angular template to access it
   readonly ExecutionState = ExecutionState;
@@ -43,7 +57,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy, On
   sourceFormChangeEventStream = new Subject<object>();
 
   // the output form change event stream after debounce time and filtering out values
-  operatorPropertyChangeStream = this.createOutputFormChangeEventStream(
+  operatorPropertyChangeStream = createOutputFormChangeEventStream(
     this.sourceFormChangeEventStream, data => this.checkOperatorProperty(data));
 
 
@@ -68,7 +82,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy, On
     private schemaPropagationService: SchemaPropagationService
   ) { }
 
-  ngOnChanges(changes: import('@angular/core').SimpleChanges): void {
+  ngOnChanges(changes: SimpleChanges): void {
     this.currentOperatorId = changes.currentOperatorId?.currentValue;
     if (!this.currentOperatorId) {
       return;
@@ -88,36 +102,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy, On
     }
 
     this.extraDisplayComponentConfig = targetConfig;
-  }
-
-  /**
-   * Handles the form change event stream observable,
-   *  which corresponds to every event the json schema form library emits.
-   *
-   * Applies rules that transform the event stream to trigger reasonably and less frequently,
-   *  such as debounce time and distinct condition.
-   *
-   * Then modifies the operator property to use the new form data.
-   */
-  createOutputFormChangeEventStream(
-    formChangeEvent: Observable<object>,
-    modelCheck: (formData: object) => boolean
-  ): Observable<object> {
-
-    return formChangeEvent
-      // set a debounce time to avoid events triggering too often
-      //  and to circumvent a bug of the library - each action triggers event twice
-      .debounceTime(FORM_DEBOUNCE_TIME_MS)
-      // .do(evt => console.log(evt))
-      // don't emit the event until the data is changed
-      .distinctUntilChanged()
-      // .do(evt => console.log(evt))
-      // don't emit the event if form data is same with current actual data
-      // also check for other unlikely circumstances (see below)
-      .filter(formData => modelCheck(formData))
-      // share() because the original observable is a hot observable
-      .share();
-
   }
 
   ngOnInit(): void {

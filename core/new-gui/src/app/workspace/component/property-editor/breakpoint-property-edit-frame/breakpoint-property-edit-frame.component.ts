@@ -1,17 +1,34 @@
-import { Component, Input, OnChanges, OnDestroy, OnInit } from '@angular/core';
+import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
 import { cloneDeep, isEqual } from 'lodash';
-import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from '../../../service/execute-workflow/execute-workflow.service';
+import { ExecuteWorkflowService } from '../../../service/execute-workflow/execute-workflow.service';
 import { DynamicSchemaService } from '../../../service/dynamic-schema/dynamic-schema.service';
 import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
 import { FormlyJsonschema } from '@ngx-formly/core/json-schema';
 import { ExecutionState } from 'src/app/workspace/types/execute-workflow.interface';
 import { FormGroup } from '@angular/forms';
 import { Subject } from 'rxjs/Subject';
-import { Observable } from 'rxjs/Observable';
 import { FormlyFieldConfig, FormlyFormOptions } from '@ngx-formly/core';
 import { CustomJSONSchema7 } from '../../../types/custom-json-schema.interface';
 import { Subscription } from 'rxjs';
+import { createOutputFormChangeEventStream } from 'src/app/common/formly/formly-utils';
 
+
+/**
+ * Property Editor uses JSON Schema to automatically generate the form from the JSON Schema of an operator.
+ * For example, the JSON Schema of Sentiment Analysis could be:
+ *  'properties': {
+ *    'attribute': { 'type': 'string' },
+ *    'resultAttribute': { 'type': 'string' }
+ *  }
+ * The automatically generated form will show two input boxes, one titled 'attribute' and one titled 'resultAttribute'.
+ * More examples of the operator JSON schema can be found in `mock-operator-metadata.data.ts`
+ * More about JSON Schema: Understanding JSON Schema - https://spacetelescope.github.io/understanding-json-schema/
+ *
+ * OperatorMetadataService will fetch metadata about the operators, which includes the JSON Schema, from the backend.
+ *
+ * We use library `@ngx-formly` to generate form from json schema
+ * https://github.com/ngx-formly/ngx-formly
+ */
 @Component({
   selector: 'texera-breakpoint-frame',
   templateUrl: './breakpoint-property-edit-frame.component.html',
@@ -20,7 +37,6 @@ import { Subscription } from 'rxjs';
 export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy, OnChanges {
   subscriptions = new Subscription();
 
-  // the linkID if the component is displaying breakpoint editor
   @Input() currentLinkId: string | undefined;
 
   // whether the editor can be edited
@@ -29,7 +45,7 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy, 
   // the source event stream of form change triggered by library at each user input
   sourceFormChangeEventStream = new Subject<object>();
 
-  breakpointChangeStream = this.createOutputFormChangeEventStream(
+  breakpointChangeStream = createOutputFormChangeEventStream(
     this.sourceFormChangeEventStream, data => this.checkBreakpoint(data));
 
   // inputs and two-way bindings to formly component
@@ -39,7 +55,6 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy, 
   formlyFields: FormlyFieldConfig[] | undefined;
   formTitle: string | undefined;
 
-
   constructor(
     private formlyJsonschema: FormlyJsonschema,
     private workflowActionService: WorkflowActionService,
@@ -47,7 +62,7 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy, 
     private executeWorkflowService: ExecuteWorkflowService
   ) { }
 
-  ngOnChanges(changes: import('@angular/core').SimpleChanges): void {
+  ngOnChanges(changes: SimpleChanges): void {
     this.currentLinkId = changes.currentLinkId?.currentValue;
     if (this.currentLinkId) {
       this.showBreakpointEditor(this.currentLinkId);
@@ -74,17 +89,17 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy, 
    * This method handles the form change event
    */
   registerOnFormChangeHandler(): void {
-    // TODO: handle change
+    // currently do nothing upon change, the change is confirmed with the `Add Breakpoint` button
   }
 
-  public hasBreakpoint(): boolean {
+  hasBreakpoint(): boolean {
     if (!this.currentLinkId) {
       return false;
     }
     return this.workflowActionService.getTexeraGraph().getLinkBreakpoint(this.currentLinkId) !== undefined;
   }
 
-  public handleAddBreakpoint() {
+  handleAddBreakpoint() {
     if (this.currentLinkId && this.workflowActionService.getTexeraGraph().hasLinkWithID(this.currentLinkId)) {
       this.workflowActionService.setLinkBreakpoint(this.currentLinkId, this.formData);
       if (this.executeWorkflowService.getExecutionState().state === ExecutionState.Paused ||
@@ -99,7 +114,7 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy, 
    * It will hide the property editor, clean up currentBreakpointInitialData.
    * Then unhighlight the link and remove it from the workflow.
    */
-  public handleRemoveBreakpoint() {
+  handleRemoveBreakpoint() {
     if (this.currentLinkId) {
       // remove breakpoint in texera workflow first, then unhighlight it
       this.workflowActionService.removeLinkBreakpoint(this.currentLinkId);
@@ -108,7 +123,7 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy, 
     this.clearPropertyEditor();
   }
 
-  public showBreakpointEditor(linkID: string): void {
+  showBreakpointEditor(linkID: string): void {
     if (!this.workflowActionService.getTexeraGraph().hasLinkWithID(linkID)) {
       throw new Error(`change property editor: link does not exist`);
     }
@@ -126,37 +141,7 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy, 
     this.setInteractivity(interactive);
   }
 
-  /**
-   * Handles the form change event stream observable,
-   *  which corresponds to every event the json schema form library emits.
-   *
-   * Applies rules that transform the event stream to trigger reasonably and less frequently,
-   *  such as debounce time and distinct condition.
-   *
-   * Then modifies the operator property to use the new form data.
-   */
-  public createOutputFormChangeEventStream(
-    formChangeEvent: Observable<object>,
-    modelCheck: (formData: object) => boolean
-  ): Observable<object> {
-
-    return formChangeEvent
-      // set a debounce time to avoid events triggering too often
-      //  and to circumvent a bug of the library - each action triggers event twice
-      .debounceTime(FORM_DEBOUNCE_TIME_MS)
-      // .do(evt => console.log(evt))
-      // don't emit the event until the data is changed
-      .distinctUntilChanged()
-      // .do(evt => console.log(evt))
-      // don't emit the event if form data is same with current actual data
-      // also check for other unlikely circumstances (see below)
-      .filter(formData => modelCheck(formData))
-      // share() because the original observable is a hot observable
-      .share();
-
-  }
-
-  public setInteractivity(interactive: boolean) {
+  setInteractivity(interactive: boolean) {
     this.interactive = interactive;
     if (this.formlyFormGroup !== undefined) {
       if (this.interactive) {
@@ -217,7 +202,7 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy, 
       .subscribe(event => this.formData = cloneDeep(this.workflowActionService.getTexeraGraph().getLinkBreakpoint(event.linkID))));
   }
 
-  private setFormlyFormBinding(schema: CustomJSONSchema7) {
+  setFormlyFormBinding(schema: CustomJSONSchema7) {
     // intercept JsonSchema -> FormlySchema process, adding custom options
     // this requires a one-to-one mapping.
     // for relational custom options, have to do it after FormlySchema is generated.

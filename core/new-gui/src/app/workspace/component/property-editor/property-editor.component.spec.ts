@@ -18,7 +18,7 @@ import { OperatorMetadataService } from '../../service/operator-metadata/operato
 import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
 
 
-fdescribe('PropertyEditorComponent', () => {
+describe('PropertyEditorComponent', () => {
   let component: PropertyEditorComponent;
   let fixture: ComponentFixture<PropertyEditorComponent>;
   let workflowActionService: WorkflowActionService;
@@ -50,7 +50,7 @@ fdescribe('PropertyEditorComponent', () => {
    * test if the property editor correctly receives the operator unhighlight stream
    *  and clears all the operator data, and hide the form.
    */
-  fit('should clear and hide the property editor panel correctly when no operator is highlighted', () => {
+  it('should clear and hide the property editor panel correctly when no operator is highlighted', () => {
     const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
     // add and highlight an operator
@@ -105,8 +105,6 @@ fdescribe('PropertyEditorComponent', () => {
     expect(component.frameComponentConfig?.component).toBe(OperatorPropertyEditFrameComponent);
     expect(component.frameComponentConfig?.componentInputs).toEqual({ currentOperatorId: mockScanPredicate.operatorID });
 
-
-
     // unhighlight the operator
     jointGraphWrapper.unhighlightOperators(mockScanPredicate.operatorID);
     fixture.detectChanges();
@@ -119,39 +117,6 @@ fdescribe('PropertyEditorComponent', () => {
 
     expect(component.frameComponentConfig?.component).toBe(OperatorPropertyEditFrameComponent);
     expect(component.frameComponentConfig?.componentInputs).toEqual({ currentOperatorId: mockResultPredicate.operatorID });
-
-    // // result operator has default values, use ajv to fill in default values
-    // // expected form output should fill in all default values instead of an empty object
-    // const ajv = new Ajv({ useDefaults: true });
-    // const expectedResultOperatorProperties = cloneDeep(mockResultPredicate.operatorProperties);
-    // ajv.validate(mockViewResultsSchema.jsonSchema, expectedResultOperatorProperties);
-    //
-
-    // const injectedElem = fixture.debugElement.query(
-    //   By.directive(OperatorPropertyEditFrameComponent),
-    // );
-    // fixture.detectChanges();
-    // expect(injectedElem).not.toBeNull();
-    //
-    // // check HTML form are displayed
-    // const formTitleElementAfterChange = fixture.debugElement.query(By.css('.texera-workspace-property-editor-title'));
-    // const jsonSchemaFormElementAfterChange = fixture.debugElement.query(By.css('.texera-workspace-property-editor-form'));
-    //
-    // // check the panel title
-    // expect((formTitleElementAfterChange.nativeElement as HTMLElement).innerText).toEqual(
-    //   mockViewResultsSchema.additionalMetadata.userFriendlyName);
-    //
-    // // check if the form has the all the json schema property names
-    // Object.entries(mockViewResultsSchema.jsonSchema.properties as any).forEach((entry) => {
-    //   const propertyTitle = (entry[1] as JSONSchema7).title;
-    //   if (propertyTitle) {
-    //     expect((jsonSchemaFormElementAfterChange.nativeElement as HTMLElement).innerHTML).toContain(propertyTitle);
-    //   }
-    //   const propertyDescription = (entry[1] as JSONSchema7).description;
-    //   if (propertyDescription) {
-    //     expect((jsonSchemaFormElementAfterChange.nativeElement as HTMLElement).innerHTML).toContain(propertyDescription);
-    //   }
-    // });
 
   });
 
@@ -207,110 +172,5 @@ fdescribe('PropertyEditorComponent', () => {
     expect(component.frameComponentConfig?.componentInputs).toEqual({ currentLinkId: mockSentimentResultLink.linkID });
 
   });
-
-
-// xit('should change Texera graph link-breakpoint property correctly when the breakpoint form is edited by the user', fakeAsync(() => {
-//   const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-
-//   // add a link and highlight the link so that the
-//   //  variables in property editor component is set correctly
-//   workflowActionService.addOperator(mockScanPredicate, mockPoint);
-//   workflowActionService.addOperator(mockResultPredicate, mockPoint);
-//   workflowActionService.addLink(mockScanResultLink);
-//   jointGraphWrapper.highlightLink(mockScanResultLink.linkID);
-//   fixture.detectChanges();
-
-//   // stimulate a form change by the user
-//   const formChangeValue = { attribute: 'age' };
-//   component.onFormChanges(formChangeValue);
-
-//   // maintain a counter of how many times the event is emitted
-//   let emitEventCounter = 0;
-//   component.outputBreakpointChangeEventStream.subscribe(() => emitEventCounter++);
-
-//   // fakeAsync enables tick, which waits for the set property debounce time to finish
-//   tick(PropertyEditorComponent.formInputDebounceTime + 10);
-
-//   // then get the operator, because operator is immutable, the operator before the tick
-//   //   is a different object reference from the operator after the tick
-//   const link = workflowActionService.getTexeraGraph().getLinkWithID(mockScanResultLink.linkID);
-//   if (!link) {
-//     throw new Error(`link ${mockScanResultLink.linkID} is undefined`);
-//   }
-//   expect(link.breakpointProperties).toEqual(formChangeValue);
-//   expect(emitEventCounter).toEqual(1);
-// }));
-
-
-// xit('should debounce the user breakpoint form input to avoid emitting event too frequently', marbles(m => {
-//   const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-
-//   // add a link and highlight the link so that the
-//   //  variables in property editor component is set correctly
-//   workflowActionService.addOperator(mockScanPredicate, mockPoint);
-//   workflowActionService.addOperator(mockResultPredicate, mockPoint);
-//   workflowActionService.addLink(mockScanResultLink);
-//   jointGraphWrapper.highlightLink(mockScanResultLink.linkID);
-//   fixture.detectChanges();
-
-//   // prepare the form user input event stream
-//   // simulate user types in `table` character by character
-//   const formUserInputMarbleString = '-a-b-c-d-e';
-//   const formUserInputMarbleValue = {
-//     a: { tableName: 'p' },
-//     b: { tableName: 'pr' },
-//     c: { tableName: 'pri' },
-//     d: { tableName: 'pric' },
-//     e: { tableName: 'price' },
-//   };
-//   const formUserInputEventStream = m.hot(formUserInputMarbleString, formUserInputMarbleValue);
-
-//   // prepare the expected output stream after debounce time
-//   const formChangeEventMarbleStrig =
-//     // wait for the time of last marble string starting to emit
-//     '-'.repeat(formUserInputMarbleString.length - 1) +
-//     // then wait for debounce time (each tick represents 10 ms)
-//     '-'.repeat(PropertyEditorComponent.formInputDebounceTime / 10) +
-//     'e-';
-//   const formChangeEventMarbleValue = {
-//     e: { tableName: 'price' } as object
-//   };
-//   const expectedFormChangeEventStream = m.hot(formChangeEventMarbleStrig, formChangeEventMarbleValue);
-
-//   m.bind();
-
-//   const actualFormChangeEventStream = component.createoutputBreakpointChangeEventStream(formUserInputEventStream);
-//   formUserInputEventStream.subscribe();
-
-//   m.expect(actualFormChangeEventStream).toBeObservable(expectedFormChangeEventStream);
-// }));
-
-// xit('should not emit breakpoint property change event if the new property is the same as the old property', fakeAsync(() => {
-//   const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-
-//   // add a link and highligh the link so that the
-//   //  variables in property editor component is set correctly
-//   workflowActionService.addOperator(mockScanPredicate, mockPoint);
-//   workflowActionService.addOperator(mockResultPredicate, mockPoint);
-//   workflowActionService.addLink(mockScanResultLink);
-//   const mockBreakpointProperty = { attribute: 'price'};
-//   workflowActionService.setLinkBreakpoint(mockScanResultLink.linkID, mockBreakpointProperty);
-//   jointGraphWrapper.highlightLink(mockScanResultLink.linkID);
-//   fixture.detectChanges();
-
-//   // stimulate a form change with the same property
-//   component.onFormChanges(mockBreakpointProperty);
-
-//   // maintain a counter of how many times the event is emitted
-//   let emitEventCounter = 0;
-//   component.outputBreakpointChangeEventStream.subscribe(() => emitEventCounter++);
-
-//   // fakeAsync enables tick, which waits for the set property debounce time to finish
-//   tick(PropertyEditorComponent.formInputDebounceTime + 10);
-
-//   // assert that the form change event doesn't emit any time
-//   // because the form change value is the same
-//   expect(emitEventCounter).toEqual(0);
-// }));
 });
 

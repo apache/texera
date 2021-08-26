@@ -14,11 +14,14 @@ import { FormlyModule } from '@ngx-formly/core';
 import { TEXERA_FORMLY_CONFIG } from '../../../../common/formly/formly-config';
 import { FormlyMaterialModule } from '@ngx-formly/material';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
-import { mockPoint, mockScanPredicate } from '../../../service/workflow-graph/model/mock-workflow-data';
-import { mockScanSourceSchema } from '../../../service/operator-metadata/mock-operator-metadata.data';
+import { mockPoint, mockResultPredicate, mockScanPredicate } from '../../../service/workflow-graph/model/mock-workflow-data';
+import { mockScanSourceSchema, mockViewResultsSchema } from '../../../service/operator-metadata/mock-operator-metadata.data';
 import { JSONSchema7 } from 'json-schema';
 import { configure } from 'rxjs-marbles';
 import { SimpleChange } from '@angular/core';
+import { cloneDeep } from 'lodash';
+
+import * as Ajv from 'ajv';
 
 const { marbles } = configure({ run: false });
 describe('OperatorPropertyEditFrameComponent', () => {
@@ -211,5 +214,21 @@ describe('OperatorPropertyEditFrameComponent', () => {
     expect(emitEventCounter).toEqual(0);
 
   }));
+
+  it('should change operator to default values', () => {
+    // result operator has default values, use ajv to fill in default values
+    // expected form output should fill in all default values instead of an empty object
+    workflowActionService.addOperator(mockResultPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, mockResultPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const ajv = new Ajv({ useDefaults: true });
+    const expectedResultOperatorProperties = cloneDeep(mockResultPredicate.operatorProperties);
+    ajv.validate(mockViewResultsSchema.jsonSchema, expectedResultOperatorProperties);
+
+    expect(component.formData).toEqual(expectedResultOperatorProperties);
+
+  });
 
 });

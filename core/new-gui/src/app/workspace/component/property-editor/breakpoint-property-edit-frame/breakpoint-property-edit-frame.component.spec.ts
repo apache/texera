@@ -82,7 +82,7 @@ describe('BreakpointPropertyEditFrameComponent', () => {
       workflowActionService.addLink(mockScanResultLink);
 
       component.ngOnChanges({
-        currentLinkID: new SimpleChange(undefined, mockScanResultLink.linkID, true),
+        currentLinkId: new SimpleChange(undefined, mockScanResultLink.linkID, true),
       });
 
       fixture.detectChanges();
@@ -110,7 +110,7 @@ describe('BreakpointPropertyEditFrameComponent', () => {
       workflowActionService.addLink(mockScanResultLink);
 
       component.ngOnChanges({
-        currentLinkID: new SimpleChange(undefined, mockScanResultLink.linkID, true),
+        currentLinkId: new SimpleChange(undefined, mockScanResultLink.linkID, true),
       });
       fixture.detectChanges();
 
@@ -136,7 +136,7 @@ describe('BreakpointPropertyEditFrameComponent', () => {
       workflowActionService.addLink(mockScanResultLink);
 
       component.ngOnChanges({
-        currentLinkID: new SimpleChange(undefined, mockScanResultLink.linkID, true),
+        currentLinkId: new SimpleChange(undefined, mockScanResultLink.linkID, true),
       });
       fixture.detectChanges();
 
@@ -168,7 +168,7 @@ describe('BreakpointPropertyEditFrameComponent', () => {
       workflowActionService.addLink(mockScanResultLink);
 
       component.ngOnChanges({
-        currentLinkID: new SimpleChange(undefined, mockScanResultLink.linkID, true),
+        currentLinkId: new SimpleChange(undefined, mockScanResultLink.linkID, true),
       });
       fixture.detectChanges();
 
