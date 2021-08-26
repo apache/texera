@@ -35,8 +35,8 @@ class MongoOpResultStorage extends OpResultStorage {
     val documents = new util.LinkedList[Document]()
     records.foreach(record => {
       val hashMap = new util.HashMap[String, Object]()
-      hashMap.put("index", index)
-      hashMap.put("record", record)
+      hashMap.put("index", index.asInstanceOf[Object])
+      hashMap.put("record", record.asInstanceOf[Object])
       val document = new Document(hashMap)
       documents.push(document)
       index += 1
