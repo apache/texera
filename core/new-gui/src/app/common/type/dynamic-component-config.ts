@@ -1,6 +1,6 @@
 import { Type } from '@angular/core';
 
-export declare class DynamicComponentConfig<T> {
+export interface DynamicComponentConfig<T> {
   component?: Type<T>;
   componentInputs?: Partial<T>;
 }
