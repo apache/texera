@@ -212,10 +212,17 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         # Update state to RUNNING
         if self.context.state_manager.confirm_state(WorkerState.READY):
             self.context.state_manager.transit_to(WorkerState.RUNNING)
+
+        # here the self._current_batch iterator could be modified during iteration,
+        # thus we are using the try-while-stop_iteration way to iterate through the
+        # iterator, instead of the for-each-loop syntax sugar.
         self._current_batch = self.context.batch_to_tuple_converter.process_data_payload(
             data_element.tag, data_element.payload)
         try:
             while True:
+                # In Python@3.8 there is a new `:=` operator to simplify this assignment
+                # in while-loop. For now we keep it this way to support versions below
+                # 3.8.
                 element = next(self._current_batch)
                 match(
                     element,
@@ -225,6 +232,9 @@ class DataProcessor(StoppableQueueBlockingRunnable):
                     EndOfAllMarker, self._process_end_of_all_marker
                 )
         except StopIteration:
+            # StopIteration is the standard way for an iterator to end, we handle it and do
+            # nothing. We do not handle other Exceptions, as they are intended to be handled
+            # by outer scopes.
             pass
 
     def _pause(self) -> None:
@@ -241,7 +251,6 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         """
         Resume the data processing.
         """
-
         if self.context.state_manager.confirm_state(WorkerState.PAUSED):
             if self.context.pause_manager.is_paused():
                 self.context.pause_manager.resume()
