@@ -7,7 +7,7 @@ from overrides import overrides
 from pampy import match
 
 from core.architecture.managers.context import Context
-from core.architecture.packaging.batch_to_tuple_converter import EndMarker, EndOfAllMarker
+from core.architecture.packaging.batch_to_tuple_converter import EndOfAllMarker
 from core.architecture.rpc.async_rpc_client import AsyncRPCClient
 from core.architecture.rpc.async_rpc_server import AsyncRPCServer
 from core.models.internal_queue import ControlElement, DataElement, InternalQueue
@@ -91,9 +91,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         match(
             next_entry,
             DataElement, self._process_data_element,
-            ControlElement, self._process_control_element,
-            EndMarker, self._process_end_marker,
-            EndOfAllMarker, self._process_end_of_all_marker
+            ControlElement, self._process_control_element
         )
 
     def process_control_payload(self, tag: ActorVirtualIdentity, payload: ControlPayloadV2) -> None:
@@ -163,7 +161,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         """
         self.process_control_payload(control_element.tag, control_element.payload)
 
-    def _process_tuple(self, tuple_: Tuple) -> None:
+    def _process_tuple(self, tuple_: Union[Tuple, InputExhausted]) -> None:
         self._current_input_tuple = tuple_
         self.process_input_tuple()
         self.check_and_process_control()
@@ -175,17 +173,6 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         :param sender_change_marker: SenderChangeMarker which contains sender link.
         """
         self._current_input_link = sender_change_marker.link
-
-    def _process_end_marker(self, _: EndMarker) -> None:
-        """
-        Upon receipt of an EndMarker, which indicates the end of the current input link.
-        process an InputExhausted for the current input link.
-
-        :param _: EndMarker
-        """
-        self._current_input_tuple = InputExhausted()
-        self.process_input_tuple()
-        self.check_and_process_control()
 
     def _process_end_of_all_marker(self, _: EndOfAllMarker) -> None:
         """
@@ -234,8 +221,8 @@ class DataProcessor(StoppableQueueBlockingRunnable):
             match(
                 element,
                 Tuple, self._process_tuple,
+                InputExhausted, self._process_tuple,
                 SenderChangeMarker, self._process_sender_change_marker,
-                EndMarker, self._process_end_marker,
                 EndOfAllMarker, self._process_end_of_all_marker
             )
 

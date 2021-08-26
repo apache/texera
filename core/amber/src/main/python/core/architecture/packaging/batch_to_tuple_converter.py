@@ -2,12 +2,15 @@ from collections import defaultdict
 from typing import Iterator, Optional, Set, Union
 
 from core.models import Tuple
-from core.models.marker import EndMarker, EndOfAllMarker, Marker, SenderChangeMarker
+from core.models.marker import EndOfAllMarker, Marker, SenderChangeMarker
 from core.models.payload import DataFrame, DataPayload, EndOfUpstream
+from core.models.tuple import InputExhausted
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, LinkIdentity
 
 
 class BatchToTupleConverter:
+    IGNORE_SENDER = ActorVirtualIdentity("IGNORE_SENDER")
+
     def __init__(self):
         self._input_map: dict[ActorVirtualIdentity, LinkIdentity] = dict()
         self._upstream_map: defaultdict[LinkIdentity, Set[ActorVirtualIdentity]] = defaultdict(set)
@@ -17,8 +20,16 @@ class BatchToTupleConverter:
         self._upstream_map[input_].add(identifier)
         self._input_map[identifier] = input_
 
-    def process_data_payload(self, from_: ActorVirtualIdentity, payload: DataPayload) -> Iterator[Union[Tuple, Marker]]:
+    def process_data_payload(self, from_: ActorVirtualIdentity, payload: DataPayload) -> Iterator[
+        Union[Tuple, InputExhausted, Marker]]:
         link = self._input_map[from_]
+
+        # special case used to yield for source op
+        if from_ == BatchToTupleConverter.IGNORE_SENDER:
+            yield InputExhausted()
+            yield EndOfAllMarker()
+            return
+
         if self._current_link is None or self._current_link != link:
             self._current_link = link
             yield SenderChangeMarker(link)
@@ -31,7 +42,7 @@ class BatchToTupleConverter:
             self._upstream_map[link].remove(from_)
             if len(self._upstream_map[link]) == 0:
                 del self._upstream_map[link]
-                yield EndMarker()
+                yield InputExhausted()
             if len(self._upstream_map) == 0:
                 yield EndOfAllMarker()
 
