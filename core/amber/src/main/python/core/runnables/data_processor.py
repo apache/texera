@@ -215,6 +215,9 @@ class DataProcessor(StoppableQueueBlockingRunnable):
 
         self._current_input_tuple_iter = self.context.batch_to_tuple_converter.process_data_payload(
             data_element.tag, data_element.payload)
+
+        if self._current_input_tuple_iter is None:
+            return
         # here the self._current_input_tuple_iter could be modified during iteration,
         # thus we are using the try-while-stop_iteration way to iterate through the
         # iterator, instead of the for-each-loop syntax sugar.

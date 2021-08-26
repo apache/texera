@@ -23,22 +23,21 @@ trait RetryWorkflowHandler {
 
   registerHandler { (msg: RetryWorkflow, sender) =>
     {
+      // if it is a PythonWorker, prepare for retry
+      // retry message has no effect on completed workers
       Future
         .collect(workflow.getPythonWorkers.map { worker => send(RetryPython(), worker) }.toSeq)
         .map { _ => }
 
-      // resume other workers
+      // resume all workers
       // resume message has no effect on non-paused workers
       Future
         .collect(
-          workflow.getAllWorkers
-            .filter(worker => !workflow.getPythonWorkers.toList.contains(worker))
-            .map { worker =>
-              send(ResumeWorker(), worker).map { ret =>
-                workflow.getWorkerInfo(worker).state = ret
-              }
+          workflow.getAllWorkers.map { worker =>
+            send(ResumeWorker(), worker).map { ret =>
+              workflow.getWorkerInfo(worker).state = ret
             }
-            .toSeq
+          }.toSeq
         )
         .map { _ =>
           // update frontend status
