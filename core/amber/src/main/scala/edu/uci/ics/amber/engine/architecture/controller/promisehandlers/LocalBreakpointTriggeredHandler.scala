@@ -57,13 +57,11 @@ trait LocalBreakpointTriggeredHandler {
         // first pause the workers, then get their local breakpoints
         Future
           .collect(
-            targetOp.getAllWorkers
-              .map { worker =>
-                send(PauseWorker(), worker).flatMap { ret =>
-                  send(QueryAndRemoveBreakpoints(unResolved), worker)
-                }
+            targetOp.getAllWorkers.map { worker =>
+              send(PauseWorker(), worker).flatMap { ret =>
+                send(QueryAndRemoveBreakpoints(unResolved), worker)
               }
-              .toSeq
+            }.toSeq
           )
           .flatMap { bps =>
             // collect and handle breakpoints
@@ -97,8 +95,10 @@ trait LocalBreakpointTriggeredHandler {
                   // if no triggered breakpoints, resume the workers of the current operator who has breakpoint assigned
                   Future
                     .collect(
-                      workersAssignedBreakpoint.flatten.toSet[ActorVirtualIdentity]
-                        .map { worker => send(ResumeWorker(), worker) }.toSeq
+                      workersAssignedBreakpoint.flatten
+                        .toSet[ActorVirtualIdentity]
+                        .map { worker => send(ResumeWorker(), worker) }
+                        .toSeq
                     )
                     .unit
                 } else {

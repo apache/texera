@@ -30,7 +30,7 @@ class BreakpointManager(asyncRPCClient: AsyncRPCClient) {
     val lbps = ArrayBuffer[LocalBreakpoint]()
     ids.foreach(id => {
       val idx = breakpoints.indexWhere(_.id == id)
-      if(idx != -1){
+      if (idx != -1) {
         lbps.append(breakpoints(idx))
       }
     })

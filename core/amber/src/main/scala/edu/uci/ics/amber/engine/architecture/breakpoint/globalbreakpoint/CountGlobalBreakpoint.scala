@@ -1,5 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint
-import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.{CountLocalBreakpoint, LocalBreakpoint}
+import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.{
+  CountLocalBreakpoint,
+  LocalBreakpoint
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 import scala.collection.mutable.ArrayBuffer
@@ -18,13 +21,17 @@ class CountGlobalBreakpoint(id: String, val target: Long)
     val workerNum = workers.length
     var i = 0
     val assigned = ArrayBuffer[(ActorVirtualIdentity, LocalBreakpoint)]()
-    breakable{
+    breakable {
       while (i < workerNum) {
         if (remaining / workerNum > 0) {
-          assigned.append((workers(i), new CountLocalBreakpoint(id, version, remaining / workerNum)))
+          assigned.append(
+            (workers(i), new CountLocalBreakpoint(id, version, remaining / workerNum))
+          )
           currentSum += remaining / workerNum
         } else {
-          assigned.append((workers(i), new CountLocalBreakpoint(id, version, remaining - currentSum)))
+          assigned.append(
+            (workers(i), new CountLocalBreakpoint(id, version, remaining - currentSum))
+          )
           break
         }
         i += 1

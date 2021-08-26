@@ -126,12 +126,12 @@ class DataProcessor( // dependencies:
     }
     if (outputTuple != null) {
       if (breakpointManager.evaluateTuple(outputTuple)) {
-          pauseManager.pause()
-          disableDataQueue()
-          stateManager.transitTo(PAUSED)
-        } else {
-          outputTupleCount += 1
-          batchProducer.passTupleToDownstream(outputTuple)
+        pauseManager.pause()
+        disableDataQueue()
+        stateManager.transitTo(PAUSED)
+      } else {
+        outputTupleCount += 1
+        batchProducer.passTupleToDownstream(outputTuple)
       }
     }
   }
