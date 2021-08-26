@@ -9,10 +9,9 @@
                [model]="formData"
                [options]="formlyOptions">
   </formly-form>
-  <ndc-dynamic [ndcDynamicComponent]="extraDisplayComponent"></ndc-dynamic>
   <ndc-dynamic
-    [ndcDynamicComponent]="extraDisplayComponent"
-    [ndcDynamicInputs]="extraDisplayComponentInputs"
+    [ndcDynamicComponent]="extraDisplayComponentConfig?.component"
+    [ndcDynamicInputs]="extraDisplayComponentConfig?.componentInputs"
   ></ndc-dynamic>
 </form>
 

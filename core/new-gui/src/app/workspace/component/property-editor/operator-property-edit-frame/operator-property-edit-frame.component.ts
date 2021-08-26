@@ -16,10 +16,12 @@ import { SchemaAttribute, SchemaPropagationService } from '../../../service/dyna
 import { setChildTypeDependency, setHideExpression } from 'src/app/common/formly/formly-utils';
 import { TYPE_CASTING_OPERATOR_TYPE, TypeCastingDisplayComponent } from '../typecasting-display/type-casting-display.component';
 import { Subscription } from 'rxjs';
-import { ComponentType } from '@angular/cdk/overlay';
+import { DynamicComponentConfig } from '../../../../common/type/dynamic-component-config';
 
-export type PropertyDisplayComponent = ComponentType<TypeCastingDisplayComponent>;
-export type PropertyDisplayComponentInput = Readonly<{ currentOperatorId: string }>;
+
+export type PropertyDisplayComponent = TypeCastingDisplayComponent;
+
+export type PropertyDisplayComponentConfig = DynamicComponentConfig<PropertyDisplayComponent>;
 
 @Component({
   selector: 'texera-formly-form-frame',
@@ -56,8 +58,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy, On
   ajv = new Ajv({ useDefaults: true });
 
   // for display component of some extra information
-  extraDisplayComponent: any | undefined = undefined;
-  extraDisplayComponentInputs: any | undefined = undefined;
+  extraDisplayComponentConfig?: PropertyDisplayComponentConfig;
 
   constructor(
     private formlyJsonschema: FormlyJsonschema,
@@ -80,12 +81,13 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy, On
   }
 
 
-  switchDisplayComponent(targetComponent: PropertyDisplayComponent | undefined, inputs: PropertyDisplayComponentInput | undefined) {
-    if (this.extraDisplayComponent === targetComponent && this.extraDisplayComponentInputs === inputs) {
+  switchDisplayComponent(targetConfig?: PropertyDisplayComponentConfig) {
+    if (this.extraDisplayComponentConfig?.component === targetConfig?.component &&
+      this.extraDisplayComponentConfig?.component === targetConfig?.componentInputs) {
       return;
     }
-    this.extraDisplayComponentInputs = inputs;
-    this.extraDisplayComponent = targetComponent;
+
+    this.extraDisplayComponentConfig = targetConfig;
   }
 
   /**
@@ -176,9 +178,12 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy, On
 
     if (this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType
       .includes(TYPE_CASTING_OPERATOR_TYPE)) {
-      this.switchDisplayComponent(TypeCastingDisplayComponent, { currentOperatorId: this.currentOperatorId });
+      this.switchDisplayComponent({
+        component: TypeCastingDisplayComponent,
+        componentInputs: { currentOperatorId: this.currentOperatorId }
+      });
     } else {
-      this.switchDisplayComponent(undefined, undefined);
+      this.switchDisplayComponent(undefined);
     }
 
     const interactive = this.executeWorkflowService.getExecutionState().state === ExecutionState.Uninitialized ||

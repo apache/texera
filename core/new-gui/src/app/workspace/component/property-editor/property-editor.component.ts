@@ -5,11 +5,12 @@ import { WorkflowActionService } from '../../service/workflow-graph/model/workfl
 import { OperatorPropertyEditFrameComponent } from './operator-property-edit-frame/operator-property-edit-frame.component';
 import { BreakpointPropertyEditFrameComponent } from './breakpoint-property-edit-frame/breakpoint-property-edit-frame.component';
 import { Subscription } from 'rxjs';
-import { ComponentType } from '@angular/cdk/overlay';
+import { DynamicComponentConfig } from '../../../common/type/dynamic-component-config';
 
-export type PropertyEditFrameComponent = ComponentType<OperatorPropertyEditFrameComponent | BreakpointPropertyEditFrameComponent>;
 
-export type PropertyEditFrameComponentInput = Readonly<{ currentOperatorId: string } | { currentLinkId: string; }>;
+export type PropertyEditFrameComponent = OperatorPropertyEditFrameComponent | BreakpointPropertyEditFrameComponent;
+
+export type PropertyEditFrameConfig = DynamicComponentConfig<PropertyEditFrameComponent>;
 
 /**
  * PropertyEditorComponent is the panel that allows user to edit operator properties.
@@ -41,8 +42,7 @@ export type PropertyEditFrameComponentInput = Readonly<{ currentOperatorId: stri
 })
 export class PropertyEditorComponent implements OnInit, OnDestroy {
 
-  frameComponent: any | undefined = undefined;
-  frameComponentInputs: object | undefined = undefined;
+  frameComponentConfig?: PropertyEditFrameConfig;
 
   subscriptions = new Subscription();
 
@@ -57,13 +57,13 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
     this.registerHighlightEventsHandler();
   }
 
-  switchFrameComponent(targetComponent: PropertyEditFrameComponent | undefined, inputs: PropertyEditFrameComponentInput | undefined) {
-    if (this.frameComponent === targetComponent && this.frameComponentInputs === inputs) {
+  switchFrameComponent(targetConfig?: PropertyEditFrameConfig) {
+    if (this.frameComponentConfig?.component === targetConfig?.component &&
+      this.frameComponentConfig?.componentInputs === targetConfig?.componentInputs) {
       return;
     }
 
-    this.frameComponent = targetComponent;
-    this.frameComponentInputs = inputs;
+    this.frameComponentConfig = targetConfig;
   }
 
   /**
@@ -87,11 +87,17 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
       const highlightLinks = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
 
       if (highlightedOperators.length === 1 && highlightedGroups.length === 0 && highlightLinks.length === 0) {
-        this.switchFrameComponent(OperatorPropertyEditFrameComponent, { currentOperatorId: highlightedOperators[0] });
+        this.switchFrameComponent({
+          component: OperatorPropertyEditFrameComponent,
+          componentInputs: { currentOperatorId: highlightedOperators[0] }
+        });
       } else if (highlightLinks.length === 1 && highlightedGroups.length === 0 && highlightedOperators.length === 0) {
-        this.switchFrameComponent(BreakpointPropertyEditFrameComponent, { currentLinkId: highlightLinks[0] });
+        this.switchFrameComponent({
+          component: BreakpointPropertyEditFrameComponent,
+          componentInputs: { currentLinkId: highlightLinks[0] }
+        });
       } else {
-        this.switchFrameComponent(undefined, undefined);
+        this.switchFrameComponent(undefined);
       }
 
     }));

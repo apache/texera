@@ -18,7 +18,7 @@ import { OperatorMetadataService } from '../../service/operator-metadata/operato
 import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
 
 
-describe('PropertyEditorComponent', () => {
+fdescribe('PropertyEditorComponent', () => {
   let component: PropertyEditorComponent;
   let fixture: ComponentFixture<PropertyEditorComponent>;
   let workflowActionService: WorkflowActionService;
@@ -50,7 +50,7 @@ describe('PropertyEditorComponent', () => {
    * test if the property editor correctly receives the operator unhighlight stream
    *  and clears all the operator data, and hide the form.
    */
-  it('should clear and hide the property editor panel correctly when no operator is highlighted', () => {
+  fit('should clear and hide the property editor panel correctly when no operator is highlighted', () => {
     const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
     // add and highlight an operator
@@ -59,7 +59,9 @@ describe('PropertyEditorComponent', () => {
 
     fixture.detectChanges();
 
-    expect(component.frameComponent instanceof OperatorPropertyEditFrameComponent);
+    expect(component.frameComponentConfig?.component).toBe(OperatorPropertyEditFrameComponent);
+    expect(component.frameComponentConfig?.componentInputs).toEqual({ currentOperatorId: mockScanPredicate.operatorID });
+
 
     // unhighlight the operator
     jointGraphWrapper.unhighlightOperators(mockScanPredicate.operatorID);
@@ -68,7 +70,7 @@ describe('PropertyEditorComponent', () => {
 
     // check if the clearPropertyEditor called after the operator
     //  is unhighlighted has correctly updated the variables
-    expect(component.frameComponent).toBeUndefined();
+    expect(component.frameComponentConfig).toBeUndefined();
   });
 
   it('should clear and hide the property editor panel correctly when multiple operators are highlighted', () => {
@@ -85,7 +87,7 @@ describe('PropertyEditorComponent', () => {
     fixture.detectChanges();
 
     // expect that the property editor is cleared
-    expect(component.frameComponent).toBeUndefined();
+    expect(component.frameComponentConfig).toBeUndefined();
   });
 
   it('should switch the content of property editor to another operator from the former operator correctly', () => {
@@ -100,20 +102,23 @@ describe('PropertyEditorComponent', () => {
     fixture.detectChanges();
 
     // check the variables
-    expect(component.frameComponent === OperatorPropertyEditFrameComponent);
+    expect(component.frameComponentConfig?.component).toBe(OperatorPropertyEditFrameComponent);
+    expect(component.frameComponentConfig?.componentInputs).toEqual({ currentOperatorId: mockScanPredicate.operatorID });
+
 
 
     // unhighlight the operator
     jointGraphWrapper.unhighlightOperators(mockScanPredicate.operatorID);
     fixture.detectChanges();
 
-    expect(component.frameComponent).toBeUndefined();
+    expect(component.frameComponentConfig).toBeUndefined();
 
     // highlight the second operator
     jointGraphWrapper.highlightOperators(mockResultPredicate.operatorID);
     fixture.detectChanges();
 
-    expect(component.frameComponent === OperatorPropertyEditFrameComponent);
+    expect(component.frameComponentConfig?.component).toBe(OperatorPropertyEditFrameComponent);
+    expect(component.frameComponentConfig?.componentInputs).toEqual({ currentOperatorId: mockResultPredicate.operatorID });
 
     // // result operator has default values, use ajv to fill in default values
     // // expected form output should fill in all default values instead of an empty object
@@ -161,13 +166,16 @@ describe('PropertyEditorComponent', () => {
     jointGraphWrapper.highlightLink(mockScanResultLink.linkID);
     fixture.detectChanges();
 
-    expect(component.frameComponent instanceof BreakpointPropertyEditFrameComponent);
+    expect(component.frameComponentConfig?.component).toBe(BreakpointPropertyEditFrameComponent);
+    expect(component.frameComponentConfig?.componentInputs).toEqual({ currentLinkId: mockScanResultLink.linkID });
+
 
     // unhighlight the highlighted link
     jointGraphWrapper.unhighlightLink(mockScanResultLink.linkID);
     fixture.detectChanges();
 
-    expect(component.frameComponent).toBeUndefined();
+    expect(component.frameComponentConfig).toBeUndefined();
+
   });
 
   it('should switch the content of property editor to another link-breakpoint from the former link-breakpoint correctly', () => {
@@ -183,17 +191,20 @@ describe('PropertyEditorComponent', () => {
     jointGraphWrapper.highlightLink(mockScanSentimentLink.linkID);
 
     fixture.detectChanges();
-    expect(component.frameComponent).toBe(BreakpointPropertyEditFrameComponent);
+    expect(component.frameComponentConfig?.component).toBe(BreakpointPropertyEditFrameComponent);
+    expect(component.frameComponentConfig?.componentInputs).toEqual({ currentLinkId: mockScanSentimentLink.linkID });
+
 
     // unhighlight the link
     jointGraphWrapper.unhighlightLink(mockScanSentimentLink.linkID);
     fixture.detectChanges();
-    expect(component.frameComponent).toBeUndefined();
+    expect(component.frameComponentConfig).toBeUndefined();
 
     // highlight the second link
     jointGraphWrapper.highlightLink(mockSentimentResultLink.linkID);
     fixture.detectChanges();
-    expect(component.frameComponent).toBe(BreakpointPropertyEditFrameComponent);
+    expect(component.frameComponentConfig?.component).toBe(BreakpointPropertyEditFrameComponent);
+    expect(component.frameComponentConfig?.componentInputs).toEqual({ currentLinkId: mockSentimentResultLink.linkID });
 
   });
 

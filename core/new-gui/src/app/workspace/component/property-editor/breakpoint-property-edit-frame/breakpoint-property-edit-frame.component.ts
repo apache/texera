@@ -48,7 +48,7 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy, 
   ) { }
 
   ngOnChanges(changes: import('@angular/core').SimpleChanges): void {
-    this.currentLinkId = changes.currentLinkID?.currentValue;
+    this.currentLinkId = changes.currentLinkId?.currentValue;
     if (this.currentLinkId) {
       this.showBreakpointEditor(this.currentLinkId);
     }
