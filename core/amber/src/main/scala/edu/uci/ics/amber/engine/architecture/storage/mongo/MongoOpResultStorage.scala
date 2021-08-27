@@ -8,10 +8,13 @@ import edu.uci.ics.texera.workflow.common.tuple.TupleUtils.{json2tuple, tuple2js
 import org.bson.Document
 
 import java.util
+import java.util.concurrent.locks.ReentrantLock
 import scala.collection.mutable.ListBuffer
 import scala.collection.parallel.mutable.ParHashSet
 
 class MongoOpResultStorage extends OpResultStorage {
+
+  private val lock = new ReentrantLock()
 
   val url = "mongodb://localhost:27017"
 
@@ -28,6 +31,7 @@ class MongoOpResultStorage extends OpResultStorage {
     * @param records The results.
     */
   override def put(opID: String, records: List[Tuple]): Unit = {
+    lock.lock()
     val collection = database.getCollection(opID)
     if (collectionSet.contains(opID)) {
       collection.deleteMany(new BasicDBObject())
@@ -42,6 +46,7 @@ class MongoOpResultStorage extends OpResultStorage {
       index += 1
     })
     collection.insertMany(documents)
+    lock.unlock()
   }
 
   /**
@@ -51,6 +56,7 @@ class MongoOpResultStorage extends OpResultStorage {
     * @return The result of this operator.
     */
   override def get(opID: String): List[Tuple] = {
+    lock.lock()
     assert(collectionSet.contains(opID))
     val collection = database.getCollection(opID)
     val cursor = collection.find().cursor()
@@ -58,6 +64,7 @@ class MongoOpResultStorage extends OpResultStorage {
     while (cursor.hasNext) {
       recordBuffer += json2tuple(cursor.next().get("record").toString)
     }
+    lock.unlock()
     recordBuffer.toList
   }
 
@@ -67,8 +74,10 @@ class MongoOpResultStorage extends OpResultStorage {
     * @param opID The key to remove.
     */
   override def remove(opID: String): Unit = {
+    lock.lock()
     assert(collectionSet.contains(opID))
     database.getCollection(opID).drop()
+    lock.unlock()
   }
 
   /**
