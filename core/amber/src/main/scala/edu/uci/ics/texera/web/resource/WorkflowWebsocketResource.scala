@@ -5,7 +5,11 @@ import com.typesafe.scalalogging.Logger
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
-import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, ControllerEventListener}
+import edu.uci.ics.amber.engine.architecture.controller.{
+  Controller,
+  ControllerConfig,
+  ControllerEventListener
+}
 import edu.uci.ics.amber.engine.architecture.storage.mongo.MongoOpResultStorage
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
@@ -21,9 +25,14 @@ import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowInfo.toJgraphtDAG
-import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo, WorkflowRewriter, WorkflowVertex}
-import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDesc
-import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
+import edu.uci.ics.texera.workflow.common.workflow.{
+  WorkflowCompiler,
+  WorkflowInfo,
+  WorkflowRewriterV2,
+  WorkflowVertexV2
+}
+import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDescV2
+import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDescV2
 
 import java.util.concurrent.atomic.AtomicInteger
 import javax.servlet.http.HttpSession
@@ -121,7 +130,7 @@ class WorkflowWebsocketResource {
       val downstreamIDs = sessionResults(session.getId).workflowCompiler.workflow
         .getDownstream(operatorID)
       for (elem <- downstreamIDs) {
-        if (elem.isInstanceOf[CacheSinkOpDesc]) {
+        if (elem.isInstanceOf[CacheSinkOpDescV2]) {
           operatorID = elem.operatorID
           breakOut
         }
@@ -178,12 +187,13 @@ class WorkflowWebsocketResource {
   val sessionCachedOperators: mutable.HashMap[String, mutable.HashMap[String, OperatorDescriptor]] =
     mutable.HashMap[String, mutable.HashMap[String, OperatorDescriptor]]()
   val sessionCacheSourceOperators
-      : mutable.HashMap[String, mutable.HashMap[String, CacheSourceOpDesc]] =
-    mutable.HashMap[String, mutable.HashMap[String, CacheSourceOpDesc]]()
-  val sessionCacheSinkOperators: mutable.HashMap[String, mutable.HashMap[String, CacheSinkOpDesc]] =
-    mutable.HashMap[String, mutable.HashMap[String, CacheSinkOpDesc]]()
-  val sessionOperatorRecord: mutable.HashMap[String, mutable.HashMap[String, WorkflowVertex]] =
-    mutable.HashMap[String, mutable.HashMap[String, WorkflowVertex]]()
+      : mutable.HashMap[String, mutable.HashMap[String, CacheSourceOpDescV2]] =
+    mutable.HashMap[String, mutable.HashMap[String, CacheSourceOpDescV2]]()
+  val sessionCacheSinkOperators
+      : mutable.HashMap[String, mutable.HashMap[String, CacheSinkOpDescV2]] =
+    mutable.HashMap[String, mutable.HashMap[String, CacheSinkOpDescV2]]()
+  val sessionOperatorRecord: mutable.HashMap[String, mutable.HashMap[String, WorkflowVertexV2]] =
+    mutable.HashMap[String, mutable.HashMap[String, WorkflowVertexV2]]()
 
   val opResultStorage = new MongoOpResultStorage()
 
@@ -202,23 +212,23 @@ class WorkflowWebsocketResource {
     } else {
       cachedOperators = sessionCachedOperators(session.getId)
     }
-    var cacheSourceOperators: mutable.HashMap[String, CacheSourceOpDesc] = null
+    var cacheSourceOperators: mutable.HashMap[String, CacheSourceOpDescV2] = null
     if (!sessionCacheSourceOperators.contains(session.getId)) {
-      cacheSourceOperators = mutable.HashMap[String, CacheSourceOpDesc]()
+      cacheSourceOperators = mutable.HashMap[String, CacheSourceOpDescV2]()
       sessionCacheSourceOperators += ((session.getId, cacheSourceOperators))
     } else {
       cacheSourceOperators = sessionCacheSourceOperators(session.getId)
     }
-    var cacheSinkOperators: mutable.HashMap[String, CacheSinkOpDesc] = null
+    var cacheSinkOperators: mutable.HashMap[String, CacheSinkOpDescV2] = null
     if (!sessionCacheSinkOperators.contains(session.getId)) {
-      cacheSinkOperators = mutable.HashMap[String, CacheSinkOpDesc]()
+      cacheSinkOperators = mutable.HashMap[String, CacheSinkOpDescV2]()
       sessionCacheSinkOperators += ((session.getId, cacheSinkOperators))
     } else {
       cacheSinkOperators = sessionCacheSinkOperators(session.getId)
     }
-    var operatorRecord: mutable.HashMap[String, WorkflowVertex] = null
+    var operatorRecord: mutable.HashMap[String, WorkflowVertexV2] = null
     if (!sessionOperatorRecord.contains(session.getId)) {
-      operatorRecord = mutable.HashMap[String, WorkflowVertex]()
+      operatorRecord = mutable.HashMap[String, WorkflowVertexV2]()
       sessionOperatorRecord += ((session.getId, operatorRecord))
     } else {
       operatorRecord = sessionOperatorRecord(session.getId)
@@ -253,7 +263,7 @@ class WorkflowWebsocketResource {
     workflowInfo.cachedOperatorIDs = request.cachedOperatorIDs
     logger.info("Cached operators: {}.", cachedOperators.toString())
     logger.info("request.cachedOperatorIDs: {}.", request.cachedOperatorIDs)
-    val workflowRewriter = new WorkflowRewriter(
+    val workflowRewriter = new WorkflowRewriterV2(
       workflowInfo,
       operatorOutputCache,
       cachedOperators,
