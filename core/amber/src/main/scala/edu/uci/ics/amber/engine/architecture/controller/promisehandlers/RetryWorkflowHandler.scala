@@ -26,8 +26,16 @@ trait RetryWorkflowHandler {
       // if it is a PythonWorker, prepare for retry
       // retry message has no effect on completed workers
       Future
-        .collect(workflow.getPythonWorkers.map { worker => send(RetryPython(), worker) }.toSeq)
-        .map { _ => }
+        .collect(
+          workflow.getAllOperators
+            // find workers who received local operator exception
+            .flatMap(operator => operator.caughtLocalExceptions.keys)
+            // currently only support retry for PythonWorker, thus filter them
+            .filter(worker => workflow.getPythonWorkers.toSeq.contains(worker))
+            .map(worker => send(RetryPython(), worker))
+            .toSeq
+        )
+        .unit
 
       // resume all workers
       // resume message has no effect on non-paused workers
