@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from "@angular/core";
+import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from "@angular/core";
 import { isEqual } from "lodash-es";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NzTableQueryParams } from "ng-zorro-antd/table";
@@ -19,14 +19,23 @@ import {
 } from "../../../types/result-table.interface";
 import { RowModalComponent } from "../result-panel-modal.component";
 
+/**
+ * The Component will display the result in an excel table format,
+ *  where each row represents a result from the workflow,
+ *  and each column represents the type of result the workflow returns.
+ *
+ * Clicking each row of the result table will create an pop-up window
+ *  and display the detail of that row in a pretty json format.
+ */
 @Component({
   selector: "texera-result-table-frame",
   templateUrl: "./result-table-frame.component.html",
   styleUrls: ["./result-table-frame.component.scss"]
 })
-export class ResultTableFrameComponent implements OnInit, OnDestroy {
-  // the highlighted operator ID for display result table / visualization / breakpoint
-  resultPanelOperatorID: string | undefined;
+export class ResultTableFrameComponent implements OnInit, OnDestroy, OnChanges {
+  subscriptions = new Subscription();
+
+  @Input() operatorId: string | undefined;
 
   // display result table
   currentColumns: TableColumn[] | undefined;
@@ -45,7 +54,6 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
   currentPageIndex: number = 1;
   totalNumTuples: number = 0;
   pageSize = DEFAULT_PAGE_SIZE;
-  resultUpdateSubscription: Subscription | undefined;
 
   private readonly TABLE_COLUMN_TEXT_LIMIT: number = 1000;
   private readonly PRETTY_JSON_TEXT_LIMIT: number = 50000;
@@ -58,36 +66,10 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
     private workflowResultService: WorkflowResultService
   ) {}
 
-  ngOnInit(): void {
-    // update highlighted operator
-    const highlightedOperators = this.workflowActionService
-      .getJointGraphWrapper()
-      .getCurrentHighlightedOperatorIDs();
-    this.resultPanelOperatorID =
-      highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
-
-    // display result table by default
-    if (this.resultPanelOperatorID) {
-      const paginatedResultService =
-        this.workflowResultService.getPaginatedResultService(
-          this.resultPanelOperatorID
-        );
-      this.resultUpdateSubscription = this.workflowResultService
-        .getResultUpdateStream()
-        .subscribe((update) => {
-          if (!this.resultPanelOperatorID) {
-            return;
-          }
-          const opUpdate = update[this.resultPanelOperatorID];
-          if (!opUpdate || !isWebPaginationUpdate(opUpdate)) {
-            return;
-          }
-          this.totalNumTuples = opUpdate.totalNumTuples;
-          this.isFrontPagination = false;
-          if (opUpdate.dirtyPageIndices.includes(this.currentPageIndex)) {
-            this.changePaginatedResultData();
-          }
-        });
+  ngOnChanges(changes: SimpleChanges): void {
+    this.operatorId = changes.operatorId?.currentValue;
+    if (this.operatorId) {
+      const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
       if (paginatedResultService) {
         this.isFrontPagination = false;
         this.totalNumTuples = paginatedResultService.getCurrentTotalNumTuples();
@@ -95,6 +77,23 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
         this.changePaginatedResultData();
       }
     }
+  }
+
+  ngOnInit(): void {
+    this.subscriptions.add(this.workflowResultService.getResultUpdateStream().subscribe((update) => {
+      if (!this.operatorId) {
+        return;
+      }
+      const opUpdate = update[this.operatorId];
+      if (!opUpdate || !isWebPaginationUpdate(opUpdate)) {
+        return;
+      }
+      this.isFrontPagination = false;
+      this.totalNumTuples = opUpdate.totalNumTuples;
+      if (opUpdate.dirtyPageIndices.includes(this.currentPageIndex)) {
+        this.changePaginatedResultData();
+      }
+    }));
   }
 
   /**
@@ -108,7 +107,7 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
     if (this.isFrontPagination) {
       return;
     }
-    if (!this.resultPanelOperatorID) {
+    if (!this.operatorId) {
       return;
     }
     this.currentPageIndex = params.pageIndex;
@@ -186,12 +185,12 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
   // 2. user selects a new page - must display new page data
   // 3. current page is dirty - must re-fetch data
   changePaginatedResultData(): void {
-    if (!this.resultPanelOperatorID) {
+    if (!this.operatorId) {
       return;
     }
     const paginatedResultService =
       this.workflowResultService.getPaginatedResultService(
-        this.resultPanelOperatorID
+        this.operatorId
       );
     if (!paginatedResultService) {
       return;
@@ -210,10 +209,7 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    if (this.resultUpdateSubscription !== undefined) {
-      this.resultUpdateSubscription.unsubscribe();
-      this.resultUpdateSubscription = undefined;
-    }
+    this.subscriptions.unsubscribe();
   }
 
   /**
@@ -221,12 +217,13 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
    *  displays a new data table with a new paginator on the result panel.
    *
    * @param resultData rows of the result (may not be all rows if displaying result for workflow completed event)
+   * @param totalRowCount
    */
-  private setupResultTable(
+  setupResultTable(
     resultData: ReadonlyArray<Record<string, unknown>>,
     totalRowCount: number
   ) {
-    if (!this.resultPanelOperatorID) {
+    if (!this.operatorId) {
       return;
     }
     if (resultData.length < 1) {
@@ -258,7 +255,7 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
    *
    * @param columns
    */
-  private generateColumns(
+  generateColumns(
     columns: { columnKey: any; columnText: string }[]
   ): TableColumn[] {
     return columns.map((col) => ({
@@ -275,7 +272,7 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
     }));
   }
 
-  private trimTableCell(cellContent: string): string {
+  trimTableCell(cellContent: string): string {
     if (cellContent.length > this.TABLE_COLUMN_TEXT_LIMIT) {
       return cellContent.substring(0, this.TABLE_COLUMN_TEXT_LIMIT);
     }

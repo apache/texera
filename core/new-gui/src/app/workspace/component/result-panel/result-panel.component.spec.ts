@@ -242,7 +242,6 @@ describe("ResultPanelComponent", () => {
 
     expect(resultPanelHtmlElement.hasAttribute("hidden")).toBeTruthy();
 
-    const currentStatus = false;
     resultPanelToggleService.toggleResultPanel();
     fixture.detectChanges();
 
