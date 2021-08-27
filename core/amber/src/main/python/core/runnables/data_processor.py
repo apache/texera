@@ -151,7 +151,6 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         message: str = traceback.format_exc(limit=-1)
         control_command = set_one_of(ControlCommandV2, LocalOperatorExceptionV2(message=message))
         self._async_rpc_client.send(ActorVirtualIdentity(name="CONTROLLER"), control_command)
-        self._pause()
 
     def _process_control_element(self, control_element: ControlElement) -> None:
         """
@@ -214,17 +213,22 @@ class DataProcessor(StoppableQueueBlockingRunnable):
             # 3.8.
             try:
                 element = next(self._current_input_tuple_iter)
+                logger.info(element)
             except StopIteration:
                 # StopIteration is the standard way for an iterator to end, we handle
                 # it and terminate the loop.
                 break
-            match(
-                element,
-                Tuple, self._process_tuple,
-                InputExhausted, self._process_tuple,
-                SenderChangeMarker, self._process_sender_change_marker,
-                EndOfAllMarker, self._process_end_of_all_marker
-            )
+            try:
+                match(
+                    element,
+                    Tuple, self._process_tuple,
+                    InputExhausted, self._process_tuple,
+                    SenderChangeMarker, self._process_sender_change_marker,
+                    EndOfAllMarker, self._process_end_of_all_marker
+                )
+            except Exception as err:
+                logger.exception(err)
+
 
     def _pause(self) -> None:
         """

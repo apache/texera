@@ -94,7 +94,7 @@ class WorkflowWebsocketResource {
         case skipTupleMsg: SkipTupleRequest =>
           skipTuple(session, skipTupleMsg)
         case retryRequest: RetryRequest =>
-          retry(session)
+          retryWorkflow(session)
         case breakpoint: AddBreakpointRequest =>
           addBreakpoint(session, breakpoint)
         case paginationRequest: ResultPaginationRequest =>
@@ -149,9 +149,10 @@ class WorkflowWebsocketResource {
 //    throw new RuntimeException("modify logic is temporarily disabled")
   }
 
-  def retry(session: Session): Unit = {
+  def retryWorkflow(session: Session): Unit = {
     val (compiler, controller) = WorkflowWebsocketResource.sessionJobs(session.getId)
     controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, RetryWorkflow())
+    send(session, WorkflowResumedEvent())
   }
 
   def pauseWorkflow(session: Session): Unit = {
