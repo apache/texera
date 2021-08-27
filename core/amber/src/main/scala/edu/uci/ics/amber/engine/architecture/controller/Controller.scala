@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
-import akka.actor.{ActorRef, Address, Cancellable, Props}
+import akka.actor.{ActorRef, Address, Cancellable, PoisonPill, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import com.softwaremill.macwire.wire
@@ -137,6 +137,9 @@ class Controller(
         if (eventListener.workflowExecutionErrorListener != null) {
           eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
         }
+
+        // shutdown the system
+        context.self ! PoisonPill
       })
   }
 
