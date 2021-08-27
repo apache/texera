@@ -14,8 +14,7 @@ import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
 import { ExecutionState } from '../../types/execute-workflow.interface';
 import { DynamicModule } from 'ng-dynamic-component';
 
-
-fdescribe('ResultPanelComponent', () => {
+describe('ResultPanelComponent', () => {
   let component: ResultPanelComponent;
   let fixture: ComponentFixture<ResultPanelComponent>;
   let executeWorkflowService: ExecuteWorkflowService;
