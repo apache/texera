@@ -8,7 +8,6 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{READ
 import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 object StartHandler {
   final case class StartWorker() extends ControlCommand[WorkerState]
@@ -26,11 +25,7 @@ trait StartHandler {
       stateManager.getCurrentState
     } else {
       throw new WorkflowRuntimeException(
-        WorkflowRuntimeError(
-          "unexpected Start message for non-source operator!",
-          selfID.toString,
-          Map.empty
-        )
+        s"non-source worker $actorId received unexpected StartWorker!"
       )
     }
   }

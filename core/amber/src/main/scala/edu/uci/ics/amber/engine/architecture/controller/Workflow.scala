@@ -100,11 +100,13 @@ class Workflow(
 
   def getLink(linkID: LinkIdentity): LinkStrategy = idToLink(linkID)
 
-  def getPythonWorkerToOperatorExec: Iterable[(ActorVirtualIdentity, IOperatorExecutor)] =
-    workerToOperatorExec.filter({
-      case (_: ActorVirtualIdentity, operatorExecutor: IOperatorExecutor) =>
-        operatorExecutor.isInstanceOf[PythonUDFOpExecV2]
-    })
+  def getPythonWorkerToOperatorExec: Iterable[(ActorVirtualIdentity, PythonUDFOpExecV2)] =
+    workerToOperatorExec
+      .filter({
+        case (_: ActorVirtualIdentity, operatorExecutor: IOperatorExecutor) =>
+          operatorExecutor.isInstanceOf[PythonUDFOpExecV2]
+      })
+      .asInstanceOf[Iterable[(ActorVirtualIdentity, PythonUDFOpExecV2)]]
 
   def isCompleted: Boolean = operatorToOpExecConfig.values.forall(op => op.getState == Completed)
 

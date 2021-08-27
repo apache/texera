@@ -80,7 +80,6 @@ import { VisualizationFrameContentComponent } from './workspace/component/visual
 import { VisualizationFrameComponent } from './workspace/component/result-panel/visualization-frame/visualization-frame.component';
 import { WorkflowEditorComponent } from './workspace/component/workflow-editor/workflow-editor.component';
 import { WorkspaceComponent } from './workspace/component/workspace.component';
-import { ResultDownloadComponent } from './workspace/component/navigation/result-download/result-download.component';
 import { GoogleApiModule, NG_GAPI_CONFIG } from 'ng-gapi';
 import { NgbdModalWorkflowShareAccessComponent } from './dashboard/component/feature-container/saved-workflow-section/ngbd-modal-share-access/ngbd-modal-workflow-share-access.component';
 import { NgbdModalUserFileShareAccessComponent } from './dashboard/component/feature-container/user-file-section/ngbd-modal-file-share-access/ngbd-modal-user-file-share-access.component';
@@ -94,6 +93,9 @@ import { ResultTableFrameComponent } from './workspace/component/result-panel/re
 import { DynamicModule } from 'ng-dynamic-component';
 import { RowModalComponent } from './workspace/component/result-panel/result-panel-modal.component';
 import { MonacoEditorModule } from 'ngx-monaco-editor';
+import { OperatorPropertyEditFrameComponent } from './workspace/component/property-editor/operator-property-edit-frame/operator-property-edit-frame.component';
+import { BreakpointPropertyEditFrameComponent } from './workspace/component/property-editor/breakpoint-property-edit-frame/breakpoint-property-edit-frame.component';
+import { NotificationComponent } from './common/component/notification/notification/notification.component';
 
 registerLocaleData(en);
 
@@ -138,11 +140,13 @@ registerLocaleData(en);
     CodeareaCustomTemplateComponent,
     CodeEditorDialogComponent,
     TypeCastingDisplayComponent,
-    ResultDownloadComponent,
     NgbdModalWorkflowShareAccessComponent,
     NgbdModalUserFileShareAccessComponent,
     ConsoleFrameComponent,
-    ResultTableFrameComponent
+    ResultTableFrameComponent,
+    OperatorPropertyEditFrameComponent,
+    BreakpointPropertyEditFrameComponent,
+    NotificationComponent
   ],
   imports: [
     BrowserModule,

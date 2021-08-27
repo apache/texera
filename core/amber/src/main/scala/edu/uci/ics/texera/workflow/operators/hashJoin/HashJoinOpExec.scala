@@ -3,7 +3,6 @@ package edu.uci.ics.texera.workflow.operators.hashJoin
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
-import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
@@ -44,12 +43,8 @@ class HashJoinOpExec[K](
           buildTableHashMap.put(key, storedTuples)
           Iterator()
         } else if (!isBuildTableFinished) {
-          val err = WorkflowRuntimeError(
-            "Probe table came before build table ended",
-            "HashJoinOpExec",
-            Map("stacktrace" -> Thread.currentThread().getStackTrace.mkString("\n"))
-          )
-          throw new WorkflowRuntimeException(err)
+
+          throw new WorkflowRuntimeException("Probe table came before build table ended")
         } else {
           val key = t.getField(probeAttributeName).asInstanceOf[K]
           val storedTuples = buildTableHashMap.getOrElse(key, new ArrayBuffer[Tuple]())

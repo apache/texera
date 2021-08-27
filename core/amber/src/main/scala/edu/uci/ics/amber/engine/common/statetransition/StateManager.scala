@@ -5,31 +5,14 @@ import edu.uci.ics.amber.engine.common.statetransition.StateManager.{
   InvalidStateException,
   InvalidTransitionException
 }
-import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.collection.mutable
 
 object StateManager {
 
-  case class InvalidStateException(message: String)
-      extends WorkflowRuntimeException(
-        WorkflowRuntimeError(
-          message,
-          Thread.currentThread().getStackTrace.mkString("\n"),
-          Map.empty
-        )
-      )
-      with Serializable
+  case class InvalidStateException(message: String) extends WorkflowRuntimeException(message)
 
-  case class InvalidTransitionException(message: String)
-      extends WorkflowRuntimeException(
-        WorkflowRuntimeError(
-          message,
-          Thread.currentThread().getStackTrace.mkString("\n"),
-          Map.empty
-        )
-      )
-      with Serializable
+  case class InvalidTransitionException(message: String) extends WorkflowRuntimeException(message)
 }
 
 class StateManager[T](stateTransitionGraph: Map[T, Set[T]], initialState: T) {

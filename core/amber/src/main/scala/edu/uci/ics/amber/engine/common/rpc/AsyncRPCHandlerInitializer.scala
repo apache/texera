@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.common.rpc
 
 import com.twitter.util.Future
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
@@ -50,6 +51,12 @@ class AsyncRPCHandlerInitializer(
     registerImpl({ case (c: C, s) => Future { handler(c, s) } })
   }
 
+  private def registerImpl(
+      newHandler: PartialFunction[(ControlCommand[_], ActorVirtualIdentity), Future[_]]
+  ): Unit = {
+    ctrlReceiver.registerHandler(newHandler)
+  }
+
   /** register an async handler for one type of control command
     * note that register handler allows multiple handlers for a control message and uses the latest handler.
     * @param handler the lambda function for handling that type of control, it returns future[B]
@@ -71,12 +78,6 @@ class AsyncRPCHandlerInitializer(
 
   def execute[T](cmd: ControlCommand[T], sender: ActorVirtualIdentity): Future[T] = {
     ctrlReceiver.execute((cmd, sender)).asInstanceOf[Future[T]]
-  }
-
-  private def registerImpl(
-      newHandler: PartialFunction[(ControlCommand[_], ActorVirtualIdentity), Future[_]]
-  ): Unit = {
-    ctrlReceiver.registerHandler(newHandler)
   }
 
 }

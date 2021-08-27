@@ -5,7 +5,8 @@ import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQue
   ControlElementV2,
   DataElement
 }
-import edu.uci.ics.amber.engine.common.WorkflowLogger
+import edu.uci.ics.amber.engine.common.AmberLogging
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
   controlInvocationToV2,
   returnInvocationToV2
@@ -13,7 +14,6 @@ import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
 import edu.uci.ics.amber.engine.common.ambermessage.{PythonControlMessage, _}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import org.apache.arrow.flight._
@@ -22,12 +22,12 @@ import org.apache.arrow.vector.VectorSchemaRoot
 
 import scala.collection.mutable
 
-class PythonProxyClient(portNumber: Int, logger: WorkflowLogger)
+class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
     extends Runnable
+    with AmberLogging
     with AutoCloseable
     with WorkerBatchInternalQueue {
 
-  final val CHUNK_SIZE: Int = 100
   val allocator: BufferAllocator =
     new RootAllocator().newChildAllocator("flight-client", 0, Long.MaxValue)
   val location: Location = Location.forGrpcInsecure("localhost", portNumber)
@@ -46,30 +46,21 @@ class PythonProxyClient(portNumber: Int, logger: WorkflowLogger)
     var tryCount = 0
     while (!connected && tryCount < MAX_TRY_COUNT) {
       try {
-        logger.logInfo("trying to connect to " + location)
+        logger.info(s"trying to connect to $location")
         flightClient = FlightClient.builder(allocator, location).build()
         connected = new String(flightClient.doAction(new Action("heartbeat")).next.getBody) == "ack"
-        if (!connected) Thread.sleep(WAIT_TIME_MS)
+        if (!connected)
+          throw new RuntimeException("heartbeat failed")
       } catch {
-        case e: FlightRuntimeException =>
-          logger.logWarning(s"${e.getStackTrace.mkString("Array(", ", ", ")")}")
+        case e: RuntimeException =>
+          logger.warn("Not connected to the server in this try, retrying", e)
           flightClient.close()
           Thread.sleep(WAIT_TIME_MS)
-
-      } finally {
-        logger.logInfo(
-          "Flight CLIENT:\tNot connected to the server in this try. "
-        )
-        tryCount += 1
-        if (tryCount >= MAX_TRY_COUNT) {
-          logger.logError(
-            WorkflowRuntimeError(
-              "Exceeded try limit of " + MAX_TRY_COUNT + " when connecting to Flight Server!",
-              "PythonProxyClient",
-              Map.empty
+          tryCount += 1
+          if (tryCount >= MAX_TRY_COUNT)
+            throw new WorkflowRuntimeException(
+              s"Exceeded try limit of $MAX_TRY_COUNT when connecting to Flight Server!"
             )
-          )
-        }
       }
     }
   }
@@ -98,39 +89,14 @@ class PythonProxyClient(portNumber: Int, logger: WorkflowLogger)
     }
   }
 
-  private def writeArrowStream(
-      tuples: mutable.Queue[Tuple],
+  def sendControlV2(
       from: ActorVirtualIdentity,
-      isEnd: Boolean
-  ): Unit = {
-
-    val schema = if (tuples.isEmpty) new Schema() else tuples.front.getSchema
-    val descriptor = FlightDescriptor.command(PythonDataHeader(from, isEnd).toByteArray)
-    logger.logInfo(
-      s"sending data with descriptor ${PythonDataHeader(from, isEnd)}, schema $schema, size of batch ${tuples.size}"
-    )
-    val flightListener = new SyncPutListener
-    val schemaRoot = VectorSchemaRoot.create(ArrowUtils.fromTexeraSchema(schema), allocator)
-    val writer = flightClient.startPut(descriptor, schemaRoot, flightListener)
-
-    while (tuples.nonEmpty) {
-      writeChunk(tuples, schemaRoot, writer)
-    }
-    writer.completed()
-    flightListener.getResult()
-    flightListener.close()
-  }
-
-  private def writeChunk(
-      tuples: mutable.Queue[Tuple],
-      schemaRoot: VectorSchemaRoot,
-      writer: FlightClient.ClientStreamListener
-  ): Unit = {
-    schemaRoot.allocateNew()
-    while (schemaRoot.getRowCount < CHUNK_SIZE && tuples.nonEmpty)
-      ArrowUtils.appendTexeraTuple(tuples.dequeue(), schemaRoot)
-    writer.putNext()
-    schemaRoot.clear()
+      payload: ControlPayloadV2
+  ): Result = {
+    val controlMessage = PythonControlMessage(from, payload)
+    val action: Action = new Action("control", controlMessage.toByteArray)
+    logger.info(s"sending control $controlMessage")
+    flightClient.doAction(action).next()
   }
 
   def sendControlV1(from: ActorVirtualIdentity, payload: ControlPayload): Unit = {
@@ -144,14 +110,30 @@ class PythonProxyClient(portNumber: Int, logger: WorkflowLogger)
     }
   }
 
-  def sendControlV2(
+  private def writeArrowStream(
+      tuples: mutable.Queue[Tuple],
       from: ActorVirtualIdentity,
-      payload: ControlPayloadV2
-  ): Result = {
-    val controlMessage = PythonControlMessage(from, payload)
-    val action: Action = new Action("control", controlMessage.toByteArray)
-    logger.logInfo(s"sending control $controlMessage")
-    flightClient.doAction(action).next()
+      isEnd: Boolean
+  ): Unit = {
+
+    val schema = if (tuples.isEmpty) new Schema() else tuples.front.getSchema
+    val descriptor = FlightDescriptor.command(PythonDataHeader(from, isEnd).toByteArray)
+    logger.info(
+      s"sending data with descriptor ${PythonDataHeader(from, isEnd)}, schema $schema, size of batch ${tuples.size}"
+    )
+    val flightListener = new SyncPutListener
+    val schemaRoot = VectorSchemaRoot.create(ArrowUtils.fromTexeraSchema(schema), allocator)
+    val writer = flightClient.startPut(descriptor, schemaRoot, flightListener)
+    schemaRoot.allocateNew()
+    while (tuples.nonEmpty) {
+      ArrowUtils.appendTexeraTuple(tuples.dequeue(), schemaRoot)
+    }
+    writer.putNext()
+    schemaRoot.clear()
+    writer.completed()
+    flightListener.getResult()
+    flightListener.close()
+
   }
 
   override def close(): Unit = {

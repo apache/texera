@@ -3,13 +3,16 @@ import { WorkflowWebsocketService } from '../workflow-websocket/workflow-websock
 import { PythonPrintTriggerInfo } from '../../types/workflow-common.interface';
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
+import { RingBuffer } from 'ring-buffer-ts';
+
+export const CONSOLE_BUFFER_SIZE = 100;
 
 @Injectable({
   providedIn: 'root'
 })
 export class WorkflowConsoleService {
 
-  private consoleMessages: Map<string, ReadonlyArray<string>> = new Map();
+  private consoleMessages: Map<string, RingBuffer<string>> = new Map();
   private consoleMessagesUpdateStream = new Subject<void>();
 
   constructor(private workflowWebsocketService: WorkflowWebsocketService) {
@@ -21,8 +24,8 @@ export class WorkflowConsoleService {
     this.workflowWebsocketService.subscribeToEvent('PythonPrintTriggeredEvent')
       .subscribe((pythonPrintTriggerInfo: PythonPrintTriggerInfo) => {
         const operatorID = pythonPrintTriggerInfo.operatorID;
-        let messages = this.consoleMessages.get(operatorID) || [];
-        messages = messages.concat(pythonPrintTriggerInfo.message.split('\n'));
+        const messages = this.consoleMessages.get(operatorID) || new RingBuffer<string>(CONSOLE_BUFFER_SIZE);
+        messages.add(...pythonPrintTriggerInfo.message.split('\n').filter(msg => msg !== ''));
         this.consoleMessages.set(operatorID, messages);
         this.consoleMessagesUpdateStream.next();
       });
@@ -35,7 +38,7 @@ export class WorkflowConsoleService {
   }
 
   getConsoleMessages(operatorID: string): ReadonlyArray<string> | undefined {
-    return this.consoleMessages.get(operatorID);
+    return this.consoleMessages.get(operatorID)?.toArray();
   }
 
   getConsoleMessageUpdateStream(): Observable<void> {

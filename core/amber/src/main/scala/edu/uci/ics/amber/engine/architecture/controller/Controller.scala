@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
-import akka.actor.{ActorRef, Address, Cancellable, Props}
+import akka.actor.{ActorRef, Address, Cancellable, PoisonPill, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import com.softwaremill.macwire.wire
@@ -11,6 +11,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   ErrorOccurred,
   WorkflowStatusUpdate
 }
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.KillWorkflowHandler.KillWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
@@ -21,12 +22,13 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputPort
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.SendPythonUdfHandler.SendPythonUdf
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
 import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowControlMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.error.ErrorUtils.safely
-import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
 
 import scala.concurrent.duration._
@@ -72,14 +74,17 @@ class Controller(
     parentNetworkCommunicationActorRef: ActorRef
 ) extends WorkflowActor(CONTROLLER, parentNetworkCommunicationActorRef) {
   lazy val controlInputPort: NetworkInputPort[ControlPayload] =
-    new NetworkInputPort[ControlPayload](this.logger, this.handleControlPayloadWithTryCatch)
+    new NetworkInputPort[ControlPayload](this.actorId, this.handleControlPayloadWithTryCatch)
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
   val rpcHandlerInitializer: ControllerAsyncRPCHandlerInitializer =
     wire[ControllerAsyncRPCHandlerInitializer]
   var statusUpdateAskHandle: Cancellable = _
 
-  logger.setErrorLogAction(errorLogAction)
+  def availableNodes: Array[Address] =
+    Await
+      .result(context.actorSelection("/user/cluster-info") ? GetAvailableNodeAddresses, 5.seconds)
+      .asInstanceOf[Array[Address]]
 
   // register controller itself
   networkCommunicationActor ! RegisterActorRef(CONTROLLER, self)
@@ -128,9 +133,16 @@ class Controller(
         context.become(running)
         unstashAll()
       })
-      .onFailure((x: Throwable) =>
-        logger.logError(new WorkflowRuntimeError(x.getMessage, "PythonUDFV2", Map.empty))
-      )
+      .onFailure((err: Throwable) => {
+        logger.error("Failure when sending Python UDF code", err)
+        // report error to frontend
+        if (eventListener.workflowExecutionErrorListener != null) {
+          eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
+        }
+
+        // shutdown the system
+        asyncRPCServer.execute(KillWorkflow(), CONTROLLER)
+      })
   }
 
   def running: Receive = {
@@ -138,7 +150,7 @@ class Controller(
       case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload)) =>
         controlInputPort.handleMessage(this.sender(), id, from, seqNum, payload)
       case other =>
-        logger.logInfo(s"unhandled message: $other")
+        logger.info(s"unhandled message: $other")
     }
   }
 
@@ -162,24 +174,19 @@ class Controller(
           asyncRPCClient.logControlReply(ret, from)
           asyncRPCClient.fulfillPromise(ret)
         case other =>
-          logger.logError(
-            WorkflowRuntimeError(
-              s"unhandled control message: $other",
-              "ControlInputPort",
-              Map.empty
-            )
-          )
+          throw new WorkflowRuntimeException(s"unhandled control message: $other")
       }
     } catch safely {
-      case e =>
-        logger.logError(WorkflowRuntimeError(e, identifier.toString))
+      case err =>
+        // report error to frontend
+        if (eventListener.workflowExecutionErrorListener != null) {
+          eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
+        }
+
+        // re-throw the error to fail the actor
+        throw err
     }
   }
-
-  def availableNodes: Array[Address] =
-    Await
-      .result(context.actorSelection("/user/cluster-info") ? GetAvailableNodeAddresses, 5.seconds)
-      .asInstanceOf[Array[Address]]
 
   override def receive: Receive = initializing
 
@@ -207,13 +214,6 @@ class Controller(
     if (statusUpdateAskHandle != null) {
       statusUpdateAskHandle.cancel()
     }
-    logger.logInfo("stopped!")
+    logger.info("stopped!")
   }
-
-  private def errorLogAction(err: WorkflowRuntimeError): Unit = {
-    if (eventListener.workflowExecutionErrorListener != null) {
-      eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
-    }
-  }
-
 }

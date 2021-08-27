@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.web.resource
 
+import com.github.tototoshi.csv.CSVWriter
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.util.Lists
 import com.google.api.services.drive.Drive
@@ -7,21 +8,27 @@ import com.google.api.services.drive.model.{File, FileList, Permission}
 import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.model.{Spreadsheet, SpreadsheetProperties, ValueRange}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.texera.web.model.event.ResultDownloadResponse
-import edu.uci.ics.texera.web.model.request.ResultDownloadRequest
+import edu.uci.ics.texera.Utils.retry
+import edu.uci.ics.texera.web.model.event.ResultExportResponse
+import edu.uci.ics.texera.web.model.request.ResultExportRequest
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
-  sessionDownloadCache,
+  sessionExportCache,
+  sessionMap,
   sessionResults
 }
-import edu.uci.ics.texera.Utils.retry
+import edu.uci.ics.texera.web.resource.auth.UserResource
+import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import org.jooq.types.UInteger
 
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.util
 import java.util.concurrent.{Executors, ThreadPoolExecutor}
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
+import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
-object ResultDownloadResource {
+object ResultExportResource {
 
   private final val UPLOAD_BATCH_ROW_COUNT = 10000
   private final val RETRY_ATTEMPTS = 7
@@ -33,99 +40,83 @@ object ResultDownloadResource {
 
   def apply(
       sessionId: String,
-      request: ResultDownloadRequest
-  ): ResultDownloadResponse = {
+      request: ResultExportRequest
+  ): ResultExportResponse = {
     // retrieve the file link saved in the session if exists
     if (
-      sessionDownloadCache.contains(sessionId) && sessionDownloadCache(sessionId).contains(
-        request.downloadType
-      )
+      sessionExportCache
+        .contains(sessionId) && sessionExportCache(sessionId).contains(request.exportType)
     ) {
-      return ResultDownloadResponse(
-        request.downloadType,
-        sessionDownloadCache(sessionId)(request.downloadType),
-        "File retrieved from cache."
+      return ResultExportResponse(
+        "success",
+        s"Link retrieved from cache ${sessionExportCache(sessionId)(request.exportType)}"
       )
     }
 
-    // By now the workflow should finish running. Only one operator should contain results
-    // TODO: currently assume only one operator should contains the result
-    // TODO: change status checking of the workflow
-    val operatorWithResult =
-      sessionResults(sessionId).operatorResults.values.count(p => p.getResult.nonEmpty)
-    if (operatorWithResult == 0) {
-      return ResultDownloadResponse(
-        request.downloadType,
-        "",
-        "The workflow contains no results"
-      )
-    } else if (operatorWithResult > 1) {
-      // more than one operator contains results means the workflow does not finish running.
-      return ResultDownloadResponse(
-        request.downloadType,
-        "",
-        "The workflow does not finish running"
-      )
+    // By now the workflow should finish running
+    val operatorWithResult: Option[WorkflowResultService#OperatorResultService] =
+      sessionResults(sessionId).operatorResults.get(request.operatorId)
+    if (operatorWithResult.isEmpty) {
+      return ResultExportResponse("error", "The workflow contains no results")
     }
 
     // convert the ITuple into tuple
-    // TODO: currently only accept the tuple as input
     val results: List[Tuple] =
-      sessionResults(sessionId).operatorResults.values
-        .find(p => p.getResult.nonEmpty)
-        .get
-        .getResult
-        .map(iTuple => iTuple.asInstanceOf[Tuple])
-    val schema = getSchema(results.head)
+      operatorWithResult.get.getResult.map(iTuple => iTuple.asInstanceOf[Tuple])
+    val attributeNames = results.head.getSchema.getAttributeNames.asScala.toList
 
-    // handle the request according to download type
-    var response: ResultDownloadResponse = null
-    request.downloadType match {
+    // handle the request according to export type
+    request.exportType match {
       case "google_sheet" =>
-        response = handleGoogleSheetRequest(request, results, schema)
+        handleGoogleSheetRequest(sessionId, request, results, attributeNames)
+      case "csv" =>
+        handleCSVRequest(sessionId, request, results, attributeNames)
       case _ =>
-        response = ResultDownloadResponse(
-          request.downloadType,
-          "",
-          s"Unknown download type: ${request.downloadType}"
-        )
+        ResultExportResponse("error", s"Unknown export type: ${request.exportType}")
     }
 
-    // save the file link in the session cache
-    if (!sessionDownloadCache.contains(sessionId)) {
-      sessionDownloadCache.put(
-        sessionId,
-        mutable.HashMap(request.downloadType -> response.link)
-      )
-    } else {
-      sessionDownloadCache(sessionId)
-        .put(request.downloadType, response.link)
-    }
-
-    response
   }
 
-  // get the schema from the sample tuple
-  private def getSchema(tuple: Tuple): util.List[AnyRef] = {
-    tuple.getSchema.getAttributeNames
-      .asInstanceOf[util.List[AnyRef]]
+  def handleCSVRequest(
+      sessionId: String,
+      request: ResultExportRequest,
+      results: List[Tuple],
+      headers: List[String]
+  ): ResultExportResponse = {
+    val stream = new ByteArrayOutputStream()
+    val writer = CSVWriter.open(stream)
+    writer.writeRow(headers)
+    writer.writeAll(results.map(tuple => tuple.getFields.toList))
+    writer.close()
+    val fileName = s"${request.workflowName}-${request.operatorId}.csv"
+    val uid = UserResource
+      .getUser(sessionMap(sessionId)._2)
+      .map(u => u.getUid)
+      .get
+    val fileNameStored = UserFileResource.saveUserFileSafe(
+      uid,
+      fileName,
+      new ByteArrayInputStream(stream.toByteArray),
+      UInteger.valueOf(stream.toByteArray.length),
+      "generated by workflow"
+    )
+
+    ResultExportResponse("success", s"File saved to User Dashboard as $fileNameStored")
   }
 
   private def handleGoogleSheetRequest(
-      resultDownloadRequest: ResultDownloadRequest,
-      result: List[ITuple],
-      schema: util.List[AnyRef]
-  ): ResultDownloadResponse = {
+      sessionId: String,
+      request: ResultExportRequest,
+      results: List[ITuple],
+      header: List[String]
+  ): ResultExportResponse = {
     // create google sheet
     val sheetService: Sheets = GoogleResource.getSheetService
     val sheetId: String =
-      createGoogleSheet(sheetService, resultDownloadRequest.workflowName)
-    if (sheetId == null)
-      return ResultDownloadResponse(
-        resultDownloadRequest.downloadType,
-        "",
-        "Fail to create google sheet"
-      )
+      createGoogleSheet(sheetService, request.workflowName)
+    if (sheetId == null) {
+      return ResultExportResponse("error", "Fail to create google sheet")
+    }
 
     val driveService: Drive = GoogleResource.getDriveService
     moveToResultFolder(driveService, sheetId)
@@ -143,16 +134,27 @@ object ResultDownloadResource {
     pool
       .submit(() =>
         {
-          uploadHeader(sheetService, sheetId, schema)
-          uploadResult(sheetService, sheetId, result)
+          uploadHeader(sheetService, sheetId, header)
+          uploadResult(sheetService, sheetId, results)
         }.asInstanceOf[Runnable]
       )
 
     // generate success response
-    val link: String = s"https://docs.google.com/spreadsheets/d/$sheetId/edit"
+    val link = s"https://docs.google.com/spreadsheets/d/$sheetId/edit"
     val message: String =
-      s"Google sheet created. The results may be still uploading."
-    ResultDownloadResponse(resultDownloadRequest.downloadType, link, message)
+      s"Google sheet created. The results may be still uploading. You can access the sheet $link"
+    // save the file link in the session cache
+    if (!sessionExportCache.contains(sessionId)) {
+      sessionExportCache.put(
+        sessionId,
+        mutable.HashMap(request.exportType -> link)
+      )
+    } else {
+      sessionExportCache(sessionId)
+        .put(request.exportType, link)
+    }
+
+    ResultExportResponse("success", message)
   }
 
   /**
@@ -229,11 +231,9 @@ object ResultDownloadResource {
   private def uploadHeader(
       sheetService: Sheets,
       sheetId: String,
-      schema: util.List[AnyRef]
+      header: List[AnyRef]
   ): Unit = {
-    val schemaContent: util.List[util.List[AnyRef]] = Lists.newArrayList()
-    schemaContent.add(schema)
-    uploadContent(sheetService, sheetId, schemaContent)
+    uploadContent(sheetService, sheetId, List(header.asJava).asJava)
   }
 
   /**

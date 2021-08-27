@@ -42,7 +42,9 @@ val akkaDependencies = Seq(
   "com.softwaremill.macwire" %% "macros" % "2.3.6" % Provided,
   "com.softwaremill.macwire" %% "macrosakka" % "2.3.6" % Provided,
   "com.softwaremill.macwire" %% "util" % "2.3.6",
-  "com.softwaremill.macwire" %% "proxy" % "2.3.6"
+  "com.softwaremill.macwire" %% "proxy" % "2.3.6",
+  "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
+  "ch.qos.logback" % "logback-classic" % "1.2.3"
 )
 
 // dropwizard web framework
@@ -62,6 +64,8 @@ val dropwizardDependencies = Seq(
   "org.glassfish.jersey.media" % "jersey-media-multipart" % jerseyMultipartVersion,
   "com.fasterxml.jackson.module" % "jackson-module-jsonSchema" % jacksonVersion,
   "com.fasterxml.jackson.module" % "jackson-module-scala_2.12" % jacksonVersion,
+  // https://mvnrepository.com/artifact/commons-io/commons-io
+   "commons-io" % "commons-io" % "2.11.0"
 )
 
 
@@ -177,7 +181,7 @@ libraryDependencies += "com.konghq" % "unirest-java" % "3.11.11"
 libraryDependencies += "com.github.marianobarrios" % "lbmq" % "0.5.0"
 
 // https://mvnrepository.com/artifact/io.github.redouane59.twitter/twittered
-libraryDependencies += "io.github.redouane59.twitter" % "twittered" % "2.6"
+libraryDependencies += "io.github.redouane59.twitter" % "twittered" % "2.7"
 
 // https://mvnrepository.com/artifact/org.jooq/jooq
 libraryDependencies += "org.jooq" % "jooq" % "3.14.4"
