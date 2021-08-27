@@ -9,7 +9,7 @@ from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, LinkIden
 
 
 class BatchToTupleConverter:
-    IGNORE_SENDER = ActorVirtualIdentity("IGNORE_SENDER")
+    SOURCE_STARTER = ActorVirtualIdentity("SOURCE_STARTER")
 
     def __init__(self):
         self._input_map: dict[ActorVirtualIdentity, LinkIdentity] = dict()
@@ -25,7 +25,7 @@ class BatchToTupleConverter:
         link = self._input_map[from_]
 
         # special case used to yield for source op
-        if from_ == BatchToTupleConverter.IGNORE_SENDER:
+        if from_ == BatchToTupleConverter.SOURCE_STARTER:
             yield InputExhausted()
             yield EndOfAllMarker()
             return
