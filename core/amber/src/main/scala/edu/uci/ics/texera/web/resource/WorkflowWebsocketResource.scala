@@ -83,7 +83,6 @@ class WorkflowWebsocketResource {
           println(execute)
           executeWorkflow(session, execute)
         case newLogic: ModifyLogicRequest =>
-          println(newLogic)
           modifyLogic(session, newLogic)
         case pause: PauseWorkflowRequest =>
           pauseWorkflow(session)
