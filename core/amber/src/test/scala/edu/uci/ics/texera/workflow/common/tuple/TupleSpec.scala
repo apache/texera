@@ -1,8 +1,18 @@
 package edu.uci.ics.texera.workflow.common.tuple
 
+import com.fasterxml.jackson.databind.JsonNode
+import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.workflow.common.tuple.exception.TupleBuildingException
+import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.{
+  inferSchemaFromRows,
+  parseField
+}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
+import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
 import org.scalatest.flatspec.AnyFlatSpec
+
+import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
 class TupleSpec extends AnyFlatSpec {
   val stringAttribute = new Attribute("col-string", AttributeType.STRING)
@@ -78,5 +88,69 @@ class TupleSpec extends AnyFlatSpec {
     // This is the important test. Input tuple has 3 attributes but output tuple has only 2
     // It's because of isStrictSchemaMatch=false
     assert(outputTuple.size == 2);
+  }
+
+  it should "produce identical strings" in {
+    val inputSchema =
+      Schema.newBuilder().add(stringAttribute).add(integerAttribute).add(boolAttribute).build()
+    val inputTuple = Tuple
+      .newBuilder(inputSchema)
+      .add(integerAttribute, 1)
+      .add(stringAttribute, "string-attr")
+      .add(boolAttribute, true)
+      .build()
+    val line = inputTuple.asKeyValuePairJson().toString
+
+    var fieldNames = Set[String]()
+
+    val allFields: ArrayBuffer[Map[String, String]] = ArrayBuffer()
+
+    val root: JsonNode = objectMapper.readTree(line)
+    if (root.isObject) {
+      val fields: Map[String, String] = JSONToMap(root)
+      fieldNames = fieldNames.++(fields.keySet)
+      allFields += fields
+    }
+
+    val sortedFieldNames = fieldNames.toList
+
+    val attributeTypes = inferSchemaFromRows(allFields.iterator.map(fields => {
+      val result = ArrayBuffer[Object]()
+      for (fieldName <- sortedFieldNames) {
+        if (fields.contains(fieldName)) {
+          result += fields(fieldName)
+        } else {
+          result += null
+        }
+      }
+      result.toArray
+    }))
+
+    val schema = Schema.newBuilder
+      .add(
+        sortedFieldNames.indices
+          .map(i => new Attribute(sortedFieldNames(i), attributeTypes(i)))
+          .asJava
+      )
+      .build
+
+    try {
+      val fields = scala.collection.mutable.ArrayBuffer.empty[Object]
+      val data = JSONToMap(objectMapper.readTree(line))
+
+      for (fieldName <- schema.getAttributeNames.asScala) {
+        if (data.contains(fieldName))
+          fields += parseField(data(fieldName), schema.getAttribute(fieldName).getType)
+        else {
+          fields += null
+        }
+      }
+
+      val newTuple = Tuple.newBuilder(schema).addSequentially(fields.toArray).build
+      assert(inputTuple.toString.equals(newTuple.toString))
+    } catch {
+      case _: Throwable => null
+    }
+
   }
 }
