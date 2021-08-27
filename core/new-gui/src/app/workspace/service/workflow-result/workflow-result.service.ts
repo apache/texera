@@ -53,13 +53,17 @@ export class WorkflowResultService {
     Object.keys(event).forEach(operatorID => {
       const update = event[operatorID];
       if (isWebPaginationUpdate(update)) {
-        const paginatedResultSerivce = this.getOrInitPaginatedResultService(operatorID);
-        paginatedResultSerivce.handleResultUpdate(update);
+        const paginatedResultService = this.getOrInitPaginatedResultService(operatorID);
+        paginatedResultService.handleResultUpdate(update);
+        // clear previously saved result service
+        this.operatorResultServices.delete(operatorID);
       } else if (isWebDataUpdate(update)) {
-        const resultSerivce = this.getOrInitResultService(operatorID);
-        resultSerivce.handleResultUpdate(update);
+        const resultService = this.getOrInitResultService(operatorID);
+        resultService.handleResultUpdate(update);
+        // clear previously saved paginated result service
+        this.paginatedResultServices.delete(operatorID);
       } else {
-        const _exhasutiveCheck: never = update;
+        const _exhaustiveCheck: never = update;
       }
     });
     this.resultUpdateStream.next(event);
