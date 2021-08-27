@@ -23,6 +23,7 @@ import { isEqual } from 'lodash';
 import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from '../../types/result-table.interface';
 import { sessionGetObject, sessionSetObject } from '../../../common/util/storage';
 
+// TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
 
 export const EXECUTE_WORKFLOW_ENDPOINT = 'queryplan/execute';
@@ -322,7 +323,7 @@ export class ExecuteWorkflowService {
    *  where each operator has an operatorID and operatorType along with
    *  the properties of the operator.
    *
-   * All the links in the workflowGraph will be tranformed to LogicalLink objects,
+   * All the links in the workflowGraph will be transformed to LogicalLink objects,
    *  where each link will store its source id as its origin and target id as its destination.
    *
    * @param workflowGraph
@@ -370,5 +371,6 @@ export class ExecuteWorkflowService {
     }
     return { operatorID, breakpoint };
   }
+
 
 }
