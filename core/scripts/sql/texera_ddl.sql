@@ -9,6 +9,7 @@ DROP TABLE IF EXISTS `workflow_of_user`;
 DROP TABLE IF EXISTS `user_dictionary`;
 DROP TABLE IF EXISTS `user`;
 DROP TABLE IF EXISTS `workflow`;
+DROP TABLE IF EXISTS `workflow_version`;
 
 SET GLOBAL time_zone = '+00:00'; # this line is mandatory
 
@@ -100,5 +101,15 @@ CREATE TABLE IF NOT EXISTS workflow_user_access
     `write_privilege` BIT(1),
     PRIMARY KEY (`uid`, `wid`),
     FOREIGN KEY (`uid`) REFERENCES `user` (`uid`) ON DELETE CASCADE,
+    FOREIGN KEY (`wid`) REFERENCES `workflow` (`wid`) ON DELETE CASCADE
+) ENGINE = INNODB;
+
+CREATE TABLE IF NOT EXISTS workflow_version
+(
+    `vid`             INT UNSIGNED AUTO_INCREMENT NOT NULL,
+    `wid`             INT UNSIGNED NOT NULL,
+    `content`            TEXT                        NOT NULL,
+    `creation_time`      TIMESTAMP                   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`vid`),
     FOREIGN KEY (`wid`) REFERENCES `workflow` (`wid`) ON DELETE CASCADE
 ) ENGINE = INNODB;

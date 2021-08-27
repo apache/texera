@@ -1,22 +1,27 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.flipkart.zjsonpatch.JsonDiff
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
   USER,
   WORKFLOW,
   WORKFLOW_OF_USER,
-  WORKFLOW_USER_ACCESS
+  WORKFLOW_USER_ACCESS,
+  WORKFLOW_VERSION
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   WorkflowDao,
   WorkflowOfUserDao,
-  WorkflowUserAccessDao
+  WorkflowUserAccessDao,
+  WorkflowVersionDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
   User,
   Workflow,
   WorkflowOfUser,
-  WorkflowUserAccess
+  WorkflowUserAccess,
+  WorkflowVersion
 }
 import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.web.resource.dashboard.WorkflowAccessResource.{
@@ -27,6 +32,7 @@ import edu.uci.ics.texera.web.resource.dashboard.WorkflowResource.context
 import io.dropwizard.jersey.sessions.Session
 import org.jooq.types.UInteger
 
+import java.sql.Timestamp
 import javax.servlet.http.HttpSession
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
@@ -44,6 +50,13 @@ case class DashboardWorkflowEntry(
     ownerName: String,
     workflow: Workflow
 )
+
+case class VersionEntry(
+    vId: UInteger,
+    creationTime: Timestamp,
+    content: String
+)
+
 object WorkflowResource {
   val context = SqlServer.createDSLContext()
 }
@@ -53,6 +66,7 @@ object WorkflowResource {
 class WorkflowResource {
 
   final private val workflowDao = new WorkflowDao(context.configuration)
+  final private val workflowVersionDao = new WorkflowVersionDao(context.configuration)
   final private val workflowOfUserDao = new WorkflowOfUserDao(
     context.configuration
   )
@@ -138,6 +152,8 @@ class WorkflowResource {
     }
   }
 
+  //TODO should add an entry to store diff given a wid and diff content
+
   /**
     * This method persists the workflow into database
     *
@@ -154,6 +170,22 @@ class WorkflowResource {
     UserResource.getUser(session) match {
       case Some(user) =>
         if (workflowOfUserExists(workflow.getWid, user.getUid)) {
+          // todo retrieve current workflow from DB
+          val currentWorkflow = workflowDao.fetchOneByWid(workflow.getWid)
+          // todo compute diff
+          val mapper = new ObjectMapper()
+          val patch = JsonDiff.asJson(
+            mapper.readTree(workflow.getContent),
+            mapper.readTree(currentWorkflow.getContent)
+          )
+          // todo if they are different
+          if (!patch.isEmpty) {
+            // todo write into DB both diff and updated version
+            val workflowVersion = new WorkflowVersion()
+            workflowVersion.setContent(patch.toString)
+            workflowVersion.setWid(workflow.getWid)
+            workflowVersionDao.insert(workflowVersion)
+          }
           // current user reading
           workflowDao.update(workflow)
         } else {
@@ -284,4 +316,38 @@ class WorkflowResource {
     )
   }
 
+  /**
+    * This method returns the versions of a workflow
+    *
+    * @param session HttpSession
+    * @return versions[]
+    */
+  @GET
+  @Path("/versions/{wid}")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def retrieveVersionsOfWorkflow(
+      @PathParam("wid") wid: UInteger,
+      @Session session: HttpSession
+  ): List[VersionEntry] = {
+    UserResource.getUser(session) match {
+      case Some(user) =>
+        val versions = context
+          .select(WORKFLOW_VERSION.VID, WORKFLOW_VERSION.CREATION_TIME, WORKFLOW_VERSION.CONTENT)
+          .from(WORKFLOW_VERSION)
+          .leftJoin(WORKFLOW)
+          .on(WORKFLOW_VERSION.WID.eq(WORKFLOW.WID))
+          .where(WORKFLOW_VERSION.WID.eq(wid))
+          .fetch()
+        versions
+          .map(workflowRecord =>
+            VersionEntry(
+              workflowRecord.into(WORKFLOW_VERSION).getVid,
+              workflowRecord.into(WORKFLOW_VERSION).getCreationTime,
+              workflowRecord.into(WORKFLOW_VERSION).getContent
+            )
+          )
+          .toList
+      case None => List()
+    }
+  }
 }

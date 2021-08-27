@@ -362,6 +362,10 @@ export class NavigationComponent implements OnInit {
       });
   }
 
+  onClickGetAllVersions() {
+    this.workflowPersistService.retrieveVersionsOfWorkflow(<number>this.workflowActionService.
+    getWorkflowMetadata()?.wid).subscribe(mylist => {console.log(mylist); });
+  }
   /**
    * Updates the status of the disable operator icon:
    * If all selected operators are disabled, then click it will re-enable the operators

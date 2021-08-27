@@ -6,8 +6,10 @@ import { AppSettings } from '../../app-setting';
 import { Workflow, WorkflowContent } from '../../type/workflow';
 import { jsonCast } from '../../util/storage';
 import { DashboardWorkflowEntry } from '../../../dashboard/type/dashboard-workflow-entry';
+import {WorkflowVersionEntry} from '../../../dashboard/type/workflow-version-entry';
 
 export const WORKFLOW_BASE_URL = 'workflow';
+export const VERSIONS_BASE_URL = WORKFLOW_BASE_URL + '/versions';
 export const WORKFLOW_PERSIST_URL = WORKFLOW_BASE_URL + '/persist';
 export const WORKFLOW_LIST_URL = WORKFLOW_BASE_URL + '/list';
 export const WORKFLOW_CREATE_URL = WORKFLOW_BASE_URL + '/create';
@@ -66,7 +68,9 @@ export class WorkflowPersistService {
    * @param wid, the workflow id.
    */
   public retrieveWorkflow(wid: number): Observable<Workflow> {
-    return this.http.get<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/${wid}`)
+    const url = `${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/${wid}`;
+    console.log(url);
+    return this.http.get<Workflow>(url)
       .filter((workflow: Workflow) => workflow != null)
       .pipe(map(WorkflowPersistService.parseWorkflowInfo));
   }
@@ -86,6 +90,15 @@ export class WorkflowPersistService {
           })
         )
       );
+  }
+
+  /**
+   * retrieves a list of versions for a particular workflow from backend database
+   */
+  public retrieveVersionsOfWorkflow(wid: number): Observable<WorkflowVersionEntry[]> {
+    const url = `${AppSettings.getApiEndpoint()}/${VERSIONS_BASE_URL}/${wid}`;
+    console.log(url);
+    return this.http.get<WorkflowVersionEntry[]>(url);
   }
 
   /**

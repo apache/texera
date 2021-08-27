@@ -65,16 +65,14 @@ val dropwizardDependencies = Seq(
   "com.fasterxml.jackson.module" % "jackson-module-jsonSchema" % jacksonVersion,
   "com.fasterxml.jackson.module" % "jackson-module-scala_2.12" % jacksonVersion,
   // https://mvnrepository.com/artifact/commons-io/commons-io
-   "commons-io" % "commons-io" % "2.11.0"
+  "commons-io" % "commons-io" % "2.11.0"
 )
-
-
 
 // deps from library
 //"com.kjetland" % "mbknor-jackson-jsonschema_2.12" % "1.0.39"
 
 val slf4jVersion = "1.7.26"
-val mbknorJacksonJsonSchemaDependencies  = Seq(
+val mbknorJacksonJsonSchemaDependencies = Seq(
   "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
   "javax.validation" % "validation-api" % "2.0.1.Final",
   "org.slf4j" % "slf4j-api" % slf4jVersion,
@@ -158,6 +156,11 @@ libraryDependencies += "org.scalamock" %% "scalamock" % "4.4.0" % Test
 libraryDependencies += "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.4.0" % Test
 // https://www.scalatest.org/getting_started_with_fun_suite
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.9" % Test
+
+/////////////////////////////////////////////////////////////////////////////
+// Workflow version control related
+// https://mvnrepository.com/artifact/com.flipkart.zjsonpatch/zjsonpatch
+libraryDependencies += "com.flipkart.zjsonpatch" % "zjsonpatch" % "0.2.1"
 
 /////////////////////////////////////////////////////////////////////////////
 // Uncategorized
