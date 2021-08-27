@@ -5,11 +5,8 @@ import com.typesafe.scalalogging.Logger
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
-import edu.uci.ics.amber.engine.architecture.controller.{
-  Controller,
-  ControllerConfig,
-  ControllerEventListener
-}
+import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, ControllerEventListener}
+import edu.uci.ics.amber.engine.architecture.storage.mongo.MongoOpResultStorage
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
@@ -24,12 +21,7 @@ import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowInfo.toJgraphtDAG
-import edu.uci.ics.texera.workflow.common.workflow.{
-  WorkflowCompiler,
-  WorkflowInfo,
-  WorkflowRewriter,
-  WorkflowVertex
-}
+import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo, WorkflowRewriter, WorkflowVertex}
 import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 
@@ -51,7 +43,7 @@ object WorkflowWebsocketResource {
   val sessionJobs = new mutable.HashMap[String, (WorkflowCompiler, ActorRef)]
 
   // Map[sessionId, Map[operatorId, List[ITuple]]]
-  val sessionResults = new mutable.HashMap[String, WorkflowResultService]
+  val sessionResults = new mutable.HashMap[String, WorkflowResultServiceV2]
 
   // Map[sessionId, Map[downloadType, googleSheetLink]
   val sessionDownloadCache = new mutable.HashMap[String, mutable.HashMap[String, String]]
@@ -193,6 +185,8 @@ class WorkflowWebsocketResource {
   val sessionOperatorRecord: mutable.HashMap[String, mutable.HashMap[String, WorkflowVertex]] =
     mutable.HashMap[String, mutable.HashMap[String, WorkflowVertex]]()
 
+  val opResultStorage = new MongoOpResultStorage()
+
   def executeWorkflow(session: Session, request: ExecuteWorkflowRequest): Unit = {
     var operatorOutputCache: mutable.HashMap[String, mutable.MutableList[Tuple]] = null
     if (!sessionOperatorOutputCache.contains(session.getId)) {
@@ -242,7 +236,7 @@ class WorkflowWebsocketResource {
     request.operators
       .map(e => e.operatorID)
       .foreach(id => {
-        if (request.operators.contains(id)) {
+        if (request.operators.map(e => e.operatorID).contains(id)) {
           if (cachedOperators.contains(id)) {
             cacheStatusMap.put(id, CacheStatusUpdateEvent.CacheStatus.CACHE_VALID)
           } else {
@@ -283,12 +277,12 @@ class WorkflowWebsocketResource {
     val workflow = texeraWorkflowCompiler.amberWorkflow
     val workflowTag = WorkflowIdentity(jobID)
 
-    val workflowResultService = new WorkflowResultService(texeraWorkflowCompiler)
+    val workflowResultService = new WorkflowResultServiceV2(texeraWorkflowCompiler, opResultStorage)
     if (!sessionResults.contains(session.getId)) {
       sessionResults(session.getId) = workflowResultService
     } else {
-      val previousWorkflowResultService = sessionResults(session.getId)
-      val previousResults = previousWorkflowResultService.operatorResults
+      val previousWorkflowResultServiceV2 = sessionResults(session.getId)
+      val previousResults = previousWorkflowResultServiceV2.operatorResults
       val results = workflowResultService.operatorResults
       results.foreach(e => {
         if (previousResults.contains(e._2.operatorID)) {
@@ -336,7 +330,7 @@ class WorkflowWebsocketResource {
         request.operators
           .map(e => e.operatorID)
           .foreach(id => {
-            if (request.operators.contains(id)) {
+            if (request.operators.map(e => e.operatorID).contains(id)) {
               if (cachedOperators.contains(id)) {
                 cacheStatusMap.put(id, CacheStatusUpdateEvent.CacheStatus.CACHE_VALID)
               } else {
