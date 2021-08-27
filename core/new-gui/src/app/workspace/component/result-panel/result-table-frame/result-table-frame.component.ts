@@ -35,10 +35,10 @@ import { RowModalComponent } from "../result-panel-modal.component";
 export class ResultTableFrameComponent implements OnInit, OnDestroy, OnChanges {
   subscriptions = new Subscription();
 
-  @Input() operatorId: string | undefined;
+  @Input() operatorId?: string;
 
   // display result table
-  currentColumns: TableColumn[] | undefined;
+  currentColumns?: TableColumn[];
   currentResult: Record<string, unknown>[] = [];
   //   for more details
   //   see https://ng.ant.design/components/table/en#components-table-demo-ajax
@@ -195,14 +195,14 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy, OnChanges {
     if (!paginatedResultService) {
       return;
     }
+    console.log('loading');
     this.isLoadingResult = true;
     paginatedResultService
       .selectPage(this.currentPageIndex, DEFAULT_PAGE_SIZE)
       .subscribe((pageData) => {
-        if (this.currentPageIndex === pageData.pageIndex) {
-          this.setupResultTable(
-            pageData.table,
-            paginatedResultService.getCurrentTotalNumTuples()
+        console.log('loaded', this.currentPageIndex, pageData.pageIndex, pageData.table.length);
+      if (this.currentPageIndex === pageData.pageIndex) {
+        this.setupResultTable(pageData.table, paginatedResultService.getCurrentTotalNumTuples()
           );
         }
       });
@@ -223,6 +223,7 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy, OnChanges {
     resultData: ReadonlyArray<Record<string, unknown>>,
     totalRowCount: number
   ) {
+    console.log('show table', this.operatorId, resultData.length);
     if (!this.operatorId) {
       return;
     }

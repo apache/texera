@@ -57,7 +57,6 @@ describe("VisualizationFrameContentComponent", () => {
   });
 
   it("should create", () => {
-    fixture = TestBed.createComponent(VisualizationFrameContentComponent);
     expect(component).toBeTruthy();
   });
 

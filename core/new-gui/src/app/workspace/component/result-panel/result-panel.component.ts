@@ -32,7 +32,7 @@ export class ResultPanelComponent {
   frameComponentConfig?: ResultFrameComponentConfig;
 
   // the highlighted operator ID for display result table / visualization / breakpoint
-  currentOperatorId: string | undefined;
+  currentOperatorId?: string;
 
   showResultPanel: boolean = false;
 
