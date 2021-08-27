@@ -59,9 +59,9 @@ export class WorkflowResultService {
         this.operatorResultServices.delete(operatorID);
       } else if (isWebDataUpdate(update)) {
         const resultService = this.getOrInitResultService(operatorID);
+        resultService.handleResultUpdate(update);
         // clear previously saved paginated result service
         this.paginatedResultServices.delete(operatorID);
-        resultService.handleResultUpdate(update);
       } else {
         const _exhaustiveCheck: never = update;
       }
