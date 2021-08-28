@@ -421,13 +421,8 @@ class WorkflowWebsocketResource {
     sessionResults.remove(session.getId)
     sessionJobs.remove(session.getId)
     sessionMap.remove(session.getId)
-<<<<<<< HEAD
-    sessionDownloadCache.remove(session.getId)
-
     clearMaterialization(session)
-=======
     sessionExportCache.remove(session.getId)
->>>>>>> 628654f4f8a5ba66351c408328d6c8c6ccaca123
   }
 
   def removeBreakpoint(session: Session, removeBreakpoint: RemoveBreakpointRequest): Unit = {
