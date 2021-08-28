@@ -50,7 +50,7 @@ export class BreakpointPropertyEditFrameComponent
 	interactive: boolean = true;
 
 	// the source event stream of form change triggered by library at each user input
-	sourceFormChangeEventStream = new Subject<object>();
+	sourceFormChangeEventStream = new Subject<Record<string, unknown>>();
 
 	breakpointChangeStream = createOutputFormChangeEventStream(
 		this.sourceFormChangeEventStream,
@@ -205,7 +205,7 @@ export class BreakpointPropertyEditFrameComponent
 	 * It only serves as a bridge from a callback function to RxJS Observable
 	 * @param event
 	 */
-	onFormChanges(event: object): void {
+	onFormChanges(event: Record<string, unknown>): void {
 		this.sourceFormChangeEventStream.next(event);
 	}
 
