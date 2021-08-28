@@ -20,9 +20,9 @@
 	},
 	"lint-staged": {
 		"*.{js,ts,less,scss,json,html}": [
-      "prettier --write",
+			"prettier --write",
 			"yarn eslint --fix",
-      "git add"
+			"git add"
 		]
 	},
 	"private": true,
