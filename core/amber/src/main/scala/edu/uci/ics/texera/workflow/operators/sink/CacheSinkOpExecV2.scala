@@ -19,8 +19,11 @@ class CacheSinkOpExecV2(uuid: String, dest: OpResultStorage) extends ITupleSinkO
   val results: mutable.MutableList[Tuple] = mutable.MutableList()
 
   override def getResultTuples(): List[ITuple] = {
-    logger.info("Get result tuples.")
-    dest.get(uuid)
+    logger.info("Get resultt tuples.")
+    val tuples = dest.get(uuid)
+    assert(null != tuples)
+    logger.info("result tuples length: {}", tuples.length)
+    tuples
   }
 
   override def getOutputMode(): IncrementalOutputMode = IncrementalOutputMode.SET_SNAPSHOT

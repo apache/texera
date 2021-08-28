@@ -5,10 +5,10 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowResultUpdate
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.texera.web.model.event.TexeraWebSocketEvent
-import edu.uci.ics.texera.web.resource.WorkflowResultService.{
+import edu.uci.ics.texera.web.resource.WorkflowResultServiceV1.{
   PaginationMode,
-  WebPaginationUpdate,
-  WebResultUpdate,
+  WebPaginationUpdateV1,
+  WebResultUpdateV1,
   defaultPageSize
 }
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.send
@@ -19,7 +19,7 @@ import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDesc
 import javax.websocket.Session
 import scala.collection.mutable
 
-object WorkflowResultService {
+object WorkflowResultServiceV1 {
 
   val defaultPageSize: Int = 10
 
@@ -49,25 +49,25 @@ object WorkflowResultService {
     * Can be either WebPaginationUpdate (for PaginationMode)
     * or WebDataUpdate (for SetSnapshotMode or SetDeltaMode)
     */
-  sealed abstract class WebResultUpdate extends Product with Serializable
+  sealed abstract class WebResultUpdateV1 extends Product with Serializable
 
-  case class WebPaginationUpdate(
+  case class WebPaginationUpdateV1(
       mode: PaginationMode,
       totalNumTuples: Int,
       dirtyPageIndices: List[Int]
-  ) extends WebResultUpdate
+  ) extends WebResultUpdateV1
 
-  case class WebDataUpdate(mode: WebOutputMode, table: List[ObjectNode], chartType: Option[String])
-      extends WebResultUpdate
+  case class WebDataUpdateV1(mode: WebOutputMode, table: List[ObjectNode], chartType: Option[String])
+      extends WebResultUpdateV1
 
   // convert Tuple from engine's format to JSON format
   def webDataFromTuple(
       mode: WebOutputMode,
       table: List[ITuple],
       chartType: Option[String]
-  ): WebDataUpdate = {
+  ): WebDataUpdateV1 = {
     val tableInJson = table.map(t => t.asInstanceOf[Tuple].asKeyValuePairJson())
-    WebDataUpdate(mode, tableInJson, chartType)
+    WebDataUpdateV1(mode, tableInJson, chartType)
   }
 
   /**
@@ -99,7 +99,7 @@ object WorkflowResultService {
   }
 }
 
-case class WebResultUpdateEvent(updates: Map[String, WebResultUpdate]) extends TexeraWebSocketEvent
+case class WebResultUpdateEventV1(updates: Map[String, WebResultUpdateV1]) extends TexeraWebSocketEvent
 
 /**
   * WorkflowResultService manages the materialized result of all sink operators in one workflow execution.
@@ -108,17 +108,17 @@ case class WebResultUpdateEvent(updates: Map[String, WebResultUpdate]) extends T
   *  - update the result data for each operator,
   *  - send result update event to the frontend
   */
-class WorkflowResultService(val workflowCompiler: WorkflowCompiler) {
+class WorkflowResultServiceV1(val workflowCompiler: WorkflowCompiler) {
 
   // OperatorResultService for each sink operator
-  var operatorResults: mutable.HashMap[String, OperatorResultService] =
-    mutable.HashMap[String, OperatorResultService]()
+  var operatorResults: mutable.HashMap[String, OperatorResultServiceV1] =
+    mutable.HashMap[String, OperatorResultServiceV1]()
   workflowCompiler.workflow.getSinkOperators.map(sink => {
     if (workflowCompiler.workflow.getOperator(sink).isInstanceOf[CacheSinkOpDesc]) {
       val upstreamID = workflowCompiler.workflow.getUpstream(sink).head.operatorID
-      operatorResults += ((sink, new OperatorResultService(upstreamID, workflowCompiler)))
+      operatorResults += ((sink, new OperatorResultServiceV1(upstreamID, workflowCompiler)))
     } else {
-      operatorResults += ((sink, new OperatorResultService(sink, workflowCompiler)))
+      operatorResults += ((sink, new OperatorResultServiceV1(sink, workflowCompiler)))
     }
   })
 
@@ -140,7 +140,7 @@ class WorkflowResultService(val workflowCompiler: WorkflowCompiler) {
 //      }
 //    })
 
-    val mutableWebUpdateEvent = new mutable.HashMap[String, WebResultUpdate]()
+    val mutableWebUpdateEvent = new mutable.HashMap[String, WebResultUpdateV1]()
     operatorResults.foreach(e => {
       if (resultUpdate.operatorResults.contains(e._1)) {
         val e1 = resultUpdate.operatorResults(e._1)
@@ -157,7 +157,7 @@ class WorkflowResultService(val workflowCompiler: WorkflowCompiler) {
         if (!updated.contains(e._1) || size != updated(e._1)) {
           updated(e._1) = size
           mutableWebUpdateEvent += (
-          (e._1, WebPaginationUpdate(PaginationMode(), size, List.range(0, size + 1 / defaultPageSize))))
+          (e._1, WebPaginationUpdateV1(PaginationMode(), size, List.range(0, size + 1 / defaultPageSize))))
         }
       }
     })
@@ -188,7 +188,7 @@ class WorkflowResultService(val workflowCompiler: WorkflowCompiler) {
     resultUpdate.operatorResults.foreach(e => operatorResults(e._1).updateResult(e._2))
 
     // send update event to frontend
-    send(session, WebResultUpdateEvent(webUpdateEvent))
+    send(session, WebResultUpdateEventV1(webUpdateEvent))
 
   }
 

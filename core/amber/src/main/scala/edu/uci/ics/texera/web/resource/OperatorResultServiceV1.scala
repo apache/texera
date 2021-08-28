@@ -2,13 +2,13 @@ package edu.uci.ics.texera.web.resource
 
 import edu.uci.ics.amber.engine.architecture.principal.OperatorResult
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.texera.web.resource.WorkflowResultService.{
+import edu.uci.ics.texera.web.resource.WorkflowResultServiceV1.{
   PaginationMode,
   SetDeltaMode,
   SetSnapshotMode,
   WebOutputMode,
-  WebPaginationUpdate,
-  WebResultUpdate,
+  WebPaginationUpdateV1,
+  WebResultUpdateV1,
   calculateDirtyPageIndices,
   defaultPageSize,
   webDataFromTuple
@@ -21,7 +21,7 @@ import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
   * OperatorResultService manages the materialized result of an operator.
   * It always keeps the latest snapshot of the computation result.
   */
-class OperatorResultService(val operatorID: String, val workflowCompiler: WorkflowCompiler) {
+class OperatorResultServiceV1(val operatorID: String, val workflowCompiler: WorkflowCompiler) {
 
   // derive the web output mode from the sink operator type
   val webOutputMode: WebOutputMode = {
@@ -65,12 +65,12 @@ class OperatorResultService(val operatorID: String, val workflowCompiler: Workfl
   /**
     * Produces the WebResultUpdate to send to frontend from a result update from the engine.
     */
-  def convertWebResultUpdate(resultUpdate: OperatorResult): WebResultUpdate = {
+  def convertWebResultUpdate(resultUpdate: OperatorResult): WebResultUpdateV1 = {
     (webOutputMode, resultUpdate.outputMode) match {
       case (PaginationMode(), SET_SNAPSHOT) =>
         val dirtyPageIndices =
           calculateDirtyPageIndices(result, resultUpdate.result, defaultPageSize)
-        WebPaginationUpdate(PaginationMode(), resultUpdate.result.size, dirtyPageIndices)
+        WebPaginationUpdateV1(PaginationMode(), resultUpdate.result.size, dirtyPageIndices)
 
       case (SetSnapshotMode(), SET_SNAPSHOT) | (SetDeltaMode(), SET_DELTA) =>
         webDataFromTuple(webOutputMode, resultUpdate.result, chartType)

@@ -57,7 +57,7 @@ class MongoOpResultStorage extends OpResultStorage {
     */
   override def get(opID: String): List[Tuple] = {
     lock.lock()
-    assert(collectionSet.contains(opID))
+//    assert(collectionSet.contains(opID))
     val collection = database.getCollection(opID)
     val cursor = collection.find().cursor()
     val recordBuffer = new ListBuffer[Tuple]()
@@ -75,7 +75,6 @@ class MongoOpResultStorage extends OpResultStorage {
     */
   override def remove(opID: String): Unit = {
     lock.lock()
-    assert(collectionSet.contains(opID))
     database.getCollection(opID).drop()
     lock.unlock()
   }
