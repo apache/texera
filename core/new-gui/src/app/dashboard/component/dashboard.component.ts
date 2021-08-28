@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component } from '@angular/core';
 import { WorkflowPersistService } from '../../common/service/workflow-persist/workflow-persist.service';
 
 /**
@@ -16,12 +16,4 @@ import { WorkflowPersistService } from '../../common/service/workflow-persist/wo
     WorkflowPersistService
   ]
 })
-export class DashboardComponent implements OnInit {
-
-  constructor() {
-  }
-
-  ngOnInit() {
-  }
-
-}
+export class DashboardComponent {}
