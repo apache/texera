@@ -4,16 +4,16 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalB
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.ForceLocal
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.RandomDeployment
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, OperatorIdentity}
-import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
-import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.storage.OpResultStorage
+import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, OperatorIdentity}
+import edu.uci.ics.amber.engine.operators.OpExecConfig
 
 class CacheSourceOpExecConfigV2(
-                                 tag: OperatorIdentity,
-                                 uuid: String,
-                                 opResultStorage: OpResultStorage
-                               ) extends OpExecConfig(tag) {
+    tag: OperatorIdentity,
+    uuid: String,
+    opResultStorage: OpResultStorage
+) extends OpExecConfig(tag) {
   assert(null != uuid)
   assert(null != opResultStorage)
 
@@ -31,8 +31,8 @@ class CacheSourceOpExecConfigV2(
   )
 
   override def assignBreakpoint(
-                                 breakpoint: GlobalBreakpoint[_]
-                               ): Array[ActorVirtualIdentity] = {
+      breakpoint: GlobalBreakpoint[_]
+  ): Array[ActorVirtualIdentity] = {
     topology.layers(0).identifiers
   }
 }
