@@ -2,8 +2,8 @@ import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 import { NgbActiveModal, NgbModule } from "@ng-bootstrap/ng-bootstrap";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import {
-	HttpClientTestingModule,
-	HttpTestingController
+  HttpClientTestingModule,
+  HttpTestingController
 } from "@angular/common/http/testing";
 
 import { HttpClient } from "@angular/common/http";
@@ -17,43 +17,43 @@ import { UserDictionaryService } from "../../../../service/user-dictionary/user-
 import { StubUserService } from "../../../../../common/service/user/stub-user.service";
 
 describe("NgbdModalResourceAddComponent", () => {
-	let component: NgbdModalResourceAddComponent;
-	let fixture: ComponentFixture<NgbdModalResourceAddComponent>;
+  let component: NgbdModalResourceAddComponent;
+  let fixture: ComponentFixture<NgbdModalResourceAddComponent>;
 
-	let httpClient: HttpClient;
-	let httpTestingController: HttpTestingController;
+  let httpClient: HttpClient;
+  let httpTestingController: HttpTestingController;
 
-	beforeEach(
-		waitForAsync(() => {
-			TestBed.configureTestingModule({
-				declarations: [NgbdModalResourceAddComponent],
-				providers: [
-					NgbActiveModal,
-					{ provide: UserService, useClass: StubUserService },
-					UserDictionaryService,
-					UserDictionaryUploadService
-				],
-				imports: [
-					CustomNgMaterialModule,
-					NgbModule,
-					FormsModule,
-					FileUploadModule,
-					ReactiveFormsModule,
-					HttpClientTestingModule
-				]
-			}).compileComponents();
-		})
-	);
+  beforeEach(
+    waitForAsync(() => {
+      TestBed.configureTestingModule({
+        declarations: [NgbdModalResourceAddComponent],
+        providers: [
+          NgbActiveModal,
+          { provide: UserService, useClass: StubUserService },
+          UserDictionaryService,
+          UserDictionaryUploadService
+        ],
+        imports: [
+          CustomNgMaterialModule,
+          NgbModule,
+          FormsModule,
+          FileUploadModule,
+          ReactiveFormsModule,
+          HttpClientTestingModule
+        ]
+      }).compileComponents();
+    })
+  );
 
-	beforeEach(() => {
-		fixture = TestBed.createComponent(NgbdModalResourceAddComponent);
-		component = fixture.componentInstance;
+  beforeEach(() => {
+    fixture = TestBed.createComponent(NgbdModalResourceAddComponent);
+    component = fixture.componentInstance;
 
-		httpClient = TestBed.get(HttpClient);
-		httpTestingController = TestBed.get(HttpTestingController);
-	});
+    httpClient = TestBed.get(HttpClient);
+    httpTestingController = TestBed.get(HttpTestingController);
+  });
 
-	it("should create", () => {
-		expect(component).toBeTruthy();
-	});
+  it("should create", () => {
+    expect(component).toBeTruthy();
+  });
 });

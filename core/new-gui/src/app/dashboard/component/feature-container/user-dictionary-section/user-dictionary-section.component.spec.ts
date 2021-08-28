@@ -11,27 +11,27 @@ import { CustomNgMaterialModule } from "../../../../common/custom-ng-material.mo
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 
 describe("UserDictionarySectionComponent", () => {
-	let component: UserDictionarySectionComponent;
-	let fixture: ComponentFixture<UserDictionarySectionComponent>;
+  let component: UserDictionarySectionComponent;
+  let fixture: ComponentFixture<UserDictionarySectionComponent>;
 
-	beforeEach(
-		waitForAsync(() => {
-			TestBed.configureTestingModule({
-				declarations: [UserDictionarySectionComponent],
-				providers: [UserDictionaryService, NgbActiveModal],
-				imports: [
-					CustomNgMaterialModule,
-					NgbModule,
-					FormsModule,
-					HttpClientTestingModule
-				]
-			}).compileComponents();
-		})
-	);
+  beforeEach(
+    waitForAsync(() => {
+      TestBed.configureTestingModule({
+        declarations: [UserDictionarySectionComponent],
+        providers: [UserDictionaryService, NgbActiveModal],
+        imports: [
+          CustomNgMaterialModule,
+          NgbModule,
+          FormsModule,
+          HttpClientTestingModule
+        ]
+      }).compileComponents();
+    })
+  );
 
-	beforeEach(() => {
-		fixture = TestBed.createComponent(UserDictionarySectionComponent);
-		component = fixture.componentInstance;
-		fixture.detectChanges();
-	});
+  beforeEach(() => {
+    fixture = TestBed.createComponent(UserDictionarySectionComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
 });

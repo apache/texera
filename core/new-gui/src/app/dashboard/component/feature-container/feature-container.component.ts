@@ -8,8 +8,8 @@ import { Component } from "@angular/core";
  * @author Zhaomin Li
  */
 @Component({
-	selector: "texera-feature-container",
-	templateUrl: "./feature-container.component.html",
-	styleUrls: ["./feature-container.component.scss"]
+  selector: "texera-feature-container",
+  templateUrl: "./feature-container.component.html",
+  styleUrls: ["./feature-container.component.scss"]
 })
 export class FeatureContainerComponent {}

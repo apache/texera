@@ -14,52 +14,52 @@ import { WorkspaceComponent } from "./workspace/component/workspace.component";
  *  The workflow workspace is set as default path
  */
 const routes: Routes = [
-	{
-		path: "",
-		component: WorkspaceComponent
-	},
-	{
-		path: "workflow/:id",
-		component: WorkspaceComponent
-	}
+  {
+    path: "",
+    component: WorkspaceComponent
+  },
+  {
+    path: "workflow/:id",
+    component: WorkspaceComponent
+  }
 ];
 
 if (environment.userSystemEnabled) {
-	/*
-	 *  The user dashboard is under path '/dashboard'
-	 *  The saved workflow is under path '/dashboard/workflow'
-	 *  The user file is under path '/dashboard/user-file'
-	 *  The user dictionary is under path '/dashboard/user-dictionary'
-	 */
+  /*
+   *  The user dashboard is under path '/dashboard'
+   *  The saved workflow is under path '/dashboard/workflow'
+   *  The user file is under path '/dashboard/user-file'
+   *  The user dictionary is under path '/dashboard/user-dictionary'
+   */
 
-	routes.push({
-		path: "dashboard",
-		component: DashboardComponent,
-		children: [
-			{
-				path: "workflow",
-				component: SavedWorkflowSectionComponent
-			},
-			{
-				path: "user-dictionary",
-				component: UserDictionarySectionComponent
-			},
-			{
-				path: "user-file",
-				component: UserFileSectionComponent
-			}
-		]
-	});
+  routes.push({
+    path: "dashboard",
+    component: DashboardComponent,
+    children: [
+      {
+        path: "workflow",
+        component: SavedWorkflowSectionComponent
+      },
+      {
+        path: "user-dictionary",
+        component: UserDictionarySectionComponent
+      },
+      {
+        path: "user-file",
+        component: UserFileSectionComponent
+      }
+    ]
+  });
 }
 
 // redirect all other paths to index.
 routes.push({
-	path: "**",
-	redirectTo: ""
+  path: "**",
+  redirectTo: ""
 });
 
 @NgModule({
-	imports: [RouterModule.forRoot(routes, { relativeLinkResolution: "legacy" })],
-	exports: [RouterModule]
+  imports: [RouterModule.forRoot(routes, { relativeLinkResolution: "legacy" })],
+  exports: [RouterModule]
 })
 export class AppRoutingModule {}

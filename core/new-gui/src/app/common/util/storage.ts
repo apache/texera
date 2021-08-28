@@ -9,7 +9,7 @@
  * @param object - any type, will be JSON.stringify-ed into a string
  */
 export function localSetObject<T>(key: string, object: T): void {
-	localStorage.setItem(key, JSON.stringify(object));
+  localStorage.setItem(key, JSON.stringify(object));
 }
 
 /**
@@ -18,12 +18,12 @@ export function localSetObject<T>(key: string, object: T): void {
  * @returns T - the converted object (in type<t>) from the JSON string, or null if the key is not found.
  */
 export function localGetObject<T>(key: string): T | undefined {
-	const data: string | null = localStorage.getItem(key);
-	if (!data) {
-		return undefined;
-	}
+  const data: string | null = localStorage.getItem(key);
+  if (!data) {
+    return undefined;
+  }
 
-	return jsonCast<T>(data);
+  return jsonCast<T>(data);
 }
 
 /**
@@ -31,11 +31,11 @@ export function localGetObject<T>(key: string): T | undefined {
  * @param {string} key - the identifier of the object
  */
 export function localRemoveObject(key: string): void {
-	localStorage.removeItem(key);
+  localStorage.removeItem(key);
 }
 
 export function jsonCast<T>(data: string): T {
-	return <T>JSON.parse(data);
+  return <T>JSON.parse(data);
 }
 
 /**
@@ -44,7 +44,7 @@ export function jsonCast<T>(data: string): T {
  * @param object - any type, will be JSON.stringify-ed into a string
  */
 export function sessionSetObject<T>(key: string, object: T): void {
-	sessionStorage.setItem(key, JSON.stringify(object));
+  sessionStorage.setItem(key, JSON.stringify(object));
 }
 
 /**
@@ -53,14 +53,14 @@ export function sessionSetObject<T>(key: string, object: T): void {
  * @returns T - the converted object (in type<t>) from the JSON string, or null if the key is not found.
  */
 export function sessionGetObject<T>(key: string): T | null {
-	const data: string | null = sessionStorage.getItem(key);
-	if (!data) {
-		return null;
-	}
+  const data: string | null = sessionStorage.getItem(key);
+  if (!data) {
+    return null;
+  }
 
-	return jsonCast<T>(data);
+  return jsonCast<T>(data);
 }
 
 export function sessionRemoveObject(key: string): void {
-	sessionStorage.removeItem(key);
+  sessionStorage.removeItem(key);
 }

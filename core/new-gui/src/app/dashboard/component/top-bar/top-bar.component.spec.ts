@@ -11,32 +11,32 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { StubUserService } from "../../../common/service/user/stub-user.service";
 
 describe("TopBarComponent", () => {
-	let component: TopBarComponent;
+  let component: TopBarComponent;
 
-	beforeEach(
-		waitForAsync(() => {
-			TestBed.configureTestingModule({
-				declarations: [TopBarComponent, UserIconComponent],
-				providers: [
-					NgbModal,
-					{ provide: UserService, useClass: StubUserService }
-				],
-				imports: [
-					HttpClientTestingModule,
-					RouterTestingModule,
-					CustomNgMaterialModule
-				]
-			}).compileComponents();
-		})
-	);
+  beforeEach(
+    waitForAsync(() => {
+      TestBed.configureTestingModule({
+        declarations: [TopBarComponent, UserIconComponent],
+        providers: [
+          NgbModal,
+          { provide: UserService, useClass: StubUserService }
+        ],
+        imports: [
+          HttpClientTestingModule,
+          RouterTestingModule,
+          CustomNgMaterialModule
+        ]
+      }).compileComponents();
+    })
+  );
 
-	beforeEach(() => {
-		const fixture = TestBed.createComponent(TopBarComponent);
-		component = fixture.componentInstance;
-		fixture.detectChanges();
-	});
+  beforeEach(() => {
+    const fixture = TestBed.createComponent(TopBarComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
 
-	it("should create", () => {
-		expect(component).toBeTruthy();
-	});
+  it("should create", () => {
+    expect(component).toBeTruthy();
+  });
 });

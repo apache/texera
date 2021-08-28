@@ -1,33 +1,33 @@
 <h3
-	*ngIf="formTitle"
-	class="texera-workspace-property-editor-title"
-	mat-subheader
+  *ngIf="formTitle"
+  class="texera-workspace-property-editor-title"
+  mat-subheader
 >
-	{{ formTitle }}
+  {{ formTitle }}
 </h3>
 
 <form
-	*ngIf="formlyFields"
-	[formGroup]="formlyFormGroup"
-	class="texera-workspace-property-editor-form"
+  *ngIf="formlyFields"
+  [formGroup]="formlyFormGroup"
+  class="texera-workspace-property-editor-form"
 >
-	<formly-form
-		(modelChange)="onFormChanges($event)"
-		[fields]="formlyFields"
-		[form]="formlyFormGroup"
-		[model]="formData"
-		[options]="formlyOptions"
-	>
-	</formly-form>
-	<ndc-dynamic
-		[ndcDynamicComponent]="extraDisplayComponentConfig?.component"
-		[ndcDynamicInputs]="extraDisplayComponentConfig?.componentInputs"
-	></ndc-dynamic>
+  <formly-form
+    (modelChange)="onFormChanges($event)"
+    [fields]="formlyFields"
+    [form]="formlyFormGroup"
+    [model]="formData"
+    [options]="formlyOptions"
+  >
+  </formly-form>
+  <ndc-dynamic
+    [ndcDynamicComponent]="extraDisplayComponentConfig?.component"
+    [ndcDynamicInputs]="extraDisplayComponentConfig?.componentInputs"
+  ></ndc-dynamic>
 </form>
 
 <button
-	(click)="allowChangeOperatorLogic()"
-	*ngIf="
+  (click)="allowChangeOperatorLogic()"
+  *ngIf="
 		currentOperatorId !== undefined &&
 		(this.executeWorkflowService.getExecutionState().state ===
 			ExecutionState.Paused ||
@@ -35,15 +35,15 @@
 				ExecutionState.BreakpointTriggered) &&
 		this.interactive === false
 	"
-	class="breakpointRemoveButton"
-	type="button"
+  class="breakpointRemoveButton"
+  type="button"
 >
-	Change Logic
+  Change Logic
 </button>
 
 <button
-	(click)="confirmChangeOperatorLogic()"
-	*ngIf="
+  (click)="confirmChangeOperatorLogic()"
+  *ngIf="
 		currentOperatorId !== undefined &&
 		(this.executeWorkflowService.getExecutionState().state ===
 			ExecutionState.Paused ||
@@ -51,8 +51,8 @@
 				ExecutionState.BreakpointTriggered) &&
 		this.interactive === true
 	"
-	class="breakpointRemoveButton"
-	type="button"
+  class="breakpointRemoveButton"
+  type="button"
 >
-	Confirm Change
+  Confirm Change
 </button>

@@ -11,24 +11,24 @@ import { ResultPanelToggleService } from "./../../service/result-panel-toggle/re
  * @author Angela Wang
  */
 @Component({
-	selector: "texera-result-panel-toggle",
-	templateUrl: "./result-panel-toggle.component.html",
-	styleUrls: ["./result-panel-toggle.component.scss"]
+  selector: "texera-result-panel-toggle",
+  templateUrl: "./result-panel-toggle.component.html",
+  styleUrls: ["./result-panel-toggle.component.scss"]
 })
 export class ResultPanelToggleComponent {
-	public showResultPanel: boolean = false;
+  public showResultPanel: boolean = false;
 
-	constructor(private resultPanelToggleService: ResultPanelToggleService) {
-		this.resultPanelToggleService
-			.getToggleChangeStream()
-			.subscribe((newPanelStatus) => (this.showResultPanel = newPanelStatus));
-	}
+  constructor(private resultPanelToggleService: ResultPanelToggleService) {
+    this.resultPanelToggleService
+      .getToggleChangeStream()
+      .subscribe((newPanelStatus) => (this.showResultPanel = newPanelStatus));
+  }
 
-	/**
-	 * When the result panel toggle is clicked, it will call 'toggleResultPanel'
-	 *  to switch the status of the result panel.
-	 */
-	public onClickResultBar(): void {
-		this.resultPanelToggleService.toggleResultPanel();
-	}
+  /**
+   * When the result panel toggle is clicked, it will call 'toggleResultPanel'
+   *  to switch the status of the result panel.
+   */
+  public onClickResultBar(): void {
+    this.resultPanelToggleService.toggleResultPanel();
+  }
 }

@@ -11,40 +11,40 @@ import { CustomJSONSchema7 } from "./custom-json-schema.interface";
  */
 
 export interface InputPortInfo
-	extends Readonly<{
-		displayName?: string;
-		allowMultiInputs?: boolean;
-	}> {}
+  extends Readonly<{
+    displayName?: string;
+    allowMultiInputs?: boolean;
+  }> {}
 
 export interface OutputPortInfo
-	extends Readonly<{
-		displayName?: string;
-	}> {}
+  extends Readonly<{
+    displayName?: string;
+  }> {}
 
 export interface OperatorAdditionalMetadata
-	extends Readonly<{
-		userFriendlyName: string;
-		operatorGroupName: string;
-		operatorDescription?: string;
-		inputPorts: ReadonlyArray<InputPortInfo>;
-		outputPorts: ReadonlyArray<OutputPortInfo>;
-	}> {}
+  extends Readonly<{
+    userFriendlyName: string;
+    operatorGroupName: string;
+    operatorDescription?: string;
+    inputPorts: ReadonlyArray<InputPortInfo>;
+    outputPorts: ReadonlyArray<OutputPortInfo>;
+  }> {}
 
 export interface OperatorSchema
-	extends Readonly<{
-		operatorType: string;
-		jsonSchema: Readonly<CustomJSONSchema7>;
-		additionalMetadata: OperatorAdditionalMetadata;
-	}> {}
+  extends Readonly<{
+    operatorType: string;
+    jsonSchema: Readonly<CustomJSONSchema7>;
+    additionalMetadata: OperatorAdditionalMetadata;
+  }> {}
 
 export interface GroupInfo
-	extends Readonly<{
-		groupName: string;
-		groupOrder: number;
-	}> {}
+  extends Readonly<{
+    groupName: string;
+    groupOrder: number;
+  }> {}
 
 export interface OperatorMetadata
-	extends Readonly<{
-		operators: ReadonlyArray<OperatorSchema>;
-		groups: ReadonlyArray<GroupInfo>;
-	}> {}
+  extends Readonly<{
+    operators: ReadonlyArray<OperatorSchema>;
+    groups: ReadonlyArray<GroupInfo>;
+  }> {}
