@@ -181,6 +181,18 @@ class WorkflowWebsocketResource {
     send(session, WorkflowResumedEvent())
   }
 
+  def clearMaterialization(session: Session): Unit = {
+    if (!sessionCacheSourceOperators.contains(session.getId)) {
+      return
+    }
+    sessionCacheSinkOperators(session.getId).values.foreach(op => opResultStorage.remove(op.uuid))
+    sessionOperatorOutputCache.remove(session.getId)
+    sessionCachedOperators.remove(session.getId)
+    sessionCacheSourceOperators.remove(session.getId)
+    sessionCacheSinkOperators.remove(session.getId)
+    sessionOperatorRecord.remove(session.getId)
+  }
+
   val sessionOperatorOutputCache
       : mutable.HashMap[String, mutable.HashMap[String, mutable.MutableList[Tuple]]] =
     mutable.HashMap[String, mutable.HashMap[String, mutable.MutableList[Tuple]]]()
@@ -418,11 +430,8 @@ class WorkflowWebsocketResource {
     sessionJobs.remove(session.getId)
     sessionMap.remove(session.getId)
     sessionDownloadCache.remove(session.getId)
-    sessionOperatorOutputCache.remove(session.getId)
-    sessionCachedOperators.remove(session.getId)
-    sessionCacheSourceOperators.remove(session.getId)
-    sessionCacheSinkOperators.remove(session.getId)
-    sessionOperatorRecord.remove(session.getId)
+
+    clearMaterialization(session)
   }
 
   def removeBreakpoint(session: Session, removeBreakpoint: RemoveBreakpointRequest): Unit = {
