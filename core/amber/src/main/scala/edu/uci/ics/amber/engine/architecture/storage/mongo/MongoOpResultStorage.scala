@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.storage.mongo
 
 import com.mongodb.BasicDBObject
+import com.mongodb.client.model.{IndexOptions, Indexes, Sorts}
 import com.mongodb.client.{MongoClient, MongoClients, MongoDatabase}
 import edu.uci.ics.amber.engine.architecture.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -46,6 +47,7 @@ class MongoOpResultStorage extends OpResultStorage {
       index += 1
     })
     collection.insertMany(documents)
+    collection.createIndex(Indexes.ascending("index"), new IndexOptions().unique(true))
     lock.unlock()
   }
 
@@ -59,7 +61,7 @@ class MongoOpResultStorage extends OpResultStorage {
     lock.lock()
 //    assert(collectionSet.contains(opID))
     val collection = database.getCollection(opID)
-    val cursor = collection.find().cursor()
+    val cursor = collection.find().sort(Sorts.ascending("index")).cursor()
     val recordBuffer = new ListBuffer[Tuple]()
     while (cursor.hasNext) {
       recordBuffer += json2tuple(cursor.next().get("record").toString)
