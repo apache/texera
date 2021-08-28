@@ -67,8 +67,8 @@ export class UserFileUploadService {
             this.userFileService.refreshDashboardUserFileEntries();
           },
           (err: unknown) => {
-            // TODO: user friendly error message.
             alert(
+              // @ts-ignore // TODO: fix this with notification component
               `Uploading file ${fileUploadItem.name} failed\nMessage: ${err.error}`
             );
           }

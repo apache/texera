@@ -32,6 +32,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 export class WorkspaceComponent implements AfterViewInit {
   public gitCommitHash: string = Version.raw;
   public showResultPanel: boolean = false;
+  userSystemEnabled = environment.userSystemEnabled;
 
   constructor(
     private resultPanelToggleService: ResultPanelToggleService,
