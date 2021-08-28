@@ -9,23 +9,23 @@ import { Workflow } from "../../../../../common/type/workflow";
  * @author Zhaomin Li
  */
 @Component({
-  selector: "texera-resource-section-delete-project-modal",
-  templateUrl: "./ngbd-modal-delete-workflow.component.html",
-  styleUrls: [
-    "./ngbd-modal-delete-workflow.component.scss",
-    "../../../dashboard.component.scss",
-  ],
+	selector: "texera-resource-section-delete-project-modal",
+	templateUrl: "./ngbd-modal-delete-workflow.component.html",
+	styleUrls: [
+		"./ngbd-modal-delete-workflow.component.scss",
+		"../../../dashboard.component.scss"
+	]
 })
 export class NgbdModalDeleteWorkflowComponent {
-  @Input() workflow!: Workflow;
+	@Input() workflow!: Workflow;
 
-  constructor(public activeModal: NgbActiveModal) {}
+	constructor(public activeModal: NgbActiveModal) {}
 
-  /**
-   * deleteSavedWorkflow sends the user
-   * confirm to the main component. It does not call any method in service.
-   */
-  public deleteSavedWorkflow(): void {
-    this.activeModal.close(true);
-  }
+	/**
+	 * deleteSavedWorkflow sends the user
+	 * confirm to the main component. It does not call any method in service.
+	 */
+	public deleteSavedWorkflow(): void {
+		this.activeModal.close(true);
+	}
 }

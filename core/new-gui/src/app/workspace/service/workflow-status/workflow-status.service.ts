@@ -6,39 +6,39 @@ import { WorkflowActionService } from "../workflow-graph/model/workflow-action.s
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 
 @Injectable({
-  providedIn: "root",
+	providedIn: "root"
 })
 export class WorkflowStatusService {
-  // status is responsible for passing websocket responses to other components
-  private statusSubject = new Subject<Record<string, OperatorStatistics>>();
-  private currentStatus: Record<string, OperatorStatistics> = {};
+	// status is responsible for passing websocket responses to other components
+	private statusSubject = new Subject<Record<string, OperatorStatistics>>();
+	private currentStatus: Record<string, OperatorStatistics> = {};
 
-  constructor(
-    private workflowActionService: WorkflowActionService,
-    private workflowWebsocketService: WorkflowWebsocketService
-  ) {
-    if (!environment.executionStatusEnabled) {
-      return;
-    }
-    this.getStatusUpdateStream().subscribe(
-      (event) => (this.currentStatus = event)
-    );
+	constructor(
+		private workflowActionService: WorkflowActionService,
+		private workflowWebsocketService: WorkflowWebsocketService
+	) {
+		if (!environment.executionStatusEnabled) {
+			return;
+		}
+		this.getStatusUpdateStream().subscribe(
+			(event) => (this.currentStatus = event)
+		);
 
-    this.workflowWebsocketService.websocketEvent().subscribe((event) => {
-      if (event.type !== "WebWorkflowStatusUpdateEvent") {
-        return;
-      }
-      this.statusSubject.next(event.operatorStatistics);
-    });
-  }
+		this.workflowWebsocketService.websocketEvent().subscribe((event) => {
+			if (event.type !== "WebWorkflowStatusUpdateEvent") {
+				return;
+			}
+			this.statusSubject.next(event.operatorStatistics);
+		});
+	}
 
-  public getStatusUpdateStream(): Observable<
-    Record<string, OperatorStatistics>
-  > {
-    return this.statusSubject.asObservable();
-  }
+	public getStatusUpdateStream(): Observable<
+		Record<string, OperatorStatistics>
+	> {
+		return this.statusSubject.asObservable();
+	}
 
-  public getCurrentStatus(): Record<string, OperatorStatistics> {
-    return this.currentStatus;
-  }
+	public getCurrentStatus(): Record<string, OperatorStatistics> {
+		return this.currentStatus;
+	}
 }

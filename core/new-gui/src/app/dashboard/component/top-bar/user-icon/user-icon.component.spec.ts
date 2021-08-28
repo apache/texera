@@ -7,29 +7,29 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
 
 describe("UserIconComponent", () => {
-  let component: UserIconComponent;
-  let fixture: ComponentFixture<UserIconComponent>;
+	let component: UserIconComponent;
+	let fixture: ComponentFixture<UserIconComponent>;
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        declarations: [UserIconComponent],
-        providers: [
-          NgbModal,
-          { provide: UserService, useClass: StubUserService },
-        ],
-        imports: [HttpClientTestingModule],
-      }).compileComponents();
-    })
-  );
+	beforeEach(
+		waitForAsync(() => {
+			TestBed.configureTestingModule({
+				declarations: [UserIconComponent],
+				providers: [
+					NgbModal,
+					{ provide: UserService, useClass: StubUserService }
+				],
+				imports: [HttpClientTestingModule]
+			}).compileComponents();
+		})
+	);
 
-  beforeEach(() => {
-    fixture = TestBed.createComponent(UserIconComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-  });
+	beforeEach(() => {
+		fixture = TestBed.createComponent(UserIconComponent);
+		component = fixture.componentInstance;
+		fixture.detectChanges();
+	});
 
-  it("should create", () => {
-    expect(component).toBeTruthy();
-  });
+	it("should create", () => {
+		expect(component).toBeTruthy();
+	});
 });

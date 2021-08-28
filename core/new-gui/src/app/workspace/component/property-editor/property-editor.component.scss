@@ -1,122 +1,122 @@
 @import "../workspace.component.scss";
 
 .texera-workspace-property-editor-body {
-  padding: 16px;
-  padding-right: 24px;
+	padding: 16px;
+	padding-right: 24px;
 }
 
 .box {
-  width: 500px;
-  height: 100px;
-  background-color: white;
-  margin-top: 10px;
-  left: 30px;
+	width: 500px;
+	height: 100px;
+	background-color: white;
+	margin-top: 10px;
+	left: 30px;
 }
 
 .mat-icon-button {
-  width: 5%;
-  height: 10%;
-  line-height: 0%;
-  float: left;
+	width: 5%;
+	height: 10%;
+	line-height: 0%;
+	float: left;
 }
 
 .container {
-  height: 100%;
-  text-align: left;
-  padding: 0;
+	height: 100%;
+	text-align: left;
+	padding: 0;
 }
 
 // sets the style for the popup tooltips,
 // ::ng-deep is needed to force the style down to all the tooltip windows
 .texera-workspace-property-editor-body ::ng-deep {
-  .tooltip-inner {
-    // color: black;
-    background: white;
-    max-width: 500px;
-    width: 400px;
-    // border: 5px solid black;
-    padding: 0;
-  }
+	.tooltip-inner {
+		// color: black;
+		background: white;
+		max-width: 500px;
+		width: 400px;
+		// border: 5px solid black;
+		padding: 0;
+	}
 
-  .tooltip {
-    height: 35%;
-    overflow: auto;
-    border: 1px solid black;
-    padding: 0;
-    border-radius: 4px;
-    background-color: grey;
-    opacity: 1;
-  }
+	.tooltip {
+		height: 35%;
+		overflow: auto;
+		border: 1px solid black;
+		padding: 0;
+		border-radius: 4px;
+		background-color: grey;
+		opacity: 1;
+	}
 
-  .property-detail-title {
-    background-color: grey;
-    color: white;
-    padding: 5px;
-  }
+	.property-detail-title {
+		background-color: grey;
+		color: white;
+		padding: 5px;
+	}
 
-  .property-detail-description {
-    background-color: white;
-    color: black;
-    padding: 5px;
-  }
+	.property-detail-description {
+		background-color: white;
+		color: black;
+		padding: 5px;
+	}
 
-  .btn {
-    width: 20px;
-    height: 20px;
-    font-size: 8px;
-  }
+	.btn {
+		width: 20px;
+		height: 20px;
+		font-size: 8px;
+	}
 
-  h3.mat-subheader {
-    font-size: 20px;
-  }
+	h3.mat-subheader {
+		font-size: 20px;
+	}
 
-  .mat-hint {
-    font-size: 10px;
-  }
+	.mat-hint {
+		font-size: 10px;
+	}
 
-  div.attribute-title {
-    font-size: 16px;
-  }
+	div.attribute-title {
+		font-size: 16px;
+	}
 
-  legend.ng-star-inserted,
-  .mat-button-wrapper {
-    font-size: 14px;
-  }
+	legend.ng-star-inserted,
+	.mat-button-wrapper {
+		font-size: 14px;
+	}
 
-  p.ng-star-inserted {
-    font-size: 10px;
-  }
+	p.ng-star-inserted {
+		font-size: 10px;
+	}
 
-  .mat-form-field-subscript-wrapper {
-    height: 20px;
-  }
+	.mat-form-field-subscript-wrapper {
+		height: 20px;
+	}
 
-  // TODO: try and edit the configurations below.
+	// TODO: try and edit the configurations below.
 
-  //.mat-form-field-infix ,.mat-form-field-wrapper,.mat-form-field,.mat-primary,.mat-form-field-type-mat-input{
-  //  width: 50px
-  //}
-  //.mat-form-field-wrapper {
-  //  height: 80px;
-  //}
+	//.mat-form-field-infix ,.mat-form-field-wrapper,.mat-form-field,.mat-primary,.mat-form-field-type-mat-input{
+	//  width: 50px
+	//}
+	//.mat-form-field-wrapper {
+	//  height: 80px;
+	//}
 
-  //formly-field [class*="col-"], .mat-form-field-infix{
-  //  width: 50px
-  //}
-  //
-  //.mat-form-field-infix{
-  //  width: 50px
-  //}
+	//formly-field [class*="col-"], .mat-form-field-infix{
+	//  width: 50px
+	//}
+	//
+	//.mat-form-field-infix{
+	//  width: 50px
+	//}
 
-  //.mat-input-element{
-  //  width: 100px
-  //}
+	//.mat-input-element{
+	//  width: 100px
+	//}
 
-  //.mat-list-item {
-  //  height: 80px;
-  //}
+	//.mat-list-item {
+	//  height: 80px;
+	//}
 
-  //.mat-form-field-wrapper{
-  //  height: 80px;
-  //}
+	//.mat-form-field-wrapper{
+	//  height: 80px;
+	//}
 }

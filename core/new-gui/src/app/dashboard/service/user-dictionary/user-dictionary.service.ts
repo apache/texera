@@ -21,85 +21,85 @@ export const USER_DICTIONARY_UPDATE_URL = "user/dictionary/update";
 
 @Injectable()
 export class UserDictionaryService {
-  private userDictionaries: UserDictionary[] | undefined;
-  private userDictionariesChanged = new Subject<
-    ReadonlyArray<UserDictionary> | undefined
-  >();
+	private userDictionaries: UserDictionary[] | undefined;
+	private userDictionariesChanged = new Subject<
+		ReadonlyArray<UserDictionary> | undefined
+	>();
 
-  constructor(private http: HttpClient, private userService: UserService) {
-    this.detectUserChanges();
-  }
+	constructor(private http: HttpClient, private userService: UserService) {
+		this.detectUserChanges();
+	}
 
-  public getUserDictionaries(): ReadonlyArray<UserDictionary> | undefined {
-    return this.userDictionaries;
-  }
+	public getUserDictionaries(): ReadonlyArray<UserDictionary> | undefined {
+		return this.userDictionaries;
+	}
 
-  public getUserDictionariesChangedEvent(): Observable<
-    ReadonlyArray<UserDictionary> | undefined
-  > {
-    return this.userDictionariesChanged.asObservable();
-  }
+	public getUserDictionariesChangedEvent(): Observable<
+		ReadonlyArray<UserDictionary> | undefined
+	> {
+		return this.userDictionariesChanged.asObservable();
+	}
 
-  /**
-   * retrieve the files from the backend and store in the user-file service.
-   * these file can be accessed by function {@link getDictionaryArray}.
-   */
-  public refreshDictionaries(): void {
-    if (!this.userService.isLogin()) {
-      return;
-    }
+	/**
+	 * retrieve the files from the backend and store in the user-file service.
+	 * these file can be accessed by function {@link getDictionaryArray}.
+	 */
+	public refreshDictionaries(): void {
+		if (!this.userService.isLogin()) {
+			return;
+		}
 
-    this.http
-      .get<UserDictionary[]>(
-        `${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_LIST_URL}`
-      )
-      .subscribe((dictionaries) => {
-        this.userDictionaries = dictionaries;
-        this.userDictionariesChanged.next(this.userDictionaries);
-      });
-  }
+		this.http
+			.get<UserDictionary[]>(
+				`${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_LIST_URL}`
+			)
+			.subscribe((dictionaries) => {
+				this.userDictionaries = dictionaries;
+				this.userDictionariesChanged.next(this.userDictionaries);
+			});
+	}
 
-  public deleteDictionary(dictID: number) {
-    this.http
-      .delete<GenericWebResponse>(
-        `${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_DELETE_URL}/${dictID}`
-      )
-      .subscribe(() => this.refreshDictionaries());
-  }
+	public deleteDictionary(dictID: number) {
+		this.http
+			.delete<GenericWebResponse>(
+				`${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_DELETE_URL}/${dictID}`
+			)
+			.subscribe(() => this.refreshDictionaries());
+	}
 
-  /**
-   * update the given dictionary in the backend and then refresh the dictionaries in the frontend
-   * @param userDictionary
-   */
-  public updateDictionary(userDictionary: UserDictionary): void {
-    this.http
-      .put<GenericWebResponse>(
-        `${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_UPDATE_URL}`,
-        JSON.stringify(userDictionary),
-        {
-          headers: new HttpHeaders({
-            "Content-Type": "application/json",
-          }),
-        }
-      )
-      .subscribe(() => this.refreshDictionaries());
-  }
+	/**
+	 * update the given dictionary in the backend and then refresh the dictionaries in the frontend
+	 * @param userDictionary
+	 */
+	public updateDictionary(userDictionary: UserDictionary): void {
+		this.http
+			.put<GenericWebResponse>(
+				`${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_UPDATE_URL}`,
+				JSON.stringify(userDictionary),
+				{
+					headers: new HttpHeaders({
+						"Content-Type": "application/json"
+					})
+				}
+			)
+			.subscribe(() => this.refreshDictionaries());
+	}
 
-  /**
-   * refresh the dictionaries in the service whenever the user changes.
-   */
-  private detectUserChanges(): void {
-    this.userService.userChanged().subscribe(() => {
-      if (this.userService.isLogin()) {
-        this.refreshDictionaries();
-      } else {
-        this.clearDictionary();
-      }
-    });
-  }
+	/**
+	 * refresh the dictionaries in the service whenever the user changes.
+	 */
+	private detectUserChanges(): void {
+		this.userService.userChanged().subscribe(() => {
+			if (this.userService.isLogin()) {
+				this.refreshDictionaries();
+			} else {
+				this.clearDictionary();
+			}
+		});
+	}
 
-  private clearDictionary(): void {
-    this.userDictionaries = [];
-    this.userDictionariesChanged.next(this.userDictionaries);
-  }
+	private clearDictionary(): void {
+		this.userDictionaries = [];
+		this.userDictionariesChanged.next(this.userDictionaries);
+	}
 }

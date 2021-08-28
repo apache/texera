@@ -1,10 +1,10 @@
 export interface DashboardUserFileEntry
-  extends Readonly<{
-    ownerName: string;
-    file: UserFile;
-    accessLevel: string;
-    isOwner: boolean;
-  }> {}
+	extends Readonly<{
+		ownerName: string;
+		file: UserFile;
+		accessLevel: string;
+		isOwner: boolean;
+	}> {}
 
 /**
  * This interface stores the information about the users' files.
@@ -13,22 +13,22 @@ export interface DashboardUserFileEntry
  * and `core/scripts/sql/texera_ddl.sql`, table `file` (database).
  */
 export interface UserFile
-  extends Readonly<{
-    fid: number;
-    name: string;
-    path: string;
-    size: number;
-    description: string;
-  }> {}
+	extends Readonly<{
+		fid: number;
+		name: string;
+		path: string;
+		size: number;
+		description: string;
+	}> {}
 
 /**
  * This interface stores the information about the users' files when uploading.
  * These information is used to upload the file to the backend.
  */
 export interface FileUploadItem {
-  file: File;
-  name: string;
-  description: string;
-  uploadProgress: number;
-  isUploadingFlag: boolean;
+	file: File;
+	name: string;
+	description: string;
+	uploadProgress: number;
+	isUploadingFlag: boolean;
 }

@@ -2,62 +2,62 @@
 // it's used to store app settings and flags to turn on or off different features
 
 export const defaultEnvironment = {
-  /**
-   * whether we are in production mode, default is false
-   */
-  production: false,
-  /**
-   * root API URL of the backend
-   */
-  apiUrl: "api",
-  /**
-   * whether fetching available source tables is enabled
-   * see SourceTablesService for details
-   */
-  sourceTableEnabled: false,
-  /**
-   * whether operator schema propagation and autocomplete feature is enabled,
-   * see SchemaPropagationService for details
-   */
-  schemaPropagationEnabled: true,
-  /**
-   * whether the backend support pause/resume functionality
-   */
-  pauseResumeEnabled: true,
-  /**
-   * whether the backend supports checking execution status
-   */
-  executionStatusEnabled: true,
-  /**
-   * whether export execution result is supported
-   */
-  exportExecutionResultEnabled: true,
+	/**
+	 * whether we are in production mode, default is false
+	 */
+	production: true,
+	/**
+	 * root API URL of the backend
+	 */
+	apiUrl: "api",
+	/**
+	 * whether fetching available source tables is enabled
+	 * see SourceTablesService for details
+	 */
+	sourceTableEnabled: true,
+	/**
+	 * whether operator schema propagation and autocomplete feature is enabled,
+	 * see SchemaPropagationService for details
+	 */
+	schemaPropagationEnabled: true,
+	/**
+	 * whether the backend support pause/resume functionality
+	 */
+	pauseResumeEnabled: true,
+	/**
+	 * whether the backend supports checking execution status
+	 */
+	executionStatusEnabled: true,
+	/**
+	 * whether export execution result is supported
+	 */
+	exportExecutionResultEnabled: true,
 
-  /**
-   * whether user system is enabled
-   */
-  userSystemEnabled: false,
+	/**
+	 * whether user system is enabled
+	 */
+	userSystemEnabled: true,
 
-  amberEngineEnabled: true,
+	amberEngineEnabled: true,
 
-  /**
-   * whether linkBreakpoint is supported
-   */
-  linkBreakpointEnabled: true,
+	/**
+	 * whether linkBreakpoint is supported
+	 */
+	linkBreakpointEnabled: true,
 
-  /**
-   * the access code for mapbox
-   */
-  mapbox: {
-    accessToken: "",
-  },
+	/**
+	 * the access code for mapbox
+	 */
+	mapbox: {
+		accessToken: ""
+	},
 
-  /**
-   * all google-related configs
-   */
-  google: {
-    clientID: "",
-  },
+	/**
+	 * all google-related configs
+	 */
+	google: {
+		clientID: ""
+	}
 };
 
 export type AppEnv = typeof defaultEnvironment;

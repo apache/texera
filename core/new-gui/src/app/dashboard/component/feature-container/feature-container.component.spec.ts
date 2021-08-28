@@ -4,25 +4,25 @@ import { FeatureContainerComponent } from "./feature-container.component";
 import { RouterTestingModule } from "@angular/router/testing";
 
 describe("FeatureContainerComponent", () => {
-  let component: FeatureContainerComponent;
-  let fixture: ComponentFixture<FeatureContainerComponent>;
+	let component: FeatureContainerComponent;
+	let fixture: ComponentFixture<FeatureContainerComponent>;
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        declarations: [FeatureContainerComponent],
-        imports: [RouterTestingModule],
-      }).compileComponents();
-    })
-  );
+	beforeEach(
+		waitForAsync(() => {
+			TestBed.configureTestingModule({
+				declarations: [FeatureContainerComponent],
+				imports: [RouterTestingModule]
+			}).compileComponents();
+		})
+	);
 
-  beforeEach(() => {
-    fixture = TestBed.createComponent(FeatureContainerComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-  });
+	beforeEach(() => {
+		fixture = TestBed.createComponent(FeatureContainerComponent);
+		component = fixture.componentInstance;
+		fixture.detectChanges();
+	});
 
-  it("should create", () => {
-    expect(component).toBeTruthy();
-  });
+	it("should create", () => {
+		expect(component).toBeTruthy();
+	});
 });

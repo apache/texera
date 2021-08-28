@@ -12,50 +12,50 @@ import { NgbdModalUserLoginComponent } from "./user-login/ngbdmodal-user-login.c
  * @author Adam
  */
 @Component({
-  selector: "texera-user-icon",
-  templateUrl: "./user-icon.component.html",
-  styleUrls: ["./user-icon.component.scss"],
+	selector: "texera-user-icon",
+	templateUrl: "./user-icon.component.html",
+	styleUrls: ["./user-icon.component.scss"]
 })
 export class UserIconComponent {
-  public user: User | undefined;
+	public user: User | undefined;
 
-  constructor(
-    private modalService: NgbModal,
-    private userService: UserService
-  ) {
-    this.userService.userChanged().subscribe((user) => (this.user = user));
-  }
+	constructor(
+		private modalService: NgbModal,
+		private userService: UserService
+	) {
+		this.userService.userChanged().subscribe((user) => (this.user = user));
+	}
 
-  /**
-   * handle the event when user click on the logout button
-   */
-  public onClickLogout(): void {
-    this.userService.logOut();
-  }
+	/**
+	 * handle the event when user click on the logout button
+	 */
+	public onClickLogout(): void {
+		this.userService.logOut();
+	}
 
-  /**
-   * handle the event when user click on the login (sign in) button
-   */
-  public onClickLogin(): void {
-    this.openLoginComponent(0);
-  }
+	/**
+	 * handle the event when user click on the login (sign in) button
+	 */
+	public onClickLogin(): void {
+		this.openLoginComponent(0);
+	}
 
-  /**
-   * handle the event when user click on the register (sign up) button
-   */
-  public onClickRegister(): void {
-    this.openLoginComponent(1);
-  }
+	/**
+	 * handle the event when user click on the register (sign up) button
+	 */
+	public onClickRegister(): void {
+		this.openLoginComponent(1);
+	}
 
-  /**
-   * This method will open the login/register pop up
-   * It will switch to the tab based on the mode number given
-   * @param mode 0 indicates login and 1 indicates registration
-   */
-  private openLoginComponent(mode: 0 | 1): void {
-    const modalRef: NgbModalRef = this.modalService.open(
-      NgbdModalUserLoginComponent
-    );
-    modalRef.componentInstance.selectedTab = mode;
-  }
+	/**
+	 * This method will open the login/register pop up
+	 * It will switch to the tab based on the mode number given
+	 * @param mode 0 indicates login and 1 indicates registration
+	 */
+	private openLoginComponent(mode: 0 | 1): void {
+		const modalRef: NgbModalRef = this.modalService.open(
+			NgbdModalUserLoginComponent
+		);
+		modalRef.componentInstance.selectedTab = mode;
+	}
 }

@@ -6,31 +6,31 @@ import { StubOperatorMetadataService } from "../../../service/operator-metadata/
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 
 describe("ConsoleFrameComponent", () => {
-  let component: ConsoleFrameComponent;
-  let fixture: ComponentFixture<ConsoleFrameComponent>;
+	let component: ConsoleFrameComponent;
+	let fixture: ComponentFixture<ConsoleFrameComponent>;
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        imports: [HttpClientTestingModule],
-        declarations: [ConsoleFrameComponent],
-        providers: [
-          {
-            provide: OperatorMetadataService,
-            useClass: StubOperatorMetadataService,
-          },
-        ],
-      }).compileComponents();
-    })
-  );
+	beforeEach(
+		waitForAsync(() => {
+			TestBed.configureTestingModule({
+				imports: [HttpClientTestingModule],
+				declarations: [ConsoleFrameComponent],
+				providers: [
+					{
+						provide: OperatorMetadataService,
+						useClass: StubOperatorMetadataService
+					}
+				]
+			}).compileComponents();
+		})
+	);
 
-  beforeEach(() => {
-    fixture = TestBed.createComponent(ConsoleFrameComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-  });
+	beforeEach(() => {
+		fixture = TestBed.createComponent(ConsoleFrameComponent);
+		component = fixture.componentInstance;
+		fixture.detectChanges();
+	});
 
-  it("should create", () => {
-    expect(component).toBeTruthy();
-  });
+	it("should create", () => {
+		expect(component).toBeTruthy();
+	});
 });

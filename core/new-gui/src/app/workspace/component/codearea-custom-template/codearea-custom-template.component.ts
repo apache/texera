@@ -14,18 +14,18 @@ import { CodeEditorDialogComponent } from "../code-editor-dialog/code-editor-dia
  * @author Xiaozhen Liu
  */
 @Component({
-  selector: "texera-codearea-custom-template",
-  templateUrl: "./codearea-custom-template.component.html",
-  styleUrls: ["./codearea-custom-template.component.scss"],
+	selector: "texera-codearea-custom-template",
+	templateUrl: "./codearea-custom-template.component.html",
+	styleUrls: ["./codearea-custom-template.component.scss"]
 })
 export class CodeareaCustomTemplateComponent extends FieldType {
-  constructor(public dialog: MatDialog) {
-    super();
-  }
+	constructor(public dialog: MatDialog) {
+		super();
+	}
 
-  onClickEditor(): void {
-    this.dialog.open(CodeEditorDialogComponent, {
-      data: this?.formControl?.value || "",
-    });
-  }
+	onClickEditor(): void {
+		this.dialog.open(CodeEditorDialogComponent, {
+			data: this?.formControl?.value || ""
+		});
+	}
 }

@@ -11,7 +11,7 @@
  * `bar += foo;`
  */
 export function assertType<T>(val: T | any): asserts val is NonNullable<T> {
-  if (val === undefined || val === null) {
-    throw new TypeError(`Expected 'val' to be defined, but received ${val}`);
-  }
+	if (val === undefined || val === null) {
+		throw new TypeError(`Expected 'val' to be defined, but received ${val}`);
+	}
 }
