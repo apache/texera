@@ -45,8 +45,8 @@ jobs:
           key: ${{ runner.os }}-yarn-cache-v3-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-yarn-cache-v3-
-      - name: Lint with Prettier
-        run:  npx prettier --check core/new-gui
+      - name: Lint with Eslint
+        run: yarn --cwd core/new-gui eslint core/new-gui/src
       - name: Install dependency
         run: yarn --cwd core/new-gui install --frozen-lockfile --progress=false
       - name: Run frontend unit tests

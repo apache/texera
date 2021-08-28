@@ -12,17 +12,19 @@
 		"prettier": "prettier --write .",
 		"lint": "ng lint",
 		"format": "yarn prettier && yarn eslint --fix ./src",
-    "precommit": "lint-staged",
+		"precommit": "lint-staged",
 		"e2e": "ng e2e",
 		"preinstall": "cd multi-target && yarn install && yarn run build",
 		"multi-target-updater": "cd multi-target && yarn run build && cd .. && yarn install ./multi-target -D",
 		"postinstall": "node git-version.js && ngcc && yarn --cwd node_modules/@danmarshall/deckgl-typings run postinstall"
 	},
-  "lint-staged": {
-    "*.{js,ts,less,scss,json,html}": [
-      "prettier --write --ignore-unknown"
-    ]
-  },
+	"lint-staged": {
+		"*.{js,ts,less,scss,json,html}": [
+      "prettier --write",
+			"yarn eslint --fix",
+      "git add"
+		]
+	},
 	"private": true,
 	"dependencies": {
 		"@angular/animations": "^11.2.14",
