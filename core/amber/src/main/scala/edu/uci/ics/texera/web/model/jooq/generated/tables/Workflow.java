@@ -19,7 +19,7 @@ import org.jooq.Identity;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row5;
+import org.jooq.Row6;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Workflow extends TableImpl<WorkflowRecord> {
 
-    private static final long serialVersionUID = -18598487;
+    private static final long serialVersionUID = -801081736;
 
     /**
      * The reference instance of <code>texera_db.workflow</code>
@@ -74,6 +74,11 @@ public class Workflow extends TableImpl<WorkflowRecord> {
      * The column <code>texera_db.workflow.last_modified_time</code>.
      */
     public final TableField<WorkflowRecord, Timestamp> LAST_MODIFIED_TIME = createField(DSL.name("last_modified_time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false).defaultValue(org.jooq.impl.DSL.field("CURRENT_TIMESTAMP", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
+
+    /**
+     * The column <code>texera_db.workflow.vid</code>.
+     */
+    public final TableField<WorkflowRecord, Integer> VID = createField(DSL.name("vid"), org.jooq.impl.SQLDataType.INTEGER.nullable(false).defaultValue(org.jooq.impl.DSL.inline("0", org.jooq.impl.SQLDataType.INTEGER)), this, "");
 
     /**
      * Create a <code>texera_db.workflow</code> table reference
@@ -160,11 +165,11 @@ public class Workflow extends TableImpl<WorkflowRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row5 type methods
+    // Row6 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row5<String, UInteger, String, Timestamp, Timestamp> fieldsRow() {
-        return (Row5) super.fieldsRow();
+    public Row6<String, UInteger, String, Timestamp, Timestamp, Integer> fieldsRow() {
+        return (Row6) super.fieldsRow();
     }
 }

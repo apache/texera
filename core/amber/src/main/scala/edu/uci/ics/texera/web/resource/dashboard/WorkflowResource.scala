@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.flipkart.zjsonpatch.JsonDiff
+import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
+import com.flipkart.zjsonpatch.{JsonDiff, JsonPatch}
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
   USER,
@@ -246,7 +246,7 @@ class WorkflowResource {
           workflow.getName
           createWorkflow(
             session,
-            new Workflow(workflow.getName + "_copy", null, workflow.getContent, null, null)
+            new Workflow(workflow.getName + "_copy", null, workflow.getContent, null, null, 0)
           )
 
         }
@@ -349,5 +349,73 @@ class WorkflowResource {
           .toList
       case None => List()
     }
+  }
+
+  /**
+    * This method returns the versions of a workflow
+    *
+    * @param wid workflowID of the current workflow the user is working on
+    * @param vid versionID of the checked-out version to be computed and returned
+    * @param session HttpSession
+    * @return workflow of a particular version
+    */
+  @POST
+  @Path("/version")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def retrieveWorkflowVersion(@Session session: HttpSession, workflow: Workflow): Response = {
+    val wid = workflow.getWid
+    val vid = workflow.getVid
+    UserResource.getUser(session) match {
+      case Some(user) =>
+        if (
+          WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid) ||
+          WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, user.getUid)
+        ) {
+          Response.status(Response.Status.UNAUTHORIZED).build()
+        } else {
+          // todo fetch all versions preceeding this
+          val versions = context
+            .select(WORKFLOW_VERSION.VID, WORKFLOW_VERSION.CREATION_TIME, WORKFLOW_VERSION.CONTENT)
+            .from(WORKFLOW_VERSION)
+            .leftJoin(WORKFLOW)
+            .on(WORKFLOW_VERSION.WID.eq(WORKFLOW.WID))
+            .where(WORKFLOW_VERSION.WID.eq(wid))
+            .fetch()
+          // todo apply patch
+          val currentWorkflow = workflowDao.fetchOneByWid(wid)
+          val versionEntries = versions
+            .map(workflowRecord =>
+              VersionEntry(
+                workflowRecord.into(WORKFLOW_VERSION).getVid,
+                workflowRecord.into(WORKFLOW_VERSION).getCreationTime,
+                workflowRecord.into(WORKFLOW_VERSION).getContent
+              )
+            )
+            .toList
+          //todo return result
+          val res = applyPatch(versionEntries.reverse, currentWorkflow)
+          Response
+            .ok(res)
+            .build()
+        }
+      case None =>
+        Response.status(Response.Status.UNAUTHORIZED).build()
+    }
+  }
+  private def applyPatch(versions: List[VersionEntry], workflow: Workflow): Workflow = {
+    // todo loop all versions and apply the patch
+    val mapper = new ObjectMapper()
+    for (patch <- versions) {
+      workflow.setContent(
+        JsonPatch
+          .apply(mapper.readTree(patch.content), mapper.readTree(workflow.getContent))
+          .toString
+      )
+      workflow.setVid(patch.vId.intValue())
+      workflow.setLastModifiedTime(patch.creationTime)
+    }
+    //todo need to persist the chosen version to disk
+    return workflow
   }
 }

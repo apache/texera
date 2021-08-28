@@ -58,7 +58,8 @@ export class WorkflowActionService {
     name: WorkflowActionService.DEFAULT_WORKFLOW_NAME,
     wid: undefined,
     creationTime: undefined,
-    lastModifiedTime: undefined
+    lastModifiedTime: undefined,
+    vid: undefined
   };
 
   private readonly texeraGraph: WorkflowGraph;

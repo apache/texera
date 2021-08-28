@@ -116,4 +116,18 @@ public class WorkflowDao extends DAOImpl<WorkflowRecord, edu.uci.ics.texera.web.
     public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Workflow> fetchByLastModifiedTime(Timestamp... values) {
         return fetch(Workflow.WORKFLOW.LAST_MODIFIED_TIME, values);
     }
+
+    /**
+     * Fetch records that have <code>vid BETWEEN lowerInclusive AND upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Workflow> fetchRangeOfVid(Integer lowerInclusive, Integer upperInclusive) {
+        return fetchRange(Workflow.WORKFLOW.VID, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>vid IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Workflow> fetchByVid(Integer... values) {
+        return fetch(Workflow.WORKFLOW.VID, values);
+    }
 }

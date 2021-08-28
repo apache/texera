@@ -3,4 +3,5 @@ export interface WorkflowMetadata {
   wid: number|undefined;
   creationTime: number|undefined;
   lastModifiedTime: number|undefined;
+  vid: number|undefined;
 }

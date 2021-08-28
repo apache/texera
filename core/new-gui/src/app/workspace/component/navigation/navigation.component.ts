@@ -15,6 +15,7 @@ import { ExecutionState } from '../../types/execute-workflow.interface';
 import { WorkflowWebsocketService } from '../../service/workflow-websocket/workflow-websocket.service';
 import { Observable } from 'rxjs';
 import { WorkflowResultExportService } from '../../service/workflow-result-export/workflow-result-export.service';
+import {PropertyEditorComponent} from '../property-editor/property-editor.component';
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -59,6 +60,9 @@ export class NavigationComponent implements OnInit {
   // whether the disable operator button should be enabled
   public isDisableOperatorClickable: boolean = false;
   public isDisableOperator: boolean = true;
+
+  public versionsTableDisplay: PropertyEditorComponent = new PropertyEditorComponent(
+    this.workflowActionService, this.workflowPersistService);
 
   constructor(
     public executeWorkflowService: ExecuteWorkflowService,
@@ -364,7 +368,10 @@ export class NavigationComponent implements OnInit {
 
   onClickGetAllVersions() {
     this.workflowPersistService.retrieveVersionsOfWorkflow(<number>this.workflowActionService.
-    getWorkflowMetadata()?.wid).subscribe(mylist => {console.log(mylist); });
+    getWorkflowMetadata()?.wid).subscribe(workflowVersionsResult => {
+      console.log(workflowVersionsResult);
+      this.versionsTableDisplay?.displayVersionsResult(workflowVersionsResult);
+      });
   }
   /**
    * Updates the status of the disable operator icon:

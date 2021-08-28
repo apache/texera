@@ -6,6 +6,8 @@ import { OperatorPropertyEditFrameComponent } from './operator-property-edit-fra
 import { BreakpointPropertyEditFrameComponent } from './breakpoint-property-edit-frame/breakpoint-property-edit-frame.component';
 import { Subscription } from 'rxjs';
 import { DynamicComponentConfig } from '../../../common/type/dynamic-component-config';
+import {WorkflowVersionEntry} from '../../../dashboard/type/workflow-version-entry';
+import {WorkflowPersistService} from "../../../common/service/workflow-persist/workflow-persist.service";
 
 
 export type PropertyEditFrameComponent = OperatorPropertyEditFrameComponent | BreakpointPropertyEditFrameComponent;
@@ -28,9 +30,18 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
   frameComponentConfig?: PropertyEditFrameConfig;
 
   subscriptions = new Subscription();
+  // used in HTML template to control if the table of
+  // versions of a workflow is displayed
+  public displayVersion: boolean = true;
 
+  public versionsList: WorkflowVersionEntry[] = [];
 
-  constructor(public workflowActionService: WorkflowActionService) {}
+  public versionTableHeaders: string[] = ['Timestamp', 'version'];
+
+  public testt: number[] = [1, 2];
+
+  constructor(public workflowActionService: WorkflowActionService,
+              public workflowPersistService: WorkflowPersistService) {}
 
   ngOnDestroy(): void {
     this.subscriptions.unsubscribe();
@@ -38,6 +49,18 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.registerHighlightEventsHandler();
+  }
+
+  getVersion(vid: number) {
+    this.workflowPersistService.retrieveWorkflowByVersion(<number>this.workflowActionService.
+    getWorkflowMetadata()?.wid, vid).subscribe(workflow => {
+      this.workflowActionService.reloadWorkflow(workflow);
+      console.log(workflow);
+    });
+  }
+
+  displayVersionsResult(versionsList: WorkflowVersionEntry[]) {
+    this.versionsList = versionsList;
   }
 
   switchFrameComponent(targetConfig?: PropertyEditFrameConfig) {

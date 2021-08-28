@@ -17,13 +17,14 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Workflow implements IWorkflow {
 
-    private static final long serialVersionUID = -1716659515;
+    private static final long serialVersionUID = 905576630;
 
     private String    name;
     private UInteger  wid;
     private String    content;
     private Timestamp creationTime;
     private Timestamp lastModifiedTime;
+    private Integer   vid;
 
     public Workflow() {}
 
@@ -33,6 +34,7 @@ public class Workflow implements IWorkflow {
         this.content = value.getContent();
         this.creationTime = value.getCreationTime();
         this.lastModifiedTime = value.getLastModifiedTime();
+        this.vid = value.getVid();
     }
 
     public Workflow(
@@ -40,13 +42,15 @@ public class Workflow implements IWorkflow {
         UInteger  wid,
         String    content,
         Timestamp creationTime,
-        Timestamp lastModifiedTime
+        Timestamp lastModifiedTime,
+        Integer   vid
     ) {
         this.name = name;
         this.wid = wid;
         this.content = content;
         this.creationTime = creationTime;
         this.lastModifiedTime = lastModifiedTime;
+        this.vid = vid;
     }
 
     @Override
@@ -100,6 +104,16 @@ public class Workflow implements IWorkflow {
     }
 
     @Override
+    public Integer getVid() {
+        return this.vid;
+    }
+
+    @Override
+    public void setVid(Integer vid) {
+        this.vid = vid;
+    }
+
+    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("Workflow (");
 
@@ -108,6 +122,7 @@ public class Workflow implements IWorkflow {
         sb.append(", ").append(content);
         sb.append(", ").append(creationTime);
         sb.append(", ").append(lastModifiedTime);
+        sb.append(", ").append(vid);
 
         sb.append(")");
         return sb.toString();
@@ -124,6 +139,7 @@ public class Workflow implements IWorkflow {
         setContent(from.getContent());
         setCreationTime(from.getCreationTime());
         setLastModifiedTime(from.getLastModifiedTime());
+        setVid(from.getVid());
     }
 
     @Override
