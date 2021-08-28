@@ -28,10 +28,9 @@ class WorkflowRewriterV2(
     var cachedOperatorDescriptors: mutable.HashMap[String, OperatorDescriptor],
     var cacheSourceOperatorDescriptors: mutable.HashMap[String, CacheSourceOpDescV2],
     var cacheSinkOperatorDescriptors: mutable.HashMap[String, CacheSinkOpDescV2],
-    var operatorRecord: mutable.HashMap[String, WorkflowVertexV2]
+    var operatorRecord: mutable.HashMap[String, WorkflowVertexV2],
+    var opResultStorage: OpResultStorage
 ) {
-
-  var opResultStorage: OpResultStorage = _
 
   private val logger = Logger(this.getClass.getName)
 

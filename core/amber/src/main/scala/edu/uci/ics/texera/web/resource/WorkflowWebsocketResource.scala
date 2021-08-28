@@ -269,9 +269,9 @@ class WorkflowWebsocketResource {
       cachedOperators,
       cacheSourceOperators,
       cacheSinkOperators,
-      operatorRecord
+      operatorRecord,
+      opResultStorage
     )
-    workflowRewriter.opResultStorage = opResultStorage
     val newWorkflowInfo = workflowRewriter.rewrite_v2
     val oldWorkflowInfo = workflowInfo
     workflowInfo = newWorkflowInfo
