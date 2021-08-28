@@ -8811,10 +8811,12 @@ next-tick@~1.0.0:
   resolved "https://registry.yarnpkg.com/next-tick/-/next-tick-1.0.0.tgz#ca86d1fe8828169b0120208e3dc8424b9db8342c"
   integrity sha1-yobR/ogoFpsBICCOPchCS524NCw=
 
-ng-dynamic-component@^6.0.1:
-  version "6.1.0"
-  resolved "https://registry.yarnpkg.com/ng-dynamic-component/-/ng-dynamic-component-6.1.0.tgz#73c3c8d74e7eed5df7c7e1ad19d783b5d31bce88"
-  integrity sha512-h+j2xfbAwRkybjmx7I0jO+7f/MGkF/WwEqO7qudQwGAVF81Xw5LVfgZ8hTKTXPA+CeCS+3I/Rl99GFRhj0TYwA==
+ng-dynamic-component@^8.0.1:
+  version "8.0.1"
+  resolved "https://registry.yarnpkg.com/ng-dynamic-component/-/ng-dynamic-component-8.0.1.tgz#df860f93ca16249013585007bbe20f6ec6bcc0af"
+  integrity sha512-Ak25QTYmjNVxyZ6ywqRDDjoqAJheFeK0XoHsomwVjdHSiLoQcGfNNj5z51pqoRGpjdDZMSV+J2gaCbRNBeiy3g==
+  dependencies:
+    tslib "^2.0.0"
 
 ng-gapi@0.0.94:
   version "0.0.94"
