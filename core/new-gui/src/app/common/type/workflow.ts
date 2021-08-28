@@ -1,6 +1,11 @@
-import { WorkflowMetadata } from '../../dashboard/type/workflow-metadata.interface';
-import { PlainGroup } from '../../workspace/service/workflow-graph/model/operator-group';
-import { Breakpoint, OperatorLink, OperatorPredicate, Point } from '../../workspace/types/workflow-common.interface';
+import { WorkflowMetadata } from "../../dashboard/type/workflow-metadata.interface";
+import { PlainGroup } from "../../workspace/service/workflow-graph/model/operator-group";
+import {
+  Breakpoint,
+  OperatorLink,
+  OperatorPredicate,
+  Point,
+} from "../../workspace/types/workflow-common.interface";
 
 /**
  * WorkflowContent is used to store the information of the workflow
@@ -14,12 +19,13 @@ import { Breakpoint, OperatorLink, OperatorPredicate, Point } from '../../worksp
  *  will then be used to reload the entire workflow.
  *
  */
-export interface WorkflowContent extends Readonly<{
-  operators: OperatorPredicate[];
-  operatorPositions: { [key: string]: Point };
-  links: OperatorLink[];
-  groups: PlainGroup[];
-  breakpoints: Record<string, Breakpoint>;
-}> { }
+export interface WorkflowContent
+  extends Readonly<{
+    operators: OperatorPredicate[];
+    operatorPositions: { [key: string]: Point };
+    links: OperatorLink[];
+    groups: PlainGroup[];
+    breakpoints: Record<string, Breakpoint>;
+  }> {}
 
 export type Workflow = { content: WorkflowContent } & WorkflowMetadata;

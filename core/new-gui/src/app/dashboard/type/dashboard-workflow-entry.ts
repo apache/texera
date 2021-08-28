@@ -1,8 +1,9 @@
-import { Workflow } from '../../common/type/workflow';
+import { Workflow } from "../../common/type/workflow";
 
-export interface DashboardWorkflowEntry extends Readonly<{
-  isOwner: boolean;
-  accessLevel: string;
-  ownerName: string | undefined;
-  workflow: Workflow;
-}> {}
+export interface DashboardWorkflowEntry
+  extends Readonly<{
+    isOwner: boolean;
+    accessLevel: string;
+    ownerName: string | undefined;
+    workflow: Workflow;
+  }> {}

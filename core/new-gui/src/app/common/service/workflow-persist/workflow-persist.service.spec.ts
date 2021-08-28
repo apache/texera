@@ -1,14 +1,18 @@
-import { TestBed } from '@angular/core/testing';
-import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { WorkflowPersistService } from './workflow-persist.service';
-import { jsonCast } from '../../util/storage';
-import { WorkflowContent } from '../../type/workflow';
-import { last } from 'rxjs/operators';
+import { TestBed } from "@angular/core/testing";
+import {
+  HttpClientTestingModule,
+  HttpTestingController,
+} from "@angular/common/http/testing";
+import { WorkflowPersistService } from "./workflow-persist.service";
+import { jsonCast } from "../../util/storage";
+import { WorkflowContent } from "../../type/workflow";
+import { last } from "rxjs/operators";
 
-describe('WorkflowPersistService', () => {
+describe("WorkflowPersistService", () => {
   let service: WorkflowPersistService;
   let httpTestingController: HttpTestingController;
-  const testContent = '{"operators":[{"operatorID":"Limit-operator-a11370eb-940a-4f10-8b36-8b413b2396c9",' +
+  const testContent =
+    '{"operators":[{"operatorID":"Limit-operator-a11370eb-940a-4f10-8b36-8b413b2396c9",' +
     '"operatorType":"Limit","operatorProperties":{"limit":2},"inputPorts":[{"portID":"input-0","displayName":""}],' +
     '"outputPorts":[{"portID":"output-0","displayName":null}],"showAdvanced":false},' +
     '{"operatorID":"SimpleSink-operator-e4a77a32-e3c9-4c40-a26d-a1aa103cc914","operatorType":"SimpleSink",' +
@@ -29,37 +33,35 @@ describe('WorkflowPersistService', () => {
     '"groups":[],"breakpoints":{}}';
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [
-        HttpClientTestingModule
-      ]
+      imports: [HttpClientTestingModule],
     });
     service = TestBed.inject(WorkflowPersistService);
     httpTestingController = TestBed.get(HttpTestingController);
   });
 
-  it('should be created', () => {
+  it("should be created", () => {
     expect(service).toBeTruthy();
   });
 
-  it('should send http post request once', () => {
-
-
-    service.createWorkflow(jsonCast<WorkflowContent>(testContent), 'testname').pipe(last()).subscribe(
-      value => {
+  it("should send http post request once", () => {
+    service
+      .createWorkflow(jsonCast<WorkflowContent>(testContent), "testname")
+      .pipe(last())
+      .subscribe((value) => {
         expect(value).toBeTruthy();
-      }
-    );
-    httpTestingController.expectOne(
-      request => request.method === 'POST'
-    );
+      });
+    httpTestingController.expectOne((request) => request.method === "POST");
   });
 
-  it('should check if workflow content and name returned correctly', () => {
-    service.createWorkflow(jsonCast<WorkflowContent>(testContent), 'testname').pipe(last()).subscribe(
-      (value) => {
-        expect(value.workflow.name).toEqual('testname_copy');
-        expect(value.workflow.content).toEqual(jsonCast<WorkflowContent>(testContent));
-      }
-    );
+  it("should check if workflow content and name returned correctly", () => {
+    service
+      .createWorkflow(jsonCast<WorkflowContent>(testContent), "testname")
+      .pipe(last())
+      .subscribe((value) => {
+        expect(value.workflow.name).toEqual("testname_copy");
+        expect(value.workflow.content).toEqual(
+          jsonCast<WorkflowContent>(testContent)
+        );
+      });
   });
 });
