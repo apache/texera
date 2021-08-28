@@ -1,28 +1,23 @@
-import { mockScanSourceSchema } from './../../service/operator-metadata/mock-operator-metadata.data';
-import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
-import { DragDropService } from './../../service/drag-drop/drag-drop.service';
-import { ComponentFixture, TestBed, tick, fakeAsync, waitForAsync } from '@angular/core/testing';
+import { mockScanSourceSchema } from '../../service/operator-metadata/mock-operator-metadata.data';
+import { UndoRedoService } from '../../service/undo-redo/undo-redo.service';
+import { DragDropService } from '../../service/drag-drop/drag-drop.service';
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import '../../../common/rxjs-operators';
-import { CustomNgMaterialModule } from '../../../common/custom-ng-material.module';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
-
+import * as c from './operator-panel.component';
 import { OperatorPanelComponent } from './operator-panel.component';
 import { OperatorLabelComponent } from './operator-label/operator-label.component';
-import { OperatorMetadataService, EMPTY_OPERATOR_METADATA } from '../../service/operator-metadata/operator-metadata.service';
+import { EMPTY_OPERATOR_METADATA, OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
-import { TourService } from 'ngx-tour-ng-bootstrap';
+import { TourNgBootstrapModule, TourService } from 'ngx-tour-ng-bootstrap';
 import { GroupInfo, OperatorSchema } from '../../types/operator-schema.interface';
 import { RouterTestingModule } from '@angular/router/testing';
-import { TourNgBootstrapModule } from 'ngx-tour-ng-bootstrap';
-import { FormsModule, ReactiveFormsModule} from '@angular/forms';
 
 import {
-  mockOperatorMetaData, mockOperatorGroup, mockOperatorSchemaList
+  mockOperatorGroup,
+  mockOperatorMetaData,
+  mockOperatorSchemaList
 } from '../../service/operator-metadata/mock-operator-metadata.data';
-
-import * as c from './operator-panel.component';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
@@ -131,8 +126,8 @@ describe('OperatorPanelComponent', () => {
 
   it('should have all group names shown in the UI side panel', () => {
     const groupNamesInUI = fixture.debugElement
-    .queryAll(By.css('.texera-workspace-operator-panel-subgroup'))
-    .map(el => (el.nativeElement.querySelector('.ant-collapse-header').innerText));
+      .queryAll(By.css('.texera-workspace-operator-panel-subgroup'))
+      .map(el => (el.nativeElement.querySelector('.ant-collapse-header').innerText));
 
     expect(groupNamesInUI).toEqual(
       mockOperatorGroup.map(group => group.groupName));
@@ -175,7 +170,7 @@ describe('OperatorPanelComponent', () => {
     const dragDropService = TestBed.get(DragDropService);
     dragDropService.operatorDroppedSubject.next({
       operatorType: 'ScanSource',
-      offset: {x: 1, y: 1},
+      offset: { x: 1, y: 1 },
       dragElementID: OperatorLabelComponent.operatorLabelSearchBoxPrefix + 'ScanSource'
     });
 

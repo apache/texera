@@ -4,20 +4,14 @@ import { DragDropService } from '../../service/drag-drop/drag-drop.service';
 import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { ValidationWorkflowService } from '../../service/validation/validation-workflow.service';
-
 import { WorkflowEditorComponent } from './workflow-editor.component';
-
 import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
 import { JointUIService } from '../../service/joint-ui/joint-ui.service';
-
 import * as jQuery from 'jquery';
 import * as joint from 'jointjs';
-
-
 import { ResultPanelToggleService } from '../../service/result-panel-toggle/result-panel-toggle.service';
 import { marbles } from 'rxjs-marbles';
-
 import {
   mockPoint,
   mockResultPredicate,
@@ -30,6 +24,7 @@ import { WorkflowStatusService } from '../../service/workflow-status/workflow-st
 import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { OperatorLink, OperatorPredicate } from '../../types/workflow-common.interface';
+import { tap } from 'rxjs/operators';
 
 describe('WorkflowEditorComponent', () => {
 
@@ -365,7 +360,7 @@ describe('WorkflowEditorComponent', () => {
 
     it('should react to jointJS paper zoom event', marbles((m) => {
       const mockScaleRatio = 0.5;
-      m.hot('-e-').do(() => workflowActionService.getJointGraphWrapper().setZoomProperty(mockScaleRatio)).subscribe(
+      m.hot('-e-').pipe(tap(() => workflowActionService.getJointGraphWrapper().setZoomProperty(mockScaleRatio))).subscribe(
         () => {
           const currentScale = component.getJointPaper().scale();
           expect(currentScale.sx).toEqual(mockScaleRatio);
@@ -380,7 +375,7 @@ describe('WorkflowEditorComponent', () => {
       component.getJointPaper().translate(mockTranslation, mockTranslation);
       expect(component.getJointPaper().translate().tx).not.toEqual(originalOffset.tx);
       expect(component.getJointPaper().translate().ty).not.toEqual(originalOffset.ty);
-      m.hot('-e-').do(() => workflowActionService.getJointGraphWrapper().restoreDefaultZoomAndOffset()).subscribe(
+      m.hot('-e-').pipe(tap(() => workflowActionService.getJointGraphWrapper().restoreDefaultZoomAndOffset())).subscribe(
         () => {
           expect(component.getJointPaper().translate().tx).toEqual(originalOffset.tx);
           expect(component.getJointPaper().translate().ty).toEqual(originalOffset.ty);

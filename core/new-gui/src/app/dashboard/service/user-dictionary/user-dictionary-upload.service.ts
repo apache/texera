@@ -1,12 +1,13 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, of } from 'rxjs';
 import { AppSettings } from 'src/app/common/app-setting';
 
 import { GenericWebResponse, GenericWebResponseCode } from '../../../common/type/generic-web-response';
 import { DictionaryUploadItem, ManualDictionaryUploadItem } from '../../../common/type/user-dictionary';
 import { UserService } from '../../../common/service/user/user.service';
 import { UserDictionaryService } from './user-dictionary.service';
+import { mergeMap } from 'rxjs/operators';
 
 export const USER_DICTIONARY_UPLOAD_URL = 'user/dictionary/upload';
 export const USER_MANUAL_DICTIONARY_UPLOAD_URL = 'user/dictionary/upload-manual-dict';
@@ -152,15 +153,16 @@ export class UserDictionaryUploadService {
     formData.append('size', dictionaryUploadItem.file.size.toString());
 
     return this.http.post<GenericWebResponse>(
-      `${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_VALIDATE_URL}`, formData).flatMap(
-      res => {
-        if (res.code === GenericWebResponseCode.SUCCESS) {
-          return this.uploadDictionary(dictionaryUploadItem);
-        } else {
-          return Observable.of(res);
+      `${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_VALIDATE_URL}`, formData).pipe(
+      mergeMap(
+        (res) => {
+          if (res.code === GenericWebResponseCode.SUCCESS) {
+            return this.uploadDictionary(dictionaryUploadItem);
+          } else {
+            return of(res);
+          }
         }
-      }
-    );
+      ));
   }
 
   /**

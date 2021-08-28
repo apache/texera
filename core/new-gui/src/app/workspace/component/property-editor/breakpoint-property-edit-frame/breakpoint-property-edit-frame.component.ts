@@ -1,16 +1,16 @@
 import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
-import { cloneDeep, isEqual } from 'lodash';
+import { cloneDeep, isEqual } from 'lodash-es';
 import { ExecuteWorkflowService } from '../../../service/execute-workflow/execute-workflow.service';
 import { DynamicSchemaService } from '../../../service/dynamic-schema/dynamic-schema.service';
 import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
 import { FormlyJsonschema } from '@ngx-formly/core/json-schema';
 import { ExecutionState } from 'src/app/workspace/types/execute-workflow.interface';
 import { FormGroup } from '@angular/forms';
-import { Subject } from 'rxjs/Subject';
+import { Subject, Subscription } from 'rxjs';
 import { FormlyFieldConfig, FormlyFormOptions } from '@ngx-formly/core';
 import { CustomJSONSchema7 } from '../../../types/custom-json-schema.interface';
-import { Subscription } from 'rxjs';
 import { createOutputFormChangeEventStream } from 'src/app/common/formly/formly-utils';
+import { filter } from "rxjs/operators";
 
 
 /**
@@ -196,10 +196,10 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy, 
    */
   registerOperatorPropertyChangeHandler(): void {
     this.subscriptions.add(this.workflowActionService.getTexeraGraph().getBreakpointChangeStream()
-      .filter(_ => this.currentLinkId !== undefined)
-      .filter(event => event.linkID === this.currentLinkId)
-      .filter(event => !isEqual(this.formData, this.workflowActionService.getTexeraGraph().getLinkBreakpoint(event.linkID)))
-      .subscribe(event => this.formData = cloneDeep(this.workflowActionService.getTexeraGraph().getLinkBreakpoint(event.linkID))));
+      .pipe(filter(_ => this.currentLinkId !== undefined),
+        filter(event => event.linkID === this.currentLinkId),
+        filter(event => !isEqual(this.formData, this.workflowActionService.getTexeraGraph().getLinkBreakpoint(event.linkID)))
+      ).subscribe(event => this.formData = cloneDeep(this.workflowActionService.getTexeraGraph().getLinkBreakpoint(event.linkID))));
   }
 
   setFormlyFormBinding(schema: CustomJSONSchema7) {

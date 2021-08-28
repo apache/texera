@@ -3,6 +3,7 @@ import { HttpClientTestingModule, HttpTestingController } from '@angular/common/
 import { WorkflowPersistService } from './workflow-persist.service';
 import { jsonCast } from '../../util/storage';
 import { WorkflowContent } from '../../type/workflow';
+import { last } from 'rxjs/operators';
 
 describe('WorkflowPersistService', () => {
   let service: WorkflowPersistService;
@@ -43,7 +44,7 @@ describe('WorkflowPersistService', () => {
   it('should send http post request once', () => {
 
 
-    service.createWorkflow(jsonCast<WorkflowContent>(testContent), 'testname').last().subscribe(
+    service.createWorkflow(jsonCast<WorkflowContent>(testContent), 'testname').pipe(last()).subscribe(
       value => {
         expect(value).toBeTruthy();
       }
@@ -54,7 +55,7 @@ describe('WorkflowPersistService', () => {
   });
 
   it('should check if workflow content and name returned correctly', () => {
-    service.createWorkflow(jsonCast<WorkflowContent>(testContent), 'testname').last().subscribe(
+    service.createWorkflow(jsonCast<WorkflowContent>(testContent), 'testname').pipe(last()).subscribe(
       (value) => {
         expect(value.workflow.name).toEqual('testname_copy');
         expect(value.workflow.content).toEqual(jsonCast<WorkflowContent>(testContent));

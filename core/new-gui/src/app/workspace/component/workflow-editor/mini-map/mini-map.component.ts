@@ -1,5 +1,5 @@
-import { Component, AfterViewInit, Input } from '@angular/core';
-import { Observable } from 'rxjs/Observable';
+import { AfterViewInit, Component } from '@angular/core';
+import { fromEvent } from 'rxjs';
 
 // if jQuery needs to be used: 1) use jQuery instead of `$`, and
 // 2) always add this import statement even if TypeScript doesn't show an error https://github.com/Microsoft/TypeScript/issues/22016
@@ -10,6 +10,7 @@ import { WorkflowActionService } from '../../../service/workflow-graph/model/wor
 import { Point } from '../../../types/workflow-common.interface';
 import { MAIN_CANVAS_LIMIT } from '../workflow-editor-constants';
 import { WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID } from '../workflow-editor.component';
+import { auditTime } from 'rxjs/operators';
 
 export const MINI_MAP_WRAPPER_ID = 'texera-mini-map-wrapper';
 export const MINI_MAP_JOINTJS_MAP_ID = 'texera-mini-map-editor-jointjs-body-id';
@@ -70,7 +71,7 @@ export class MiniMapComponent implements AfterViewInit {
       throw new Error('minimap: cannot find navigator element');
     }
 
-    Observable.fromEvent<MouseEvent>(navigatorElement, 'mousedown')
+    fromEvent<MouseEvent>(navigatorElement, 'mousedown')
       .subscribe(event => {
         const x = event.screenX;
         const y = event.screenY;
@@ -79,18 +80,18 @@ export class MiniMapComponent implements AfterViewInit {
         }
       });
 
-    Observable.fromEvent(document, 'mouseup')
+    fromEvent(document, 'mouseup')
       .subscribe(() => {
         this.mouseDownPosition = undefined;
       });
 
-    const mousePanEvent = Observable.fromEvent<MouseEvent>(document, 'mousemove')
+    const mousePanEvent = fromEvent<MouseEvent>(document, 'mousemove')
       .subscribe(event => {
         if (this.mouseDownPosition) {
           const newCoordinate = { x: event.screenX, y: event.screenY };
           const panDelta = {
-            deltaX: - (newCoordinate.x - this.mouseDownPosition.x) / this.MINI_MAP_ZOOM_SCALE,
-            deltaY: - (newCoordinate.y - this.mouseDownPosition.y) / this.MINI_MAP_ZOOM_SCALE
+            deltaX: -(newCoordinate.x - this.mouseDownPosition.x) / this.MINI_MAP_ZOOM_SCALE,
+            deltaY: -(newCoordinate.y - this.mouseDownPosition.y) / this.MINI_MAP_ZOOM_SCALE
           };
           this.mouseDownPosition = newCoordinate;
 
@@ -161,7 +162,7 @@ export class MiniMapComponent implements AfterViewInit {
     const height = (MAIN_CANVAS_LIMIT.yMax - MAIN_CANVAS_LIMIT.yMin) * scale;
 
     this.MINI_MAP_ZOOM_SCALE = scale;
-    this.MINI_MAP_SIZE = {width, height};
+    this.MINI_MAP_SIZE = { width, height };
 
     jQuery('#' + MINI_MAP_WRAPPER_ID).height(height);
     this.miniMapPaper?.scale(this.MINI_MAP_ZOOM_SCALE);
@@ -174,7 +175,7 @@ export class MiniMapComponent implements AfterViewInit {
    *  a delay to limit only one event every 30ms)
    */
   private handleWindowResize(): void {
-    Observable.fromEvent(window, 'resize').auditTime(30).subscribe(
+    fromEvent(window, 'resize').pipe(auditTime(30)).subscribe(
       () => {
         this.updateMiniMapScaleSize();
         this.updateNavigatorOffset();
@@ -189,7 +190,7 @@ export class MiniMapComponent implements AfterViewInit {
       .pageToJointLocalCoordinate(this.getMainPaperWrapperElementOffset());
     const miniMapPoint = this.mainPaperToMiniMapPoint(mainPaperPoint);
     const miniMapWrapperOffset = jQuery('#' + this.MINI_MAP_WRAPPER_ID).offset();
-    if (! miniMapWrapperOffset) {
+    if (!miniMapWrapperOffset) {
       throw new Error('cannot find minimap wrapper');
     }
     const left = miniMapWrapperOffset.left + miniMapPoint.x;

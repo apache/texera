@@ -1,8 +1,8 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { isEqual } from 'lodash';
+import { isEqual } from 'lodash-es';
 import { NGXLogger } from 'ngx-logger';
-import { EMPTY, Observable } from 'rxjs';
+import { EMPTY, merge, Observable } from 'rxjs';
 import { CustomJSONSchema7 } from 'src/app/workspace/types/custom-json-schema.interface';
 import { environment } from '../../../../../environments/environment';
 import { AppSettings } from '../../../../common/app-setting';
@@ -10,6 +10,7 @@ import { OperatorSchema } from '../../../types/operator-schema.interface';
 import { ExecuteWorkflowService } from '../../execute-workflow/execute-workflow.service';
 import { WorkflowActionService } from '../../workflow-graph/model/workflow-action.service';
 import { DynamicSchemaService } from '../dynamic-schema.service';
+import { catchError, debounceTime, filter, mergeMap } from 'rxjs/operators';
 
 // endpoint for schema propagation
 export const SCHEMA_PROPAGATION_ENDPOINT = 'queryplan/autocomplete';
@@ -46,16 +47,15 @@ export class SchemaPropagationService {
 
     // invoke schema propagation API when: link is added/deleted,
     // or any property of any operator is changed
-    Observable
-      .merge(
-        this.workflowActionService.getTexeraGraph().getLinkAddStream(),
-        this.workflowActionService.getTexeraGraph().getLinkDeleteStream(),
-        this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream()
-          .debounceTime(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS),
-        this.workflowActionService.getTexeraGraph().getDisabledOperatorsChangedStream(),
-        )
-      .flatMap(() => this.invokeSchemaPropagationAPI())
-      .filter(response => response.code === 0)
+    merge(
+      this.workflowActionService.getTexeraGraph().getLinkAddStream(),
+      this.workflowActionService.getTexeraGraph().getLinkDeleteStream(),
+      this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream()
+        .pipe(debounceTime(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS)),
+      this.workflowActionService.getTexeraGraph().getDisabledOperatorsChangedStream(),
+    )
+      .pipe(mergeMap(() => this.invokeSchemaPropagationAPI())
+        , filter(response => response.code === 0))
       .subscribe(response => {
         this.operatorInputSchemaMap = response.result;
         this._applySchemaPropagationResult(this.operatorInputSchemaMap);
@@ -119,11 +119,11 @@ export class SchemaPropagationService {
     return this.httpClient.post<SchemaPropagationResponse>(
       `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`,
       JSON.stringify(body),
-      {headers: {'Content-Type': 'application/json'}})
-      .catch(err => {
+      { headers: { 'Content-Type': 'application/json' } })
+      .pipe(catchError(err => {
         this.logger.error('schema propagation API returns error', err);
         return EMPTY;
-      });
+      }));
   }
 
   /**
@@ -148,7 +148,7 @@ export class SchemaPropagationService {
     const walkPropertiesRecurse = (propertyObject: { [key: string]: any }) => {
       Object.keys(propertyObject).forEach(key => {
         if (key === 'attribute' || key === 'attributes') {
-          const {[key]: [], ...removedAttributeProperties} = propertyObject;
+          const { [key]: [], ...removedAttributeProperties } = propertyObject;
           propertyObject = removedAttributeProperties;
         } else if (typeof propertyObject[key] === 'object') {
           propertyObject[key] = walkPropertiesRecurse(propertyObject[key]);
@@ -183,12 +183,12 @@ export class SchemaPropagationService {
     };
 
     newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, (k, v) => v.autofill === 'attributeName',
-      old => ({...old, type: 'string', enum: getAttrNames(old), uniqueItems: true}));
+      old => ({ ...old, type: 'string', enum: getAttrNames(old), uniqueItems: true }));
 
     newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, (k, v) => v.autofill === 'attributeNameList',
       old => ({
         ...old, type: 'array', uniqueItems: true,
-        items: {...(old.items as CustomJSONSchema7), type: 'string', enum: getAttrNames(old)}
+        items: { ...(old.items as CustomJSONSchema7), type: 'string', enum: getAttrNames(old) }
       }));
 
     return {
@@ -202,12 +202,12 @@ export class SchemaPropagationService {
     let newJsonSchema = operatorSchema.jsonSchema;
 
     newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, (k, v) => v.autofill === 'attributeName',
-      old => ({...old, type: 'string', enum: undefined, uniqueItems: undefined}));
+      old => ({ ...old, type: 'string', enum: undefined, uniqueItems: undefined }));
 
     newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, (k, v) => v.autofill === 'attributeNameList',
       old => ({
         ...old, type: 'array', uniqueItems: undefined,
-        items: {...(old.items as CustomJSONSchema7), type: 'string', enum: undefined}
+        items: { ...(old.items as CustomJSONSchema7), type: 'string', enum: undefined }
       }));
 
     return {

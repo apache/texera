@@ -1,8 +1,9 @@
 import { FormlyFieldConfig } from '@ngx-formly/core';
 import { isDefined } from '../util/predicate';
 import { SchemaAttribute } from '../../workspace/service/dynamic-schema/schema-propagation/schema-propagation.service';
-import { Observable } from 'rxjs/Observable';
+import { Observable } from 'rxjs';
 import { FORM_DEBOUNCE_TIME_MS } from '../../workspace/service/execute-workflow/execute-workflow.service';
+import { debounceTime, distinctUntilChanged, filter, share } from 'rxjs/operators';
 
 export function getFieldByName(fieldName: string, fields: FormlyFieldConfig[])
   : FormlyFieldConfig | undefined {
@@ -58,15 +59,16 @@ export function createOutputFormChangeEventStream(
   return formChangeEvent
     // set a debounce time to avoid events triggering too often
     //  and to circumvent a bug of the library - each action triggers event twice
-    .debounceTime(FORM_DEBOUNCE_TIME_MS)
-    // .do(evt => console.log(evt))
-    // don't emit the event until the data is changed
-    .distinctUntilChanged()
-    // .do(evt => console.log(evt))
-    // don't emit the event if form data is same with current actual data
-    // also check for other unlikely circumstances (see below)
-    .filter(formData => modelCheck(formData))
-    // share() because the original observable is a hot observable
-    .share();
-
+    .pipe(
+      debounceTime(FORM_DEBOUNCE_TIME_MS),
+      // .do(evt => console.log(evt))
+      // don't emit the event until the data is changed
+      distinctUntilChanged(),
+      // .do(evt => console.log(evt))
+      // don't emit the event if form data is same with current actual data
+      // also check for other unlikely circumstances (see below)
+      filter(formData => modelCheck(formData)),
+      // share() because the original observable is a hot observable
+      share()
+    );
 }

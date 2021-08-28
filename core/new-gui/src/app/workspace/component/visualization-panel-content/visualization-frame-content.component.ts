@@ -4,7 +4,7 @@ import { Primitive, PrimitiveArray } from 'c3';
 import * as d3 from 'd3';
 import * as cloud from 'd3-cloud';
 import { ChartType, WordCloudTuple } from '../../types/visualization.interface';
-import { Observable, Subject, Subscription } from 'rxjs';
+import { merge, Subject, Subscription } from 'rxjs';
 import { environment } from 'src/environments/environment';
 import * as mapboxgl from 'mapbox-gl';
 import { MapboxLayer } from '@deck.gl/mapbox';
@@ -12,6 +12,7 @@ import { ScatterplotLayer } from '@deck.gl/layers';
 import { ScatterplotLayerProps } from '@deck.gl/layers/scatterplot-layer/scatterplot-layer';
 import { DomSanitizer } from '@angular/platform-browser';
 import { WorkflowResultService } from '../../service/workflow-result/workflow-result.service';
+import { auditTime, debounceTime } from 'rxjs/operators';
 
 (mapboxgl as any).accessToken = environment.mapbox.accessToken;
 
@@ -94,11 +95,11 @@ export class VisualizationFrameContentComponent implements AfterContentInit, OnD
     // setup an event lister that re-draws the chart content every (n) milliseconds
     // auditTime makes sure the first re-draw happens after (n) milliseconds has elapsed
     const resultUpdate = this.workflowResultService.getResultUpdateStream()
-      .auditTime(VisualizationFrameContentComponent.UPDATE_INTERVAL_MS);
+      .pipe(auditTime(VisualizationFrameContentComponent.UPDATE_INTERVAL_MS));
     const controlUpdate = this.wordCloudControlUpdateObservable
-      .debounceTime(VisualizationFrameContentComponent.WORD_CLOUD_CONTROL_UPDATE_INTERVAL_MS);
+      .pipe(debounceTime(VisualizationFrameContentComponent.WORD_CLOUD_CONTROL_UPDATE_INTERVAL_MS));
 
-    this.updateSubscription = Observable.merge(resultUpdate, controlUpdate).subscribe(() => {
+    this.updateSubscription = merge(resultUpdate, controlUpdate).subscribe(() => {
       this.drawChart();
     });
   }

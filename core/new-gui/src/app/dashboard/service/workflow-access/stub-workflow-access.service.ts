@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs/Observable';
+import { Observable } from 'rxjs';
 import { of } from 'rxjs';
 import { WorkflowAccessService } from './workflow-access.service';
 import { Workflow, WorkflowContent } from '../../../common/type/workflow';

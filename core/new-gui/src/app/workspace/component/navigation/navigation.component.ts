@@ -13,8 +13,9 @@ import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-grap
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 import { ExecutionState } from '../../types/execute-workflow.interface';
 import { WorkflowWebsocketService } from '../../service/workflow-websocket/workflow-websocket.service';
-import { Observable } from 'rxjs';
+import { merge } from 'rxjs';
 import { WorkflowResultExportService } from '../../service/workflow-result-export/workflow-result-export.service';
+import { debounceTime } from 'rxjs/operators';
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -352,7 +353,7 @@ export class NavigationComponent implements OnInit {
   }
 
   registerWorkflowMetadataDisplayRefresh() {
-    this.workflowActionService.workflowMetaDataChanged().debounceTime(100)
+    this.workflowActionService.workflowMetaDataChanged().pipe(debounceTime(100))
       .subscribe(() => {
         this.currentWorkflowName = this.workflowActionService.getWorkflowMetadata()?.name;
         this.autoSaveState = this.workflowActionService.getWorkflowMetadata().lastModifiedTime === undefined ?
@@ -368,7 +369,7 @@ export class NavigationComponent implements OnInit {
    * If any of the selected operator is not disabled, then click will disable all selected operators
    */
   handleDisableOperatorStatusChange() {
-    Observable.merge(
+    merge(
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointGroupHighlightStream(),

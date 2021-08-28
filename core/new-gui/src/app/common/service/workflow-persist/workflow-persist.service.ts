@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs/Observable';
-import { map } from 'rxjs/operators';
+import { Observable } from 'rxjs';
+import { filter, map } from 'rxjs/operators';
 import { AppSettings } from '../../app-setting';
 import { Workflow, WorkflowContent } from '../../type/workflow';
 import { jsonCast } from '../../util/storage';
@@ -30,8 +30,9 @@ export class WorkflowPersistService {
       name: workflow.name,
       content: JSON.stringify(workflow.content)
     })
-      .filter((updatedWorkflow: Workflow) => updatedWorkflow != null)
-      .pipe(map(WorkflowPersistService.parseWorkflowInfo));
+      .pipe(
+        filter((updatedWorkflow: Workflow) => updatedWorkflow != null),
+        map(WorkflowPersistService.parseWorkflowInfo));
   }
 
   /**
@@ -45,7 +46,7 @@ export class WorkflowPersistService {
       name: newWorkflowName,
       content: JSON.stringify(newWorkflowContent)
     })
-      .filter((createdWorkflow: DashboardWorkflowEntry) => createdWorkflow != null);
+      .pipe(filter((createdWorkflow: DashboardWorkflowEntry) => createdWorkflow != null));
 
   }
 
@@ -57,7 +58,7 @@ export class WorkflowPersistService {
     Observable<DashboardWorkflowEntry> {
     return this.http.post<DashboardWorkflowEntry>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_DUPLICATE_URL}`,
       { wid: targetWid })
-      .filter((createdWorkflow: DashboardWorkflowEntry) => createdWorkflow != null);
+      .pipe(filter((createdWorkflow: DashboardWorkflowEntry) => createdWorkflow != null));
 
   }
 
@@ -67,8 +68,8 @@ export class WorkflowPersistService {
    */
   public retrieveWorkflow(wid: number): Observable<Workflow> {
     return this.http.get<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/${wid}`)
-      .filter((workflow: Workflow) => workflow != null)
-      .pipe(map(WorkflowPersistService.parseWorkflowInfo));
+      .pipe(filter((workflow: Workflow) => workflow != null),
+        map(WorkflowPersistService.parseWorkflowInfo));
   }
 
 

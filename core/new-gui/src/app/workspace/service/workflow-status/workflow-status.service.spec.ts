@@ -1,9 +1,4 @@
-import { TestBed, inject } from '@angular/core/testing';
-
 import { WorkflowStatusService } from './workflow-status.service';
-import * as Rx from 'rxjs';
-import * as RxJSWebSocket from 'rxjs/webSocket';
-import { environment } from './../../../../environments/environment';
 
 // TODO: this test case related to websocket is not stable, find out why and fix it
 xdescribe('WorkflowStatusService', () => {

@@ -4,6 +4,7 @@ import { UserService } from '../../../../../common/service/user/user.service';
 import { User } from '../../../../../common/type/user';
 import { FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms';
 import { isDefined } from '../../../../../common/util/predicate';
+import { filter } from 'rxjs/operators';
 
 /**
  * NgbdModalUserLoginComponent is the pop up for user login/registration
@@ -131,7 +132,7 @@ export class NgbdModalUserLoginComponent implements OnInit {
    */
   private detectUserChange(): void {
     // TODO temporary solution, need improvement
-    this.userService.userChanged().filter(isDefined).subscribe(() => {
+    this.userService.userChanged().pipe(filter(isDefined)).subscribe(() => {
       this.activeModal.close();
     });
   }

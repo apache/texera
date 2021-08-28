@@ -1,12 +1,12 @@
-import { OperatorPredicate } from './../../../types/workflow-common.interface';
-import { OperatorMetadataService } from './../../operator-metadata/operator-metadata.service';
-import { OperatorSchema } from './../../../types/operator-schema.interface';
+import { OperatorPredicate } from '../../../types/workflow-common.interface';
+import { OperatorMetadataService } from '../../operator-metadata/operator-metadata.service';
+import { OperatorSchema } from '../../../types/operator-schema.interface';
 import { Injectable } from '@angular/core';
 import { v4 as uuid } from 'uuid';
 import * as Ajv from 'ajv';
 
-import { Subject } from 'rxjs/Subject';
-import { Observable } from 'rxjs/Observable';
+import { Subject } from 'rxjs';
+import { Observable } from 'rxjs';
 
 /**
  * WorkflowUtilService provide utilities related to dealing with operator data.

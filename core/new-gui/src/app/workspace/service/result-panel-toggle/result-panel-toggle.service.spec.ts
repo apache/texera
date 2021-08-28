@@ -1,6 +1,7 @@
-import { TestBed, inject } from '@angular/core/testing';
+import { inject, TestBed } from '@angular/core/testing';
 import { ResultPanelToggleService } from './result-panel-toggle.service';
 import { marbles } from 'rxjs-marbles';
+import { map, tap } from "rxjs/operators";
 
 describe('ResultPanelToggleService', () => {
   let resultPanelToggleService: ResultPanelToggleService;
@@ -32,15 +33,15 @@ describe('ResultPanelToggleService', () => {
 
     const expectedStream = '-a-';
 
-    const toggleStream = resultPanelToggleService.getToggleChangeStream().map(value => 'a');
-    m.hot('-a-').do(event => resultPanelToggleService.toggleResultPanel()).subscribe();
+    const toggleStream = resultPanelToggleService.getToggleChangeStream().pipe(map(value => 'a'));
+    m.hot('-a-').pipe(tap(event => resultPanelToggleService.toggleResultPanel())).subscribe();
     m.expect(toggleStream).toBeObservable(expectedStream);
 
   }));
 
   it(`should receive 'false' from toggleDisplayChangeStream when toggleResultPanel
     is called when the current result panel status is open`, marbles((m) => {
-      (resultPanelToggleService as any).currentResultPanelStatus = true;
+    (resultPanelToggleService as any).currentResultPanelStatus = true;
 
     resultPanelToggleService.getToggleChangeStream().subscribe(
       newToggleStatus => {
@@ -50,8 +51,8 @@ describe('ResultPanelToggleService', () => {
 
     const expectedStream = '-a-';
 
-    const toggleStream = resultPanelToggleService.getToggleChangeStream().map(value => 'a');
-    m.hot('-a-').do(event => resultPanelToggleService.toggleResultPanel()).subscribe();
+    const toggleStream = resultPanelToggleService.getToggleChangeStream().pipe(map(value => 'a'));
+    m.hot('-a-').pipe(tap(event => resultPanelToggleService.toggleResultPanel())).subscribe();
     m.expect(toggleStream).toBeObservable(expectedStream);
 
   }));

@@ -1,8 +1,5 @@
 import { Injectable } from '@angular/core';
-
-import { Subject } from 'rxjs/Subject';
-import { Observable } from 'rxjs/Observable';
-import './../../../common/rxjs-operators';
+import { Observable, Subject } from 'rxjs';
 import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
 import { WorkflowGraphReadonly } from '../workflow-graph/model/workflow-graph';
 import {
@@ -16,10 +13,8 @@ import {
 import { environment } from '../../../../environments/environment';
 import { WorkflowWebsocketService } from '../workflow-websocket/workflow-websocket.service';
 import { Breakpoint, BreakpointRequest, BreakpointTriggerInfo } from '../../types/workflow-common.interface';
-import { OperatorCurrentTuples,
-  TexeraWebsocketEvent
-} from '../../types/workflow-websocket.interface';
-import { isEqual } from 'lodash';
+import { OperatorCurrentTuples, TexeraWebsocketEvent } from '../../types/workflow-websocket.interface';
+import { isEqual } from 'lodash-es';
 import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from '../../types/result-table.interface';
 import { sessionGetObject, sessionSetObject } from '../../../common/util/storage';
 
@@ -126,7 +121,7 @@ export class ExecuteWorkflowService {
       // TODO: Merge WorkflowErrorEvent and ErrorEvent
       case 'WorkflowExecutionErrorEvent':
 
-        return { state: ExecutionState.Failed, errorMessages: {'WorkflowExecutionError': event.message }};
+        return { state: ExecutionState.Failed, errorMessages: { 'WorkflowExecutionError': event.message } };
       default:
         return undefined;
     }

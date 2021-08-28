@@ -1,17 +1,18 @@
-import { UndoRedoService } from './../../undo-redo/undo-redo.service';
+import { UndoRedoService } from '../../undo-redo/undo-redo.service';
 import { SyncTexeraModel } from './sync-texera-model';
 import { JointGraphWrapper } from './joint-graph-wrapper';
 import { WorkflowGraph } from './workflow-graph';
-import { OperatorLink } from './../../../types/workflow-common.interface';
+import { OperatorLink } from '../../../types/workflow-common.interface';
 import {
-  mockScanPredicate, mockResultPredicate, mockSentimentPredicate,
-  mockScanResultLink, mockScanSentimentLink, mockSentimentResultLink
+  mockResultPredicate,
+  mockScanPredicate,
+  mockScanResultLink,
+  mockScanSentimentLink,
+  mockSentimentPredicate,
+  mockSentimentResultLink
 } from './mock-workflow-data';
 import { TestBed } from '@angular/core/testing';
 import { marbles } from 'rxjs-marbles';
-
-import '../../../../common/rxjs-operators';
-
 import * as joint from 'jointjs';
 import { OperatorGroup } from './operator-group';
 import { JointUIService } from '../../joint-ui/joint-ui.service';
@@ -231,7 +232,9 @@ describe('SyncTexeraModel', () => {
     // construct the texera sync model with spied dependencies
 
     // TODO: expect error to be thrown
-    // const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper, new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService), TestBed.inject(JointUIService)));
+    // const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper,
+    // new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService),
+    // TestBed.inject(JointUIService)));
 
 
     // this should throw an error when the model is constructed and the
@@ -668,7 +671,9 @@ describe('SyncTexeraModel', () => {
       );
 
       // construct texera model
-      const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper, new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService), TestBed.inject(JointUIService)));
+      const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper,
+        new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService),
+          TestBed.inject(JointUIService)));
       jointGraphWrapper.getJointElementCellDeleteStream().subscribe({
         complete: () => {
           expect(texeraGraph.hasOperator(mockSentimentPredicate.operatorID)).toBeFalsy();

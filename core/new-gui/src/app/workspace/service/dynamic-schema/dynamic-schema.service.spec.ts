@@ -1,7 +1,7 @@
-import { OperatorSchema } from './../../types/operator-schema.interface';
-import { WorkflowActionService } from './../workflow-graph/model/workflow-action.service';
-import { UndoRedoService } from './../undo-redo/undo-redo.service';
-import { JointUIService } from './../joint-ui/joint-ui.service';
+import { OperatorSchema } from '../../types/operator-schema.interface';
+import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
+import { UndoRedoService } from '../undo-redo/undo-redo.service';
+import { JointUIService } from '../joint-ui/joint-ui.service';
 import { TestBed, inject } from '@angular/core/testing';
 import { marbles } from 'rxjs-marbles';
 
@@ -11,7 +11,7 @@ import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-
 import { mockScanPredicate, mockPoint, mockResultPredicate, mockScanResultLink } from '../workflow-graph/model/mock-workflow-data';
 import { OperatorPredicate } from '../../types/workflow-common.interface';
 import { mockScanSourceSchema } from '../operator-metadata/mock-operator-metadata.data';
-import { environment } from './../../../../environments/environment';
+import { environment } from '../../../../environments/environment';
 import { WorkflowUtilService } from '../workflow-graph/util/workflow-util.service';
 
 describe('DynamicSchemaService', () => {

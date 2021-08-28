@@ -19,7 +19,7 @@ import { mockScanSourceSchema, mockViewResultsSchema } from '../../../service/op
 import { JSONSchema7 } from 'json-schema';
 import { configure } from 'rxjs-marbles';
 import { SimpleChange } from '@angular/core';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
 import * as Ajv from 'ajv';
 

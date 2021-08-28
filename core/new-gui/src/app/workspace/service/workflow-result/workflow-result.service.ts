@@ -9,7 +9,7 @@ import {
 } from '../../types/execute-workflow.interface';
 import { WorkflowWebsocketService } from '../workflow-websocket/workflow-websocket.service';
 import { PaginatedResultEvent } from '../../types/workflow-websocket.interface';
-import { Observable, Subject } from 'rxjs';
+import { Observable, of, Subject } from 'rxjs';
 import * as uuid from 'uuid';
 import { ChartType } from '../../types/visualization.interface';
 
@@ -147,7 +147,7 @@ class OperatorPaginationResultService {
     // first fetch from frontend result cache
     const pageCache = this.resultCache.get(pageIndex);
     if (pageCache) {
-      return Observable.of({ requestID: '', operatorID: this.operatorID, pageIndex: pageIndex, table: pageCache });
+      return of({ requestID: '', operatorID: this.operatorID, pageIndex: pageIndex, table: pageCache });
     } else {
       // fetch result data from server
       const requestID = uuid();
