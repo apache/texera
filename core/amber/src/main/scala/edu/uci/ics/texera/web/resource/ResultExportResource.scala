@@ -54,7 +54,7 @@ object ResultExportResource {
     }
 
     // By now the workflow should finish running
-    val operatorWithResult: Option[WorkflowResultService#OperatorResultService] =
+    val operatorWithResult: Option[OperatorResultServiceV2] =
       sessionResults(sessionId).operatorResults.get(request.operatorId)
     if (operatorWithResult.isEmpty) {
       return ResultExportResponse("error", "The workflow contains no results")
