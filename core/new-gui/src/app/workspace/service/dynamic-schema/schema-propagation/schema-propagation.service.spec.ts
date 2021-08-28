@@ -38,7 +38,7 @@ import {
   SchemaPropagationService,
 } from "./schema-propagation.service";
 
-/* tslint:disable: no-non-null-assertion */
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 describe("SchemaPropagationService", () => {
   let httpClient: HttpClient;
   let httpTestingController: HttpTestingController;
