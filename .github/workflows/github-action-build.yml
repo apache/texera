@@ -46,7 +46,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-yarn-cache-v3-
       - name: Lint with Eslint
-        run: yarn --cwd core/new-gui eslint core/new-gui/src
+        run: yarn --cwd core/new-gui eslint ./src
       - name: Install dependency
         run: yarn --cwd core/new-gui install --frozen-lockfile --progress=false
       - name: Run frontend unit tests
