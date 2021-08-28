@@ -9,8 +9,8 @@ import org.bson.Document
 
 import java.util
 import java.util.concurrent.locks.ReentrantLock
+import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.collection.parallel.mutable.ParHashSet
 
 class MongoOpResultStorage extends OpResultStorage {
 
@@ -22,7 +22,7 @@ class MongoOpResultStorage extends OpResultStorage {
 
   val database: MongoDatabase = client.getDatabase("texera_storage")
 
-  val collectionSet: ParHashSet[String] = ParHashSet[String]()
+  val collectionSet: mutable.HashSet[String] = mutable.HashSet[String]()
 
   /**
     * Put the result of an operator to OpResultStorage.
@@ -91,6 +91,13 @@ class MongoOpResultStorage extends OpResultStorage {
     */
   override def load(): Unit = {
     throw new Exception("not implemented")
+  }
+
+  /**
+    * Close this storage. Used for system termination.
+    */
+  override def close(): Unit = {
+    this.client.close()
   }
 
 }
