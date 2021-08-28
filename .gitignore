@@ -87,6 +87,7 @@ package-lock.json
 **/yarn.lock
 
 # Ignoring protobuf related files
+scalapb/scalapb
 **/scalapb/scalapb
 
 # Ignoring credentials
