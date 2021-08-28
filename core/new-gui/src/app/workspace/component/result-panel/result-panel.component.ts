@@ -12,6 +12,7 @@ import { ConsoleFrameComponent } from "./console-frame/console-frame.component";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { VisualizationFrameComponent } from "./visualization-frame/visualization-frame.component";
 import { filter } from "rxjs/operators";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 /**
  * ResultPanelComponent is the bottom level area that displays the
@@ -27,6 +28,7 @@ import { filter } from "rxjs/operators";
  * @author Henry Chen
  * @author Zuozhi Wang
  */
+@UntilDestroy()
 @Component({
   selector: "texera-result-panel",
   templateUrl: "./result-panel.component.html",
@@ -51,45 +53,48 @@ export class ResultPanelComponent {
   }
 
   registerAutoOpenResultPanel() {
-    this.executeWorkflowService.getExecutionStateStream().subscribe((event) => {
-      const currentlyHighlighted = this.workflowActionService
-        .getJointGraphWrapper()
-        .getCurrentHighlightedOperatorIDs();
-      if (event.current.state === ExecutionState.BreakpointTriggered) {
-        const breakpointOperator =
-          this.executeWorkflowService.getBreakpointTriggerInfo()?.operatorID;
-        if (breakpointOperator) {
-          this.workflowActionService
-            .getJointGraphWrapper()
-            .unhighlightOperators(...currentlyHighlighted);
-          this.workflowActionService
-            .getJointGraphWrapper()
-            .highlightOperators(breakpointOperator);
+    this.executeWorkflowService
+      .getExecutionStateStream()
+      .pipe(untilDestroyed(this))
+      .subscribe((event) => {
+        const currentlyHighlighted = this.workflowActionService
+          .getJointGraphWrapper()
+          .getCurrentHighlightedOperatorIDs();
+        if (event.current.state === ExecutionState.BreakpointTriggered) {
+          const breakpointOperator =
+            this.executeWorkflowService.getBreakpointTriggerInfo()?.operatorID;
+          if (breakpointOperator) {
+            this.workflowActionService
+              .getJointGraphWrapper()
+              .unhighlightOperators(...currentlyHighlighted);
+            this.workflowActionService
+              .getJointGraphWrapper()
+              .highlightOperators(breakpointOperator);
+          }
+          this.resultPanelToggleService.openResultPanel();
         }
-        this.resultPanelToggleService.openResultPanel();
-      }
-      if (event.current.state === ExecutionState.Failed) {
-        this.resultPanelToggleService.openResultPanel();
-      }
-      if (
-        event.current.state === ExecutionState.Completed ||
-        event.current.state === ExecutionState.Running
-      ) {
-        const sinkOperators = this.workflowActionService
-          .getTexeraGraph()
-          .getAllOperators()
-          .filter((op) => op.operatorType.toLowerCase().includes("sink"));
-        if (sinkOperators.length > 0 && !this.resultPanelOperatorID) {
-          this.workflowActionService
-            .getJointGraphWrapper()
-            .unhighlightOperators(...currentlyHighlighted);
-          this.workflowActionService
-            .getJointGraphWrapper()
-            .highlightOperators(sinkOperators[0].operatorID);
+        if (event.current.state === ExecutionState.Failed) {
+          this.resultPanelToggleService.openResultPanel();
         }
-        this.resultPanelToggleService.openResultPanel();
-      }
-    });
+        if (
+          event.current.state === ExecutionState.Completed ||
+          event.current.state === ExecutionState.Running
+        ) {
+          const sinkOperators = this.workflowActionService
+            .getTexeraGraph()
+            .getAllOperators()
+            .filter((op) => op.operatorType.toLowerCase().includes("sink"));
+          if (sinkOperators.length > 0 && !this.resultPanelOperatorID) {
+            this.workflowActionService
+              .getJointGraphWrapper()
+              .unhighlightOperators(...currentlyHighlighted);
+            this.workflowActionService
+              .getJointGraphWrapper()
+              .highlightOperators(sinkOperators[0].operatorID);
+          }
+          this.resultPanelToggleService.openResultPanel();
+        }
+      });
   }
 
   registerAutoRerenderResultPanel() {
@@ -109,9 +114,11 @@ export class ResultPanelComponent {
         .getJointOperatorUnhighlightStream(),
       this.resultPanelToggleService.getToggleChangeStream(),
       this.workflowResultService.getResultInitiateStream()
-    ).subscribe((_) => {
-      this.rerenderResultPanel();
-    });
+    )
+      .pipe(untilDestroyed(this))
+      .subscribe((_) => {
+        this.rerenderResultPanel();
+      });
   }
 
   rerenderResultPanel(): void {
@@ -134,39 +141,43 @@ export class ResultPanelComponent {
     }
 
     // break this into another detect cycle, so that the dynamic component can be reloaded
-    timer(0).subscribe(() => {
-      const executionState = this.executeWorkflowService.getExecutionState();
-      if (executionState.state === ExecutionState.Failed) {
-        this.switchFrameComponent(ConsoleFrameComponent);
-      } else if (executionState.state === ExecutionState.BreakpointTriggered) {
-        this.switchFrameComponent(ConsoleFrameComponent);
-      } else {
-        if (this.resultPanelOperatorID) {
-          if (
-            this.workflowActionService
-              .getTexeraGraph()
-              .getOperator(this.resultPanelOperatorID)
-              .operatorType.toLowerCase()
-              .includes("sink")
-          ) {
-            const resultService = this.workflowResultService.getResultService(
-              this.resultPanelOperatorID
-            );
-            const paginatedResultService =
-              this.workflowResultService.getPaginatedResultService(
+    timer(0)
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        const executionState = this.executeWorkflowService.getExecutionState();
+        if (executionState.state === ExecutionState.Failed) {
+          this.switchFrameComponent(ConsoleFrameComponent);
+        } else if (
+          executionState.state === ExecutionState.BreakpointTriggered
+        ) {
+          this.switchFrameComponent(ConsoleFrameComponent);
+        } else {
+          if (this.resultPanelOperatorID) {
+            if (
+              this.workflowActionService
+                .getTexeraGraph()
+                .getOperator(this.resultPanelOperatorID)
+                .operatorType.toLowerCase()
+                .includes("sink")
+            ) {
+              const resultService = this.workflowResultService.getResultService(
                 this.resultPanelOperatorID
               );
-            if (paginatedResultService) {
-              this.switchFrameComponent(ResultTableFrameComponent);
-            } else if (resultService && resultService.getChartType()) {
-              this.switchFrameComponent(VisualizationFrameComponent);
+              const paginatedResultService =
+                this.workflowResultService.getPaginatedResultService(
+                  this.resultPanelOperatorID
+                );
+              if (paginatedResultService) {
+                this.switchFrameComponent(ResultTableFrameComponent);
+              } else if (resultService && resultService.getChartType()) {
+                this.switchFrameComponent(VisualizationFrameComponent);
+              }
+            } else {
+              this.switchFrameComponent(ConsoleFrameComponent);
             }
-          } else {
-            this.switchFrameComponent(ConsoleFrameComponent);
           }
         }
-      }
-    });
+      });
   }
 
   clearResultPanel(): void {

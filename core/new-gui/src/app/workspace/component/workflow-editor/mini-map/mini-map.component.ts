@@ -11,6 +11,7 @@ import { Point } from "../../../types/workflow-common.interface";
 import { MAIN_CANVAS_LIMIT } from "../workflow-editor-constants";
 import { WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID } from "../workflow-editor.component";
 import { auditTime } from "rxjs/operators";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 export const MINI_MAP_WRAPPER_ID = "texera-mini-map-wrapper";
 export const MINI_MAP_JOINTJS_MAP_ID = "texera-mini-map-editor-jointjs-body-id";
@@ -28,6 +29,7 @@ export const MINI_MAP_GRID_SIZE = 45;
  * @author Cynthia Wang
  * @author Henry Chen
  */
+@UntilDestroy()
 @Component({
   selector: "texera-mini-map",
   templateUrl: "./mini-map.component.html",
@@ -71,39 +73,42 @@ export class MiniMapComponent implements AfterViewInit {
       throw new Error("minimap: cannot find navigator element");
     }
 
-    fromEvent<MouseEvent>(navigatorElement, "mousedown").subscribe((event) => {
-      const x = event.screenX;
-      const y = event.screenY;
-      if (x !== undefined && y !== undefined) {
-        this.mouseDownPosition = { x, y };
-      }
-    });
+    fromEvent<MouseEvent>(navigatorElement, "mousedown")
+      .pipe(untilDestroyed(this))
+      .subscribe((event) => {
+        const x = event.screenX;
+        const y = event.screenY;
+        if (x !== undefined && y !== undefined) {
+          this.mouseDownPosition = { x, y };
+        }
+      });
 
-    fromEvent(document, "mouseup").subscribe(() => {
-      this.mouseDownPosition = undefined;
-    });
+    fromEvent(document, "mouseup")
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.mouseDownPosition = undefined;
+      });
 
-    const mousePanEvent = fromEvent<MouseEvent>(
-      document,
-      "mousemove"
-    ).subscribe((event) => {
-      if (this.mouseDownPosition) {
-        const newCoordinate = { x: event.screenX, y: event.screenY };
-        const panDelta = {
-          deltaX:
-            -(newCoordinate.x - this.mouseDownPosition.x) /
-            this.MINI_MAP_ZOOM_SCALE,
-          deltaY:
-            -(newCoordinate.y - this.mouseDownPosition.y) /
-            this.MINI_MAP_ZOOM_SCALE
-        };
-        this.mouseDownPosition = newCoordinate;
+    fromEvent<MouseEvent>(document, "mousemove")
+      .pipe(untilDestroyed(this))
+      .subscribe((event) => {
+        if (this.mouseDownPosition) {
+          const newCoordinate = { x: event.screenX, y: event.screenY };
+          const panDelta = {
+            deltaX:
+              -(newCoordinate.x - this.mouseDownPosition.x) /
+              this.MINI_MAP_ZOOM_SCALE,
+            deltaY:
+              -(newCoordinate.y - this.mouseDownPosition.y) /
+              this.MINI_MAP_ZOOM_SCALE
+          };
+          this.mouseDownPosition = newCoordinate;
 
-        this.workflowActionService
-          .getJointGraphWrapper()
-          .navigatorMoveDelta.next(panDelta);
-      }
-    });
+          this.workflowActionService
+            .getJointGraphWrapper()
+            .navigatorMoveDelta.next(panDelta);
+        }
+      });
   }
 
   /**
@@ -134,6 +139,7 @@ export class MiniMapComponent implements AfterViewInit {
     this.workflowActionService
       .getJointGraphWrapper()
       .getMainJointPaperAttachedStream()
+      .pipe(untilDestroyed(this))
       .subscribe((mainPaper) => {
         this.updateNavigatorOffset();
         this.updateNavigatorDimension();
@@ -183,6 +189,7 @@ export class MiniMapComponent implements AfterViewInit {
   private handleWindowResize(): void {
     fromEvent(window, "resize")
       .pipe(auditTime(30))
+      .pipe(untilDestroyed(this))
       .subscribe(() => {
         this.updateMiniMapScaleSize();
         this.updateNavigatorOffset();

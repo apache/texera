@@ -4,6 +4,7 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { OperatorPropertyEditFrameComponent } from "./operator-property-edit-frame/operator-property-edit-frame.component";
 import { BreakpointPropertyEditFrameComponent } from "./breakpoint-property-edit-frame/breakpoint-property-edit-frame.component";
 import { DynamicComponentConfig } from "../../../common/type/dynamic-component-config";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 export type PropertyEditFrameComponent =
   | OperatorPropertyEditFrameComponent
@@ -18,21 +19,16 @@ export type PropertyEditFrameConfig =
  * or BreakpointPropertyEditFrameComponent accordingly
  *
  */
+@UntilDestroy()
 @Component({
   selector: "texera-property-editor",
   templateUrl: "./property-editor.component.html",
   styleUrls: ["./property-editor.component.scss"]
 })
-export class PropertyEditorComponent implements OnInit, OnDestroy {
+export class PropertyEditorComponent implements OnInit {
   frameComponentConfig?: PropertyEditFrameConfig;
 
-  subscriptions = new Subscription();
-
   constructor(public workflowActionService: WorkflowActionService) {}
-
-  ngOnDestroy(): void {
-    this.subscriptions.unsubscribe();
-  }
 
   ngOnInit(): void {
     this.registerHighlightEventsHandler();
@@ -58,27 +54,28 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
    * hides the form if no operator/link is highlighted or multiple operators and/or groups and/or links are highlighted.
    */
   registerHighlightEventsHandler() {
-    this.subscriptions.add(
-      merge(
-        this.workflowActionService
-          .getJointGraphWrapper()
-          .getJointOperatorHighlightStream(),
-        this.workflowActionService
-          .getJointGraphWrapper()
-          .getJointOperatorUnhighlightStream(),
-        this.workflowActionService
-          .getJointGraphWrapper()
-          .getJointGroupHighlightStream(),
-        this.workflowActionService
-          .getJointGraphWrapper()
-          .getJointGroupUnhighlightStream(),
-        this.workflowActionService
-          .getJointGraphWrapper()
-          .getLinkHighlightStream(),
-        this.workflowActionService
-          .getJointGraphWrapper()
-          .getLinkUnhighlightStream()
-      ).subscribe(() => {
+    merge(
+      this.workflowActionService
+        .getJointGraphWrapper()
+        .getJointOperatorHighlightStream(),
+      this.workflowActionService
+        .getJointGraphWrapper()
+        .getJointOperatorUnhighlightStream(),
+      this.workflowActionService
+        .getJointGraphWrapper()
+        .getJointGroupHighlightStream(),
+      this.workflowActionService
+        .getJointGraphWrapper()
+        .getJointGroupUnhighlightStream(),
+      this.workflowActionService
+        .getJointGraphWrapper()
+        .getLinkHighlightStream(),
+      this.workflowActionService
+        .getJointGraphWrapper()
+        .getLinkUnhighlightStream()
+    )
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
         const highlightedOperators = this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs();
@@ -110,7 +107,6 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
         } else {
           this.switchFrameComponent(undefined);
         }
-      })
-    );
+      });
   }
 }

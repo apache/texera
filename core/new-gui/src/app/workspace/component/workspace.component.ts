@@ -134,6 +134,7 @@ export class WorkspaceComponent implements AfterViewInit {
         if (this.userService.isLogin()) {
           this.workflowPersistService
             .persistWorkflow(this.workflowActionService.getWorkflow())
+            .pipe(untilDestroyed(this))
             .subscribe((updatedWorkflow: Workflow) => {
               this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
               this.location.go(`/workflow/${updatedWorkflow.wid}`);

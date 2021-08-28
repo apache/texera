@@ -1,5 +1,6 @@
-import { Component, OnInit } from "@angular/core";
-import { ResultPanelToggleService } from "./../../service/result-panel-toggle/result-panel-toggle.service";
+import { Component } from "@angular/core";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
 
 /**
  * ResultPanelToggleComponent is the small bar directly above ResultPanelCompoent at the
@@ -10,6 +11,7 @@ import { ResultPanelToggleService } from "./../../service/result-panel-toggle/re
  *
  * @author Angela Wang
  */
+@UntilDestroy()
 @Component({
   selector: "texera-result-panel-toggle",
   templateUrl: "./result-panel-toggle.component.html",
@@ -21,6 +23,7 @@ export class ResultPanelToggleComponent {
   constructor(private resultPanelToggleService: ResultPanelToggleService) {
     this.resultPanelToggleService
       .getToggleChangeStream()
+      .pipe(untilDestroyed(this))
       .subscribe((newPanelStatus) => (this.showResultPanel = newPanelStatus));
   }
 

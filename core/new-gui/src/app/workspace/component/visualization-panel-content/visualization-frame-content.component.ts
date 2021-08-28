@@ -13,6 +13,7 @@ import { ScatterplotLayerProps } from "@deck.gl/layers/scatterplot-layer/scatter
 import { DomSanitizer } from "@angular/platform-browser";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { auditTime, debounceTime } from "rxjs/operators";
+import { untilDestroyed } from "@ngneat/until-destroy";
 
 (mapboxgl as any).accessToken = environment.mapbox.accessToken;
 
@@ -90,8 +91,6 @@ export class VisualizationFrameContentComponent
   private c3ChartElement: c3.ChartAPI | undefined;
   private map: mapboxgl.Map | undefined;
 
-  private updateSubscription: Subscription | undefined;
-
   constructor(
     private workflowResultService: WorkflowResultService,
     private sanitizer: DomSanitizer
@@ -111,12 +110,11 @@ export class VisualizationFrameContentComponent
         VisualizationFrameContentComponent.WORD_CLOUD_CONTROL_UPDATE_INTERVAL_MS
       )
     );
-
-    this.updateSubscription = merge(resultUpdate, controlUpdate).subscribe(
-      () => {
+    merge(resultUpdate, controlUpdate)
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
         this.drawChart();
-      }
-    );
+      });
   }
 
   ngOnDestroy() {
@@ -128,9 +126,6 @@ export class VisualizationFrameContentComponent
     }
     if (this.map) {
       this.map.remove();
-    }
-    if (this.updateSubscription) {
-      this.updateSubscription.unsubscribe();
     }
   }
 

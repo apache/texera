@@ -18,13 +18,15 @@ import {
   TableColumn
 } from "../../../types/result-table.interface";
 import { RowModalComponent } from "../result-panel-modal.component";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
+@UntilDestroy()
 @Component({
   selector: "texera-result-table-frame",
   templateUrl: "./result-table-frame.component.html",
   styleUrls: ["./result-table-frame.component.scss"]
 })
-export class ResultTableFrameComponent implements OnInit, OnDestroy {
+export class ResultTableFrameComponent implements OnInit {
   // the highlighted operator ID for display result table / visualization / breakpoint
   resultPanelOperatorID: string | undefined;
 
@@ -45,7 +47,6 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
   currentPageIndex: number = 1;
   totalNumTuples: number = 0;
   pageSize = DEFAULT_PAGE_SIZE;
-  resultUpdateSubscription: Subscription | undefined;
 
   private readonly TABLE_COLUMN_TEXT_LIMIT: number = 1000;
   private readonly PRETTY_JSON_TEXT_LIMIT: number = 50000;
@@ -72,8 +73,9 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
         this.workflowResultService.getPaginatedResultService(
           this.resultPanelOperatorID
         );
-      this.resultUpdateSubscription = this.workflowResultService
+      this.workflowResultService
         .getResultUpdateStream()
+        .pipe(untilDestroyed(this))
         .subscribe((update) => {
           if (!this.resultPanelOperatorID) {
             return;
@@ -199,6 +201,7 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
     this.isLoadingResult = true;
     paginatedResultService
       .selectPage(this.currentPageIndex, DEFAULT_PAGE_SIZE)
+      .pipe(untilDestroyed(this))
       .subscribe((pageData) => {
         if (this.currentPageIndex === pageData.pageIndex) {
           this.setupResultTable(
@@ -207,13 +210,6 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
           );
         }
       });
-  }
-
-  ngOnDestroy(): void {
-    if (this.resultUpdateSubscription !== undefined) {
-      this.resultUpdateSubscription.unsubscribe();
-      this.resultUpdateSubscription = undefined;
-    }
   }
 
   /**

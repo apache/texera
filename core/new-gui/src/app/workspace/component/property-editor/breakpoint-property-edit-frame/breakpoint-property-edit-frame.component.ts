@@ -43,8 +43,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
   styleUrls: ["./breakpoint-property-edit-frame.component.scss"]
 })
 export class BreakpointPropertyEditFrameComponent
-  implements OnInit, OnDestroy, OnChanges
-{
+  implements OnInit, OnDestroy, OnChanges {
   subscriptions = new Subscription();
 
   @Input() currentLinkId: string | undefined;

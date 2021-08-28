@@ -6,13 +6,15 @@ import { BreakpointTriggerInfo } from "../../../types/workflow-common.interface"
 import { ExecutionState } from "src/app/workspace/types/execute-workflow.interface";
 import { WorkflowConsoleService } from "../../../service/workflow-console/workflow-console.service";
 import { Subscription } from "rxjs";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
+@UntilDestroy()
 @Component({
   selector: "texera-console-frame",
   templateUrl: "./console-frame.component.html",
   styleUrls: ["./console-frame.component.scss"]
 })
-export class ConsoleFrameComponent implements OnInit, OnDestroy {
+export class ConsoleFrameComponent implements OnInit {
   // display error message:
   errorMessages: Readonly<Record<string, string>> | undefined;
   // display breakpoint
@@ -21,8 +23,6 @@ export class ConsoleFrameComponent implements OnInit, OnDestroy {
 
   // display print
   consoleMessages: ReadonlyArray<string> = [];
-
-  subscriptions = new Subscription();
 
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
@@ -40,42 +40,37 @@ export class ConsoleFrameComponent implements OnInit, OnDestroy {
   }
 
   registerAutoConsoleRerender() {
-    this.subscriptions.add(
-      this.executeWorkflowService
-        .getExecutionStateStream()
-        .subscribe((event) => {
-          if (
-            event.previous.state === ExecutionState.BreakpointTriggered &&
-            event.current.state === ExecutionState.Completed
-          ) {
-            // intentionally do nothing to leave the information displayed as it is
-            // when kill a workflow after hitting breakpoint
-          } else if (
-            event.previous.state === ExecutionState.WaitingToRun &&
-            event.current.state === ExecutionState.Running
-          ) {
-            // clear the console for the next execution
-            this.clearConsole();
-          } else {
-            // re-render the console, this may update the console with error messages or console messages
-            this.renderConsole();
-          }
-        })
-    );
-    this.subscriptions.add(
-      this.workflowConsoleService
-        .getConsoleMessageUpdateStream()
-        .subscribe((_) => this.renderConsole())
-    );
+    this.executeWorkflowService
+      .getExecutionStateStream()
+      .pipe(untilDestroyed(this))
+      .subscribe((event) => {
+        if (
+          event.previous.state === ExecutionState.BreakpointTriggered &&
+          event.current.state === ExecutionState.Completed
+        ) {
+          // intentionally do nothing to leave the information displayed as it is
+          // when kill a workflow after hitting breakpoint
+        } else if (
+          event.previous.state === ExecutionState.WaitingToRun &&
+          event.current.state === ExecutionState.Running
+        ) {
+          // clear the console for the next execution
+          this.clearConsole();
+        } else {
+          // re-render the console, this may update the console with error messages or console messages
+          this.renderConsole();
+        }
+      });
+
+    this.workflowConsoleService
+      .getConsoleMessageUpdateStream()
+      .pipe(untilDestroyed(this))
+      .subscribe((_) => this.renderConsole());
   }
 
   public onClickSkipTuples(): void {
     this.executeWorkflowService.skipTuples();
     this.breakpointAction = false;
-  }
-
-  ngOnDestroy(): void {
-    this.subscriptions.unsubscribe();
   }
 
   private clearConsole() {
