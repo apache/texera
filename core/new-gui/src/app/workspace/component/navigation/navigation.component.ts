@@ -1,10 +1,9 @@
-import { UserIconComponent } from './../../../dashboard/component/top-bar/user-icon/user-icon.component';
 import { DatePipe, Location } from '@angular/common';
 import { Component, ElementRef, Input, OnInit, ViewChild } from '@angular/core';
 import { TourService } from 'ngx-tour-ng-bootstrap';
 import { environment } from '../../../../environments/environment';
 import { UserService } from '../../../common/service/user/user.service';
-import { WorkflowPersistService } from '../../../common/service/user/workflow-persist/workflow-persist.service';
+import { WorkflowPersistService } from '../../../common/service/workflow-persist/workflow-persist.service';
 import { Workflow } from '../../../common/type/workflow';
 import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
 import { UndoRedoService } from '../../service/undo-redo/undo-redo.service';
@@ -12,12 +11,10 @@ import { ValidationWorkflowService } from '../../service/validation/validation-w
 import { WorkflowCacheService } from '../../service/workflow-cache/workflow-cache.service';
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
-import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { ExecutionState } from '../../types/execute-workflow.interface';
-import { NgbActiveModal, NgbModal, NgbModalRef } from '@ng-bootstrap/ng-bootstrap';
-import { ResultDownloadComponent } from './result-download/result-download.component';
 import { WorkflowWebsocketService } from '../../service/workflow-websocket/workflow-websocket.service';
 import { Observable } from 'rxjs';
+import { WorkflowResultExportService } from '../../service/workflow-result-export/workflow-result-export.service';
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -59,8 +56,6 @@ export class NavigationComponent implements OnInit {
   public userSystemEnabled: boolean = environment.userSystemEnabled;
   public onClickRunHandler: () => void;
 
-  public downloadResultPopup: NgbModalRef | undefined;
-
   // whether the disable operator button should be enabled
   public isDisableOperatorClickable: boolean = false;
   public isDisableOperator: boolean = true;
@@ -72,7 +67,6 @@ export class NavigationComponent implements OnInit {
     public executeWorkflowService: ExecuteWorkflowService,
     public tourService: TourService,
     public workflowActionService: WorkflowActionService,
-    public workflowStatusService: WorkflowStatusService,
     public workflowWebsocketService: WorkflowWebsocketService,
     private location: Location,
     public undoRedoService: UndoRedoService,
@@ -81,7 +75,7 @@ export class NavigationComponent implements OnInit {
     public userService: UserService,
     private workflowCacheService: WorkflowCacheService,
     private datePipe: DatePipe,
-    private modalService: NgbModal
+    public workflowResultExportService: WorkflowResultExportService
   ) {
     this.executionState = executeWorkflowService.getExecutionState().state;
     // return the run button after the execution is finished, either
@@ -97,17 +91,6 @@ export class NavigationComponent implements OnInit {
       event => {
         this.executionState = event.current.state;
         this.applyRunButtonBehavior(this.getRunButtonBehavior(this.executionState, this.isWorkflowValid));
-      }
-    );
-
-    executeWorkflowService.getResultDownloadStream().subscribe(
-      response => {
-        if (!this.downloadResultPopup) {
-          this.downloadResultPopup = this.modalService.open(ResultDownloadComponent);
-        }
-        this.downloadResultPopup.componentInstance.message = response.message;
-        this.downloadResultPopup.componentInstance.link = response.link;
-        this.downloadResultPopup.componentInstance.openInNewTab();
       }
     );
 
@@ -237,7 +220,7 @@ export class NavigationComponent implements OnInit {
 
     // make the ratio small.
     this.workflowActionService.getJointGraphWrapper()
-        .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() - JointGraphWrapper.ZOOM_CLICK_DIFF);
+      .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() - JointGraphWrapper.ZOOM_CLICK_DIFF);
   }
 
   /**
@@ -256,33 +239,17 @@ export class NavigationComponent implements OnInit {
 
     // make the ratio big.
     this.workflowActionService.getJointGraphWrapper()
-        .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_CLICK_DIFF);
+      .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_CLICK_DIFF);
   }
 
   /**
-   * This is the handler for the execution result download button.
+   * This is the handler for the execution result export button.
    *
-   * This sends the finished execution result ID to the backend to download execution result in
-   *  excel format.
    */
-  public onClickDownloadExecutionResult(downloadType: string): void {
-    // exit if the workflow is not finished
-    if (this.isDownloadDisabled()) {
-      return;
-    }
-    this.executeWorkflowService.downloadWorkflowExecutionResult(downloadType, this.currentWorkflowName);
-    this.downloadResultPopup = this.modalService.open(ResultDownloadComponent);
-    this.downloadResultPopup.componentInstance.message = 'Collecting results. It may takes a while';
-    // set the variable to undefined when user closes the popup
-    this.downloadResultPopup.result.then(() => {this.downloadResultPopup = undefined; });
+  public onClickExportExecutionResult(exportType: string): void {
+    this.workflowResultExportService.exportWorkflowExecutionResult(exportType, this.currentWorkflowName);
   }
 
-  /**
-   * enable result downloading only when the workflow completes executing
-   */
-  public isDownloadDisabled(): boolean {
-    return !(this.executionState === ExecutionState.Completed && environment.downloadExecutionResultEnabled);
-  }
 
   /**
    * Restore paper default zoom ratio and paper offset
@@ -406,7 +373,7 @@ export class NavigationComponent implements OnInit {
         this.currentWorkflowName = this.workflowActionService.getWorkflowMetadata()?.name;
         this.autoSaveState = this.workflowActionService.getWorkflowMetadata().lastModifiedTime === undefined ?
           '' : 'Saved at ' + this.datePipe.transform(this.workflowActionService.getWorkflowMetadata().lastModifiedTime,
-            'MM/dd/yyyy HH:mm:ss zzz', Intl.DateTimeFormat().resolvedOptions().timeZone, 'en');
+          'MM/dd/yyyy HH:mm:ss zzz', Intl.DateTimeFormat().resolvedOptions().timeZone, 'en');
 
       });
   }
@@ -428,7 +395,7 @@ export class NavigationComponent implements OnInit {
       const allDisabled = this.effectivelyHighlightedOperators().every(
         op => this.workflowActionService.getTexeraGraph().isOperatorDisabled(op));
 
-      this.isDisableOperator = ! allDisabled;
+      this.isDisableOperator = !allDisabled;
       this.isDisableOperatorClickable = effectiveHighlightedOperators.length !== 0;
     });
   }

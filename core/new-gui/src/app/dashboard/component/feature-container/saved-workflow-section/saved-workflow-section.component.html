@@ -33,44 +33,60 @@
 
   <nz-card class="workflow-list-container subsection-grid-container">
     <nz-list>
-      <nz-list-item *ngFor="let workflow of getWorkflows()" class="workflow-list-item">
+      <nz-list-item *ngFor="let dashboardWorkflowEntry of dashboardWorkflowEntries" class="workflow-list-item">
         <nz-list-item-meta>
           <nz-list-item-meta-avatar>
             <nz-avatar
               [nzGap]="4"
               [ngStyle]="{ 'background-color': 'grey' }"
-              [nzText]="''+workflow.wid"
+              [nzText]="''+dashboardWorkflowEntry.workflow.wid"
               nzSize="medium"
               style="vertical-align: middle;"
             ></nz-avatar>
           </nz-list-item-meta-avatar>
           <nz-list-item-meta-title>
-            <label class="workflow-name" (click)="jumpToWorkflow(workflow)">{{workflow.name}}</label>
+            <span class="workflow-dashboard-entry">
+               <label class="workflow-name"
+                      (click)="jumpToWorkflow(dashboardWorkflowEntry)">{{dashboardWorkflowEntry.workflow.name}}</label>
+               <i *ngIf="dashboardWorkflowEntry.isOwner" ngbTooltip="You are the OWNER" nz-icon nzType="user"
+                  nzTheme="outline"></i>
+               <i *ngIf="!dashboardWorkflowEntry.isOwner"
+                  ngbTooltip="{{dashboardWorkflowEntry.accessLevel}} access shared by {{dashboardWorkflowEntry.ownerName}}"
+                  nz-icon nzType="team" nzTheme="outline"></i>
+            </span>
+
           </nz-list-item-meta-title>
           <nz-list-item-meta-description>
             <p class="workflow-time">
-              Last Access: {{workflow.lastModifiedTime | date:'yyyy-MM-dd HH:mm'}}
+              Last Access: {{dashboardWorkflowEntry.workflow.lastModifiedTime | date:'yyyy-MM-dd HH:mm'}}
               <span class="time-space"></span>
-              Created: {{workflow.creationTime | date:'yyyy-MM-dd HH:mm'}}
+              Created: {{dashboardWorkflowEntry.workflow.creationTime | date:'yyyy-MM-dd HH:mm'}}
             </p>
           </nz-list-item-meta-description>
         </nz-list-item-meta>
         <ul nz-list-item-actions>
           <nz-list-item-action>
-            <button (click)="onClickOpenShareAccess(workflow)" type="button" nz-button
-                    nz-tooltip="Share the workflow {{workflow.name}} to others" nzTooltipPlacement="bottom">
+            <button (click)="onClickOpenShareAccess(dashboardWorkflowEntry)" type="button" nz-button
+                    nz-tooltip="Share the workflow {{dashboardWorkflowEntry.workflow.name}} to others"
+                    nzTooltipPlacement="bottom"
+                    [disabled]="!dashboardWorkflowEntry.isOwner">
               <i nz-icon nzType="share-alt" nzTheme="outline"></i>
             </button>
           </nz-list-item-action>
           <nz-list-item-action>
-            <button (click)="onClickDuplicateWorkflow(workflow)" type="button" class="duplicate-workflow-btn" nz-button
-                    nz-tooltip="Duplicate the workflow {{workflow.name}}" nzTooltipPlacement="bottom">
+            <button (click)="onClickDuplicateWorkflow(dashboardWorkflowEntry)" type="button"
+                    class="duplicate-workflow-btn" nz-button
+                    nz-tooltip="Duplicate the workflow {{dashboardWorkflowEntry.workflow.name}}"
+                    nzTooltipPlacement="bottom">
               <i nz-icon nzType="copy" nzTheme="outline"></i>
             </button>
           </nz-list-item-action>
           <nz-list-item-action>
-            <button (click)="openNgbdModalDeleteWorkflowComponent(workflow)" class="delete-workflow-btn" nz-button
-                    nz-tooltip="Delete the workflow {{workflow.name}}" nzTooltipPlacement="bottom">
+            <button (click)="openNgbdModalDeleteWorkflowComponent(dashboardWorkflowEntry)"
+                    class="delete-workflow-btn" nz-button
+                    nz-tooltip="Delete the workflow {{dashboardWorkflowEntry.workflow.name}}"
+                    nzTooltipPlacement="bottom"
+                    [disabled]="!dashboardWorkflowEntry.isOwner">
               <i nz-icon nzType="delete" nzTheme="outline"></i>
             </button>
           </nz-list-item-action>

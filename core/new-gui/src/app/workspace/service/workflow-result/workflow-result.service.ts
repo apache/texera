@@ -1,6 +1,11 @@
 import { Injectable } from '@angular/core';
 import {
-  WorkflowResultUpdate, isWebPaginationUpdate, isWebDataUpdate, WebPaginationUpdate, WebDataUpdate, WebResultUpdate
+  isWebDataUpdate,
+  isWebPaginationUpdate,
+  WebDataUpdate,
+  WebPaginationUpdate,
+  WebResultUpdate,
+  WorkflowResultUpdate
 } from '../../types/execute-workflow.interface';
 import { WorkflowWebsocketService } from '../workflow-websocket/workflow-websocket.service';
 import { PaginatedResultEvent, WorkflowAvailableResultEvent } from '../../types/workflow-websocket.interface';
@@ -22,6 +27,7 @@ export class WorkflowResultService {
   private operatorResultServices = new Map<string, OperatorResultService>();
 
   private resultUpdateStream = new Subject<Record<string, WebResultUpdate | undefined>>();
+  private resultInitiateStream = new Subject<string>();
 
   constructor(private wsService: WorkflowWebsocketService) {
     this.wsService.subscribeToEvent('WebResultUpdateEvent').subscribe(event => this.handleResultUpdate(event.updates));
@@ -30,6 +36,10 @@ export class WorkflowResultService {
 
   public getResultUpdateStream(): Observable<Record<string, WebResultUpdate | undefined>> {
     return this.resultUpdateStream;
+  }
+
+  public getResultInitiateStream(): Observable<string> {
+    return this.resultInitiateStream.asObservable();
   }
 
   public getPaginatedResultService(operatorID: string): OperatorPaginationResultService | undefined {
@@ -87,13 +97,17 @@ export class WorkflowResultService {
     Object.keys(event).forEach(operatorID => {
       const update = event[operatorID];
       if (isWebPaginationUpdate(update)) {
-        const paginatedResultSerivce = this.getOrInitPaginatedResultService(operatorID);
-        paginatedResultSerivce.handleResultUpdate(update);
+        const paginatedResultService = this.getOrInitPaginatedResultService(operatorID);
+        paginatedResultService.handleResultUpdate(update);
+        // clear previously saved result service
+        this.operatorResultServices.delete(operatorID);
       } else if (isWebDataUpdate(update)) {
-        const resultSerivce = this.getOrInitResultService(operatorID);
-        resultSerivce.handleResultUpdate(update);
+        const resultService = this.getOrInitResultService(operatorID);
+        resultService.handleResultUpdate(update);
+        // clear previously saved paginated result service
+        this.paginatedResultServices.delete(operatorID);
       } else {
-        const _exhasutiveCheck: never = update;
+        const _exhaustiveCheck: never = update;
       }
     });
     this.resultUpdateStream.next(event);
@@ -104,6 +118,7 @@ export class WorkflowResultService {
     if (!service) {
       service = new OperatorPaginationResultService(operatorID, this.wsService);
       this.paginatedResultServices.set(operatorID, service);
+      this.resultInitiateStream.next(operatorID);
     }
     return service;
   }
@@ -113,6 +128,7 @@ export class WorkflowResultService {
     if (!service) {
       service = new OperatorResultService(operatorID);
       this.operatorResultServices.set(operatorID, service);
+      this.resultInitiateStream.next(operatorID);
     }
     return service;
   }

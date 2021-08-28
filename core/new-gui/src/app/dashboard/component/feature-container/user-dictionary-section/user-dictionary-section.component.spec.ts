@@ -2,7 +2,7 @@ import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { UserDictionarySectionComponent } from './user-dictionary-section.component';
 
-import { UserDictionaryService } from '../../../../common/service/user/user-dictionary/user-dictionary.service';
+import { UserDictionaryService } from '../../../service/user-dictionary/user-dictionary.service';
 
 import { NgbModule, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { FormsModule } from '@angular/forms';

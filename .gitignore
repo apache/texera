@@ -54,6 +54,10 @@ __pycache__/
 .ipynb_checkpoints
 .pytype/
 
+# Ignoring python generated files
+*.model
+*.pkl
+
 # Ingoring user generated resources
 user-resources/
 
@@ -78,6 +82,7 @@ rebel.xml
 
 # Ignoring log files
 *.log
+*.log.gz
 
 # Ignoring package-lock.json
 package-lock.json

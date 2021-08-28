@@ -35,7 +35,7 @@ export class WorkflowGraph {
   private readonly linkAddSubject = new Subject<OperatorLink>();
   private readonly linkDeleteSubject = new Subject<{ deletedLink: OperatorLink }>();
   private readonly operatorPropertyChangeSubject = new Subject<{ oldProperty: object, operator: OperatorPredicate }>();
-  private readonly breakpointChangeSubject = new Subject<{ oldBreakpoint: object | undefined, linkID: string }>();
+  private readonly breakpointChangeStream = new Subject<{ oldBreakpoint: object | undefined, linkID: string }>();
 
   constructor(
     operatorPredicates: OperatorPredicate[] = [],
@@ -338,7 +338,7 @@ export class WorkflowGraph {
    * Throws an error if link doesn't exist
    *
    * @param linkID linkID
-   * @param newBreakpoint new property to set
+   * @param breakpoint
    */
   public setLinkBreakpoint(linkID: string, breakpoint: Breakpoint | undefined): void {
     this.assertLinkWithIDExists(linkID);
@@ -348,7 +348,7 @@ export class WorkflowGraph {
     } else {
       this.linkBreakpointMap.set(linkID, breakpoint);
     }
-    this.breakpointChangeSubject.next({ oldBreakpoint, linkID });
+    this.breakpointChangeStream.next({ oldBreakpoint, linkID });
   }
 
   /**
@@ -425,7 +425,7 @@ export class WorkflowGraph {
    * Gets the observable event stream of a link breakpoint is changed.
    */
   public getBreakpointChangeStream(): Observable<{ oldBreakpoint: object | undefined, linkID: string }> {
-    return this.breakpointChangeSubject.asObservable();
+    return this.breakpointChangeStream.asObservable();
   }
 
   /**

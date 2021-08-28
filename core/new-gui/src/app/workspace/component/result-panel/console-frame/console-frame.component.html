@@ -1,0 +1,17 @@
+<div *ngIf="errorMessages">
+  <div *ngFor="let item of errorMessages | keyvalue">
+    <div class="error-message">{{item.key}}:{{item.value}}</div>
+  </div>
+</div>
+<!-- hide this button to temporarily disable this feature         -->
+<button (click)="onClickSkipTuples()" *ngIf="breakpointTriggerInfo !== undefined"
+        nz-button
+        [hidden]="true"
+        [disabled]="!breakpointAction">
+  Skip Records
+</button>
+<div *ngFor="let message of consoleMessages">
+  <div class="console-message">{{message}}</div>
+</div>
+
+

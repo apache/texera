@@ -11,19 +11,42 @@
 
   <nz-card class="user-file-list subsection-grid-container">
     <nz-list>
-      <nz-list-item *ngFor="let userFile of getFileArray()" class="user-file-list-item">
+      <nz-list-item *ngFor="let dashboardUserFileEntry of getFileArray()" class="user-file-list-item">
         <nz-list-item-meta>
           <nz-list-item-meta-title>
-            <div class="file-name">{{userFile.name}}</div>
+            <div class="file-name"><h4
+              class="file-title">{{dashboardUserFileEntry.ownerName + '/' + dashboardUserFileEntry.file.name}}</h4>
+              <i *ngIf="dashboardUserFileEntry.isOwner" ngbTooltip="You are the OWNER" nz-icon nzType="user"
+                 nzTheme="outline"></i>
+              <i *ngIf="!dashboardUserFileEntry.isOwner"
+                 ngbTooltip="{{dashboardUserFileEntry.accessLevel}} access shared by {{dashboardUserFileEntry.ownerName}}"
+                 nz-icon nzType="team" nzTheme="outline"></i>
+            </div>
           </nz-list-item-meta-title>
           <nz-list-item-meta-description>
-            {{addFileSizeUnit(userFile.size)}}
+            {{addFileSizeUnit(dashboardUserFileEntry.file.size)}}
           </nz-list-item-meta-description>
         </nz-list-item-meta>
         <ul nz-list-item-actions>
+
           <nz-list-item-action>
-            <button nz-button nz-tooltip="Delete the {{userFile.name}}"
-                    nzTooltipPlacement="bottom" (click)="deleteFile(userFile)"  type="button">
+            <button (click)="onClickOpenShareAccess(dashboardUserFileEntry)" type="button" nz-button
+                    nz-tooltip="Share the file {{dashboardUserFileEntry.file.name}} to others"
+                    nzTooltipPlacement="bottom"
+                    [disabled]="dashboardUserFileEntry.accessLevel!=='Write'">
+              <i nz-icon nzType="share-alt" nzTheme="outline"></i>
+            </button>
+          </nz-list-item-action>
+          <nz-list-item-action>
+            <button nz-button nz-tooltip="Download the {{dashboardUserFileEntry.file.name}}"
+                    nzTooltipPlacement="bottom" (click)="downloadUserFile(dashboardUserFileEntry)">
+              <i nz-icon nzType="download" nzTheme="outline"></i>
+            </button>
+          </nz-list-item-action>
+          <nz-list-item-action>
+            <button nz-button nz-tooltip="Delete the file {{dashboardUserFileEntry.file.name}}"
+                    nzTooltipPlacement="bottom" (click)="deleteUserFileEntry(dashboardUserFileEntry)" type="button"
+                    [disabled]="dashboardUserFileEntry.accessLevel!=='Write'">
               <i nz-icon nzType="delete" nzTheme="outline"></i>
             </button>
           </nz-list-item-action>

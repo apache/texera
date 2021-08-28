@@ -78,12 +78,29 @@ $header-height: 120px;
 .workflow-name {
   font-size: 20px;
   font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  margin-right: 10px;
+  text-align: center;
+}
+
+.workflow-dashboard-entry{
+  display: flex;
+  align-items: center;
+}
+
+.workflow-dashboard-entry > i{
+  position: relative;
+  font-size: 17px;
+  margin-bottom: 6px;
+}
+
+.workflow-name:hover{
+  cursor: pointer;
 }
 
 .workflow-time {
   font-size: 12px;
   font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-  color: gray
+  color: gray;
 }
 
 .page-title {

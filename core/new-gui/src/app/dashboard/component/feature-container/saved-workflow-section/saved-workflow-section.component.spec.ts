@@ -3,17 +3,18 @@ import { RouterTestingModule } from '@angular/router/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { SavedWorkflowSectionComponent } from './saved-workflow-section.component';
-import { WorkflowPersistService } from '../../../../common/service/user/workflow-persist/workflow-persist.service';
+import { WorkflowPersistService } from '../../../../common/service/workflow-persist/workflow-persist.service';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatListModule } from '@angular/material/list';
 import { MatCardModule } from '@angular/material/card';
 import { MatDialogModule } from '@angular/material/dialog';
 import { NgbActiveModal, NgbModal, NgbModalRef, NgbModule } from '@ng-bootstrap/ng-bootstrap';
-import { NgbdModalShareAccessComponent } from './ngbd-modal-share-access/ngbd-modal-share-access.component';
+import { NgbdModalWorkflowShareAccessComponent } from './ngbd-modal-share-access/ngbd-modal-workflow-share-access.component';
 import { Workflow, WorkflowContent } from '../../../../common/type/workflow';
 import { jsonCast } from '../../../../common/util/storage';
 import { HttpClient } from '@angular/common/http';
-import { WorkflowGrantAccessService } from '../../../../common/service/user/workflow-access-control/workflow-grant-access.service';
+import { WorkflowAccessService } from '../../../service/workflow-access/workflow-access.service';
+import { DashboardWorkflowEntry } from '../../../type/dashboard-workflow-entry';
 import { UserService } from '../../../../common/service/user/user.service';
 import { StubUserService } from '../../../../common/service/user/stub-user.service';
 import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
@@ -26,62 +27,85 @@ describe('SavedWorkflowSectionComponent', () => {
   let mockWorkflowPersistService: WorkflowPersistService;
   let httpClient: HttpClient;
   let httpTestingController: HttpTestingController;
-  const testContent = ' {"operators":[],"operatorPositions":{},"links":[],"groups":[],"breakpoints":{}}';
-  const TestWorkflow: Workflow = {
+
+  const testWorkflow1: Workflow = {
     wid: 1,
-    name: 'workflow',
-    content: jsonCast<WorkflowContent>(testContent),
+    name: 'workflow 1',
+    content: jsonCast<WorkflowContent>('{}'),
     creationTime: 1,
     lastModifiedTime: 2,
   };
-  const TestCase: Workflow[] = [
+  const testWorkflow2: Workflow = {
+    wid: 2,
+    name: 'workflow 2',
+    content: jsonCast<WorkflowContent>('{}'),
+    creationTime: 3,
+    lastModifiedTime: 4,
+  };
+  const testWorkflow3: Workflow = {
+    wid: 3,
+    name: 'workflow 3',
+    content: jsonCast<WorkflowContent>('{}'),
+    creationTime: 3,
+    lastModifiedTime: 3,
+  };
+  const testWorkflow4: Workflow = {
+    wid: 4,
+    name: 'workflow 4',
+    content: jsonCast<WorkflowContent>('{}'),
+    creationTime: 4,
+    lastModifiedTime: 6,
+  };
+  const testWorkflow5: Workflow = {
+    wid: 5,
+    name: 'workflow 5',
+    content: jsonCast<WorkflowContent>('{}'),
+    creationTime: 3,
+    lastModifiedTime: 8,
+  };
+  const testWorkflowEntries: DashboardWorkflowEntry[] = [
     {
-      wid: 1,
-      name: 'workflow 1',
-      content: jsonCast<WorkflowContent>('{}'),
-      creationTime: 1,
-      lastModifiedTime: 2,
+      workflow: testWorkflow1,
+      isOwner: true,
+      ownerName: 'Texera',
+      accessLevel: 'Write'
     },
     {
-      wid: 2,
-      name: 'workflow 2',
-      content: jsonCast<WorkflowContent>('{}'),
-      creationTime: 3,
-      lastModifiedTime: 4,
+      workflow: testWorkflow2,
+      isOwner: true,
+      ownerName: 'Texera',
+      accessLevel: 'Write'
     },
     {
-      wid: 3,
-      name: 'workflow 3',
-      content: jsonCast<WorkflowContent>('{}'),
-      creationTime: 3,
-      lastModifiedTime: 3,
+      workflow: testWorkflow3,
+      isOwner: true,
+      ownerName: 'Texera',
+      accessLevel: 'Write'
     },
     {
-      wid: 4,
-      name: 'workflow 4',
-      content: jsonCast<WorkflowContent>('{}'),
-      creationTime: 4,
-      lastModifiedTime: 6,
+      workflow: testWorkflow4,
+      isOwner: true,
+      ownerName: 'Texera',
+      accessLevel: 'Write'
     },
     {
-      wid: 5,
-      name: 'workflow 5',
-      content: jsonCast<WorkflowContent>('{}'),
-      creationTime: 3,
-      lastModifiedTime: 8,
+      workflow: testWorkflow5,
+      isOwner: true,
+      ownerName: 'Texera',
+      accessLevel: 'Write'
     }
   ];
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       declarations: [SavedWorkflowSectionComponent,
-        NgbdModalShareAccessComponent],
+        NgbdModalWorkflowShareAccessComponent],
       providers: [
         WorkflowPersistService,
         NgbActiveModal,
         HttpClient,
         NgbActiveModal,
-        WorkflowGrantAccessService,
+        WorkflowAccessService,
         {provide: UserService, useClass: StubUserService},
       ],
       imports: [MatDividerModule,
@@ -115,54 +139,48 @@ describe('SavedWorkflowSectionComponent', () => {
   });
 
   it('alphaSortTest increaseOrder', () => {
-    component.workflows = [];
-    component.workflows = component.workflows.concat(TestCase);
+    component.dashboardWorkflowEntries = [];
+    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
     component.ascSort();
-    const SortedCase = component.workflows.map(item => item.name);
+    const SortedCase = component.dashboardWorkflowEntries.map(item => item.workflow.name);
     expect(SortedCase)
       .toEqual(['workflow 1', 'workflow 2', 'workflow 3', 'workflow 4', 'workflow 5']);
   });
 
   it('alphaSortTest decreaseOrder', () => {
-    component.workflows = [];
-    component.workflows = component.workflows.concat(TestCase);
+    component.dashboardWorkflowEntries = [];
+    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
     component.dscSort();
-    const SortedCase = component.workflows.map(item => item.name);
+    const SortedCase = component.dashboardWorkflowEntries.map(item => item.workflow.name);
     expect(SortedCase)
       .toEqual(['workflow 5', 'workflow 4', 'workflow 3', 'workflow 2', 'workflow 1']);
   });
 
   it('Modal Opened, then Closed', () => {
-    const modalRef: NgbModalRef = modalService.open(NgbdModalShareAccessComponent);
+    const modalRef: NgbModalRef = modalService.open(NgbdModalWorkflowShareAccessComponent);
     spyOn(modalService, 'open').and.returnValue(modalRef);
-    component.onClickOpenShareAccess(TestWorkflow);
+    component.onClickOpenShareAccess(testWorkflowEntries[0]);
     expect(modalService.open).toHaveBeenCalled();
     fixture.detectChanges();
     modalRef.dismiss();
   });
 
   it('createDateSortTest', () => {
-    component.workflows = [];
-    component.workflows = component.workflows.concat(TestCase);
+    component.dashboardWorkflowEntries = [];
+    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
     component.dateSort();
-    const SortedCase = component.workflows.map(item => item.creationTime);
+    const SortedCase = component.dashboardWorkflowEntries.map(item => item.workflow.creationTime);
     expect(SortedCase)
       .toEqual([1, 3, 3, 3, 4]);
   });
 
   it('lastEditSortTest', () => {
-    component.workflows = [];
-    component.workflows = component.workflows.concat(TestCase);
+    component.dashboardWorkflowEntries = [];
+    component.dashboardWorkflowEntries = component.dashboardWorkflowEntries.concat(testWorkflowEntries);
     component.lastSort();
-    const SortedCase = component.workflows.map(item => item.lastModifiedTime);
+    const SortedCase = component.dashboardWorkflowEntries.map(item => item.workflow.lastModifiedTime);
     expect(SortedCase)
       .toEqual([2, 3, 4, 6, 8]);
   });
-
-
-  /*
-  * more tests of testing return value from pop-up components(windows)
-  * should be removed to here
-  */
 
 });

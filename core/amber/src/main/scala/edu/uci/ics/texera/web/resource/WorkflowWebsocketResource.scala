@@ -36,7 +36,7 @@ import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDescV2
 
 import java.util.concurrent.atomic.AtomicInteger
 import javax.servlet.http.HttpSession
-import javax.websocket._
+import javax.websocket.{EndpointConfig, _}
 import javax.websocket.server.ServerEndpoint
 import scala.collection.{breakOut, mutable}
 
@@ -54,8 +54,8 @@ object WorkflowWebsocketResource {
   // Map[sessionId, Map[operatorId, List[ITuple]]]
   val sessionResults = new mutable.HashMap[String, WorkflowResultServiceV2]
 
-  // Map[sessionId, Map[downloadType, googleSheetLink]
-  val sessionDownloadCache = new mutable.HashMap[String, mutable.HashMap[String, String]]
+  // Map[sessionId, Map[exportType, googleSheetLink]
+  val sessionExportCache = new mutable.HashMap[String, mutable.HashMap[String, String]]
 
   def send(session: Session, event: TexeraWebSocketEvent): Unit = {
     session.getAsyncRemote.sendText(objectMapper.writeValueAsString(event))
@@ -108,18 +108,19 @@ class WorkflowWebsocketResource {
           addBreakpoint(session, breakpoint)
         case paginationRequest: ResultPaginationRequest =>
           resultPagination(session, paginationRequest)
-        case resultDownloadRequest: ResultDownloadRequest =>
-          downloadResult(session, resultDownloadRequest)
+        case resultExportRequest: ResultExportRequest =>
+          exportResult(session, resultExportRequest)
       }
     } catch {
-      case e: Throwable =>
+      case err: Exception =>
         send(
           session,
           WorkflowErrorEvent(generalErrors =
-            Map("exception" -> (e.getMessage + "\n" + e.getStackTrace.mkString("\n")))
+            Map("exception" -> (err.getMessage + "\n" + err.getStackTrace.mkString("\n")))
           )
         )
-        throw e
+        throw err
+
     }
 
   }
@@ -334,7 +335,7 @@ class WorkflowWebsocketResource {
 
     val eventListener = ControllerEventListener(
       workflowCompletedListener = completed => {
-        sessionDownloadCache.remove(session.getId)
+        sessionExportCache.remove(session.getId)
         send(session, WorkflowCompletedEvent())
         WorkflowWebsocketResource.sessionJobs.remove(session.getId)
         val cacheStatusMap = new mutable.HashMap[String, CacheStatusUpdateEvent.CacheStatus]()
@@ -366,6 +367,9 @@ class WorkflowWebsocketResource {
       breakpointTriggeredListener = breakpointTriggered => {
         send(session, BreakpointTriggeredEvent.apply(breakpointTriggered))
       },
+      pythonPrintTriggeredListener = pythonPrintTriggered => {
+        send(session, PythonPrintTriggeredEvent.apply(pythonPrintTriggered))
+      },
       workflowPausedListener = _ => {
         send(session, WorkflowPausedEvent())
       },
@@ -373,14 +377,14 @@ class WorkflowWebsocketResource {
         send(session, SkipTupleResponseEvent())
       },
       reportCurrentTuplesListener = report => {
-//        send(session, OperatorCurrentTuplesUpdateEvent.apply(report))
+        //        send(session, OperatorCurrentTuplesUpdateEvent.apply(report))
       },
       recoveryStartedListener = _ => {
         send(session, RecoveryStartedEvent())
       },
       workflowExecutionErrorListener = errorOccurred => {
         logger.error("Workflow execution has error: {}.", errorOccurred.error)
-        send(session, WorkflowExecutionErrorEvent(errorOccurred.error.convertToMap()))
+        send(session, WorkflowExecutionErrorEvent(errorOccurred.error.getLocalizedMessage))
       }
     )
 
@@ -397,9 +401,9 @@ class WorkflowWebsocketResource {
 
   }
 
-  def downloadResult(session: Session, request: ResultDownloadRequest): Unit = {
-    val resultDownloadResponse = ResultDownloadResource.apply(session.getId, request)
-    send(session, resultDownloadResponse)
+  def exportResult(session: Session, request: ResultExportRequest): Unit = {
+    val resultExportResponse = ResultExportResource.apply(session.getId, request)
+    send(session, resultExportResponse)
   }
 
   def killWorkflow(session: Session): Unit = {
@@ -417,9 +421,13 @@ class WorkflowWebsocketResource {
     sessionResults.remove(session.getId)
     sessionJobs.remove(session.getId)
     sessionMap.remove(session.getId)
+<<<<<<< HEAD
     sessionDownloadCache.remove(session.getId)
 
     clearMaterialization(session)
+=======
+    sessionExportCache.remove(session.getId)
+>>>>>>> 628654f4f8a5ba66351c408328d6c8c6ccaca123
   }
 
   def removeBreakpoint(session: Session, removeBreakpoint: RemoveBreakpointRequest): Unit = {

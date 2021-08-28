@@ -150,7 +150,7 @@ object ArrowUtils {
     val arrowFields = arrowSchema.getFields.toList
 
     for (i <- arrowFields.indices) {
-      val vector = vectorSchemaRoot.getVector(i)
+      val vector: FieldVector = vectorSchemaRoot.getVector(i)
       val value = tuple.get(i)
       val isNull = value == null
       arrowFields.apply(i).getFieldType.getType match {
@@ -159,28 +159,28 @@ object ArrowUtils {
             case 16 | 32 =>
               vector
                 .asInstanceOf[IntVector]
-                .set(index, !isNull, if (isNull) 0 else value.asInstanceOf[Int])
+                .setSafe(index, !isNull, if (isNull) 0 else value.asInstanceOf[Int])
 
             case 64 | _ =>
               vector
                 .asInstanceOf[BigIntVector]
-                .set(index, !isNull, if (isNull) 0 else value.asInstanceOf[Long])
+                .setSafe(index, !isNull, if (isNull) 0 else value.asInstanceOf[Long])
           }
 
         case _: ArrowType.Bool =>
           vector
             .asInstanceOf[BitVector]
-            .set(index, !isNull, if (isNull) 0 else value.asInstanceOf[Boolean])
+            .setSafe(index, !isNull, if (isNull) 0 else value.asInstanceOf[Boolean])
 
         case _: ArrowType.FloatingPoint =>
           vector
             .asInstanceOf[Float8Vector]
-            .set(index, !isNull, if (isNull) 0 else value.asInstanceOf[Double])
+            .setSafe(index, !isNull, if (isNull) 0 else value.asInstanceOf[Double])
 
         case _: ArrowType.Timestamp =>
           vector
             .asInstanceOf[TimeStampVector]
-            .set(
+            .setSafe(
               index,
               !isNull,
               if (isNull) 0L
@@ -192,7 +192,7 @@ object ArrowUtils {
           else
             vector
               .asInstanceOf[VarCharVector]
-              .set(index, value.asInstanceOf[String].getBytes(StandardCharsets.UTF_8))
+              .setSafe(index, value.asInstanceOf[String].getBytes(StandardCharsets.UTF_8))
 
       }
     }

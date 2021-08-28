@@ -16,6 +16,7 @@ import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
     new Type(value = classOf[WorkflowResumedEvent]),
     new Type(value = classOf[RecoveryStartedEvent]),
     new Type(value = classOf[BreakpointTriggeredEvent]),
+    new Type(value = classOf[PythonPrintTriggeredEvent]),
     new Type(value = classOf[ModifyLogicCompletedEvent]),
     new Type(value = classOf[SkipTupleResponseEvent]),
     new Type(value = classOf[OperatorCurrentTuplesUpdateEvent]),
