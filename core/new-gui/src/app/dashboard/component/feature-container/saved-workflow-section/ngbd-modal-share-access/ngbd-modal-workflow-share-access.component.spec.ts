@@ -1,4 +1,4 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { HttpClient, HttpHandler } from '@angular/common/http';
 import { WorkflowAccessService } from '../../../../service/workflow-access/workflow-access.service';
@@ -21,7 +21,7 @@ describe('NgbdModalShareAccessComponent', () => {
     lastModifiedTime: 2
   };
 
-  beforeEach(async(async () => {
+  beforeEach(waitForAsync(async () => {
     TestBed.configureTestingModule({
       imports: [
         ReactiveFormsModule,
@@ -34,7 +34,7 @@ describe('NgbdModalShareAccessComponent', () => {
         NgbActiveModal,
         HttpClient,
         HttpHandler,
-        {provide: WorkflowAccessService, useClass: StubWorkflowAccessService}
+        { provide: WorkflowAccessService, useClass: StubWorkflowAccessService }
       ]
     });
   }));

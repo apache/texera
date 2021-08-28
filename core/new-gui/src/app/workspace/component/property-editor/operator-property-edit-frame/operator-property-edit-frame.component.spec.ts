@@ -1,4 +1,4 @@
-import { async, ComponentFixture, discardPeriodicTasks, fakeAsync, TestBed, tick } from '@angular/core/testing';
+import { ComponentFixture, discardPeriodicTasks, fakeAsync, TestBed, tick, waitForAsync } from '@angular/core/testing';
 
 import { OperatorPropertyEditFrameComponent } from './operator-property-edit-frame.component';
 import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
@@ -29,7 +29,7 @@ describe('OperatorPropertyEditFrameComponent', () => {
   let fixture: ComponentFixture<OperatorPropertyEditFrameComponent>;
   let workflowActionService: WorkflowActionService;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [
         OperatorPropertyEditFrameComponent

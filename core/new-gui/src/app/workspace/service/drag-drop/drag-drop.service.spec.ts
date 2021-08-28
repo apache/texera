@@ -1,5 +1,5 @@
-import { JointUIService } from './../joint-ui/joint-ui.service';
-import { TestBed, inject } from '@angular/core/testing';
+import { JointUIService } from '../joint-ui/joint-ui.service';
+import { inject, TestBed } from '@angular/core/testing';
 
 import { DragDropService } from './drag-drop.service';
 import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
@@ -14,9 +14,12 @@ import '../../../../../node_modules/jquery-ui-dist/jquery-ui';
 
 import { marbles } from 'rxjs-marbles';
 import {
-  mockScanPredicate, mockResultPredicate, mockMultiInputOutputPredicate, mockScanResultLink
+  mockMultiInputOutputPredicate,
+  mockResultPredicate,
+  mockScanPredicate,
+  mockScanResultLink
 } from '../workflow-graph/model/mock-workflow-data';
-import { OperatorPredicate, OperatorLink } from '../../types/workflow-common.interface';
+import { OperatorLink, OperatorPredicate } from '../../types/workflow-common.interface';
 
 describe('DragDropService', () => {
 
