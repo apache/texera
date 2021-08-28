@@ -13,40 +13,40 @@ import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { StubUserService } from "../../../../../common/service/user/stub-user.service";
 
 describe("UserLoginComponent", () => {
-  let component: NgbdModalUserLoginComponent;
-  let fixture: ComponentFixture<NgbdModalUserLoginComponent>;
+	let component: NgbdModalUserLoginComponent;
+	let fixture: ComponentFixture<NgbdModalUserLoginComponent>;
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        declarations: [NgbdModalUserLoginComponent],
-        providers: [
-          NgbActiveModal,
-          { provide: UserService, useClass: StubUserService },
-          FormBuilder,
-        ],
-        imports: [
-          BrowserAnimationsModule,
-          HttpClientTestingModule,
-          MatTabsModule,
-          MatFormFieldModule,
-          MatInputModule,
-          NgbModule,
-          FormsModule,
-          ReactiveFormsModule,
-          MatDialogModule,
-        ],
-      }).compileComponents();
-    })
-  );
+	beforeEach(
+		waitForAsync(() => {
+			TestBed.configureTestingModule({
+				declarations: [NgbdModalUserLoginComponent],
+				providers: [
+					NgbActiveModal,
+					{ provide: UserService, useClass: StubUserService },
+					FormBuilder
+				],
+				imports: [
+					BrowserAnimationsModule,
+					HttpClientTestingModule,
+					MatTabsModule,
+					MatFormFieldModule,
+					MatInputModule,
+					NgbModule,
+					FormsModule,
+					ReactiveFormsModule,
+					MatDialogModule
+				]
+			}).compileComponents();
+		})
+	);
 
-  beforeEach(() => {
-    fixture = TestBed.createComponent(NgbdModalUserLoginComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-  });
+	beforeEach(() => {
+		fixture = TestBed.createComponent(NgbdModalUserLoginComponent);
+		component = fixture.componentInstance;
+		fixture.detectChanges();
+	});
 
-  it("should create", () => {
-    expect(component).toBeTruthy();
-  });
+	it("should create", () => {
+		expect(component).toBeTruthy();
+	});
 });

@@ -1,12 +1,12 @@
 import {
-  ExecutionState,
-  LogicalPlan,
+	ExecutionState,
+	LogicalPlan
 } from "../../types/execute-workflow.interface";
 import { fakeAsync, flush, inject, TestBed, tick } from "@angular/core/testing";
 
 import {
-  ExecuteWorkflowService,
-  FORM_DEBOUNCE_TIME_MS,
+	ExecuteWorkflowService,
+	FORM_DEBOUNCE_TIME_MS
 } from "./execute-workflow.service";
 
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
@@ -17,8 +17,8 @@ import { JointUIService } from "../joint-ui/joint-ui.service";
 import { Observable, of } from "rxjs";
 
 import {
-  mockLogicalPlan_scan_result,
-  mockWorkflowPlan_scan_result,
+	mockLogicalPlan_scan_result,
+	mockWorkflowPlan_scan_result
 } from "./mock-workflow-plan";
 import { HttpClient } from "@angular/common/http";
 import { WorkflowGraph } from "../workflow-graph/model/workflow-graph";
@@ -26,89 +26,89 @@ import { environment } from "../../../../environments/environment";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 
 class StubHttpClient {
-  constructor() {}
+	constructor() {}
 
-  public post(): Observable<string> {
-    return of("a");
-  }
+	public post(): Observable<string> {
+		return of("a");
+	}
 }
 
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 
 describe("ExecuteWorkflowService", () => {
-  let service: ExecuteWorkflowService;
+	let service: ExecuteWorkflowService;
 
-  beforeEach(() => {
-    TestBed.configureTestingModule({
-      providers: [
-        ExecuteWorkflowService,
-        WorkflowActionService,
-        WorkflowUtilService,
-        UndoRedoService,
-        JointUIService,
-        {
-          provide: OperatorMetadataService,
-          useClass: StubOperatorMetadataService,
-        },
-        { provide: HttpClient, useClass: StubHttpClient },
-      ],
-    });
+	beforeEach(() => {
+		TestBed.configureTestingModule({
+			providers: [
+				ExecuteWorkflowService,
+				WorkflowActionService,
+				WorkflowUtilService,
+				UndoRedoService,
+				JointUIService,
+				{
+					provide: OperatorMetadataService,
+					useClass: StubOperatorMetadataService
+				},
+				{ provide: HttpClient, useClass: StubHttpClient }
+			]
+		});
 
-    service = TestBed.inject(ExecuteWorkflowService);
-    environment.pauseResumeEnabled = true;
-  });
+		service = TestBed.inject(ExecuteWorkflowService);
+		environment.pauseResumeEnabled = true;
+	});
 
-  it("should be created", inject(
-    [ExecuteWorkflowService],
-    (injectedService: ExecuteWorkflowService) => {
-      expect(injectedService).toBeTruthy();
-    }
-  ));
+	it("should be created", inject(
+		[ExecuteWorkflowService],
+		(injectedService: ExecuteWorkflowService) => {
+			expect(injectedService).toBeTruthy();
+		}
+	));
 
-  it("should generate a logical plan request based on the workflow graph that is passed to the function", () => {
-    const workflowGraph: WorkflowGraph = mockWorkflowPlan_scan_result;
-    const newLogicalPlan: LogicalPlan =
-      ExecuteWorkflowService.getLogicalPlanRequest(workflowGraph);
-    expect(newLogicalPlan).toEqual(mockLogicalPlan_scan_result);
-  });
+	it("should generate a logical plan request based on the workflow graph that is passed to the function", () => {
+		const workflowGraph: WorkflowGraph = mockWorkflowPlan_scan_result;
+		const newLogicalPlan: LogicalPlan =
+			ExecuteWorkflowService.getLogicalPlanRequest(workflowGraph);
+		expect(newLogicalPlan).toEqual(mockLogicalPlan_scan_result);
+	});
 
-  it("should msg backend when executing workflow", fakeAsync(() => {
-    if (environment.amberEngineEnabled) {
-      const wsSendSpy = spyOn(
-        (service as any).workflowWebsocketService,
-        "send"
-      );
+	it("should msg backend when executing workflow", fakeAsync(() => {
+		if (environment.amberEngineEnabled) {
+			const wsSendSpy = spyOn(
+				(service as any).workflowWebsocketService,
+				"send"
+			);
 
-      service.executeWorkflow();
-      tick(FORM_DEBOUNCE_TIME_MS + 1);
-      flush();
-      expect(wsSendSpy).toHaveBeenCalledTimes(1);
-    } else {
-      throw new Error("old texera engine not supported");
-    }
-  }));
+			service.executeWorkflow();
+			tick(FORM_DEBOUNCE_TIME_MS + 1);
+			flush();
+			expect(wsSendSpy).toHaveBeenCalledTimes(1);
+		} else {
+			throw new Error("old texera engine not supported");
+		}
+	}));
 
-  it("it should raise an error when pauseWorkflow() is called without an execution state", () => {
-    (service as any).currentState = { state: ExecutionState.Uninitialized };
-    expect(function () {
-      service.pauseWorkflow();
-    }).toThrowError(
-      new RegExp(
-        "cannot pause workflow, current execution state is " +
-          (service as any).currentState.state
-      )
-    );
-  });
+	it("it should raise an error when pauseWorkflow() is called without an execution state", () => {
+		(service as any).currentState = { state: ExecutionState.Uninitialized };
+		expect(function () {
+			service.pauseWorkflow();
+		}).toThrowError(
+			new RegExp(
+				"cannot pause workflow, current execution state is " +
+					(service as any).currentState.state
+			)
+		);
+	});
 
-  it("it should raise an error when resumeWorkflow() is called without an execution state", () => {
-    (service as any).currentState = { state: ExecutionState.Uninitialized };
-    expect(function () {
-      service.resumeWorkflow();
-    }).toThrowError(
-      new RegExp(
-        "cannot resume workflow, current execution state is " +
-          (service as any).currentState.state
-      )
-    );
-  });
+	it("it should raise an error when resumeWorkflow() is called without an execution state", () => {
+		(service as any).currentState = { state: ExecutionState.Uninitialized };
+		expect(function () {
+			service.resumeWorkflow();
+		}).toThrowError(
+			new RegExp(
+				"cannot resume workflow, current execution state is " +
+					(service as any).currentState.state
+			)
+		);
+	});
 });

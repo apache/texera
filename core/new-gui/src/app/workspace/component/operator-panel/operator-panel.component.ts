@@ -7,9 +7,9 @@ import { map } from "rxjs/operators";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 
 import {
-  GroupInfo,
-  OperatorMetadata,
-  OperatorSchema,
+	GroupInfo,
+	OperatorMetadata,
+	OperatorSchema
 } from "../../types/operator-schema.interface";
 import { DragDropService } from "../../service/drag-drop/drag-drop.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
@@ -32,135 +32,135 @@ import { OperatorLabelComponent } from "./operator-label/operator-label.componen
  *
  */
 @Component({
-  selector: "texera-operator-panel",
-  templateUrl: "./operator-panel.component.html",
-  styleUrls: ["./operator-panel.component.scss"],
-  providers: [
-    // uncomment this line for manual testing without opening backend server
-    // { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
-  ],
+	selector: "texera-operator-panel",
+	templateUrl: "./operator-panel.component.html",
+	styleUrls: ["./operator-panel.component.scss"],
+	providers: [
+		// uncomment this line for manual testing without opening backend server
+		// { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
+	]
 })
 export class OperatorPanelComponent implements OnInit {
-  // a list of all operator's schema
-  public operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
-  // a list of group names, sorted based on the groupOrder from OperatorMetadata
-  public groupNamesOrdered: ReadonlyArray<string> = [];
-  // a map of group name to a list of operator schema of this group
-  public operatorGroupMap = new Map<string, ReadonlyArray<OperatorSchema>>();
-  // form control of the operator search box
-  public operatorSearchFormControl = new FormControl();
-  // observable emitting the operator search results to MatAutocomplete
-  public operatorSearchResults: Observable<OperatorSchema[]>;
-  public operatorSearchHasResults = false;
-  // fuzzy search using fuse.js. See parameters in options at https://fusejs.io/
-  public fuse = new Fuse([] as ReadonlyArray<OperatorSchema>, {
-    shouldSort: true,
-    threshold: 0.3,
-    location: 0,
-    distance: 100,
-    maxPatternLength: 32,
-    minMatchCharLength: 1,
-    keys: ["additionalMetadata.userFriendlyName"],
-  });
+	// a list of all operator's schema
+	public operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
+	// a list of group names, sorted based on the groupOrder from OperatorMetadata
+	public groupNamesOrdered: ReadonlyArray<string> = [];
+	// a map of group name to a list of operator schema of this group
+	public operatorGroupMap = new Map<string, ReadonlyArray<OperatorSchema>>();
+	// form control of the operator search box
+	public operatorSearchFormControl = new FormControl();
+	// observable emitting the operator search results to MatAutocomplete
+	public operatorSearchResults: Observable<OperatorSchema[]>;
+	public operatorSearchHasResults = false;
+	// fuzzy search using fuse.js. See parameters in options at https://fusejs.io/
+	public fuse = new Fuse([] as ReadonlyArray<OperatorSchema>, {
+		shouldSort: true,
+		threshold: 0.3,
+		location: 0,
+		distance: 100,
+		maxPatternLength: 32,
+		minMatchCharLength: 1,
+		keys: ["additionalMetadata.userFriendlyName"]
+	});
 
-  constructor(
-    private operatorMetadataService: OperatorMetadataService,
-    private workflowActionService: WorkflowActionService,
-    private workflowUtilService: WorkflowUtilService,
-    private dragDropService: DragDropService
-  ) {
-    // create the search results observable
-    // whenever the search box text is changed, perform the search using fuse.js
-    this.operatorSearchResults = (
-      this.operatorSearchFormControl.valueChanges as Observable<string>
-    ).pipe(
-      map((v) => {
-        if (v === null || v.trim().length === 0) {
-          this.operatorSearchHasResults = false;
-          return [];
-        }
-        // TODO: remove this cast after we upgrade to Typescript 3
-        const results = this.fuse.search(v) as OperatorSchema[];
-        this.operatorSearchHasResults = true;
-        return results;
-      })
-    );
-    // clear the search box if an operator is dropped from operator search box
-    this.dragDropService.getOperatorDropStream().subscribe((event) => {
-      if (
-        OperatorLabelComponent.isOperatorLabelElementFromSearchBox(
-          event.dragElementID
-        )
-      ) {
-        this.operatorSearchFormControl.setValue("");
-      }
-    });
-  }
+	constructor(
+		private operatorMetadataService: OperatorMetadataService,
+		private workflowActionService: WorkflowActionService,
+		private workflowUtilService: WorkflowUtilService,
+		private dragDropService: DragDropService
+	) {
+		// create the search results observable
+		// whenever the search box text is changed, perform the search using fuse.js
+		this.operatorSearchResults = (
+			this.operatorSearchFormControl.valueChanges as Observable<string>
+		).pipe(
+			map((v) => {
+				if (v === null || v.trim().length === 0) {
+					this.operatorSearchHasResults = false;
+					return [];
+				}
+				// TODO: remove this cast after we upgrade to Typescript 3
+				const results = this.fuse.search(v) as OperatorSchema[];
+				this.operatorSearchHasResults = true;
+				return results;
+			})
+		);
+		// clear the search box if an operator is dropped from operator search box
+		this.dragDropService.getOperatorDropStream().subscribe((event) => {
+			if (
+				OperatorLabelComponent.isOperatorLabelElementFromSearchBox(
+					event.dragElementID
+				)
+			) {
+				this.operatorSearchFormControl.setValue("");
+			}
+		});
+	}
 
-  ngOnInit() {
-    // subscribe to the operator metadata changed observable and process it
-    // the operator metadata will be fetched asynchronously on application init
-    //   after the data is fetched, it will be passed through this observable
-    this.operatorMetadataService
-      .getOperatorMetadata()
-      .subscribe((value) => this.processOperatorMetadata(value));
-  }
+	ngOnInit() {
+		// subscribe to the operator metadata changed observable and process it
+		// the operator metadata will be fetched asynchronously on application init
+		//   after the data is fetched, it will be passed through this observable
+		this.operatorMetadataService
+			.getOperatorMetadata()
+			.subscribe((value) => this.processOperatorMetadata(value));
+	}
 
-  /**
-   * handles the event when an operator search option is selected.
-   * adds the operator to the canvas and clears the text in the search box
-   */
-  onSearchOperatorSelected(event: MatAutocompleteSelectedEvent): void {
-    const userFriendlyName = event.option.value as string;
-    const operator = this.operatorSchemaList.filter(
-      (op) => op.additionalMetadata.userFriendlyName === userFriendlyName
-    )[0];
-    this.workflowActionService.addOperator(
-      this.workflowUtilService.getNewOperatorPredicate(operator.operatorType),
-      { x: 800, y: 400 }
-    );
-    this.operatorSearchFormControl.setValue("");
-  }
+	/**
+	 * handles the event when an operator search option is selected.
+	 * adds the operator to the canvas and clears the text in the search box
+	 */
+	onSearchOperatorSelected(event: MatAutocompleteSelectedEvent): void {
+		const userFriendlyName = event.option.value as string;
+		const operator = this.operatorSchemaList.filter(
+			(op) => op.additionalMetadata.userFriendlyName === userFriendlyName
+		)[0];
+		this.workflowActionService.addOperator(
+			this.workflowUtilService.getNewOperatorPredicate(operator.operatorType),
+			{ x: 800, y: 400 }
+		);
+		this.operatorSearchFormControl.setValue("");
+	}
 
-  /**
-   * populate the class variables based on the operator metadata fetched from the backend:
-   *  - sort the group names based on the group order
-   *  - put the operators into the hashmap of group names
-   *
-   * @param operatorMetadata metadata of all operators
-   */
-  private processOperatorMetadata(operatorMetadata: OperatorMetadata): void {
-    this.operatorSchemaList = operatorMetadata.operators;
-    this.groupNamesOrdered = getGroupNamesSorted(operatorMetadata.groups);
-    this.operatorGroupMap = getOperatorGroupMap(operatorMetadata);
-    this.fuse.setCollection(this.operatorSchemaList);
-  }
+	/**
+	 * populate the class variables based on the operator metadata fetched from the backend:
+	 *  - sort the group names based on the group order
+	 *  - put the operators into the hashmap of group names
+	 *
+	 * @param operatorMetadata metadata of all operators
+	 */
+	private processOperatorMetadata(operatorMetadata: OperatorMetadata): void {
+		this.operatorSchemaList = operatorMetadata.operators;
+		this.groupNamesOrdered = getGroupNamesSorted(operatorMetadata.groups);
+		this.operatorGroupMap = getOperatorGroupMap(operatorMetadata);
+		this.fuse.setCollection(this.operatorSchemaList);
+	}
 }
 
 // generates a list of group names sorted by the order
 // slice() will make a copy of the list, because we don't want to sort the original list
 export function getGroupNamesSorted(
-  groupInfoList: ReadonlyArray<GroupInfo>
+	groupInfoList: ReadonlyArray<GroupInfo>
 ): string[] {
-  return groupInfoList
-    .slice()
-    .sort((a, b) => a.groupOrder - b.groupOrder)
-    .map((groupInfo) => groupInfo.groupName);
+	return groupInfoList
+		.slice()
+		.sort((a, b) => a.groupOrder - b.groupOrder)
+		.map((groupInfo) => groupInfo.groupName);
 }
 
 // returns a new empty map from the group name to a list of OperatorSchema
 export function getOperatorGroupMap(
-  operatorMetadata: OperatorMetadata
+	operatorMetadata: OperatorMetadata
 ): Map<string, OperatorSchema[]> {
-  const groups = operatorMetadata.groups.map(
-    (groupInfo) => groupInfo.groupName
-  );
-  const operatorGroupMap = new Map<string, OperatorSchema[]>();
-  groups.forEach((groupName) => {
-    const operators = operatorMetadata.operators.filter(
-      (x) => x.additionalMetadata.operatorGroupName === groupName
-    );
-    operatorGroupMap.set(groupName, operators);
-  });
-  return operatorGroupMap;
+	const groups = operatorMetadata.groups.map(
+		(groupInfo) => groupInfo.groupName
+	);
+	const operatorGroupMap = new Map<string, OperatorSchema[]>();
+	groups.forEach((groupName) => {
+		const operators = operatorMetadata.operators.filter(
+			(x) => x.additionalMetadata.operatorGroupName === groupName
+		);
+		operatorGroupMap.set(groupName, operators);
+	});
+	return operatorGroupMap;
 }

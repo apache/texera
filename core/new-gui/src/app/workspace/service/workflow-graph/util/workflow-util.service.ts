@@ -12,29 +12,29 @@ import { Observable } from "rxjs";
  * WorkflowUtilService provide utilities related to dealing with operator data.
  */
 @Injectable({
-  providedIn: "root",
+	providedIn: "root"
 })
 export class WorkflowUtilService {
-  private operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
+	private operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
 
-  // used to fetch default values in json schema to initialize new operator
-  private ajv = new Ajv({ useDefaults: true });
+	// used to fetch default values in json schema to initialize new operator
+	private ajv = new Ajv({ useDefaults: true });
 
-  private operatorSchemaListCreatedSubject: Subject<boolean> =
-    new Subject<boolean>();
+	private operatorSchemaListCreatedSubject: Subject<boolean> =
+		new Subject<boolean>();
 
-  constructor(private operatorMetadataService: OperatorMetadataService) {
-    this.operatorMetadataService.getOperatorMetadata().subscribe((value) => {
-      this.operatorSchemaList = value.operators;
-      this.operatorSchemaListCreatedSubject.next(true);
-    });
-  }
+	constructor(private operatorMetadataService: OperatorMetadataService) {
+		this.operatorMetadataService.getOperatorMetadata().subscribe((value) => {
+			this.operatorSchemaList = value.operators;
+			this.operatorSchemaListCreatedSubject.next(true);
+		});
+	}
 
-  public getOperatorSchemaListCreatedStream(): Observable<boolean> {
-    return this.operatorSchemaListCreatedSubject.asObservable();
-  }
+	public getOperatorSchemaListCreatedStream(): Observable<boolean> {
+		return this.operatorSchemaListCreatedSubject.asObservable();
+	}
 
-  /**
+	/**
    * Generates a new UUID for operator
    */
   public getOperatorRandomUUID(): string {
@@ -42,10 +42,10 @@ export class WorkflowUtilService {
   }
 
   /**
-   * Generates a new UUID for operator or link
-   */
-  public getLinkRandomUUID(): string {
-    return 'link-' + uuid();
+	 * Generates a new UUID for operator or link
+	 */
+	public getLinkRandomUUID(): string {
+		return 'link-' + uuid();
   }
 
   /**
@@ -53,7 +53,7 @@ export class WorkflowUtilService {
    */
   public getGroupRandomUUID(): string {
     return 'group-' + uuid();
-  }
+	}
 
   /**
    * Generates a new UUID for breakpoint
@@ -62,75 +62,74 @@ export class WorkflowUtilService {
     return 'breakpoint-' + uuid();
   }
 
+	/**
+	 * This method will use a unique ID and a operatorType to create and return a
+	 * new OperatorPredicate with default initial properties.
+	 *
+	 * @param operatorType type of an Operator
+	 * @returns a new OperatorPredicate of the operatorType
+	 */
+	public getNewOperatorPredicate(operatorType: string): OperatorPredicate {
+		const operatorSchema = this.operatorSchemaList.find(
+			(schema) => schema.operatorType === operatorType
+		);
+		if (operatorSchema === undefined) {
+			throw new Error(
+				`operatorType ${operatorType} doesn't exist in operator metadata`
+			);
+		}
 
-  /**
-   * This method will use a unique ID and a operatorType to create and return a
-   * new OperatorPredicate with default initial properties.
-   *
-   * @param operatorType type of an Operator
-   * @returns a new OperatorPredicate of the operatorType
-   */
-  public getNewOperatorPredicate(operatorType: string): OperatorPredicate {
-    const operatorSchema = this.operatorSchemaList.find(
-      (schema) => schema.operatorType === operatorType
-    );
-    if (operatorSchema === undefined) {
-      throw new Error(
-        `operatorType ${operatorType} doesn't exist in operator metadata`
-      );
-    }
+		const operatorID = operatorSchema.operatorType + "-" + this.getOperatorRandomUUID();
+		const operatorProperties = {};
 
-    const operatorID = operatorSchema.operatorType + "-" + this.getOperatorRandomUUID();
-    const operatorProperties = {};
+		// Remove the ID field for the schema to prevent warning messages from Ajv
+		const { ...schemaWithoutID } = operatorSchema.jsonSchema;
 
-    // Remove the ID field for the schema to prevent warning messages from Ajv
-    const { ...schemaWithoutID } = operatorSchema.jsonSchema;
+		// value inserted in the data will be the deep clone of the default in the schema
+		const validate = this.ajv.compile(schemaWithoutID);
+		validate(operatorProperties);
 
-    // value inserted in the data will be the deep clone of the default in the schema
-    const validate = this.ajv.compile(schemaWithoutID);
-    validate(operatorProperties);
+		const inputPorts: { portID: string; displayName?: string }[] = [];
+		const outputPorts: { portID: string; displayName?: string }[] = [];
 
-    const inputPorts: { portID: string; displayName?: string }[] = [];
-    const outputPorts: { portID: string; displayName?: string }[] = [];
+		// by default, the operator will not show advanced option in the properties to the user
+		const showAdvanced = false;
 
-    // by default, the operator will not show advanced option in the properties to the user
-    const showAdvanced = false;
+		// by default, the operator is not disabled
+		const isDisabled = false;
 
-    // by default, the operator is not disabled
-    const isDisabled = false;
+		for (
+			let i = 0;
+			i < operatorSchema.additionalMetadata.inputPorts.length;
+			i++
+		) {
+			const portID = "input-" + i.toString();
+			const displayName =
+				operatorSchema.additionalMetadata.inputPorts[i].displayName;
+			inputPorts.push({ portID, displayName });
+		}
 
-    for (
-      let i = 0;
-      i < operatorSchema.additionalMetadata.inputPorts.length;
-      i++
-    ) {
-      const portID = "input-" + i.toString();
-      const displayName =
-        operatorSchema.additionalMetadata.inputPorts[i].displayName;
-      inputPorts.push({ portID, displayName });
-    }
+		for (
+			let i = 0;
+			i < operatorSchema.additionalMetadata.outputPorts.length;
+			i++
+		) {
+			const portID = "output-" + i.toString();
+			const displayName =
+				operatorSchema.additionalMetadata.outputPorts[i].displayName;
+			outputPorts.push({ portID, displayName });
+		}
 
-    for (
-      let i = 0;
-      i < operatorSchema.additionalMetadata.outputPorts.length;
-      i++
-    ) {
-      const portID = "output-" + i.toString();
-      const displayName =
-        operatorSchema.additionalMetadata.outputPorts[i].displayName;
-      outputPorts.push({ portID, displayName });
-    }
-
-    return {
-      operatorID,
-      operatorType,
-      operatorProperties,
-      inputPorts,
-      outputPorts,
-      showAdvanced,
-      isDisabled,
-    };
-  }
+		return {
+			operatorID,
+			operatorType,
+			operatorProperties,
+			inputPorts,
+			outputPorts,
+			showAdvanced,
+			isDisabled
+		};
+	}
 
 
 }

@@ -13,135 +13,135 @@ import { WebDataUpdate } from "../../types/execute-workflow.interface";
 import { ChartType } from "../../types/visualization.interface";
 import { VisualizationFrameContentComponent } from "./visualization-frame-content.component";
 import {
-  OperatorResultService,
-  WorkflowResultService,
+	OperatorResultService,
+	WorkflowResultService
 } from "../../service/workflow-result/workflow-result.service";
 
 describe("VisualizationFrameContentComponent", () => {
-  let component: VisualizationFrameContentComponent;
-  let fixture: ComponentFixture<VisualizationFrameContentComponent>;
-  let workflowResultService: WorkflowResultService;
-  const operatorID = "operator1";
-  let operatorResultService: OperatorResultService;
+	let component: VisualizationFrameContentComponent;
+	let fixture: ComponentFixture<VisualizationFrameContentComponent>;
+	let workflowResultService: WorkflowResultService;
+	const operatorID = "operator1";
+	let operatorResultService: OperatorResultService;
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        imports: [MatDialogModule, HttpClientTestingModule],
-        declarations: [VisualizationFrameContentComponent],
-        providers: [
-          JointUIService,
-          WorkflowUtilService,
-          UndoRedoService,
-          WorkflowActionService,
-          {
-            provide: OperatorMetadataService,
-            useClass: StubOperatorMetadataService,
-          },
-          WorkflowStatusService,
-          ExecuteWorkflowService,
-        ],
-      }).compileComponents();
-    })
-  );
+	beforeEach(
+		waitForAsync(() => {
+			TestBed.configureTestingModule({
+				imports: [MatDialogModule, HttpClientTestingModule],
+				declarations: [VisualizationFrameContentComponent],
+				providers: [
+					JointUIService,
+					WorkflowUtilService,
+					UndoRedoService,
+					WorkflowActionService,
+					{
+						provide: OperatorMetadataService,
+						useClass: StubOperatorMetadataService
+					},
+					WorkflowStatusService,
+					ExecuteWorkflowService
+				]
+			}).compileComponents();
+		})
+	);
 
-  beforeEach(() => {
-    fixture = TestBed.createComponent(VisualizationFrameContentComponent);
-    component = fixture.componentInstance;
-    component.operatorID = operatorID;
-    workflowResultService = TestBed.get(WorkflowResultService);
-    operatorResultService = new OperatorResultService(operatorID);
-    spyOn(workflowResultService, "getResultService").and.returnValue(
-      operatorResultService
-    );
-  });
+	beforeEach(() => {
+		fixture = TestBed.createComponent(VisualizationFrameContentComponent);
+		component = fixture.componentInstance;
+		component.operatorID = operatorID;
+		workflowResultService = TestBed.get(WorkflowResultService);
+		operatorResultService = new OperatorResultService(operatorID);
+		spyOn(workflowResultService, "getResultService").and.returnValue(
+			operatorResultService
+		);
+	});
 
-  it("should create", () => {
-    fixture = TestBed.createComponent(VisualizationFrameContentComponent);
-    expect(component).toBeTruthy();
-  });
+	it("should create", () => {
+		fixture = TestBed.createComponent(VisualizationFrameContentComponent);
+		expect(component).toBeTruthy();
+	});
 
-  it("should draw the figure", () => {
-    const testData: WebDataUpdate = {
-      mode: { type: "SetSnapshotMode" },
-      table: [{ id: 1, data: 2 }],
-      chartType: ChartType.PIE,
-    };
-    operatorResultService.handleResultUpdate(testData);
+	it("should draw the figure", () => {
+		const testData: WebDataUpdate = {
+			mode: { type: "SetSnapshotMode" },
+			table: [{ id: 1, data: 2 }],
+			chartType: ChartType.PIE
+		};
+		operatorResultService.handleResultUpdate(testData);
 
-    spyOn(component, "generateChart");
+		spyOn(component, "generateChart");
 
-    component.ngAfterContentInit();
+		component.ngAfterContentInit();
 
-    expect(component.generateChart).toHaveBeenCalled();
-  });
+		expect(component.generateChart).toHaveBeenCalled();
+	});
 
-  it("should draw the word cloud", () => {
-    const testData: WebDataUpdate = {
-      mode: { type: "SetSnapshotMode" },
-      table: [
-        { word: "foo", count: 120 },
-        { word: "bar", count: 100 },
-      ],
-      chartType: ChartType.WORD_CLOUD,
-    };
-    operatorResultService.handleResultUpdate(testData);
+	it("should draw the word cloud", () => {
+		const testData: WebDataUpdate = {
+			mode: { type: "SetSnapshotMode" },
+			table: [
+				{ word: "foo", count: 120 },
+				{ word: "bar", count: 100 }
+			],
+			chartType: ChartType.WORD_CLOUD
+		};
+		operatorResultService.handleResultUpdate(testData);
 
-    spyOn(component, "generateWordCloud");
+		spyOn(component, "generateWordCloud");
 
-    component.ngAfterContentInit();
+		component.ngAfterContentInit();
 
-    expect(component.generateWordCloud).toHaveBeenCalled();
-  });
+		expect(component.generateWordCloud).toHaveBeenCalled();
+	});
 
-  it("should draw the spatial scatter plot map", () => {
-    const testData: WebDataUpdate = {
-      mode: { type: "SetSnapshotMode" },
-      table: [
-        { xColumn: -90.285434, yColumn: 29.969126 },
-        { xColumn: -76.711521, yColumn: 39.197211 },
-      ],
-      chartType: ChartType.SPATIAL_SCATTERPLOT,
-    };
-    operatorResultService.handleResultUpdate(testData);
+	it("should draw the spatial scatter plot map", () => {
+		const testData: WebDataUpdate = {
+			mode: { type: "SetSnapshotMode" },
+			table: [
+				{ xColumn: -90.285434, yColumn: 29.969126 },
+				{ xColumn: -76.711521, yColumn: 39.197211 }
+			],
+			chartType: ChartType.SPATIAL_SCATTERPLOT
+		};
+		operatorResultService.handleResultUpdate(testData);
 
-    spyOn(component, "generateSpatialScatterPlot");
+		spyOn(component, "generateSpatialScatterPlot");
 
-    component.ngAfterContentInit();
+		component.ngAfterContentInit();
 
-    expect(component.generateSpatialScatterPlot).toHaveBeenCalled();
-  });
+		expect(component.generateSpatialScatterPlot).toHaveBeenCalled();
+	});
 
-  it("should draw the simple scatter plot chart", () => {
-    const testData: WebDataUpdate = {
-      mode: { type: "SetSnapshotMode" },
-      table: [
-        { employees: 1000, sales: 30000 },
-        { employees: 500, sales: 21000 },
-      ],
-      chartType: ChartType.SIMPLE_SCATTERPLOT,
-    };
-    operatorResultService.handleResultUpdate(testData);
+	it("should draw the simple scatter plot chart", () => {
+		const testData: WebDataUpdate = {
+			mode: { type: "SetSnapshotMode" },
+			table: [
+				{ employees: 1000, sales: 30000 },
+				{ employees: 500, sales: 21000 }
+			],
+			chartType: ChartType.SIMPLE_SCATTERPLOT
+		};
+		operatorResultService.handleResultUpdate(testData);
 
-    spyOn(component, "generateSimpleScatterPlot");
+		spyOn(component, "generateSimpleScatterPlot");
 
-    component.ngAfterContentInit();
+		component.ngAfterContentInit();
 
-    expect(component.generateSimpleScatterPlot).toHaveBeenCalled();
-  });
+		expect(component.generateSimpleScatterPlot).toHaveBeenCalled();
+	});
 
-  it("should draw a sample html", () => {
-    const testData: WebDataUpdate = {
-      mode: { type: "SetSnapshotMode" },
-      table: [{ "html-content": "<div>sample</div>" }],
-      chartType: ChartType.HTML_VIZ,
-    };
-    operatorResultService.handleResultUpdate(testData);
+	it("should draw a sample html", () => {
+		const testData: WebDataUpdate = {
+			mode: { type: "SetSnapshotMode" },
+			table: [{ "html-content": "<div>sample</div>" }],
+			chartType: ChartType.HTML_VIZ
+		};
+		operatorResultService.handleResultUpdate(testData);
 
-    spyOn(component, "generateHTML");
+		spyOn(component, "generateHTML");
 
-    component.ngAfterContentInit();
+		component.ngAfterContentInit();
 
-    expect(component.generateHTML).toHaveBeenCalled();
-  });
+		expect(component.generateHTML).toHaveBeenCalled();
+	});
 });

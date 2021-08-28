@@ -1,12 +1,12 @@
 .subsection-grid-container {
-  min-width: 100%;
-  width: 100%;
-  min-height: 100%;
-  height: 100%;
+	min-width: 100%;
+	width: 100%;
+	min-height: 100%;
+	height: 100%;
 }
 
 .page-title {
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+	font-family: -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 /**
@@ -25,13 +25,13 @@
 $header-height: 120px;
 
 .user-file-container {
-  display: grid;
-  grid-template-rows: $header-height calc((100% - #{$header-height}));
+	display: grid;
+	grid-template-rows: $header-height calc((100% - #{$header-height}));
 }
 
 .button-area {
-  grid-row-start: 1;
-  grid-row-end: 2;
+	grid-row-start: 1;
+	grid-row-end: 2;
 }
 
 /**
@@ -40,37 +40,37 @@ $header-height: 120px;
 * button to check the items in dictionary
 **/
 .user-file-list {
-  grid-row-start: 2;
-  grid-row-end: 3;
-  overflow: auto;
+	grid-row-start: 2;
+	grid-row-end: 3;
+	overflow: auto;
 }
 
 .user-file-list-item {
-  height: 70px;
-  margin-bottom: 1.5%;
-  padding-top: 5px;
+	height: 70px;
+	margin-bottom: 1.5%;
+	padding-top: 5px;
 }
 
 .file-name {
-  color: rgb(62, 202, 253);
-  font-size: 20px;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-  display: flex;
-  align-items: center;
+	color: rgb(62, 202, 253);
+	font-size: 20px;
+	font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+	display: flex;
+	align-items: center;
 }
 
 .file-title {
-  color: rgb(62, 202, 253);
-  margin-right: 10px;
+	color: rgb(62, 202, 253);
+	margin-right: 10px;
 }
 
 .file-name > i {
-  position: relative;
-  font-size: 20px;
-  margin-bottom: 6px;
+	position: relative;
+	font-size: 20px;
+	margin-bottom: 6px;
 }
 
 button {
-  border-radius: 5px;
-  border: none;
+	border-radius: 5px;
+	border: none;
 }

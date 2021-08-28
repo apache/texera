@@ -3,8 +3,8 @@ import { Subject } from "rxjs";
 import { Observable } from "rxjs";
 
 export interface Notification {
-  type: "success" | "info" | "error" | "warning" | "loading";
-  message: string;
+	type: "success" | "info" | "error" | "warning" | "loading";
+	message: string;
 }
 
 /**
@@ -12,36 +12,36 @@ export interface Notification {
  * to show on NotificationComponent.
  */
 @Injectable({
-  providedIn: "root",
+	providedIn: "root"
 })
 export class NotificationService {
-  private notificationStream = new Subject<Notification>();
+	private notificationStream = new Subject<Notification>();
 
-  getNotificationStream(): Observable<Notification> {
-    return this.notificationStream.asObservable();
-  }
+	getNotificationStream(): Observable<Notification> {
+		return this.notificationStream.asObservable();
+	}
 
-  sendNotification(notification: Notification) {
-    this.notificationStream.next(notification);
-  }
+	sendNotification(notification: Notification) {
+		this.notificationStream.next(notification);
+	}
 
-  success(message: string) {
-    this.sendNotification({ type: "success", message });
-  }
+	success(message: string) {
+		this.sendNotification({ type: "success", message });
+	}
 
-  info(message: string) {
-    this.sendNotification({ type: "info", message });
-  }
+	info(message: string) {
+		this.sendNotification({ type: "info", message });
+	}
 
-  error(message: string) {
-    this.sendNotification({ type: "error", message });
-  }
+	error(message: string) {
+		this.sendNotification({ type: "error", message });
+	}
 
-  warning(message: string) {
-    this.sendNotification({ type: "warning", message });
-  }
+	warning(message: string) {
+		this.sendNotification({ type: "warning", message });
+	}
 
-  loading(message: string) {
-    return this.sendNotification({ type: "loading", message });
-  }
+	loading(message: string) {
+		return this.sendNotification({ type: "loading", message });
+	}
 }

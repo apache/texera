@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 import {
-  HttpClientTestingModule,
-  HttpTestingController,
+	HttpClientTestingModule,
+	HttpTestingController
 } from "@angular/common/http/testing";
 import { SchemaPropagationService } from "../../../service/dynamic-schema/schema-propagation/schema-propagation.service";
 
@@ -15,36 +15,36 @@ import { WorkflowUtilService } from "../../../service/workflow-graph/util/workfl
 import { LoggerModule } from "ngx-logger";
 
 describe("TypecastingDisplayComponent", () => {
-  let component: TypeCastingDisplayComponent;
-  let fixture: ComponentFixture<TypeCastingDisplayComponent>;
+	let component: TypeCastingDisplayComponent;
+	let fixture: ComponentFixture<TypeCastingDisplayComponent>;
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        imports: [HttpClientTestingModule, LoggerModule.forRoot(undefined)],
-        providers: [
-          {
-            provide: OperatorMetadataService,
-            useClass: StubOperatorMetadataService,
-          },
-          JointUIService,
-          UndoRedoService,
-          WorkflowUtilService,
-          WorkflowActionService,
-          SchemaPropagationService,
-        ],
-        declarations: [TypeCastingDisplayComponent],
-      }).compileComponents();
-    })
-  );
+	beforeEach(
+		waitForAsync(() => {
+			TestBed.configureTestingModule({
+				imports: [HttpClientTestingModule, LoggerModule.forRoot(undefined)],
+				providers: [
+					{
+						provide: OperatorMetadataService,
+						useClass: StubOperatorMetadataService
+					},
+					JointUIService,
+					UndoRedoService,
+					WorkflowUtilService,
+					WorkflowActionService,
+					SchemaPropagationService
+				],
+				declarations: [TypeCastingDisplayComponent]
+			}).compileComponents();
+		})
+	);
 
-  beforeEach(() => {
-    fixture = TestBed.createComponent(TypeCastingDisplayComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-  });
+	beforeEach(() => {
+		fixture = TestBed.createComponent(TypeCastingDisplayComponent);
+		component = fixture.componentInstance;
+		fixture.detectChanges();
+	});
 
-  it("should create", () => {
-    expect(component).toBeTruthy();
-  });
+	it("should create", () => {
+		expect(component).toBeTruthy();
+	});
 });

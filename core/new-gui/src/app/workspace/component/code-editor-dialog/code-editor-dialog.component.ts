@@ -13,40 +13,40 @@ import { OperatorPredicate } from "../../types/workflow-common.interface";
  * @author Xiaozhen Liu
  */
 @Component({
-  selector: "texera-code-editor-dialog",
-  templateUrl: "./code-editor-dialog.component.html",
-  styleUrls: ["./code-editor-dialog.component.scss"],
+	selector: "texera-code-editor-dialog",
+	templateUrl: "./code-editor-dialog.component.html",
+	styleUrls: ["./code-editor-dialog.component.scss"]
 })
 export class CodeEditorDialogComponent {
-  editorOptions = {
-    theme: "vs-dark",
-    language: "python",
-    fontSize: "11",
-    automaticLayout: true,
-  };
-  code: string;
+	editorOptions = {
+		theme: "vs-dark",
+		language: "python",
+		fontSize: "11",
+		automaticLayout: true
+	};
+	code: string;
 
-  constructor(
-    private dialogRef: MatDialogRef<CodeEditorDialogComponent>,
-    @Inject(MAT_DIALOG_DATA) code: any,
-    private workflowActionService: WorkflowActionService
-  ) {
-    this.code = code;
-  }
+	constructor(
+		private dialogRef: MatDialogRef<CodeEditorDialogComponent>,
+		@Inject(MAT_DIALOG_DATA) code: any,
+		private workflowActionService: WorkflowActionService
+	) {
+		this.code = code;
+	}
 
-  onCodeChange(code: string): void {
-    this.code = code;
-    // here the assumption is the operator being edited must be highlighted
-    const currentOperatorId: string = this.workflowActionService
-      .getJointGraphWrapper()
-      .getCurrentHighlightedOperatorIDs()[0];
-    const currentOperatorPredicate: OperatorPredicate =
-      this.workflowActionService
-        .getTexeraGraph()
-        .getOperator(currentOperatorId);
-    this.workflowActionService.setOperatorProperty(currentOperatorId, {
-      ...currentOperatorPredicate.operatorProperties,
-      code,
-    });
-  }
+	onCodeChange(code: string): void {
+		this.code = code;
+		// here the assumption is the operator being edited must be highlighted
+		const currentOperatorId: string = this.workflowActionService
+			.getJointGraphWrapper()
+			.getCurrentHighlightedOperatorIDs()[0];
+		const currentOperatorPredicate: OperatorPredicate =
+			this.workflowActionService
+				.getTexeraGraph()
+				.getOperator(currentOperatorId);
+		this.workflowActionService.setOperatorProperty(currentOperatorId, {
+			...currentOperatorPredicate.operatorProperties,
+			code
+		});
+	}
 }

@@ -13,38 +13,38 @@ import { UndoRedoService } from "../../../service/undo-redo/undo-redo.service";
 import { WorkflowUtilService } from "../../../service/workflow-graph/util/workflow-util.service";
 
 describe("MiniMapComponent", () => {
-  let component: MiniMapComponent;
-  let fixture: ComponentFixture<MiniMapComponent>;
-  let workflowActionService: WorkflowActionService;
+	let component: MiniMapComponent;
+	let fixture: ComponentFixture<MiniMapComponent>;
+	let workflowActionService: WorkflowActionService;
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        declarations: [MiniMapComponent, WorkflowEditorComponent],
-        providers: [
-          WorkflowActionService,
-          WorkflowUtilService,
-          JointUIService,
-          UndoRedoService,
-          {
-            provide: OperatorMetadataService,
-            useClass: StubOperatorMetadataService,
-          },
-        ],
-        imports: [HttpClientTestingModule],
-      }).compileComponents();
-    })
-  );
+	beforeEach(
+		waitForAsync(() => {
+			TestBed.configureTestingModule({
+				declarations: [MiniMapComponent, WorkflowEditorComponent],
+				providers: [
+					WorkflowActionService,
+					WorkflowUtilService,
+					JointUIService,
+					UndoRedoService,
+					{
+						provide: OperatorMetadataService,
+						useClass: StubOperatorMetadataService
+					}
+				],
+				imports: [HttpClientTestingModule]
+			}).compileComponents();
+		})
+	);
 
-  beforeEach(() => {
-    fixture = TestBed.createComponent(MiniMapComponent);
-    component = fixture.componentInstance;
+	beforeEach(() => {
+		fixture = TestBed.createComponent(MiniMapComponent);
+		component = fixture.componentInstance;
 
-    workflowActionService = TestBed.inject(WorkflowActionService);
-    fixture.detectChanges();
-  });
+		workflowActionService = TestBed.inject(WorkflowActionService);
+		fixture.detectChanges();
+	});
 
-  it("should create", () => {
-    expect(component).toBeTruthy();
-  });
+	it("should create", () => {
+		expect(component).toBeTruthy();
+	});
 });

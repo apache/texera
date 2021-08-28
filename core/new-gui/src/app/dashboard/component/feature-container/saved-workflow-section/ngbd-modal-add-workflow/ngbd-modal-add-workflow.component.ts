@@ -9,29 +9,29 @@ import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
  * @author Zhaomin Li
  */
 @Component({
-  selector: "texera-add-workflow-section-modal",
-  templateUrl: "ngbd-modal-add-workflow.component.html",
-  styleUrls: [
-    "../../../dashboard.component.scss",
-    "ngbd-modal-add-workflow.component.scss",
-  ],
+	selector: "texera-add-workflow-section-modal",
+	templateUrl: "ngbd-modal-add-workflow.component.html",
+	styleUrls: [
+		"../../../dashboard.component.scss",
+		"ngbd-modal-add-workflow.component.scss"
+	]
 })
 export class NgbdModalAddWorkflowComponent {
-  public name: string = "";
+	public name: string = "";
 
-  constructor(public activeModal: NgbActiveModal) {}
+	constructor(public activeModal: NgbActiveModal) {}
 
-  /**
-   * addWorkflow records the workflow information and return
-   * it to the main component. It does not call any method in service.
-   *
-   * @param
-   */
-  public addWorkflow(): void {
-    if (this.name !== "") {
-      this.activeModal.close(this.name);
-    } else {
-      $("#warning").text("Please input the workflow name!");
-    }
-  }
+	/**
+	 * addWorkflow records the workflow information and return
+	 * it to the main component. It does not call any method in service.
+	 *
+	 * @param
+	 */
+	public addWorkflow(): void {
+		if (this.name !== "") {
+			this.activeModal.close(this.name);
+		} else {
+			$("#warning").text("Please input the workflow name!");
+		}
+	}
 }

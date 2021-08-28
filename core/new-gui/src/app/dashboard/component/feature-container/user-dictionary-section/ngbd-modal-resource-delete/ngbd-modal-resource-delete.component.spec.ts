@@ -9,33 +9,33 @@ import { HttpClientModule } from "@angular/common/http";
 import { NgbdModalResourceDeleteComponent } from "./ngbd-modal-resource-delete.component";
 
 describe("NgbdModalResourceDeleteComponent", () => {
-  let component: NgbdModalResourceDeleteComponent;
-  let fixture: ComponentFixture<NgbdModalResourceDeleteComponent>;
+	let component: NgbdModalResourceDeleteComponent;
+	let fixture: ComponentFixture<NgbdModalResourceDeleteComponent>;
 
-  let deletecomponent: NgbdModalResourceDeleteComponent;
-  let deletefixture: ComponentFixture<NgbdModalResourceDeleteComponent>;
+	let deletecomponent: NgbdModalResourceDeleteComponent;
+	let deletefixture: ComponentFixture<NgbdModalResourceDeleteComponent>;
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        declarations: [NgbdModalResourceDeleteComponent],
-        providers: [NgbActiveModal],
-        imports: [
-          CustomNgMaterialModule,
-          NgbModule,
-          FormsModule,
-          HttpClientModule,
-        ],
-      }).compileComponents();
-    })
-  );
+	beforeEach(
+		waitForAsync(() => {
+			TestBed.configureTestingModule({
+				declarations: [NgbdModalResourceDeleteComponent],
+				providers: [NgbActiveModal],
+				imports: [
+					CustomNgMaterialModule,
+					NgbModule,
+					FormsModule,
+					HttpClientModule
+				]
+			}).compileComponents();
+		})
+	);
 
-  beforeEach(() => {
-    fixture = TestBed.createComponent(NgbdModalResourceDeleteComponent);
-    component = fixture.componentInstance;
-  });
+	beforeEach(() => {
+		fixture = TestBed.createComponent(NgbdModalResourceDeleteComponent);
+		component = fixture.componentInstance;
+	});
 
-  it("should create", () => {
-    expect(component).toBeTruthy();
-  });
+	it("should create", () => {
+		expect(component).toBeTruthy();
+	});
 });

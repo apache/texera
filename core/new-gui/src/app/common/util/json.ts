@@ -11,15 +11,14 @@ import { IndexableObject } from "../../workspace/types/result-table.interface";
 import deepMap from "deep-map";
 
 export function trimDisplayJsonData(
-  rowData: IndexableObject,
-  maxLen: number
-): object {
-  const rowDataTrimmed = deepMap<object>(rowData, (value) => {
-    if (typeof value === "string" && value.length > maxLen) {
-      return value.substring(0, maxLen) + "...";
-    } else {
-      return value;
-    }
-  });
-  return rowDataTrimmed;
+	rowData: IndexableObject,
+	maxLen: number
+): Record<string, unknown> {
+	return deepMap<Record<string, unknown>>(rowData, (value) => {
+		if (typeof value === "string" && value.length > maxLen) {
+			return value.substring(0, maxLen) + "...";
+		} else {
+			return value;
+		}
+	});
 }
