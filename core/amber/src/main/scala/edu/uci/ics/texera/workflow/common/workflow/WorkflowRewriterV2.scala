@@ -25,7 +25,6 @@ object WorkflowRewriterV2 {
 
 class WorkflowRewriterV2(
     var workflowInfo: WorkflowInfo,
-    var operatorOutputCache: mutable.HashMap[String, mutable.MutableList[Tuple]],
     var cachedOperatorDescriptors: mutable.HashMap[String, OperatorDescriptor],
     var cacheSourceOperatorDescriptors: mutable.HashMap[String, CacheSourceOpDescV2],
     var cacheSinkOperatorDescriptors: mutable.HashMap[String, CacheSinkOpDescV2],
@@ -267,7 +266,6 @@ class WorkflowRewriterV2(
   }
 
   private def invalidateOperatorCache(id: String): Unit = {
-    operatorOutputCache.remove(id)
     cachedOperatorDescriptors.remove(id)
     logger.info("Operator {} cache invalidated.", id)
   }
@@ -364,7 +362,6 @@ class WorkflowRewriterV2(
 
   private def isCacheEnabled(operatorDescriptor: OperatorDescriptor): Boolean = {
     if (!workflowInfo.cachedOperatorIDs.contains(operatorDescriptor.operatorID)) {
-      operatorOutputCache.remove(operatorDescriptor.operatorID)
       cachedOperatorDescriptors.remove(operatorDescriptor.operatorID)
       logger.info("Operator {} cache not enabled.", operatorDescriptor)
       return false

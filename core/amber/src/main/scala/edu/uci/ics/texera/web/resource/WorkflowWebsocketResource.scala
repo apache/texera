@@ -186,16 +186,12 @@ class WorkflowWebsocketResource {
       return
     }
     sessionCacheSinkOperators(session.getId).values.foreach(op => opResultStorage.remove(op.uuid))
-    sessionOperatorOutputCache.remove(session.getId)
     sessionCachedOperators.remove(session.getId)
     sessionCacheSourceOperators.remove(session.getId)
     sessionCacheSinkOperators.remove(session.getId)
     sessionOperatorRecord.remove(session.getId)
   }
 
-  val sessionOperatorOutputCache
-      : mutable.HashMap[String, mutable.HashMap[String, mutable.MutableList[Tuple]]] =
-    mutable.HashMap[String, mutable.HashMap[String, mutable.MutableList[Tuple]]]()
   val sessionCachedOperators: mutable.HashMap[String, mutable.HashMap[String, OperatorDescriptor]] =
     mutable.HashMap[String, mutable.HashMap[String, OperatorDescriptor]]()
   val sessionCacheSourceOperators
@@ -210,13 +206,6 @@ class WorkflowWebsocketResource {
   val opResultStorage = new MongoOpResultStorage()
 
   def executeWorkflow(session: Session, request: ExecuteWorkflowRequest): Unit = {
-    var operatorOutputCache: mutable.HashMap[String, mutable.MutableList[Tuple]] = null
-    if (!sessionOperatorOutputCache.contains(session.getId)) {
-      operatorOutputCache = mutable.HashMap[String, mutable.MutableList[Tuple]]()
-      sessionOperatorOutputCache += ((session.getId, operatorOutputCache))
-    } else {
-      operatorOutputCache = sessionOperatorOutputCache(session.getId)
-    }
     var cachedOperators: mutable.HashMap[String, OperatorDescriptor] = null
     if (!sessionCachedOperators.contains(session.getId)) {
       cachedOperators = mutable.HashMap[String, OperatorDescriptor]()
@@ -277,7 +266,6 @@ class WorkflowWebsocketResource {
     logger.info("request.cachedOperatorIDs: {}.", request.cachedOperatorIDs)
     val workflowRewriter = new WorkflowRewriterV2(
       workflowInfo,
-      operatorOutputCache,
       cachedOperators,
       cacheSourceOperators,
       cacheSinkOperators,
