@@ -5,7 +5,9 @@ import {
   NotificationService
 } from "../../../service/notification/notification.service";
 import { Subscription } from "rxjs";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
+@UntilDestroy()
 @Component({
   selector: "texera-notification",
   templateUrl: "./notification.component.html",
@@ -23,6 +25,7 @@ export class NotificationComponent implements OnInit, OnDestroy {
     this.subscriptions.add(
       this.notificationService
         .getNotificationStream()
+        .pipe(untilDestroyed(this))
         .subscribe((notification: Notification) => {
           if (notification.type === "success") {
             this.message.success(notification.message);

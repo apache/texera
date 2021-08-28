@@ -10,12 +10,14 @@ import {
 import { Subscription } from "rxjs";
 
 import { OperatorSchema } from "../../../types/operator-schema.interface";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 /**
  * OperatorLabelComponent is one operator box in the operator panel.
  *
  * @author Zuozhi Wang
  */
+@UntilDestroy()
 @Component({
   selector: "texera-operator-label",
   templateUrl: "./operator-label.component.html",
@@ -112,6 +114,7 @@ export class OperatorLabelComponent
   private handleWorkFlowModificationEnabled(): Subscription {
     return this.workflowActionService
       .getWorkflowModificationEnabledStream()
+      .pipe(untilDestroyed(this))
       .subscribe((canModify) => {
         this.draggable = canModify;
       });

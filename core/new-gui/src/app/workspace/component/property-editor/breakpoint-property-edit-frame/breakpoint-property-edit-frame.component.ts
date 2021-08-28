@@ -18,6 +18,7 @@ import { FormlyFieldConfig, FormlyFormOptions } from "@ngx-formly/core";
 import { CustomJSONSchema7 } from "../../../types/custom-json-schema.interface";
 import { createOutputFormChangeEventStream } from "src/app/common/formly/formly-utils";
 import { filter } from "rxjs/operators";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 /**
  * Property Editor uses JSON Schema to automatically generate the form from the JSON Schema of an operator.
@@ -35,13 +36,15 @@ import { filter } from "rxjs/operators";
  * We use library `@ngx-formly` to generate form from json schema
  * https://github.com/ngx-formly/ngx-formly
  */
+@UntilDestroy()
 @Component({
   selector: "texera-breakpoint-frame",
   templateUrl: "./breakpoint-property-edit-frame.component.html",
   styleUrls: ["./breakpoint-property-edit-frame.component.scss"]
 })
 export class BreakpointPropertyEditFrameComponent
-  implements OnInit, OnDestroy, OnChanges {
+  implements OnInit, OnDestroy, OnChanges
+{
   subscriptions = new Subscription();
 
   @Input() currentLinkId: string | undefined;
@@ -253,6 +256,7 @@ export class BreakpointPropertyEditFrameComponent
               )
           )
         )
+        .pipe(untilDestroyed(this))
         .subscribe(
           (event) =>
             (this.formData = cloneDeep(

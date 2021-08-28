@@ -15,6 +15,7 @@ import { DragDropService } from "../../service/drag-drop/drag-drop.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { OperatorLabelComponent } from "./operator-label/operator-label.component";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 /**
  * OperatorPanelComponent is the left-side panel that shows the operators.
@@ -31,6 +32,7 @@ import { OperatorLabelComponent } from "./operator-label/operator-label.componen
  * @author Zuozhi Wang
  *
  */
+@UntilDestroy()
 @Component({
   selector: "texera-operator-panel",
   templateUrl: "./operator-panel.component.html",
@@ -86,15 +88,18 @@ export class OperatorPanelComponent implements OnInit {
       })
     );
     // clear the search box if an operator is dropped from operator search box
-    this.dragDropService.getOperatorDropStream().subscribe((event) => {
-      if (
-        OperatorLabelComponent.isOperatorLabelElementFromSearchBox(
-          event.dragElementID
-        )
-      ) {
-        this.operatorSearchFormControl.setValue("");
-      }
-    });
+    this.dragDropService
+      .getOperatorDropStream()
+      .pipe(untilDestroyed(this))
+      .subscribe((event) => {
+        if (
+          OperatorLabelComponent.isOperatorLabelElementFromSearchBox(
+            event.dragElementID
+          )
+        ) {
+          this.operatorSearchFormControl.setValue("");
+        }
+      });
   }
 
   ngOnInit() {
@@ -103,6 +108,7 @@ export class OperatorPanelComponent implements OnInit {
     //   after the data is fetched, it will be passed through this observable
     this.operatorMetadataService
       .getOperatorMetadata()
+      .pipe(untilDestroyed(this))
       .subscribe((value) => this.processOperatorMetadata(value));
   }
 

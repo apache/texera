@@ -4,7 +4,9 @@ import { FormBuilder, Validators } from "@angular/forms";
 import { UserFileService } from "../../../../service/user-file/user-file.service";
 import { DashboardUserFileEntry } from "../../../../type/dashboard-user-file-entry";
 import { AccessEntry } from "../../../../type/access.interface";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
+@UntilDestroy()
 @Component({
   selector: "texera-ngbd-modal-file-share-access",
   templateUrl: "./ngbd-modal-user-file-share-access.component.html",
@@ -43,6 +45,7 @@ export class NgbdModalUserFileShareAccessComponent implements OnInit {
   ): void {
     this.userFileService
       .getUserFileAccessList(dashboardUserFileEntry)
+      .pipe(untilDestroyed(this))
       .subscribe(
         (userFileAccess: ReadonlyArray<AccessEntry>) => {
           const newAccessList: AccessEntry[] = [];
@@ -55,7 +58,8 @@ export class NgbdModalUserFileShareAccessComponent implements OnInit {
           });
           this.allUserFileAccess = newAccessList;
         },
-        (err) => console.log(err.error)
+        // @ts-ignore // TODO: fix this with notification component
+        (err: unknown) => console.log(err.error)
       );
   }
 
@@ -78,9 +82,11 @@ export class NgbdModalUserFileShareAccessComponent implements OnInit {
     const accessLevel = this.shareForm.get("accessLevel")?.value;
     this.userFileService
       .grantUserFileAccess(dashboardUserFileEntry, userToShareWith, accessLevel)
+      .pipe(untilDestroyed(this))
       .subscribe(
         () => this.refreshGrantedUserFileAccessList(dashboardUserFileEntry),
-        (err) => alert(err.error)
+        // @ts-ignore // TODO: fix this with notification component
+        (err: unknown) => alert(err.error)
       );
   }
 
@@ -95,9 +101,11 @@ export class NgbdModalUserFileShareAccessComponent implements OnInit {
   ): void {
     this.userFileService
       .revokeUserFileAccess(dashboardUserFileEntry, userNameToRemove)
+      .pipe(untilDestroyed(this))
       .subscribe(
         () => this.refreshGrantedUserFileAccessList(dashboardUserFileEntry),
-        (err) => alert(err.error)
+        // @ts-ignore // TODO: fix this with notification component
+        (err: unknown) => alert(err.error)
       );
   }
 

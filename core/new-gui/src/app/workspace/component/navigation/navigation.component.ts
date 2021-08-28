@@ -16,6 +16,7 @@ import { WorkflowWebsocketService } from "../../service/workflow-websocket/workf
 import { merge } from "rxjs";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
 import { debounceTime } from "rxjs/operators";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -32,6 +33,7 @@ import { debounceTime } from "rxjs/operators";
  * @author Henry Chen
  *
  */
+@UntilDestroy()
 @Component({
   selector: "texera-navigation",
   templateUrl: "./navigation.component.html",
@@ -87,16 +89,20 @@ export class NavigationComponent {
     this.onClickRunHandler = initBehavior.onClick;
     // this.currentWorkflowName = this.workflowCacheService.getCachedWorkflow();
 
-    executeWorkflowService.getExecutionStateStream().subscribe((event) => {
-      this.executionState = event.current.state;
-      this.applyRunButtonBehavior(
-        this.getRunButtonBehavior(this.executionState, this.isWorkflowValid)
-      );
-    });
+    executeWorkflowService
+      .getExecutionStateStream()
+      .pipe(untilDestroyed(this))
+      .subscribe((event) => {
+        this.executionState = event.current.state;
+        this.applyRunButtonBehavior(
+          this.getRunButtonBehavior(this.executionState, this.isWorkflowValid)
+        );
+      });
 
     // set the map of operatorStatusMap
     validationWorkflowService
       .getWorkflowValidationErrorStream()
+      .pipe(untilDestroyed(this))
       .subscribe((value) => {
         this.isWorkflowValid = Object.keys(value.errors).length === 0;
         this.applyRunButtonBehavior(
@@ -378,12 +384,13 @@ export class NavigationComponent {
     this.isSaving = true;
     this.workflowPersistService
       .persistWorkflow(this.workflowActionService.getWorkflow())
+      .pipe(untilDestroyed(this))
       .subscribe(
         (updatedWorkflow: Workflow) => {
           this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
           this.isSaving = false;
         },
-        (error) => {
+        (error: unknown) => {
           alert(error);
           this.isSaving = false;
         }
@@ -409,6 +416,7 @@ export class NavigationComponent {
     this.workflowActionService
       .workflowMetaDataChanged()
       .pipe(debounceTime(100))
+      .pipe(untilDestroyed(this))
       .subscribe(() => {
         this.currentWorkflowName =
           this.workflowActionService.getWorkflowMetadata()?.name;
@@ -449,17 +457,19 @@ export class NavigationComponent {
       this.workflowActionService
         .getTexeraGraph()
         .getDisabledOperatorsChangedStream()
-    ).subscribe((event) => {
-      const effectiveHighlightedOperators =
-        this.effectivelyHighlightedOperators();
-      const allDisabled = this.effectivelyHighlightedOperators().every((op) =>
-        this.workflowActionService.getTexeraGraph().isOperatorDisabled(op)
-      );
+    )
+      .pipe(untilDestroyed(this))
+      .subscribe((event) => {
+        const effectiveHighlightedOperators =
+          this.effectivelyHighlightedOperators();
+        const allDisabled = this.effectivelyHighlightedOperators().every((op) =>
+          this.workflowActionService.getTexeraGraph().isOperatorDisabled(op)
+        );
 
-      this.isDisableOperator = !allDisabled;
-      this.isDisableOperatorClickable =
-        effectiveHighlightedOperators.length !== 0;
-    });
+        this.isDisableOperator = !allDisabled;
+        this.isDisableOperatorClickable =
+          effectiveHighlightedOperators.length !== 0;
+      });
   }
 
   /**

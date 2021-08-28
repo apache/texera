@@ -4,7 +4,9 @@ import { FormBuilder, Validators } from "@angular/forms";
 import { WorkflowAccessService } from "../../../../service/workflow-access/workflow-access.service";
 import { Workflow } from "../../../../../common/type/workflow";
 import { AccessEntry } from "../../../../type/access.interface";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
+@UntilDestroy()
 @Component({
   selector: "texera-ngbd-modal-share-access",
   templateUrl: "./ngbd-modal-workflow-share-access.component.html",
@@ -45,13 +47,16 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
   public refreshGrantedList(workflow: Workflow): void {
     this.workflowGrantAccessService
       .retrieveGrantedWorkflowAccessList(workflow)
+      .pipe(untilDestroyed(this))
       .subscribe(
         (userWorkflowAccess: ReadonlyArray<AccessEntry>) =>
           (this.allUserWorkflowAccess = userWorkflowAccess),
-        (err) => console.log(err.error)
+        // @ts-ignore // TODO: fix this with notification component
+        (err: unknown) => console.log(err.error)
       );
     this.workflowGrantAccessService
       .getWorkflowOwner(workflow)
+      .pipe(untilDestroyed(this))
       .subscribe(({ ownerName }) => {
         this.workflowOwner = ownerName;
       });
@@ -70,9 +75,11 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
   ): void {
     this.workflowGrantAccessService
       .grantUserWorkflowAccess(workflow, userToShareWith, accessLevel)
+      .pipe(untilDestroyed(this))
       .subscribe(
         () => this.refreshGrantedList(workflow),
-        (err) => alert(err.error)
+        // @ts-ignore // TODO: fix this with notification component
+        (err: unknown) => alert(err.error)
       );
   }
 
@@ -102,9 +109,11 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
   public onClickRemoveAccess(workflow: Workflow, userToRemove: string): void {
     this.workflowGrantAccessService
       .revokeWorkflowAccess(workflow, userToRemove)
+      .pipe(untilDestroyed(this))
       .subscribe(
         () => this.refreshGrantedList(workflow),
-        (err) => alert(err.error)
+        // @ts-ignore // TODO: fix this with notification component
+        (err: unknown) => alert(err.error)
       );
   }
 

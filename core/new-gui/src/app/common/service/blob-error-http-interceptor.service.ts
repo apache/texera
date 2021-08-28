@@ -16,7 +16,7 @@ export class BlobErrorHttpInterceptor implements HttpInterceptor {
     next: HttpHandler
   ): Observable<HttpEvent<any>> {
     return next.handle(req).pipe(
-      catchError((err) => {
+      catchError((err: unknown) => {
         if (
           err instanceof HttpErrorResponse &&
           err.error instanceof Blob &&

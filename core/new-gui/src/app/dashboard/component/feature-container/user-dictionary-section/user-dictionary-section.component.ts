@@ -9,6 +9,7 @@ import { NgbdModalResourceViewComponent } from "./ngbd-modal-resource-view/ngbd-
 import { UserDictionary } from "../../../../common/type/user-dictionary";
 import { UserDictionaryService } from "../../../service/user-dictionary/user-dictionary.service";
 import { UserService } from "../../../../common/service/user/user.service";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 const DICTIONARY_ITEM_PREVIEW_SIZE = 20;
 
@@ -20,6 +21,7 @@ const DICTIONARY_ITEM_PREVIEW_SIZE = 20;
  *
  * @author Zhaomin Li
  */
+@UntilDestroy()
 @Component({
   selector: "texera-user-dictionary-section",
   templateUrl: "./user-dictionary-section.component.html",
@@ -83,11 +85,13 @@ export class UserDictionarySectionComponent {
     const modalRef = this.modalService.open(NgbdModalResourceDeleteComponent);
     modalRef.componentInstance.dictionary = cloneDeep(dictionary);
 
-    from(modalRef.result).subscribe((confirmDelete: boolean) => {
-      if (confirmDelete) {
-        this.userDictionaryService.deleteDictionary(dictionary.id);
-      }
-    });
+    from(modalRef.result)
+      .pipe(untilDestroyed(this))
+      .subscribe((confirmDelete: boolean) => {
+        if (confirmDelete) {
+          this.userDictionaryService.deleteDictionary(dictionary.id);
+        }
+      });
   }
 
   /**

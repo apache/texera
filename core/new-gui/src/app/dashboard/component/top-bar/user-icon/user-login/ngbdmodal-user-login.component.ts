@@ -10,12 +10,14 @@ import {
 } from "@angular/forms";
 import { isDefined } from "../../../../../common/util/predicate";
 import { filter } from "rxjs/operators";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 /**
  * NgbdModalUserLoginComponent is the pop up for user login/registration
  *
  * @author Adam
  */
+@UntilDestroy()
 @Component({
   selector: "texera-ngbdmodal-user-login",
   templateUrl: "./ngbdmodal-user-login.component.html",
@@ -80,13 +82,16 @@ export class NgbdModalUserLoginComponent implements OnInit {
     const normalUserPassword = this.allForms.get("loginPassword")?.value;
 
     // validate the credentials with backend
-    this.userService.login(normalUserName, normalUserPassword).subscribe(
-      () => {
-        this.userService.changeUser(<User>{ name: normalUserName });
-        this.activeModal.close();
-      },
-      () => (this.loginErrorMessage = "Incorrect credentials")
-    );
+    this.userService
+      .login(normalUserName, normalUserPassword)
+      .pipe(untilDestroyed(this))
+      .subscribe(
+        () => {
+          this.userService.changeUser(<User>{ name: normalUserName });
+          this.activeModal.close();
+        },
+        () => (this.loginErrorMessage = "Incorrect credentials")
+      );
   }
 
   /**
@@ -119,15 +124,18 @@ export class NgbdModalUserLoginComponent implements OnInit {
       return;
     }
     // register the credentials with backend
-    this.userService.register(registerUserName, registerPassword).subscribe(
-      () => {
-        this.userService.changeUser(<User>{ name: registerUserName });
-        this.activeModal.close();
-      },
-      () =>
-        (this.registerErrorMessage =
-          "Registration failed. Could due to duplicate username.")
-    );
+    this.userService
+      .register(registerUserName, registerPassword)
+      .pipe(untilDestroyed(this))
+      .subscribe(
+        () => {
+          this.userService.changeUser(<User>{ name: registerUserName });
+          this.activeModal.close();
+        },
+        () =>
+          (this.registerErrorMessage =
+            "Registration failed. Could due to duplicate username.")
+      );
   }
 
   /**
@@ -136,18 +144,24 @@ export class NgbdModalUserLoginComponent implements OnInit {
    * then sending the code to the backend
    */
   public authenticate(): void {
-    this.userService.getGoogleAuthInstance().subscribe((Auth) => {
-      // grantOfflineAccess allows application to access specified scopes offline
-      Auth.grantOfflineAccess().then((code) =>
-        this.userService.googleLogin(code["code"]).subscribe(
-          (googleUser) => {
-            this.userService.changeUser(<User>{ name: googleUser.name });
-            this.activeModal.close();
-          },
-          () => (this.loginErrorMessage = "Incorrect credentials")
-        )
-      );
-    });
+    this.userService
+      .getGoogleAuthInstance()
+      .pipe(untilDestroyed(this))
+      .subscribe((Auth) => {
+        // grantOfflineAccess allows application to access specified scopes offline
+        Auth.grantOfflineAccess().then((code) =>
+          this.userService
+            .googleLogin(code["code"])
+            .pipe(untilDestroyed(this))
+            .subscribe(
+              (googleUser) => {
+                this.userService.changeUser(<User>{ name: googleUser.name });
+                this.activeModal.close();
+              },
+              () => (this.loginErrorMessage = "Incorrect credentials")
+            )
+        );
+      });
   }
 
   /**
@@ -158,6 +172,7 @@ export class NgbdModalUserLoginComponent implements OnInit {
     this.userService
       .userChanged()
       .pipe(filter(isDefined))
+      .pipe(untilDestroyed(this))
       .subscribe(() => {
         this.activeModal.close();
       });

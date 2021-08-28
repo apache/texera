@@ -1,7 +1,6 @@
 import { Location } from "@angular/common";
-import { AfterViewInit, Component, OnDestroy } from "@angular/core";
+import { AfterViewInit, Component } from "@angular/core";
 import { ActivatedRoute } from "@angular/router";
-import { Subscription } from "rxjs";
 import { environment } from "../../../environments/environment";
 import { Version } from "../../../environments/version";
 import { UserService } from "../../common/service/user/user.service";
@@ -18,7 +17,9 @@ import { WorkflowWebsocketService } from "../service/workflow-websocket/workflow
 import { NzMessageService } from "ng-zorro-antd/message";
 import { WorkflowConsoleService } from "../service/workflow-console/workflow-console.service";
 import { debounceTime, filter } from "rxjs/operators";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
+@UntilDestroy()
 @Component({
   selector: "texera-workspace",
   templateUrl: "./workspace.component.html",
@@ -28,12 +29,9 @@ import { debounceTime, filter } from "rxjs/operators";
     // { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
   ]
 })
-export class WorkspaceComponent implements OnDestroy, AfterViewInit {
+export class WorkspaceComponent implements AfterViewInit {
   public gitCommitHash: string = Version.raw;
   public showResultPanel: boolean = false;
-  public userSystemEnabled: boolean = environment.userSystemEnabled;
-
-  private subscriptions: Subscription = new Subscription();
 
   constructor(
     private resultPanelToggleService: ResultPanelToggleService,
@@ -51,13 +49,7 @@ export class WorkspaceComponent implements OnDestroy, AfterViewInit {
     private route: ActivatedRoute,
     private operatorMetadataService: OperatorMetadataService,
     private message: NzMessageService
-  ) {
-    this.subscriptions.add(
-      this.resultPanelToggleService
-        .getToggleChangeStream()
-        .subscribe((value) => (this.showResultPanel = value))
-    );
-  }
+  ) {}
 
   ngAfterViewInit(): void {
     /**
@@ -86,17 +78,17 @@ export class WorkspaceComponent implements OnDestroy, AfterViewInit {
     this.operatorMetadataService
       .getOperatorMetadata()
       .pipe(filter((metadata) => metadata.operators.length !== 0))
+      .pipe(untilDestroyed(this))
       .subscribe(() => {
         if (environment.userSystemEnabled) {
           // load workflow with wid if presented in the URL
           if (this.route.snapshot.params.id) {
             const wid = this.route.snapshot.params.id;
             // if wid is present in the url, load it from the backend
-            this.subscriptions.add(
-              this.userService
-                .userChanged()
-                .subscribe(() => this.loadWorkflowWithId(wid))
-            );
+            this.userService
+              .userChanged()
+              .pipe(untilDestroyed(this))
+              .subscribe(() => this.loadWorkflowWithId(wid));
           } else {
             // no workflow to load, pending to create a new workflow
           }
@@ -114,62 +106,64 @@ export class WorkspaceComponent implements OnDestroy, AfterViewInit {
           this.registerAutoCacheWorkFlow();
         }
       });
-  }
 
-  public ngOnDestroy(): void {
-    this.subscriptions.unsubscribe();
+    this.resultPanelToggleService
+      .getToggleChangeStream()
+      .pipe(untilDestroyed(this))
+      .subscribe((value) => (this.showResultPanel = value));
   }
 
   private registerAutoCacheWorkFlow(): void {
-    this.subscriptions.add(
-      this.workflowActionService
-        .workflowChanged()
-        .pipe(debounceTime(100))
-        .subscribe(() => {
-          this.workflowCacheService.setCacheWorkflow(
-            this.workflowActionService.getWorkflow()
-          );
-        })
-    );
+    this.workflowActionService
+      .workflowChanged()
+      .pipe(debounceTime(100))
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.workflowCacheService.setCacheWorkflow(
+          this.workflowActionService.getWorkflow()
+        );
+      });
   }
 
   private registerAutoPersistWorkflow(): void {
-    this.subscriptions.add(
-      this.workflowActionService
-        .workflowChanged()
-        .pipe(debounceTime(100))
-        .subscribe(() => {
-          if (this.userService.isLogin()) {
-            this.workflowPersistService
-              .persistWorkflow(this.workflowActionService.getWorkflow())
-              .subscribe((updatedWorkflow: Workflow) => {
-                this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
-                this.location.go(`/workflow/${updatedWorkflow.wid}`);
-              });
-            // to sync up with the updated information, such as workflow.wid
-          }
-        })
-    );
+    this.workflowActionService
+      .workflowChanged()
+      .pipe(debounceTime(100))
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        if (this.userService.isLogin()) {
+          this.workflowPersistService
+            .persistWorkflow(this.workflowActionService.getWorkflow())
+            .subscribe((updatedWorkflow: Workflow) => {
+              this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
+              this.location.go(`/workflow/${updatedWorkflow.wid}`);
+            });
+          // to sync up with the updated information, such as workflow.wid
+        }
+      });
   }
 
   private loadWorkflowWithId(wid: number): void {
     // disable the workspace until the workflow is fetched from the backend
     this.workflowActionService.disableWorkflowModification();
-    this.workflowPersistService.retrieveWorkflow(wid).subscribe(
-      (workflow: Workflow) => {
-        // enable workspace for modification
-        this.workflowActionService.enableWorkflowModification();
-        // load the fetched workflow
-        this.workflowActionService.reloadWorkflow(workflow);
-        // clear stack
-        this.undoRedoService.clearUndoStack();
-        this.undoRedoService.clearRedoStack();
-      },
-      () => {
-        this.message.error(
-          "You don't have access to this workflow, please log in with an appropriate account"
-        );
-      }
-    );
+    this.workflowPersistService
+      .retrieveWorkflow(wid)
+      .pipe(untilDestroyed(this))
+      .subscribe(
+        (workflow: Workflow) => {
+          // enable workspace for modification
+          this.workflowActionService.enableWorkflowModification();
+          // load the fetched workflow
+          this.workflowActionService.reloadWorkflow(workflow);
+          // clear stack
+          this.undoRedoService.clearUndoStack();
+          this.undoRedoService.clearRedoStack();
+        },
+        () => {
+          this.message.error(
+            "You don't have access to this workflow, please log in with an appropriate account"
+          );
+        }
+      );
   }
 }

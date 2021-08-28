@@ -8,10 +8,12 @@ import { NgbdModalDeleteWorkflowComponent } from "./ngbd-modal-delete-workflow/n
 import { NgbdModalWorkflowShareAccessComponent } from "./ngbd-modal-share-access/ngbd-modal-workflow-share-access.component";
 import { DashboardWorkflowEntry } from "../../../type/dashboard-workflow-entry";
 import { UserService } from "../../../../common/service/user/user.service";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 export const ROUTER_WORKFLOW_BASE_URL = "/workflow";
 export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
 
+@UntilDestroy()
 @Component({
   selector: "texera-saved-workflow-section",
   templateUrl: "./saved-workflow-section.component.html",
@@ -107,14 +109,16 @@ export class SavedWorkflowSectionComponent implements OnInit {
     workflow: { wid }
   }: DashboardWorkflowEntry): void {
     if (wid) {
-      this.workflowPersistService.duplicateWorkflow(wid).subscribe(
-        (duplicatedWorkflowInfo: DashboardWorkflowEntry) => {
-          this.dashboardWorkflowEntries.push(duplicatedWorkflowInfo);
-        },
-        (err) => {
-          alert(err.error);
-        }
-      );
+      this.workflowPersistService
+        .duplicateWorkflow(wid)
+        .pipe(untilDestroyed(this))
+        .subscribe(
+          (duplicatedWorkflowInfo: DashboardWorkflowEntry) => {
+            this.dashboardWorkflowEntries.push(duplicatedWorkflowInfo);
+          },
+          // @ts-ignore // TODO: fix this with notification component
+          (err: unknown) => alert(err.error)
+        );
     }
   }
 
@@ -130,20 +134,26 @@ export class SavedWorkflowSectionComponent implements OnInit {
     const modalRef = this.modalService.open(NgbdModalDeleteWorkflowComponent);
     modalRef.componentInstance.workflow = cloneDeep(workflow);
 
-    from(modalRef.result).subscribe((confirmToDelete: boolean) => {
-      const wid = workflow.wid;
-      if (confirmToDelete && wid !== undefined) {
-        this.workflowPersistService.deleteWorkflow(wid).subscribe(
-          (_) => {
-            this.dashboardWorkflowEntries =
-              this.dashboardWorkflowEntries.filter(
-                (workflowEntry) => workflowEntry.workflow.wid !== wid
-              );
-          },
-          (err) => alert(err.error) // TODO: handle error messages properly.
-        );
-      }
-    });
+    from(modalRef.result)
+      .pipe(untilDestroyed(this))
+      .subscribe((confirmToDelete: boolean) => {
+        const wid = workflow.wid;
+        if (confirmToDelete && wid !== undefined) {
+          this.workflowPersistService
+            .deleteWorkflow(wid)
+            .pipe(untilDestroyed(this))
+            .subscribe(
+              (_) => {
+                this.dashboardWorkflowEntries =
+                  this.dashboardWorkflowEntries.filter(
+                    (workflowEntry) => workflowEntry.workflow.wid !== wid
+                  );
+              },
+              // @ts-ignore // TODO: fix this with notification component
+              (err: unknown) => alert(err.error)
+            );
+        }
+      });
   }
 
   /**
@@ -154,18 +164,22 @@ export class SavedWorkflowSectionComponent implements OnInit {
   }
 
   private registerDashboardWorkflowEntriesRefresh(): void {
-    this.userService.userChanged().subscribe(() => {
-      if (this.userService.isLogin()) {
-        this.refreshDashboardWorkflowEntries();
-      } else {
-        this.clearDashboardWorkflowEntries();
-      }
-    });
+    this.userService
+      .userChanged()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        if (this.userService.isLogin()) {
+          this.refreshDashboardWorkflowEntries();
+        } else {
+          this.clearDashboardWorkflowEntries();
+        }
+      });
   }
 
   private refreshDashboardWorkflowEntries(): void {
     this.workflowPersistService
       .retrieveWorkflowsBySessionUser()
+      .pipe(untilDestroyed(this))
       .subscribe(
         (dashboardWorkflowEntries) =>
           (this.dashboardWorkflowEntries = dashboardWorkflowEntries)
