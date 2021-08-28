@@ -9,9 +9,9 @@ import { WorkflowPersistService } from "../../common/service/workflow-persist/wo
  * @author Zhaomin Li
  */
 @Component({
-	selector: "texera-dashboard",
-	templateUrl: "./dashboard.component.html",
-	styleUrls: ["./dashboard.component.scss"],
-	providers: [WorkflowPersistService]
+  selector: "texera-dashboard",
+  templateUrl: "./dashboard.component.html",
+  styleUrls: ["./dashboard.component.scss"],
+  providers: [WorkflowPersistService]
 })
 export class DashboardComponent {}

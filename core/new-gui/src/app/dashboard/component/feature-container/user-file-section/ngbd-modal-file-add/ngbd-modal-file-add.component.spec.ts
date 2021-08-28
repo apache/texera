@@ -13,38 +13,38 @@ import { UserFileUploadService } from "../../../../service/user-file/user-file-u
 import { StubUserService } from "../../../../../common/service/user/stub-user.service";
 
 describe("NgbdModalFileAddComponent", () => {
-	let component: NgbdModalFileAddComponent;
-	let fixture: ComponentFixture<NgbdModalFileAddComponent>;
+  let component: NgbdModalFileAddComponent;
+  let fixture: ComponentFixture<NgbdModalFileAddComponent>;
 
-	beforeEach(
-		waitForAsync(() => {
-			TestBed.configureTestingModule({
-				declarations: [NgbdModalFileAddComponent],
-				providers: [
-					{ provide: UserService, useClass: StubUserService },
-					UserFileService,
-					UserFileUploadService,
-					NgbActiveModal
-				],
-				imports: [
-					CustomNgMaterialModule,
-					NgbModule,
-					FormsModule,
-					FileUploadModule,
-					ReactiveFormsModule,
-					HttpClientTestingModule
-				]
-			}).compileComponents();
-		})
-	);
+  beforeEach(
+    waitForAsync(() => {
+      TestBed.configureTestingModule({
+        declarations: [NgbdModalFileAddComponent],
+        providers: [
+          { provide: UserService, useClass: StubUserService },
+          UserFileService,
+          UserFileUploadService,
+          NgbActiveModal
+        ],
+        imports: [
+          CustomNgMaterialModule,
+          NgbModule,
+          FormsModule,
+          FileUploadModule,
+          ReactiveFormsModule,
+          HttpClientTestingModule
+        ]
+      }).compileComponents();
+    })
+  );
 
-	beforeEach(() => {
-		fixture = TestBed.createComponent(NgbdModalFileAddComponent);
-		component = fixture.componentInstance;
-		fixture.detectChanges();
-	});
+  beforeEach(() => {
+    fixture = TestBed.createComponent(NgbdModalFileAddComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
 
-	it("should create", () => {
-		expect(component).toBeTruthy();
-	});
+  it("should create", () => {
+    expect(component).toBeTruthy();
+  });
 });

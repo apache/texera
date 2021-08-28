@@ -1,40 +1,40 @@
 <h3
-	*ngIf="formTitle"
-	class="texera-workspace-property-editor-title"
-	mat-subheader
+  *ngIf="formTitle"
+  class="texera-workspace-property-editor-title"
+  mat-subheader
 >
-	{{ formTitle }}
+  {{ formTitle }}
 </h3>
 
 <form
-	*ngIf="formlyFields"
-	[formGroup]="formlyFormGroup"
-	class="texera-workspace-property-editor-form"
+  *ngIf="formlyFields"
+  [formGroup]="formlyFormGroup"
+  class="texera-workspace-property-editor-form"
 >
-	<formly-form
-		(modelChange)="onFormChanges($event)"
-		[fields]="formlyFields"
-		[form]="formlyFormGroup"
-		[model]="formData"
-		[options]="formlyOptions"
-	>
-	</formly-form>
+  <formly-form
+    (modelChange)="onFormChanges($event)"
+    [fields]="formlyFields"
+    [form]="formlyFormGroup"
+    [model]="formData"
+    [options]="formlyOptions"
+  >
+  </formly-form>
 </form>
 
 <button
-	(click)="handleAddBreakpoint()"
-	*ngIf="currentLinkId !== undefined && !hasBreakpoint()"
-	class="breakpointRemoveButton"
-	type="button"
+  (click)="handleAddBreakpoint()"
+  *ngIf="currentLinkId !== undefined && !hasBreakpoint()"
+  class="breakpointRemoveButton"
+  type="button"
 >
-	Add Breakpoint
+  Add Breakpoint
 </button>
 
 <button
-	(click)="handleRemoveBreakpoint()"
-	*ngIf="currentLinkId !== undefined && hasBreakpoint()"
-	class="breakpointRemoveButton"
-	type="button"
+  (click)="handleRemoveBreakpoint()"
+  *ngIf="currentLinkId !== undefined && hasBreakpoint()"
+  class="breakpointRemoveButton"
+  type="button"
 >
-	Remove Breakpoint
+  Remove Breakpoint
 </button>

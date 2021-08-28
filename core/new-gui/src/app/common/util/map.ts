@@ -4,9 +4,9 @@
  * @param map
  */
 export function mapToRecord(map: Map<string, any>): Record<string, any> {
-	const record: Record<string, any> = {};
-	map.forEach((value, key) => (record[key] = value));
-	return record;
+  const record: Record<string, any> = {};
+  map.forEach((value, key) => (record[key] = value));
+  return record;
 }
 
 /**
@@ -15,9 +15,9 @@ export function mapToRecord(map: Map<string, any>): Record<string, any> {
  * @param record
  */
 export function recordToMap(record: Record<string, any>): Map<string, any> {
-	const map = new Map<string, any>();
-	for (const key of Object.keys(record)) {
-		map.set(key, record[key]);
-	}
-	return map;
+  const map = new Map<string, any>();
+  for (const key of Object.keys(record)) {
+    map.set(key, record[key]);
+  }
+  return map;
 }

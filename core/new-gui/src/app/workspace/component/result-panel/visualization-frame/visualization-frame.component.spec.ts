@@ -11,66 +11,66 @@ import { WorkflowActionService } from "../../../service/workflow-graph/model/wor
 import { WorkflowUtilService } from "../../../service/workflow-graph/util/workflow-util.service";
 import { VisualizationFrameComponent } from "./visualization-frame.component";
 import {
-	OperatorResultService,
-	WorkflowResultService
+  OperatorResultService,
+  WorkflowResultService
 } from "../../../service/workflow-result/workflow-result.service";
 import { WebDataUpdate } from "../../../types/execute-workflow.interface";
 import { ChartType } from "../../../types/visualization.interface";
 
 describe("VisualizationFameComponent", () => {
-	let component: VisualizationFrameComponent;
-	let fixture: ComponentFixture<VisualizationFrameComponent>;
-	let workflowResultService: WorkflowResultService;
-	const operatorID = "operator1";
-	const testData: WebDataUpdate = {
-		mode: { type: "SetSnapshotMode" },
-		chartType: ChartType.BAR,
-		table: []
-	};
+  let component: VisualizationFrameComponent;
+  let fixture: ComponentFixture<VisualizationFrameComponent>;
+  let workflowResultService: WorkflowResultService;
+  const operatorID = "operator1";
+  const testData: WebDataUpdate = {
+    mode: { type: "SetSnapshotMode" },
+    chartType: ChartType.BAR,
+    table: []
+  };
 
-	beforeEach(
-		waitForAsync(() => {
-			TestBed.configureTestingModule({
-				imports: [NzModalModule, NzButtonModule, HttpClientTestingModule],
-				declarations: [VisualizationFrameComponent],
-				providers: [
-					JointUIService,
-					WorkflowUtilService,
-					UndoRedoService,
-					WorkflowActionService,
-					{
-						provide: OperatorMetadataService,
-						useClass: StubOperatorMetadataService
-					},
-					WorkflowResultService,
-					ExecuteWorkflowService
-				]
-			}).compileComponents();
-		})
-	);
+  beforeEach(
+    waitForAsync(() => {
+      TestBed.configureTestingModule({
+        imports: [NzModalModule, NzButtonModule, HttpClientTestingModule],
+        declarations: [VisualizationFrameComponent],
+        providers: [
+          JointUIService,
+          WorkflowUtilService,
+          UndoRedoService,
+          WorkflowActionService,
+          {
+            provide: OperatorMetadataService,
+            useClass: StubOperatorMetadataService
+          },
+          WorkflowResultService,
+          ExecuteWorkflowService
+        ]
+      }).compileComponents();
+    })
+  );
 
-	beforeEach(() => {
-		fixture = TestBed.createComponent(VisualizationFrameComponent);
-		component = fixture.componentInstance;
-		fixture.detectChanges();
+  beforeEach(() => {
+    fixture = TestBed.createComponent(VisualizationFrameComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
 
-		workflowResultService = TestBed.get(WorkflowResultService);
-		const operatorResultService: OperatorResultService =
-			new OperatorResultService(operatorID);
-		operatorResultService.handleResultUpdate(testData);
+    workflowResultService = TestBed.get(WorkflowResultService);
+    const operatorResultService: OperatorResultService =
+      new OperatorResultService(operatorID);
+    operatorResultService.handleResultUpdate(testData);
 
-		spyOn(workflowResultService, "getResultService").and.returnValue(
-			operatorResultService
-		);
-	});
+    spyOn(workflowResultService, "getResultService").and.returnValue(
+      operatorResultService
+    );
+  });
 
-	it("should create", () => {
-		expect(component).toBeTruthy();
-	});
+  it("should create", () => {
+    expect(component).toBeTruthy();
+  });
 
-	it("should have button", () => {
-		const element: HTMLElement = fixture.nativeElement;
-		const button = element.querySelector("button");
-		expect(button).toBeTruthy();
-	});
+  it("should have button", () => {
+    const element: HTMLElement = fixture.nativeElement;
+    const button = element.querySelector("button");
+    expect(button).toBeTruthy();
+  });
 });

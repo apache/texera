@@ -6,82 +6,82 @@ import { JSONSchema7 } from "json-schema";
  */
 
 export interface Point
-	extends Readonly<{
-		x: number;
-		y: number;
-	}> {}
+  extends Readonly<{
+    x: number;
+    y: number;
+  }> {}
 
 export interface OperatorPort
-	extends Readonly<{
-		operatorID: string;
-		portID: string;
-	}> {}
+  extends Readonly<{
+    operatorID: string;
+    portID: string;
+  }> {}
 
 export interface OperatorPredicate
-	extends Readonly<{
-		operatorID: string;
-		operatorType: string;
-		operatorProperties: Readonly<{ [key: string]: any }>;
-		inputPorts: { portID: string; displayName?: string }[];
-		outputPorts: { portID: string; displayName?: string }[];
-		showAdvanced: boolean;
-		isDisabled?: boolean;
-	}> {}
+  extends Readonly<{
+    operatorID: string;
+    operatorType: string;
+    operatorProperties: Readonly<{ [key: string]: any }>;
+    inputPorts: { portID: string; displayName?: string }[];
+    outputPorts: { portID: string; displayName?: string }[];
+    showAdvanced: boolean;
+    isDisabled?: boolean;
+  }> {}
 
 export interface OperatorLink
-	extends Readonly<{
-		linkID: string;
-		source: OperatorPort;
-		target: OperatorPort;
-	}> {}
+  extends Readonly<{
+    linkID: string;
+    source: OperatorPort;
+    target: OperatorPort;
+  }> {}
 
 export interface BreakpointSchema
-	extends Readonly<{
-		jsonSchema: Readonly<JSONSchema7>;
-	}> {}
+  extends Readonly<{
+    jsonSchema: Readonly<JSONSchema7>;
+  }> {}
 
 type ConditionBreakpoint = Readonly<{
-	column: number;
-	condition:
-		| "="
-		| ">"
-		| ">="
-		| "<"
-		| "<="
-		| "!="
-		| "contains"
-		| "does not contain";
-	value: string;
+  column: number;
+  condition:
+    | "="
+    | ">"
+    | ">="
+    | "<"
+    | "<="
+    | "!="
+    | "contains"
+    | "does not contain";
+  value: string;
 }>;
 
 type CountBreakpoint = Readonly<{
-	count: number;
+  count: number;
 }>;
 
 export type Breakpoint = ConditionBreakpoint | CountBreakpoint;
 
 export type BreakpointRequest =
-	| Readonly<{ type: "ConditionBreakpoint" } & ConditionBreakpoint>
-	| Readonly<{ type: "CountBreakpoint" } & CountBreakpoint>;
+  | Readonly<{ type: "ConditionBreakpoint" } & ConditionBreakpoint>
+  | Readonly<{ type: "CountBreakpoint" } & CountBreakpoint>;
 
 export type BreakpointFaultedTuple = Readonly<{
-	tuple: ReadonlyArray<string>;
-	id: number;
-	isInput: boolean;
+  tuple: ReadonlyArray<string>;
+  id: number;
+  isInput: boolean;
 }>;
 
 export type BreakpointFault = Readonly<{
-	actorPath: string;
-	faultedTuple: BreakpointFaultedTuple;
-	messages: ReadonlyArray<string>;
+  actorPath: string;
+  faultedTuple: BreakpointFaultedTuple;
+  messages: ReadonlyArray<string>;
 }>;
 
 export type BreakpointTriggerInfo = Readonly<{
-	report: ReadonlyArray<BreakpointFault>;
-	operatorID: string;
+  report: ReadonlyArray<BreakpointFault>;
+  operatorID: string;
 }>;
 
 export type PythonPrintTriggerInfo = Readonly<{
-	message: Readonly<string>;
-	operatorID: string;
+  message: Readonly<string>;
+  operatorID: string;
 }>;

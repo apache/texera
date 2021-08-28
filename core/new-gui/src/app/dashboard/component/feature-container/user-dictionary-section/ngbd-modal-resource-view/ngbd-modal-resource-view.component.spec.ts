@@ -11,34 +11,34 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { StubUserService } from "../../../../../common/service/user/stub-user.service";
 
 describe("NgbdModalResourceViewComponent", () => {
-	let component: NgbdModalResourceViewComponent;
-	let fixture: ComponentFixture<NgbdModalResourceViewComponent>;
+  let component: NgbdModalResourceViewComponent;
+  let fixture: ComponentFixture<NgbdModalResourceViewComponent>;
 
-	beforeEach(
-		waitForAsync(() => {
-			TestBed.configureTestingModule({
-				declarations: [NgbdModalResourceViewComponent],
-				providers: [
-					NgbActiveModal,
-					{ provide: UserService, useClass: StubUserService },
-					UserDictionaryService
-				],
-				imports: [
-					CustomNgMaterialModule,
-					NgbModule,
-					FormsModule,
-					HttpClientTestingModule
-				]
-			}).compileComponents();
-		})
-	);
+  beforeEach(
+    waitForAsync(() => {
+      TestBed.configureTestingModule({
+        declarations: [NgbdModalResourceViewComponent],
+        providers: [
+          NgbActiveModal,
+          { provide: UserService, useClass: StubUserService },
+          UserDictionaryService
+        ],
+        imports: [
+          CustomNgMaterialModule,
+          NgbModule,
+          FormsModule,
+          HttpClientTestingModule
+        ]
+      }).compileComponents();
+    })
+  );
 
-	beforeEach(() => {
-		fixture = TestBed.createComponent(NgbdModalResourceViewComponent);
-		component = fixture.componentInstance;
-	});
+  beforeEach(() => {
+    fixture = TestBed.createComponent(NgbdModalResourceViewComponent);
+    component = fixture.componentInstance;
+  });
 
-	it("should create", () => {
-		expect(component).toBeTruthy();
-	});
+  it("should create", () => {
+    expect(component).toBeTruthy();
+  });
 });

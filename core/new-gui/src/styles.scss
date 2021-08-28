@@ -16,15 +16,15 @@ $fa-font-path: "~font-awesome/fonts";
 html,
 body,
 .viewport {
-	width: 100%;
-	height: 100%;
-	margin: 0;
-	overflow: hidden !important; // oddly, overflow set to scroll by zorro-antd modal service when modal is created
-	left: auto !important; // oddly, left set to -16px by zorro-antd modal service when modal is created
-	// now that I think of it, left -16px is approx same width as a scrollbar. Maybe they are meant to cancel out???
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden !important; // oddly, overflow set to scroll by zorro-antd modal service when modal is created
+  left: auto !important; // oddly, left set to -16px by zorro-antd modal service when modal is created
+  // now that I think of it, left -16px is approx same width as a scrollbar. Maybe they are meant to cancel out???
 }
 
 .popover {
-	max-width: 670px;
-	max-height: 700px;
+  max-width: 670px;
+  max-height: 700px;
 }

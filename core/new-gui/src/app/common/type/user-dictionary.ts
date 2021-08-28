@@ -3,10 +3,10 @@
  * Corresponds to `/web/src/main/java/edu/uci/ics/texera/web/resource/UserDictionaryResource.java`
  */
 export interface UserDictionary {
-	id: number;
-	name: string;
-	items: string[];
-	description: string;
+  id: number;
+  name: string;
+  items: string[];
+  description: string;
 }
 
 /**
@@ -15,11 +15,11 @@ export interface UserDictionary {
  * Corresponds to `/web/src/main/java/edu/uci/ics/texera/web/resource/UserDictionaryResource.java`
  */
 export interface ManualDictionaryUploadItem {
-	name: string;
-	content: string;
-	separator: string;
-	description: string;
-	isUploadingFlag: boolean;
+  name: string;
+  content: string;
+  separator: string;
+  description: string;
+  isUploadingFlag: boolean;
 }
 
 /**
@@ -27,8 +27,8 @@ export interface ManualDictionaryUploadItem {
  * These information is used to upload the file to the backend.
  */
 export interface DictionaryUploadItem {
-	file: File;
-	name: string;
-	description: string;
-	isUploadingFlag: boolean;
+  file: File;
+  name: string;
+  description: string;
+  isUploadingFlag: boolean;
 }

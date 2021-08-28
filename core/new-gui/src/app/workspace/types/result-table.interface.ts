@@ -10,9 +10,9 @@
  *  to make `row` indexable and execute operation like `row[col]`.
  */
 export interface IndexableObject
-	extends Readonly<{
-		[key: string]: object | string | boolean | symbol | number | Array<object>;
-	}> {}
+  extends Readonly<{
+    [key: string]: object | string | boolean | symbol | number | Array<object>;
+  }> {}
 
 /**
  * This type represent the function type interface for
@@ -20,7 +20,7 @@ export interface IndexableObject
  * Given a row, extract the cell value of each column.
  */
 type TableCellMethod = (
-	row: IndexableObject
+  row: IndexableObject
 ) => object | string | number | boolean;
 
 /**
@@ -31,29 +31,29 @@ type TableCellMethod = (
  *  - getCell - a function that returns the cell value that will be dispalyed in each cell of the data table
  */
 export interface TableColumn
-	extends Readonly<{
-		columnDef: string;
-		header: string;
-		getCell: TableCellMethod;
-	}> {}
+  extends Readonly<{
+    columnDef: string;
+    header: string;
+    getCell: TableCellMethod;
+  }> {}
 
 export const PAGINATION_INFO_STORAGE_KEY = "result-panel-pagination-info";
 
 export interface ViewResultOperatorInfo
-	extends Readonly<{
-		currentResult: object[];
-		currentPageIndex: number;
-		total: number;
-		columnKeys: string[];
-		operatorID: string;
-	}> {}
+  extends Readonly<{
+    currentResult: object[];
+    currentPageIndex: number;
+    total: number;
+    columnKeys: string[];
+    operatorID: string;
+  }> {}
 
 /**
  * ResultPaginationInfo stores pagination information
  *   that is needed for status retainment of the result panel
  */
 export interface ResultPaginationInfo
-	extends Readonly<{
-		newWorkflowExecuted: boolean;
-		viewResultOperatorInfoMap: Map<string, ViewResultOperatorInfo>;
-	}> {}
+  extends Readonly<{
+    newWorkflowExecuted: boolean;
+    viewResultOperatorInfoMap: Map<string, ViewResultOperatorInfo>;
+  }> {}

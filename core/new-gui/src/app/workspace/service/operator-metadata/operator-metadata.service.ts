@@ -3,8 +3,8 @@ import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
 import {
-	OperatorMetadata,
-	OperatorSchema
+  OperatorMetadata,
+  OperatorSchema
 } from "../../types/operator-schema.interface";
 import { BreakpointSchema } from "../../types/workflow-common.interface";
 import { mockBreakpointSchema } from "./mock-operator-metadata.data";
@@ -13,8 +13,8 @@ import { shareReplay, startWith } from "rxjs/operators";
 export const OPERATOR_METADATA_ENDPOINT = "resources/operator-metadata";
 
 export const EMPTY_OPERATOR_METADATA: OperatorMetadata = {
-	operators: [],
-	groups: []
+  operators: [],
+  groups: []
 };
 
 const addDictionaryAPIAddress = "/api/resources/dictionary/";
@@ -22,8 +22,8 @@ const getDictionaryAPIAddress = "/api/upload/dictionary/";
 
 // interface only containing public methods
 export type IOperatorMetadataService = Pick<
-	OperatorMetadataService,
-	keyof OperatorMetadataService
+  OperatorMetadataService,
+  keyof OperatorMetadataService
 >;
 
 /**
@@ -43,80 +43,80 @@ export type IOperatorMetadataService = Pick<
  *
  */
 @Injectable({
-	providedIn: "root"
+  providedIn: "root"
 })
 export class OperatorMetadataService {
-	// holds the current version of operator metadata
-	private currentOperatorMetadata: OperatorMetadata | undefined;
-	private readonly currentBreakpointSchema: BreakpointSchema | undefined;
+  // holds the current version of operator metadata
+  private currentOperatorMetadata: OperatorMetadata | undefined;
+  private readonly currentBreakpointSchema: BreakpointSchema | undefined;
 
-	private operatorMetadataObservable = this.httpClient
-		.get<OperatorMetadata>(
-			`${AppSettings.getApiEndpoint()}/${OPERATOR_METADATA_ENDPOINT}`
-		)
-		.pipe(startWith(EMPTY_OPERATOR_METADATA), shareReplay(1));
+  private operatorMetadataObservable = this.httpClient
+    .get<OperatorMetadata>(
+      `${AppSettings.getApiEndpoint()}/${OPERATOR_METADATA_ENDPOINT}`
+    )
+    .pipe(startWith(EMPTY_OPERATOR_METADATA), shareReplay(1));
 
-	constructor(private httpClient: HttpClient) {
-		this.getOperatorMetadata().subscribe((data) => {
-			this.currentOperatorMetadata = data;
-		});
-		// At current design, all the links have one fixed breakpoint schema stored in the frontend
-		this.currentBreakpointSchema = mockBreakpointSchema;
-	}
+  constructor(private httpClient: HttpClient) {
+    this.getOperatorMetadata().subscribe((data) => {
+      this.currentOperatorMetadata = data;
+    });
+    // At current design, all the links have one fixed breakpoint schema stored in the frontend
+    this.currentBreakpointSchema = mockBreakpointSchema;
+  }
 
-	/**
-	 * Gets an Observable for operator metadata.
-	 * This observable will emit OperatorMetadataValue after the data is fetched from the backend.
-	 *
-	 * Upon subscription of this observable, if the data hasn't arrived from the backend,
-	 *   you will receive an empty OperatorMetadata.
-	 *
-	 * // TODO: refactor this to 2 functions: getOperatorMetadataStream() and getOperatorMetadata()
-	 */
-	public getOperatorMetadata(): Observable<OperatorMetadata> {
-		return this.operatorMetadataObservable;
-	}
+  /**
+   * Gets an Observable for operator metadata.
+   * This observable will emit OperatorMetadataValue after the data is fetched from the backend.
+   *
+   * Upon subscription of this observable, if the data hasn't arrived from the backend,
+   *   you will receive an empty OperatorMetadata.
+   *
+   * // TODO: refactor this to 2 functions: getOperatorMetadataStream() and getOperatorMetadata()
+   */
+  public getOperatorMetadata(): Observable<OperatorMetadata> {
+    return this.operatorMetadataObservable;
+  }
 
-	public getOperatorSchema(operatorType: string): OperatorSchema {
-		if (!this.currentOperatorMetadata) {
-			throw new Error("operator metadata is undefined");
-		}
-		const operatorSchema = this.currentOperatorMetadata.operators.find(
-			(schema) => schema.operatorType === operatorType
-		);
-		if (!operatorSchema) {
-			throw new Error(`can\'t find operator schema of type ${operatorType}`);
-		}
-		return operatorSchema;
-	}
+  public getOperatorSchema(operatorType: string): OperatorSchema {
+    if (!this.currentOperatorMetadata) {
+      throw new Error("operator metadata is undefined");
+    }
+    const operatorSchema = this.currentOperatorMetadata.operators.find(
+      (schema) => schema.operatorType === operatorType
+    );
+    if (!operatorSchema) {
+      throw new Error(`can\'t find operator schema of type ${operatorType}`);
+    }
+    return operatorSchema;
+  }
 
-	/**
-	 * Returns if the operator type exists *in the current operator metadata*.
-	 * For example, if the first HTTP request to the backend hasn't returned yet,
-	 *  the current operator metadata is empty, and no operator type exists.
-	 *
-	 * @param operatorType
-	 */
-	public operatorTypeExists(operatorType: string): boolean {
-		if (!this.currentOperatorMetadata) {
-			return false;
-		}
-		const operator = this.currentOperatorMetadata.operators.filter(
-			(op) => op.operatorType === operatorType
-		);
-		if (operator.length === 0) {
-			return false;
-		}
-		return true;
-	}
+  /**
+   * Returns if the operator type exists *in the current operator metadata*.
+   * For example, if the first HTTP request to the backend hasn't returned yet,
+   *  the current operator metadata is empty, and no operator type exists.
+   *
+   * @param operatorType
+   */
+  public operatorTypeExists(operatorType: string): boolean {
+    if (!this.currentOperatorMetadata) {
+      return false;
+    }
+    const operator = this.currentOperatorMetadata.operators.filter(
+      (op) => op.operatorType === operatorType
+    );
+    if (operator.length === 0) {
+      return false;
+    }
+    return true;
+  }
 
-	/**
-	 * At current design, this function returns the fixed schema
-	 */
-	public getBreakpointSchema(): BreakpointSchema {
-		if (!this.currentBreakpointSchema) {
-			throw new Error("breakpoint schema is undefined");
-		}
-		return this.currentBreakpointSchema;
-	}
+  /**
+   * At current design, this function returns the fixed schema
+   */
+  public getBreakpointSchema(): BreakpointSchema {
+    if (!this.currentBreakpointSchema) {
+      throw new Error("breakpoint schema is undefined");
+    }
+    return this.currentBreakpointSchema;
+  }
 }
