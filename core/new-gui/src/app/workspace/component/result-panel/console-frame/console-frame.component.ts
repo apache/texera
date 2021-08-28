@@ -36,6 +36,10 @@ export class ConsoleFrameComponent implements OnInit, OnDestroy, OnChanges {
     this.renderConsole();
   }
 
+  ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
+  }
+
   ngOnInit(): void {
     // make sure the console is re-rendered upon state changes
     this.registerAutoConsoleRerender();
@@ -74,10 +78,6 @@ export class ConsoleFrameComponent implements OnInit, OnDestroy, OnChanges {
   onClickSkipTuples(): void {
     this.executeWorkflowService.skipTuples();
     this.breakpointAction = false;
-  }
-
-  ngOnDestroy(): void {
-    this.subscriptions.unsubscribe();
   }
 
   clearConsole() {

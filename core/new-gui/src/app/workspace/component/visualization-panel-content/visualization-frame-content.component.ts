@@ -88,7 +88,7 @@ export class VisualizationFrameContentComponent
   private c3ChartElement?: c3.ChartAPI;
   private map?: mapboxgl.Map;
 
-  private updateSubscription?: Subscription;
+  private subscriptions = new Subscription();
 
   constructor(
     private workflowResultService: WorkflowResultService,
@@ -110,11 +110,9 @@ export class VisualizationFrameContentComponent
       )
     );
 
-    this.updateSubscription = merge(resultUpdate, controlUpdate).subscribe(
-      () => {
-        this.drawChart();
-      }
-    );
+    this.subscriptions.add(Observable.merge(resultUpdate, controlUpdate).subscribe(() => {
+      this.drawChart();
+    }));
   }
 
   ngOnDestroy() {
@@ -127,9 +125,8 @@ export class VisualizationFrameContentComponent
     if (this.map) {
       this.map.remove();
     }
-    if (this.updateSubscription) {
-      this.updateSubscription.unsubscribe();
-    }
+
+    this.subscriptions.unsubscribe();
   }
 
   drawChart() {

@@ -17,7 +17,8 @@ import { Subscription } from 'rxjs';
 export class ResultPanelToggleComponent implements OnInit, OnDestroy {
 
   subscriptions = new Subscription();
-  public showResultPanel: boolean = false;
+
+  showResultPanel: boolean = false;
 
   constructor(private resultPanelToggleService: ResultPanelToggleService) {}
 
