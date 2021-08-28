@@ -21,7 +21,7 @@ import { TourService, IStepOption } from "ngx-tour-ng-bootstrap";
  *
  * @author Bolin Chen
  */
-// tslint:disable:max-line-length
+/* eslint-disable max-len */
 @Component({
   selector: "texera-product-tour",
   templateUrl: "./product-tour.component.html",
