@@ -1,4 +1,4 @@
-import { Component } from "@angular/core";
+import { Component, OnDestroy, OnInit } from "@angular/core";
 import { merge, timer } from "rxjs";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
@@ -12,11 +12,16 @@ import { ConsoleFrameComponent } from "./console-frame/console-frame.component";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { VisualizationFrameComponent } from "./visualization-frame/visualization-frame.component";
 import { filter } from "rxjs/operators";
-import { DynamicComponentConfig } from '../../../common/type/dynamic-component-config';
+import { DynamicComponentConfig } from "../../../common/type/dynamic-component-config";
+import { Subscription } from "rxjs";
 
-export type ResultFrameComponent = ResultTableFrameComponent | VisualizationFrameComponent | ConsoleFrameComponent;
+export type ResultFrameComponent =
+  | ResultTableFrameComponent
+  | VisualizationFrameComponent
+  | ConsoleFrameComponent;
 
-export type ResultFrameComponentConfig = DynamicComponentConfig<ResultFrameComponent>;
+export type ResultFrameComponentConfig =
+  DynamicComponentConfig<ResultFrameComponent>;
 
 /**
  * ResultPanelComponent is the bottom level area that displays the
@@ -27,7 +32,8 @@ export type ResultFrameComponentConfig = DynamicComponentConfig<ResultFrameCompo
   templateUrl: "./result-panel.component.html",
   styleUrls: ["./result-panel.component.scss"]
 })
-export class ResultPanelComponent {
+export class ResultPanelComponent implements OnInit, OnDestroy {
+  subscriptions = new Subscription();
 
   frameComponentConfig?: ResultFrameComponentConfig;
 
@@ -41,73 +47,86 @@ export class ResultPanelComponent {
     private resultPanelToggleService: ResultPanelToggleService,
     private workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService
-  ) {
+  ) {}
+
+  ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
+  }
+
+  ngOnInit(): void {
     this.registerAutoRerenderResultPanel();
     this.registerAutoOpenResultPanel();
   }
 
   registerAutoOpenResultPanel() {
-    this.executeWorkflowService.getExecutionStateStream().subscribe((event) => {
-      const currentlyHighlighted = this.workflowActionService
-        .getJointGraphWrapper()
-        .getCurrentHighlightedOperatorIDs();
-      if (event.current.state === ExecutionState.BreakpointTriggered) {
-        const breakpointOperator =
-          this.executeWorkflowService.getBreakpointTriggerInfo()?.operatorID;
-        if (breakpointOperator) {
-          this.workflowActionService
+    this.subscriptions.add(
+      this.executeWorkflowService
+        .getExecutionStateStream()
+        .subscribe((event) => {
+          const currentlyHighlighted = this.workflowActionService
             .getJointGraphWrapper()
-            .unhighlightOperators(...currentlyHighlighted);
-          this.workflowActionService
-            .getJointGraphWrapper()
-            .highlightOperators(breakpointOperator);
-        }
-        this.resultPanelToggleService.openResultPanel();
-      }
-      if (event.current.state === ExecutionState.Failed) {
-        this.resultPanelToggleService.openResultPanel();
-      }
-      if (
-        event.current.state === ExecutionState.Completed ||
-        event.current.state === ExecutionState.Running
-      ) {
-        const sinkOperators = this.workflowActionService
-          .getTexeraGraph()
-          .getAllOperators()
-          .filter((op) => op.operatorType.toLowerCase().includes("sink"));
-        if (sinkOperators.length > 0 && !this.currentOperatorId) {
-          this.workflowActionService
-            .getJointGraphWrapper()
-            .unhighlightOperators(...currentlyHighlighted);
-          this.workflowActionService
-            .getJointGraphWrapper()
-            .highlightOperators(sinkOperators[0].operatorID);
-        }
-        this.resultPanelToggleService.openResultPanel();
-      }
-    });
+            .getCurrentHighlightedOperatorIDs();
+          if (event.current.state === ExecutionState.BreakpointTriggered) {
+            const breakpointOperator =
+              this.executeWorkflowService.getBreakpointTriggerInfo()
+                ?.operatorID;
+            if (breakpointOperator) {
+              this.workflowActionService
+                .getJointGraphWrapper()
+                .unhighlightOperators(...currentlyHighlighted);
+              this.workflowActionService
+                .getJointGraphWrapper()
+                .highlightOperators(breakpointOperator);
+            }
+            this.resultPanelToggleService.openResultPanel();
+          }
+          if (event.current.state === ExecutionState.Failed) {
+            this.resultPanelToggleService.openResultPanel();
+          }
+          if (
+            event.current.state === ExecutionState.Completed ||
+            event.current.state === ExecutionState.Running
+          ) {
+            const sinkOperators = this.workflowActionService
+              .getTexeraGraph()
+              .getAllOperators()
+              .filter((op) => op.operatorType.toLowerCase().includes("sink"));
+            if (sinkOperators.length > 0 && !this.currentOperatorId) {
+              this.workflowActionService
+                .getJointGraphWrapper()
+                .unhighlightOperators(...currentlyHighlighted);
+              this.workflowActionService
+                .getJointGraphWrapper()
+                .highlightOperators(sinkOperators[0].operatorID);
+            }
+            this.resultPanelToggleService.openResultPanel();
+          }
+        })
+    );
   }
 
   registerAutoRerenderResultPanel() {
-    merge(
-      this.executeWorkflowService
-        .getExecutionStateStream()
-        .pipe(
-          filter((event) =>
-            ResultPanelComponent.needRerenderOnStateChange(event)
-          )
-        ),
-      this.workflowActionService
-        .getJointGraphWrapper()
-        .getJointOperatorHighlightStream(),
-      this.workflowActionService
-        .getJointGraphWrapper()
-        .getJointOperatorUnhighlightStream(),
-      this.resultPanelToggleService.getToggleChangeStream(),
-      this.workflowResultService.getResultInitiateStream()
-    ).subscribe((_) => {
-      this.rerenderResultPanel();
-    });
+    this.subscriptions.add(
+      merge(
+        this.executeWorkflowService
+          .getExecutionStateStream()
+          .pipe(
+            filter((event) =>
+              ResultPanelComponent.needRerenderOnStateChange(event)
+            )
+          ),
+        this.workflowActionService
+          .getJointGraphWrapper()
+          .getJointOperatorHighlightStream(),
+        this.workflowActionService
+          .getJointGraphWrapper()
+          .getJointOperatorUnhighlightStream(),
+        this.resultPanelToggleService.getToggleChangeStream(),
+        this.workflowResultService.getResultInitiateStream()
+      ).subscribe((_) => {
+        this.rerenderResultPanel();
+      })
+    );
   }
 
   rerenderResultPanel(): void {
@@ -132,17 +151,30 @@ export class ResultPanelComponent {
     // break this into another detect cycle, so that the dynamic component can be reloaded
 
     const executionState = this.executeWorkflowService.getExecutionState();
-    if (executionState.state in [ExecutionState.Failed, ExecutionState.BreakpointTriggered]) {
+    if (
+      executionState.state in
+      [ExecutionState.Failed, ExecutionState.BreakpointTriggered]
+    ) {
       this.switchFrameComponent({
         component: ConsoleFrameComponent,
         componentInputs: { operatorId: this.currentOperatorId }
       });
     } else {
       if (this.currentOperatorId) {
-        if (this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType.toLowerCase()
-          .includes('sink')) {
-          const resultService = this.workflowResultService.getResultService(this.currentOperatorId);
-          const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.currentOperatorId);
+        if (
+          this.workflowActionService
+            .getTexeraGraph()
+            .getOperator(this.currentOperatorId)
+            .operatorType.toLowerCase()
+            .includes("sink")
+        ) {
+          const resultService = this.workflowResultService.getResultService(
+            this.currentOperatorId
+          );
+          const paginatedResultService =
+            this.workflowResultService.getPaginatedResultService(
+              this.currentOperatorId
+            );
           if (paginatedResultService) {
             this.switchFrameComponent({
               component: ResultTableFrameComponent,
@@ -160,10 +192,8 @@ export class ResultPanelComponent {
             componentInputs: { operatorId: this.currentOperatorId }
           });
         }
-
       }
     }
-
   }
 
   clearResultPanel(): void {
@@ -171,8 +201,12 @@ export class ResultPanelComponent {
   }
 
   switchFrameComponent(targetComponentConfig?: ResultFrameComponentConfig) {
-    if (this.frameComponentConfig?.component === targetComponentConfig?.component &&
-      this.frameComponentConfig?.componentInputs === targetComponentConfig?.componentInputs) {
+    if (
+      this.frameComponentConfig?.component ===
+        targetComponentConfig?.component &&
+      this.frameComponentConfig?.componentInputs ===
+        targetComponentConfig?.componentInputs
+    ) {
       return;
     }
     this.frameComponentConfig = targetComponentConfig;
