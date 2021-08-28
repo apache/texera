@@ -6,7 +6,7 @@ import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecuto
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 class CacheSourceOpExecV2(uuid: String, opResultStorage: OpResultStorage)
-  extends SourceOperatorExecutor {
+    extends SourceOperatorExecutor {
   assert(null != uuid)
   assert(null != opResultStorage)
 

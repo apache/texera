@@ -1,19 +1,9 @@
 package edu.uci.ics.texera.workflow.common.tuple
 
-import com.fasterxml.jackson.databind.JsonNode
-import edu.uci.ics.texera.Utils.objectMapper
+import edu.uci.ics.texera.workflow.common.tuple.TupleUtils.{json2tuple, tuple2json}
 import edu.uci.ics.texera.workflow.common.tuple.exception.TupleBuildingException
-import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.{
-  inferSchemaFromRows,
-  parseField
-}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
-import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
 import org.scalatest.flatspec.AnyFlatSpec
-
-import scala.collection.JavaConverters._
-import scala.collection.mutable.ArrayBuffer
-import TupleUtils.{tuple2json, json2tuple}
 
 class TupleSpec extends AnyFlatSpec {
   val stringAttribute = new Attribute("col-string", AttributeType.STRING)
@@ -100,7 +90,6 @@ class TupleSpec extends AnyFlatSpec {
       .add(stringAttribute, "string-attr")
       .add(boolAttribute, true)
       .build()
-
 
     val line = tuple2json(inputTuple)
     val newTuple = json2tuple(line)

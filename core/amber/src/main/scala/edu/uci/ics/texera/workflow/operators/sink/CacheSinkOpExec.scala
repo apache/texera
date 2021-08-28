@@ -1,21 +1,20 @@
 package edu.uci.ics.texera.workflow.operators.sink
 
-import edu.uci.ics.amber.engine.common.{ITupleSinkOperatorExecutor, InputExhausted}
+import com.typesafe.scalalogging.Logger
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
+import edu.uci.ics.amber.engine.common.{ITupleSinkOperatorExecutor, InputExhausted}
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 import scala.collection.mutable
-import com.typesafe.scalalogging.Logger
 
 class CacheSinkOpExec(dest: mutable.MutableList[Tuple]) extends ITupleSinkOperatorExecutor {
 
   assert(null != dest)
 
-  private val logger = Logger(this.getClass.getName)
-
   val results: mutable.MutableList[Tuple] = mutable.MutableList()
+  private val logger = Logger(this.getClass.getName)
 
   //TODO: Empty list or null?
   override def getResultTuples(): List[ITuple] = {

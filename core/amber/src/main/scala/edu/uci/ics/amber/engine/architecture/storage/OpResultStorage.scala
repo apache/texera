@@ -39,7 +39,7 @@ trait OpResultStorage extends Serializable {
 
   /**
     * Close this storage. Used for system termination.
-     */
+    */
   def close(): Unit
 
 }

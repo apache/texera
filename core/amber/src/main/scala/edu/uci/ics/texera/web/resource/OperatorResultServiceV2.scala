@@ -1,19 +1,9 @@
 package edu.uci.ics.texera.web.resource
 
 import edu.uci.ics.amber.engine.architecture.principal.OperatorResult
-import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.architecture.storage.OpResultStorage
-import edu.uci.ics.texera.web.resource.WorkflowResultServiceV2.{
-  PaginationMode,
-  SetDeltaMode,
-  SetSnapshotMode,
-  WebOutputMode,
-  WebPaginationUpdate,
-  WebResultUpdate,
-  calculateDirtyPageIndices,
-  defaultPageSize,
-  webDataFromTuple
-}
+import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.texera.web.resource.WorkflowResultServiceV2._
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode.{SET_DELTA, SET_SNAPSHOT}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler
@@ -24,10 +14,10 @@ import edu.uci.ics.texera.workflow.operators.sink.{CacheSinkOpDescV2, SimpleSink
   * It always keeps the latest snapshot of the computation result.
   */
 class OperatorResultServiceV2(
-                               val operatorID: String,
-                               val workflowCompiler: WorkflowCompiler,
-                               opResultStorage: OpResultStorage
-                             ) {
+    val operatorID: String,
+    val workflowCompiler: WorkflowCompiler,
+    opResultStorage: OpResultStorage
+) {
 
   // derive the web output mode from the sink operator type
   val webOutputMode: WebOutputMode = {

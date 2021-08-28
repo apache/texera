@@ -57,8 +57,11 @@ object WorkflowResultServiceV1 {
       dirtyPageIndices: List[Int]
   ) extends WebResultUpdateV1
 
-  case class WebDataUpdateV1(mode: WebOutputMode, table: List[ObjectNode], chartType: Option[String])
-      extends WebResultUpdateV1
+  case class WebDataUpdateV1(
+      mode: WebOutputMode,
+      table: List[ObjectNode],
+      chartType: Option[String]
+  ) extends WebResultUpdateV1
 
   // convert Tuple from engine's format to JSON format
   def webDataFromTuple(
@@ -99,7 +102,8 @@ object WorkflowResultServiceV1 {
   }
 }
 
-case class WebResultUpdateEventV1(updates: Map[String, WebResultUpdateV1]) extends TexeraWebSocketEvent
+case class WebResultUpdateEventV1(updates: Map[String, WebResultUpdateV1])
+    extends TexeraWebSocketEvent
 
 /**
   * WorkflowResultService manages the materialized result of all sink operators in one workflow execution.
@@ -157,7 +161,15 @@ class WorkflowResultServiceV1(val workflowCompiler: WorkflowCompiler) {
         if (!updated.contains(e._1) || size != updated(e._1)) {
           updated(e._1) = size
           mutableWebUpdateEvent += (
-          (e._1, WebPaginationUpdateV1(PaginationMode(), size, List.range(0, size + 1 / defaultPageSize))))
+            (
+              e._1,
+              WebPaginationUpdateV1(
+                PaginationMode(),
+                size,
+                List.range(0, size + 1 / defaultPageSize)
+              )
+            )
+          )
         }
       }
     })

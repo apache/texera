@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.source.cache
 
-import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.storage.OpResultStorage
+import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorGroupConstants,
   OperatorInfo,
@@ -15,7 +15,7 @@ import scala.collection.JavaConverters.asScalaBuffer
 import scala.collection.immutable.List
 
 class CacheSourceOpDescV2(uuid: String, opResultStorage: OpResultStorage)
-  extends SourceOperatorDescriptor {
+    extends SourceOperatorDescriptor {
   assert(null != uuid)
   assert(null != opResultStorage)
 

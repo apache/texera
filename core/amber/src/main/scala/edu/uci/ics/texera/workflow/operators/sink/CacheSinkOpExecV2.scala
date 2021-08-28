@@ -1,10 +1,10 @@
 package edu.uci.ics.texera.workflow.operators.sink
 
 import com.typesafe.scalalogging.Logger
-import edu.uci.ics.amber.engine.common.{ITupleSinkOperatorExecutor, InputExhausted}
+import edu.uci.ics.amber.engine.architecture.storage.OpResultStorage
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
-import edu.uci.ics.amber.engine.architecture.storage.OpResultStorage
+import edu.uci.ics.amber.engine.common.{ITupleSinkOperatorExecutor, InputExhausted}
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
@@ -14,9 +14,8 @@ class CacheSinkOpExecV2(uuid: String, dest: OpResultStorage) extends ITupleSinkO
 
   assert(null != dest)
 
-  private val logger = Logger(this.getClass.getName)
-
   val results: mutable.MutableList[Tuple] = mutable.MutableList()
+  private val logger = Logger(this.getClass.getName)
 
   override def getResultTuples(): List[ITuple] = {
     logger.info("Get resultt tuples.")
@@ -33,9 +32,9 @@ class CacheSinkOpExecV2(uuid: String, dest: OpResultStorage) extends ITupleSinkO
   override def close(): Unit = {}
 
   override def processTuple(
-                             tuple: Either[ITuple, InputExhausted],
-                             input: LinkIdentity
-                           ): Iterator[ITuple] = {
+      tuple: Either[ITuple, InputExhausted],
+      input: LinkIdentity
+  ): Iterator[ITuple] = {
     logger.debug("Processing tuple {}", tuple.toString)
     tuple match {
       case Left(t) => results += t.asInstanceOf[Tuple]
