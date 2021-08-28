@@ -2,25 +2,25 @@ import { AfterViewInit, Component, ElementRef } from "@angular/core";
 import * as joint from "jointjs";
 // if jQuery needs to be used: 1) use jQuery instead of `$`, and
 // 2) always add this import statement even if TypeScript doesn't show an error https://github.com/Microsoft/TypeScript/issues/22016
-import * as jQuery from "jquery";
-import { fromEvent, merge } from "rxjs";
-import { assertType } from "src/app/common/util/assert";
-import { environment } from "../../../../environments/environment";
-import { DragDropService } from "../../service/drag-drop/drag-drop.service";
-import { DynamicSchemaService } from "../../service/dynamic-schema/dynamic-schema.service";
-import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
-import { JointUIService, linkPathStrokeColor } from "../../service/joint-ui/joint-ui.service";
-import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
-import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
-import { JointGraphWrapper } from "../../service/workflow-graph/model/joint-graph-wrapper";
-import { Group, LinkInfo, OperatorInfo } from "../../service/workflow-graph/model/operator-group";
-import { MAIN_CANVAS_LIMIT } from "./workflow-editor-constants";
-import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
-import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
-import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
-import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
-import { OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
-import { auditTime, filter, map } from "rxjs/operators";
+import * as jQuery from 'jquery';
+import { fromEvent, merge } from 'rxjs';
+import { assertType } from 'src/app/common/util/assert';
+import { environment } from '../../../../environments/environment';
+import { DragDropService } from '../../service/drag-drop/drag-drop.service';
+import { DynamicSchemaService } from '../../service/dynamic-schema/dynamic-schema.service';
+import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
+import { JointUIService, linkPathStrokeColor } from '../../service/joint-ui/joint-ui.service';
+import { ResultPanelToggleService } from '../../service/result-panel-toggle/result-panel-toggle.service';
+import { ValidationWorkflowService } from '../../service/validation/validation-workflow.service';
+import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
+import { Group, LinkInfo, OperatorInfo } from '../../service/workflow-graph/model/operator-group';
+import { MAIN_CANVAS_LIMIT } from './workflow-editor-constants';
+import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
+import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
+import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
+import { ExecutionState, OperatorState } from '../../types/execute-workflow.interface';
+import { OperatorLink, OperatorPredicate, Point } from '../../types/workflow-common.interface';
+import { auditTime, filter, map } from 'rxjs/operators';
 
 // argument type of callback event on a JointJS Paper
 // which is a 4-element tuple:
@@ -414,40 +414,40 @@ export class WorkflowEditorComponent implements AfterViewInit {
       this.workflowActionService.getJointGraphWrapper().navigatorMoveDelta.pipe(
         map((event) => {
           const scale = this.getJointPaper().scale();
-          return {
-            deltaX: event.deltaX * scale.sx,
-            deltaY: event.deltaY * scale.sy
-          };
+          return { deltaX: event.deltaX * scale.sx, deltaY: event.deltaY * scale.sy
+        };
         })
       )
     ).subscribe((event) => {
 
-      const oldOrigin = this.getJointPaper().translate();
-      const newOrigin = { x: oldOrigin.tx + event.deltaX, y: oldOrigin.ty + event.deltaY };
+          const oldOrigin = this.getJointPaper().translate();
+          const newOrigin = { x: oldOrigin.tx + event.deltaX, y: oldOrigin.ty + event.deltaY };
 
-      const scale = this.getJointPaper().scale();
+          const scale = this.getJointPaper().scale();
 
-      const translateLimit = this.getTranslateLimit();
-      const elementSize = this.getWrapperElementSize();
+          const translateLimit = this.getTranslateLimit();
+          const elementSize = this.getWrapperElementSize();
 
-      // Check canvas limit
-      if (-newOrigin.x <= translateLimit.xMin) {
-        newOrigin.x = -translateLimit.xMin;
-      }
-      if (-newOrigin.y <= translateLimit.yMin) {
-        newOrigin.y = -translateLimit.yMin;
-      }
-      if (-newOrigin.x >= translateLimit.xMax - elementSize.width / scale.sx) {
-        newOrigin.x = -(translateLimit.xMax - elementSize.width / scale.sx);
-      }
-      if (-newOrigin.y >= translateLimit.yMax - elementSize.height / scale.sy) {
-        newOrigin.y = -(translateLimit.yMax - elementSize.height / scale.sy);
-      }
+          // Check canvas limit
+          if (-newOrigin.x <= translateLimit.xMin) {
+            newOrigin.x = -translateLimit.xMin;
+          }
+          if (-newOrigin.y <= translateLimit.yMin) {
+            newOrigin.y = -translateLimit.yMin;
+          }
+          if (-newOrigin.x >= translateLimit.xMax - elementSize.width / scale.sx) {
+            newOrigin.x = -(translateLimit.xMax - elementSize.width / scale.sx);
+          }
+          if (-newOrigin.y >= translateLimit.yMax - elementSize.height / scale.sy) {
+            newOrigin.y = -(translateLimit.yMax - elementSize.height / scale.sy);
+          }
 
-      if (newOrigin.x !== oldOrigin.tx || newOrigin.y !== oldOrigin.ty) {
-        this.getJointPaper().translate(newOrigin.x, newOrigin.y);
-      }
-    });
+          if (newOrigin.x !== oldOrigin.tx || newOrigin.y !== oldOrigin.ty) {
+            this.getJointPaper().translate(newOrigin.x, newOrigin.y);
+          }
+
+        }));
+
   }
 
   /**
