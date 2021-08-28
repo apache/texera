@@ -1,11 +1,10 @@
-import { Component, OnDestroy, OnInit } from "@angular/core";
+import { Component, OnInit } from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { ResultPanelToggleService } from "../../../service/result-panel-toggle/result-panel-toggle.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { BreakpointTriggerInfo } from "../../../types/workflow-common.interface";
 import { ExecutionState } from "src/app/workspace/types/execute-workflow.interface";
 import { WorkflowConsoleService } from "../../../service/workflow-console/workflow-console.service";
-import { Subscription } from "rxjs";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 @UntilDestroy()

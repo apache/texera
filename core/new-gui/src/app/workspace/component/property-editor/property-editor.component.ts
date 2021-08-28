@@ -1,5 +1,5 @@
-import { Component, OnDestroy, OnInit } from "@angular/core";
-import { merge, Subscription } from "rxjs";
+import { Component, OnInit } from "@angular/core";
+import { merge } from "rxjs";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { OperatorPropertyEditFrameComponent } from "./operator-property-edit-frame/operator-property-edit-frame.component";
 import { BreakpointPropertyEditFrameComponent } from "./breakpoint-property-edit-frame/breakpoint-property-edit-frame.component";

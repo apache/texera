@@ -1,8 +1,7 @@
-import { Component, OnDestroy, OnInit } from "@angular/core";
+import { Component, OnInit } from "@angular/core";
 import { isEqual } from "lodash-es";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NzTableQueryParams } from "ng-zorro-antd/table";
-import { Subscription } from "rxjs";
 import { assertType } from "../../../../common/util/assert";
 import { trimDisplayJsonData } from "../../../../common/util/json";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";

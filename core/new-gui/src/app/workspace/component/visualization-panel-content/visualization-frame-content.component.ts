@@ -4,7 +4,7 @@ import { Primitive, PrimitiveArray } from "c3";
 import * as d3 from "d3";
 import * as cloud from "d3-cloud";
 import { ChartType, WordCloudTuple } from "../../types/visualization.interface";
-import { merge, Subject, Subscription } from "rxjs";
+import { merge, Subject } from "rxjs";
 import { environment } from "src/environments/environment";
 import * as mapboxgl from "mapbox-gl";
 import { MapboxLayer } from "@deck.gl/mapbox";
