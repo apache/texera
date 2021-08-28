@@ -23,8 +23,8 @@ export function setHideExpression(toggleHidden: string[], fields: FormlyFieldCon
 export function setChildTypeDependency(attributes: ReadonlyArray<ReadonlyArray<SchemaAttribute> | null> | undefined, parentName: string,
                                        fields: FormlyFieldConfig[], childName: string): void {
   const timestampFieldNames = attributes?.flat().filter((attribute) => {
-    return attribute.attributeType === 'timestamp';
-  }).map(attribute => attribute.attributeName);
+    return attribute?.attributeType === 'timestamp';
+  }).map(attribute => attribute?.attributeName);
 
   if (timestampFieldNames) {
     const childField = getFieldByName(childName, fields);
