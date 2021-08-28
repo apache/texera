@@ -5,7 +5,7 @@
  */
 export function mapToRecord(map: Map<string, any>): Record<string, any> {
   const record: Record<string, any> = {};
-  map.forEach((value, key) => record[key] = value);
+  map.forEach((value, key) => (record[key] = value));
   return record;
 }
 

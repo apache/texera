@@ -1,7 +1,8 @@
-export interface GenericWebResponse extends Readonly<{
-  code: GenericWebResponseCode;
-  message: string;
-}> { }
+export interface GenericWebResponse
+  extends Readonly<{
+    code: GenericWebResponseCode;
+    message: string;
+  }> {}
 
 /**
  * make sure do not add const/declare before enum here.
@@ -9,5 +10,5 @@ export interface GenericWebResponse extends Readonly<{
  * Source: https://stackoverflow.com/questions/50365598/typescript-runtime-error-cannot-read-property-of-undefined-enum
  */
 export enum GenericWebResponseCode {
-  SUCCESS = 0
+  SUCCESS = 0,
 }

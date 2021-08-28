@@ -15,9 +15,9 @@ import { NzModalRef } from "ng-zorro-antd/modal";
  *  4. Pressing `Esc` button on the keyboard
  */
 @Component({
-  selector: 'texera-row-modal-content',
-  templateUrl: './result-panel-modal.component.html',
-  styleUrls: ['./result-panel.component.scss']
+  selector: "texera-row-modal-content",
+  templateUrl: "./result-panel-modal.component.html",
+  styleUrls: ["./result-panel.component.scss"],
 })
 export class RowModalComponent {
   // when modal is opened, currentDisplayRow will be passed as
@@ -28,6 +28,5 @@ export class RowModalComponent {
   // Index of currentDisplayRowData in currentResult
   @Input() currentDisplayRowIndex: number = 0;
 
-  constructor(public modal: NzModalRef<any, number>) { }
-
+  constructor(public modal: NzModalRef<any, number>) {}
 }

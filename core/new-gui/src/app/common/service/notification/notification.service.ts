@@ -1,9 +1,9 @@
-import { Injectable } from '@angular/core';
-import { Subject } from 'rxjs';
-import { Observable } from 'rxjs';
+import { Injectable } from "@angular/core";
+import { Subject } from "rxjs";
+import { Observable } from "rxjs";
 
 export interface Notification {
-  type: 'success' | 'info' | 'error' | 'warning' | 'loading';
+  type: "success" | "info" | "error" | "warning" | "loading";
   message: string;
 }
 
@@ -12,7 +12,7 @@ export interface Notification {
  * to show on NotificationComponent.
  */
 @Injectable({
-  providedIn: 'root'
+  providedIn: "root",
 })
 export class NotificationService {
   private notificationStream = new Subject<Notification>();
@@ -26,22 +26,22 @@ export class NotificationService {
   }
 
   success(message: string) {
-    this.sendNotification({ type: 'success', message });
+    this.sendNotification({ type: "success", message });
   }
 
   info(message: string) {
-    this.sendNotification({ type: 'info', message });
+    this.sendNotification({ type: "info", message });
   }
 
   error(message: string) {
-    this.sendNotification({ type: 'error', message });
+    this.sendNotification({ type: "error", message });
   }
 
   warning(message: string) {
-    this.sendNotification({ type: 'warning', message });
+    this.sendNotification({ type: "warning", message });
   }
 
   loading(message: string) {
-    return this.sendNotification({ type: 'loading', message });
+    return this.sendNotification({ type: "loading", message });
   }
 }

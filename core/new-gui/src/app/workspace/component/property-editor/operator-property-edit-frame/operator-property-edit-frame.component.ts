@@ -1,26 +1,43 @@
-import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
-import { ExecuteWorkflowService } from '../../../service/execute-workflow/execute-workflow.service';
-import { Subject, Subscription } from 'rxjs';
-import { filter } from 'rxjs/operators';
-import { FormGroup } from '@angular/forms';
-import { FormlyFieldConfig, FormlyFormOptions } from '@ngx-formly/core';
-import * as Ajv from 'ajv';
-import { FormlyJsonschema } from '@ngx-formly/core/json-schema';
-import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
-import { cloneDeep, isEqual } from 'lodash-es';
-import { CustomJSONSchema7 } from '../../../types/custom-json-schema.interface';
-import { isDefined } from '../../../../common/util/predicate';
-import { ExecutionState } from 'src/app/workspace/types/execute-workflow.interface';
-import { DynamicSchemaService } from '../../../service/dynamic-schema/dynamic-schema.service';
-import { SchemaAttribute, SchemaPropagationService } from '../../../service/dynamic-schema/schema-propagation/schema-propagation.service';
-import { createOutputFormChangeEventStream, setChildTypeDependency, setHideExpression } from 'src/app/common/formly/formly-utils';
-import { TYPE_CASTING_OPERATOR_TYPE, TypeCastingDisplayComponent } from '../typecasting-display/type-casting-display.component';
-import { DynamicComponentConfig } from '../../../../common/type/dynamic-component-config';
-
+import {
+  Component,
+  Input,
+  OnChanges,
+  OnDestroy,
+  OnInit,
+  SimpleChanges,
+} from "@angular/core";
+import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
+import { Subject, Subscription } from "rxjs";
+import { filter } from "rxjs/operators";
+import { FormGroup } from "@angular/forms";
+import { FormlyFieldConfig, FormlyFormOptions } from "@ngx-formly/core";
+import * as Ajv from "ajv";
+import { FormlyJsonschema } from "@ngx-formly/core/json-schema";
+import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
+import { cloneDeep, isEqual } from "lodash-es";
+import { CustomJSONSchema7 } from "../../../types/custom-json-schema.interface";
+import { isDefined } from "../../../../common/util/predicate";
+import { ExecutionState } from "src/app/workspace/types/execute-workflow.interface";
+import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
+import {
+  SchemaAttribute,
+  SchemaPropagationService,
+} from "../../../service/dynamic-schema/schema-propagation/schema-propagation.service";
+import {
+  createOutputFormChangeEventStream,
+  setChildTypeDependency,
+  setHideExpression,
+} from "src/app/common/formly/formly-utils";
+import {
+  TYPE_CASTING_OPERATOR_TYPE,
+  TypeCastingDisplayComponent,
+} from "../typecasting-display/type-casting-display.component";
+import { DynamicComponentConfig } from "../../../../common/type/dynamic-component-config";
 
 export type PropertyDisplayComponent = TypeCastingDisplayComponent;
 
-export type PropertyDisplayComponentConfig = DynamicComponentConfig<PropertyDisplayComponent>;
+export type PropertyDisplayComponentConfig =
+  DynamicComponentConfig<PropertyDisplayComponent>;
 
 /**
  * Property Editor uses JSON Schema to automatically generate the form from the JSON Schema of an operator.
@@ -39,11 +56,13 @@ export type PropertyDisplayComponentConfig = DynamicComponentConfig<PropertyDisp
  * https://github.com/ngx-formly/ngx-formly
  */
 @Component({
-  selector: 'texera-formly-form-frame',
-  templateUrl: './operator-property-edit-frame.component.html',
-  styleUrls: ['./operator-property-edit-frame.component.scss']
+  selector: "texera-formly-form-frame",
+  templateUrl: "./operator-property-edit-frame.component.html",
+  styleUrls: ["./operator-property-edit-frame.component.scss"],
 })
-export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy, OnChanges {
+export class OperatorPropertyEditFrameComponent
+  implements OnInit, OnDestroy, OnChanges
+{
   subscriptions = new Subscription();
 
   @Input() currentOperatorId: string | undefined = undefined;
@@ -59,8 +78,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy, On
 
   // the output form change event stream after debounce time and filtering out values
   operatorPropertyChangeStream = createOutputFormChangeEventStream(
-    this.sourceFormChangeEventStream, data => this.checkOperatorProperty(data));
-
+    this.sourceFormChangeEventStream,
+    (data) => this.checkOperatorProperty(data)
+  );
 
   // inputs and two-way bindings to formly component
   formlyFormGroup: FormGroup | undefined;
@@ -81,7 +101,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy, On
     public executeWorkflowService: ExecuteWorkflowService,
     private dynamicSchemaService: DynamicSchemaService,
     private schemaPropagationService: SchemaPropagationService
-  ) { }
+  ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
     this.currentOperatorId = changes.currentOperatorId?.currentValue;
@@ -95,10 +115,12 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy, On
     this.subscriptions.unsubscribe();
   }
 
-
   switchDisplayComponent(targetConfig?: PropertyDisplayComponentConfig) {
-    if (this.extraDisplayComponentConfig?.component === targetConfig?.component &&
-      this.extraDisplayComponentConfig?.component === targetConfig?.componentInputs) {
+    if (
+      this.extraDisplayComponentConfig?.component === targetConfig?.component &&
+      this.extraDisplayComponentConfig?.component ===
+        targetConfig?.componentInputs
+    ) {
       return;
     }
 
@@ -117,7 +139,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy, On
     this.registerOnFormChangeHandler();
 
     this.registerDisableEditorInteractivityHandler();
-
   }
 
   /**
@@ -136,10 +157,14 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy, On
    * @param operatorId
    */
   showOperatorPropertyEditor(operatorId: string): void {
-    const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorId);
+    const operator = this.workflowActionService
+      .getTexeraGraph()
+      .getOperator(operatorId);
     // set the operator data needed
     this.currentOperatorId = operatorId;
-    const currentOperatorSchema = this.dynamicSchemaService.getDynamicSchema(this.currentOperatorId);
+    const currentOperatorSchema = this.dynamicSchemaService.getDynamicSchema(
+      this.currentOperatorId
+    );
     this.setFormlyFormBinding(currentOperatorSchema.jsonSchema);
     this.formTitle = currentOperatorSchema.additionalMetadata.userFriendlyName;
 
@@ -161,25 +186,34 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy, On
     // manually trigger a form change event because default value might be filled in
     this.onFormChanges(this.formData);
 
-    if (this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType
-      .includes(TYPE_CASTING_OPERATOR_TYPE)) {
+    if (
+      this.workflowActionService
+        .getTexeraGraph()
+        .getOperator(this.currentOperatorId)
+        .operatorType.includes(TYPE_CASTING_OPERATOR_TYPE)
+    ) {
       this.switchDisplayComponent({
         component: TypeCastingDisplayComponent,
-        componentInputs: { currentOperatorId: this.currentOperatorId }
+        componentInputs: { currentOperatorId: this.currentOperatorId },
       });
     } else {
       this.switchDisplayComponent(undefined);
     }
 
-    const interactive = this.executeWorkflowService.getExecutionState().state === ExecutionState.Uninitialized ||
-      this.executeWorkflowService.getExecutionState().state === ExecutionState.Completed;
+    const interactive =
+      this.executeWorkflowService.getExecutionState().state ===
+        ExecutionState.Uninitialized ||
+      this.executeWorkflowService.getExecutionState().state ===
+        ExecutionState.Completed;
     this.setInteractivity(interactive);
   }
 
   setInteractivity(interactive: boolean) {
     this.interactive = interactive;
     if (this.formlyFormGroup !== undefined) {
-      this.interactive ? this.formlyFormGroup.enable() : this.formlyFormGroup.disable();
+      this.interactive
+        ? this.formlyFormGroup.enable()
+        : this.formlyFormGroup.disable();
     }
   }
 
@@ -189,7 +223,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy, On
       return false;
     }
     // check if the operator still exists, it might be deleted during debounce time
-    const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
+    const operator = this.workflowActionService
+      .getTexeraGraph()
+      .getOperator(this.currentOperatorId);
     if (!operator) {
       return false;
     }
@@ -208,18 +244,25 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy, On
    *  to the new schema.
    */
   registerOperatorSchemaChangeHandler(): void {
-    this.subscriptions.add(this.dynamicSchemaService.getOperatorDynamicSchemaChangedStream().subscribe(
-      event => {
-        if (event.operatorID === this.currentOperatorId) {
-          const currentOperatorSchema = this.dynamicSchemaService.getDynamicSchema(this.currentOperatorId);
-          const operator = this.workflowActionService.getTexeraGraph().getOperator(event.operatorID);
-          if (!operator) {
-            throw new Error(`operator ${event.operatorID} does not exist`);
+    this.subscriptions.add(
+      this.dynamicSchemaService
+        .getOperatorDynamicSchemaChangedStream()
+        .subscribe((event) => {
+          if (event.operatorID === this.currentOperatorId) {
+            const currentOperatorSchema =
+              this.dynamicSchemaService.getDynamicSchema(
+                this.currentOperatorId
+              );
+            const operator = this.workflowActionService
+              .getTexeraGraph()
+              .getOperator(event.operatorID);
+            if (!operator) {
+              throw new Error(`operator ${event.operatorID} does not exist`);
+            }
+            this.setFormlyFormBinding(currentOperatorSchema.jsonSchema);
           }
-          this.setFormlyFormBinding(currentOperatorSchema.jsonSchema);
-        }
-      }
-    ));
+        })
+    );
   }
 
   /**
@@ -230,11 +273,31 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy, On
    *  invalid fields, this form will capture those events.
    */
   registerOperatorPropertyChangeHandler(): void {
-    this.subscriptions.add(this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream().pipe(
-      filter(_ => this.currentOperatorId !== undefined),
-      filter(operatorChanged => operatorChanged.operator.operatorID === this.currentOperatorId),
-      filter(operatorChanged => !isEqual(this.formData, operatorChanged.operator.operatorProperties))
-    ).subscribe(operatorChanged => this.formData = cloneDeep(operatorChanged.operator.operatorProperties)));
+    this.subscriptions.add(
+      this.workflowActionService
+        .getTexeraGraph()
+        .getOperatorPropertyChangeStream()
+        .pipe(
+          filter((_) => this.currentOperatorId !== undefined),
+          filter(
+            (operatorChanged) =>
+              operatorChanged.operator.operatorID === this.currentOperatorId
+          ),
+          filter(
+            (operatorChanged) =>
+              !isEqual(
+                this.formData,
+                operatorChanged.operator.operatorProperties
+              )
+          )
+        )
+        .subscribe(
+          (operatorChanged) =>
+            (this.formData = cloneDeep(
+              operatorChanged.operator.operatorProperties
+            ))
+        )
+    );
   }
 
   /**
@@ -242,35 +305,50 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy, On
    *  in the texera graph.
    */
   registerOnFormChangeHandler(): void {
-    this.subscriptions.add(this.operatorPropertyChangeStream.subscribe(formData => {
-      // set the operator property to be the new form data
-      if (this.currentOperatorId) {
-        this.workflowActionService.setOperatorProperty(this.currentOperatorId, cloneDeep(formData));
-      }
-    }));
+    this.subscriptions.add(
+      this.operatorPropertyChangeStream.subscribe((formData) => {
+        // set the operator property to be the new form data
+        if (this.currentOperatorId) {
+          this.workflowActionService.setOperatorProperty(
+            this.currentOperatorId,
+            cloneDeep(formData)
+          );
+        }
+      })
+    );
   }
 
   registerDisableEditorInteractivityHandler(): void {
-    this.subscriptions.add(this.executeWorkflowService.getExecutionStateStream().subscribe(event => {
-      if (this.currentOperatorId) {
-        if (event.current.state === ExecutionState.Completed || event.current.state === ExecutionState.Failed) {
-          this.setInteractivity(true);
-        } else {
-          this.setInteractivity(false);
-        }
-      }
-    }));
+    this.subscriptions.add(
+      this.executeWorkflowService
+        .getExecutionStateStream()
+        .subscribe((event) => {
+          if (this.currentOperatorId) {
+            if (
+              event.current.state === ExecutionState.Completed ||
+              event.current.state === ExecutionState.Failed
+            ) {
+              this.setInteractivity(true);
+            } else {
+              this.setInteractivity(false);
+            }
+          }
+        })
+    );
   }
 
   setFormlyFormBinding(schema: CustomJSONSchema7) {
     // intercept JsonSchema -> FormlySchema process, adding custom options
     // this requires a one-to-one mapping.
     // for relational custom options, have to do it after FormlySchema is generated.
-    const jsonSchemaMapIntercept = (mappedField: FormlyFieldConfig, mapSource: CustomJSONSchema7): FormlyFieldConfig => {
+    const jsonSchemaMapIntercept = (
+      mappedField: FormlyFieldConfig,
+      mapSource: CustomJSONSchema7
+    ): FormlyFieldConfig => {
       // if the title is python script (for Python UDF), then make this field a custom template 'codearea'
-      if (mapSource?.description?.toLowerCase() === 'input your code here') {
+      if (mapSource?.description?.toLowerCase() === "input your code here") {
         if (mappedField.type) {
-          mappedField.type = 'codearea';
+          mappedField.type = "codearea";
         }
       }
       return mappedField;
@@ -279,13 +357,15 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy, On
     this.formlyFormGroup = new FormGroup({});
     this.formlyOptions = {};
     // convert the json schema to formly config, pass a copy because formly mutates the schema object
-    const field = this.formlyJsonschema.toFieldConfig(cloneDeep(schema), { map: jsonSchemaMapIntercept });
+    const field = this.formlyJsonschema.toFieldConfig(cloneDeep(schema), {
+      map: jsonSchemaMapIntercept,
+    });
     field.hooks = {
       onInit: (fieldConfig) => {
         if (!this.interactive) {
           fieldConfig?.form?.disable();
         }
-      }
+      },
     };
 
     const schemaProperties = schema.properties;
@@ -293,27 +373,35 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy, On
 
     // adding custom options, relational N-to-M mapping.
     if (schemaProperties && fields) {
-      Object.entries(schemaProperties).forEach(([propertyName, propertyValue]) => {
-        if (typeof propertyValue === 'boolean') {
-          return;
-        }
-        if (propertyValue.toggleHidden) {
-          setHideExpression(propertyValue.toggleHidden, fields, propertyName);
-        }
-
-        if (propertyValue.dependOn) {
-          if (isDefined(this.currentOperatorId)) {
-            const attributes: ReadonlyArray<ReadonlyArray<SchemaAttribute> | null> | undefined =
-              this.schemaPropagationService.getOperatorInputSchema(this.currentOperatorId);
-            setChildTypeDependency(attributes, propertyValue.dependOn, fields, propertyName);
+      Object.entries(schemaProperties).forEach(
+        ([propertyName, propertyValue]) => {
+          if (typeof propertyValue === "boolean") {
+            return;
+          }
+          if (propertyValue.toggleHidden) {
+            setHideExpression(propertyValue.toggleHidden, fields, propertyName);
           }
 
+          if (propertyValue.dependOn) {
+            if (isDefined(this.currentOperatorId)) {
+              const attributes:
+                | ReadonlyArray<ReadonlyArray<SchemaAttribute> | null>
+                | undefined = this.schemaPropagationService.getOperatorInputSchema(
+                this.currentOperatorId
+              );
+              setChildTypeDependency(
+                attributes,
+                propertyValue.dependOn,
+                fields,
+                propertyName
+              );
+            }
+          }
         }
-      });
+      );
     }
 
     this.formlyFields = fields;
-
   }
 
   allowChangeOperatorLogic() {

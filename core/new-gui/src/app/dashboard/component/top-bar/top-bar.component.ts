@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit } from "@angular/core";
 
 /**
  * TopBarComponent is the on the top of DashboardComponent
@@ -15,15 +15,12 @@ import { Component, OnInit } from '@angular/core';
  * @author Zhaomin Li
  */
 @Component({
-  selector: 'texera-top-bar',
-  templateUrl: './top-bar.component.html',
-  styleUrls: ['./top-bar.component.scss']
+  selector: "texera-top-bar",
+  templateUrl: "./top-bar.component.html",
+  styleUrls: ["./top-bar.component.scss"],
 })
 export class TopBarComponent implements OnInit {
+  constructor() {}
 
-  constructor() { }
-
-  ngOnInit() {
-  }
-
+  ngOnInit() {}
 }
