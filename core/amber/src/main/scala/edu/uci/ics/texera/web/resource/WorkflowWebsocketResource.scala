@@ -177,9 +177,7 @@ class WorkflowWebsocketResource {
       return
     }
 
-    val workflow = texeraWorkflowCompiler.amberWorkflow
-    val workflowTag = WorkflowIdentity(jobID)
-
+    val workflow = texeraWorkflowCompiler.amberWorkflow(WorkflowIdentity(jobID))
     val workflowResultService = new WorkflowResultService(texeraWorkflowCompiler)
     sessionResults(session.getId) = workflowResultService
 
@@ -222,7 +220,7 @@ class WorkflowWebsocketResource {
     )
 
     val controllerActorRef = TexeraWebApplication.actorSystem.actorOf(
-      Controller.props(workflowTag, workflow, eventListener, ControllerConfig.default)
+      Controller.props(workflow, eventListener, ControllerConfig.default)
     )
     texeraWorkflowCompiler.initializeBreakpoint(controllerActorRef)
     controllerActorRef ! ControlInvocation(AsyncRPCClient.IgnoreReply, StartWorkflow())

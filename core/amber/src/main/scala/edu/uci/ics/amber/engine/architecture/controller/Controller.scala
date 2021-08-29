@@ -49,7 +49,6 @@ final case class ControllerConfig(
 object Controller {
 
   def props(
-      id: WorkflowIdentity,
       workflow: Workflow,
       eventListener: ControllerEventListener,
       controllerConfig: ControllerConfig = ControllerConfig.default,
@@ -57,7 +56,6 @@ object Controller {
   ): Props =
     Props(
       new Controller(
-        id,
         workflow,
         eventListener,
         controllerConfig,
@@ -67,7 +65,6 @@ object Controller {
 }
 
 class Controller(
-    val id: WorkflowIdentity,
     val workflow: Workflow,
     val eventListener: ControllerEventListener = ControllerEventListener(),
     val controllerConfig: ControllerConfig,
