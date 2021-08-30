@@ -60,7 +60,8 @@ class MongoOpResultStorage extends OpResultStorage {
   }
 
   /**
-    * Retrieve the result of an operator from OpResultStorage
+    * Retrieve the result of an operator from OpResultStorage. If the OpResultStorage
+    * does not have contents of opID, an empty list is returned.
     *
     * @param opID The operator ID.
     * @return The result of this operator.
@@ -68,7 +69,6 @@ class MongoOpResultStorage extends OpResultStorage {
   override def get(opID: String): List[Tuple] = {
     lock.lock()
     logger.debug("get {} start", opID)
-    assert(collectionSet.contains(opID))
     val collection = database.getCollection(opID)
     val cursor = collection.find().sort(Sorts.ascending("index")).cursor()
     val recordBuffer = new ListBuffer[Tuple]()
