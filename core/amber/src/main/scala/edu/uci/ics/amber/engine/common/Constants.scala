@@ -17,5 +17,5 @@ object Constants {
   var defaultTau: FiniteDuration = 10.milliseconds
 
   var mongodbUrl: String = AmberUtils.amberConfig.getString("constants.mongodb-url")
-  var mongodbDatabaseName: String = AmberUtils.amberConfig.getString("mongodb-database-name")
+  var mongodbDatabaseName: String = AmberUtils.amberConfig.getString("constants.mongodb-database-name")
 }
