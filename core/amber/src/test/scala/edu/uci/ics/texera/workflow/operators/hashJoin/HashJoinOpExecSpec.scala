@@ -58,6 +58,7 @@ class HashJoinOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       build,
       "build_1",
       "probe_1",
+      false,
       OperatorSchemaInfo(inputSchemas, outputSchema)
     )
     opExec.open()
@@ -90,6 +91,7 @@ class HashJoinOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       build,
       "same",
       "same",
+      false,
       OperatorSchemaInfo(inputSchemas, outputSchema)
     )
     opExec.open()
