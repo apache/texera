@@ -4,6 +4,7 @@ import com.mongodb.BasicDBObject
 import com.mongodb.client.model.{IndexOptions, Indexes, Sorts}
 import com.mongodb.client.{MongoClient, MongoClients, MongoDatabase}
 import edu.uci.ics.amber.engine.architecture.storage.OpResultStorage
+import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.TupleUtils.{json2tuple, tuple2json}
 import org.bson.Document
@@ -17,11 +18,13 @@ class MongoOpResultStorage extends OpResultStorage {
 
   private val lock = new ReentrantLock()
 
-  val url = "mongodb://localhost:27017"
+  val url: String = Constants.mongodbUrl
+
+  val databaseName: String = Constants.mongodbDatabaseName
 
   val client: MongoClient = MongoClients.create(url)
 
-  val database: MongoDatabase = client.getDatabase("texera_storage")
+  val database: MongoDatabase = client.getDatabase(databaseName)
 
   val collectionSet: mutable.HashSet[String] = mutable.HashSet[String]()
 
