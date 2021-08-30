@@ -266,6 +266,7 @@ class WorkflowRewriterV2(
 
   private def invalidateOperatorCache(id: String): Unit = {
     cachedOperatorDescriptors.remove(id)
+    cachedOperatorDescriptors.remove(cacheSinkOperatorDescriptors(id).operatorID)
     logger.info("Operator {} cache invalidated.", id)
   }
 
