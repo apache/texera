@@ -3,6 +3,7 @@ package edu.uci.ics.amber.engine.architecture.storage.mongo
 import com.mongodb.BasicDBObject
 import com.mongodb.client.model.{IndexOptions, Indexes, Sorts}
 import com.mongodb.client.{MongoClient, MongoClients, MongoDatabase}
+import com.typesafe.scalalogging.Logger
 import edu.uci.ics.amber.engine.architecture.storage.OpResultStorage
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -15,6 +16,8 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 class MongoOpResultStorage extends OpResultStorage {
+
+  private val logger = Logger(this.getClass.getName)
 
   private val lock = new ReentrantLock()
 
@@ -36,6 +39,7 @@ class MongoOpResultStorage extends OpResultStorage {
     */
   override def put(opID: String, records: List[Tuple]): Unit = {
     lock.lock()
+    logger.debug("put {} start", opID)
     val collection = database.getCollection(opID)
     if (collectionSet.contains(opID)) {
       collection.deleteMany(new BasicDBObject())
@@ -51,6 +55,7 @@ class MongoOpResultStorage extends OpResultStorage {
     })
     collection.insertMany(documents)
     collection.createIndex(Indexes.ascending("index"), new IndexOptions().unique(true))
+    logger.debug("put {} end", opID)
     lock.unlock()
   }
 
@@ -62,6 +67,7 @@ class MongoOpResultStorage extends OpResultStorage {
     */
   override def get(opID: String): List[Tuple] = {
     lock.lock()
+    logger.debug("get {} start", opID)
 //    assert(collectionSet.contains(opID))
     val collection = database.getCollection(opID)
     val cursor = collection.find().sort(Sorts.ascending("index")).cursor()
@@ -70,6 +76,7 @@ class MongoOpResultStorage extends OpResultStorage {
       recordBuffer += json2tuple(cursor.next().get("record").toString)
     }
     lock.unlock()
+    logger.debug("get {} end", opID)
     recordBuffer.toList
   }
 
@@ -80,7 +87,9 @@ class MongoOpResultStorage extends OpResultStorage {
     */
   override def remove(opID: String): Unit = {
     lock.lock()
+    logger.debug("remove {} start", opID)
     database.getCollection(opID).drop()
+    logger.debug("remove {} end", opID)
     lock.unlock()
   }
 
