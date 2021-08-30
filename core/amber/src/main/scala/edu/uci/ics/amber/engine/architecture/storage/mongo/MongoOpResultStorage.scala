@@ -88,6 +88,7 @@ class MongoOpResultStorage extends OpResultStorage {
   override def remove(opID: String): Unit = {
     lock.lock()
     logger.debug("remove {} start", opID)
+    collectionSet.remove(opID)
     database.getCollection(opID).drop()
     logger.debug("remove {} end", opID)
     lock.unlock()
