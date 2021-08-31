@@ -31,8 +31,8 @@ import edu.uci.ics.texera.workflow.common.workflow.WorkflowInfo.toJgraphtDAG
 import edu.uci.ics.texera.workflow.common.workflow.{
   WorkflowCompiler,
   WorkflowInfo,
-  WorkflowRewriterV2,
-  WorkflowVertexV2
+  WorkflowRewriter,
+  WorkflowVertex
 }
 import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDescV2
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDescV2
@@ -204,8 +204,8 @@ class WorkflowWebsocketResource {
   val sessionCacheSinkOperators
       : mutable.HashMap[String, mutable.HashMap[String, CacheSinkOpDescV2]] =
     mutable.HashMap[String, mutable.HashMap[String, CacheSinkOpDescV2]]()
-  val sessionOperatorRecord: mutable.HashMap[String, mutable.HashMap[String, WorkflowVertexV2]] =
-    mutable.HashMap[String, mutable.HashMap[String, WorkflowVertexV2]]()
+  val sessionOperatorRecord: mutable.HashMap[String, mutable.HashMap[String, WorkflowVertex]] =
+    mutable.HashMap[String, mutable.HashMap[String, WorkflowVertex]]()
 
   var opResultStorage: OpResultStorage = _
   if (Constants.storage.equals("memory")) {
@@ -241,9 +241,9 @@ class WorkflowWebsocketResource {
     } else {
       cacheSinkOperators = sessionCacheSinkOperators(session.getId)
     }
-    var operatorRecord: mutable.HashMap[String, WorkflowVertexV2] = null
+    var operatorRecord: mutable.HashMap[String, WorkflowVertex] = null
     if (!sessionOperatorRecord.contains(session.getId)) {
-      operatorRecord = mutable.HashMap[String, WorkflowVertexV2]()
+      operatorRecord = mutable.HashMap[String, WorkflowVertex]()
       sessionOperatorRecord += ((session.getId, operatorRecord))
     } else {
       operatorRecord = sessionOperatorRecord(session.getId)
@@ -273,7 +273,7 @@ class WorkflowWebsocketResource {
     workflowInfo.cachedOperatorIDs = request.cachedOperatorIDs
     logger.info("Cached operators: {}.", cachedOperators.toString())
     logger.info("request.cachedOperatorIDs: {}.", request.cachedOperatorIDs)
-    val workflowRewriter = new WorkflowRewriterV2(
+    val workflowRewriter = new WorkflowRewriter(
       workflowInfo,
       cachedOperators,
       cacheSourceOperators,

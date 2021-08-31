@@ -15,7 +15,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import java.util.UUID
 import scala.collection.mutable
 
-class WorkflowRewriterV2Spec extends AnyFlatSpec with BeforeAndAfter {
+class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
 
   var opResultStorage: OpResultStorage = _
 
@@ -23,7 +23,7 @@ class WorkflowRewriterV2Spec extends AnyFlatSpec with BeforeAndAfter {
     opResultStorage = new MongoOpResultStorage()
   }
 
-  var rewriter: WorkflowRewriterV2 = _
+  var rewriter: WorkflowRewriter = _
 
   def operatorToString(operator: OperatorDescriptor): OperatorDescriptor = {
     operator
@@ -42,12 +42,12 @@ class WorkflowRewriterV2Spec extends AnyFlatSpec with BeforeAndAfter {
     links += OperatorLink(origin, destination)
     val workflowInfo = WorkflowInfo(operators, links, breakpoints)
     workflowInfo.cachedOperatorIDs = mutable.MutableList[String]()
-    rewriter = new WorkflowRewriterV2(
+    rewriter = new WorkflowRewriter(
       workflowInfo,
       mutable.HashMap[String, OperatorDescriptor](),
       mutable.HashMap[String, CacheSourceOpDescV2](),
       mutable.HashMap[String, CacheSinkOpDescV2](),
-      mutable.HashMap[String, WorkflowVertexV2](),
+      mutable.HashMap[String, WorkflowVertex](),
       opResultStorage
     )
     val rewrittenWorkflowInfo = rewriter.rewrite_v2

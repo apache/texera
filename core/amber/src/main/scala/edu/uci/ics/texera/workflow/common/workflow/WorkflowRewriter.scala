@@ -4,30 +4,30 @@ import com.typesafe.scalalogging.Logger
 import edu.uci.ics.amber.engine.architecture.storage.OpResultStorage
 import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
-import edu.uci.ics.texera.workflow.common.workflow.WorkflowRewriterV2.copyOperator
+import edu.uci.ics.texera.workflow.common.workflow.WorkflowRewriter.copyOperator
 import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDescV2
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDescV2
 
 import java.util.UUID
 import scala.collection.mutable
 
-case class WorkflowVertexV2(
+case class WorkflowVertex(
     op: OperatorDescriptor,
     links: mutable.HashSet[OperatorLink]
 )
 
-object WorkflowRewriterV2 {
+object WorkflowRewriter {
   private def copyOperator(operator: OperatorDescriptor): OperatorDescriptor = {
     objectMapper.readValue(objectMapper.writeValueAsString(operator), classOf[OperatorDescriptor])
   }
 }
 
-class WorkflowRewriterV2(
+class WorkflowRewriter(
     var workflowInfo: WorkflowInfo,
     var cachedOperatorDescriptors: mutable.HashMap[String, OperatorDescriptor],
     var cacheSourceOperatorDescriptors: mutable.HashMap[String, CacheSourceOpDescV2],
     var cacheSinkOperatorDescriptors: mutable.HashMap[String, CacheSinkOpDescV2],
-    var operatorRecord: mutable.HashMap[String, WorkflowVertexV2],
+    var operatorRecord: mutable.HashMap[String, WorkflowVertex],
     var opResultStorage: OpResultStorage
 ) {
 
@@ -323,14 +323,14 @@ class WorkflowRewriterV2(
     OperatorLink(srcPort, destPort)
   }
 
-  def getWorkflowVertex(op: OperatorDescriptor): WorkflowVertexV2 = {
+  def getWorkflowVertex(op: OperatorDescriptor): WorkflowVertex = {
     val opInVertex = copyOperator(op)
     val links = mutable.HashSet[OperatorLink]()
     if (!workflowDAG.operators.contains(op.operatorID)) {
       null
     } else {
       workflowDAG.jgraphtDag.incomingEdgesOf(opInVertex.operatorID).forEach(link => links.+=(link))
-      WorkflowVertexV2(opInVertex, links)
+      WorkflowVertex(opInVertex, links)
     }
   }
 
