@@ -249,6 +249,8 @@ class WorkflowRewriterV2(
       operatorRecord += ((id, getWorkflowVertex(workflowDAG.getOperator(id))))
       logger.info("Vertex {} is not recorded.", operatorRecord(id))
       true
+    } else if (workflowInfo.cachedOperatorIDs.contains(id)) {
+      !cacheSinkOperatorDescriptors.contains(id)
     } else {
       val vertex = getWorkflowVertex(workflowDAG.getOperator(id))
       if (!operatorRecord(id).equals(vertex)) {
@@ -268,6 +270,8 @@ class WorkflowRewriterV2(
     if (cachedOperatorDescriptors.contains(id)) {
       cachedOperatorDescriptors.remove(id)
       opResultStorage.remove(cacheSinkOperatorDescriptors(id).uuid)
+      cacheSinkOperatorDescriptors.remove(id)
+      cacheSourceOperatorDescriptors.remove(id)
     }
     logger.info("Operator {} cache invalidated.", id)
   }
