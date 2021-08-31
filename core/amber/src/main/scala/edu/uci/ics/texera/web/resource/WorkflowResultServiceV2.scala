@@ -128,9 +128,19 @@ class WorkflowResultServiceV2(
     }
   })
 
+  val updatedSet: mutable.Set[String] = mutable.HashSet[String]()
+
   def onResultUpdate(resultUpdate: WorkflowResultUpdate, session: Session): Unit = {
 
+    val tmpUpdatedSet = updatedSet.clone()
+    for (id <- tmpUpdatedSet) {
+      if (!operatorResults.contains(id)) {
+        updatedSet.remove(id)
+      }
+    }
+
     val webUpdateEvent = operatorResults
+      .filter(e => resultUpdate.operatorResults.contains(e._1) || !updatedSet.contains(e._1))
       .map(e => {
         if (resultUpdate.operatorResults.contains(e._1)) {
           val e1 = resultUpdate.operatorResults(e._1)
@@ -143,6 +153,7 @@ class WorkflowResultServiceV2(
             (e._1, webUpdateEvent)
           }
         } else {
+          updatedSet += e._1
           val size = operatorResults(e._1).getResult.size
           (e._1, WebPaginationUpdate(PaginationMode(), size, List.range(0, defaultPageSize)))
         }
