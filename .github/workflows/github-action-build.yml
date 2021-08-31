@@ -45,8 +45,6 @@ jobs:
           key: ${{ runner.os }}-yarn-cache-v3-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-yarn-cache-v3-
-      - name: Lint with ESLint
-        run: yarn --cwd core/new-gui eslint ./src
       - name: Install dependency
         run: yarn --cwd core/new-gui install --frozen-lockfile --progress=false
       - name: Lint with ESLint
