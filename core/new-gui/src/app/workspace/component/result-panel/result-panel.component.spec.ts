@@ -14,15 +14,6 @@ import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { DynamicModule } from "ng-dynamic-component";
 
-// this is how to import entry components in testings
-// Stack Overflow Link: https://stackoverflow.com/questions/41483841/providing-entrycomponents-for-a-testbed/45550720
-@NgModule({
-  declarations: [RowModalComponent],
-  entryComponents: [RowModalComponent],
-  imports: [NgxJsonViewerModule]
-})
-class CustomNgBModalModule {}
-
 describe("ResultPanelComponent", () => {
   let component: ResultPanelComponent;
   let fixture: ComponentFixture<ResultPanelComponent>;
