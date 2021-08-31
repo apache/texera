@@ -4,7 +4,6 @@ import com.typesafe.scalalogging.Logger
 import edu.uci.ics.amber.engine.architecture.storage.OpResultStorage
 import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowRewriterV2.copyOperator
 import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDescV2
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDescV2
@@ -38,26 +37,6 @@ class WorkflowRewriterV2(
 
   private val workflowDAG: WorkflowDAG = if (workflowInfo != null) {
     new WorkflowDAG(workflowInfo)
-  } else {
-    null
-  }
-  private val newOps = if (workflowInfo != null) {
-    mutable.MutableList[OperatorDescriptor]()
-  } else {
-    null
-  }
-  private val newLinks = if (workflowInfo != null) {
-    mutable.MutableList[OperatorLink]()
-  } else {
-    null
-  }
-  private val newBreakpoints = if (workflowInfo != null) {
-    mutable.MutableList[BreakpointInfo]()
-  } else {
-    null
-  }
-  private val operatorIDQueue = if (workflowInfo != null) {
-    new mutable.Queue[String]()
   } else {
     null
   }
@@ -202,20 +181,6 @@ class WorkflowRewriterV2(
     }
   }
 
-  private def removeInvalidLinks(): Unit = {
-    val opIDs = newOps.map(op => op.operatorID).toSet
-    val linkSets = mutable.Set[OperatorLink]()
-    newLinks.foreach(link => {
-      if (opIDs.contains(link.origin.operatorID) && opIDs.contains(link.destination.operatorID)) {
-        linkSets += link
-      }
-    })
-    newLinks.clear()
-    linkSets.foreach(link => {
-      newLinks += link
-    })
-  }
-
   private def checkCacheValidity(): Unit = {
     val opIter = workflowDAG.jgraphtDag.iterator()
     while (opIter.hasNext) {
@@ -285,87 +250,6 @@ class WorkflowRewriterV2(
       })
   }
 
-  private def rewriteUpstreamOperator(
-      operatorID: String,
-      upstreamOperatorDescriptor: OperatorDescriptor
-  ): Unit = {
-    if (isCacheEnabled(upstreamOperatorDescriptor)) {
-      if (isCacheValid(upstreamOperatorDescriptor)) {
-        rewriteCachedOperator(upstreamOperatorDescriptor)
-      } else {
-        rewriteToCacheOperator(operatorID, upstreamOperatorDescriptor)
-      }
-    } else {
-      rewriteNormalOperator(operatorID, upstreamOperatorDescriptor)
-    }
-  }
-
-  private def rewriteNormalOperator(
-      operatorID: String,
-      upstreamOperatorDescriptor: OperatorDescriptor
-  ): Unit = {
-    // Add the new link.
-    newLinks += workflowDAG.jgraphtDag.getEdge(
-      upstreamOperatorDescriptor.operatorID,
-      operatorID
-    )
-    // Remove the old link from the old DAG.
-    workflowDAG.jgraphtDag.removeEdge(upstreamOperatorDescriptor.operatorID, operatorID)
-    // All outgoing neighbors of this upstream operator are handled.
-    if (0.equals(workflowDAG.jgraphtDag.outDegreeOf(upstreamOperatorDescriptor.operatorID))) {
-      // Handle the incoming neighbors of this upstream operator.
-      operatorIDQueue.enqueue(upstreamOperatorDescriptor.operatorID)
-      // Add the upstream operator.
-      newOps += upstreamOperatorDescriptor
-      // Add the old breakpoints.
-      addMatchingBreakpoints(upstreamOperatorDescriptor.operatorID)
-    }
-  }
-
-  private def addMatchingBreakpoints(operatorID: String): Unit = {
-    workflowInfo.breakpoints.foreach(breakpoint => {
-      if (operatorID.equals(breakpoint.operatorID)) {
-        logger.info("Add breakpoint {} for operator {}", breakpoint, operatorID)
-        newBreakpoints += breakpoint
-      }
-    })
-  }
-
-  private def rewriteToCacheOperator(
-      operatorID: String,
-      upstreamOperatorDescriptor: OperatorDescriptor
-  ): Unit = {
-    if (!rewrittenToCacheOperatorIDs.contains(upstreamOperatorDescriptor.operatorID)) {
-      logger.info("Rewrite operator {}.", upstreamOperatorDescriptor.operatorID)
-      val toCacheOperator = generateCacheSinkOperator_v2(upstreamOperatorDescriptor)
-      newOps += toCacheOperator
-      newLinks += generateCacheSinkLink(toCacheOperator, upstreamOperatorDescriptor)
-      rewrittenToCacheOperatorIDs.add(upstreamOperatorDescriptor.operatorID)
-    } else {
-      logger.info("Operator {} is already rewritten.", upstreamOperatorDescriptor.operatorID)
-    }
-    rewriteNormalOperator(operatorID, upstreamOperatorDescriptor)
-  }
-
-  private def rewriteCachedOperator(upstreamOperatorDescriptor: OperatorDescriptor): Unit = {
-    // Rewrite cached operator.
-    val cacheSourceOperatorDescriptor = getCacheSourceOperator(upstreamOperatorDescriptor)
-    //Add the new operator
-    newOps += cacheSourceOperatorDescriptor
-    // Add new links.
-    generateNewLinks(cacheSourceOperatorDescriptor, upstreamOperatorDescriptor).foreach(newLink => {
-      newLinks += newLink
-    })
-    // Add new breakpoints.
-    generateNewBreakpoints(cacheSourceOperatorDescriptor, upstreamOperatorDescriptor).foreach(
-      newBreakpoint => {
-        newBreakpoints += newBreakpoint
-      }
-    )
-    // Remove the old operator and links from the old DAG.
-    removeFromWorkflow(upstreamOperatorDescriptor)
-  }
-
   private def isCacheEnabled(operatorDescriptor: OperatorDescriptor): Boolean = {
     if (!workflowInfo.cachedOperatorIDs.contains(operatorDescriptor.operatorID)) {
       cachedOperatorDescriptors.remove(operatorDescriptor.operatorID)
@@ -403,44 +287,10 @@ class WorkflowRewriterV2(
     cachedOperatorDescriptors(operatorDescriptor.operatorID)
   }
 
-  private def generateNewLinks(
-      operatorDescriptor: OperatorDescriptor,
-      upstreamOperatorDescriptor: OperatorDescriptor
-  ): mutable.MutableList[OperatorLink] = {
-    val newOperatorLinks = mutable.MutableList[OperatorLink]()
-    workflowDAG.jgraphtDag
-      .outgoingEdgesOf(upstreamOperatorDescriptor.operatorID)
-      .forEach(link => {
-        val originOperatorPort =
-          OperatorPort(operatorDescriptor.operatorID, link.origin.portOrdinal)
-        val newOperatorLink = OperatorLink(originOperatorPort, link.destination)
-        newOperatorLinks += newOperatorLink
-      })
-    newOperatorLinks
-  }
-
-  private def generateNewBreakpoints(
-      newOperatorDescriptor: OperatorDescriptor,
-      upstreamOperatorDescriptor: OperatorDescriptor
-  ): mutable.MutableList[BreakpointInfo] = {
-    val breakpointInfoList = new mutable.MutableList[BreakpointInfo]()
-    workflowInfo.breakpoints.foreach(info => {
-      if (upstreamOperatorDescriptor.operatorID.equals(info.operatorID)) {
-        breakpointInfoList += BreakpointInfo(newOperatorDescriptor.operatorID, info.breakpoint)
-      }
-    })
-    breakpointInfoList
-  }
-
-  private def removeFromWorkflow(operator: OperatorDescriptor): Unit = {
-    workflowDAG.jgraphtDag.removeVertex(operator.operatorID)
-  }
-
   private def generateCacheSinkOperator_v2(
       operatorDescriptor: OperatorDescriptor
   ): CacheSinkOpDescV2 = {
     logger.info("Generating CacheSinkOperator for operator {}.", operatorDescriptor.toString)
-    val outputTupleCache = mutable.MutableList[Tuple]()
     cachedOperatorDescriptors += ((operatorDescriptor.operatorID, copyOperator(operatorDescriptor)))
     logger.info(
       "Operator: {} added to cachedOperators: {}.",
@@ -454,23 +304,6 @@ class WorkflowRewriterV2(
     cacheSourceOperatorDescriptors += ((operatorDescriptor.operatorID, cacheSourceOperator))
     cacheSinkOperator
   }
-
-  //  private def generateCacheSinkOperator(operatorDescriptor: OperatorDescriptor): CacheSinkOpDesc = {
-  //    logger.info("Generating CacheSinkOperator for operator {}.", operatorDescriptor.toString)
-  //    val outputTupleCache = mutable.MutableList[Tuple]()
-  //    cachedOperatorDescriptors += ((operatorDescriptor.operatorID, copyOperator(operatorDescriptor)))
-  //    logger.info(
-  //      "Operator: {} added to cachedOperators: {}.",
-  //      operatorDescriptor.toString,
-  //      cachedOperatorDescriptors.toString()
-  //    )
-  //    //    logger.info("cachedOperators size: {}.", cachedOperatorDescriptors.size)
-  //    val cacheSinkOperator = new CacheSinkOpDesc(outputTupleCache)
-  //    cacheSinkOperatorDescriptors += ((operatorDescriptor.operatorID, cacheSinkOperator))
-  //    val cacheSourceOperator = new CacheSourceOpDesc(outputTupleCache)
-  //    cacheSourceOperatorDescriptors += ((operatorDescriptor.operatorID, cacheSourceOperator))
-  //    cacheSinkOperator
-  //  }
 
   private def getCacheSourceOperator(
       operatorDescriptor: OperatorDescriptor
@@ -496,7 +329,6 @@ class WorkflowRewriterV2(
     if (!workflowDAG.operators.contains(op.operatorID)) {
       null
     } else {
-      //      workflowDAG.jgraphtDag.outgoingEdgesOf(opInVertex.operatorID).forEach(links.+=)
       workflowDAG.jgraphtDag.incomingEdgesOf(opInVertex.operatorID).forEach(link => links.+=(link))
       WorkflowVertexV2(opInVertex, links)
     }
