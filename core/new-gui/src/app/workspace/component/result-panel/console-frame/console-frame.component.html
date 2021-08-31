@@ -10,9 +10,12 @@
 </button>
 
 <!--TODO: add this to part of resume logic-->
-<button (click)="onClickRetry()" *ngIf="breakpointTriggerInfo !== undefined"
-        [disabled]="!breakpointAction"
-        nz-button>
+<button
+  (click)="onClickRetry()"
+  *ngIf="breakpointTriggerInfo !== undefined"
+  [disabled]="!breakpointAction"
+  nz-button
+>
   Retry current Tuple
 </button>
 

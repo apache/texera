@@ -96,7 +96,7 @@ export type TexeraWebsocketRequestTypeMap = {
   KillWorkflowRequest: {};
   ModifyLogicRequest: ModifyOperatorLogic;
   SkipTupleRequest: SkipTuple;
-  RetryRequest: {},
+  RetryRequest: {};
   AddBreakpointRequest: BreakpointInfo;
   ResultPaginationRequest: PaginationRequest;
   ResultExportRequest: ResultExportRequest;
