@@ -1,4 +1,10 @@
-import { Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
+import {
+  Component,
+  Input,
+  OnChanges,
+  OnInit,
+  SimpleChanges
+} from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { BreakpointTriggerInfo } from "../../../types/workflow-common.interface";
 import { ExecutionState } from "src/app/workspace/types/execute-workflow.interface";
@@ -12,8 +18,6 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
   styleUrls: ["./console-frame.component.scss"]
 })
 export class ConsoleFrameComponent implements OnInit, OnChanges {
-
-
   @Input() operatorId?: string;
   // display error message:
   errorMessages?: Readonly<Record<string, string>>;
@@ -34,42 +38,38 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
     this.renderConsole();
   }
 
-
   ngOnInit(): void {
     // make sure the console is re-rendered upon state changes
     this.registerAutoConsoleRerender();
   }
 
   registerAutoConsoleRerender() {
-
     this.executeWorkflowService
       .getExecutionStateStream()
       .pipe(untilDestroyed(this))
       .subscribe((event) => {
-          if (
-            event.previous.state === ExecutionState.BreakpointTriggered &&
-            event.current.state === ExecutionState.Completed
-          ) {
-            // intentionally do nothing to leave the information displayed as it is
-            // when kill a workflow after hitting breakpoint
-          } else if (
-            event.previous.state === ExecutionState.WaitingToRun &&
-            event.current.state === ExecutionState.Running
-          ) {
-            // clear the console for the next execution
-            this.clearConsole();
-          } else {
-            // re-render the console, this may update the console with error messages or console messages
-            this.renderConsole();
-          }
+        if (
+          event.previous.state === ExecutionState.BreakpointTriggered &&
+          event.current.state === ExecutionState.Completed
+        ) {
+          // intentionally do nothing to leave the information displayed as it is
+          // when kill a workflow after hitting breakpoint
+        } else if (
+          event.previous.state === ExecutionState.WaitingToRun &&
+          event.current.state === ExecutionState.Running
+        ) {
+          // clear the console for the next execution
+          this.clearConsole();
+        } else {
+          // re-render the console, this may update the console with error messages or console messages
+          this.renderConsole();
         }
-      );
+      });
 
     this.workflowConsoleService
       .getConsoleMessageUpdateStream()
       .pipe(untilDestroyed(this))
       .subscribe((_) => this.renderConsole());
-
   }
 
   onClickSkipTuples(): void {

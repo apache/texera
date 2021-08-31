@@ -3,7 +3,10 @@ import { merge } from "rxjs";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
-import { ExecutionState, ExecutionStateInfo } from "../../types/execute-workflow.interface";
+import {
+  ExecutionState,
+  ExecutionStateInfo
+} from "../../types/execute-workflow.interface";
 import { ResultTableFrameComponent } from "./result-table-frame/result-table-frame.component";
 import { ConsoleFrameComponent } from "./console-frame/console-frame.component";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
@@ -31,7 +34,6 @@ export type ResultFrameComponentConfig =
   styleUrls: ["./result-panel.component.scss"]
 })
 export class ResultPanelComponent implements OnInit {
-
   frameComponentConfig?: ResultFrameComponentConfig;
 
   // the highlighted operator ID for display result table / visualization / breakpoint
@@ -45,7 +47,6 @@ export class ResultPanelComponent implements OnInit {
     private workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService
   ) {}
-
 
   ngOnInit(): void {
     this.registerAutoRerenderResultPanel();
@@ -62,8 +63,7 @@ export class ResultPanelComponent implements OnInit {
           .getCurrentHighlightedOperatorIDs();
         if (event.current.state === ExecutionState.BreakpointTriggered) {
           const breakpointOperator =
-            this.executeWorkflowService.getBreakpointTriggerInfo()
-              ?.operatorID;
+            this.executeWorkflowService.getBreakpointTriggerInfo()?.operatorID;
           if (breakpointOperator) {
             this.workflowActionService
               .getJointGraphWrapper()
@@ -196,9 +196,9 @@ export class ResultPanelComponent implements OnInit {
   switchFrameComponent(targetComponentConfig?: ResultFrameComponentConfig) {
     if (
       this.frameComponentConfig?.component ===
-      targetComponentConfig?.component &&
+        targetComponentConfig?.component &&
       this.frameComponentConfig?.componentInputs ===
-      targetComponentConfig?.componentInputs
+        targetComponentConfig?.componentInputs
     ) {
       return;
     }

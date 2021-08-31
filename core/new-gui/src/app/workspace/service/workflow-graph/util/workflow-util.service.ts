@@ -131,6 +131,4 @@ export class WorkflowUtilService {
       isDisabled
     };
   }
-
-
 }

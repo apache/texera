@@ -1,4 +1,10 @@
-import { Component, Input, OnInit, SimpleChanges } from "@angular/core";
+import {
+  Component,
+  Input,
+  OnChanges,
+  OnInit,
+  SimpleChanges
+} from "@angular/core";
 import { cloneDeep, isEqual } from "lodash-es";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
@@ -35,7 +41,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
   templateUrl: "./breakpoint-property-edit-frame.component.html",
   styleUrls: ["./breakpoint-property-edit-frame.component.scss"]
 })
-export class BreakpointPropertyEditFrameComponent implements OnInit {
+export class BreakpointPropertyEditFrameComponent implements OnInit, OnChanges {
   @Input() currentLinkId: string | undefined;
 
   // whether the editor can be edited

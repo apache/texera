@@ -1,4 +1,10 @@
-import { Component, Input, OnInit, SimpleChanges } from "@angular/core";
+import {
+  Component,
+  Input,
+  OnChanges,
+  OnInit,
+  SimpleChanges
+} from "@angular/core";
 import { isEqual } from "lodash-es";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NzTableQueryParams } from "ng-zorro-antd/table";
@@ -33,7 +39,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
   templateUrl: "./result-table-frame.component.html",
   styleUrls: ["./result-table-frame.component.scss"]
 })
-export class ResultTableFrameComponent implements OnInit {
+export class ResultTableFrameComponent implements OnInit, OnChanges {
   @Input() operatorId?: string;
 
   // display result table
