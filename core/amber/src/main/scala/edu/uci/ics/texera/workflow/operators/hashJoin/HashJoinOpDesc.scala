@@ -33,16 +33,18 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
   @AutofillAttributeNameOnPort1
   var probeAttributeName: String = _
 
-
   @JsonProperty(required = true, defaultValue = "false")
   @JsonSchemaTitle("Left Outer Join?")
-  @JsonPropertyDescription("all records from the Left input, including the records that joined with the Right input")
+  @JsonPropertyDescription(
+    "all records from the Left input, including the records that joined with the Right input"
+  )
   var leftOuterJoin: Boolean = false
-
 
   @JsonProperty(required = true, defaultValue = "false")
   @JsonSchemaTitle("Right Outer Join?")
-  @JsonPropertyDescription("all records from the Right input, including the records that joined with the Left input")
+  @JsonPropertyDescription(
+    "all records from the Right input, including the records that joined with the Left input"
+  )
   var rightOuterJoin: Boolean = false
 
   @JsonIgnore
