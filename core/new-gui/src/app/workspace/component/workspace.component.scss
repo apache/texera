@@ -44,11 +44,12 @@
 .texera-workspace-grid-container {
   display: grid;
   grid-template-columns: 200px auto 350px;
-  grid-template-rows: var(--header-height)
-                       calc((100% - var(--header-height) - var(--resultbar-height)) * 0.60)
-                      0px
-                      var(--resultbar-height)
-                       calc((100% - var(--header-height) - var(--resultbar-height)) * 0.40);
+  grid-template-rows:
+    var(--header-height)
+    calc((100% - var(--header-height) - var(--resultbar-height)) * 0.6)
+    0px
+    var(--resultbar-height)
+    calc((100% - var(--header-height) - var(--resultbar-height)) * 0.4);
   position: relative;
 }
 
@@ -63,11 +64,12 @@
 .texera-original-workspace-grid-container {
   display: grid;
   grid-template-columns: 200px auto 350px;
-  grid-template-rows: var(--header-height)
-                       calc((100% - var(--header-height) - var(--resultbar-height)) * 0.60)
-                       calc((100% - var(--header-height) - var(--resultbar-height)) * 0.40)
-                       var(--resultbar-height)
-                      0px;
+  grid-template-rows:
+    var(--header-height)
+    calc((100% - var(--header-height) - var(--resultbar-height)) * 0.6)
+    calc((100% - var(--header-height) - var(--resultbar-height)) * 0.4)
+    var(--resultbar-height)
+    0px;
   position: relative;
 }
 
@@ -109,7 +111,6 @@
   display: grid;
   grid-template-rows: 1fr auto;
 }
-
 
 /**
 * this style specifies that the workflow editor in the middle

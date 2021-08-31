@@ -85,7 +85,6 @@
 //   //     Observable.of(mockExecutionResult)
 //   //   );
 
-
 //   //   const runButtonElement = fixture.debugElement.query(By.css('.texera-navigation-run-button'));
 //   //   m.hot('-e-').do(event => runButtonElement.triggerEventHandler('click', null)).subscribe();
 
@@ -195,7 +194,6 @@
 //   //       }
 //   //     });
 //   // }));
-
 
 //   // it('it should update isWorkflowPaused variable to false when 1 is returned from getExecutionPauseResumeStream', marbles((m) => {
 //   //   const endMarbleString = '-e-|';

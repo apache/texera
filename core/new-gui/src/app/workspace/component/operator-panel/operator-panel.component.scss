@@ -1,4 +1,4 @@
-@import '../workspace.component.scss';
+@import "../workspace.component.scss";
 
 .texera-workspace-operator-panel-body {
   height: 100%;
@@ -9,20 +9,20 @@
     padding: 10px;
     height: max-content;
     z-index: 0;
-    box-shadow: 0px 1px 2px rgba(0,0,0,0.2);
-    .texera-workspace-operator-panel-search-box-input{
+    box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.2);
+    .texera-workspace-operator-panel-search-box-input {
       width: 100%;
     }
   }
-  .texera-workspace-operator-panel-menu{
+  .texera-workspace-operator-panel-menu {
     flex-grow: 1;
     overflow-y: auto;
-    .texera-workspace-operator-panel-subgroup{
+    .texera-workspace-operator-panel-subgroup {
       background-color: #fff;
       user-select: none;
-      .texera-workspace-operator-panel-subgroup-menu{
+      .texera-workspace-operator-panel-subgroup-menu {
         border: none;
-        .texera-operator-label{
+        .texera-operator-label {
           padding: unset;
           overflow: visible;
           &:active {
@@ -34,9 +34,9 @@
   }
 }
 
-.texera-workspace-operator-panel-search-box-dropdown-menu{
+.texera-workspace-operator-panel-search-box-dropdown-menu {
   padding: 0;
-  .dropdown-menu-items{
+  .dropdown-menu-items {
     background-color: #fff;
   }
 }

@@ -1,4 +1,1 @@
-
-describe('AppComponent', () => {
-
-});
+describe("AppComponent", () => {});

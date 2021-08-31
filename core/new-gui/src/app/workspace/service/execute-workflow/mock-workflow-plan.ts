@@ -1,22 +1,18 @@
-import { WorkflowGraph } from '../workflow-graph/model/workflow-graph';
+import { WorkflowGraph } from "../workflow-graph/model/workflow-graph";
 import {
-  mockScanPredicate, mockSentimentPredicate,
-  mockResultPredicate, mockScanResultLink,
-  mockScanSentimentLink, mockSentimentResultLink
-} from '../workflow-graph/model/mock-workflow-data';
-import { LogicalPlan } from '../../types/execute-workflow.interface';
-
+  mockScanPredicate,
+  mockSentimentPredicate,
+  mockResultPredicate,
+  mockScanResultLink,
+  mockScanSentimentLink,
+  mockSentimentResultLink
+} from "../workflow-graph/model/mock-workflow-data";
+import { LogicalPlan } from "../../types/execute-workflow.interface";
 
 export const mockWorkflowPlan_scan_result: WorkflowGraph = new WorkflowGraph(
-  [
-    mockScanPredicate,
-    mockResultPredicate
-  ],
-  [
-    mockScanResultLink
-  ]
+  [mockScanPredicate, mockResultPredicate],
+  [mockScanResultLink]
 );
-
 
 export const mockLogicalPlan_scan_result: LogicalPlan = {
   operators: [
@@ -33,24 +29,21 @@ export const mockLogicalPlan_scan_result: LogicalPlan = {
   ],
   links: [
     {
-      origin: {operatorID: mockScanPredicate.operatorID, portOrdinal: 0},
-      destination: {operatorID: mockResultPredicate.operatorID, portOrdinal: 0},
+      origin: { operatorID: mockScanPredicate.operatorID, portOrdinal: 0 },
+      destination: {
+        operatorID: mockResultPredicate.operatorID,
+        portOrdinal: 0
+      }
     }
   ],
   breakpoints: []
 };
 
-export const mockWorkflowPlan_scan_sentiment_result: WorkflowGraph = new WorkflowGraph(
-  [
-    mockScanPredicate,
-    mockSentimentPredicate,
-    mockResultPredicate
-  ],
-  [
-    mockScanSentimentLink,
-    mockSentimentResultLink
-  ]
-);
+export const mockWorkflowPlan_scan_sentiment_result: WorkflowGraph =
+  new WorkflowGraph(
+    [mockScanPredicate, mockSentimentPredicate, mockResultPredicate],
+    [mockScanSentimentLink, mockSentimentResultLink]
+  );
 
 export const mockLogicalPlan_scan_sentiment_result: LogicalPlan = {
   operators: [
@@ -72,12 +65,18 @@ export const mockLogicalPlan_scan_sentiment_result: LogicalPlan = {
   ],
   links: [
     {
-      origin: {operatorID: mockScanPredicate.operatorID, portOrdinal: 0},
-      destination: {operatorID: mockSentimentPredicate.operatorID, portOrdinal: 0},
+      origin: { operatorID: mockScanPredicate.operatorID, portOrdinal: 0 },
+      destination: {
+        operatorID: mockSentimentPredicate.operatorID,
+        portOrdinal: 0
+      }
     },
     {
-      origin: {operatorID: mockSentimentPredicate.operatorID, portOrdinal: 0},
-      destination: {operatorID: mockResultPredicate.operatorID, portOrdinal: 0},
+      origin: { operatorID: mockSentimentPredicate.operatorID, portOrdinal: 0 },
+      destination: {
+        operatorID: mockResultPredicate.operatorID,
+        portOrdinal: 0
+      }
     }
   ],
   breakpoints: []

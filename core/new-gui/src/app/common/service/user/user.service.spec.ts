@@ -28,7 +28,7 @@
 //   message: ''
 // };
 //
-// // tslint:disable:no-non-null-assertion
+/* eslint-disable */
 // describe('UserService', () => {
 //   let httpMock: HttpTestingController;
 //   let service: UserService;

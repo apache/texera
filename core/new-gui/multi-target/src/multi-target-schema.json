@@ -5,7 +5,7 @@
     "targets": {
       "type": "array",
       "items": {
-        "type":"string",
+        "type": "string",
         "pattern": ".*:.*"
       },
       "description": "build targets, IE '@angular-devkit/build-angular:browser'"
@@ -13,18 +13,18 @@
     "sequential": {
       "type": "boolean",
       "description": "if true, run targets sequentially rather than in parallel. Incompatible with race:true",
-      "default":false
+      "default": false
     },
-    "race":{
+    "race": {
       "type": "boolean",
       "description": "if true, run targets in parallel until one finishes. Stops all others. Incompatible with sequential:true",
-      "default":false
+      "default": false
     },
-    "if":{
-      "properties":{"race": true}
+    "if": {
+      "properties": { "race": true }
     },
-    "then":{
-      "properties":{"sequential": false}
+    "then": {
+      "properties": { "sequential": false }
     }
   }
 }

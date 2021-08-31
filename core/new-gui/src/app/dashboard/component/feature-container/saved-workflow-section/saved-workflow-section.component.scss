@@ -31,7 +31,7 @@ $header-height: 120px;
 
 .saved-workflow-container {
   display: grid;
-  grid-template-rows: $header-height calc((100% - #{$header-height}))
+  grid-template-rows: $header-height calc((100% - #{$header-height}));
 }
 
 /**
@@ -54,7 +54,6 @@ $header-height: 120px;
 }
 
 .workflow-list-item {
-
   margin-bottom: 1.5%;
   height: 70px;
   padding: 5px 0 5px 0;
@@ -82,18 +81,18 @@ $header-height: 120px;
   text-align: center;
 }
 
-.workflow-dashboard-entry{
+.workflow-dashboard-entry {
   display: flex;
   align-items: center;
 }
 
-.workflow-dashboard-entry > i{
+.workflow-dashboard-entry > i {
   position: relative;
   font-size: 17px;
   margin-bottom: 6px;
 }
 
-.workflow-name:hover{
+.workflow-name:hover {
   cursor: pointer;
 }
 

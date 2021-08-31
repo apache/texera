@@ -186,7 +186,6 @@
 //     expect(graph_operator.attr('#operatorStates')['fill']).toEqual('green');
 //   });
 
-
 //   /**
 //    * Check if the number of inPorts and outPorts created by getJointOperatorElement()
 //    * matches the port number specified by the operator metadata

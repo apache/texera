@@ -14,7 +14,6 @@
 // const testDictionaryName = 'testTextDictionary';
 // const testTextDictionary: File = new File(arrayOfBlob, testDictionaryName, { type: 'text/plain' });
 
-
 // const manual_dict_name = 'testDict';
 // const content = 'this,is,a,test,dictionary';
 // const separator = ',';

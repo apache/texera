@@ -1,15 +1,14 @@
-import { Component } from '@angular/core';
-import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
-import { from } from 'rxjs';
-import { cloneDeep } from 'lodash-es';
+import { Component } from "@angular/core";
+import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
+import { from } from "rxjs";
+import { cloneDeep } from "lodash-es";
 
-import { NgbdModalResourceAddComponent } from './ngbd-modal-resource-add/ngbd-modal-resource-add.component';
-import { NgbdModalResourceDeleteComponent } from './ngbd-modal-resource-delete/ngbd-modal-resource-delete.component';
-import { NgbdModalResourceViewComponent } from './ngbd-modal-resource-view/ngbd-modal-resource-view.component';
-import { UserDictionary } from '../../../../common/type/user-dictionary';
-import { UserDictionaryService } from '../../../service/user-dictionary/user-dictionary.service';
-import { UserService } from '../../../../common/service/user/user.service';
-
+import { NgbdModalResourceAddComponent } from "./ngbd-modal-resource-add/ngbd-modal-resource-add.component";
+import { NgbdModalResourceDeleteComponent } from "./ngbd-modal-resource-delete/ngbd-modal-resource-delete.component";
+import { NgbdModalResourceViewComponent } from "./ngbd-modal-resource-view/ngbd-modal-resource-view.component";
+import { UserDictionary } from "../../../../common/type/user-dictionary";
+import { UserDictionaryService } from "../../../service/user-dictionary/user-dictionary.service";
+import { UserService } from "../../../../common/service/user/user.service";
 
 const DICTIONARY_ITEM_PREVIEW_SIZE = 20;
 
@@ -22,12 +21,14 @@ const DICTIONARY_ITEM_PREVIEW_SIZE = 20;
  * @author Zhaomin Li
  */
 @Component({
-  selector: 'texera-user-dictionary-section',
-  templateUrl: './user-dictionary-section.component.html',
-  styleUrls: ['./user-dictionary-section.component.scss', '../../dashboard.component.scss']
+  selector: "texera-user-dictionary-section",
+  templateUrl: "./user-dictionary-section.component.html",
+  styleUrls: [
+    "./user-dictionary-section.component.scss",
+    "../../dashboard.component.scss"
+  ]
 })
 export class UserDictionarySectionComponent {
-
   constructor(
     private userDictionaryService: UserDictionaryService,
     private userService: UserService,
@@ -76,17 +77,17 @@ export class UserDictionarySectionComponent {
    *
    * @param dictionary: the dictionary that user wants to remove
    */
-  public openNgbdModalResourceDeleteComponent(dictionary: UserDictionary): void {
+  public openNgbdModalResourceDeleteComponent(
+    dictionary: UserDictionary
+  ): void {
     const modalRef = this.modalService.open(NgbdModalResourceDeleteComponent);
     modalRef.componentInstance.dictionary = cloneDeep(dictionary);
 
-    from(modalRef.result).subscribe(
-      (confirmDelete: boolean) => {
-        if (confirmDelete) {
-          this.userDictionaryService.deleteDictionary(dictionary.id);
-        }
+    from(modalRef.result).subscribe((confirmDelete: boolean) => {
+      if (confirmDelete) {
+        this.userDictionaryService.deleteDictionary(dictionary.id);
       }
-    );
+    });
   }
 
   /**
@@ -147,7 +148,9 @@ export class UserDictionarySectionComponent {
   }
 
   public limitPreviewItemSize(item: string): string {
-    return item.length <= DICTIONARY_ITEM_PREVIEW_SIZE ? item : item.substr(0, DICTIONARY_ITEM_PREVIEW_SIZE) + '...';
+    return item.length <= DICTIONARY_ITEM_PREVIEW_SIZE
+      ? item
+      : item.substr(0, DICTIONARY_ITEM_PREVIEW_SIZE) + "...";
   }
 
   /**

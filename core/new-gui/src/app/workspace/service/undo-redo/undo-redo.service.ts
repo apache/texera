@@ -1,7 +1,7 @@
-import { Injectable } from '@angular/core';
-import { Observable, Subject } from 'rxjs';
-import { assertType } from '../../../common/util/assert';
-import { Command } from '../workflow-graph/model/workflow-action.service';
+import { Injectable } from "@angular/core";
+import { Observable, Subject } from "rxjs";
+import { assertType } from "../../../common/util/assert";
+import { Command } from "../workflow-graph/model/workflow-action.service";
 
 /* TODO LIST FOR BUGS
 1. Problem with repeatedly adding and deleting a link without letting go, unintended behavior
@@ -9,10 +9,9 @@ import { Command } from '../workflow-graph/model/workflow-action.service';
 after a certain period of time so we don't undo one character at a time */
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: "root"
 })
 export class UndoRedoService {
-
   // lets us know whether to listen to the JointJS observables, most of the time we don't
   public listenJointCommand: boolean = true;
   // private testGraph: WorkflowGraphReadonly;
@@ -25,8 +24,7 @@ export class UndoRedoService {
   private canUndoStream = new Subject<boolean>();
   private canRedoStream = new Subject<boolean>();
 
-
-  constructor() { }
+  constructor() {}
 
   public enableWorkFlowModification() {
     this.workFlowModificationEnabled = true;
@@ -42,8 +40,13 @@ export class UndoRedoService {
   public undoAction(): void {
     // We have a toggle to let our service know to add to the redo stack
     if (this.undoStack.length > 0) {
-      if (!this.workFlowModificationEnabled && this.undoStack[this.undoStack.length - 1].modifiesWorkflow) {
-        console.error('attempted to undo a workflow-modifying command while workflow modification is disabled');
+      if (
+        !this.workFlowModificationEnabled &&
+        this.undoStack[this.undoStack.length - 1].modifiesWorkflow
+      ) {
+        console.error(
+          "attempted to undo a workflow-modifying command while workflow modification is disabled"
+        );
         return;
       }
 
@@ -55,15 +58,20 @@ export class UndoRedoService {
       this.setListenJointCommand(true);
       this.canUndoStream.next(this.canUndo());
 
-      console.log('service can undo', this.canUndo());
+      console.log("service can undo", this.canUndo());
     }
   }
 
   public redoAction(): void {
     // need to figure out what to keep on the stack and off
     if (this.redoStack.length > 0) {
-      if (!this.workFlowModificationEnabled && this.redoStack[this.redoStack.length - 1].modifiesWorkflow) {
-        console.error('attempted to redo a workflow-modifying command while workflow modification is disabled');
+      if (
+        !this.workFlowModificationEnabled &&
+        this.redoStack[this.redoStack.length - 1].modifiesWorkflow
+      ) {
+        console.error(
+          "attempted to redo a workflow-modifying command while workflow modification is disabled"
+        );
         return;
       }
       const command = this.redoStack.pop();
@@ -77,7 +85,7 @@ export class UndoRedoService {
       this.undoStack.push(command);
       this.setListenJointCommand(true);
       this.canRedoStream.next(this.canRedo());
-      console.log('service can redo', this.canRedo());
+      console.log("service can redo", this.canRedo());
     }
   }
 
@@ -99,7 +107,11 @@ export class UndoRedoService {
   }
 
   public canUndo(): boolean {
-    return this.undoStack.length > 0 && (this.workFlowModificationEnabled || !this.undoStack[this.undoStack.length - 1].modifiesWorkflow);
+    return (
+      this.undoStack.length > 0 &&
+      (this.workFlowModificationEnabled ||
+        !this.undoStack[this.undoStack.length - 1].modifiesWorkflow)
+    );
   }
 
   public getCanUndoStream(): Observable<boolean> {
@@ -107,7 +119,11 @@ export class UndoRedoService {
   }
 
   public canRedo(): boolean {
-    return this.redoStack.length > 0 && (this.workFlowModificationEnabled || !this.redoStack[this.redoStack.length - 1].modifiesWorkflow);
+    return (
+      this.redoStack.length > 0 &&
+      (this.workFlowModificationEnabled ||
+        !this.redoStack[this.redoStack.length - 1].modifiesWorkflow)
+    );
   }
 
   public getCanRedoStream(): Observable<boolean> {
@@ -121,5 +137,4 @@ export class UndoRedoService {
   public clearRedoStack(): void {
     this.redoStack = [];
   }
-
 }

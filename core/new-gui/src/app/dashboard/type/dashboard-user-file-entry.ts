@@ -1,9 +1,10 @@
-export interface DashboardUserFileEntry extends Readonly<{
-  ownerName: string,
-  file: UserFile,
-  accessLevel: string,
-  isOwner: boolean,
-}> {}
+export interface DashboardUserFileEntry
+  extends Readonly<{
+    ownerName: string;
+    file: UserFile;
+    accessLevel: string;
+    isOwner: boolean;
+  }> {}
 
 /**
  * This interface stores the information about the users' files.
@@ -11,13 +12,14 @@ export interface DashboardUserFileEntry extends Readonly<{
  * Corresponds to `src/main/scala/edu/uci/ics/texera/web/resource/dashboard/file/UserFileResource.scala` (backend);
  * and `core/scripts/sql/texera_ddl.sql`, table `file` (database).
  */
-export interface UserFile extends Readonly<{
-  fid: number,
-  name: string,
-  path: string,
-  size: number,
-  description: string
-}> {}
+export interface UserFile
+  extends Readonly<{
+    fid: number;
+    name: string;
+    path: string;
+    size: number;
+    description: string;
+  }> {}
 
 /**
  * This interface stores the information about the users' files when uploading.

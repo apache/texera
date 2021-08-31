@@ -17,8 +17,8 @@ export function localSetObject<T>(key: string, object: T): void {
  * @param key - the identifier of the object
  * @returns T - the converted object (in type<t>) from the JSON string, or null if the key is not found.
  */
-export function localGetObject<T>(key: string): T|undefined {
-  const data: string|null = localStorage.getItem(key);
+export function localGetObject<T>(key: string): T | undefined {
+  const data: string | null = localStorage.getItem(key);
   if (!data) {
     return undefined;
   }
@@ -36,7 +36,6 @@ export function localRemoveObject(key: string): void {
 
 export function jsonCast<T>(data: string): T {
   return <T>JSON.parse(data);
-
 }
 
 /**

@@ -1,5 +1,5 @@
-import { Component, OnInit } from '@angular/core';
-import { ResultPanelToggleService } from './../../service/result-panel-toggle/result-panel-toggle.service';
+import { Component, OnInit } from "@angular/core";
+import { ResultPanelToggleService } from "./../../service/result-panel-toggle/result-panel-toggle.service";
 
 /**
  * ResultPanelToggleComponent is the small bar directly above ResultPanelCompoent at the
@@ -11,21 +11,17 @@ import { ResultPanelToggleService } from './../../service/result-panel-toggle/re
  * @author Angela Wang
  */
 @Component({
-  selector: 'texera-result-panel-toggle',
-  templateUrl: './result-panel-toggle.component.html',
-  styleUrls: ['./result-panel-toggle.component.scss']
+  selector: "texera-result-panel-toggle",
+  templateUrl: "./result-panel-toggle.component.html",
+  styleUrls: ["./result-panel-toggle.component.scss"]
 })
-export class ResultPanelToggleComponent implements OnInit {
-
+export class ResultPanelToggleComponent {
   public showResultPanel: boolean = false;
 
   constructor(private resultPanelToggleService: ResultPanelToggleService) {
-    this.resultPanelToggleService.getToggleChangeStream().subscribe(
-      newPanelStatus => this.showResultPanel = newPanelStatus,
-    );
-  }
-
-  ngOnInit() {
+    this.resultPanelToggleService
+      .getToggleChangeStream()
+      .subscribe((newPanelStatus) => (this.showResultPanel = newPanelStatus));
   }
 
   /**
@@ -36,5 +32,3 @@ export class ResultPanelToggleComponent implements OnInit {
     this.resultPanelToggleService.toggleResultPanel();
   }
 }
-
-
