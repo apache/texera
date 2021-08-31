@@ -40,7 +40,10 @@ class JCSOpResultStorage extends OpResultStorage {
   override def get(opID: String): List[Tuple] = {
     lock.lock()
     logger.debug("get {} start", opID)
-    val res = cache.get(opID)
+    var res = cache.get(opID)
+    if (res == null) {
+      res = List[Tuple]()
+    }
     logger.debug("get {} end", opID)
     lock.unlock()
     res
