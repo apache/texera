@@ -1,7 +1,12 @@
-import { Component, OnDestroy, OnInit } from "@angular/core";
+import {
+  Component,
+  Input,
+  OnChanges,
+  OnDestroy,
+  OnInit,
+  SimpleChanges
+} from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
-import { ResultPanelToggleService } from "../../../service/result-panel-toggle/result-panel-toggle.service";
-import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { BreakpointTriggerInfo } from "../../../types/workflow-common.interface";
 import { ExecutionState } from "src/app/workspace/types/execute-workflow.interface";
 import { WorkflowConsoleService } from "../../../service/workflow-console/workflow-console.service";
@@ -12,29 +17,34 @@ import { Subscription } from "rxjs";
   templateUrl: "./console-frame.component.html",
   styleUrls: ["./console-frame.component.scss"]
 })
-export class ConsoleFrameComponent implements OnInit, OnDestroy {
+export class ConsoleFrameComponent implements OnInit, OnDestroy, OnChanges {
+  subscriptions = new Subscription();
+
+  @Input() operatorId?: string;
   // display error message:
-  errorMessages: Readonly<Record<string, string>> | undefined;
+  errorMessages?: Readonly<Record<string, string>>;
   // display breakpoint
-  breakpointTriggerInfo: BreakpointTriggerInfo | undefined;
+  breakpointTriggerInfo?: BreakpointTriggerInfo;
   breakpointAction: boolean = false;
 
   // display print
   consoleMessages: ReadonlyArray<string> = [];
 
-  subscriptions = new Subscription();
-
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
-    private resultPanelToggleService: ResultPanelToggleService,
-    private workflowActionService: WorkflowActionService,
     private workflowConsoleService: WorkflowConsoleService
   ) {}
 
-  ngOnInit(): void {
-    // trigger the initial render
+  ngOnChanges(changes: SimpleChanges): void {
+    this.operatorId = changes.operatorId?.currentValue;
     this.renderConsole();
+  }
 
+  ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
+  }
+
+  ngOnInit(): void {
     // make sure the console is re-rendered upon state changes
     this.registerAutoConsoleRerender();
   }
@@ -69,36 +79,25 @@ export class ConsoleFrameComponent implements OnInit, OnDestroy {
     );
   }
 
-  public onClickSkipTuples(): void {
+  onClickSkipTuples(): void {
     this.executeWorkflowService.skipTuples();
     this.breakpointAction = false;
   }
 
-  ngOnDestroy(): void {
-    this.subscriptions.unsubscribe();
-  }
-
-  private clearConsole() {
+  clearConsole() {
     this.consoleMessages = [];
     this.errorMessages = undefined;
     this.breakpointTriggerInfo = undefined;
   }
 
-  private renderConsole() {
-    // update highlighted operator
-    const highlightedOperators = this.workflowActionService
-      .getJointGraphWrapper()
-      .getCurrentHighlightedOperatorIDs();
-    const resultPanelOperatorID =
-      highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
-
+  renderConsole() {
     // try to fetch if we have breakpoint info
     const breakpointTriggerInfo =
       this.executeWorkflowService.getBreakpointTriggerInfo();
 
-    if (resultPanelOperatorID) {
+    if (this.operatorId) {
       // first display error messages if applicable
-      if (resultPanelOperatorID === breakpointTriggerInfo?.operatorID) {
+      if (this.operatorId === breakpointTriggerInfo?.operatorID) {
         // if we hit a breakpoint
         this.displayBreakpoint(breakpointTriggerInfo);
       } else {
@@ -107,17 +106,11 @@ export class ConsoleFrameComponent implements OnInit, OnDestroy {
       }
 
       // always display console messages
-      this.displayConsoleMessages(resultPanelOperatorID);
+      this.displayConsoleMessages(this.operatorId);
     }
   }
 
-  private displayConsoleMessages(operatorID: string) {
-    this.consoleMessages = operatorID
-      ? this.workflowConsoleService.getConsoleMessages(operatorID) || []
-      : [];
-  }
-
-  private displayBreakpoint(breakpointTriggerInfo: BreakpointTriggerInfo) {
+  displayBreakpoint(breakpointTriggerInfo: BreakpointTriggerInfo) {
     this.breakpointTriggerInfo = breakpointTriggerInfo;
     this.breakpointAction = true;
     // const result = breakpointTriggerInfo.report.map(r => r.faultedTuple.tuple).filter(t => t !== undefined);
@@ -134,7 +127,13 @@ export class ConsoleFrameComponent implements OnInit, OnDestroy {
     this.errorMessages = errorsMessages;
   }
 
-  private displayFault() {
+  displayFault() {
     this.errorMessages = this.executeWorkflowService.getErrorMessages();
+  }
+
+  displayConsoleMessages(operatorId: string) {
+    this.consoleMessages = operatorId
+      ? this.workflowConsoleService.getConsoleMessages(operatorId) || []
+      : [];
   }
 }

@@ -1,40 +1,18 @@
-import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
+import { async, ComponentFixture, TestBed } from "@angular/core/testing";
 
 import { ResultPanelComponent } from "./result-panel.component";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
-import { CustomNgMaterialModule } from "../../../common/custom-ng-material.module";
 
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
-import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
-import { JointUIService } from "../../service/joint-ui/joint-ui.service";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
-import { NgbModule } from "@ng-bootstrap/ng-bootstrap";
 import { By } from "@angular/platform-browser";
 
 import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
-import { NgxJsonViewerModule } from "ngx-json-viewer";
-
-import { NgModule } from "@angular/core";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
 import { ExecutionState } from "../../types/execute-workflow.interface";
-import { NoopAnimationsModule } from "@angular/platform-browser/animations";
-import { NzTableModule } from "ng-zorro-antd/table";
-import { VisualizationFrameComponent } from "./visualization-frame/visualization-frame.component";
-import { VisualizationFrameContentComponent } from "../visualization-panel-content/visualization-frame-content.component";
-import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
-import { RowModalComponent } from "./result-panel-modal.component";
 import { DynamicModule } from "ng-dynamic-component";
-
-// this is how to import entry components in testings
-// Stack Overflow Link: https://stackoverflow.com/questions/41483841/providing-entrycomponents-for-a-testbed/45550720
-@NgModule({
-  declarations: [RowModalComponent],
-  entryComponents: [RowModalComponent],
-  imports: [NgxJsonViewerModule]
-})
-class CustomNgBModalModule {}
 
 describe("ResultPanelComponent", () => {
   let component: ResultPanelComponent;
@@ -44,39 +22,21 @@ describe("ResultPanelComponent", () => {
   let workflowActionService: WorkflowActionService;
   let resultPanelToggleService: ResultPanelToggleService;
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        declarations: [
-          ResultPanelComponent,
-          VisualizationFrameComponent,
-          VisualizationFrameContentComponent
-        ],
-        imports: [
-          CustomNgMaterialModule,
-          CustomNgBModalModule,
-          DynamicModule,
-          HttpClientTestingModule,
-          NgbModule,
-          NoopAnimationsModule,
-          NzModalModule,
-          NzTableModule
-        ],
-        providers: [
-          WorkflowActionService,
-          WorkflowUtilService,
-          UndoRedoService,
-          JointUIService,
-          ExecuteWorkflowService,
-          ResultPanelToggleService,
-          {
-            provide: OperatorMetadataService,
-            useClass: StubOperatorMetadataService
-          }
-        ]
-      }).compileComponents();
-    })
-  );
+  beforeEach(async(() => {
+    TestBed.configureTestingModule({
+      declarations: [ResultPanelComponent],
+      imports: [DynamicModule, HttpClientTestingModule, NzModalModule],
+      providers: [
+        WorkflowActionService,
+        ExecuteWorkflowService,
+        ResultPanelToggleService,
+        {
+          provide: OperatorMetadataService,
+          useClass: StubOperatorMetadataService
+        }
+      ]
+    }).compileComponents();
+  }));
 
   beforeEach(() => {
     fixture = TestBed.createComponent(ResultPanelComponent);
@@ -217,7 +177,7 @@ describe("ResultPanelComponent", () => {
   // });
 
   it("should show nothing by default", () => {
-    expect(component.frameComponent).toBeUndefined();
+    expect(component.frameComponentConfig).toBeUndefined();
   });
 
   it("should show the result panel if a workflow finishes execution", () => {
@@ -242,7 +202,6 @@ describe("ResultPanelComponent", () => {
 
     expect(resultPanelHtmlElement.hasAttribute("hidden")).toBeTruthy();
 
-    const currentStatus = false;
     resultPanelToggleService.toggleResultPanel();
     fixture.detectChanges();
 

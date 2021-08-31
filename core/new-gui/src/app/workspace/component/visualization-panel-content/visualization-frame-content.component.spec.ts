@@ -48,7 +48,7 @@ describe("VisualizationFrameContentComponent", () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(VisualizationFrameContentComponent);
     component = fixture.componentInstance;
-    component.operatorID = operatorID;
+    component.operatorId = operatorID;
     workflowResultService = TestBed.get(WorkflowResultService);
     operatorResultService = new OperatorResultService(operatorID);
     spyOn(workflowResultService, "getResultService").and.returnValue(
@@ -57,7 +57,6 @@ describe("VisualizationFrameContentComponent", () => {
   });
 
   it("should create", () => {
-    fixture = TestBed.createComponent(VisualizationFrameContentComponent);
     expect(component).toBeTruthy();
   });
 
