@@ -1,7 +1,7 @@
-import { Component } from '@angular/core';
-import { FieldType } from '@ngx-formly/core';
-import { MatDialog } from '@angular/material/dialog';
-import { CodeEditorDialogComponent } from '../code-editor-dialog/code-editor-dialog.component';
+import { Component } from "@angular/core";
+import { FieldType } from "@ngx-formly/core";
+import { MatDialog } from "@angular/material/dialog";
+import { CodeEditorDialogComponent } from "../code-editor-dialog/code-editor-dialog.component";
 
 /**
  * CodeareaCustomTemplateComponent is the custom template for 'codearea' type of formly field.
@@ -14,18 +14,18 @@ import { CodeEditorDialogComponent } from '../code-editor-dialog/code-editor-dia
  * @author Xiaozhen Liu
  */
 @Component({
-  selector: 'texera-codearea-custom-template',
-  templateUrl: './codearea-custom-template.component.html',
-  styleUrls: ['./codearea-custom-template.component.scss']
+  selector: "texera-codearea-custom-template",
+  templateUrl: "./codearea-custom-template.component.html",
+  styleUrls: ["./codearea-custom-template.component.scss"]
 })
 export class CodeareaCustomTemplateComponent extends FieldType {
-
   constructor(public dialog: MatDialog) {
     super();
   }
 
   onClickEditor(): void {
-    this.dialog.open(CodeEditorDialogComponent, { data: this?.formControl?.value || '' });
+    this.dialog.open(CodeEditorDialogComponent, {
+      data: this?.formControl?.value || ""
+    });
   }
-
 }

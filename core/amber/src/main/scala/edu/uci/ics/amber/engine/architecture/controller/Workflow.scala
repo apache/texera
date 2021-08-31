@@ -6,11 +6,13 @@ import edu.uci.ics.amber.engine.architecture.linksemantics._
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef
 import edu.uci.ics.amber.engine.architecture.principal.OperatorState.Completed
 import edu.uci.ics.amber.engine.architecture.principal.OperatorStatistics
+import edu.uci.ics.amber.engine.common.{AmberUtils, Constants}
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   LayerIdentity,
   LinkIdentity,
-  OperatorIdentity
+  OperatorIdentity,
+  WorkflowIdentity
 }
 import edu.uci.ics.amber.engine.common.{AmberUtils, Constants, IOperatorExecutor}
 import edu.uci.ics.amber.engine.operators.{OpExecConfig, SinkOpExecConfig}
@@ -19,6 +21,7 @@ import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
 import scala.collection.mutable
 
 class Workflow(
+    workflowId: WorkflowIdentity,
     operatorToOpExecConfig: mutable.Map[OperatorIdentity, OpExecConfig],
     outLinks: Map[OperatorIdentity, Set[OperatorIdentity]]
 ) {
@@ -65,6 +68,9 @@ class Workflow(
   def getStartOperators: Iterable[OpExecConfig] = sourceOperators.map(operatorToOpExecConfig(_))
 
   def getEndOperators: Iterable[OpExecConfig] = sinkOperators.map(operatorToOpExecConfig(_))
+
+  def getOperator(opID: String): OpExecConfig =
+    operatorToOpExecConfig(OperatorIdentity(workflowId.id, opID))
 
   def getOperator(opID: OperatorIdentity): OpExecConfig = operatorToOpExecConfig(opID)
 

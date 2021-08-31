@@ -41,6 +41,7 @@ class WorkerAsyncRPCHandlerInitializer(
     with ResumeHandler
     with StartHandler
     with UpdateInputLinkingHandler
+    with AssignLocalBreakpointHandler
     with ShutdownDPThreadHandler {
   var lastReportTime = 0L
 }
