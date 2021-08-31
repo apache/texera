@@ -15,7 +15,6 @@ import { Subject } from "rxjs";
 export class ResultPanelToggleService {
   private currentResultPanelStatus: boolean = false;
   private toggleDisplayChangeStream = new Subject<boolean>();
-  constructor() {}
 
   public isResultPanelOpen() {
     return this.currentResultPanelStatus;

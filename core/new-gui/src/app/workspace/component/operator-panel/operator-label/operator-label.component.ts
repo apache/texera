@@ -1,28 +1,22 @@
 import { DragDropService } from "../../../service/drag-drop/drag-drop.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import {
-  AfterViewInit,
-  Component,
-  Input,
-  OnDestroy,
-  OnInit
-} from "@angular/core";
-import { Subscription } from "rxjs";
+import { AfterViewInit, Component, Input, OnInit } from "@angular/core";
 
 import { OperatorSchema } from "../../../types/operator-schema.interface";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 /**
  * OperatorLabelComponent is one operator box in the operator panel.
  *
  * @author Zuozhi Wang
  */
+@UntilDestroy()
 @Component({
   selector: "texera-operator-label",
   templateUrl: "./operator-label.component.html",
   styleUrls: ["./operator-label.component.scss"]
 })
-export class OperatorLabelComponent
-  implements OnInit, AfterViewInit, OnDestroy {
+export class OperatorLabelComponent implements OnInit, AfterViewInit {
   public static operatorLabelPrefix = "texera-operator-label-";
   public static operatorLabelSearchBoxPrefix =
     "texera-operator-label-search-result-";
@@ -40,18 +34,13 @@ export class OperatorLabelComponent
   // is mouse down over this label
   private isMouseDown = false;
 
-  // keep subscription in order to unsubscribe when component is destroyed
-  private workflowModificationEnabledSubscription: Subscription;
-
   constructor(
     private dragDropService: DragDropService,
     private workflowActionService: WorkflowActionService
-  ) {
-    this.workflowModificationEnabledSubscription =
-      this.handleWorkFlowModificationEnabled();
-  }
+  ) {}
 
   ngOnInit() {
+    this.handleWorkFlowModificationEnabled();
     if (!this.operator) {
       throw new Error("operator label component: operator is not specified");
     }
@@ -73,10 +62,6 @@ export class OperatorLabelComponent
       this.operatorLabelID,
       this.operator.operatorType
     );
-  }
-
-  ngOnDestroy() {
-    this.workflowModificationEnabledSubscription.unsubscribe();
   }
 
   // mouseDownEventStream sends out a value
@@ -109,9 +94,10 @@ export class OperatorLabelComponent
     }, 400);
   }
 
-  private handleWorkFlowModificationEnabled(): Subscription {
-    return this.workflowActionService
+  private handleWorkFlowModificationEnabled(): void {
+    this.workflowActionService
       .getWorkflowModificationEnabledStream()
+      .pipe(untilDestroyed(this))
       .subscribe((canModify) => {
         this.draggable = canModify;
       });

@@ -74,7 +74,8 @@ export class UserFileService {
       )
       .subscribe(
         () => this.refreshDashboardUserFileEntries(),
-        (err) => alert("Can't delete the file entry: " + err.error)
+        // @ts-ignore // TODO: fix this with notification component
+        (err: unknown) => alert("Can't delete the file entry: " + err.error)
       );
   }
 

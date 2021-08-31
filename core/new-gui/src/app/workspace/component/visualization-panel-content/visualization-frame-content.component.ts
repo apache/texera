@@ -4,7 +4,7 @@ import { Primitive, PrimitiveArray } from "c3";
 import * as d3 from "d3";
 import * as cloud from "d3-cloud";
 import { ChartType, WordCloudTuple } from "../../types/visualization.interface";
-import { merge, Subject, Subscription } from "rxjs";
+import { merge, Subject } from "rxjs";
 import { environment } from "src/environments/environment";
 import * as mapboxgl from "mapbox-gl";
 import { MapboxLayer } from "@deck.gl/mapbox";
@@ -13,6 +13,7 @@ import { ScatterplotLayerProps } from "@deck.gl/layers/scatterplot-layer/scatter
 import { DomSanitizer } from "@angular/platform-browser";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { auditTime, debounceTime } from "rxjs/operators";
+import { untilDestroyed, UntilDestroy } from "@ngneat/until-destroy";
 
 (mapboxgl as any).accessToken = environment.mapbox.accessToken;
 
@@ -32,6 +33,7 @@ type WordCloudControlsType = {
  * required by c3.js.
  * Then it passes the data and figure type to c3.js for rendering the figure.
  */
+@UntilDestroy()
 @Component({
   selector: "texera-visualization-panel-content",
   templateUrl: "./visualization-frame-content.component.html",
@@ -92,8 +94,6 @@ export class VisualizationFrameContentComponent
   private c3ChartElement?: c3.ChartAPI;
   private map?: mapboxgl.Map;
 
-  private subscriptions = new Subscription();
-
   constructor(
     private workflowResultService: WorkflowResultService,
     private sanitizer: DomSanitizer
@@ -113,12 +113,11 @@ export class VisualizationFrameContentComponent
         VisualizationFrameContentComponent.WORD_CLOUD_CONTROL_UPDATE_INTERVAL_MS
       )
     );
-
-    this.subscriptions.add(
-      merge(resultUpdate, controlUpdate).subscribe(() => {
+    merge(resultUpdate, controlUpdate)
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
         this.drawChart();
-      })
-    );
+      });
   }
 
   ngOnDestroy() {
@@ -131,8 +130,6 @@ export class VisualizationFrameContentComponent
     if (this.map) {
       this.map.remove();
     }
-
-    this.subscriptions.unsubscribe();
   }
 
   drawChart() {

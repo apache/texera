@@ -2,7 +2,6 @@ import {
   Component,
   Input,
   OnChanges,
-  OnDestroy,
   OnInit,
   SimpleChanges
 } from "@angular/core";
@@ -13,11 +12,12 @@ import { WorkflowActionService } from "../../../service/workflow-graph/model/wor
 import { FormlyJsonschema } from "@ngx-formly/core/json-schema";
 import { ExecutionState } from "src/app/workspace/types/execute-workflow.interface";
 import { FormGroup } from "@angular/forms";
-import { Subject, Subscription } from "rxjs";
+import { Subject } from "rxjs";
 import { FormlyFieldConfig, FormlyFormOptions } from "@ngx-formly/core";
 import { CustomJSONSchema7 } from "../../../types/custom-json-schema.interface";
 import { createOutputFormChangeEventStream } from "src/app/common/formly/formly-utils";
 import { filter } from "rxjs/operators";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 /**
  * Property Editor uses JSON Schema to automatically generate the form from the JSON Schema of an operator.
@@ -35,15 +35,13 @@ import { filter } from "rxjs/operators";
  * We use library `@ngx-formly` to generate form from json schema
  * https://github.com/ngx-formly/ngx-formly
  */
+@UntilDestroy()
 @Component({
   selector: "texera-breakpoint-frame",
   templateUrl: "./breakpoint-property-edit-frame.component.html",
   styleUrls: ["./breakpoint-property-edit-frame.component.scss"]
 })
-export class BreakpointPropertyEditFrameComponent
-  implements OnInit, OnDestroy, OnChanges {
-  subscriptions = new Subscription();
-
+export class BreakpointPropertyEditFrameComponent implements OnInit, OnChanges {
   @Input() currentLinkId: string | undefined;
 
   // whether the editor can be edited
@@ -76,10 +74,6 @@ export class BreakpointPropertyEditFrameComponent
     if (this.currentLinkId) {
       this.showBreakpointEditor(this.currentLinkId);
     }
-  }
-
-  ngOnDestroy(): void {
-    this.subscriptions.unsubscribe();
   }
 
   ngOnInit(): void {
@@ -236,32 +230,31 @@ export class BreakpointPropertyEditFrameComponent
    *  invalid fields, this form will capture those events.
    */
   registerOperatorPropertyChangeHandler(): void {
-    this.subscriptions.add(
-      this.workflowActionService
-        .getTexeraGraph()
-        .getBreakpointChangeStream()
-        .pipe(
-          filter((_) => this.currentLinkId !== undefined),
-          filter((event) => event.linkID === this.currentLinkId),
-          filter(
-            (event) =>
-              !isEqual(
-                this.formData,
-                this.workflowActionService
-                  .getTexeraGraph()
-                  .getLinkBreakpoint(event.linkID)
-              )
-          )
-        )
-        .subscribe(
+    this.workflowActionService
+      .getTexeraGraph()
+      .getBreakpointChangeStream()
+      .pipe(
+        filter((_) => this.currentLinkId !== undefined),
+        filter((event) => event.linkID === this.currentLinkId),
+        filter(
           (event) =>
-            (this.formData = cloneDeep(
+            !isEqual(
+              this.formData,
               this.workflowActionService
                 .getTexeraGraph()
                 .getLinkBreakpoint(event.linkID)
-            ))
+            )
         )
-    );
+      )
+      .pipe(untilDestroyed(this))
+      .subscribe(
+        (event) =>
+          (this.formData = cloneDeep(
+            this.workflowActionService
+              .getTexeraGraph()
+              .getLinkBreakpoint(event.linkID)
+          ))
+      );
   }
 
   setFormlyFormBinding(schema: CustomJSONSchema7) {

@@ -145,7 +145,7 @@ export class SchemaPropagationService {
         { headers: { "Content-Type": "application/json" } }
       )
       .pipe(
-        catchError((err) => {
+        catchError((err: unknown) => {
           this.logger.error("schema propagation API returns error", err);
           return EMPTY;
         })

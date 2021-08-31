@@ -2,14 +2,12 @@ import {
   Component,
   Input,
   OnChanges,
-  OnDestroy,
   OnInit,
   SimpleChanges
 } from "@angular/core";
 import { isEqual } from "lodash-es";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NzTableQueryParams } from "ng-zorro-antd/table";
-import { Subscription } from "rxjs";
 import { assertType } from "../../../../common/util/assert";
 import { trimDisplayJsonData } from "../../../../common/util/json";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
@@ -25,6 +23,7 @@ import {
   TableColumn
 } from "../../../types/result-table.interface";
 import { RowModalComponent } from "../result-panel-modal.component";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 /**
  * The Component will display the result in an excel table format,
@@ -34,14 +33,13 @@ import { RowModalComponent } from "../result-panel-modal.component";
  * Clicking each row of the result table will create an pop-up window
  *  and display the detail of that row in a pretty json format.
  */
+@UntilDestroy()
 @Component({
   selector: "texera-result-table-frame",
   templateUrl: "./result-table-frame.component.html",
   styleUrls: ["./result-table-frame.component.scss"]
 })
-export class ResultTableFrameComponent implements OnInit, OnDestroy, OnChanges {
-  subscriptions = new Subscription();
-
+export class ResultTableFrameComponent implements OnInit, OnChanges {
   @Input() operatorId?: string;
 
   // display result table
@@ -88,8 +86,10 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   ngOnInit(): void {
-    this.subscriptions.add(
-      this.workflowResultService.getResultUpdateStream().subscribe((update) => {
+    this.workflowResultService
+      .getResultUpdateStream()
+      .pipe(untilDestroyed(this))
+      .subscribe((update) => {
         if (!this.operatorId) {
           return;
         }
@@ -102,8 +102,7 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy, OnChanges {
         if (opUpdate.dirtyPageIndices.includes(this.currentPageIndex)) {
           this.changePaginatedResultData();
         }
-      })
-    );
+      });
   }
 
   /**
@@ -206,6 +205,7 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy, OnChanges {
     this.isLoadingResult = true;
     paginatedResultService
       .selectPage(this.currentPageIndex, DEFAULT_PAGE_SIZE)
+      .pipe(untilDestroyed(this))
       .subscribe((pageData) => {
         if (this.currentPageIndex === pageData.pageIndex) {
           this.setupResultTable(
@@ -214,10 +214,6 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy, OnChanges {
           );
         }
       });
-  }
-
-  ngOnDestroy(): void {
-    this.subscriptions.unsubscribe();
   }
 
   /**

@@ -1,6 +1,6 @@
-import { Component, OnDestroy, OnInit } from "@angular/core";
+import { Component } from "@angular/core";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
-import { Subscription } from "rxjs";
 
 /**
  * ResultPanelToggleComponent is the small bar directly above ResultPanelComponent at the
@@ -9,28 +9,20 @@ import { Subscription } from "rxjs";
  *
  * This Component is a toggle button to open / close the result panel.
  */
+@UntilDestroy()
 @Component({
   selector: "texera-result-panel-toggle",
   templateUrl: "./result-panel-toggle.component.html",
   styleUrls: ["./result-panel-toggle.component.scss"]
 })
-export class ResultPanelToggleComponent implements OnInit, OnDestroy {
-  subscriptions = new Subscription();
+export class ResultPanelToggleComponent {
+  public showResultPanel: boolean = false;
 
-  showResultPanel: boolean = false;
-
-  constructor(private resultPanelToggleService: ResultPanelToggleService) {}
-
-  ngOnDestroy(): void {
-    this.subscriptions.unsubscribe();
-  }
-
-  ngOnInit() {
-    this.subscriptions.add(
-      this.resultPanelToggleService
-        .getToggleChangeStream()
-        .subscribe((newPanelStatus) => (this.showResultPanel = newPanelStatus))
-    );
+  constructor(private resultPanelToggleService: ResultPanelToggleService) {
+    this.resultPanelToggleService
+      .getToggleChangeStream()
+      .pipe(untilDestroyed(this))
+      .subscribe((newPanelStatus) => (this.showResultPanel = newPanelStatus));
   }
 
   /**

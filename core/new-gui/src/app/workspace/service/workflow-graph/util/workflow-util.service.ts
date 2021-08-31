@@ -42,7 +42,7 @@ export class WorkflowUtilService {
   }
 
   /**
-   * Generates a new UUID for operator or link
+   * Generates a new UUID for link
    */
   public getLinkRandomUUID(): string {
     return "link-" + uuid();

@@ -4,14 +4,15 @@
   "overrides": [
     {
       "files": ["*.ts"],
-      "parser": "@typescript-eslint/parser", // Specifies the ESLint parser
+      "parser": "@typescript-eslint/parser",
       "parserOptions": {
         "project": ["tsconfig.json", "e2e/tsconfig.json"],
         "createDefaultProgram": true
       },
       "extends": [
         "plugin:@angular-eslint/recommended",
-        "plugin:@angular-eslint/template/process-inline-templates"
+        "plugin:@angular-eslint/template/process-inline-templates",
+        "plugin:rxjs/recommended"
       ],
       "rules": {
         "@angular-eslint/component-selector": [
@@ -62,23 +63,38 @@
         "no-underscore-dangle": "off",
         "no-unused-expressions": "error",
         "quotes": "error",
-        "semi": "error"
-      }
+        "semi": "error",
+        "rxjs-angular/prefer-takeuntil": [
+          "error",
+          {
+            "alias": ["untilDestroyed"],
+            "checkComplete": true,
+            "checkDecorators": ["Component"],
+            "checkDestroy": false
+          }
+        ],
+        "rxjs/no-unsafe-takeuntil": [
+          "error",
+          {
+            "alias": ["untilDestroyed"]
+          }
+        ],
+        "rxjs/no-nested-subscribe": "off",
+        "rxjs/no-sharereplay": "off",
+        "rxjs/no-unsafe-subject-next": "off"
+      },
+      "plugins": ["rxjs-angular"]
     },
-    // NOTE: WE ARE NOT APPLYING PRETTIER IN THIS OVERRIDE, ONLY @ANGULAR-ESLINT/TEMPLATE
     {
       "files": ["*.html"],
       "extends": ["plugin:@angular-eslint/template/recommended"],
       "rules": {}
     },
-    // NOTE: WE ARE NOT APPLYING @ANGULAR-ESLINT/TEMPLATE IN THIS OVERRIDE, ONLY PRETTIER
     {
       "files": ["*.html"],
       "excludedFiles": ["*inline-template-*.component.html"],
       "extends": [],
-      "rules": {
-        // NOTE: WE ARE OVERRIDING THE DEFAULT CONFIG TO ALWAYS SET THE PARSER TO ANGULAR (SEE BELOW)
-      }
+      "rules": {}
     }
   ]
 }

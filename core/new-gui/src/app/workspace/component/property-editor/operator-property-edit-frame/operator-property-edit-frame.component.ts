@@ -2,12 +2,11 @@ import {
   Component,
   Input,
   OnChanges,
-  OnDestroy,
   OnInit,
   SimpleChanges
 } from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
-import { Subject, Subscription } from "rxjs";
+import { Subject } from "rxjs";
 import { filter } from "rxjs/operators";
 import { FormGroup } from "@angular/forms";
 import { FormlyFieldConfig, FormlyFormOptions } from "@ngx-formly/core";
@@ -33,6 +32,7 @@ import {
   TypeCastingDisplayComponent
 } from "../typecasting-display/type-casting-display.component";
 import { DynamicComponentConfig } from "../../../../common/type/dynamic-component-config";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 export type PropertyDisplayComponent = TypeCastingDisplayComponent;
 
@@ -55,15 +55,13 @@ export type PropertyDisplayComponentConfig =
  * We use library `@ngx-formly` to generate form from json schema
  * https://github.com/ngx-formly/ngx-formly
  */
+@UntilDestroy()
 @Component({
   selector: "texera-formly-form-frame",
   templateUrl: "./operator-property-edit-frame.component.html",
   styleUrls: ["./operator-property-edit-frame.component.scss"]
 })
-export class OperatorPropertyEditFrameComponent
-  implements OnInit, OnDestroy, OnChanges {
-  subscriptions = new Subscription();
-
+export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
   @Input() currentOperatorId: string | undefined = undefined;
 
   // re-declare enum for angular template to access it
@@ -108,10 +106,6 @@ export class OperatorPropertyEditFrameComponent
       return;
     }
     this.showOperatorPropertyEditor(this.currentOperatorId);
-  }
-
-  ngOnDestroy(): void {
-    this.subscriptions.unsubscribe();
   }
 
   switchDisplayComponent(targetConfig?: PropertyDisplayComponentConfig) {
@@ -245,25 +239,22 @@ export class OperatorPropertyEditFrameComponent
    *  to the new schema.
    */
   registerOperatorSchemaChangeHandler(): void {
-    this.subscriptions.add(
-      this.dynamicSchemaService
-        .getOperatorDynamicSchemaChangedStream()
-        .subscribe((event) => {
-          if (event.operatorID === this.currentOperatorId) {
-            const currentOperatorSchema =
-              this.dynamicSchemaService.getDynamicSchema(
-                this.currentOperatorId
-              );
-            const operator = this.workflowActionService
-              .getTexeraGraph()
-              .getOperator(event.operatorID);
-            if (!operator) {
-              throw new Error(`operator ${event.operatorID} does not exist`);
-            }
-            this.setFormlyFormBinding(currentOperatorSchema.jsonSchema);
+    this.dynamicSchemaService
+      .getOperatorDynamicSchemaChangedStream()
+      .pipe(untilDestroyed(this))
+      .subscribe((event) => {
+        if (event.operatorID === this.currentOperatorId) {
+          const currentOperatorSchema =
+            this.dynamicSchemaService.getDynamicSchema(this.currentOperatorId);
+          const operator = this.workflowActionService
+            .getTexeraGraph()
+            .getOperator(event.operatorID);
+          if (!operator) {
+            throw new Error(`operator ${event.operatorID} does not exist`);
           }
-        })
-    );
+          this.setFormlyFormBinding(currentOperatorSchema.jsonSchema);
+        }
+      });
   }
 
   /**
@@ -274,31 +265,27 @@ export class OperatorPropertyEditFrameComponent
    *  invalid fields, this form will capture those events.
    */
   registerOperatorPropertyChangeHandler(): void {
-    this.subscriptions.add(
-      this.workflowActionService
-        .getTexeraGraph()
-        .getOperatorPropertyChangeStream()
-        .pipe(
-          filter((_) => this.currentOperatorId !== undefined),
-          filter(
-            (operatorChanged) =>
-              operatorChanged.operator.operatorID === this.currentOperatorId
-          ),
-          filter(
-            (operatorChanged) =>
-              !isEqual(
-                this.formData,
-                operatorChanged.operator.operatorProperties
-              )
-          )
-        )
-        .subscribe(
+    this.workflowActionService
+      .getTexeraGraph()
+      .getOperatorPropertyChangeStream()
+      .pipe(
+        filter((_) => this.currentOperatorId !== undefined),
+        filter(
           (operatorChanged) =>
-            (this.formData = cloneDeep(
-              operatorChanged.operator.operatorProperties
-            ))
+            operatorChanged.operator.operatorID === this.currentOperatorId
+        ),
+        filter(
+          (operatorChanged) =>
+            !isEqual(this.formData, operatorChanged.operator.operatorProperties)
         )
-    );
+      )
+      .pipe(untilDestroyed(this))
+      .subscribe(
+        (operatorChanged) =>
+          (this.formData = cloneDeep(
+            operatorChanged.operator.operatorProperties
+          ))
+      );
   }
 
   /**
@@ -306,8 +293,9 @@ export class OperatorPropertyEditFrameComponent
    *  in the texera graph.
    */
   registerOnFormChangeHandler(): void {
-    this.subscriptions.add(
-      this.operatorPropertyChangeStream.subscribe((formData) => {
+    this.operatorPropertyChangeStream
+      .pipe(untilDestroyed(this))
+      .subscribe((formData) => {
         // set the operator property to be the new form data
         if (this.currentOperatorId) {
           this.workflowActionService.setOperatorProperty(
@@ -315,27 +303,25 @@ export class OperatorPropertyEditFrameComponent
             cloneDeep(formData)
           );
         }
-      })
-    );
+      });
   }
 
   registerDisableEditorInteractivityHandler(): void {
-    this.subscriptions.add(
-      this.executeWorkflowService
-        .getExecutionStateStream()
-        .subscribe((event) => {
-          if (this.currentOperatorId) {
-            if (
-              event.current.state === ExecutionState.Completed ||
-              event.current.state === ExecutionState.Failed
-            ) {
-              this.setInteractivity(true);
-            } else {
-              this.setInteractivity(false);
-            }
+    this.executeWorkflowService
+      .getExecutionStateStream()
+      .pipe(untilDestroyed(this))
+      .subscribe((event) => {
+        if (this.currentOperatorId) {
+          if (
+            event.current.state === ExecutionState.Completed ||
+            event.current.state === ExecutionState.Failed
+          ) {
+            this.setInteractivity(true);
+          } else {
+            this.setInteractivity(false);
           }
-        })
-    );
+        }
+      });
   }
 
   setFormlyFormBinding(schema: CustomJSONSchema7) {

@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, SimpleChanges } from "@angular/core";
+import { Component, Input } from "@angular/core";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { VisualizationFrameContentComponent } from "../../visualization-panel-content/visualization-frame-content.component";
 
@@ -13,7 +13,7 @@ import { VisualizationFrameContentComponent } from "../../visualization-panel-co
   templateUrl: "./visualization-frame.component.html",
   styleUrls: ["./visualization-frame.component.scss"]
 })
-export class VisualizationFrameComponent implements OnChanges {
+export class VisualizationFrameComponent {
   @Input() operatorId?: string;
   modalRef?: NzModalRef;
 
@@ -34,9 +34,5 @@ export class VisualizationFrameComponent implements OnChanges {
         operatorId: this.operatorId
       }
     });
-  }
-
-  ngOnChanges(changes: SimpleChanges): void {
-    this.operatorId = changes.operatorId.currentValue;
   }
 }
