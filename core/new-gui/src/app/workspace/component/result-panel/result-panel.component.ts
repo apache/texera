@@ -13,7 +13,7 @@ import { WorkflowResultService } from "../../service/workflow-result/workflow-re
 import { VisualizationFrameComponent } from "./visualization-frame/visualization-frame.component";
 import { filter } from "rxjs/operators";
 import { DynamicComponentConfig } from "../../../common/type/dynamic-component-config";
-import { Subscription } from 'rxjs';
+import { Subscription } from "rxjs";
 
 export type ResultFrameComponent =
   | ResultTableFrameComponent

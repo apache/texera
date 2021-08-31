@@ -1,7 +1,12 @@
-import { Component, OnDestroy, OnInit } from "@angular/core";
+import {
+  Component,
+  Input,
+  OnChanges,
+  OnDestroy,
+  OnInit,
+  SimpleChanges
+} from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
-import { ResultPanelToggleService } from "../../../service/result-panel-toggle/result-panel-toggle.service";
-import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { BreakpointTriggerInfo } from "../../../types/workflow-common.interface";
 import { ExecutionState } from "src/app/workspace/types/execute-workflow.interface";
 import { WorkflowConsoleService } from "../../../service/workflow-console/workflow-console.service";
@@ -13,7 +18,6 @@ import { Subscription } from "rxjs";
   styleUrls: ["./console-frame.component.scss"]
 })
 export class ConsoleFrameComponent implements OnInit, OnDestroy, OnChanges {
-
   subscriptions = new Subscription();
 
   @Input() operatorId?: string;
@@ -87,7 +91,6 @@ export class ConsoleFrameComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   renderConsole() {
-
     // try to fetch if we have breakpoint info
     const breakpointTriggerInfo =
       this.executeWorkflowService.getBreakpointTriggerInfo();
@@ -105,12 +108,6 @@ export class ConsoleFrameComponent implements OnInit, OnDestroy, OnChanges {
       // always display console messages
       this.displayConsoleMessages(this.operatorId);
     }
-  }
-
-  private displayConsoleMessages(operatorId: string) {
-    this.consoleMessages = operatorId
-      ? this.workflowConsoleService.getConsoleMessages(operatorId) || []
-      : [];
   }
 
   displayBreakpoint(breakpointTriggerInfo: BreakpointTriggerInfo) {
@@ -132,5 +129,11 @@ export class ConsoleFrameComponent implements OnInit, OnDestroy, OnChanges {
 
   displayFault() {
     this.errorMessages = this.executeWorkflowService.getErrorMessages();
+  }
+
+  displayConsoleMessages(operatorId: string) {
+    this.consoleMessages = operatorId
+      ? this.workflowConsoleService.getConsoleMessages(operatorId) || []
+      : [];
   }
 }

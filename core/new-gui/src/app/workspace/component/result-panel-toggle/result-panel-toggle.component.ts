@@ -1,6 +1,6 @@
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
-import { Subscription } from 'rxjs';
+import { Subscription } from "rxjs";
 
 /**
  * ResultPanelToggleComponent is the small bar directly above ResultPanelComponent at the
@@ -15,7 +15,6 @@ import { Subscription } from 'rxjs';
   styleUrls: ["./result-panel-toggle.component.scss"]
 })
 export class ResultPanelToggleComponent implements OnInit, OnDestroy {
-
   subscriptions = new Subscription();
 
   showResultPanel: boolean = false;
@@ -27,9 +26,11 @@ export class ResultPanelToggleComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
-    this.subscriptions.add(this.resultPanelToggleService.getToggleChangeStream().subscribe(
-      newPanelStatus => this.showResultPanel = newPanelStatus,
-    ));
+    this.subscriptions.add(
+      this.resultPanelToggleService
+        .getToggleChangeStream()
+        .subscribe((newPanelStatus) => (this.showResultPanel = newPanelStatus))
+    );
   }
 
   /**
@@ -39,6 +40,4 @@ export class ResultPanelToggleComponent implements OnInit, OnDestroy {
   onClickResultBar(): void {
     this.resultPanelToggleService.toggleResultPanel();
   }
-
-
 }

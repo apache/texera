@@ -83,8 +83,12 @@ export class VisualizationFrameContentComponent
   chartType?: ChartType;
   columns: string[] = [];
 
-  private wordCloudElement?:
-    | d3.Selection<SVGGElement, unknown, HTMLElement, any>;
+  private wordCloudElement?: d3.Selection<
+    SVGGElement,
+    unknown,
+    HTMLElement,
+    any
+  >;
   private c3ChartElement?: c3.ChartAPI;
   private map?: mapboxgl.Map;
 
@@ -110,9 +114,11 @@ export class VisualizationFrameContentComponent
       )
     );
 
-    this.subscriptions.add(Observable.merge(resultUpdate, controlUpdate).subscribe(() => {
-      this.drawChart();
-    }));
+    this.subscriptions.add(
+      merge(resultUpdate, controlUpdate).subscribe(() => {
+        this.drawChart();
+      })
+    );
   }
 
   ngOnDestroy() {

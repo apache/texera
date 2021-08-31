@@ -1,4 +1,11 @@
-import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from "@angular/core";
+import {
+  Component,
+  Input,
+  OnChanges,
+  OnDestroy,
+  OnInit,
+  SimpleChanges
+} from "@angular/core";
 import { isEqual } from "lodash-es";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NzTableQueryParams } from "ng-zorro-antd/table";
@@ -69,7 +76,8 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy, OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     this.operatorId = changes.operatorId?.currentValue;
     if (this.operatorId) {
-      const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
+      const paginatedResultService =
+        this.workflowResultService.getPaginatedResultService(this.operatorId);
       if (paginatedResultService) {
         this.isFrontPagination = false;
         this.totalNumTuples = paginatedResultService.getCurrentTotalNumTuples();
@@ -80,20 +88,22 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   ngOnInit(): void {
-    this.subscriptions.add(this.workflowResultService.getResultUpdateStream().subscribe((update) => {
-      if (!this.operatorId) {
-        return;
-      }
-      const opUpdate = update[this.operatorId];
-      if (!opUpdate || !isWebPaginationUpdate(opUpdate)) {
-        return;
-      }
-      this.isFrontPagination = false;
-      this.totalNumTuples = opUpdate.totalNumTuples;
-      if (opUpdate.dirtyPageIndices.includes(this.currentPageIndex)) {
-        this.changePaginatedResultData();
-      }
-    }));
+    this.subscriptions.add(
+      this.workflowResultService.getResultUpdateStream().subscribe((update) => {
+        if (!this.operatorId) {
+          return;
+        }
+        const opUpdate = update[this.operatorId];
+        if (!opUpdate || !isWebPaginationUpdate(opUpdate)) {
+          return;
+        }
+        this.isFrontPagination = false;
+        this.totalNumTuples = opUpdate.totalNumTuples;
+        if (opUpdate.dirtyPageIndices.includes(this.currentPageIndex)) {
+          this.changePaginatedResultData();
+        }
+      })
+    );
   }
 
   /**
@@ -189,9 +199,7 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
     const paginatedResultService =
-      this.workflowResultService.getPaginatedResultService(
-        this.operatorId
-      );
+      this.workflowResultService.getPaginatedResultService(this.operatorId);
     if (!paginatedResultService) {
       return;
     }
@@ -199,8 +207,10 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy, OnChanges {
     paginatedResultService
       .selectPage(this.currentPageIndex, DEFAULT_PAGE_SIZE)
       .subscribe((pageData) => {
-      if (this.currentPageIndex === pageData.pageIndex) {
-        this.setupResultTable(pageData.table, paginatedResultService.getCurrentTotalNumTuples()
+        if (this.currentPageIndex === pageData.pageIndex) {
+          this.setupResultTable(
+            pageData.table,
+            paginatedResultService.getCurrentTotalNumTuples()
           );
         }
       });
