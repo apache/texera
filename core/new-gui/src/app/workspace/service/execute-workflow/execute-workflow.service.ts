@@ -69,6 +69,9 @@ export class ExecuteWorkflowService {
         if (newState !== undefined) {
           this.updateExecutionState(newState);
         }
+        if (event.type !== 'HeartBeatResponse' && event.type !== 'WebWorkflowStatusUpdateEvent') {
+          console.log(event);
+        }
       });
     }
   }

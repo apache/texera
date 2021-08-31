@@ -112,18 +112,21 @@ export class ResultPanelComponent {
         this.switchFrameComponent(ConsoleFrameComponent);
       } else {
         if (this.resultPanelOperatorID) {
-          if (this.workflowActionService.getTexeraGraph().getOperator(this.resultPanelOperatorID).operatorType.toLowerCase()
-            .includes('sink')) {
-            const resultService = this.workflowResultService.getResultService(this.resultPanelOperatorID);
-            const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.resultPanelOperatorID);
-            if (paginatedResultService) {
-              this.switchFrameComponent(ResultTableFrameComponent);
-            } else if (resultService && resultService.getChartType()) {
-              this.switchFrameComponent(VisualizationFrameComponent);
-            }
+          const resultService = this.workflowResultService.getResultService(this.resultPanelOperatorID);
+          const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.resultPanelOperatorID);
+          if (paginatedResultService) {
+            this.switchFrameComponent(ResultTableFrameComponent);
+          } else if (resultService && resultService.getChartType()) {
+            this.switchFrameComponent(VisualizationFrameComponent);
           } else {
             this.switchFrameComponent(ConsoleFrameComponent);
           }
+          // if (this.workflowActionService.getTexeraGraph().getOperator(this.resultPanelOperatorID).operatorType.toLowerCase()
+          //   .includes('sink')) {
+
+          // } else {
+          //   this.switchFrameComponent(ConsoleFrameComponent);
+          // }
 
         }
       }

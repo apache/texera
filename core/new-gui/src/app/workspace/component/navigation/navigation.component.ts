@@ -402,7 +402,7 @@ export class NavigationComponent implements OnInit {
   }
 
   handleCacheOperatorStatusChange() {
-    Observable.merge(
+    merge(
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointGroupHighlightStream(),
