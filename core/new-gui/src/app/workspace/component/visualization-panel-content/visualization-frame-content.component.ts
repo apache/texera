@@ -13,7 +13,7 @@ import { ScatterplotLayerProps } from "@deck.gl/layers/scatterplot-layer/scatter
 import { DomSanitizer } from "@angular/platform-browser";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { auditTime, debounceTime } from "rxjs/operators";
-import { untilDestroyed } from "@ngneat/until-destroy";
+import { untilDestroyed, UntilDestroy } from "@ngneat/until-destroy";
 
 (mapboxgl as any).accessToken = environment.mapbox.accessToken;
 
@@ -29,11 +29,11 @@ type WordCloudControlsType = {
 // TODO: The current design doesn't decouple the visualization types into different modules
 /**
  * VisualizationFrameContentComponent displays the chart based on the chart type and data in table.
- *
- * It will convert the table into data format required by c3.js.
+ * It receives the data for visualization and chart type and converts the table into data format
+ * required by c3.js.
  * Then it passes the data and figure type to c3.js for rendering the figure.
- * @author Mingji Han, Xiaozhen Liu
  */
+@UntilDestroy()
 @Component({
   selector: "texera-visualization-panel-content",
   templateUrl: "./visualization-frame-content.component.html",
@@ -77,19 +77,23 @@ export class VisualizationFrameContentComponent
   htmlData: any = "";
 
   @Input()
-  operatorID: string | undefined;
+  operatorId?: string;
   displayHTML: boolean = false; // variable to decide whether to display the container to display the HTML container(iFrame)
   displayWordCloud: boolean = false; // variable to decide whether to display the container for world cloud visualization
   displayMap: boolean = true; // variable to decide whether to hide/un-hide the map
-  data: ReadonlyArray<object> | undefined;
-  chartType: ChartType | undefined;
+  data?: ReadonlyArray<object>;
+  chartType?: ChartType;
   columns: string[] = [];
 
-  private wordCloudElement:
-    | d3.Selection<SVGGElement, unknown, HTMLElement, any>
-    | undefined;
-  private c3ChartElement: c3.ChartAPI | undefined;
-  private map: mapboxgl.Map | undefined;
+  private wordCloudElement?:
+    | d3.Selection<
+    SVGGElement,
+    unknown,
+    HTMLElement,
+    any
+  >;
+  private c3ChartElement?: c3.ChartAPI;
+  private map?: mapboxgl.Map;
 
   constructor(
     private workflowResultService: WorkflowResultService,
@@ -130,11 +134,11 @@ export class VisualizationFrameContentComponent
   }
 
   drawChart() {
-    if (!this.operatorID) {
+    if (!this.operatorId) {
       return;
     }
     const operatorResultService = this.workflowResultService.getResultService(
-      this.operatorID
+      this.operatorId
     );
     if (!operatorResultService) {
       return;

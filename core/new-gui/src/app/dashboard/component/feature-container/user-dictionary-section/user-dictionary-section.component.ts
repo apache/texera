@@ -8,8 +8,7 @@ import { NgbdModalResourceDeleteComponent } from "./ngbd-modal-resource-delete/n
 import { NgbdModalResourceViewComponent } from "./ngbd-modal-resource-view/ngbd-modal-resource-view.component";
 import { UserDictionary } from "../../../../common/type/user-dictionary";
 import { UserDictionaryService } from "../../../service/user-dictionary/user-dictionary.service";
-import { UserService } from "../../../../common/service/user/user.service";
-import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { UserService } from "../../../../common/service/user/user.service";import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 const DICTIONARY_ITEM_PREVIEW_SIZE = 20;
 
@@ -88,10 +87,10 @@ export class UserDictionarySectionComponent {
     from(modalRef.result)
       .pipe(untilDestroyed(this))
       .subscribe((confirmDelete: boolean) => {
-        if (confirmDelete) {
-          this.userDictionaryService.deleteDictionary(dictionary.id);
-        }
-      });
+      if (confirmDelete) {
+        this.userDictionaryService.deleteDictionary(dictionary.id);
+      }
+    });
   }
 
   /**

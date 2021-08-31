@@ -35,7 +35,8 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
   templateUrl: "./breakpoint-property-edit-frame.component.html",
   styleUrls: ["./breakpoint-property-edit-frame.component.scss"]
 })
-export class BreakpointPropertyEditFrameComponent implements OnInit {
+export class BreakpointPropertyEditFrameComponent
+  implements OnInit {
   @Input() currentLinkId: string | undefined;
 
   // whether the editor can be edited

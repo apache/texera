@@ -3,13 +3,11 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
 
 /**
- * ResultPanelToggleComponent is the small bar directly above ResultPanelCompoent at the
- *  bottom level. When the user interface first initialized, ResultPanelCompoent will be
+ * ResultPanelToggleComponent is the small bar directly above ResultPanelComponent at the
+ *  bottom level. When the user interface first initialized, ResultPanelComponent will be
  *  hidden and ResultPanelToggleComponent will be at the bottom of the UI.
  *
  * This Component is a toggle button to open / close the result panel.
- *
- * @author Angela Wang
  */
 @UntilDestroy()
 @Component({
@@ -31,7 +29,7 @@ export class ResultPanelToggleComponent {
    * When the result panel toggle is clicked, it will call 'toggleResultPanel'
    *  to switch the status of the result panel.
    */
-  public onClickResultBar(): void {
+  onClickResultBar(): void {
     this.resultPanelToggleService.toggleResultPanel();
   }
 }

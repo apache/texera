@@ -31,7 +31,7 @@ export const defaultEnvironment = {
   /**
    * whether export execution result is supported
    */
-  exportExecutionResultEnabled: true,
+  exportExecutionResultEnabled: false,
 
   /**
    * whether user system is enabled

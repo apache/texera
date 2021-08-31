@@ -2,5 +2,8 @@
   [hidden]="!showResultPanel"
   class="texera-workspace-result-panel-body texera-workflow-component-body"
 >
-  <ndc-dynamic [ndcDynamicComponent]="frameComponent"></ndc-dynamic>
+  <ndc-dynamic
+    [ndcDynamicComponent]="frameComponentConfig?.component"
+    [ndcDynamicInputs]="frameComponentConfig?.componentInputs"
+  ></ndc-dynamic>
 </div>

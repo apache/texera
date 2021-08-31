@@ -810,7 +810,7 @@ describe("WorkflowEditorComponent", () => {
       document.dispatchEvent(copyEvent);
       const pasteEvent = new ClipboardEvent("paste");
       document.dispatchEvent(pasteEvent);
-
+      fixture.detectChanges();
       // get the pasted operator
       const pastedOperatorID =
         jointGraphWrapper.getCurrentHighlightedOperatorIDs()[0];

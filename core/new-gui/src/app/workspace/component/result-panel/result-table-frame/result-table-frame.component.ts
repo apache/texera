@@ -19,6 +19,15 @@ import {
 import { RowModalComponent } from "../result-panel-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
+
+/**
+ * The Component will display the result in an excel table format,
+ *  where each row represents a result from the workflow,
+ *  and each column represents the type of result the workflow returns.
+ *
+ * Clicking each row of the result table will create an pop-up window
+ *  and display the detail of that row in a pretty json format.
+ */
 @UntilDestroy()
 @Component({
   selector: "texera-result-table-frame",
@@ -26,11 +35,10 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
   styleUrls: ["./result-table-frame.component.scss"]
 })
 export class ResultTableFrameComponent implements OnInit {
-  // the highlighted operator ID for display result table / visualization / breakpoint
-  resultPanelOperatorID: string | undefined;
+  @Input() operatorId?: string;
 
   // display result table
-  currentColumns: TableColumn[] | undefined;
+  currentColumns?: TableColumn[];
   currentResult: Record<string, unknown>[] = [];
   //   for more details
   //   see https://ng.ant.design/components/table/en#components-table-demo-ajax
@@ -58,37 +66,11 @@ export class ResultTableFrameComponent implements OnInit {
     private workflowResultService: WorkflowResultService
   ) {}
 
-  ngOnInit(): void {
-    // update highlighted operator
-    const highlightedOperators = this.workflowActionService
-      .getJointGraphWrapper()
-      .getCurrentHighlightedOperatorIDs();
-    this.resultPanelOperatorID =
-      highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
-
-    // display result table by default
-    if (this.resultPanelOperatorID) {
+  ngOnChanges(changes: SimpleChanges): void {
+    this.operatorId = changes.operatorId?.currentValue;
+    if (this.operatorId) {
       const paginatedResultService =
-        this.workflowResultService.getPaginatedResultService(
-          this.resultPanelOperatorID
-        );
-      this.workflowResultService
-        .getResultUpdateStream()
-        .pipe(untilDestroyed(this))
-        .subscribe((update) => {
-          if (!this.resultPanelOperatorID) {
-            return;
-          }
-          const opUpdate = update[this.resultPanelOperatorID];
-          if (!opUpdate || !isWebPaginationUpdate(opUpdate)) {
-            return;
-          }
-          this.totalNumTuples = opUpdate.totalNumTuples;
-          this.isFrontPagination = false;
-          if (opUpdate.dirtyPageIndices.includes(this.currentPageIndex)) {
-            this.changePaginatedResultData();
-          }
-        });
+        this.workflowResultService.getPaginatedResultService(this.operatorId);
       if (paginatedResultService) {
         this.isFrontPagination = false;
         this.totalNumTuples = paginatedResultService.getCurrentTotalNumTuples();
@@ -96,6 +78,26 @@ export class ResultTableFrameComponent implements OnInit {
         this.changePaginatedResultData();
       }
     }
+  }
+
+  ngOnInit(): void {
+      this.workflowResultService.getResultUpdateStream()
+        .pipe(untilDestroyed(this))
+        .subscribe((update) => {
+        if (!this.operatorId) {
+          return;
+        }
+        const opUpdate = update[this.operatorId];
+        if (!opUpdate || !isWebPaginationUpdate(opUpdate)) {
+          return;
+        }
+        this.isFrontPagination = false;
+        this.totalNumTuples = opUpdate.totalNumTuples;
+        if (opUpdate.dirtyPageIndices.includes(this.currentPageIndex)) {
+          this.changePaginatedResultData();
+        }
+      })
+
   }
 
   /**
@@ -109,7 +111,7 @@ export class ResultTableFrameComponent implements OnInit {
     if (this.isFrontPagination) {
       return;
     }
-    if (!this.resultPanelOperatorID) {
+    if (!this.operatorId) {
       return;
     }
     this.currentPageIndex = params.pageIndex;
@@ -187,12 +189,12 @@ export class ResultTableFrameComponent implements OnInit {
   // 2. user selects a new page - must display new page data
   // 3. current page is dirty - must re-fetch data
   changePaginatedResultData(): void {
-    if (!this.resultPanelOperatorID) {
+    if (!this.operatorId) {
       return;
     }
     const paginatedResultService =
       this.workflowResultService.getPaginatedResultService(
-        this.resultPanelOperatorID
+        this.operatorId
       );
     if (!paginatedResultService) {
       return;
@@ -216,12 +218,14 @@ export class ResultTableFrameComponent implements OnInit {
    *  displays a new data table with a new paginator on the result panel.
    *
    * @param resultData rows of the result (may not be all rows if displaying result for workflow completed event)
+   * @param totalRowCount
    */
-  private setupResultTable(
+   setupResultTable(
     resultData: ReadonlyArray<Record<string, unknown>>,
     totalRowCount: number
+
   ) {
-    if (!this.resultPanelOperatorID) {
+    if (!this.operatorId) {
       return;
     }
     if (resultData.length < 1) {
@@ -253,7 +257,7 @@ export class ResultTableFrameComponent implements OnInit {
    *
    * @param columns
    */
-  private generateColumns(
+  generateColumns(
     columns: { columnKey: any; columnText: string }[]
   ): TableColumn[] {
     return columns.map((col) => ({
@@ -270,7 +274,7 @@ export class ResultTableFrameComponent implements OnInit {
     }));
   }
 
-  private trimTableCell(cellContent: string): string {
+  trimTableCell(cellContent: string): string {
     if (cellContent.length > this.TABLE_COLUMN_TEXT_LIMIT) {
       return cellContent.substring(0, this.TABLE_COLUMN_TEXT_LIMIT);
     }

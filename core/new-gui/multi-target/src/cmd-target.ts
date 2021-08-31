@@ -125,7 +125,7 @@ function killDescendants(parentPID?: number): void {
   } else {
     // platform = AIX|Darwin|FreeBSD|OpenBSD|SunOS according to nodejs docs
     console.warn(
-      `Warning: killing process descendants currently only implemented on windows and linux.`
+      "Warning: killing process descendants currently only implemented on windows and linux."
     );
   }
 }
