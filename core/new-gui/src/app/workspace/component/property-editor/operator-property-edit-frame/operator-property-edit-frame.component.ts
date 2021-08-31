@@ -61,8 +61,7 @@ export type PropertyDisplayComponentConfig =
   templateUrl: "./operator-property-edit-frame.component.html",
   styleUrls: ["./operator-property-edit-frame.component.scss"]
 })
-export class OperatorPropertyEditFrameComponent
-  implements OnInit, OnChanges {
+export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
   @Input() currentOperatorId: string | undefined = undefined;
 
   // re-declare enum for angular template to access it
@@ -316,8 +315,8 @@ export class OperatorPropertyEditFrameComponent
           if (
             event.current.state === ExecutionState.Completed ||
             event.current.state === ExecutionState.Failed
-
-            ) {this.setInteractivity(true);
+          ) {
+            this.setInteractivity(true);
           } else {
             this.setInteractivity(false);
           }

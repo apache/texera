@@ -1,4 +1,4 @@
-import { Component, OnInit } from "@angular/core";
+import { Component, Input, OnInit, SimpleChanges } from "@angular/core";
 import { isEqual } from "lodash-es";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NzTableQueryParams } from "ng-zorro-antd/table";
@@ -18,7 +18,6 @@ import {
 } from "../../../types/result-table.interface";
 import { RowModalComponent } from "../result-panel-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-
 
 /**
  * The Component will display the result in an excel table format,
@@ -81,9 +80,10 @@ export class ResultTableFrameComponent implements OnInit {
   }
 
   ngOnInit(): void {
-      this.workflowResultService.getResultUpdateStream()
-        .pipe(untilDestroyed(this))
-        .subscribe((update) => {
+    this.workflowResultService
+      .getResultUpdateStream()
+      .pipe(untilDestroyed(this))
+      .subscribe((update) => {
         if (!this.operatorId) {
           return;
         }
@@ -96,8 +96,7 @@ export class ResultTableFrameComponent implements OnInit {
         if (opUpdate.dirtyPageIndices.includes(this.currentPageIndex)) {
           this.changePaginatedResultData();
         }
-      })
-
+      });
   }
 
   /**
@@ -193,9 +192,7 @@ export class ResultTableFrameComponent implements OnInit {
       return;
     }
     const paginatedResultService =
-      this.workflowResultService.getPaginatedResultService(
-        this.operatorId
-      );
+      this.workflowResultService.getPaginatedResultService(this.operatorId);
     if (!paginatedResultService) {
       return;
     }
@@ -220,10 +217,9 @@ export class ResultTableFrameComponent implements OnInit {
    * @param resultData rows of the result (may not be all rows if displaying result for workflow completed event)
    * @param totalRowCount
    */
-   setupResultTable(
+  setupResultTable(
     resultData: ReadonlyArray<Record<string, unknown>>,
     totalRowCount: number
-
   ) {
     if (!this.operatorId) {
       return;

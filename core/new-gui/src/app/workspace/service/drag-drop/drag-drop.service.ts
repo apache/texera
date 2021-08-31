@@ -259,7 +259,7 @@ export class DragDropService {
 
     // create a temporary ghost element
     jQuery("body").append(
-      "<div id=\"flyingJointPaper\" style=\"position:fixed;z-index:1001;pointer-event:none;\"></div>"
+      '<div id="flyingJointPaper" style="position:fixed;z-index:1001;pointer-event:none;"></div>'
     );
 
     // create an operator and get the UI element from the operator type

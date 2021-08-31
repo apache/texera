@@ -90,7 +90,7 @@ export class PropertyEditorComponent implements OnInit {
           highlightedOperators.length === 1 &&
           highlightedGroups.length === 0 &&
           highlightLinks.length === 0
-          ) {
+        ) {
           this.switchFrameComponent({
             component: OperatorPropertyEditFrameComponent,
             componentInputs: { currentOperatorId: highlightedOperators[0] }

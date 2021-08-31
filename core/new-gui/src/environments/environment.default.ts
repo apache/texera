@@ -5,7 +5,7 @@ export const defaultEnvironment = {
   /**
    * whether we are in production mode, default is false
    */
-  production: true,
+  production: false,
   /**
    * root API URL of the backend
    */
@@ -36,7 +36,7 @@ export const defaultEnvironment = {
   /**
    * whether user system is enabled
    */
-  userSystemEnabled: true,
+  userSystemEnabled: false,
 
   amberEngineEnabled: true,
 

@@ -18,12 +18,6 @@
     "multi-target-updater": "cd multi-target && yarn run build && cd .. && yarn install ./multi-target -D",
     "postinstall": "node git-version.js && ngcc && yarn --cwd node_modules/@danmarshall/deckgl-typings run postinstall"
   },
-  "lint-staged": {
-    "*.{js,ts,less,scss,json,html}": [
-      "prettier-eslint",
-      "git add"
-    ]
-  },
   "private": true,
   "dependencies": {
     "@angular/animations": "^11.2.14",
@@ -119,7 +113,7 @@
     "eslint-plugin-jsdoc": "latest",
     "eslint-plugin-prefer-arrow": "latest",
     "eslint-plugin-prettier": "^3.4.1",
-    "eslint-plugin-rxjs": "^3.3.6",
+    "eslint-plugin-rxjs": "^3.3.7",
     "eslint-plugin-rxjs-angular": "^1.0.6",
     "fs-extra": "7.0.1",
     "git-describe": "4.0.4",

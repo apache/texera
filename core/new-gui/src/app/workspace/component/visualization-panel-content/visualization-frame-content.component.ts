@@ -40,7 +40,8 @@ type WordCloudControlsType = {
   styleUrls: ["./visualization-frame-content.component.scss"]
 })
 export class VisualizationFrameContentComponent
-  implements AfterContentInit, OnDestroy {
+  implements AfterContentInit, OnDestroy
+{
   // this readonly variable must be the same as HTML element ID for visualization
   public static readonly CHART_ID = "#texera-result-chart-content";
   public static readonly MAP_CONTAINER = "texera-result-map-container";
@@ -85,8 +86,7 @@ export class VisualizationFrameContentComponent
   chartType?: ChartType;
   columns: string[] = [];
 
-  private wordCloudElement?:
-    | d3.Selection<
+  private wordCloudElement?: d3.Selection<
     SVGGElement,
     unknown,
     HTMLElement,

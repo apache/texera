@@ -1,18 +1,24 @@
-import { Component } from "@angular/core";
-import { merge, timer } from "rxjs";
+import { Component, OnInit } from "@angular/core";
+import { merge } from "rxjs";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
-import {
-  ExecutionState,
-  ExecutionStateInfo
-} from "../../types/execute-workflow.interface";
+import { ExecutionState, ExecutionStateInfo } from "../../types/execute-workflow.interface";
 import { ResultTableFrameComponent } from "./result-table-frame/result-table-frame.component";
 import { ConsoleFrameComponent } from "./console-frame/console-frame.component";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { VisualizationFrameComponent } from "./visualization-frame/visualization-frame.component";
 import { filter } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { DynamicComponentConfig } from "../../../common/type/dynamic-component-config";
+
+export type ResultFrameComponent =
+  | ResultTableFrameComponent
+  | VisualizationFrameComponent
+  | ConsoleFrameComponent;
+
+export type ResultFrameComponentConfig =
+  DynamicComponentConfig<ResultFrameComponent>;
 
 /**
  * ResultPanelComponent is the bottom level area that displays the
@@ -24,8 +30,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
   templateUrl: "./result-panel.component.html",
   styleUrls: ["./result-panel.component.scss"]
 })
-export class ResultPanelComponent implements OnInit, OnDestroy{
-  subscriptions = new Subscription();
+export class ResultPanelComponent implements OnInit {
 
   frameComponentConfig?: ResultFrameComponentConfig;
 
@@ -41,9 +46,6 @@ export class ResultPanelComponent implements OnInit, OnDestroy{
     private workflowResultService: WorkflowResultService
   ) {}
 
-  ngOnDestroy(): void {
-    this.subscriptions.unsubscribe();
-  }
 
   ngOnInit(): void {
     this.registerAutoRerenderResultPanel();
@@ -51,7 +53,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy{
   }
 
   registerAutoOpenResultPanel() {
-    this.subscriptions.add(this.executeWorkflowService
+    this.executeWorkflowService
       .getExecutionStateStream()
       .pipe(untilDestroyed(this))
       .subscribe((event) => {
@@ -60,7 +62,8 @@ export class ResultPanelComponent implements OnInit, OnDestroy{
           .getCurrentHighlightedOperatorIDs();
         if (event.current.state === ExecutionState.BreakpointTriggered) {
           const breakpointOperator =
-            this.executeWorkflowService.getBreakpointTriggerInfo()?.operatorID;
+            this.executeWorkflowService.getBreakpointTriggerInfo()
+              ?.operatorID;
           if (breakpointOperator) {
             this.workflowActionService
               .getJointGraphWrapper()
@@ -77,7 +80,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy{
         if (
           event.current.state === ExecutionState.Completed ||
           event.current.state === ExecutionState.Running
-            ) {
+        ) {
           const sinkOperators = this.workflowActionService
             .getTexeraGraph()
             .getAllOperators()
@@ -92,7 +95,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy{
           }
           this.resultPanelToggleService.openResultPanel();
         }
-      }));
+      });
   }
 
   registerAutoRerenderResultPanel() {
@@ -193,9 +196,9 @@ export class ResultPanelComponent implements OnInit, OnDestroy{
   switchFrameComponent(targetComponentConfig?: ResultFrameComponentConfig) {
     if (
       this.frameComponentConfig?.component ===
-        targetComponentConfig?.component &&
+      targetComponentConfig?.component &&
       this.frameComponentConfig?.componentInputs ===
-        targetComponentConfig?.componentInputs
+      targetComponentConfig?.componentInputs
     ) {
       return;
     }

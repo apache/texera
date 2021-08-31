@@ -1,8 +1,6 @@
-import { Component } from "@angular/core";
+import { Component, Input } from "@angular/core";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { VisualizationFrameContentComponent } from "../../visualization-panel-content/visualization-frame-content.component";
-import { WorkflowResultService } from "../../../service/workflow-result/workflow-result.service";
-import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 
 /**
  * VisualizationFrameComponent displays the button for visualization in ResultPanel when the result type is chart.
@@ -15,12 +13,11 @@ import { WorkflowActionService } from "../../../service/workflow-graph/model/wor
   templateUrl: "./visualization-frame.component.html",
   styleUrls: ["./visualization-frame.component.scss"]
 })
-export class VisualizationFrameComponent implements OnChanges{
-@Input() operatorId?: string;
+export class VisualizationFrameComponent {
+  @Input() operatorId?: string;
   modalRef?: NzModalRef;
 
-  constructor(private modalService: NzModalService
-  ) {}
+  constructor(private modalService: NzModalService) {}
 
   onClickVisualize(): void {
     if (!this.operatorId) {
