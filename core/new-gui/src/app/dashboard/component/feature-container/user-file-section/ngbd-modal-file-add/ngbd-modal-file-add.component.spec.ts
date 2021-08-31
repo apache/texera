@@ -1,4 +1,4 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 
 import { NgbActiveModal, NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { CustomNgMaterialModule } from '../../../../../common/custom-ng-material.module';
@@ -16,7 +16,7 @@ describe('NgbdModalFileAddComponent', () => {
   let component: NgbdModalFileAddComponent;
   let fixture: ComponentFixture<NgbdModalFileAddComponent>;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [NgbdModalFileAddComponent],
       providers: [

@@ -1,4 +1,4 @@
-import { async, ComponentFixture, discardPeriodicTasks, fakeAsync, TestBed, tick } from '@angular/core/testing';
+import { ComponentFixture, discardPeriodicTasks, fakeAsync, TestBed, tick, waitForAsync } from '@angular/core/testing';
 
 import { OperatorPropertyEditFrameComponent } from './operator-property-edit-frame.component';
 import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
@@ -19,7 +19,7 @@ import { mockScanSourceSchema, mockViewResultsSchema } from '../../../service/op
 import { JSONSchema7 } from 'json-schema';
 import { configure } from 'rxjs-marbles';
 import { SimpleChange } from '@angular/core';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
 import * as Ajv from 'ajv';
 
@@ -29,7 +29,7 @@ describe('OperatorPropertyEditFrameComponent', () => {
   let fixture: ComponentFixture<OperatorPropertyEditFrameComponent>;
   let workflowActionService: WorkflowActionService;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [
         OperatorPropertyEditFrameComponent

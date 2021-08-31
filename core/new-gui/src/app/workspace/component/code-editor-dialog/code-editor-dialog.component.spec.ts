@@ -1,4 +1,4 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { CodeEditorDialogComponent } from './code-editor-dialog.component';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { EMPTY } from 'rxjs';
@@ -8,7 +8,7 @@ describe('CodeEditorDialogComponent', () => {
   let component: CodeEditorDialogComponent;
   let fixture: ComponentFixture<CodeEditorDialogComponent>;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [CodeEditorDialogComponent],
       providers: [

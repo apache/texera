@@ -1,19 +1,18 @@
-import { ExecutionState } from '../../types/execute-workflow.interface';
-import { TestBed, inject, fakeAsync, tick, flush } from '@angular/core/testing';
+import { ExecutionState, LogicalPlan } from '../../types/execute-workflow.interface';
+import { fakeAsync, flush, inject, TestBed, tick } from '@angular/core/testing';
 
 import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from './execute-workflow.service';
 
-import { WorkflowActionService } from './../workflow-graph/model/workflow-action.service';
-import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
+import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
+import { UndoRedoService } from '../undo-redo/undo-redo.service';
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-metadata.service';
 import { JointUIService } from '../joint-ui/joint-ui.service';
-import { Observable } from 'rxjs/Observable';
+import { Observable, of } from 'rxjs';
 
-import { mockWorkflowPlan_scan_result, mockLogicalPlan_scan_result } from './mock-workflow-plan';
+import { mockLogicalPlan_scan_result, mockWorkflowPlan_scan_result } from './mock-workflow-plan';
 import { HttpClient } from '@angular/common/http';
 import { WorkflowGraph } from '../workflow-graph/model/workflow-graph';
-import { LogicalPlan } from '../../types/execute-workflow.interface';
 import { environment } from '../../../../environments/environment';
 import { WorkflowUtilService } from '../workflow-graph/util/workflow-util.service';
 
@@ -21,7 +20,7 @@ class StubHttpClient {
 
   constructor() { }
 
-  public post(): Observable<string> { return Observable.of('a'); }
+  public post(): Observable<string> { return of('a'); }
 
 }
 
@@ -86,7 +85,7 @@ describe('ExecuteWorkflowService', () => {
     (service as any).currentState = { state: ExecutionState.Uninitialized };
     expect(function () {
       service.resumeWorkflow();
-    }).toThrowError(new RegExp('cannot resume workflow, current execution state is '  + (service as any).currentState.state));
+    }).toThrowError(new RegExp('cannot resume workflow, current execution state is ' + (service as any).currentState.state));
   });
 
 });

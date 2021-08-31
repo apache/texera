@@ -1,11 +1,11 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { ReplaySubject } from 'rxjs';
-import { Observable } from 'rxjs/Observable';
+import { Observable, ReplaySubject } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { AppSettings } from '../../app-setting';
 import { User } from '../../type/user';
 import { GoogleAuthService } from 'ng-gapi';
+import { filter } from 'rxjs/operators';
 
 /**
  * User Service contains the function of registering and logging the user.
@@ -45,7 +45,7 @@ export class UserService {
       throw new Error('Already logged in when register.');
     }
 
-    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`, {userName, password});
+    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`, { userName, password });
 
   }
 
@@ -66,8 +66,8 @@ export class UserService {
     if (this.currentUser) {
       throw new Error('Already logged in when login in.');
     }
-    return this.http.post<User>(`${AppSettings.getApiEndpoint()}/${UserService.GOOGLE_LOGIN_ENDPOINT}`, {authCode})
-      .filter((user: User) => user != null);
+    return this.http.post<User>(`${AppSettings.getApiEndpoint()}/${UserService.GOOGLE_LOGIN_ENDPOINT}`, { authCode })
+      .pipe(filter((user: User) => user != null));
   }
 
   /**
@@ -80,7 +80,7 @@ export class UserService {
     if (this.currentUser) {
       throw new Error('Already logged in when login in.');
     }
-    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`, {userName, password});
+    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`, { userName, password });
   }
 
   /**
@@ -114,9 +114,9 @@ export class UserService {
    */
   public validateUsername(userName: string): { result: boolean, message: string } {
     if (userName.trim().length === 0) {
-      return {result: false, message: 'userName should not be empty'};
+      return { result: false, message: 'userName should not be empty' };
     }
-    return {result: true, message: 'userName frontend validation success'};
+    return { result: true, message: 'userName frontend validation success' };
   }
 
   public userChanged(): Observable<User | undefined> {

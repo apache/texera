@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs/Observable';
+import { Observable } from 'rxjs';
 import { AppSettings } from '../../../common/app-setting';
 import { Workflow } from '../../../common/type/workflow';
 import { AccessEntry } from '../../type/access.interface';

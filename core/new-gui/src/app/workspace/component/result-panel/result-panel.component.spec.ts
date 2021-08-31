@@ -1,4 +1,4 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 
 import { ResultPanelComponent } from './result-panel.component';
 import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
@@ -48,7 +48,7 @@ describe('ResultPanelComponent', () => {
   let workflowActionService: WorkflowActionService;
   let resultPanelToggleService: ResultPanelToggleService;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [
         ResultPanelComponent,

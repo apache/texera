@@ -1,26 +1,26 @@
-import { AfterViewInit, Component, ElementRef } from '@angular/core';
-import * as joint from 'jointjs';
+import { AfterViewInit, Component, ElementRef } from "@angular/core";
+import * as joint from "jointjs";
 // if jQuery needs to be used: 1) use jQuery instead of `$`, and
 // 2) always add this import statement even if TypeScript doesn't show an error https://github.com/Microsoft/TypeScript/issues/22016
-import * as jQuery from 'jquery';
-import { Observable } from 'rxjs/Observable';
-import { assertType } from 'src/app/common/util/assert';
-import { environment } from '../../../../environments/environment';
-import '../../../common/rxjs-operators';
-import { DragDropService } from '../../service/drag-drop/drag-drop.service';
-import { DynamicSchemaService } from '../../service/dynamic-schema/dynamic-schema.service';
-import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
-import { JointUIService, linkPathStrokeColor } from '../../service/joint-ui/joint-ui.service';
-import { ResultPanelToggleService } from '../../service/result-panel-toggle/result-panel-toggle.service';
-import { ValidationWorkflowService } from '../../service/validation/validation-workflow.service';
-import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
-import { Group, LinkInfo, OperatorInfo } from '../../service/workflow-graph/model/operator-group';
-import { MAIN_CANVAS_LIMIT } from './workflow-editor-constants';
-import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
-import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
-import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
-import { ExecutionState, OperatorState } from '../../types/execute-workflow.interface';
-import { OperatorLink, OperatorPredicate, Point } from '../../types/workflow-common.interface';
+import * as jQuery from "jquery";
+import { fromEvent, merge } from "rxjs";
+import { assertType } from "src/app/common/util/assert";
+import { environment } from "../../../../environments/environment";
+import { DragDropService } from "../../service/drag-drop/drag-drop.service";
+import { DynamicSchemaService } from "../../service/dynamic-schema/dynamic-schema.service";
+import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
+import { JointUIService, linkPathStrokeColor } from "../../service/joint-ui/joint-ui.service";
+import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
+import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
+import { JointGraphWrapper } from "../../service/workflow-graph/model/joint-graph-wrapper";
+import { Group, LinkInfo, OperatorInfo } from "../../service/workflow-graph/model/operator-group";
+import { MAIN_CANVAS_LIMIT } from "./workflow-editor-constants";
+import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
+import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
+import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
+import { OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
+import { auditTime, filter, map } from "rxjs/operators";
 
 // argument type of callback event on a JointJS Paper
 // which is a 4-element tuple:
@@ -52,13 +52,13 @@ type CopiedGroup = {
 
 // jointjs interactive options for enabling and disabling interactivity
 // https://resources.jointjs.com/docs/jointjs/v3.2/joint.html#dia.Paper.prototype.options.interactive
-const defaultInteractiveOption = {vertexAdd: false, labelMove: false};
+const defaultInteractiveOption = { vertexAdd: false, labelMove: false };
 const disableInteractiveOption = {
   linkMove: false, labelMove: false, arrowheadMove: false, vertexMove: false, vertexAdd: false, vertexRemove: false
 };
 
-export const WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID = 'texera-workflow-editor-jointjs-wrapper-id';
-export const WORKFLOW_EDITOR_JOINTJS_ID = 'texera-workflow-editor-jointjs-body-id';
+export const WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID = "texera-workflow-editor-jointjs-wrapper-id";
+export const WORKFLOW_EDITOR_JOINTJS_ID = "texera-workflow-editor-jointjs-body-id";
 
 /**
  * WorkflowEditorComponent is the componenet for the main workflow editor part of the UI.
@@ -74,9 +74,9 @@ export const WORKFLOW_EDITOR_JOINTJS_ID = 'texera-workflow-editor-jointjs-body-i
  *
  */
 @Component({
-  selector: 'texera-workflow-editor',
-  templateUrl: './workflow-editor.component.html',
-  styleUrls: ['./workflow-editor.component.scss']
+  selector: "texera-workflow-editor",
+  templateUrl: "./workflow-editor.component.html",
+  styleUrls: ["./workflow-editor.component.scss"]
 })
 export class WorkflowEditorComponent implements AfterViewInit {
   // the DOM element ID of the main editor. It can be used by jQuery and jointJS to find the DOM element
@@ -112,7 +112,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   public getJointPaper(): joint.dia.Paper {
     if (this.paper === undefined) {
-      throw new Error('JointJS paper is undefined');
+      throw new Error("JointJS paper is undefined");
     }
 
     return this.paper;
@@ -242,7 +242,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
         } else if (event.current.state === ExecutionState.Running) {
           operatorState = OperatorState.Running;
         } else {
-          throw new Error('unknown state transition from recovering state: ' + event.current.state);
+          throw new Error("unknown state transition from recovering state: " + event.current.state);
         }
         this.workflowActionService.getTexeraGraph().getAllOperators().forEach(op => {
           this.jointUIService.changeOperatorState(this.getJointPaper(), op.operatorID, operatorState);
@@ -287,28 +287,29 @@ export class WorkflowEditorComponent implements AfterViewInit {
    *      jointJS paper will zoom out.
    */
   private handlePaperMouseZoom(): void {
-    Observable.fromEvent<WheelEvent>(document, 'mousewheel')
-      .filter(event => event !== undefined)
-      .filter(event => this.elementRef.nativeElement.contains(event.target))
-      .forEach(event => {
-        if (event.metaKey || event.ctrlKey) {
-          if (event.deltaY < 0) {
-            // if zoom ratio already at minimum, do not zoom out.
-            if (this.workflowActionService.getJointGraphWrapper().isZoomRatioMin()) {
-              return;
-            }
-            this.workflowActionService.getJointGraphWrapper()
-              .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() - JointGraphWrapper.ZOOM_MOUSEWHEEL_DIFF);
-          } else {
-            // if zoom ratio already at maximum, do not zoom in.
-            if (this.workflowActionService.getJointGraphWrapper().isZoomRatioMax()) {
-              return;
-            }
-            this.workflowActionService.getJointGraphWrapper()
-              .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_MOUSEWHEEL_DIFF);
+    fromEvent<WheelEvent>(document, "mousewheel")
+      .pipe(
+        filter(event => event !== undefined),
+        filter(event => this.elementRef.nativeElement.contains(event.target))
+      ).forEach(event => {
+      if (event.metaKey || event.ctrlKey) {
+        if (event.deltaY < 0) {
+          // if zoom ratio already at minimum, do not zoom out.
+          if (this.workflowActionService.getJointGraphWrapper().isZoomRatioMin()) {
+            return;
           }
+          this.workflowActionService.getJointGraphWrapper()
+            .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() - JointGraphWrapper.ZOOM_MOUSEWHEEL_DIFF);
+        } else {
+          // if zoom ratio already at maximum, do not zoom in.
+          if (this.workflowActionService.getJointGraphWrapper().isZoomRatioMax()) {
+            return;
+          }
+          this.workflowActionService.getJointGraphWrapper()
+            .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_MOUSEWHEEL_DIFF);
         }
-      });
+      }
+    });
   }
 
   /**
@@ -324,7 +325,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private checkBounding(limitx: number[], limity: number[]): void {
     // check if operator out of right bound after WrapperElement changes its size
-    if (this.getJointPaper().translate().tx  > limitx[0]) {
+    if (this.getJointPaper().translate().tx > limitx[0]) {
       this.getJointPaper().translate(
         limitx[0], this.getJointPaper().translate().ty
       );
@@ -361,7 +362,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private handlePaperPan(): void {
 
     // pointer down event to start the panning, this will record the original paper offset
-    Observable.fromEvent<JointPointerDownEvent>(this.getJointPaper(), 'blank:pointerdown')
+    fromEvent<JointPointerDownEvent>(this.getJointPaper(), "blank:pointerdown")
       .subscribe(event => {
         const x = event[0].screenX;
         const y = event[0].screenY;
@@ -372,7 +373,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       });
 
     // This observable captures the drop event to stop the panning
-    Observable.fromEvent(document, 'mouseup')
+    fromEvent(document, "mouseup")
       .subscribe(() => {
         this.mouseDown = undefined;
       });
@@ -382,69 +383,73 @@ export class WorkflowEditorComponent implements AfterViewInit {
      *  To move the paper based on the new coordinate, this will translate the paper by calling
      *  the JointJS method .translate() to move paper's offset.
      */
-    const mousePanEvent = Observable.fromEvent<MouseEvent>(document, 'mousemove')
-      .filter(() => this.mouseDown !== undefined)
-      .map(event => {
-        event.preventDefault();
-        if (this.mouseDown === undefined) {
-          throw new Error('Error: Mouse down is undefined after the filter');
-        }
-        const newCoordinate = { x: event.screenX, y: event.screenY };
-        const panDelta = { deltaX: newCoordinate.x - this.mouseDown.x, deltaY: newCoordinate.y - this.mouseDown.y };
-        this.mouseDown = newCoordinate;
-        return panDelta;
-      });
+    const mousePanEvent = fromEvent<MouseEvent>(document, "mousemove")
+      .pipe(
+        filter(() => this.mouseDown !== undefined),
+        map(event => {
+          event.preventDefault();
+          if (this.mouseDown === undefined) {
+            throw new Error("Error: Mouse down is undefined after the filter");
+          }
+          const newCoordinate = { x: event.screenX, y: event.screenY };
+          const panDelta = { deltaX: newCoordinate.x - this.mouseDown.x, deltaY: newCoordinate.y - this.mouseDown.y };
+          this.mouseDown = newCoordinate;
+          return panDelta;
+        })
+      );
 
-    const mouseWheelEvent = Observable.fromEvent<WheelEvent>(document, 'mousewheel')
-      .filter(event => this.elementRef.nativeElement.contains(event.target))
-      .filter(event => !(event.metaKey || event.ctrlKey))
-      .map(event => {
-        const eventDelta = {deltaX: -event.deltaX, deltaY: -event.deltaY};
-        return eventDelta;
-      });
+    const mouseWheelEvent = fromEvent<WheelEvent>(document, "mousewheel")
+      .pipe(
+        filter(event => this.elementRef.nativeElement.contains(event.target)),
+        filter(event => !(event.metaKey || event.ctrlKey)),
+        map(event => {
+          const eventDelta = { deltaX: -event.deltaX, deltaY: -event.deltaY };
+          return eventDelta;
+        })
+      );
 
 
-    Observable.merge(
+    merge(
       mousePanEvent,
       mouseWheelEvent,
-      this.workflowActionService.getJointGraphWrapper().navigatorMoveDelta.map(event => {
-        const scale = this.getJointPaper().scale();
-        return { deltaX: event.deltaX * scale.sx, deltaY: event.deltaY * scale.sy };
-      }))
-      .forEach(event => {
+      this.workflowActionService.getJointGraphWrapper().navigatorMoveDelta.pipe(
+        map((event) => {
+          const scale = this.getJointPaper().scale();
+          return {
+            deltaX: event.deltaX * scale.sx,
+            deltaY: event.deltaY * scale.sy
+          };
+        })
+      )
+    ).subscribe((event) => {
 
-        const oldOrigin = this.getJointPaper().translate();
-        const newOrigin = { x: oldOrigin.tx + event.deltaX, y: oldOrigin.ty + event.deltaY };
+      const oldOrigin = this.getJointPaper().translate();
+      const newOrigin = { x: oldOrigin.tx + event.deltaX, y: oldOrigin.ty + event.deltaY };
 
-        const scale = this.getJointPaper().scale();
+      const scale = this.getJointPaper().scale();
 
-        const translateLimit = this.getTranslateLimit();
-        const elementSize = this.getWrapperElementSize();
+      const translateLimit = this.getTranslateLimit();
+      const elementSize = this.getWrapperElementSize();
 
-        // Check canvas limit
-        if (-newOrigin.x <= translateLimit.xMin) {
-          newOrigin.x = -translateLimit.xMin;
-        }
-        if (-newOrigin.y <= translateLimit.yMin) {
-          newOrigin.y = -translateLimit.yMin;
-        }
-        if (-newOrigin.x >= translateLimit.xMax - elementSize.width / scale.sx) {
-          newOrigin.x = - (translateLimit.xMax - elementSize.width / scale.sx);
-        }
-        if (-newOrigin.y >= translateLimit.yMax - elementSize.height / scale.sy) {
-          newOrigin.y = - (translateLimit.yMax - elementSize.height / scale.sy);
-        }
+      // Check canvas limit
+      if (-newOrigin.x <= translateLimit.xMin) {
+        newOrigin.x = -translateLimit.xMin;
+      }
+      if (-newOrigin.y <= translateLimit.yMin) {
+        newOrigin.y = -translateLimit.yMin;
+      }
+      if (-newOrigin.x >= translateLimit.xMax - elementSize.width / scale.sx) {
+        newOrigin.x = -(translateLimit.xMax - elementSize.width / scale.sx);
+      }
+      if (-newOrigin.y >= translateLimit.yMax - elementSize.height / scale.sy) {
+        newOrigin.y = -(translateLimit.yMax - elementSize.height / scale.sy);
+      }
 
-        if (newOrigin.x !== oldOrigin.tx || newOrigin.y !== oldOrigin.ty) {
-          this.getJointPaper().translate(newOrigin.x, newOrigin.y);
-        }
-
-      });
-
-
-
+      if (newOrigin.x !== oldOrigin.tx || newOrigin.y !== oldOrigin.ty) {
+        this.getJointPaper().translate(newOrigin.x, newOrigin.y);
+      }
+    });
   }
-
 
   /**
    * This is the handler for window resize event
@@ -457,9 +462,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handleWindowResize(): void {
     // when the window is resized (limit to at most one event every 30ms).
-    Observable.merge(
-      Observable.fromEvent(window, 'resize').auditTime(30),
-      this.resultPanelToggleService.getToggleChangeStream().auditTime(30)
+    merge(
+      fromEvent(window, "resize").pipe(auditTime(30)),
+      this.resultPanelToggleService.getToggleChangeStream().pipe(auditTime(30))
     ).subscribe(
       () => {
         // resize the JointJS paper dimensions
@@ -497,40 +502,41 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private handleHighlightMouseInput(): void {
     // on user mouse clicks an operator/group cell, highlight that operator/group
     // operator status tooltips should never be highlighted
-    Observable.fromEvent<JointPaperEvent>(this.getJointPaper(), 'cell:pointerdown')
+    fromEvent<JointPaperEvent>(this.getJointPaper(), "cell:pointerdown")
       // event[0] is the JointJS CellView; event[1] is the original JQuery Event
-      .filter(event => event[0].model.isElement())
-      .filter(event => this.workflowActionService.getTexeraGraph().hasOperator(event[0].model.id.toString()) ||
-        this.workflowActionService.getOperatorGroup().hasGroup(event[0].model.id.toString()))
-      .subscribe(event => {
-        // multiselect mode on if holding shift
-        this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(<boolean>event[1].shiftKey);
+      .pipe(
+        filter(event => event[0].model.isElement()),
+        filter(event => this.workflowActionService.getTexeraGraph().hasOperator(event[0].model.id.toString()) ||
+          this.workflowActionService.getOperatorGroup().hasGroup(event[0].model.id.toString()))
+      ).subscribe(event => {
+      // multiselect mode on if holding shift
+      this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(<boolean>event[1].shiftKey);
 
-        const elementID = event[0].model.id.toString();
-        const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-        const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
+      const elementID = event[0].model.id.toString();
+      const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+      const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
 
-        if (event[1].shiftKey) { // if in multiselect toggle highlights on click
-          if (highlightedOperatorIDs.includes(elementID)) {
-            this.workflowActionService.getJointGraphWrapper().unhighlightOperators(elementID);
-          } else if (highlightedGroupIDs.includes(elementID)) {
-            this.workflowActionService.getJointGraphWrapper().unhighlightGroups(elementID);
-          } else if (this.workflowActionService.getTexeraGraph().hasOperator(elementID)) {
-            this.workflowActionService.getJointGraphWrapper().highlightOperators(elementID);
-          } else if (this.workflowActionService.getOperatorGroup().hasGroup(elementID)) {
-            this.workflowActionService.getJointGraphWrapper().highlightGroups(elementID);
-          }
-        } else { // else only highlight a single operator or group
-          if (this.workflowActionService.getTexeraGraph().hasOperator(elementID)) {
-            this.workflowActionService.getJointGraphWrapper().highlightOperators(elementID);
-          } else if (this.workflowActionService.getOperatorGroup().hasGroup(elementID)) {
-            this.workflowActionService.getJointGraphWrapper().highlightGroups(elementID);
-          }
+      if (event[1].shiftKey) { // if in multiselect toggle highlights on click
+        if (highlightedOperatorIDs.includes(elementID)) {
+          this.workflowActionService.getJointGraphWrapper().unhighlightOperators(elementID);
+        } else if (highlightedGroupIDs.includes(elementID)) {
+          this.workflowActionService.getJointGraphWrapper().unhighlightGroups(elementID);
+        } else if (this.workflowActionService.getTexeraGraph().hasOperator(elementID)) {
+          this.workflowActionService.getJointGraphWrapper().highlightOperators(elementID);
+        } else if (this.workflowActionService.getOperatorGroup().hasGroup(elementID)) {
+          this.workflowActionService.getJointGraphWrapper().highlightGroups(elementID);
         }
-      });
+      } else { // else only highlight a single operator or group
+        if (this.workflowActionService.getTexeraGraph().hasOperator(elementID)) {
+          this.workflowActionService.getJointGraphWrapper().highlightOperators(elementID);
+        } else if (this.workflowActionService.getOperatorGroup().hasGroup(elementID)) {
+          this.workflowActionService.getJointGraphWrapper().highlightGroups(elementID);
+        }
+      }
+    });
 
     // on user mouse clicks on blank area, unhighlight all operators and groups
-    Observable.fromEvent<JointPaperEvent>(this.getJointPaper(), 'blank:pointerdown')
+    fromEvent<JointPaperEvent>(this.getJointPaper(), "blank:pointerdown")
       .subscribe(() => {
         const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
         const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
@@ -545,53 +551,53 @@ export class WorkflowEditorComponent implements AfterViewInit {
     // handle logical operator and group highlight / unhighlight events to let JointJS
     //  use our own custom highlighter
     const highlightOptions = {
-      name: 'stroke',
+      name: "stroke",
       options: {
         attrs: {
-          'stroke-width': 2,
-          stroke: '#4A95FF'
+          "stroke-width": 2,
+          stroke: "#4A95FF"
         }
       }
     };
 
     // highlight on OperatorHighlightStream or GroupHighlightStream
-    Observable.merge(
+    merge(
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointGroupHighlightStream()
     ).subscribe(elementIDs => elementIDs.forEach(elementID =>
       this.getJointPaper().findViewByModel(elementID).highlight(
-        'rect', {highlighter: highlightOptions}
+        "rect", { highlighter: highlightOptions }
       )));
 
     // unhighlight on OperatorUnhighlightStream or GroupUnhighlightStream
-    Observable.merge(
+    merge(
       this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream()
     ).subscribe(elementIDs => elementIDs.forEach(elementID =>
       this.getJointPaper().findViewByModel(elementID).unhighlight(
-        'rect', {highlighter: highlightOptions}
+        "rect", { highlighter: highlightOptions }
       )));
   }
 
   private handleOperatorSuggestionHighlightEvent(): void {
     const highlightOptions = {
-      name: 'stroke',
+      name: "stroke",
       options: {
         attrs: {
-          'stroke-width': 5,
-          stroke: '#551A8B70'
+          "stroke-width": 5,
+          stroke: "#551A8B70"
         }
       }
     };
 
     this.dragDropService.getOperatorSuggestionHighlightStream()
-      .subscribe(value => this.getJointPaper().findViewByModel(value).highlight('rect',
-        {highlighter: highlightOptions}
+      .subscribe(value => this.getJointPaper().findViewByModel(value).highlight("rect",
+        { highlighter: highlightOptions }
       ));
 
     this.dragDropService.getOperatorSuggestionUnhighlightStream()
-      .subscribe(value => this.getJointPaper().findViewByModel(value).unhighlight('rect',
-        {highlighter: highlightOptions}
+      .subscribe(value => this.getJointPaper().findViewByModel(value).unhighlight("rect",
+        { highlighter: highlightOptions }
       ));
   }
 
@@ -631,15 +637,15 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handleViewDeleteOperator(): void {
     // bind the delete button event to call the delete operator function in joint model action
-    Observable
-      .fromEvent<JointPaperEvent>(this.getJointPaper(), 'element:delete')
-      .filter(value => this.interactive)
-      .map(value => value[0])
-      .subscribe(
-        elementView => {
-          this.workflowActionService.deleteOperator(elementView.model.id.toString());
-        }
-      );
+    fromEvent<JointPaperEvent>(this.getJointPaper(), "element:delete")
+      .pipe(
+        filter(value => this.interactive),
+        map(value => value[0])
+      ).subscribe(
+      elementView => {
+        this.workflowActionService.deleteOperator(elementView.model.id.toString());
+      }
+    );
   }
 
   /**
@@ -651,14 +657,14 @@ export class WorkflowEditorComponent implements AfterViewInit {
    *  we need to handle the callback event `tool:remove`.
    */
   private handleViewDeleteLink(): void {
-    Observable
-      .fromEvent<JointPaperEvent>(this.getJointPaper(), 'tool:remove')
-      .filter(value => this.interactive)
-      .map(value => value[0])
-      .subscribe(elementView => {
-          this.workflowActionService.deleteLinkWithID(elementView.model.id.toString());
-        }
-      );
+    fromEvent<JointPaperEvent>(this.getJointPaper(), "tool:remove")
+      .pipe(
+        filter(value => this.interactive),
+        map(value => value[0])
+      ).subscribe(elementView => {
+        this.workflowActionService.deleteLinkWithID(elementView.model.id.toString());
+      }
+    );
   }
 
   /**
@@ -672,9 +678,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * The name of this callback event is registered in `JointUIService.getCustomGroupStyleAttrs`
    */
   private handleViewCollapseGroup(): void {
-    Observable
-      .fromEvent<JointPaperEvent>(this.getJointPaper(), 'element:collapse')
-      .map(value => value[0])
+    fromEvent<JointPaperEvent>(this.getJointPaper(), "element:collapse")
+      .pipe(map(value => value[0]))
       .subscribe(
         elementView => {
           const groupID = elementView.model.id.toString();
@@ -694,9 +699,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * The name of this callback event is registered in `JointUIService.getCustomGroupStyleAttrs`
    */
   private handleViewExpandGroup(): void {
-    Observable
-      .fromEvent<JointPaperEvent>(this.getJointPaper(), 'element:expand')
-      .map(value => value[0])
+    fromEvent<JointPaperEvent>(this.getJointPaper(), "element:expand")
+      .pipe(map(value => value[0]))
       .subscribe(
         elementView => {
           const groupID = elementView.model.id.toString();
@@ -742,14 +746,14 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * Gets the width and height of the parent wrapper element
    */
   private getWrapperElementSize(): { width: number, height: number } {
-    const width = jQuery('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).width();
-    const height = jQuery('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).height();
+    const width = jQuery("#" + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).width();
+    const height = jQuery("#" + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).height();
 
     if (width === undefined || height === undefined) {
-      throw new Error('fail to get Workflow Editor wrapper element size');
+      throw new Error("fail to get Workflow Editor wrapper element size");
     }
 
-    return {width, height};
+    return { width, height };
   }
 
 
@@ -762,7 +766,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
     const jointPaperOptions: joint.dia.Paper.Options = {
       // enable jointjs feature that automatically snaps a link to the closest port with a radius of 30px
-      snapLinks: {radius: 40},
+      snapLinks: { radius: 40 },
       // disable jointjs default action that can make a link not connect to an operator
       linkPinning: false,
       // provide a validation to determine if two ports could be connected (only output connect to input is allowed)
@@ -780,7 +784,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       // disable jointjs default action that prevents normal right click menu showing up on jointjs paper
       preventContextMenu: false,
       // draw dots in the background of the paper
-      drawGrid: {name: 'fixedDot', args: {color: 'black', scaleFactor: 8, thickness: 1.2}},
+      drawGrid: { name: "fixedDot", args: { color: "black", scaleFactor: 8, thickness: 1.2 } },
       // set grid size
       gridSize: 2
     };
@@ -800,15 +804,15 @@ export class WorkflowEditorComponent implements AfterViewInit {
     end: joint.dia.LinkEnd, linkView: joint.dia.LinkView
   ): boolean {
     // user cannot draw connection starting from the input port (left side)
-    if (sourceMagnet && sourceMagnet.getAttribute('port-group') === 'in') { return false; }
+    if (sourceMagnet && sourceMagnet.getAttribute("port-group") === "in") { return false; }
 
     // user cannot connect to the output port (right side)
-    if (targetMagnet && targetMagnet.getAttribute('port-group') === 'out') { return false; }
+    if (targetMagnet && targetMagnet.getAttribute("port-group") === "out") { return false; }
 
     const sourceCellID = sourceView.model.id.toString();
-    const sourcePortID = sourceMagnet?.getAttribute('port');
+    const sourcePortID = sourceMagnet?.getAttribute("port");
     const targetCellID = targetView.model.id.toString();
-    const targetPortID = targetMagnet?.getAttribute('port');
+    const targetPortID = targetMagnet?.getAttribute("port");
 
     return this.validateOperatorConnection(sourceCellID, sourcePortID, targetCellID, targetPortID);
   }
@@ -867,33 +871,35 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * When the focus is not on root document body, operator should not be deleted
    */
   private handleElementDelete(): void {
-    Observable.fromEvent<KeyboardEvent>(document, 'keydown')
-      .filter(event => document.activeElement === document.body)
-      .filter(event => this.interactive)
-      .filter(event => event.key === 'Backspace' || event.key === 'Delete')
-      .subscribe(() => {
-        const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-        const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
-        this.workflowActionService.deleteOperatorsAndLinks(highlightedOperatorIDs, [], highlightedGroupIDs);
-      });
+    fromEvent<KeyboardEvent>(document, "keydown")
+      .pipe(
+        filter(event => document.activeElement === document.body),
+        filter(event => this.interactive),
+        filter(event => event.key === "Backspace" || event.key === "Delete")
+      ).subscribe(() => {
+      const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+      const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
+      this.workflowActionService.deleteOperatorsAndLinks(highlightedOperatorIDs, [], highlightedGroupIDs);
+    });
   }
 
   /**
    * Highlight all operators and groups on the graph when user presses command/ctrl + A.
    */
   private handleElementSelectAll(): void {
-    Observable.fromEvent<KeyboardEvent>(document, 'keydown')
-      .filter(event => document.activeElement === document.body)
-      .filter(event => (event.metaKey || event.ctrlKey) && event.key === 'a')
-      .subscribe(event => {
-        event.preventDefault();
-        const allOperators = this.workflowActionService.getTexeraGraph().getAllOperators().map(operator => operator.operatorID)
-          .filter(operatorID => !this.workflowActionService.getOperatorGroup().getGroupByOperator(operatorID)?.collapsed);
-        const allGroups = this.workflowActionService.getOperatorGroup().getAllGroups().map(group => group.groupID);
-        this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(allOperators.length + allGroups.length > 1);
-        this.workflowActionService.getJointGraphWrapper().highlightOperators(...allOperators);
-        this.workflowActionService.getJointGraphWrapper().highlightGroups(...allGroups);
-      });
+    fromEvent<KeyboardEvent>(document, "keydown")
+      .pipe(
+        filter(event => document.activeElement === document.body),
+        filter(event => (event.metaKey || event.ctrlKey) && event.key === "a")
+      ).subscribe(event => {
+      event.preventDefault();
+      const allOperators = this.workflowActionService.getTexeraGraph().getAllOperators().map(operator => operator.operatorID)
+        .filter(operatorID => !this.workflowActionService.getOperatorGroup().getGroupByOperator(operatorID)?.collapsed);
+      const allGroups = this.workflowActionService.getOperatorGroup().getAllGroups().map(group => group.groupID);
+      this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(allOperators.length + allGroups.length > 1);
+      this.workflowActionService.getJointGraphWrapper().highlightOperators(...allOperators);
+      this.workflowActionService.getJointGraphWrapper().highlightGroups(...allGroups);
+    });
   }
 
   /**
@@ -902,8 +908,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * keyboard or selects copy option from the browser menu).
    */
   private handleElementCopy(): void {
-    Observable.fromEvent<ClipboardEvent>(document, 'copy')
-      .filter(event => document.activeElement === document.body)
+    fromEvent<ClipboardEvent>(document, "copy")
+      .pipe(filter(event => document.activeElement === document.body))
       .subscribe(() => {
         const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
         const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
@@ -920,18 +926,19 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * on keyboard or selects cut option from the browser menu).
    */
   private handleOperatorCut(): void {
-    Observable.fromEvent<ClipboardEvent>(document, 'cut')
-      .filter(event => document.activeElement === document.body)
-      .filter(event => this.interactive)
-      .subscribe(() => {
-        const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-        const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
-        if (highlightedOperatorIDs.length > 0 || highlightedGroupIDs.length > 0) {
-          this.clearCopiedElements();
-          this.saveHighlighedElements();
-          this.workflowActionService.deleteOperatorsAndLinks(highlightedOperatorIDs, [], highlightedGroupIDs);
-        }
-      });
+    fromEvent<ClipboardEvent>(document, "cut")
+      .pipe(
+        filter(event => document.activeElement === document.body),
+        filter(event => this.interactive)
+      ).subscribe(() => {
+      const highlightedOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+      const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
+      if (highlightedOperatorIDs.length > 0 || highlightedGroupIDs.length > 0) {
+        this.clearCopiedElements();
+        this.saveHighlighedElements();
+        this.workflowActionService.deleteOperatorsAndLinks(highlightedOperatorIDs, [], highlightedGroupIDs);
+      }
+    });
   }
 
   /**
@@ -972,7 +979,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       const position = this.workflowActionService.getJointGraphWrapper().getElementPosition(operatorID);
       const layer = this.workflowActionService.getJointGraphWrapper().getCellLayer(operatorID);
       const pastedOperators = includeOperator ? [operatorID] : [];
-      this.copiedOperators.set(operatorID, {operator, position, layer, pastedOperatorIDs: pastedOperators});
+      this.copiedOperators.set(operatorID, { operator, position, layer, pastedOperatorIDs: pastedOperators });
     }
   }
 
@@ -1002,66 +1009,67 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * keyboard or selects paste option from the browser menu).
    */
   private handleOperatorPaste(): void {
-    Observable.fromEvent<ClipboardEvent>(document, 'paste')
-      .filter(event => document.activeElement === document.body)
-      .filter(event => this.interactive)
-      .subscribe(() => {
-        // if there is something to paste
-        if (this.copiedOperators.size > 0 || this.copiedGroups.size > 0) {
-          const operatorsAndPositions: { op: OperatorPredicate, pos: Point }[] = [];
-          const links: OperatorLink[] = [];
-          const groups: Group[] = [];
-          const positions: Point[] = [];
+    fromEvent<ClipboardEvent>(document, "paste")
+      .pipe(
+        filter(event => document.activeElement === document.body),
+        filter(event => this.interactive)
+      ).subscribe(() => {
+      // if there is something to paste
+      if (this.copiedOperators.size > 0 || this.copiedGroups.size > 0) {
+        const operatorsAndPositions: { op: OperatorPredicate, pos: Point }[] = [];
+        const links: OperatorLink[] = [];
+        const groups: Group[] = [];
+        const positions: Point[] = [];
 
-          // sort operators by layer
-          this.copiedOperators = new Map<string, CopiedOperator>(Array.from(this.copiedOperators)
-            .sort((first, second) => first[1].layer - second[1].layer));
+        // sort operators by layer
+        this.copiedOperators = new Map<string, CopiedOperator>(Array.from(this.copiedOperators)
+          .sort((first, second) => first[1].layer - second[1].layer));
 
-          // make copies of each operator, and calculate their positions when pasted
-          this.copiedOperators.forEach((copiedOperator, operatorID) => {
-            const newOperator = this.copyOperator(copiedOperator.operator);
-            const newOperatorPosition = this.calcOperatorPosition(newOperator.operatorID, operatorID, positions);
-            operatorsAndPositions.push({op: newOperator, pos: newOperatorPosition});
-            positions.push(newOperatorPosition);
+        // make copies of each operator, and calculate their positions when pasted
+        this.copiedOperators.forEach((copiedOperator, operatorID) => {
+          const newOperator = this.copyOperator(copiedOperator.operator);
+          const newOperatorPosition = this.calcOperatorPosition(newOperator.operatorID, operatorID, positions);
+          operatorsAndPositions.push({ op: newOperator, pos: newOperatorPosition });
+          positions.push(newOperatorPosition);
+        });
+
+        // make copies of each group, push each group's internal operators and calculated positions to operatorsAndPositions
+        this.copiedGroups.forEach((copiedGroup, groupID) => {
+          const newGroup = this.copyGroup(copiedGroup.group);
+
+          const oldPosition = copiedGroup.position;
+          const newPosition = this.calcGroupPosition(newGroup.groupID, groupID, positions);
+          positions.push(newPosition);
+
+          // delta between old position and new to apply to the copied group's operators
+          const delta = {
+            x: newPosition.x - oldPosition.x,
+            y: newPosition.y - oldPosition.y
+          };
+
+          newGroup.operators.forEach((operatorInfo, operatorID) => {
+            operatorInfo.position.x += delta.x;
+            operatorInfo.position.y += delta.x;
+
+            operatorsAndPositions.push({
+              op: operatorInfo.operator,
+              pos: operatorInfo.position
+            });
           });
 
-          // make copies of each group, push each group's internal operators and calculated positions to operatorsAndPositions
-          this.copiedGroups.forEach((copiedGroup, groupID) => {
-            const newGroup = this.copyGroup(copiedGroup.group);
-
-            const oldPosition = copiedGroup.position;
-            const newPosition = this.calcGroupPosition(newGroup.groupID, groupID, positions);
-            positions.push(newPosition);
-
-            // delta between old position and new to apply to the copied group's operators
-            const delta = {
-              x: newPosition.x - oldPosition.x,
-              y: newPosition.y - oldPosition.y
-            };
-
-            newGroup.operators.forEach((operatorInfo, operatorID) => {
-              operatorInfo.position.x += delta.x;
-              operatorInfo.position.y += delta.x;
-
-              operatorsAndPositions.push({
-                op: operatorInfo.operator,
-                pos: operatorInfo.position
-              });
-            });
-
-            // add links from group to list of all links to be added
-            newGroup.links.forEach((linkInfo, operatorID) => {
-              links.push(linkInfo.link);
-            });
-
-            // add group to list of all groups to be added
-            groups.push(newGroup);
+          // add links from group to list of all links to be added
+          newGroup.links.forEach((linkInfo, operatorID) => {
+            links.push(linkInfo.link);
           });
 
-          // actually add all operators, links, groups to the workflow
-          this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links, groups, new Map());
-        }
-      });
+          // add group to list of all groups to be added
+          groups.push(newGroup);
+        });
+
+        // actually add all operators, links, groups to the workflow
+        this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links, groups, new Map());
+      }
+    });
   }
 
   /**
@@ -1070,14 +1078,14 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * @param operator
    */
   private copyOperator(operator: OperatorPredicate): OperatorPredicate {
-    const operatorID = operator.operatorType + '-' + this.workflowUtilService.getRandomUUID();
+    const operatorID = operator.operatorType + "-" + this.workflowUtilService.getOperatorRandomUUID();
     const operatorType = operator.operatorType;
     const operatorProperties = operator.operatorProperties;
     const inputPorts = operator.inputPorts;
     const outputPorts = operator.outputPorts;
     const showAdvanced = operator.showAdvanced;
     const isDisabled = operator.isDisabled;
-    return {operatorID, operatorType, operatorProperties, inputPorts, outputPorts, showAdvanced, isDisabled};
+    return { operatorID, operatorType, operatorProperties, inputPorts, outputPorts, showAdvanced, isDisabled };
   }
 
   private copyGroup(group: Group) {
@@ -1226,7 +1234,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     do {
       for (const operatorPosition of operatorPositions) {
         if (operatorPosition.x === position.x && operatorPosition.y === position.y) {
-          position = {x: position.x + this.COPY_OFFSET, y: position.y + this.COPY_OFFSET};
+          position = { x: position.x + this.COPY_OFFSET, y: position.y + this.COPY_OFFSET };
           overlapped = true;
           break;
         }
@@ -1246,20 +1254,19 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handleLinkCursorHover(): void {
     // When the cursor hovers over a link, the delete button and the breakpoint button appear
-    Observable
-      .fromEvent<JointPaperEvent>(this.getJointPaper(), 'link:mouseenter')
-      .map(value => value[0])
+    fromEvent<JointPaperEvent>(this.getJointPaper(), "link:mouseenter")
+      .pipe(map(value => value[0]))
       .subscribe(
         elementView => {
           if (environment.linkBreakpointEnabled) {
             this.getJointPaper().getModelById(elementView.model.id).attr({
-              '.tool-remove': {display: 'block'}
+              ".tool-remove": { display: "block" }
             });
             this.getJointPaper().getModelById(elementView.model.id).findView(this.getJointPaper()).showTools();
           } else {
             // only display the delete button
             this.getJointPaper().getModelById(elementView.model.id).attr({
-              '.tool-remove': {display: 'block'}
+              ".tool-remove": { display: "block" }
             });
           }
         }
@@ -1270,9 +1277,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
      * If there is no breakpoint present on that link, the breakpoint button also disappears,
      * otherwise, the breakpoint button is not changed.
      */
-    Observable
-      .fromEvent<JointPaperEvent>(this.getJointPaper(), 'link:mouseleave')
-      .map(value => value[0])
+    fromEvent<JointPaperEvent>(this.getJointPaper(), "link:mouseleave")
+      .pipe(map(value => value[0]))
       .subscribe(
         elementView => {
           // ensure that the link element exists
@@ -1282,7 +1288,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
               this.getJointPaper().getModelById(elementView.model.id).findView(this.getJointPaper()).hideTools();
             }
             this.getJointPaper().getModelById(elementView.model.id).attr({
-              '.tool-remove': {display: 'none'}
+              ".tool-remove": { display: "none" }
             });
           }
         }
@@ -1295,7 +1301,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private handleLinkBreakpoint(): void {
     this.handleLinkBreakpointToolAttachment();
     this.handleLinkBreakpointButtonClick();
-    this.handleLinkBreakpointHighlighEvents();
+    this.handleLinkBreakpointHighlightEvents();
     this.handleLinkBreakpointToggleEvents();
   }
 
@@ -1307,7 +1313,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       const breakpointButtonTool = this.jointUIService.getBreakpointButton();
       const breakpointButton = new breakpointButtonTool();
       const toolsView = new joint.dia.ToolsView({
-        name: 'basic-tools',
+        name: "basic-tools",
         tools: [breakpointButton]
       });
       linkView.addTools(toolsView);
@@ -1321,8 +1327,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * and converts that event to a workflow action
    */
   private handleLinkBreakpointButtonClick(): void {
-    Observable
-      .fromEvent<JointPaperEvent>(this.getJointPaper(), 'tool:breakpoint', {passive: true})
+    fromEvent<JointPaperEvent>(this.getJointPaper(), "tool:breakpoint", { passive: true })
       .subscribe(
         event => {
           this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(<boolean>event[1].shiftKey);
@@ -1332,16 +1337,16 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   /**
-   * Highlight/unhighlight the link according to the observable value recieved.
+   * Highlight/unhighlight the link according to the observable value received.
    */
-  private handleLinkBreakpointHighlighEvents(): void {
+  private handleLinkBreakpointHighlightEvents(): void {
     this.workflowActionService.getJointGraphWrapper().getLinkHighlightStream()
       .subscribe(linkIDs => {
           linkIDs.forEach(linkID => {
             this.getJointPaper().getModelById(linkID).attr({
-              '.connection': {stroke: 'orange'},
-              '.marker-source': {fill: 'orange'},
-              '.marker-target': {fill: 'orange'}
+              ".connection": { stroke: "orange" },
+              ".marker-source": { fill: "orange" },
+              ".marker-target": { fill: "orange" }
             });
           });
         }
@@ -1354,9 +1359,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
             // ensure that the link still exist
             if (this.getJointPaper().getModelById(linkID)) {
               this.getJointPaper().getModelById(linkID).attr({
-                '.connection': {stroke: linkPathStrokeColor},
-                '.marker-source': {fill: 'none'},
-                '.marker-target': {fill: 'none'}
+                ".connection": { stroke: linkPathStrokeColor },
+                ".marker-source": { fill: "none" },
+                ".marker-target": { fill: "none" }
               });
             }
           });
@@ -1385,7 +1390,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * https://resources.jointjs.com/docs/jointjs/v2.0/joint.html#dia.Paper.prototype.options.validateMagnet
    */
   private static validateOperatorMagnet(cellView: joint.dia.CellView, magnet: SVGElement, event: joint.dia.Event): boolean {
-    return magnet && magnet.getAttribute('port-group') === 'out';
+    return magnet && magnet.getAttribute("port-group") === "out";
 
   }
 }

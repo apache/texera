@@ -1,12 +1,12 @@
-import { OperatorPredicate } from './../../../types/workflow-common.interface';
-import { OperatorMetadataService } from './../../operator-metadata/operator-metadata.service';
-import { OperatorSchema } from './../../../types/operator-schema.interface';
+import { OperatorPredicate } from '../../../types/workflow-common.interface';
+import { OperatorMetadataService } from '../../operator-metadata/operator-metadata.service';
+import { OperatorSchema } from '../../../types/operator-schema.interface';
 import { Injectable } from '@angular/core';
 import { v4 as uuid } from 'uuid';
 import * as Ajv from 'ajv';
 
-import { Subject } from 'rxjs/Subject';
-import { Observable } from 'rxjs/Observable';
+import { Subject } from 'rxjs';
+import { Observable } from 'rxjs';
 
 /**
  * WorkflowUtilService provide utilities related to dealing with operator data.
@@ -37,11 +37,33 @@ export class WorkflowUtilService {
   }
 
   /**
-   * Generates a new UUID for operator or link
+   * Generates a new UUID for operator
    */
-  public getRandomUUID(): string {
+  public getOperatorRandomUUID(): string {
     return 'operator-' + uuid();
   }
+
+  /**
+   * Generates a new UUID for operator or link
+   */
+  public getLinkRandomUUID(): string {
+    return 'link-' + uuid();
+  }
+
+  /**
+   * Generates a new UUID for group element
+   */
+  public getGroupRandomUUID(): string {
+    return 'group-' + uuid();
+  }
+
+  /**
+   * Generates a new UUID for breakpoint
+   */
+  public getBreakpointRandomUUID(): string {
+    return 'breakpoint-' + uuid();
+  }
+
 
   /**
    * This method will use a unique ID and a operatorType to create and return a
@@ -56,7 +78,7 @@ export class WorkflowUtilService {
       throw new Error(`operatorType ${operatorType} doesn't exist in operator metadata`);
     }
 
-    const operatorID = operatorSchema.operatorType + '-' + this.getRandomUUID();
+    const operatorID = operatorSchema.operatorType + '-' + this.getOperatorRandomUUID();
     const operatorProperties = {};
 
     // Remove the ID field for the schema to prevent warning messages from Ajv
@@ -66,8 +88,8 @@ export class WorkflowUtilService {
     const validate = this.ajv.compile(schemaWithoutID);
     validate(operatorProperties);
 
-    const inputPorts: {portID: string, displayName?: string}[] = [];
-    const outputPorts: {portID: string, displayName?: string}[] = [];
+    const inputPorts: { portID: string, displayName?: string }[] = [];
+    const outputPorts: { portID: string, displayName?: string }[] = [];
 
     // by default, the operator will not show advanced option in the properties to the user
     const showAdvanced = false;
@@ -91,17 +113,5 @@ export class WorkflowUtilService {
 
   }
 
-  /**
-   * Generates a new UUID for operator or link
-   */
-  public getLinkRandomUUID(): string {
-    return 'link-' + uuid();
-  }
 
-  /**
-   * Generates a new UUID for group element
-   */
-  public getGroupRandomUUID(): string {
-    return 'group-' + uuid();
-  }
 }

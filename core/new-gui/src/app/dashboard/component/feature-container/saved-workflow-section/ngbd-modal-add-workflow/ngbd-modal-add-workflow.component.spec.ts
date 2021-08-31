@@ -1,4 +1,4 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { MatDialogModule } from '@angular/material/dialog';
 
 import { NgbActiveModal, NgbModule } from '@ng-bootstrap/ng-bootstrap';
@@ -15,7 +15,7 @@ describe('NgbdModalAddProjectComponent', () => {
   let addcomponent: NgbdModalAddWorkflowComponent;
   let addfixture: ComponentFixture<NgbdModalAddWorkflowComponent>;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [NgbdModalAddWorkflowComponent],
       providers: [

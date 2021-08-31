@@ -1,12 +1,9 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
-
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { ProductTourComponent } from './product-tour.component';
-
 import { TourNgBootstrapModule, TourService, IStepOption } from 'ngx-tour-ng-bootstrap';
-
 import { RouterTestingModule } from '@angular/router/testing';
-
 import { marbles } from 'rxjs-marbles';
+import { map, tap } from 'rxjs/operators';
 
 
 describe('ProductTourComponent', () => {
@@ -14,7 +11,7 @@ describe('ProductTourComponent', () => {
   let fixture: ComponentFixture<ProductTourComponent>;
   let tourService: TourService;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       imports: [ RouterTestingModule.withRoutes([]), TourNgBootstrapModule.forRoot() ],
       declarations: [ ProductTourComponent ],
@@ -49,15 +46,15 @@ describe('ProductTourComponent', () => {
   });
 
   it('should trigger a start event when the toggle() method call is execute', marbles((m) => {
-    const tourServiceStartStream = tourService.start$.map(() => 'a');
-    m.hot('-a-').do(() => tourService.toggle()).subscribe();
+    const tourServiceStartStream = tourService.start$.pipe(map(() => 'a'));
+    m.hot('-a-').pipe(tap(() => tourService.toggle())).subscribe();
     const expectedStream = m.hot('-a-');
     m.expect(tourServiceStartStream).toBeObservable(expectedStream);
   }));
 
   it('should trigger an end event when the end() method call is executed', marbles((m) => {
-    const tourServiceEndStream = tourService.end$.map(() => 'a');
-    m.hot('-a-').do(() => tourService.end()).subscribe();
+    const tourServiceEndStream = tourService.end$.pipe(map(() => 'a'));
+    m.hot('-a-').pipe(tap(() => tourService.end())).subscribe();
     const expectedStream = m.hot('-a-');
     m.expect(tourServiceEndStream).toBeObservable(expectedStream);
   }));

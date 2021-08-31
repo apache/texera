@@ -1,6 +1,5 @@
-import { JointUIService } from './../joint-ui/joint-ui.service';
-import { TestBed, inject } from '@angular/core/testing';
-
+import { JointUIService } from '../joint-ui/joint-ui.service';
+import { inject, TestBed } from '@angular/core/testing';
 import { DragDropService } from './drag-drop.service';
 import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
 import { UndoRedoService } from '../undo-redo/undo-redo.service';
@@ -8,15 +7,17 @@ import { WorkflowUtilService } from '../workflow-graph/util/workflow-util.servic
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-metadata.service';
 import { mockOperatorMetaData } from '../operator-metadata/mock-operator-metadata.data';
-
 import * as jQuery from 'jquery';
 import '../../../../../node_modules/jquery-ui-dist/jquery-ui';
-
 import { marbles } from 'rxjs-marbles';
 import {
-  mockScanPredicate, mockResultPredicate, mockMultiInputOutputPredicate, mockScanResultLink
+  mockMultiInputOutputPredicate,
+  mockResultPredicate,
+  mockScanPredicate,
+  mockScanResultLink
 } from '../workflow-graph/model/mock-workflow-data';
-import { OperatorPredicate, OperatorLink } from '../../types/workflow-common.interface';
+import { OperatorLink, OperatorPredicate } from '../../types/workflow-common.interface';
+import { map } from 'rxjs/operators';
 
 describe('DragDropService', () => {
 
@@ -95,7 +96,7 @@ describe('DragDropService', () => {
 
     dragDropService.handleOperatorDropEvent();
 
-    const addOperatorStream = workflowActionService.getTexeraGraph().getOperatorAddStream().map(() => 'a');
+    const addOperatorStream = workflowActionService.getTexeraGraph().getOperatorAddStream().pipe(map(() => 'a'));
 
     const expectedStream = m.hot('-a-');
     m.expect(addOperatorStream).toBeObservable(expectedStream);
@@ -135,7 +136,7 @@ describe('DragDropService', () => {
       expect(outputOps).toEqual([output1, output2, output3]);
     });
 
-  it('should publish operatorPredicates to highlight streams when calling "updateHighlighting(prevHightlights,newHighlights)"',
+  it('should publish operatorPredicates to highlight streams when calling "updateHighlighting(prevHighlights,newHighlights)"',
     async () => {
       const workflowUtilService: WorkflowActionService = TestBed.get(WorkflowActionService);
       const highlights: string[] = [];

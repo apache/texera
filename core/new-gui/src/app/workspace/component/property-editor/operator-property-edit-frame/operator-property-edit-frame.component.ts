@@ -1,12 +1,13 @@
 import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
 import { ExecuteWorkflowService } from '../../../service/execute-workflow/execute-workflow.service';
-import { Subject } from 'rxjs/Subject';
+import { Subject, Subscription } from 'rxjs';
+import { filter } from 'rxjs/operators';
 import { FormGroup } from '@angular/forms';
 import { FormlyFieldConfig, FormlyFormOptions } from '@ngx-formly/core';
 import * as Ajv from 'ajv';
 import { FormlyJsonschema } from '@ngx-formly/core/json-schema';
 import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
-import { cloneDeep, isEqual } from 'lodash';
+import { cloneDeep, isEqual } from 'lodash-es';
 import { CustomJSONSchema7 } from '../../../types/custom-json-schema.interface';
 import { isDefined } from '../../../../common/util/predicate';
 import { ExecutionState } from 'src/app/workspace/types/execute-workflow.interface';
@@ -14,8 +15,8 @@ import { DynamicSchemaService } from '../../../service/dynamic-schema/dynamic-sc
 import { SchemaAttribute, SchemaPropagationService } from '../../../service/dynamic-schema/schema-propagation/schema-propagation.service';
 import { createOutputFormChangeEventStream, setChildTypeDependency, setHideExpression } from 'src/app/common/formly/formly-utils';
 import { TYPE_CASTING_OPERATOR_TYPE, TypeCastingDisplayComponent } from '../typecasting-display/type-casting-display.component';
-import { Subscription } from 'rxjs';
 import { DynamicComponentConfig } from '../../../../common/type/dynamic-component-config';
+
 
 export type PropertyDisplayComponent = TypeCastingDisplayComponent;
 
@@ -229,11 +230,11 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnDestroy, On
    *  invalid fields, this form will capture those events.
    */
   registerOperatorPropertyChangeHandler(): void {
-    this.subscriptions.add(this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream()
-      .filter(_ => this.currentOperatorId !== undefined)
-      .filter(operatorChanged => operatorChanged.operator.operatorID === this.currentOperatorId)
-      .filter(operatorChanged => !isEqual(this.formData, operatorChanged.operator.operatorProperties))
-      .subscribe(operatorChanged => this.formData = cloneDeep(operatorChanged.operator.operatorProperties)));
+    this.subscriptions.add(this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream().pipe(
+      filter(_ => this.currentOperatorId !== undefined),
+      filter(operatorChanged => operatorChanged.operator.operatorID === this.currentOperatorId),
+      filter(operatorChanged => !isEqual(this.formData, operatorChanged.operator.operatorProperties))
+    ).subscribe(operatorChanged => this.formData = cloneDeep(operatorChanged.operator.operatorProperties)));
   }
 
   /**
