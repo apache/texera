@@ -281,7 +281,7 @@ class WorkflowWebsocketResource {
       operatorRecord,
       opResultStorage
     )
-    val newWorkflowInfo = workflowRewriter.rewrite_v2
+    val newWorkflowInfo = workflowRewriter.rewrite
     val oldWorkflowInfo = workflowInfo
     workflowInfo = newWorkflowInfo
     logger.info("Original workflow: {}.", toJgraphtDAG(oldWorkflowInfo).toString)

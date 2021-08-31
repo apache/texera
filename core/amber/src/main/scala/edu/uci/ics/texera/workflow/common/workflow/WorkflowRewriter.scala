@@ -86,7 +86,7 @@ class WorkflowRewriter(
   var r2WorkflowInfo: WorkflowInfo = _
   var r2WorkflowDAG: WorkflowDAG = _
 
-  def rewrite_v2: WorkflowInfo = {
+  def rewrite: WorkflowInfo = {
     if (null == workflowInfo) {
       logger.info("Rewriting workflow null")
       null

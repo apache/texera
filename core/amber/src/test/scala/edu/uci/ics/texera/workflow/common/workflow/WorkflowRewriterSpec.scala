@@ -3,16 +3,12 @@ package edu.uci.ics.texera.workflow.common.workflow
 import edu.uci.ics.amber.engine.architecture.storage.OpResultStorage
 import edu.uci.ics.amber.engine.architecture.storage.mongo.MongoOpResultStorage
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
-import edu.uci.ics.texera.workflow.operators.regex.RegexOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.{CacheSinkOpDescV2, SimpleSinkOpDesc}
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDescV2
 import edu.uci.ics.texera.workflow.operators.source.scan.csv.CSVScanSourceOpDesc
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
-import java.util.UUID
 import scala.collection.mutable
 
 class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
@@ -50,7 +46,7 @@ class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
       mutable.HashMap[String, WorkflowVertex](),
       opResultStorage
     )
-    val rewrittenWorkflowInfo = rewriter.rewrite_v2
+    val rewrittenWorkflowInfo = rewriter.rewrite
     rewrittenWorkflowInfo.operators.foreach(operator => {
       assert(operators.contains(operator))
     })
