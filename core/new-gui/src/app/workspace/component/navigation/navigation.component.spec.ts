@@ -15,7 +15,7 @@
 // import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
 // import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 
-// import { Observable } from 'rxjs/Observable';
+// import { Observable } from 'rxjs';
 // import { marbles } from 'rxjs-marbles';
 // import { HttpClient } from '@angular/common/http';
 // import { mockExecutionResult } from '../../service/execute-workflow/mock-result-data';
@@ -84,7 +84,6 @@
 //   //   spyOn(httpClient, 'post').and.returnValue(
 //   //     Observable.of(mockExecutionResult)
 //   //   );
-
 
 //   //   const runButtonElement = fixture.debugElement.query(By.css('.texera-navigation-run-button'));
 //   //   m.hot('-e-').do(event => runButtonElement.triggerEventHandler('click', null)).subscribe();
@@ -195,7 +194,6 @@
 //   //       }
 //   //     });
 //   // }));
-
 
 //   // it('it should update isWorkflowPaused variable to false when 1 is returned from getExecutionPauseResumeStream', marbles((m) => {
 //   //   const endMarbleString = '-e-|';
