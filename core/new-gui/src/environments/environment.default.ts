@@ -19,7 +19,7 @@ export const defaultEnvironment = {
    * whether operator schema propagation and autocomplete feature is enabled,
    * see SchemaPropagationService for details
    */
-  schemaPropagationEnabled: false,
+  schemaPropagationEnabled: true,
   /**
    * whether the backend support pause/resume functionality
    */
@@ -31,7 +31,7 @@ export const defaultEnvironment = {
   /**
    * whether export execution result is supported
    */
-  exportExecutionResultEnabled: true,
+  exportExecutionResultEnabled: false,
 
   /**
    * whether user system is enabled
