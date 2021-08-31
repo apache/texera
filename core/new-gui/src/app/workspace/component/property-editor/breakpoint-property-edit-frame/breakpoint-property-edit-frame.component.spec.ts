@@ -1,4 +1,4 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 
 import { BreakpointPropertyEditFrameComponent } from './breakpoint-property-edit-frame.component';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
@@ -29,7 +29,7 @@ describe('BreakpointPropertyEditFrameComponent', () => {
   let component: BreakpointPropertyEditFrameComponent;
   let fixture: ComponentFixture<BreakpointPropertyEditFrameComponent>;
   let workflowActionService: WorkflowActionService;
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [
         BreakpointPropertyEditFrameComponent,

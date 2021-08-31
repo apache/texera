@@ -1,12 +1,11 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs/Observable';
-
+import { Observable } from 'rxjs';
 import { AppSettings } from '../../../common/app-setting';
-import '../../../common/rxjs-operators';
 import { OperatorMetadata, OperatorSchema } from '../../types/operator-schema.interface';
 import { BreakpointSchema } from '../../types/workflow-common.interface';
 import { mockBreakpointSchema } from './mock-operator-metadata.data';
+import { shareReplay, startWith } from 'rxjs/operators';
 
 export const OPERATOR_METADATA_ENDPOINT = 'resources/operator-metadata';
 
@@ -43,13 +42,13 @@ export type IOperatorMetadataService = Pick<OperatorMetadataService, keyof Opera
 export class OperatorMetadataService {
 
   // holds the current version of operator metadata
-  private currentOperatorMetadata: OperatorMetadata|undefined;
-  private currentBreakpointSchema: BreakpointSchema|undefined;
+  private currentOperatorMetadata: OperatorMetadata | undefined;
+  private readonly currentBreakpointSchema: BreakpointSchema | undefined;
 
   private operatorMetadataObservable = this.httpClient
-                                           .get<OperatorMetadata>(`${AppSettings.getApiEndpoint()}/${OPERATOR_METADATA_ENDPOINT}`)
-                                           .startWith(EMPTY_OPERATOR_METADATA)
-                                           .shareReplay(1);
+    .get<OperatorMetadata>(`${AppSettings.getApiEndpoint()}/${OPERATOR_METADATA_ENDPOINT}`)
+    .pipe(startWith(EMPTY_OPERATOR_METADATA)
+      , shareReplay(1));
 
   constructor(private httpClient: HttpClient) {
     this.getOperatorMetadata().subscribe(

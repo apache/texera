@@ -5,6 +5,7 @@ import { AppSettings } from '../../../common/app-setting';
 import { FileUploadItem } from '../../type/dashboard-user-file-entry';
 import { UserService } from '../../../common/service/user/user.service';
 import { UserFileService } from './user-file.service';
+import { filter, map } from 'rxjs/operators';
 
 export const USER_FILE_UPLOAD_URL = 'user/file/upload';
 
@@ -90,27 +91,30 @@ export class UserFileUploadService {
     formData.append('description', fileUploadItem.description);
 
     return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${USER_FILE_UPLOAD_URL}`, formData,
-      {reportProgress: true, observe: 'events'}
-    ).filter(event => {
+      { reportProgress: true, observe: 'events' }
+    ).pipe(
+      filter(event => {
 
-      // retrieve and remove upload progress
-      if (event.type === HttpEventType.UploadProgress) {
-        fileUploadItem.uploadProgress = event.loaded;
-        const total = event.total ? event.total : fileUploadItem.file.size;
-        // TODO the upload progress does not fit the speed user feel, it seems faster
-        // TODO show progress in user friendly way
-        console.log(`File ${fileUploadItem.name} is ${(100 * event.loaded / total).toFixed(1)}% uploaded.`);
-        return false;
-      }
-      return event.type === HttpEventType.Response;
-    }).map(event => { // convert the type HttpEvent<GenericWebResponse> into GenericWebResponse
-      if (event.type === HttpEventType.Response) {
-        fileUploadItem.isUploadingFlag = false;
-        return (event.body as Response);
-      } else {
-        throw new Error(`Error Http Event type in uploading file ${fileUploadItem.name}, the event type is ${event.type}`);
-      }
-    });
+        // retrieve and remove upload progress
+        if (event.type === HttpEventType.UploadProgress) {
+          fileUploadItem.uploadProgress = event.loaded;
+          const total = event.total ? event.total : fileUploadItem.file.size;
+          // TODO the upload progress does not fit the speed user feel, it seems faster
+          // TODO show progress in user friendly way
+          console.log(`File ${fileUploadItem.name} is ${(100 * event.loaded / total).toFixed(1)}% uploaded.`);
+          return false;
+        }
+        return event.type === HttpEventType.Response;
+      }),
+      map(event => { // convert the type HttpEvent<GenericWebResponse> into GenericWebResponse
+        if (event.type === HttpEventType.Response) {
+          fileUploadItem.isUploadingFlag = false;
+          return (event.body as Response);
+        } else {
+          throw new Error(`Error Http Event type in uploading file ${fileUploadItem.name}, the event type is ${event.type}`);
+        }
+      })
+    );
   }
 
   /**

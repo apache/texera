@@ -1,16 +1,10 @@
 import { TestBed } from '@angular/core/testing';
-
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { DashboardUserFileEntry, UserFile } from '../../type/dashboard-user-file-entry';
-
-import {
-  USER_FILE_ACCESS_GRANT_URL,
-  USER_FILE_ACCESS_LIST_URL,
-  USER_FILE_ACCESS_REVOKE_URL,
-  UserFileService
-} from './user-file.service';
+import { USER_FILE_ACCESS_GRANT_URL, USER_FILE_ACCESS_LIST_URL, USER_FILE_ACCESS_REVOKE_URL, UserFileService } from './user-file.service';
 import { UserService } from '../../../common/service/user/user.service';
 import { StubUserService } from '../../../common/service/user/stub-user.service';
+import { first } from 'rxjs/operators';
 
 
 const id = 1;
@@ -42,7 +36,7 @@ describe('UserFileService', () => {
     TestBed.configureTestingModule({
       providers: [
         UserFileService,
-        {provide: UserService, useClass: StubUserService}
+        { provide: UserService, useClass: StubUserService }
       ],
       imports: [
         HttpClientTestingModule
@@ -62,27 +56,27 @@ describe('UserFileService', () => {
 
 
   it('can share access', () => {
-    service.grantUserFileAccess(testFileEntry, username, accessLevel).first().subscribe();
+    service.grantUserFileAccess(testFileEntry, username, accessLevel).pipe(first()).subscribe();
     const req = httpMock.expectOne(
       `${USER_FILE_ACCESS_GRANT_URL}/${testFileEntry.file.name}/${testFileEntry.ownerName}/${username}/${accessLevel}`);
     expect(req.request.method).toEqual('POST');
-    req.flush({code: 0, message: ''});
+    req.flush({ code: 0, message: '' });
   });
 
   it('can revoke access', () => {
-    service.revokeUserFileAccess(testFileEntry, username).first().subscribe();
+    service.revokeUserFileAccess(testFileEntry, username).pipe(first()).subscribe();
     const req = httpMock.expectOne(
       `${USER_FILE_ACCESS_REVOKE_URL}/${testFileEntry.file.name}/${testFileEntry.ownerName}/${username}`);
     expect(req.request.method).toEqual('POST');
-    req.flush({code: 0, message: ''});
+    req.flush({ code: 0, message: '' });
   });
 
   it('can get all access', () => {
-    service.getUserFileAccessList(testFileEntry).first().subscribe();
+    service.getUserFileAccessList(testFileEntry).pipe(first()).subscribe();
     const req = httpMock.expectOne(
       `${USER_FILE_ACCESS_LIST_URL}/${testFileEntry.file.name}/${testFileEntry.ownerName}`);
     expect(req.request.method).toEqual('GET');
-    req.flush({code: 0, message: ''});
+    req.flush({ code: 0, message: '' });
   });
 
 });

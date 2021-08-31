@@ -1,4 +1,4 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 
 import { MiniMapComponent } from './mini-map.component';
@@ -17,7 +17,7 @@ describe('MiniMapComponent', () => {
   let fixture: ComponentFixture<MiniMapComponent>;
   let workflowActionService: WorkflowActionService;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [ MiniMapComponent, WorkflowEditorComponent ],
       providers: [

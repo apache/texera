@@ -2,11 +2,12 @@ import { Injectable } from '@angular/core';
 import { environment } from '../../../../environments/environment';
 import { WorkflowWebsocketService } from '../workflow-websocket/workflow-websocket.service';
 import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
-import { Observable } from 'rxjs/Observable';
+import { merge } from 'rxjs';
 import { ResultExportResponse } from '../../types/workflow-websocket.interface';
 import { NotificationService } from '../../../common/service/notification/notification.service';
 import { ExecuteWorkflowService } from '../execute-workflow/execute-workflow.service';
 import { ExecutionState } from '../../types/execute-workflow.interface';
+import { filter } from 'rxjs/operators';
 
 @Injectable({
   providedIn: 'root'
@@ -38,9 +39,9 @@ export class WorkflowResultExportService {
   }
 
   registerResultToExportUpdateHandler() {
-    Observable.merge(
-      this.executeWorkflowService.getExecutionStateStream().filter(
-        ({ previous, current }) => current.state === ExecutionState.Completed),
+    merge(
+      this.executeWorkflowService.getExecutionStateStream().pipe(
+        filter(({ previous, current }) => current.state === ExecutionState.Completed)),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream()
     )

@@ -1,8 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
 import { environment } from '../../../../environments/environment';
-import { ExecutionState, OperatorState, OperatorStatistics } from '../../types/execute-workflow.interface';
-import { ExecuteWorkflowService } from '../execute-workflow/execute-workflow.service';
+import { OperatorStatistics } from '../../types/execute-workflow.interface';
 import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
 import { WorkflowWebsocketService } from '../workflow-websocket/workflow-websocket.service';
 
@@ -16,8 +15,7 @@ export class WorkflowStatusService {
 
   constructor(
     private workflowActionService: WorkflowActionService,
-    private workflowWebsocketService: WorkflowWebsocketService,
-    private executeWorkflowService: ExecuteWorkflowService
+    private workflowWebsocketService: WorkflowWebsocketService
   ) {
     if (!environment.executionStatusEnabled) {
       return;

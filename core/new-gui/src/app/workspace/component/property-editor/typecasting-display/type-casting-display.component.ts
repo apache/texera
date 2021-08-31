@@ -6,6 +6,7 @@ import {
 } from 'src/app/workspace/service/dynamic-schema/schema-propagation/schema-propagation.service';
 import { OperatorPredicate } from 'src/app/workspace/types/workflow-common.interface';
 import { Subscription } from 'rxjs';
+import { filter, map } from 'rxjs/operators';
 
 // correspond to operator type specified in backend OperatorDescriptor
 export const TYPE_CASTING_OPERATOR_TYPE = 'TypeCasting';
@@ -55,10 +56,11 @@ export class TypeCastingDisplayComponent implements OnInit, OnDestroy, OnChanges
 
   registerTypeCastingPropertyChangeHandler(): void {
     this.subscriptions.add(this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream()
-      .filter(op => op.operator.operatorID === this.currentOperatorId)
-      .filter(op => op.operator.operatorType === TYPE_CASTING_OPERATOR_TYPE)
-      .map(event => event.operator)
-      .subscribe(op => {
+      .pipe(
+        filter(op => op.operator.operatorID === this.currentOperatorId),
+        filter(op => op.operator.operatorType === TYPE_CASTING_OPERATOR_TYPE),
+        map(event => event.operator)
+      ).subscribe(op => {
         this.updateComponent(op);
       }));
   }
@@ -72,8 +74,8 @@ export class TypeCastingDisplayComponent implements OnInit, OnDestroy, OnChanges
     const inputSchema = this.schemaPropagationService.getOperatorInputSchema(this.currentOperatorId);
 
     const castTypeMap = op.operatorProperties['typeCastingUnits']
-      .reduce((map: { [x: string]: any; }, castTo: { attribute: string; resultType: string; }) =>
-        (map[castTo.attribute] = castTo.resultType, map), {});
+      .reduce((map_: { [x: string]: any; }, castTo: { attribute: string; resultType: string; }) =>
+        (map_[castTo.attribute] = castTo.resultType, map_), {});
 
     inputSchema?.forEach(schema => schema?.forEach(attr => {
       if (attr.attributeName in castTypeMap) {

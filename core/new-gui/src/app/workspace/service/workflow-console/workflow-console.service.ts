@@ -1,8 +1,8 @@
 import { Injectable } from '@angular/core';
 import { WorkflowWebsocketService } from '../workflow-websocket/workflow-websocket.service';
 import { PythonPrintTriggerInfo } from '../../types/workflow-common.interface';
-import { Subject } from 'rxjs/Subject';
-import { Observable } from 'rxjs/Observable';
+import { Subject } from 'rxjs';
+import { Observable } from 'rxjs';
 import { RingBuffer } from 'ring-buffer-ts';
 
 export const CONSOLE_BUFFER_SIZE = 100;

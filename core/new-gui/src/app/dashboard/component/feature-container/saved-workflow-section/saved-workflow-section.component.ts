@@ -1,8 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
-import { cloneDeep } from 'lodash';
-import { Observable } from 'rxjs';
+import { cloneDeep } from 'lodash-es';
+import { from } from 'rxjs';
 import { WorkflowPersistService } from '../../../../common/service/workflow-persist/workflow-persist.service';
 import { NgbdModalDeleteWorkflowComponent } from './ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component';
 import { NgbdModalWorkflowShareAccessComponent } from './ngbd-modal-share-access/ngbd-modal-workflow-share-access.component';
@@ -106,7 +106,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
     const modalRef = this.modalService.open(NgbdModalDeleteWorkflowComponent);
     modalRef.componentInstance.workflow = cloneDeep(workflow);
 
-    Observable.from(modalRef.result).subscribe((confirmToDelete: boolean) => {
+    from(modalRef.result).subscribe((confirmToDelete: boolean) => {
       const wid = workflow.wid;
       if (confirmToDelete && wid !== undefined) {
 

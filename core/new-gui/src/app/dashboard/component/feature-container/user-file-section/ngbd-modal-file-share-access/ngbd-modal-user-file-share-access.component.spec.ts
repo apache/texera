@@ -1,4 +1,4 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { HttpClient, HttpHandler } from '@angular/common/http';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
@@ -33,7 +33,7 @@ describe('NgbdModalFileShareAccessComponent', () => {
     isOwner: true,
   };
 
-  beforeEach(async(async () => {
+  beforeEach(waitForAsync(async () => {
     TestBed.configureTestingModule({
       imports: [ReactiveFormsModule, FormsModule],
       declarations: [NgbdModalUserFileShareAccessComponent],

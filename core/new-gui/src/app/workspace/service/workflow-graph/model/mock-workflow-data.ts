@@ -1,4 +1,4 @@
-import { Point, OperatorPredicate, OperatorLink, Breakpoint } from './../../../types/workflow-common.interface';
+import { OperatorLink, OperatorPredicate, Point } from '../../../types/workflow-common.interface';
 
 /**
  * Provides mock data related operators and links:
@@ -27,10 +27,9 @@ export const mockPoint: Point = {
 export const mockScanPredicate: OperatorPredicate = {
   operatorID: '1',
   operatorType: 'ScanSource',
-  operatorProperties: {
-  },
+  operatorProperties: {},
   inputPorts: [],
-  outputPorts: [{portID: 'output-0'}],
+  outputPorts: [{ portID: 'output-0' }],
   showAdvanced: true,
   isDisabled: false,
 };
@@ -38,10 +37,9 @@ export const mockScanPredicate: OperatorPredicate = {
 export const mockSentimentPredicate: OperatorPredicate = {
   operatorID: '2',
   operatorType: 'NlpSentiment',
-  operatorProperties: {
-  },
-  inputPorts: [{portID: 'input-0'}],
-  outputPorts: [{portID: 'output-0'}],
+  operatorProperties: {},
+  inputPorts: [{ portID: 'input-0' }],
+  outputPorts: [{ portID: 'output-0' }],
   showAdvanced: true,
   isDisabled: false,
 };
@@ -49,9 +47,8 @@ export const mockSentimentPredicate: OperatorPredicate = {
 export const mockResultPredicate: OperatorPredicate = {
   operatorID: '3',
   operatorType: 'ViewResults',
-  operatorProperties: {
-  },
-  inputPorts: [{portID: 'input-0'}],
+  operatorProperties: {},
+  inputPorts: [{ portID: 'input-0' }],
   outputPorts: [],
   showAdvanced: true,
   isDisabled: false,
@@ -60,10 +57,9 @@ export const mockResultPredicate: OperatorPredicate = {
 export const mockMultiInputOutputPredicate: OperatorPredicate = {
   operatorID: '4',
   operatorType: 'MultiInputOutput',
-  operatorProperties: {
-  },
-  inputPorts: [{portID: 'input-0'}, {portID: 'input-1'}, {portID: 'input-2'}],
-  outputPorts: [{portID: 'output-0'}, {portID: 'output-1'}, {portID: 'output-2'}],
+  operatorProperties: {},
+  inputPorts: [{ portID: 'input-0' }, { portID: 'input-1' }, { portID: 'input-2' }],
+  outputPorts: [{ portID: 'output-0' }, { portID: 'output-1' }, { portID: 'output-2' }],
   showAdvanced: true,
   isDisabled: false,
 };

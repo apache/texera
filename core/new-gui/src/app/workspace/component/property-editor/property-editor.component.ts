@@ -1,10 +1,8 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
-import { Observable } from 'rxjs/Observable';
-import '../../../common/rxjs-operators';
+import { merge, Subscription } from 'rxjs';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 import { OperatorPropertyEditFrameComponent } from './operator-property-edit-frame/operator-property-edit-frame.component';
 import { BreakpointPropertyEditFrameComponent } from './breakpoint-property-edit-frame/breakpoint-property-edit-frame.component';
-import { Subscription } from 'rxjs';
 import { DynamicComponentConfig } from '../../../common/type/dynamic-component-config';
 
 
@@ -57,7 +55,7 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
    * hides the form if no operator/link is highlighted or multiple operators and/or groups and/or links are highlighted.
    */
   registerHighlightEventsHandler() {
-    this.subscriptions.add(Observable.merge(
+    this.subscriptions.add(merge(
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointGroupHighlightStream(),

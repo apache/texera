@@ -1,5 +1,5 @@
-import { Subject } from 'rxjs/Subject';
-import { Observable } from 'rxjs/Observable';
+import { Subject } from 'rxjs';
+import { Observable } from 'rxjs';
 import { WorkflowUtilService } from '../util/workflow-util.service';
 import { Point, OperatorPredicate, OperatorLink } from '../../../types/workflow-common.interface';
 import { WorkflowGraph } from './workflow-graph';

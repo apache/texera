@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { isEqual } from 'lodash';
+import { isEqual } from 'lodash-es';
 import { Observable } from 'rxjs';
 import { environment } from '../../../../../environments/environment';
 import { AppSettings } from '../../../../common/app-setting';
@@ -10,6 +10,7 @@ import { OperatorPredicate } from '../../../types/workflow-common.interface';
 import { WorkflowActionService } from '../../workflow-graph/model/workflow-action.service';
 import { DynamicSchemaService } from '../dynamic-schema.service';
 import { SchemaAttribute, SchemaPropagationService } from '../schema-propagation/schema-propagation.service';
+import { map } from 'rxjs/operators';
 
 // endpoint for retrieving table metadata
 export const SOURCE_TABLE_NAMES_ENDPOINT = 'resources/table-metadata';
@@ -77,7 +78,7 @@ export class SourceTablesService {
 
     return this.httpClient
       .get<TableMetadata[]>(`${AppSettings.getApiEndpoint()}/${SOURCE_TABLE_NAMES_ENDPOINT}`)
-      .map(tableDetails => new Map(tableDetails.map(i => [i.tableName, i.schema] as [string, TableSchema])));
+      .pipe(map(tableDetails => new Map(tableDetails.map(i => [i.tableName, i.schema] as [string, TableSchema]))));
   }
 
   private changeInputToEnumInJsonSchema(
@@ -94,13 +95,13 @@ export class SourceTablesService {
         ...schema,
         jsonSchema: DynamicSchemaService.mutateProperty(
           schema.jsonSchema, (k, v) => k === key,
-          () => ({type: 'string', enum: enumArray, uniqueItems: true, title}))
+          () => ({ type: 'string', enum: enumArray, uniqueItems: true, title }))
       };
     } else {
       newDynamicSchema = {
         ...schema,
         jsonSchema: DynamicSchemaService.mutateProperty(
-          schema.jsonSchema, (k, v) => k === key, () => ({type: 'string', title}))
+          schema.jsonSchema, (k, v) => k === key, () => ({ type: 'string', title }))
       };
     }
     return newDynamicSchema;

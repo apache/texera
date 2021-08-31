@@ -1,5 +1,4 @@
-import { JSONSchema7 } from 'json-schema';
-import { OperatorSchema, OperatorMetadata, GroupInfo } from '../../types/operator-schema.interface';
+import { GroupInfo, OperatorMetadata, OperatorSchema } from '../../types/operator-schema.interface';
 import { BreakpointSchema } from '../../types/workflow-common.interface';
 import { CustomJSONSchema7 } from '../../types/custom-json-schema.interface';
 
@@ -103,7 +102,7 @@ export const mockKeywordSearchSchema: OperatorSchema = {
       },
       spanListName: { type: 'string', title: 'span list name' }
     },
-    required: ['query', 'attributes', ]
+    required: ['query', 'attributes']
   },
   additionalMetadata: {
     userFriendlyName: 'Keyword Search',
@@ -199,7 +198,7 @@ export const mockUnionSchema: OperatorSchema = {
     userFriendlyName: 'Union',
     operatorDescription: 'Union multiple inputs',
     operatorGroupName: 'Analysis',
-    inputPorts: [{allowMultiInputs: true}],
+    inputPorts: [{ allowMultiInputs: true }],
     outputPorts: [{}]
   }
 };
@@ -261,7 +260,7 @@ export const mockBreakpointSchema: BreakpointSchema = {
           },
           condition: {
             type: 'string',
-            enum: ['contains', 'does not contain', '=', '>', '>=', '<', '<=', '!=', ],
+            enum: ['contains', 'does not contain', '=', '>', '>=', '<', '<=', '!='],
             title: 'condition',
           },
           value: {

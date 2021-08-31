@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { Observable } from 'rxjs/Observable';
+import { merge, timer } from 'rxjs';
 import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
 import { ResultPanelToggleService } from '../../service/result-panel-toggle/result-panel-toggle.service';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
@@ -8,7 +8,7 @@ import { ResultTableFrameComponent } from './result-table-frame/result-table-fra
 import { ConsoleFrameComponent } from './console-frame/console-frame.component';
 import { WorkflowResultService } from '../../service/workflow-result/workflow-result.service';
 import { VisualizationFrameComponent } from './visualization-frame/visualization-frame.component';
-import { timer } from 'rxjs';
+import { filter } from 'rxjs/operators';
 
 /**
  * ResultPanelComponent is the bottom level area that displays the
@@ -75,8 +75,9 @@ export class ResultPanelComponent {
   }
 
   registerAutoRerenderResultPanel() {
-    Observable.merge(
-      this.executeWorkflowService.getExecutionStateStream().filter(event => ResultPanelComponent.needRerenderOnStateChange(event)),
+    merge(
+      this.executeWorkflowService.getExecutionStateStream().pipe(
+        filter(event => ResultPanelComponent.needRerenderOnStateChange(event))),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
       this.resultPanelToggleService.getToggleChangeStream(),

@@ -1,6 +1,7 @@
 import { WorkflowGraph } from './workflow-graph';
 import { JointGraphWrapper } from './joint-graph-wrapper';
 import { OperatorGroup } from './operator-group';
+import { filter, map } from 'rxjs/operators';
 
 export class SyncOperatorGroup {
 
@@ -28,7 +29,7 @@ export class SyncOperatorGroup {
    */
   private handleTexeraGraphOperatorDelete(): void {
     this.texeraGraph.getOperatorDeleteStream()
-      .map(operator => operator.deletedOperator)
+      .pipe(map(operator => operator.deletedOperator))
       .subscribe(deletedOperator => {
         const group = this.operatorGroup.getGroupByOperator(deletedOperator.operatorID);
         if (group && !group.collapsed && group.operators.size > 1) {
@@ -65,7 +66,7 @@ export class SyncOperatorGroup {
    */
   private handleTexeraGraphLinkDelete(): void {
     this.texeraGraph.getLinkDeleteStream()
-      .map(link => link.deletedLink)
+      .pipe(map(link => link.deletedLink))
       .subscribe(deletedLink => {
         this.operatorGroup.getAllGroups().forEach(group => {
           if (group.links.has(deletedLink.linkID)) {
@@ -87,17 +88,18 @@ export class SyncOperatorGroup {
    */
   private handleOperatorPositionChange(): void {
     this.jointGraphWrapper.getElementPositionChangeEvent()
-      .filter(() => this.operatorGroup.getSyncOperatorGroup())
-      .filter(movedElement => this.texeraGraph.hasOperator(movedElement.elementID))
-      .subscribe(movedOperator => {
-        this.operatorGroup.getAllGroups().forEach(group => {
-          const operatorInfo = group.operators.get(movedOperator.elementID);
-          if (operatorInfo) {
-            operatorInfo.position = movedOperator.newPosition;
-            this.operatorGroup.repositionGroup(group);
-          }
-        });
+      .pipe(
+        filter(() => this.operatorGroup.getSyncOperatorGroup()),
+        filter(movedElement => this.texeraGraph.hasOperator(movedElement.elementID))
+      ).subscribe(movedOperator => {
+      this.operatorGroup.getAllGroups().forEach(group => {
+        const operatorInfo = group.operators.get(movedOperator.elementID);
+        if (operatorInfo) {
+          operatorInfo.position = movedOperator.newPosition;
+          this.operatorGroup.repositionGroup(group);
+        }
       });
+    });
   }
 
   /**
@@ -108,24 +110,25 @@ export class SyncOperatorGroup {
    */
   private handleGroupPositionChange(): void {
     this.jointGraphWrapper.getElementPositionChangeEvent()
-      .filter(() => this.operatorGroup.getSyncOperatorGroup())
-      .filter(movedElement => this.operatorGroup.hasGroup(movedElement.elementID))
-      .subscribe(movedGroup => {
-        const group = this.operatorGroup.getGroup(movedGroup.elementID);
-        const offsetX = movedGroup.newPosition.x - movedGroup.oldPosition.x;
-        const offsetY = movedGroup.newPosition.y - movedGroup.oldPosition.y;
-        group.operators.forEach((operatorInfo, operatorID) => {
-          operatorInfo.position = {x: operatorInfo.position.x + offsetX, y: operatorInfo.position.y + offsetY};
-          if (!group.collapsed) {
-            const listenPositionChange = this.jointGraphWrapper.getListenPositionChange();
-            this.operatorGroup.setSyncOperatorGroup(false);
-            this.jointGraphWrapper.setListenPositionChange(false);
-            this.jointGraphWrapper.setElementPosition(operatorID, offsetX, offsetY);
-            this.operatorGroup.setSyncOperatorGroup(true);
-            this.jointGraphWrapper.setListenPositionChange(listenPositionChange);
-          }
-        });
+      .pipe(
+        filter(() => this.operatorGroup.getSyncOperatorGroup()),
+        filter(movedElement => this.operatorGroup.hasGroup(movedElement.elementID))
+      ).subscribe(movedGroup => {
+      const group = this.operatorGroup.getGroup(movedGroup.elementID);
+      const offsetX = movedGroup.newPosition.x - movedGroup.oldPosition.x;
+      const offsetY = movedGroup.newPosition.y - movedGroup.oldPosition.y;
+      group.operators.forEach((operatorInfo, operatorID) => {
+        operatorInfo.position = { x: operatorInfo.position.x + offsetX, y: operatorInfo.position.y + offsetY };
+        if (!group.collapsed) {
+          const listenPositionChange = this.jointGraphWrapper.getListenPositionChange();
+          this.operatorGroup.setSyncOperatorGroup(false);
+          this.jointGraphWrapper.setListenPositionChange(false);
+          this.jointGraphWrapper.setElementPosition(operatorID, offsetX, offsetY);
+          this.operatorGroup.setSyncOperatorGroup(true);
+          this.jointGraphWrapper.setListenPositionChange(listenPositionChange);
+        }
       });
+    });
   }
 
   /**
@@ -134,7 +137,7 @@ export class SyncOperatorGroup {
    */
   private handleOperatorLayerChange(): void {
     this.jointGraphWrapper.getCellLayerChangeEvent()
-      .filter(movedOperator => this.texeraGraph.hasOperator(movedOperator.cellID))
+      .pipe(filter(movedOperator => this.texeraGraph.hasOperator(movedOperator.cellID)))
       .subscribe(movedOperator => {
         this.operatorGroup.getAllGroups().forEach(group => {
           const operatorInfo = group.operators.get(movedOperator.cellID);
@@ -151,7 +154,7 @@ export class SyncOperatorGroup {
    */
   private handleLinkLayerChange(): void {
     this.jointGraphWrapper.getCellLayerChangeEvent()
-      .filter(movedLink => this.texeraGraph.hasLinkWithID(movedLink.cellID))
+      .pipe(filter(movedLink => this.texeraGraph.hasLinkWithID(movedLink.cellID)))
       .subscribe(movedLink => {
         this.operatorGroup.getAllGroups().forEach(group => {
           const linkInfo = group.links.get(movedLink.cellID);

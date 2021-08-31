@@ -1,4 +1,4 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 
 import { ConsoleFrameComponent } from './console-frame.component';
 import { OperatorMetadataService } from '../../../service/operator-metadata/operator-metadata.service';
@@ -9,7 +9,7 @@ describe('ConsoleFrameComponent', () => {
   let component: ConsoleFrameComponent;
   let fixture: ComponentFixture<ConsoleFrameComponent>;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
       declarations: [ConsoleFrameComponent],

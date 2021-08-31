@@ -1,12 +1,10 @@
-import { Subject } from 'rxjs/Subject';
-import { Observable } from 'rxjs/Observable';
+import { BehaviorSubject, merge, Observable, Subject } from 'rxjs';
 import { Injectable } from '@angular/core';
-import { OperatorMetadataService } from './../operator-metadata/operator-metadata.service';
+import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 import { OperatorSchema } from '../../types/operator-schema.interface';
-import { WorkflowActionService } from './../workflow-graph/model/workflow-action.service';
+import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
 import * as Ajv from 'ajv';
-import { OperatorLink } from '../../types/workflow-common.interface';
-import { BehaviorSubject } from 'rxjs';
+import { filter, map } from 'rxjs/operators';
 
 export type ValidationError = { isValid: false, messages: Record<string, string> };
 export type Validation = { isValid: true } | ValidationError;
@@ -37,7 +35,7 @@ export class ValidationWorkflowService {
   // stream of an individual's validation status is updated, whether it's validation sucess or validation error
   private readonly operatorValidationStream = new Subject<{ operatorID: string, validation: Validation }>();
   // stream of global validation error status is updated, only errors will be reported
-  private readonly workflowValidationErrorStream = new BehaviorSubject<{ errors: Record<string, ValidationError> }>( {errors: {}});
+  private readonly workflowValidationErrorStream = new BehaviorSubject<{ errors: Record<string, ValidationError> }>({ errors: {} });
   private ajv = new Ajv({ schemaId: 'auto', allErrors: true, nullable: true });
 
   // this map record --> <operatorID, error string>
@@ -50,12 +48,12 @@ export class ValidationWorkflowService {
    * @param workflowActionService
    */
   constructor(private operatorMetadataService: OperatorMetadataService,
-    private workflowActionService: WorkflowActionService) {
+              private workflowActionService: WorkflowActionService) {
 
 
     // fetch operator schema list
     this.operatorMetadataService.getOperatorMetadata()
-      .filter(metadata => metadata.operators.length > 0)
+      .pipe(filter(metadata => metadata.operators.length > 0))
       .subscribe(metadata => {
         this.operatorSchemaList = metadata.operators;
         this.initializeValidation();
@@ -130,9 +128,9 @@ export class ValidationWorkflowService {
       .subscribe(operator => this.updateValidationStateOnDelete(operator.deletedOperator.operatorID));
 
     // Capture the link add and delete event and validate the source and target operators for this link
-    Observable.merge(
+    merge(
       this.workflowActionService.getTexeraGraph().getLinkAddStream(),
-      this.workflowActionService.getTexeraGraph().getLinkDeleteStream().map(link => link.deletedLink)
+      this.workflowActionService.getTexeraGraph().getLinkDeleteStream().pipe(map(link => link.deletedLink))
     ).subscribe(link => {
       this.updateValidationState(link.source.operatorID, this.validateOperator(link.source.operatorID));
       this.updateValidationState(link.target.operatorID, this.validateOperator(link.target.operatorID));
@@ -243,10 +241,7 @@ export class ValidationWorkflowService {
       .filter(link => texeraGraph.isLinkEnabled(link.linkID)).length;
 
     // If the operator is the sink operator, the actual output number must be equal to required number.
-    const satisyOutput = this.operatorMetadataService.
-      getOperatorSchema(operator.operatorType).
-      additionalMetadata.
-      operatorGroupName === 'View Results' ?
+    const satisyOutput = this.operatorMetadataService.getOperatorSchema(operator.operatorType).additionalMetadata.operatorGroupName === 'View Results' ?
       requiredOutputNum === actualOutputNum : requiredOutputNum <= actualOutputNum;
 
     const outputPortsViolationMessage = satisyOutput ? '' : `requires ${requiredOutputNum} outputs, has ${actualOutputNum} outputs`;

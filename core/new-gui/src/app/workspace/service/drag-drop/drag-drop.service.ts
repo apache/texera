@@ -1,10 +1,9 @@
-import { Point, OperatorPredicate, OperatorLink } from './../../types/workflow-common.interface';
-import { WorkflowActionService } from './../workflow-graph/model/workflow-action.service';
-import { Observable } from 'rxjs/Observable';
-import { WorkflowUtilService } from './../workflow-graph/util/workflow-util.service';
-import { JointUIService } from './../joint-ui/joint-ui.service';
+import { OperatorLink, OperatorPredicate, Point } from '../../types/workflow-common.interface';
+import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
+import { fromEvent, Observable, Subject } from 'rxjs';
+import { WorkflowUtilService } from '../workflow-graph/util/workflow-util.service';
+import { JointUIService } from '../joint-ui/joint-ui.service';
 import { Injectable } from '@angular/core';
-import { Subject } from 'rxjs/Subject';
 import TinyQueue from 'tinyqueue';
 
 import * as joint from 'jointjs';
@@ -16,6 +15,7 @@ import * as jQuery from 'jquery';
 // https://stackoverflow.com/questions/43323515/error-when-using-jqueryui-with-typescript-and-definitelytyped-definition-file
 // this approach is better than including it in `scripts` in `angular.json` because it avoids loading jQuery overrides jQuery UI
 import 'jquery-ui-dist/jquery-ui';
+import { filter, first, map } from 'rxjs/operators';
 
 
 /**
@@ -162,10 +162,10 @@ export class DragDropService {
   }
 
   /**
- * Gets an observable for removing suggestion event to unhighlight an operator
- *
- * Contains the operator ID to unhighlight to remove previous suggestion
- */
+   * Gets an observable for removing suggestion event to unhighlight an operator
+   *
+   * Contains the operator ID to unhighlight to remove previous suggestion
+   */
   public getOperatorSuggestionUnhighlightStream(): Observable<string> {
     return this.operatorSuggestionUnhighlightStream.asObservable();
   }
@@ -206,7 +206,7 @@ export class DragDropService {
   /**
    * This function should be only used by the Workflow Editor Component
    *  to register itself as a droppable area.
-  */
+   */
   public registerWorkflowEditorDrop(dropElementID: string): void {
     jQuery('#' + dropElementID).droppable({
       drop: (event: any, ui) => this.handleOperatorDrop(event, ui)
@@ -311,42 +311,43 @@ export class DragDropService {
     const currentOperator = this.workflowUtilService.getNewOperatorPredicate(this.currentOperatorType);
     let isOperatorDropped = false;
 
-    Observable.fromEvent<MouseEvent>(window, 'mouseup').first()
+    fromEvent<MouseEvent>(window, 'mouseup').pipe(first())
       .subscribe(
         () => isOperatorDropped = true,
       );
 
-    Observable.fromEvent<MouseEvent>(window, 'mousemove')
-      .map(value => [value.clientX, value.clientY])
-      .filter(() => !isOperatorDropped)
-      .subscribe(mouseCoordinates => {
-        const currentMouseCoordinates = { x: mouseCoordinates[0], y: mouseCoordinates[1] };
+    fromEvent<MouseEvent>(window, 'mousemove')
+      .pipe(
+        map(value => [value.clientX, value.clientY]),
+        filter(() => !isOperatorDropped)
+      ).subscribe(mouseCoordinates => {
+      const currentMouseCoordinates = { x: mouseCoordinates[0], y: mouseCoordinates[1] };
 
-        let coordinates: Point | undefined = this.workflowActionService
-          .getJointGraphWrapper().getMainJointPaper()?.pageToLocalPoint(currentMouseCoordinates.x, currentMouseCoordinates.y);
-        if (!coordinates) {
-          coordinates = currentMouseCoordinates;
-        }
+      let coordinates: Point | undefined = this.workflowActionService
+        .getJointGraphWrapper().getMainJointPaper()?.pageToLocalPoint(currentMouseCoordinates.x, currentMouseCoordinates.y);
+      if (!coordinates) {
+        coordinates = currentMouseCoordinates;
+      }
 
-        let scale: { sx: number, sy: number } | undefined = this.workflowActionService.getJointGraphWrapper().getMainJointPaper()?.scale();
-        if (scale === undefined) {
-          scale = { sx: 1, sy: 1 };
-        }
+      let scale: { sx: number, sy: number } | undefined = this.workflowActionService.getJointGraphWrapper().getMainJointPaper()?.scale();
+      if (scale === undefined) {
+        scale = { sx: 1, sy: 1 };
+      }
 
-        const scaledMouseCoordinates = {
-          x: (coordinates.x) / scale.sx,
-          y: (coordinates.y) / scale.sy
-        };
+      const scaledMouseCoordinates = {
+        x: (coordinates.x) / scale.sx,
+        y: (coordinates.y) / scale.sy
+      };
 
 
-        // search for nearby operators as suggested input/output operators
-        let newInputs, newOutputs: OperatorPredicate[];
-        [newInputs, newOutputs] = this.findClosestOperators(scaledMouseCoordinates, currentOperator);
-        // update highlighting class vars to reflect new input/output operators
-        this.updateHighlighting(this.suggestionInputs.concat(this.suggestionOutputs), newInputs.concat(newOutputs));
-        // assign new suggestions
-        [this.suggestionInputs, this.suggestionOutputs] = [newInputs, newOutputs];
-      });
+      // search for nearby operators as suggested input/output operators
+      let newInputs, newOutputs: OperatorPredicate[];
+      [newInputs, newOutputs] = this.findClosestOperators(scaledMouseCoordinates, currentOperator);
+      // update highlighting class vars to reflect new input/output operators
+      this.updateHighlighting(this.suggestionInputs.concat(this.suggestionOutputs), newInputs.concat(newOutputs));
+      // assign new suggestions
+      [this.suggestionInputs, this.suggestionOutputs] = [newInputs, newOutputs];
+    });
   }
 
   /**
@@ -447,13 +448,13 @@ export class DragDropService {
   }
 
   /**
- * This method will use an unique ID and 2 operator predicate to create and return
- *  a new OperatorLink with initialized properties for the ports.
- * **Warning** links created w/o spacial awareness. May connect two distant ports when it makes more sense to connect closer ones'
- * @param sourceOperator gives output
- * @param targetOperator accepts input
- * @param OperatorLinks optionally specify extant links (used to find which ports are occupied), defaults to all links.
- */
+   * This method will use an unique ID and 2 operator predicate to create and return
+   *  a new OperatorLink with initialized properties for the ports.
+   * **Warning** links created w/o spacial awareness. May connect two distant ports when it makes more sense to connect closer ones'
+   * @param sourceOperator gives output
+   * @param targetOperator accepts input
+   * @param OperatorLinks optionally specify extant links (used to find which ports are occupied), defaults to all links.
+   */
   private getNewOperatorLink(
     sourceOperator: OperatorPredicate, targetOperator: OperatorPredicate, operatorLinks?: OperatorLink[]
   ): OperatorLink {

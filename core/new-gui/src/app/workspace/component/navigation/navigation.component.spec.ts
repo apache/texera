@@ -15,7 +15,7 @@
 // import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
 // import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 
-// import { Observable } from 'rxjs/Observable';
+// import { Observable } from 'rxjs';
 // import { marbles } from 'rxjs-marbles';
 // import { HttpClient } from '@angular/common/http';
 // import { mockExecutionResult } from '../../service/execute-workflow/mock-result-data';

@@ -1,4 +1,4 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { PropertyEditorComponent } from './property-editor.component';
 import { environment } from '../../../../environments/environment';
 import {
@@ -24,7 +24,7 @@ describe('PropertyEditorComponent', () => {
   let workflowActionService: WorkflowActionService;
   environment.schemaPropagationEnabled = true;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
       providers: [

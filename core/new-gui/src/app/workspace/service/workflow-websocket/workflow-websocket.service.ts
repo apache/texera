@@ -9,6 +9,7 @@ import {
   TexeraWebsocketRequestTypeMap,
   TexeraWebsocketRequestTypes
 } from '../../types/workflow-websocket.interface';
+import { delayWhen, filter, map, retryWhen, tap } from 'rxjs/operators';
 
 
 export const WS_HEARTBEAT_INTERVAL_MS = 10000;
@@ -31,13 +32,18 @@ export class WorkflowWebsocketService {
     this.websocket = webSocket<TexeraWebsocketEvent | TexeraWebsocketRequest>(WorkflowWebsocketService.getWorkflowWebsocketUrl());
 
     // setup reconnection logic
-    const wsWithReconnect = this.websocket.retryWhen(error =>
-      error
-        .do(_ => this.isConnected = false) // update connection status
-        .do(_ => console.log(`websocket connection lost, reconnecting in ${WS_RECONNECT_INTERVAL_MS / 1000} seconds`))
-        .delayWhen(_ => timer(WS_RECONNECT_INTERVAL_MS)) // reconnect after delay
-        .do(_ => this.send('HeartBeatRequest', {}) // try to send heartbeat immediately after reconnect
-        ));
+    const wsWithReconnect = this.websocket.pipe(
+      retryWhen(error =>
+        error
+          .pipe(
+            tap(_ => this.isConnected = false), // update connection status
+            tap(_ => console.log(`websocket connection lost, reconnecting in ${WS_RECONNECT_INTERVAL_MS / 1000} seconds`)),
+            delayWhen(_ => timer(WS_RECONNECT_INTERVAL_MS)), // reconnect after delay
+            tap(_ => this.send('HeartBeatRequest', {}) // try to send heartbeat immediately after reconnect
+            )
+          )
+      )
+    );
 
     // set up heartbeat
     interval(WS_HEARTBEAT_INTERVAL_MS).subscribe(_ => this.send('HeartBeatRequest', {}));
@@ -45,7 +51,7 @@ export class WorkflowWebsocketService {
     // refresh connection status
     this.websocketEvent().subscribe(_ => this.isConnected = true);
 
-    // set up event listener on reconnectable websocket observable
+    // set up event listener on re-connectable websocket observable
     wsWithReconnect.subscribe(event => this.webSocketResponseSubject.next(event as TexeraWebsocketEvent));
 
     // send hello world
@@ -60,7 +66,10 @@ export class WorkflowWebsocketService {
    * Subscribe to a particular type of workflow websocket event
    */
   public subscribeToEvent<T extends TexeraWebsocketEventTypes>(type: T): Observable<{ type: T } & TexeraWebsocketEventTypeMap[T]> {
-    return this.websocketEvent().filter(event => event.type === type).map(event => event as { type: T } & TexeraWebsocketEventTypeMap[T]);
+    return this.websocketEvent().pipe(
+      filter(event => event.type === type),
+      map(event => event as { type: T } & TexeraWebsocketEventTypeMap[T])
+    );
   }
 
   public send<T extends TexeraWebsocketRequestTypes>(type: T, payload: TexeraWebsocketRequestTypeMap[T]): void {

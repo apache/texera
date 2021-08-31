@@ -1,5 +1,5 @@
 import { HttpClientTestingModule } from '@angular/common/http/testing';
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { MatDialogModule } from '@angular/material/dialog';
 import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
 import { JointUIService } from '../../service/joint-ui/joint-ui.service';
@@ -21,7 +21,7 @@ describe('VisualizationFrameContentComponent', () => {
   const operatorID = 'operator1';
   let operatorResultService: OperatorResultService;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       imports: [MatDialogModule, HttpClientTestingModule],
       declarations: [VisualizationFrameContentComponent],

@@ -1,4 +1,4 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 
 import { CustomNgMaterialModule } from '../../../../../common/custom-ng-material.module';
 
@@ -15,7 +15,7 @@ describe('NgbdModalResourceDeleteComponent', () => {
   let deletecomponent: NgbdModalResourceDeleteComponent;
   let deletefixture: ComponentFixture<NgbdModalResourceDeleteComponent>;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [NgbdModalResourceDeleteComponent],
       providers: [

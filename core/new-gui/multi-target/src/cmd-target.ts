@@ -66,12 +66,16 @@ function clampCmd(cmd: string, length: number): string {
  *
  * @param parentPID pid of parent process
  */
-function killDescendants(parentPID: number): void {
+function killDescendants(parentPID?: number): void {
 
   function isNumber(value: number | undefined): asserts value is number {
     if (value === undefined) {
       throw new Error(`KillDescendants Failed: PID ${value} is not a number`);
     }
+  }
+
+  if (! parentPID) {
+    return;
   }
 
   if (platform === 'win32') {

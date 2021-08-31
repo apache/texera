@@ -17,6 +17,7 @@ import { WorkflowActionService } from '../service/workflow-graph/model/workflow-
 import { WorkflowWebsocketService } from '../service/workflow-websocket/workflow-websocket.service';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { WorkflowConsoleService } from '../service/workflow-console/workflow-console.service';
+import { debounceTime, filter } from 'rxjs/operators';
 
 @Component({
   selector: 'texera-workspace',
@@ -83,7 +84,7 @@ export class WorkspaceComponent implements OnDestroy, AfterViewInit {
     this.workflowActionService.resetAsNewWorkflow();
 
     this.operatorMetadataService.getOperatorMetadata()
-      .filter(metadata => metadata.operators.length !== 0).subscribe(() => {
+      .pipe(filter(metadata => metadata.operators.length !== 0)).subscribe(() => {
       if (environment.userSystemEnabled) {
         // load workflow with wid if presented in the URL
         if (this.route.snapshot.params.id) {
@@ -113,23 +114,24 @@ export class WorkspaceComponent implements OnDestroy, AfterViewInit {
   }
 
   private registerAutoCacheWorkFlow(): void {
-    this.subscriptions.add(this.workflowActionService.workflowChanged().debounceTime(100)
+    this.subscriptions.add(this.workflowActionService.workflowChanged().pipe(debounceTime(100))
       .subscribe(() => {
         this.workflowCacheService.setCacheWorkflow(this.workflowActionService.getWorkflow());
       }));
   }
 
   private registerAutoPersistWorkflow(): void {
-    this.subscriptions.add(this.workflowActionService.workflowChanged().debounceTime(100).subscribe(() => {
-      if (this.userService.isLogin()) {
-        this.workflowPersistService.persistWorkflow(this.workflowActionService.getWorkflow())
-          .subscribe((updatedWorkflow: Workflow) => {
-            this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
-            this.location.go(`/workflow/${updatedWorkflow.wid}`);
-          });
-        // to sync up with the updated information, such as workflow.wid
-      }
-    }));
+    this.subscriptions.add(this.workflowActionService.workflowChanged().pipe(debounceTime(100))
+      .subscribe(() => {
+        if (this.userService.isLogin()) {
+          this.workflowPersistService.persistWorkflow(this.workflowActionService.getWorkflow())
+            .subscribe((updatedWorkflow: Workflow) => {
+              this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
+              this.location.go(`/workflow/${updatedWorkflow.wid}`);
+            });
+          // to sync up with the updated information, such as workflow.wid
+        }
+      }));
   }
 
   private loadWorkflowWithId(wid: number): void {

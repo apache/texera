@@ -1,8 +1,7 @@
-import { Subject } from 'rxjs/Subject';
-import { Observable } from 'rxjs/Observable';
+import { fromEvent, Observable, ReplaySubject, Subject } from 'rxjs';
 import { Point } from '../../../types/workflow-common.interface';
 import * as joint from 'jointjs';
-import { ReplaySubject } from 'rxjs';
+import { filter, map } from 'rxjs/operators';
 
 type operatorIDsType = { operatorIDs: string[] };
 type linkIDType = { linkID: string };
@@ -41,7 +40,7 @@ type JointPositionChangeEvent = [
 ];
 
 type JointLayerChangeEvent = [
-  joint.dia.Element | joint.dia.Link,
+    joint.dia.Element | joint.dia.Link,
   number
 ];
 
@@ -138,37 +137,34 @@ export class JointGraphWrapper {
    * This will capture all events in JointJS
    *  involving the 'add' operation
    */
-  private jointCellAddStream = Observable
-    .fromEvent<JointModelEvent>(this.jointGraph, 'add')
-    .map(value => value[0]);
+  private jointCellAddStream = fromEvent<JointModelEvent>(this.jointGraph, 'add')
+    .pipe(map(value => value[0]));
 
   /**
    * This will capture all events in JointJS
    *  involving the 'change position' operation
    */
-  private jointCellDragStream = Observable
-    .fromEvent<JointModelEvent>(this.jointGraph, 'change:position')
-    .map(value => value[0]);
+  private jointCellDragStream = fromEvent<JointModelEvent>(this.jointGraph, 'change:position')
+    .pipe(map(value => value[0]));
 
   /**
    * This will capture all events in JointJS
    *  involving the 'remove' operation
    */
-  private jointCellDeleteStream = Observable
-    .fromEvent<JointModelEvent>(this.jointGraph, 'remove')
-    .map(value => value[0]);
+  private jointCellDeleteStream = fromEvent<JointModelEvent>(this.jointGraph, 'remove')
+    .pipe(map(value => value[0]));
 
 
   constructor(public jointGraph: joint.dia.Graph) {
     // handle if the currently highlighted operator/group/link is deleted, it should be unhighlighted
     this.handleElementDeleteUnhighlight();
 
-    this.jointCellAddStream.filter(cell => cell.isElement()).subscribe(element => {
+    this.jointCellAddStream.pipe(filter(cell => cell.isElement())).subscribe(element => {
       const initPosition = { currPos: (element as joint.dia.Element).position(), lastPos: undefined };
       this.elementPositions.set(element.id.toString(), initPosition);
     });
 
-    this.jointCellDeleteStream.filter(cell => cell.isElement()).subscribe(element =>
+    this.jointCellDeleteStream.pipe(filter(cell => cell.isElement())).subscribe(element =>
       this.elementPositions.delete(element.id.toString()));
 
   }
@@ -274,24 +270,23 @@ export class JointGraphWrapper {
    * - newPosition: where the element is moved to
    */
   public getElementPositionChangeEvent(): Observable<{ elementID: string, oldPosition: Point, newPosition: Point }> {
-    return Observable
-      .fromEvent<JointPositionChangeEvent>(this.jointGraph, 'change:position').map(e => {
-        const elementID = e[0].id.toString();
-        const oldPosition = this.elementPositions.get(elementID);
-        const newPosition = { x: e[1].x, y: e[1].y };
-        if (!oldPosition) {
-          throw new Error(`internal error: cannot find element position for ${elementID}`);
-        }
-        if (!oldPosition.lastPos || oldPosition.currPos.x !== newPosition.x || oldPosition.currPos.y !== newPosition.y) {
-          oldPosition.lastPos = oldPosition.currPos;
-        }
-        this.elementPositions.set(elementID, { currPos: newPosition, lastPos: oldPosition.lastPos });
-        return {
-          elementID: elementID,
-          oldPosition: oldPosition.lastPos,
-          newPosition: newPosition
-        };
-      });
+    return fromEvent<JointPositionChangeEvent>(this.jointGraph, 'change:position').pipe(map(e => {
+      const elementID = e[0].id.toString();
+      const oldPosition = this.elementPositions.get(elementID);
+      const newPosition = { x: e[1].x, y: e[1].y };
+      if (!oldPosition) {
+        throw new Error(`internal error: cannot find element position for ${elementID}`);
+      }
+      if (!oldPosition.lastPos || oldPosition.currPos.x !== newPosition.x || oldPosition.currPos.y !== newPosition.y) {
+        oldPosition.lastPos = oldPosition.currPos;
+      }
+      this.elementPositions.set(elementID, { currPos: newPosition, lastPos: oldPosition.lastPos });
+      return {
+        elementID: elementID,
+        oldPosition: oldPosition.lastPos,
+        newPosition: newPosition
+      };
+    }));
   }
 
   /**
@@ -302,13 +297,12 @@ export class JointGraphWrapper {
    * - newPosition: the cell's new layer
    */
   public getCellLayerChangeEvent(): Observable<{ cellID: string, newLayer: number }> {
-    return Observable
-      .fromEvent<JointLayerChangeEvent>(this.jointGraph, 'change:z').map(e => {
-        return {
-          cellID: e[0].id.toString(),
-          newLayer: e[1]
-        };
-      });
+    return fromEvent<JointLayerChangeEvent>(this.jointGraph, 'change:z').pipe(map(e => {
+      return {
+        cellID: e[0].id.toString(),
+        newLayer: e[1]
+      };
+    }));
   }
 
   public highlightElements(elements: JointHighlights): void {
@@ -489,8 +483,10 @@ export class JointGraphWrapper {
    */
   public getJointElementCellDragStream(): Observable<joint.dia.Element> {
     const jointElementDragStream = this.jointCellDragStream
-      .filter(cell => cell.isElement())
-      .map(cell => <joint.dia.Element>cell);
+      .pipe(
+        filter(cell => cell.isElement()),
+        map(cell => <joint.dia.Element>cell)
+      );
     return jointElementDragStream;
   }
 
@@ -500,8 +496,10 @@ export class JointGraphWrapper {
    */
   public getJointElementCellDeleteStream(): Observable<joint.dia.Element> {
     const jointElementDeleteStream = this.jointCellDeleteStream
-      .filter(cell => cell.isElement())
-      .map(cell => <joint.dia.Element>cell);
+      .pipe(
+        filter(cell => cell.isElement()),
+        map(cell => <joint.dia.Element>cell)
+      );
     return jointElementDeleteStream;
   }
 
@@ -515,8 +513,10 @@ export class JointGraphWrapper {
    */
   public getJointLinkCellAddStream(): Observable<joint.dia.Link> {
     const jointLinkAddStream = this.jointCellAddStream
-      .filter(cell => cell.isLink())
-      .map(cell => <joint.dia.Link>cell);
+      .pipe(
+        filter(cell => cell.isLink()),
+        map(cell => <joint.dia.Link>cell)
+      );
 
     return jointLinkAddStream;
   }
@@ -532,8 +532,10 @@ export class JointGraphWrapper {
    */
   public getJointLinkCellDeleteStream(): Observable<joint.dia.Link> {
     const jointLinkDeleteStream = this.jointCellDeleteStream
-      .filter(cell => cell.isLink())
-      .map(cell => <joint.dia.Link>cell);
+      .pipe(
+        filter(cell => cell.isLink()),
+        map(cell => <joint.dia.Link>cell)
+      );
 
     return jointLinkDeleteStream;
   }
@@ -604,9 +606,8 @@ export class JointGraphWrapper {
    *  - one end of the link is moved from one point to another point in the paper
    */
   public getJointLinkCellChangeStream(): Observable<joint.dia.Link> {
-    const jointLinkChangeStream = Observable
-      .fromEvent<JointLinkChangeEvent>(this.jointGraph, 'change:source change:target')
-      .map(value => value[0]);
+    const jointLinkChangeStream = fromEvent<JointLinkChangeEvent>(this.jointGraph, 'change:source change:target')
+      .pipe(map(value => value[0]));
 
     return jointLinkChangeStream;
   }
