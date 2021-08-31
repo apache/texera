@@ -21,6 +21,7 @@ import { WorkflowStatusService } from "../../service/workflow-status/workflow-st
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
 import { OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
 import { auditTime, filter, map } from "rxjs/operators";
+import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 
 // argument type of callback event on a JointJS Paper
 // which is a 4-element tuple:
@@ -106,6 +107,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     private jointUIService: JointUIService,
     private workflowStatusService: WorkflowStatusService,
     private workflowUtilService: WorkflowUtilService,
+    private workflowWebsocketService: WorkflowWebsocketService,
     private executeWorkflowService: ExecuteWorkflowService
   ) {
   }
@@ -127,6 +129,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handlePaperZoom();
     this.handleWindowResize();
     this.handleViewDeleteOperator();
+    this.handleOperatorCache();
     this.handleCellHighlight();
     this.handleDisableOperator();
     this.handleViewDeleteLink();
@@ -485,10 +488,19 @@ export class WorkflowEditorComponent implements AfterViewInit {
         this.jointUIService.changeOperatorDisableStatus(this.getJointPaper(), op);
       });
     });
+  }
+
+  private handleOperatorCache(): void {
     this.workflowActionService.getTexeraGraph().getCachedOperatorsChangedStream().subscribe(event => {
       event.newCached.concat(event.newUnCached).forEach(opID => {
         const op = this.workflowActionService.getTexeraGraph().getOperator(opID);
         this.jointUIService.changeOperatorCacheStatus(this.getJointPaper(), op);
+      });
+    });
+    this.workflowWebsocketService.subscribeToEvent('CacheStatusUpdateEvent').subscribe(event => {
+      Object.entries(event.cacheStatusMap).forEach(([opID, cacheStatus])  => {
+        const op = this.workflowActionService.getTexeraGraph().getOperator(opID);
+        this.jointUIService.changeOperatorCacheStatus(this.getJointPaper(), op, cacheStatus);
       });
     });
   }

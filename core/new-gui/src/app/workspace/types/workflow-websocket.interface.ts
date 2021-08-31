@@ -92,6 +92,11 @@ export type WorkflowAvailableResultEvent = Readonly<{
   availableOperators: ReadonlyArray<OperatorAvailableResult>,
 }>;
 
+export type CacheStatus = 'cache invalid' | 'cache valid' | 'cache not enabled';
+export interface CacheStatusUpdateEvent extends Readonly<{
+  cacheStatusMap: Record<string, CacheStatus>;
+}> {}
+
 
 export type TexeraWebsocketRequestTypeMap = {
   'HelloWorldRequest': WebSocketHelloWorld,
@@ -126,6 +131,7 @@ export type TexeraWebsocketEventTypeMap = {
   'WorkflowExecutionErrorEvent': WorkflowExecutionError,
   'ResultExportResponse': ResultExportResponse,
   'WorkflowAvailableResultEvent': WorkflowAvailableResultEvent,
+  'CacheStatusUpdateEvent': CacheStatusUpdateEvent,
 };
 
 // helper type definitions to generate the request and event types

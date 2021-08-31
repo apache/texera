@@ -257,21 +257,21 @@ class WorkflowWebsocketResource {
       .getUser(sessionMap(session.getId)._2)
       .map(u => u.getUid)
 
-    val cacheStatusMap = new mutable.HashMap[String, CacheStatusUpdateEvent.CacheStatus]()
+    val cacheStatusMap = new mutable.HashMap[String, CacheStatus]()
     request.operators
       .map(e => e.operatorID)
       .foreach(id => {
         if (request.operators.map(e => e.operatorID).contains(id)) {
           if (cachedOperators.contains(id)) {
-            cacheStatusMap.put(id, CacheStatusUpdateEvent.CacheStatus.CACHE_VALID)
+            cacheStatusMap.put(id, CacheStatus.CACHE_VALID)
           } else {
-            cacheStatusMap.put(id, CacheStatusUpdateEvent.CacheStatus.CACHE_INVALID)
+            cacheStatusMap.put(id, CacheStatus.CACHE_INVALID)
           }
         } else {
-          cacheStatusMap.put(id, CacheStatusUpdateEvent.CacheStatus.CACHE_NOT_ENABLED)
+          cacheStatusMap.put(id, CacheStatus.CACHE_NOT_ENABLED)
         }
       })
-    val cacheStatusUpdateEvent = new CacheStatusUpdateEvent(cacheStatusMap)
+    val cacheStatusUpdateEvent = CacheStatusUpdateEvent(cacheStatusMap.toMap)
     send(session, cacheStatusUpdateEvent)
 
     var workflowInfo = WorkflowInfo(request.operators, request.links, request.breakpoints)
@@ -350,21 +350,21 @@ class WorkflowWebsocketResource {
         sessionExportCache.remove(session.getId)
         send(session, WorkflowCompletedEvent())
         WorkflowWebsocketResource.sessionJobs.remove(session.getId)
-        val cacheStatusMap = new mutable.HashMap[String, CacheStatusUpdateEvent.CacheStatus]()
+        val cacheStatusMap = new mutable.HashMap[String, CacheStatus]()
         request.operators
           .map(e => e.operatorID)
           .foreach(id => {
             if (request.operators.map(e => e.operatorID).contains(id)) {
               if (cachedOperators.contains(id)) {
-                cacheStatusMap.put(id, CacheStatusUpdateEvent.CacheStatus.CACHE_VALID)
+                cacheStatusMap.put(id, CacheStatus.CACHE_VALID)
               } else {
-                cacheStatusMap.put(id, CacheStatusUpdateEvent.CacheStatus.CACHE_INVALID)
+                cacheStatusMap.put(id, CacheStatus.CACHE_INVALID)
               }
             } else {
-              cacheStatusMap.put(id, CacheStatusUpdateEvent.CacheStatus.CACHE_NOT_ENABLED)
+              cacheStatusMap.put(id, CacheStatus.CACHE_NOT_ENABLED)
             }
           })
-        val cacheStatusUpdateEvent = new CacheStatusUpdateEvent(cacheStatusMap)
+        val cacheStatusUpdateEvent = CacheStatusUpdateEvent(cacheStatusMap.toMap)
         send(session, cacheStatusUpdateEvent)
       },
       workflowStatusUpdateListener = statusUpdate => {

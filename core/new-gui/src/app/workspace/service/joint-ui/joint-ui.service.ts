@@ -6,6 +6,7 @@ import * as joint from 'jointjs';
 import { Point, OperatorPredicate, OperatorLink } from '../../types/workflow-common.interface';
 import { Group, GroupBoundingBox } from '../workflow-graph/model/operator-group';
 import { OperatorState, OperatorStatistics } from '../../types/execute-workflow.interface';
+import { CacheStatus } from '../../types/workflow-websocket.interface';
 
 /**
  * Defines the SVG element for the breakpoint button
@@ -348,8 +349,9 @@ export class JointUIService {
     jointPaper.getModelById(operator.operatorID).attr('rect/fill', JointUIService.getOperatorFillColor(operator));
   }
 
-  public changeOperatorCacheStatus(jointPaper: joint.dia.Paper, operator: OperatorPredicate): void {
-    jointPaper.getModelById(operator.operatorID).attr('.texera-operator-cache/text', JointUIService.getOperatorCacheDisplayText(operator));
+  public changeOperatorCacheStatus(jointPaper: joint.dia.Paper, operator: OperatorPredicate, cacheStatus?: CacheStatus): void {
+    jointPaper.getModelById(operator.operatorID).attr('.texera-operator-cache/text',
+      JointUIService.getOperatorCacheDisplayText(operator, cacheStatus));
   }
 
   public getBreakpointButton(): (new () => joint.linkTools.Button) {
@@ -589,9 +591,12 @@ export class JointUIService {
     return isDisabled ? '#E0E0E0' : '#FFFFFF';
   }
 
-  public static getOperatorCacheDisplayText(operator: OperatorPredicate): string {
+  public static getOperatorCacheDisplayText(operator: OperatorPredicate, cacheStatus?: CacheStatus): string {
+    if (cacheStatus && cacheStatus !== 'cache not enabled') {
+      return cacheStatus;
+    }
     const isCached = operator.isCached ?? false;
-    return isCached ? 'cached' : '';
+    return isCached ? 'will be cached' : '';
   }
 
   /**
