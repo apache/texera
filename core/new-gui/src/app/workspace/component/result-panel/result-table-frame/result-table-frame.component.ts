@@ -195,12 +195,10 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy, OnChanges {
     if (!paginatedResultService) {
       return;
     }
-    console.log('loading');
     this.isLoadingResult = true;
     paginatedResultService
       .selectPage(this.currentPageIndex, DEFAULT_PAGE_SIZE)
       .subscribe((pageData) => {
-        console.log('loaded', this.currentPageIndex, pageData.pageIndex, pageData.table.length);
       if (this.currentPageIndex === pageData.pageIndex) {
         this.setupResultTable(pageData.table, paginatedResultService.getCurrentTotalNumTuples()
           );
@@ -223,7 +221,6 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy, OnChanges {
     resultData: ReadonlyArray<Record<string, unknown>>,
     totalRowCount: number
   ) {
-    console.log('show table', this.operatorId, resultData.length);
     if (!this.operatorId) {
       return;
     }
