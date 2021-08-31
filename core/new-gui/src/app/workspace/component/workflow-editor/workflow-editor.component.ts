@@ -1382,7 +1382,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private copyOperator(operator: OperatorPredicate): OperatorPredicate {
     const operatorID =
-      operator.operatorType + "-" + this.workflowUtilService.getOperatorRandomUUID();
+      operator.operatorType +
+      "-" +
+      this.workflowUtilService.getOperatorRandomUUID();
     const operatorType = operator.operatorType;
     const operatorProperties = operator.operatorProperties;
     const inputPorts = operator.inputPorts;

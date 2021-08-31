@@ -38,28 +38,28 @@ export class WorkflowUtilService {
    * Generates a new UUID for operator
    */
   public getOperatorRandomUUID(): string {
-    return 'operator-' + uuid();
+    return "operator-" + uuid();
   }
 
   /**
    * Generates a new UUID for operator or link
    */
   public getLinkRandomUUID(): string {
-    return 'link-' + uuid();
+    return "link-" + uuid();
   }
 
   /**
    * Generates a new UUID for group element
    */
   public getGroupRandomUUID(): string {
-    return 'group-' + uuid();
-	}
+    return "group-" + uuid();
+  }
 
   /**
    * Generates a new UUID for breakpoint
    */
   public getBreakpointRandomUUID(): string {
-    return 'breakpoint-' + uuid();
+    return "breakpoint-" + uuid();
   }
 
   /**
@@ -79,7 +79,8 @@ export class WorkflowUtilService {
       );
     }
 
-    const operatorID = operatorSchema.operatorType + "-" + this.getOperatorRandomUUID();
+    const operatorID =
+      operatorSchema.operatorType + "-" + this.getOperatorRandomUUID();
     const operatorProperties = {};
 
     // Remove the ID field for the schema to prevent warning messages from Ajv
@@ -130,6 +131,4 @@ export class WorkflowUtilService {
       isDisabled
     };
   }
-
-
 }
