@@ -31,12 +31,6 @@ class MongoOpResultStorage extends OpResultStorage {
 
   val collectionSet: mutable.HashSet[String] = mutable.HashSet[String]()
 
-  /**
-    * Put the result of an operator to OpResultStorage.
-    *
-    * @param opID    The operator ID.
-    * @param records The results.
-    */
   override def put(opID: String, records: List[Tuple]): Unit = {
     lock.lock()
     logger.debug("put {} start", opID)
@@ -59,13 +53,6 @@ class MongoOpResultStorage extends OpResultStorage {
     lock.unlock()
   }
 
-  /**
-    * Retrieve the result of an operator from OpResultStorage. If the OpResultStorage
-    * does not have contents of opID, an empty list is returned.
-    *
-    * @param opID The operator ID.
-    * @return The result of this operator.
-    */
   override def get(opID: String): List[Tuple] = {
     lock.lock()
     logger.debug("get {} start", opID)
@@ -80,11 +67,6 @@ class MongoOpResultStorage extends OpResultStorage {
     recordBuffer.toList
   }
 
-  /**
-    * Manually remove an entry from the cache.
-    *
-    * @param opID The key to remove.
-    */
   override def remove(opID: String): Unit = {
     lock.lock()
     logger.debug("remove {} start", opID)
@@ -94,23 +76,14 @@ class MongoOpResultStorage extends OpResultStorage {
     lock.unlock()
   }
 
-  /**
-    * Dump everything in result storage. Called when the system exits.
-    */
   override def dump(): Unit = {
     throw new Exception("not implemented")
   }
 
-  /**
-    * Load and initialize result storage. Called when the system init.
-    */
   override def load(): Unit = {
     throw new Exception("not implemented")
   }
 
-  /**
-    * Close this storage. Used for system termination.
-    */
   override def close(): Unit = {
     this.client.close()
   }
