@@ -40,22 +40,26 @@ class HashJoinOpExec[K](
         // the large input is assigned the inputNum 1.
 
         if (input == buildTable) {
+          // building phase
           building(tuple)
           Iterator()
         } else if (!isBuildTableFinished) {
-
+          // should never happen, building phase has to finish before first probe
           throw new WorkflowRuntimeException("Probe table came before build table ended")
         } else {
-
+          // probing phase
           val key = tuple.getField(probeAttributeName).asInstanceOf[K]
           val (matchedTuples, _) =
             buildTableHashMap.getOrElse(key, (new ArrayBuffer[Tuple](), false))
+
           if (matchedTuples.isEmpty) {
+            // do not have a match with the probe tuple
             if (!rightOuterJoin) {
               return Iterator()
             }
             performRightOuterJoin(tuple)
           } else {
+            // found a join match group
             buildTableHashMap.put(key, (matchedTuples, true))
             performJoin(tuple, matchedTuples)
           }
@@ -63,12 +67,11 @@ class HashJoinOpExec[K](
         }
       case Right(_) =>
         if (input == buildTable && !isBuildTableFinished) {
-
-          // the first input is exhausted, build phase finished
+          // the first input is exhausted, building phase finished
           isBuildTableFinished = true
           Iterator()
         } else {
-          // the second input is exhausted, probe phase finished
+          // the second input is exhausted, probing phase finished
           if (leftOuterJoin) {
             performLeftOuterJoin
           } else {
