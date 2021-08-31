@@ -5,7 +5,7 @@ export const defaultEnvironment = {
   /**
    * whether we are in production mode, default is false
    */
-  production: true,
+  production: false,
   /**
    * root API URL of the backend
    */
@@ -14,12 +14,12 @@ export const defaultEnvironment = {
    * whether fetching available source tables is enabled
    * see SourceTablesService for details
    */
-  sourceTableEnabled: true,
+  sourceTableEnabled: false,
   /**
    * whether operator schema propagation and autocomplete feature is enabled,
    * see SchemaPropagationService for details
    */
-  schemaPropagationEnabled: true,
+  schemaPropagationEnabled: false,
   /**
    * whether the backend support pause/resume functionality
    */
@@ -36,7 +36,7 @@ export const defaultEnvironment = {
   /**
    * whether user system is enabled
    */
-  userSystemEnabled: true,
+  userSystemEnabled: false,
 
   amberEngineEnabled: true,
 
