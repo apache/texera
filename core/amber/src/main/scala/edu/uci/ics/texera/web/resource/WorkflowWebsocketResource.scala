@@ -10,7 +10,10 @@ import edu.uci.ics.amber.engine.architecture.controller.{
   ControllerConfig,
   ControllerEventListener
 }
+import edu.uci.ics.amber.engine.architecture.storage.OpResultStorage
+import edu.uci.ics.amber.engine.architecture.storage.memory.JCSOpResultStorage
 import edu.uci.ics.amber.engine.architecture.storage.mongo.MongoOpResultStorage
+import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
@@ -36,7 +39,7 @@ import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDescV2
 
 import java.util.concurrent.atomic.AtomicInteger
 import javax.servlet.http.HttpSession
-import javax.websocket.{EndpointConfig, _}
+import javax.websocket._
 import javax.websocket.server.ServerEndpoint
 import scala.collection.{breakOut, mutable}
 
@@ -204,7 +207,17 @@ class WorkflowWebsocketResource {
   val sessionOperatorRecord: mutable.HashMap[String, mutable.HashMap[String, WorkflowVertexV2]] =
     mutable.HashMap[String, mutable.HashMap[String, WorkflowVertexV2]]()
 
-  val opResultStorage = new MongoOpResultStorage()
+  var opResultStorage: OpResultStorage = _
+  if (Constants.storage.equals("memory")) {
+    opResultStorage = new JCSOpResultStorage()
+    logger.info("use memory storage for materialization")
+  } else if (Constants.storage.equals("mongodb")) {
+    logger.info("use mongodb for materialization")
+    opResultStorage = new MongoOpResultStorage()
+  } else {
+    logger.info("invalid storage config")
+    System.exit(-1)
+  }
 
   def executeWorkflow(session: Session, request: ExecuteWorkflowRequest): Unit = {
     var cachedOperators: mutable.HashMap[String, OperatorDescriptor] = null
