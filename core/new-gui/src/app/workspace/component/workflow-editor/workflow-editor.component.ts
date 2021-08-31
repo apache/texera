@@ -1071,7 +1071,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * @param operator
    */
   private copyOperator(operator: OperatorPredicate): OperatorPredicate {
-    const operatorID = operator.operatorType + '-' + this.workflowUtilService.getRandomUUID();
+    const operatorID = operator.operatorType + '-' + this.workflowUtilService.getOperatorRandomUUID();
     const operatorType = operator.operatorType;
     const operatorProperties = operator.operatorProperties;
     const inputPorts = operator.inputPorts;
@@ -1294,7 +1294,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private handleLinkBreakpoint(): void {
     this.handleLinkBreakpointToolAttachment();
     this.handleLinkBreakpointButtonClick();
-    this.handleLinkBreakpointHighlighEvents();
+    this.handleLinkBreakpointHighlightEvents();
     this.handleLinkBreakpointToggleEvents();
   }
 
@@ -1330,9 +1330,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   /**
-   * Highlight/unhighlight the link according to the observable value recieved.
+   * Highlight/unhighlight the link according to the observable value received.
    */
-  private handleLinkBreakpointHighlighEvents(): void {
+  private handleLinkBreakpointHighlightEvents(): void {
     this.workflowActionService.getJointGraphWrapper().getLinkHighlightStream()
       .subscribe(linkIDs => {
           linkIDs.forEach(linkID => {
