@@ -22,16 +22,21 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 class HashJoinOpDesc[K] extends OperatorDescriptor {
 
   @JsonProperty(required = true)
-  @JsonSchemaTitle("Small Input attr")
-  @JsonPropertyDescription("Small Input Join Key")
+  @JsonSchemaTitle("Left Input Attribute")
+  @JsonPropertyDescription("attribute to be joined on the Left Input")
   @AutofillAttributeName
   var buildAttributeName: String = _
 
   @JsonProperty(required = true)
-  @JsonSchemaTitle("Large input attr")
-  @JsonPropertyDescription("Large Input Join Key")
+  @JsonSchemaTitle("Right Input Attribute")
+  @JsonPropertyDescription("attribute to be joined on the Right Input")
   @AutofillAttributeNameOnPort1
   var probeAttributeName: String = _
+
+  @JsonProperty(required = true, defaultValue = "inner")
+  @JsonSchemaTitle("Join Type")
+  @JsonPropertyDescription("select the join type to execute")
+  var joinType: JoinType = JoinType.INNER
 
   @JsonIgnore
   var opExecConfig: HashJoinOpExecConfig[K] = _
@@ -41,6 +46,7 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
       operatorIdentifier,
       probeAttributeName,
       buildAttributeName,
+      joinType,
       operatorSchemaInfo
     )
     opExecConfig
@@ -51,7 +57,7 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
       "Hash Join",
       "join two inputs",
       OperatorGroupConstants.JOIN_GROUP,
-      inputPorts = List(InputPort("small"), InputPort("large")),
+      inputPorts = List(InputPort("left"), InputPort("right")),
       outputPorts = List(OutputPort())
     )
 
