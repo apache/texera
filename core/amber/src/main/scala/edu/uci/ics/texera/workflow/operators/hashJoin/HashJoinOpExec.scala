@@ -15,8 +15,7 @@ class HashJoinOpExec[K](
     val buildTable: LinkIdentity,
     val buildAttributeName: String,
     val probeAttributeName: String,
-    val leftOuterJoin: Boolean,
-    val rightOuterJoin: Boolean,
+    val joinType: JoinType,
     val operatorSchemaInfo: OperatorSchemaInfo
 ) extends OperatorExecutor {
 
@@ -54,10 +53,10 @@ class HashJoinOpExec[K](
 
           if (matchedTuples.isEmpty) {
             // do not have a match with the probe tuple
-            if (!rightOuterJoin) {
+            if (joinType != JoinType.RIGHT_OUTER && joinType != JoinType.FULL_OUTER) {
               return Iterator()
             }
-            performRightOuterJoin(tuple)
+            performRightAntiJoin(tuple)
           } else {
             // found a join match group
             buildTableHashMap.put(key, (matchedTuples, true))
@@ -72,8 +71,8 @@ class HashJoinOpExec[K](
           Iterator()
         } else {
           // the second input is exhausted, probing phase finished
-          if (leftOuterJoin) {
-            performLeftOuterJoin
+          if (joinType == JoinType.LEFT_OUTER || joinType == JoinType.FULL_OUTER) {
+            performLeftAntiJoin
           } else {
             Iterator()
           }
@@ -81,7 +80,7 @@ class HashJoinOpExec[K](
     }
   }
 
-  private def performLeftOuterJoin: Iterator[Tuple] = {
+  private def performLeftAntiJoin: Iterator[Tuple] = {
     buildTableHashMap.valuesIterator
       .filter({ case (_: ArrayBuffer[Tuple], joined: Boolean) => !joined })
       .flatMap {
@@ -138,35 +137,6 @@ class HashJoinOpExec[K](
       .toIterator
   }
 
-  private def performRightOuterJoin(tuple: Tuple): Iterator[Tuple] = {
-    // creates a builder
-    val builder = Tuple.newBuilder(operatorSchemaInfo.outputSchema)
-
-    // fill the build tuple attributes as null, since no match
-    fillNonJoinFields(
-      builder,
-      buildSchema,
-      Array.fill(buildSchema.getAttributesScala.length)(null)
-    )
-
-    // fill the probe tuple
-    fillNonJoinFields(
-      builder,
-      probeSchema,
-      tuple.getFields.toArray(),
-      resolveDuplicateName = true
-    )
-
-    // fill the join attribute (align with probe)
-    builder.add(
-      probeSchema.getAttribute(probeAttributeName),
-      tuple.getField(probeAttributeName)
-    )
-
-    // build the new tuple
-    Iterator(builder.build())
-  }
-
   def fillNonJoinFields(
       builder: BuilderV2,
       schema: Schema,
@@ -193,6 +163,35 @@ class HashJoinOpExec[K](
           }
         }
     }
+  }
+
+  private def performRightAntiJoin(tuple: Tuple): Iterator[Tuple] = {
+    // creates a builder
+    val builder = Tuple.newBuilder(operatorSchemaInfo.outputSchema)
+
+    // fill the build tuple attributes as null, since no match
+    fillNonJoinFields(
+      builder,
+      buildSchema,
+      Array.fill(buildSchema.getAttributesScala.length)(null)
+    )
+
+    // fill the probe tuple
+    fillNonJoinFields(
+      builder,
+      probeSchema,
+      tuple.getFields.toArray(),
+      resolveDuplicateName = true
+    )
+
+    // fill the join attribute (align with probe)
+    builder.add(
+      probeSchema.getAttribute(probeAttributeName),
+      tuple.getField(probeAttributeName)
+    )
+
+    // build the new tuple
+    Iterator(builder.build())
   }
 
   private def building(tuple: Tuple): Unit = {
