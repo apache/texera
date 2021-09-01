@@ -342,6 +342,7 @@ class WorkflowWebsocketResource {
     val newWorkflowInfo = workflowRewriter.rewrite
     val oldWorkflowInfo = workflowInfo
     workflowInfo = newWorkflowInfo
+    workflowInfo.cachedOperatorIDs = oldWorkflowInfo.cachedOperatorIDs
     logger.info("Original workflow: {}.", toJgraphtDAG(oldWorkflowInfo).toString)
     logger.info("Rewritten workflow: {}.", toJgraphtDAG(workflowInfo).toString)
     val texeraWorkflowCompiler = new WorkflowCompiler(workflowInfo, context)

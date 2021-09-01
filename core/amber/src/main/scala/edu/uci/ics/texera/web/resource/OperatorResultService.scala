@@ -1,27 +1,27 @@
 package edu.uci.ics.texera.web.resource
 
 import edu.uci.ics.amber.engine.architecture.principal.OperatorResult
+import edu.uci.ics.amber.engine.architecture.storage.OpResultStorage
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.texera.web.resource.WorkflowResultServiceV1.{
-  PaginationMode,
-  SetDeltaMode,
-  SetSnapshotMode,
-  WebOutputMode,
-  WebPaginationUpdateV1,
-  WebResultUpdateV1,
-  calculateDirtyPageIndices,
-  defaultPageSize,
-  webDataFromTuple
-}
+import edu.uci.ics.texera.web.resource.WorkflowResultServiceV2._
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode.{SET_DELTA, SET_SNAPSHOT}
+import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler
-import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
+import edu.uci.ics.texera.workflow.operators.sink.{CacheSinkOpDescV2, SimpleSinkOpDesc}
 
 /**
   * OperatorResultService manages the materialized result of an operator.
   * It always keeps the latest snapshot of the computation result.
   */
-class OperatorResultServiceV1(val operatorID: String, val workflowCompiler: WorkflowCompiler) {
+class OperatorResultService(
+    val operatorID: String,
+    val workflowCompiler: WorkflowCompiler,
+    opResultStorage: OpResultStorage
+) {
+
+  var uuid: String = _
+
+  assert(workflowCompiler.workflowInfo.cachedOperatorIDs != null)
 
   // derive the web output mode from the sink operator type
   val webOutputMode: WebOutputMode = {
@@ -65,12 +65,12 @@ class OperatorResultServiceV1(val operatorID: String, val workflowCompiler: Work
   /**
     * Produces the WebResultUpdate to send to frontend from a result update from the engine.
     */
-  def convertWebResultUpdate(resultUpdate: OperatorResult): WebResultUpdateV1 = {
+  def convertWebResultUpdate(resultUpdate: OperatorResult): WebResultUpdate = {
     (webOutputMode, resultUpdate.outputMode) match {
       case (PaginationMode(), SET_SNAPSHOT) =>
         val dirtyPageIndices =
           calculateDirtyPageIndices(result, resultUpdate.result, defaultPageSize)
-        WebPaginationUpdateV1(PaginationMode(), resultUpdate.result.size, dirtyPageIndices)
+        WebPaginationUpdate(PaginationMode(), resultUpdate.result.size, dirtyPageIndices)
 
       case (SetSnapshotMode(), SET_SNAPSHOT) | (SetDeltaMode(), SET_DELTA) =>
         webDataFromTuple(webOutputMode, resultUpdate.result, chartType)
@@ -88,14 +88,31 @@ class OperatorResultServiceV1(val operatorID: String, val workflowCompiler: Work
     * Updates the current result of this operator.
     */
   def updateResult(resultUpdate: OperatorResult): Unit = {
-    resultUpdate.outputMode match {
-      case SET_SNAPSHOT =>
-        this.result = resultUpdate.result
-      case SET_DELTA =>
-        this.result = (this.result ++ resultUpdate.result)
+    workflowCompiler.workflow.getOperator(operatorID) match {
+      case op: CacheSinkOpDescV2 =>
+        resultUpdate.outputMode match {
+          case SET_SNAPSHOT =>
+            opResultStorage.put(op.uuid, resultUpdate.result.asInstanceOf[List[Tuple]])
+          case SET_DELTA =>
+            val tmp = opResultStorage.get(op.uuid)
+            opResultStorage.put(op.uuid, (tmp ++ resultUpdate.result.asInstanceOf[List[Tuple]]))
+        }
+      case _ =>
+        resultUpdate.outputMode match {
+          case SET_SNAPSHOT =>
+            this.result = resultUpdate.result
+          case SET_DELTA =>
+            this.result = (this.result ++ resultUpdate.result)
+        }
     }
   }
 
-  def getResult: List[ITuple] = this.result
+  def getResult: List[ITuple] = {
+    if (workflowCompiler.workflowInfo.cachedOperatorIDs.contains(operatorID)) {
+      opResultStorage.get(uuid)
+    } else {
+      this.result
+    }
+  }
 
 }
