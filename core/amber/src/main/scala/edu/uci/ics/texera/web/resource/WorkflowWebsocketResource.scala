@@ -114,8 +114,7 @@ class WorkflowWebsocketResource {
         case resultExportRequest: ResultExportRequest =>
           exportResult(session, resultExportRequest)
         case cacheStatusUpdateRequest: CacheStatusUpdateRequest =>
-          println(cacheStatusUpdateRequest)
-          // TODO
+          updateCacheStatus(session, cacheStatusUpdateRequest)
       }
     } catch {
       case err: Exception =>
@@ -199,6 +198,64 @@ class WorkflowWebsocketResource {
     sessionOperatorRecord.remove(session.getId)
   }
 
+  def updateCacheStatus(session: Session, request: CacheStatusUpdateRequest): Unit = {
+    var cachedOperators: mutable.HashMap[String, OperatorDescriptor] = null
+    if (!sessionCachedOperators.contains(session.getId)) {
+      cachedOperators = mutable.HashMap[String, OperatorDescriptor]()
+    } else {
+      cachedOperators = sessionCachedOperators(session.getId)
+    }
+    var cacheSourceOperators: mutable.HashMap[String, CacheSourceOpDescV2] = null
+    if (!sessionCacheSourceOperators.contains(session.getId)) {
+      cacheSourceOperators = mutable.HashMap[String, CacheSourceOpDescV2]()
+    } else {
+      cacheSourceOperators = sessionCacheSourceOperators(session.getId)
+    }
+    var cacheSinkOperators: mutable.HashMap[String, CacheSinkOpDescV2] = null
+    if (!sessionCacheSinkOperators.contains(session.getId)) {
+      cacheSinkOperators = mutable.HashMap[String, CacheSinkOpDescV2]()
+    } else {
+      cacheSinkOperators = sessionCacheSinkOperators(session.getId)
+    }
+    var operatorRecord: mutable.HashMap[String, WorkflowVertex] = null
+    if (!sessionOperatorRecord.contains(session.getId)) {
+      operatorRecord = mutable.HashMap[String, WorkflowVertex]()
+    } else {
+      operatorRecord = sessionOperatorRecord(session.getId)
+    }
+
+    val workflowInfo = WorkflowInfo(request.operators, request.links, request.breakpoints)
+    workflowInfo.cachedOperatorIDs = request.cachedOperatorIDs
+    logger.info("Cached operators: {}.", cachedOperators.toString())
+    logger.info("request.cachedOperatorIDs: {}.", request.cachedOperatorIDs)
+    val workflowRewriter = new WorkflowRewriter(
+      workflowInfo,
+      cachedOperators.clone(),
+      cacheSourceOperators.clone(),
+      cacheSinkOperators.clone(),
+      operatorRecord.clone(),
+      opResultStorage
+    )
+
+    val invalidSet = workflowRewriter.cacheStatusUpdate()
+
+    val cacheStatusMap = request.cachedOperatorIDs
+      .map(id => {
+        if (cachedOperators.contains(id)) {
+          if (!invalidSet.contains(id)) {
+            (id, CacheStatus.CACHE_VALID)
+          } else {
+            (id, CacheStatus.CACHE_INVALID)
+          }
+        } else {
+          (id, CacheStatus.CACHE_INVALID)
+        }
+      })
+      .toMap
+    val cacheStatusUpdateEvent = CacheStatusUpdateEvent(cacheStatusMap)
+    send(session, cacheStatusUpdateEvent)
+  }
+
   val sessionCachedOperators: mutable.HashMap[String, mutable.HashMap[String, OperatorDescriptor]] =
     mutable.HashMap[String, mutable.HashMap[String, OperatorDescriptor]]()
   val sessionCacheSourceOperators
@@ -260,17 +317,15 @@ class WorkflowWebsocketResource {
       .getUser(sessionMap(session.getId)._2)
       .map(u => u.getUid)
 
-    val cacheStatusMap = request.cachedOperatorIDs
-      .map(id => {
-        if (cachedOperators.contains(id)) {
-          (id, CacheStatus.CACHE_VALID)
-        } else {
-          (id, CacheStatus.CACHE_INVALID)
-        }
-      })
-      .toMap
-    val cacheStatusUpdateEvent = CacheStatusUpdateEvent(cacheStatusMap)
-    send(session, cacheStatusUpdateEvent)
+    updateCacheStatus(
+      session,
+      CacheStatusUpdateRequest(
+        request.operators,
+        request.links,
+        request.breakpoints,
+        request.cachedOperatorIDs
+      )
+    )
 
     var workflowInfo = WorkflowInfo(request.operators, request.links, request.breakpoints)
     workflowInfo.cachedOperatorIDs = request.cachedOperatorIDs
@@ -347,18 +402,15 @@ class WorkflowWebsocketResource {
       workflowCompletedListener = completed => {
         sessionExportCache.remove(session.getId)
         send(session, WorkflowCompletedEvent())
-        WorkflowWebsocketResource.sessionJobs.remove(session.getId)
-        val cacheStatusMap = request.cachedOperatorIDs
-          .map(id => {
-            if (cachedOperators.contains(id)) {
-              (id, CacheStatus.CACHE_VALID)
-            } else {
-              (id, CacheStatus.CACHE_INVALID)
-            }
-          })
-          .toMap
-        val cacheStatusUpdateEvent = CacheStatusUpdateEvent(cacheStatusMap)
-        send(session, cacheStatusUpdateEvent)
+        updateCacheStatus(
+          session,
+          CacheStatusUpdateRequest(
+            request.operators,
+            request.links,
+            request.breakpoints,
+            request.cachedOperatorIDs
+          )
+        )
       },
       workflowStatusUpdateListener = statusUpdate => {
         send(session, WebWorkflowStatusUpdateEvent.apply(statusUpdate))
