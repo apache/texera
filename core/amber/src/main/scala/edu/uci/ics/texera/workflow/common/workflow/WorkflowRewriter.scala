@@ -292,11 +292,15 @@ class WorkflowRewriter(
       logger.info("Vertex {} is not recorded.", operatorRecord(id))
       true
     } else if (workflowInfo.cachedOperatorIDs.contains(id)) {
-      val vertex = getWorkflowVertex(workflowDAG.getOperator(id))
-      if (operatorRecord(id).equals(vertex)) {
-        false
+      if (cachedOperatorDescriptors.contains(id)) {
+        val vertex = getWorkflowVertex(workflowDAG.getOperator(id))
+        if (operatorRecord(id).equals(vertex)) {
+          false
+        } else {
+          operatorRecord(id) = vertex
+          true
+        }
       } else {
-        operatorRecord(id) = vertex
         true
       }
     } else {
