@@ -77,6 +77,8 @@ export type ResultExportRequest = Readonly<{
   operatorId: string
 }>;
 
+export type CacheStatusUpdateRequest = LogicalPlan;
+
 export type ResultExportResponse = Readonly<{
   status: 'success' | 'error'
   message: string
@@ -110,6 +112,7 @@ export type TexeraWebsocketRequestTypeMap = {
   'AddBreakpointRequest': BreakpointInfo,
   'ResultPaginationRequest': PaginationRequest,
   'ResultExportRequest': ResultExportRequest,
+  'CacheStatusUpdateRequest': CacheStatusUpdateRequest,
 };
 
 export type TexeraWebsocketEventTypeMap = {

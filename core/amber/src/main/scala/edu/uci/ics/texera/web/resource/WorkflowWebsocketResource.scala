@@ -113,6 +113,9 @@ class WorkflowWebsocketResource {
           resultPagination(session, paginationRequest)
         case resultExportRequest: ResultExportRequest =>
           exportResult(session, resultExportRequest)
+        case cacheStatusUpdateRequest: CacheStatusUpdateRequest =>
+          println(cacheStatusUpdateRequest)
+          // TODO
       }
     } catch {
       case err: Exception =>
