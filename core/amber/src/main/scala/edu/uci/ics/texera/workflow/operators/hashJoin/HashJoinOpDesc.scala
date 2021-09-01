@@ -33,7 +33,7 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
   @AutofillAttributeNameOnPort1
   var probeAttributeName: String = _
 
-  @JsonProperty(required = true, defaultValue = "INNER")
+  @JsonProperty(required = true, defaultValue = "inner")
   @JsonSchemaTitle("Join Type")
   @JsonPropertyDescription("select the join type to execute")
   var joinType: JoinType = JoinType.INNER
