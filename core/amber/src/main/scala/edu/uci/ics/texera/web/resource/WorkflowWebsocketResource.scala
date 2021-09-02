@@ -240,6 +240,7 @@ class WorkflowWebsocketResource {
     val invalidSet = workflowRewriter.cacheStatusUpdate()
 
     val cacheStatusMap = request.cachedOperatorIDs
+      .filter(cachedOperators.contains)
       .map(id => {
         if (cachedOperators.contains(id)) {
           if (!invalidSet.contains(id)) {
@@ -252,6 +253,7 @@ class WorkflowWebsocketResource {
         }
       })
       .toMap
+
     val cacheStatusUpdateEvent = CacheStatusUpdateEvent(cacheStatusMap)
     send(session, cacheStatusUpdateEvent)
   }
@@ -261,8 +263,7 @@ class WorkflowWebsocketResource {
   val sessionCacheSourceOperators
       : mutable.HashMap[String, mutable.HashMap[String, CacheSourceOpDesc]] =
     mutable.HashMap[String, mutable.HashMap[String, CacheSourceOpDesc]]()
-  val sessionCacheSinkOperators
-      : mutable.HashMap[String, mutable.HashMap[String, CacheSinkOpDesc]] =
+  val sessionCacheSinkOperators: mutable.HashMap[String, mutable.HashMap[String, CacheSinkOpDesc]] =
     mutable.HashMap[String, mutable.HashMap[String, CacheSinkOpDesc]]()
   val sessionOperatorRecord: mutable.HashMap[String, mutable.HashMap[String, WorkflowVertex]] =
     mutable.HashMap[String, mutable.HashMap[String, WorkflowVertex]]()
