@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.Workflow
 import edu.uci.ics.amber.engine.architecture.storage.OpResultStorage
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.texera.web.model.event.TexeraWebSocketEvent
-import edu.uci.ics.texera.web.resource.WorkflowResultServiceV2.{
+import edu.uci.ics.texera.web.resource.WorkflowResultService.{
   PaginationMode,
   WebPaginationUpdate,
   WebResultUpdate,
@@ -20,7 +20,7 @@ import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDesc
 import javax.websocket.Session
 import scala.collection.mutable
 
-object WorkflowResultServiceV2 {
+object WorkflowResultService {
 
   val defaultPageSize: Int = 10
 
@@ -109,7 +109,7 @@ case class WebResultUpdateEvent(updates: Map[String, WebResultUpdate]) extends T
   *  - update the result data for each operator,
   *  - send result update event to the frontend
   */
-class WorkflowResultServiceV2(
+class WorkflowResultService(
     val workflowCompiler: WorkflowCompiler,
     opResultStorage: OpResultStorage
 ) {
@@ -121,8 +121,7 @@ class WorkflowResultServiceV2(
     if (workflowCompiler.workflow.getOperator(sink).isInstanceOf[CacheSinkOpDesc]) {
       val upstreamID = workflowCompiler.workflow.getUpstream(sink).head.operatorID
       val service = new OperatorResultService(upstreamID, workflowCompiler, opResultStorage)
-      service.uuid =
-        workflowCompiler.workflow.getOperator(sink).asInstanceOf[CacheSinkOpDesc].uuid
+      service.uuid = workflowCompiler.workflow.getOperator(sink).asInstanceOf[CacheSinkOpDesc].uuid
       operatorResults += ((sink, service))
     } else {
       val service = new OperatorResultService(sink, workflowCompiler, opResultStorage)
