@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.common.workflow
 import edu.uci.ics.amber.engine.architecture.storage.OpResultStorage
 import edu.uci.ics.amber.engine.architecture.storage.mongo.MongoOpResultStorage
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
-import edu.uci.ics.texera.workflow.operators.sink.{CacheSinkOpDescV2, SimpleSinkOpDesc}
+import edu.uci.ics.texera.workflow.operators.sink.{CacheSinkOpDesc, SimpleSinkOpDesc}
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.csv.CSVScanSourceOpDesc
 import org.scalatest.BeforeAndAfter
@@ -42,7 +42,7 @@ class WorkflowRewriterSpec extends AnyFlatSpec with BeforeAndAfter {
       workflowInfo,
       mutable.HashMap[String, OperatorDescriptor](),
       mutable.HashMap[String, CacheSourceOpDesc](),
-      mutable.HashMap[String, CacheSinkOpDescV2](),
+      mutable.HashMap[String, CacheSinkOpDesc](),
       mutable.HashMap[String, WorkflowVertex](),
       opResultStorage
     )

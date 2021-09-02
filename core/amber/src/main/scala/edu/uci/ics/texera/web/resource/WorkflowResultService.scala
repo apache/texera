@@ -15,7 +15,7 @@ import edu.uci.ics.texera.web.resource.WorkflowResultServiceV2.{
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.send
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler
-import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDescV2
+import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDesc
 
 import javax.websocket.Session
 import scala.collection.mutable
@@ -118,11 +118,11 @@ class WorkflowResultServiceV2(
   var operatorResults: mutable.HashMap[String, OperatorResultService] =
     mutable.HashMap[String, OperatorResultService]()
   workflowCompiler.workflow.getSinkOperators.map(sink => {
-    if (workflowCompiler.workflow.getOperator(sink).isInstanceOf[CacheSinkOpDescV2]) {
+    if (workflowCompiler.workflow.getOperator(sink).isInstanceOf[CacheSinkOpDesc]) {
       val upstreamID = workflowCompiler.workflow.getUpstream(sink).head.operatorID
       val service = new OperatorResultService(upstreamID, workflowCompiler, opResultStorage)
       service.uuid =
-        workflowCompiler.workflow.getOperator(sink).asInstanceOf[CacheSinkOpDescV2].uuid
+        workflowCompiler.workflow.getOperator(sink).asInstanceOf[CacheSinkOpDesc].uuid
       operatorResults += ((sink, service))
     } else {
       val service = new OperatorResultService(sink, workflowCompiler, opResultStorage)
@@ -148,7 +148,7 @@ class WorkflowResultServiceV2(
           val e1 = resultUpdate.operatorResults(e._1)
           val opResultService = operatorResults(e._1)
           val webUpdateEvent = opResultService.convertWebResultUpdate(e1)
-          if (workflowCompiler.workflow.getOperator(e._1).isInstanceOf[CacheSinkOpDescV2]) {
+          if (workflowCompiler.workflow.getOperator(e._1).isInstanceOf[CacheSinkOpDesc]) {
             val upID = opResultService.operatorID
             (upID, webUpdateEvent)
           } else {

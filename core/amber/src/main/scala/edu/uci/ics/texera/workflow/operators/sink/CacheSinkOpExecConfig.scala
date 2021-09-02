@@ -10,7 +10,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, Op
 import edu.uci.ics.amber.engine.operators.SinkOpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
-class CacheSinkOpExecConfigV2(
+class CacheSinkOpExecConfig(
     tag: OperatorIdentity,
     val operatorSchemaInfo: OperatorSchemaInfo,
     uuid: String,
@@ -20,7 +20,7 @@ class CacheSinkOpExecConfigV2(
     Array(
       new WorkerLayer(
         makeLayer(tag, "main"),
-        _ => new CacheSinkOpExecV2(uuid, opResultStorage),
+        _ => new CacheSinkOpExec(uuid, opResultStorage),
         1,
         ForceLocal(),
         RandomDeployment()

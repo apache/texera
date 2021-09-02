@@ -7,7 +7,7 @@ import edu.uci.ics.texera.web.resource.WorkflowResultServiceV2._
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode.{SET_DELTA, SET_SNAPSHOT}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler
-import edu.uci.ics.texera.workflow.operators.sink.{CacheSinkOpDescV2, SimpleSinkOpDesc}
+import edu.uci.ics.texera.workflow.operators.sink.{CacheSinkOpDesc, SimpleSinkOpDesc}
 
 /**
   * OperatorResultService manages the materialized result of an operator.
@@ -89,7 +89,7 @@ class OperatorResultService(
     */
   def updateResult(resultUpdate: OperatorResult): Unit = {
     workflowCompiler.workflow.getOperator(operatorID) match {
-      case op: CacheSinkOpDescV2 =>
+      case op: CacheSinkOpDesc =>
         resultUpdate.outputMode match {
           case SET_SNAPSHOT =>
             opResultStorage.put(op.uuid, resultUpdate.result.asInstanceOf[List[Tuple]])

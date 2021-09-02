@@ -10,7 +10,7 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 import scala.collection.mutable
 
-class CacheSinkOpExecV2(uuid: String, dest: OpResultStorage) extends ITupleSinkOperatorExecutor {
+class CacheSinkOpExec(uuid: String, dest: OpResultStorage) extends ITupleSinkOperatorExecutor {
 
   assert(null != dest)
 
