@@ -6,7 +6,7 @@ import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowRewriter.copyOperator
 import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDescV2
-import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDescV2
+import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 
 import java.util.UUID
 import scala.collection.mutable
@@ -23,12 +23,12 @@ object WorkflowRewriter {
 }
 
 class WorkflowRewriter(
-    var workflowInfo: WorkflowInfo,
-    var cachedOperatorDescriptors: mutable.HashMap[String, OperatorDescriptor],
-    var cacheSourceOperatorDescriptors: mutable.HashMap[String, CacheSourceOpDescV2],
-    var cacheSinkOperatorDescriptors: mutable.HashMap[String, CacheSinkOpDescV2],
-    var operatorRecord: mutable.HashMap[String, WorkflowVertex],
-    var opResultStorage: OpResultStorage
+                        var workflowInfo: WorkflowInfo,
+                        var cachedOperatorDescriptors: mutable.HashMap[String, OperatorDescriptor],
+                        var cacheSourceOperatorDescriptors: mutable.HashMap[String, CacheSourceOpDesc],
+                        var cacheSinkOperatorDescriptors: mutable.HashMap[String, CacheSinkOpDescV2],
+                        var operatorRecord: mutable.HashMap[String, WorkflowVertex],
+                        var opResultStorage: OpResultStorage
 ) {
 
   private val logger = Logger(this.getClass.getName)
@@ -387,14 +387,14 @@ class WorkflowRewriter(
     val uuid = UUID.randomUUID().toString
     val cacheSinkOperator = new CacheSinkOpDescV2(uuid, opResultStorage)
     cacheSinkOperatorDescriptors += ((operatorDescriptor.operatorID, cacheSinkOperator))
-    val cacheSourceOperator = new CacheSourceOpDescV2(uuid, opResultStorage)
+    val cacheSourceOperator = new CacheSourceOpDesc(uuid, opResultStorage)
     cacheSourceOperatorDescriptors += ((operatorDescriptor.operatorID, cacheSourceOperator))
     cacheSinkOperator
   }
 
   private def getCacheSourceOperator(
       operatorDescriptor: OperatorDescriptor
-  ): CacheSourceOpDescV2 = {
+  ): CacheSourceOpDesc = {
     val cacheSourceOperator = cacheSourceOperatorDescriptors(operatorDescriptor.operatorID)
     cacheSourceOperator.schema = cacheSinkOperatorDescriptors(operatorDescriptor.operatorID).schema
     cacheSourceOperator

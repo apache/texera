@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.cache
 
+import edu.uci.ics.amber.engine.architecture.storage.OpResultStorage
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorGroupConstants,
@@ -7,23 +8,23 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OutputPort
 }
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 
 import java.util.Collections.singletonList
 import scala.collection.JavaConverters.asScalaBuffer
 import scala.collection.immutable.List
-import scala.collection.mutable
 
-class CacheSourceOpDesc(src: mutable.MutableList[Tuple]) extends SourceOperatorDescriptor {
-  assert(null != src)
+class CacheSourceOpDesc(uuid: String, opResultStorage: OpResultStorage)
+    extends SourceOperatorDescriptor {
+  assert(null != uuid)
+  assert(null != opResultStorage)
 
   var schema: Schema = _
 
   override def sourceSchema(): Schema = schema
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-    new CacheSourceOpExecConfig(operatorIdentifier, src)
+    new CacheSourceOpExecConfig(operatorIdentifier, uuid, opResultStorage)
   }
 
   override def operatorInfo: OperatorInfo =

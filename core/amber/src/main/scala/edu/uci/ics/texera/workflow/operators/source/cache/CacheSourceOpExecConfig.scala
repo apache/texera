@@ -4,22 +4,24 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalB
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.ForceLocal
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.RandomDeployment
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
+import edu.uci.ics.amber.engine.architecture.storage.OpResultStorage
 import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, OperatorIdentity}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
-import scala.collection.mutable
-
-class CacheSourceOpExecConfig(tag: OperatorIdentity, src: mutable.MutableList[Tuple])
-    extends OpExecConfig(tag) {
-  assert(null != src)
+class CacheSourceOpExecConfig(
+    tag: OperatorIdentity,
+    uuid: String,
+    opResultStorage: OpResultStorage
+) extends OpExecConfig(tag) {
+  assert(null != uuid)
+  assert(null != opResultStorage)
 
   override lazy val topology = new Topology(
     Array(
       new WorkerLayer(
         makeLayer(tag, "main"),
-        _ => new CacheSourceOpExec(src),
+        _ => new CacheSourceOpExec(uuid, opResultStorage),
         1,
         ForceLocal(),
         RandomDeployment()

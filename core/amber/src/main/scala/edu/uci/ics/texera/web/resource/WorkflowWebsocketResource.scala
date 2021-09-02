@@ -35,7 +35,7 @@ import edu.uci.ics.texera.workflow.common.workflow.{
   WorkflowVertex
 }
 import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDescV2
-import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDescV2
+import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 
 import java.util.concurrent.atomic.AtomicInteger
 import javax.servlet.http.HttpSession
@@ -205,9 +205,9 @@ class WorkflowWebsocketResource {
     } else {
       cachedOperators = sessionCachedOperators(session.getId)
     }
-    var cacheSourceOperators: mutable.HashMap[String, CacheSourceOpDescV2] = null
+    var cacheSourceOperators: mutable.HashMap[String, CacheSourceOpDesc] = null
     if (!sessionCacheSourceOperators.contains(session.getId)) {
-      cacheSourceOperators = mutable.HashMap[String, CacheSourceOpDescV2]()
+      cacheSourceOperators = mutable.HashMap[String, CacheSourceOpDesc]()
     } else {
       cacheSourceOperators = sessionCacheSourceOperators(session.getId)
     }
@@ -259,8 +259,8 @@ class WorkflowWebsocketResource {
   val sessionCachedOperators: mutable.HashMap[String, mutable.HashMap[String, OperatorDescriptor]] =
     mutable.HashMap[String, mutable.HashMap[String, OperatorDescriptor]]()
   val sessionCacheSourceOperators
-      : mutable.HashMap[String, mutable.HashMap[String, CacheSourceOpDescV2]] =
-    mutable.HashMap[String, mutable.HashMap[String, CacheSourceOpDescV2]]()
+      : mutable.HashMap[String, mutable.HashMap[String, CacheSourceOpDesc]] =
+    mutable.HashMap[String, mutable.HashMap[String, CacheSourceOpDesc]]()
   val sessionCacheSinkOperators
       : mutable.HashMap[String, mutable.HashMap[String, CacheSinkOpDescV2]] =
     mutable.HashMap[String, mutable.HashMap[String, CacheSinkOpDescV2]]()
@@ -287,9 +287,9 @@ class WorkflowWebsocketResource {
     } else {
       cachedOperators = sessionCachedOperators(session.getId)
     }
-    var cacheSourceOperators: mutable.HashMap[String, CacheSourceOpDescV2] = null
+    var cacheSourceOperators: mutable.HashMap[String, CacheSourceOpDesc] = null
     if (!sessionCacheSourceOperators.contains(session.getId)) {
-      cacheSourceOperators = mutable.HashMap[String, CacheSourceOpDescV2]()
+      cacheSourceOperators = mutable.HashMap[String, CacheSourceOpDesc]()
       sessionCacheSourceOperators += ((session.getId, cacheSourceOperators))
     } else {
       cacheSourceOperators = sessionCacheSourceOperators(session.getId)
