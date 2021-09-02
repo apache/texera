@@ -87,13 +87,8 @@ rebel.xml
 # Ignoring package-lock.json
 package-lock.json
 
-
-# Ignoring yarn.lock
-**/yarn.lock
-
 # Ignoring protobuf related files
 scalapb/scalapb
-**/scalapb/scalapb
 
 # Ignoring credentials
 client_secret_*
