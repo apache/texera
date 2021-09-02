@@ -17,31 +17,31 @@ class JCSOpResultStorage extends OpResultStorage {
 
   private val cache: CacheAccess[String, List[Tuple]] = JCS.getInstance("texera")
 
-  override def put(opID: String, records: List[Tuple]): Unit = {
+  override def put(key: String, records: List[Tuple]): Unit = {
     lock.lock()
-    logger.debug("put {} start", opID)
-    cache.put(opID, records)
-    logger.debug("put {} end", opID)
+    logger.debug("put {} start", key)
+    cache.put(key, records)
+    logger.debug("put {} end", key)
     lock.unlock()
   }
 
-  override def get(opID: String): List[Tuple] = {
+  override def get(key: String): List[Tuple] = {
     lock.lock()
-    logger.debug("get {} start", opID)
-    var res = cache.get(opID)
+    logger.debug("get {} start", key)
+    var res = cache.get(key)
     if (res == null) {
       res = List[Tuple]()
     }
-    logger.debug("get {} end", opID)
+    logger.debug("get {} end", key)
     lock.unlock()
     res
   }
 
-  override def remove(opID: String): Unit = {
+  override def remove(key: String): Unit = {
     lock.lock()
-    logger.debug("remove {} start", opID)
-    cache.remove(opID)
-    logger.debug("remove {} end", opID)
+    logger.debug("remove {} start", key)
+    cache.remove(key)
+    logger.debug("remove {} end", key)
     lock.unlock()
   }
 

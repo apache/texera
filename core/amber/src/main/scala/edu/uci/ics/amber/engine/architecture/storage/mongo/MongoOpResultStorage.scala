@@ -31,11 +31,11 @@ class MongoOpResultStorage extends OpResultStorage {
 
   val collectionSet: mutable.HashSet[String] = mutable.HashSet[String]()
 
-  override def put(opID: String, records: List[Tuple]): Unit = {
+  override def put(key: String, records: List[Tuple]): Unit = {
     lock.lock()
-    logger.debug("put {} start", opID)
-    val collection = database.getCollection(opID)
-    if (collectionSet.contains(opID)) {
+    logger.debug("put {} start", key)
+    val collection = database.getCollection(key)
+    if (collectionSet.contains(key)) {
       collection.deleteMany(new BasicDBObject())
     }
     var index = 0
@@ -49,30 +49,30 @@ class MongoOpResultStorage extends OpResultStorage {
     })
     collection.insertMany(documents)
     collection.createIndex(Indexes.ascending("index"), new IndexOptions().unique(true))
-    logger.debug("put {} end", opID)
+    logger.debug("put {} end", key)
     lock.unlock()
   }
 
-  override def get(opID: String): List[Tuple] = {
+  override def get(key: String): List[Tuple] = {
     lock.lock()
-    logger.debug("get {} start", opID)
-    val collection = database.getCollection(opID)
+    logger.debug("get {} start", key)
+    val collection = database.getCollection(key)
     val cursor = collection.find().sort(Sorts.ascending("index")).cursor()
     val recordBuffer = new ListBuffer[Tuple]()
     while (cursor.hasNext) {
       recordBuffer += json2tuple(cursor.next().get("record").toString)
     }
     lock.unlock()
-    logger.debug("get {} end", opID)
+    logger.debug("get {} end", key)
     recordBuffer.toList
   }
 
-  override def remove(opID: String): Unit = {
+  override def remove(key: String): Unit = {
     lock.lock()
-    logger.debug("remove {} start", opID)
-    collectionSet.remove(opID)
-    database.getCollection(opID).drop()
-    logger.debug("remove {} end", opID)
+    logger.debug("remove {} start", key)
+    collectionSet.remove(key)
+    database.getCollection(key).drop()
+    logger.debug("remove {} end", key)
     lock.unlock()
   }
 

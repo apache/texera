@@ -15,33 +15,33 @@ class MemoryOpResultStorage extends OpResultStorage {
 
   val cache: mutable.Map[String, List[Tuple]] = mutable.HashMap[String, List[Tuple]]()
 
-  override def put(opID: String, records: List[Tuple]): Unit = {
+  override def put(key: String, records: List[Tuple]): Unit = {
     lock.lock()
-    logger.debug("put {} start", opID)
-    cache(opID) = records
-    logger.debug("put {} end", opID)
+    logger.debug("put {} start", key)
+    cache(key) = records
+    logger.debug("put {} end", key)
     lock.unlock()
   }
 
-  override def get(opID: String): List[Tuple] = {
+  override def get(key: String): List[Tuple] = {
     lock.lock()
-    logger.debug("get {} start", opID)
+    logger.debug("get {} start", key)
     var res: List[Tuple] = List[Tuple]()
-    if (cache.contains(opID)) {
-      res = cache(opID)
+    if (cache.contains(key)) {
+      res = cache(key)
     }
-    logger.debug("get {} end", opID)
+    logger.debug("get {} end", key)
     lock.unlock()
     res
   }
 
-  override def remove(opID: String): Unit = {
+  override def remove(key: String): Unit = {
     lock.lock()
-    logger.debug("remove {} start", opID)
-    if (cache.contains(opID)) {
-      cache.remove(opID)
+    logger.debug("remove {} start", key)
+    if (cache.contains(key)) {
+      cache.remove(key)
     }
-    logger.debug("remove {} end", opID)
+    logger.debug("remove {} end", key)
     lock.unlock()
   }
 
