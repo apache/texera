@@ -23,12 +23,12 @@ object WorkflowRewriter {
 }
 
 class WorkflowRewriter(
-                        var workflowInfo: WorkflowInfo,
-                        var cachedOperatorDescriptors: mutable.HashMap[String, OperatorDescriptor],
-                        var cacheSourceOperatorDescriptors: mutable.HashMap[String, CacheSourceOpDesc],
-                        var cacheSinkOperatorDescriptors: mutable.HashMap[String, CacheSinkOpDescV2],
-                        var operatorRecord: mutable.HashMap[String, WorkflowVertex],
-                        var opResultStorage: OpResultStorage
+    var workflowInfo: WorkflowInfo,
+    var cachedOperatorDescriptors: mutable.HashMap[String, OperatorDescriptor],
+    var cacheSourceOperatorDescriptors: mutable.HashMap[String, CacheSourceOpDesc],
+    var cacheSinkOperatorDescriptors: mutable.HashMap[String, CacheSinkOpDescV2],
+    var operatorRecord: mutable.HashMap[String, WorkflowVertex],
+    var opResultStorage: OpResultStorage
 ) {
 
   private val logger = Logger(this.getClass.getName)
