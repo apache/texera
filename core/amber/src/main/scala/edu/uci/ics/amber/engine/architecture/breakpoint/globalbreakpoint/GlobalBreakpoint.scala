@@ -4,7 +4,6 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.LocalBre
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 abstract class GlobalBreakpoint[T](val id: String) extends Serializable {
-
   type localBreakpointType = T
 
   protected var version: Long = 0

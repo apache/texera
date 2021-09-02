@@ -1,60 +1,55 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 
-import { MatDialogModule } from '@angular/material/dialog';
+import { MatDialogModule } from "@angular/material/dialog";
 
-import { NgbActiveModal, NgbModule } from '@ng-bootstrap/ng-bootstrap';
-import { FormsModule } from '@angular/forms';
+import { NgbActiveModal, NgbModule } from "@ng-bootstrap/ng-bootstrap";
+import { FormsModule } from "@angular/forms";
 
-import { HttpClientModule } from '@angular/common/http';
+import { HttpClientModule } from "@angular/common/http";
 
-import { NgbdModalDeleteWorkflowComponent } from './ngbd-modal-delete-workflow.component';
-import { Workflow, WorkflowContent } from '../../../../../common/type/workflow';
-import { jsonCast } from '../../../../../common/util/storage';
+import { NgbdModalDeleteWorkflowComponent } from "./ngbd-modal-delete-workflow.component";
+import { Workflow, WorkflowContent } from "../../../../../common/type/workflow";
+import { jsonCast } from "../../../../../common/util/storage";
 
-describe('NgbdModalDeleteProjectComponent', () => {
+describe("NgbdModalDeleteProjectComponent", () => {
   let component: NgbdModalDeleteWorkflowComponent;
   let fixture: ComponentFixture<NgbdModalDeleteWorkflowComponent>;
 
   let deleteComponent: NgbdModalDeleteWorkflowComponent;
   let deleteFixture: ComponentFixture<NgbdModalDeleteWorkflowComponent>;
   const targetWorkflow: Workflow = {
-    name: 'workflow 1',
+    name: "workflow 1",
     wid: 4,
-    content: jsonCast<WorkflowContent>('{}'),
+    content: jsonCast<WorkflowContent>("{}"),
     creationTime: 1,
-    lastModifiedTime: 2,
+    lastModifiedTime: 2
   };
 
-  beforeEach(async(() => {
-    TestBed.configureTestingModule({
-      declarations: [NgbdModalDeleteWorkflowComponent],
-      providers: [
-        NgbActiveModal
-      ],
-      imports: [
-        MatDialogModule,
-        NgbModule,
-        FormsModule,
-        HttpClientModule]
+  beforeEach(
+    waitForAsync(() => {
+      TestBed.configureTestingModule({
+        declarations: [NgbdModalDeleteWorkflowComponent],
+        providers: [NgbActiveModal],
+        imports: [MatDialogModule, NgbModule, FormsModule, HttpClientModule]
+      }).compileComponents();
     })
-      .compileComponents();
-  }));
+  );
 
   beforeEach(() => {
     fixture = TestBed.createComponent(NgbdModalDeleteWorkflowComponent);
     component = fixture.componentInstance;
   });
 
-  it('should create', () => {
+  it("should create", () => {
     expect(component).toBeTruthy();
   });
 
-  it('deleteProjectComponent deleteSavedProject return a result of true', () => {
+  it("deleteProjectComponent deleteSavedProject return a result of true", () => {
     deleteFixture = TestBed.createComponent(NgbdModalDeleteWorkflowComponent);
     deleteComponent = deleteFixture.componentInstance;
     deleteComponent.workflow = targetWorkflow;
 
-    spyOn(deleteComponent.activeModal, 'close');
+    spyOn(deleteComponent.activeModal, "close");
     deleteComponent.deleteSavedWorkflow();
     expect(deleteComponent.activeModal.close).toHaveBeenCalledWith(true);
   });

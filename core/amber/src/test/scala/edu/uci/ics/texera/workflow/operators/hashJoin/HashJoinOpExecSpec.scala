@@ -9,7 +9,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
   OperatorSchemaInfo,
   Schema
 }
-
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -28,11 +27,11 @@ class HashJoinOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     LayerIdentity("" + counter, "" + counter, "" + counter)
   }
 
-  def tuple(name: String, n: Int = 1, i: Int): Tuple = {
+  def tuple(name: String, n: Int = 1, i: Option[Int]): Tuple = {
 
     Tuple
       .newBuilder(schema(name, n))
-      .addSequentially(Array[Object]((i * 2).toString, i.toString))
+      .addSequentially(Array[Object](i.map(_.toString).orNull, i.map(_.toString).orNull))
       .build()
   }
 
@@ -58,17 +57,18 @@ class HashJoinOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       build,
       "build_1",
       "probe_1",
+      JoinType.INNER,
       OperatorSchemaInfo(inputSchemas, outputSchema)
     )
     opExec.open()
     counter = 0
     (0 to 7).map(i => {
-      assert(opExec.processTexeraTuple(Left(tuple("build", 1, i)), build).isEmpty)
+      assert(opExec.processTexeraTuple(Left(tuple("build", 1, Some(i))), build).isEmpty)
     })
     assert(opExec.processTexeraTuple(Right(InputExhausted()), build).isEmpty)
 
     val outputTuples = (5 to 9)
-      .map(i => opExec.processTexeraTuple(Left(tuple("probe", 1, i)), probe))
+      .map(i => opExec.processTexeraTuple(Left(tuple("probe", 1, Some(i))), probe))
       .foldLeft(Iterator[Tuple]())(_ ++ _)
       .toList
 
@@ -90,17 +90,18 @@ class HashJoinOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       build,
       "same",
       "same",
+      JoinType.INNER,
       OperatorSchemaInfo(inputSchemas, outputSchema)
     )
     opExec.open()
     counter = 0
     (0 to 7).map(i => {
-      assert(opExec.processTexeraTuple(Left(tuple("same", n = 1, i)), build).isEmpty)
+      assert(opExec.processTexeraTuple(Left(tuple("same", n = 1, Some(i))), build).isEmpty)
     })
     assert(opExec.processTexeraTuple(Right(InputExhausted()), build).isEmpty)
 
     val outputTuples = (5 to 9)
-      .map(i => opExec.processTexeraTuple(Left(tuple("same", n = 2, i)), probe))
+      .map(i => opExec.processTexeraTuple(Left(tuple("same", n = 2, Some(i))), probe))
       .foldLeft(Iterator[Tuple]())(_ ++ _)
       .toList
 
@@ -108,6 +109,40 @@ class HashJoinOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
     assert(outputTuples.size == 3)
     assert(outputTuples.head.getSchema.getAttributeNames.size() == 3)
+
+    opExec.close()
+  }
+
+  it should "work with basic two input streams with the same buildAttributeName and probeAttributeName with Full Outer Join" in {
+    opDesc = new HashJoinOpDesc[String]()
+    opDesc.buildAttributeName = "same"
+    opDesc.probeAttributeName = "same"
+    val inputSchemas = Array(schema("same", 1), schema("same", 2))
+    val outputSchema = opDesc.getOutputSchema(inputSchemas)
+    opExec = new HashJoinOpExec[String](
+      build,
+      "same",
+      "same",
+      JoinType.FULL_OUTER,
+      OperatorSchemaInfo(inputSchemas, outputSchema)
+    )
+    opExec.open()
+    counter = 0
+    (0 to 7).map(i => {
+      assert(opExec.processTexeraTuple(Left(tuple("same", n = 1, Some(i))), build).isEmpty)
+    })
+    assert(opExec.processTexeraTuple(Right(InputExhausted()), build).isEmpty)
+
+    assert(
+      (5 to 9)
+        .map(_ => {
+          opExec.processTexeraTuple(Left(tuple("same", n = 2, None)), probe)
+        })
+        .foldLeft(Iterator[Tuple]())(_ ++ _)
+        .size == 5
+    )
+
+    assert(opExec.processTexeraTuple(Right(InputExhausted()), probe).size == 8)
 
     opExec.close()
   }
