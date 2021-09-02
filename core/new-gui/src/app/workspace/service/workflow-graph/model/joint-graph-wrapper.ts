@@ -1,8 +1,8 @@
 import { fromEvent, Observable, ReplaySubject, Subject } from "rxjs";
 import { Point } from "../../../types/workflow-common.interface";
 import * as joint from "jointjs";
-import * as dagre from 'dagre';
-import * as graphlib from 'graphlib';
+import * as dagre from "dagre";
+import * as graphlib from "graphlib";
 import { filter, map } from "rxjs/operators";
 
 type operatorIDsType = { operatorIDs: string[] };
@@ -651,9 +651,9 @@ export class JointGraphWrapper {
       nodeSep: 100,
       edgeSep: 150,
       rankSep: 80,
-      ranker: 'tight-tree',
-      rankDir: 'LR',
-      resizeClusters: true,
+      ranker: "tight-tree",
+      rankDir: "LR",
+      resizeClusters: true
     });
   }
 
@@ -732,7 +732,11 @@ export class JointGraphWrapper {
    * This method repositions the element according to given absolute positions.
    * An element can be an operator or a group.
    */
-  public setAbsolutePosition(elementID: string, posX: number, poY: number): void {
+  public setAbsolutePosition(
+    elementID: string,
+    posX: number,
+    poY: number
+  ): void {
     const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(elementID);
     if (!cell) {
       throw new Error(`element with ID ${elementID} doesn't exist`);

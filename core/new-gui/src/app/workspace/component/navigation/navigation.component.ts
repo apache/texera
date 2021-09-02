@@ -269,11 +269,11 @@ export class NavigationComponent {
    * This method will run the autoLayout function
    *
    */
-    public onClickAutoLayout(): void {
-      if (!this.hasOperators()) {
-        return;
-      }
-      this.workflowActionService.autoLayoutWorkflow();
+  public onClickAutoLayout(): void {
+    if (!this.hasOperators()) {
+      return;
+    }
+    this.workflowActionService.autoLayoutWorkflow();
   }
 
   /**

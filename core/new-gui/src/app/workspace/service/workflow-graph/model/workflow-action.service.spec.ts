@@ -236,7 +236,7 @@ describe("WorkflowActionService", () => {
     expect(texeraGraph.getAllLinks().length).toEqual(0);
   });
 
-  it('should reformat the workflow', () => {
+  it("should reformat the workflow", () => {
     service.addOperator(mockScanPredicate, mockPoint);
     service.addOperator(mockSentimentPredicate, mockPoint);
     service.addOperator(mockResultPredicate, mockPoint);
@@ -247,8 +247,12 @@ describe("WorkflowActionService", () => {
     service.autoLayoutWorkflow();
 
     // test it's actually reformated
-    let sentimentOpPos = service.getJointGraphWrapper().getElementPosition(mockSentimentPredicate.operatorID);
-    let resultOpPos = service.getJointGraphWrapper().getElementPosition(mockResultPredicate.operatorID);
+    let sentimentOpPos = service
+      .getJointGraphWrapper()
+      .getElementPosition(mockSentimentPredicate.operatorID);
+    let resultOpPos = service
+      .getJointGraphWrapper()
+      .getElementPosition(mockResultPredicate.operatorID);
 
     expect(sentimentOpPos).not.toEqual(mockPoint);
     expect(resultOpPos).not.toEqual(mockPoint);
@@ -257,12 +261,15 @@ describe("WorkflowActionService", () => {
     expect(undoRedo.canUndo()).toBeTruthy();
 
     undoRedo.undoAction();
-    sentimentOpPos = service.getJointGraphWrapper().getElementPosition(mockSentimentPredicate.operatorID);
-    resultOpPos = service.getJointGraphWrapper().getElementPosition(mockResultPredicate.operatorID);
+    sentimentOpPos = service
+      .getJointGraphWrapper()
+      .getElementPosition(mockSentimentPredicate.operatorID);
+    resultOpPos = service
+      .getJointGraphWrapper()
+      .getElementPosition(mockResultPredicate.operatorID);
 
     expect(sentimentOpPos).toEqual(mockPoint);
     expect(resultOpPos).toEqual(mockPoint);
-
   });
 
   describe("when linkBreakpoint is enabled", () => {

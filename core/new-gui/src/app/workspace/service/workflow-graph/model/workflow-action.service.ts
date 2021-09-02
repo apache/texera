@@ -740,16 +740,25 @@ export class WorkflowActionService {
   public autoLayoutWorkflow(): void {
     // remeber old position
     const operatorPositions: { [key: string]: Point } = {};
-    this.texeraGraph.getAllOperators().forEach(op => operatorPositions[op.operatorID] =
-      this.getJointGraphWrapper().getElementPosition(op.operatorID));
+    this.texeraGraph
+      .getAllOperators()
+      .forEach(
+        (op) =>
+          (operatorPositions[op.operatorID] =
+            this.getJointGraphWrapper().getElementPosition(op.operatorID))
+      );
     const command: Command = {
       modifiesWorkflow: false,
       execute: () => {
         this.jointGraphWrapper.autoLayoutJoint();
       },
       undo: () => {
-        Object.entries(operatorPositions).forEach(opPosition => {
-          this.jointGraphWrapper.setAbsolutePosition(opPosition[0], opPosition[1].x, opPosition[1].y);
+        Object.entries(operatorPositions).forEach((opPosition) => {
+          this.jointGraphWrapper.setAbsolutePosition(
+            opPosition[0],
+            opPosition[1].x,
+            opPosition[1].y
+          );
         });
       }
     };
