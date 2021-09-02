@@ -731,7 +731,40 @@ export class WorkflowActionService {
     this.executeAndStoreCommand(command);
   }
 
-  // not used I believe
+  /**
+   * Handles the auto layout function
+   *
+   * @param Workflow
+   */
+  // Originally: drag Operator
+  public autoLayoutWorkflow(): void {
+    // remeber old position
+    const operatorPositions: { [key: string]: Point } = {};
+    this.texeraGraph
+      .getAllOperators()
+      .forEach(
+        (op) =>
+          (operatorPositions[op.operatorID] =
+            this.getJointGraphWrapper().getElementPosition(op.operatorID))
+      );
+    const command: Command = {
+      modifiesWorkflow: false,
+      execute: () => {
+        this.jointGraphWrapper.autoLayoutJoint();
+      },
+      undo: () => {
+        Object.entries(operatorPositions).forEach((opPosition) => {
+          this.jointGraphWrapper.setAbsolutePosition(
+            opPosition[0],
+            opPosition[1].x,
+            opPosition[1].y
+          );
+        });
+      }
+    };
+    this.executeAndStoreCommand(command);
+  }
+
   /**
    * Adds a link to the workflow graph
    * Throws an Error if the link ID or the link with same source and target already exists.
