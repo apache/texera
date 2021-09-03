@@ -117,7 +117,6 @@ export class NavigationComponent {
 
     this.handleDisableOperatorStatusChange();
     this.handleCacheOperatorStatusChange();
-
   }
 
   // apply a behavior to the run button via bound variables
@@ -384,11 +383,11 @@ export class NavigationComponent {
 
   public onClickCacheOperators(): void {
     if (this.isCacheOperator) {
-      this.effectivelyHighlightedOperators().forEach(op => {
+      this.effectivelyHighlightedOperators().forEach((op) => {
         this.workflowActionService.getTexeraGraph().cacheOperator(op);
       });
     } else {
-      this.effectivelyHighlightedOperators().forEach(op => {
+      this.effectivelyHighlightedOperators().forEach((op) => {
         this.workflowActionService.getTexeraGraph().unCacheOperator(op);
       });
     }
@@ -502,19 +501,34 @@ export class NavigationComponent {
 
   handleCacheOperatorStatusChange() {
     merge(
-      this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointGroupHighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream(),
-      this.workflowActionService.getTexeraGraph().getCachedOperatorsChangedStream(),
-    ).subscribe(event => {
-      const effectiveHighlightedOperators = this.effectivelyHighlightedOperators();
-      const allCached = this.effectivelyHighlightedOperators().every(
-        op => this.workflowActionService.getTexeraGraph().isOperatorCached(op));
+      this.workflowActionService
+        .getJointGraphWrapper()
+        .getJointOperatorHighlightStream(),
+      this.workflowActionService
+        .getJointGraphWrapper()
+        .getJointOperatorUnhighlightStream(),
+      this.workflowActionService
+        .getJointGraphWrapper()
+        .getJointGroupHighlightStream(),
+      this.workflowActionService
+        .getJointGraphWrapper()
+        .getJointGroupUnhighlightStream(),
+      this.workflowActionService
+        .getTexeraGraph()
+        .getCachedOperatorsChangedStream()
+    )
+      .pipe(untilDestroyed(this))
+      .subscribe((event) => {
+        const effectiveHighlightedOperators =
+          this.effectivelyHighlightedOperators();
+        const allCached = this.effectivelyHighlightedOperators().every((op) =>
+          this.workflowActionService.getTexeraGraph().isOperatorCached(op)
+        );
 
-      this.isCacheOperator = ! allCached;
-      this.isCacheOperatorClickable = effectiveHighlightedOperators.length !== 0;
-    });
+        this.isCacheOperator = !allCached;
+        this.isCacheOperatorClickable =
+          effectiveHighlightedOperators.length !== 0;
+      });
   }
 
   /**

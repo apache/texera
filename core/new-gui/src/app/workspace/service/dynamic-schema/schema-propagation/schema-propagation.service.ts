@@ -11,7 +11,7 @@ import { ExecuteWorkflowService } from "../../execute-workflow/execute-workflow.
 import { WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
 import { DynamicSchemaService } from "../dynamic-schema.service";
 import { catchError, debounceTime, filter, mergeMap } from "rxjs/operators";
-import { WorkflowWebsocketService } from '../../workflow-websocket/workflow-websocket.service';
+import { WorkflowWebsocketService } from "../../workflow-websocket/workflow-websocket.service";
 
 // endpoint for schema propagation
 export const SCHEMA_PROPAGATION_ENDPOINT = "queryplan/autocomplete";
@@ -41,7 +41,7 @@ export class SchemaPropagationService {
     private workflowActionService: WorkflowActionService,
     private dynamicSchemaService: DynamicSchemaService,
     private logger: NGXLogger,
-    private workflowWebsocketService: WorkflowWebsocketService,
+    private workflowWebsocketService: WorkflowWebsocketService
   ) {
     // do nothing if schema propagation is not enabled
     if (!environment.schemaPropagationEnabled) {
@@ -70,16 +70,22 @@ export class SchemaPropagationService {
         this._applySchemaPropagationResult(this.operatorInputSchemaMap);
       });
 
-      merge(
-        this.workflowActionService.getTexeraGraph().getLinkAddStream(),
-        this.workflowActionService.getTexeraGraph().getLinkDeleteStream(),
-        this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream()
-          .pipe(debounceTime(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS)),
-        this.workflowActionService.getTexeraGraph().getDisabledOperatorsChangedStream(),
-        this.workflowActionService.getTexeraGraph().getCachedOperatorsChangedStream(),
-      ).subscribe(() => {
-        this.invokeCacheStatusUpdate();
-      });
+    merge(
+      this.workflowActionService.getTexeraGraph().getLinkAddStream(),
+      this.workflowActionService.getTexeraGraph().getLinkDeleteStream(),
+      this.workflowActionService
+        .getTexeraGraph()
+        .getOperatorPropertyChangeStream()
+        .pipe(debounceTime(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS)),
+      this.workflowActionService
+        .getTexeraGraph()
+        .getDisabledOperatorsChangedStream(),
+      this.workflowActionService
+        .getTexeraGraph()
+        .getCachedOperatorsChangedStream()
+    ).subscribe(() => {
+      this.invokeCacheStatusUpdate();
+    });
   }
 
   public getOperatorInputSchema(
@@ -167,8 +173,9 @@ export class SchemaPropagationService {
 
   private invokeCacheStatusUpdate(): void {
     const workflow = ExecuteWorkflowService.getLogicalPlanRequest(
-      this.workflowActionService.getTexeraGraph());
-    this.workflowWebsocketService.send('CacheStatusUpdateRequest', workflow);
+      this.workflowActionService.getTexeraGraph()
+    );
+    this.workflowWebsocketService.send("CacheStatusUpdateRequest", workflow);
   }
 
   /**

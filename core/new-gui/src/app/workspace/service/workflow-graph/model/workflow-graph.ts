@@ -47,7 +47,10 @@ export class WorkflowGraph {
     newDisabled: string[];
     newEnabled: string[];
   }>();
-  private readonly cachedOperatorChangedSubject = new Subject<{ newCached: string[], newUnCached: string[] }>();
+  private readonly cachedOperatorChangedSubject = new Subject<{
+    newCached: string[];
+    newUnCached: string[];
+  }>();
 
   private readonly linkAddSubject = new Subject<OperatorLink>();
   private readonly linkDeleteSubject = new Subject<{
@@ -153,8 +156,11 @@ export class WorkflowGraph {
     if (this.isOperatorCached(operatorID)) {
       return;
     }
-    this.operatorIDMap.set(operatorID, {...operator, isCached: true});
-    this.cachedOperatorChangedSubject.next({ newCached: [operatorID], newUnCached: [] });
+    this.operatorIDMap.set(operatorID, { ...operator, isCached: true });
+    this.cachedOperatorChangedSubject.next({
+      newCached: [operatorID],
+      newUnCached: []
+    });
   }
 
   public unCacheOperator(operatorID: string): void {
@@ -162,11 +168,14 @@ export class WorkflowGraph {
     if (!operator) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
-    if (! this.isOperatorCached(operatorID)) {
+    if (!this.isOperatorCached(operatorID)) {
       return;
     }
-    this.operatorIDMap.set(operatorID, {...operator, isCached: false});
-    this.cachedOperatorChangedSubject.next({ newCached: [], newUnCached: [operatorID] });
+    this.operatorIDMap.set(operatorID, { ...operator, isCached: false });
+    this.cachedOperatorChangedSubject.next({
+      newCached: [],
+      newUnCached: [operatorID]
+    });
   }
 
   public isOperatorCached(operatorID: string): boolean {
@@ -178,7 +187,11 @@ export class WorkflowGraph {
   }
 
   public getCachedOperators(): ReadonlySet<string> {
-    return new Set(Array.from(this.operatorIDMap.keys()).filter(op => this.isOperatorCached(op)));
+    return new Set(
+      Array.from(this.operatorIDMap.keys()).filter((op) =>
+        this.isOperatorCached(op)
+      )
+    );
   }
 
   /**
@@ -456,7 +469,10 @@ export class WorkflowGraph {
     return this.disabledOperatorChangedSubject.asObservable();
   }
 
-  public getCachedOperatorsChangedStream(): Observable<{ newCached: ReadonlyArray<string>, newUnCached: ReadonlyArray<string> }> {
+  public getCachedOperatorsChangedStream(): Observable<{
+    newCached: ReadonlyArray<string>;
+    newUnCached: ReadonlyArray<string>;
+  }> {
     return this.cachedOperatorChangedSubject.asObservable();
   }
 

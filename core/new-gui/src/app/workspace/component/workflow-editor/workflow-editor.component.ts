@@ -604,18 +604,36 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   private handleOperatorCache(): void {
-    this.workflowActionService.getTexeraGraph().getCachedOperatorsChangedStream().subscribe(event => {
-      event.newCached.concat(event.newUnCached).forEach(opID => {
-        const op = this.workflowActionService.getTexeraGraph().getOperator(opID);
-        this.jointUIService.changeOperatorCacheStatus(this.getJointPaper(), op);
+    this.workflowActionService
+      .getTexeraGraph()
+      .getCachedOperatorsChangedStream()
+      .pipe(untilDestroyed(this))
+      .subscribe((event) => {
+        event.newCached.concat(event.newUnCached).forEach((opID) => {
+          const op = this.workflowActionService
+            .getTexeraGraph()
+            .getOperator(opID);
+          this.jointUIService.changeOperatorCacheStatus(
+            this.getJointPaper(),
+            op
+          );
+        });
       });
-    });
-    this.workflowWebsocketService.subscribeToEvent('CacheStatusUpdateEvent').subscribe(event => {
-      Object.entries(event.cacheStatusMap).forEach(([opID, cacheStatus])  => {
-        const op = this.workflowActionService.getTexeraGraph().getOperator(opID);
-        this.jointUIService.changeOperatorCacheStatus(this.getJointPaper(), op, cacheStatus);
+    this.workflowWebsocketService
+      .subscribeToEvent("CacheStatusUpdateEvent")
+      .pipe(untilDestroyed(this))
+      .subscribe((event) => {
+        Object.entries(event.cacheStatusMap).forEach(([opID, cacheStatus]) => {
+          const op = this.workflowActionService
+            .getTexeraGraph()
+            .getOperator(opID);
+          this.jointUIService.changeOperatorCacheStatus(
+            this.getJointPaper(),
+            op,
+            cacheStatus
+          );
+        });
       });
-    });
   }
 
   /**

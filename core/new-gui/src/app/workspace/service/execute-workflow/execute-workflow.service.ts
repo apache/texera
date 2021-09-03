@@ -85,7 +85,10 @@ export class ExecuteWorkflowService {
         if (newState !== undefined) {
           this.updateExecutionState(newState);
         }
-        if (event.type !== 'HeartBeatResponse' && event.type !== 'WebWorkflowStatusUpdateEvent') {
+        if (
+          event.type !== "HeartBeatResponse" &&
+          event.type !== "WebWorkflowStatusUpdateEvent"
+        ) {
           console.log(event);
         }
       });
@@ -485,9 +488,11 @@ export class ExecuteWorkflowService {
       ExecuteWorkflowService.transformBreakpoint(workflowGraph, e[0], e[1])
     );
 
-    const cachedOperatorIDs: string[] = Array.from(workflowGraph.getCachedOperators()).filter(op => !workflowGraph.isOperatorDisabled(op));
+    const cachedOperatorIDs: string[] = Array.from(
+      workflowGraph.getCachedOperators()
+    ).filter((op) => !workflowGraph.isOperatorDisabled(op));
 
-    return {operators, links, breakpoints, cachedOperatorIDs};
+    return { operators, links, breakpoints, cachedOperatorIDs };
   }
 
   public static transformBreakpoint(
