@@ -1,9 +1,9 @@
-import { TestBed } from '@angular/core/testing';
+import { TestBed } from "@angular/core/testing";
 
-import { WorkflowResultExportService } from './workflow-result-export.service';
-import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { WorkflowResultExportService } from "./workflow-result-export.service";
+import { HttpClientTestingModule } from "@angular/common/http/testing";
 
-describe('WorkflowResultExportService', () => {
+describe("WorkflowResultExportService", () => {
   let service: WorkflowResultExportService;
 
   beforeEach(() => {
@@ -13,7 +13,7 @@ describe('WorkflowResultExportService', () => {
     service = TestBed.inject(WorkflowResultExportService);
   });
 
-  it('should be created', () => {
+  it("should be created", () => {
     expect(service).toBeTruthy();
   });
 });

@@ -20,6 +20,7 @@ class HashJoinOpExecConfig[K](
     id: OperatorIdentity,
     val probeAttributeName: String,
     val buildAttributeName: String,
+    val joinType: JoinType,
     val operatorSchemaInfo: OperatorSchemaInfo
 ) extends OpExecConfig(id) {
 
@@ -51,6 +52,7 @@ class HashJoinOpExecConfig[K](
         buildTable,
         buildAttributeName,
         probeAttributeName,
+        joinType,
         operatorSchemaInfo
       )
   }

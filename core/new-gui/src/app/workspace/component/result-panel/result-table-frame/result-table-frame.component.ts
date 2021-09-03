@@ -1,30 +1,50 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
-import { isEqual } from 'lodash-es';
-import { NzModalRef, NzModalService } from 'ng-zorro-antd/modal';
-import { NzTableQueryParams } from 'ng-zorro-antd/table';
-import { Subscription } from 'rxjs';
-import { assertType } from '../../../../common/util/assert';
-import { trimDisplayJsonData } from '../../../../common/util/json';
-import { ExecuteWorkflowService } from '../../../service/execute-workflow/execute-workflow.service';
-import { ResultPanelToggleService } from '../../../service/result-panel-toggle/result-panel-toggle.service';
-import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
-import { DEFAULT_PAGE_SIZE, WorkflowResultService } from '../../../service/workflow-result/workflow-result.service';
-import { isWebPaginationUpdate } from '../../../types/execute-workflow.interface';
-import { IndexableObject, TableColumn } from '../../../types/result-table.interface';
-import { RowModalComponent } from '../result-panel-modal.component';
+import {
+  Component,
+  Input,
+  OnChanges,
+  OnInit,
+  SimpleChanges
+} from "@angular/core";
+import { isEqual } from "lodash-es";
+import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
+import { NzTableQueryParams } from "ng-zorro-antd/table";
+import { assertType } from "../../../../common/util/assert";
+import { trimDisplayJsonData } from "../../../../common/util/json";
+import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
+import { ResultPanelToggleService } from "../../../service/result-panel-toggle/result-panel-toggle.service";
+import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
+import {
+  DEFAULT_PAGE_SIZE,
+  WorkflowResultService
+} from "../../../service/workflow-result/workflow-result.service";
+import { isWebPaginationUpdate } from "../../../types/execute-workflow.interface";
+import {
+  IndexableObject,
+  TableColumn
+} from "../../../types/result-table.interface";
+import { RowModalComponent } from "../result-panel-modal.component";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
+/**
+ * The Component will display the result in an excel table format,
+ *  where each row represents a result from the workflow,
+ *  and each column represents the type of result the workflow returns.
+ *
+ * Clicking each row of the result table will create an pop-up window
+ *  and display the detail of that row in a pretty json format.
+ */
+@UntilDestroy()
 @Component({
-  selector: 'texera-result-table-frame',
-  templateUrl: './result-table-frame.component.html',
-  styleUrls: ['./result-table-frame.component.scss']
+  selector: "texera-result-table-frame",
+  templateUrl: "./result-table-frame.component.html",
+  styleUrls: ["./result-table-frame.component.scss"]
 })
-export class ResultTableFrameComponent implements OnInit, OnDestroy {
-  // the highlighted operator ID for display result table / visualization / breakpoint
-  resultPanelOperatorID: string | undefined;
+export class ResultTableFrameComponent implements OnInit, OnChanges {
+  @Input() operatorId?: string;
 
   // display result table
-  currentColumns: TableColumn[] | undefined;
-  currentResult: object[] = [];
+  currentColumns?: TableColumn[];
+  currentResult: Record<string, unknown>[] = [];
   //   for more details
   //   see https://ng.ant.design/components/table/en#components-table-demo-ajax
   isFrontPagination: boolean = true;
@@ -39,7 +59,6 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
   currentPageIndex: number = 1;
   totalNumTuples: number = 0;
   pageSize = DEFAULT_PAGE_SIZE;
-  resultUpdateSubscription: Subscription | undefined;
 
   private readonly TABLE_COLUMN_TEXT_LIMIT: number = 1000;
   private readonly PRETTY_JSON_TEXT_LIMIT: number = 50000;
@@ -50,21 +69,31 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
     private resultPanelToggleService: ResultPanelToggleService,
     private workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService
-  ) { }
+  ) {}
+
+  ngOnChanges(changes: SimpleChanges): void {
+    this.operatorId = changes.operatorId?.currentValue;
+    if (this.operatorId) {
+      const paginatedResultService =
+        this.workflowResultService.getPaginatedResultService(this.operatorId);
+      if (paginatedResultService) {
+        this.isFrontPagination = false;
+        this.totalNumTuples = paginatedResultService.getCurrentTotalNumTuples();
+        this.currentPageIndex = paginatedResultService.getCurrentPageIndex();
+        this.changePaginatedResultData();
+      }
+    }
+  }
 
   ngOnInit(): void {
-    // update highlighted operator
-    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    this.resultPanelOperatorID = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
-
-    // display result table by default
-    if (this.resultPanelOperatorID) {
-      const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.resultPanelOperatorID);
-      this.resultUpdateSubscription = this.workflowResultService.getResultUpdateStream().subscribe(update => {
-        if (!this.resultPanelOperatorID) {
+    this.workflowResultService
+      .getResultUpdateStream()
+      .pipe(untilDestroyed(this))
+      .subscribe((update) => {
+        if (!this.operatorId) {
           return;
         }
-        const opUpdate = update[this.resultPanelOperatorID];
+        const opUpdate = update[this.operatorId];
         if (!opUpdate || !isWebPaginationUpdate(opUpdate)) {
           // clear result panel if currently display results
           if (this.totalNumTuples > 0) {
@@ -75,21 +104,13 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
           }
           return;
         }
-        this.totalNumTuples = opUpdate.totalNumTuples;
         this.isFrontPagination = false;
+        this.totalNumTuples = opUpdate.totalNumTuples;
         if (opUpdate.dirtyPageIndices.includes(this.currentPageIndex)) {
           this.changePaginatedResultData();
         }
       });
-      if (paginatedResultService) {
-        this.isFrontPagination = false;
-        this.totalNumTuples = paginatedResultService.getCurrentTotalNumTuples();
-        this.currentPageIndex = paginatedResultService.getCurrentPageIndex();
-        this.changePaginatedResultData();
-      }
-    }
   }
-
 
   /**
    * Callback function for table query params changed event
@@ -102,7 +123,7 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
     if (this.isFrontPagination) {
       return;
     }
-    if (!this.resultPanelOperatorID) {
+    if (!this.operatorId) {
       return;
     }
     this.currentPageIndex = params.pageIndex;
@@ -117,17 +138,21 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
    *
    * @param rowData the object containing the data of the current row in columnDef and cellData pairs
    */
-  open(rowData: object): void {
-
-    let selectedRowIndex = this.currentResult.findIndex(eachRow => isEqual(eachRow, rowData));
+  open(rowData: Record<string, unknown>): void {
+    let selectedRowIndex = this.currentResult.findIndex((eachRow) =>
+      isEqual(eachRow, rowData)
+    );
 
     // generate a new row data that shortens the column text to limit rendering time for pretty json
-    const rowDataCopy = trimDisplayJsonData(rowData as IndexableObject, this.PRETTY_JSON_TEXT_LIMIT);
+    const rowDataCopy = trimDisplayJsonData(
+      rowData as IndexableObject,
+      this.PRETTY_JSON_TEXT_LIMIT
+    );
 
     // open the modal component
     const modalRef: NzModalRef = this.modalService.create({
       // modal title
-      nzTitle: 'Row Details',
+      nzTitle: "Row Details",
       nzContent: RowModalComponent,
       // set component @Input attributes
       nzComponentParams: {
@@ -141,54 +166,61 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
       // modal footer buttons
       nzFooter: [
         {
-          label: '<',
+          label: "<",
           onClick: () => {
             selectedRowIndex -= 1;
             assertType<RowModalComponent>(modalRef.componentInstance);
-            modalRef.componentInstance.currentDisplayRowData = this.currentResult[selectedRowIndex];
+            modalRef.componentInstance.currentDisplayRowData =
+              this.currentResult[selectedRowIndex];
           },
           disabled: () => selectedRowIndex === 0
         },
         {
-          label: '>',
+          label: ">",
           onClick: () => {
             selectedRowIndex += 1;
             assertType<RowModalComponent>(modalRef.componentInstance);
-            modalRef.componentInstance.currentDisplayRowData = this.currentResult[selectedRowIndex];
+            modalRef.componentInstance.currentDisplayRowData =
+              this.currentResult[selectedRowIndex];
           },
           disabled: () => selectedRowIndex === this.currentResult.length - 1
         },
-        { label: 'OK', onClick: () => { modalRef.destroy(); }, type: 'primary' }
+        {
+          label: "OK",
+          onClick: () => {
+            modalRef.destroy();
+          },
+          type: "primary"
+        }
       ]
     });
   }
-
 
   // frontend table data must be changed, because:
   // 1. result panel is opened - must display currently selected page
   // 2. user selects a new page - must display new page data
   // 3. current page is dirty - must re-fetch data
   changePaginatedResultData(): void {
-    if (!this.resultPanelOperatorID) {
+    if (!this.operatorId) {
       return;
     }
-    const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.resultPanelOperatorID);
+    const paginatedResultService =
+      this.workflowResultService.getPaginatedResultService(this.operatorId);
     if (!paginatedResultService) {
       return;
     }
     this.isLoadingResult = true;
-    paginatedResultService.selectPage(this.currentPageIndex, DEFAULT_PAGE_SIZE).subscribe(pageData => {
-      if (this.currentPageIndex === pageData.pageIndex) {
-        this.setupResultTable(pageData.table, paginatedResultService.getCurrentTotalNumTuples());
-      }
-    });
-  }
-
-  ngOnDestroy(): void {
-    if (this.resultUpdateSubscription !== undefined) {
-      this.resultUpdateSubscription.unsubscribe();
-      this.resultUpdateSubscription = undefined;
-    }
+    paginatedResultService
+      .selectPage(this.currentPageIndex, DEFAULT_PAGE_SIZE)
+      .pipe(untilDestroyed(this))
+      .subscribe((pageData) => {
+        if (this.currentPageIndex === pageData.pageIndex) {
+          this.setupResultTable(
+            pageData.table,
+            paginatedResultService.getCurrentTotalNumTuples()
+          );
+        }
+      });
   }
 
   /**
@@ -196,9 +228,13 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
    *  displays a new data table with a new paginator on the result panel.
    *
    * @param resultData rows of the result (may not be all rows if displaying result for workflow completed event)
+   * @param totalRowCount
    */
-  private setupResultTable(resultData: ReadonlyArray<object>, totalRowCount: number) {
-    if (!this.resultPanelOperatorID) {
+  setupResultTable(
+    resultData: ReadonlyArray<Record<string, unknown>>,
+    totalRowCount: number
+  ) {
+    if (!this.operatorId) {
       return;
     }
     if (resultData.length < 1) {
@@ -215,15 +251,14 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
     //  2. Use those names to generate a list of display columns
     //  3. Pass the result data as array to generate a new data table
 
-    let columns: { columnKey: any, columnText: string }[];
+    let columns: { columnKey: any; columnText: string }[];
 
-    const columnKeys = Object.keys(resultData[0]).filter(x => x !== '_id');
-    columns = columnKeys.map(v => ({ columnKey: v, columnText: v }));
+    const columnKeys = Object.keys(resultData[0]).filter((x) => x !== "_id");
+    columns = columnKeys.map((v) => ({ columnKey: v, columnText: v }));
 
     // generate columnDef from first row, column definition is in order
     this.currentColumns = this.generateColumns(columns);
     this.totalNumTuples = totalRowCount;
-
   }
 
   /**
@@ -231,8 +266,10 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
    *
    * @param columns
    */
-  private generateColumns(columns: { columnKey: any, columnText: string }[]): TableColumn[] {
-    return columns.map(col => ({
+  generateColumns(
+    columns: { columnKey: any; columnText: string }[]
+  ): TableColumn[] {
+    return columns.map((col) => ({
       columnDef: col.columnKey,
       header: col.columnText,
       getCell: (row: IndexableObject) => {
@@ -240,13 +277,13 @@ export class ResultTableFrameComponent implements OnInit, OnDestroy {
           return this.trimTableCell(row[col.columnKey].toString());
         } else {
           // allowing null value from backend
-          return '';
+          return "";
         }
       }
     }));
   }
 
-  private trimTableCell(cellContent: string): string {
+  trimTableCell(cellContent: string): string {
     if (cellContent.length > this.TABLE_COLUMN_TEXT_LIMIT) {
       return cellContent.substring(0, this.TABLE_COLUMN_TEXT_LIMIT);
     }

@@ -1,43 +1,49 @@
-import { AfterContentInit, Component, Input, OnDestroy } from '@angular/core';
-import * as c3 from 'c3';
-import { Primitive, PrimitiveArray } from 'c3';
-import * as d3 from 'd3';
-import * as cloud from 'd3-cloud';
-import { ChartType, WordCloudTuple } from '../../types/visualization.interface';
-import { merge, Subject, Subscription } from 'rxjs';
-import { environment } from 'src/environments/environment';
-import * as mapboxgl from 'mapbox-gl';
-import { MapboxLayer } from '@deck.gl/mapbox';
-import { ScatterplotLayer } from '@deck.gl/layers';
-import { ScatterplotLayerProps } from '@deck.gl/layers/scatterplot-layer/scatterplot-layer';
-import { DomSanitizer } from '@angular/platform-browser';
-import { WorkflowResultService } from '../../service/workflow-result/workflow-result.service';
-import { auditTime, debounceTime } from 'rxjs/operators';
+import { AfterContentInit, Component, Input, OnDestroy } from "@angular/core";
+import * as c3 from "c3";
+import { Primitive, PrimitiveArray } from "c3";
+import * as d3 from "d3";
+import * as cloud from "d3-cloud";
+import { ChartType, WordCloudTuple } from "../../types/visualization.interface";
+import { merge, Subject } from "rxjs";
+import { environment } from "src/environments/environment";
+import * as mapboxgl from "mapbox-gl";
+import { MapboxLayer } from "@deck.gl/mapbox";
+import { ScatterplotLayer } from "@deck.gl/layers";
+import { ScatterplotLayerProps } from "@deck.gl/layers/scatterplot-layer/scatterplot-layer";
+import { DomSanitizer } from "@angular/platform-browser";
+import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
+import { auditTime, debounceTime } from "rxjs/operators";
+import { untilDestroyed, UntilDestroy } from "@ngneat/until-destroy";
 
 (mapboxgl as any).accessToken = environment.mapbox.accessToken;
 
-export const wordCloudScaleOptions = ['linear', 'square root', 'logarithmic'] as const;
+export const wordCloudScaleOptions = [
+  "linear",
+  "square root",
+  "logarithmic"
+] as const;
 type WordCloudControlsType = {
-  scale: typeof wordCloudScaleOptions[number]
+  scale: typeof wordCloudScaleOptions[number];
 };
 
 // TODO: The current design doesn't decouple the visualization types into different modules
 /**
  * VisualizationFrameContentComponent displays the chart based on the chart type and data in table.
- *
- * It will convert the table into data format required by c3.js.
+ * It receives the data for visualization and chart type and converts the table into data format
+ * required by c3.js.
  * Then it passes the data and figure type to c3.js for rendering the figure.
- * @author Mingji Han, Xiaozhen Liu
  */
+@UntilDestroy()
 @Component({
-  selector: 'texera-visualization-panel-content',
-  templateUrl: './visualization-frame-content.component.html',
-  styleUrls: ['./visualization-frame-content.component.scss']
+  selector: "texera-visualization-panel-content",
+  templateUrl: "./visualization-frame-content.component.html",
+  styleUrls: ["./visualization-frame-content.component.scss"]
 })
-export class VisualizationFrameContentComponent implements AfterContentInit, OnDestroy {
+export class VisualizationFrameContentComponent
+  implements AfterContentInit, OnDestroy {
   // this readonly variable must be the same as HTML element ID for visualization
-  public static readonly CHART_ID = '#texera-result-chart-content';
-  public static readonly MAP_CONTAINER = 'texera-result-map-container';
+  public static readonly CHART_ID = "#texera-result-chart-content";
+  public static readonly MAP_CONTAINER = "texera-result-map-container";
 
   // width and height of the canvas in px
   public static readonly WIDTH = 1000;
@@ -53,40 +59,45 @@ export class VisualizationFrameContentComponent implements AfterContentInit, OnD
     radiusScale: 100,
     radiusMinPixels: 1,
     radiusMaxPixels: 25,
-    getPosition: (d: { xColumn: number; yColumn: number; }) => [d.xColumn, d.yColumn],
+    getPosition: (d: { xColumn: number; yColumn: number }) => [
+      d.xColumn,
+      d.yColumn
+    ],
     getFillColor: [57, 73, 171]
   };
 
   wordCloudScaleOptions = wordCloudScaleOptions; // make this a class variable so template can access it
   // word cloud related controls
   wordCloudControls: WordCloudControlsType = {
-    scale: 'linear',
+    scale: "linear"
   };
 
   wordCloudControlUpdateObservable = new Subject<WordCloudControlsType>();
 
-  htmlData: any = '';
+  htmlData: any = "";
 
   @Input()
-  operatorID: string | undefined;
+  operatorId?: string;
   displayHTML: boolean = false; // variable to decide whether to display the container to display the HTML container(iFrame)
   displayWordCloud: boolean = false; // variable to decide whether to display the container for world cloud visualization
   displayMap: boolean = true; // variable to decide whether to hide/un-hide the map
-  data: ReadonlyArray<object> | undefined;
-  chartType: ChartType | undefined;
+  data?: ReadonlyArray<object>;
+  chartType?: ChartType;
   columns: string[] = [];
 
-  private wordCloudElement: d3.Selection<SVGGElement, unknown, HTMLElement, any> | undefined;
-  private c3ChartElement: c3.ChartAPI | undefined;
-  private map: mapboxgl.Map | undefined;
-
-  private updateSubscription: Subscription | undefined;
+  private wordCloudElement?: d3.Selection<
+    SVGGElement,
+    unknown,
+    HTMLElement,
+    any
+  >;
+  private c3ChartElement?: c3.ChartAPI;
+  private map?: mapboxgl.Map;
 
   constructor(
     private workflowResultService: WorkflowResultService,
     private sanitizer: DomSanitizer
-  ) {
-  }
+  ) {}
 
   ngAfterContentInit() {
     // attempt to draw chart immediately
@@ -94,14 +105,19 @@ export class VisualizationFrameContentComponent implements AfterContentInit, OnD
 
     // setup an event lister that re-draws the chart content every (n) milliseconds
     // auditTime makes sure the first re-draw happens after (n) milliseconds has elapsed
-    const resultUpdate = this.workflowResultService.getResultUpdateStream()
+    const resultUpdate = this.workflowResultService
+      .getResultUpdateStream()
       .pipe(auditTime(VisualizationFrameContentComponent.UPDATE_INTERVAL_MS));
-    const controlUpdate = this.wordCloudControlUpdateObservable
-      .pipe(debounceTime(VisualizationFrameContentComponent.WORD_CLOUD_CONTROL_UPDATE_INTERVAL_MS));
-
-    this.updateSubscription = merge(resultUpdate, controlUpdate).subscribe(() => {
-      this.drawChart();
-    });
+    const controlUpdate = this.wordCloudControlUpdateObservable.pipe(
+      debounceTime(
+        VisualizationFrameContentComponent.WORD_CLOUD_CONTROL_UPDATE_INTERVAL_MS
+      )
+    );
+    merge(resultUpdate, controlUpdate)
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.drawChart();
+      });
   }
 
   ngOnDestroy() {
@@ -114,16 +130,15 @@ export class VisualizationFrameContentComponent implements AfterContentInit, OnD
     if (this.map) {
       this.map.remove();
     }
-    if (this.updateSubscription) {
-      this.updateSubscription.unsubscribe();
-    }
   }
 
   drawChart() {
-    if (!this.operatorID) {
+    if (!this.operatorId) {
       return;
     }
-    const operatorResultService = this.workflowResultService.getResultService(this.operatorID);
+    const operatorResultService = this.workflowResultService.getResultService(
+      this.operatorId
+    );
     if (!operatorResultService) {
       return;
     }
@@ -211,7 +226,7 @@ export class VisualizationFrameContentComponent implements AfterContentInit, OnD
     }
     /* after the map is defined and the base
     style is loaded, we add a layer of the data points */
-    this.map?.on('styledata', () => {
+    this.map?.on("styledata", () => {
       this.addNewOrReplaceExistingLayer();
     });
   }
@@ -220,7 +235,7 @@ export class VisualizationFrameContentComponent implements AfterContentInit, OnD
     /* mapbox object with default configuration */
     this.map = new mapboxgl.Map({
       container: VisualizationFrameContentComponent.MAP_CONTAINER,
-      style: 'mapbox://styles/mapbox/light-v9',
+      style: "mapbox://styles/mapbox/light-v9",
       center: [-96.35, 39.5],
       zoom: 3,
       maxZoom: 17,
@@ -232,20 +247,19 @@ export class VisualizationFrameContentComponent implements AfterContentInit, OnD
     if (!this.map) {
       return;
     }
-    if (this.map?.getLayer('scatter')) {
-      this.map?.removeLayer('scatter');
+    if (this.map?.getLayer("scatter")) {
+      this.map?.removeLayer("scatter");
     }
 
     const clusterLayer = new MapboxLayer({
-      id: 'scatter',
+      id: "scatter",
       type: ScatterplotLayer,
       data: this.data,
-      pickable: true,
+      pickable: true
     });
     clusterLayer.setProps(VisualizationFrameContentComponent.props);
     this.map.addLayer(clusterLayer);
   }
-
 
   updateWordCloudScale(scale: typeof wordCloudScaleOptions[number]) {
     if (this.wordCloudControls.scale !== scale) {
@@ -260,15 +274,20 @@ export class VisualizationFrameContentComponent implements AfterContentInit, OnD
     }
 
     if (this.wordCloudElement === undefined) {
-      this.wordCloudElement =
-        d3.select(VisualizationFrameContentComponent.CHART_ID)
-          .append('svg')
-          .attr('width', VisualizationFrameContentComponent.WIDTH)
-          .attr('height', VisualizationFrameContentComponent.HEIGHT)
-          .append('g')
-          .attr('transform',
-            'translate(' + VisualizationFrameContentComponent.WIDTH / 2 + ','
-            + VisualizationFrameContentComponent.HEIGHT / 2 + ')');
+      this.wordCloudElement = d3
+        .select(VisualizationFrameContentComponent.CHART_ID)
+        .append("svg")
+        .attr("width", VisualizationFrameContentComponent.WIDTH)
+        .attr("height", VisualizationFrameContentComponent.HEIGHT)
+        .append("g")
+        .attr(
+          "transform",
+          "translate(" +
+            VisualizationFrameContentComponent.WIDTH / 2 +
+            "," +
+            VisualizationFrameContentComponent.HEIGHT / 2 +
+            ")"
+        );
     }
 
     const wordCloudTuples = this.data as ReadonlyArray<WordCloudTuple>;
@@ -279,49 +298,60 @@ export class VisualizationFrameContentComponent implements AfterContentInit, OnD
       }
       const d3Fill = d3.scaleOrdinal(d3.schemeCategory10);
 
-      const wordCloudData = this.wordCloudElement.selectAll<d3.BaseType, cloud.Word>('g text').data(words, d => d.text ?? '');
+      const wordCloudData = this.wordCloudElement
+        .selectAll<d3.BaseType, cloud.Word>("g text")
+        .data(words, (d) => d.text ?? "");
 
-      wordCloudData.enter()
-        .append('text')
-        .style('font-size', (d) => d.size ?? 0 + 'px')
-        .style('fill', d => d3Fill(d.text ?? ''))
-        .attr('font-family', 'Impact')
-        .attr('text-anchor', 'middle')
-        .attr('transform', (d) => 'translate(' + [d.x, d.y] + ')rotate(' + d.rotate + ')')
+      wordCloudData
+        .enter()
+        .append("text")
+        .style("font-size", (d) => d.size ?? 0 + "px")
+        .style("fill", (d) => d3Fill(d.text ?? ""))
+        .attr("font-family", "Impact")
+        .attr("text-anchor", "middle")
+        .attr(
+          "transform",
+          (d) => "translate(" + [d.x, d.y] + ")rotate(" + d.rotate + ")"
+        )
         // this text() call must be at the end or it won't work
-        .text(d => d.text ?? '');
+        .text((d) => d.text ?? "");
 
       // Entering and existing words
-      wordCloudData.transition()
+      wordCloudData
+        .transition()
         .duration(300)
-        .attr('font-family', 'Impact')
-        .style('font-size', d => d.size + 'px')
-        .attr('transform', d => 'translate(' + [d.x, d.y] + ')rotate(' + d.rotate + ')')
-        .style('fill-opacity', 1);
+        .attr("font-family", "Impact")
+        .style("font-size", (d) => d.size + "px")
+        .attr(
+          "transform",
+          (d) => "translate(" + [d.x, d.y] + ")rotate(" + d.rotate + ")"
+        )
+        .style("fill-opacity", 1);
 
       // Exiting words
-      wordCloudData.exit()
+      wordCloudData
+        .exit()
         .transition()
         .duration(100)
-        .attr('font-family', 'Impact')
-        .style('fill-opacity', 1e-6)
-        .attr('font-size', 1)
+        .attr("font-family", "Impact")
+        .style("fill-opacity", 1e-6)
+        .attr("font-size", 1)
         .remove();
     };
 
-    const minCount = Math.min(...wordCloudTuples.map(t => t.count));
-    const maxCount = Math.max(...wordCloudTuples.map(t => t.count));
+    const minCount = Math.min(...wordCloudTuples.map((t) => t.count));
+    const maxCount = Math.max(...wordCloudTuples.map((t) => t.count));
 
     const minFontSize = 50;
     const maxFontSize = 150;
 
     const getScale: () => d3.ScaleContinuousNumeric<number, number> = () => {
       switch (this.wordCloudControls.scale) {
-        case 'linear':
+        case "linear":
           return d3.scaleLinear();
-        case 'logarithmic':
+        case "logarithmic":
           return d3.scaleLog();
-        case 'square root':
+        case "square root":
           return d3.scaleSqrt();
       }
     };
@@ -329,15 +359,20 @@ export class VisualizationFrameContentComponent implements AfterContentInit, OnD
     d3Scale.domain([minCount, maxCount]).range([minFontSize, maxFontSize]);
 
     const layout = cloud()
-      .size([VisualizationFrameContentComponent.WIDTH, VisualizationFrameContentComponent.HEIGHT])
-      .words(wordCloudTuples.map(t => ({ text: t.word, size: d3Scale(t.count) })))
-      .text(d => d.text ?? '')
+      .size([
+        VisualizationFrameContentComponent.WIDTH,
+        VisualizationFrameContentComponent.HEIGHT
+      ])
+      .words(
+        wordCloudTuples.map((t) => ({ text: t.word, size: d3Scale(t.count) }))
+      )
+      .text((d) => d.text ?? "")
       .padding(5)
       .rotate(() => 0)
-      .font('Impact')
-      .fontSize(d => d.size ?? 0)
+      .font("Impact")
+      .fontSize((d) => d.size ?? 0)
       .random(() => 1)
-      .on('end', drawWordCloud);
+      .on("end", drawWordCloud);
 
     layout.start();
   }
@@ -358,7 +393,7 @@ export class VisualizationFrameContentComponent implements AfterContentInit, OnD
     for (const row of this.data) {
       const items: [string, ...PrimitiveArray] = [Object.values(row)[0]];
       for (let i = 1; i < columnCount; i++) {
-        items.push(Number((Object.values(row)[i])));
+        items.push(Number(Object.values(row)[i]));
       }
       dataToDisplay.push(items);
     }
@@ -377,19 +412,20 @@ export class VisualizationFrameContentComponent implements AfterContentInit, OnD
       },
       axis: {
         x: {
-          type: 'category',
+          type: "category",
           categories: category
         }
       },
       bindto: VisualizationFrameContentComponent.CHART_ID
     });
-
   }
 
   generateHTML() {
     if (!this.data) {
       return;
     }
-    this.htmlData = this.sanitizer.bypassSecurityTrustHtml(Object(this.data[0])['html-content']); // this line bypasses angular security
+    this.htmlData = this.sanitizer.bypassSecurityTrustHtml(
+      Object(this.data[0])["html-content"]
+    ); // this line bypasses angular security
   }
 }
