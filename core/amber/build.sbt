@@ -65,16 +65,14 @@ val dropwizardDependencies = Seq(
   "com.fasterxml.jackson.module" % "jackson-module-jsonSchema" % jacksonVersion,
   "com.fasterxml.jackson.module" % "jackson-module-scala_2.12" % jacksonVersion,
   // https://mvnrepository.com/artifact/commons-io/commons-io
-   "commons-io" % "commons-io" % "2.11.0"
+  "commons-io" % "commons-io" % "2.11.0"
 )
-
-
 
 // deps from library
 //"com.kjetland" % "mbknor-jackson-jsonschema_2.12" % "1.0.39"
 
 val slf4jVersion = "1.7.26"
-val mbknorJacksonJsonSchemaDependencies  = Seq(
+val mbknorJacksonJsonSchemaDependencies = Seq(
   "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
   "javax.validation" % "validation-api" % "2.0.1.Final",
   "org.slf4j" % "slf4j-api" % slf4jVersion,
@@ -219,3 +217,9 @@ libraryDependencies += "org.tukaani" % "xz" % "1.5"
 
 // https://mvnrepository.com/artifact/org.jasypt/jasypt
 libraryDependencies += "org.jasypt" % "jasypt" % "1.9.3"
+
+// https://mvnrepository.com/artifact/org.mongodb/mongo-java-driver
+libraryDependencies += "org.mongodb" % "mongo-java-driver" % "3.12.10"
+
+// https://mvnrepository.com/artifact/org.apache.commons/commons-jcs3-core/3.0
+libraryDependencies += "org.apache.commons" % "commons-jcs3-core" % "3.0"

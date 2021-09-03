@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
+import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
 import org.jgrapht.graph.DirectedAcyclicGraph
 
 import scala.collection.mutable
@@ -27,7 +28,9 @@ case class WorkflowInfo(
     operators: mutable.MutableList[OperatorDescriptor],
     links: mutable.MutableList[OperatorLink],
     breakpoints: mutable.MutableList[BreakpointInfo]
-)
+) {
+  var cachedOperatorIDs: mutable.MutableList[String] = _
+}
 
 // helper class that converts the workflowInfo into a graph data structure
 class WorkflowDAG(workflowInfo: WorkflowInfo) {
@@ -42,13 +45,15 @@ class WorkflowDAG(workflowInfo: WorkflowInfo) {
     operators.keys.filter(op => jgraphtDag.inDegreeOf(op) == 0).toList
 
   val sinkOperators: List[String] =
-    operators.keys.filter(op => jgraphtDag.outDegreeOf(op) == 0).toList
+    operators.keys
+      .filter(op => operators(op).isInstanceOf[SimpleSinkOpDesc])
+      .toList
 
   def getOperator(operatorID: String): OperatorDescriptor = operators(operatorID)
 
-  def getSourceOperators: List[String] = this.sourceOperators;
+  def getSourceOperators: List[String] = this.sourceOperators
 
-  def getSinkOperators: List[String] = this.sinkOperators;
+  def getSinkOperators: List[String] = this.sinkOperators
 
   def getUpstream(operatorID: String): List[OperatorDescriptor] = {
     val upstream = new mutable.MutableList[OperatorDescriptor]
@@ -60,7 +65,7 @@ class WorkflowDAG(workflowInfo: WorkflowInfo) {
     val downstream = new mutable.MutableList[OperatorDescriptor]
     jgraphtDag
       .outgoingEdgesOf(operatorID)
-      .forEach(e => downstream += operators(e.origin.operatorID))
+      .forEach(e => downstream += operators(e.destination.operatorID))
     downstream.toList
   }
 
