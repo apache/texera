@@ -35,6 +35,7 @@ import {
   Point
 } from "../../types/workflow-common.interface";
 import { auditTime, filter, map } from "rxjs/operators";
+import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 // argument type of callback event on a JointJS Paper
@@ -130,6 +131,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     private jointUIService: JointUIService,
     private workflowStatusService: WorkflowStatusService,
     private workflowUtilService: WorkflowUtilService,
+    private workflowWebsocketService: WorkflowWebsocketService,
     private executeWorkflowService: ExecuteWorkflowService
   ) {}
 
@@ -149,6 +151,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handlePaperZoom();
     this.handleWindowResize();
     this.handleViewDeleteOperator();
+    this.handleOperatorCache();
     this.handleCellHighlight();
     this.handleDisableOperator();
     this.handleViewDeleteLink();
@@ -230,7 +233,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
           if (
             !this.workflowActionService.getTexeraGraph().hasOperator(operatorID)
           ) {
-            throw new Error(`operator ${operatorID} does not exist`);
+            return;
           }
           if (
             this.executeWorkflowService.getExecutionState().state ===
@@ -595,6 +598,39 @@ export class WorkflowEditorComponent implements AfterViewInit {
           this.jointUIService.changeOperatorDisableStatus(
             this.getJointPaper(),
             op
+          );
+        });
+      });
+  }
+
+  private handleOperatorCache(): void {
+    this.workflowActionService
+      .getTexeraGraph()
+      .getCachedOperatorsChangedStream()
+      .pipe(untilDestroyed(this))
+      .subscribe((event) => {
+        event.newCached.concat(event.newUnCached).forEach((opID) => {
+          const op = this.workflowActionService
+            .getTexeraGraph()
+            .getOperator(opID);
+          this.jointUIService.changeOperatorCacheStatus(
+            this.getJointPaper(),
+            op
+          );
+        });
+      });
+    this.workflowWebsocketService
+      .subscribeToEvent("CacheStatusUpdateEvent")
+      .pipe(untilDestroyed(this))
+      .subscribe((event) => {
+        Object.entries(event.cacheStatusMap).forEach(([opID, cacheStatus]) => {
+          const op = this.workflowActionService
+            .getTexeraGraph()
+            .getOperator(opID);
+          this.jointUIService.changeOperatorCacheStatus(
+            this.getJointPaper(),
+            op,
+            cacheStatus
           );
         });
       });
