@@ -18,7 +18,7 @@ class CacheSinkOpExec(uuid: String, dest: OpResultStorage) extends ITupleSinkOpe
   private val logger = Logger(this.getClass.getName)
 
   override def getResultTuples(): List[ITuple] = {
-    logger.info("Get resultt tuples.")
+    logger.info("Get result tuples.")
     val tuples = dest.get(uuid)
     assert(null != tuples)
     logger.info("result tuples length: {}", tuples.length)
