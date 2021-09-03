@@ -1,4 +1,5 @@
-export interface AccessEntry extends Readonly<{
-  userName: string;
-  accessLevel: string;
-}> {}
+export interface AccessEntry
+  extends Readonly<{
+    userName: string;
+    accessLevel: string;
+  }> {}

@@ -1,7 +1,6 @@
 package edu.uci.ics.amber.engine.common.rpc
 
 import com.twitter.util.Future
-import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlOutputPort
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
 import edu.uci.ics.amber.engine.common.AmberLogging
@@ -60,6 +59,7 @@ class AsyncRPCServer(controlOutputPort: ControlOutputPort, val actorId: ActorVir
           returnResult(senderID, control.commandID, ret)
         }
         .onFailure { err =>
+          logger.error("Exception occurred", err)
           returnResult(senderID, control.commandID, err)
         }
 

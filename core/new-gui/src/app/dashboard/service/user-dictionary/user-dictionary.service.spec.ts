@@ -49,7 +49,6 @@
 //     expect(service.getUserDictionaries()).toBeFalsy();
 //   });
 
-
 //   it('should refresh file after user login', () => {
 //     const spy = spyOn(service, 'refreshDictionaries').and.callThrough();
 

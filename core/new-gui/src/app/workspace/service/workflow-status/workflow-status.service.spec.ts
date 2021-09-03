@@ -1,12 +1,7 @@
-import { TestBed, inject } from '@angular/core/testing';
-
-import { WorkflowStatusService } from './workflow-status.service';
-import * as Rx from 'rxjs';
-import * as RxJSWebSocket from 'rxjs/webSocket';
-import { environment } from './../../../../environments/environment';
+import { WorkflowStatusService } from "./workflow-status.service";
 
 // TODO: this test case related to websocket is not stable, find out why and fix it
-xdescribe('WorkflowStatusService', () => {
+xdescribe("WorkflowStatusService", () => {
   // let workflowStatusService: WorkflowStatusService;
   // let mockBackend: Rx.Subject<string>;
   // let backendTester: Rx.Subject<string>;
@@ -34,24 +29,19 @@ xdescribe('WorkflowStatusService', () => {
   //       WorkflowStatusService,
   //     ]
   //   });
-
   //   // since webSocket is a function in rxjs/webSocket, it is very hard to spy on
   //   // I found the following way of replacing it with mockBackend online.
   //   const funcSpy = jasmine.createSpy('webSocket').and.returnValue(mockConnect('abc'));
   //   spyOnProperty(RxJSWebSocket, 'webSocket', 'get').and.returnValue(funcSpy);
   //   workflowStatusService = TestBed.get(WorkflowStatusService);
   // });
-
   // beforeAll(() => {
   //   environment.executionStatusEnabled = true;
   // });
-
   // afterAll(() => {
   //   environment.executionStatusEnabled = false;
   // });
-
   // it('should be created', inject([WorkflowStatusService], (service: WorkflowStatusService) => {
   //   expect(service).toBeTruthy();
   // }));
-
 });
