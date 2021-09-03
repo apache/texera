@@ -62,6 +62,7 @@ export class NavigationComponent {
   public isDisableOperatorClickable: boolean = false;
   public isDisableOperator: boolean = true;
 
+  public operatorCacheEnabled: boolean = environment.operatorCacheEnabled;
   public isCacheOperatorClickable: boolean = false;
   public isCacheOperator: boolean = true;
 

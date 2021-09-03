@@ -158,7 +158,7 @@
           <i nz-icon nzTheme="twotone" nzType="stop"></i>
         </button>
         <button
-          *ngIf="isCacheOperator || ! isCacheOperatorClickable"
+          *ngIf="operatorCacheEnabled && (isCacheOperator || ! isCacheOperatorClickable)"
           [disabled]="! isCacheOperatorClickable"
           (click)="onClickCacheOperators()"
           nz-button
@@ -167,7 +167,7 @@
           <i nz-icon nzType="database" nzTheme="outline"></i>
         </button>
         <button
-          *ngIf="! isCacheOperator && isCacheOperatorClickable"
+          *ngIf="operatorCacheEnabled && (! isCacheOperator && isCacheOperatorClickable)"
           [disabled]="! isCacheOperatorClickable"
           (click)="onClickCacheOperators()"
           nz-button
