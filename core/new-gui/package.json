@@ -16,7 +16,7 @@
     "e2e": "ng e2e",
     "preinstall": "cd multi-target && yarn install && yarn run build",
     "multi-target-updater": "cd multi-target && yarn run build && cd .. && yarn install ./multi-target -D",
-    "postinstall": "node git-version.js && ngcc && yarn --cwd node_modules/@danmarshall/deckgl-typings run postinstall"
+    "postinstall": "node git-version.js && ngcc --properties es2015 browser module main --first-only --create-ivy-entry-points && yarn --cwd node_modules/@danmarshall/deckgl-typings run postinstall"
   },
   "private": true,
   "dependencies": {
