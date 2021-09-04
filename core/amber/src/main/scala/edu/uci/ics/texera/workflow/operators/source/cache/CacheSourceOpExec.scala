@@ -13,7 +13,7 @@ class CacheSourceOpExec(uuid: String, opResultStorage: OpResultStorage)
 
   override def produceTexeraTuple(): Iterator[Tuple] = {
     assert(null != uuid)
-    logger.info("Retrieve cached output from {}.", this.toString)
+    logger.debug("Retrieve cached output from {}.", this.toString)
     opResultStorage.get(uuid).iterator
   }
 

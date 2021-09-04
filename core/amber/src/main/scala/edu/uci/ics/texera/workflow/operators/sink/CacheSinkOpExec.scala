@@ -19,10 +19,9 @@ class CacheSinkOpExec(uuid: String, dest: OpResultStorage)
   val results: mutable.MutableList[Tuple] = mutable.MutableList()
 
   override def getResultTuples(): List[ITuple] = {
-    logger.info("Get result tuples.")
     val tuples = dest.get(uuid)
     assert(null != tuples)
-    logger.info("result tuples length: {}", tuples.length)
+    logger.debug("result tuples length: {}", tuples.length)
     tuples
   }
 
@@ -36,7 +35,6 @@ class CacheSinkOpExec(uuid: String, dest: OpResultStorage)
       tuple: Either[ITuple, InputExhausted],
       input: LinkIdentity
   ): Iterator[ITuple] = {
-    logger.debug("Processing tuple {}", tuple.toString)
     tuple match {
       case Left(t) => results += t.asInstanceOf[Tuple]
       case Right(_) =>
