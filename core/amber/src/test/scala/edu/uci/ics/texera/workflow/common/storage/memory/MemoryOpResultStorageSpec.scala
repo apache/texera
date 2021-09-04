@@ -18,7 +18,7 @@ class MemoryOpResultStorageSpec extends AnyFlatSpec with BeforeAndAfter {
     opResultStorage = new MemoryOpResultStorage()
   }
 
-  it should "read nothing from mongoDB" in {
+  it should "read nothing from memory" in {
     val res = opResultStorage.get("should return nothing")
     assert(0 == res.length)
   }
