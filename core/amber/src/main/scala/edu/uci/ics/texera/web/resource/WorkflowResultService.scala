@@ -103,7 +103,7 @@ object WorkflowResultService {
 case class WebResultUpdateEvent(updates: Map[String, WebResultUpdate]) extends TexeraWebSocketEvent
 
 /**
-  * WorkflowResultServiceV2 manages the materialized result of all sink operators in one workflow execution.
+  * WorkflowResultService manages the materialized result of all sink operators in one workflow execution.
   *
   * On each result update from the engine, WorkflowResultService
   *  - update the result data for each operator,
