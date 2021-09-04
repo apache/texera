@@ -29,8 +29,8 @@ class MongoOpResultStorage extends OpResultStorage {
   val collectionSet: mutable.HashSet[String] = mutable.HashSet[String]()
 
   override def put(key: String, records: List[Tuple]): Unit = {
+    lock.lock()
     try {
-      lock.lock()
       logger.debug("put {} of length {} start", key, records.stringPrefix)
       val collection = database.getCollection(key)
       if (collectionSet.contains(key)) {
@@ -55,8 +55,8 @@ class MongoOpResultStorage extends OpResultStorage {
   }
 
   override def get(key: String): List[Tuple] = {
+    lock.lock()
     try {
-      lock.lock()
       logger.debug("get {} start", key)
       val collection = database.getCollection(key)
       val cursor = collection.find().sort(Sorts.ascending("index")).cursor()
@@ -74,8 +74,8 @@ class MongoOpResultStorage extends OpResultStorage {
   }
 
   override def remove(key: String): Unit = {
+    lock.lock()
     try {
-      lock.lock()
       logger.debug("remove {} start", key)
       collectionSet.remove(key)
       database.getCollection(key).drop()
