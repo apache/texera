@@ -1,9 +1,9 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
-import com.typesafe.scalalogging.Logger
-import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
+import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowRewriter.copyOperator
 import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
@@ -23,17 +23,15 @@ object WorkflowRewriter {
 }
 
 class WorkflowRewriter(
-    var workflowInfo: WorkflowInfo,
-    var cachedOperatorDescriptors: mutable.HashMap[String, OperatorDescriptor],
-    var cacheSourceOperatorDescriptors: mutable.HashMap[String, CacheSourceOpDesc],
-    var cacheSinkOperatorDescriptors: mutable.HashMap[String, CacheSinkOpDesc],
-    var operatorRecord: mutable.HashMap[String, WorkflowVertex],
-    var opResultStorage: OpResultStorage
-) {
+    val workflowInfo: WorkflowInfo,
+    val cachedOperatorDescriptors: mutable.HashMap[String, OperatorDescriptor],
+    val cacheSourceOperatorDescriptors: mutable.HashMap[String, CacheSourceOpDesc],
+    val cacheSinkOperatorDescriptors: mutable.HashMap[String, CacheSinkOpDesc],
+    val operatorRecord: mutable.HashMap[String, WorkflowVertex],
+    val opResultStorage: OpResultStorage
+) extends LazyLogging {
 
-  private val logger = Logger(this.getClass.getName)
-
-  var visitedOpID: mutable.HashSet[String] = new mutable.HashSet[String]()
+  var visitedOpIdSet: mutable.HashSet[String] = new mutable.HashSet[String]()
 
   private val workflowDAG: WorkflowDAG = if (workflowInfo != null) {
     new WorkflowDAG(workflowInfo)
@@ -45,46 +43,46 @@ class WorkflowRewriter(
   } else {
     null
   }
-  private val r1NewOps = if (workflowInfo != null) {
+  private val addCacheSinkNewOps = if (workflowInfo != null) {
     mutable.MutableList[OperatorDescriptor]()
   } else {
     null
   }
-  private val r1NewLinks = if (workflowInfo != null) {
+  private val addCacheSinkNewLinks = if (workflowInfo != null) {
     mutable.MutableList[OperatorLink]()
   } else {
     null
   }
-  private val r1NewBreakpoints = if (workflowInfo != null) {
+  private val addCacheSinkNewBreakpoints = if (workflowInfo != null) {
     mutable.MutableList[BreakpointInfo]()
   } else {
     null
   }
-  private val r2NewOps = if (workflowInfo != null) {
+  private val addCacheSourceNewOps = if (workflowInfo != null) {
     mutable.MutableList[OperatorDescriptor]()
   } else {
     null
   }
-  private val r2NewLinks = if (workflowInfo != null) {
+  private val addCacheSourceNewLinks = if (workflowInfo != null) {
     mutable.MutableList[OperatorLink]()
   } else {
     null
   }
-  private val r2NewBreakpoints = if (workflowInfo != null) {
+  private val addCacheSourceNewBreakpoints = if (workflowInfo != null) {
     mutable.MutableList[BreakpointInfo]()
   } else {
     null
   }
-  private val r2OpIDQue = if (workflowInfo != null) {
+  private val addCacheSourceOpIdQue = if (workflowInfo != null) {
     new mutable.Queue[String]()
   } else {
     null
   }
 
-  var r1WorkflowInfo: WorkflowInfo = _
-  var r1WorkflowDAG: WorkflowDAG = _
-  var r2WorkflowInfo: WorkflowInfo = _
-  var r2WorkflowDAG: WorkflowDAG = _
+  var addCacheSinkWorkflowInfo: WorkflowInfo = _
+  var addCacheSinkWorkflowDAG: WorkflowDAG = _
+  var addCacheSourceWorkflowInfo: WorkflowInfo = _
+  var addCacheSourceWorkflowDAG: WorkflowDAG = _
 
   def rewrite: WorkflowInfo = {
     if (null == workflowInfo) {
@@ -94,88 +92,97 @@ class WorkflowRewriter(
       logger.info("Rewriting workflow {}", workflowInfo)
       checkCacheValidity()
 
-      workflowDAG.getSinkOperators.foreach(r2OpIDQue.+=)
-      while (r2OpIDQue.nonEmpty) {
-        r2(r2OpIDQue.dequeue())
+      workflowDAG.getSinkOperators.foreach(addCacheSourceOpIdQue.+=)
+
+      // Topological traverse and add cache source operators.
+      while (addCacheSourceOpIdQue.nonEmpty) {
+        addCacheSource(addCacheSourceOpIdQue.dequeue())
       }
-      val r2TmpLinks = mutable.MutableList[OperatorLink]()
-      val r2TmpOpIDs = r2NewOps.map(op => op.operatorID)
-      r2NewLinks.foreach(link => {
-        if (r2TmpOpIDs.contains(link.destination.operatorID)) {
-          if (r2TmpOpIDs.contains(link.origin.operatorID)) {
-            r2TmpLinks += link
+
+      // Collect the output of adding cache source.
+      val addCacheSourceTmpLinks = mutable.MutableList[OperatorLink]()
+      val addCacheSourceTmpOpIds = addCacheSourceNewOps.map(op => op.operatorID)
+      addCacheSourceNewLinks.foreach(link => {
+        if (addCacheSourceTmpOpIds.contains(link.destination.operatorID)) {
+          if (addCacheSourceTmpOpIds.contains(link.origin.operatorID)) {
+            addCacheSourceTmpLinks += link
           }
         }
       })
-      r2NewLinks.clear()
-      r2TmpLinks.foreach(r2NewLinks.+=)
+      addCacheSourceNewLinks.clear()
+      addCacheSourceTmpLinks.foreach(addCacheSourceNewLinks.+=)
 
-      r2WorkflowInfo = WorkflowInfo(r2NewOps, r2NewLinks, r2NewBreakpoints)
-      r2WorkflowDAG = new WorkflowDAG(r2WorkflowInfo)
-      r2WorkflowDAG.getSinkOperators.foreach(r2OpIDQue.+=)
+      addCacheSourceWorkflowInfo =
+        WorkflowInfo(addCacheSourceNewOps, addCacheSourceNewLinks, addCacheSourceNewBreakpoints)
+      addCacheSourceWorkflowDAG = new WorkflowDAG(addCacheSourceWorkflowInfo)
+      addCacheSourceWorkflowDAG.getSinkOperators.foreach(addCacheSourceOpIdQue.+=)
 
-      val r1OpIDIter = r2WorkflowDAG.jgraphtDag.iterator()
-      var r1OpIDs: mutable.MutableList[String] = mutable.MutableList[String]()
-      r1OpIDIter.forEachRemaining(id => r1OpIDs.+=(id))
-      r1OpIDs = r1OpIDs.reverse
-      r1OpIDs.foreach(r1)
+      // Topological traverse and add cache sink operators.
+      val addCacheSinkOpIdIter = addCacheSourceWorkflowDAG.jgraphtDag.iterator()
+      var addCacheSinkOpIds: mutable.MutableList[String] = mutable.MutableList[String]()
+      addCacheSinkOpIdIter.forEachRemaining(opId => addCacheSinkOpIds.+=(opId))
+      addCacheSinkOpIds = addCacheSinkOpIds.reverse
+      addCacheSinkOpIds.foreach(addCacheSink)
 
-      new WorkflowInfo(r1NewOps, r1NewLinks, r1NewBreakpoints)
+      new WorkflowInfo(addCacheSinkNewOps, addCacheSinkNewLinks, addCacheSinkNewBreakpoints)
     }
   }
 
-  private def r1(opID: String): Unit = {
-    val op = r2WorkflowDAG.getOperator(opID)
+  private def addCacheSink(opId: String): Unit = {
+    val op = addCacheSourceWorkflowDAG.getOperator(opId)
     if (isCacheEnabled(op) && !isCacheValid(op)) {
-      val cacheSinkOp = generateCacheSinkOperator_v2(op)
+      val cacheSinkOp = generateCacheSinkOperator(op)
       val cacheSinkLink = generateCacheSinkLink(cacheSinkOp, op)
-      r1NewOps += cacheSinkOp
-      r1NewLinks += cacheSinkLink
+      addCacheSinkNewOps += cacheSinkOp
+      addCacheSinkNewLinks += cacheSinkLink
     }
-    r1NewOps += op
-    r2WorkflowDAG.jgraphtDag
-      .outgoingEdgesOf(opID)
+    addCacheSinkNewOps += op
+    addCacheSourceWorkflowDAG.jgraphtDag
+      .outgoingEdgesOf(opId)
       .forEach(link => {
-        r1NewLinks += link
+        addCacheSinkNewLinks += link
       })
-    r2WorkflowInfo.breakpoints.foreach(breakpoint => {
-      if (breakpoint.operatorID.equals(opID)) {
-        r1NewBreakpoints += breakpoint
+    addCacheSourceWorkflowInfo.breakpoints.foreach(breakpoint => {
+      if (breakpoint.operatorID.equals(opId)) {
+        addCacheSinkNewBreakpoints += breakpoint
       }
     })
   }
 
-  private def r2(opID: String): Unit = {
-    val op = workflowDAG.getOperator(opID)
+  private def addCacheSource(opId: String): Unit = {
+    val op = workflowDAG.getOperator(opId)
     if (isCacheEnabled(op) && isCacheValid(op)) {
       val cacheSourceOp = getCacheSourceOperator(op)
-      r2NewOps += cacheSourceOp
+      addCacheSourceNewOps += cacheSourceOp
       workflowDAG.jgraphtDag
-        .outgoingEdgesOf(opID)
+        .outgoingEdgesOf(opId)
         .forEach(link => {
           val src = OperatorPort(cacheSourceOp.operatorID, link.origin.portOrdinal)
           val dest = link.destination
-          r2NewLinks += OperatorLink(src, dest)
+          addCacheSourceNewLinks += OperatorLink(src, dest)
         })
       workflowInfo.breakpoints.foreach(breakpoint => {
-        if (breakpoint.operatorID.equals(opID)) {
-          r2NewBreakpoints += BreakpointInfo(cacheSourceOp.operatorID, breakpoint.breakpoint)
+        if (breakpoint.operatorID.equals(opId)) {
+          addCacheSourceNewBreakpoints += BreakpointInfo(
+            cacheSourceOp.operatorID,
+            breakpoint.breakpoint
+          )
         }
       })
     } else {
-      r2NewOps += op
-      workflowDAG.jgraphtDag.outgoingEdgesOf(opID).forEach(link => r2NewLinks.+=(link))
+      addCacheSourceNewOps += op
+      workflowDAG.jgraphtDag.outgoingEdgesOf(opId).forEach(link => addCacheSourceNewLinks.+=(link))
       workflowInfo.breakpoints.foreach(breakpoint => {
         if (breakpoint.operatorID.equals(op.operatorID)) {
-          r2NewBreakpoints += breakpoint
+          addCacheSourceNewBreakpoints += breakpoint
         }
       })
       workflowDAG
-        .getUpstream(opID)
+        .getUpstream(opId)
         .map(_.operatorID)
-        .foreach(id => {
-          if (!r2OpIDQue.contains(id)) {
-            r2OpIDQue += id
+        .foreach(opId => {
+          if (!addCacheSourceOpIdQue.contains(opId)) {
+            addCacheSourceOpIdQue += opId
           }
         })
     }
@@ -185,75 +192,75 @@ class WorkflowRewriter(
 
     val invalidSet = mutable.HashSet[String]()
 
-    def invalidateOperatorCache(id: String): Unit = {
-      if (cachedOperatorDescriptors.contains(id)) {
-        cachedOperatorDescriptors.remove(id)
-        cacheSinkOperatorDescriptors.remove(id)
-        cacheSourceOperatorDescriptors.remove(id)
-        invalidSet += id
+    def invalidateOperatorCacheForCacheStatusUpdate(opId: String): Unit = {
+      if (cachedOperatorDescriptors.contains(opId)) {
+        cachedOperatorDescriptors.remove(opId)
+        cacheSinkOperatorDescriptors.remove(opId)
+        cacheSourceOperatorDescriptors.remove(opId)
+        invalidSet += opId
       }
-      logger.info("Operator {} cache invalidated.", id)
+      logger.info("Operator {} cache invalidated.", opId)
     }
 
-    def invalidateOperatorCacheRecursively(opID: String): Unit = {
-      invalidateOperatorCache(opID)
+    def invalidateOperatorCacheRecursivelyForCacheStatusUpdate(opId: String): Unit = {
+      invalidateOperatorCacheForCacheStatusUpdate(opId)
       workflowDAG
-        .getDownstream(opID)
+        .getDownstream(opId)
         .foreach(desc => {
-          invalidateOperatorCacheRecursively(desc.operatorID)
+          invalidateOperatorCacheRecursivelyForCacheStatusUpdate(desc.operatorID)
         })
     }
 
-    def isUpdated(opID: String): Boolean = {
-      if (!operatorRecord.contains(opID)) {
-        operatorRecord += ((opID, getWorkflowVertex(workflowDAG.getOperator(opID))))
-        logger.info("Vertex {} is not recorded.", operatorRecord(opID))
+    def isUpdatedForCacheStatusUpdate(opId: String): Boolean = {
+      if (!operatorRecord.contains(opId)) {
+        operatorRecord += ((opId, getWorkflowVertex(workflowDAG.getOperator(opId))))
+        logger.info("Vertex {} is not recorded.", operatorRecord(opId))
         true
-      } else if (workflowInfo.cachedOperatorIDs.contains(opID)) {
-        !operatorRecord(opID).equals(getWorkflowVertex(workflowDAG.getOperator(opID)))
+      } else if (workflowInfo.cachedOperatorIds.contains(opId)) {
+        !operatorRecord(opId).equals(getWorkflowVertex(workflowDAG.getOperator(opId)))
       } else {
-        val vertex = getWorkflowVertex(workflowDAG.getOperator(opID))
-        if (!operatorRecord(opID).equals(vertex)) {
-          operatorRecord(opID) = vertex
-          logger.info("Vertex {} is updated.", operatorRecord(opID))
+        val vertex = getWorkflowVertex(workflowDAG.getOperator(opId))
+        if (!operatorRecord(opId).equals(vertex)) {
+          operatorRecord(opId) = vertex
+          logger.info("Vertex {} is updated.", operatorRecord(opId))
           true
-        } else if (cachedOperatorDescriptors.contains(opID)) {
-          !workflowInfo.cachedOperatorIDs.contains(opID)
+        } else if (cachedOperatorDescriptors.contains(opId)) {
+          !workflowInfo.cachedOperatorIds.contains(opId)
         } else {
-          logger.info("Operator: {} is not updated.", operatorRecord(opID))
+          logger.info("Operator: {} is not updated.", operatorRecord(opId))
           false
         }
       }
     }
 
-    def cacheStatusUpdateHelper(opID: String): Unit = {
-      if (visitedOpID.contains(opID)) {
+    def invalidateIfUpdatedForCacheStatusUpdate(opId: String): Unit = {
+      if (visitedOpIdSet.contains(opId)) {
         return
       }
-      visitedOpID += opID
+      visitedOpIdSet += opId
       logger.info(
         "Checking update status of operator {}.",
-        workflowDAG.getOperator(opID).toString
+        workflowDAG.getOperator(opId).toString
       )
-      if (isUpdated(opID)) {
-        invalidateOperatorCache(opID)
+      if (isUpdatedForCacheStatusUpdate(opId)) {
+        invalidateOperatorCacheForCacheStatusUpdate(opId)
         workflowDAG
-          .getDownstream(opID)
+          .getDownstream(opId)
           .map(op => op.operatorID)
-          .foreach(invalidateOperatorCacheRecursively)
+          .foreach(invalidateOperatorCacheRecursivelyForCacheStatusUpdate)
       }
     }
 
     val opIter = workflowDAG.jgraphtDag.iterator()
     while (opIter.hasNext) {
-      val opID = opIter.next()
-      if (!visitedOpID.contains(opID)) {
-        cacheStatusUpdateHelper(opID)
+      val opId = opIter.next()
+      if (!visitedOpIdSet.contains(opId)) {
+        invalidateIfUpdatedForCacheStatusUpdate(opId)
       }
     }
     workflowInfo.operators
       .map(op => op.operatorID)
-      .filterNot(visitedOpID.contains)
+      .filterNot(visitedOpIdSet.contains)
       .foreach(invalidSet.+=)
     invalidSet
   }
@@ -262,119 +269,119 @@ class WorkflowRewriter(
     val opIter = workflowDAG.jgraphtDag.iterator()
     while (opIter.hasNext) {
       val id = opIter.next()
-      if (!visitedOpID.contains(id)) {
+      if (!visitedOpIdSet.contains(id)) {
         invalidateIfUpdated(id)
       }
     }
   }
 
-  private def invalidateIfUpdated(operatorID: String): Unit = {
-    if (visitedOpID.contains(operatorID)) {
+  private def invalidateIfUpdated(operatorId: String): Unit = {
+    if (visitedOpIdSet.contains(operatorId)) {
       return
     }
-    visitedOpID += operatorID
+    visitedOpIdSet += operatorId
     logger.info(
       "Checking update status of operator {}.",
-      workflowDAG.getOperator(operatorID).toString
+      workflowDAG.getOperator(operatorId).toString
     )
-    if (isUpdated(operatorID)) {
-      invalidateOperatorCache(operatorID)
+    if (isUpdated(operatorId)) {
+      invalidateOperatorCache(operatorId)
       workflowDAG
-        .getDownstream(operatorID)
+        .getDownstream(operatorId)
         .map(op => op.operatorID)
         .foreach(invalidateOperatorCacheRecursively)
     }
   }
 
-  def isUpdated(id: String): Boolean = {
-    if (!operatorRecord.contains(id)) {
-      operatorRecord += ((id, getWorkflowVertex(workflowDAG.getOperator(id))))
-      logger.info("Vertex {} is not recorded.", operatorRecord(id))
+  def isUpdated(opId: String): Boolean = {
+    if (!operatorRecord.contains(opId)) {
+      operatorRecord += ((opId, getWorkflowVertex(workflowDAG.getOperator(opId))))
+      logger.info("Vertex {} is not recorded.", operatorRecord(opId))
       true
-    } else if (workflowInfo.cachedOperatorIDs.contains(id)) {
-      if (cachedOperatorDescriptors.contains(id)) {
-        val vertex = getWorkflowVertex(workflowDAG.getOperator(id))
-        if (operatorRecord(id).equals(vertex)) {
+    } else if (workflowInfo.cachedOperatorIds.contains(opId)) {
+      if (cachedOperatorDescriptors.contains(opId)) {
+        val vertex = getWorkflowVertex(workflowDAG.getOperator(opId))
+        if (operatorRecord(opId).equals(vertex)) {
           false
         } else {
-          operatorRecord(id) = vertex
+          operatorRecord(opId) = vertex
           true
         }
       } else {
         true
       }
     } else {
-      val vertex = getWorkflowVertex(workflowDAG.getOperator(id))
-      if (!operatorRecord(id).equals(vertex)) {
-        operatorRecord(id) = vertex
-        logger.info("Vertex {} is updated.", operatorRecord(id))
+      val vertex = getWorkflowVertex(workflowDAG.getOperator(opId))
+      if (!operatorRecord(opId).equals(vertex)) {
+        operatorRecord(opId) = vertex
+        logger.info("Vertex {} is updated.", operatorRecord(opId))
         true
-      } else if (cachedOperatorDescriptors.contains(id)) {
-        !workflowInfo.cachedOperatorIDs.contains(id)
+      } else if (cachedOperatorDescriptors.contains(opId)) {
+        !workflowInfo.cachedOperatorIds.contains(opId)
       } else {
-        logger.info("Operator: {} is not updated.", operatorRecord(id))
+        logger.info("Operator: {} is not updated.", operatorRecord(opId))
         false
       }
     }
   }
 
-  private def invalidateOperatorCache(id: String): Unit = {
-    if (cachedOperatorDescriptors.contains(id)) {
-      cachedOperatorDescriptors.remove(id)
-      opResultStorage.remove(cacheSinkOperatorDescriptors(id).uuid)
-      cacheSinkOperatorDescriptors.remove(id)
-      cacheSourceOperatorDescriptors.remove(id)
+  private def invalidateOperatorCache(opId: String): Unit = {
+    if (cachedOperatorDescriptors.contains(opId)) {
+      cachedOperatorDescriptors.remove(opId)
+      opResultStorage.remove(cacheSinkOperatorDescriptors(opId).uuid)
+      cacheSinkOperatorDescriptors.remove(opId)
+      cacheSourceOperatorDescriptors.remove(opId)
     }
-    logger.info("Operator {} cache invalidated.", id)
+    logger.info("Operator {} cache invalidated.", opId)
   }
 
-  private def invalidateOperatorCacheRecursively(operatorID: String): Unit = {
-    invalidateOperatorCache(operatorID)
+  private def invalidateOperatorCacheRecursively(opId: String): Unit = {
+    invalidateOperatorCache(opId)
     workflowDAG
-      .getDownstream(operatorID)
+      .getDownstream(opId)
       .foreach(desc => {
         invalidateOperatorCacheRecursively(desc.operatorID)
       })
   }
 
-  private def isCacheEnabled(operatorDescriptor: OperatorDescriptor): Boolean = {
-    if (!workflowInfo.cachedOperatorIDs.contains(operatorDescriptor.operatorID)) {
-      cachedOperatorDescriptors.remove(operatorDescriptor.operatorID)
-      logger.info("Operator {} cache not enabled.", operatorDescriptor)
+  private def isCacheEnabled(desc: OperatorDescriptor): Boolean = {
+    if (!workflowInfo.cachedOperatorIds.contains(desc.operatorID)) {
+      cachedOperatorDescriptors.remove(desc.operatorID)
+      logger.info("Operator {} cache not enabled.", desc)
       return false
     }
-    logger.info("Operator {} cache enabled.", operatorDescriptor)
+    logger.info("Operator {} cache enabled.", desc)
     true
   }
 
-  private def isCacheValid(operatorDescriptor: OperatorDescriptor): Boolean = {
-    logger.info("Checking the cache validity of operator {}.", operatorDescriptor.toString)
-    assert(isCacheEnabled(operatorDescriptor))
-    if (cachedOperatorDescriptors.contains(operatorDescriptor.operatorID)) {
+  private def isCacheValid(desc: OperatorDescriptor): Boolean = {
+    logger.info("Checking the cache validity of operator {}.", desc.toString)
+    assert(isCacheEnabled(desc))
+    if (cachedOperatorDescriptors.contains(desc.operatorID)) {
       if (
-        getCachedOperator(operatorDescriptor).equals(
-          operatorDescriptor
+        getCachedOperator(desc).equals(
+          desc
         ) && !rewrittenToCacheOperatorIDs.contains(
-          operatorDescriptor.operatorID
+          desc.operatorID
         )
       ) {
-        logger.info("Operator {} cache valid.", operatorDescriptor)
+        logger.info("Operator {} cache valid.", desc)
         return true
       }
-      logger.info("Operator {} cache invalid.", operatorDescriptor)
+      logger.info("Operator {} cache invalid.", desc)
     } else {
       logger.info("cachedOperators: {}.", cachedOperatorDescriptors.toString())
-      logger.info("Operator {} is never cached.", operatorDescriptor)
+      logger.info("Operator {} is never cached.", desc)
     }
     false
   }
 
-  private def getCachedOperator(operatorDescriptor: OperatorDescriptor): OperatorDescriptor = {
-    assert(cachedOperatorDescriptors.contains(operatorDescriptor.operatorID))
-    cachedOperatorDescriptors(operatorDescriptor.operatorID)
+  private def getCachedOperator(desc: OperatorDescriptor): OperatorDescriptor = {
+    assert(cachedOperatorDescriptors.contains(desc.operatorID))
+    cachedOperatorDescriptors(desc.operatorID)
   }
 
-  private def generateCacheSinkOperator_v2(
+  private def generateCacheSinkOperator(
       operatorDescriptor: OperatorDescriptor
   ): CacheSinkOpDesc = {
     logger.info("Generating CacheSinkOperator for operator {}.", operatorDescriptor.toString)
@@ -404,16 +411,15 @@ class WorkflowRewriter(
       dest: OperatorDescriptor,
       src: OperatorDescriptor
   ): OperatorLink = {
-    //TODO: How to set the port ordinal?
     val destPort: OperatorPort = OperatorPort(dest.operatorID, 0)
     val srcPort: OperatorPort = OperatorPort(src.operatorID, 0)
     OperatorLink(srcPort, destPort)
   }
 
-  def getWorkflowVertex(op: OperatorDescriptor): WorkflowVertex = {
-    val opInVertex = copyOperator(op)
+  def getWorkflowVertex(desc: OperatorDescriptor): WorkflowVertex = {
+    val opInVertex = copyOperator(desc)
     val links = mutable.HashSet[OperatorLink]()
-    if (!workflowDAG.operators.contains(op.operatorID)) {
+    if (!workflowDAG.operators.contains(desc.operatorID)) {
       null
     } else {
       workflowDAG.jgraphtDag.incomingEdgesOf(opInVertex.operatorID).forEach(link => links.+=(link))
