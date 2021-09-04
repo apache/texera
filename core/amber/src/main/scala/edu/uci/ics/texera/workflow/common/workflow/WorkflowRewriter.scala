@@ -86,7 +86,7 @@ class WorkflowRewriter(
 
   def rewrite: WorkflowInfo = {
     if (null == workflowInfo) {
-      logger.info("Rewriting workflow null")
+      logger.debug("Rewriting workflow null")
       null
     } else {
       logger.info("Rewriting workflow {}", workflowInfo)
