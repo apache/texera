@@ -43,7 +43,6 @@ class MongoOpResultStorage extends OpResultStorage {
       collection.insertMany(documents)
       collection.createIndex(Indexes.ascending("index"), new IndexOptions().unique(true))
       logger.debug(s"put $key of length ${records.length} end")
-      lock.unlock()
     } finally {
       lock.unlock()
     }
@@ -59,7 +58,6 @@ class MongoOpResultStorage extends OpResultStorage {
       while (cursor.hasNext) {
         recordBuffer += json2tuple(cursor.next().get("record").toString)
       }
-      lock.unlock()
       val res = recordBuffer.toList
       logger.debug(s"get $key of length ${res.length} end")
       res
@@ -75,7 +73,6 @@ class MongoOpResultStorage extends OpResultStorage {
       collectionSet.remove(key)
       database.getCollection(key).drop()
       logger.debug(s"remove $key end")
-      lock.unlock()
     } finally {
       lock.unlock()
     }
