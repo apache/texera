@@ -29,7 +29,7 @@ case class WorkflowInfo(
     links: mutable.MutableList[OperatorLink],
     breakpoints: mutable.MutableList[BreakpointInfo]
 ) {
-  var cachedOperatorIDs: mutable.MutableList[String] = _
+  var cachedOperatorIds: mutable.MutableList[String] = _
 }
 
 // helper class that converts the workflowInfo into a graph data structure
