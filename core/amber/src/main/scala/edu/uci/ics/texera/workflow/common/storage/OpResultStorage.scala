@@ -1,31 +1,35 @@
 package edu.uci.ics.texera.workflow.common.storage
 
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 /**
   * Public interface of operator result storage.
   */
-trait OpResultStorage extends Serializable {
+trait OpResultStorage extends Serializable with LazyLogging {
 
   /**
     * Put the result of an operator to OpResultStorage.
-    * @param opID The operator ID.
+    * @param key The key used for storage and retrieval.
+    *            Currently it is the uuid inside the cache source or cache sink operator.
     * @param records The results.
     */
-  def put(opID: String, records: List[Tuple]): Unit
+  def put(key: String, records: List[Tuple]): Unit
 
   /**
     * Retrieve the result of an operator from OpResultStorage
-    * @param opID The operator ID.
+    * @param key The key used for storage and retrieval.
+    *            Currently it is the uuid inside the cache source or cache sink operator.
     * @return The result of this operator.
     */
-  def get(opID: String): List[Tuple]
+  def get(key: String): List[Tuple]
 
   /**
     * Manually remove an entry from the cache.
-    * @param opID The key to remove.
+    * @param key The key used for storage and retrieval.
+    *            Currently it is the uuid inside the cache source or cache sink operator.
     */
-  def remove(opID: String): Unit
+  def remove(key: String): Unit
 
   /**
     * Dump everything in result storage. Called when the system exits.

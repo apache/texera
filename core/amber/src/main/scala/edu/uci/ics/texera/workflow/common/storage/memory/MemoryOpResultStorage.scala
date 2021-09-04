@@ -1,48 +1,35 @@
 package edu.uci.ics.texera.workflow.common.storage.memory
 
-import com.typesafe.scalalogging.Logger
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
-import java.util.concurrent.locks.ReentrantLock
-import scala.collection.mutable
+import java.util.concurrent.ConcurrentHashMap
 
 class MemoryOpResultStorage extends OpResultStorage {
 
-  private val logger = Logger(this.getClass.getName)
-
-  private val lock = new ReentrantLock()
-
-  val cache: mutable.Map[String, List[Tuple]] = mutable.HashMap[String, List[Tuple]]()
+  val cache: ConcurrentHashMap[String, List[Tuple]] = new ConcurrentHashMap[String, List[Tuple]]()
 
   override def put(key: String, records: List[Tuple]): Unit = {
-    lock.lock()
-    logger.debug("put {} start", key)
-    cache(key) = records
-    logger.debug("put {} end", key)
-    lock.unlock()
+    logger.debug("put {} of length {} start", key, records.length)
+    // This is an atomic operation.
+    cache.put(key, records)
+    logger.debug("put {} of length {} end", key, records.length)
   }
 
   override def get(key: String): List[Tuple] = {
-    lock.lock()
     logger.debug("get {} start", key)
-    var res: List[Tuple] = List[Tuple]()
-    if (cache.contains(key)) {
-      res = cache(key)
+    var res = cache.get(key)
+    if (res == null) {
+      res = List[Tuple]()
     }
-    logger.debug("get {} end", key)
-    lock.unlock()
+    logger.debug("get {} of length {} end", key, res.length)
     res
   }
 
   override def remove(key: String): Unit = {
-    lock.lock()
     logger.debug("remove {} start", key)
-    if (cache.contains(key)) {
-      cache.remove(key)
-    }
+    cache.remove(key)
     logger.debug("remove {} end", key)
-    lock.unlock()
   }
 
   override def dump(): Unit = {
@@ -54,8 +41,6 @@ class MemoryOpResultStorage extends OpResultStorage {
   }
 
   override def close(): Unit = {
-    lock.lock()
     cache.clear()
-    lock.unlock()
   }
 }
