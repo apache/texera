@@ -16,8 +16,7 @@ object Constants {
   var masterNodeAddr: Option[String] = None
   var defaultTau: FiniteDuration = 10.milliseconds
 
-  var storage: String = AmberUtils.amberConfig.getString("constants.storage")
-  var mongodbUrl: String = AmberUtils.amberConfig.getString("constants.mongodb-url")
-  var mongodbDatabaseName: String =
-    AmberUtils.amberConfig.getString("constants.mongodb-database-name")
+  var storage: String = AmberUtils.amberConfig.getString("cache.storage")
+  var mongodbUrl: String = AmberUtils.amberConfig.getString("cache.mongodb.url")
+  var mongodbDatabaseName: String = AmberUtils.amberConfig.getString("cache.mongodb.database")
 }
