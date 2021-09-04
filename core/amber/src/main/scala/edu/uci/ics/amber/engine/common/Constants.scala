@@ -15,5 +15,4 @@ object Constants {
   var currentDataSetNum = 0
   var masterNodeAddr: Option[String] = None
   var defaultTau: FiniteDuration = 10.milliseconds
-
 }
