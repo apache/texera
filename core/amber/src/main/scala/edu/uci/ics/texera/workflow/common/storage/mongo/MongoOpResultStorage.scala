@@ -49,12 +49,8 @@ class MongoOpResultStorage extends OpResultStorage {
       collection.createIndex(Indexes.ascending("index"), new IndexOptions().unique(true))
       logger.debug("put {} of length {} end", key, records.length)
       lock.unlock()
-    } catch {
-      case e: Exception => logger.error(e.getMessage)
     } finally {
-      if (lock.isLocked) {
-        lock.unlock()
-      }
+      lock.unlock()
     }
   }
 
@@ -72,14 +68,8 @@ class MongoOpResultStorage extends OpResultStorage {
       val res = recordBuffer.toList
       logger.debug("get {} of length {} end", key, res.length)
       res
-    } catch {
-      case e: Exception =>
-        logger.error(e.getMessage)
-        List[Tuple]()
     } finally {
-      if (lock.isLocked) {
-        lock.unlock()
-      }
+      lock.unlock()
     }
   }
 
@@ -91,12 +81,8 @@ class MongoOpResultStorage extends OpResultStorage {
       database.getCollection(key).drop()
       logger.debug("remove {} end", key)
       lock.unlock()
-    } catch {
-      case e: Exception => logger.error(e.getMessage)
     } finally {
-      if (lock.isLocked) {
-        lock.unlock()
-      }
+      lock.unlock()
     }
   }
 

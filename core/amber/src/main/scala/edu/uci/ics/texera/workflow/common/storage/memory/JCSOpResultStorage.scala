@@ -21,12 +21,8 @@ class JCSOpResultStorage extends OpResultStorage {
       cache.put(key, records)
       logger.debug("put {} of length {} end", key, records.length)
       lock.unlock()
-    } catch {
-      case e: Exception => logger.error(e.getMessage)
     } finally {
-      if (lock.isLocked) {
-        lock.unlock()
-      }
+      lock.unlock()
     }
   }
 
@@ -41,14 +37,8 @@ class JCSOpResultStorage extends OpResultStorage {
       logger.debug("get {} of length {} end", key, res.length)
       lock.unlock()
       res
-    } catch {
-      case e: Exception =>
-        logger.error(e.getMessage)
-        List[Tuple]()
     } finally {
-      if (lock.isLocked) {
-        lock.unlock()
-      }
+      lock.unlock()
     }
   }
 
@@ -59,12 +49,8 @@ class JCSOpResultStorage extends OpResultStorage {
       cache.remove(key)
       logger.debug("remove {} end", key)
       lock.unlock()
-    } catch {
-      case e: Exception => logger.error(e.getMessage)
     } finally {
-      if (lock.isLocked) {
-        lock.unlock()
-      }
+      lock.unlock()
     }
   }
 
