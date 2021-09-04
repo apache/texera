@@ -266,6 +266,17 @@ export class NavigationComponent {
   }
 
   /**
+   * This method will run the autoLayout function
+   *
+   */
+  public onClickAutoLayout(): void {
+    if (!this.hasOperators()) {
+      return;
+    }
+    this.workflowActionService.autoLayoutWorkflow();
+  }
+
+  /**
    * This is the handler for the execution result export button.
    *
    */
