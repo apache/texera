@@ -17,9 +17,9 @@ class JCSOpResultStorage extends OpResultStorage {
   override def put(key: String, records: List[Tuple]): Unit = {
     lock.lock()
     try {
-      logger.debug("put {} of length {} start", key, records.length)
+      logger.debug(s"put $key of length ${records.length} start")
       cache.put(key, records)
-      logger.debug("put {} of length {} end", key, records.length)
+      logger.debug(s"put $key of length ${records.length} end")
     } finally {
       lock.unlock()
     }
@@ -28,12 +28,12 @@ class JCSOpResultStorage extends OpResultStorage {
   override def get(key: String): List[Tuple] = {
     lock.lock()
     try {
-      logger.debug("get {} start", key)
+      logger.debug(s"get $key start")
       var res = cache.get(key)
       if (res == null) {
         res = List[Tuple]()
       }
-      logger.debug("get {} of length {} end", key, res.length)
+      logger.debug(s"get $key of length ${res.length} end")
       res
     } finally {
       lock.unlock()
@@ -43,26 +43,23 @@ class JCSOpResultStorage extends OpResultStorage {
   override def remove(key: String): Unit = {
     lock.lock()
     try {
-      logger.debug("remove {} start", key)
+      logger.debug(s"remove $key start")
       cache.remove(key)
-      logger.debug("remove {} end", key)
+      logger.debug(s"remove $key end")
     } finally {
       lock.unlock()
     }
   }
 
   override def dump(): Unit = {
-    logger.error("Method not implemented.")
     throw new NotImplementedException()
   }
 
   override def load(): Unit = {
-    logger.error("Method not implemented.")
     throw new NotImplementedException()
   }
 
   override def close(): Unit = {
-    logger.error("Method not implemented.")
     throw new NotImplementedException()
   }
 }

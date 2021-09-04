@@ -10,34 +10,31 @@ class MemoryOpResultStorage extends OpResultStorage {
   val cache: ConcurrentHashMap[String, List[Tuple]] = new ConcurrentHashMap[String, List[Tuple]]()
 
   override def put(key: String, records: List[Tuple]): Unit = {
-    logger.debug("put {} of length {} start", key, records.length)
+    logger.debug(s"put $key of length ${records.length} start")
     // This is an atomic operation.
     cache.put(key, records)
-    logger.debug("put {} of length {} end", key, records.length)
+    logger.debug(s"put $key of length ${records.length} end")
   }
 
   override def get(key: String): List[Tuple] = {
-    logger.debug("get {} start", key)
-    var res = cache.get(key)
-    if (res == null) {
-      res = List[Tuple]()
-    }
-    logger.debug("get {} of length {} end", key, res.length)
+    logger.debug(s"get $key start")
+    val res = cache.getOrDefault(key, List[Tuple]())
+    logger.debug(s"get $key of length ${res.length} end")
     res
   }
 
   override def remove(key: String): Unit = {
-    logger.debug("remove {} start", key)
+    logger.debug(s"remove $key start")
     cache.remove(key)
-    logger.debug("remove {} end", key)
+    logger.debug(s"remove $key end")
   }
 
   override def dump(): Unit = {
-    throw new Exception("not implemented")
+    throw new NotImplementedError()
   }
 
   override def load(): Unit = {
-    throw new Exception("not implemented")
+    throw new NotImplementedError()
   }
 
   override def close(): Unit = {

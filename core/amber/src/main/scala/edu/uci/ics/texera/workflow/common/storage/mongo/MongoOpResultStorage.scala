@@ -16,22 +16,17 @@ import scala.collection.mutable.ListBuffer
 
 class MongoOpResultStorage extends OpResultStorage {
 
-  private val lock = new ReentrantLock()
-
   val url: String = Constants.mongodbUrl
-
   val databaseName: String = Constants.mongodbDatabaseName
-
   val client: MongoClient = MongoClients.create(url)
-
   val database: MongoDatabase = client.getDatabase(databaseName)
-
   val collectionSet: mutable.HashSet[String] = mutable.HashSet[String]()
+  private val lock = new ReentrantLock()
 
   override def put(key: String, records: List[Tuple]): Unit = {
     lock.lock()
     try {
-      logger.debug("put {} of length {} start", key, records.stringPrefix)
+      logger.debug(s"put $key of length ${records.stringPrefix} start")
       val collection = database.getCollection(key)
       if (collectionSet.contains(key)) {
         collection.deleteMany(new BasicDBObject())
@@ -47,7 +42,7 @@ class MongoOpResultStorage extends OpResultStorage {
       })
       collection.insertMany(documents)
       collection.createIndex(Indexes.ascending("index"), new IndexOptions().unique(true))
-      logger.debug("put {} of length {} end", key, records.length)
+      logger.debug(s"put $key of length ${records.length} end")
       lock.unlock()
     } finally {
       lock.unlock()
@@ -57,7 +52,7 @@ class MongoOpResultStorage extends OpResultStorage {
   override def get(key: String): List[Tuple] = {
     lock.lock()
     try {
-      logger.debug("get {} start", key)
+      logger.debug(s"get $key start")
       val collection = database.getCollection(key)
       val cursor = collection.find().sort(Sorts.ascending("index")).cursor()
       val recordBuffer = new ListBuffer[Tuple]()
@@ -66,7 +61,7 @@ class MongoOpResultStorage extends OpResultStorage {
       }
       lock.unlock()
       val res = recordBuffer.toList
-      logger.debug("get {} of length {} end", key, res.length)
+      logger.debug(s"get $key of length ${res.length} end")
       res
     } finally {
       lock.unlock()
@@ -76,10 +71,10 @@ class MongoOpResultStorage extends OpResultStorage {
   override def remove(key: String): Unit = {
     lock.lock()
     try {
-      logger.debug("remove {} start", key)
+      logger.debug(s"remove $key start")
       collectionSet.remove(key)
       database.getCollection(key).drop()
-      logger.debug("remove {} end", key)
+      logger.debug(s"remove $key end")
       lock.unlock()
     } finally {
       lock.unlock()
@@ -87,11 +82,11 @@ class MongoOpResultStorage extends OpResultStorage {
   }
 
   override def dump(): Unit = {
-    throw new Exception("not implemented")
+    throw new NotImplementedError()
   }
 
   override def load(): Unit = {
-    throw new Exception("not implemented")
+    throw new NotImplementedError()
   }
 
   override def close(): Unit = {
