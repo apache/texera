@@ -14,9 +14,6 @@ on:
       - '**.txt'
   workflow_dispatch:
 
-env:
-  NX_CLOUD_DISTRIBUTED_EXECUTION: true
-
 jobs:
   gui:
     runs-on: ${{ matrix.os }}
@@ -35,8 +32,6 @@ jobs:
           ignore_sha: true
           all_but_latest: true
           access_token: ${{ github.token }}
-      - name: Derive appropriate SHAs for base and head for `nx affected` commands
-        uses: nrwl/nx-set-shas@v2
       - name: Checkout Texera
         uses: actions/checkout@v2
       - name: Setup node
@@ -56,13 +51,10 @@ jobs:
         run: yarn --cwd core/new-gui install --frozen-lockfile --progress=false
       - name: Lint with ESLint
         run: yarn --cwd core/new-gui eslint ./src
-      - name: Start CI Run
-        run: cd core/new-gui && npx nx-cloud start-ci-run
       - name: Run frontend unit tests
-        run: cd core/new-gui && npx nx affected --target=test --parallel --max-parallel=2
+        run: yarn --cwd core/new-gui run test:ci
       - name: Prod build
-        run: cd core/new-gui && npx nx affected --target=build --parallel --max-parallel=3
-      - run: npx nx-cloud stop-all-agents
+        run: yarn --cwd core/new-gui run build
 
   amber:
     runs-on: ubuntu-latest
