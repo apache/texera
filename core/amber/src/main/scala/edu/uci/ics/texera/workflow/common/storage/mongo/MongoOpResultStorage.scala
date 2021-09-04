@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.common.storage.mongo
 import com.mongodb.BasicDBObject
 import com.mongodb.client.model.{IndexOptions, Indexes, Sorts}
 import com.mongodb.client.{MongoClient, MongoClients, MongoDatabase}
-import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.TupleUtils.{json2tuple, tuple2json}
@@ -16,8 +16,8 @@ import scala.collection.mutable.ListBuffer
 
 class MongoOpResultStorage extends OpResultStorage {
 
-  val url: String = Constants.mongodbUrl
-  val databaseName: String = Constants.mongodbDatabaseName
+  val url: String = AmberUtils.amberConfig.getString("cache.mongodb.url")
+  val databaseName: String = AmberUtils.amberConfig.getString("cache.mongodb.database")
   val client: MongoClient = MongoClients.create(url)
   val database: MongoDatabase = client.getDatabase(databaseName)
   val collectionSet: mutable.HashSet[String] = mutable.HashSet[String]()
