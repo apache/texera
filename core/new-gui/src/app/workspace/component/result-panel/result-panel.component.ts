@@ -34,7 +34,7 @@ export type ResultFrameComponentConfig =
   styleUrls: ["./result-panel.component.scss"]
 })
 export class ResultPanelComponent implements OnInit {
-  frameComponentConfig?: ResultFrameComponentConfig;
+  frameComponentConfigs: Map<string, ResultFrameComponentConfig> = new Map();
 
   // the highlighted operator ID for display result table / visualization / breakpoint
   currentOperatorId?: string;
@@ -148,7 +148,7 @@ export class ResultPanelComponent implements OnInit {
       executionState.state in
       [ExecutionState.Failed, ExecutionState.BreakpointTriggered]
     ) {
-      this.switchFrameComponent({
+      this.frameComponentConfigs.set("Console", {
         component: ConsoleFrameComponent,
         componentInputs: { operatorId: this.currentOperatorId }
       });
@@ -169,18 +169,18 @@ export class ResultPanelComponent implements OnInit {
               this.currentOperatorId
             );
           if (paginatedResultService) {
-            this.switchFrameComponent({
+            this.frameComponentConfigs.set("Result", {
               component: ResultTableFrameComponent,
               componentInputs: { operatorId: this.currentOperatorId }
             });
           } else if (resultService && resultService.getChartType()) {
-            this.switchFrameComponent({
+            this.frameComponentConfigs.set("Result", {
               component: VisualizationFrameComponent,
               componentInputs: { operatorId: this.currentOperatorId }
             });
           }
         } else {
-          this.switchFrameComponent({
+          this.frameComponentConfigs.set("Console", {
             component: ConsoleFrameComponent,
             componentInputs: { operatorId: this.currentOperatorId }
           });
@@ -190,19 +190,7 @@ export class ResultPanelComponent implements OnInit {
   }
 
   clearResultPanel(): void {
-    this.switchFrameComponent(undefined);
-  }
-
-  switchFrameComponent(targetComponentConfig?: ResultFrameComponentConfig) {
-    if (
-      this.frameComponentConfig?.component ===
-        targetComponentConfig?.component &&
-      this.frameComponentConfig?.componentInputs ===
-        targetComponentConfig?.componentInputs
-    ) {
-      return;
-    }
-    this.frameComponentConfig = targetComponentConfig;
+    this.frameComponentConfigs.clear();
   }
 
   private static needRerenderOnStateChange(event: {
