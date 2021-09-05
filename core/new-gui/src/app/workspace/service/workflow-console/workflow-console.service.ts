@@ -1,17 +1,16 @@
-import { Injectable } from '@angular/core';
-import { WorkflowWebsocketService } from '../workflow-websocket/workflow-websocket.service';
-import { PythonPrintTriggerInfo } from '../../types/workflow-common.interface';
-import { Subject } from 'rxjs/Subject';
-import { Observable } from 'rxjs/Observable';
-import { RingBuffer } from 'ring-buffer-ts';
+import { Injectable } from "@angular/core";
+import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
+import { PythonPrintTriggerInfo } from "../../types/workflow-common.interface";
+import { Subject } from "rxjs";
+import { Observable } from "rxjs";
+import { RingBuffer } from "ring-buffer-ts";
 
 export const CONSOLE_BUFFER_SIZE = 100;
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: "root"
 })
 export class WorkflowConsoleService {
-
   private consoleMessages: Map<string, RingBuffer<string>> = new Map();
   private consoleMessagesUpdateStream = new Subject<void>();
 
@@ -21,20 +20,29 @@ export class WorkflowConsoleService {
   }
 
   registerPythonPrintEventHandler() {
-    this.workflowWebsocketService.subscribeToEvent('PythonPrintTriggeredEvent')
+    this.workflowWebsocketService
+      .subscribeToEvent("PythonPrintTriggeredEvent")
       .subscribe((pythonPrintTriggerInfo: PythonPrintTriggerInfo) => {
         const operatorID = pythonPrintTriggerInfo.operatorID;
-        const messages = this.consoleMessages.get(operatorID) || new RingBuffer<string>(CONSOLE_BUFFER_SIZE);
-        messages.add(...pythonPrintTriggerInfo.message.split('\n').filter(msg => msg !== ''));
+        const messages =
+          this.consoleMessages.get(operatorID) ||
+          new RingBuffer<string>(CONSOLE_BUFFER_SIZE);
+        messages.add(
+          ...pythonPrintTriggerInfo.message
+            .split("\n")
+            .filter((msg) => msg !== "")
+        );
         this.consoleMessages.set(operatorID, messages);
         this.consoleMessagesUpdateStream.next();
       });
   }
 
   registerAutoClearConsoleMessages() {
-    this.workflowWebsocketService.subscribeToEvent('WorkflowStartedEvent').subscribe(_ => {
-      this.consoleMessages.clear();
-    });
+    this.workflowWebsocketService
+      .subscribeToEvent("WorkflowStartedEvent")
+      .subscribe((_) => {
+        this.consoleMessages.clear();
+      });
   }
 
   getConsoleMessages(operatorID: string): ReadonlyArray<string> | undefined {
@@ -44,5 +52,4 @@ export class WorkflowConsoleService {
   getConsoleMessageUpdateStream(): Observable<void> {
     return this.consoleMessagesUpdateStream.asObservable();
   }
-
 }

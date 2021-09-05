@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.common.rpc
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlOutputPort
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
-import edu.uci.ics.amber.engine.common.WorkflowLogger
+import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{
   ControlInvocation,
   ReturnInvocation,
@@ -36,7 +36,8 @@ object AsyncRPCServer {
 
 }
 
-class AsyncRPCServer(controlOutputPort: ControlOutputPort, logger: WorkflowLogger) {
+class AsyncRPCServer(controlOutputPort: ControlOutputPort, val actorId: ActorVirtualIdentity)
+    extends AmberLogging {
 
   // all handlers
   protected var handlers: PartialFunction[(ControlCommand[_], ActorVirtualIdentity), Future[_]] =
@@ -58,6 +59,7 @@ class AsyncRPCServer(controlOutputPort: ControlOutputPort, logger: WorkflowLogge
           returnResult(senderID, control.commandID, ret)
         }
         .onFailure { err =>
+          logger.error("Exception occurred", err)
           returnResult(senderID, control.commandID, err)
         }
 
@@ -91,8 +93,8 @@ class AsyncRPCServer(controlOutputPort: ControlOutputPort, logger: WorkflowLogge
     if (call.command.isInstanceOf[QueryStatistics]) {
       return
     }
-    logger.logInfo(
-      s"receive command: ${call.command} from ${sender.toString} (controlID: ${call.commandID})"
+    logger.info(
+      s"receive command: ${call.command} from $sender (controlID: ${call.commandID})"
     )
   }
 

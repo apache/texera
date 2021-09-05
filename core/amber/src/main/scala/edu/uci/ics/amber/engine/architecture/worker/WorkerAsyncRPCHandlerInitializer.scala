@@ -8,7 +8,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   TupleToBatchConverter
 }
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers._
-import edu.uci.ics.amber.engine.common.{IOperatorExecutor, WorkflowLogger}
+import edu.uci.ics.amber.engine.common.{AmberLogging, IOperatorExecutor}
 import edu.uci.ics.amber.engine.common.rpc.{
   AsyncRPCClient,
   AsyncRPCHandlerInitializer,
@@ -18,7 +18,7 @@ import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 class WorkerAsyncRPCHandlerInitializer(
-    val selfID: ActorVirtualIdentity,
+    val actorId: ActorVirtualIdentity,
     val controlOutputPort: ControlOutputPort,
     val dataOutputPort: DataOutputPort,
     val tupleToBatchConverter: TupleToBatchConverter,
@@ -32,6 +32,7 @@ class WorkerAsyncRPCHandlerInitializer(
     source: AsyncRPCClient,
     receiver: AsyncRPCServer
 ) extends AsyncRPCHandlerInitializer(source, receiver)
+    with AmberLogging
     with PauseHandler
     with AddPartitioningHandler
     with QueryAndRemoveBreakpointsHandler
@@ -40,7 +41,7 @@ class WorkerAsyncRPCHandlerInitializer(
     with ResumeHandler
     with StartHandler
     with UpdateInputLinkingHandler
+    with AssignLocalBreakpointHandler
     with ShutdownDPThreadHandler {
-  val logger: WorkflowLogger = WorkflowLogger("WorkerControlHandler")
   var lastReportTime = 0L
 }

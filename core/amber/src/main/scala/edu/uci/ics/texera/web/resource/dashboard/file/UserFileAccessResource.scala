@@ -6,7 +6,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER_FILE_ACCES
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{UserDao, UserFileAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserFileAccess
 import edu.uci.ics.texera.web.resource.auth.UserResource
-import edu.uci.ics.texera.web.resource.dashboard.file.UserFileAccessResource.context
+import edu.uci.ics.texera.web.resource.dashboard.file.UserFileAccessResource.{context, grantAccess}
 import io.dropwizard.jersey.sessions.Session
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
@@ -20,16 +20,10 @@ import scala.collection.JavaConverters._
   * A Utility Class used to for operations related to database
   */
 object UserFileAccessResource {
-  private val context: DSLContext = SqlServer.createDSLContext
-
-  def hasAccessTo(uid: UInteger, fid: UInteger): Boolean = {
-    context
-      .fetchExists(
-        context
-          .selectFrom(USER_FILE_ACCESS)
-          .where(USER_FILE_ACCESS.UID.eq(uid).and(USER_FILE_ACCESS.FID.eq(fid)))
-      )
-  }
+  final private val context: DSLContext = SqlServer.createDSLContext
+  final private val userFileAccessDao = new UserFileAccessDao(
+    context.configuration
+  )
 
   def getFileId(ownerName: String, fileName: String): UInteger = {
     val userDao = new UserDao(context.configuration)
@@ -46,15 +40,39 @@ object UserFileAccessResource {
     val userDao = new UserDao(context.configuration)
     userDao.fetchByName(username).get(0).getUid
   }
+
+  def grantAccess(uid: UInteger, fid: UInteger, accessType: String): Unit = {
+    if (UserFileAccessResource.hasAccessTo(uid, fid)) {
+      if (accessType == "read") {
+        userFileAccessDao.update(new UserFileAccess(uid, fid, true, false))
+      } else {
+        userFileAccessDao.update(new UserFileAccess(uid, fid, true, true))
+      }
+
+    } else {
+      if (accessType == "read") {
+        userFileAccessDao.insert(new UserFileAccess(uid, fid, true, false))
+      } else {
+        userFileAccessDao.insert(new UserFileAccess(uid, fid, true, true))
+      }
+    }
+  }
+
+  def hasAccessTo(uid: UInteger, fid: UInteger): Boolean = {
+    context
+      .fetchExists(
+        context
+          .selectFrom(USER_FILE_ACCESS)
+          .where(USER_FILE_ACCESS.UID.eq(uid).and(USER_FILE_ACCESS.FID.eq(fid)))
+      )
+  }
 }
 
 @Path("/user/file/access")
 @Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON))
 class UserFileAccessResource {
-  final private val userFileAccessDao = new UserFileAccessDao(
-    context.configuration
-  )
+
   final private val userDao = new UserDao(context.configuration)
 
   /**
@@ -166,27 +184,15 @@ class UserFileAccessResource {
                 .build()
           }
 
-        if (UserFileAccessResource.hasAccessTo(uid, fid)) {
-          if (accessType == "read") {
-            userFileAccessDao.update(new UserFileAccess(uid, fid, true, false))
-          } else {
-            userFileAccessDao.update(new UserFileAccess(uid, fid, true, true))
-          }
-          Response.ok().build()
-        } else {
-          if (accessType == "read") {
-            userFileAccessDao.insert(new UserFileAccess(uid, fid, true, false))
-          } else {
-            userFileAccessDao.insert(new UserFileAccess(uid, fid, true, true))
-          }
-          Response.ok().build()
-        }
+        grantAccess(uid, fid, accessType)
+        Response.ok().build()
       case None => Response.status(Response.Status.UNAUTHORIZED).entity("please login").build()
     }
   }
 
   /**
     * Revoke a user's access to a file
+    *
     * @param fileName    the file name of target file to be shared
     * @param ownerName the name of the file's owner
     * @param username the username of target user whose access is about to be revoked

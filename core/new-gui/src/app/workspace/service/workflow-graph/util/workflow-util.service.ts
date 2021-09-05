@@ -1,35 +1,33 @@
-import { OperatorPredicate } from './../../../types/workflow-common.interface';
-import { OperatorMetadataService } from './../../operator-metadata/operator-metadata.service';
-import { OperatorSchema } from './../../../types/operator-schema.interface';
-import { Injectable } from '@angular/core';
-import { v4 as uuid } from 'uuid';
-import * as Ajv from 'ajv';
+import { OperatorPredicate } from "../../../types/workflow-common.interface";
+import { OperatorMetadataService } from "../../operator-metadata/operator-metadata.service";
+import { OperatorSchema } from "../../../types/operator-schema.interface";
+import { Injectable } from "@angular/core";
+import { v4 as uuid } from "uuid";
+import * as Ajv from "ajv";
 
-import { Subject } from 'rxjs/Subject';
-import { Observable } from 'rxjs/Observable';
+import { Subject } from "rxjs";
+import { Observable } from "rxjs";
 
 /**
  * WorkflowUtilService provide utilities related to dealing with operator data.
  */
 @Injectable({
-  providedIn: 'root'
+  providedIn: "root"
 })
 export class WorkflowUtilService {
-
   private operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
 
   // used to fetch default values in json schema to initialize new operator
   private ajv = new Ajv({ useDefaults: true });
 
-  private operatorSchemaListCreatedSubject: Subject<boolean> = new Subject<boolean>();
+  private operatorSchemaListCreatedSubject: Subject<boolean> =
+    new Subject<boolean>();
 
   constructor(private operatorMetadataService: OperatorMetadataService) {
-    this.operatorMetadataService.getOperatorMetadata().subscribe(
-      value => {
-        this.operatorSchemaList = value.operators;
-        this.operatorSchemaListCreatedSubject.next(true);
-      }
-    );
+    this.operatorMetadataService.getOperatorMetadata().subscribe((value) => {
+      this.operatorSchemaList = value.operators;
+      this.operatorSchemaListCreatedSubject.next(true);
+    });
   }
 
   public getOperatorSchemaListCreatedStream(): Observable<boolean> {
@@ -37,10 +35,31 @@ export class WorkflowUtilService {
   }
 
   /**
-   * Generates a new UUID for operator or link
+   * Generates a new UUID for operator
    */
-  public getRandomUUID(): string {
-    return 'operator-' + uuid();
+  public getOperatorRandomUUID(): string {
+    return "operator-" + uuid();
+  }
+
+  /**
+   * Generates a new UUID for link
+   */
+  public getLinkRandomUUID(): string {
+    return "link-" + uuid();
+  }
+
+  /**
+   * Generates a new UUID for group element
+   */
+  public getGroupRandomUUID(): string {
+    return "group-" + uuid();
+  }
+
+  /**
+   * Generates a new UUID for breakpoint
+   */
+  public getBreakpointRandomUUID(): string {
+    return "breakpoint-" + uuid();
   }
 
   /**
@@ -51,12 +70,17 @@ export class WorkflowUtilService {
    * @returns a new OperatorPredicate of the operatorType
    */
   public getNewOperatorPredicate(operatorType: string): OperatorPredicate {
-    const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operatorType);
+    const operatorSchema = this.operatorSchemaList.find(
+      (schema) => schema.operatorType === operatorType
+    );
     if (operatorSchema === undefined) {
-      throw new Error(`operatorType ${operatorType} doesn't exist in operator metadata`);
+      throw new Error(
+        `operatorType ${operatorType} doesn't exist in operator metadata`
+      );
     }
 
-    const operatorID = operatorSchema.operatorType + '-' + this.getRandomUUID();
+    const operatorID =
+      operatorSchema.operatorType + "-" + this.getOperatorRandomUUID();
     const operatorProperties = {};
 
     // Remove the ID field for the schema to prevent warning messages from Ajv
@@ -66,8 +90,8 @@ export class WorkflowUtilService {
     const validate = this.ajv.compile(schemaWithoutID);
     validate(operatorProperties);
 
-    const inputPorts: {portID: string, displayName?: string}[] = [];
-    const outputPorts: {portID: string, displayName?: string}[] = [];
+    const inputPorts: { portID: string; displayName?: string }[] = [];
+    const outputPorts: { portID: string; displayName?: string }[] = [];
 
     // by default, the operator will not show advanced option in the properties to the user
     const showAdvanced = false;
@@ -78,33 +102,37 @@ export class WorkflowUtilService {
     // by default, the operator name is the user friendly name
     const customOperatorName = operatorSchema.additionalMetadata.userFriendlyName;
 
-    for (let i = 0; i < operatorSchema.additionalMetadata.inputPorts.length; i++) {
-      const portID = 'input-' + i.toString();
-      const displayName = operatorSchema.additionalMetadata.inputPorts[i].displayName;
+    for (
+      let i = 0;
+      i < operatorSchema.additionalMetadata.inputPorts.length;
+      i++
+    ) {
+      const portID = "input-" + i.toString();
+      const displayName =
+        operatorSchema.additionalMetadata.inputPorts[i].displayName;
       inputPorts.push({ portID, displayName });
     }
 
-    for (let i = 0; i < operatorSchema.additionalMetadata.outputPorts.length; i++) {
-      const portID = 'output-' + i.toString();
-      const displayName = operatorSchema.additionalMetadata.outputPorts[i].displayName;
+    for (
+      let i = 0;
+      i < operatorSchema.additionalMetadata.outputPorts.length;
+      i++
+    ) {
+      const portID = "output-" + i.toString();
+      const displayName =
+        operatorSchema.additionalMetadata.outputPorts[i].displayName;
       outputPorts.push({ portID, displayName });
     }
 
-    return { operatorID, operatorType, operatorProperties, inputPorts, outputPorts, showAdvanced, isDisabled, customOperatorName };
-
-  }
-
-  /**
-   * Generates a new UUID for operator or link
-   */
-  public getLinkRandomUUID(): string {
-    return 'link-' + uuid();
-  }
-
-  /**
-   * Generates a new UUID for group element
-   */
-  public getGroupRandomUUID(): string {
-    return 'group-' + uuid();
+    return {
+      operatorID,
+      operatorType,
+      operatorProperties,
+      inputPorts,
+      outputPorts,
+      showAdvanced,
+      isDisabled,
+      customOperatorName
+    };
   }
 }

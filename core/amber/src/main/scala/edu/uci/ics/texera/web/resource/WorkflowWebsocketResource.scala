@@ -43,8 +43,8 @@ object WorkflowWebsocketResource {
   // Map[sessionId, Map[operatorId, List[ITuple]]]
   val sessionResults = new mutable.HashMap[String, WorkflowResultService]
 
-  // Map[sessionId, Map[downloadType, googleSheetLink]
-  val sessionDownloadCache = new mutable.HashMap[String, mutable.HashMap[String, String]]
+  // Map[sessionId, Map[exportType, googleSheetLink]
+  val sessionExportCache = new mutable.HashMap[String, mutable.HashMap[String, String]]
 
   def send(session: Session, event: TexeraWebSocketEvent): Unit = {
     session.getAsyncRemote.sendText(objectMapper.writeValueAsString(event))
@@ -95,18 +95,19 @@ class WorkflowWebsocketResource {
           addBreakpoint(session, breakpoint)
         case paginationRequest: ResultPaginationRequest =>
           resultPagination(session, paginationRequest)
-        case resultDownloadRequest: ResultDownloadRequest =>
-          downloadResult(session, resultDownloadRequest)
+        case resultExportRequest: ResultExportRequest =>
+          exportResult(session, resultExportRequest)
       }
     } catch {
-      case e: Throwable =>
+      case err: Exception =>
         send(
           session,
           WorkflowErrorEvent(generalErrors =
-            Map("exception" -> (e.getMessage + "\n" + e.getStackTrace.mkString("\n")))
+            Map("exception" -> (err.getMessage + "\n" + err.getStackTrace.mkString("\n")))
           )
         )
-        throw e
+        throw err
+
     }
 
   }
@@ -176,15 +177,13 @@ class WorkflowWebsocketResource {
       return
     }
 
-    val workflow = texeraWorkflowCompiler.amberWorkflow
-    val workflowTag = WorkflowIdentity(jobID)
-
+    val workflow = texeraWorkflowCompiler.amberWorkflow(WorkflowIdentity(jobID))
     val workflowResultService = new WorkflowResultService(texeraWorkflowCompiler)
     sessionResults(session.getId) = workflowResultService
 
     val eventListener = ControllerEventListener(
       workflowCompletedListener = completed => {
-        sessionDownloadCache.remove(session.getId)
+        sessionExportCache.remove(session.getId)
         send(session, WorkflowCompletedEvent())
         WorkflowWebsocketResource.sessionJobs.remove(session.getId)
       },
@@ -216,12 +215,12 @@ class WorkflowWebsocketResource {
         send(session, RecoveryStartedEvent())
       },
       workflowExecutionErrorListener = errorOccurred => {
-        send(session, WorkflowExecutionErrorEvent(errorOccurred.error.convertToMap()))
+        send(session, WorkflowExecutionErrorEvent(errorOccurred.error.getLocalizedMessage))
       }
     )
 
     val controllerActorRef = TexeraWebApplication.actorSystem.actorOf(
-      Controller.props(workflowTag, workflow, eventListener, ControllerConfig.default)
+      Controller.props(workflow, eventListener, ControllerConfig.default)
     )
     texeraWorkflowCompiler.initializeBreakpoint(controllerActorRef)
     controllerActorRef ! ControlInvocation(AsyncRPCClient.IgnoreReply, StartWorkflow())
@@ -233,9 +232,9 @@ class WorkflowWebsocketResource {
 
   }
 
-  def downloadResult(session: Session, request: ResultDownloadRequest): Unit = {
-    val resultDownloadResponse = ResultDownloadResource.apply(session.getId, request)
-    send(session, resultDownloadResponse)
+  def exportResult(session: Session, request: ResultExportRequest): Unit = {
+    val resultExportResponse = ResultExportResource.apply(session.getId, request)
+    send(session, resultExportResponse)
   }
 
   def killWorkflow(session: Session): Unit = {
@@ -253,7 +252,7 @@ class WorkflowWebsocketResource {
     sessionResults.remove(session.getId)
     sessionJobs.remove(session.getId)
     sessionMap.remove(session.getId)
-    sessionDownloadCache.remove(session.getId)
+    sessionExportCache.remove(session.getId)
   }
 
   def removeBreakpoint(session: Session, removeBreakpoint: RemoveBreakpointRequest): Unit = {
