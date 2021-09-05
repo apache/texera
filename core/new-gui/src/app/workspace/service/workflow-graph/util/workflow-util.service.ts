@@ -100,7 +100,8 @@ export class WorkflowUtilService {
     const isDisabled = false;
 
     // by default, the operator name is the user friendly name
-    const customOperatorName = operatorSchema.additionalMetadata.userFriendlyName;
+    const customOperatorName =
+      operatorSchema.additionalMetadata.userFriendlyName;
 
     for (
       let i = 0;

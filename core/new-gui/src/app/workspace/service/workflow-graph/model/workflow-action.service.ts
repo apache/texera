@@ -1128,7 +1128,7 @@ export class WorkflowActionService {
       this.getTexeraGraph().getBreakpointChangeStream(),
       this.getJointGraphWrapper().getElementPositionChangeEvent(),
       this.getTexeraGraph().getDisabledOperatorsChangedStream(),
-      this.getTexeraGraph().getOperatorDisplayNameChangedStream(),
+      this.getTexeraGraph().getOperatorDisplayNameChangedStream()
     );
   }
 
