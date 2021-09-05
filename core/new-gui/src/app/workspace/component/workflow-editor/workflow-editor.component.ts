@@ -9,17 +9,31 @@ import { environment } from "../../../../environments/environment";
 import { DragDropService } from "../../service/drag-drop/drag-drop.service";
 import { DynamicSchemaService } from "../../service/dynamic-schema/dynamic-schema.service";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
-import { JointUIService, linkPathStrokeColor } from "../../service/joint-ui/joint-ui.service";
+import {
+  JointUIService,
+  linkPathStrokeColor
+} from "../../service/joint-ui/joint-ui.service";
 import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { JointGraphWrapper } from "../../service/workflow-graph/model/joint-graph-wrapper";
-import { Group, LinkInfo, OperatorInfo } from "../../service/workflow-graph/model/operator-group";
+import {
+  Group,
+  LinkInfo,
+  OperatorInfo
+} from "../../service/workflow-graph/model/operator-group";
 import { MAIN_CANVAS_LIMIT } from "./workflow-editor-constants";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
-import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
-import { OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
+import {
+  ExecutionState,
+  OperatorState
+} from "../../types/execute-workflow.interface";
+import {
+  OperatorLink,
+  OperatorPredicate,
+  Point
+} from "../../types/workflow-common.interface";
 import { auditTime, filter, map } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
@@ -284,7 +298,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
           } else {
             throw new Error(
               "unknown state transition from recovering state: " +
-              event.current.state
+                event.current.state
             );
           }
           this.workflowActionService
@@ -588,13 +602,19 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   private registerOperatorDisplayNameChangeHandler(): void {
-    this.workflowActionService.getTexeraGraph()
+    this.workflowActionService
+      .getTexeraGraph()
       .getOperatorCustomDisplayNameChangedStream()
       .pipe(untilDestroyed(this))
-      .subscribe
-      (({ operatorID, newDisplayName }) => {
-        const op = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
-        this.jointUIService.changeOperatorDisplayName(op, this.getJointPaper(), newDisplayName);
+      .subscribe(({ operatorID, newDisplayName }) => {
+        const op = this.workflowActionService
+          .getTexeraGraph()
+          .getOperator(operatorID);
+        this.jointUIService.changeOperatorDisplayName(
+          op,
+          this.getJointPaper(),
+          newDisplayName
+        );
       });
   }
 
@@ -1422,18 +1442,13 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * @param operator
    */
   private copyOperator(operator: OperatorPredicate): OperatorPredicate {
-    const operatorID =
-      operator.operatorType +
-      "-" +
-      this.workflowUtilService.getOperatorRandomUUID();
-    const operatorType = operator.operatorType;
-    const operatorProperties = operator.operatorProperties;
-    const inputPorts = operator.inputPorts;
-    const outputPorts = operator.outputPorts;
-    const showAdvanced = operator.showAdvanced;
-    const isDisabled = operator.isDisabled;
-    const customOperatorName = operator.operatorType;
-    return { operatorID, operatorType, operatorProperties, inputPorts, outputPorts, showAdvanced, isDisabled, customDisplayName: customOperatorName };
+    return {
+      ...operator,
+      operatorID:
+        operator.operatorType +
+        "-" +
+        this.workflowUtilService.getOperatorRandomUUID()
+    };
   }
 
   private copyGroup(group: Group) {
@@ -1528,8 +1543,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
       if (
         !positions.includes(position) &&
         (!this.workflowActionService
-            .getTexeraGraph()
-            .hasOperator(pastedOperators[i]) ||
+          .getTexeraGraph()
+          .hasOperator(pastedOperators[i]) ||
           this.workflowActionService
             .getOperatorGroup()
             .getOperatorPositionByGroup(pastedOperators[i]).x !== position.x ||
@@ -1581,8 +1596,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
       if (
         !positions.includes(position) &&
         (!this.workflowActionService
-            .getOperatorGroup()
-            .hasGroup(pastedGroups[i]) ||
+          .getOperatorGroup()
+          .hasGroup(pastedGroups[i]) ||
           this.workflowActionService
             .getJointGraphWrapper()
             .getElementPosition(pastedGroups[i]).x !== position.x ||
