@@ -201,7 +201,6 @@ export class JointUIService {
           operatorSchema.additionalMetadata.userFriendlyName,
         operatorSchema.operatorType
       ),
-      // operatorSchema.additionalMetadata.userFriendlyName
       ports: {
         groups: {
           in: { attrs: JointUIService.getCustomPortStyleAttrs() },
