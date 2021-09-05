@@ -2,7 +2,7 @@ name: build
 
 on:
   push:
-    branches: 
+    branches:
       - 'ci-enable/**'
       - 'master'
   pull_request:
@@ -13,7 +13,7 @@ on:
       - '**.csv'
       - '**.txt'
   workflow_dispatch:
-  
+
 jobs:
   gui:
     runs-on: ${{ matrix.os }}
@@ -26,9 +26,11 @@ jobs:
         architecture:
           - x64
     steps:
-      - name: Cancel Previous Runs  
-        uses: styfle/cancel-workflow-action@0.9.0
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.9.1
         with:
+          ignore_sha: true
+          all_but_latest: true
           access_token: ${{ github.token }}
       - name: Checkout Texera
         uses: actions/checkout@v2
@@ -42,9 +44,9 @@ jobs:
           path: |
             core/new-gui/node_modules
             core/new-gui/multi-target/node_modules
-          key: ${{ runner.os }}-yarn-cache-v3-${{ hashFiles('**/yarn.lock') }}
+          key: ${{ runner.os }}-yarn-cache-v4-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
-            ${{ runner.os }}-yarn-cache-v3-
+            ${{ runner.os }}-yarn-cache-v4-
       - name: Install dependency
         run: yarn --cwd core/new-gui install --frozen-lockfile --progress=false
       - name: Lint with ESLint
@@ -57,9 +59,11 @@ jobs:
   amber:
     runs-on: ubuntu-latest
     steps:
-      - name: Cancel Previous Runs  
-        uses: styfle/cancel-workflow-action@0.9.0
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.9.1
         with:
+          ignore_sha: true
+          all_but_latest: true
           access_token: ${{ github.token }}
       - name: Checkout Texera
         uses: actions/checkout@v2
@@ -67,7 +71,7 @@ jobs:
       - name: Lint with scalafmt
         run: cd core/amber && sbt scalafmtCheckAll
       - name: Compile with sbt
-        run: cd core/amber && sbt clean compile
+        run: cd core/amber && sbt clean package
       - name: Run backend tests
         run: cd core/amber && sbt -v -J-Xmx2G test
 
@@ -79,11 +83,13 @@ jobs:
 
     steps:
       - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.9.0
+        uses: styfle/cancel-workflow-action@0.9.1
         with:
+          ignore_sha: true
           all_but_latest: true
           access_token: ${{ github.token }}
-      - uses: actions/checkout@v2
+      - name: Checkout Texera
+        uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
