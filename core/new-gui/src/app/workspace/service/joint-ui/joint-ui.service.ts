@@ -197,7 +197,7 @@ export class JointUIService {
       },
       attrs: JointUIService.getCustomOperatorStyleAttrs(
         operator,
-        operator.customOperatorName ??
+        operator.customDisplayName ??
           operatorSchema.additionalMetadata.userFriendlyName,
         operatorSchema.operatorType
       ),
@@ -408,14 +408,14 @@ export class JointUIService {
       .attr("rect/fill", JointUIService.getOperatorFillColor(operator));
   }
 
-  public changeOperatorCustomName(
+  public changeOperatorDisplayName(
     operator: OperatorPredicate,
     jointPaper: joint.dia.Paper,
-    opName: string
+    displayName: string
   ): void {
     jointPaper
       .getModelById(operator.operatorID)
-      .attr(`.${operatorNameClass}/text`, opName);
+      .attr(`.${operatorNameClass}/text`, displayName);
   }
 
   public getBreakpointButton(): new () => joint.linkTools.Button {

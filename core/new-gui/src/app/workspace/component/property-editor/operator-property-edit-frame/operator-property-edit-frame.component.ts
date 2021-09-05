@@ -162,7 +162,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
     );
     this.setFormlyFormBinding(currentOperatorSchema.jsonSchema);
     this.formTitle =
-      operator.customOperatorName ??
+      operator.customDisplayName ??
       currentOperatorSchema.additionalMetadata.userFriendlyName;
 
     /**
@@ -411,7 +411,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
     if (this.currentOperatorId) {
       this.workflowActionService
         .getTexeraGraph()
-        .changeName(this.currentOperatorId, newOperatorName);
+        .changeOperatorCustomDisplayName(this.currentOperatorId, newOperatorName);
     }
     this.formTitle = newOperatorName;
     this.editingTitle = false;

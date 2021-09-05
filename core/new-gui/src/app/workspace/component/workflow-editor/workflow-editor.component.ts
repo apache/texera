@@ -589,12 +589,12 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   private handleOperatorNameChange(): void {
     this.workflowActionService.getTexeraGraph()
-      .getOperatorNameChangeStream()
+      .getOperatorCustomDisplayNameChangedStream()
       .pipe(untilDestroyed(this))
       .subscribe
-      (({ operatorID, opName }) => {
+      (({ operatorID, newDisplayName }) => {
         const op = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
-        this.jointUIService.changeOperatorCustomName(op, this.getJointPaper(), opName);
+        this.jointUIService.changeOperatorDisplayName(op, this.getJointPaper(), newDisplayName);
       });
   }
 
@@ -1433,7 +1433,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     const showAdvanced = operator.showAdvanced;
     const isDisabled = operator.isDisabled;
     const customOperatorName = operator.operatorType;
-    return { operatorID, operatorType, operatorProperties, inputPorts, outputPorts, showAdvanced, isDisabled, customOperatorName };
+    return { operatorID, operatorType, operatorProperties, inputPorts, outputPorts, showAdvanced, isDisabled, customDisplayName: customOperatorName };
   }
 
   private copyGroup(group: Group) {

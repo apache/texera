@@ -132,7 +132,7 @@ export class WorkflowUtilService {
       outputPorts,
       showAdvanced,
       isDisabled,
-      customOperatorName
+      customDisplayName: customOperatorName
     };
   }
 }
