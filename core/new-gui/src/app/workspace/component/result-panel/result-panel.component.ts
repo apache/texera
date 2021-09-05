@@ -14,11 +14,13 @@ import { VisualizationFrameComponent } from "./visualization-frame/visualization
 import { filter } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DynamicComponentConfig } from "../../../common/type/dynamic-component-config";
+import { DebuggerFrameComponent } from "./debugger-frame/debugger-frame.component";
 
 export type ResultFrameComponent =
   | ResultTableFrameComponent
   | VisualizationFrameComponent
-  | ConsoleFrameComponent;
+  | ConsoleFrameComponent
+  | DebuggerFrameComponent;
 
 export type ResultFrameComponentConfig =
   DynamicComponentConfig<ResultFrameComponent>;
@@ -141,52 +143,52 @@ export class ResultPanelComponent implements OnInit {
       return;
     }
 
-    // break this into another detect cycle, so that the dynamic component can be reloaded
-
     const executionState = this.executeWorkflowService.getExecutionState();
-    if (
-      executionState.state in
-      [ExecutionState.Failed, ExecutionState.BreakpointTriggered]
-    ) {
-      this.frameComponentConfigs.set("Console", {
-        component: ConsoleFrameComponent,
-        componentInputs: { operatorId: this.currentOperatorId }
-      });
-    } else {
-      if (this.currentOperatorId) {
-        if (
-          this.workflowActionService
-            .getTexeraGraph()
-            .getOperator(this.currentOperatorId)
-            .operatorType.toLowerCase()
-            .includes("sink")
-        ) {
-          const resultService = this.workflowResultService.getResultService(
+    console.log(executionState);
+
+    if (this.currentOperatorId) {
+      if (
+        this.workflowActionService
+          .getTexeraGraph()
+          .getOperator(this.currentOperatorId)
+          .operatorType.toLowerCase()
+          .includes("sink")
+      ) {
+        const resultService = this.workflowResultService.getResultService(
+          this.currentOperatorId
+        );
+        const paginatedResultService =
+          this.workflowResultService.getPaginatedResultService(
             this.currentOperatorId
           );
-          const paginatedResultService =
-            this.workflowResultService.getPaginatedResultService(
-              this.currentOperatorId
-            );
-          if (paginatedResultService) {
-            this.frameComponentConfigs.set("Result", {
-              component: ResultTableFrameComponent,
-              componentInputs: { operatorId: this.currentOperatorId }
-            });
-          } else if (resultService && resultService.getChartType()) {
-            this.frameComponentConfigs.set("Result", {
-              component: VisualizationFrameComponent,
-              componentInputs: { operatorId: this.currentOperatorId }
-            });
-          }
-        } else {
-          this.frameComponentConfigs.set("Console", {
-            component: ConsoleFrameComponent,
+        if (paginatedResultService) {
+          this.frameComponentConfigs.set("Result", {
+            component: ResultTableFrameComponent,
+            componentInputs: { operatorId: this.currentOperatorId }
+          });
+        } else if (resultService && resultService.getChartType()) {
+          this.frameComponentConfigs.set("Result", {
+            component: VisualizationFrameComponent,
+            componentInputs: { operatorId: this.currentOperatorId }
+          });
+        }
+      } else {
+        this.frameComponentConfigs.set("Console", {
+          component: ConsoleFrameComponent,
+          componentInputs: { operatorId: this.currentOperatorId }
+        });
+        if (
+          executionState.state === ExecutionState.Failed ||
+          executionState.state === ExecutionState.BreakpointTriggered
+        ) {
+          this.frameComponentConfigs.set("Debug", {
+            component: DebuggerFrameComponent,
             componentInputs: { operatorId: this.currentOperatorId }
           });
         }
       }
     }
+    console.log(this.frameComponentConfigs);
   }
 
   clearResultPanel(): void {
