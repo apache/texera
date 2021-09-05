@@ -144,7 +144,6 @@ export class ResultPanelComponent implements OnInit {
     }
 
     const executionState = this.executeWorkflowService.getExecutionState();
-    console.log(executionState);
 
     if (this.currentOperatorId) {
 
@@ -182,7 +181,6 @@ export class ResultPanelComponent implements OnInit {
         }
       }
     }
-    console.log(this.frameComponentConfigs);
   }
 
   clearResultPanel(): void {
