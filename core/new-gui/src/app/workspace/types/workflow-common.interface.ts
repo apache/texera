@@ -23,11 +23,11 @@ export interface OperatorPredicate
     operatorType: string;
     operatorProperties: Readonly<{ [key: string]: any }>;
     inputPorts: { portID: string; displayName?: string }[];
-    outputPorts: { portID: string; displayName?: string}[];
-  showAdvanced: boolean;
-  isDisabled?: boolean;
-  customOperatorName: string;
-}> { }
+    outputPorts: { portID: string; displayName?: string }[];
+    showAdvanced: boolean;
+    isDisabled?: boolean;
+    customOperatorName: string;
+  }> {}
 
 export interface OperatorLink
   extends Readonly<{

@@ -9,31 +9,17 @@ import { environment } from "../../../../environments/environment";
 import { DragDropService } from "../../service/drag-drop/drag-drop.service";
 import { DynamicSchemaService } from "../../service/dynamic-schema/dynamic-schema.service";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
-import {
-  JointUIService,
-  linkPathStrokeColor
-} from "../../service/joint-ui/joint-ui.service";
+import { JointUIService, linkPathStrokeColor } from "../../service/joint-ui/joint-ui.service";
 import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { JointGraphWrapper } from "../../service/workflow-graph/model/joint-graph-wrapper";
-import {
-  Group,
-  LinkInfo,
-  OperatorInfo
-} from "../../service/workflow-graph/model/operator-group";
+import { Group, LinkInfo, OperatorInfo } from "../../service/workflow-graph/model/operator-group";
 import { MAIN_CANVAS_LIMIT } from "./workflow-editor-constants";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
-import {
-  ExecutionState,
-  OperatorState
-} from "../../types/execute-workflow.interface";
-import {
-  OperatorLink,
-  OperatorPredicate,
-  Point
-} from "../../types/workflow-common.interface";
+import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
+import { OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
 import { auditTime, filter, map } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
@@ -83,9 +69,9 @@ export const WORKFLOW_EDITOR_JOINTJS_ID =
   "texera-workflow-editor-jointjs-body-id";
 
 /**
- * WorkflowEditorComponent is the componenet for the main workflow editor part of the UI.
+ * WorkflowEditorComponent is the component for the main workflow editor part of the UI.
  *
- * This componenet is binded with the JointJS paper. JointJS handles the operations of the main workflow.
+ * This component is bound with the JointJS paper. JointJS handles the operations of the main workflow.
  * The JointJS UI events are wrapped into observables and exposed to other components / services.
  *
  * See JointJS documentation for the list of events that can be captured on the JointJS paper view.
@@ -298,7 +284,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
           } else {
             throw new Error(
               "unknown state transition from recovering state: " +
-                event.current.state
+              event.current.state
             );
           }
           this.workflowActionService
@@ -602,12 +588,14 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   private handleOperatorNameChange(): void {
-    this.workflowActionService.getTexeraGraph().getOperatorNameChangeStream().subscribe
-    (event => {
-        const op = this.workflowActionService.getTexeraGraph().getOperator(event.operatorID);
-        const newName = event.opName;
-        this.jointUIService.changeOperatorCustomName(op, this.getJointPaper(), newName);
-    });
+    this.workflowActionService.getTexeraGraph()
+      .getOperatorNameChangeStream()
+      .pipe(untilDestroyed(this))
+      .subscribe
+      (({ operatorID, opName }) => {
+        const op = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
+        this.jointUIService.changeOperatorCustomName(op, this.getJointPaper(), opName);
+      });
   }
 
   /**
@@ -1426,7 +1414,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
           );
         }
       });
-      }
+  }
 
   /**
    * Utility function to create a new operator that contains same
@@ -1445,7 +1433,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     const showAdvanced = operator.showAdvanced;
     const isDisabled = operator.isDisabled;
     const customOperatorName = operator.operatorType;
-    return {operatorID, operatorType, operatorProperties, inputPorts, outputPorts, showAdvanced, isDisabled, customOperatorName};
+    return { operatorID, operatorType, operatorProperties, inputPorts, outputPorts, showAdvanced, isDisabled, customOperatorName };
   }
 
   private copyGroup(group: Group) {
@@ -1540,8 +1528,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
       if (
         !positions.includes(position) &&
         (!this.workflowActionService
-          .getTexeraGraph()
-          .hasOperator(pastedOperators[i]) ||
+            .getTexeraGraph()
+            .hasOperator(pastedOperators[i]) ||
           this.workflowActionService
             .getOperatorGroup()
             .getOperatorPositionByGroup(pastedOperators[i]).x !== position.x ||
@@ -1593,8 +1581,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
       if (
         !positions.includes(position) &&
         (!this.workflowActionService
-          .getOperatorGroup()
-          .hasGroup(pastedGroups[i]) ||
+            .getOperatorGroup()
+            .hasGroup(pastedGroups[i]) ||
           this.workflowActionService
             .getJointGraphWrapper()
             .getElementPosition(pastedGroups[i]).x !== position.x ||

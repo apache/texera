@@ -86,6 +86,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
   formlyFields: FormlyFieldConfig[] | undefined;
   formTitle: string | undefined;
 
+  editingTitle: boolean = false;
+
   // used to fill in default values in json schema to initialize new operator
   ajv = new Ajv({ useDefaults: true });
 
@@ -159,7 +161,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
       this.currentOperatorId
     );
     this.setFormlyFormBinding(currentOperatorSchema.jsonSchema);
-    this.formTitle = currentOperatorSchema.additionalMetadata.userFriendlyName;
+    this.formTitle =
+      operator.customOperatorName ??
+      currentOperatorSchema.additionalMetadata.userFriendlyName;
 
     /**
      * Important: make a deep copy of the initial property data object.
@@ -400,5 +404,16 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
     if (this.currentOperatorId) {
       this.executeWorkflowService.changeOperatorLogic(this.currentOperatorId);
     }
+  }
+
+  confirmChangeOperatorCustomName(newOperatorName: string) {
+
+    if (this.currentOperatorId) {
+      this.workflowActionService
+        .getTexeraGraph()
+        .changeName(this.currentOperatorId, newOperatorName);
+    }
+    this.formTitle = newOperatorName;
+    this.editingTitle = false;
   }
 }
