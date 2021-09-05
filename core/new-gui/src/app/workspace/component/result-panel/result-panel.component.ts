@@ -14,11 +14,13 @@ import { VisualizationFrameComponent } from "./visualization-frame/visualization
 import { filter } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DynamicComponentConfig } from "../../../common/type/dynamic-component-config";
+import { DebuggerFrameComponent } from "./debugger-frame/debugger-frame.component";
 
 export type ResultFrameComponent =
   | ResultTableFrameComponent
   | VisualizationFrameComponent
-  | ConsoleFrameComponent;
+  | ConsoleFrameComponent
+  | DebuggerFrameComponent;
 
 export type ResultFrameComponentConfig =
   DynamicComponentConfig<ResultFrameComponent>;
@@ -142,16 +144,10 @@ export class ResultPanelComponent implements OnInit {
     }
 
     const executionState = this.executeWorkflowService.getExecutionState();
-    if (
-      executionState.state in
-      [ExecutionState.Failed, ExecutionState.BreakpointTriggered]
-    ) {
-      this.frameComponentConfigs.set("Console", {
-        component: ConsoleFrameComponent,
-        componentInputs: { operatorId: this.currentOperatorId }
-      });
-    } else {
-      if (this.currentOperatorId) {
+    console.log(executionState);
+
+    if (this.currentOperatorId) {
+
         const resultService = this.workflowResultService.getResultService(
           this.currentOperatorId
         );
@@ -168,15 +164,25 @@ export class ResultPanelComponent implements OnInit {
           this.frameComponentConfigs.set("Result", {
             component: VisualizationFrameComponent,
             componentInputs: { operatorId: this.currentOperatorId }
-          });
-        } else {
-          this.frameComponentConfigs.set("Console", {
-            component: ConsoleFrameComponent,
+
+        });
+      } else {
+        this.frameComponentConfigs.set("Console", {
+          component: ConsoleFrameComponent,
+          componentInputs: { operatorId: this.currentOperatorId }
+        });
+        if (
+          executionState.state === ExecutionState.Failed ||
+          executionState.state === ExecutionState.BreakpointTriggered
+        ) {
+          this.frameComponentConfigs.set("Debug", {
+            component: DebuggerFrameComponent,
             componentInputs: { operatorId: this.currentOperatorId }
           });
         }
       }
     }
+    console.log(this.frameComponentConfigs);
   }
 
   clearResultPanel(): void {

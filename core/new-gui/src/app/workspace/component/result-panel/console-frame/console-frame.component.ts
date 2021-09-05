@@ -22,9 +22,6 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
   @Input() operatorId?: string;
   // display error message:
   errorMessages?: Readonly<Record<string, string>>;
-  // display breakpoint
-  breakpointTriggerInfo?: BreakpointTriggerInfo;
-  breakpointAction: boolean = false;
 
   // display print
   consoleMessages: ReadonlyArray<string> = [];
@@ -74,28 +71,18 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
       .subscribe((_) => this.renderConsole());
   }
 
-  onClickSkipTuples(): void {
-    try {
-      this.executeWorkflowService.skipTuples();
-    } catch (e: any) {
-      this.notificationService.error(e);
-    }
-    this.breakpointAction = false;
-  }
-
   onClickRetry() {
     try {
       this.executeWorkflowService.retryExecution();
     } catch (e: any) {
       this.notificationService.error(e);
     }
-    this.breakpointAction = false;
   }
 
   clearConsole() {
     this.consoleMessages = [];
     this.errorMessages = undefined;
-    this.breakpointTriggerInfo = undefined;
+
   }
 
   renderConsole() {
@@ -119,10 +106,6 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
   }
 
   displayBreakpoint(breakpointTriggerInfo: BreakpointTriggerInfo) {
-    this.breakpointTriggerInfo = breakpointTriggerInfo;
-    this.breakpointAction = true;
-    // const result = breakpointTriggerInfo.report.map(r => r.faultedTuple.tuple).filter(t => t !== undefined);
-    // this.setupResultTable(result, result.length);
     const errorsMessages: Record<string, string> = {};
     breakpointTriggerInfo.report.forEach((r) => {
       const splitPath = r.actorPath.split("/");
