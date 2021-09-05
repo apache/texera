@@ -137,7 +137,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleViewDeleteOperator();
     this.handleCellHighlight();
     this.handleDisableOperator();
-    this.handleOperatorNameChange();
+    this.registerOperatorDisplayNameChangeHandler();
     this.handleViewDeleteLink();
     this.handleViewCollapseGroup();
     this.handleViewExpandGroup();
@@ -587,7 +587,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       });
   }
 
-  private handleOperatorNameChange(): void {
+  private registerOperatorDisplayNameChangeHandler(): void {
     this.workflowActionService.getTexeraGraph()
       .getOperatorCustomDisplayNameChangedStream()
       .pipe(untilDestroyed(this))

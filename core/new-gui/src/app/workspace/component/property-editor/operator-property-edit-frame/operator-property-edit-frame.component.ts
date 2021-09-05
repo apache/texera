@@ -406,14 +406,26 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
     }
   }
 
-  confirmChangeOperatorCustomName(newOperatorName: string) {
-
+  confirmChangeOperatorCustomName(customDisplayName: string) {
     if (this.currentOperatorId) {
+      const currentOperatorSchema = this.dynamicSchemaService.getDynamicSchema(
+        this.currentOperatorId
+      );
+
+      // fall back to the original userFriendlyName if no valid name is provided
+      const newDisplayName =
+        customDisplayName === "" || customDisplayName === undefined
+          ? currentOperatorSchema.additionalMetadata.userFriendlyName
+          : customDisplayName;
       this.workflowActionService
         .getTexeraGraph()
-        .changeOperatorCustomDisplayName(this.currentOperatorId, newOperatorName);
+        .changeOperatorCustomDisplayName(
+          this.currentOperatorId,
+          newDisplayName
+        );
+      this.formTitle = newDisplayName;
     }
-    this.formTitle = newOperatorName;
+
     this.editingTitle = false;
   }
 }
