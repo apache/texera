@@ -12,7 +12,7 @@
 <!--TODO: add this to part of resume logic-->
 <button
   (click)="onClickRetry()"
-  *ngIf="breakpointTriggerInfo !== undefined"
+  *ngIf="breakpointTriggerInfo?.operatorID===this.operatorId"
   [disabled]="!breakpointAction"
   nz-button
 >
