@@ -419,7 +419,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
           : customDisplayName;
       this.workflowActionService
         .getTexeraGraph()
-        .changeOperatorCustomDisplayName(
+        .changeOperatorDisplayName(
           this.currentOperatorId,
           newDisplayName
         );

@@ -604,7 +604,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private registerOperatorDisplayNameChangeHandler(): void {
     this.workflowActionService
       .getTexeraGraph()
-      .getOperatorCustomDisplayNameChangedStream()
+      .getOperatorDisplayNameChangedStream()
       .pipe(untilDestroyed(this))
       .subscribe(({ operatorID, newDisplayName }) => {
         const op = this.workflowActionService

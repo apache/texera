@@ -46,7 +46,7 @@ export class WorkflowGraph {
     newDisabled: string[];
     newEnabled: string[];
   }>();
-  private readonly operatorCustomDisplayNameChangedSubject = new Subject<{ operatorID: string, newDisplayName: string }>();
+  private readonly operatorDisplayNameChangedSubject = new Subject<{ operatorID: string, newDisplayName: string }>();
   private readonly linkAddSubject = new Subject<OperatorLink>();
   private readonly linkDeleteSubject = new Subject<{
     deletedLink: OperatorLink;
@@ -127,8 +127,8 @@ export class WorkflowGraph {
     });
   }
 
-  public changeOperatorCustomDisplayName(operatorID: string, newDisplayName: string): void {
-    this.operatorCustomDisplayNameChangedSubject.next({ operatorID, newDisplayName });
+  public changeOperatorDisplayName(operatorID: string, newDisplayName: string): void {
+    this.operatorDisplayNameChangedSubject.next({ operatorID, newDisplayName });
     const operator = this.getOperator(operatorID);
     this.operatorIDMap.set(operatorID, {...operator, customDisplayName: newDisplayName});
   }
@@ -424,8 +424,8 @@ export class WorkflowGraph {
     return this.disabledOperatorChangedSubject.asObservable();
   }
 
-  public getOperatorCustomDisplayNameChangedStream(): Observable<{ operatorID: string, newDisplayName: string }> {
-    return this.operatorCustomDisplayNameChangedSubject.asObservable();
+  public getOperatorDisplayNameChangedStream(): Observable<{ operatorID: string, newDisplayName: string }> {
+    return this.operatorDisplayNameChangedSubject.asObservable();
   }
 
   /**
