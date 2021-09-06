@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web.resource
 
 import akka.actor.{ActorRef, PoisonPill}
 import com.typesafe.config.{Config, ConfigFactory}
-import com.typesafe.scalalogging.Logger
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
@@ -70,9 +70,7 @@ object WorkflowWebsocketResource {
   value = "/wsapi/workflow-websocket",
   configurator = classOf[ServletAwareConfigurator]
 )
-class WorkflowWebsocketResource {
-
-  private val logger = Logger(this.getClass.getName)
+class WorkflowWebsocketResource extends LazyLogging {
 
   final val objectMapper = Utils.objectMapper
 
@@ -229,8 +227,8 @@ class WorkflowWebsocketResource {
 
     val workflowInfo = WorkflowInfo(request.operators, request.links, request.breakpoints)
     workflowInfo.cachedOperatorIDs = request.cachedOperatorIDs
-    logger.info("Cached operators: {}.", cachedOperators.toString())
-    logger.info("request.cachedOperatorIDs: {}.", request.cachedOperatorIDs)
+    logger.debug("Cached operators: {}.", cachedOperators.toString())
+    logger.debug("request.cachedOperatorIDs: {}.", request.cachedOperatorIDs)
     val workflowRewriter = new WorkflowRewriter(
       workflowInfo,
       cachedOperators.clone(),
@@ -345,8 +343,8 @@ class WorkflowWebsocketResource {
     var workflowInfo = WorkflowInfo(request.operators, request.links, request.breakpoints)
     if (opResultSwitch) {
       workflowInfo.cachedOperatorIDs = request.cachedOperatorIDs
-      logger.info("Cached operators: {}.", cachedOperators.toString())
-      logger.info("request.cachedOperatorIDs: {}.", request.cachedOperatorIDs)
+      logger.debug("Cached operators: {}.", cachedOperators.toString())
+      logger.debug("request.cachedOperatorIDs: {}.", request.cachedOperatorIDs)
       val workflowRewriter = new WorkflowRewriter(
         workflowInfo,
         cachedOperators,
