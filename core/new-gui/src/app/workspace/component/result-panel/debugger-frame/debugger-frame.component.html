@@ -18,3 +18,13 @@
 >
   Retry current Tuple
 </button>
+
+<button
+  (click)="onClickEvaluate()"
+  *ngIf="breakpointTriggerInfo?.operatorID===this.operatorId"
+  [disabled]="!breakpointAction"
+  nz-button
+>
+  Evaluate
+</button>
+

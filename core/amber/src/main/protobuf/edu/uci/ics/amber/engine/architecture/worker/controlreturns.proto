@@ -18,6 +18,12 @@ message ControlException {
     string msg = 1;
 }
 
+message EvaluatedValue {
+    string value = 1;
+    string expression_type = 2;
+    repeated string attributes = 3;
+}
+
 message ControlReturnV2 {
     oneof value {
         ControlException control_exception = 1;
@@ -25,6 +31,7 @@ message ControlReturnV2 {
         WorkerStatistics worker_statistics = 2;
         WorkerState worker_state = 3;
         CurrentInputTupleInfo current_input_tuple_info = 4;
+        EvaluatedValue evaluated_value = 5;
     }
 }
 

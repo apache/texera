@@ -2,6 +2,7 @@ package edu.uci.ics.texera.web.model.request
 
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
+import edu.uci.ics.texera.web.model.request.python.PythonExpressionEvaluateRequest
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes(
@@ -18,7 +19,8 @@ import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
     new Type(value = classOf[SkipTupleRequest]),
     new Type(value = classOf[RetryRequest]),
     new Type(value = classOf[ResultPaginationRequest]),
-    new Type(value = classOf[ResultExportRequest])
+    new Type(value = classOf[ResultExportRequest]),
+    new Type(value = classOf[PythonExpressionEvaluateRequest])
   )
 )
 trait TexeraWebSocketRequest {}

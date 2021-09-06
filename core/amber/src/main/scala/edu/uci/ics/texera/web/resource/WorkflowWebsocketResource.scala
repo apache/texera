@@ -1,16 +1,13 @@
 package edu.uci.ics.texera.web.resource
 
 import akka.actor.{ActorRef, PoisonPill}
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.EvaluatePythonExpressionHandler.EvaluatePythonExpression
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ModifyLogicHandler.ModifyLogic
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.RetryWorkflowHandler.RetryWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
-import edu.uci.ics.amber.engine.architecture.controller.{
-  Controller,
-  ControllerConfig,
-  ControllerEventListener
-}
+import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, ControllerEventListener}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
@@ -18,6 +15,7 @@ import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.web.model.event._
 import edu.uci.ics.texera.web.model.request._
+import edu.uci.ics.texera.web.model.request.python.PythonExpressionEvaluateRequest
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource._
 import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.web.{ServletAwareConfigurator, TexeraWebApplication}
@@ -100,6 +98,8 @@ class WorkflowWebsocketResource {
           resultPagination(session, paginationRequest)
         case resultExportRequest: ResultExportRequest =>
           exportResult(session, resultExportRequest)
+        case pythonExpressionEvaluateRequest: PythonExpressionEvaluateRequest =>
+          evaluatePythonExpression(session, pythonExpressionEvaluateRequest.expression)
       }
     } catch {
       case err: Exception =>
@@ -113,6 +113,11 @@ class WorkflowWebsocketResource {
 
     }
 
+  }
+
+  def evaluatePythonExpression(session: Session, expression: String): Unit = {
+    val controller = WorkflowWebsocketResource.sessionJobs(session.getId)._2
+    controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, EvaluatePythonExpression(expression))
   }
 
   def resultPagination(session: Session, request: ResultPaginationRequest): Unit = {
@@ -211,6 +216,9 @@ class WorkflowWebsocketResource {
       pythonPrintTriggeredListener = pythonPrintTriggered => {
         send(session, PythonPrintTriggeredEvent.apply(pythonPrintTriggered))
       },
+      pythonExpressionEvaluatedListener = pythonExpressionEvaluateResponse => {
+        send(session, pythonExpressionEvaluateResponse)
+      },
       workflowPausedListener = _ => {
         send(session, WorkflowPausedEvent())
       },
@@ -246,11 +254,6 @@ class WorkflowWebsocketResource {
     send(session, resultExportResponse)
   }
 
-  def killWorkflow(session: Session): Unit = {
-    WorkflowWebsocketResource.sessionJobs(session.getId)._2 ! PoisonPill
-    println("workflow killed")
-  }
-
   @OnClose
   def myOnClose(session: Session, cr: CloseReason): Unit = {
     if (WorkflowWebsocketResource.sessionJobs.contains(session.getId)) {
@@ -262,6 +265,11 @@ class WorkflowWebsocketResource {
     sessionJobs.remove(session.getId)
     sessionMap.remove(session.getId)
     sessionExportCache.remove(session.getId)
+  }
+
+  def killWorkflow(session: Session): Unit = {
+    WorkflowWebsocketResource.sessionJobs(session.getId)._2 ! PoisonPill
+    println("workflow killed")
   }
 
   def removeBreakpoint(session: Session, removeBreakpoint: RemoveBreakpointRequest): Unit = {

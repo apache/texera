@@ -87,6 +87,17 @@ export type ResultExportResponse = Readonly<{
   message: string;
 }>;
 
+export type PythonExpressionEvaluateRequest = Readonly<{
+  expression: string;
+}>;
+
+export type PythonExpressionEvaluateResponse = Readonly<{
+  expression: string;
+  value: string;
+  type: string;
+  attributes: string[];
+}>;
+
 export type TexeraWebsocketRequestTypeMap = {
   HelloWorldRequest: WebSocketHelloWorld;
   HeartBeatRequest: {};
@@ -100,6 +111,7 @@ export type TexeraWebsocketRequestTypeMap = {
   AddBreakpointRequest: BreakpointInfo;
   ResultPaginationRequest: PaginationRequest;
   ResultExportRequest: ResultExportRequest;
+  PythonExpressionEvaluateRequest: PythonExpressionEvaluateRequest;
 };
 
 export type TexeraWebsocketEventTypeMap = {
@@ -120,6 +132,7 @@ export type TexeraWebsocketEventTypeMap = {
   PaginatedResultEvent: PaginatedResultEvent;
   WorkflowExecutionErrorEvent: WorkflowExecutionError;
   ResultExportResponse: ResultExportResponse;
+  PythonExpressionEvaluateResponse: PythonExpressionEvaluateResponse;
 };
 
 // helper type definitions to generate the request and event types

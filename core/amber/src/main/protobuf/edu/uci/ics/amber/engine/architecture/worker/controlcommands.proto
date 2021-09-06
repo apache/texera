@@ -56,6 +56,10 @@ message ModifyPythonLogicV2 {
     string code = 1;
 }
 
+message EvaluateExpressionV2 {
+    string expression = 1;
+}
+
 message ControlCommandV2 {
     oneof sealed_value {
         StartWorkerV2 start_worker = 1;
@@ -74,6 +78,7 @@ message ControlCommandV2 {
         PythonPrintV2 python_print = 22;
         RetryPythonV2 retry_python = 23;
         ModifyPythonLogicV2 modify_python_logic = 24;
+        EvaluateExpressionV2 evaluate_expression = 25;
 
         WorkerExecutionCompletedV2 worker_execution_completed = 101;
     }
