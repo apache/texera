@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.workflow.common.storage.memory
 
-import com.typesafe.scalalogging.Logger
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import org.apache.commons.jcs3.JCS
@@ -11,52 +10,56 @@ import java.util.concurrent.locks.ReentrantLock
 
 class JCSOpResultStorage extends OpResultStorage {
 
-  private val logger = Logger(this.getClass.getName)
-
   private val lock = new ReentrantLock()
 
   private val cache: CacheAccess[String, List[Tuple]] = JCS.getInstance("texera")
 
   override def put(key: String, records: List[Tuple]): Unit = {
     lock.lock()
-    logger.debug("put {} start", key)
-    cache.put(key, records)
-    logger.debug("put {} end", key)
-    lock.unlock()
+    try {
+      logger.debug(s"put $key of length ${records.length} start")
+      cache.put(key, records)
+      logger.debug(s"put $key of length ${records.length} end")
+    } finally {
+      lock.unlock()
+    }
   }
 
   override def get(key: String): List[Tuple] = {
     lock.lock()
-    logger.debug("get {} start", key)
-    var res = cache.get(key)
-    if (res == null) {
-      res = List[Tuple]()
+    try {
+      logger.debug(s"get $key start")
+      var res = cache.get(key)
+      if (res == null) {
+        res = List[Tuple]()
+      }
+      logger.debug(s"get $key of length ${res.length} end")
+      res
+    } finally {
+      lock.unlock()
     }
-    logger.debug("get {} end", key)
-    lock.unlock()
-    res
   }
 
   override def remove(key: String): Unit = {
     lock.lock()
-    logger.debug("remove {} start", key)
-    cache.remove(key)
-    logger.debug("remove {} end", key)
-    lock.unlock()
+    try {
+      logger.debug(s"remove $key start")
+      cache.remove(key)
+      logger.debug(s"remove $key end")
+    } finally {
+      lock.unlock()
+    }
   }
 
   override def dump(): Unit = {
-    logger.error("Method not implemented.")
     throw new NotImplementedException()
   }
 
   override def load(): Unit = {
-    logger.error("Method not implemented.")
     throw new NotImplementedException()
   }
 
   override def close(): Unit = {
-    logger.error("Method not implemented.")
     throw new NotImplementedException()
   }
 }

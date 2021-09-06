@@ -1,14 +1,13 @@
-package edu.uci.ics.texera.workflow.common.storage.mongo
+package edu.uci.ics.texera.workflow.common.storage.memory
 
+import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
+import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
-//TODO: All MongoDB testcases are commented,
-// because currently we do not have MongoDB in our CICD env.
-// We'll come back to this unit test in the future.
-class MongoOpResultStorageSpec extends AnyFlatSpec with BeforeAndAfter {
+class JCSOpResultStorageSpec extends AnyFlatSpec with BeforeAndAfter {
 
-  /*
   var opResultStorage: OpResultStorage = _
 
   val stringAttribute = new Attribute("col-string", AttributeType.STRING)
@@ -16,10 +15,10 @@ class MongoOpResultStorageSpec extends AnyFlatSpec with BeforeAndAfter {
   val boolAttribute = new Attribute("col-bool", AttributeType.BOOLEAN)
 
   before {
-    opResultStorage = new MongoOpResultStorage()
+    opResultStorage = new JCSOpResultStorage()
   }
 
-  it should "read nothing from mongoDB" in {
+  it should "read nothing from JCS" in {
     val res = opResultStorage.get("should return nothing")
     assert(0 == res.length)
   }
@@ -70,6 +69,5 @@ class MongoOpResultStorageSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(!tuples(1).getField[Boolean]("col-bool"))
     opResultStorage.remove(keyStr)
   }
-   */
 
 }

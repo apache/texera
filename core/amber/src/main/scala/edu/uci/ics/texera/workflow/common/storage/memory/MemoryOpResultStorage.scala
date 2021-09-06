@@ -1,61 +1,43 @@
 package edu.uci.ics.texera.workflow.common.storage.memory
 
-import com.typesafe.scalalogging.Logger
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
-import java.util.concurrent.locks.ReentrantLock
-import scala.collection.mutable
+import java.util.concurrent.ConcurrentHashMap
 
 class MemoryOpResultStorage extends OpResultStorage {
 
-  private val logger = Logger(this.getClass.getName)
-
-  private val lock = new ReentrantLock()
-
-  val cache: mutable.Map[String, List[Tuple]] = mutable.HashMap[String, List[Tuple]]()
+  val cache: ConcurrentHashMap[String, List[Tuple]] = new ConcurrentHashMap[String, List[Tuple]]()
 
   override def put(key: String, records: List[Tuple]): Unit = {
-    lock.lock()
-    logger.debug("put {} start", key)
-    cache(key) = records
-    logger.debug("put {} end", key)
-    lock.unlock()
+    logger.debug(s"put $key of length ${records.length} start")
+    // This is an atomic operation.
+    cache.put(key, records)
+    logger.debug(s"put $key of length ${records.length} end")
   }
 
   override def get(key: String): List[Tuple] = {
-    lock.lock()
-    logger.debug("get {} start", key)
-    var res: List[Tuple] = List[Tuple]()
-    if (cache.contains(key)) {
-      res = cache(key)
-    }
-    logger.debug("get {} end", key)
-    lock.unlock()
+    logger.debug(s"get $key start")
+    val res = cache.getOrDefault(key, List[Tuple]())
+    logger.debug(s"get $key of length ${res.length} end")
     res
   }
 
   override def remove(key: String): Unit = {
-    lock.lock()
-    logger.debug("remove {} start", key)
-    if (cache.contains(key)) {
-      cache.remove(key)
-    }
-    logger.debug("remove {} end", key)
-    lock.unlock()
+    logger.debug(s"remove $key start")
+    cache.remove(key)
+    logger.debug(s"remove $key end")
   }
 
   override def dump(): Unit = {
-    throw new Exception("not implemented")
+    throw new NotImplementedError()
   }
 
   override def load(): Unit = {
-    throw new Exception("not implemented")
+    throw new NotImplementedError()
   }
 
   override def close(): Unit = {
-    lock.lock()
     cache.clear()
-    lock.unlock()
   }
 }

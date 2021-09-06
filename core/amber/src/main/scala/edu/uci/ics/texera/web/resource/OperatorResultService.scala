@@ -21,7 +21,7 @@ class OperatorResultService(
 
   var uuid: String = _
 
-  assert(workflowCompiler.workflowInfo.cachedOperatorIDs != null)
+  assert(workflowCompiler.workflowInfo.cachedOperatorIds != null)
 
   // derive the web output mode from the sink operator type
   val webOutputMode: WebOutputMode = {
@@ -108,7 +108,7 @@ class OperatorResultService(
   }
 
   def getResult: List[ITuple] = {
-    if (workflowCompiler.workflowInfo.cachedOperatorIDs.contains(operatorID)) {
+    if (workflowCompiler.workflowInfo.cachedOperatorIds.contains(operatorID)) {
       opResultStorage.get(uuid)
     } else {
       this.result
