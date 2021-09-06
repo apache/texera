@@ -7,31 +7,20 @@ package edu.uci.ics.amber.engine.architecture.worker.controlreturns
 
 @SerialVersionUID(0L)
 final case class EvaluatedValue(
-    value: _root_.scala.Predef.String,
-    expressionType: _root_.scala.Predef.String,
-    attributes: _root_.scala.Seq[_root_.scala.Predef.String]
+    value: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue],
+    attributes: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue]
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[EvaluatedValue] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
     private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
-      
-      {
-        val __value = value
-        if (!__value.isEmpty) {
-          __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(1, __value)
-        }
-      };
-      
-      {
-        val __value = expressionType
-        if (!__value.isEmpty) {
-          __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(2, __value)
-        }
+      if (value.isDefined) {
+        val __value = value.get
+        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       };
       attributes.foreach { __item =>
         val __value = __item
-        __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(3, __value)
+        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       }
       __size
     }
@@ -44,48 +33,37 @@ final case class EvaluatedValue(
       read
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
-      {
-        val __v = value
-        if (!__v.isEmpty) {
-          _output__.writeString(1, __v)
-        }
-      };
-      {
-        val __v = expressionType
-        if (!__v.isEmpty) {
-          _output__.writeString(2, __v)
-        }
+      value.foreach { __v =>
+        val __m = __v
+        _output__.writeTag(1, 2)
+        _output__.writeUInt32NoTag(__m.serializedSize)
+        __m.writeTo(_output__)
       };
       attributes.foreach { __v =>
         val __m = __v
-        _output__.writeString(3, __m)
+        _output__.writeTag(2, 2)
+        _output__.writeUInt32NoTag(__m.serializedSize)
+        __m.writeTo(_output__)
       };
     }
-    def withValue(__v: _root_.scala.Predef.String): EvaluatedValue = copy(value = __v)
-    def withExpressionType(__v: _root_.scala.Predef.String): EvaluatedValue = copy(expressionType = __v)
+    def getValue: edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue = value.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue.defaultInstance)
+    def clearValue: EvaluatedValue = copy(value = _root_.scala.None)
+    def withValue(__v: edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue): EvaluatedValue = copy(value = Option(__v))
     def clearAttributes = copy(attributes = _root_.scala.Seq.empty)
-    def addAttributes(__vs: _root_.scala.Predef.String*): EvaluatedValue = addAllAttributes(__vs)
-    def addAllAttributes(__vs: Iterable[_root_.scala.Predef.String]): EvaluatedValue = copy(attributes = attributes ++ __vs)
-    def withAttributes(__v: _root_.scala.Seq[_root_.scala.Predef.String]): EvaluatedValue = copy(attributes = __v)
+    def addAttributes(__vs: edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue*): EvaluatedValue = addAllAttributes(__vs)
+    def addAllAttributes(__vs: Iterable[edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue]): EvaluatedValue = copy(attributes = attributes ++ __vs)
+    def withAttributes(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue]): EvaluatedValue = copy(attributes = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
-        case 1 => {
-          val __t = value
-          if (__t != "") __t else null
-        }
-        case 2 => {
-          val __t = expressionType
-          if (__t != "") __t else null
-        }
-        case 3 => attributes
+        case 1 => value.orNull
+        case 2 => attributes
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
-        case 1 => _root_.scalapb.descriptors.PString(value)
-        case 2 => _root_.scalapb.descriptors.PString(expressionType)
-        case 3 => _root_.scalapb.descriptors.PRepeated(attributes.iterator.map(_root_.scalapb.descriptors.PString(_)).toVector)
+        case 1 => value.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 2 => _root_.scalapb.descriptors.PRepeated(attributes.iterator.map(_.toPMessage).toVector)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -96,26 +74,22 @@ final case class EvaluatedValue(
 object EvaluatedValue extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue] {
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue = {
-    var __value: _root_.scala.Predef.String = ""
-    var __expressionType: _root_.scala.Predef.String = ""
-    val __attributes: _root_.scala.collection.immutable.VectorBuilder[_root_.scala.Predef.String] = new _root_.scala.collection.immutable.VectorBuilder[_root_.scala.Predef.String]
+    var __value: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue] = _root_.scala.None
+    val __attributes: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue]
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
       _tag__ match {
         case 0 => _done__ = true
         case 10 =>
-          __value = _input__.readStringRequireUtf8()
+          __value = Option(__value.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 18 =>
-          __expressionType = _input__.readStringRequireUtf8()
-        case 26 =>
-          __attributes += _input__.readStringRequireUtf8()
+          __attributes += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue](_input__)
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue(
         value = __value,
-        expressionType = __expressionType,
         attributes = __attributes.result()
     )
   }
@@ -123,37 +97,39 @@ object EvaluatedValue extends scalapb.GeneratedMessageCompanion[edu.uci.ics.ambe
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue(
-        value = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
-        expressionType = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
-        attributes = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Seq[_root_.scala.Predef.String]]).getOrElse(_root_.scala.Seq.empty)
+        value = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue]]),
+        attributes = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue]]).getOrElse(_root_.scala.Seq.empty)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlreturnsProto.javaDescriptor.getMessageTypes().get(2)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlreturnsProto.scalaDescriptor.messages(2)
-  def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlreturnsProto.javaDescriptor.getMessageTypes().get(3)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlreturnsProto.scalaDescriptor.messages(3)
+  def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
+    var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
+    (__number: @_root_.scala.unchecked) match {
+      case 1 => __out = edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue
+      case 2 => __out = edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue
+    }
+    __out
+  }
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue(
-    value = "",
-    expressionType = "",
+    value = _root_.scala.None,
     attributes = _root_.scala.Seq.empty
   )
   implicit class EvaluatedValueLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue](_l) {
-    def value: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.value)((c_, f_) => c_.copy(value = f_))
-    def expressionType: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.expressionType)((c_, f_) => c_.copy(expressionType = f_))
-    def attributes: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[_root_.scala.Predef.String]] = field(_.attributes)((c_, f_) => c_.copy(attributes = f_))
+    def value: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue] = field(_.getValue)((c_, f_) => c_.copy(value = Option(f_)))
+    def optionalValue: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue]] = field(_.value)((c_, f_) => c_.copy(value = f_))
+    def attributes: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue]] = field(_.attributes)((c_, f_) => c_.copy(attributes = f_))
   }
   final val VALUE_FIELD_NUMBER = 1
-  final val EXPRESSION_TYPE_FIELD_NUMBER = 2
-  final val ATTRIBUTES_FIELD_NUMBER = 3
+  final val ATTRIBUTES_FIELD_NUMBER = 2
   def of(
-    value: _root_.scala.Predef.String,
-    expressionType: _root_.scala.Predef.String,
-    attributes: _root_.scala.Seq[_root_.scala.Predef.String]
+    value: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue],
+    attributes: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.controlreturns.TypedValue]
   ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue = _root_.edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue(
     value,
-    expressionType,
     attributes
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.EvaluatedValue])

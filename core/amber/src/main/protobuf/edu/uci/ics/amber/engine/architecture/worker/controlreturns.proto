@@ -18,10 +18,16 @@ message ControlException {
     string msg = 1;
 }
 
+message TypedValue {
+    string expression = 1;
+    string value_str = 2;
+    string value_type = 3;
+    bool expandable = 4;
+}
+
 message EvaluatedValue {
-    string value = 1;
-    string expression_type = 2;
-    repeated string attributes = 3;
+    TypedValue value = 1;
+    repeated TypedValue attributes = 2;
 }
 
 message ControlReturnV2 {

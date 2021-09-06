@@ -143,10 +143,17 @@ class ControlException(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class TypedValue(betterproto.Message):
+    expression: str = betterproto.string_field(1)
+    value_str: str = betterproto.string_field(2)
+    value_type: str = betterproto.string_field(3)
+    expandable: bool = betterproto.bool_field(4)
+
+
+@dataclass(eq=False, repr=False)
 class EvaluatedValue(betterproto.Message):
-    value: str = betterproto.string_field(1)
-    expression_type: str = betterproto.string_field(2)
-    attributes: List[str] = betterproto.string_field(3)
+    value: "TypedValue" = betterproto.message_field(1)
+    attributes: List["TypedValue"] = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)

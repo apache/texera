@@ -99,7 +99,7 @@ class WorkflowWebsocketResource {
         case resultExportRequest: ResultExportRequest =>
           exportResult(session, resultExportRequest)
         case pythonExpressionEvaluateRequest: PythonExpressionEvaluateRequest =>
-          evaluatePythonExpression(session, pythonExpressionEvaluateRequest.expression)
+          evaluatePythonExpression(session, pythonExpressionEvaluateRequest)
       }
     } catch {
       case err: Exception =>
@@ -115,9 +115,9 @@ class WorkflowWebsocketResource {
 
   }
 
-  def evaluatePythonExpression(session: Session, expression: String): Unit = {
+  def evaluatePythonExpression(session: Session, request: PythonExpressionEvaluateRequest): Unit = {
     val controller = WorkflowWebsocketResource.sessionJobs(session.getId)._2
-    controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, EvaluatePythonExpression(expression))
+    controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, EvaluatePythonExpression(request.expression, request.operatorId))
   }
 
   def resultPagination(session: Session, request: ResultPaginationRequest): Unit = {

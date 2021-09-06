@@ -98,6 +98,7 @@ import { BreakpointPropertyEditFrameComponent } from "./workspace/component/prop
 import { NotificationComponent } from "./common/component/notification/notification/notification.component";
 import { DebuggerFrameComponent } from "./workspace/component/result-panel/debugger-frame/debugger-frame.component";
 import { NzTabsModule } from "ng-zorro-antd/tabs";
+import { NzTreeViewModule } from "ng-zorro-antd/tree-view";
 
 registerLocaleData(en);
 
@@ -208,7 +209,8 @@ registerLocaleData(en);
     NzAvatarModule,
     DynamicModule,
     MonacoEditorModule.forRoot(),
-    NzTabsModule
+    NzTabsModule,
+    NzTreeViewModule
   ],
   entryComponents: [
     NgbdModalAddWorkflowComponent,

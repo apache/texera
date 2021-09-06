@@ -1,8 +1,31 @@
-import { Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
+import {
+  Component,
+  Input,
+  OnChanges,
+  OnInit,
+  SimpleChanges
+} from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { BreakpointTriggerInfo } from "../../../types/workflow-common.interface";
 import { WorkflowWebsocketService } from "../../../service/workflow-websocket/workflow-websocket.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { EvaluatedValue } from "../../../types/workflow-websocket.interface";
+import { FlatTreeControl, TreeControl } from "@angular/cdk/tree";
+import {
+  CollectionViewer,
+  DataSource,
+  SelectionChange
+} from "@angular/cdk/collections";
+import { BehaviorSubject, merge, Observable } from "rxjs";
+import { map, tap } from "rxjs/operators";
+
+interface FlatNode {
+  expandable: boolean;
+  expression: string;
+  label: string;
+  level: number;
+  loading?: boolean;
+}
 
 @UntilDestroy()
 @Component({
@@ -16,6 +39,21 @@ export class DebuggerFrameComponent implements OnInit, OnChanges {
   breakpointTriggerInfo?: BreakpointTriggerInfo;
   breakpointAction: boolean = false;
   evaluateTrees: object[] = [];
+  treeControl = new FlatTreeControl<FlatNode>(
+    (node) => node.level,
+    (node) => node.expandable
+  );
+  TREE_DATA: FlatNode[] = [
+    {
+      expandable: true,
+      expression: "self",
+      label: "UDF",
+      level: 0
+    }
+  ];
+  dataSource?: DynamicDatasource;
+  hasChild = (_: number, node: FlatNode) => node.expandable;
+
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
     private workflowWebsocketService: WorkflowWebsocketService
@@ -46,15 +84,135 @@ export class DebuggerFrameComponent implements OnInit, OnChanges {
   }
 
   onClickEvaluate() {
-    this.workflowWebsocketService.send("PythonExpressionEvaluateRequest", {
-      expression: "self"
-    });
+    // this.workflowWebsocketService.send("PythonExpressionEvaluateRequest", {
+    //   expression: "self"
+    // });
   }
 
   ngOnInit(): void {
+    this.dataSource = new DynamicDatasource(
+      this.treeControl,
+      this.TREE_DATA,
+      this.workflowWebsocketService,
+      this.operatorId
+    );
+  }
+}
+
+@UntilDestroy()
+class DynamicDatasource implements DataSource<FlatNode> {
+  private flattenedData: BehaviorSubject<FlatNode[]>;
+  private childrenLoadedSet = new Set<FlatNode>();
+
+  constructor(
+    private treeControl: TreeControl<FlatNode>,
+    initData: FlatNode[],
+    private workflowWebsocketService: WorkflowWebsocketService,
+    private operatorId?: string
+  ) {
+    this.flattenedData = new BehaviorSubject<FlatNode[]>(initData);
+    treeControl.dataNodes = initData;
+
+    function toTreeNode(
+      parentNode: FlatNode,
+      value: EvaluatedValue
+    ): FlatNode[] {
+      console.log(parentNode, value);
+      return value.attributes.map((typedValue) => {
+        return <FlatNode>{
+          expression: parentNode.expression + "." + typedValue.expression,
+          label: typedValue.expression + "("+ typedValue.valueType + "): " + typedValue.valueStr,
+          expandable: typedValue.expandable,
+          level: parentNode.level + 1
+        };
+      });
+    }
+
     this.workflowWebsocketService
       .subscribeToEvent("PythonExpressionEvaluateResponse")
       .pipe(untilDestroyed(this))
-      .subscribe((a) => console.log(a));
+      .subscribe((root) => {
+        const flattenedData = this.flattenedData.getValue();
+        const node = flattenedData.find(
+          (data) => data.expression === root.expression
+        );
+
+        if (node) {
+          let treeNodes = root.values.map((evaluatedValue) =>
+            toTreeNode(node, evaluatedValue)
+          );
+
+          const index = flattenedData.indexOf(node);
+          if (index !== -1) {
+            flattenedData.splice(index + 1, 0, ...treeNodes[0]);
+            this.childrenLoadedSet.add(node);
+          }
+          this.flattenedData.next(flattenedData);
+          node.loading = false;
+        }
+      });
+  }
+
+  connect(collectionViewer: CollectionViewer): Observable<FlatNode[]> {
+    const changes = [
+      collectionViewer.viewChange,
+      this.treeControl.expansionModel.changed.pipe(
+        tap((change) => this.handleExpansionChange(change))
+      ),
+      this.flattenedData
+    ];
+    return merge(...changes).pipe(
+      map(() => this.expandFlattenedNodes(this.flattenedData.getValue()))
+    );
+  }
+
+  expandFlattenedNodes(nodes: FlatNode[]): FlatNode[] {
+    const treeControl = this.treeControl;
+    const results: FlatNode[] = [];
+    const currentExpand: boolean[] = [];
+    currentExpand[0] = true;
+
+    nodes.forEach((node) => {
+      let expand = true;
+      for (let i = 0; i <= treeControl.getLevel(node); i++) {
+        expand = expand && currentExpand[i];
+      }
+      if (expand) {
+        results.push(node);
+      }
+      if (treeControl.isExpandable(node)) {
+        currentExpand[treeControl.getLevel(node) + 1] =
+          treeControl.isExpanded(node);
+      }
+    });
+    return results;
+  }
+
+  handleExpansionChange(change: SelectionChange<FlatNode>): void {
+    if (change.added) {
+      change.added.forEach((node) => this.loadChildren(node));
+    }
+  }
+
+  loadChildren(node: FlatNode): void {
+    if (this.childrenLoadedSet.has(node)) {
+      return;
+    }
+    node.loading = true;
+    this.getChildren(node);
+  }
+
+  disconnect(): void {
+    this.flattenedData.complete();
+  }
+
+  getChildren(node: FlatNode): void {
+    if (this.operatorId) {
+      this.workflowWebsocketService.send("PythonExpressionEvaluateRequest", {
+        expression: node.expression,
+        operatorId: this.operatorId
+      });
+    }
   }
 }
+

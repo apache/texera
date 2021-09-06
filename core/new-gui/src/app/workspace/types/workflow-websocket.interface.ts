@@ -89,13 +89,22 @@ export type ResultExportResponse = Readonly<{
 
 export type PythonExpressionEvaluateRequest = Readonly<{
   expression: string;
+  operatorId: string;
+}>;
+export type TypedValue = Readonly<{
+  expression: string;
+  valueStr: string;
+  valueType: string;
+  expandable: boolean;
+}>;
+export type EvaluatedValue = Readonly<{
+  value: TypedValue;
+  attributes: TypedValue[];
 }>;
 
 export type PythonExpressionEvaluateResponse = Readonly<{
   expression: string;
-  value: string;
-  type: string;
-  attributes: string[];
+  values: EvaluatedValue[];
 }>;
 
 export type TexeraWebsocketRequestTypeMap = {
