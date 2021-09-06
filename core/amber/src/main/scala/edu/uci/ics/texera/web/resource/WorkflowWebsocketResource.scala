@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.web.resource
 
 import akka.actor.{ActorRef, PoisonPill}
+import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.Logger
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
@@ -114,7 +115,9 @@ class WorkflowWebsocketResource {
         case resultExportRequest: ResultExportRequest =>
           exportResult(session, resultExportRequest)
         case cacheStatusUpdateRequest: CacheStatusUpdateRequest =>
-          updateCacheStatus(session, cacheStatusUpdateRequest)
+          if (opResultSwitch) {
+            updateCacheStatus(session, cacheStatusUpdateRequest)
+          }
       }
     } catch {
       case err: Exception =>
@@ -268,49 +271,55 @@ class WorkflowWebsocketResource {
   val sessionOperatorRecord: mutable.HashMap[String, mutable.HashMap[String, WorkflowVertex]] =
     mutable.HashMap[String, mutable.HashMap[String, WorkflowVertex]]()
 
+  val opResultStorageConfig = ConfigFactory.load("application")
+  val opResultSwitch = opResultStorageConfig.getString("cache.switch").equals("on")
   var opResultStorage: OpResultStorage = _
-  if (Constants.storage.equals("memory")) {
-    opResultStorage = new MemoryOpResultStorage()
-    logger.info("use memory storage for materialization")
-  } else if (Constants.storage.equals("JCS")) {
-    opResultStorage = new JCSOpResultStorage()
-    logger.info("use JCS for materialization")
-  } else if (Constants.storage.equals("mongodb")) {
-    logger.info("use mongodb for materialization")
-    opResultStorage = new MongoOpResultStorage()
-  } else {
-    logger.info("invalid storage config")
-    System.exit(-1)
+  if (opResultSwitch) {
+    if (Constants.storage.equals("memory")) {
+      opResultStorage = new MemoryOpResultStorage()
+      logger.info("use memory storage for materialization")
+    } else if (Constants.storage.equals("JCS")) {
+      opResultStorage = new JCSOpResultStorage()
+      logger.info("use JCS for materialization")
+    } else if (Constants.storage.equals("mongodb")) {
+      logger.info("use mongodb for materialization")
+      opResultStorage = new MongoOpResultStorage()
+    } else {
+      logger.info("invalid storage config")
+      System.exit(-1)
+    }
   }
 
   def executeWorkflow(session: Session, request: ExecuteWorkflowRequest): Unit = {
     var cachedOperators: mutable.HashMap[String, OperatorDescriptor] = null
-    if (!sessionCachedOperators.contains(session.getId)) {
-      cachedOperators = mutable.HashMap[String, OperatorDescriptor]()
-      sessionCachedOperators += ((session.getId, cachedOperators))
-    } else {
-      cachedOperators = sessionCachedOperators(session.getId)
-    }
     var cacheSourceOperators: mutable.HashMap[String, CacheSourceOpDesc] = null
-    if (!sessionCacheSourceOperators.contains(session.getId)) {
-      cacheSourceOperators = mutable.HashMap[String, CacheSourceOpDesc]()
-      sessionCacheSourceOperators += ((session.getId, cacheSourceOperators))
-    } else {
-      cacheSourceOperators = sessionCacheSourceOperators(session.getId)
-    }
     var cacheSinkOperators: mutable.HashMap[String, CacheSinkOpDesc] = null
-    if (!sessionCacheSinkOperators.contains(session.getId)) {
-      cacheSinkOperators = mutable.HashMap[String, CacheSinkOpDesc]()
-      sessionCacheSinkOperators += ((session.getId, cacheSinkOperators))
-    } else {
-      cacheSinkOperators = sessionCacheSinkOperators(session.getId)
-    }
     var operatorRecord: mutable.HashMap[String, WorkflowVertex] = null
-    if (!sessionOperatorRecord.contains(session.getId)) {
-      operatorRecord = mutable.HashMap[String, WorkflowVertex]()
-      sessionOperatorRecord += ((session.getId, operatorRecord))
-    } else {
-      operatorRecord = sessionOperatorRecord(session.getId)
+    if (opResultSwitch) {
+      if (!sessionCachedOperators.contains(session.getId)) {
+        cachedOperators = mutable.HashMap[String, OperatorDescriptor]()
+        sessionCachedOperators += ((session.getId, cachedOperators))
+      } else {
+        cachedOperators = sessionCachedOperators(session.getId)
+      }
+      if (!sessionCacheSourceOperators.contains(session.getId)) {
+        cacheSourceOperators = mutable.HashMap[String, CacheSourceOpDesc]()
+        sessionCacheSourceOperators += ((session.getId, cacheSourceOperators))
+      } else {
+        cacheSourceOperators = sessionCacheSourceOperators(session.getId)
+      }
+      if (!sessionCacheSinkOperators.contains(session.getId)) {
+        cacheSinkOperators = mutable.HashMap[String, CacheSinkOpDesc]()
+        sessionCacheSinkOperators += ((session.getId, cacheSinkOperators))
+      } else {
+        cacheSinkOperators = sessionCacheSinkOperators(session.getId)
+      }
+      if (!sessionOperatorRecord.contains(session.getId)) {
+        operatorRecord = mutable.HashMap[String, WorkflowVertex]()
+        sessionOperatorRecord += ((session.getId, operatorRecord))
+      } else {
+        operatorRecord = sessionOperatorRecord(session.getId)
+      }
     }
 
     logger.info("Session id: {}", session.getId)
@@ -321,34 +330,38 @@ class WorkflowWebsocketResource {
       .getUser(sessionMap(session.getId)._2)
       .map(u => u.getUid)
 
-    updateCacheStatus(
-      session,
-      CacheStatusUpdateRequest(
-        request.operators,
-        request.links,
-        request.breakpoints,
-        request.cachedOperatorIDs
+    if (opResultSwitch) {
+      updateCacheStatus(
+        session,
+        CacheStatusUpdateRequest(
+          request.operators,
+          request.links,
+          request.breakpoints,
+          request.cachedOperatorIDs
+        )
       )
-    )
+    }
 
     var workflowInfo = WorkflowInfo(request.operators, request.links, request.breakpoints)
-    workflowInfo.cachedOperatorIDs = request.cachedOperatorIDs
-    logger.info("Cached operators: {}.", cachedOperators.toString())
-    logger.info("request.cachedOperatorIDs: {}.", request.cachedOperatorIDs)
-    val workflowRewriter = new WorkflowRewriter(
-      workflowInfo,
-      cachedOperators,
-      cacheSourceOperators,
-      cacheSinkOperators,
-      operatorRecord,
-      opResultStorage
-    )
-    val newWorkflowInfo = workflowRewriter.rewrite
-    val oldWorkflowInfo = workflowInfo
-    workflowInfo = newWorkflowInfo
-    workflowInfo.cachedOperatorIDs = oldWorkflowInfo.cachedOperatorIDs
-    logger.info("Original workflow: {}.", toJgraphtDAG(oldWorkflowInfo).toString)
-    logger.info("Rewritten workflow: {}.", toJgraphtDAG(workflowInfo).toString)
+    if (opResultSwitch) {
+      workflowInfo.cachedOperatorIDs = request.cachedOperatorIDs
+      logger.info("Cached operators: {}.", cachedOperators.toString())
+      logger.info("request.cachedOperatorIDs: {}.", request.cachedOperatorIDs)
+      val workflowRewriter = new WorkflowRewriter(
+        workflowInfo,
+        cachedOperators,
+        cacheSourceOperators,
+        cacheSinkOperators,
+        operatorRecord,
+        opResultStorage
+      )
+      val newWorkflowInfo = workflowRewriter.rewrite
+      val oldWorkflowInfo = workflowInfo
+      workflowInfo = newWorkflowInfo
+      workflowInfo.cachedOperatorIDs = oldWorkflowInfo.cachedOperatorIDs
+      logger.info("Original workflow: {}.", toJgraphtDAG(oldWorkflowInfo).toString)
+      logger.info("Rewritten workflow: {}.", toJgraphtDAG(workflowInfo).toString)
+    }
     val texeraWorkflowCompiler = new WorkflowCompiler(workflowInfo, context)
     logger.info("TexeraWorkflowCompiler constructed: {}.", texeraWorkflowCompiler)
     val violations = texeraWorkflowCompiler.validate
@@ -362,7 +375,7 @@ class WorkflowWebsocketResource {
     val workflowResultService = new WorkflowResultService(texeraWorkflowCompiler, opResultStorage)
     if (!sessionResults.contains(session.getId)) {
       sessionResults(session.getId) = workflowResultService
-    } else {
+    } else if (opResultSwitch) {
       val previousWorkflowResultServiceV2 = sessionResults(session.getId)
       val previousResults = previousWorkflowResultServiceV2.operatorResults
       val results = workflowResultService.operatorResults
@@ -407,15 +420,17 @@ class WorkflowWebsocketResource {
       workflowCompletedListener = completed => {
         sessionExportCache.remove(session.getId)
         send(session, WorkflowCompletedEvent())
-        updateCacheStatus(
-          session,
-          CacheStatusUpdateRequest(
-            request.operators,
-            request.links,
-            request.breakpoints,
-            request.cachedOperatorIDs
+        if (opResultSwitch) {
+          updateCacheStatus(
+            session,
+            CacheStatusUpdateRequest(
+              request.operators,
+              request.links,
+              request.breakpoints,
+              request.cachedOperatorIDs
+            )
           )
-        )
+        }
       },
       workflowStatusUpdateListener = statusUpdate => {
         send(session, WebWorkflowStatusUpdateEvent.apply(statusUpdate))
@@ -483,8 +498,10 @@ class WorkflowWebsocketResource {
     sessionResults.remove(session.getId)
     sessionJobs.remove(session.getId)
     sessionMap.remove(session.getId)
-    clearMaterialization(session)
     sessionExportCache.remove(session.getId)
+    if (opResultSwitch) {
+      clearMaterialization(session)
+    }
   }
 
   def removeBreakpoint(session: Session, removeBreakpoint: RemoveBreakpointRequest): Unit = {
