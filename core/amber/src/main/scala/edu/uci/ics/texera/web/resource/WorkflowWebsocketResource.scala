@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.resource
 
 import akka.actor.{ActorRef, PoisonPill}
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.Logger
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
@@ -11,7 +11,7 @@ import edu.uci.ics.amber.engine.architecture.controller.{
   ControllerConfig,
   ControllerEventListener
 }
-import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
@@ -271,23 +271,23 @@ class WorkflowWebsocketResource {
   val sessionOperatorRecord: mutable.HashMap[String, mutable.HashMap[String, WorkflowVertex]] =
     mutable.HashMap[String, mutable.HashMap[String, WorkflowVertex]]()
 
-  val opResultStorageConfig = ConfigFactory.load("application")
-  val opResultSwitch = opResultStorageConfig.getString("cache.switch").equals("on")
+  val opResultStorageConfig: Config = ConfigFactory.load("application")
+  var opResultSwitch: Boolean = true
   var opResultStorage: OpResultStorage = _
-  if (opResultSwitch) {
-    if (Constants.storage.equals("memory")) {
-      opResultStorage = new MemoryOpResultStorage()
-      logger.info("use memory storage for materialization")
-    } else if (Constants.storage.equals("JCS")) {
-      opResultStorage = new JCSOpResultStorage()
-      logger.info("use JCS for materialization")
-    } else if (Constants.storage.equals("mongodb")) {
-      logger.info("use mongodb for materialization")
-      opResultStorage = new MongoOpResultStorage()
-    } else {
-      logger.info("invalid storage config")
-      System.exit(-1)
-    }
+  val storageType: String = AmberUtils.amberConfig.getString("cache.storage")
+  if (storageType.equals("off")) {
+    opResultSwitch = false
+  } else if (storageType.equals("memory")) {
+    opResultStorage = new MemoryOpResultStorage()
+    logger.info("use memory storage for materialization")
+  } else if (storageType.equals("JCS")) {
+    opResultStorage = new JCSOpResultStorage()
+    logger.info("use JCS for materialization")
+  } else if (storageType.equals("mongodb")) {
+    logger.info("use mongodb for materialization")
+    opResultStorage = new MongoOpResultStorage()
+  } else {
+    throw new Exception("invalid storage config")
   }
 
   def executeWorkflow(session: Session, request: ExecuteWorkflowRequest): Unit = {
