@@ -3,7 +3,7 @@ from typing import Iterator, Optional, Union
 
 import overrides
 
-from core.models import ITuple, InputExhausted, Tuple
+from core.models import TupleLike, InputExhausted, Tuple
 from proto.edu.uci.ics.amber.engine.common import LinkIdentity
 
 
@@ -39,7 +39,7 @@ class UDFOperator(ABC):
         pass
 
     @abstractmethod
-    def process_tuple(self, tuple_: Union[Tuple, InputExhausted], link: LinkIdentity) -> Iterator[Optional[ITuple]]:
+    def process_tuple(self, tuple_: Union[Tuple, InputExhausted], link: LinkIdentity) -> Iterator[Optional[TupleLike]]:
         """
         Process an input Tuple from the given link. The Tuple is represented as pandas.Series.
         :param tuple_: Union[Tuple, InputExhausted], either
@@ -49,7 +49,7 @@ class UDFOperator(ABC):
                         Tuple is implemented as pandas.Series.
 
         :param link: LinkIdentity, indicating where the Tuple came from.
-        :return: Iterator[Optional[Tuple]], producing one Tuple/pandas.Series at a time, or None.
+        :return: Iterator[Optional[ITuple]], producing one Tuple-like object at a time, or None.
 
         example:
             class EchoOperator(UDFOperator):
@@ -57,34 +57,7 @@ class UDFOperator(ABC):
                     self,
                     tuple_: Union[Tuple, InputExhausted],
                     link: LinkIdentity
-                ) -> Iterator[Optional[Tuple]]:
-                    if isinstance(tuple_, Tuple):
-                        yield tuple_
-
-        See .examples/ for more example operators.
-        """
-        pass
-
-    def process_texera_tuple(self, tuple_: Union[Tuple, InputExhausted], link: LinkIdentity) \
-            -> Iterator[Optional[ITuple]]:
-        """
-        Process an input Tuple from the given link. The Tuple is represented as pandas.Series.
-        :param tuple_: Union[Tuple, InputExhausted], either
-                        1. a Tuple from a link to be processed;
-                        2. an InputExhausted indicating no more data from this link.
-
-                        Tuple is implemented as pandas.Series.
-
-        :param link: LinkIdentity, indicating where the Tuple came from.
-        :return: Iterator[Optional[Tuple]], producing one Tuple/pandas.Series at a time, or None.
-
-        example:
-            class EchoOperator(UDFOperator):
-                def process_texera_tuple(
-                    self,
-                    tuple_: Union[Tuple, InputExhausted],
-                    link: LinkIdentity
-                ) -> Iterator[Optional[Tuple]]:
+                ) -> Iterator[Optional[ITuple]]:
                     if isinstance(tuple_, Tuple):
                         yield tuple_
 
