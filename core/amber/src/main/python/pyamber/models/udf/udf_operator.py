@@ -3,8 +3,7 @@ from typing import Iterator, Optional, Union
 
 import overrides
 
-from pyamber.models import TupleLike, InputExhausted, Tuple
-from proto.edu.uci.ics.amber.engine.common import LinkIdentity
+from pyamber.models import InputExhausted, Tuple, TupleLike
 
 
 class UDFOperator(ABC):
@@ -39,24 +38,22 @@ class UDFOperator(ABC):
         pass
 
     @abstractmethod
-    def process_tuple(self, tuple_: Union[Tuple, InputExhausted], link: LinkIdentity) -> Iterator[Optional[TupleLike]]:
+    def process_tuple(self, tuple_: Union[Tuple, InputExhausted], input_: int) -> Iterator[Optional[TupleLike]]:
         """
         Process an input Tuple from the given link. The Tuple is represented as pandas.Series.
         :param tuple_: Union[Tuple, InputExhausted], either
                         1. a Tuple from a link to be processed;
                         2. an InputExhausted indicating no more data from this link.
 
-                        Tuple is implemented as pandas.Series.
-
-        :param link: LinkIdentity, indicating where the Tuple came from.
+        :param input_: int, input index of the current Tuple.
         :return: Iterator[Optional[TupleLike]], producing one TupleLike object at a time, or None.
 
         example:
             class EchoOperator(UDFOperator):
-                def process_texera_tuple(
+                def process_tuple(
                     self,
                     tuple_: Union[Tuple, InputExhausted],
-                    link: LinkIdentity
+                    input_: int
                 ) -> Iterator[Optional[TupleLike]]:
                     if isinstance(tuple_, Tuple):
                         yield tuple_

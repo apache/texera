@@ -1,8 +1,8 @@
 import pandas
 import pytest
 
-from pyamber.udf.examples.echo_operator import EchoOperator
-from proto.edu.uci.ics.amber.engine.common import LayerIdentity, LinkIdentity
+from pyamber import Tuple
+from pyamber.models.udf.examples.echo_operator import EchoOperator
 
 
 class TestEchoOperator:
@@ -13,9 +13,9 @@ class TestEchoOperator:
 
     def test_echo_operator(self, echo_operator):
         echo_operator.open()
-        tuple_ = pandas.Series({"test-1": "hello", "test-2": 10})
-        link = LinkIdentity(from_=LayerIdentity("from", "from", "from"), to=LayerIdentity("to", "to", "to"))
-        outputs = echo_operator.process_texera_tuple(tuple_, link)
+        tuple_ = Tuple(pandas.Series({"test-1": "hello", "test-2": 10}))
+
+        outputs = echo_operator.process_tuple(tuple_, 0)
         output_tuple = next(outputs)
 
         assert (output_tuple == tuple_).all()

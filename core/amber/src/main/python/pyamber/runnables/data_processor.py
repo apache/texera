@@ -1,6 +1,6 @@
 import traceback
 import typing
-from typing import Iterator, Optional, Union
+from typing import Iterator, List, MutableMapping, Optional, Union
 
 from loguru import logger
 from overrides import overrides
@@ -30,6 +30,8 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         self._udf_operator: Optional[UDFOperator] = None
         self._current_input_tuple: Optional[Union[Tuple, InputExhausted]] = None
         self._current_input_link: Optional[LinkIdentity] = None
+        self._input_links: List[LinkIdentity] = list()
+        self._input_link_map: MutableMapping[LinkIdentity, int] = dict()
 
         self.context = Context(self)
         self._async_rpc_server = AsyncRPCServer(output_queue, context=self.context)
@@ -142,7 +144,13 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         :return: Iterator[Tuple], iterator of result Tuple(s).
         """
 
-        return map(lambda t: Tuple(t) if t is not None else None, self._udf_operator.process_tuple(tuple_, link))
+        # bind link with input index
+        if link not in self._input_link_map:
+            self._input_links.append(link)
+            index = len(self._input_links) - 1
+            self._input_link_map[link] = index
+        input_ = self._input_link_map[link]
+        return map(lambda t: Tuple(t) if t is not None else None, self._udf_operator.process_tuple(tuple_, input_))
 
     def report_exception(self) -> None:
         """
