@@ -10,9 +10,9 @@ from core.architecture.managers.context import Context
 from core.architecture.packaging.batch_to_tuple_converter import EndMarker, EndOfAllMarker
 from core.architecture.rpc.async_rpc_client import AsyncRPCClient
 from core.architecture.rpc.async_rpc_server import AsyncRPCServer
+from core.models import InputExhausted, Tuple
 from core.models.internal_queue import ControlElement, DataElement, InternalQueue
 from core.models.marker import SenderChangeMarker
-from core.models.tuple import InputExhausted, Tuple
 from core.udf.udf_operator import UDFOperator
 from core.util import IQueue, StoppableQueueBlockingRunnable, get_one_of, set_one_of
 from core.util.print_writer.print_log_handler import PrintLogHandler
@@ -123,6 +123,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
             for tuple_ in self.process_tuple_with_udf(self._current_input_tuple, self._current_input_link):
                 self.check_and_process_control()
                 if tuple_ is not None:
+                    logger.info(tuple_)
                     self.context.statistics_manager.increase_output_tuple_count()
                     for to, batch in self.context.tuple_to_batch_converter.tuple_to_batch(tuple_):
                         self._output_queue.put(DataElement(tag=to, payload=batch))
@@ -142,7 +143,8 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         :param link: LinkIdentity, the current link.
         :return: Iterator[Tuple], iterator of result Tuple(s).
         """
-        return self._udf_operator.process_texera_tuple(tuple_, link)
+
+        return map(lambda t: Tuple(t) if t is not None else None, self._udf_operator.process_tuple(tuple_, link))
 
     def report_exception(self) -> None:
         """
