@@ -49,7 +49,7 @@ class UDFOperator(ABC):
                         Tuple is implemented as pandas.Series.
 
         :param link: LinkIdentity, indicating where the Tuple came from.
-        :return: Iterator[Optional[ITuple]], producing one Tuple-like object at a time, or None.
+        :return: Iterator[Optional[TupleLike]], producing one TupleLike object at a time, or None.
 
         example:
             class EchoOperator(UDFOperator):
@@ -57,7 +57,7 @@ class UDFOperator(ABC):
                     self,
                     tuple_: Union[Tuple, InputExhausted],
                     link: LinkIdentity
-                ) -> Iterator[Optional[ITuple]]:
+                ) -> Iterator[Optional[TupleLike]]:
                     if isinstance(tuple_, Tuple):
                         yield tuple_
 
