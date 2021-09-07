@@ -3,8 +3,8 @@ import sys
 
 from loguru import logger
 
-from core.python_worker import PythonWorker
-from core.util.print_writer.stream_to_logger_adaptor import StreamToLoggerAdaptor
+from pyamber.python_worker import PythonWorker
+from pyamber.util.print_writer.stream_to_logger_adaptor import StreamToLoggerAdaptor
 
 
 def init_loguru_logger(stream_log_level) -> None:
