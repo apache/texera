@@ -83,9 +83,9 @@ class WorkflowWebsocketResource extends LazyLogging {
   val sessionOperatorRecord: mutable.HashMap[String, mutable.HashMap[String, WorkflowVertex]] =
     mutable.HashMap[String, mutable.HashMap[String, WorkflowVertex]]()
   val opResultStorageConfig: Config = ConfigFactory.load("application")
-  val storageType: String = AmberUtils.amberConfig.getString("cache.storage")
+  val storageType: String = AmberUtils.amberConfig.getString("cache.storage").toLowerCase
   var opResultSwitch: Boolean = storageType != "off"
-  var opResultStorage: OpResultStorage = storageType.toLowerCase match {
+  var opResultStorage: OpResultStorage = storageType match {
     case "off" =>
       null
     case "memory" =>
