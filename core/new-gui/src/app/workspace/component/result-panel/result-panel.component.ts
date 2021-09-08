@@ -141,8 +141,6 @@ export class ResultPanelComponent implements OnInit {
       return;
     }
 
-    // break this into another detect cycle, so that the dynamic component can be reloaded
-
     const executionState = this.executeWorkflowService.getExecutionState();
     if (
       executionState.state in
@@ -154,31 +152,23 @@ export class ResultPanelComponent implements OnInit {
       });
     } else {
       if (this.currentOperatorId) {
-        if (
-          this.workflowActionService
-            .getTexeraGraph()
-            .getOperator(this.currentOperatorId)
-            .operatorType.toLowerCase()
-            .includes("sink")
-        ) {
-          const resultService = this.workflowResultService.getResultService(
+        const resultService = this.workflowResultService.getResultService(
+          this.currentOperatorId
+        );
+        const paginatedResultService =
+          this.workflowResultService.getPaginatedResultService(
             this.currentOperatorId
           );
-          const paginatedResultService =
-            this.workflowResultService.getPaginatedResultService(
-              this.currentOperatorId
-            );
-          if (paginatedResultService) {
-            this.switchFrameComponent({
-              component: ResultTableFrameComponent,
-              componentInputs: { operatorId: this.currentOperatorId }
-            });
-          } else if (resultService && resultService.getChartType()) {
-            this.switchFrameComponent({
-              component: VisualizationFrameComponent,
-              componentInputs: { operatorId: this.currentOperatorId }
-            });
-          }
+        if (paginatedResultService) {
+          this.switchFrameComponent({
+            component: ResultTableFrameComponent,
+            componentInputs: { operatorId: this.currentOperatorId }
+          });
+        } else if (resultService && resultService.getChartType()) {
+          this.switchFrameComponent({
+            component: VisualizationFrameComponent,
+            componentInputs: { operatorId: this.currentOperatorId }
+          });
         } else {
           this.switchFrameComponent({
             component: ConsoleFrameComponent,
