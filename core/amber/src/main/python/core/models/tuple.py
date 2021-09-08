@@ -1,10 +1,13 @@
+import datetime
 import typing
 from dataclasses import dataclass
-from typing import Any, Dict, List, Mapping, TypeVar
+from typing import Any, List, Mapping, TypeVar
 
 import pandas
 
-TupleLike = TypeVar('TupleLike', pandas.Series, List[typing.Tuple[str, Any]], Dict[str, Any])
+AttributeType = TypeVar('AttributeType', int, float, str, datetime.datetime)
+
+TupleLike = TypeVar('TupleLike', pandas.Series, List[typing.Tuple[str, AttributeType]], Mapping[str, AttributeType])
 
 
 @dataclass
@@ -18,6 +21,10 @@ class Tuple(pandas.Series):
     """
 
     def __init__(self, tuple_like: TupleLike):
+        # convert List[Tuple[str, Any]] into a dict-like object
+        if isinstance(tuple_like, list):
+            tuple_like = dict(tuple_like)
+
         super().__init__(tuple_like)
 
     def as_series(self) -> pandas.Series:
