@@ -24,6 +24,10 @@ export class OperatorCacheStatusService {
     this.registerHandleCacheStatusUpdate();
   }
 
+  /**
+   * Requests cache status (invalid/valid/toBeCached) when workflow is changed from the engine
+   * for example, when operator is updated, the cache status might be invalidated
+   */
   private registerRequestCacheStatusUpdate() {
     merge(
       this.workflowActionService.getTexeraGraph().getLinkAddStream(),
@@ -46,6 +50,9 @@ export class OperatorCacheStatusService {
     });
   }
 
+  /**
+   * Registers handler for cache status update from the backend.
+   */
   private registerHandleCacheStatusUpdate() {
     this.workflowActionService
       .getTexeraGraph()

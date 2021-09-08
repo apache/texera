@@ -31,6 +31,7 @@ export class WorkflowResultService {
   >();
   private operatorResultServices = new Map<string, OperatorResultService>();
 
+  // event stream of operator result update, undefined indicates the operator result is cleared
   private resultUpdateStream = new Subject<
     Record<string, WebResultUpdate | undefined>
   >();
@@ -83,10 +84,10 @@ export class WorkflowResultService {
       }
     });
     // for each operator that has results:
-    Object.entries(event.availableOperators).forEach((e) => {
-      const op = e[0];
-      const cacheValid = e[1].cacheValid;
-      const outputMode = e[1].outputMode;
+    Object.entries(event.availableOperators).forEach((availabeOp) => {
+      const op = availabeOp[0];
+      const cacheValid = availabeOp[1].cacheValid;
+      const outputMode = availabeOp[1].outputMode;
 
       // make sure to init or reuse result service for each operator
       const resultService = (() => {
@@ -103,7 +104,6 @@ export class WorkflowResultService {
         removedOrInvalidatedOperators.add(op);
       }
     });
-    console.log(removedOrInvalidatedOperators);
 
     const invalidatedOperatorsUpdate: Record<string, undefined> = {};
     removedOrInvalidatedOperators.forEach(

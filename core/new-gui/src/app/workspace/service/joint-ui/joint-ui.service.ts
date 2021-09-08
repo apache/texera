@@ -16,7 +16,7 @@ import {
   OperatorState,
   OperatorStatistics
 } from "../../types/execute-workflow.interface";
-import { CacheStatus } from "../../types/workflow-websocket.interface";
+import { OperatorResultCacheStatus } from "../../types/workflow-websocket.interface";
 
 /**
  * Defines the SVG element for the breakpoint button
@@ -414,7 +414,7 @@ export class JointUIService {
   public changeOperatorCacheStatus(
     jointPaper: joint.dia.Paper,
     operator: OperatorPredicate,
-    cacheStatus?: CacheStatus
+    cacheStatus?: OperatorResultCacheStatus
   ): void {
     jointPaper
       .getModelById(operator.operatorID)
@@ -703,7 +703,7 @@ export class JointUIService {
 
   public static getOperatorCacheDisplayText(
     operator: OperatorPredicate,
-    cacheStatus?: CacheStatus
+    cacheStatus?: OperatorResultCacheStatus
   ): string {
     if (cacheStatus && cacheStatus !== "cache not enabled") {
       return cacheStatus;
