@@ -1,7 +1,7 @@
 import pandas
 import pytest
 
-from core import Tuple
+from core.models import Tuple
 from core.models.udf.examples.echo_operator import EchoOperator
 
 

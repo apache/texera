@@ -3,11 +3,11 @@ from collections import OrderedDict
 from itertools import chain
 from typing import Iterable, Iterator
 
-from core import Tuple
 from core.architecture.sendsemantics.hash_based_shuffle_partitioner import HashBasedShufflePartitioner
 from core.architecture.sendsemantics.one_to_one_partitioner import OneToOnePartitioner
 from core.architecture.sendsemantics.partitioner import Partitioner
 from core.architecture.sendsemantics.round_robin_partitioner import RoundRobinPartitioner
+from core.models import Tuple
 from core.models.payload import DataFrame, DataPayload
 from core.util import get_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import HashBasedShufflePartitioning, \

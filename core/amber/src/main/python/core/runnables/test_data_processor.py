@@ -3,16 +3,15 @@ from threading import Thread
 import pytest
 from loguru import logger
 
+from core.models import ControlElement, DataElement, DataFrame, EndOfUpstream, InternalQueue, Tuple
+from core.models.udf.examples import EchoOperator
+from core.runnables import DataProcessor
+from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import OneToOnePartitioning, Partitioning
 from proto.edu.uci.ics.amber.engine.architecture.worker import AddPartitioningV2, ControlCommandV2, ControlReturnV2, \
     QueryStatisticsV2, UpdateInputLinkingV2, WorkerExecutionCompletedV2, WorkerState, WorkerStatistics
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlInvocationV2, ControlPayloadV2, \
     LayerIdentity, LinkIdentity, ReturnInvocationV2
-from core import Tuple
-from core.models import ControlElement, DataElement, DataFrame, EndOfUpstream, InternalQueue
-from core.models.udf.examples import EchoOperator
-from core.runnables import DataProcessor
-from core.util import set_one_of
 
 logger.level("PRINT", no=38)
 

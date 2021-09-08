@@ -6,7 +6,7 @@ from loguru import logger
 from proto.edu.uci.ics.amber.engine.architecture.worker import SendPythonUdfV2
 from .handler_base import Handler
 from ..managers.context import Context
-from ... import UDFOperator
+from ...models import UDFOperator
 
 
 class SendPythonUdfHandler(Handler):

@@ -4,7 +4,7 @@ from time import sleep
 import pandas
 import pytest
 
-from core import Tuple
+from core.models import Tuple
 from core.models.internal_queue import ControlElement, DataElement, InternalQueue
 from core.models.payload import DataFrame, EndOfUpstream
 from core.runnables.network_receiver import NetworkReceiver

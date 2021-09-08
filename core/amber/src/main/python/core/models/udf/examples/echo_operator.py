@@ -1,6 +1,6 @@
 from typing import Iterator, Optional, Union
 
-from core import InputExhausted, Tuple, TupleLike, UDFOperator, overrides
+from pyamber import InputExhausted, Tuple, TupleLike, UDFOperator, overrides
 
 
 class EchoOperator(UDFOperator):
