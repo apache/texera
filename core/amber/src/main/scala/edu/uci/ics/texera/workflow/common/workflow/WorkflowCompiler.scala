@@ -70,12 +70,14 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
     this.workflow.getSinkOperators.foreach(sinkOpId => {
       val sinkOp = this.workflow.getOperator(sinkOpId)
       val upstream = this.workflow.getUpstream(sinkOpId)
-      (upstream.head, sinkOp) match {
-        // match the combination of a visualization operator followed by a sink operator
-        case (viz: VisualizationOperator, sink: SimpleSinkOpDesc) =>
-          sink.setOutputMode(viz.outputMode())
-          sink.setChartType(viz.chartType())
-        case _ =>
+      if (upstream.nonEmpty) {
+        (upstream.head, sinkOp) match {
+          // match the combination of a visualization operator followed by a sink operator
+          case (viz: VisualizationOperator, sink: SimpleSinkOpDesc) =>
+            sink.setOutputMode(viz.outputMode())
+            sink.setChartType(viz.chartType())
+          case _ =>
+        }
       }
     })
 

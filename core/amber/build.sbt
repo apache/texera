@@ -65,21 +65,18 @@ val dropwizardDependencies = Seq(
   "com.fasterxml.jackson.module" % "jackson-module-jsonSchema" % jacksonVersion,
   "com.fasterxml.jackson.module" % "jackson-module-scala_2.12" % jacksonVersion,
   // https://mvnrepository.com/artifact/commons-io/commons-io
-   "commons-io" % "commons-io" % "2.11.0"
+  "commons-io" % "commons-io" % "2.11.0"
 )
-
-
 
 // deps from library
 //"com.kjetland" % "mbknor-jackson-jsonschema_2.12" % "1.0.39"
 
 val slf4jVersion = "1.7.26"
-val mbknorJacksonJsonSchemaDependencies  = Seq(
+val mbknorJacksonJsonSchemaDependencies = Seq(
   "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
   "javax.validation" % "validation-api" % "2.0.1.Final",
   "org.slf4j" % "slf4j-api" % slf4jVersion,
   "io.github.classgraph" % "classgraph" % "4.8.21",
-  "org.scalatest" %% "scalatest" % "3.0.8" % "test",
   "ch.qos.logback" % "logback-classic" % "1.2.3" % "test",
   "com.github.java-json-tools" % "json-schema-validator" % "2.2.11" % "test",
   "com.fasterxml.jackson.module" % "jackson-module-kotlin" % jacksonVersion % "test",
@@ -122,12 +119,22 @@ val arrowDependencies = Seq(
   "org.apache.arrow" % "flight-core" % arrowVersion
 )
 
+/////////////////////////////////////////////////////////////////////////////
+// MongoDB related
+val mongoDbDependencies = Seq(
+  // https://mvnrepository.com/artifact/org.mongodb/mongo-java-driver
+  "org.mongodb" % "mongo-java-driver" % "3.12.10",
+  // https://mvnrepository.com/artifact/org.apache.commons/commons-jcs3-core/3.0
+  "org.apache.commons" % "commons-jcs3-core" % "3.0"
+)
+
 libraryDependencies ++= akkaDependencies
 libraryDependencies ++= luceneDependencies
 libraryDependencies ++= dropwizardDependencies
 libraryDependencies ++= mbknorJacksonJsonSchemaDependencies
 libraryDependencies ++= arrowDependencies
 libraryDependencies ++= googleServiceDependencies
+libraryDependencies ++= mongoDbDependencies
 
 /////////////////////////////////////////////////////////////////////////////
 // protobuf related
