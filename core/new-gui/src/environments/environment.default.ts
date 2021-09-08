@@ -46,6 +46,11 @@ export const defaultEnvironment = {
   linkBreakpointEnabled: true,
 
   /**
+   * whether operator caching is enabled
+   */
+  operatorCacheEnabled: false,
+
+  /**
    * the access code for mapbox
    */
   mapbox: {

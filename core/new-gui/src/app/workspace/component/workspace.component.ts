@@ -18,6 +18,7 @@ import { NzMessageService } from "ng-zorro-antd/message";
 import { WorkflowConsoleService } from "../service/workflow-console/workflow-console.service";
 import { debounceTime, filter } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { OperatorCacheStatusService } from "../service/workflow-status/operator-cache-status.service";
 
 @UntilDestroy()
 @Component({
@@ -41,6 +42,7 @@ export class WorkspaceComponent implements AfterViewInit {
     private schemaPropagationService: SchemaPropagationService,
     private undoRedoService: UndoRedoService,
     private userService: UserService,
+    private operatorCacheStatus: OperatorCacheStatusService,
     private workflowCacheService: WorkflowCacheService,
     private workflowPersistService: WorkflowPersistService,
     private workflowWebsocketService: WorkflowWebsocketService,

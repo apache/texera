@@ -62,6 +62,10 @@ export class NavigationComponent {
   public isDisableOperatorClickable: boolean = false;
   public isDisableOperator: boolean = true;
 
+  public operatorCacheEnabled: boolean = environment.operatorCacheEnabled;
+  public isCacheOperatorClickable: boolean = false;
+  public isCacheOperator: boolean = true;
+
   constructor(
     public executeWorkflowService: ExecuteWorkflowService,
     public tourService: TourService,
@@ -113,6 +117,7 @@ export class NavigationComponent {
     this.registerWorkflowMetadataDisplayRefresh();
 
     this.handleDisableOperatorStatusChange();
+    this.handleCacheOperatorStatusChange();
   }
 
   // apply a behavior to the run button via bound variables
@@ -377,6 +382,18 @@ export class NavigationComponent {
     }
   }
 
+  public onClickCacheOperators(): void {
+    if (this.isCacheOperator) {
+      this.effectivelyHighlightedOperators().forEach((op) => {
+        this.workflowActionService.getTexeraGraph().cacheOperator(op);
+      });
+    } else {
+      this.effectivelyHighlightedOperators().forEach((op) => {
+        this.workflowActionService.getTexeraGraph().unCacheOperator(op);
+      });
+    }
+  }
+
   /**
    * Returns true if currently highlighted elements are all groups.
    */
@@ -479,6 +496,38 @@ export class NavigationComponent {
 
         this.isDisableOperator = !allDisabled;
         this.isDisableOperatorClickable =
+          effectiveHighlightedOperators.length !== 0;
+      });
+  }
+
+  handleCacheOperatorStatusChange() {
+    merge(
+      this.workflowActionService
+        .getJointGraphWrapper()
+        .getJointOperatorHighlightStream(),
+      this.workflowActionService
+        .getJointGraphWrapper()
+        .getJointOperatorUnhighlightStream(),
+      this.workflowActionService
+        .getJointGraphWrapper()
+        .getJointGroupHighlightStream(),
+      this.workflowActionService
+        .getJointGraphWrapper()
+        .getJointGroupUnhighlightStream(),
+      this.workflowActionService
+        .getTexeraGraph()
+        .getCachedOperatorsChangedStream()
+    )
+      .pipe(untilDestroyed(this))
+      .subscribe((event) => {
+        const effectiveHighlightedOperators =
+          this.effectivelyHighlightedOperators();
+        const allCached = this.effectivelyHighlightedOperators().every((op) =>
+          this.workflowActionService.getTexeraGraph().isOperatorCached(op)
+        );
+
+        this.isCacheOperator = !allCached;
+        this.isCacheOperatorClickable =
           effectiveHighlightedOperators.length !== 0;
       });
   }
