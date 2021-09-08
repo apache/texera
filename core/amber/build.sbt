@@ -119,12 +119,22 @@ val arrowDependencies = Seq(
   "org.apache.arrow" % "flight-core" % arrowVersion
 )
 
+/////////////////////////////////////////////////////////////////////////////
+// MongoDB related
+val mongoDbDependencies = Seq(
+  // https://mvnrepository.com/artifact/org.mongodb/mongo-java-driver
+  "org.mongodb" % "mongo-java-driver" % "3.12.10",
+  // https://mvnrepository.com/artifact/org.apache.commons/commons-jcs3-core/3.0
+  "org.apache.commons" % "commons-jcs3-core" % "3.0"
+)
+
 libraryDependencies ++= akkaDependencies
 libraryDependencies ++= luceneDependencies
 libraryDependencies ++= dropwizardDependencies
 libraryDependencies ++= mbknorJacksonJsonSchemaDependencies
 libraryDependencies ++= arrowDependencies
 libraryDependencies ++= googleServiceDependencies
+libraryDependencies ++= mongoDbDependencies
 
 /////////////////////////////////////////////////////////////////////////////
 // protobuf related
