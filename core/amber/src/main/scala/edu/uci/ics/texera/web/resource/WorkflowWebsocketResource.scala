@@ -226,7 +226,7 @@ class WorkflowWebsocketResource extends LazyLogging {
     }
 
     val workflowInfo = WorkflowInfo(request.operators, request.links, request.breakpoints)
-    workflowInfo.cachedOperatorIDs = request.cachedOperatorIDs
+    workflowInfo.cachedOperatorIds = request.cachedOperatorIDs
     logger.debug("Cached operators: {}.", cachedOperators.toString())
     logger.debug("request.cachedOperatorIDs: {}.", request.cachedOperatorIDs)
     val workflowRewriter = new WorkflowRewriter(
@@ -342,7 +342,7 @@ class WorkflowWebsocketResource extends LazyLogging {
 
     var workflowInfo = WorkflowInfo(request.operators, request.links, request.breakpoints)
     if (opResultSwitch) {
-      workflowInfo.cachedOperatorIDs = request.cachedOperatorIDs
+      workflowInfo.cachedOperatorIds = request.cachedOperatorIDs
       logger.debug("Cached operators: {}.", cachedOperators.toString())
       logger.debug("request.cachedOperatorIDs: {}.", request.cachedOperatorIDs)
       val workflowRewriter = new WorkflowRewriter(
@@ -356,7 +356,7 @@ class WorkflowWebsocketResource extends LazyLogging {
       val newWorkflowInfo = workflowRewriter.rewrite
       val oldWorkflowInfo = workflowInfo
       workflowInfo = newWorkflowInfo
-      workflowInfo.cachedOperatorIDs = oldWorkflowInfo.cachedOperatorIDs
+      workflowInfo.cachedOperatorIds = oldWorkflowInfo.cachedOperatorIds
       logger.info("Original workflow: {}.", toJgraphtDAG(oldWorkflowInfo).toString)
       logger.info("Rewritten workflow: {}.", toJgraphtDAG(workflowInfo).toString)
     }
