@@ -230,7 +230,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
           if (
             !this.workflowActionService.getTexeraGraph().hasOperator(operatorID)
           ) {
-            throw new Error(`operator ${operatorID} does not exist`);
+            return;
           }
           if (
             this.executeWorkflowService.getExecutionState().state ===
