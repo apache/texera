@@ -100,7 +100,10 @@ export type WorkflowAvailableResultEvent = Readonly<{
   availableOperators: ReadonlyArray<OperatorAvailableResult>;
 }>;
 
-export type OperatorResultCacheStatus = "cache invalid" | "cache valid" | "cache not enabled";
+export type OperatorResultCacheStatus =
+  | "cache invalid"
+  | "cache valid"
+  | "cache not enabled";
 export interface CacheStatusUpdateEvent
   extends Readonly<{
     cacheStatusMap: Record<string, OperatorResultCacheStatus>;
