@@ -1,11 +1,9 @@
-import { Subject } from "rxjs";
-import { Observable } from "rxjs";
+import { Observable, Subject } from "rxjs";
 import {
-  OperatorPredicate,
+  Breakpoint,
   OperatorLink,
   OperatorPort,
-  Breakpoint,
-  Point
+  OperatorPredicate
 } from "../../../types/workflow-common.interface";
 import { isEqual } from "lodash-es";
 
@@ -139,12 +137,15 @@ export class WorkflowGraph {
     operatorID: string,
     newDisplayName: string
   ): void {
-    this.operatorDisplayNameChangedSubject.next({ operatorID, newDisplayName });
     const operator = this.getOperator(operatorID);
+    if (operator.customDisplayName === newDisplayName) {
+      return;
+    }
     this.operatorIDMap.set(operatorID, {
       ...operator,
       customDisplayName: newDisplayName
     });
+    this.operatorDisplayNameChangedSubject.next({ operatorID, newDisplayName });
   }
 
   public isOperatorDisabled(operatorID: string): boolean {
