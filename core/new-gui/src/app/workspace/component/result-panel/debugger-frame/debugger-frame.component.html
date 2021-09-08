@@ -27,19 +27,20 @@
 >
   Evaluate
 </button>
-<nz-tree-view [nzTreeControl]="treeControl" [nzDataSource]="dataSource">
+<nz-tree-view
+  [nzDataSource]="pythonExpressionSource"
+  [nzTreeControl]="expressionTreeControl"
+>
   <nz-tree-node *nzTreeNodeDef="let node" nzTreeNodePadding>
-    {{ node.label }}
-  </nz-tree-node>
-
-  <nz-tree-node *nzTreeNodeDef="let node; when: hasChild" nzTreeNodePadding>
-    <nz-tree-node-toggle *ngIf="!node.loading">
-      <i nz-icon nzType="caret-down" nzTreeNodeToggleRotateIcon></i>
+    <nz-tree-node-toggle *ngIf="node.expandable && !node.loading">
+      <i nz-icon nzTreeNodeToggleRotateIcon nzType="caret-down"></i>
     </nz-tree-node-toggle>
-    <nz-tree-node-toggle *ngIf="node.loading" nzTreeNodeNoopToggle>
-      <i nz-icon nzType="loading" nzTreeNodeToggleActiveIcon></i>
+    <nz-tree-node-toggle
+      *ngIf="node.expandable && node.loading"
+      nzTreeNodeNoopToggle
+    >
+      <i nz-icon nzTreeNodeToggleActiveIcon nzType="loading"></i>
     </nz-tree-node-toggle>
-    {{ node.label }}
+    {{ node.name }}({{node.type}}) : {{node.value}}
   </nz-tree-node>
 </nz-tree-view>
-

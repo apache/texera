@@ -9,7 +9,7 @@ import { ExecuteWorkflowService } from "../../../service/execute-workflow/execut
 import { BreakpointTriggerInfo } from "../../../types/workflow-common.interface";
 import { WorkflowWebsocketService } from "../../../service/workflow-websocket/workflow-websocket.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { EvaluatedValue } from "../../../types/workflow-websocket.interface";
+import { TypedValue } from "../../../types/workflow-websocket.interface";
 import { FlatTreeControl, TreeControl } from "@angular/cdk/tree";
 import {
   CollectionViewer,
@@ -19,10 +19,12 @@ import {
 import { BehaviorSubject, merge, Observable } from "rxjs";
 import { map, tap } from "rxjs/operators";
 
-interface FlatNode {
+interface FlatTreeNode {
   expandable: boolean;
   expression: string;
-  label: string;
+  name: string;
+  type: string;
+  value: string;
   level: number;
   loading?: boolean;
 }
@@ -38,21 +40,12 @@ export class DebuggerFrameComponent implements OnInit, OnChanges {
   // display breakpoint
   breakpointTriggerInfo?: BreakpointTriggerInfo;
   breakpointAction: boolean = false;
-  evaluateTrees: object[] = [];
-  treeControl = new FlatTreeControl<FlatNode>(
+
+  expressionTreeControl = new FlatTreeControl<FlatTreeNode>(
     (node) => node.level,
     (node) => node.expandable
   );
-  TREE_DATA: FlatNode[] = [
-    // {
-    //   expandable: true,
-    //   expression: "self",
-    //   label: "UDF",
-    //   level: 0
-    // }
-  ];
-  dataSource?: DynamicDatasource;
-  hasChild = (_: number, node: FlatNode) => node.expandable;
+  pythonExpressionSource?: PythonExpressionSource;
 
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
@@ -93,9 +86,8 @@ export class DebuggerFrameComponent implements OnInit, OnChanges {
   }
 
   ngOnInit(): void {
-    this.dataSource = new DynamicDatasource(
-      this.treeControl,
-      this.TREE_DATA,
+    this.pythonExpressionSource = new PythonExpressionSource(
+      this.expressionTreeControl,
       this.workflowWebsocketService,
       this.operatorId
     );
@@ -103,97 +95,50 @@ export class DebuggerFrameComponent implements OnInit, OnChanges {
 }
 
 @UntilDestroy()
-class DynamicDatasource implements DataSource<FlatNode> {
-  private flattenedData: BehaviorSubject<FlatNode[]>;
-  private childrenLoadedSet = new Set<FlatNode>();
+class PythonExpressionSource implements DataSource<FlatTreeNode> {
+  private readonly flattenedDataSubject: BehaviorSubject<FlatTreeNode[]>;
+  private childrenLoadedSet = new Set<FlatTreeNode>();
 
   constructor(
-    private treeControl: TreeControl<FlatNode>,
-    initData: FlatNode[],
+    private treeControl: TreeControl<FlatTreeNode>,
     private workflowWebsocketService: WorkflowWebsocketService,
     private operatorId?: string
   ) {
-    this.flattenedData = new BehaviorSubject<FlatNode[]>(initData);
-    treeControl.dataNodes = initData;
+    this.flattenedDataSubject = new BehaviorSubject<FlatTreeNode[]>([]);
+    treeControl.dataNodes = [];
 
-    function toTreeNode(
-      value: EvaluatedValue,
-      parentNode?: FlatNode
-    ): FlatNode[] {
-      return value.attributes.map(
-        (typedValue) =>
-          <FlatNode>{
-            expression:
-              (parentNode?.expression ? parentNode?.expression + "." : "") +
-              typedValue.expression,
-            label:
-              typedValue.expression +
-              "(" +
-              typedValue.valueType +
-              "): " +
-              typedValue.valueStr,
-            expandable: typedValue.expandable,
-            level: (parentNode?.level ?? -1) + 1
-          }
-      );
-    }
-
-    this.workflowWebsocketService
-      .subscribeToEvent("PythonExpressionEvaluateResponse")
-      .pipe(untilDestroyed(this))
-      .subscribe((root) => {
-        const flattenedData = this.flattenedData.getValue();
-        const node = flattenedData.find(
-          (data) => data.expression === root.expression
-        );
-
-        if (node) {
-          root.values.forEach((evaluatedValue) => {
-            const treeNodes = toTreeNode(evaluatedValue, node);
-            const index = flattenedData.indexOf(node);
-            if (index !== -1) {
-              flattenedData.splice(index + 1, 0, ...treeNodes);
-              this.childrenLoadedSet.add(node);
-            }
-            this.flattenedData.next(flattenedData);
-
-            node.loading = false;
-          });
-        } else {
-          root.values.forEach((evaluatedValue) => {
-            flattenedData.push(<FlatNode>{
-              expression: evaluatedValue.value.expression,
-              label:
-                evaluatedValue.value.expression +
-                "(" +
-                evaluatedValue.value.valueType +
-                "): " +
-                evaluatedValue.value.valueStr,
-              level: 0,
-              expandable: evaluatedValue.value.expandable
-            });
-          });
-          this.flattenedData.next(flattenedData);
-        }
-      });
+    this.registerEvaluatedValuesHandler();
   }
 
-  connect(collectionViewer: CollectionViewer): Observable<FlatNode[]> {
+  toFlatTreeNode(value: TypedValue, parentNode?: FlatTreeNode): FlatTreeNode {
+    return <FlatTreeNode>{
+      expression:
+        (parentNode?.expression ? parentNode?.expression + "." : "") +
+        value.expression,
+      name: value.expression.replace(/__getitem__\((.*?)\)/, "[$1]"),
+      type: value.valueType,
+      value: value.valueStr,
+      expandable: value.expandable,
+      level: (parentNode?.level ?? -1) + 1
+    };
+  }
+
+  connect(collectionViewer: CollectionViewer): Observable<FlatTreeNode[]> {
     const changes = [
       collectionViewer.viewChange,
       this.treeControl.expansionModel.changed.pipe(
         tap((change) => this.handleExpansionChange(change))
       ),
-      this.flattenedData
+      this.flattenedDataSubject
     ];
     return merge(...changes).pipe(
-      map(() => this.expandFlattenedNodes(this.flattenedData.getValue()))
+      map(() => this.expandFlattenedNodes(this.flattenedDataSubject.getValue()))
     );
   }
 
-  expandFlattenedNodes(nodes: FlatNode[]): FlatNode[] {
+  expandFlattenedNodes(nodes: FlatTreeNode[]): FlatTreeNode[] {
     const treeControl = this.treeControl;
-    const results: FlatNode[] = [];
+    const results: FlatTreeNode[] = [];
     const currentExpand: boolean[] = [];
     currentExpand[0] = true;
 
@@ -213,13 +158,13 @@ class DynamicDatasource implements DataSource<FlatNode> {
     return results;
   }
 
-  handleExpansionChange(change: SelectionChange<FlatNode>): void {
+  handleExpansionChange(change: SelectionChange<FlatTreeNode>): void {
     if (change.added) {
       change.added.forEach((node) => this.loadChildren(node));
     }
   }
 
-  loadChildren(node: FlatNode): void {
+  loadChildren(node: FlatTreeNode): void {
     if (this.childrenLoadedSet.has(node)) {
       return;
     }
@@ -228,16 +173,50 @@ class DynamicDatasource implements DataSource<FlatNode> {
   }
 
   disconnect(): void {
-    this.flattenedData.complete();
+    this.flattenedDataSubject.complete();
   }
 
-  getChildren(node: FlatNode): void {
+  getChildren(node: FlatTreeNode): void {
     if (this.operatorId) {
       this.workflowWebsocketService.send("PythonExpressionEvaluateRequest", {
         expression: node.expression,
         operatorId: this.operatorId
       });
     }
+  }
+
+  registerEvaluatedValuesHandler() {
+    this.workflowWebsocketService
+      .subscribeToEvent("PythonExpressionEvaluateResponse")
+      .pipe(untilDestroyed(this))
+      .subscribe((response) => {
+        const flattenedData = this.flattenedDataSubject.getValue();
+        const parentNode = flattenedData.find(
+          (node) => node.expression === response.expression
+        );
+
+        if (parentNode) {
+          // found parent node, add to it as children
+          response.values.forEach((evaluatedValue) => {
+            const treeNodes = evaluatedValue.attributes.map((typedValue) =>
+              this.toFlatTreeNode(typedValue, parentNode)
+            );
+            const index = flattenedData.indexOf(parentNode);
+            if (index !== -1) {
+              flattenedData.splice(index + 1, 0, ...treeNodes);
+              this.childrenLoadedSet.add(parentNode);
+            }
+            parentNode.loading = false;
+          });
+        } else {
+          // append new expressions as new tree roots
+          const newRootNodes = response.values.map((evaluatedValue) =>
+            this.toFlatTreeNode(evaluatedValue.value)
+          );
+          flattenedData.push(...newRootNodes);
+        }
+        this.flattenedDataSubject.next(flattenedData);
+      });
   }
 }
 
