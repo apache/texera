@@ -16,6 +16,7 @@ import {
   OperatorState,
   OperatorStatistics
 } from "../../types/execute-workflow.interface";
+import { OperatorResultCacheStatus } from "../../types/workflow-websocket.interface";
 
 /**
  * Defines the SVG element for the breakpoint button
@@ -83,6 +84,7 @@ export const sourceOperatorHandle = "M 0 0 L 0 8 L 8 8 L 8 0 z";
  */
 export const targetOperatorHandle = "M 12 0 L 0 6 L 12 12 z";
 
+export const operatorCacheClass = "texera-operator-cache";
 export const operatorStateClass = "texera-operator-state";
 
 export const operatorProcessedCountClass = "texera-operator-processed-count";
@@ -106,6 +108,7 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
       <text class="${operatorProcessedCountClass}"></text>
       <text class="${operatorOutputCountClass}"></text>
       <text class="${operatorStateClass}"></text>
+      <text class="${operatorCacheClass}"></text>
     </g>`;
 }
 
@@ -407,6 +410,19 @@ export class JointUIService {
       .attr("rect/fill", JointUIService.getOperatorFillColor(operator));
   }
 
+  public changeOperatorCacheStatus(
+    jointPaper: joint.dia.Paper,
+    operator: OperatorPredicate,
+    cacheStatus?: OperatorResultCacheStatus
+  ): void {
+    jointPaper
+      .getModelById(operator.operatorID)
+      .attr(
+        ".texera-operator-cache/text",
+        JointUIService.getOperatorCacheDisplayText(operator, cacheStatus)
+      );
+  }
+
   public changeOperatorDisplayName(
     operator: OperatorPredicate,
     jointPaper: joint.dia.Paper,
@@ -692,6 +708,17 @@ export class JointUIService {
   public static getOperatorFillColor(operator: OperatorPredicate): string {
     const isDisabled = operator.isDisabled ?? false;
     return isDisabled ? "#E0E0E0" : "#FFFFFF";
+  }
+
+  public static getOperatorCacheDisplayText(
+    operator: OperatorPredicate,
+    cacheStatus?: OperatorResultCacheStatus
+  ): string {
+    if (cacheStatus && cacheStatus !== "cache not enabled") {
+      return cacheStatus;
+    }
+    const isCached = operator.isCached ?? false;
+    return isCached ? "will be cached" : "";
   }
 
   /**

@@ -26,7 +26,8 @@ export interface OperatorPredicate
     outputPorts: { portID: string; displayName?: string }[];
     showAdvanced: boolean;
     isDisabled?: boolean;
-    customDisplayName: string;
+    isCached?: boolean;
+    customDisplayName?: string;
   }> {}
 
 export interface OperatorLink
