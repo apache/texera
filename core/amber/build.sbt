@@ -77,7 +77,6 @@ val mbknorJacksonJsonSchemaDependencies = Seq(
   "javax.validation" % "validation-api" % "2.0.1.Final",
   "org.slf4j" % "slf4j-api" % slf4jVersion,
   "io.github.classgraph" % "classgraph" % "4.8.21",
-  "org.scalatest" %% "scalatest" % "3.0.8" % "test",
   "ch.qos.logback" % "logback-classic" % "1.2.3" % "test",
   "com.github.java-json-tools" % "json-schema-validator" % "2.2.11" % "test",
   "com.fasterxml.jackson.module" % "jackson-module-kotlin" % jacksonVersion % "test",
