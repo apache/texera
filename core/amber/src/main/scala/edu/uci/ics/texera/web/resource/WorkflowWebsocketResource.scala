@@ -73,6 +73,33 @@ object WorkflowWebsocketResource {
 class WorkflowWebsocketResource extends LazyLogging {
 
   final val objectMapper = Utils.objectMapper
+  val sessionCachedOperators: mutable.HashMap[String, mutable.HashMap[String, OperatorDescriptor]] =
+    mutable.HashMap[String, mutable.HashMap[String, OperatorDescriptor]]()
+  val sessionCacheSourceOperators
+      : mutable.HashMap[String, mutable.HashMap[String, CacheSourceOpDesc]] =
+    mutable.HashMap[String, mutable.HashMap[String, CacheSourceOpDesc]]()
+  val sessionCacheSinkOperators: mutable.HashMap[String, mutable.HashMap[String, CacheSinkOpDesc]] =
+    mutable.HashMap[String, mutable.HashMap[String, CacheSinkOpDesc]]()
+  val sessionOperatorRecord: mutable.HashMap[String, mutable.HashMap[String, WorkflowVertex]] =
+    mutable.HashMap[String, mutable.HashMap[String, WorkflowVertex]]()
+  val opResultStorageConfig: Config = ConfigFactory.load("application")
+  val storageType: String = AmberUtils.amberConfig.getString("cache.storage")
+  var opResultSwitch: Boolean = storageType != "off"
+  var opResultStorage: OpResultStorage = storageType.toLowerCase match {
+    case "off" =>
+      null
+    case "memory" =>
+      new MemoryOpResultStorage()
+    case "jcs" =>
+      new JCSOpResultStorage()
+    case "mongodb" =>
+      new MongoOpResultStorage()
+    case _ =>
+      throw new Exception("invalid storage config")
+  }
+  if (opResultSwitch) {
+    logger.info(s"Use $storageType for materialization")
+  }
 
   @OnOpen
   def myOnOpen(session: Session, config: EndpointConfig): Unit = {
@@ -80,7 +107,7 @@ class WorkflowWebsocketResource extends LazyLogging {
       session.getId,
       (session, config.getUserProperties.get("httpSession").asInstanceOf[HttpSession])
     )
-    println("connection open")
+    logger.info("connection open")
   }
 
   @OnMessage
@@ -188,106 +215,6 @@ class WorkflowWebsocketResource extends LazyLogging {
     send(session, WorkflowResumedEvent())
   }
 
-  def clearMaterialization(session: Session): Unit = {
-    if (!sessionCacheSourceOperators.contains(session.getId)) {
-      return
-    }
-    sessionCacheSinkOperators(session.getId).values.foreach(op => opResultStorage.remove(op.uuid))
-    sessionCachedOperators.remove(session.getId)
-    sessionCacheSourceOperators.remove(session.getId)
-    sessionCacheSinkOperators.remove(session.getId)
-    sessionOperatorRecord.remove(session.getId)
-  }
-
-  def updateCacheStatus(session: Session, request: CacheStatusUpdateRequest): Unit = {
-    var cachedOperators: mutable.HashMap[String, OperatorDescriptor] = null
-    if (!sessionCachedOperators.contains(session.getId)) {
-      cachedOperators = mutable.HashMap[String, OperatorDescriptor]()
-    } else {
-      cachedOperators = sessionCachedOperators(session.getId)
-    }
-    var cacheSourceOperators: mutable.HashMap[String, CacheSourceOpDesc] = null
-    if (!sessionCacheSourceOperators.contains(session.getId)) {
-      cacheSourceOperators = mutable.HashMap[String, CacheSourceOpDesc]()
-    } else {
-      cacheSourceOperators = sessionCacheSourceOperators(session.getId)
-    }
-    var cacheSinkOperators: mutable.HashMap[String, CacheSinkOpDesc] = null
-    if (!sessionCacheSinkOperators.contains(session.getId)) {
-      cacheSinkOperators = mutable.HashMap[String, CacheSinkOpDesc]()
-    } else {
-      cacheSinkOperators = sessionCacheSinkOperators(session.getId)
-    }
-    var operatorRecord: mutable.HashMap[String, WorkflowVertex] = null
-    if (!sessionOperatorRecord.contains(session.getId)) {
-      operatorRecord = mutable.HashMap[String, WorkflowVertex]()
-    } else {
-      operatorRecord = sessionOperatorRecord(session.getId)
-    }
-
-    val workflowInfo = WorkflowInfo(request.operators, request.links, request.breakpoints)
-    workflowInfo.cachedOperatorIds = request.cachedOperatorIDs
-    logger.debug("Cached operators: {}.", cachedOperators.toString())
-    logger.debug("request.cachedOperatorIDs: {}.", request.cachedOperatorIDs)
-    val workflowRewriter = new WorkflowRewriter(
-      workflowInfo,
-      cachedOperators.clone(),
-      cacheSourceOperators.clone(),
-      cacheSinkOperators.clone(),
-      operatorRecord.clone(),
-      opResultStorage
-    )
-
-    val invalidSet = workflowRewriter.cacheStatusUpdate()
-
-    val cacheStatusMap = request.cachedOperatorIDs
-      .filter(cachedOperators.contains)
-      .map(id => {
-        if (cachedOperators.contains(id)) {
-          if (!invalidSet.contains(id)) {
-            (id, CacheStatus.CACHE_VALID)
-          } else {
-            (id, CacheStatus.CACHE_INVALID)
-          }
-        } else {
-          (id, CacheStatus.CACHE_INVALID)
-        }
-      })
-      .toMap
-
-    val cacheStatusUpdateEvent = CacheStatusUpdateEvent(cacheStatusMap)
-    send(session, cacheStatusUpdateEvent)
-  }
-
-  val sessionCachedOperators: mutable.HashMap[String, mutable.HashMap[String, OperatorDescriptor]] =
-    mutable.HashMap[String, mutable.HashMap[String, OperatorDescriptor]]()
-  val sessionCacheSourceOperators
-      : mutable.HashMap[String, mutable.HashMap[String, CacheSourceOpDesc]] =
-    mutable.HashMap[String, mutable.HashMap[String, CacheSourceOpDesc]]()
-  val sessionCacheSinkOperators: mutable.HashMap[String, mutable.HashMap[String, CacheSinkOpDesc]] =
-    mutable.HashMap[String, mutable.HashMap[String, CacheSinkOpDesc]]()
-  val sessionOperatorRecord: mutable.HashMap[String, mutable.HashMap[String, WorkflowVertex]] =
-    mutable.HashMap[String, mutable.HashMap[String, WorkflowVertex]]()
-
-  val opResultStorageConfig: Config = ConfigFactory.load("application")
-  var opResultSwitch: Boolean = true
-  var opResultStorage: OpResultStorage = _
-  val storageType: String = AmberUtils.amberConfig.getString("cache.storage")
-  if (storageType.equals("off")) {
-    opResultSwitch = false
-  } else if (storageType.equals("memory")) {
-    opResultStorage = new MemoryOpResultStorage()
-    logger.info("use memory storage for materialization")
-  } else if (storageType.equals("JCS")) {
-    opResultStorage = new JCSOpResultStorage()
-    logger.info("use JCS for materialization")
-  } else if (storageType.equals("mongodb")) {
-    logger.info("use mongodb for materialization")
-    opResultStorage = new MongoOpResultStorage()
-  } else {
-    throw new Exception("invalid storage config")
-  }
-
   def executeWorkflow(session: Session, request: ExecuteWorkflowRequest): Unit = {
     var cachedOperators: mutable.HashMap[String, OperatorDescriptor] = null
     var cacheSourceOperators: mutable.HashMap[String, CacheSourceOpDesc] = null
@@ -320,7 +247,7 @@ class WorkflowWebsocketResource extends LazyLogging {
       }
     }
 
-    logger.info("Session id: {}", session.getId)
+    logger.info(s"Session id: ${session.getId}")
     val context = new WorkflowContext
     val jobID = Integer.toString(WorkflowWebsocketResource.nextJobID.incrementAndGet)
     context.jobID = jobID
@@ -335,16 +262,15 @@ class WorkflowWebsocketResource extends LazyLogging {
           request.operators,
           request.links,
           request.breakpoints,
-          request.cachedOperatorIDs
+          request.cachedOperatorIds
         )
       )
     }
 
     var workflowInfo = WorkflowInfo(request.operators, request.links, request.breakpoints)
     if (opResultSwitch) {
-      workflowInfo.cachedOperatorIds = request.cachedOperatorIDs
-      logger.debug("Cached operators: {}.", cachedOperators.toString())
-      logger.debug("request.cachedOperatorIDs: {}.", request.cachedOperatorIDs)
+      workflowInfo.cachedOperatorIds = request.cachedOperatorIds
+      logger.debug(s"Cached operators: $cachedOperators with ${request.cachedOperatorIds}")
       val workflowRewriter = new WorkflowRewriter(
         workflowInfo,
         cachedOperators,
@@ -357,11 +283,11 @@ class WorkflowWebsocketResource extends LazyLogging {
       val oldWorkflowInfo = workflowInfo
       workflowInfo = newWorkflowInfo
       workflowInfo.cachedOperatorIds = oldWorkflowInfo.cachedOperatorIds
-      logger.info("Original workflow: {}.", toJgraphtDAG(oldWorkflowInfo).toString)
-      logger.info("Rewritten workflow: {}.", toJgraphtDAG(workflowInfo).toString)
+      logger.info(
+        s"Rewrite the original workflow: ${toJgraphtDAG(oldWorkflowInfo)} to be: ${toJgraphtDAG(workflowInfo)}"
+      )
     }
     val texeraWorkflowCompiler = new WorkflowCompiler(workflowInfo, context)
-    logger.info("TexeraWorkflowCompiler constructed: {}.", texeraWorkflowCompiler)
     val violations = texeraWorkflowCompiler.validate
     if (violations.nonEmpty) {
       send(session, WorkflowErrorEvent(violations))
@@ -425,7 +351,7 @@ class WorkflowWebsocketResource extends LazyLogging {
               request.operators,
               request.links,
               request.breakpoints,
-              request.cachedOperatorIDs
+              request.cachedOperatorIds
             )
           )
         }
@@ -476,6 +402,65 @@ class WorkflowWebsocketResource extends LazyLogging {
 
   }
 
+  def updateCacheStatus(session: Session, request: CacheStatusUpdateRequest): Unit = {
+    var cachedOperators: mutable.HashMap[String, OperatorDescriptor] = null
+    if (!sessionCachedOperators.contains(session.getId)) {
+      cachedOperators = mutable.HashMap[String, OperatorDescriptor]()
+    } else {
+      cachedOperators = sessionCachedOperators(session.getId)
+    }
+    var cacheSourceOperators: mutable.HashMap[String, CacheSourceOpDesc] = null
+    if (!sessionCacheSourceOperators.contains(session.getId)) {
+      cacheSourceOperators = mutable.HashMap[String, CacheSourceOpDesc]()
+    } else {
+      cacheSourceOperators = sessionCacheSourceOperators(session.getId)
+    }
+    var cacheSinkOperators: mutable.HashMap[String, CacheSinkOpDesc] = null
+    if (!sessionCacheSinkOperators.contains(session.getId)) {
+      cacheSinkOperators = mutable.HashMap[String, CacheSinkOpDesc]()
+    } else {
+      cacheSinkOperators = sessionCacheSinkOperators(session.getId)
+    }
+    var operatorRecord: mutable.HashMap[String, WorkflowVertex] = null
+    if (!sessionOperatorRecord.contains(session.getId)) {
+      operatorRecord = mutable.HashMap[String, WorkflowVertex]()
+    } else {
+      operatorRecord = sessionOperatorRecord(session.getId)
+    }
+
+    val workflowInfo = WorkflowInfo(request.operators, request.links, request.breakpoints)
+    workflowInfo.cachedOperatorIds = request.cachedOperatorIds
+    logger.debug(s"Cached operators: $cachedOperators with ${request.cachedOperatorIds}")
+    val workflowRewriter = new WorkflowRewriter(
+      workflowInfo,
+      cachedOperators.clone(),
+      cacheSourceOperators.clone(),
+      cacheSinkOperators.clone(),
+      operatorRecord.clone(),
+      opResultStorage
+    )
+
+    val invalidSet = workflowRewriter.cacheStatusUpdate()
+
+    val cacheStatusMap = request.cachedOperatorIds
+      .filter(cachedOperators.contains)
+      .map(id => {
+        if (cachedOperators.contains(id)) {
+          if (!invalidSet.contains(id)) {
+            (id, CacheStatus.CACHE_VALID)
+          } else {
+            (id, CacheStatus.CACHE_INVALID)
+          }
+        } else {
+          (id, CacheStatus.CACHE_INVALID)
+        }
+      })
+      .toMap
+
+    val cacheStatusUpdateEvent = CacheStatusUpdateEvent(cacheStatusMap)
+    send(session, cacheStatusUpdateEvent)
+  }
+
   def exportResult(session: Session, request: ResultExportRequest): Unit = {
     val resultExportResponse = ResultExportResource.apply(session.getId, request)
     send(session, resultExportResponse)
@@ -483,13 +468,13 @@ class WorkflowWebsocketResource extends LazyLogging {
 
   def killWorkflow(session: Session): Unit = {
     WorkflowWebsocketResource.sessionJobs(session.getId)._2 ! PoisonPill
-    println("workflow killed")
+    logger.info("workflow killed")
   }
 
   @OnClose
   def myOnClose(session: Session, cr: CloseReason): Unit = {
     if (WorkflowWebsocketResource.sessionJobs.contains(session.getId)) {
-      println(s"session ${session.getId} disconnected, kill its controller actor")
+      logger.info(s"session ${session.getId} disconnected, kill its controller actor")
       this.killWorkflow(session)
     }
 
@@ -500,6 +485,17 @@ class WorkflowWebsocketResource extends LazyLogging {
     if (opResultSwitch) {
       clearMaterialization(session)
     }
+  }
+
+  def clearMaterialization(session: Session): Unit = {
+    if (!sessionCacheSourceOperators.contains(session.getId)) {
+      return
+    }
+    sessionCacheSinkOperators(session.getId).values.foreach(op => opResultStorage.remove(op.uuid))
+    sessionCachedOperators.remove(session.getId)
+    sessionCacheSourceOperators.remove(session.getId)
+    sessionCacheSinkOperators.remove(session.getId)
+    sessionOperatorRecord.remove(session.getId)
   }
 
   def removeBreakpoint(session: Session, removeBreakpoint: RemoveBreakpointRequest): Unit = {
