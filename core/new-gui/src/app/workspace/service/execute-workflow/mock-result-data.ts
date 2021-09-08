@@ -75,8 +75,7 @@ export const mockResultOperator: OperatorPredicate = {
   inputPorts: [],
   outputPorts: [],
   showAdvanced: false,
-  isDisabled: false,
-  customDisplayName: "result-1"
+  isDisabled: false
 };
 
 export const mockResultPoint: Point = {

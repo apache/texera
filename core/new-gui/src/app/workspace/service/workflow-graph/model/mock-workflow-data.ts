@@ -36,8 +36,7 @@ export const mockScanPredicate: OperatorPredicate = {
   inputPorts: [],
   outputPorts: [{ portID: "output-0" }],
   showAdvanced: true,
-  isDisabled: false,
-  customDisplayName: "ScanSource-1"
+  isDisabled: false
 };
 
 export const mockSentimentPredicate: OperatorPredicate = {
@@ -47,8 +46,7 @@ export const mockSentimentPredicate: OperatorPredicate = {
   inputPorts: [{ portID: "input-0" }],
   outputPorts: [{ portID: "output-0" }],
   showAdvanced: true,
-  isDisabled: false,
-  customDisplayName: "Nlp Sentiment-2"
+  isDisabled: false
 };
 
 export const mockResultPredicate: OperatorPredicate = {
@@ -58,8 +56,7 @@ export const mockResultPredicate: OperatorPredicate = {
   inputPorts: [{ portID: "input-0" }],
   outputPorts: [],
   showAdvanced: true,
-  isDisabled: false,
-  customDisplayName: "View Results-3"
+  isDisabled: false
 };
 
 export const mockMultiInputOutputPredicate: OperatorPredicate = {
@@ -77,8 +74,7 @@ export const mockMultiInputOutputPredicate: OperatorPredicate = {
     { portID: "output-2" }
   ],
   showAdvanced: true,
-  isDisabled: false,
-  customDisplayName: "Multi Input Output-4"
+  isDisabled: false
 };
 
 export const mockScanResultLink: OperatorLink = {

@@ -359,8 +359,7 @@ describe("SchemaPropagationService", () => {
       inputPorts: [],
       outputPorts: [],
       showAdvanced: true,
-      isDisabled: false,
-      customDisplayName: ""
+      isDisabled: false
     };
 
     workflowActionService.addOperator(mockKeywordSearchOperator, mockPoint);
@@ -428,8 +427,7 @@ describe("SchemaPropagationService", () => {
       inputPorts: [],
       outputPorts: [],
       showAdvanced: true,
-      isDisabled: false,
-      customDisplayName: ""
+      isDisabled: false
     };
 
     workflowActionService.addOperator(mockAggregationPredicate, mockPoint);

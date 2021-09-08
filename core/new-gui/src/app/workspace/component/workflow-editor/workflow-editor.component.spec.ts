@@ -420,8 +420,7 @@ describe("WorkflowEditorComponent", () => {
         inputPorts: [{ portID: "input-0" }],
         outputPorts: [{ portID: "output-0" }],
         showAdvanced: false,
-        isDisabled: false,
-        customDisplayName: "union-1"
+        isDisabled: false
       };
 
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
