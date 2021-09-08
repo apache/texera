@@ -24,20 +24,23 @@ class EvaluateExpressionHandler(Handler):
         # add attributes
         if hasattr(value, "__dict__"):
             for k, v in value.__dict__.items():
-                print(TypedValue(expression=k, value_str=repr(v), value_type=type(v).__name__,
-                                 expandable=hasattr(v, "__dict__") or hasattr(v, "__getitem__")))
                 attributes.append(TypedValue(expression=k, value_str=repr(v), value_type=type(v).__name__,
                                              expandable=self.is_expandable(v)))
 
         # add container items
         if hasattr(value, "__getitem__"):
-            for i in range(len(value)):
-                print(TypedValue(expression=f"[{i}]", value_str=repr(value[i]), value_type=type(value[i]).__name__,
-                                 expandable=True))
-                attributes.append(
-                    TypedValue(expression=f"__getitem__({i})", value_str=repr(value[i]),
-                               value_type=type(value[i]).__name__,
-                               expandable=self.is_expandable(value[i])))
+            if hasattr(value, "items"):
+                for k, v in value.items():
+                    attributes.append(
+                        TypedValue(expression=f"__getitem__({k})", value_str=repr(v),
+                                   value_type=type(v).__name__,
+                                   expandable=self.is_expandable(v)))
+            elif hasattr(value, "__len__"):
+                for i in range(len(value)):
+                    attributes.append(
+                        TypedValue(expression=f"__getitem__({i})", value_str=repr(value[i]),
+                                   value_type=type(value[i]).__name__,
+                                   expandable=self.is_expandable(value[i])))
         return EvaluatedValue(
             value=TypedValue(expression=command.expression, value_str=value_str, value_type=type_str, expandable=True),
             attributes=attributes)
