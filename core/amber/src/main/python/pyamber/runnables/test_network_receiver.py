@@ -4,6 +4,7 @@ from time import sleep
 import pandas
 import pytest
 
+from pyamber import Tuple
 from pyamber.models.internal_queue import ControlElement, DataElement, InternalQueue
 from pyamber.models.payload import DataFrame, EndOfUpstream
 from pyamber.runnables.network_receiver import NetworkReceiver
@@ -45,7 +46,7 @@ class TestNetworkReceiver:
             'Brand': ['Honda Civic', 'Toyota Corolla', 'Ford Focus', 'Audi A4'],
             'Price': [22000, 25000, 27000, 35000]
         }, columns=['Brand', 'Price'])
-        return DataFrame(frame=[r for _, r in df_to_sent.iterrows()])
+        return DataFrame(frame=[Tuple(r) for _, r in df_to_sent.iterrows()])
 
     @pytest.mark.timeout(0.5)
     def test_network_receiver_can_stop(self, schema_map):

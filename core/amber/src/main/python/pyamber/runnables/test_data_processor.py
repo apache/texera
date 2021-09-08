@@ -1,18 +1,18 @@
 from threading import Thread
 
-import pandas
 import pytest
 from loguru import logger
 
-from pyamber.models import ControlElement, DataElement, DataFrame, EndOfUpstream, InternalQueue
-from pyamber.runnables import DataProcessor
-from pyamber.udf.examples import EchoOperator
-from pyamber.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import OneToOnePartitioning, Partitioning
 from proto.edu.uci.ics.amber.engine.architecture.worker import AddPartitioningV2, ControlCommandV2, ControlReturnV2, \
     QueryStatisticsV2, UpdateInputLinkingV2, WorkerExecutionCompletedV2, WorkerState, WorkerStatistics
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlInvocationV2, ControlPayloadV2, \
     LayerIdentity, LinkIdentity, ReturnInvocationV2
+from pyamber import Tuple
+from pyamber.models import ControlElement, DataElement, DataFrame, EndOfUpstream, InternalQueue
+from pyamber.models.udf.examples import EchoOperator
+from pyamber.runnables import DataProcessor
+from pyamber.util import set_one_of
 
 logger.level("PRINT", no=38)
 
@@ -32,7 +32,7 @@ class TestDataProcessor:
 
     @pytest.fixture
     def mock_tuple(self):
-        return pandas.Series({"test-1": "hello", "test-2": 10})
+        return Tuple({"test-1": "hello", "test-2": 10})
 
     @pytest.fixture
     def mock_sender_actor(self):
