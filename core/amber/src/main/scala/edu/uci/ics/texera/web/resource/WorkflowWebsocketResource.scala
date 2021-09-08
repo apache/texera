@@ -95,7 +95,7 @@ class WorkflowWebsocketResource extends LazyLogging {
     case "mongodb" =>
       new MongoOpResultStorage()
     case _ =>
-      throw new Exception("invalid storage config")
+      throw new RuntimeException(s"invalid storage config $storageType")
   }
   if (opResultSwitch) {
     logger.info(s"Use $storageType for materialization")
