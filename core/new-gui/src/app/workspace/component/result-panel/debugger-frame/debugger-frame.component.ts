@@ -44,12 +44,12 @@ export class DebuggerFrameComponent implements OnInit, OnChanges {
     (node) => node.expandable
   );
   TREE_DATA: FlatNode[] = [
-    {
-      expandable: true,
-      expression: "self",
-      label: "UDF",
-      level: 0
-    }
+    // {
+    //   expandable: true,
+    //   expression: "self",
+    //   label: "UDF",
+    //   level: 0
+    // }
   ];
   dataSource?: DynamicDatasource;
   hasChild = (_: number, node: FlatNode) => node.expandable;
@@ -84,9 +84,12 @@ export class DebuggerFrameComponent implements OnInit, OnChanges {
   }
 
   onClickEvaluate() {
-    // this.workflowWebsocketService.send("PythonExpressionEvaluateRequest", {
-    //   expression: "self"
-    // });
+    if (this.operatorId) {
+      this.workflowWebsocketService.send("PythonExpressionEvaluateRequest", {
+        expression: "self",
+        operatorId: this.operatorId
+      });
+    }
   }
 
   ngOnInit(): void {
@@ -114,18 +117,25 @@ class DynamicDatasource implements DataSource<FlatNode> {
     treeControl.dataNodes = initData;
 
     function toTreeNode(
-      parentNode: FlatNode,
-      value: EvaluatedValue
+      value: EvaluatedValue,
+      parentNode?: FlatNode
     ): FlatNode[] {
-      console.log(parentNode, value);
-      return value.attributes.map((typedValue) => {
-        return <FlatNode>{
-          expression: parentNode.expression + "." + typedValue.expression,
-          label: typedValue.expression + "("+ typedValue.valueType + "): " + typedValue.valueStr,
-          expandable: typedValue.expandable,
-          level: parentNode.level + 1
-        };
-      });
+      return value.attributes.map(
+        (typedValue) =>
+          <FlatNode>{
+            expression:
+              (parentNode?.expression ? parentNode?.expression + "." : "") +
+              typedValue.expression,
+            label:
+              typedValue.expression +
+              "(" +
+              typedValue.valueType +
+              "): " +
+              typedValue.valueStr,
+            expandable: typedValue.expandable,
+            level: (parentNode?.level ?? -1) + 1
+          }
+      );
     }
 
     this.workflowWebsocketService
@@ -138,17 +148,32 @@ class DynamicDatasource implements DataSource<FlatNode> {
         );
 
         if (node) {
-          let treeNodes = root.values.map((evaluatedValue) =>
-            toTreeNode(node, evaluatedValue)
-          );
+          root.values.forEach((evaluatedValue) => {
+            const treeNodes = toTreeNode(evaluatedValue, node);
+            const index = flattenedData.indexOf(node);
+            if (index !== -1) {
+              flattenedData.splice(index + 1, 0, ...treeNodes);
+              this.childrenLoadedSet.add(node);
+            }
+            this.flattenedData.next(flattenedData);
 
-          const index = flattenedData.indexOf(node);
-          if (index !== -1) {
-            flattenedData.splice(index + 1, 0, ...treeNodes[0]);
-            this.childrenLoadedSet.add(node);
-          }
+            node.loading = false;
+          });
+        } else {
+          root.values.forEach((evaluatedValue) => {
+            flattenedData.push(<FlatNode>{
+              expression: evaluatedValue.value.expression,
+              label:
+                evaluatedValue.value.expression +
+                "(" +
+                evaluatedValue.value.valueType +
+                "): " +
+                evaluatedValue.value.valueStr,
+              level: 0,
+              expandable: evaluatedValue.value.expandable
+            });
+          });
           this.flattenedData.next(flattenedData);
-          node.loading = false;
         }
       });
   }
