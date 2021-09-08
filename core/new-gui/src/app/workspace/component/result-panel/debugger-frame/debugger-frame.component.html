@@ -41,6 +41,11 @@
     >
       <i nz-icon nzTreeNodeToggleActiveIcon nzType="loading"></i>
     </nz-tree-node-toggle>
-    {{ node.name }}({{node.type}}) : {{node.value}}
+    <div class="evaluated-expression">
+      <span class="node-name">{{ node.name }}</span>
+      <span class="node-type">({{ node.type }})</span>
+       =
+      <span class="node-value">{{ node.value }}</span>
+    </div>
   </nz-tree-node>
 </nz-tree-view>
