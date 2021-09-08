@@ -610,7 +610,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
         const op = this.workflowActionService
           .getTexeraGraph()
           .getOperator(operatorID);
-        this.jointUIService.changeOperatorDisplayName(
+        this.jointUIService.changeOperatorJointDisplayName(
           op,
           this.getJointPaper(),
           newDisplayName

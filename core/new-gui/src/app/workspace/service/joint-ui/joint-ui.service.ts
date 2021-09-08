@@ -423,7 +423,7 @@ export class JointUIService {
       );
   }
 
-  public changeOperatorDisplayName(
+  public changeOperatorJointDisplayName(
     operator: OperatorPredicate,
     jointPaper: joint.dia.Paper,
     displayName: string
