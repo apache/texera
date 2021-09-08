@@ -3,25 +3,19 @@ package edu.uci.ics.texera.web.resource
 import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowResultUpdate
-import edu.uci.ics.amber.engine.architecture.principal.OperatorResult
+import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.texera.web.model.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.resource.WorkflowResultService.{
   PaginationMode,
-  SetDeltaMode,
-  SetSnapshotMode,
-  WebOutputMode,
   WebPaginationUpdate,
   WebResultUpdate,
-  defaultPageSize,
-  webDataFromTuple
+  defaultPageSize
 }
-import edu.uci.ics.texera.web.resource.WorkflowResultService.calculateDirtyPageIndices
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.send
-import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler
-import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
-import edu.uci.ics.texera.workflow.common.IncrementalOutputMode.{SET_DELTA, SET_SNAPSHOT}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler
+import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDesc
 
 import javax.websocket.Session
 import scala.collection.mutable
@@ -41,17 +35,20 @@ object WorkflowResultService {
     */
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
   sealed abstract class WebOutputMode extends Product with Serializable
+
   @JsonTypeName("PaginationMode")
   final case class PaginationMode() extends WebOutputMode
+
   @JsonTypeName("SetSnapshotMode")
   final case class SetSnapshotMode() extends WebOutputMode
+
   @JsonTypeName("SetDeltaMode")
   final case class SetDeltaMode() extends WebOutputMode
 
   /**
     * The result update of one operator that will be sent to the frontend.
     * Can be either WebPaginationUpdate (for PaginationMode)
-    *            or WebDataUpdate (for SetSnapshotMode or SetDeltaMode)
+    * or WebDataUpdate (for SetSnapshotMode or SetDeltaMode)
     */
   sealed abstract class WebResultUpdate extends Product with Serializable
 
@@ -112,22 +109,57 @@ case class WebResultUpdateEvent(updates: Map[String, WebResultUpdate]) extends T
   *  - update the result data for each operator,
   *  - send result update event to the frontend
   */
-class WorkflowResultService(val workflowCompiler: WorkflowCompiler) {
+class WorkflowResultService(
+    val workflowCompiler: WorkflowCompiler,
+    opResultStorage: OpResultStorage
+) {
 
   // OperatorResultService for each sink operator
-  val operatorResults: Map[String, OperatorResultService] =
-    workflowCompiler.workflow.getSinkOperators
-      .map(sink => (sink, new OperatorResultService(sink, workflowCompiler)))
-      .toMap
+  var operatorResults: mutable.HashMap[String, OperatorResultService] =
+    mutable.HashMap[String, OperatorResultService]()
+  workflowCompiler.workflow.getSinkOperators.map(sink => {
+    if (workflowCompiler.workflow.getOperator(sink).isInstanceOf[CacheSinkOpDesc]) {
+      val upstreamID = workflowCompiler.workflow.getUpstream(sink).head.operatorID
+      val service = new OperatorResultService(upstreamID, workflowCompiler, opResultStorage)
+      service.uuid = workflowCompiler.workflow.getOperator(sink).asInstanceOf[CacheSinkOpDesc].uuid
+      operatorResults += ((sink, service))
+    } else {
+      val service = new OperatorResultService(sink, workflowCompiler, opResultStorage)
+      operatorResults += ((sink, service))
+    }
+  })
+
+  val updatedSet: mutable.Set[String] = mutable.HashSet[String]()
 
   def onResultUpdate(resultUpdate: WorkflowResultUpdate, session: Session): Unit = {
 
-    // prepare web update event to frontend
-    val webUpdateEvent = resultUpdate.operatorResults.map(e => {
-      val opResultService = operatorResults(e._1)
-      val webUpdateEvent = opResultService.convertWebResultUpdate(e._2)
-      (e._1, webUpdateEvent)
-    })
+    val tmpUpdatedSet = updatedSet.clone()
+    for (id <- tmpUpdatedSet) {
+      if (!operatorResults.contains(id)) {
+        updatedSet.remove(id)
+      }
+    }
+
+    val webUpdateEvent = operatorResults
+      .filter(e => resultUpdate.operatorResults.contains(e._1) || !updatedSet.contains(e._1))
+      .map(e => {
+        if (resultUpdate.operatorResults.contains(e._1)) {
+          val e1 = resultUpdate.operatorResults(e._1)
+          val opResultService = operatorResults(e._1)
+          val webUpdateEvent = opResultService.convertWebResultUpdate(e1)
+          if (workflowCompiler.workflow.getOperator(e._1).isInstanceOf[CacheSinkOpDesc]) {
+            val upID = opResultService.operatorID
+            (upID, webUpdateEvent)
+          } else {
+            (e._1, webUpdateEvent)
+          }
+        } else {
+          updatedSet += e._1
+          val size = operatorResults(e._1).getResult.size
+          (e._1, WebPaginationUpdate(PaginationMode(), size, List.range(0, defaultPageSize)))
+        }
+      })
+      .toMap
 
     // update the result snapshot of each operator
     resultUpdate.operatorResults.foreach(e => operatorResults(e._1).updateResult(e._2))
@@ -137,81 +169,4 @@ class WorkflowResultService(val workflowCompiler: WorkflowCompiler) {
 
   }
 
-  /**
-    * OperatorResultService manages the materialized result of an operator.
-    * It always keeps the latest snapshot of the computation result.
-    */
-  class OperatorResultService(val operatorID: String, val workflowCompiler: WorkflowCompiler) {
-
-    // derive the web output mode from the sink operator type
-    val webOutputMode: WebOutputMode = {
-      val op = workflowCompiler.workflow.getOperator(operatorID)
-      if (!op.isInstanceOf[SimpleSinkOpDesc]) {
-        throw new RuntimeException("operator is not sink: " + op.operatorID)
-      }
-      val sink = op.asInstanceOf[SimpleSinkOpDesc]
-      (sink.getOutputMode, sink.getChartType) match {
-        // visualization sinks use its corresponding mode
-        case (SET_SNAPSHOT, Some(_)) => SetSnapshotMode()
-        case (SET_DELTA, Some(_))    => SetDeltaMode()
-        // Non-visualization sinks use pagination mode
-        case (_, None) => PaginationMode()
-      }
-    }
-
-    // chartType of this sink operator
-    val chartType: Option[String] = {
-      val op = workflowCompiler.workflow.getOperator(operatorID)
-      if (!op.isInstanceOf[SimpleSinkOpDesc]) {
-        throw new RuntimeException("operator is not sink: " + op.operatorID)
-      }
-      op.asInstanceOf[SimpleSinkOpDesc].getChartType
-    }
-
-    /**
-      * All execution result tuples for this operator to this moment.
-      * For SET_SNAPSHOT output mode: result is the latest snapshot
-      * FOR SET_DELTA output mode:
-      *   - for insert-only delta: effectively the same as latest snapshot
-      *   - for insert-retract delta: the union of all delta outputs, not compacted to a snapshot
-      */
-    private var result: List[ITuple] = List()
-
-    /**
-      * Produces the WebResultUpdate to send to frontend from a result update from the engine.
-      */
-    def convertWebResultUpdate(resultUpdate: OperatorResult): WebResultUpdate = {
-      (webOutputMode, resultUpdate.outputMode) match {
-        case (PaginationMode(), SET_SNAPSHOT) =>
-          val dirtyPageIndices =
-            calculateDirtyPageIndices(result, resultUpdate.result, defaultPageSize)
-          WebPaginationUpdate(PaginationMode(), resultUpdate.result.size, dirtyPageIndices)
-
-        case (SetSnapshotMode(), SET_SNAPSHOT) | (SetDeltaMode(), SET_DELTA) =>
-          webDataFromTuple(webOutputMode, resultUpdate.result, chartType)
-
-        // currently not supported mode combinations
-        // (PaginationMode, SET_DELTA) | (DataSnapshotMode, SET_DELTA) | (DataDeltaMode, SET_SNAPSHOT)
-        case _ =>
-          throw new RuntimeException(
-            "update mode combination not supported: " + (webOutputMode, resultUpdate.outputMode)
-          )
-      }
-    }
-
-    /**
-      * Updates the current result of this operator.
-      */
-    def updateResult(resultUpdate: OperatorResult): Unit = {
-      resultUpdate.outputMode match {
-        case SET_SNAPSHOT =>
-          this.result = resultUpdate.result
-        case SET_DELTA =>
-          this.result = (this.result ++ resultUpdate.result)
-      }
-    }
-
-    def getResult: List[ITuple] = this.result
-
-  }
 }
