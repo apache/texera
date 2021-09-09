@@ -10,7 +10,10 @@ xdescribe("OperatorCacheStatusService", () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
-        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+        {
+          provide: OperatorMetadataService,
+          useClass: StubOperatorMetadataService
+        }
       ]
     });
     service = TestBed.inject(OperatorCacheStatusService);
