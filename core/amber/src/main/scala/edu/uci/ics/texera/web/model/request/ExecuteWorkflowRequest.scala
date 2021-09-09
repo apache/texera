@@ -9,5 +9,5 @@ case class ExecuteWorkflowRequest(
     operators: mutable.MutableList[OperatorDescriptor],
     links: mutable.MutableList[OperatorLink],
     breakpoints: mutable.MutableList[BreakpointInfo],
-    cachedOperatorIDs: mutable.MutableList[String]
+    cachedOperatorIds: mutable.MutableList[String]
 ) extends TexeraWebSocketRequest
