@@ -46,6 +46,7 @@ export class DebuggerFrameComponent implements OnInit, OnChanges {
     (node) => node.expandable
   );
   pythonExpressionSource?: PythonExpressionSource;
+  hasNoContent = (_: number, node: FlatTreeNode) => node.name === "";
 
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
@@ -92,11 +93,40 @@ export class DebuggerFrameComponent implements OnInit, OnChanges {
       this.operatorId
     );
   }
+
+  saveNode(node: FlatTreeNode, value: string) {
+    if (this.operatorId) {
+      this.pythonExpressionSource?.removeNode(node);
+      this.workflowWebsocketService.send("PythonExpressionEvaluateRequest", {
+        expression: value,
+        operatorId: this.operatorId
+      });
+
+    }
+  }
+
+  addNewNode(): void {
+    const flattenedData =
+      this.pythonExpressionSource?.flattenedDataSubject.getValue();
+    // append new expressions as new tree roots
+    flattenedData?.push(<FlatTreeNode>{
+      expandable: false,
+      expression: "please input",
+      name: "",
+      type: "",
+      value: "",
+      level: 0,
+      loading: false
+    });
+    if (flattenedData) {
+      this.pythonExpressionSource?.flattenedDataSubject.next(flattenedData);
+    }
+  }
 }
 
 @UntilDestroy()
 class PythonExpressionSource implements DataSource<FlatTreeNode> {
-  private readonly flattenedDataSubject: BehaviorSubject<FlatTreeNode[]>;
+  public readonly flattenedDataSubject: BehaviorSubject<FlatTreeNode[]>;
   private childrenLoadedSet = new Set<FlatTreeNode>();
 
   constructor(
@@ -108,6 +138,14 @@ class PythonExpressionSource implements DataSource<FlatTreeNode> {
     treeControl.dataNodes = [];
 
     this.registerEvaluatedValuesHandler();
+  }
+
+  removeNode(node: FlatTreeNode): void {
+    const flattenedData = this.flattenedDataSubject.getValue();
+    this.flattenedDataSubject.next(
+      flattenedData.filter((value, _, __) => value !== node)
+    );
+    console.log(flattenedData.filter((value, _, __) => value !== node));
   }
 
   toFlatTreeNode(value: TypedValue, parentNode?: FlatTreeNode): FlatTreeNode {
@@ -137,6 +175,7 @@ class PythonExpressionSource implements DataSource<FlatTreeNode> {
   }
 
   expandFlattenedNodes(nodes: FlatTreeNode[]): FlatTreeNode[] {
+    console.log(nodes);
     const treeControl = this.treeControl;
     const results: FlatTreeNode[] = [];
     const currentExpand: boolean[] = [];
