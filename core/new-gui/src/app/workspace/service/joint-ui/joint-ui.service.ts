@@ -419,21 +419,21 @@ export class JointUIService {
     operator: OperatorPredicate,
     cacheStatus?: OperatorResultCacheStatus
   ): void {
-    const cacheText = JointUIService.getOperatorCacheDisplayText(operator, cacheStatus);
-    const cacheIcon = JointUIService.getOperatorCacheIcon(operator, cacheStatus);
+    const cacheText = JointUIService.getOperatorCacheDisplayText(
+      operator,
+      cacheStatus
+    );
+    const cacheIcon = JointUIService.getOperatorCacheIcon(
+      operator,
+      cacheStatus
+    );
 
     jointPaper
       .getModelById(operator.operatorID)
-      .attr(
-        `.${operatorCacheIconClass}/xlink:href`,
-        cacheIcon
-      );
+      .attr(`.${operatorCacheIconClass}/xlink:href`, cacheIcon);
     jointPaper
       .getModelById(operator.operatorID)
-      .attr(
-        `.${operatorCacheIconClass}/title`,
-        cacheText
-      );
+      .attr(`.${operatorCacheIconClass}/title`, cacheText);
   }
 
   public getBreakpointButton(): new () => joint.linkTools.Button {
@@ -705,7 +705,7 @@ export class JointUIService {
         "y-alignment": "middle"
       },
       ".texera-operator-result-cache-text": {
-        text: 'cache',
+        text: "cache",
         fill: "#595959",
         "font-size": "14px",
         visible: true,
