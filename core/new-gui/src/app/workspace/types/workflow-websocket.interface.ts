@@ -93,6 +93,7 @@ export type PythonExpressionEvaluateRequest = Readonly<{
 }>;
 export type TypedValue = Readonly<{
   expression: string;
+  valueRef: string;
   valueStr: string;
   valueType: string;
   expandable: boolean;

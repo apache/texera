@@ -115,7 +115,7 @@ class PythonExpressionSource implements DataSource<FlatTreeNode> {
       expression:
         (parentNode?.expression ? parentNode?.expression + "." : "") +
         value.expression,
-      name: value.expression.replace(/__getitem__\((.*?)\)/, "[$1]"),
+      name: value.valueRef,
       type: value.valueType,
       value: value.valueStr,
       expandable: value.expandable,

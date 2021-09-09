@@ -20,9 +20,10 @@ message ControlException {
 
 message TypedValue {
     string expression = 1;
-    string value_str = 2;
-    string value_type = 3;
-    bool expandable = 4;
+    string value_ref = 2;
+    string value_str = 3;
+    string value_type = 4;
+    bool expandable = 5;
 }
 
 message EvaluatedValue {

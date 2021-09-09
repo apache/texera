@@ -145,9 +145,10 @@ class ControlException(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class TypedValue(betterproto.Message):
     expression: str = betterproto.string_field(1)
-    value_str: str = betterproto.string_field(2)
-    value_type: str = betterproto.string_field(3)
-    expandable: bool = betterproto.bool_field(4)
+    value_ref: str = betterproto.string_field(2)
+    value_str: str = betterproto.string_field(3)
+    value_type: str = betterproto.string_field(4)
+    expandable: bool = betterproto.bool_field(5)
 
 
 @dataclass(eq=False, repr=False)
