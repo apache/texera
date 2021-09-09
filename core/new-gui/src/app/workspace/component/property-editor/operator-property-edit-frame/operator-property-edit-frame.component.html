@@ -1,10 +1,31 @@
-<h3
-  *ngIf="formTitle"
-  class="texera-workspace-property-editor-title"
-  mat-subheader
->
-  {{ formTitle }}
-</h3>
+<div *ngIf="!editingTitle" id="formly-title">
+  <h3
+    *ngIf="!editingTitle && formTitle"
+    class="texera-workspace-property-editor-title"
+    mat-subheader
+  >
+    {{ formTitle }}
+  </h3>
+  <button
+    (click)="editingTitle=true"
+    nz-button
+    nz-tooltip="Customize Operator Name"
+    nzSize="small"
+    nzTooltipPlacement="bottom"
+    nzType="text"
+  >
+    <i nz-icon nzTheme="outline" nzType="edit"></i>
+  </button>
+</div>
+
+<input
+  #customName
+  (focusout)="confirmChangeOperatorCustomName(customName.value)"
+  (keyup.enter)="confirmChangeOperatorCustomName(customName.value)"
+  *ngIf="editingTitle"
+  placeholder="{{formTitle}}"
+  value="{{formTitle}}"
+/>
 
 <form
   *ngIf="formlyFields"

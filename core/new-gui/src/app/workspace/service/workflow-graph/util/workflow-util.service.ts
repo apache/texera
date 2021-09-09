@@ -5,8 +5,7 @@ import { Injectable } from "@angular/core";
 import { v4 as uuid } from "uuid";
 import * as Ajv from "ajv";
 
-import { Subject } from "rxjs";
-import { Observable } from "rxjs";
+import { Observable, Subject } from "rxjs";
 
 /**
  * WorkflowUtilService provide utilities related to dealing with operator data.
@@ -99,6 +98,10 @@ export class WorkflowUtilService {
     // by default, the operator is not disabled
     const isDisabled = false;
 
+    // by default, the operator name is the user friendly name
+    const customDisplayName =
+      operatorSchema.additionalMetadata.userFriendlyName;
+
     for (
       let i = 0;
       i < operatorSchema.additionalMetadata.inputPorts.length;
@@ -128,7 +131,8 @@ export class WorkflowUtilService {
       inputPorts,
       outputPorts,
       showAdvanced,
-      isDisabled
+      isDisabled,
+      customDisplayName
     };
   }
 }

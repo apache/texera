@@ -4,9 +4,9 @@ import { OperatorSchema } from "../../types/operator-schema.interface";
 
 import * as joint from "jointjs";
 import {
-  Point,
+  OperatorLink,
   OperatorPredicate,
-  OperatorLink
+  Point
 } from "../../types/workflow-common.interface";
 import {
   Group,
@@ -155,14 +155,14 @@ export class JointUIService {
   public static readonly DEFAULT_GROUP_MARGIN = 50;
   public static readonly DEFAULT_GROUP_MARGIN_BOTTOM = 40;
 
-  private operators: ReadonlyArray<OperatorSchema> = [];
+  private operatorSchemas: ReadonlyArray<OperatorSchema> = [];
 
   constructor(private operatorMetadataService: OperatorMetadataService) {
     // initialize the operator information
     // subscribe to operator metadata observable
     this.operatorMetadataService
       .getOperatorMetadata()
-      .subscribe((value) => (this.operators = value.operators));
+      .subscribe((value) => (this.operatorSchemas = value.operators));
   }
 
   /**
@@ -176,10 +176,8 @@ export class JointUIService {
    *  which are specified in getCustomOperatorStyleAttrs() and getCustomPortStyleAttrs()
    *
    *
-   * @param operatorType the type of the operator
-   * @param operatorID the ID of the operator, the JointJS element ID would be the same as operatorID
-   * @param xPosition the topleft x position of the operator element (relative to JointJS paper, not absolute position)
-   * @param yPosition the topleft y position of the operator element (relative to JointJS paper, not absolute position)
+   * @param operator OperatorPredicate, the type of the operator
+   * @param point Point, the top-left-originated position of the operator element (relative to JointJS paper, not absolute position)
    *
    * @returns JointJS Element
    */
@@ -188,7 +186,7 @@ export class JointUIService {
     point: Point
   ): joint.dia.Element {
     // check if the operatorType exists in the operator metadata
-    const operatorSchema = this.operators.find(
+    const operatorSchema = this.operatorSchemas.find(
       (op) => op.operatorType === operator.operatorType
     );
     if (operatorSchema === undefined) {
@@ -205,7 +203,8 @@ export class JointUIService {
       },
       attrs: JointUIService.getCustomOperatorStyleAttrs(
         operator,
-        operatorSchema.additionalMetadata.userFriendlyName,
+        operator.customDisplayName ??
+          operatorSchema.additionalMetadata.userFriendlyName,
         operatorSchema.operatorType
       ),
       ports: {
@@ -434,6 +433,16 @@ export class JointUIService {
     jointPaper
       .getModelById(operator.operatorID)
       .attr(`.${operatorCacheIconClass}/title`, cacheText);
+  }
+
+  public changeOperatorJointDisplayName(
+    operator: OperatorPredicate,
+    jointPaper: joint.dia.Paper,
+    displayName: string
+  ): void {
+    jointPaper
+      .getModelById(operator.operatorID)
+      .attr(`.${operatorNameClass}/text`, displayName);
   }
 
   public getBreakpointButton(): new () => joint.linkTools.Button {

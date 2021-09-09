@@ -83,9 +83,9 @@ export const WORKFLOW_EDITOR_JOINTJS_ID =
   "texera-workflow-editor-jointjs-body-id";
 
 /**
- * WorkflowEditorComponent is the componenet for the main workflow editor part of the UI.
+ * WorkflowEditorComponent is the component for the main workflow editor part of the UI.
  *
- * This componenet is binded with the JointJS paper. JointJS handles the operations of the main workflow.
+ * This component is bound with the JointJS paper. JointJS handles the operations of the main workflow.
  * The JointJS UI events are wrapped into observables and exposed to other components / services.
  *
  * See JointJS documentation for the list of events that can be captured on the JointJS paper view.
@@ -151,6 +151,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleViewDeleteOperator();
     this.handleCellHighlight();
     this.handleDisableOperator();
+    this.registerOperatorDisplayNameChangeHandler();
     this.handleViewDeleteLink();
     this.handleViewCollapseGroup();
     this.handleViewExpandGroup();
@@ -597,6 +598,23 @@ export class WorkflowEditorComponent implements AfterViewInit {
             op
           );
         });
+      });
+  }
+
+  private registerOperatorDisplayNameChangeHandler(): void {
+    this.workflowActionService
+      .getTexeraGraph()
+      .getOperatorDisplayNameChangedStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(({ operatorID, newDisplayName }) => {
+        const op = this.workflowActionService
+          .getTexeraGraph()
+          .getOperator(operatorID);
+        this.jointUIService.changeOperatorJointDisplayName(
+          op,
+          this.getJointPaper(),
+          newDisplayName
+        );
       });
   }
 
@@ -1424,24 +1442,12 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * @param operator
    */
   private copyOperator(operator: OperatorPredicate): OperatorPredicate {
-    const operatorID =
-      operator.operatorType +
-      "-" +
-      this.workflowUtilService.getOperatorRandomUUID();
-    const operatorType = operator.operatorType;
-    const operatorProperties = operator.operatorProperties;
-    const inputPorts = operator.inputPorts;
-    const outputPorts = operator.outputPorts;
-    const showAdvanced = operator.showAdvanced;
-    const isDisabled = operator.isDisabled;
     return {
-      operatorID,
-      operatorType,
-      operatorProperties,
-      inputPorts,
-      outputPorts,
-      showAdvanced,
-      isDisabled
+      ...operator,
+      operatorID:
+        operator.operatorType +
+        "-" +
+        this.workflowUtilService.getOperatorRandomUUID()
     };
   }
 
