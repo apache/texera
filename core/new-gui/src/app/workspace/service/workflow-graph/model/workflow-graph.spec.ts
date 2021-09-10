@@ -239,6 +239,46 @@ describe("WorkflowGraph", () => {
     expect(workflowGraph.getAllEnabledLinks().length).toEqual(0);
   });
 
+  it("should cache and un-cache an operator", () => {
+    workflowGraph.addOperator(mockScanPredicate);
+    workflowGraph.addOperator(mockResultPredicate);
+    workflowGraph.cacheOperator(mockScanPredicate.operatorID);
+
+    expect(
+      workflowGraph.isOperatorCached(mockScanPredicate.operatorID)
+    ).toBeTrue();
+    expect(
+      workflowGraph.isOperatorCached(mockResultPredicate.operatorID)
+    ).toBeFalse();
+    expect(workflowGraph.getCachedOperators().size).toEqual(1);
+
+    workflowGraph.unCacheOperator(mockScanPredicate.operatorID);
+    expect(
+      workflowGraph.isOperatorCached(mockScanPredicate.operatorID)
+    ).toBeFalse();
+    expect(workflowGraph.getDisabledOperators().size).toEqual(0);
+  });
+
+  it("should ignore cache the view result operator", () => {
+    workflowGraph.addOperator(mockScanPredicate);
+    workflowGraph.addOperator(mockResultPredicate);
+    workflowGraph.cacheOperator(mockResultPredicate.operatorID);
+
+    expect(
+      workflowGraph.isOperatorCached(mockScanPredicate.operatorID)
+    ).toBeFalse();
+    expect(
+      workflowGraph.isOperatorCached(mockResultPredicate.operatorID)
+    ).toBeFalse();
+    expect(workflowGraph.getCachedOperators().size).toEqual(0);
+
+    workflowGraph.unCacheOperator(mockResultPredicate.operatorID);
+    expect(
+      workflowGraph.isOperatorCached(mockResultPredicate.operatorID)
+    ).toBeFalse();
+    expect(workflowGraph.getCachedOperators().size).toEqual(0);
+  });
+
   describe("when linkBreakpoint is enabled", () => {
     beforeAll(() => {
       environment.linkBreakpointEnabled = true;

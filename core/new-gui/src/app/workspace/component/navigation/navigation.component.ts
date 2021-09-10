@@ -17,6 +17,7 @@ import { merge } from "rxjs";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
 import { debounceTime } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { VIEW_RESULT_OP_TYPE } from "../../service/workflow-graph/model/workflow-graph";
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -383,12 +384,21 @@ export class NavigationComponent {
   }
 
   public onClickCacheOperators(): void {
+    const effectiveHighlightedOperators =
+      this.effectivelyHighlightedOperators();
+    const effectiveHighlightedOperatorsExcludeSink =
+      effectiveHighlightedOperators.filter(
+        (op) =>
+          this.workflowActionService.getTexeraGraph().getOperator(op)
+            .operatorType !== VIEW_RESULT_OP_TYPE
+      );
+
     if (this.isCacheOperator) {
-      this.effectivelyHighlightedOperators().forEach((op) => {
+      effectiveHighlightedOperatorsExcludeSink.forEach((op) => {
         this.workflowActionService.getTexeraGraph().cacheOperator(op);
       });
     } else {
-      this.effectivelyHighlightedOperators().forEach((op) => {
+      effectiveHighlightedOperatorsExcludeSink.forEach((op) => {
         this.workflowActionService.getTexeraGraph().unCacheOperator(op);
       });
     }
@@ -522,13 +532,20 @@ export class NavigationComponent {
       .subscribe((event) => {
         const effectiveHighlightedOperators =
           this.effectivelyHighlightedOperators();
-        const allCached = this.effectivelyHighlightedOperators().every((op) =>
+        const effectiveHighlightedOperatorsExcludeSink =
+          effectiveHighlightedOperators.filter(
+            (op) =>
+              this.workflowActionService.getTexeraGraph().getOperator(op)
+                .operatorType !== VIEW_RESULT_OP_TYPE
+          );
+
+        const allCached = effectiveHighlightedOperatorsExcludeSink.every((op) =>
           this.workflowActionService.getTexeraGraph().isOperatorCached(op)
         );
 
         this.isCacheOperator = !allCached;
         this.isCacheOperatorClickable =
-          effectiveHighlightedOperators.length !== 0;
+          effectiveHighlightedOperatorsExcludeSink.length !== 0;
       });
   }
 

@@ -5,6 +5,7 @@ import {
 } from "../../types/operator-schema.interface";
 import { BreakpointSchema } from "../../types/workflow-common.interface";
 import { CustomJSONSchema7 } from "../../types/custom-json-schema.interface";
+import { VIEW_RESULT_OP_TYPE } from "../workflow-graph/model/workflow-graph";
 
 // Exports constants related to operator schema and operator metadata for testing purposes.
 
@@ -167,7 +168,7 @@ export const mockAggregationSchema: OperatorSchema = {
 };
 
 export const mockViewResultsSchema: OperatorSchema = {
-  operatorType: "ViewResults",
+  operatorType: VIEW_RESULT_OP_TYPE,
   jsonSchema: {
     properties: {
       limit: {
