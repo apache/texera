@@ -48,7 +48,7 @@ export const defaultEnvironment = {
   /**
    * whether operator caching is enabled
    */
-  operatorCacheEnabled: true,
+  operatorCacheEnabled: false,
 
   /**
    * the access code for mapbox
