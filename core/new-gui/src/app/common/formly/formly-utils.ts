@@ -71,8 +71,8 @@ export function setChildTypeDependency(
  */
 export function createOutputFormChangeEventStream(
   formChangeEvent: Observable<Record<string, unknown>>,
-  modelCheck: (formData: object) => boolean
-): Observable<object> {
+  modelCheck: (formData: Record<string, unknown>) => boolean
+): Observable<Record<string, unknown>> {
   return (
     formChangeEvent
       // set a debounce time to avoid events triggering too often

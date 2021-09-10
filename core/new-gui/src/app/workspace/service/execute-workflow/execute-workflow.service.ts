@@ -409,6 +409,7 @@ export class ExecuteWorkflowService {
       case ExecutionState.Completed:
       case ExecutionState.Failed:
       case ExecutionState.Uninitialized:
+      case ExecutionState.BreakpointTriggered:
         this.workflowActionService.enableWorkflowModification();
         return;
       case ExecutionState.Paused:
