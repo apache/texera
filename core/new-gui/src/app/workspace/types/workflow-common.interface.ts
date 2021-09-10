@@ -27,6 +27,7 @@ export interface OperatorPredicate
     showAdvanced: boolean;
     isDisabled?: boolean;
     isCached?: boolean;
+    customDisplayName?: string;
   }> {}
 
 export interface OperatorLink

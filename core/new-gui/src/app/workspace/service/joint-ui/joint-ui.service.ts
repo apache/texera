@@ -4,9 +4,9 @@ import { OperatorSchema } from "../../types/operator-schema.interface";
 
 import * as joint from "jointjs";
 import {
-  Point,
+  OperatorLink,
   OperatorPredicate,
-  OperatorLink
+  Point
 } from "../../types/workflow-common.interface";
 import {
   Group,
@@ -84,12 +84,14 @@ export const sourceOperatorHandle = "M 0 0 L 0 8 L 8 8 L 8 0 z";
  */
 export const targetOperatorHandle = "M 12 0 L 0 6 L 12 12 z";
 
-export const operatorCacheClass = "texera-operator-cache";
+export const operatorCacheTextClass = "texera-operator-result-cache-text";
+export const operatorCacheIconClass = "texera-operator-result-cache-icon";
 export const operatorStateClass = "texera-operator-state";
 
 export const operatorProcessedCountClass = "texera-operator-processed-count";
 export const operatorOutputCountClass = "texera-operator-output-count";
 
+export const operatorIconClass = "texera-operator-icon";
 export const operatorNameClass = "texera-operator-name";
 
 export const linkPathStrokeColor = "#919191";
@@ -103,12 +105,13 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
   markup = `<g class="element-node">
       <rect class="body"></rect>
       ${deleteButtonSVG}
-      <image></image>
+      <image class="${operatorIconClass}"></image>
       <text class="${operatorNameClass}"></text>
       <text class="${operatorProcessedCountClass}"></text>
       <text class="${operatorOutputCountClass}"></text>
       <text class="${operatorStateClass}"></text>
-      <text class="${operatorCacheClass}"></text>
+      <text class="${operatorCacheTextClass}"></text>
+      <image class="${operatorCacheIconClass}"></image>
     </g>`;
 }
 
@@ -152,14 +155,14 @@ export class JointUIService {
   public static readonly DEFAULT_GROUP_MARGIN = 50;
   public static readonly DEFAULT_GROUP_MARGIN_BOTTOM = 40;
 
-  private operators: ReadonlyArray<OperatorSchema> = [];
+  private operatorSchemas: ReadonlyArray<OperatorSchema> = [];
 
   constructor(private operatorMetadataService: OperatorMetadataService) {
     // initialize the operator information
     // subscribe to operator metadata observable
     this.operatorMetadataService
       .getOperatorMetadata()
-      .subscribe((value) => (this.operators = value.operators));
+      .subscribe((value) => (this.operatorSchemas = value.operators));
   }
 
   /**
@@ -173,10 +176,8 @@ export class JointUIService {
    *  which are specified in getCustomOperatorStyleAttrs() and getCustomPortStyleAttrs()
    *
    *
-   * @param operatorType the type of the operator
-   * @param operatorID the ID of the operator, the JointJS element ID would be the same as operatorID
-   * @param xPosition the topleft x position of the operator element (relative to JointJS paper, not absolute position)
-   * @param yPosition the topleft y position of the operator element (relative to JointJS paper, not absolute position)
+   * @param operator OperatorPredicate, the type of the operator
+   * @param point Point, the top-left-originated position of the operator element (relative to JointJS paper, not absolute position)
    *
    * @returns JointJS Element
    */
@@ -185,7 +186,7 @@ export class JointUIService {
     point: Point
   ): joint.dia.Element {
     // check if the operatorType exists in the operator metadata
-    const operatorSchema = this.operators.find(
+    const operatorSchema = this.operatorSchemas.find(
       (op) => op.operatorType === operator.operatorType
     );
     if (operatorSchema === undefined) {
@@ -202,7 +203,8 @@ export class JointUIService {
       },
       attrs: JointUIService.getCustomOperatorStyleAttrs(
         operator,
-        operatorSchema.additionalMetadata.userFriendlyName,
+        operator.customDisplayName ??
+          operatorSchema.additionalMetadata.userFriendlyName,
         operatorSchema.operatorType
       ),
       ports: {
@@ -416,12 +418,31 @@ export class JointUIService {
     operator: OperatorPredicate,
     cacheStatus?: OperatorResultCacheStatus
   ): void {
+    const cacheText = JointUIService.getOperatorCacheDisplayText(
+      operator,
+      cacheStatus
+    );
+    const cacheIcon = JointUIService.getOperatorCacheIcon(
+      operator,
+      cacheStatus
+    );
+
     jointPaper
       .getModelById(operator.operatorID)
-      .attr(
-        ".texera-operator-cache/text",
-        JointUIService.getOperatorCacheDisplayText(operator, cacheStatus)
-      );
+      .attr(`.${operatorCacheIconClass}/xlink:href`, cacheIcon);
+    jointPaper
+      .getModelById(operator.operatorID)
+      .attr(`.${operatorCacheIconClass}/title`, cacheText);
+  }
+
+  public changeOperatorJointDisplayName(
+    operator: OperatorPredicate,
+    jointPaper: joint.dia.Paper,
+    displayName: string
+  ): void {
+    jointPaper
+      .getModelById(operator.operatorID)
+      .attr(`.${operatorNameClass}/text`, displayName);
   }
 
   public getBreakpointButton(): new () => joint.linkTools.Button {
@@ -682,12 +703,34 @@ export class JointUIService {
         fill: "#D8656A",
         event: "element:delete"
       },
-      image: {
+      ".texera-operator-icon": {
         "xlink:href": "assets/operator_images/" + operatorType + ".png",
         width: 35,
         height: 35,
         "ref-x": 0.5,
         "ref-y": 0.5,
+        ref: "rect",
+        "x-alignment": "middle",
+        "y-alignment": "middle"
+      },
+      ".texera-operator-result-cache-text": {
+        text: "cache",
+        fill: "#595959",
+        "font-size": "14px",
+        visible: true,
+        "ref-x": 80,
+        "ref-y": 60,
+        ref: "rect",
+        "y-alignment": "middle",
+        "x-alignment": "middle"
+      },
+      ".texera-operator-result-cache-icon": {
+        "xlink:href": JointUIService.getOperatorCacheIcon(operator),
+        title: JointUIService.getOperatorCacheDisplayText(operator),
+        width: 40,
+        height: 40,
+        "ref-x": 75,
+        "ref-y": 50,
         ref: "rect",
         "x-alignment": "middle",
         "y-alignment": "middle"
@@ -709,7 +752,30 @@ export class JointUIService {
       return cacheStatus;
     }
     const isCached = operator.isCached ?? false;
-    return isCached ? "will be cached" : "";
+    return isCached ? "to be cached" : "";
+  }
+
+  public static getOperatorCacheIcon(
+    operator: OperatorPredicate,
+    cacheStatus?: OperatorResultCacheStatus
+  ): string {
+    if (cacheStatus && cacheStatus !== "cache not enabled") {
+      if (cacheStatus === "cache valid") {
+        return "assets/svg/operator-result-cache-successful.svg";
+      } else if (cacheStatus === "cache invalid") {
+        return "assets/svg/operator-result-cache-invalid.svg";
+      } else {
+        const _exhaustiveCheck: never = cacheStatus;
+        return "";
+      }
+    } else {
+      const isCached = operator.isCached ?? false;
+      if (isCached) {
+        return "assets/svg/operator-result-cache-to-be-cached.svg";
+      } else {
+        return "";
+      }
+    }
   }
 
   /**

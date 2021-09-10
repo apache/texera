@@ -1,11 +1,9 @@
-import { Subject } from "rxjs";
-import { Observable } from "rxjs";
+import { Observable, Subject } from "rxjs";
 import {
-  OperatorPredicate,
+  Breakpoint,
   OperatorLink,
   OperatorPort,
-  Breakpoint,
-  Point
+  OperatorPredicate
 } from "../../../types/workflow-common.interface";
 import { isEqual } from "lodash-es";
 
@@ -51,7 +49,10 @@ export class WorkflowGraph {
     newCached: string[];
     newUnCached: string[];
   }>();
-
+  private readonly operatorDisplayNameChangedSubject = new Subject<{
+    operatorID: string;
+    newDisplayName: string;
+  }>();
   private readonly linkAddSubject = new Subject<OperatorLink>();
   private readonly linkDeleteSubject = new Subject<{
     deletedLink: OperatorLink;
@@ -130,6 +131,21 @@ export class WorkflowGraph {
       newDisabled: [],
       newEnabled: [operatorID]
     });
+  }
+
+  public changeOperatorDisplayName(
+    operatorID: string,
+    newDisplayName: string
+  ): void {
+    const operator = this.getOperator(operatorID);
+    if (operator.customDisplayName === newDisplayName) {
+      return;
+    }
+    this.operatorIDMap.set(operatorID, {
+      ...operator,
+      customDisplayName: newDisplayName
+    });
+    this.operatorDisplayNameChangedSubject.next({ operatorID, newDisplayName });
   }
 
   public isOperatorDisabled(operatorID: string): boolean {
@@ -474,6 +490,13 @@ export class WorkflowGraph {
     newUnCached: ReadonlyArray<string>;
   }> {
     return this.cachedOperatorChangedSubject.asObservable();
+  }
+
+  public getOperatorDisplayNameChangedStream(): Observable<{
+    operatorID: string;
+    newDisplayName: string;
+  }> {
+    return this.operatorDisplayNameChangedSubject.asObservable();
   }
 
   /**
