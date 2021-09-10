@@ -20,11 +20,7 @@ describe("UserLoginComponent", () => {
     waitForAsync(() => {
       TestBed.configureTestingModule({
         declarations: [NgbdModalUserLoginComponent],
-        providers: [
-          NgbActiveModal,
-          { provide: UserService, useClass: StubUserService },
-          FormBuilder
-        ],
+        providers: [NgbActiveModal, { provide: UserService, useClass: StubUserService }, FormBuilder],
         imports: [
           BrowserAnimationsModule,
           HttpClientTestingModule,
@@ -34,8 +30,8 @@ describe("UserLoginComponent", () => {
           NgbModule,
           FormsModule,
           ReactiveFormsModule,
-          MatDialogModule
-        ]
+          MatDialogModule,
+        ],
       }).compileComponents();
     })
   );

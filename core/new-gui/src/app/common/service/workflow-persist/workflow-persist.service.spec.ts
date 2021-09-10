@@ -1,8 +1,5 @@
 import { TestBed } from "@angular/core/testing";
-import {
-  HttpClientTestingModule,
-  HttpTestingController
-} from "@angular/common/http/testing";
+import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { WorkflowPersistService } from "./workflow-persist.service";
 import { jsonCast } from "../../util/storage";
 import { WorkflowContent } from "../../type/workflow";
@@ -33,7 +30,7 @@ describe("WorkflowPersistService", () => {
     "\"groups\":[],\"breakpoints\":{}}";
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule]
+      imports: [HttpClientTestingModule],
     });
     service = TestBed.inject(WorkflowPersistService);
     httpTestingController = TestBed.get(HttpTestingController);
@@ -47,21 +44,19 @@ describe("WorkflowPersistService", () => {
     service
       .createWorkflow(jsonCast<WorkflowContent>(testContent), "testname")
       .pipe(last())
-      .subscribe((value) => {
+      .subscribe(value => {
         expect(value).toBeTruthy();
       });
-    httpTestingController.expectOne((request) => request.method === "POST");
+    httpTestingController.expectOne(request => request.method === "POST");
   });
 
   it("should check if workflow content and name returned correctly", () => {
     service
       .createWorkflow(jsonCast<WorkflowContent>(testContent), "testname")
       .pipe(last())
-      .subscribe((value) => {
+      .subscribe(value => {
         expect(value.workflow.name).toEqual("testname_copy");
-        expect(value.workflow.content).toEqual(
-          jsonCast<WorkflowContent>(testContent)
-        );
+        expect(value.workflow.content).toEqual(jsonCast<WorkflowContent>(testContent));
       });
   });
 });

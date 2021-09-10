@@ -2,29 +2,21 @@ import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable, of } from "rxjs";
 import { AppSettings } from "src/app/common/app-setting";
-import {
-  GenericWebResponse,
-  GenericWebResponseCode
-} from "../../../common/type/generic-web-response";
-import {
-  DictionaryUploadItem,
-  ManualDictionaryUploadItem
-} from "../../../common/type/user-dictionary";
+import { GenericWebResponse, GenericWebResponseCode } from "../../../common/type/generic-web-response";
+import { DictionaryUploadItem, ManualDictionaryUploadItem } from "../../../common/type/user-dictionary";
 import { UserService } from "../../../common/service/user/user.service";
 import { UserDictionaryService } from "./user-dictionary.service";
 import { mergeMap } from "rxjs/operators";
 
 export const USER_DICTIONARY_UPLOAD_URL = "user/dictionary/upload";
-export const USER_MANUAL_DICTIONARY_UPLOAD_URL =
-  "user/dictionary/upload-manual-dict";
+export const USER_MANUAL_DICTIONARY_UPLOAD_URL = "user/dictionary/upload-manual-dict";
 export const USER_DICTIONARY_VALIDATE_URL = "user/dictionary/validate";
 
 @Injectable({
-  providedIn: "root"
+  providedIn: "root",
 })
 export class UserDictionaryUploadService {
-  private manualDictionary: ManualDictionaryUploadItem =
-    UserDictionaryUploadService.createEmptyManualDictionary();
+  private manualDictionary: ManualDictionaryUploadItem = UserDictionaryUploadService.createEmptyManualDictionary();
   private dictionaryUploadItemArray: DictionaryUploadItem[] = [];
 
   constructor(
@@ -35,9 +27,7 @@ export class UserDictionaryUploadService {
     this.detectUserChanges();
   }
 
-  public getDictionariesToBeUploaded(): ReadonlyArray<
-    Readonly<DictionaryUploadItem>
-  > {
+  public getDictionariesToBeUploaded(): ReadonlyArray<Readonly<DictionaryUploadItem>> {
     return this.dictionaryUploadItemArray;
   }
 
@@ -50,16 +40,14 @@ export class UserDictionaryUploadService {
    * eg. name and content is not empty.
    */
   public validateManualDictionary(): boolean {
-    return (
-      this.manualDictionary.name !== "" && this.manualDictionary.content !== ""
-    );
+    return this.manualDictionary.name !== "" && this.manualDictionary.content !== "";
   }
 
   /**
    * check if all the item in the service is valid so that we can upload them.
    */
   public validateAllDictionaryUploadItems(): boolean {
-    return this.dictionaryUploadItemArray.every((dictionaryUploadItem) =>
+    return this.dictionaryUploadItemArray.every(dictionaryUploadItem =>
       this.validateDictionaryUploadItem(dictionaryUploadItem)
     );
   }
@@ -69,21 +57,12 @@ export class UserDictionaryUploadService {
    * eg. the type is text and the name is unique
    * @param dictionaryUploadItem
    */
-  public validateDictionaryUploadItem(
-    dictionaryUploadItem: DictionaryUploadItem
-  ): boolean {
-    return (
-      dictionaryUploadItem.file.type.includes("text/plain") &&
-      this.isItemNameUnique(dictionaryUploadItem)
-    );
+  public validateDictionaryUploadItem(dictionaryUploadItem: DictionaryUploadItem): boolean {
+    return dictionaryUploadItem.file.type.includes("text/plain") && this.isItemNameUnique(dictionaryUploadItem);
   }
 
   public isItemNameUnique(dictionaryUploadItem: DictionaryUploadItem): boolean {
-    return (
-      this.dictionaryUploadItemArray.filter(
-        (item) => item.name === dictionaryUploadItem.name
-      ).length === 1
-    );
+    return this.dictionaryUploadItemArray.filter(item => item.name === dictionaryUploadItem.name).length === 1;
   }
 
   /**
@@ -91,17 +70,11 @@ export class UserDictionaryUploadService {
    * @param file
    */
   public addDictionaryToUploadArray(file: File): void {
-    this.dictionaryUploadItemArray.push(
-      UserDictionaryUploadService.createDictionaryUploadItem(file)
-    );
+    this.dictionaryUploadItemArray.push(UserDictionaryUploadService.createDictionaryUploadItem(file));
   }
 
-  public removeFileFromUploadArray(
-    dictionaryUploadItem: DictionaryUploadItem
-  ): void {
-    this.dictionaryUploadItemArray = this.dictionaryUploadItemArray.filter(
-      (dict) => dict !== dictionaryUploadItem
-    );
+  public removeFileFromUploadArray(dictionaryUploadItem: DictionaryUploadItem): void {
+    this.dictionaryUploadItemArray = this.dictionaryUploadItemArray.filter(dict => dict !== dictionaryUploadItem);
   }
 
   /**
@@ -111,22 +84,18 @@ export class UserDictionaryUploadService {
    */
   public uploadAllDictionaries() {
     this.dictionaryUploadItemArray
-      .filter((dictionaryUploadItem) => !dictionaryUploadItem.isUploadingFlag)
-      .forEach((dictionaryUploadItem) =>
-        this.validateAndUploadDictionary(dictionaryUploadItem).subscribe(
-          (res) => {
-            if (res.code === GenericWebResponseCode.SUCCESS) {
-              this.removeFileFromUploadArray(dictionaryUploadItem);
-              this.userDictionaryService.refreshDictionaries();
-            } else {
-              dictionaryUploadItem.isUploadingFlag = false;
-              // TODO: user friendly error message.
-              alert(
-                `Uploading dictionary ${dictionaryUploadItem.name} failed\nMessage: ${res.message}`
-              );
-            }
+      .filter(dictionaryUploadItem => !dictionaryUploadItem.isUploadingFlag)
+      .forEach(dictionaryUploadItem =>
+        this.validateAndUploadDictionary(dictionaryUploadItem).subscribe(res => {
+          if (res.code === GenericWebResponseCode.SUCCESS) {
+            this.removeFileFromUploadArray(dictionaryUploadItem);
+            this.userDictionaryService.refreshDictionaries();
+          } else {
+            dictionaryUploadItem.isUploadingFlag = false;
+            // TODO: user friendly error message.
+            alert(`Uploading dictionary ${dictionaryUploadItem.name} failed\nMessage: ${res.message}`);
           }
-        )
+        })
       );
   }
 
@@ -147,21 +116,16 @@ export class UserDictionaryUploadService {
     }
     this.manualDictionary.isUploadingFlag = true;
 
-    this.manualDictionaryUploadHttpRequest(this.manualDictionary).subscribe(
-      (res) => {
-        if (res.code === GenericWebResponseCode.SUCCESS) {
-          this.manualDictionary =
-            UserDictionaryUploadService.createEmptyManualDictionary();
-          this.userDictionaryService.refreshDictionaries();
-        } else {
-          this.manualDictionary.isUploadingFlag = false;
-          // TODO: user friendly error message.
-          alert(
-            `Uploading dictionary ${this.manualDictionary.name} failed\nMessage: ${res.message}`
-          );
-        }
+    this.manualDictionaryUploadHttpRequest(this.manualDictionary).subscribe(res => {
+      if (res.code === GenericWebResponseCode.SUCCESS) {
+        this.manualDictionary = UserDictionaryUploadService.createEmptyManualDictionary();
+        this.userDictionaryService.refreshDictionaries();
+      } else {
+        this.manualDictionary.isUploadingFlag = false;
+        // TODO: user friendly error message.
+        alert(`Uploading dictionary ${this.manualDictionary.name} failed\nMessage: ${res.message}`);
       }
-    );
+    });
   }
 
   private manualDictionaryUploadHttpRequest(
@@ -172,26 +136,21 @@ export class UserDictionaryUploadService {
       JSON.stringify(manualDictionary),
       {
         headers: new HttpHeaders({
-          "Content-Type": "application/json"
-        })
+          "Content-Type": "application/json",
+        }),
       }
     );
   }
 
-  private validateAndUploadDictionary(
-    dictionaryUploadItem: DictionaryUploadItem
-  ): Observable<GenericWebResponse> {
+  private validateAndUploadDictionary(dictionaryUploadItem: DictionaryUploadItem): Observable<GenericWebResponse> {
     const formData: FormData = new FormData();
     formData.append("name", dictionaryUploadItem.name);
     formData.append("size", dictionaryUploadItem.file.size.toString());
 
     return this.http
-      .post<GenericWebResponse>(
-        `${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_VALIDATE_URL}`,
-        formData
-      )
+      .post<GenericWebResponse>(`${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_VALIDATE_URL}`, formData)
       .pipe(
-        mergeMap((res) => {
+        mergeMap(res => {
           if (res.code === GenericWebResponseCode.SUCCESS) {
             return this.uploadDictionary(dictionaryUploadItem);
           } else {
@@ -206,25 +165,17 @@ export class UserDictionaryUploadService {
    * It will pack the dictionaryUploadItem into formData and upload it to the backend.
    * @param dictionaryUploadItem
    */
-  private uploadDictionary(
-    dictionaryUploadItem: DictionaryUploadItem
-  ): Observable<GenericWebResponse> {
+  private uploadDictionary(dictionaryUploadItem: DictionaryUploadItem): Observable<GenericWebResponse> {
     if (!this.userService.isLogin()) {
       throw new Error("Can not upload dictionary when not login");
     }
     if (dictionaryUploadItem.isUploadingFlag) {
-      throw new Error(
-        `Dictionary ${dictionaryUploadItem.file.name} is already uploading`
-      );
+      throw new Error(`Dictionary ${dictionaryUploadItem.file.name} is already uploading`);
     }
 
     dictionaryUploadItem.isUploadingFlag = true;
     const formData: FormData = new FormData();
-    formData.append(
-      "file",
-      dictionaryUploadItem.file,
-      dictionaryUploadItem.name
-    );
+    formData.append("file", dictionaryUploadItem.file, dictionaryUploadItem.name);
     formData.append("size", dictionaryUploadItem.file.size.toString());
     formData.append("description", dictionaryUploadItem.description);
 
@@ -247,8 +198,7 @@ export class UserDictionaryUploadService {
 
   private clearUserDictionary(): void {
     this.dictionaryUploadItemArray = [];
-    this.manualDictionary =
-      UserDictionaryUploadService.createEmptyManualDictionary();
+    this.manualDictionary = UserDictionaryUploadService.createEmptyManualDictionary();
   }
 
   private static createEmptyManualDictionary(): ManualDictionaryUploadItem {
@@ -257,7 +207,7 @@ export class UserDictionaryUploadService {
       content: "",
       separator: "",
       description: "",
-      isUploadingFlag: false
+      isUploadingFlag: false,
     };
   }
 
@@ -266,7 +216,7 @@ export class UserDictionaryUploadService {
       file: file,
       name: file.name,
       description: "",
-      isUploadingFlag: false
+      isUploadingFlag: false,
     };
   }
 }

@@ -1,10 +1,4 @@
-import {
-  Component,
-  Input,
-  OnChanges,
-  OnInit,
-  SimpleChanges
-} from "@angular/core";
+import { Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
 import { isEqual } from "lodash-es";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NzTableQueryParams } from "ng-zorro-antd/table";
@@ -13,15 +7,9 @@ import { trimDisplayJsonData } from "../../../../common/util/json";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { ResultPanelToggleService } from "../../../service/result-panel-toggle/result-panel-toggle.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import {
-  DEFAULT_PAGE_SIZE,
-  WorkflowResultService
-} from "../../../service/workflow-result/workflow-result.service";
+import { DEFAULT_PAGE_SIZE, WorkflowResultService } from "../../../service/workflow-result/workflow-result.service";
 import { isWebPaginationUpdate } from "../../../types/execute-workflow.interface";
-import {
-  IndexableObject,
-  TableColumn
-} from "../../../types/result-table.interface";
+import { IndexableObject, TableColumn } from "../../../types/result-table.interface";
 import { RowModalComponent } from "../result-panel-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
@@ -37,7 +25,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 @Component({
   selector: "texera-result-table-frame",
   templateUrl: "./result-table-frame.component.html",
-  styleUrls: ["./result-table-frame.component.scss"]
+  styleUrls: ["./result-table-frame.component.scss"],
 })
 export class ResultTableFrameComponent implements OnInit, OnChanges {
   @Input() operatorId?: string;
@@ -74,8 +62,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     this.operatorId = changes.operatorId?.currentValue;
     if (this.operatorId) {
-      const paginatedResultService =
-        this.workflowResultService.getPaginatedResultService(this.operatorId);
+      const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
       if (paginatedResultService) {
         this.isFrontPagination = false;
         this.totalNumTuples = paginatedResultService.getCurrentTotalNumTuples();
@@ -89,7 +76,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     this.workflowResultService
       .getResultUpdateStream()
       .pipe(untilDestroyed(this))
-      .subscribe((update) => {
+      .subscribe(update => {
         if (!this.operatorId) {
           return;
         }
@@ -139,15 +126,10 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
    * @param rowData the object containing the data of the current row in columnDef and cellData pairs
    */
   open(rowData: Record<string, unknown>): void {
-    let selectedRowIndex = this.currentResult.findIndex((eachRow) =>
-      isEqual(eachRow, rowData)
-    );
+    let selectedRowIndex = this.currentResult.findIndex(eachRow => isEqual(eachRow, rowData));
 
     // generate a new row data that shortens the column text to limit rendering time for pretty json
-    const rowDataCopy = trimDisplayJsonData(
-      rowData as IndexableObject,
-      this.PRETTY_JSON_TEXT_LIMIT
-    );
+    const rowDataCopy = trimDisplayJsonData(rowData as IndexableObject, this.PRETTY_JSON_TEXT_LIMIT);
 
     // open the modal component
     const modalRef: NzModalRef = this.modalService.create({
@@ -159,7 +141,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         // set the currentDisplayRowData of the modal to be the data of clicked row
         currentDisplayRowData: rowDataCopy,
         // set the index value and page size to the modal for navigation
-        currentDisplayRowIndex: selectedRowIndex
+        currentDisplayRowIndex: selectedRowIndex,
       },
       // prevent browser focusing close button (ugly square highlight)
       nzAutofocus: null,
@@ -170,29 +152,27 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
           onClick: () => {
             selectedRowIndex -= 1;
             assertType<RowModalComponent>(modalRef.componentInstance);
-            modalRef.componentInstance.currentDisplayRowData =
-              this.currentResult[selectedRowIndex];
+            modalRef.componentInstance.currentDisplayRowData = this.currentResult[selectedRowIndex];
           },
-          disabled: () => selectedRowIndex === 0
+          disabled: () => selectedRowIndex === 0,
         },
         {
           label: ">",
           onClick: () => {
             selectedRowIndex += 1;
             assertType<RowModalComponent>(modalRef.componentInstance);
-            modalRef.componentInstance.currentDisplayRowData =
-              this.currentResult[selectedRowIndex];
+            modalRef.componentInstance.currentDisplayRowData = this.currentResult[selectedRowIndex];
           },
-          disabled: () => selectedRowIndex === this.currentResult.length - 1
+          disabled: () => selectedRowIndex === this.currentResult.length - 1,
         },
         {
           label: "OK",
           onClick: () => {
             modalRef.destroy();
           },
-          type: "primary"
-        }
-      ]
+          type: "primary",
+        },
+      ],
     });
   }
 
@@ -204,8 +184,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     if (!this.operatorId) {
       return;
     }
-    const paginatedResultService =
-      this.workflowResultService.getPaginatedResultService(this.operatorId);
+    const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
     if (!paginatedResultService) {
       return;
     }
@@ -213,12 +192,9 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     paginatedResultService
       .selectPage(this.currentPageIndex, DEFAULT_PAGE_SIZE)
       .pipe(untilDestroyed(this))
-      .subscribe((pageData) => {
+      .subscribe(pageData => {
         if (this.currentPageIndex === pageData.pageIndex) {
-          this.setupResultTable(
-            pageData.table,
-            paginatedResultService.getCurrentTotalNumTuples()
-          );
+          this.setupResultTable(pageData.table, paginatedResultService.getCurrentTotalNumTuples());
         }
       });
   }
@@ -230,10 +206,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
    * @param resultData rows of the result (may not be all rows if displaying result for workflow completed event)
    * @param totalRowCount
    */
-  setupResultTable(
-    resultData: ReadonlyArray<Record<string, unknown>>,
-    totalRowCount: number
-  ) {
+  setupResultTable(resultData: ReadonlyArray<Record<string, unknown>>, totalRowCount: number) {
     if (!this.operatorId) {
       return;
     }
@@ -253,8 +226,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
 
     let columns: { columnKey: any; columnText: string }[];
 
-    const columnKeys = Object.keys(resultData[0]).filter((x) => x !== "_id");
-    columns = columnKeys.map((v) => ({ columnKey: v, columnText: v }));
+    const columnKeys = Object.keys(resultData[0]).filter(x => x !== "_id");
+    columns = columnKeys.map(v => ({ columnKey: v, columnText: v }));
 
     // generate columnDef from first row, column definition is in order
     this.currentColumns = this.generateColumns(columns);
@@ -266,10 +239,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
    *
    * @param columns
    */
-  generateColumns(
-    columns: { columnKey: any; columnText: string }[]
-  ): TableColumn[] {
-    return columns.map((col) => ({
+  generateColumns(columns: { columnKey: any; columnText: string }[]): TableColumn[] {
+    return columns.map(col => ({
       columnDef: col.columnKey,
       header: col.columnText,
       getCell: (row: IndexableObject) => {
@@ -279,7 +250,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
           // allowing null value from backend
           return "";
         }
-      }
+      },
     }));
   }
 

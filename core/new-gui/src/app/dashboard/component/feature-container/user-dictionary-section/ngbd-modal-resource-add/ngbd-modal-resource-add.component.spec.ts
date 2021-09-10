@@ -1,10 +1,7 @@
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 import { NgbActiveModal, NgbModule } from "@ng-bootstrap/ng-bootstrap";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
-import {
-  HttpClientTestingModule,
-  HttpTestingController
-} from "@angular/common/http/testing";
+import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 
 import { HttpClient } from "@angular/common/http";
 import { NgbdModalResourceAddComponent } from "./ngbd-modal-resource-add.component";
@@ -31,7 +28,7 @@ describe("NgbdModalResourceAddComponent", () => {
           NgbActiveModal,
           { provide: UserService, useClass: StubUserService },
           UserDictionaryService,
-          UserDictionaryUploadService
+          UserDictionaryUploadService,
         ],
         imports: [
           CustomNgMaterialModule,
@@ -39,8 +36,8 @@ describe("NgbdModalResourceAddComponent", () => {
           FormsModule,
           FileUploadModule,
           ReactiveFormsModule,
-          HttpClientTestingModule
-        ]
+          HttpClientTestingModule,
+        ],
       }).compileComponents();
     })
   );

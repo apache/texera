@@ -1,8 +1,5 @@
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
-import {
-  HttpClientTestingModule,
-  HttpTestingController
-} from "@angular/common/http/testing";
+import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { SchemaPropagationService } from "../../../service/dynamic-schema/schema-propagation/schema-propagation.service";
 
 import { TypeCastingDisplayComponent } from "./type-casting-display.component";
@@ -25,15 +22,15 @@ describe("TypecastingDisplayComponent", () => {
         providers: [
           {
             provide: OperatorMetadataService,
-            useClass: StubOperatorMetadataService
+            useClass: StubOperatorMetadataService,
           },
           JointUIService,
           UndoRedoService,
           WorkflowUtilService,
           WorkflowActionService,
-          SchemaPropagationService
+          SchemaPropagationService,
         ],
-        declarations: [TypeCastingDisplayComponent]
+        declarations: [TypeCastingDisplayComponent],
       }).compileComponents();
     })
   );

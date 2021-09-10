@@ -11,7 +11,7 @@ describe("FeatureContainerComponent", () => {
     waitForAsync(() => {
       TestBed.configureTestingModule({
         declarations: [FeatureContainerComponent],
-        imports: [RouterTestingModule]
+        imports: [RouterTestingModule],
       }).compileComponents();
     })
   );

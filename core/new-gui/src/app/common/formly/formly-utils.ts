@@ -3,26 +3,14 @@ import { isDefined } from "../util/predicate";
 import { SchemaAttribute } from "../../workspace/service/dynamic-schema/schema-propagation/schema-propagation.service";
 import { Observable } from "rxjs";
 import { FORM_DEBOUNCE_TIME_MS } from "../../workspace/service/execute-workflow/execute-workflow.service";
-import {
-  debounceTime,
-  distinctUntilChanged,
-  filter,
-  share
-} from "rxjs/operators";
+import { debounceTime, distinctUntilChanged, filter, share } from "rxjs/operators";
 
-export function getFieldByName(
-  fieldName: string,
-  fields: FormlyFieldConfig[]
-): FormlyFieldConfig | undefined {
+export function getFieldByName(fieldName: string, fields: FormlyFieldConfig[]): FormlyFieldConfig | undefined {
   return fields.filter((field, _, __) => field.key === fieldName)[0];
 }
 
-export function setHideExpression(
-  toggleHidden: string[],
-  fields: FormlyFieldConfig[],
-  hiddenBy: string
-): void {
-  toggleHidden.forEach((hiddenFieldName) => {
+export function setHideExpression(toggleHidden: string[], fields: FormlyFieldConfig[], hiddenBy: string): void {
+  toggleHidden.forEach(hiddenFieldName => {
     const fieldToBeHidden = getFieldByName(hiddenFieldName, fields);
     if (isDefined(fieldToBeHidden)) {
       fieldToBeHidden.hideExpression = "!model." + hiddenBy;
@@ -38,10 +26,10 @@ export function setChildTypeDependency(
 ): void {
   const timestampFieldNames = attributes
     ?.flat()
-    .filter((attribute) => {
+    .filter(attribute => {
       return attribute?.attributeType === "timestamp";
     })
-    .map((attribute) => attribute?.attributeName);
+    .map(attribute => attribute?.attributeName);
 
   if (timestampFieldNames) {
     const childField = getFieldByName(childName, fields);
@@ -54,7 +42,7 @@ export function setChildTypeDependency(
           JSON.stringify(timestampFieldNames) +
           ".includes(model." +
           parentName +
-          ")? 'Input a datetime string' : 'Input a positive number'"
+          ")? 'Input a datetime string' : 'Input a positive number'",
       };
     }
   }
@@ -85,7 +73,7 @@ export function createOutputFormChangeEventStream(
         // .do(evt => console.log(evt))
         // don't emit the event if form data is same with current actual data
         // also check for other unlikely circumstances (see below)
-        filter((formData) => modelCheck(formData)),
+        filter(formData => modelCheck(formData)),
         // share() because the original observable is a hot observable
         share()
       )

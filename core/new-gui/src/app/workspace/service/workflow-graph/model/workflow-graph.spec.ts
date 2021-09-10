@@ -4,7 +4,7 @@ import {
   mockScanResultLink,
   mockScanSentimentLink,
   mockSentimentPredicate,
-  mockSentimentResultLink
+  mockSentimentResultLink,
 } from "./mock-workflow-data";
 import { WorkflowGraph } from "./workflow-graph";
 import { environment } from "../../../../../environments/environment";
@@ -32,9 +32,7 @@ describe("WorkflowGraph", () => {
 
   it("should add an operator and get it properly", () => {
     workflowGraph.addOperator(mockScanPredicate);
-    expect(
-      workflowGraph.getOperator(mockScanPredicate.operatorID)
-    ).toBeTruthy();
+    expect(workflowGraph.getOperator(mockScanPredicate.operatorID)).toBeTruthy();
     expect(workflowGraph.getAllOperators().length).toEqual(1);
     expect(workflowGraph.getAllOperators()[0]).toEqual(mockScanPredicate);
   });
@@ -69,15 +67,8 @@ describe("WorkflowGraph", () => {
     workflowGraph.addOperator(mockResultPredicate);
     workflowGraph.addLink(mockScanResultLink);
 
-    expect(workflowGraph.getLinkWithID(mockScanResultLink.linkID)).toEqual(
-      mockScanResultLink
-    );
-    expect(
-      workflowGraph.getLink(
-        mockScanResultLink.source,
-        mockScanResultLink.target
-      )
-    ).toEqual(mockScanResultLink);
+    expect(workflowGraph.getLinkWithID(mockScanResultLink.linkID)).toEqual(mockScanResultLink);
+    expect(workflowGraph.getLink(mockScanResultLink.source, mockScanResultLink.target)).toEqual(mockScanResultLink);
     expect(workflowGraph.getAllLinks().length).toEqual(1);
   });
 
@@ -92,8 +83,8 @@ describe("WorkflowGraph", () => {
       ...mockScanResultLink,
       target: {
         operatorID: mockSentimentPredicate.operatorID,
-        portID: mockSentimentPredicate.inputPorts[0].portID
-      }
+        portID: mockSentimentPredicate.inputPorts[0].portID,
+      },
     };
 
     expect(() => {
@@ -110,7 +101,7 @@ describe("WorkflowGraph", () => {
     // create a mock link with modified ID
     const mockLink = {
       ...mockScanResultLink,
-      linkID: "new-link-id"
+      linkID: "new-link-id",
     };
 
     expect(() => {
@@ -146,10 +137,7 @@ describe("WorkflowGraph", () => {
     workflowGraph.addOperator(mockScanPredicate);
     workflowGraph.addOperator(mockResultPredicate);
     workflowGraph.addLink(mockScanResultLink);
-    workflowGraph.deleteLink(
-      mockScanResultLink.source,
-      mockScanResultLink.target
-    );
+    workflowGraph.deleteLink(mockScanResultLink.source, mockScanResultLink.target);
 
     expect(workflowGraph.getAllLinks().length).toEqual(0);
   });
@@ -173,10 +161,7 @@ describe("WorkflowGraph", () => {
     workflowGraph.addOperator(mockScanPredicate);
 
     const testProperty = { tableName: "testTable" };
-    workflowGraph.setOperatorProperty(
-      mockScanPredicate.operatorID,
-      testProperty
-    );
+    workflowGraph.setOperatorProperty(mockScanPredicate.operatorID, testProperty);
 
     const operator = workflowGraph.getOperator(mockScanPredicate.operatorID);
     if (!operator) {
@@ -188,10 +173,7 @@ describe("WorkflowGraph", () => {
   it("should throw an error when trying to set the property of an nonexist operator", () => {
     expect(() => {
       const testProperty = { tableName: "testTable" };
-      workflowGraph.setOperatorProperty(
-        mockScanPredicate.operatorID,
-        testProperty
-      );
+      workflowGraph.setOperatorProperty(mockScanPredicate.operatorID, testProperty);
     }).toThrowError(new RegExp("doesn't exist"));
   });
 
@@ -214,18 +196,12 @@ describe("WorkflowGraph", () => {
     workflowGraph.addOperator(mockResultPredicate);
     workflowGraph.disableOperator(mockScanPredicate.operatorID);
 
-    expect(
-      workflowGraph.isOperatorDisabled(mockScanPredicate.operatorID)
-    ).toBeTrue();
-    expect(
-      workflowGraph.isOperatorDisabled(mockResultPredicate.operatorID)
-    ).toBeFalse();
+    expect(workflowGraph.isOperatorDisabled(mockScanPredicate.operatorID)).toBeTrue();
+    expect(workflowGraph.isOperatorDisabled(mockResultPredicate.operatorID)).toBeFalse();
     expect(workflowGraph.getDisabledOperators().size).toEqual(1);
 
     workflowGraph.enableOperator(mockScanPredicate.operatorID);
-    expect(
-      workflowGraph.isOperatorDisabled(mockScanPredicate.operatorID)
-    ).toBeFalse();
+    expect(workflowGraph.isOperatorDisabled(mockScanPredicate.operatorID)).toBeFalse();
     expect(workflowGraph.getDisabledOperators().size).toEqual(0);
   });
 
@@ -253,13 +229,8 @@ describe("WorkflowGraph", () => {
       workflowGraph.addOperator(mockResultPredicate);
       workflowGraph.addLink(mockScanResultLink);
       const mockBreakpoint = { count: 100 };
-      workflowGraph.setLinkBreakpoint(
-        mockScanResultLink.linkID,
-        mockBreakpoint
-      );
-      expect(
-        workflowGraph.getLinkBreakpoint(mockScanResultLink.linkID)
-      ).toEqual(mockBreakpoint);
+      workflowGraph.setLinkBreakpoint(mockScanResultLink.linkID, mockBreakpoint);
+      expect(workflowGraph.getLinkBreakpoint(mockScanResultLink.linkID)).toEqual(mockBreakpoint);
     });
   });
 });

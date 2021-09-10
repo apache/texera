@@ -1,8 +1,4 @@
-import {
-  GroupInfo,
-  OperatorMetadata,
-  OperatorSchema
-} from "../../types/operator-schema.interface";
+import { GroupInfo, OperatorMetadata, OperatorSchema } from "../../types/operator-schema.interface";
 import { BreakpointSchema } from "../../types/workflow-common.interface";
 import { CustomJSONSchema7 } from "../../types/custom-json-schema.interface";
 
@@ -15,19 +11,19 @@ export const mockScanSourceSchema: OperatorSchema = {
     operatorDescription: "Read records from a table one by one",
     operatorGroupName: "Source",
     inputPorts: [],
-    outputPorts: [{}]
+    outputPorts: [{}],
   },
   jsonSchema: {
     properties: {
       tableName: {
         type: "string",
         description: "name of source table",
-        title: "table name"
-      }
+        title: "table name",
+      },
     },
     required: ["tableName"],
-    type: "object"
-  }
+    type: "object",
+  },
 };
 
 export const mockFileSourceSchema: OperatorSchema = {
@@ -35,17 +31,17 @@ export const mockFileSourceSchema: OperatorSchema = {
   jsonSchema: {
     type: "object",
     properties: {
-      fileName: { type: "string", title: "file name" }
+      fileName: { type: "string", title: "file name" },
     },
-    required: ["fileName"]
+    required: ["fileName"],
   },
   additionalMetadata: {
     userFriendlyName: "Source: File",
     operatorDescription: "Read the content of one file or multiple files",
     operatorGroupName: "Source",
     inputPorts: [],
-    outputPorts: [{}]
-  }
+    outputPorts: [{}],
+  },
 };
 
 export const mockNlpSentimentSchema: OperatorSchema = {
@@ -55,7 +51,7 @@ export const mockNlpSentimentSchema: OperatorSchema = {
     operatorDescription: "Sentiment analysis based on Stanford NLP package",
     operatorGroupName: "Analysis",
     inputPorts: [{}],
-    outputPorts: [{}]
+    outputPorts: [{}],
   },
   jsonSchema: {
     properties: {
@@ -63,13 +59,13 @@ export const mockNlpSentimentSchema: OperatorSchema = {
         type: "string",
         title: "attribute",
         autofill: "attributeName",
-        autofillAttributeOnPort: 0
+        autofillAttributeOnPort: 0,
       },
-      resultAttribute: { type: "string", title: "result attribute" }
+      resultAttribute: { type: "string", title: "result attribute" },
     },
     required: ["attribute", "resultAttribute"],
-    type: "object"
-  }
+    type: "object",
+  },
 };
 
 export const mockKeywordSourceSchema: OperatorSchema = {
@@ -83,21 +79,20 @@ export const mockKeywordSourceSchema: OperatorSchema = {
         items: { type: "string" },
         title: "attributes",
         autofill: "attributeNameList",
-        autofillAttributeOnPort: 0
+        autofillAttributeOnPort: 0,
       },
       tableName: { type: "string", title: "table name" },
-      spanListName: { type: "string", title: "span list name" }
+      spanListName: { type: "string", title: "span list name" },
     },
-    required: ["query", "attributes", "tableName"]
+    required: ["query", "attributes", "tableName"],
   },
   additionalMetadata: {
     userFriendlyName: "Source: Keyword",
-    operatorDescription:
-      "Perform an index-based search on a table using a keyword",
+    operatorDescription: "Perform an index-based search on a table using a keyword",
     operatorGroupName: "Analysis",
     inputPorts: [],
-    outputPorts: [{}]
-  }
+    outputPorts: [{}],
+  },
 };
 
 export const mockKeywordSearchSchema: OperatorSchema = {
@@ -111,19 +106,19 @@ export const mockKeywordSearchSchema: OperatorSchema = {
         items: { type: "string" },
         title: "attributes",
         autofill: "attributeNameList",
-        autofillAttributeOnPort: 0
+        autofillAttributeOnPort: 0,
       },
-      spanListName: { type: "string", title: "span list name" }
+      spanListName: { type: "string", title: "span list name" },
     },
-    required: ["query", "attributes"]
+    required: ["query", "attributes"],
   },
   additionalMetadata: {
     userFriendlyName: "Keyword Search",
     operatorDescription: "Search the documents using a keyword",
     operatorGroupName: "Analysis",
     inputPorts: [{}],
-    outputPorts: [{}]
-  }
+    outputPorts: [{}],
+  },
 };
 
 export const mockAggregationSchema: OperatorSchema = {
@@ -140,30 +135,29 @@ export const mockAggregationSchema: OperatorSchema = {
               type: "string",
               title: "attribute",
               autofill: "attributeName",
-              autofillAttributeOnPort: 0
+              autofillAttributeOnPort: 0,
             },
             aggregator: {
               type: "string",
               enum: ["min", "max", "average", "sum", "count"],
               uniqueItems: true,
-              title: "aggregator"
+              title: "aggregator",
             },
-            resultAttribute: { type: "string", title: "result attribute" }
-          }
+            resultAttribute: { type: "string", title: "result attribute" },
+          },
         },
-        title: "list of aggregations"
-      }
+        title: "list of aggregations",
+      },
     },
-    required: ["listOfAggregations"]
+    required: ["listOfAggregations"],
   },
   additionalMetadata: {
     userFriendlyName: "Aggregation",
-    operatorDescription:
-      "Aggregate one or more columns to find min, max, sum, average, count of the column",
+    operatorDescription: "Aggregate one or more columns to find min, max, sum, average, count of the column",
     operatorGroupName: "Analysis",
     inputPorts: [{}],
-    outputPorts: [{}]
-  }
+    outputPorts: [{}],
+  },
 };
 
 export const mockViewResultsSchema: OperatorSchema = {
@@ -173,53 +167,53 @@ export const mockViewResultsSchema: OperatorSchema = {
       limit: {
         default: 10,
         type: "integer",
-        title: "limit"
+        title: "limit",
       },
       offset: {
         default: 0,
         type: "integer",
-        title: "offset"
-      }
+        title: "offset",
+      },
     },
-    type: "object"
+    type: "object",
   },
   additionalMetadata: {
     userFriendlyName: "View Results",
     operatorDescription: "View the results of the workflow",
     operatorGroupName: "View Results",
     inputPorts: [{}],
-    outputPorts: []
-  }
+    outputPorts: [],
+  },
 };
 
 export const mockMultiInputOutputSchema: OperatorSchema = {
   operatorType: "MultiInputOutput",
   jsonSchema: {
     properties: {},
-    type: "object"
+    type: "object",
   },
   additionalMetadata: {
     userFriendlyName: "3-I/O Mock op",
     operatorDescription: "Mock operator with 3 inputs and 3 outputs",
     operatorGroupName: "Analysis",
     inputPorts: [{}, {}, {}],
-    outputPorts: [{}, {}, {}]
-  }
+    outputPorts: [{}, {}, {}],
+  },
 };
 
 export const mockUnionSchema: OperatorSchema = {
   operatorType: "Union",
   jsonSchema: {
     properties: {},
-    type: "object"
+    type: "object",
   },
   additionalMetadata: {
     userFriendlyName: "Union",
     operatorDescription: "Union multiple inputs",
     operatorGroupName: "Analysis",
     inputPorts: [{ allowMultiInputs: true }],
-    outputPorts: [{}]
-  }
+    outputPorts: [{}],
+  },
 };
 
 export const mockOperatorSchemaList: ReadonlyArray<OperatorSchema> = [
@@ -231,18 +225,18 @@ export const mockOperatorSchemaList: ReadonlyArray<OperatorSchema> = [
   mockAggregationSchema,
   mockViewResultsSchema,
   mockMultiInputOutputSchema,
-  mockUnionSchema
+  mockUnionSchema,
 ];
 
 export const mockOperatorGroup: ReadonlyArray<GroupInfo> = [
   { groupName: "Source", groupOrder: 1 },
   { groupName: "Analysis", groupOrder: 2 },
-  { groupName: "View Results", groupOrder: 3 }
+  { groupName: "View Results", groupOrder: 3 },
 ];
 
 export const mockOperatorMetaData: OperatorMetadata = {
   operators: mockOperatorSchemaList,
-  groups: mockOperatorGroup
+  groups: mockOperatorGroup,
 };
 
 export const testJsonSchema: CustomJSONSchema7 = {
@@ -251,15 +245,15 @@ export const testJsonSchema: CustomJSONSchema7 = {
       type: "string",
       title: "attribute",
       autofill: "attributeName",
-      autofillAttributeOnPort: 0
+      autofillAttributeOnPort: 0,
     },
     resultAttribute: {
       type: "string",
-      title: "result attribute"
-    }
+      title: "result attribute",
+    },
   },
   required: ["attribute", "resultAttribute"],
-  type: "object"
+  type: "object",
 };
 
 export const mockBreakpointSchema: BreakpointSchema = {
@@ -271,39 +265,30 @@ export const mockBreakpointSchema: BreakpointSchema = {
         properties: {
           column: {
             type: "string",
-            title: "column"
+            title: "column",
           },
           condition: {
             type: "string",
-            enum: [
-              "contains",
-              "does not contain",
-              "=",
-              ">",
-              ">=",
-              "<",
-              "<=",
-              "!="
-            ],
-            title: "condition"
+            enum: ["contains", "does not contain", "=", ">", ">=", "<", "<=", "!="],
+            title: "condition",
           },
           value: {
             type: "string",
-            title: "value"
-          }
+            title: "value",
+          },
         },
-        required: ["column", "condition", "value"]
+        required: ["column", "condition", "value"],
       },
       {
         title: "count",
         properties: {
           count: {
             type: "integer",
-            title: "count"
-          }
+            title: "count",
+          },
         },
-        required: ["count"]
-      }
-    ]
-  }
+        required: ["count"],
+      },
+    ],
+  },
 };

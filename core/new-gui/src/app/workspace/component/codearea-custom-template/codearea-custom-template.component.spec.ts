@@ -15,7 +15,7 @@ describe("CodeareaCustomTemplateComponent", () => {
     waitForAsync(() => {
       TestBed.configureTestingModule({
         declarations: [CodeareaCustomTemplateComponent],
-        imports: [MatDialogModule]
+        imports: [MatDialogModule],
       }).compileComponents();
     })
   );
