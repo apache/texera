@@ -1,8 +1,8 @@
 import pandas
 import pytest
 
-from core.models import Tuple
-from core.models.udf.examples.echo_operator import EchoOperator
+from pytexera import Tuple
+from .echo_operator import EchoOperator
 
 
 class TestEchoOperator:

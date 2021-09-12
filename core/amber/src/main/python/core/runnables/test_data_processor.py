@@ -4,7 +4,7 @@ import pytest
 from loguru import logger
 
 from core.models import ControlElement, DataElement, DataFrame, EndOfUpstream, InternalQueue, Tuple
-from core.models.udf.examples import EchoOperator
+from pytexera.udf.examples.echo_operator import EchoOperator
 from core.runnables import DataProcessor
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import OneToOnePartitioning, Partitioning
