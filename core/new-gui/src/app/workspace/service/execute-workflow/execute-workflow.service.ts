@@ -222,7 +222,7 @@ export class ExecuteWorkflowService {
       this.currentState.state !== ExecutionState.Running
     ) {
       throw new Error(
-        "cannot pause workflow, current execution state is " +
+        "cannot pause workflow, the current execution state is " +
           this.currentState?.state
       );
     }
@@ -244,7 +244,7 @@ export class ExecuteWorkflowService {
       this.currentState.state === ExecutionState.Completed
     ) {
       throw new Error(
-        "cannot kill workflow, current execution state is " +
+        "cannot kill workflow, the current execution state is " +
           this.currentState.state
       );
     }
@@ -263,7 +263,7 @@ export class ExecuteWorkflowService {
       )
     ) {
       throw new Error(
-        "cannot resume workflow, current execution state is " +
+        "cannot resume workflow, the current execution state is " +
           this.currentState.state
       );
     }
@@ -288,7 +288,7 @@ export class ExecuteWorkflowService {
       this.currentState.state !== ExecutionState.Paused
     ) {
       throw new Error(
-        "cannot add breakpoint at runtime, current execution state is " +
+        "cannot add breakpoint at runtime, the current execution state is " +
           this.currentState.state
       );
     }
@@ -309,7 +309,7 @@ export class ExecuteWorkflowService {
     }
     if (this.currentState.state !== ExecutionState.BreakpointTriggered) {
       throw new Error(
-        "cannot skip tuples, current execution state is " +
+        "cannot skip tuples, the current execution state is " +
           this.currentState.state
       );
     }
@@ -322,13 +322,19 @@ export class ExecuteWorkflowService {
   }
 
   public retryExecution(): void {
-    // if (this.currentState.state !== ExecutionState.Paused) {
-    //   throw new Error('cannot skip tuples, current execution state is ' + this.currentState.state);
-    // }
+    if (!environment.amberEngineEnabled) {
+      return;
+    }
+    if (this.currentState.state !== ExecutionState.BreakpointTriggered) {
+      throw new Error(
+        "cannot retry the current tuple, the current execution state is " +
+          this.currentState.state
+      );
+    }
     this.workflowWebsocketService.send("RetryRequest", {});
   }
 
-  public changeOperatorLogic(operatorID: string): void {
+  public modifyOperatorLogic(operatorID: string): void {
     if (!environment.amberEngineEnabled) {
       return;
     }
@@ -337,7 +343,7 @@ export class ExecuteWorkflowService {
       this.currentState.state !== ExecutionState.Paused
     ) {
       throw new Error(
-        "cannot modify logic, current execution state is " +
+        "cannot modify logic, the current execution state is " +
           this.currentState.state
       );
     }

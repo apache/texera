@@ -33,6 +33,7 @@ import {
 import { DynamicComponentConfig } from "../../../../common/type/dynamic-component-config";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { filter } from "rxjs/operators";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
 
 export type PropertyDisplayComponent = TypeCastingDisplayComponent;
 
@@ -99,7 +100,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
     private workflowActionService: WorkflowActionService,
     public executeWorkflowService: ExecuteWorkflowService,
     private dynamicSchemaService: DynamicSchemaService,
-    private schemaPropagationService: SchemaPropagationService
+    private schemaPropagationService: SchemaPropagationService,
+    private notificationService: NotificationService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -202,12 +204,13 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
   }
 
   evaluateInteractivity(): boolean {
-    console.log("evaluating", (
+    console.log(
+      "evaluating",
       this.executeWorkflowService.getExecutionState().state ===
-      ExecutionState.Uninitialized ||
-      this.executeWorkflowService.getExecutionState().state ===
-      ExecutionState.Completed
-    ));
+        ExecutionState.Uninitialized ||
+        this.executeWorkflowService.getExecutionState().state ===
+          ExecutionState.Completed
+    );
     return (
       this.executeWorkflowService.getExecutionState().state ===
         ExecutionState.Uninitialized ||
@@ -392,14 +395,18 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
     this.formlyFields = fields;
   }
 
-  allowChangeOperatorLogic(): void {
+  allowModifyOperatorLogic(): void {
     this.setInteractivity(true);
   }
 
-  confirmChangeOperatorLogic(): void {
+  confirmModifyOperatorLogic(): void {
     this.setInteractivity(false);
     if (this.currentOperatorId) {
-      this.executeWorkflowService.changeOperatorLogic(this.currentOperatorId);
+      try {
+        this.executeWorkflowService.modifyOperatorLogic(this.currentOperatorId);
+      } catch (e: any) {
+        this.notificationService.error(e);
+      }
     }
   }
 

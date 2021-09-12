@@ -371,9 +371,6 @@ class WorkflowWebsocketResource extends LazyLogging {
       workflowResultUpdateListener = resultUpdate => {
         workflowResultService.onResultUpdate(resultUpdate, session)
       },
-      modifyLogicCompletedListener = _ => {
-        send(session, ModifyLogicCompletedEvent())
-      },
       breakpointTriggeredListener = breakpointTriggered => {
         send(session, BreakpointTriggeredEvent.apply(breakpointTriggered))
       },
@@ -382,9 +379,6 @@ class WorkflowWebsocketResource extends LazyLogging {
       },
       workflowPausedListener = _ => {
         send(session, WorkflowPausedEvent())
-      },
-      skipTupleResponseListener = _ => {
-        send(session, SkipTupleResponseEvent())
       },
       reportCurrentTuplesListener = report => {
         //        send(session, OperatorCurrentTuplesUpdateEvent.apply(report))

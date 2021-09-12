@@ -138,7 +138,6 @@ export type TexeraWebsocketEventTypeMap = {
   RecoveryStartedEvent: {};
   BreakpointTriggeredEvent: BreakpointTriggerInfo;
   PythonPrintTriggeredEvent: PythonPrintTriggerInfo;
-  ModifyLogicCompletedEvent: {};
   OperatorCurrentTuplesUpdateEvent: OperatorCurrentTuples;
   PaginatedResultEvent: PaginatedResultEvent;
   WorkflowExecutionErrorEvent: WorkflowExecutionError;
