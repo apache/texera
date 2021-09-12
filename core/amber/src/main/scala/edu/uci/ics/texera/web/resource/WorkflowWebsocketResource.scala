@@ -202,7 +202,6 @@ class WorkflowWebsocketResource extends LazyLogging {
     val (compiler, controller) = WorkflowWebsocketResource.sessionJobs(session.getId)
     compiler.initOperator(texeraOperator)
     controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, ModifyLogic(texeraOperator))
-//    throw new RuntimeException("modify logic is temporarily disabled")
   }
 
   def retryWorkflow(session: Session): Unit = {

@@ -31,11 +31,18 @@ trait ModifyLogicHandler {
       val operatorUUID = msg.operatorDescriptor.operatorID
       val operatorId = new OperatorIdentity(msg.operatorDescriptor.context.jobID, operatorUUID)
       val operator = workflow.getOperator(operatorId)
-      val code = msg.operatorDescriptor.asInstanceOf[PythonUDFOpDescV2].code
-      val isSource = msg.operatorDescriptor.isInstanceOf[PythonUDFSourceOpDescV2]
+      val modifyPythonLogic: ModifyPythonLogic = msg.operatorDescriptor match {
+        case desc: PythonUDFOpDescV2 =>
+          ModifyPythonLogic(desc.code, isSource = false)
+        case desc: PythonUDFSourceOpDescV2 =>
+          ModifyPythonLogic(desc.code, isSource = true)
+        case desc =>
+          logger.error(s"Unsupported operator for Modify Logic: $desc")
+          null
+      }
       Future
         .collect(operator.getAllWorkers.map { worker =>
-          send(ModifyPythonLogic(code, isSource), worker).onFailure((err: Throwable) => {
+          send(modifyPythonLogic, worker).onFailure((err: Throwable) => {
             logger.error("Failure when sending Python UDF code", err)
             // report error to frontend
             if (eventListener.breakpointTriggeredListener != null) {
@@ -51,6 +58,7 @@ trait ModifyLogicHandler {
           })
         }.toSeq)
         .unit
+
     }
   }
 }
