@@ -146,26 +146,33 @@ export class ResultPanelComponent implements OnInit {
     const executionState = this.executeWorkflowService.getExecutionState();
 
     if (this.currentOperatorId) {
-
-        const resultService = this.workflowResultService.getResultService(
+      const resultService = this.workflowResultService.getResultService(
+        this.currentOperatorId
+      );
+      const paginatedResultService =
+        this.workflowResultService.getPaginatedResultService(
           this.currentOperatorId
         );
-        const paginatedResultService =
-          this.workflowResultService.getPaginatedResultService(
-            this.currentOperatorId
-          );
-        if (paginatedResultService) {
-          this.frameComponentConfigs.set("Result", {
-            component: ResultTableFrameComponent,
-            componentInputs: { operatorId: this.currentOperatorId }
-          });
-        } else if (resultService && resultService.getChartType()) {
-          this.frameComponentConfigs.set("Result", {
-            component: VisualizationFrameComponent,
-            componentInputs: { operatorId: this.currentOperatorId }
-
+      if (paginatedResultService) {
+        // display table result if has paginated results
+        this.frameComponentConfigs.set("Result", {
+          component: ResultTableFrameComponent,
+          componentInputs: { operatorId: this.currentOperatorId }
         });
-      } else {
+      } else if (resultService && resultService.getChartType()) {
+        // display visualization result
+        this.frameComponentConfigs.set("Result", {
+          component: VisualizationFrameComponent,
+          componentInputs: { operatorId: this.currentOperatorId }
+        });
+      } else if (
+        this.workflowActionService
+          .getTexeraGraph()
+          .getOperator(this.currentOperatorId)
+          .operatorType.toLowerCase()
+          .includes("pythonudf")
+      ) {
+        // display console for Python UDF V2
         this.frameComponentConfigs.set("Console", {
           component: ConsoleFrameComponent,
           componentInputs: { operatorId: this.currentOperatorId }
@@ -174,11 +181,14 @@ export class ResultPanelComponent implements OnInit {
           executionState.state === ExecutionState.Failed ||
           executionState.state === ExecutionState.BreakpointTriggered
         ) {
+          // display Debug
           this.frameComponentConfigs.set("Debug", {
             component: DebuggerFrameComponent,
             componentInputs: { operatorId: this.currentOperatorId }
           });
         }
+      } else {
+        // display no tab
       }
     }
   }
