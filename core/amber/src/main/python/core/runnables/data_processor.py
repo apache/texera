@@ -6,18 +6,17 @@ from loguru import logger
 from overrides import overrides
 from pampy import match
 
-from proto.edu.uci.ics.amber.engine.architecture.worker import ControlCommandV2, LocalOperatorExceptionV2, \
-    PythonPrintV2, WorkerExecutionCompletedV2, WorkerState
-from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlInvocationV2, ControlPayloadV2, \
-    LinkIdentity, ReturnInvocationV2
 from core.architecture.managers.context import Context
 from core.architecture.packaging.batch_to_tuple_converter import EndMarker, EndOfAllMarker
 from core.architecture.rpc.async_rpc_client import AsyncRPCClient
 from core.architecture.rpc.async_rpc_server import AsyncRPCServer
-from core.models import ControlElement, DataElement, InputExhausted, InternalQueue, SenderChangeMarker, Tuple, \
-    UDFOperator
+from core.models import ControlElement, DataElement, InputExhausted, InternalQueue, Operator, SenderChangeMarker, Tuple
 from core.util import IQueue, StoppableQueueBlockingRunnable, get_one_of, set_one_of
 from core.util.print_writer.print_log_handler import PrintLogHandler
+from proto.edu.uci.ics.amber.engine.architecture.worker import ControlCommandV2, LocalOperatorExceptionV2, \
+    PythonPrintV2, WorkerExecutionCompletedV2, WorkerState
+from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlInvocationV2, ControlPayloadV2, \
+    LinkIdentity, ReturnInvocationV2
 
 
 class DataProcessor(StoppableQueueBlockingRunnable):
@@ -27,7 +26,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
 
         self._input_queue: InternalQueue = input_queue
         self._output_queue: InternalQueue = output_queue
-        self._udf_operator: Optional[UDFOperator] = None
+        self._operator: Optional[Operator] = None
         self._current_input_tuple: Optional[Union[Tuple, InputExhausted]] = None
         self._current_input_link: Optional[LinkIdentity] = None
         self._input_links: List[LinkIdentity] = list()
@@ -54,7 +53,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         """
         # flush the buffered console prints
         self._print_log_handler.flush()
-        self._udf_operator.close()
+        self._operator.close()
         self.context.state_manager.transit_to(WorkerState.COMPLETED)
         control_command = set_one_of(ControlCommandV2, WorkerExecutionCompletedV2())
         self._async_rpc_client.send(ActorVirtualIdentity(name="CONTROLLER"), control_command)
@@ -150,7 +149,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
             index = len(self._input_links) - 1
             self._input_link_map[link] = index
         input_ = self._input_link_map[link]
-        return map(lambda t: Tuple(t) if t is not None else None, self._udf_operator.process_tuple(tuple_, input_))
+        return map(lambda t: Tuple(t) if t is not None else None, self._operator.process_tuple(tuple_, input_))
 
     def report_exception(self) -> None:
         """

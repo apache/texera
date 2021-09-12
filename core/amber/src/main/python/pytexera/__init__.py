@@ -1,4 +1,5 @@
-from pyamber import InputExhausted, Tuple, TupleLike, UDFOperator, logger, overrides
+from pyamber import InputExhausted, Tuple, TupleLike, logger, overrides
+from .udf.udf_operator import UDFOperator
 
 __all__ = [
     'InputExhausted',

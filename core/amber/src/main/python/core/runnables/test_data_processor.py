@@ -94,7 +94,7 @@ class TestDataProcessor:
     def data_processor(self, input_queue, output_queue, mock_udf):
         data_processor = DataProcessor(input_queue, output_queue)
         # mock the udf binding
-        data_processor._udf_operator = mock_udf
+        data_processor._operator = mock_udf
         yield data_processor
         data_processor.stop()
 

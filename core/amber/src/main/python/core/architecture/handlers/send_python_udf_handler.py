@@ -6,7 +6,7 @@ from loguru import logger
 from proto.edu.uci.ics.amber.engine.architecture.worker import SendPythonUdfV2
 from .handler_base import Handler
 from ..managers.context import Context
-from ...models import UDFOperator
+from ...models import Operator
 
 
 class SendPythonUdfHandler(Handler):
@@ -17,12 +17,12 @@ class SendPythonUdfHandler(Handler):
         udf_module = util.module_from_spec(spec)
         exec(command.udf, udf_module.__dict__)
         operators = list(filter(lambda v: inspect.isclass(v)
-                                          and issubclass(v, UDFOperator)
+                                          and issubclass(v, Operator)
                                           and not inspect.isabstract(v),
                                 udf_module.__dict__.values()))
         logger.info(f"got operators {operators}")
         assert len(operators) == 1, "There should be only one UDFOperator defined"
-        context.dp._udf_operator = operators[0]()
-        context.dp._udf_operator.is_source = command.is_source
-        context.dp._udf_operator.open()
+        context.dp._operator = operators[0]()
+        context.dp._operator.is_source = command.is_source
+        context.dp._operator.open()
         return None
