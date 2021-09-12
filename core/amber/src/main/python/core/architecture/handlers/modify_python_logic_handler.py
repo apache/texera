@@ -12,6 +12,7 @@ class ModifyPythonLogicHandler(Handler):
         original_internal_state = context.dp._udf_operator.__dict__
         udf_operator: type(UDFOperator) = load_udf(command.code)
         context.dp._udf_operator = udf_operator()
+        context.dp._udf_operator.is_source = command.is_source
         # overwrite the internal state
         context.dp._udf_operator.__dict__ = original_internal_state
         return None

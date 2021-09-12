@@ -8,9 +8,9 @@ from ...models import DataElement
 class StartWorkerHandler(Handler):
     cmd = StartWorkerV2
 
-    def __call__(self, context: Context, command: StartWorkerV2, *args, **kwargs):
+    def __call__(self, context: Context, command: cmd, *args, **kwargs):
         if context.dp._udf_operator.is_source:
             context.state_manager.transit_to(WorkerState.RUNNING)
-            context.input_queue.put(DataElement(BatchToTupleConverter.SOURCE_STARTER, None))
+            context.input_queue.put(DataElement(tag=BatchToTupleConverter.SOURCE_STARTER, payload=None))
         state = context.state_manager.get_current_state()
         return state

@@ -43,8 +43,8 @@ object ControlCommandConvertUtils {
         SendPythonUdfV2(code, isSource)
       case RetryPython() =>
         RetryPythonV2()
-      case ModifyPythonLogic(code) =>
-        ModifyPythonLogicV2(code)
+      case ModifyPythonLogic(code, isSource) =>
+        ModifyPythonLogicV2(code, isSource)
       case _ =>
         throw new UnsupportedOperationException(
           s"V1 controlCommand $controlCommand cannot be converted to V2"

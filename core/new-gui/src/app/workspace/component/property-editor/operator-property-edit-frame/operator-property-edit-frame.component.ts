@@ -204,18 +204,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
   }
 
   evaluateInteractivity(): boolean {
-    console.log(
-      "evaluating",
-      this.executeWorkflowService.getExecutionState().state ===
-        ExecutionState.Uninitialized ||
-        this.executeWorkflowService.getExecutionState().state ===
-          ExecutionState.Completed
-    );
     return (
-      this.executeWorkflowService.getExecutionState().state ===
-        ExecutionState.Uninitialized ||
-      this.executeWorkflowService.getExecutionState().state ===
-        ExecutionState.Completed
+      this.executeWorkflowService.getExecutionState().state in
+      [ExecutionState.Uninitialized, ExecutionState.Completed]
     );
   }
 
@@ -400,10 +391,10 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
   }
 
   confirmModifyOperatorLogic(): void {
-    this.setInteractivity(false);
     if (this.currentOperatorId) {
       try {
         this.executeWorkflowService.modifyOperatorLogic(this.currentOperatorId);
+        this.setInteractivity(false);
       } catch (e: any) {
         this.notificationService.error(e);
       }

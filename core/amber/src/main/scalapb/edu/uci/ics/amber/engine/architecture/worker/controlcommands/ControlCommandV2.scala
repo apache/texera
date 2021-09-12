@@ -1159,7 +1159,7 @@ object LocalOperatorExceptionV2 extends scalapb.GeneratedMessageCompanion[edu.uc
 
 @SerialVersionUID(0L)
 final case class SendPythonUdfV2(
-    udf: _root_.scala.Predef.String,
+    code: _root_.scala.Predef.String,
     isSource: _root_.scala.Boolean
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[SendPythonUdfV2] {
     @transient
@@ -1168,7 +1168,7 @@ final case class SendPythonUdfV2(
       var __size = 0
       
       {
-        val __value = udf
+        val __value = code
         if (!__value.isEmpty) {
           __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(1, __value)
         }
@@ -1192,7 +1192,7 @@ final case class SendPythonUdfV2(
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
-        val __v = udf
+        val __v = code
         if (!__v.isEmpty) {
           _output__.writeString(1, __v)
         }
@@ -1204,12 +1204,12 @@ final case class SendPythonUdfV2(
         }
       };
     }
-    def withUdf(__v: _root_.scala.Predef.String): SendPythonUdfV2 = copy(udf = __v)
+    def withCode(__v: _root_.scala.Predef.String): SendPythonUdfV2 = copy(code = __v)
     def withIsSource(__v: _root_.scala.Boolean): SendPythonUdfV2 = copy(isSource = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
-          val __t = udf
+          val __t = code
           if (__t != "") __t else null
         }
         case 2 => {
@@ -1221,7 +1221,7 @@ final case class SendPythonUdfV2(
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
-        case 1 => _root_.scalapb.descriptors.PString(udf)
+        case 1 => _root_.scalapb.descriptors.PString(code)
         case 2 => _root_.scalapb.descriptors.PBoolean(isSource)
       }
     }
@@ -1233,7 +1233,7 @@ final case class SendPythonUdfV2(
 object SendPythonUdfV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.SendPythonUdfV2] {
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.SendPythonUdfV2] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.controlcommands.SendPythonUdfV2 = {
-    var __udf: _root_.scala.Predef.String = ""
+    var __code: _root_.scala.Predef.String = ""
     var __isSource: _root_.scala.Boolean = false
     var _done__ = false
     while (!_done__) {
@@ -1241,14 +1241,14 @@ object SendPythonUdfV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amb
       _tag__ match {
         case 0 => _done__ = true
         case 10 =>
-          __udf = _input__.readStringRequireUtf8()
+          __code = _input__.readStringRequireUtf8()
         case 16 =>
           __isSource = _input__.readBool()
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.architecture.worker.controlcommands.SendPythonUdfV2(
-        udf = __udf,
+        code = __code,
         isSource = __isSource
     )
   }
@@ -1256,7 +1256,7 @@ object SendPythonUdfV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amb
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.architecture.worker.controlcommands.SendPythonUdfV2(
-        udf = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
+        code = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
         isSource = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Boolean]).getOrElse(false)
       )
     case _ => throw new RuntimeException("Expected PMessage")
@@ -1267,20 +1267,20 @@ object SendPythonUdfV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amb
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.controlcommands.SendPythonUdfV2(
-    udf = "",
+    code = "",
     isSource = false
   )
   implicit class SendPythonUdfV2Lens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.SendPythonUdfV2]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.SendPythonUdfV2](_l) {
-    def udf: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.udf)((c_, f_) => c_.copy(udf = f_))
+    def code: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.code)((c_, f_) => c_.copy(code = f_))
     def isSource: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Boolean] = field(_.isSource)((c_, f_) => c_.copy(isSource = f_))
   }
-  final val UDF_FIELD_NUMBER = 1
+  final val CODE_FIELD_NUMBER = 1
   final val IS_SOURCE_FIELD_NUMBER = 2
   def of(
-    udf: _root_.scala.Predef.String,
+    code: _root_.scala.Predef.String,
     isSource: _root_.scala.Boolean
   ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.SendPythonUdfV2 = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.SendPythonUdfV2(
-    udf,
+    code,
     isSource
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.SendPythonUdfV2])
@@ -1436,7 +1436,8 @@ object RetryPythonV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber
 
 @SerialVersionUID(0L)
 final case class ModifyPythonLogicV2(
-    code: _root_.scala.Predef.String
+    code: _root_.scala.Predef.String,
+    isSource: _root_.scala.Boolean
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[ModifyPythonLogicV2] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
@@ -1447,6 +1448,13 @@ final case class ModifyPythonLogicV2(
         val __value = code
         if (!__value.isEmpty) {
           __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(1, __value)
+        }
+      };
+      
+      {
+        val __value = isSource
+        if (__value != false) {
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeBoolSize(2, __value)
         }
       };
       __size
@@ -1466,13 +1474,24 @@ final case class ModifyPythonLogicV2(
           _output__.writeString(1, __v)
         }
       };
+      {
+        val __v = isSource
+        if (__v != false) {
+          _output__.writeBool(2, __v)
+        }
+      };
     }
     def withCode(__v: _root_.scala.Predef.String): ModifyPythonLogicV2 = copy(code = __v)
+    def withIsSource(__v: _root_.scala.Boolean): ModifyPythonLogicV2 = copy(isSource = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
           val __t = code
           if (__t != "") __t else null
+        }
+        case 2 => {
+          val __t = isSource
+          if (__t != false) __t else null
         }
       }
     }
@@ -1480,6 +1499,7 @@ final case class ModifyPythonLogicV2(
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
         case 1 => _root_.scalapb.descriptors.PString(code)
+        case 2 => _root_.scalapb.descriptors.PBoolean(isSource)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -1491,6 +1511,7 @@ object ModifyPythonLogicV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyPythonLogicV2] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyPythonLogicV2 = {
     var __code: _root_.scala.Predef.String = ""
+    var __isSource: _root_.scala.Boolean = false
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
@@ -1498,18 +1519,22 @@ object ModifyPythonLogicV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics
         case 0 => _done__ = true
         case 10 =>
           __code = _input__.readStringRequireUtf8()
+        case 16 =>
+          __isSource = _input__.readBool()
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyPythonLogicV2(
-        code = __code
+        code = __code,
+        isSource = __isSource
     )
   }
   implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyPythonLogicV2] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyPythonLogicV2(
-        code = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Predef.String]).getOrElse("")
+        code = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
+        isSource = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Boolean]).getOrElse(false)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -1519,16 +1544,21 @@ object ModifyPythonLogicV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyPythonLogicV2(
-    code = ""
+    code = "",
+    isSource = false
   )
   implicit class ModifyPythonLogicV2Lens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyPythonLogicV2]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyPythonLogicV2](_l) {
     def code: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.code)((c_, f_) => c_.copy(code = f_))
+    def isSource: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Boolean] = field(_.isSource)((c_, f_) => c_.copy(isSource = f_))
   }
   final val CODE_FIELD_NUMBER = 1
+  final val IS_SOURCE_FIELD_NUMBER = 2
   def of(
-    code: _root_.scala.Predef.String
+    code: _root_.scala.Predef.String,
+    isSource: _root_.scala.Boolean
   ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyPythonLogicV2 = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyPythonLogicV2(
-    code
+    code,
+    isSource
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.ModifyPythonLogicV2])
 }

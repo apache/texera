@@ -64,7 +64,7 @@ class LocalOperatorExceptionV2(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SendPythonUdfV2(betterproto.Message):
-    udf: str = betterproto.string_field(1)
+    code: str = betterproto.string_field(1)
     is_source: bool = betterproto.bool_field(2)
 
 
@@ -81,6 +81,7 @@ class PythonPrintV2(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class ModifyPythonLogicV2(betterproto.Message):
     code: str = betterproto.string_field(1)
+    is_source: bool = betterproto.bool_field(2)
 
 
 @dataclass(eq=False, repr=False)
