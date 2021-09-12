@@ -1,5 +1,5 @@
 import { DatePipe, Location } from "@angular/common";
-import { Component, ElementRef, Input, OnInit, ViewChild } from "@angular/core";
+import { Component, ElementRef, Input, ViewChild } from "@angular/core";
 import { TourService } from "ngx-tour-ng-bootstrap";
 import { environment } from "../../../../environments/environment";
 import { UserService } from "../../../common/service/user/user.service";
