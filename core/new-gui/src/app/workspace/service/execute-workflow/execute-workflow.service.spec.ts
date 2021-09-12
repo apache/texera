@@ -94,7 +94,7 @@ describe("ExecuteWorkflowService", () => {
       service.pauseWorkflow();
     }).toThrowError(
       new RegExp(
-        "cannot pause workflow, current execution state is " +
+        "cannot pause workflow, the current execution state is " +
           (service as any).currentState.state
       )
     );
@@ -106,7 +106,7 @@ describe("ExecuteWorkflowService", () => {
       service.resumeWorkflow();
     }).toThrowError(
       new RegExp(
-        "cannot resume workflow, current execution state is " +
+        "cannot resume workflow, the current execution state is " +
           (service as any).currentState.state
       )
     );
