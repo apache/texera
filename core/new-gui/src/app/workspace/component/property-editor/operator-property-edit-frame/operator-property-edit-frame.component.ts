@@ -190,8 +190,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
 
   evaluateInteractivity(): boolean {
     return (
-      this.executeWorkflowService.getExecutionState().state in
-      [ExecutionState.Uninitialized, ExecutionState.Completed]
+      this.executeWorkflowService.getExecutionState().state in [ExecutionState.Uninitialized, ExecutionState.Completed]
     );
   }
 

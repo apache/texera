@@ -35,7 +35,7 @@ export class NotificationService {
   error(cause: Error | string) {
     this.sendNotification({
       type: "error",
-      message: cause instanceof Error ? cause.message : cause
+      message: cause instanceof Error ? cause.message : cause,
     });
   }
 
