@@ -19,7 +19,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
   RegisterActorRef
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputPort
-import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.SendPythonUdfHandler.SendPythonUdf
+import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
 import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
@@ -94,11 +94,11 @@ class Controller(
 
   def prepareWorkers(): Future[Seq[Unit]] = {
 
-    // send python udf code
-    val sendPythonUdfRequests: Seq[Future[Unit]] = workflow.getPythonWorkerToOperatorExec.map {
+    // initialize python udf code
+    val initializeOperatorLogicRequests: Seq[Future[Unit]] = workflow.getPythonWorkerToOperatorExec.map {
       case (workerId: ActorVirtualIdentity, pythonOperatorExec: PythonUDFOpExecV2) =>
         asyncRPCClient.send(
-          SendPythonUdf(
+          InitializeOperatorLogic(
             pythonOperatorExec.getCode,
             pythonOperatorExec.isInstanceOf[ISourceOperatorExecutor]
           ),
@@ -117,7 +117,7 @@ class Controller(
 
     Future
       .collect(
-        sendPythonUdfRequests ++ activateLinkRequests
+        initializeOperatorLogicRequests ++ activateLinkRequests
       )
       .onSuccess({ _ =>
         workflow.getAllOperators.foreach(_.setAllWorkerState(READY))

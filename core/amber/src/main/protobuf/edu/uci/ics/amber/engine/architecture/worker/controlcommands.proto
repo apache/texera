@@ -41,7 +41,12 @@ message LocalOperatorExceptionV2 {
     string message = 1;
 }
 
-message SendPythonUdfV2 {
+message InitializeOperatorLogicV2 {
+    string code = 1;
+    bool is_source = 2;
+}
+
+message ModifyOperatorLogicV2 {
     string code = 1;
     bool is_source = 2;
 }
@@ -51,10 +56,6 @@ message RetryPythonV2 {
 
 message PythonPrintV2 {
     string message = 1;
-}
-message ModifyPythonLogicV2 {
-    string code = 1;
-    bool is_source = 2;
 }
 
 message ControlCommandV2 {
@@ -71,10 +72,10 @@ message ControlCommandV2 {
 
         LocalOperatorExceptionV2 local_operator_exception = 8;
 
-        SendPythonUdfV2 send_python_udf = 21;
-        PythonPrintV2 python_print = 22;
-        RetryPythonV2 retry_python = 23;
-        ModifyPythonLogicV2 modify_python_logic = 24;
+        InitializeOperatorLogicV2 initialize_operator_logic = 21;
+        ModifyOperatorLogicV2 modify_operator_logic = 22;
+        PythonPrintV2 python_print = 23;
+        RetryPythonV2 retry_python = 24;
 
         WorkerExecutionCompletedV2 worker_execution_completed = 101;
     }
