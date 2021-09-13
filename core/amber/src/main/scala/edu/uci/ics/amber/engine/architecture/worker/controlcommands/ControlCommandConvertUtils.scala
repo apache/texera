@@ -4,7 +4,7 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOpe
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PythonPrintHandler.PythonPrint
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.ModifyOperatorLogicHandler.ModifyOperatorLogic
-import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.RetryPythonHandler.RetryPython
+import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.ReplayCurrentTupleHandler.ReplayCurrentTuple
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
 import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2
@@ -41,8 +41,8 @@ object ControlCommandConvertUtils {
         QueryCurrentInputTupleV2()
       case InitializeOperatorLogic(code, isSource) =>
         InitializeOperatorLogicV2(code, isSource)
-      case RetryPython() =>
-        RetryPythonV2()
+      case ReplayCurrentTuple() =>
+        ReplayCurrentTupleV2()
       case ModifyOperatorLogic(code, isSource) =>
         ModifyOperatorLogicV2(code, isSource)
       case _ =>

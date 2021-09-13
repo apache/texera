@@ -4,7 +4,7 @@ import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.RetryWorkflowHandler.RetryWorkflow
-import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.RetryPythonHandler.RetryPython
+import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.ReplayCurrentTupleHandler.ReplayCurrentTuple
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 
@@ -30,7 +30,7 @@ trait RetryWorkflowHandler {
             .flatMap(operator => operator.caughtLocalExceptions.keys)
             // currently only support retry for PythonWorker, thus filter them
             .filter(worker => workflow.getPythonWorkers.toSeq.contains(worker))
-            .map(worker => send(RetryPython(), worker))
+            .map(worker => send(ReplayCurrentTuple(), worker))
             .toSeq
         )
         .unit

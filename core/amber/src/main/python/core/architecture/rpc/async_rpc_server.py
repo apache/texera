@@ -8,7 +8,7 @@ from core.architecture.handlers.pause_worker_handler import PauseWorkerHandler
 from core.architecture.handlers.query_current_input_tuple_handler import QueryCurrentInputTupleHandler
 from core.architecture.handlers.query_statistics_handler import QueryStatisticsHandler
 from core.architecture.handlers.resume_worker_handler import ResumeWorkerHandler
-from core.architecture.handlers.retry_python_handler import RetryPythonHandler
+from core.architecture.handlers.retry_python_handler import ReplayCurrentTupleHandler
 from core.architecture.handlers.start_worker_handler import StartWorkerHandler
 from core.architecture.handlers.update_input_linking_handler import UpdateInputLinkingHandler
 from core.architecture.managers.context import Context
@@ -33,7 +33,7 @@ class AsyncRPCServer:
         self.register(QueryCurrentInputTupleHandler())
         self.register(InitializeOperatorLogicHandler())
         self.register(ModifyOperatorLogicHandler())
-        self.register(RetryPythonHandler())
+        self.register(ReplayCurrentTupleHandler())
 
     def receive(self, from_: ActorVirtualIdentity, control_invocation: ControlInvocationV2):
         command: ControlCommandV2 = get_one_of(control_invocation.command)

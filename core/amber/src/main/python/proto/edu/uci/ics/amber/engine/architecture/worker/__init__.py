@@ -75,7 +75,7 @@ class ModifyOperatorLogicV2(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class RetryPythonV2(betterproto.Message):
+class ReplayCurrentTupleV2(betterproto.Message):
     pass
 
 
@@ -111,7 +111,9 @@ class ControlCommandV2(betterproto.Message):
         22, group="sealed_value"
     )
     python_print: "PythonPrintV2" = betterproto.message_field(23, group="sealed_value")
-    retry_python: "RetryPythonV2" = betterproto.message_field(24, group="sealed_value")
+    replay_current_tuple: "ReplayCurrentTupleV2" = betterproto.message_field(
+        24, group="sealed_value"
+    )
     worker_execution_completed: "WorkerExecutionCompletedV2" = (
         betterproto.message_field(101, group="sealed_value")
     )
