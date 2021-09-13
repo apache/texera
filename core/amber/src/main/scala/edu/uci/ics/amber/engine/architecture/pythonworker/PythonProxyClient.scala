@@ -95,7 +95,7 @@ class PythonProxyClient(portNumber: Int, val actorId: ActorVirtualIdentity)
   ): Result = {
     val controlMessage = PythonControlMessage(from, payload)
     val action: Action = new Action("control", controlMessage.toByteArray)
-    logger.info(s"sending control $controlMessage")
+    logger.debug(s"sending control $controlMessage")
     flightClient.doAction(action).next()
   }
 

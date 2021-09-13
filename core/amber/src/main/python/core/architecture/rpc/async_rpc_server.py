@@ -2,11 +2,13 @@ from loguru import logger
 
 from core.architecture.handlers.add_partitioning_handler import AddPartitioningHandler
 from core.architecture.handlers.handler_base import Handler
+from core.architecture.handlers.initialize_operator_logic_handler import InitializeOperatorLogicHandler
+from core.architecture.handlers.modify_operator_logic_handler import ModifyOperatorLogicHandler
 from core.architecture.handlers.pause_worker_handler import PauseWorkerHandler
 from core.architecture.handlers.query_current_input_tuple_handler import QueryCurrentInputTupleHandler
 from core.architecture.handlers.query_statistics_handler import QueryStatisticsHandler
 from core.architecture.handlers.resume_worker_handler import ResumeWorkerHandler
-from core.architecture.handlers.send_python_udf_handler import SendPythonUdfHandler
+from core.architecture.handlers.retry_python_handler import ReplayCurrentTupleHandler
 from core.architecture.handlers.start_worker_handler import StartWorkerHandler
 from core.architecture.handlers.update_input_linking_handler import UpdateInputLinkingHandler
 from core.architecture.managers.context import Context
@@ -29,7 +31,9 @@ class AsyncRPCServer:
         self.register(UpdateInputLinkingHandler())
         self.register(QueryStatisticsHandler())
         self.register(QueryCurrentInputTupleHandler())
-        self.register(SendPythonUdfHandler())
+        self.register(InitializeOperatorLogicHandler())
+        self.register(ModifyOperatorLogicHandler())
+        self.register(ReplayCurrentTupleHandler())
 
     def receive(self, from_: ActorVirtualIdentity, control_invocation: ControlInvocationV2):
         command: ControlCommandV2 = get_one_of(control_invocation.command)

@@ -18,10 +18,5 @@ class SenderChangeMarker(Marker):
 
 
 @dataclass
-class EndMarker(Marker):
-    pass
-
-
-@dataclass
 class EndOfAllMarker(Marker):
     pass

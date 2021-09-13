@@ -105,7 +105,12 @@ class Workflow(
     layerToOperatorExecConfig(workerToLayer(workerId).id)
 
   def getLink(linkID: LinkIdentity): LinkStrategy = idToLink(linkID)
-
+  def getPythonWorkers: Iterable[ActorVirtualIdentity] =
+    workerToOperatorExec
+      .filter({
+        case (_: ActorVirtualIdentity, operatorExecutor: IOperatorExecutor) =>
+          operatorExecutor.isInstanceOf[PythonUDFOpExecV2]
+      }) map { case (workerId: ActorVirtualIdentity, _: IOperatorExecutor) => workerId }
   def getPythonWorkerToOperatorExec: Iterable[(ActorVirtualIdentity, PythonUDFOpExecV2)] =
     workerToOperatorExec
       .filter({

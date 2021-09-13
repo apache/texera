@@ -4,6 +4,7 @@ import { BreakpointTriggerInfo } from "../../../types/workflow-common.interface"
 import { ExecutionState } from "src/app/workspace/types/execute-workflow.interface";
 import { WorkflowConsoleService } from "../../../service/workflow-console/workflow-console.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
 
 @UntilDestroy()
 @Component({
@@ -24,7 +25,8 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
 
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
-    private workflowConsoleService: WorkflowConsoleService
+    private workflowConsoleService: WorkflowConsoleService,
+    private notificationService: NotificationService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -67,7 +69,20 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
   }
 
   onClickSkipTuples(): void {
-    this.executeWorkflowService.skipTuples();
+    try {
+      this.executeWorkflowService.skipTuples();
+    } catch (e: any) {
+      this.notificationService.error(e);
+    }
+    this.breakpointAction = false;
+  }
+
+  onClickRetry() {
+    try {
+      this.executeWorkflowService.retryExecution();
+    } catch (e: any) {
+      this.notificationService.error(e);
+    }
     this.breakpointAction = false;
   }
 

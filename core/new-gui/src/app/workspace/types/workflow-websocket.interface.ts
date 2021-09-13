@@ -111,6 +111,7 @@ export type TexeraWebsocketRequestTypeMap = {
   KillWorkflowRequest: {};
   ModifyLogicRequest: ModifyOperatorLogic;
   SkipTupleRequest: SkipTuple;
+  RetryRequest: {};
   AddBreakpointRequest: BreakpointInfo;
   ResultPaginationRequest: PaginationRequest;
   ResultExportRequest: ResultExportRequest;
@@ -130,7 +131,6 @@ export type TexeraWebsocketEventTypeMap = {
   RecoveryStartedEvent: {};
   BreakpointTriggeredEvent: BreakpointTriggerInfo;
   PythonPrintTriggeredEvent: PythonPrintTriggerInfo;
-  ModifyLogicCompletedEvent: {};
   OperatorCurrentTuplesUpdateEvent: OperatorCurrentTuples;
   PaginatedResultEvent: PaginatedResultEvent;
   WorkflowExecutionErrorEvent: WorkflowExecutionError;

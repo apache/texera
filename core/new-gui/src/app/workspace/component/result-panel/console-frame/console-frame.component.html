@@ -1,8 +1,3 @@
-<div *ngIf="errorMessages">
-  <div *ngFor="let item of errorMessages | keyvalue">
-    <div class="error-message">{{ item.key }}:{{ item.value }}</div>
-  </div>
-</div>
 <!-- hide this button to temporarily disable this feature         -->
 <button
   (click)="onClickSkipTuples()"
@@ -13,6 +8,23 @@
 >
   Skip Records
 </button>
+
+<!--TODO: add this to part of resume logic-->
+<button
+  (click)="onClickRetry()"
+  *ngIf="breakpointTriggerInfo?.operatorID===this.operatorId"
+  [disabled]="!breakpointAction"
+  nz-button
+>
+  Retry current Tuple
+</button>
+
+<div *ngIf="errorMessages">
+  <div *ngFor="let item of errorMessages | keyvalue">
+    <div class="error-message">{{ item.key }}:{{ item.value }}</div>
+  </div>
+</div>
+
 <div *ngFor="let message of consoleMessages">
   <div class="console-message">{{ message }}</div>
 </div>

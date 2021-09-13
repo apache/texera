@@ -147,6 +147,9 @@ registerLocaleData(en);
     OperatorPropertyEditFrameComponent,
     BreakpointPropertyEditFrameComponent,
     NotificationComponent,
+    ResultTableFrameComponent,
+    OperatorPropertyEditFrameComponent,
+    BreakpointPropertyEditFrameComponent,
   ],
   imports: [
     BrowserModule,

@@ -32,6 +32,14 @@ trait LocalOperatorExceptionHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
   registerHandler { (msg: LocalOperatorException, sender) =>
     {
+
+      // get the operator where the worker caught the local operator exception
+      val operator = workflow.getOperator(sender)
+      operator.caughtLocalExceptions.put(sender, msg.e)
+
+      // then pause the workflow
+      execute(PauseWorkflow(), CONTROLLER)
+
       // report the faulted tuple to the frontend with the exception
       if (eventListener.breakpointTriggeredListener != null) {
         eventListener.breakpointTriggeredListener.apply(
@@ -45,8 +53,6 @@ trait LocalOperatorExceptionHandler {
           )
         )
       }
-      // then pause the workflow
-      execute(PauseWorkflow(), CONTROLLER)
     }
   }
 }

@@ -705,6 +705,7 @@ describe("WorkflowEditorComponent", () => {
       }
     });
 
+    // TODO: this test is unstable, find out why and fix it
     it("should place the pasted operator in a non-overlapping position", () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
