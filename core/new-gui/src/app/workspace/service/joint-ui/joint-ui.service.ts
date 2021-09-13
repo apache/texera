@@ -3,19 +3,9 @@ import { OperatorMetadataService } from "../operator-metadata/operator-metadata.
 import { OperatorSchema } from "../../types/operator-schema.interface";
 
 import * as joint from "jointjs";
-import {
-  OperatorLink,
-  OperatorPredicate,
-  Point
-} from "../../types/workflow-common.interface";
-import {
-  Group,
-  GroupBoundingBox
-} from "../workflow-graph/model/operator-group";
-import {
-  OperatorState,
-  OperatorStatistics
-} from "../../types/execute-workflow.interface";
+import { OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
+import { Group, GroupBoundingBox } from "../workflow-graph/model/operator-group";
+import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
 import { OperatorResultCacheStatus } from "../../types/workflow-websocket.interface";
 
 /**
@@ -143,7 +133,7 @@ class TexeraCustomGroupElement extends joint.shapes.devs.Model {
  * @author Zuozhi Wang
  */
 @Injectable({
-  providedIn: "root"
+  providedIn: "root",
 })
 export class JointUIService {
   public static readonly DEFAULT_OPERATOR_WIDTH = 60;
@@ -160,9 +150,7 @@ export class JointUIService {
   constructor(private operatorMetadataService: OperatorMetadataService) {
     // initialize the operator information
     // subscribe to operator metadata observable
-    this.operatorMetadataService
-      .getOperatorMetadata()
-      .subscribe((value) => (this.operatorSchemas = value.operators));
+    this.operatorMetadataService.getOperatorMetadata().subscribe(value => (this.operatorSchemas = value.operators));
   }
 
   /**
@@ -181,14 +169,9 @@ export class JointUIService {
    *
    * @returns JointJS Element
    */
-  public getJointOperatorElement(
-    operator: OperatorPredicate,
-    point: Point
-  ): joint.dia.Element {
+  public getJointOperatorElement(operator: OperatorPredicate, point: Point): joint.dia.Element {
     // check if the operatorType exists in the operator metadata
-    const operatorSchema = this.operatorSchemas.find(
-      (op) => op.operatorType === operator.operatorType
-    );
+    const operatorSchema = this.operatorSchemas.find(op => op.operatorType === operator.operatorType);
     if (operatorSchema === undefined) {
       throw new Error(`operator type ${operator.operatorType} doesn't exist`);
     }
@@ -199,46 +182,45 @@ export class JointUIService {
       position: point,
       size: {
         width: JointUIService.DEFAULT_OPERATOR_WIDTH,
-        height: JointUIService.DEFAULT_OPERATOR_HEIGHT
+        height: JointUIService.DEFAULT_OPERATOR_HEIGHT,
       },
       attrs: JointUIService.getCustomOperatorStyleAttrs(
         operator,
-        operator.customDisplayName ??
-          operatorSchema.additionalMetadata.userFriendlyName,
+        operator.customDisplayName ?? operatorSchema.additionalMetadata.userFriendlyName,
         operatorSchema.operatorType
       ),
       ports: {
         groups: {
           in: { attrs: JointUIService.getCustomPortStyleAttrs() },
-          out: { attrs: JointUIService.getCustomPortStyleAttrs() }
-        }
-      }
+          out: { attrs: JointUIService.getCustomPortStyleAttrs() },
+        },
+      },
     });
 
     // set operator element ID to be operator ID
     operatorElement.set("id", operator.operatorID);
 
     // set the input ports and output ports based on operator predicate
-    operator.inputPorts.forEach((port) =>
+    operator.inputPorts.forEach(port =>
       operatorElement.addPort({
         group: "in",
         id: port.portID,
         attrs: {
           ".port-label": {
-            text: port.displayName ?? ""
-          }
-        }
+            text: port.displayName ?? "",
+          },
+        },
       })
     );
-    operator.outputPorts.forEach((port) =>
+    operator.outputPorts.forEach(port =>
       operatorElement.addPort({
         group: "out",
         id: port.portID,
         attrs: {
           ".port-label": {
-            text: port.displayName ?? ""
-          }
-        }
+            text: port.displayName ?? "",
+          },
+        },
       })
     );
 
@@ -252,16 +234,10 @@ export class JointUIService {
   ): void {
     this.changeOperatorState(jointPaper, operatorID, statistics.operatorState);
 
-    const processedText =
-      "Processed: " + statistics.aggregatedInputRowCount.toLocaleString();
-    const outputText =
-      "Output:    " + statistics.aggregatedOutputRowCount.toLocaleString();
-    jointPaper
-      .getModelById(operatorID)
-      .attr(`.${operatorProcessedCountClass}/text`, processedText);
-    jointPaper
-      .getModelById(operatorID)
-      .attr(`.${operatorOutputCountClass}/text`, outputText);
+    const processedText = "Processed: " + statistics.aggregatedInputRowCount.toLocaleString();
+    const outputText = "Output:    " + statistics.aggregatedOutputRowCount.toLocaleString();
+    jointPaper.getModelById(operatorID).attr(`.${operatorProcessedCountClass}/text`, processedText);
+    jointPaper.getModelById(operatorID).attr(`.${operatorOutputCountClass}/text`, outputText);
   }
 
   /**
@@ -275,19 +251,14 @@ export class JointUIService {
    * @param topLeft the position of the operator (if there was one) that's in the top left corner of the group
    * @param bottomRight the position of the operator (if there was one) that's in the bottom right corner of the group
    */
-  public getJointGroupElement(
-    group: Group,
-    boundingBox: GroupBoundingBox
-  ): joint.dia.Element {
+  public getJointGroupElement(group: Group, boundingBox: GroupBoundingBox): joint.dia.Element {
     const { topLeft, bottomRight } = boundingBox;
 
     const groupElementPosition = {
       x: topLeft.x - JointUIService.DEFAULT_GROUP_MARGIN,
-      y: topLeft.y - JointUIService.DEFAULT_GROUP_MARGIN
+      y: topLeft.y - JointUIService.DEFAULT_GROUP_MARGIN,
     };
-    const widthMargin =
-      JointUIService.DEFAULT_OPERATOR_WIDTH +
-      2 * JointUIService.DEFAULT_GROUP_MARGIN;
+    const widthMargin = JointUIService.DEFAULT_OPERATOR_WIDTH + 2 * JointUIService.DEFAULT_GROUP_MARGIN;
     const heightMargin =
       JointUIService.DEFAULT_OPERATOR_HEIGHT +
       JointUIService.DEFAULT_GROUP_MARGIN +
@@ -297,22 +268,16 @@ export class JointUIService {
       position: groupElementPosition,
       size: {
         width: bottomRight.x - topLeft.x + widthMargin,
-        height: bottomRight.y - topLeft.y + heightMargin
+        height: bottomRight.y - topLeft.y + heightMargin,
       },
-      attrs: JointUIService.getCustomGroupStyleAttrs(
-        bottomRight.x - topLeft.x + widthMargin
-      )
+      attrs: JointUIService.getCustomGroupStyleAttrs(bottomRight.x - topLeft.x + widthMargin),
     });
 
     groupElement.set("id", group.groupID);
     return groupElement;
   }
 
-  public changeOperatorState(
-    jointPaper: joint.dia.Paper,
-    operatorID: string,
-    operatorState: OperatorState
-  ): void {
+  public changeOperatorState(jointPaper: joint.dia.Paper, operatorID: string, operatorState: OperatorState): void {
     let fillColor: string;
     switch (operatorState) {
       case OperatorState.Completed:
@@ -327,12 +292,8 @@ export class JointUIService {
         break;
     }
 
-    jointPaper
-      .getModelById(operatorID)
-      .attr(`.${operatorStateClass}/text`, operatorState.toString());
-    jointPaper
-      .getModelById(operatorID)
-      .attr(`.${operatorStateClass}/fill`, fillColor);
+    jointPaper.getModelById(operatorID).attr(`.${operatorStateClass}/text`, operatorState.toString());
+    jointPaper.getModelById(operatorID).attr(`.${operatorStateClass}/fill`, fillColor);
   }
 
   /**
@@ -342,10 +303,7 @@ export class JointUIService {
    * @param jointPaper
    * @param groupID
    */
-  public hideGroupExpandButton(
-    jointPaper: joint.dia.Paper,
-    groupID: string
-  ): void {
+  public hideGroupExpandButton(jointPaper: joint.dia.Paper, groupID: string): void {
     jointPaper.getModelById(groupID).attr(".expand-button/display", "none");
     jointPaper.getModelById(groupID).removeAttr(".collapse-button/display");
   }
@@ -357,10 +315,7 @@ export class JointUIService {
    * @param jointPaper
    * @param groupID
    */
-  public hideGroupCollapseButton(
-    jointPaper: joint.dia.Paper,
-    groupID: string
-  ): void {
+  public hideGroupCollapseButton(jointPaper: joint.dia.Paper, groupID: string): void {
     jointPaper.getModelById(groupID).attr(".collapse-button/display", "none");
     jointPaper.getModelById(groupID).removeAttr(".expand-button/display");
   }
@@ -373,14 +328,8 @@ export class JointUIService {
    * @param groupID
    * @param width
    */
-  public repositionGroupCollapseButton(
-    jointPaper: joint.dia.Paper,
-    groupID: string,
-    width: number
-  ): void {
-    jointPaper
-      .getModelById(groupID)
-      .attr(".collapse-button/x", `${width - 23}`);
+  public repositionGroupCollapseButton(jointPaper: joint.dia.Paper, groupID: string, width: number): void {
+    jointPaper.getModelById(groupID).attr(".collapse-button/x", `${width - 23}`);
   }
 
   /**
@@ -392,11 +341,7 @@ export class JointUIService {
    * @param operatorID
    * @param status
    */
-  public changeOperatorColor(
-    jointPaper: joint.dia.Paper,
-    operatorID: string,
-    isOperatorValid: boolean
-  ): void {
+  public changeOperatorColor(jointPaper: joint.dia.Paper, operatorID: string, isOperatorValid: boolean): void {
     if (isOperatorValid) {
       jointPaper.getModelById(operatorID).attr("rect/stroke", "#CFCFCF");
     } else {
@@ -404,13 +349,8 @@ export class JointUIService {
     }
   }
 
-  public changeOperatorDisableStatus(
-    jointPaper: joint.dia.Paper,
-    operator: OperatorPredicate
-  ): void {
-    jointPaper
-      .getModelById(operator.operatorID)
-      .attr("rect/fill", JointUIService.getOperatorFillColor(operator));
+  public changeOperatorDisableStatus(jointPaper: joint.dia.Paper, operator: OperatorPredicate): void {
+    jointPaper.getModelById(operator.operatorID).attr("rect/fill", JointUIService.getOperatorFillColor(operator));
   }
 
   public changeOperatorCacheStatus(
@@ -418,21 +358,13 @@ export class JointUIService {
     operator: OperatorPredicate,
     cacheStatus?: OperatorResultCacheStatus
   ): void {
-    const cacheText = JointUIService.getOperatorCacheDisplayText(
-      operator,
-      cacheStatus
-    );
-    const cacheIcon = JointUIService.getOperatorCacheIcon(
-      operator,
-      cacheStatus
-    );
+    const cacheText = JointUIService.getOperatorCacheDisplayText(operator, cacheStatus);
+    const cacheIcon = JointUIService.getOperatorCacheIcon(operator, cacheStatus);
 
-    jointPaper
-      .getModelById(operator.operatorID)
-      .attr(`.${operatorCacheIconClass}/xlink:href`, cacheIcon);
-    jointPaper
-      .getModelById(operator.operatorID)
-      .attr(`.${operatorCacheIconClass}/title`, cacheText);
+    const cacheIndicatorText = cacheText === "" ? "" : "cache";
+    jointPaper.getModelById(operator.operatorID).attr(`.${operatorCacheTextClass}/text`, cacheIndicatorText);
+    jointPaper.getModelById(operator.operatorID).attr(`.${operatorCacheIconClass}/xlink:href`, cacheIcon);
+    jointPaper.getModelById(operator.operatorID).attr(`.${operatorCacheIconClass}/title`, cacheText);
   }
 
   public changeOperatorJointDisplayName(
@@ -440,9 +372,7 @@ export class JointUIService {
     jointPaper: joint.dia.Paper,
     displayName: string
   ): void {
-    jointPaper
-      .getModelById(operator.operatorID)
-      .attr(`.${operatorNameClass}/text`, displayName);
+    jointPaper.getModelById(operator.operatorID).attr(`.${operatorNameClass}/text`, displayName);
   }
 
   public getBreakpointButton(): new () => joint.linkTools.Button {
@@ -456,8 +386,8 @@ export class JointUIService {
             attributes: {
               r: 10,
               fill: "#001DFF",
-              cursor: "pointer"
-            }
+              cursor: "pointer",
+            },
           },
           {
             tagName: "path",
@@ -467,9 +397,9 @@ export class JointUIService {
               fill: "none",
               stroke: "#FFFFFF",
               "stroke-width": 2,
-              "pointer-events": "none"
-            }
-          }
+              "pointer-events": "none",
+            },
+          },
         ],
         distance: 60,
         offset: 0,
@@ -478,8 +408,8 @@ export class JointUIService {
           if (linkView.paper) {
             linkView.paper.trigger("tool:breakpoint", linkView, event);
           }
-        }
-      }
+        },
+      },
     });
   }
 
@@ -495,11 +425,11 @@ export class JointUIService {
     const jointLinkCell = JointUIService.getDefaultLinkCell();
     jointLinkCell.set("source", {
       id: link.source.operatorID,
-      port: link.source.portID
+      port: link.source.portID,
     });
     jointLinkCell.set("target", {
       id: link.target.operatorID,
-      port: link.target.portID
+      port: link.target.portID,
     });
     jointLinkCell.set("id", link.linkID);
     return jointLinkCell;
@@ -526,10 +456,10 @@ export class JointUIService {
   public static getDefaultLinkCell(): joint.dia.Link {
     const link = new joint.dia.Link({
       router: {
-        name: "manhattan"
+        name: "manhattan",
       },
       connector: {
-        name: "rounded"
+        name: "rounded",
       },
       toolMarkup: `<g class="link-tool">
           <g class="tool-remove" event="tool:remove">
@@ -543,38 +473,38 @@ export class JointUIService {
       attrs: {
         ".connection": {
           stroke: linkPathStrokeColor,
-          "stroke-width": "2px"
+          "stroke-width": "2px",
         },
         ".connection-wrap": {
-          "stroke-width": "0px"
+          "stroke-width": "0px",
           // 'display': 'inline'
         },
         ".marker-source": {
           d: sourceOperatorHandle,
           stroke: "none",
-          fill: "#919191"
+          fill: "#919191",
         },
         ".marker-arrowhead-group-source .marker-arrowhead": {
-          d: sourceOperatorHandle
+          d: sourceOperatorHandle,
         },
         ".marker-target": {
           d: targetOperatorHandle,
           stroke: "none",
-          fill: "#919191"
+          fill: "#919191",
         },
         ".marker-arrowhead-group-target .marker-arrowhead": {
-          d: targetOperatorHandle
+          d: targetOperatorHandle,
         },
         ".tool-remove": {
           fill: "#D8656A",
           width: 24,
-          display: "none"
+          display: "none",
         },
         ".tool-remove path": {
-          d: deleteButtonPath
+          d: deleteButtonPath,
         },
-        ".tool-remove circle": {}
-      }
+        ".tool-remove circle": {},
+      },
     });
     return link;
   }
@@ -590,9 +520,9 @@ export class JointUIService {
       ".port-body": {
         fill: "#A0A0A0",
         r: 5,
-        stroke: "none"
+        stroke: "none",
       },
-      ".port-label": {}
+      ".port-label": {},
     };
     return portStyleAttrs;
   }
@@ -604,7 +534,7 @@ export class JointUIService {
   public static getCustomOperatorStatusTooltipStyleAttrs(): joint.shapes.devs.ModelSelectors {
     const tooltipStyleAttrs = {
       "element-node": {
-        style: { "pointer-events": "none" }
+        style: { "pointer-events": "none" },
       },
       polygon: {
         fill: "#FFFFFF",
@@ -615,7 +545,7 @@ export class JointUIService {
         ry: "5px",
         refPoints: "0,30 150,30 150,120 85,120 75,150 65,120 0,120",
         display: "none",
-        style: { "pointer-events": "none" }
+        style: { "pointer-events": "none" },
       },
       "#operatorCount": {
         fill: "#595959",
@@ -626,8 +556,8 @@ export class JointUIService {
         "ref-x": 0.05,
         "ref-y": 0.2,
         display: "none",
-        style: { "pointer-events": "none" }
-      }
+        style: { "pointer-events": "none" },
+      },
     };
     return tooltipStyleAttrs;
   }
@@ -654,7 +584,7 @@ export class JointUIService {
         "ref-y": 100,
         ref: "rect",
         "y-alignment": "middle",
-        "x-alignment": "middle"
+        "x-alignment": "middle",
       },
       ".texera-operator-processed-count": {
         text: "",
@@ -665,7 +595,7 @@ export class JointUIService {
         "ref-y": -40,
         ref: "rect",
         "y-alignment": "middle",
-        "x-alignment": "middle"
+        "x-alignment": "middle",
       },
       ".texera-operator-output-count": {
         text: "",
@@ -676,7 +606,7 @@ export class JointUIService {
         "ref-y": -20,
         ref: "rect",
         "y-alignment": "middle",
-        "x-alignment": "middle"
+        "x-alignment": "middle",
       },
       rect: {
         fill: JointUIService.getOperatorFillColor(operator),
@@ -684,7 +614,7 @@ export class JointUIService {
         stroke: "red",
         "stroke-width": "2",
         rx: "5px",
-        ry: "5px"
+        ry: "5px",
       },
       ".texera-operator-name": {
         text: operatorDisplayName,
@@ -694,14 +624,14 @@ export class JointUIService {
         "ref-y": 80,
         ref: "rect",
         "y-alignment": "middle",
-        "x-alignment": "middle"
+        "x-alignment": "middle",
       },
       ".delete-button": {
         x: 60,
         y: -20,
         cursor: "pointer",
         fill: "#D8656A",
-        event: "element:delete"
+        event: "element:delete",
       },
       ".texera-operator-icon": {
         "xlink:href": "assets/operator_images/" + operatorType + ".png",
@@ -711,10 +641,10 @@ export class JointUIService {
         "ref-y": 0.5,
         ref: "rect",
         "x-alignment": "middle",
-        "y-alignment": "middle"
+        "y-alignment": "middle",
       },
       ".texera-operator-result-cache-text": {
-        text: "cache",
+        text: JointUIService.getOperatorCacheDisplayText(operator) === "" ? "" : "cache",
         fill: "#595959",
         "font-size": "14px",
         visible: true,
@@ -722,7 +652,7 @@ export class JointUIService {
         "ref-y": 60,
         ref: "rect",
         "y-alignment": "middle",
-        "x-alignment": "middle"
+        "x-alignment": "middle",
       },
       ".texera-operator-result-cache-icon": {
         "xlink:href": JointUIService.getOperatorCacheIcon(operator),
@@ -733,8 +663,8 @@ export class JointUIService {
         "ref-y": 50,
         ref: "rect",
         "x-alignment": "middle",
-        "y-alignment": "middle"
-      }
+        "y-alignment": "middle",
+      },
     };
     return operatorStyleAttrs;
   }
@@ -755,10 +685,7 @@ export class JointUIService {
     return isCached ? "to be cached" : "";
   }
 
-  public static getOperatorCacheIcon(
-    operator: OperatorPredicate,
-    cacheStatus?: OperatorResultCacheStatus
-  ): string {
+  public static getOperatorCacheIcon(operator: OperatorPredicate, cacheStatus?: OperatorResultCacheStatus): string {
     if (cacheStatus && cacheStatus !== "cache not enabled") {
       if (cacheStatus === "cache valid") {
         return "assets/svg/operator-result-cache-successful.svg";
@@ -787,9 +714,7 @@ export class JointUIService {
    * @param width width of the group (used to position the collapse button)
    * @returns the custom attributes of the group
    */
-  public static getCustomGroupStyleAttrs(
-    width: number
-  ): joint.shapes.devs.ModelSelectors {
+  public static getCustomGroupStyleAttrs(width: number): joint.shapes.devs.ModelSelectors {
     const groupStyleAttrs = {
       rect: {
         fill: "#F2F4F5",
@@ -797,21 +722,21 @@ export class JointUIService {
         stroke: "#CED4D9",
         "stroke-width": "2",
         rx: "5px",
-        ry: "5px"
+        ry: "5px",
       },
       text: {
         fill: "#595959",
         "font-size": "16px",
         "ref-x": 15,
         "ref-y": 20,
-        ref: "rect"
+        ref: "rect",
       },
       ".collapse-button": {
         x: width - 23,
         y: 6,
         cursor: "pointer",
         fill: "#728393",
-        event: "element:collapse"
+        event: "element:collapse",
       },
       ".expand-button": {
         x: 147,
@@ -819,8 +744,8 @@ export class JointUIService {
         cursor: "pointer",
         fill: "#728393",
         event: "element:expand",
-        display: "none"
-      }
+        display: "none",
+      },
     };
     return groupStyleAttrs;
   }

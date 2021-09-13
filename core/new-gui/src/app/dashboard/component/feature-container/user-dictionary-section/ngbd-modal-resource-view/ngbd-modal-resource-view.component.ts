@@ -16,18 +16,15 @@ const DICTIONARY_ITEM_PREVIEW_SIZE = 20;
 @Component({
   selector: "texera-resource-section-modal",
   templateUrl: "./ngbd-modal-resource-view.component.html",
-  styleUrls: [
-    "./ngbd-modal-resource-view.component.scss",
-    "../../../dashboard.component.scss"
-  ],
-  providers: [UserDictionaryService]
+  styleUrls: ["./ngbd-modal-resource-view.component.scss", "../../../dashboard.component.scss"],
+  providers: [UserDictionaryService],
 })
 export class NgbdModalResourceViewComponent {
   public dictionary: UserDictionary = {
     name: "",
     id: -1,
     items: [],
-    description: ""
+    description: "",
   };
 
   public name: string = "";
@@ -36,10 +33,7 @@ export class NgbdModalResourceViewComponent {
   public visible = true;
   public selectable = true;
 
-  constructor(
-    public activeModal: NgbActiveModal,
-    private userDictionaryService: UserDictionaryService
-  ) {}
+  constructor(public activeModal: NgbActiveModal, private userDictionaryService: UserDictionaryService) {}
 
   /**
    * addDictionaryItem gets the item added by user and sends it back to the main component.
@@ -62,15 +56,11 @@ export class NgbdModalResourceViewComponent {
    * @param item: name of the dictionary item
    */
   public remove(item: string): void {
-    this.dictionary.items = this.dictionary.items.filter(
-      (dictItems) => dictItems !== item
-    );
+    this.dictionary.items = this.dictionary.items.filter(dictItems => dictItems !== item);
     this.userDictionaryService.updateDictionary(this.dictionary);
   }
 
   public limitPreviewItemSize(item: string): string {
-    return item.length <= DICTIONARY_ITEM_PREVIEW_SIZE
-      ? item
-      : item.substr(0, DICTIONARY_ITEM_PREVIEW_SIZE) + "...";
+    return item.length <= DICTIONARY_ITEM_PREVIEW_SIZE ? item : item.substr(0, DICTIONARY_ITEM_PREVIEW_SIZE) + "...";
   }
 }

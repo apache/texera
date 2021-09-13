@@ -4,13 +4,9 @@ import {
   LogicalPlan,
   WebOutputMode,
   WorkflowResultUpdateEvent,
-  WorkflowStatusUpdate
+  WorkflowStatusUpdate,
 } from "./execute-workflow.interface";
-import {
-  BreakpointFaultedTuple,
-  BreakpointTriggerInfo,
-  PythonPrintTriggerInfo
-} from "./workflow-common.interface";
+import { BreakpointFaultedTuple, BreakpointTriggerInfo, PythonPrintTriggerInfo } from "./workflow-common.interface";
 
 /**
  *  @fileOverview Type Definitions of WebSocket (Ws) API
@@ -100,10 +96,7 @@ export type WorkflowAvailableResultEvent = Readonly<{
   availableOperators: ReadonlyArray<OperatorAvailableResult>;
 }>;
 
-export type OperatorResultCacheStatus =
-  | "cache invalid"
-  | "cache valid"
-  | "cache not enabled";
+export type OperatorResultCacheStatus = "cache invalid" | "cache valid" | "cache not enabled";
 export interface CacheStatusUpdateEvent
   extends Readonly<{
     cacheStatusMap: Record<string, OperatorResultCacheStatus>;
@@ -157,8 +150,7 @@ type CustomUnionType<T> = ValueOf<
 >;
 
 export type TexeraWebsocketRequestTypes = keyof TexeraWebsocketRequestTypeMap;
-export type TexeraWebsocketRequest =
-  CustomUnionType<TexeraWebsocketRequestTypeMap>;
+export type TexeraWebsocketRequest = CustomUnionType<TexeraWebsocketRequestTypeMap>;
 
 export type TexeraWebsocketEventTypes = keyof TexeraWebsocketEventTypeMap;
 export type TexeraWebsocketEvent = CustomUnionType<TexeraWebsocketEventTypeMap>;

@@ -24,7 +24,7 @@ export const TEXERA_FORMLY_CONFIG = {
     { name: "minItems", message: minItemsValidationMessage },
     { name: "maxItems", message: maxItemsValidationMessage },
     { name: "uniqueItems", message: "should NOT have duplicate items" },
-    { name: "const", message: constValidationMessage }
+    { name: "const", message: constValidationMessage },
   ],
   types: [
     { name: "string", extends: "input" },
@@ -33,18 +33,18 @@ export const TEXERA_FORMLY_CONFIG = {
       extends: "input",
       defaultOptions: {
         templateOptions: {
-          type: "number"
-        }
-      }
+          type: "number",
+        },
+      },
     },
     {
       name: "integer",
       extends: "input",
       defaultOptions: {
         templateOptions: {
-          type: "number"
-        }
-      }
+          type: "number",
+        },
+      },
     },
     { name: "boolean", extends: "checkbox" },
     { name: "enum", extends: "select" },
@@ -52,8 +52,8 @@ export const TEXERA_FORMLY_CONFIG = {
     { name: "array", component: ArrayTypeComponent },
     { name: "object", component: ObjectTypeComponent },
     { name: "multischema", component: MultiSchemaTypeComponent },
-    { name: "codearea", component: CodeareaCustomTemplateComponent }
-  ]
+    { name: "codearea", component: CodeareaCustomTemplateComponent },
+  ],
 };
 
 export function minItemsValidationMessage(err: any, field: FormlyFieldConfig) {
@@ -80,24 +80,15 @@ export function maxValidationMessage(err: any, field: FormlyFieldConfig) {
   return `should be <= ${field.templateOptions?.max}`;
 }
 
-export function multipleOfValidationMessage(
-  err: any,
-  field: FormlyFieldConfig
-) {
+export function multipleOfValidationMessage(err: any, field: FormlyFieldConfig) {
   return `should be multiple of ${field.templateOptions?.step}`;
 }
 
-export function exclusiveMinimumValidationMessage(
-  err: any,
-  field: FormlyFieldConfig
-) {
+export function exclusiveMinimumValidationMessage(err: any, field: FormlyFieldConfig) {
   return `should be > ${field.templateOptions?.exclusiveMinimum}`;
 }
 
-export function exclusiveMaximumValidationMessage(
-  err: any,
-  field: FormlyFieldConfig
-) {
+export function exclusiveMaximumValidationMessage(err: any, field: FormlyFieldConfig) {
   return `should be < ${field.templateOptions?.exclusiveMaximum}`;
 }
 

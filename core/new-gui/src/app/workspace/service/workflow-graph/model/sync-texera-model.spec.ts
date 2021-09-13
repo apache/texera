@@ -9,7 +9,7 @@ import {
   mockScanResultLink,
   mockScanSentimentLink,
   mockSentimentPredicate,
-  mockSentimentResultLink
+  mockSentimentResultLink,
 } from "./mock-workflow-data";
 import { TestBed } from "@angular/core/testing";
 import { marbles } from "rxjs-marbles";
@@ -33,7 +33,7 @@ describe("SyncTexeraModel", () => {
    */
   function getJointOperatorValue(operatorID: string): joint.dia.Element {
     return {
-      id: operatorID
+      id: operatorID,
     } as joint.dia.Element;
   }
 
@@ -50,8 +50,8 @@ describe("SyncTexeraModel", () => {
       id: link.linkID,
       attributes: {
         source: { id: link.source.operatorID, port: link.source.portID },
-        target: { id: link.target.operatorID, port: link.target.portID }
-      }
+        target: { id: link.target.operatorID, port: link.target.portID },
+      },
       // getSourceElement: () => ({ id: link.source.operatorID }),
       // getTargetElement: () => ({ id: link.target.operatorID }),
       // get: (port: string) => {
@@ -88,11 +88,9 @@ describe("SyncTexeraModel", () => {
         } else if (port === "target") {
           return null;
         } else {
-          throw new Error(
-            "getJointLinkValue: mock is inconsistent with implementation"
-          );
+          throw new Error("getJointLinkValue: mock is inconsistent with implementation");
         }
-      }
+      },
     } as joint.dia.Link;
   }
 
@@ -104,9 +102,9 @@ describe("SyncTexeraModel", () => {
         JointUIService,
         {
           provide: OperatorMetadataService,
-          useClass: StubOperatorMetadataService
-        }
-      ]
+          useClass: StubOperatorMetadataService,
+        },
+      ],
     });
 
     texeraGraph = new WorkflowGraph();
@@ -129,19 +127,18 @@ describe("SyncTexeraModel", () => {
    */
   it(
     "should delete an operator when the delete operator event happens from JointJS",
-    marbles((m) => {
+    marbles(m => {
       // add operators
       texeraGraph.addOperator(mockScanPredicate);
 
       // prepare delete operator event stream
       const deleteOpMarbleString = "---d-|";
       const deleteOpMarbleValues = {
-        d: getJointOperatorValue(mockScanPredicate.operatorID)
+        d: getJointOperatorValue(mockScanPredicate.operatorID),
       };
-      spyOn(
-        jointGraphWrapper,
-        "getJointElementCellDeleteStream"
-      ).and.returnValue(m.hot(deleteOpMarbleString, deleteOpMarbleValues));
+      spyOn(jointGraphWrapper, "getJointElementCellDeleteStream").and.returnValue(
+        m.hot(deleteOpMarbleString, deleteOpMarbleValues)
+      );
 
       // construct the texera sync model with spied dependencies
       const syncTexeraModel = new SyncTexeraModel(
@@ -159,11 +156,9 @@ describe("SyncTexeraModel", () => {
       // assert workflow graph
       jointGraphWrapper.getJointElementCellDeleteStream().subscribe({
         complete: () => {
-          expect(
-            texeraGraph.hasOperator(mockScanPredicate.operatorID)
-          ).toBeFalsy();
+          expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeFalsy();
           expect(texeraGraph.getAllOperators().length).toEqual(0);
-        }
+        },
       });
     })
   );
@@ -183,7 +178,7 @@ describe("SyncTexeraModel", () => {
    */
   it(
     "should delete an operator and not touch other operators when the delete operator event happens from JointJS",
-    marbles((m) => {
+    marbles(m => {
       // add operators
       texeraGraph.addOperator(mockScanPredicate);
       texeraGraph.addOperator(mockResultPredicate);
@@ -191,12 +186,11 @@ describe("SyncTexeraModel", () => {
       // prepare delete operator
       const deleteOpMarbleString = "-----d-|";
       const deleteOpMarbleValues = {
-        d: getJointOperatorValue(mockScanPredicate.operatorID)
+        d: getJointOperatorValue(mockScanPredicate.operatorID),
       };
-      spyOn(
-        jointGraphWrapper,
-        "getJointElementCellDeleteStream"
-      ).and.returnValue(m.hot(deleteOpMarbleString, deleteOpMarbleValues));
+      spyOn(jointGraphWrapper, "getJointElementCellDeleteStream").and.returnValue(
+        m.hot(deleteOpMarbleString, deleteOpMarbleValues)
+      );
 
       // construct the texera sync model with spied dependencies
       // construct the texera sync model with spied dependencies
@@ -214,15 +208,11 @@ describe("SyncTexeraModel", () => {
 
       jointGraphWrapper.getJointElementCellDeleteStream().subscribe({
         complete: () => {
-          expect(
-            texeraGraph.hasOperator(mockScanPredicate.operatorID)
-          ).toBeFalsy();
-          expect(
-            texeraGraph.hasOperator(mockResultPredicate.operatorID)
-          ).toBeTruthy();
+          expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeFalsy();
+          expect(texeraGraph.hasOperator(mockResultPredicate.operatorID)).toBeTruthy();
           expect(texeraGraph.getAllOperators().length).toEqual(1);
           expect(texeraGraph.getAllLinks().length).toEqual(0);
-        }
+        },
       });
     })
   );
@@ -242,7 +232,7 @@ describe("SyncTexeraModel", () => {
    */
   it(
     "should explicitly throw an error if the JointJS operator delete event deletes a nonexist operator",
-    marbles((m) => {
+    marbles(m => {
       // add operators
       texeraGraph.addOperator(mockScanPredicate);
       texeraGraph.addOperator(mockResultPredicate);
@@ -252,14 +242,13 @@ describe("SyncTexeraModel", () => {
       // prepare delete operator
       const deleteOpMarbleString = "-----d-|";
       const deleteOpMarbleValues = {
-        d: getJointOperatorValue(mockScanPredicate.operatorID)
+        d: getJointOperatorValue(mockScanPredicate.operatorID),
       };
       // mock delete the operator operation at the same time frame of jointJS deleting it
       //  but executed before the handler
-      spyOn(
-        jointGraphWrapper,
-        "getJointElementCellDeleteStream"
-      ).and.returnValue(m.hot(deleteOpMarbleString, deleteOpMarbleValues));
+      spyOn(jointGraphWrapper, "getJointElementCellDeleteStream").and.returnValue(
+        m.hot(deleteOpMarbleString, deleteOpMarbleValues)
+      );
 
       // construct the texera sync model with spied dependencies
 
@@ -287,7 +276,7 @@ describe("SyncTexeraModel", () => {
    */
   it(
     "should add a link when link add event happen from JointJS",
-    marbles((m) => {
+    marbles(m => {
       // add operators
       texeraGraph.addOperator(mockScanPredicate);
       texeraGraph.addOperator(mockResultPredicate);
@@ -295,7 +284,7 @@ describe("SyncTexeraModel", () => {
       // prepare add link
       const addLinkMarbleString = "-----p-|";
       const addLinkMarbleValues = {
-        p: getJointLinkValue(mockScanResultLink)
+        p: getJointLinkValue(mockScanResultLink),
       };
       spyOn(jointGraphWrapper, "getJointLinkCellAddStream").and.returnValue(
         m.hot(addLinkMarbleString, addLinkMarbleValues)
@@ -319,19 +308,10 @@ describe("SyncTexeraModel", () => {
         complete: () => {
           expect(texeraGraph.getAllOperators().length).toEqual(2);
           expect(texeraGraph.getAllLinks().length).toEqual(1);
-          expect(
-            texeraGraph.hasLinkWithID(mockScanResultLink.linkID)
-          ).toBeTruthy();
-          expect(texeraGraph.getLinkWithID(mockScanResultLink.linkID)).toEqual(
-            mockScanResultLink
-          );
-          expect(
-            texeraGraph.hasLink(
-              mockScanResultLink.source,
-              mockScanResultLink.target
-            )
-          ).toBeTruthy();
-        }
+          expect(texeraGraph.hasLinkWithID(mockScanResultLink.linkID)).toBeTruthy();
+          expect(texeraGraph.getLinkWithID(mockScanResultLink.linkID)).toEqual(mockScanResultLink);
+          expect(texeraGraph.hasLink(mockScanResultLink.source, mockScanResultLink.target)).toBeTruthy();
+        },
       });
     })
   );
@@ -354,7 +334,7 @@ describe("SyncTexeraModel", () => {
    */
   it(
     "should not create a link when an incomplete link is added in JointJS",
-    marbles((m) => {
+    marbles(m => {
       // add operators
       texeraGraph.addOperator(mockScanPredicate);
       texeraGraph.addOperator(mockResultPredicate);
@@ -362,7 +342,7 @@ describe("SyncTexeraModel", () => {
       // prepare add link (incomplete link)
       const addLinkMarbleString = "-----q-|";
       const addLinkMarbleValues = {
-        q: getIncompleteJointLink(mockScanResultLink)
+        q: getIncompleteJointLink(mockScanResultLink),
       };
       spyOn(jointGraphWrapper, "getJointLinkCellAddStream").and.returnValue(
         m.hot(addLinkMarbleString, addLinkMarbleValues)
@@ -385,7 +365,7 @@ describe("SyncTexeraModel", () => {
       jointGraphWrapper.getJointLinkCellDeleteStream().subscribe({
         complete: () => {
           expect(texeraGraph.getAllLinks().length).toEqual(0);
-        }
+        },
       });
     })
   );
@@ -404,7 +384,7 @@ describe("SyncTexeraModel", () => {
    */
   it(
     "should delete a link when link delete event happens from JointJS",
-    marbles((m) => {
+    marbles(m => {
       // add operators
       texeraGraph.addOperator(mockScanPredicate);
       texeraGraph.addOperator(mockResultPredicate);
@@ -415,7 +395,7 @@ describe("SyncTexeraModel", () => {
       // prepare delete link
       const deleteLinkMarbleString = "-------r-|";
       const deleteLinkMarbleValues = {
-        r: getJointLinkValue(mockScanResultLink)
+        r: getJointLinkValue(mockScanResultLink),
       };
       spyOn(jointGraphWrapper, "getJointLinkCellDeleteStream").and.returnValue(
         m.hot(deleteLinkMarbleString, deleteLinkMarbleValues)
@@ -438,7 +418,7 @@ describe("SyncTexeraModel", () => {
       jointGraphWrapper.getJointLinkCellDeleteStream().subscribe({
         complete: () => {
           expect(texeraGraph.getAllLinks().length).toEqual(0);
-        }
+        },
       });
     })
   );
@@ -464,7 +444,7 @@ describe("SyncTexeraModel", () => {
    */
   it(
     "should ignore JointJS link delete event of an incomplete link",
-    marbles((m) => {
+    marbles(m => {
       // add operators
       texeraGraph.addOperator(mockScanPredicate);
       texeraGraph.addOperator(mockResultPredicate);
@@ -472,7 +452,7 @@ describe("SyncTexeraModel", () => {
       // prepare add link (incomplete link)
       const addLinkMarbleString = "-----q-|";
       const addLinkMarbleValues = {
-        q: getIncompleteJointLink(mockScanResultLink)
+        q: getIncompleteJointLink(mockScanResultLink),
       };
       spyOn(jointGraphWrapper, "getJointLinkCellAddStream").and.returnValue(
         m.hot(addLinkMarbleString, addLinkMarbleValues)
@@ -481,7 +461,7 @@ describe("SyncTexeraModel", () => {
       // prepare delete link (incomplete link)
       const deleteLinkMarbleString = "-------r-|";
       const deleteLinkMarbleValues = {
-        r: getIncompleteJointLink(mockScanResultLink)
+        r: getIncompleteJointLink(mockScanResultLink),
       };
       spyOn(jointGraphWrapper, "getJointLinkCellDeleteStream").and.returnValue(
         m.hot(deleteLinkMarbleString, deleteLinkMarbleValues)
@@ -503,7 +483,7 @@ describe("SyncTexeraModel", () => {
       jointGraphWrapper.getJointLinkCellAddStream().subscribe({
         complete: () => {
           expect(texeraGraph.getAllLinks().length).toEqual(0);
-        }
+        },
       });
     })
   );
@@ -525,7 +505,7 @@ describe("SyncTexeraModel", () => {
    */
   it(
     "should delete the link when a link is detached from the target port",
-    marbles((m) => {
+    marbles(m => {
       // add operators
       texeraGraph.addOperator(mockScanPredicate);
       texeraGraph.addOperator(mockResultPredicate);
@@ -536,7 +516,7 @@ describe("SyncTexeraModel", () => {
       // prepare change link (link detached from target port)
       const changeLinkMarbleString = "-------q-|";
       const changeLinkMarbleValues = {
-        q: getIncompleteJointLink(mockScanResultLink)
+        q: getIncompleteJointLink(mockScanResultLink),
       };
       spyOn(jointGraphWrapper, "getJointLinkCellChangeStream").and.returnValue(
         m.hot(changeLinkMarbleString, changeLinkMarbleValues)
@@ -558,7 +538,7 @@ describe("SyncTexeraModel", () => {
       jointGraphWrapper.getJointLinkCellChangeStream().subscribe({
         complete: () => {
           expect(texeraGraph.getAllLinks().length).toEqual(0);
-        }
+        },
       });
     })
   );
@@ -584,7 +564,7 @@ describe("SyncTexeraModel", () => {
    */
   it(
     "should delete and then re-add the link if link target is changed from one port to another",
-    marbles((m) => {
+    marbles(m => {
       // add operators
       texeraGraph.addOperator(mockScanPredicate);
       texeraGraph.addOperator(mockSentimentPredicate);
@@ -593,7 +573,7 @@ describe("SyncTexeraModel", () => {
       // prepare add link
       const addLinkMarbleString = "-------p-|";
       const addLinkMarbleValues = {
-        p: getJointLinkValue(mockScanResultLink)
+        p: getJointLinkValue(mockScanResultLink),
       };
       spyOn(jointGraphWrapper, "getJointLinkCellAddStream").and.returnValue(
         m.hot(addLinkMarbleString, addLinkMarbleValues)
@@ -603,13 +583,13 @@ describe("SyncTexeraModel", () => {
       // but the link ID remains the same
       const mockChangedLink = {
         ...mockScanSentimentLink,
-        linkID: mockScanResultLink.linkID
+        linkID: mockScanResultLink.linkID,
       };
 
       // prepare change link (link detached from target port)
       const changeLinkMarbleString = "---------t-|";
       const changeLinkMarbleValues = {
-        t: getJointLinkValue(mockChangedLink)
+        t: getJointLinkValue(mockChangedLink),
       };
       spyOn(jointGraphWrapper, "getJointLinkCellChangeStream").and.returnValue(
         m.hot(changeLinkMarbleString, changeLinkMarbleValues)
@@ -631,22 +611,11 @@ describe("SyncTexeraModel", () => {
       jointGraphWrapper.getJointLinkCellChangeStream().subscribe({
         complete: () => {
           expect(texeraGraph.getAllLinks().length).toEqual(1);
-          expect(
-            texeraGraph.hasLinkWithID(mockChangedLink.linkID)
-          ).toBeTruthy();
-          expect(texeraGraph.getLinkWithID(mockChangedLink.linkID)).toEqual(
-            mockChangedLink
-          );
-          expect(
-            texeraGraph.hasLink(
-              mockScanResultLink.source,
-              mockScanResultLink.target
-            )
-          ).toBeFalsy();
-          expect(
-            texeraGraph.hasLink(mockChangedLink.source, mockChangedLink.target)
-          ).toBeTruthy();
-        }
+          expect(texeraGraph.hasLinkWithID(mockChangedLink.linkID)).toBeTruthy();
+          expect(texeraGraph.getLinkWithID(mockChangedLink.linkID)).toEqual(mockChangedLink);
+          expect(texeraGraph.hasLink(mockScanResultLink.source, mockScanResultLink.target)).toBeFalsy();
+          expect(texeraGraph.hasLink(mockChangedLink.source, mockChangedLink.target)).toBeTruthy();
+        },
       });
     })
   );
@@ -671,7 +640,7 @@ describe("SyncTexeraModel", () => {
    */
   it(
     "should remove then add link if link target port is detached then dragged around then re-attached",
-    marbles((m) => {
+    marbles(m => {
       // add operators
       texeraGraph.addOperator(mockScanPredicate);
       texeraGraph.addOperator(mockSentimentPredicate);
@@ -684,7 +653,7 @@ describe("SyncTexeraModel", () => {
       // but the link ID remains the same
       const mockChangedLink = {
         ...mockScanSentimentLink,
-        linkID: mockScanResultLink.linkID
+        linkID: mockScanResultLink.linkID,
       };
 
       // prepare change link (link detached from target port)
@@ -693,7 +662,7 @@ describe("SyncTexeraModel", () => {
         q: getIncompleteJointLink(mockScanResultLink),
         r: getIncompleteJointLink(mockScanResultLink),
         s: getIncompleteJointLink(mockScanResultLink),
-        t: getJointLinkValue(mockChangedLink)
+        t: getJointLinkValue(mockChangedLink),
       };
       spyOn(jointGraphWrapper, "getJointLinkCellChangeStream").and.returnValue(
         m.hot(changeLinkMarbleString, changeLinkMarbleValues)
@@ -715,23 +684,21 @@ describe("SyncTexeraModel", () => {
       jointGraphWrapper.getJointLinkCellChangeStream().subscribe({
         complete: () => {
           expect(texeraGraph.getAllLinks().length).toEqual(1);
-          expect(
-            texeraGraph.hasLink(mockChangedLink.source, mockChangedLink.target)
-          ).toBeTruthy();
-        }
+          expect(texeraGraph.hasLink(mockChangedLink.source, mockChangedLink.target)).toBeTruthy();
+        },
       });
 
       // assert link delete stream: delete original link
       const linkDeleteStream = texeraGraph.getLinkDeleteStream();
       const expectedDeleteStream = m.hot("---------q---", {
-        q: { deletedLink: mockScanResultLink }
+        q: { deletedLink: mockScanResultLink },
       });
       m.expect(linkDeleteStream).toBeObservable(expectedDeleteStream);
 
       // assert link add stream: changed link after its re-attached (original link is added synchronously in the begining)
       const linkAddStream = texeraGraph.getLinkAddStream();
       const expectedAddStream = m.hot("---------------t-", {
-        t: mockChangedLink
+        t: mockChangedLink,
       });
       m.expect(linkAddStream).toBeObservable(expectedAddStream);
     })
@@ -757,7 +724,7 @@ describe("SyncTexeraModel", () => {
    */
   it(
     "should remove an operator and its connected links when that operator is deleted from jointJS",
-    marbles((m) => {
+    marbles(m => {
       // add operators
       texeraGraph.addOperator(mockScanPredicate);
       texeraGraph.addOperator(mockSentimentPredicate);
@@ -770,12 +737,11 @@ describe("SyncTexeraModel", () => {
       // prepare the delete oprator event
       const deleteOperatorString = "---------d-|";
       const deleteOperatorValue = {
-        d: getJointOperatorValue(mockSentimentPredicate.operatorID)
+        d: getJointOperatorValue(mockSentimentPredicate.operatorID),
       };
-      spyOn(
-        jointGraphWrapper,
-        "getJointElementCellDeleteStream"
-      ).and.returnValue(m.hot(deleteOperatorString, deleteOperatorValue));
+      spyOn(jointGraphWrapper, "getJointElementCellDeleteStream").and.returnValue(
+        m.hot(deleteOperatorString, deleteOperatorValue)
+      );
 
       /**
        * once the operator is deleted, JointJS will automatically delete connected links
@@ -784,7 +750,7 @@ describe("SyncTexeraModel", () => {
       const deleteLinkString = "---------(gh)-|";
       const deleteLinkValue = {
         g: getJointLinkValue(mockScanSentimentLink),
-        h: getJointLinkValue(mockSentimentResultLink)
+        h: getJointLinkValue(mockSentimentResultLink),
       };
 
       spyOn(jointGraphWrapper, "getJointLinkCellDeleteStream").and.returnValue(
@@ -805,24 +771,14 @@ describe("SyncTexeraModel", () => {
       );
       jointGraphWrapper.getJointElementCellDeleteStream().subscribe({
         complete: () => {
-          expect(
-            texeraGraph.hasOperator(mockSentimentPredicate.operatorID)
-          ).toBeFalsy();
-          expect(
-            texeraGraph.hasOperator(mockScanPredicate.operatorID)
-          ).toBeTruthy();
-          expect(
-            texeraGraph.hasOperator(mockResultPredicate.operatorID)
-          ).toBeTruthy();
+          expect(texeraGraph.hasOperator(mockSentimentPredicate.operatorID)).toBeFalsy();
+          expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeTruthy();
+          expect(texeraGraph.hasOperator(mockResultPredicate.operatorID)).toBeTruthy();
           expect(texeraGraph.getAllOperators().length).toEqual(2);
-          expect(
-            texeraGraph.hasLinkWithID(mockScanSentimentLink.linkID)
-          ).toBeFalsy();
-          expect(
-            texeraGraph.hasLinkWithID(mockSentimentResultLink.linkID)
-          ).toBeFalsy();
+          expect(texeraGraph.hasLinkWithID(mockScanSentimentLink.linkID)).toBeFalsy();
+          expect(texeraGraph.hasLinkWithID(mockSentimentResultLink.linkID)).toBeFalsy();
           expect(texeraGraph.getAllLinks().length).toEqual(0);
-        }
+        },
       });
     })
   );

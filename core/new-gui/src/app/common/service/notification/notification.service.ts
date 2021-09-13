@@ -11,7 +11,7 @@ export interface Notification {
  * to show on NotificationComponent.
  */
 @Injectable({
-  providedIn: "root"
+  providedIn: "root",
 })
 export class NotificationService {
   private notificationStream = new Subject<Notification>();

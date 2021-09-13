@@ -23,17 +23,9 @@ type JointModelEventInfo = {
 // which is a 3-element tuple:
 // 1. the JointJS model (Cell) of the event
 // 2 and 3. additional information of the event
-type JointModelEvent = [
-  joint.dia.Cell,
-  { graph: joint.dia.Graph; models: joint.dia.Cell[] },
-  JointModelEventInfo
-];
+type JointModelEvent = [joint.dia.Cell, { graph: joint.dia.Graph; models: joint.dia.Cell[] }, JointModelEventInfo];
 
-type JointLinkChangeEvent = [
-  joint.dia.Link,
-  { x: number; y: number },
-  { ui: boolean; updateConnectionOnly: boolean }
-];
+type JointLinkChangeEvent = [joint.dia.Link, { x: number; y: number }, { ui: boolean; updateConnectionOnly: boolean }];
 
 type JointPositionChangeEvent = [joint.dia.Element, { x: number; y: number }];
 
@@ -77,18 +69,13 @@ export class JointGraphWrapper {
   public static readonly ZOOM_MINIMUM: number = 0.7;
   public static readonly ZOOM_MAXIMUM: number = 1.3;
 
-  public navigatorMoveDelta: Subject<{ deltaX: number; deltaY: number }> =
-    new Subject();
+  public navigatorMoveDelta: Subject<{ deltaX: number; deltaY: number }> = new Subject();
 
   private mainJointPaper: joint.dia.Paper | undefined;
-  private mainJointPaperAttachedStream: Subject<joint.dia.Paper> =
-    new ReplaySubject(1);
+  private mainJointPaperAttachedStream: Subject<joint.dia.Paper> = new ReplaySubject(1);
   private miniMapPaper: joint.dia.Paper | undefined;
 
-  private elementPositions: Map<string, PositionInfo> = new Map<
-    string,
-    PositionInfo
-  >();
+  private elementPositions: Map<string, PositionInfo> = new Map<string, PositionInfo>();
   private listenPositionChange: boolean = true;
 
   // flag that indicates whether multiselect mode is on
@@ -97,7 +84,7 @@ export class JointGraphWrapper {
   private currentHighlights: JointHighlights = {
     operators: [],
     groups: [],
-    links: []
+    links: [],
   };
 
   // the currently highlighted operators' IDs
@@ -138,48 +125,37 @@ export class JointGraphWrapper {
    * This will capture all events in JointJS
    *  involving the 'add' operation
    */
-  private jointCellAddStream = fromEvent<JointModelEvent>(
-    this.jointGraph,
-    "add"
-  ).pipe(map((value) => value[0]));
+  private jointCellAddStream = fromEvent<JointModelEvent>(this.jointGraph, "add").pipe(map(value => value[0]));
 
   /**
    * This will capture all events in JointJS
    *  involving the 'change position' operation
    */
-  private jointCellDragStream = fromEvent<JointModelEvent>(
-    this.jointGraph,
-    "change:position"
-  ).pipe(map((value) => value[0]));
+  private jointCellDragStream = fromEvent<JointModelEvent>(this.jointGraph, "change:position").pipe(
+    map(value => value[0])
+  );
 
   /**
    * This will capture all events in JointJS
    *  involving the 'remove' operation
    */
-  private jointCellDeleteStream = fromEvent<JointModelEvent>(
-    this.jointGraph,
-    "remove"
-  ).pipe(map((value) => value[0]));
+  private jointCellDeleteStream = fromEvent<JointModelEvent>(this.jointGraph, "remove").pipe(map(value => value[0]));
 
   constructor(public jointGraph: joint.dia.Graph) {
     // handle if the currently highlighted operator/group/link is deleted, it should be unhighlighted
     this.handleElementDeleteUnhighlight();
 
-    this.jointCellAddStream
-      .pipe(filter((cell) => cell.isElement()))
-      .subscribe((element) => {
-        const initPosition = {
-          currPos: (element as joint.dia.Element).position(),
-          lastPos: undefined
-        };
-        this.elementPositions.set(element.id.toString(), initPosition);
-      });
+    this.jointCellAddStream.pipe(filter(cell => cell.isElement())).subscribe(element => {
+      const initPosition = {
+        currPos: (element as joint.dia.Element).position(),
+        lastPos: undefined,
+      };
+      this.elementPositions.set(element.id.toString(), initPosition);
+    });
 
     this.jointCellDeleteStream
-      .pipe(filter((cell) => cell.isElement()))
-      .subscribe((element) =>
-        this.elementPositions.delete(element.id.toString())
-      );
+      .pipe(filter(cell => cell.isElement()))
+      .subscribe(element => this.elementPositions.delete(element.id.toString()));
   }
 
   /**
@@ -190,9 +166,7 @@ export class JointGraphWrapper {
    *
    * @param paperOptions JointJS paper options
    */
-  public attachMainJointPaper(
-    paperOptions: joint.dia.Paper.Options
-  ): joint.dia.Paper {
+  public attachMainJointPaper(paperOptions: joint.dia.Paper.Options): joint.dia.Paper {
     paperOptions.model = this.jointGraph;
     const paper = new joint.dia.Paper(paperOptions);
     this.mainJointPaper = paper;
@@ -208,9 +182,7 @@ export class JointGraphWrapper {
     return this.mainJointPaperAttachedStream;
   }
 
-  public attachMiniMapJointPaper(
-    paperOptions: joint.dia.Paper.Options
-  ): joint.dia.Paper {
+  public attachMiniMapJointPaper(paperOptions: joint.dia.Paper.Options): joint.dia.Paper {
     paperOptions.model = this.jointGraph;
     const paper = new joint.dia.Paper(paperOptions);
     this.miniMapPaper = paper;
@@ -273,7 +245,7 @@ export class JointGraphWrapper {
     return {
       operators: this.currentHighlightedOperators,
       groups: this.currentHighlightedGroups,
-      links: this.currentHighlightedLinks
+      links: this.currentHighlightedLinks,
     };
   }
 
@@ -290,18 +262,13 @@ export class JointGraphWrapper {
     oldPosition: Point;
     newPosition: Point;
   }> {
-    return fromEvent<JointPositionChangeEvent>(
-      this.jointGraph,
-      "change:position"
-    ).pipe(
-      map((e) => {
+    return fromEvent<JointPositionChangeEvent>(this.jointGraph, "change:position").pipe(
+      map(e => {
         const elementID = e[0].id.toString();
         const oldPosition = this.elementPositions.get(elementID);
         const newPosition = { x: e[1].x, y: e[1].y };
         if (!oldPosition) {
-          throw new Error(
-            `internal error: cannot find element position for ${elementID}`
-          );
+          throw new Error(`internal error: cannot find element position for ${elementID}`);
         }
         if (
           !oldPosition.lastPos ||
@@ -312,12 +279,12 @@ export class JointGraphWrapper {
         }
         this.elementPositions.set(elementID, {
           currPos: newPosition,
-          lastPos: oldPosition.lastPos
+          lastPos: oldPosition.lastPos,
         });
         return {
           elementID: elementID,
           oldPosition: oldPosition.lastPos,
-          newPosition: newPosition
+          newPosition: newPosition,
         };
       })
     );
@@ -335,10 +302,10 @@ export class JointGraphWrapper {
     newLayer: number;
   }> {
     return fromEvent<JointLayerChangeEvent>(this.jointGraph, "change:z").pipe(
-      map((e) => {
+      map(e => {
         return {
           cellID: e[0].id.toString(),
-          newLayer: e[1]
+          newLayer: e[1],
         };
       })
     );
@@ -366,12 +333,8 @@ export class JointGraphWrapper {
    */
   public highlightOperators(...operatorIDs: string[]): void {
     const highlightedOperatorIDs: string[] = [];
-    operatorIDs.forEach((operatorID) =>
-      this.highlightElement(
-        operatorID,
-        this.currentHighlightedOperators,
-        highlightedOperatorIDs
-      )
+    operatorIDs.forEach(operatorID =>
+      this.highlightElement(operatorID, this.currentHighlightedOperators, highlightedOperatorIDs)
     );
     if (highlightedOperatorIDs.length > 0) {
       this.jointOperatorHighlightStream.next(highlightedOperatorIDs);
@@ -388,12 +351,8 @@ export class JointGraphWrapper {
    */
   public unhighlightOperators(...operatorIDs: string[]): void {
     const unhighlightedOperatorIDs: string[] = [];
-    operatorIDs.forEach((operatorID) =>
-      this.unhighlightElement(
-        operatorID,
-        this.currentHighlightedOperators,
-        unhighlightedOperatorIDs
-      )
+    operatorIDs.forEach(operatorID =>
+      this.unhighlightElement(operatorID, this.currentHighlightedOperators, unhighlightedOperatorIDs)
     );
     if (unhighlightedOperatorIDs.length > 0) {
       this.jointOperatorUnhighlightStream.next(unhighlightedOperatorIDs);
@@ -410,13 +369,7 @@ export class JointGraphWrapper {
    */
   public highlightGroups(...groupIDs: string[]): void {
     const highlightedGroupIDs: string[] = [];
-    groupIDs.forEach((groupID) =>
-      this.highlightElement(
-        groupID,
-        this.currentHighlightedGroups,
-        highlightedGroupIDs
-      )
-    );
+    groupIDs.forEach(groupID => this.highlightElement(groupID, this.currentHighlightedGroups, highlightedGroupIDs));
     if (highlightedGroupIDs.length > 0) {
       this.jointGroupHighlightStream.next(highlightedGroupIDs);
     }
@@ -432,13 +385,7 @@ export class JointGraphWrapper {
    */
   public unhighlightGroups(...groupIDs: string[]): void {
     const unhighlightedGroupIDs: string[] = [];
-    groupIDs.forEach((groupID) =>
-      this.unhighlightElement(
-        groupID,
-        this.currentHighlightedGroups,
-        unhighlightedGroupIDs
-      )
-    );
+    groupIDs.forEach(groupID => this.unhighlightElement(groupID, this.currentHighlightedGroups, unhighlightedGroupIDs));
     if (unhighlightedGroupIDs.length > 0) {
       this.jointGroupUnhighlightStream.next(unhighlightedGroupIDs);
     }
@@ -451,13 +398,7 @@ export class JointGraphWrapper {
    */
   public highlightLinks(...linkIDs: string[]): void {
     const highlightedLinkIDs: string[] = [];
-    linkIDs.forEach((linkID) =>
-      this.highlightElement(
-        linkID,
-        this.currentHighlightedLinks,
-        highlightedLinkIDs
-      )
-    );
+    linkIDs.forEach(linkID => this.highlightElement(linkID, this.currentHighlightedLinks, highlightedLinkIDs));
     if (highlightedLinkIDs.length > 0) {
       this.jointLinkHighlightStream.next(highlightedLinkIDs);
     }
@@ -470,13 +411,7 @@ export class JointGraphWrapper {
    */
   public unhighlightLinks(...linkIDs: string[]): void {
     const unhighlightedLinkIDs: string[] = [];
-    linkIDs.forEach((linkID) =>
-      this.unhighlightElement(
-        linkID,
-        this.currentHighlightedLinks,
-        unhighlightedLinkIDs
-      )
-    );
+    linkIDs.forEach(linkID => this.unhighlightElement(linkID, this.currentHighlightedLinks, unhighlightedLinkIDs));
     if (unhighlightedLinkIDs.length > 0) {
       this.jointLinkUnhighlightStream.next(unhighlightedLinkIDs);
     }
@@ -552,8 +487,8 @@ export class JointGraphWrapper {
    */
   public getJointElementCellDragStream(): Observable<joint.dia.Element> {
     const jointElementDragStream = this.jointCellDragStream.pipe(
-      filter((cell) => cell.isElement()),
-      map((cell) => <joint.dia.Element>cell)
+      filter(cell => cell.isElement()),
+      map(cell => <joint.dia.Element>cell)
     );
     return jointElementDragStream;
   }
@@ -564,8 +499,8 @@ export class JointGraphWrapper {
    */
   public getJointElementCellDeleteStream(): Observable<joint.dia.Element> {
     const jointElementDeleteStream = this.jointCellDeleteStream.pipe(
-      filter((cell) => cell.isElement()),
-      map((cell) => <joint.dia.Element>cell)
+      filter(cell => cell.isElement()),
+      map(cell => <joint.dia.Element>cell)
     );
     return jointElementDeleteStream;
   }
@@ -580,8 +515,8 @@ export class JointGraphWrapper {
    */
   public getJointLinkCellAddStream(): Observable<joint.dia.Link> {
     const jointLinkAddStream = this.jointCellAddStream.pipe(
-      filter((cell) => cell.isLink()),
-      map((cell) => <joint.dia.Link>cell)
+      filter(cell => cell.isLink()),
+      map(cell => <joint.dia.Link>cell)
     );
 
     return jointLinkAddStream;
@@ -597,8 +532,8 @@ export class JointGraphWrapper {
    */
   public getJointLinkCellDeleteStream(): Observable<joint.dia.Link> {
     const jointLinkDeleteStream = this.jointCellDeleteStream.pipe(
-      filter((cell) => cell.isLink()),
-      map((cell) => <joint.dia.Link>cell)
+      filter(cell => cell.isLink()),
+      map(cell => <joint.dia.Link>cell)
     );
 
     return jointLinkDeleteStream;
@@ -653,7 +588,7 @@ export class JointGraphWrapper {
       rankSep: 80,
       ranker: "tight-tree",
       rankDir: "LR",
-      resizeClusters: true
+      resizeClusters: true,
     });
   }
 
@@ -683,10 +618,9 @@ export class JointGraphWrapper {
    *  - one end of the link is moved from one point to another point in the paper
    */
   public getJointLinkCellChangeStream(): Observable<joint.dia.Link> {
-    const jointLinkChangeStream = fromEvent<JointLinkChangeEvent>(
-      this.jointGraph,
-      "change:source change:target"
-    ).pipe(map((value) => value[0]));
+    const jointLinkChangeStream = fromEvent<JointLinkChangeEvent>(this.jointGraph, "change:source change:target").pipe(
+      map(value => value[0])
+    );
 
     return jointLinkChangeStream;
   }
@@ -712,11 +646,7 @@ export class JointGraphWrapper {
    * This method repositions the element according to given offsets.
    * An element can be an operator or a group.
    */
-  public setElementPosition(
-    elementID: string,
-    offsetX: number,
-    offsetY: number
-  ): void {
+  public setElementPosition(elementID: string, offsetX: number, offsetY: number): void {
     const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(elementID);
     if (!cell) {
       throw new Error(`element with ID ${elementID} doesn't exist`);
@@ -732,11 +662,7 @@ export class JointGraphWrapper {
    * This method repositions the element according to given absolute positions.
    * An element can be an operator or a group.
    */
-  public setAbsolutePosition(
-    elementID: string,
-    posX: number,
-    poY: number
-  ): void {
+  public setAbsolutePosition(elementID: string, posX: number, poY: number): void {
     const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(elementID);
     if (!cell) {
       throw new Error(`element with ID ${elementID} doesn't exist`);
@@ -769,13 +695,9 @@ export class JointGraphWrapper {
     // only allow one link highlighted at a time
     if (this.currentHighlightedLinks.length > 0) {
       const highlightedLinks = Object.assign([], this.currentHighlightedLinks);
-      highlightedLinks.forEach((highlightedLink) =>
-        this.unhighlightLink(highlightedLink)
-      );
+      highlightedLinks.forEach(highlightedLink => this.unhighlightLink(highlightedLink));
     }
-    this.getCurrentHighlightedOperatorIDs().forEach((operatorID) =>
-      this.unhighlightOperators(operatorID)
-    );
+    this.getCurrentHighlightedOperatorIDs().forEach(operatorID => this.unhighlightOperators(operatorID));
     this.currentHighlightedLinks.push(linkID);
     this.jointLinkHighlightStream.next([linkID]);
   }
@@ -824,11 +746,7 @@ export class JointGraphWrapper {
    * This method resizes the element according to given width and height.
    * An element can be an operator or a group.
    */
-  public setElementSize(
-    elementID: string,
-    width: number,
-    height: number
-  ): void {
+  public setElementSize(elementID: string, width: number, height: number): void {
     const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(elementID);
     if (!cell) {
       throw new Error(`element with ID ${elementID} doesn't exist`);
@@ -926,10 +844,7 @@ export class JointGraphWrapper {
     if (!currentHighlightedElements.includes(elementID)) {
       return;
     }
-    currentHighlightedElements.splice(
-      currentHighlightedElements.indexOf(elementID),
-      1
-    );
+    currentHighlightedElements.splice(currentHighlightedElements.indexOf(elementID), 1);
     unhighlightedElements.push(elementID);
   }
 
@@ -939,7 +854,7 @@ export class JointGraphWrapper {
    *  and unhighlight it if it is.
    */
   private handleElementDeleteUnhighlight(): void {
-    this.jointCellDeleteStream.subscribe((deletedCell) => {
+    this.jointCellDeleteStream.subscribe(deletedCell => {
       const deletedCellID = deletedCell.id.toString();
       if (this.currentHighlightedOperators.includes(deletedCellID)) {
         this.unhighlightOperators(deletedCellID);

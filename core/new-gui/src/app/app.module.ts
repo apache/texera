@@ -149,7 +149,7 @@ registerLocaleData(en);
     NotificationComponent,
     ResultTableFrameComponent,
     OperatorPropertyEditFrameComponent,
-    BreakpointPropertyEditFrameComponent
+    BreakpointPropertyEditFrameComponent,
   ],
   imports: [
     BrowserModule,
@@ -166,10 +166,8 @@ registerLocaleData(en);
     FormsModule,
     ReactiveFormsModule,
     LoggerModule.forRoot({
-      level: environment.production
-        ? NgxLoggerLevel.ERROR
-        : NgxLoggerLevel.DEBUG,
-      serverLogLevel: NgxLoggerLevel.OFF
+      level: environment.production ? NgxLoggerLevel.ERROR : NgxLoggerLevel.DEBUG,
+      serverLogLevel: NgxLoggerLevel.OFF,
     }),
     FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
     FormlyMaterialModule,
@@ -177,8 +175,8 @@ registerLocaleData(en);
     GoogleApiModule.forRoot({
       provide: NG_GAPI_CONFIG,
       useValue: {
-        client_id: environment.google.clientID
-      }
+        client_id: environment.google.clientID,
+      },
     }),
     NzDatePickerModule,
     NzDropDownModule,
@@ -204,7 +202,7 @@ registerLocaleData(en);
     NzTagModule,
     NzAvatarModule,
     DynamicModule,
-    MonacoEditorModule.forRoot()
+    MonacoEditorModule.forRoot(),
   ],
   entryComponents: [
     NgbdModalAddWorkflowComponent,
@@ -215,7 +213,7 @@ registerLocaleData(en);
     NgbdModalUserLoginComponent,
     RowModalComponent,
     NgbdModalFileAddComponent,
-    NgbdModalWorkflowShareAccessComponent
+    NgbdModalWorkflowShareAccessComponent,
   ],
   providers: [
     UserService,
@@ -227,10 +225,10 @@ registerLocaleData(en);
     {
       provide: HTTP_INTERCEPTORS,
       useClass: BlobErrorHttpInterceptor,
-      multi: true
-    }
+      multi: true,
+    },
   ],
-  bootstrap: [AppComponent]
+  bootstrap: [AppComponent],
   // dynamically created component must be placed in the entryComponents attribute
 })
 export class AppModule {}

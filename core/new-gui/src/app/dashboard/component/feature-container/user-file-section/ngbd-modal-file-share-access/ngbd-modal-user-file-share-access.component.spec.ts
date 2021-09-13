@@ -4,10 +4,7 @@ import { HttpClient, HttpHandler } from "@angular/common/http";
 import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { NgbdModalUserFileShareAccessComponent } from "./ngbd-modal-user-file-share-access.component";
 import { UserFileService } from "../../../../service/user-file/user-file.service";
-import {
-  DashboardUserFileEntry,
-  UserFile
-} from "../../../../type/dashboard-user-file-entry";
+import { DashboardUserFileEntry, UserFile } from "../../../../type/dashboard-user-file-entry";
 import { StubUserFileService } from "../../../../service/user-file/stub-user-file-service";
 import { StubUserService } from "src/app/common/service/user/stub-user.service";
 import { GoogleApiService, GoogleAuthService } from "ng-gapi";
@@ -27,13 +24,13 @@ describe("NgbdModalFileShareAccessComponent", () => {
     name: name,
     path: path,
     size: size,
-    description: description
+    description: description,
   };
   const file: DashboardUserFileEntry = {
     ownerName: "Texera",
     file: fileContent,
     accessLevel: "Write",
-    isOwner: true
+    isOwner: true,
   };
 
   beforeEach(
@@ -50,9 +47,9 @@ describe("NgbdModalFileShareAccessComponent", () => {
           StubUserService,
           {
             provide: UserFileService,
-            useClass: StubUserFileService
-          }
-        ]
+            useClass: StubUserFileService,
+          },
+        ],
       });
     })
   );
@@ -76,9 +73,7 @@ describe("NgbdModalFileShareAccessComponent", () => {
     const mySpy = spyOn(service, "getUserFileAccessList").and.callThrough();
     component.dashboardUserFileEntry = file;
     fixture.detectChanges();
-    component.refreshGrantedUserFileAccessList(
-      component.dashboardUserFileEntry
-    );
+    component.refreshGrantedUserFileAccessList(component.dashboardUserFileEntry);
     expect(mySpy).toHaveBeenCalled();
   });
 

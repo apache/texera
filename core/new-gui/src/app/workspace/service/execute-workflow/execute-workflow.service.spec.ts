@@ -1,13 +1,7 @@
-import {
-  ExecutionState,
-  LogicalPlan
-} from "../../types/execute-workflow.interface";
+import { ExecutionState, LogicalPlan } from "../../types/execute-workflow.interface";
 import { fakeAsync, flush, inject, TestBed, tick } from "@angular/core/testing";
 
-import {
-  ExecuteWorkflowService,
-  FORM_DEBOUNCE_TIME_MS
-} from "./execute-workflow.service";
+import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from "./execute-workflow.service";
 
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { UndoRedoService } from "../undo-redo/undo-redo.service";
@@ -16,10 +10,7 @@ import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-
 import { JointUIService } from "../joint-ui/joint-ui.service";
 import { Observable, of } from "rxjs";
 
-import {
-  mockLogicalPlan_scan_result,
-  mockWorkflowPlan_scan_result
-} from "./mock-workflow-plan";
+import { mockLogicalPlan_scan_result, mockWorkflowPlan_scan_result } from "./mock-workflow-plan";
 import { HttpClient } from "@angular/common/http";
 import { WorkflowGraph } from "../workflow-graph/model/workflow-graph";
 import { environment } from "../../../../environments/environment";
@@ -48,36 +39,29 @@ describe("ExecuteWorkflowService", () => {
         JointUIService,
         {
           provide: OperatorMetadataService,
-          useClass: StubOperatorMetadataService
+          useClass: StubOperatorMetadataService,
         },
-        { provide: HttpClient, useClass: StubHttpClient }
-      ]
+        { provide: HttpClient, useClass: StubHttpClient },
+      ],
     });
 
     service = TestBed.inject(ExecuteWorkflowService);
     environment.pauseResumeEnabled = true;
   });
 
-  it("should be created", inject(
-    [ExecuteWorkflowService],
-    (injectedService: ExecuteWorkflowService) => {
-      expect(injectedService).toBeTruthy();
-    }
-  ));
+  it("should be created", inject([ExecuteWorkflowService], (injectedService: ExecuteWorkflowService) => {
+    expect(injectedService).toBeTruthy();
+  }));
 
   it("should generate a logical plan request based on the workflow graph that is passed to the function", () => {
     const workflowGraph: WorkflowGraph = mockWorkflowPlan_scan_result;
-    const newLogicalPlan: LogicalPlan =
-      ExecuteWorkflowService.getLogicalPlanRequest(workflowGraph);
+    const newLogicalPlan: LogicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(workflowGraph);
     expect(newLogicalPlan).toEqual(mockLogicalPlan_scan_result);
   });
 
   it("should msg backend when executing workflow", fakeAsync(() => {
     if (environment.amberEngineEnabled) {
-      const wsSendSpy = spyOn(
-        (service as any).workflowWebsocketService,
-        "send"
-      );
+      const wsSendSpy = spyOn((service as any).workflowWebsocketService, "send");
 
       service.executeWorkflow();
       tick(FORM_DEBOUNCE_TIME_MS + 1);
@@ -93,10 +77,7 @@ describe("ExecuteWorkflowService", () => {
     expect(function () {
       service.pauseWorkflow();
     }).toThrowError(
-      new RegExp(
-        "cannot pause workflow, the current execution state is " +
-          (service as any).currentState.state
-      )
+      new RegExp("cannot pause workflow, the current execution state is " + (service as any).currentState.state)
     );
   });
 
@@ -105,10 +86,7 @@ describe("ExecuteWorkflowService", () => {
     expect(function () {
       service.resumeWorkflow();
     }).toThrowError(
-      new RegExp(
-        "cannot resume workflow, the current execution state is " +
-          (service as any).currentState.state
-      )
+      new RegExp("cannot resume workflow, the current execution state is " + (service as any).currentState.state)
     );
   });
 });

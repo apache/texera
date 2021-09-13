@@ -20,12 +20,7 @@ describe("NgbdModalResourceDeleteComponent", () => {
       TestBed.configureTestingModule({
         declarations: [NgbdModalResourceDeleteComponent],
         providers: [NgbActiveModal],
-        imports: [
-          CustomNgMaterialModule,
-          NgbModule,
-          FormsModule,
-          HttpClientModule
-        ]
+        imports: [CustomNgMaterialModule, NgbModule, FormsModule, HttpClientModule],
       }).compileComponents();
     })
   );

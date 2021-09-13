@@ -20,7 +20,7 @@ describe("NgbdModalAddProjectComponent", () => {
       TestBed.configureTestingModule({
         declarations: [NgbdModalAddWorkflowComponent],
         providers: [NgbActiveModal],
-        imports: [MatDialogModule, NgbModule, FormsModule, HttpClientModule]
+        imports: [MatDialogModule, NgbModule, FormsModule, HttpClientModule],
       }).compileComponents();
     })
   );

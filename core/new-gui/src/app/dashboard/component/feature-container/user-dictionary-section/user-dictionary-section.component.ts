@@ -25,10 +25,7 @@ const DICTIONARY_ITEM_PREVIEW_SIZE = 20;
 @Component({
   selector: "texera-user-dictionary-section",
   templateUrl: "./user-dictionary-section.component.html",
-  styleUrls: [
-    "./user-dictionary-section.component.scss",
-    "../../dashboard.component.scss"
-  ]
+  styleUrls: ["./user-dictionary-section.component.scss", "../../dashboard.component.scss"],
 })
 export class UserDictionarySectionComponent {
   constructor(
@@ -79,9 +76,7 @@ export class UserDictionarySectionComponent {
    *
    * @param dictionary: the dictionary that user wants to remove
    */
-  public openNgbdModalResourceDeleteComponent(
-    dictionary: UserDictionary
-  ): void {
+  public openNgbdModalResourceDeleteComponent(dictionary: UserDictionary): void {
     const modalRef = this.modalService.open(NgbdModalResourceDeleteComponent);
     modalRef.componentInstance.dictionary = cloneDeep(dictionary);
 
@@ -152,9 +147,7 @@ export class UserDictionarySectionComponent {
   }
 
   public limitPreviewItemSize(item: string): string {
-    return item.length <= DICTIONARY_ITEM_PREVIEW_SIZE
-      ? item
-      : item.substr(0, DICTIONARY_ITEM_PREVIEW_SIZE) + "...";
+    return item.length <= DICTIONARY_ITEM_PREVIEW_SIZE ? item : item.substr(0, DICTIONARY_ITEM_PREVIEW_SIZE) + "...";
   }
 
   /**
