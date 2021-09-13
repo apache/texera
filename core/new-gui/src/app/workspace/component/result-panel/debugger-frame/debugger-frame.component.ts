@@ -5,7 +5,7 @@ import { BreakpointTriggerInfo } from "../../../types/workflow-common.interface"
 @Component({
   selector: "texera-debugger-frame",
   templateUrl: "./debugger-frame.component.html",
-  styleUrls: ["./debugger-frame.component.scss"]
+  styleUrls: ["./debugger-frame.component.scss"],
 })
 export class DebuggerFrameComponent implements OnChanges {
   @Input() operatorId?: string;
@@ -22,8 +22,7 @@ export class DebuggerFrameComponent implements OnChanges {
 
   renderConsole() {
     // try to fetch if we have breakpoint info
-    this.breakpointTriggerInfo =
-      this.executeWorkflowService.getBreakpointTriggerInfo();
+    this.breakpointTriggerInfo = this.executeWorkflowService.getBreakpointTriggerInfo();
     if (this.breakpointTriggerInfo) {
       this.breakpointAction = true;
     }

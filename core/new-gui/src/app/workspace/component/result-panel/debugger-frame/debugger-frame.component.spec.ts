@@ -8,7 +8,7 @@ describe("DebuggerFrameComponent", () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [DebuggerFrameComponent]
+      declarations: [DebuggerFrameComponent],
     }).compileComponents();
   });
 

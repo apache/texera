@@ -84,7 +84,6 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
   clearConsole() {
     this.consoleMessages = [];
     this.errorMessages = undefined;
-
   }
 
   renderConsole() {

@@ -12,8 +12,12 @@ import { filter } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DynamicComponentConfig } from "../../../common/type/dynamic-component-config";
 import { DebuggerFrameComponent } from "./debugger-frame/debugger-frame.component";
+import { PYTHON_UDF_V2_OP_TYPE } from "../../service/workflow-graph/model/workflow-graph";
 
-export type ResultFrameComponent = ResultTableFrameComponent | VisualizationFrameComponent | ConsoleFrameComponent
+export type ResultFrameComponent =
+  | ResultTableFrameComponent
+  | VisualizationFrameComponent
+  | ConsoleFrameComponent
   | DebuggerFrameComponent;
 
 export type ResultFrameComponentConfig = DynamicComponentConfig<ResultFrameComponent>;
@@ -116,36 +120,30 @@ export class ResultPanelComponent implements OnInit {
     const executionState = this.executeWorkflowService.getExecutionState();
 
     if (this.currentOperatorId) {
-      const resultService = this.workflowResultService.getResultService(
-        this.currentOperatorId
-      );
-      const paginatedResultService =
-        this.workflowResultService.getPaginatedResultService(
-          this.currentOperatorId
-        );
+      const resultService = this.workflowResultService.getResultService(this.currentOperatorId);
+      const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.currentOperatorId);
       if (paginatedResultService) {
         // display table result if has paginated results
         this.frameComponentConfigs.set("Result", {
           component: ResultTableFrameComponent,
-          componentInputs: { operatorId: this.currentOperatorId }
+          componentInputs: { operatorId: this.currentOperatorId },
         });
       } else if (resultService && resultService.getChartType()) {
         // display visualization result
         this.frameComponentConfigs.set("Result", {
           component: VisualizationFrameComponent,
-          componentInputs: { operatorId: this.currentOperatorId }
+          componentInputs: { operatorId: this.currentOperatorId },
         });
       } else if (
         this.workflowActionService
           .getTexeraGraph()
           .getOperator(this.currentOperatorId)
-          .operatorType.toLowerCase()
-          .includes("pythonudf")
+          .operatorType=== PYTHON_UDF_V2_OP_TYPE
       ) {
         // display console for Python UDF V2
         this.frameComponentConfigs.set("Console", {
           component: ConsoleFrameComponent,
-          componentInputs: { operatorId: this.currentOperatorId }
+          componentInputs: { operatorId: this.currentOperatorId },
         });
         if (
           executionState.state === ExecutionState.Failed ||
@@ -154,7 +152,7 @@ export class ResultPanelComponent implements OnInit {
           // display Debug
           this.frameComponentConfigs.set("Debug", {
             component: DebuggerFrameComponent,
-            componentInputs: { operatorId: this.currentOperatorId }
+            componentInputs: { operatorId: this.currentOperatorId },
           });
         }
       } else {

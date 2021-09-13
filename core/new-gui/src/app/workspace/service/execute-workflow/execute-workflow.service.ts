@@ -266,10 +266,7 @@ export class ExecuteWorkflowService {
       return;
     }
     if (this.currentState.state !== ExecutionState.BreakpointTriggered) {
-      throw new Error(
-        "cannot retry the current tuple, the current execution state is " +
-          this.currentState.state
-      );
+      throw new Error("cannot retry the current tuple, the current execution state is " + this.currentState.state);
     }
     this.workflowWebsocketService.send("RetryRequest", {});
   }
