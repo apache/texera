@@ -122,12 +122,9 @@ describe("DragDropService", () => {
     const input1 = workflowUtilService.getNewOperatorPredicate("ScanSource");
     const input2 = workflowUtilService.getNewOperatorPredicate("ScanSource");
     const input3 = workflowUtilService.getNewOperatorPredicate("ScanSource");
-    const output1 =
-      workflowUtilService.getNewOperatorPredicate(VIEW_RESULT_OP_TYPE);
-    const output2 =
-      workflowUtilService.getNewOperatorPredicate(VIEW_RESULT_OP_TYPE);
-    const output3 =
-      workflowUtilService.getNewOperatorPredicate(VIEW_RESULT_OP_TYPE);
+    const output1 = workflowUtilService.getNewOperatorPredicate(VIEW_RESULT_OP_TYPE);
+    const output2 = workflowUtilService.getNewOperatorPredicate(VIEW_RESULT_OP_TYPE);
+    const output3 = workflowUtilService.getNewOperatorPredicate(VIEW_RESULT_OP_TYPE);
     const [inputOps, outputOps] = (dragDropService as any).findClosestOperators(
       { x: 50, y: 0 },
       mockMultiInputOutputPredicate

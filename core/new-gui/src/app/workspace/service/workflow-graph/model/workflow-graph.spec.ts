@@ -220,18 +220,12 @@ describe("WorkflowGraph", () => {
     workflowGraph.addOperator(mockResultPredicate);
     workflowGraph.cacheOperator(mockScanPredicate.operatorID);
 
-    expect(
-      workflowGraph.isOperatorCached(mockScanPredicate.operatorID)
-    ).toBeTrue();
-    expect(
-      workflowGraph.isOperatorCached(mockResultPredicate.operatorID)
-    ).toBeFalse();
+    expect(workflowGraph.isOperatorCached(mockScanPredicate.operatorID)).toBeTrue();
+    expect(workflowGraph.isOperatorCached(mockResultPredicate.operatorID)).toBeFalse();
     expect(workflowGraph.getCachedOperators().size).toEqual(1);
 
     workflowGraph.unCacheOperator(mockScanPredicate.operatorID);
-    expect(
-      workflowGraph.isOperatorCached(mockScanPredicate.operatorID)
-    ).toBeFalse();
+    expect(workflowGraph.isOperatorCached(mockScanPredicate.operatorID)).toBeFalse();
     expect(workflowGraph.getDisabledOperators().size).toEqual(0);
   });
 
@@ -240,18 +234,12 @@ describe("WorkflowGraph", () => {
     workflowGraph.addOperator(mockResultPredicate);
     workflowGraph.cacheOperator(mockResultPredicate.operatorID);
 
-    expect(
-      workflowGraph.isOperatorCached(mockScanPredicate.operatorID)
-    ).toBeFalse();
-    expect(
-      workflowGraph.isOperatorCached(mockResultPredicate.operatorID)
-    ).toBeFalse();
+    expect(workflowGraph.isOperatorCached(mockScanPredicate.operatorID)).toBeFalse();
+    expect(workflowGraph.isOperatorCached(mockResultPredicate.operatorID)).toBeFalse();
     expect(workflowGraph.getCachedOperators().size).toEqual(0);
 
     workflowGraph.unCacheOperator(mockResultPredicate.operatorID);
-    expect(
-      workflowGraph.isOperatorCached(mockResultPredicate.operatorID)
-    ).toBeFalse();
+    expect(workflowGraph.isOperatorCached(mockResultPredicate.operatorID)).toBeFalse();
     expect(workflowGraph.getCachedOperators().size).toEqual(0);
   });
 

@@ -351,14 +351,10 @@ export class NavigationComponent {
   }
 
   public onClickCacheOperators(): void {
-    const effectiveHighlightedOperators =
-      this.effectivelyHighlightedOperators();
-    const effectiveHighlightedOperatorsExcludeSink =
-      effectiveHighlightedOperators.filter(
-        (op) =>
-          this.workflowActionService.getTexeraGraph().getOperator(op)
-            .operatorType !== VIEW_RESULT_OP_TYPE
-      );
+    const effectiveHighlightedOperators = this.effectivelyHighlightedOperators();
+    const effectiveHighlightedOperatorsExcludeSink = effectiveHighlightedOperators.filter(
+      op => this.workflowActionService.getTexeraGraph().getOperator(op).operatorType !== VIEW_RESULT_OP_TYPE
+    );
 
     if (this.isCacheOperator) {
       effectiveHighlightedOperatorsExcludeSink.forEach(op => {
@@ -469,12 +465,9 @@ export class NavigationComponent {
       .pipe(untilDestroyed(this))
       .subscribe(event => {
         const effectiveHighlightedOperators = this.effectivelyHighlightedOperators();
-        const effectiveHighlightedOperatorsExcludeSink =
-          effectiveHighlightedOperators.filter(
-            (op) =>
-              this.workflowActionService.getTexeraGraph().getOperator(op)
-                .operatorType !== VIEW_RESULT_OP_TYPE
-          );
+        const effectiveHighlightedOperatorsExcludeSink = effectiveHighlightedOperators.filter(
+          op => this.workflowActionService.getTexeraGraph().getOperator(op).operatorType !== VIEW_RESULT_OP_TYPE
+        );
 
         const allCached = effectiveHighlightedOperatorsExcludeSink.every(op =>
           this.workflowActionService.getTexeraGraph().isOperatorCached(op)
