@@ -18,6 +18,7 @@ import {
 } from "../workflow-graph/model/mock-workflow-data";
 import { OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
 import { map } from "rxjs/operators";
+import { VIEW_RESULT_OP_TYPE } from "../workflow-graph/model/workflow-graph";
 
 describe("DragDropService", () => {
   let dragDropService: DragDropService;
@@ -121,9 +122,12 @@ describe("DragDropService", () => {
     const input1 = workflowUtilService.getNewOperatorPredicate("ScanSource");
     const input2 = workflowUtilService.getNewOperatorPredicate("ScanSource");
     const input3 = workflowUtilService.getNewOperatorPredicate("ScanSource");
-    const output1 = workflowUtilService.getNewOperatorPredicate("ViewResults");
-    const output2 = workflowUtilService.getNewOperatorPredicate("ViewResults");
-    const output3 = workflowUtilService.getNewOperatorPredicate("ViewResults");
+    const output1 =
+      workflowUtilService.getNewOperatorPredicate(VIEW_RESULT_OP_TYPE);
+    const output2 =
+      workflowUtilService.getNewOperatorPredicate(VIEW_RESULT_OP_TYPE);
+    const output3 =
+      workflowUtilService.getNewOperatorPredicate(VIEW_RESULT_OP_TYPE);
     const [inputOps, outputOps] = (dragDropService as any).findClosestOperators(
       { x: 50, y: 0 },
       mockMultiInputOutputPredicate
@@ -206,9 +210,9 @@ describe("DragDropService", () => {
       const input1 = workflowUtilService.getNewOperatorPredicate("ScanSource");
       const input2 = workflowUtilService.getNewOperatorPredicate("ScanSource");
       const input3 = workflowUtilService.getNewOperatorPredicate("ScanSource");
-      const output1 = workflowUtilService.getNewOperatorPredicate("ViewResults");
-      const output2 = workflowUtilService.getNewOperatorPredicate("ViewResults");
-      const output3 = workflowUtilService.getNewOperatorPredicate("ViewResults");
+      const output1 = workflowUtilService.getNewOperatorPredicate(VIEW_RESULT_OP_TYPE);
+      const output2 = workflowUtilService.getNewOperatorPredicate(VIEW_RESULT_OP_TYPE);
+      const output3 = workflowUtilService.getNewOperatorPredicate(VIEW_RESULT_OP_TYPE);
       const heightSortedInputs: OperatorPredicate[] = [input1, input2, input3];
       const heightSortedOutputs: OperatorPredicate[] = [output1, output2, output3];
 

@@ -1,4 +1,5 @@
 import { OperatorLink, OperatorPredicate, Point } from "../../../types/workflow-common.interface";
+import { VIEW_RESULT_OP_TYPE } from "./workflow-graph";
 
 /**
  * Provides mock data related operators and links:
@@ -47,7 +48,7 @@ export const mockSentimentPredicate: OperatorPredicate = {
 
 export const mockResultPredicate: OperatorPredicate = {
   operatorID: "3",
-  operatorType: "ViewResults",
+  operatorType: VIEW_RESULT_OP_TYPE,
   operatorProperties: {},
   inputPorts: [{ portID: "input-0" }],
   outputPorts: [],

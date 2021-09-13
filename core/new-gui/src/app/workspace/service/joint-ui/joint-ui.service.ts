@@ -361,6 +361,10 @@ export class JointUIService {
     const cacheText = JointUIService.getOperatorCacheDisplayText(operator, cacheStatus);
     const cacheIcon = JointUIService.getOperatorCacheIcon(operator, cacheStatus);
 
+    const cacheIndicatorText = cacheText === "" ? "" : "cache";
+    jointPaper
+      .getModelById(operator.operatorID)
+      .attr(`.${operatorCacheTextClass}/text`, cacheIndicatorText);
     jointPaper.getModelById(operator.operatorID).attr(`.${operatorCacheIconClass}/xlink:href`, cacheIcon);
     jointPaper.getModelById(operator.operatorID).attr(`.${operatorCacheIconClass}/title`, cacheText);
   }
@@ -642,7 +646,10 @@ export class JointUIService {
         "y-alignment": "middle",
       },
       ".texera-operator-result-cache-text": {
-        text: "cache",
+        text:
+          JointUIService.getOperatorCacheDisplayText(operator) === ""
+            ? ""
+            : "cache",
         fill: "#595959",
         "font-size": "14px",
         visible: true,
