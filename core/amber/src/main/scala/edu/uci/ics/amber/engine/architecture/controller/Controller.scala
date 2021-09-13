@@ -95,16 +95,17 @@ class Controller(
   def prepareWorkers(): Future[Seq[Unit]] = {
 
     // initialize python udf code
-    val initializeOperatorLogicRequests: Seq[Future[Unit]] = workflow.getPythonWorkerToOperatorExec.map {
-      case (workerId: ActorVirtualIdentity, pythonOperatorExec: PythonUDFOpExecV2) =>
-        asyncRPCClient.send(
-          InitializeOperatorLogic(
-            pythonOperatorExec.getCode,
-            pythonOperatorExec.isInstanceOf[ISourceOperatorExecutor]
-          ),
-          workerId
-        )
-    }.toSeq
+    val initializeOperatorLogicRequests: Seq[Future[Unit]] =
+      workflow.getPythonWorkerToOperatorExec.map {
+        case (workerId: ActorVirtualIdentity, pythonOperatorExec: PythonUDFOpExecV2) =>
+          asyncRPCClient.send(
+            InitializeOperatorLogic(
+              pythonOperatorExec.getCode,
+              pythonOperatorExec.isInstanceOf[ISourceOperatorExecutor]
+            ),
+            workerId
+          )
+      }.toSeq
 
     // activate all links
     val activateLinkRequests: Seq[Future[Unit]] =
