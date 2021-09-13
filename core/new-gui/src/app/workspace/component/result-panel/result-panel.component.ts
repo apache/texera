@@ -117,52 +117,51 @@ export class ResultPanelComponent implements OnInit {
       return;
     }
 
-    const executionState = this.executeWorkflowService.getExecutionState();
-
     if (this.currentOperatorId) {
-      const resultService = this.workflowResultService.getResultService(this.currentOperatorId);
-      const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.currentOperatorId);
-      if (paginatedResultService) {
-        // display table result if has paginated results
-        this.frameComponentConfigs.set("Result", {
-          component: ResultTableFrameComponent,
-          componentInputs: { operatorId: this.currentOperatorId },
-        });
-      } else if (resultService && resultService.getChartType()) {
-        // display visualization result
-        this.frameComponentConfigs.set("Result", {
-          component: VisualizationFrameComponent,
-          componentInputs: { operatorId: this.currentOperatorId },
-        });
-      } else if (
-        this.workflowActionService
-          .getTexeraGraph()
-          .getOperator(this.currentOperatorId)
-          .operatorType=== PYTHON_UDF_V2_OP_TYPE
-      ) {
-        // display console for Python UDF V2
-        this.frameComponentConfigs.set("Console", {
-          component: ConsoleFrameComponent,
-          componentInputs: { operatorId: this.currentOperatorId },
-        });
-        if (
-          executionState.state === ExecutionState.Failed ||
-          executionState.state === ExecutionState.BreakpointTriggered
-        ) {
-          // display Debug
-          this.frameComponentConfigs.set("Debug", {
-            component: DebuggerFrameComponent,
-            componentInputs: { operatorId: this.currentOperatorId },
-          });
-        }
-      } else {
-        // display no tab
+      this.displayResult(this.currentOperatorId);
+      const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
+      if (operator.operatorType === PYTHON_UDF_V2_OP_TYPE) {
+        this.displayConsoleAndDebugger(this.currentOperatorId);
       }
     }
   }
 
   clearResultPanel(): void {
     this.frameComponentConfigs.clear();
+  }
+
+  displayConsoleAndDebugger(operatorId: string) {
+    const executionState = this.executeWorkflowService.getExecutionState();
+    // display console for Python UDF V2
+    this.frameComponentConfigs.set("Console", {
+      component: ConsoleFrameComponent,
+      componentInputs: { operatorId },
+    });
+    if (executionState.state === ExecutionState.Failed || executionState.state === ExecutionState.BreakpointTriggered) {
+      // display Debugger
+      this.frameComponentConfigs.set("Debugger", {
+        component: DebuggerFrameComponent,
+        componentInputs: { operatorId },
+      });
+    }
+  }
+
+  displayResult(operatorId: string) {
+    const resultService = this.workflowResultService.getResultService(operatorId);
+    const paginatedResultService = this.workflowResultService.getPaginatedResultService(operatorId);
+    if (paginatedResultService) {
+      // display table result if has paginated results
+      this.frameComponentConfigs.set("Result", {
+        component: ResultTableFrameComponent,
+        componentInputs: { operatorId },
+      });
+    } else if (resultService && resultService.getChartType()) {
+      // display visualization result
+      this.frameComponentConfigs.set("Result", {
+        component: VisualizationFrameComponent,
+        componentInputs: { operatorId },
+      });
+    }
   }
 
   private static needRerenderOnStateChange(event: {
