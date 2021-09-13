@@ -25,6 +25,9 @@ type restrictedMethods =
  */
 export type WorkflowGraphReadonly = Omit<WorkflowGraph, restrictedMethods>;
 
+export const VIEW_RESULT_OP_TYPE = "SimpleSink";
+export const VIEW_RESULT_OP_NAME = "View Results";
+
 /**
  * WorkflowGraph represents the Texera's logical WorkflowGraph,
  *  it's a graph consisted of operators <OperatorPredicate> and links <OpreatorLink>,
@@ -168,6 +171,9 @@ export class WorkflowGraph {
     const operator = this.getOperator(operatorID);
     if (!operator) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
+    }
+    if (operator.operatorType === VIEW_RESULT_OP_TYPE) {
+      return;
     }
     if (this.isOperatorCached(operatorID)) {
       return;
