@@ -114,10 +114,6 @@ class ControlCommandV2(betterproto.Message):
     replay_current_tuple: "ReplayCurrentTupleV2" = betterproto.message_field(
         24, group="sealed_value"
     )
-    retry_python: "RetryPythonV2" = betterproto.message_field(23, group="sealed_value")
-    modify_python_logic: "ModifyPythonLogicV2" = betterproto.message_field(
-        24, group="sealed_value"
-    )
     worker_execution_completed: "WorkerExecutionCompletedV2" = (
         betterproto.message_field(101, group="sealed_value")
     )
