@@ -2,10 +2,7 @@ import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable, Subject } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
-import {
-  DashboardUserFileEntry,
-  UserFile
-} from "../../type/dashboard-user-file-entry";
+import { DashboardUserFileEntry, UserFile } from "../../type/dashboard-user-file-entry";
 import { UserService } from "../../../common/service/user/user.service";
 import { AccessEntry } from "../../type/access.interface";
 
@@ -19,7 +16,7 @@ export const USER_FILE_ACCESS_LIST_URL = `${USER_FILE_ACCESS_BASE_URL}/list`;
 export const USER_FILE_ACCESS_REVOKE_URL = `${USER_FILE_ACCESS_BASE_URL}/revoke`;
 
 @Injectable({
-  providedIn: "root"
+  providedIn: "root",
 })
 export class UserFileService {
   private dashboardUserFileEntries: ReadonlyArray<DashboardUserFileEntry> = [];
@@ -52,12 +49,10 @@ export class UserFileService {
       return;
     }
 
-    this.retrieveDashboardUserFileEntryList().subscribe(
-      (dashboardUserFileEntries) => {
-        this.dashboardUserFileEntries = dashboardUserFileEntries;
-        this.dashboardUserFileEntryChanged.next();
-      }
-    );
+    this.retrieveDashboardUserFileEntryList().subscribe(dashboardUserFileEntries => {
+      this.dashboardUserFileEntries = dashboardUserFileEntries;
+      this.dashboardUserFileEntryChanged.next();
+    });
   }
 
   /**
@@ -65,13 +60,9 @@ export class UserFileService {
    * this function will automatically refresh the files in the service when succeed.
    * @param targetUserFileEntry
    */
-  public deleteDashboardUserFileEntry(
-    targetUserFileEntry: DashboardUserFileEntry
-  ): void {
+  public deleteDashboardUserFileEntry(targetUserFileEntry: DashboardUserFileEntry): void {
     this.http
-      .delete<Response>(
-        `${USER_FILE_DELETE_URL}/${targetUserFileEntry.file.name}/${targetUserFileEntry.ownerName}`
-      )
+      .delete<Response>(`${USER_FILE_DELETE_URL}/${targetUserFileEntry.file.name}/${targetUserFileEntry.ownerName}`)
       .subscribe(
         () => this.refreshDashboardUserFileEntries(),
         // @ts-ignore // TODO: fix this with notification component
@@ -90,17 +81,7 @@ export class UserFileService {
     }
 
     let i = 0;
-    const byteUnits = [
-      " Byte",
-      " KB",
-      " MB",
-      " GB",
-      " TB",
-      " PB",
-      " EB",
-      " ZB",
-      " YB"
-    ];
+    const byteUnits = [" Byte", " KB", " MB", " GB", " TB", " PB", " EB", " ZB", " YB"];
     while (fileSize > 1024 && i < byteUnits.length - 1) {
       fileSize = fileSize / 1024;
       i++;
@@ -131,9 +112,7 @@ export class UserFileService {
    * @param userFileEntry the current dashboardUserFileEntry
    * @return ReadonlyArray<AccessEntry> an array of UserFileAccesses, Ex: [{username: TestUser, fileAccess: read}]
    */
-  public getUserFileAccessList(
-    userFileEntry: DashboardUserFileEntry
-  ): Observable<ReadonlyArray<AccessEntry>> {
+  public getUserFileAccessList(userFileEntry: DashboardUserFileEntry): Observable<ReadonlyArray<AccessEntry>> {
     return this.http.get<ReadonlyArray<AccessEntry>>(
       `${USER_FILE_ACCESS_LIST_URL}/${userFileEntry.file.name}/${userFileEntry.ownerName}`
     );
@@ -145,10 +124,7 @@ export class UserFileService {
    * @param username the username of target user
    * @return message of success
    */
-  public revokeUserFileAccess(
-    userFileEntry: DashboardUserFileEntry,
-    username: string
-  ): Observable<Response> {
+  public revokeUserFileAccess(userFileEntry: DashboardUserFileEntry, username: string): Observable<Response> {
     return this.http.post<Response>(
       `${USER_FILE_ACCESS_REVOKE_URL}/${userFileEntry.file.name}/${userFileEntry.ownerName}/${username}`,
       null
@@ -160,12 +136,8 @@ export class UserFileService {
     return this.http.get(requestURL, { responseType: "blob" });
   }
 
-  private retrieveDashboardUserFileEntryList(): Observable<
-    ReadonlyArray<DashboardUserFileEntry>
-  > {
-    return this.http.get<ReadonlyArray<DashboardUserFileEntry>>(
-      `${USER_FILE_LIST_URL}`
-    );
+  private retrieveDashboardUserFileEntryList(): Observable<ReadonlyArray<DashboardUserFileEntry>> {
+    return this.http.get<ReadonlyArray<DashboardUserFileEntry>>(`${USER_FILE_LIST_URL}`);
   }
 
   /**

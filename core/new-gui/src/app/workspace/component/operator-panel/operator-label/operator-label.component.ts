@@ -14,12 +14,11 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 @Component({
   selector: "texera-operator-label",
   templateUrl: "./operator-label.component.html",
-  styleUrls: ["./operator-label.component.scss"]
+  styleUrls: ["./operator-label.component.scss"],
 })
 export class OperatorLabelComponent implements OnInit, AfterViewInit {
   public static operatorLabelPrefix = "texera-operator-label-";
-  public static operatorLabelSearchBoxPrefix =
-    "texera-operator-label-search-result-";
+  public static operatorLabelSearchBoxPrefix = "texera-operator-label-search-result-";
 
   // tooltipWindow is an instance of ngbTooltip (popup box)
   @Input() operator?: OperatorSchema;
@@ -34,10 +33,7 @@ export class OperatorLabelComponent implements OnInit, AfterViewInit {
   // is mouse down over this label
   private isMouseDown = false;
 
-  constructor(
-    private dragDropService: DragDropService,
-    private workflowActionService: WorkflowActionService
-  ) {}
+  constructor(private dragDropService: DragDropService, private workflowActionService: WorkflowActionService) {}
 
   ngOnInit() {
     this.handleWorkFlowModificationEnabled();
@@ -45,12 +41,9 @@ export class OperatorLabelComponent implements OnInit, AfterViewInit {
       throw new Error("operator label component: operator is not specified");
     }
     if (this.fromSearchBox) {
-      this.operatorLabelID =
-        OperatorLabelComponent.operatorLabelSearchBoxPrefix +
-        this.operator.operatorType;
+      this.operatorLabelID = OperatorLabelComponent.operatorLabelSearchBoxPrefix + this.operator.operatorType;
     } else {
-      this.operatorLabelID =
-        OperatorLabelComponent.operatorLabelPrefix + this.operator.operatorType;
+      this.operatorLabelID = OperatorLabelComponent.operatorLabelPrefix + this.operator.operatorType;
     }
   }
 
@@ -58,10 +51,7 @@ export class OperatorLabelComponent implements OnInit, AfterViewInit {
     if (!this.operatorLabelID || !this.operator) {
       throw new Error("operator label component: operator is not specified");
     }
-    this.dragDropService.registerOperatorLabelDrag(
-      this.operatorLabelID,
-      this.operator.operatorType
-    );
+    this.dragDropService.registerOperatorLabelDrag(this.operatorLabelID, this.operator.operatorType);
   }
 
   // mouseDownEventStream sends out a value
@@ -98,14 +88,12 @@ export class OperatorLabelComponent implements OnInit, AfterViewInit {
     this.workflowActionService
       .getWorkflowModificationEnabledStream()
       .pipe(untilDestroyed(this))
-      .subscribe((canModify) => {
+      .subscribe(canModify => {
         this.draggable = canModify;
       });
   }
 
   public static isOperatorLabelElementFromSearchBox(elementID: string) {
-    return elementID.startsWith(
-      OperatorLabelComponent.operatorLabelSearchBoxPrefix
-    );
+    return elementID.startsWith(OperatorLabelComponent.operatorLabelSearchBoxPrefix);
   }
 }

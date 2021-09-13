@@ -14,7 +14,7 @@ import { filter } from "rxjs/operators";
  * @author Adam
  */
 @Injectable({
-  providedIn: "root"
+  providedIn: "root",
 })
 export class UserService {
   public static readonly AUTH_STATUS_ENDPOINT = "users/auth/status";
@@ -24,8 +24,7 @@ export class UserService {
   public static readonly GOOGLE_LOGIN_ENDPOINT = "users/google-login";
 
   private currentUser: User | undefined = undefined;
-  private userChangeSubject: ReplaySubject<User | undefined> =
-    new ReplaySubject<User | undefined>(1);
+  private userChangeSubject: ReplaySubject<User | undefined> = new ReplaySubject<User | undefined>(1);
 
   constructor(private http: HttpClient, private googleAuth: GoogleAuthService) {
     if (environment.userSystemEnabled) {
@@ -45,10 +44,10 @@ export class UserService {
       throw new Error("Already logged in when register.");
     }
 
-    return this.http.post<Response>(
-      `${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`,
-      { userName, password }
-    );
+    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`, {
+      userName,
+      password,
+    });
   }
 
   /**
@@ -68,10 +67,7 @@ export class UserService {
       throw new Error("Already logged in when login in.");
     }
     return this.http
-      .post<User>(
-        `${AppSettings.getApiEndpoint()}/${UserService.GOOGLE_LOGIN_ENDPOINT}`,
-        { authCode }
-      )
+      .post<User>(`${AppSettings.getApiEndpoint()}/${UserService.GOOGLE_LOGIN_ENDPOINT}`, { authCode })
       .pipe(filter((user: User) => user != null));
   }
 
@@ -85,10 +81,10 @@ export class UserService {
     if (this.currentUser) {
       throw new Error("Already logged in when login in.");
     }
-    return this.http.post<Response>(
-      `${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`,
-      { userName, password }
-    );
+    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`, {
+      userName,
+      password,
+    });
   }
 
   /**
@@ -96,9 +92,7 @@ export class UserService {
    */
   public logOut(): void {
     this.http
-      .get<Response>(
-        `${AppSettings.getApiEndpoint()}/${UserService.LOG_OUT_ENDPOINT}`
-      )
+      .get<Response>(`${AppSettings.getApiEndpoint()}/${UserService.LOG_OUT_ENDPOINT}`)
       .subscribe(() => this.changeUser(undefined));
   }
 
@@ -139,9 +133,7 @@ export class UserService {
 
   private loginFromSession(): void {
     this.http
-      .get<User>(
-        `${AppSettings.getApiEndpoint()}/${UserService.AUTH_STATUS_ENDPOINT}`
-      )
-      .subscribe((user) => this.changeUser(user != null ? user : undefined));
+      .get<User>(`${AppSettings.getApiEndpoint()}/${UserService.AUTH_STATUS_ENDPOINT}`)
+      .subscribe(user => this.changeUser(user != null ? user : undefined));
   }
 }

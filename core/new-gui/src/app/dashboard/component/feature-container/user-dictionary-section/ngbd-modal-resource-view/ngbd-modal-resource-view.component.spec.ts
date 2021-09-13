@@ -18,17 +18,8 @@ describe("NgbdModalResourceViewComponent", () => {
     waitForAsync(() => {
       TestBed.configureTestingModule({
         declarations: [NgbdModalResourceViewComponent],
-        providers: [
-          NgbActiveModal,
-          { provide: UserService, useClass: StubUserService },
-          UserDictionaryService
-        ],
-        imports: [
-          CustomNgMaterialModule,
-          NgbModule,
-          FormsModule,
-          HttpClientTestingModule
-        ]
+        providers: [NgbActiveModal, { provide: UserService, useClass: StubUserService }, UserDictionaryService],
+        imports: [CustomNgMaterialModule, NgbModule, FormsModule, HttpClientTestingModule],
       }).compileComponents();
     })
   );

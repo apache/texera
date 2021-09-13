@@ -20,9 +20,7 @@
 //   box-shadow: -2px 2px 2px rgba(0,0,0,0.2);
 // }
 
-::ng-deep
-  .texera-workspace-workflow-editor-body
-  .custom-highlighted-link.connection {
+::ng-deep .texera-workspace-workflow-editor-body .custom-highlighted-link.connection {
   stroke: #e59700 !important ;
 }
 
@@ -54,11 +52,7 @@
   transform: translate(-12px, -12px) !important;
 }
 
-::ng-deep
-  .texera-workspace-workflow-editor-body
-  .link-tools
-  .tool-remove
-  circle {
+::ng-deep .texera-workspace-workflow-editor-body .link-tools .tool-remove circle {
   fill-opacity: 0 !important;
 }
 

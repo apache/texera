@@ -32,9 +32,9 @@ describe("ResultPanelComponent", () => {
         ResultPanelToggleService,
         {
           provide: OperatorMetadataService,
-          useClass: StubOperatorMetadataService
-        }
-      ]
+          useClass: StubOperatorMetadataService,
+        },
+      ],
     }).compileComponents();
   }));
 
@@ -184,20 +184,16 @@ describe("ResultPanelComponent", () => {
     (executeWorkflowService as any).updateExecutionState({
       state: ExecutionState.Completed,
       resultID: "resultID",
-      resultMap: new Map([])
+      resultMap: new Map([]),
     });
     fixture.detectChanges();
-    const resultPanelDiv = fixture.debugElement.query(
-      By.css(".texera-workspace-result-panel-body")
-    );
+    const resultPanelDiv = fixture.debugElement.query(By.css(".texera-workspace-result-panel-body"));
     const resultPanelHtmlElement: HTMLElement = resultPanelDiv.nativeElement;
     expect(resultPanelHtmlElement.hasAttribute("hidden")).toBeFalsy();
   });
 
   it("should show the result panel if the current status of the result panel is hidden and when the toggle is triggered", () => {
-    const resultPanelDiv = fixture.debugElement.query(
-      By.css(".texera-workspace-result-panel-body")
-    );
+    const resultPanelDiv = fixture.debugElement.query(By.css(".texera-workspace-result-panel-body"));
     const resultPanelHtmlElement: HTMLElement = resultPanelDiv.nativeElement;
 
     expect(resultPanelHtmlElement.hasAttribute("hidden")).toBeTruthy();
@@ -210,15 +206,13 @@ describe("ResultPanelComponent", () => {
 
   it(`should hide the result panel if the current status of the result panel is already
       shown when the toggle is triggered`, () => {
-    const resultPanelDiv = fixture.debugElement.query(
-      By.css(".texera-workspace-result-panel-body")
-    );
+    const resultPanelDiv = fixture.debugElement.query(By.css(".texera-workspace-result-panel-body"));
     const resultPanelHtmlElement: HTMLElement = resultPanelDiv.nativeElement;
 
     (executeWorkflowService as any).updateExecutionState({
       state: ExecutionState.Completed,
       resultID: "resultID",
-      resultMap: new Map([])
+      resultMap: new Map([]),
     });
     fixture.detectChanges();
     expect(resultPanelHtmlElement.hasAttribute("hidden")).toBeFalsy();

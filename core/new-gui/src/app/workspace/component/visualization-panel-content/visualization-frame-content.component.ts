@@ -17,11 +17,7 @@ import { untilDestroyed, UntilDestroy } from "@ngneat/until-destroy";
 
 (mapboxgl as any).accessToken = environment.mapbox.accessToken;
 
-export const wordCloudScaleOptions = [
-  "linear",
-  "square root",
-  "logarithmic"
-] as const;
+export const wordCloudScaleOptions = ["linear", "square root", "logarithmic"] as const;
 type WordCloudControlsType = {
   scale: typeof wordCloudScaleOptions[number];
 };
@@ -37,10 +33,9 @@ type WordCloudControlsType = {
 @Component({
   selector: "texera-visualization-panel-content",
   templateUrl: "./visualization-frame-content.component.html",
-  styleUrls: ["./visualization-frame-content.component.scss"]
+  styleUrls: ["./visualization-frame-content.component.scss"],
 })
-export class VisualizationFrameContentComponent
-  implements AfterContentInit, OnDestroy {
+export class VisualizationFrameContentComponent implements AfterContentInit, OnDestroy {
   // this readonly variable must be the same as HTML element ID for visualization
   public static readonly CHART_ID = "#texera-result-chart-content";
   public static readonly MAP_CONTAINER = "texera-result-map-container";
@@ -59,17 +54,14 @@ export class VisualizationFrameContentComponent
     radiusScale: 100,
     radiusMinPixels: 1,
     radiusMaxPixels: 25,
-    getPosition: (d: { xColumn: number; yColumn: number }) => [
-      d.xColumn,
-      d.yColumn
-    ],
-    getFillColor: [57, 73, 171]
+    getPosition: (d: { xColumn: number; yColumn: number }) => [d.xColumn, d.yColumn],
+    getFillColor: [57, 73, 171],
   };
 
   wordCloudScaleOptions = wordCloudScaleOptions; // make this a class variable so template can access it
   // word cloud related controls
   wordCloudControls: WordCloudControlsType = {
-    scale: "linear"
+    scale: "linear",
   };
 
   wordCloudControlUpdateObservable = new Subject<WordCloudControlsType>();
@@ -85,19 +77,11 @@ export class VisualizationFrameContentComponent
   chartType?: ChartType;
   columns: string[] = [];
 
-  private wordCloudElement?: d3.Selection<
-    SVGGElement,
-    unknown,
-    HTMLElement,
-    any
-  >;
+  private wordCloudElement?: d3.Selection<SVGGElement, unknown, HTMLElement, any>;
   private c3ChartElement?: c3.ChartAPI;
   private map?: mapboxgl.Map;
 
-  constructor(
-    private workflowResultService: WorkflowResultService,
-    private sanitizer: DomSanitizer
-  ) {}
+  constructor(private workflowResultService: WorkflowResultService, private sanitizer: DomSanitizer) {}
 
   ngAfterContentInit() {
     // attempt to draw chart immediately
@@ -109,9 +93,7 @@ export class VisualizationFrameContentComponent
       .getResultUpdateStream()
       .pipe(auditTime(VisualizationFrameContentComponent.UPDATE_INTERVAL_MS));
     const controlUpdate = this.wordCloudControlUpdateObservable.pipe(
-      debounceTime(
-        VisualizationFrameContentComponent.WORD_CLOUD_CONTROL_UPDATE_INTERVAL_MS
-      )
+      debounceTime(VisualizationFrameContentComponent.WORD_CLOUD_CONTROL_UPDATE_INTERVAL_MS)
     );
     merge(resultUpdate, controlUpdate)
       .pipe(untilDestroyed(this))
@@ -136,9 +118,7 @@ export class VisualizationFrameContentComponent
     if (!this.operatorId) {
       return;
     }
-    const operatorResultService = this.workflowResultService.getResultService(
-      this.operatorId
-    );
+    const operatorResultService = this.workflowResultService.getResultService(this.operatorId);
     if (!operatorResultService) {
       return;
     }
@@ -195,28 +175,28 @@ export class VisualizationFrameContentComponent
     this.c3ChartElement = c3.generate({
       size: {
         height: VisualizationFrameContentComponent.HEIGHT,
-        width: VisualizationFrameContentComponent.WIDTH
+        width: VisualizationFrameContentComponent.WIDTH,
       },
       data: {
         json: result,
         keys: {
           x: xLabel,
-          value: [yLabel]
+          value: [yLabel],
         },
-        type: this.chartType as c3.ChartType
+        type: this.chartType as c3.ChartType,
       },
       axis: {
         x: {
           label: xLabel,
           tick: {
-            fit: true
-          }
+            fit: true,
+          },
         },
         y: {
-          label: yLabel
-        }
+          label: yLabel,
+        },
       },
-      bindto: VisualizationFrameContentComponent.CHART_ID
+      bindto: VisualizationFrameContentComponent.CHART_ID,
     });
   }
 
@@ -239,7 +219,7 @@ export class VisualizationFrameContentComponent
       center: [-96.35, 39.5],
       zoom: 3,
       maxZoom: 17,
-      minZoom: 0
+      minZoom: 0,
     });
   }
 
@@ -255,7 +235,7 @@ export class VisualizationFrameContentComponent
       id: "scatter",
       type: ScatterplotLayer,
       data: this.data,
-      pickable: true
+      pickable: true,
     });
     clusterLayer.setProps(VisualizationFrameContentComponent.props);
     this.map.addLayer(clusterLayer);
@@ -300,32 +280,26 @@ export class VisualizationFrameContentComponent
 
       const wordCloudData = this.wordCloudElement
         .selectAll<d3.BaseType, cloud.Word>("g text")
-        .data(words, (d) => d.text ?? "");
+        .data(words, d => d.text ?? "");
 
       wordCloudData
         .enter()
         .append("text")
-        .style("font-size", (d) => d.size ?? 0 + "px")
-        .style("fill", (d) => d3Fill(d.text ?? ""))
+        .style("font-size", d => d.size ?? 0 + "px")
+        .style("fill", d => d3Fill(d.text ?? ""))
         .attr("font-family", "Impact")
         .attr("text-anchor", "middle")
-        .attr(
-          "transform",
-          (d) => "translate(" + [d.x, d.y] + ")rotate(" + d.rotate + ")"
-        )
+        .attr("transform", d => "translate(" + [d.x, d.y] + ")rotate(" + d.rotate + ")")
         // this text() call must be at the end or it won't work
-        .text((d) => d.text ?? "");
+        .text(d => d.text ?? "");
 
       // Entering and existing words
       wordCloudData
         .transition()
         .duration(300)
         .attr("font-family", "Impact")
-        .style("font-size", (d) => d.size + "px")
-        .attr(
-          "transform",
-          (d) => "translate(" + [d.x, d.y] + ")rotate(" + d.rotate + ")"
-        )
+        .style("font-size", d => d.size + "px")
+        .attr("transform", d => "translate(" + [d.x, d.y] + ")rotate(" + d.rotate + ")")
         .style("fill-opacity", 1);
 
       // Exiting words
@@ -339,8 +313,8 @@ export class VisualizationFrameContentComponent
         .remove();
     };
 
-    const minCount = Math.min(...wordCloudTuples.map((t) => t.count));
-    const maxCount = Math.max(...wordCloudTuples.map((t) => t.count));
+    const minCount = Math.min(...wordCloudTuples.map(t => t.count));
+    const maxCount = Math.max(...wordCloudTuples.map(t => t.count));
 
     const minFontSize = 50;
     const maxFontSize = 150;
@@ -359,18 +333,13 @@ export class VisualizationFrameContentComponent
     d3Scale.domain([minCount, maxCount]).range([minFontSize, maxFontSize]);
 
     const layout = cloud()
-      .size([
-        VisualizationFrameContentComponent.WIDTH,
-        VisualizationFrameContentComponent.HEIGHT
-      ])
-      .words(
-        wordCloudTuples.map((t) => ({ text: t.word, size: d3Scale(t.count) }))
-      )
-      .text((d) => d.text ?? "")
+      .size([VisualizationFrameContentComponent.WIDTH, VisualizationFrameContentComponent.HEIGHT])
+      .words(wordCloudTuples.map(t => ({ text: t.word, size: d3Scale(t.count) })))
+      .text(d => d.text ?? "")
       .padding(5)
       .rotate(() => 0)
       .font("Impact")
-      .fontSize((d) => d.size ?? 0)
+      .fontSize(d => d.size ?? 0)
       .random(() => 1)
       .on("end", drawWordCloud);
 
@@ -404,19 +373,19 @@ export class VisualizationFrameContentComponent
     this.c3ChartElement = c3.generate({
       size: {
         height: VisualizationFrameContentComponent.HEIGHT,
-        width: VisualizationFrameContentComponent.WIDTH
+        width: VisualizationFrameContentComponent.WIDTH,
       },
       data: {
         columns: dataToDisplay,
-        type: this.chartType as c3.ChartType
+        type: this.chartType as c3.ChartType,
       },
       axis: {
         x: {
           type: "category",
-          categories: category
-        }
+          categories: category,
+        },
       },
-      bindto: VisualizationFrameContentComponent.CHART_ID
+      bindto: VisualizationFrameContentComponent.CHART_ID,
     });
   }
 
@@ -424,8 +393,6 @@ export class VisualizationFrameContentComponent
     if (!this.data) {
       return;
     }
-    this.htmlData = this.sanitizer.bypassSecurityTrustHtml(
-      Object(this.data[0])["html-content"]
-    ); // this line bypasses angular security
+    this.htmlData = this.sanitizer.bypassSecurityTrustHtml(Object(this.data[0])["html-content"]); // this line bypasses angular security
   }
 }

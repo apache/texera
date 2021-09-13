@@ -12,9 +12,9 @@ xdescribe("OperatorCacheStatusService", () => {
       providers: [
         {
           provide: OperatorMetadataService,
-          useClass: StubOperatorMetadataService
-        }
-      ]
+          useClass: StubOperatorMetadataService,
+        },
+      ],
     });
     service = TestBed.inject(OperatorCacheStatusService);
   });

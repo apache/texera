@@ -7,7 +7,7 @@ import { FileUploadItem } from "../../../../type/dashboard-user-file-entry";
 @Component({
   selector: "texera-ngbd-modal-file-add",
   templateUrl: "./ngbd-modal-file-add.component.html",
-  styleUrls: ["./ngbd-modal-file-add.component.scss"]
+  styleUrls: ["./ngbd-modal-file-add.component.scss"],
 })
 export class NgbdModalFileAddComponent {
   // This checks whether the user has hover a file over the file upload area
@@ -17,10 +17,7 @@ export class NgbdModalFileAddComponent {
   //  inside the uploader queue.
   public uploader: FileUploader = new FileUploader({ url: "" });
 
-  constructor(
-    public activeModal: NgbActiveModal,
-    private userFileUploadService: UserFileUploadService
-  ) {}
+  constructor(public activeModal: NgbActiveModal, private userFileUploadService: UserFileUploadService) {}
 
   public getFileArray(): ReadonlyArray<Readonly<FileUploadItem>> {
     return this.userFileUploadService.getFilesToBeUploaded();
@@ -39,9 +36,7 @@ export class NgbdModalFileAddComponent {
   }
 
   public isUploadAllButtonDisabled(): boolean {
-    return this.userFileUploadService
-      .getFilesToBeUploaded()
-      .every((fileUploadItem) => fileUploadItem.isUploadingFlag);
+    return this.userFileUploadService.getFilesToBeUploaded().every(fileUploadItem => fileUploadItem.isUploadingFlag);
   }
 
   public haveFileOver(fileOverEvent: boolean): void {
@@ -59,9 +54,7 @@ export class NgbdModalFileAddComponent {
     this.uploader.clearQueue();
   }
 
-  public handleClickUploadFile(clickUploadEvent: {
-    target: HTMLInputElement;
-  }): void {
+  public handleClickUploadFile(clickUploadEvent: { target: HTMLInputElement }): void {
     const fileList: FileList | null = clickUploadEvent.target.files;
     if (fileList === null) {
       throw new Error("browser upload does not work as intended");

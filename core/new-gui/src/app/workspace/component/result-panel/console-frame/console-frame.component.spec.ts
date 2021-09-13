@@ -17,9 +17,9 @@ describe("ConsoleFrameComponent", () => {
         providers: [
           {
             provide: OperatorMetadataService,
-            useClass: StubOperatorMetadataService
-          }
-        ]
+            useClass: StubOperatorMetadataService,
+          },
+        ],
       }).compileComponents();
     })
   );

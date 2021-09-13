@@ -11,10 +11,7 @@ import { Workflow } from "../../../../../common/type/workflow";
 @Component({
   selector: "texera-resource-section-delete-project-modal",
   templateUrl: "./ngbd-modal-delete-workflow.component.html",
-  styleUrls: [
-    "./ngbd-modal-delete-workflow.component.scss",
-    "../../../dashboard.component.scss"
-  ]
+  styleUrls: ["./ngbd-modal-delete-workflow.component.scss", "../../../dashboard.component.scss"],
 })
 export class NgbdModalDeleteWorkflowComponent {
   @Input() workflow!: Workflow;

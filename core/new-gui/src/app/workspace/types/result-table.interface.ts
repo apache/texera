@@ -19,9 +19,7 @@ export interface IndexableObject
  *  retreiving each attribute from each result row.
  * Given a row, extract the cell value of each column.
  */
-type TableCellMethod = (
-  row: IndexableObject
-) => object | string | number | boolean;
+type TableCellMethod = (row: IndexableObject) => object | string | number | boolean;
 
 /**
  * TableColumn specifies the information about each column.

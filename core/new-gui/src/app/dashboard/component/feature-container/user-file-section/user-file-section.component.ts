@@ -12,7 +12,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 @Component({
   selector: "texera-user-file-section",
   templateUrl: "./user-file-section.component.html",
-  styleUrls: ["./user-file-section.component.scss"]
+  styleUrls: ["./user-file-section.component.scss"],
 })
 export class UserFileSectionComponent {
   constructor(
@@ -28,12 +28,8 @@ export class UserFileSectionComponent {
     this.modalService.open(NgbdModalFileAddComponent);
   }
 
-  public onClickOpenShareAccess(
-    dashboardUserFileEntry: DashboardUserFileEntry
-  ): void {
-    const modalRef = this.modalService.open(
-      NgbdModalUserFileShareAccessComponent
-    );
+  public onClickOpenShareAccess(dashboardUserFileEntry: DashboardUserFileEntry): void {
+    const modalRef = this.modalService.open(NgbdModalUserFileShareAccessComponent);
     modalRef.componentInstance.dashboardUserFileEntry = dashboardUserFileEntry;
   }
 
@@ -70,9 +66,7 @@ export class UserFileSectionComponent {
 
           // create a download link and trigger it.
           const downloadLink = document.createElement("a");
-          downloadLink.href = URL.createObjectURL(
-            new Blob(binaryData, { type: dataType })
-          );
+          downloadLink.href = URL.createObjectURL(new Blob(binaryData, { type: dataType }));
           downloadLink.setAttribute("download", userFileEntry.file.name);
           document.body.appendChild(downloadLink);
           downloadLink.click();

@@ -15,7 +15,7 @@ export enum ChartType {
   SPLINE = "spline",
   HTML_VIZ = "HTML visualizer",
   SIMPLE_SCATTERPLOT = "scatter",
-  SPATIAL_SCATTERPLOT = "spatial scatterplot"
+  SPATIAL_SCATTERPLOT = "spatial scatterplot",
 }
 
 /**

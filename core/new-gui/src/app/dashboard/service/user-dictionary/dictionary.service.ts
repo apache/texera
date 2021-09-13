@@ -10,7 +10,7 @@ export type UserDictionary = {
 };
 
 @Injectable({
-  providedIn: "root"
+  providedIn: "root",
 })
 export class DictionaryService {
   public static readonly USER_DICTIONARY_ENDPOINT = "users/dictionary";
@@ -49,11 +49,9 @@ export class DictionaryService {
     if (key.trim().length === 0) {
       throw new Error("Dictionary Service: key cannot be empty");
     }
-    const url = `${AppSettings.getApiEndpoint()}/${
-      DictionaryService.USER_DICTIONARY_ENDPOINT
-    }/${key}`;
+    const url = `${AppSettings.getApiEndpoint()}/${DictionaryService.USER_DICTIONARY_ENDPOINT}/${key}`;
     const req = this.http.get<string>(url).pipe(
-      tap((res) => this.updateEntry(key, res)),
+      tap(res => this.updateEntry(key, res)),
       shareReplay(1)
     );
     req.subscribe(); // causes post request to be sent regardless caller's subscription
@@ -68,11 +66,9 @@ export class DictionaryService {
     if (!this.userService.isLogin()) {
       throw new Error("user not logged in");
     }
-    const url = `${AppSettings.getApiEndpoint()}/${
-      DictionaryService.USER_DICTIONARY_ENDPOINT
-    }`;
+    const url = `${AppSettings.getApiEndpoint()}/${DictionaryService.USER_DICTIONARY_ENDPOINT}`;
     const req = this.http.get<UserDictionary>(url).pipe(
-      tap((res) => this.updateDict(res)),
+      tap(res => this.updateDict(res)),
       shareReplay(1)
     );
     req.subscribe(); // causes post request to be sent regardless caller's subscription
@@ -93,11 +89,9 @@ export class DictionaryService {
     if (key.trim().length === 0) {
       throw new Error("Dictionary Service: key cannot be empty");
     }
-    const url = `${AppSettings.getApiEndpoint()}/${
-      DictionaryService.USER_DICTIONARY_ENDPOINT
-    }/${key}`;
+    const url = `${AppSettings.getApiEndpoint()}/${DictionaryService.USER_DICTIONARY_ENDPOINT}/${key}`;
     const req = this.http.put<void>(url, { value: value }).pipe(
-      tap((_) => this.updateEntry(key, value)),
+      tap(_ => this.updateEntry(key, value)),
       shareReplay(1)
     );
     req.subscribe();
@@ -120,11 +114,9 @@ export class DictionaryService {
     if (!(key in this.localUserDictionary)) {
       return of();
     }
-    const url = `${AppSettings.getApiEndpoint()}/${
-      DictionaryService.USER_DICTIONARY_ENDPOINT
-    }/${key}`;
+    const url = `${AppSettings.getApiEndpoint()}/${DictionaryService.USER_DICTIONARY_ENDPOINT}/${key}`;
     const req = this.http.delete<void>(url).pipe(
-      tap((_) => this.updateEntry(key, undefined)),
+      tap(_ => this.updateEntry(key, undefined)),
       shareReplay(1)
     );
     req.subscribe();

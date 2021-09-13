@@ -20,7 +20,7 @@ describe("NgbdModalShareAccessComponent", () => {
       " {\"operators\":[],\"operatorPositions\":{},\"links\":[],\"groups\":[],\"breakpoints\":{}}"
     ),
     creationTime: 1,
-    lastModifiedTime: 2
+    lastModifiedTime: 2,
   };
 
   beforeEach(
@@ -34,9 +34,9 @@ describe("NgbdModalShareAccessComponent", () => {
           HttpHandler,
           {
             provide: WorkflowAccessService,
-            useClass: StubWorkflowAccessService
-          }
-        ]
+            useClass: StubWorkflowAccessService,
+          },
+        ],
       });
     })
   );
@@ -57,10 +57,7 @@ describe("NgbdModalShareAccessComponent", () => {
   });
 
   it("can get all accesses", () => {
-    const mySpy = spyOn(
-      service,
-      "retrieveGrantedWorkflowAccessList"
-    ).and.callThrough();
+    const mySpy = spyOn(service, "retrieveGrantedWorkflowAccessList").and.callThrough();
     component.workflow = workflow;
     fixture.detectChanges();
     component.onClickGetAllSharedAccess(component.workflow);

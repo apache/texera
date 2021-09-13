@@ -16,16 +16,12 @@
 
   <nz-card class="user-file-list subsection-grid-container">
     <nz-list>
-      <nz-list-item
-        *ngFor="let dashboardUserFileEntry of getFileArray()"
-        class="user-file-list-item"
-      >
+      <nz-list-item *ngFor="let dashboardUserFileEntry of getFileArray()" class="user-file-list-item">
         <nz-list-item-meta>
           <nz-list-item-meta-title>
             <div class="file-name">
               <h4 class="file-title">
-                {{ dashboardUserFileEntry.ownerName + "/" +
-                dashboardUserFileEntry.file.name }}
+                {{ dashboardUserFileEntry.ownerName + "/" + dashboardUserFileEntry.file.name }}
               </h4>
               <i
                 *ngIf="dashboardUserFileEntry.isOwner"

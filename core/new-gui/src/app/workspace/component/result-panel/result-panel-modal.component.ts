@@ -17,7 +17,7 @@ import { NzModalRef } from "ng-zorro-antd/modal";
 @Component({
   selector: "texera-row-modal-content",
   templateUrl: "./result-panel-modal.component.html",
-  styleUrls: ["./result-panel.component.scss"]
+  styleUrls: ["./result-panel.component.scss"],
 })
 export class RowModalComponent {
   // when modal is opened, currentDisplayRow will be passed as

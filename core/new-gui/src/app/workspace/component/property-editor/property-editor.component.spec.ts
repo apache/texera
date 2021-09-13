@@ -8,7 +8,7 @@ import {
   mockScanResultLink,
   mockScanSentimentLink,
   mockSentimentPredicate,
-  mockSentimentResultLink
+  mockSentimentResultLink,
 } from "../../service/workflow-graph/model/mock-workflow-data";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { OperatorPropertyEditFrameComponent } from "./operator-property-edit-frame/operator-property-edit-frame.component";
@@ -30,9 +30,9 @@ describe("PropertyEditorComponent", () => {
         providers: [
           {
             provide: OperatorMetadataService,
-            useClass: StubOperatorMetadataService
-          }
-        ]
+            useClass: StubOperatorMetadataService,
+          },
+        ],
       }).compileComponents();
     })
   );
@@ -61,11 +61,9 @@ describe("PropertyEditorComponent", () => {
 
     fixture.detectChanges();
 
-    expect(component.frameComponentConfig?.component).toBe(
-      OperatorPropertyEditFrameComponent
-    );
+    expect(component.frameComponentConfig?.component).toBe(OperatorPropertyEditFrameComponent);
     expect(component.frameComponentConfig?.componentInputs).toEqual({
-      currentOperatorId: mockScanPredicate.operatorID
+      currentOperatorId: mockScanPredicate.operatorID,
     });
 
     // unhighlight the operator
@@ -85,22 +83,15 @@ describe("PropertyEditorComponent", () => {
     workflowActionService.addOperatorsAndLinks(
       [
         { op: mockScanPredicate, pos: mockPoint },
-        { op: mockResultPredicate, pos: mockPoint }
+        { op: mockResultPredicate, pos: mockPoint },
       ],
       []
     );
-    jointGraphWrapper.highlightOperators(
-      mockScanPredicate.operatorID,
-      mockResultPredicate.operatorID
-    );
+    jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID, mockResultPredicate.operatorID);
 
     // assert that multiple operators are highlighted
-    expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(
-      mockResultPredicate.operatorID
-    );
-    expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(
-      mockScanPredicate.operatorID
-    );
+    expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockResultPredicate.operatorID);
+    expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockScanPredicate.operatorID);
     fixture.detectChanges();
 
     // expect that the property editor is cleared
@@ -119,11 +110,9 @@ describe("PropertyEditorComponent", () => {
     fixture.detectChanges();
 
     // check the variables
-    expect(component.frameComponentConfig?.component).toBe(
-      OperatorPropertyEditFrameComponent
-    );
+    expect(component.frameComponentConfig?.component).toBe(OperatorPropertyEditFrameComponent);
     expect(component.frameComponentConfig?.componentInputs).toEqual({
-      currentOperatorId: mockScanPredicate.operatorID
+      currentOperatorId: mockScanPredicate.operatorID,
     });
 
     // unhighlight the operator
@@ -136,11 +125,9 @@ describe("PropertyEditorComponent", () => {
     jointGraphWrapper.highlightOperators(mockResultPredicate.operatorID);
     fixture.detectChanges();
 
-    expect(component.frameComponentConfig?.component).toBe(
-      OperatorPropertyEditFrameComponent
-    );
+    expect(component.frameComponentConfig?.component).toBe(OperatorPropertyEditFrameComponent);
     expect(component.frameComponentConfig?.componentInputs).toEqual({
-      currentOperatorId: mockResultPredicate.operatorID
+      currentOperatorId: mockResultPredicate.operatorID,
     });
   });
 
@@ -155,11 +142,9 @@ describe("PropertyEditorComponent", () => {
     jointGraphWrapper.highlightLink(mockScanResultLink.linkID);
     fixture.detectChanges();
 
-    expect(component.frameComponentConfig?.component).toBe(
-      BreakpointPropertyEditFrameComponent
-    );
+    expect(component.frameComponentConfig?.component).toBe(BreakpointPropertyEditFrameComponent);
     expect(component.frameComponentConfig?.componentInputs).toEqual({
-      currentLinkId: mockScanResultLink.linkID
+      currentLinkId: mockScanResultLink.linkID,
     });
 
     // unhighlight the highlighted link
@@ -182,11 +167,9 @@ describe("PropertyEditorComponent", () => {
     jointGraphWrapper.highlightLink(mockScanSentimentLink.linkID);
 
     fixture.detectChanges();
-    expect(component.frameComponentConfig?.component).toBe(
-      BreakpointPropertyEditFrameComponent
-    );
+    expect(component.frameComponentConfig?.component).toBe(BreakpointPropertyEditFrameComponent);
     expect(component.frameComponentConfig?.componentInputs).toEqual({
-      currentLinkId: mockScanSentimentLink.linkID
+      currentLinkId: mockScanSentimentLink.linkID,
     });
 
     // unhighlight the link
@@ -197,11 +180,9 @@ describe("PropertyEditorComponent", () => {
     // highlight the second link
     jointGraphWrapper.highlightLink(mockSentimentResultLink.linkID);
     fixture.detectChanges();
-    expect(component.frameComponentConfig?.component).toBe(
-      BreakpointPropertyEditFrameComponent
-    );
+    expect(component.frameComponentConfig?.component).toBe(BreakpointPropertyEditFrameComponent);
     expect(component.frameComponentConfig?.componentInputs).toEqual({
-      currentLinkId: mockSentimentResultLink.linkID
+      currentLinkId: mockSentimentResultLink.linkID,
     });
   });
 });

@@ -11,7 +11,7 @@ describe("NotificationComponent", () => {
     waitForAsync(() => {
       TestBed.configureTestingModule({
         declarations: [NotificationComponent],
-        imports: [NzMessageModule]
+        imports: [NzMessageModule],
       }).compileComponents();
     })
   );

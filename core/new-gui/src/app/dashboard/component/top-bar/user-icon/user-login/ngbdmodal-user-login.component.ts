@@ -2,12 +2,7 @@ import { Component, OnInit } from "@angular/core";
 import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { UserService } from "../../../../../common/service/user/user.service";
 import { User } from "../../../../../common/type/user";
-import {
-  FormBuilder,
-  FormControl,
-  FormGroup,
-  Validators
-} from "@angular/forms";
+import { FormBuilder, FormControl, FormGroup, Validators } from "@angular/forms";
 import { isDefined } from "../../../../../common/util/predicate";
 import { filter } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -21,7 +16,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 @Component({
   selector: "texera-ngbdmodal-user-login",
   templateUrl: "./ngbdmodal-user-login.component.html",
-  styleUrls: ["./ngbdmodal-user-login.component.scss"]
+  styleUrls: ["./ngbdmodal-user-login.component.scss"],
 })
 export class NgbdModalUserLoginComponent implements OnInit {
   public selectedTab = 0;
@@ -29,17 +24,13 @@ export class NgbdModalUserLoginComponent implements OnInit {
   public registerErrorMessage: string | undefined;
   public allForms: FormGroup;
 
-  constructor(
-    private formBuilder: FormBuilder,
-    public activeModal: NgbActiveModal,
-    private userService: UserService
-  ) {
+  constructor(private formBuilder: FormBuilder, public activeModal: NgbActiveModal, private userService: UserService) {
     this.allForms = this.formBuilder.group({
       loginUserName: new FormControl("", [Validators.required]),
       registerUserName: new FormControl("", [Validators.required]),
       loginPassword: new FormControl("", [Validators.required]),
       registerPassword: new FormControl("", [Validators.required]),
-      registerConfirmationPassword: new FormControl("", [Validators.required])
+      registerConfirmationPassword: new FormControl("", [Validators.required]),
     });
   }
 
@@ -54,9 +45,7 @@ export class NgbdModalUserLoginComponent implements OnInit {
   public errorMessagePasswordNull(): string {
     return this.allForms.controls["registerPassword"].hasError("required")
       ? "Password required"
-      : this.allForms.controls["registerConfirmationPassword"].hasError(
-          "required"
-        )
+      : this.allForms.controls["registerConfirmationPassword"].hasError("required")
       ? "Confirmation required"
       : this.allForms.controls["loginPassword"].hasError("required")
       ? "Password required"
@@ -70,9 +59,7 @@ export class NgbdModalUserLoginComponent implements OnInit {
   public login(): void {
     // validate the credentials format
     this.loginErrorMessage = undefined;
-    const validation = this.userService.validateUsername(
-      this.allForms.get("loginUserName")?.value
-    );
+    const validation = this.userService.validateUsername(this.allForms.get("loginUserName")?.value);
     if (!validation.result) {
       this.loginErrorMessage = validation.message;
       return;
@@ -102,15 +89,9 @@ export class NgbdModalUserLoginComponent implements OnInit {
     // validate the credentials format
     this.registerErrorMessage = undefined;
     const registerPassword = this.allForms.get("registerPassword")?.value;
-    const registerConfirmationPassword = this.allForms.get(
-      "registerConfirmationPassword"
-    )?.value;
-    const registerUserName = this.allForms
-      .get("registerUserName")
-      ?.value.trim();
-    const validation = this.userService.validateUsername(
-      this.allForms.get("registerUserName")?.value.trim()
-    );
+    const registerConfirmationPassword = this.allForms.get("registerConfirmationPassword")?.value;
+    const registerUserName = this.allForms.get("registerUserName")?.value.trim();
+    const validation = this.userService.validateUsername(this.allForms.get("registerUserName")?.value.trim());
     if (registerPassword.length < 6) {
       this.registerErrorMessage = "Password length should be greater than 5";
       return;
@@ -132,9 +113,7 @@ export class NgbdModalUserLoginComponent implements OnInit {
           this.userService.changeUser(<User>{ name: registerUserName });
           this.activeModal.close();
         },
-        () =>
-          (this.registerErrorMessage =
-            "Registration failed. Could due to duplicate username.")
+        () => (this.registerErrorMessage = "Registration failed. Could due to duplicate username.")
       );
   }
 
@@ -147,14 +126,14 @@ export class NgbdModalUserLoginComponent implements OnInit {
     this.userService
       .getGoogleAuthInstance()
       .pipe(untilDestroyed(this))
-      .subscribe((Auth) => {
+      .subscribe(Auth => {
         // grantOfflineAccess allows application to access specified scopes offline
-        Auth.grantOfflineAccess().then((code) =>
+        Auth.grantOfflineAccess().then(code =>
           this.userService
             .googleLogin(code["code"])
             .pipe(untilDestroyed(this))
             .subscribe(
-              (googleUser) => {
+              googleUser => {
                 this.userService.changeUser(<User>{ name: googleUser.name });
                 this.activeModal.close();
               },

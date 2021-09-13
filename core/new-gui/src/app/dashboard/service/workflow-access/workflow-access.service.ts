@@ -12,7 +12,7 @@ export const WORKFLOW_ACCESS_REVOKE_URL = WORKFLOW_ACCESS_URL + "/revoke";
 export const WORKFLOW_OWNER_URL = WORKFLOW_ACCESS_URL + "/owner";
 
 @Injectable({
-  providedIn: "root"
+  providedIn: "root",
 })
 export class WorkflowAccessService {
   constructor(private http: HttpClient) {}
@@ -24,15 +24,9 @@ export class WorkflowAccessService {
    * @param accessLevel the type of access offered
    * @return hashmap indicating all current accesses, ex: {"Jim": "Write"}
    */
-  public grantUserWorkflowAccess(
-    workflow: Workflow,
-    username: string,
-    accessLevel: string
-  ): Observable<Response> {
+  public grantUserWorkflowAccess(workflow: Workflow, username: string, accessLevel: string): Observable<Response> {
     return this.http.post<Response>(
-      `${AppSettings.getApiEndpoint()}/${WORKFLOW_ACCESS_GRANT_URL}/${
-        workflow.wid
-      }/${username}/${accessLevel}`,
+      `${AppSettings.getApiEndpoint()}/${WORKFLOW_ACCESS_GRANT_URL}/${workflow.wid}/${username}/${accessLevel}`,
       null
     );
   }
@@ -42,13 +36,9 @@ export class WorkflowAccessService {
    * @param workflow the current workflow
    * @return message of success
    */
-  public retrieveGrantedWorkflowAccessList(
-    workflow: Workflow
-  ): Observable<ReadonlyArray<AccessEntry>> {
+  public retrieveGrantedWorkflowAccessList(workflow: Workflow): Observable<ReadonlyArray<AccessEntry>> {
     return this.http.get<ReadonlyArray<AccessEntry>>(
-      `${AppSettings.getApiEndpoint()}/${WORKFLOW_ACCESS_LIST_URL}/${
-        workflow.wid
-      }`
+      `${AppSettings.getApiEndpoint()}/${WORKFLOW_ACCESS_LIST_URL}/${workflow.wid}`
     );
   }
 
@@ -58,21 +48,14 @@ export class WorkflowAccessService {
    * @param username the username of target user
    * @return message of success
    */
-  public revokeWorkflowAccess(
-    workflow: Workflow,
-    username: string
-  ): Observable<Response> {
+  public revokeWorkflowAccess(workflow: Workflow, username: string): Observable<Response> {
     return this.http.post<Response>(
-      `${AppSettings.getApiEndpoint()}/${WORKFLOW_ACCESS_REVOKE_URL}/${
-        workflow.wid
-      }/${username}`,
+      `${AppSettings.getApiEndpoint()}/${WORKFLOW_ACCESS_REVOKE_URL}/${workflow.wid}/${username}`,
       null
     );
   }
 
-  public getWorkflowOwner(
-    workflow: Workflow
-  ): Observable<Readonly<{ ownerName: string }>> {
+  public getWorkflowOwner(workflow: Workflow): Observable<Readonly<{ ownerName: string }>> {
     return this.http.get<Readonly<{ ownerName: string }>>(
       `${AppSettings.getApiEndpoint()}/${WORKFLOW_OWNER_URL}/${workflow.wid}`
     );

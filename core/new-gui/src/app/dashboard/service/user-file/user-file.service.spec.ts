@@ -1,17 +1,11 @@
 import { TestBed } from "@angular/core/testing";
-import {
-  HttpClientTestingModule,
-  HttpTestingController
-} from "@angular/common/http/testing";
-import {
-  DashboardUserFileEntry,
-  UserFile
-} from "../../type/dashboard-user-file-entry";
+import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
+import { DashboardUserFileEntry, UserFile } from "../../type/dashboard-user-file-entry";
 import {
   USER_FILE_ACCESS_GRANT_URL,
   USER_FILE_ACCESS_LIST_URL,
   USER_FILE_ACCESS_REVOKE_URL,
-  UserFileService
+  UserFileService,
 } from "./user-file.service";
 import { UserService } from "../../../common/service/user/user.service";
 import { StubUserService } from "../../../common/service/user/stub-user.service";
@@ -29,13 +23,13 @@ const testFile: UserFile = {
   name: name,
   path: path,
   size: size,
-  description: description
+  description: description,
 };
 const testFileEntry: DashboardUserFileEntry = {
   ownerName: "Texera",
   file: testFile,
   accessLevel: "Write",
-  isOwner: true
+  isOwner: true,
 };
 
 describe("UserFileService", () => {
@@ -44,11 +38,8 @@ describe("UserFileService", () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [
-        UserFileService,
-        { provide: UserService, useClass: StubUserService }
-      ],
-      imports: [HttpClientTestingModule]
+      providers: [UserFileService, { provide: UserService, useClass: StubUserService }],
+      imports: [HttpClientTestingModule],
     });
     httpMock = TestBed.get(HttpTestingController);
     service = TestBed.get(UserFileService);
@@ -63,10 +54,7 @@ describe("UserFileService", () => {
   });
 
   it("can share access", () => {
-    service
-      .grantUserFileAccess(testFileEntry, username, accessLevel)
-      .pipe(first())
-      .subscribe();
+    service.grantUserFileAccess(testFileEntry, username, accessLevel).pipe(first()).subscribe();
     const req = httpMock.expectOne(
       `${USER_FILE_ACCESS_GRANT_URL}/${testFileEntry.file.name}/${testFileEntry.ownerName}/${username}/${accessLevel}`
     );
@@ -75,10 +63,7 @@ describe("UserFileService", () => {
   });
 
   it("can revoke access", () => {
-    service
-      .revokeUserFileAccess(testFileEntry, username)
-      .pipe(first())
-      .subscribe();
+    service.revokeUserFileAccess(testFileEntry, username).pipe(first()).subscribe();
     const req = httpMock.expectOne(
       `${USER_FILE_ACCESS_REVOKE_URL}/${testFileEntry.file.name}/${testFileEntry.ownerName}/${username}`
     );

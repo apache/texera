@@ -5,7 +5,7 @@ const { writeFileSync, existsSync, mkdirSync } = require("fs-extra");
 
 const gitInfo = gitDescribeSync({
   dirtyMark: false,
-  dirtySemver: false
+  dirtySemver: false,
 });
 
 gitInfo.version = version;
@@ -24,9 +24,4 @@ export const Version = ${JSON.stringify(gitInfo, null, 4)};
   { encoding: "utf-8" }
 );
 
-console.log(
-  `Wrote version info ${gitInfo.raw} to ${relative(
-    resolve(__dirname, ".."),
-    file
-  )}`
-);
+console.log(`Wrote version info ${gitInfo.raw} to ${relative(resolve(__dirname, ".."), file)}`);

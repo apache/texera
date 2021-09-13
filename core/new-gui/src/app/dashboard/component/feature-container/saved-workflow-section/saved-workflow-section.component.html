@@ -10,24 +10,16 @@
       <nz-dropdown-menu #sortOptions="nzDropdownMenu">
         <ul nz-menu>
           <li nz-menu-item>
-            <button (click)="lastSort()" class="sorting_func" nz-button>
-              By Edit Time
-            </button>
+            <button (click)="lastSort()" class="sorting_func" nz-button>By Edit Time</button>
           </li>
           <li nz-menu-item>
-            <button (click)="dateSort()" class="sorting_func" nz-button>
-              By Create Time
-            </button>
+            <button (click)="dateSort()" class="sorting_func" nz-button>By Create Time</button>
           </li>
           <li nz-menu-item>
-            <button (click)="ascSort()" class="sorting_func" nz-button>
-              A -> Z
-            </button>
+            <button (click)="ascSort()" class="sorting_func" nz-button>A -> Z</button>
           </li>
           <li nz-menu-item>
-            <button (click)="dscSort()" class="sorting_func" nz-button>
-              Z -> A
-            </button>
+            <button (click)="dscSort()" class="sorting_func" nz-button>Z -> A</button>
           </li>
         </ul>
       </nz-dropdown-menu>
@@ -45,10 +37,7 @@
 
   <nz-card class="workflow-list-container subsection-grid-container">
     <nz-list>
-      <nz-list-item
-        *ngFor="let dashboardWorkflowEntry of dashboardWorkflowEntries"
-        class="workflow-list-item"
-      >
+      <nz-list-item *ngFor="let dashboardWorkflowEntry of dashboardWorkflowEntries" class="workflow-list-item">
         <nz-list-item-meta>
           <nz-list-item-meta-avatar>
             <nz-avatar
@@ -61,9 +50,7 @@
           </nz-list-item-meta-avatar>
           <nz-list-item-meta-title>
             <span class="workflow-dashboard-entry">
-              <label
-                (click)="jumpToWorkflow(dashboardWorkflowEntry)"
-                class="workflow-name"
+              <label (click)="jumpToWorkflow(dashboardWorkflowEntry)" class="workflow-name"
                 >{{ dashboardWorkflowEntry.workflow.name }}</label
               >
               <i
@@ -86,11 +73,9 @@
           </nz-list-item-meta-title>
           <nz-list-item-meta-description>
             <p class="workflow-time">
-              Last Access: {{ dashboardWorkflowEntry.workflow.lastModifiedTime |
-              date: "yyyy-MM-dd HH:mm" }}
+              Last Access: {{ dashboardWorkflowEntry.workflow.lastModifiedTime | date: "yyyy-MM-dd HH:mm" }}
               <span class="time-space"></span>
-              Created: {{ dashboardWorkflowEntry.workflow.creationTime | date:
-              "yyyy-MM-dd HH:mm" }}
+              Created: {{ dashboardWorkflowEntry.workflow.creationTime | date: "yyyy-MM-dd HH:mm" }}
             </p>
           </nz-list-item-meta-description>
         </nz-list-item-meta>

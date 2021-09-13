@@ -1,11 +1,7 @@
 import { Subject } from "rxjs";
 import { Observable } from "rxjs";
 import { WorkflowUtilService } from "../util/workflow-util.service";
-import {
-  Point,
-  OperatorPredicate,
-  OperatorLink
-} from "../../../types/workflow-common.interface";
+import { Point, OperatorPredicate, OperatorLink } from "../../../types/workflow-common.interface";
 import { WorkflowGraph } from "./workflow-graph";
 import { JointGraphWrapper } from "./joint-graph-wrapper";
 import { JointUIService } from "../../joint-ui/joint-ui.service";
@@ -173,10 +169,7 @@ export class OperatorGroup {
     const operatorLayer = this.jointGraphWrapper.getCellLayer(operatorID);
     const groupLayer = this.jointGraphWrapper.getCellLayer(groupID);
     if (operatorLayer <= groupLayer) {
-      this.jointGraphWrapper.setCellLayer(
-        operatorID,
-        groupLayer + operatorLayer
-      );
+      this.jointGraphWrapper.setCellLayer(operatorID, groupLayer + operatorLayer);
     }
 
     const position = this.jointGraphWrapper.getElementPosition(operatorID);
@@ -185,8 +178,8 @@ export class OperatorGroup {
 
     this.texeraGraph
       .getAllLinks()
-      .filter((link) => link.source.operatorID === operatorID)
-      .forEach((link) => {
+      .filter(link => link.source.operatorID === operatorID)
+      .forEach(link => {
         if (group.operators.has(link.target.operatorID)) {
           group.inLinks.splice(group.inLinks.indexOf(link.linkID), 1);
           this.addLinkToGroup(link.linkID, groupID);
@@ -197,8 +190,8 @@ export class OperatorGroup {
 
     this.texeraGraph
       .getAllLinks()
-      .filter((link) => link.target.operatorID === operatorID)
-      .forEach((link) => {
+      .filter(link => link.target.operatorID === operatorID)
+      .forEach(link => {
         if (group.operators.has(link.source.operatorID)) {
           group.outLinks.splice(group.outLinks.indexOf(link.linkID), 1);
           this.addLinkToGroup(link.linkID, groupID);
@@ -233,20 +226,11 @@ export class OperatorGroup {
     const link = this.texeraGraph.getLinkWithID(linkID);
     const group = this.getGroup(groupID);
 
-    if (
-      this.getGroupByLink(linkID) ||
-      this.getGroupByInLink(linkID) ||
-      this.getGroupByOutLink(linkID)
-    ) {
+    if (this.getGroupByLink(linkID) || this.getGroupByInLink(linkID) || this.getGroupByOutLink(linkID)) {
       throw Error(`link with ID ${linkID} already exists in a group`);
     }
-    if (
-      !group.operators.has(link.source.operatorID) ||
-      !group.operators.has(link.target.operatorID)
-    ) {
-      throw Error(
-        `link ${linkID} doesn't qualify as a link of group ${groupID}`
-      );
+    if (!group.operators.has(link.source.operatorID) || !group.operators.has(link.target.operatorID)) {
+      throw Error(`link ${linkID} doesn't qualify as a link of group ${groupID}`);
     }
 
     if (this.jointGraph.getCell(linkID)) {
@@ -288,13 +272,8 @@ export class OperatorGroup {
     if (this.getGroupByLink(linkID) || this.getGroupByInLink(linkID)) {
       throw Error(`link with ID ${linkID} already exists in a group`);
     }
-    if (
-      group.operators.has(link.source.operatorID) ||
-      !group.operators.has(link.target.operatorID)
-    ) {
-      throw Error(
-        `link ${linkID} doesn't qualify as an in-link of group ${groupID}`
-      );
+    if (group.operators.has(link.source.operatorID) || !group.operators.has(link.target.operatorID)) {
+      throw Error(`link ${linkID} doesn't qualify as an in-link of group ${groupID}`);
     }
 
     const linkLayer = this.jointGraphWrapper.getCellLayer(linkID);
@@ -332,13 +311,8 @@ export class OperatorGroup {
     if (this.getGroupByLink(linkID) || this.getGroupByOutLink(linkID)) {
       throw Error(`link with ID ${linkID} already exists in a group`);
     }
-    if (
-      !group.operators.has(link.source.operatorID) ||
-      group.operators.has(link.target.operatorID)
-    ) {
-      throw Error(
-        `link ${linkID} doesn't qualify as an out-link of group ${groupID}`
-      );
+    if (!group.operators.has(link.source.operatorID) || group.operators.has(link.target.operatorID)) {
+      throw Error(`link ${linkID} doesn't qualify as an out-link of group ${groupID}`);
     }
 
     const linkLayer = this.jointGraphWrapper.getCellLayer(linkID);
@@ -608,9 +582,7 @@ export class OperatorGroup {
       if (operatorInfo) {
         return operatorInfo.position;
       } else {
-        throw Error(
-          `Internal error: can't find operator ${operatorID} in group ${group.groupID}`
-        );
+        throw Error(`Internal error: can't find operator ${operatorID} in group ${group.groupID}`);
       }
     } else {
       return this.jointGraphWrapper.getElementPosition(operatorID);
@@ -633,9 +605,7 @@ export class OperatorGroup {
       if (operatorInfo) {
         return operatorInfo.layer;
       } else {
-        throw Error(
-          `Internal error: can't find operator ${operatorID} in group ${group.groupID}`
-        );
+        throw Error(`Internal error: can't find operator ${operatorID} in group ${group.groupID}`);
       }
     } else {
       return this.jointGraphWrapper.getCellLayer(operatorID);
@@ -658,9 +628,7 @@ export class OperatorGroup {
       if (linkInfo) {
         return linkInfo.layer;
       } else {
-        throw Error(
-          `Internal error: can't find link ${linkID} in group ${group.groupID}`
-        );
+        throw Error(`Internal error: can't find link ${linkID} in group ${group.groupID}`);
       }
     } else {
       return this.jointGraphWrapper.getCellLayer(linkID);
@@ -690,7 +658,7 @@ export class OperatorGroup {
     }
 
     const operators = new Map<string, OperatorInfo>();
-    operatorIDs.forEach((operatorID) => {
+    operatorIDs.forEach(operatorID => {
       const operator = this.texeraGraph.getOperator(operatorID);
       const position = this.jointGraphWrapper.getElementPosition(operatorID);
       const layer = this.jointGraphWrapper.getCellLayer(operatorID);
@@ -700,32 +668,20 @@ export class OperatorGroup {
     const links = new Map<string, LinkInfo>();
     this.texeraGraph
       .getAllLinks()
-      .filter(
-        (link) =>
-          operators.has(link.source.operatorID) &&
-          operators.has(link.target.operatorID)
-      )
-      .forEach((link) => {
+      .filter(link => operators.has(link.source.operatorID) && operators.has(link.target.operatorID))
+      .forEach(link => {
         const layer = this.jointGraphWrapper.getCellLayer(link.linkID);
         links.set(link.linkID, { link, layer });
       });
 
     const inLinks = this.texeraGraph
       .getAllLinks()
-      .filter(
-        (link) =>
-          !operators.has(link.source.operatorID) &&
-          operators.has(link.target.operatorID)
-      )
-      .map((link) => link.linkID);
+      .filter(link => !operators.has(link.source.operatorID) && operators.has(link.target.operatorID))
+      .map(link => link.linkID);
     const outLinks = this.texeraGraph
       .getAllLinks()
-      .filter(
-        (link) =>
-          operators.has(link.source.operatorID) &&
-          !operators.has(link.target.operatorID)
-      )
-      .map((link) => link.linkID);
+      .filter(link => operators.has(link.source.operatorID) && !operators.has(link.target.operatorID))
+      .map(link => link.linkID);
 
     return { groupID, operators, links, inLinks, outLinks, collapsed: false };
   }
@@ -742,25 +698,21 @@ export class OperatorGroup {
    * @param group
    */
   public getGroupBoundingBox(group: Group): GroupBoundingBox {
-    const randomOperator = group.operators.get(
-      Array.from(group.operators.keys())[0]
-    );
+    const randomOperator = group.operators.get(Array.from(group.operators.keys())[0]);
     if (!randomOperator) {
-      throw new Error(
-        `Internal error: group with ID ${group.groupID} is invalid`
-      );
+      throw new Error(`Internal error: group with ID ${group.groupID} is invalid`);
     }
 
     const topLeft = {
       x: randomOperator.position.x,
-      y: randomOperator.position.y
+      y: randomOperator.position.y,
     };
     const bottomRight = {
       x: randomOperator.position.x,
-      y: randomOperator.position.y
+      y: randomOperator.position.y,
     };
 
-    group.operators.forEach((operatorInfo) => {
+    group.operators.forEach(operatorInfo => {
       if (operatorInfo.position.x < topLeft.x) {
         topLeft.x = operatorInfo.position.x;
       }
@@ -784,13 +736,13 @@ export class OperatorGroup {
   public getHighestLayer(): number {
     let highestLayer = 0;
 
-    this.texeraGraph.getAllOperators().forEach((operator) => {
+    this.texeraGraph.getAllOperators().forEach(operator => {
       const layer = this.getOperatorLayerByGroup(operator.operatorID);
       if (layer > highestLayer) {
         highestLayer = layer;
       }
     });
-    this.texeraGraph.getAllLinks().forEach((link) => {
+    this.texeraGraph.getAllLinks().forEach(link => {
       const layer = this.getLinkLayerByGroup(link.linkID);
       if (layer > highestLayer) {
         highestLayer = layer;
@@ -811,30 +763,24 @@ export class OperatorGroup {
   public moveGroupToLayer(group: Group, groupLayer: number): void {
     group.operators.forEach((operatorInfo, operatorID) => {
       if (!group.collapsed) {
-        this.jointGraphWrapper.setCellLayer(
-          operatorID,
-          operatorInfo.layer + groupLayer
-        );
+        this.jointGraphWrapper.setCellLayer(operatorID, operatorInfo.layer + groupLayer);
       }
       operatorInfo.layer += groupLayer;
     });
 
     group.links.forEach((linkInfo, linkID) => {
       if (!group.collapsed) {
-        this.jointGraphWrapper.setCellLayer(
-          linkID,
-          linkInfo.layer + groupLayer
-        );
+        this.jointGraphWrapper.setCellLayer(linkID, linkInfo.layer + groupLayer);
       }
       linkInfo.layer += groupLayer;
     });
 
-    group.inLinks.forEach((linkID) => {
+    group.inLinks.forEach(linkID => {
       const layer = this.jointGraphWrapper.getCellLayer(linkID);
       this.jointGraphWrapper.setCellLayer(linkID, layer + groupLayer);
     });
 
-    group.outLinks.forEach((linkID) => {
+    group.outLinks.forEach(linkID => {
       const layer = this.jointGraphWrapper.getCellLayer(linkID);
       this.jointGraphWrapper.setCellLayer(linkID, layer + groupLayer);
     });
@@ -850,20 +796,13 @@ export class OperatorGroup {
     const { topLeft, bottomRight } = this.getGroupBoundingBox(group);
 
     // calculate group's new position
-    const originalPosition = this.jointGraphWrapper.getElementPosition(
-      group.groupID
-    );
-    const offsetX =
-      topLeft.x - JointUIService.DEFAULT_GROUP_MARGIN - originalPosition.x;
-    const offsetY =
-      topLeft.y - JointUIService.DEFAULT_GROUP_MARGIN - originalPosition.y;
+    const originalPosition = this.jointGraphWrapper.getElementPosition(group.groupID);
+    const offsetX = topLeft.x - JointUIService.DEFAULT_GROUP_MARGIN - originalPosition.x;
+    const offsetY = topLeft.y - JointUIService.DEFAULT_GROUP_MARGIN - originalPosition.y;
 
     // calculate group's new height & width
     const width =
-      bottomRight.x -
-      topLeft.x +
-      JointUIService.DEFAULT_OPERATOR_WIDTH +
-      2 * JointUIService.DEFAULT_GROUP_MARGIN;
+      bottomRight.x - topLeft.x + JointUIService.DEFAULT_OPERATOR_WIDTH + 2 * JointUIService.DEFAULT_GROUP_MARGIN;
     const height =
       bottomRight.y -
       topLeft.y +
@@ -872,8 +811,7 @@ export class OperatorGroup {
       JointUIService.DEFAULT_GROUP_MARGIN_BOTTOM;
 
     // reposition the group according to the new position
-    const listenPositionChange =
-      this.jointGraphWrapper.getListenPositionChange();
+    const listenPositionChange = this.jointGraphWrapper.getListenPositionChange();
     this.setSyncOperatorGroup(false);
     this.jointGraphWrapper.setListenPositionChange(false);
     this.jointGraphWrapper.setElementPosition(group.groupID, offsetX, offsetY);
@@ -885,7 +823,7 @@ export class OperatorGroup {
     this.groupResizeStream.next({
       groupID: group.groupID,
       height: height,
-      width: width
+      width: width,
     });
   }
 
@@ -901,16 +839,14 @@ export class OperatorGroup {
   public hideOperatorsAndLinks(group: Group): void {
     this.setSyncTexeraGraph(false);
 
-    group.links.forEach((linkInfo, linkID) =>
-      this.jointGraph.getCell(linkID).remove()
-    );
+    group.links.forEach((linkInfo, linkID) => this.jointGraph.getCell(linkID).remove());
 
-    group.inLinks.forEach((linkID) => {
+    group.inLinks.forEach(linkID => {
       const jointLinkCell = <joint.dia.Link>this.jointGraph.getCell(linkID);
       jointLinkCell.set("target", { id: group.groupID });
     });
 
-    group.outLinks.forEach((linkID) => {
+    group.outLinks.forEach(linkID => {
       const jointLinkCell = <joint.dia.Link>this.jointGraph.getCell(linkID);
       jointLinkCell.set("source", { id: group.groupID });
     });
@@ -949,21 +885,21 @@ export class OperatorGroup {
       this.jointGraphWrapper.setCellLayer(linkID, linkInfo.layer);
     });
 
-    group.inLinks.forEach((linkID) => {
+    group.inLinks.forEach(linkID => {
       const link = this.texeraGraph.getLinkWithID(linkID);
       const jointLinkCell = <joint.dia.Link>this.jointGraph.getCell(linkID);
       jointLinkCell.set("target", {
         id: link.target.operatorID,
-        port: link.target.portID
+        port: link.target.portID,
       });
     });
 
-    group.outLinks.forEach((linkID) => {
+    group.outLinks.forEach(linkID => {
       const link = this.texeraGraph.getLinkWithID(linkID);
       const jointLinkCell = <joint.dia.Link>this.jointGraph.getCell(linkID);
       jointLinkCell.set("source", {
         id: link.source.operatorID,
-        port: link.source.portID
+        port: link.source.portID,
       });
     });
 

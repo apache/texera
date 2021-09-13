@@ -11,7 +11,7 @@ import { VisualizationFrameContentComponent } from "../../visualization-panel-co
 @Component({
   selector: "texera-visualization-frame",
   templateUrl: "./visualization-frame.component.html",
-  styleUrls: ["./visualization-frame.component.scss"]
+  styleUrls: ["./visualization-frame.component.scss"],
 })
 export class VisualizationFrameComponent {
   @Input() operatorId?: string;
@@ -31,8 +31,8 @@ export class VisualizationFrameComponent {
       nzFooter: null, // null indicates that the footer of the window would be hidden
       nzContent: VisualizationFrameContentComponent,
       nzComponentParams: {
-        operatorId: this.operatorId
-      }
+        operatorId: this.operatorId,
+      },
     });
   }
 }

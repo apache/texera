@@ -1,11 +1,6 @@
 <div class="modal-header">
   <h4 class="modal-title">Add Files</h4>
-  <button
-    (click)="activeModal.dismiss('close')"
-    aria-label="Close"
-    class="close"
-    type="button"
-  >
+  <button (click)="activeModal.dismiss('close')" aria-label="Close" class="close" type="button">
     <span aria-hidden="true">&times;</span>
   </button>
 </div>
@@ -21,13 +16,7 @@
   >
     Drop Files Here
     <div id="hide">
-      <input
-        #clickUpload
-        (change)="handleClickUploadFile($event)"
-        accept=".txt"
-        multiple
-        type="file"
-      />
+      <input #clickUpload (change)="handleClickUploadFile($event)" accept=".txt" multiple type="file" />
     </div>
   </div>
   <div *ngIf="getFileArrayLength()">
@@ -55,10 +44,5 @@
       upload
     </button>
   </div>
-  <button
-    (click)="activeModal.dismiss('close')"
-    class="btn btn-outline-dark bottom-size"
-  >
-    Close
-  </button>
+  <button (click)="activeModal.dismiss('close')" class="btn btn-outline-dark bottom-size">Close</button>
 </div>

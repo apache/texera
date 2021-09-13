@@ -1,10 +1,4 @@
-import {
-  Component,
-  Input,
-  OnChanges,
-  OnInit,
-  SimpleChanges
-} from "@angular/core";
+import { Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
 import { cloneDeep, isEqual } from "lodash-es";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
@@ -39,7 +33,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 @Component({
   selector: "texera-breakpoint-frame",
   templateUrl: "./breakpoint-property-edit-frame.component.html",
-  styleUrls: ["./breakpoint-property-edit-frame.component.scss"]
+  styleUrls: ["./breakpoint-property-edit-frame.component.scss"],
 })
 export class BreakpointPropertyEditFrameComponent implements OnInit, OnChanges {
   @Input() currentLinkId: string | undefined;
@@ -50,9 +44,8 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnChanges {
   // the source event stream of form change triggered by library at each user input
   sourceFormChangeEventStream = new Subject<Record<string, unknown>>();
 
-  breakpointChangeStream = createOutputFormChangeEventStream(
-    this.sourceFormChangeEventStream,
-    (data) => this.checkBreakpoint(data)
+  breakpointChangeStream = createOutputFormChangeEventStream(this.sourceFormChangeEventStream, data =>
+    this.checkBreakpoint(data)
   );
 
   // inputs and two-way bindings to formly component
@@ -96,34 +89,17 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnChanges {
     if (!this.currentLinkId) {
       return false;
     }
-    return (
-      this.workflowActionService
-        .getTexeraGraph()
-        .getLinkBreakpoint(this.currentLinkId) !== undefined
-    );
+    return this.workflowActionService.getTexeraGraph().getLinkBreakpoint(this.currentLinkId) !== undefined;
   }
 
   handleAddBreakpoint() {
-    if (
-      this.currentLinkId &&
-      this.workflowActionService
-        .getTexeraGraph()
-        .hasLinkWithID(this.currentLinkId)
-    ) {
-      this.workflowActionService.setLinkBreakpoint(
-        this.currentLinkId,
-        this.formData
-      );
+    if (this.currentLinkId && this.workflowActionService.getTexeraGraph().hasLinkWithID(this.currentLinkId)) {
+      this.workflowActionService.setLinkBreakpoint(this.currentLinkId, this.formData);
       if (
-        this.executeWorkflowService.getExecutionState().state ===
-          ExecutionState.Paused ||
-        this.executeWorkflowService.getExecutionState().state ===
-          ExecutionState.BreakpointTriggered
+        this.executeWorkflowService.getExecutionState().state === ExecutionState.Paused ||
+        this.executeWorkflowService.getExecutionState().state === ExecutionState.BreakpointTriggered
       ) {
-        this.executeWorkflowService.addBreakpointRuntime(
-          this.currentLinkId,
-          this.formData
-        );
+        this.executeWorkflowService.addBreakpointRuntime(this.currentLinkId, this.formData);
       }
     }
   }
@@ -137,9 +113,7 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnChanges {
     if (this.currentLinkId) {
       // remove breakpoint in texera workflow first, then unhighlight it
       this.workflowActionService.removeLinkBreakpoint(this.currentLinkId);
-      this.workflowActionService
-        .getJointGraphWrapper()
-        .unhighlightLinks(this.currentLinkId);
+      this.workflowActionService.getJointGraphWrapper().unhighlightLinks(this.currentLinkId);
     }
     this.clearPropertyEditor();
   }
@@ -150,13 +124,10 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnChanges {
     }
     // set the operator data needed
     this.currentLinkId = linkID;
-    const breakpointSchema =
-      this.autocompleteService.getDynamicBreakpointSchema(linkID).jsonSchema;
+    const breakpointSchema = this.autocompleteService.getDynamicBreakpointSchema(linkID).jsonSchema;
 
     this.formTitle = "Breakpoint";
-    const breakpoint = this.workflowActionService
-      .getTexeraGraph()
-      .getLinkBreakpoint(linkID);
+    const breakpoint = this.workflowActionService.getTexeraGraph().getLinkBreakpoint(linkID);
     this.formData = breakpoint !== undefined ? cloneDeep(breakpoint) : {};
     this.setFormlyFormBinding(breakpointSchema);
 
@@ -166,7 +137,7 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnChanges {
         ExecutionState.Uninitialized,
         ExecutionState.Paused,
         ExecutionState.BreakpointTriggered,
-        ExecutionState.Completed
+        ExecutionState.Completed,
       ];
     this.setInteractivity(interactive);
   }
@@ -209,17 +180,12 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnChanges {
       return false;
     }
     // check if the link still exists
-    const link = this.workflowActionService
-      .getTexeraGraph()
-      .getLinkWithID(this.currentLinkId);
+    const link = this.workflowActionService.getTexeraGraph().getLinkWithID(this.currentLinkId);
     if (!link) {
       return false;
     }
     // only emit change event if the form data actually changes
-    return !isEqual(
-      formData,
-      this.workflowActionService.getTexeraGraph().getLinkBreakpoint(link.linkID)
-    );
+    return !isEqual(formData, this.workflowActionService.getTexeraGraph().getLinkBreakpoint(link.linkID));
   }
 
   /**
@@ -234,26 +200,16 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnChanges {
       .getTexeraGraph()
       .getBreakpointChangeStream()
       .pipe(
-        filter((_) => this.currentLinkId !== undefined),
-        filter((event) => event.linkID === this.currentLinkId),
+        filter(_ => this.currentLinkId !== undefined),
+        filter(event => event.linkID === this.currentLinkId),
         filter(
-          (event) =>
-            !isEqual(
-              this.formData,
-              this.workflowActionService
-                .getTexeraGraph()
-                .getLinkBreakpoint(event.linkID)
-            )
+          event => !isEqual(this.formData, this.workflowActionService.getTexeraGraph().getLinkBreakpoint(event.linkID))
         )
       )
       .pipe(untilDestroyed(this))
       .subscribe(
-        (event) =>
-          (this.formData = cloneDeep(
-            this.workflowActionService
-              .getTexeraGraph()
-              .getLinkBreakpoint(event.linkID)
-          ))
+        event =>
+          (this.formData = cloneDeep(this.workflowActionService.getTexeraGraph().getLinkBreakpoint(event.linkID)))
       );
   }
 
@@ -278,14 +234,14 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnChanges {
     this.formlyOptions = {};
     // convert the json schema to formly config, pass a copy because formly mutates the schema object
     const field = this.formlyJsonschema.toFieldConfig(cloneDeep(schema), {
-      map: jsonSchemaMapIntercept
+      map: jsonSchemaMapIntercept,
     });
     field.hooks = {
-      onInit: (fieldConfig) => {
+      onInit: fieldConfig => {
         if (!this.interactive) {
           fieldConfig?.form?.disable();
         }
-      }
+      },
     };
     this.formlyFields = field.fieldGroup;
   }

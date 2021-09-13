@@ -14,43 +14,30 @@ describe("WorkflowUtilService", () => {
         WorkflowUtilService,
         {
           provide: OperatorMetadataService,
-          useClass: StubOperatorMetadataService
-        }
-      ]
+          useClass: StubOperatorMetadataService,
+        },
+      ],
     });
     workflowUtilService = TestBed.get(WorkflowUtilService);
   });
 
-  it("should be created", inject(
-    [WorkflowUtilService],
-    (service: WorkflowUtilService) => {
-      expect(service).toBeTruthy();
-    }
-  ));
+  it("should be created", inject([WorkflowUtilService], (service: WorkflowUtilService) => {
+    expect(service).toBeTruthy();
+  }));
 
   it("should be able to generate an operator predicate properly given a valid operator type", () => {
     const operatorSchema = mockScanSourceSchema;
-    const operatorPredicate = workflowUtilService.getNewOperatorPredicate(
-      operatorSchema.operatorType
-    );
+    const operatorPredicate = workflowUtilService.getNewOperatorPredicate(operatorSchema.operatorType);
 
     // assert predicate itself and operator type are correct
     expect(operatorPredicate).toBeTruthy();
     expect(operatorPredicate.operatorType).toEqual(operatorSchema.operatorType);
     // assert num of input ports and output ports are correct
-    expect(operatorPredicate.inputPorts.length).toEqual(
-      operatorSchema.additionalMetadata.inputPorts.length
-    );
-    expect(operatorPredicate.outputPorts.length).toEqual(
-      operatorSchema.additionalMetadata.outputPorts.length
-    );
+    expect(operatorPredicate.inputPorts.length).toEqual(operatorSchema.additionalMetadata.inputPorts.length);
+    expect(operatorPredicate.outputPorts.length).toEqual(operatorSchema.additionalMetadata.outputPorts.length);
     // asssert that the portID of input and output ports are all distinct
-    expect(new Set(operatorPredicate.inputPorts).size).toEqual(
-      operatorPredicate.inputPorts.length
-    );
-    expect(new Set(operatorPredicate.outputPorts).size).toEqual(
-      operatorPredicate.outputPorts.length
-    );
+    expect(new Set(operatorPredicate.inputPorts).size).toEqual(operatorPredicate.inputPorts.length);
+    expect(new Set(operatorPredicate.outputPorts).size).toEqual(operatorPredicate.outputPorts.length);
 
     // assert that it creates the operator property to be an empty object
     expect(operatorPredicate.operatorProperties).toEqual({});
@@ -88,10 +75,7 @@ describe("WorkflowUtilService", () => {
     const repeat = 100;
 
     for (let i = 0; i < repeat; i++) {
-      idSet.add(
-        workflowUtilService.getNewOperatorPredicate(operatorSchema.operatorType)
-          .operatorID
-      );
+      idSet.add(workflowUtilService.getNewOperatorPredicate(operatorSchema.operatorType).operatorID);
     }
     // assert all IDs are distinct
     expect(idSet.size).toEqual(repeat);

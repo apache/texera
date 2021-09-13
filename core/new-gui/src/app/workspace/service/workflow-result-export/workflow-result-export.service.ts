@@ -10,12 +10,11 @@ import { ExecutionState } from "../../types/execute-workflow.interface";
 import { filter } from "rxjs/operators";
 
 @Injectable({
-  providedIn: "root"
+  providedIn: "root",
 })
 export class WorkflowResultExportService {
   hasResultToExport: boolean = false;
-  exportExecutionResultEnabled: boolean =
-    environment.exportExecutionResultEnabled;
+  exportExecutionResultEnabled: boolean = environment.exportExecutionResultEnabled;
 
   constructor(
     private workflowWebsocketService: WorkflowWebsocketService,
@@ -43,26 +42,16 @@ export class WorkflowResultExportService {
     merge(
       this.executeWorkflowService
         .getExecutionStateStream()
-        .pipe(
-          filter(
-            ({ previous, current }) =>
-              current.state === ExecutionState.Completed
-          )
-        ),
-      this.workflowActionService
-        .getJointGraphWrapper()
-        .getJointOperatorHighlightStream(),
-      this.workflowActionService
-        .getJointGraphWrapper()
-        .getJointOperatorUnhighlightStream()
+        .pipe(filter(({ previous, current }) => current.state === ExecutionState.Completed)),
+      this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream()
     ).subscribe(() => {
       this.hasResultToExport =
-        this.executeWorkflowService.getExecutionState().state ===
-          ExecutionState.Completed &&
+        this.executeWorkflowService.getExecutionState().state === ExecutionState.Completed &&
         this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs()
-          .filter((operatorId) =>
+          .filter(operatorId =>
             this.workflowActionService
               .getTexeraGraph()
               .getOperator(operatorId)
@@ -75,10 +64,7 @@ export class WorkflowResultExportService {
   /**
    * export the workflow execution result according the export type
    */
-  exportWorkflowExecutionResult(
-    exportType: string,
-    workflowName: string
-  ): void {
+  exportWorkflowExecutionResult(exportType: string, workflowName: string): void {
     if (!environment.exportExecutionResultEnabled || !this.hasResultToExport) {
       return;
     }
@@ -87,18 +73,14 @@ export class WorkflowResultExportService {
     this.workflowActionService
       .getJointGraphWrapper()
       .getCurrentHighlightedOperatorIDs()
-      .filter((operatorId) =>
-        this.workflowActionService
-          .getTexeraGraph()
-          .getOperator(operatorId)
-          .operatorType.toLowerCase()
-          .includes("sink")
+      .filter(operatorId =>
+        this.workflowActionService.getTexeraGraph().getOperator(operatorId).operatorType.toLowerCase().includes("sink")
       )
-      .forEach((operatorId) => {
+      .forEach(operatorId => {
         this.workflowWebsocketService.send("ResultExportRequest", {
           exportType,
           workflowName,
-          operatorId
+          operatorId,
         });
       });
   }
