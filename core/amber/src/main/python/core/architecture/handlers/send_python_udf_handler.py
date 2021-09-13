@@ -21,7 +21,7 @@ class SendPythonUdfHandler(Handler):
                                           and not inspect.isabstract(v),
                                 udf_module.__dict__.values()))
         logger.info(f"got operators {operators}")
-        assert len(operators) == 1, "There should be only one UDFOperator defined"
+        assert len(operators) == 1, "There should be only one Operator defined"
         context.dp._operator = operators[0]()
         context.dp._operator.is_source = command.is_source
         context.dp._operator.open()
