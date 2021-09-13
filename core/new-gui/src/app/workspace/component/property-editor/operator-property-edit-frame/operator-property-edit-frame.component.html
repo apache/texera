@@ -1,9 +1,5 @@
 <div *ngIf="!editingTitle" id="formly-title">
-  <h3
-    *ngIf="!editingTitle && formTitle"
-    class="texera-workspace-property-editor-title"
-    mat-subheader
-  >
+  <h3 *ngIf="!editingTitle && formTitle" class="texera-workspace-property-editor-title" mat-subheader>
     {{ formTitle }}
   </h3>
   <button
@@ -27,11 +23,7 @@
   value="{{formTitle}}"
 />
 
-<form
-  *ngIf="formlyFields"
-  [formGroup]="formlyFormGroup"
-  class="texera-workspace-property-editor-form"
->
+<form *ngIf="formlyFields" [formGroup]="formlyFormGroup" class="texera-workspace-property-editor-form">
   <formly-form
     (modelChange)="onFormChanges($event)"
     [fields]="formlyFields"

@@ -3,10 +3,7 @@ import { merge } from "rxjs";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
-import {
-  ExecutionState,
-  ExecutionStateInfo
-} from "../../types/execute-workflow.interface";
+import { ExecutionState, ExecutionStateInfo } from "../../types/execute-workflow.interface";
 import { ResultTableFrameComponent } from "./result-table-frame/result-table-frame.component";
 import { ConsoleFrameComponent } from "./console-frame/console-frame.component";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
@@ -16,14 +13,10 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DynamicComponentConfig } from "../../../common/type/dynamic-component-config";
 import { DebuggerFrameComponent } from "./debugger-frame/debugger-frame.component";
 
-export type ResultFrameComponent =
-  | ResultTableFrameComponent
-  | VisualizationFrameComponent
-  | ConsoleFrameComponent
+export type ResultFrameComponent = ResultTableFrameComponent | VisualizationFrameComponent | ConsoleFrameComponent
   | DebuggerFrameComponent;
 
-export type ResultFrameComponentConfig =
-  DynamicComponentConfig<ResultFrameComponent>;
+export type ResultFrameComponentConfig = DynamicComponentConfig<ResultFrameComponent>;
 
 /**
  * ResultPanelComponent is the bottom level area that displays the
@@ -33,7 +26,7 @@ export type ResultFrameComponentConfig =
 @Component({
   selector: "texera-result-panel",
   templateUrl: "./result-panel.component.html",
-  styleUrls: ["./result-panel.component.scss"]
+  styleUrls: ["./result-panel.component.scss"],
 })
 export class ResultPanelComponent implements OnInit {
   frameComponentConfigs: Map<string, ResultFrameComponentConfig> = new Map();
@@ -59,41 +52,29 @@ export class ResultPanelComponent implements OnInit {
     this.executeWorkflowService
       .getExecutionStateStream()
       .pipe(untilDestroyed(this))
-      .subscribe((event) => {
+      .subscribe(event => {
         const currentlyHighlighted = this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs();
         if (event.current.state === ExecutionState.BreakpointTriggered) {
-          const breakpointOperator =
-            this.executeWorkflowService.getBreakpointTriggerInfo()?.operatorID;
+          const breakpointOperator = this.executeWorkflowService.getBreakpointTriggerInfo()?.operatorID;
           if (breakpointOperator) {
-            this.workflowActionService
-              .getJointGraphWrapper()
-              .unhighlightOperators(...currentlyHighlighted);
-            this.workflowActionService
-              .getJointGraphWrapper()
-              .highlightOperators(breakpointOperator);
+            this.workflowActionService.getJointGraphWrapper().unhighlightOperators(...currentlyHighlighted);
+            this.workflowActionService.getJointGraphWrapper().highlightOperators(breakpointOperator);
           }
           this.resultPanelToggleService.openResultPanel();
         }
         if (event.current.state === ExecutionState.Failed) {
           this.resultPanelToggleService.openResultPanel();
         }
-        if (
-          event.current.state === ExecutionState.Completed ||
-          event.current.state === ExecutionState.Running
-        ) {
+        if (event.current.state === ExecutionState.Completed || event.current.state === ExecutionState.Running) {
           const sinkOperators = this.workflowActionService
             .getTexeraGraph()
             .getAllOperators()
-            .filter((op) => op.operatorType.toLowerCase().includes("sink"));
+            .filter(op => op.operatorType.toLowerCase().includes("sink"));
           if (sinkOperators.length > 0 && !this.currentOperatorId) {
-            this.workflowActionService
-              .getJointGraphWrapper()
-              .unhighlightOperators(...currentlyHighlighted);
-            this.workflowActionService
-              .getJointGraphWrapper()
-              .highlightOperators(sinkOperators[0].operatorID);
+            this.workflowActionService.getJointGraphWrapper().unhighlightOperators(...currentlyHighlighted);
+            this.workflowActionService.getJointGraphWrapper().highlightOperators(sinkOperators[0].operatorID);
           }
           this.resultPanelToggleService.openResultPanel();
         }
@@ -104,33 +85,22 @@ export class ResultPanelComponent implements OnInit {
     merge(
       this.executeWorkflowService
         .getExecutionStateStream()
-        .pipe(
-          filter((event) =>
-            ResultPanelComponent.needRerenderOnStateChange(event)
-          )
-        ),
-      this.workflowActionService
-        .getJointGraphWrapper()
-        .getJointOperatorHighlightStream(),
-      this.workflowActionService
-        .getJointGraphWrapper()
-        .getJointOperatorUnhighlightStream(),
+        .pipe(filter(event => ResultPanelComponent.needRerenderOnStateChange(event))),
+      this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
       this.resultPanelToggleService.getToggleChangeStream(),
       this.workflowResultService.getResultInitiateStream()
     )
       .pipe(untilDestroyed(this))
-      .subscribe((_) => {
+      .subscribe(_ => {
         this.rerenderResultPanel();
       });
   }
 
   rerenderResultPanel(): void {
     // update highlighted operator
-    const highlightedOperators = this.workflowActionService
-      .getJointGraphWrapper()
-      .getCurrentHighlightedOperatorIDs();
-    const currentHighlightedOperator =
-      highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
+    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    const currentHighlightedOperator = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
     if (this.currentOperatorId !== currentHighlightedOperator) {
       // clear everything, prepare for state change
 
@@ -211,10 +181,7 @@ export class ResultPanelComponent implements OnInit {
     }
 
     // transition from uninitialized / completed to anything else indicates a new execution of the workflow
-    if (
-      event.previous.state === ExecutionState.Uninitialized ||
-      event.previous.state === ExecutionState.Completed
-    ) {
+    if (event.previous.state === ExecutionState.Uninitialized || event.previous.state === ExecutionState.Completed) {
       return true;
     }
     return false;

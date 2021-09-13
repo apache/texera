@@ -15,14 +15,14 @@ import { OperatorPredicate } from "../../types/workflow-common.interface";
 @Component({
   selector: "texera-code-editor-dialog",
   templateUrl: "./code-editor-dialog.component.html",
-  styleUrls: ["./code-editor-dialog.component.scss"]
+  styleUrls: ["./code-editor-dialog.component.scss"],
 })
 export class CodeEditorDialogComponent {
   editorOptions = {
     theme: "vs-dark",
     language: "python",
     fontSize: "11",
-    automaticLayout: true
+    automaticLayout: true,
   };
   code: string;
 
@@ -40,13 +40,12 @@ export class CodeEditorDialogComponent {
     const currentOperatorId: string = this.workflowActionService
       .getJointGraphWrapper()
       .getCurrentHighlightedOperatorIDs()[0];
-    const currentOperatorPredicate: OperatorPredicate =
-      this.workflowActionService
-        .getTexeraGraph()
-        .getOperator(currentOperatorId);
+    const currentOperatorPredicate: OperatorPredicate = this.workflowActionService
+      .getTexeraGraph()
+      .getOperator(currentOperatorId);
     this.workflowActionService.setOperatorProperty(currentOperatorId, {
       ...currentOperatorPredicate.operatorProperties,
-      code
+      code,
     });
   }
 }

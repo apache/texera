@@ -44,15 +44,7 @@ export interface BreakpointSchema
 
 type ConditionBreakpoint = Readonly<{
   column: number;
-  condition:
-    | "="
-    | ">"
-    | ">="
-    | "<"
-    | "<="
-    | "!="
-    | "contains"
-    | "does not contain";
+  condition: "=" | ">" | ">=" | "<" | "<=" | "!=" | "contains" | "does not contain";
   value: string;
 }>;
 

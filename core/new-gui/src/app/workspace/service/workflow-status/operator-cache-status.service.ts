@@ -9,7 +9,7 @@ import { JointUIService } from "../joint-ui/joint-ui.service";
 import { environment } from "src/environments/environment";
 
 @Injectable({
-  providedIn: "root"
+  providedIn: "root",
 })
 export class OperatorCacheStatusService {
   constructor(
@@ -36,16 +36,10 @@ export class OperatorCacheStatusService {
         .getTexeraGraph()
         .getOperatorPropertyChangeStream()
         .pipe(debounceTime(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS)),
-      this.workflowActionService
-        .getTexeraGraph()
-        .getDisabledOperatorsChangedStream(),
-      this.workflowActionService
-        .getTexeraGraph()
-        .getCachedOperatorsChangedStream()
+      this.workflowActionService.getTexeraGraph().getDisabledOperatorsChangedStream(),
+      this.workflowActionService.getTexeraGraph().getCachedOperatorsChangedStream()
     ).subscribe(() => {
-      const workflow = ExecuteWorkflowService.getLogicalPlanRequest(
-        this.workflowActionService.getTexeraGraph()
-      );
+      const workflow = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
       this.workflowWebsocketService.send("CacheStatusUpdateRequest", workflow);
     });
   }
@@ -57,41 +51,27 @@ export class OperatorCacheStatusService {
     this.workflowActionService
       .getTexeraGraph()
       .getCachedOperatorsChangedStream()
-      .subscribe((event) => {
-        const mainJointPaper = this.workflowActionService
-          .getJointGraphWrapper()
-          .getMainJointPaper();
+      .subscribe(event => {
+        const mainJointPaper = this.workflowActionService.getJointGraphWrapper().getMainJointPaper();
         if (!mainJointPaper) {
           return;
         }
 
-        event.newCached.concat(event.newUnCached).forEach((opID) => {
-          const op = this.workflowActionService
-            .getTexeraGraph()
-            .getOperator(opID);
+        event.newCached.concat(event.newUnCached).forEach(opID => {
+          const op = this.workflowActionService.getTexeraGraph().getOperator(opID);
 
           this.jointUIService.changeOperatorCacheStatus(mainJointPaper, op);
         });
       });
-    this.workflowWebsocketService
-      .subscribeToEvent("CacheStatusUpdateEvent")
-      .subscribe((event) => {
-        const mainJointPaper = this.workflowActionService
-          .getJointGraphWrapper()
-          .getMainJointPaper();
-        if (!mainJointPaper) {
-          return;
-        }
-        Object.entries(event.cacheStatusMap).forEach(([opID, cacheStatus]) => {
-          const op = this.workflowActionService
-            .getTexeraGraph()
-            .getOperator(opID);
-          this.jointUIService.changeOperatorCacheStatus(
-            mainJointPaper,
-            op,
-            cacheStatus
-          );
-        });
+    this.workflowWebsocketService.subscribeToEvent("CacheStatusUpdateEvent").subscribe(event => {
+      const mainJointPaper = this.workflowActionService.getJointGraphWrapper().getMainJointPaper();
+      if (!mainJointPaper) {
+        return;
+      }
+      Object.entries(event.cacheStatusMap).forEach(([opID, cacheStatus]) => {
+        const op = this.workflowActionService.getTexeraGraph().getOperator(opID);
+        this.jointUIService.changeOperatorCacheStatus(mainJointPaper, op, cacheStatus);
       });
+    });
   }
 }

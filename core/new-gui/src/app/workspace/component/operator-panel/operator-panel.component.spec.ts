@@ -9,20 +9,17 @@ import { OperatorPanelComponent } from "./operator-panel.component";
 import { OperatorLabelComponent } from "./operator-label/operator-label.component";
 import {
   EMPTY_OPERATOR_METADATA,
-  OperatorMetadataService
+  OperatorMetadataService,
 } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
 import { TourNgBootstrapModule, TourService } from "ngx-tour-ng-bootstrap";
-import {
-  GroupInfo,
-  OperatorSchema
-} from "../../types/operator-schema.interface";
+import { GroupInfo, OperatorSchema } from "../../types/operator-schema.interface";
 import { RouterTestingModule } from "@angular/router/testing";
 
 import {
   mockOperatorGroup,
   mockOperatorMetaData,
-  mockOperatorSchemaList
+  mockOperatorSchemaList,
 } from "../../service/operator-metadata/mock-operator-metadata.data";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { JointUIService } from "../../service/joint-ui/joint-ui.service";
@@ -41,22 +38,22 @@ describe("OperatorPanelComponent", () => {
         providers: [
           {
             provide: OperatorMetadataService,
-            useClass: StubOperatorMetadataService
+            useClass: StubOperatorMetadataService,
           },
           DragDropService,
           WorkflowActionService,
           UndoRedoService,
           WorkflowUtilService,
           JointUIService,
-          TourService
+          TourService,
         ],
         imports: [
           NzDropDownModule,
           NzCollapseModule,
           BrowserAnimationsModule,
           RouterTestingModule.withRoutes([]),
-          TourNgBootstrapModule.forRoot()
-        ]
+          TourNgBootstrapModule.forRoot(),
+        ],
       }).compileComponents();
     })
   );
@@ -82,7 +79,7 @@ describe("OperatorPanelComponent", () => {
   it("should sort group names correctly based on order relatively. ex: (100, 1) -> (1, 100)", () => {
     const groups: GroupInfo[] = [
       { groupName: "group_1", groupOrder: 1 },
-      { groupName: "group_2", groupOrder: 100 }
+      { groupName: "group_2", groupOrder: 100 },
     ];
 
     const result = c.getGroupNamesSorted(groups);
@@ -101,14 +98,10 @@ describe("OperatorPanelComponent", () => {
 
     const result = c.getOperatorGroupMap(opMetadata);
 
-    const sourceOperators = opMetadata.operators.filter(
-      (op) => op.additionalMetadata.operatorGroupName === "Source"
-    );
-    const analysisOperators = opMetadata.operators.filter(
-      (op) => op.additionalMetadata.operatorGroupName === "Analysis"
-    );
+    const sourceOperators = opMetadata.operators.filter(op => op.additionalMetadata.operatorGroupName === "Source");
+    const analysisOperators = opMetadata.operators.filter(op => op.additionalMetadata.operatorGroupName === "Analysis");
     const resultOperators = opMetadata.operators.filter(
-      (op) => op.additionalMetadata.operatorGroupName === "View Results"
+      op => op.additionalMetadata.operatorGroupName === "View Results"
     );
 
     const expectedResult = new Map<string, OperatorSchema[]>();
@@ -130,40 +123,30 @@ describe("OperatorPanelComponent", () => {
   it("should receive operator metadata from service", () => {
     // if the length of our schema list is equal to the length of mock data
     // we assume the mock data has been received
-    expect(component.operatorSchemaList.length).toEqual(
-      mockOperatorSchemaList.length
-    );
-    expect(component.groupNamesOrdered.length).toEqual(
-      mockOperatorGroup.length
-    );
+    expect(component.operatorSchemaList.length).toEqual(mockOperatorSchemaList.length);
+    expect(component.groupNamesOrdered.length).toEqual(mockOperatorGroup.length);
   });
 
   it("should have all group names shown in the UI side panel", () => {
     const groupNamesInUI = fixture.debugElement
       .queryAll(By.css(".texera-workspace-operator-panel-subgroup"))
-      .map(
-        (el) => el.nativeElement.querySelector(".ant-collapse-header").innerText
-      );
+      .map(el => el.nativeElement.querySelector(".ant-collapse-header").innerText);
 
-    expect(groupNamesInUI).toEqual(
-      mockOperatorGroup.map((group) => group.groupName)
-    );
+    expect(groupNamesInUI).toEqual(mockOperatorGroup.map(group => group.groupName));
   });
 
   it("should create child operator label component for all operators", () => {
     const operatorLabels = fixture.debugElement
       .queryAll(By.directive(OperatorLabelComponent))
-      .map((debugEl) => <OperatorLabelComponent>debugEl.componentInstance)
-      .map((operatorLabel) => operatorLabel.operator);
+      .map(debugEl => <OperatorLabelComponent>debugEl.componentInstance)
+      .map(operatorLabel => operatorLabel.operator);
 
-    expect(operatorLabels.length).toEqual(
-      mockOperatorMetaData.operators.length
-    );
+    expect(operatorLabels.length).toEqual(mockOperatorMetaData.operators.length);
   });
 
   it("should search an operator by its user friendly name", () => {
     let searchResults: OperatorSchema[] = [];
-    component.operatorSearchResults.subscribe((res) => (searchResults = res));
+    component.operatorSearchResults.subscribe(res => (searchResults = res));
 
     component.operatorSearchFormControl.setValue("Source: Scan");
 
@@ -174,7 +157,7 @@ describe("OperatorPanelComponent", () => {
 
   it("should support fuzzy search on operator user friendly name", () => {
     let searchResults: OperatorSchema[] = [];
-    component.operatorSearchResults.subscribe((res) => (searchResults = res));
+    component.operatorSearchResults.subscribe(res => (searchResults = res));
 
     component.operatorSearchFormControl.setValue("scan");
 
@@ -190,8 +173,7 @@ describe("OperatorPanelComponent", () => {
     dragDropService.operatorDroppedSubject.next({
       operatorType: "ScanSource",
       offset: { x: 1, y: 1 },
-      dragElementID:
-        OperatorLabelComponent.operatorLabelSearchBoxPrefix + "ScanSource"
+      dragElementID: OperatorLabelComponent.operatorLabelSearchBoxPrefix + "ScanSource",
     });
 
     expect(component.operatorSearchFormControl.value).toBeFalsy();

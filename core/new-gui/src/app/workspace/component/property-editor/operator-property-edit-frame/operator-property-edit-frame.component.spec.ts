@@ -1,11 +1,4 @@
-import {
-  ComponentFixture,
-  discardPeriodicTasks,
-  fakeAsync,
-  TestBed,
-  tick,
-  waitForAsync
-} from "@angular/core/testing";
+import { ComponentFixture, discardPeriodicTasks, fakeAsync, TestBed, tick, waitForAsync } from "@angular/core/testing";
 
 import { OperatorPropertyEditFrameComponent } from "./operator-property-edit-frame.component";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
@@ -24,11 +17,11 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import {
   mockPoint,
   mockResultPredicate,
-  mockScanPredicate
+  mockScanPredicate,
 } from "../../../service/workflow-graph/model/mock-workflow-data";
 import {
   mockScanSourceSchema,
-  mockViewResultsSchema
+  mockViewResultsSchema,
 } from "../../../service/operator-metadata/mock-operator-metadata.data";
 import { JSONSchema7 } from "json-schema";
 import { configure } from "rxjs-marbles";
@@ -51,10 +44,10 @@ describe("OperatorPropertyEditFrameComponent", () => {
           WorkflowActionService,
           {
             provide: OperatorMetadataService,
-            useClass: StubOperatorMetadataService
+            useClass: StubOperatorMetadataService,
           },
           LoggerConfig,
-          DatePipe
+          DatePipe,
         ],
         imports: [
           BrowserAnimationsModule,
@@ -65,8 +58,8 @@ describe("OperatorPropertyEditFrameComponent", () => {
           // use formly material module instead
           FormlyMaterialModule,
           ReactiveFormsModule,
-          HttpClientTestingModule
-        ]
+          HttpClientTestingModule,
+        ],
       }).compileComponents();
     })
   );
@@ -95,41 +88,31 @@ describe("OperatorPropertyEditFrameComponent", () => {
     workflowActionService.addOperator(predicate, mockPoint);
 
     component.ngOnChanges({
-      currentOperatorId: new SimpleChange(undefined, predicate.operatorID, true)
+      currentOperatorId: new SimpleChange(undefined, predicate.operatorID, true),
     });
     fixture.detectChanges();
     // check variables are set correctly
     expect(component.formData).toEqual(predicate.operatorProperties);
 
     // check HTML form are displayed
-    const formTitleElement = fixture.debugElement.query(
-      By.css(".texera-workspace-property-editor-title")
-    );
-    const jsonSchemaFormElement = fixture.debugElement.query(
-      By.css(".texera-workspace-property-editor-form")
-    );
+    const formTitleElement = fixture.debugElement.query(By.css(".texera-workspace-property-editor-title"));
+    const jsonSchemaFormElement = fixture.debugElement.query(By.css(".texera-workspace-property-editor-form"));
     // check the panel title
     expect((formTitleElement.nativeElement as HTMLElement).innerText).toEqual(
       mockScanSourceSchema.additionalMetadata.userFriendlyName
     );
 
     // check if the form has the all the json schema property names
-    Object.entries(mockScanSourceSchema.jsonSchema.properties as any).forEach(
-      (entry) => {
-        const propertyTitle = (entry[1] as JSONSchema7).title;
-        if (propertyTitle) {
-          expect(
-            (jsonSchemaFormElement.nativeElement as HTMLElement).innerHTML
-          ).toContain(propertyTitle);
-        }
-        const propertyDescription = (entry[1] as JSONSchema7).description;
-        if (propertyDescription) {
-          expect(
-            (jsonSchemaFormElement.nativeElement as HTMLElement).innerHTML
-          ).toContain(propertyDescription);
-        }
+    Object.entries(mockScanSourceSchema.jsonSchema.properties as any).forEach(entry => {
+      const propertyTitle = (entry[1] as JSONSchema7).title;
+      if (propertyTitle) {
+        expect((jsonSchemaFormElement.nativeElement as HTMLElement).innerHTML).toContain(propertyTitle);
       }
-    );
+      const propertyDescription = (entry[1] as JSONSchema7).description;
+      if (propertyDescription) {
+        expect((jsonSchemaFormElement.nativeElement as HTMLElement).innerHTML).toContain(propertyDescription);
+      }
+    });
   });
 
   it("should change Texera graph property when the form is edited by the user", fakeAsync(() => {
@@ -138,11 +121,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
 
     component.ngOnChanges({
-      currentOperatorId: new SimpleChange(
-        undefined,
-        mockScanPredicate.operatorID,
-        true
-      )
+      currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
     });
     fixture.detectChanges();
 
@@ -159,9 +138,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
     // then get the operator, because operator is immutable, the operator before the tick
     //   is a different object reference from the operator after the tick
-    const operator = workflowActionService
-      .getTexeraGraph()
-      .getOperator(mockScanPredicate.operatorID);
+    const operator = workflowActionService.getTexeraGraph().getOperator(mockScanPredicate.operatorID);
     if (!operator) {
       throw new Error(`operator ${mockScanPredicate.operatorID} is undefined`);
     }
@@ -174,7 +151,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
   xit(
     "should debounce the user form input to avoid emitting event too frequently",
-    marbles((m) => {
+    marbles(m => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
       // add an operator and highlight the operator so that the
@@ -190,12 +167,9 @@ describe("OperatorPropertyEditFrameComponent", () => {
         b: { tableName: "ta" },
         c: { tableName: "tab" },
         d: { tableName: "tabl" },
-        e: { tableName: "table" }
+        e: { tableName: "table" },
       };
-      const formUserInputEventStream = m.hot(
-        formUserInputMarbleString,
-        formUserInputMarbleValue
-      );
+      const formUserInputEventStream = m.hot(formUserInputMarbleString, formUserInputMarbleValue);
 
       // prepare the expected output stream after debounce time
       const formChangeEventMarbleString =
@@ -205,12 +179,9 @@ describe("OperatorPropertyEditFrameComponent", () => {
         "-".repeat(FORM_DEBOUNCE_TIME_MS / 10) +
         "e-";
       const formChangeEventMarbleValue = {
-        e: { tableName: "table" } as object
+        e: { tableName: "table" } as object,
       };
-      const expectedFormChangeEventStream = m.hot(
-        formChangeEventMarbleString,
-        formChangeEventMarbleValue
-      );
+      const expectedFormChangeEventStream = m.hot(formChangeEventMarbleString, formChangeEventMarbleValue);
 
       m.bind();
 
@@ -228,16 +199,9 @@ describe("OperatorPropertyEditFrameComponent", () => {
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
     const mockOperatorProperty = { tableName: "table" };
     // set operator property first before displaying the operator property in property panel
-    workflowActionService.setOperatorProperty(
-      mockScanPredicate.operatorID,
-      mockOperatorProperty
-    );
+    workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, mockOperatorProperty);
     component.ngOnChanges({
-      currentOperatorId: new SimpleChange(
-        undefined,
-        mockScanPredicate.operatorID,
-        true
-      )
+      currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
     });
     fixture.detectChanges();
 
@@ -263,21 +227,12 @@ describe("OperatorPropertyEditFrameComponent", () => {
     // expected form output should fill in all default values instead of an empty object
     workflowActionService.addOperator(mockResultPredicate, mockPoint);
     component.ngOnChanges({
-      currentOperatorId: new SimpleChange(
-        undefined,
-        mockResultPredicate.operatorID,
-        true
-      )
+      currentOperatorId: new SimpleChange(undefined, mockResultPredicate.operatorID, true),
     });
     fixture.detectChanges();
     const ajv = new Ajv({ useDefaults: true });
-    const expectedResultOperatorProperties = cloneDeep(
-      mockResultPredicate.operatorProperties
-    );
-    ajv.validate(
-      mockViewResultsSchema.jsonSchema,
-      expectedResultOperatorProperties
-    );
+    const expectedResultOperatorProperties = cloneDeep(mockResultPredicate.operatorProperties);
+    ajv.validate(mockViewResultsSchema.jsonSchema, expectedResultOperatorProperties);
 
     expect(component.formData).toEqual(expectedResultOperatorProperties);
   });

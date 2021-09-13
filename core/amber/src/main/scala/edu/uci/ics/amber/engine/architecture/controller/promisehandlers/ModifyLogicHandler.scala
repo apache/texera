@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.BreakpointTriggered
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ModifyLogicHandler.ModifyLogic
-import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.ModifyPythonLogicHandler.ModifyPythonLogic
+import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.ModifyOperatorLogicHandler.ModifyOperatorLogic
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
@@ -31,18 +31,18 @@ trait ModifyLogicHandler {
       val operatorUUID = msg.operatorDescriptor.operatorID
       val operatorId = new OperatorIdentity(msg.operatorDescriptor.context.jobID, operatorUUID)
       val operator = workflow.getOperator(operatorId)
-      val modifyPythonLogic: ModifyPythonLogic = msg.operatorDescriptor match {
+      val modifyOperatorLogic: ModifyOperatorLogic = msg.operatorDescriptor match {
         case desc: PythonUDFOpDescV2 =>
-          ModifyPythonLogic(desc.code, isSource = false)
+          ModifyOperatorLogic(desc.code, isSource = false)
         case desc: PythonUDFSourceOpDescV2 =>
-          ModifyPythonLogic(desc.code, isSource = true)
+          ModifyOperatorLogic(desc.code, isSource = true)
         case desc =>
           logger.error(s"Unsupported operator for Modify Logic: $desc")
           null
       }
       Future
         .collect(operator.getAllWorkers.map { worker =>
-          send(modifyPythonLogic, worker).onFailure((err: Throwable) => {
+          send(modifyOperatorLogic, worker).onFailure((err: Throwable) => {
             logger.error("Failure when sending Python UDF code", err)
             // report error to frontend
             if (eventListener.breakpointTriggeredListener != null) {

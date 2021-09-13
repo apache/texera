@@ -17,10 +17,7 @@ export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
 @Component({
   selector: "texera-saved-workflow-section",
   templateUrl: "./saved-workflow-section.component.html",
-  styleUrls: [
-    "./saved-workflow-section.component.scss",
-    "../../dashboard.component.scss"
-  ]
+  styleUrls: ["./saved-workflow-section.component.scss", "../../dashboard.component.scss"],
 })
 export class SavedWorkflowSectionComponent implements OnInit {
   public dashboardWorkflowEntries: DashboardWorkflowEntry[] = [];
@@ -40,9 +37,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
    * open the Modal based on the workflow clicked on
    */
   public onClickOpenShareAccess({ workflow }: DashboardWorkflowEntry): void {
-    const modalRef = this.modalService.open(
-      NgbdModalWorkflowShareAccessComponent
-    );
+    const modalRef = this.modalService.open(NgbdModalWorkflowShareAccessComponent);
     modalRef.componentInstance.workflow = workflow;
   }
 
@@ -51,9 +46,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
    */
   public ascSort(): void {
     this.dashboardWorkflowEntries.sort((t1, t2) =>
-      t1.workflow.name
-        .toLowerCase()
-        .localeCompare(t2.workflow.name.toLowerCase())
+      t1.workflow.name.toLowerCase().localeCompare(t2.workflow.name.toLowerCase())
     );
   }
 
@@ -62,9 +55,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
    */
   public dscSort(): void {
     this.dashboardWorkflowEntries.sort((t1, t2) =>
-      t2.workflow.name
-        .toLowerCase()
-        .localeCompare(t1.workflow.name.toLowerCase())
+      t2.workflow.name.toLowerCase().localeCompare(t1.workflow.name.toLowerCase())
     );
   }
 
@@ -72,12 +63,10 @@ export class SavedWorkflowSectionComponent implements OnInit {
    * sort the project by creating time
    */
   public dateSort(): void {
-    this.dashboardWorkflowEntries.sort(
-      (left: DashboardWorkflowEntry, right: DashboardWorkflowEntry) =>
-        left.workflow.creationTime !== undefined &&
-        right.workflow.creationTime !== undefined
-          ? left.workflow.creationTime - right.workflow.creationTime
-          : 0
+    this.dashboardWorkflowEntries.sort((left: DashboardWorkflowEntry, right: DashboardWorkflowEntry) =>
+      left.workflow.creationTime !== undefined && right.workflow.creationTime !== undefined
+        ? left.workflow.creationTime - right.workflow.creationTime
+        : 0
     );
   }
 
@@ -85,12 +74,10 @@ export class SavedWorkflowSectionComponent implements OnInit {
    * sort the project by last modified time
    */
   public lastSort(): void {
-    this.dashboardWorkflowEntries.sort(
-      (left: DashboardWorkflowEntry, right: DashboardWorkflowEntry) =>
-        left.workflow.lastModifiedTime !== undefined &&
-        right.workflow.lastModifiedTime !== undefined
-          ? left.workflow.lastModifiedTime - right.workflow.lastModifiedTime
-          : 0
+    this.dashboardWorkflowEntries.sort((left: DashboardWorkflowEntry, right: DashboardWorkflowEntry) =>
+      left.workflow.lastModifiedTime !== undefined && right.workflow.lastModifiedTime !== undefined
+        ? left.workflow.lastModifiedTime - right.workflow.lastModifiedTime
+        : 0
     );
   }
 
@@ -105,9 +92,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
    * duplicate the current workflow. A new record will appear in frontend
    * workflow list and backend database.
    */
-  public onClickDuplicateWorkflow({
-    workflow: { wid }
-  }: DashboardWorkflowEntry): void {
+  public onClickDuplicateWorkflow({ workflow: { wid } }: DashboardWorkflowEntry): void {
     if (wid) {
       this.workflowPersistService
         .duplicateWorkflow(wid)
@@ -128,9 +113,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
    * message to frontend and delete the workflow on frontend. It
    * calls the deleteProject method in service which implements backend API.
    */
-  public openNgbdModalDeleteWorkflowComponent({
-    workflow
-  }: DashboardWorkflowEntry): void {
+  public openNgbdModalDeleteWorkflowComponent({ workflow }: DashboardWorkflowEntry): void {
     const modalRef = this.modalService.open(NgbdModalDeleteWorkflowComponent);
     modalRef.componentInstance.workflow = cloneDeep(workflow);
 
@@ -143,11 +126,10 @@ export class SavedWorkflowSectionComponent implements OnInit {
             .deleteWorkflow(wid)
             .pipe(untilDestroyed(this))
             .subscribe(
-              (_) => {
-                this.dashboardWorkflowEntries =
-                  this.dashboardWorkflowEntries.filter(
-                    (workflowEntry) => workflowEntry.workflow.wid !== wid
-                  );
+              _ => {
+                this.dashboardWorkflowEntries = this.dashboardWorkflowEntries.filter(
+                  workflowEntry => workflowEntry.workflow.wid !== wid
+                );
               },
               // @ts-ignore // TODO: fix this with notification component
               (err: unknown) => alert(err.error)
@@ -180,10 +162,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
     this.workflowPersistService
       .retrieveWorkflowsBySessionUser()
       .pipe(untilDestroyed(this))
-      .subscribe(
-        (dashboardWorkflowEntries) =>
-          (this.dashboardWorkflowEntries = dashboardWorkflowEntries)
-      );
+      .subscribe(dashboardWorkflowEntries => (this.dashboardWorkflowEntries = dashboardWorkflowEntries));
   }
 
   private clearDashboardWorkflowEntries(): void {

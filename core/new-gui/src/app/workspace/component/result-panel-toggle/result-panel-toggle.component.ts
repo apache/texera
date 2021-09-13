@@ -13,7 +13,7 @@ import { ResultPanelToggleService } from "../../service/result-panel-toggle/resu
 @Component({
   selector: "texera-result-panel-toggle",
   templateUrl: "./result-panel-toggle.component.html",
-  styleUrls: ["./result-panel-toggle.component.scss"]
+  styleUrls: ["./result-panel-toggle.component.scss"],
 })
 export class ResultPanelToggleComponent {
   public showResultPanel: boolean = false;
@@ -22,7 +22,7 @@ export class ResultPanelToggleComponent {
     this.resultPanelToggleService
       .getToggleChangeStream()
       .pipe(untilDestroyed(this))
-      .subscribe((newPanelStatus) => (this.showResultPanel = newPanelStatus));
+      .subscribe(newPanelStatus => (this.showResultPanel = newPanelStatus));
   }
 
   /**

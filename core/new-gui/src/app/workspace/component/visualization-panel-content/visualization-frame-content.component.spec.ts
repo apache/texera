@@ -12,10 +12,7 @@ import { WorkflowStatusService } from "../../service/workflow-status/workflow-st
 import { WebDataUpdate } from "../../types/execute-workflow.interface";
 import { ChartType } from "../../types/visualization.interface";
 import { VisualizationFrameContentComponent } from "./visualization-frame-content.component";
-import {
-  OperatorResultService,
-  WorkflowResultService
-} from "../../service/workflow-result/workflow-result.service";
+import { OperatorResultService, WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 
 describe("VisualizationFrameContentComponent", () => {
   let component: VisualizationFrameContentComponent;
@@ -36,11 +33,11 @@ describe("VisualizationFrameContentComponent", () => {
           WorkflowActionService,
           {
             provide: OperatorMetadataService,
-            useClass: StubOperatorMetadataService
+            useClass: StubOperatorMetadataService,
           },
           WorkflowStatusService,
-          ExecuteWorkflowService
-        ]
+          ExecuteWorkflowService,
+        ],
       }).compileComponents();
     })
   );
@@ -51,9 +48,7 @@ describe("VisualizationFrameContentComponent", () => {
     component.operatorId = operatorID;
     workflowResultService = TestBed.get(WorkflowResultService);
     operatorResultService = new OperatorResultService(operatorID);
-    spyOn(workflowResultService, "getResultService").and.returnValue(
-      operatorResultService
-    );
+    spyOn(workflowResultService, "getResultService").and.returnValue(operatorResultService);
   });
 
   it("should create", () => {
@@ -64,7 +59,7 @@ describe("VisualizationFrameContentComponent", () => {
     const testData: WebDataUpdate = {
       mode: { type: "SetSnapshotMode" },
       table: [{ id: 1, data: 2 }],
-      chartType: ChartType.PIE
+      chartType: ChartType.PIE,
     };
     operatorResultService.handleResultUpdate(testData);
 
@@ -80,9 +75,9 @@ describe("VisualizationFrameContentComponent", () => {
       mode: { type: "SetSnapshotMode" },
       table: [
         { word: "foo", count: 120 },
-        { word: "bar", count: 100 }
+        { word: "bar", count: 100 },
       ],
-      chartType: ChartType.WORD_CLOUD
+      chartType: ChartType.WORD_CLOUD,
     };
     operatorResultService.handleResultUpdate(testData);
 
@@ -98,9 +93,9 @@ describe("VisualizationFrameContentComponent", () => {
       mode: { type: "SetSnapshotMode" },
       table: [
         { xColumn: -90.285434, yColumn: 29.969126 },
-        { xColumn: -76.711521, yColumn: 39.197211 }
+        { xColumn: -76.711521, yColumn: 39.197211 },
       ],
-      chartType: ChartType.SPATIAL_SCATTERPLOT
+      chartType: ChartType.SPATIAL_SCATTERPLOT,
     };
     operatorResultService.handleResultUpdate(testData);
 
@@ -116,9 +111,9 @@ describe("VisualizationFrameContentComponent", () => {
       mode: { type: "SetSnapshotMode" },
       table: [
         { employees: 1000, sales: 30000 },
-        { employees: 500, sales: 21000 }
+        { employees: 500, sales: 21000 },
       ],
-      chartType: ChartType.SIMPLE_SCATTERPLOT
+      chartType: ChartType.SIMPLE_SCATTERPLOT,
     };
     operatorResultService.handleResultUpdate(testData);
 
@@ -133,7 +128,7 @@ describe("VisualizationFrameContentComponent", () => {
     const testData: WebDataUpdate = {
       mode: { type: "SetSnapshotMode" },
       table: [{ "html-content": "<div>sample</div>" }],
-      chartType: ChartType.HTML_VIZ
+      chartType: ChartType.HTML_VIZ,
     };
     operatorResultService.handleResultUpdate(testData);
 

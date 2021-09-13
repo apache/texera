@@ -22,9 +22,7 @@ export const USER_DICTIONARY_UPDATE_URL = "user/dictionary/update";
 @Injectable()
 export class UserDictionaryService {
   private userDictionaries: UserDictionary[] | undefined;
-  private userDictionariesChanged = new Subject<
-    ReadonlyArray<UserDictionary> | undefined
-  >();
+  private userDictionariesChanged = new Subject<ReadonlyArray<UserDictionary> | undefined>();
 
   constructor(private http: HttpClient, private userService: UserService) {
     this.detectUserChanges();
@@ -34,9 +32,7 @@ export class UserDictionaryService {
     return this.userDictionaries;
   }
 
-  public getUserDictionariesChangedEvent(): Observable<
-    ReadonlyArray<UserDictionary> | undefined
-  > {
+  public getUserDictionariesChangedEvent(): Observable<ReadonlyArray<UserDictionary> | undefined> {
     return this.userDictionariesChanged.asObservable();
   }
 
@@ -50,10 +46,8 @@ export class UserDictionaryService {
     }
 
     this.http
-      .get<UserDictionary[]>(
-        `${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_LIST_URL}`
-      )
-      .subscribe((dictionaries) => {
+      .get<UserDictionary[]>(`${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_LIST_URL}`)
+      .subscribe(dictionaries => {
         this.userDictionaries = dictionaries;
         this.userDictionariesChanged.next(this.userDictionaries);
       });
@@ -61,9 +55,7 @@ export class UserDictionaryService {
 
   public deleteDictionary(dictID: number) {
     this.http
-      .delete<GenericWebResponse>(
-        `${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_DELETE_URL}/${dictID}`
-      )
+      .delete<GenericWebResponse>(`${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_DELETE_URL}/${dictID}`)
       .subscribe(() => this.refreshDictionaries());
   }
 
@@ -78,8 +70,8 @@ export class UserDictionaryService {
         JSON.stringify(userDictionary),
         {
           headers: new HttpHeaders({
-            "Content-Type": "application/json"
-          })
+            "Content-Type": "application/json",
+          }),
         }
       )
       .subscribe(() => this.refreshDictionaries());

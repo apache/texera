@@ -5,13 +5,10 @@ import {
   WebDataUpdate,
   WebPaginationUpdate,
   WebResultUpdate,
-  WorkflowResultUpdate
+  WorkflowResultUpdate,
 } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
-import {
-  PaginatedResultEvent,
-  WorkflowAvailableResultEvent
-} from "../../types/workflow-websocket.interface";
+import { PaginatedResultEvent, WorkflowAvailableResultEvent } from "../../types/workflow-websocket.interface";
 import { Observable, of, Subject } from "rxjs";
 import * as uuid from "uuid";
 import { ChartType } from "../../types/visualization.interface";
@@ -22,33 +19,24 @@ export const DEFAULT_PAGE_SIZE = 10;
  * WorkflowResultService manages the result data of a workflow execution.
  */
 @Injectable({
-  providedIn: "root"
+  providedIn: "root",
 })
 export class WorkflowResultService {
-  private paginatedResultServices = new Map<
-    string,
-    OperatorPaginationResultService
-  >();
+  private paginatedResultServices = new Map<string, OperatorPaginationResultService>();
   private operatorResultServices = new Map<string, OperatorResultService>();
 
   // event stream of operator result update, undefined indicates the operator result is cleared
-  private resultUpdateStream = new Subject<
-    Record<string, WebResultUpdate | undefined>
-  >();
+  private resultUpdateStream = new Subject<Record<string, WebResultUpdate | undefined>>();
   private resultInitiateStream = new Subject<string>();
 
   constructor(private wsService: WorkflowWebsocketService) {
-    this.wsService
-      .subscribeToEvent("WebResultUpdateEvent")
-      .subscribe((event) => this.handleResultUpdate(event.updates));
+    this.wsService.subscribeToEvent("WebResultUpdateEvent").subscribe(event => this.handleResultUpdate(event.updates));
     this.wsService
       .subscribeToEvent("WorkflowAvailableResultEvent")
-      .subscribe((event) => this.handleCleanResultCache(event));
+      .subscribe(event => this.handleCleanResultCache(event));
   }
 
-  public getResultUpdateStream(): Observable<
-    Record<string, WebResultUpdate | undefined>
-  > {
+  public getResultUpdateStream(): Observable<Record<string, WebResultUpdate | undefined>> {
     return this.resultUpdateStream;
   }
 
@@ -56,15 +44,11 @@ export class WorkflowResultService {
     return this.resultInitiateStream.asObservable();
   }
 
-  public getPaginatedResultService(
-    operatorID: string
-  ): OperatorPaginationResultService | undefined {
+  public getPaginatedResultService(operatorID: string): OperatorPaginationResultService | undefined {
     return this.paginatedResultServices.get(operatorID);
   }
 
-  public getResultService(
-    operatorID: string
-  ): OperatorResultService | undefined {
+  public getResultService(operatorID: string): OperatorResultService | undefined {
     return this.operatorResultServices.get(operatorID);
   }
 
@@ -84,7 +68,7 @@ export class WorkflowResultService {
       }
     });
     // for each operator that has results:
-    Object.entries(event.availableOperators).forEach((availabeOp) => {
+    Object.entries(event.availableOperators).forEach(availabeOp => {
       const op = availabeOp[0];
       const cacheValid = availabeOp[1].cacheValid;
       const outputMode = availabeOp[1].outputMode;
@@ -106,18 +90,15 @@ export class WorkflowResultService {
     });
 
     const invalidatedOperatorsUpdate: Record<string, undefined> = {};
-    removedOrInvalidatedOperators.forEach(
-      (op) => (invalidatedOperatorsUpdate[op] = undefined)
-    );
+    removedOrInvalidatedOperators.forEach(op => (invalidatedOperatorsUpdate[op] = undefined));
     this.resultUpdateStream.next(invalidatedOperatorsUpdate);
   }
 
   private handleResultUpdate(event: WorkflowResultUpdate): void {
-    Object.keys(event).forEach((operatorID) => {
+    Object.keys(event).forEach(operatorID => {
       const update = event[operatorID];
       if (isWebPaginationUpdate(update)) {
-        const paginatedResultService =
-          this.getOrInitPaginatedResultService(operatorID);
+        const paginatedResultService = this.getOrInitPaginatedResultService(operatorID);
         paginatedResultService.handleResultUpdate(update);
         // clear previously saved result service
         this.operatorResultServices.delete(operatorID);
@@ -133,9 +114,7 @@ export class WorkflowResultService {
     this.resultUpdateStream.next(event);
   }
 
-  private getOrInitPaginatedResultService(
-    operatorID: string
-  ): OperatorPaginationResultService {
+  private getOrInitPaginatedResultService(operatorID: string): OperatorPaginationResultService {
     let service = this.getPaginatedResultService(operatorID);
     if (!service) {
       service = new OperatorPaginationResultService(operatorID, this.wsService);
@@ -189,19 +168,15 @@ export class OperatorResultService {
 }
 
 class OperatorPaginationResultService {
-  private pendingRequests: Map<string, Subject<PaginatedResultEvent>> =
-    new Map();
+  private pendingRequests: Map<string, Subject<PaginatedResultEvent>> = new Map();
   private resultCache: Map<number, ReadonlyArray<object>> = new Map();
   private currentPageIndex: number = 1;
   private currentTotalNumTuples: number = 0;
 
-  constructor(
-    public operatorID: string,
-    private workflowWebsocketService: WorkflowWebsocketService
-  ) {
+  constructor(public operatorID: string, private workflowWebsocketService: WorkflowWebsocketService) {
     this.workflowWebsocketService
       .subscribeToEvent("PaginatedResultEvent")
-      .subscribe((event) => this.handlePaginationResult(event));
+      .subscribe(event => this.handlePaginationResult(event));
   }
 
   public getCurrentPageIndex(): number {
@@ -212,10 +187,7 @@ class OperatorPaginationResultService {
     return this.currentTotalNumTuples;
   }
 
-  public selectPage(
-    pageIndex: number,
-    pageSize: number
-  ): Observable<PaginatedResultEvent> {
+  public selectPage(pageIndex: number, pageSize: number): Observable<PaginatedResultEvent> {
     if (pageSize !== DEFAULT_PAGE_SIZE) {
       throw new Error("only support fixed page size right now");
     }
@@ -228,7 +200,7 @@ class OperatorPaginationResultService {
         requestID: "",
         operatorID: this.operatorID,
         pageIndex: pageIndex,
-        table: pageCache
+        table: pageCache,
       });
     } else {
       // fetch result data from server
@@ -238,7 +210,7 @@ class OperatorPaginationResultService {
         requestID,
         operatorID,
         pageIndex,
-        pageSize
+        pageSize,
       });
       const pendingRequestSubject = new Subject<PaginatedResultEvent>();
       this.pendingRequests.set(requestID, pendingRequestSubject);
@@ -255,7 +227,7 @@ class OperatorPaginationResultService {
 
   public handleResultUpdate(update: WebPaginationUpdate): void {
     this.currentTotalNumTuples = update.totalNumTuples;
-    update.dirtyPageIndices.forEach((dirtyPage) => {
+    update.dirtyPageIndices.forEach(dirtyPage => {
       this.resultCache.delete(dirtyPage);
     });
   }
