@@ -8,7 +8,8 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.texera.web.model.event.python.PythonExpressionEvaluateResponse
 
 object EvaluatePythonExpressionHandler {
-  final case class EvaluatePythonExpression(expression: String, operatorId: String) extends ControlCommand[Unit]
+  final case class EvaluatePythonExpression(expression: String, operatorId: String)
+      extends ControlCommand[Unit]
 }
 
 trait EvaluatePythonExpressionHandler {
@@ -18,7 +19,9 @@ trait EvaluatePythonExpressionHandler {
 
       Future
         .collect(
-          workflow.getOperator(msg.operatorId).getAllWorkers
+          workflow
+            .getOperator(msg.operatorId)
+            .getAllWorkers
             .map(worker => send(EvaluateExpression(msg.expression), worker))
             .toList
         )

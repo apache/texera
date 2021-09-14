@@ -48,10 +48,6 @@ object ControlCommandConvertUtils {
         ReplayCurrentTupleV2()
       case ModifyOperatorLogic(code, isSource) =>
         ModifyOperatorLogicV2(code, isSource)
-      case RetryPython() =>
-        RetryPythonV2()
-      case ModifyPythonLogic(code) =>
-        ModifyPythonLogicV2(code)
       case EvaluateExpression(expression) =>
         EvaluateExpressionV2(expression)
       case _ =>

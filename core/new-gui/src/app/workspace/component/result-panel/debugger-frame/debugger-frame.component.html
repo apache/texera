@@ -3,7 +3,7 @@
   (click)="onClickSkipTuples()"
   *ngIf="breakpointTriggerInfo !== undefined"
   [disabled]="!breakpointAction"
-  [hidden]= "true"
+  [hidden]="true"
   nz-button
 >
   Skip Records
@@ -19,14 +19,8 @@
   Retry current Tuple
 </button>
 
-<nz-tree-view
-  [nzDataSource]="pythonExpressionSource"
-  [nzTreeControl]="expressionTreeControl"
->
-  <nz-tree-node
-    *nzTreeNodeDef="let node; when: hasNoContent"
-    nzTreeNodeIndentLine
-  >
+<nz-tree-view [nzDataSource]="pythonExpressionSource" [nzTreeControl]="expressionTreeControl">
+  <nz-tree-node *nzTreeNodeDef="let node; when: hasNoContent" nzTreeNodeIndentLine>
     <input
       #inputElement
       (focusout)="saveNode(node, inputElement.value)"
@@ -36,29 +30,19 @@
       placeholder="expression"
     />
   </nz-tree-node>
-  <nz-tree-node
-    *nzTreeNodeDef="let node"
-    class="expression-tree-container"
-    nzTreeNodePadding
-  >
+  <nz-tree-node *nzTreeNodeDef="let node" class="expression-tree-container" nzTreeNodePadding>
     <!-- triangle icon for showing expand or not -->
     <nz-tree-node-toggle *ngIf="node.expandable && !node.loading">
       <i nz-icon nzTreeNodeToggleRotateIcon nzType="caret-down"></i>
     </nz-tree-node-toggle>
 
     <!-- loading icon indicating waiting for data -->
-    <nz-tree-node-toggle
-      *ngIf="node.expandable && node.loading"
-      nzTreeNodeNoopToggle
-    >
+    <nz-tree-node-toggle *ngIf="node.expandable && node.loading" nzTreeNodeNoopToggle>
       <i nz-icon nzTreeNodeToggleActiveIcon nzType="loading"></i>
     </nz-tree-node-toggle>
 
     <!-- disabled toggle for indentation purpose -->
-    <nz-tree-node-toggle
-      *ngIf="!node.expandable"
-      nzTreeNodeNoopToggle
-    ></nz-tree-node-toggle>
+    <nz-tree-node-toggle *ngIf="!node.expandable" nzTreeNodeNoopToggle></nz-tree-node-toggle>
     <div class="evaluated-expression">
       <span class="node-name">{{ node.name }}</span>
       <span class="node-type">({{ node.type }})</span>

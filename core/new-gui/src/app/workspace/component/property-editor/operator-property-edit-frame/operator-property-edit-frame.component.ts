@@ -153,40 +153,38 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
     this.setFormlyFormBinding(currentOperatorSchema.jsonSchema);
     this.formTitle = operator.customDisplayName ?? currentOperatorSchema.additionalMetadata.userFriendlyName;
 
-      /**
-       * Important: make a deep copy of the initial property data object.
-       * Prevent the form directly changes the value in the texera graph without going through workflow action service.
-       */
-      this.formData = cloneDeep(operator.operatorProperties);
-      // use ajv to initialize the default value to data according to schema, see https://ajv.js.org/#assigning-defaults
-      // WorkflowUtil service also makes sure that the default values are filled in when operator is added from the UI
-      // However, we perform an addition check for the following reasons:
-      // 1. the operator might be added not directly from the UI, which violates the precondition
-      // 2. the schema might change, which specifies a new default value
-      // 3. formly doesn't emit change event when it fills in default value, causing an inconsistency between component and service
+    /**
+     * Important: make a deep copy of the initial property data object.
+     * Prevent the form directly changes the value in the texera graph without going through workflow action service.
+     */
+    this.formData = cloneDeep(operator.operatorProperties);
+    // use ajv to initialize the default value to data according to schema, see https://ajv.js.org/#assigning-defaults
+    // WorkflowUtil service also makes sure that the default values are filled in when operator is added from the UI
+    // However, we perform an addition check for the following reasons:
+    // 1. the operator might be added not directly from the UI, which violates the precondition
+    // 2. the schema might change, which specifies a new default value
+    // 3. formly doesn't emit change event when it fills in default value, causing an inconsistency between component and service
 
-      this.ajv.validate(currentOperatorSchema, this.formData);
+    this.ajv.validate(currentOperatorSchema, this.formData);
 
-      // manually trigger a form change event because default value might be filled in
-      this.onFormChanges(this.formData);
+    // manually trigger a form change event because default value might be filled in
+    this.onFormChanges(this.formData);
 
-      if (
-        this.workflowActionService
-          .getTexeraGraph()
-          .getOperator(this.currentOperatorId)
-          .operatorType.includes(TYPE_CASTING_OPERATOR_TYPE)
-      ) {
-        this.switchDisplayComponent({
-          component: TypeCastingDisplayComponent,
-          componentInputs: { currentOperatorId: this.currentOperatorId },
-        });
-      } else {
-        this.switchDisplayComponent(undefined);
-      }
-      const interactive =
-        this.evaluateInteractivity();
-      this.setInteractivity(interactive);
+    if (
+      this.workflowActionService
+        .getTexeraGraph()
+        .getOperator(this.currentOperatorId)
+        .operatorType.includes(TYPE_CASTING_OPERATOR_TYPE)
+    ) {
+      this.switchDisplayComponent({
+        component: TypeCastingDisplayComponent,
+        componentInputs: { currentOperatorId: this.currentOperatorId },
+      });
+    } else {
+      this.switchDisplayComponent(undefined);
     }
+    const interactive = this.evaluateInteractivity();
+    this.setInteractivity(interactive);
   }
 
   evaluateInteractivity(): boolean {

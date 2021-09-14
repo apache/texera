@@ -3,14 +3,17 @@ package edu.uci.ics.texera.web.resource
 import akka.actor.{ActorRef, PoisonPill}
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ModifyLogicHandler.ModifyLogic
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.EvaluatePythonExpressionHandler.EvaluatePythonExpression
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ModifyLogicHandler.ModifyLogic
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.RetryWorkflowHandler.RetryWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
-import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, ControllerEventListener}
+import edu.uci.ics.amber.engine.architecture.controller.{
+  Controller,
+  ControllerConfig,
+  ControllerEventListener
+}
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
@@ -164,7 +167,10 @@ class WorkflowWebsocketResource extends LazyLogging {
 
   def evaluatePythonExpression(session: Session, request: PythonExpressionEvaluateRequest): Unit = {
     val controller = WorkflowWebsocketResource.sessionJobs(session.getId)._2
-    controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, EvaluatePythonExpression(request.expression, request.operatorId))
+    controller ! ControlInvocation(
+      AsyncRPCClient.IgnoreReply,
+      EvaluatePythonExpression(request.expression, request.operatorId)
+    )
   }
 
   def resultPagination(session: Session, request: ResultPaginationRequest): Unit = {
@@ -507,11 +513,6 @@ class WorkflowWebsocketResource extends LazyLogging {
     sessionCacheSourceOperators.remove(session.getId)
     sessionCacheSinkOperators.remove(session.getId)
     sessionOperatorRecord.remove(session.getId)
-  }
-
-  def killWorkflow(session: Session): Unit = {
-    WorkflowWebsocketResource.sessionJobs(session.getId)._2 ! PoisonPill
-    println("workflow killed")
   }
 
   def removeBreakpoint(session: Session, removeBreakpoint: RemoveBreakpointRequest): Unit = {
