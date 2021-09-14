@@ -30,12 +30,6 @@ class BatchToTupleConverter:
 
         link = self._input_map[from_]
 
-        # special case used to yield for source op
-        if from_ == BatchToTupleConverter.SOURCE_STARTER:
-            yield InputExhausted()
-            yield EndOfAllMarker()
-            return
-
         if self._current_link is None or self._current_link != link:
             self._current_link = link
             yield SenderChangeMarker(link)

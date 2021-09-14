@@ -233,11 +233,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
       .getOperatorDynamicSchemaChangedStream()
       .pipe(filter(({ operatorID }) => operatorID === this.currentOperatorId))
       .pipe(untilDestroyed(this))
-      .subscribe(event => {
-        if (event.operatorID === this.currentOperatorId) {
-          this.rerenderEditorForm();
-        }
-      });
+      .subscribe(_ => this.rerenderEditorForm());
   }
 
   /**
@@ -344,7 +340,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
 
   allowModifyOperatorLogic(): void {
     this.setInteractivity(true);
-    this.workflowActionService.enableWorkflowModification();
   }
 
   confirmModifyOperatorLogic(): void {
