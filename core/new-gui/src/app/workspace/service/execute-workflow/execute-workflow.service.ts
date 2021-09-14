@@ -191,7 +191,7 @@ export class ExecuteWorkflowService {
       return;
     }
     if (this.currentState === undefined || this.currentState.state !== ExecutionState.Running) {
-      throw new Error("cannot pause workflow, current execution state is " + this.currentState?.state);
+      throw new Error("cannot pause workflow, the current execution state is " + this.currentState?.state);
     }
     this.workflowWebsocketService.send("PauseWorkflowRequest", {});
     this.updateExecutionState({ state: ExecutionState.Pausing });
@@ -206,7 +206,7 @@ export class ExecuteWorkflowService {
       this.currentState.state === ExecutionState.Uninitialized ||
       this.currentState.state === ExecutionState.Completed
     ) {
-      throw new Error("cannot kill workflow, current execution state is " + this.currentState.state);
+      throw new Error("cannot kill workflow, the current execution state is " + this.currentState.state);
     }
     this.workflowWebsocketService.send("KillWorkflowRequest", {});
     this.updateExecutionState({ state: ExecutionState.Completed });
@@ -222,7 +222,7 @@ export class ExecuteWorkflowService {
         this.currentState.state === ExecutionState.BreakpointTriggered
       )
     ) {
-      throw new Error("cannot resume workflow, current execution state is " + this.currentState.state);
+      throw new Error("cannot resume workflow, the current execution state is " + this.currentState.state);
     }
     this.workflowWebsocketService.send("ResumeWorkflowRequest", {});
     this.updateExecutionState({ state: ExecutionState.Resuming });
@@ -237,7 +237,7 @@ export class ExecuteWorkflowService {
       this.currentState.state !== ExecutionState.BreakpointTriggered &&
       this.currentState.state !== ExecutionState.Paused
     ) {
-      throw new Error("cannot add breakpoint at runtime, current execution state is " + this.currentState.state);
+      throw new Error("cannot add breakpoint at runtime, the current execution state is " + this.currentState.state);
     }
     console.log("sending add breakpoint request");
     this.workflowWebsocketService.send(
@@ -251,7 +251,7 @@ export class ExecuteWorkflowService {
       return;
     }
     if (this.currentState.state !== ExecutionState.BreakpointTriggered) {
-      throw new Error("cannot skip tuples, current execution state is " + this.currentState.state);
+      throw new Error("cannot skip tuples, the current execution state is " + this.currentState.state);
     }
     this.currentState.breakpoint.report.forEach(fault => {
       this.workflowWebsocketService.send("SkipTupleRequest", {
@@ -261,7 +261,17 @@ export class ExecuteWorkflowService {
     });
   }
 
-  public changeOperatorLogic(operatorID: string): void {
+  public retryExecution(): void {
+    if (!environment.amberEngineEnabled) {
+      return;
+    }
+    if (this.currentState.state !== ExecutionState.BreakpointTriggered) {
+      throw new Error("cannot retry the current tuple, the current execution state is " + this.currentState.state);
+    }
+    this.workflowWebsocketService.send("RetryRequest", {});
+  }
+
+  public modifyOperatorLogic(operatorID: string): void {
     if (!environment.amberEngineEnabled) {
       return;
     }
@@ -269,7 +279,7 @@ export class ExecuteWorkflowService {
       this.currentState.state !== ExecutionState.BreakpointTriggered &&
       this.currentState.state !== ExecutionState.Paused
     ) {
-      throw new Error("cannot modify logic, current execution state is " + this.currentState.state);
+      throw new Error("cannot modify logic, the current execution state is " + this.currentState.state);
     }
     const op = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
     const operator: LogicalOperator = {
@@ -334,6 +344,7 @@ export class ExecuteWorkflowService {
       case ExecutionState.Completed:
       case ExecutionState.Failed:
       case ExecutionState.Uninitialized:
+      case ExecutionState.BreakpointTriggered:
         this.workflowActionService.enableWorkflowModification();
         return;
       case ExecutionState.Paused:

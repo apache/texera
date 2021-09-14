@@ -1,7 +1,6 @@
 import { Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
-import { Subject } from "rxjs";
-import { filter } from "rxjs/operators";
+import { Subject } from "rxjs/Subject";
 import { FormGroup } from "@angular/forms";
 import { FormlyFieldConfig, FormlyFormOptions } from "@ngx-formly/core";
 import * as Ajv from "ajv";
@@ -27,6 +26,8 @@ import {
 } from "../typecasting-display/type-casting-display.component";
 import { DynamicComponentConfig } from "../../../../common/type/dynamic-component-config";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { filter } from "rxjs/operators";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
 
 export type PropertyDisplayComponent = TypeCastingDisplayComponent;
 
@@ -55,13 +56,13 @@ export type PropertyDisplayComponentConfig = DynamicComponentConfig<PropertyDisp
   styleUrls: ["./operator-property-edit-frame.component.scss"],
 })
 export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
-  @Input() currentOperatorId: string | undefined = undefined;
+  @Input() currentOperatorId?: string;
 
   // re-declare enum for angular template to access it
   readonly ExecutionState = ExecutionState;
 
   // whether the editor can be edited
-  interactive: boolean = true;
+  interactive: boolean = this.evaluateInteractivity();
 
   // the source event stream of form change triggered by library at each user input
   sourceFormChangeEventStream = new Subject<Record<string, unknown>>();
@@ -91,7 +92,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
     private workflowActionService: WorkflowActionService,
     public executeWorkflowService: ExecuteWorkflowService,
     private dynamicSchemaService: DynamicSchemaService,
-    private schemaPropagationService: SchemaPropagationService
+    private schemaPropagationService: SchemaPropagationService,
+    private notificationService: NotificationService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -99,7 +101,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
     if (!this.currentOperatorId) {
       return;
     }
-    this.showOperatorPropertyEditor(this.currentOperatorId);
+    this.rerenderEditorForm();
   }
 
   switchDisplayComponent(targetConfig?: PropertyDisplayComponentConfig) {
@@ -140,12 +142,13 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
   /**
    * Changes the property editor to use the new operator data.
    * Sets all the data needed by the json schema form and displays the form.
-   * @param operatorId
    */
-  showOperatorPropertyEditor(operatorId: string): void {
-    const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorId);
+  rerenderEditorForm(): void {
+    if (!this.currentOperatorId) {
+      return;
+    }
+    const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
     // set the operator data needed
-    this.currentOperatorId = operatorId;
     const currentOperatorSchema = this.dynamicSchemaService.getDynamicSchema(this.currentOperatorId);
     this.setFormlyFormBinding(currentOperatorSchema.jsonSchema);
     this.formTitle = operator.customDisplayName ?? currentOperatorSchema.additionalMetadata.userFriendlyName;
@@ -162,7 +165,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
     // 1. the operator might be added not directly from the UI, which violates the precondition
     // 2. the schema might change, which specifies a new default value
     // 3. formly doesn't emit change event when it fills in default value, causing an inconsistency between component and service
-
     this.ajv.validate(currentOperatorSchema, this.formData);
 
     // manually trigger a form change event because default value might be filled in
@@ -182,10 +184,14 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
       this.switchDisplayComponent(undefined);
     }
 
-    const interactive =
-      this.executeWorkflowService.getExecutionState().state === ExecutionState.Uninitialized ||
-      this.executeWorkflowService.getExecutionState().state === ExecutionState.Completed;
+    const interactive = this.evaluateInteractivity();
     this.setInteractivity(interactive);
+  }
+
+  evaluateInteractivity(): boolean {
+    return [ExecutionState.Uninitialized, ExecutionState.Completed].includes(
+      this.executeWorkflowService.getExecutionState().state
+    );
   }
 
   setInteractivity(interactive: boolean) {
@@ -229,12 +235,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
       .pipe(untilDestroyed(this))
       .subscribe(event => {
         if (event.operatorID === this.currentOperatorId) {
-          const currentOperatorSchema = this.dynamicSchemaService.getDynamicSchema(this.currentOperatorId);
-          const operator = this.workflowActionService.getTexeraGraph().getOperator(event.operatorID);
-          if (!operator) {
-            throw new Error(`operator ${event.operatorID} does not exist`);
-          }
-          this.setFormlyFormBinding(currentOperatorSchema.jsonSchema);
+          this.rerenderEditorForm();
         }
       });
   }
@@ -278,11 +279,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
       .pipe(untilDestroyed(this))
       .subscribe(event => {
         if (this.currentOperatorId) {
-          if (event.current.state === ExecutionState.Completed || event.current.state === ExecutionState.Failed) {
-            this.setInteractivity(true);
-          } else {
-            this.setInteractivity(false);
-          }
+          const interactive = this.evaluateInteractivity();
+          this.setInteractivity(interactive);
         }
       });
   }
@@ -344,14 +342,18 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
     this.formlyFields = fields;
   }
 
-  allowChangeOperatorLogic() {
+  allowModifyOperatorLogic(): void {
     this.setInteractivity(true);
   }
 
-  confirmChangeOperatorLogic() {
-    this.setInteractivity(false);
+  confirmModifyOperatorLogic(): void {
     if (this.currentOperatorId) {
-      this.executeWorkflowService.changeOperatorLogic(this.currentOperatorId);
+      try {
+        this.executeWorkflowService.modifyOperatorLogic(this.currentOperatorId);
+        this.setInteractivity(false);
+      } catch (e: any) {
+        this.notificationService.error(e);
+      }
     }
   }
 

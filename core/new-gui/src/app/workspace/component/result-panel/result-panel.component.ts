@@ -11,8 +11,15 @@ import { VisualizationFrameComponent } from "./visualization-frame/visualization
 import { filter } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DynamicComponentConfig } from "../../../common/type/dynamic-component-config";
+import { DebuggerFrameComponent } from "./debugger-frame/debugger-frame.component";
+import { PYTHON_UDF_V2_OP_TYPE } from "../../service/workflow-graph/model/workflow-graph";
+import { environment } from "../../../../environments/environment";
 
-export type ResultFrameComponent = ResultTableFrameComponent | VisualizationFrameComponent | ConsoleFrameComponent;
+export type ResultFrameComponent =
+  | ResultTableFrameComponent
+  | VisualizationFrameComponent
+  | ConsoleFrameComponent
+  | DebuggerFrameComponent;
 
 export type ResultFrameComponentConfig = DynamicComponentConfig<ResultFrameComponent>;
 
@@ -27,7 +34,7 @@ export type ResultFrameComponentConfig = DynamicComponentConfig<ResultFrameCompo
   styleUrls: ["./result-panel.component.scss"],
 })
 export class ResultPanelComponent implements OnInit {
-  frameComponentConfig?: ResultFrameComponentConfig;
+  frameComponentConfigs: Map<string, ResultFrameComponentConfig> = new Map();
 
   // the highlighted operator ID for display result table / visualization / breakpoint
   currentOperatorId?: string;
@@ -101,7 +108,6 @@ export class ResultPanelComponent implements OnInit {
     const currentHighlightedOperator = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
     if (this.currentOperatorId !== currentHighlightedOperator) {
       // clear everything, prepare for state change
-
       this.clearResultPanel();
       this.currentOperatorId = currentHighlightedOperator;
     }
@@ -111,48 +117,58 @@ export class ResultPanelComponent implements OnInit {
       return;
     }
 
-    const executionState = this.executeWorkflowService.getExecutionState();
-    if (executionState.state in [ExecutionState.Failed, ExecutionState.BreakpointTriggered]) {
-      this.switchFrameComponent({
-        component: ConsoleFrameComponent,
-        componentInputs: { operatorId: this.currentOperatorId },
-      });
-    } else {
-      if (this.currentOperatorId) {
-        const resultService = this.workflowResultService.getResultService(this.currentOperatorId);
-        const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.currentOperatorId);
-        if (paginatedResultService) {
-          this.switchFrameComponent({
-            component: ResultTableFrameComponent,
-            componentInputs: { operatorId: this.currentOperatorId },
-          });
-        } else if (resultService && resultService.getChartType()) {
-          this.switchFrameComponent({
-            component: VisualizationFrameComponent,
-            componentInputs: { operatorId: this.currentOperatorId },
-          });
-        } else {
-          this.switchFrameComponent({
-            component: ConsoleFrameComponent,
-            componentInputs: { operatorId: this.currentOperatorId },
-          });
+    if (this.currentOperatorId) {
+      this.displayResult(this.currentOperatorId);
+      const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
+      if (operator.operatorType === PYTHON_UDF_V2_OP_TYPE) {
+        this.displayConsole(this.currentOperatorId);
+
+        if (environment.debuggerEnabled && this.hasErrorOrBreakpoint()) {
+          this.displayDebugger(this.currentOperatorId);
         }
       }
     }
   }
 
-  clearResultPanel(): void {
-    this.switchFrameComponent(undefined);
+  hasErrorOrBreakpoint(): boolean {
+    const executionState = this.executeWorkflowService.getExecutionState();
+    return [ExecutionState.Failed, ExecutionState.BreakpointTriggered].includes(executionState.state);
   }
 
-  switchFrameComponent(targetComponentConfig?: ResultFrameComponentConfig) {
-    if (
-      this.frameComponentConfig?.component === targetComponentConfig?.component &&
-      this.frameComponentConfig?.componentInputs === targetComponentConfig?.componentInputs
-    ) {
-      return;
+  clearResultPanel(): void {
+    this.frameComponentConfigs.clear();
+  }
+
+  displayConsole(operatorId: string) {
+    this.frameComponentConfigs.set("Console", {
+      component: ConsoleFrameComponent,
+      componentInputs: { operatorId },
+    });
+  }
+
+  displayDebugger(operatorId: string) {
+    this.frameComponentConfigs.set("Debugger", {
+      component: DebuggerFrameComponent,
+      componentInputs: { operatorId },
+    });
+  }
+
+  displayResult(operatorId: string) {
+    const resultService = this.workflowResultService.getResultService(operatorId);
+    const paginatedResultService = this.workflowResultService.getPaginatedResultService(operatorId);
+    if (paginatedResultService) {
+      // display table result if has paginated results
+      this.frameComponentConfigs.set("Result", {
+        component: ResultTableFrameComponent,
+        componentInputs: { operatorId },
+      });
+    } else if (resultService && resultService.getChartType()) {
+      // display visualization result
+      this.frameComponentConfigs.set("Result", {
+        component: VisualizationFrameComponent,
+        componentInputs: { operatorId },
+      });
     }
-    this.frameComponentConfig = targetComponentConfig;
   }
 
   private static needRerenderOnStateChange(event: {

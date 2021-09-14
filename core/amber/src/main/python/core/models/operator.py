@@ -1,7 +1,6 @@
+import overrides
 from abc import ABC, abstractmethod
 from typing import Iterator, Optional, Union
-
-import overrides
 
 from . import InputExhausted, Tuple, TupleLike
 
@@ -12,8 +11,8 @@ class Operator(ABC):
     be provided upon using.
     """
 
-    def __init__(self, is_source=False):
-        self._is_source: bool = is_source
+    def __init__(self):
+        self.__internal_is_source: bool = False
 
     @property
     @overrides.final
@@ -23,12 +22,12 @@ class Operator(ABC):
         Tuples without having input Tuples.
         :return:
         """
-        return self._is_source
+        return self.__internal_is_source
 
     @is_source.setter
     @overrides.final
     def is_source(self, value: bool) -> None:
-        self._is_source = value
+        self.__internal_is_source = value
 
     def open(self) -> None:
         """

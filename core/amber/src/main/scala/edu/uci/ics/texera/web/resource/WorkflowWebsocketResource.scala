@@ -3,8 +3,10 @@ package edu.uci.ics.texera.web.resource
 import akka.actor.{ActorRef, PoisonPill}
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ModifyLogicHandler.ModifyLogic
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.RetryWorkflowHandler.RetryWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.{
   Controller,
@@ -123,7 +125,6 @@ class WorkflowWebsocketResource extends LazyLogging {
           println(execute)
           executeWorkflow(session, execute)
         case newLogic: ModifyLogicRequest =>
-          println(newLogic)
           modifyLogic(session, newLogic)
         case pause: PauseWorkflowRequest =>
           pauseWorkflow(session)
@@ -133,6 +134,8 @@ class WorkflowWebsocketResource extends LazyLogging {
           killWorkflow(session)
         case skipTupleMsg: SkipTupleRequest =>
           skipTuple(session, skipTupleMsg)
+        case retryRequest: RetryRequest =>
+          retryWorkflow(session)
         case breakpoint: AddBreakpointRequest =>
           addBreakpoint(session, breakpoint)
         case paginationRequest: ResultPaginationRequest =>
@@ -195,11 +198,16 @@ class WorkflowWebsocketResource extends LazyLogging {
   }
 
   def modifyLogic(session: Session, newLogic: ModifyLogicRequest): Unit = {
-//    val texeraOperator = newLogic.operator
-//    val (compiler, controller) = WorkflowWebsocketResource.sessionJobs(session.getId)
-//    compiler.initOperator(texeraOperator)
-//    controller ! ModifyLogic(texeraOperator.operatorExecutor)
-    throw new RuntimeException("modify logic is temporarily disabled")
+    val texeraOperator = newLogic.operator
+    val (compiler, controller) = WorkflowWebsocketResource.sessionJobs(session.getId)
+    compiler.initOperator(texeraOperator)
+    controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, ModifyLogic(texeraOperator))
+  }
+
+  def retryWorkflow(session: Session): Unit = {
+    val (compiler, controller) = WorkflowWebsocketResource.sessionJobs(session.getId)
+    controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, RetryWorkflow())
+    send(session, WorkflowResumedEvent())
   }
 
   def pauseWorkflow(session: Session): Unit = {
@@ -362,9 +370,6 @@ class WorkflowWebsocketResource extends LazyLogging {
       workflowResultUpdateListener = resultUpdate => {
         workflowResultService.onResultUpdate(resultUpdate, session)
       },
-      modifyLogicCompletedListener = _ => {
-        send(session, ModifyLogicCompletedEvent())
-      },
       breakpointTriggeredListener = breakpointTriggered => {
         send(session, BreakpointTriggeredEvent.apply(breakpointTriggered))
       },
@@ -373,9 +378,6 @@ class WorkflowWebsocketResource extends LazyLogging {
       },
       workflowPausedListener = _ => {
         send(session, WorkflowPausedEvent())
-      },
-      skipTupleResponseListener = _ => {
-        send(session, SkipTupleResponseEvent())
       },
       reportCurrentTuplesListener = report => {
         //        send(session, OperatorCurrentTuplesUpdateEvent.apply(report))

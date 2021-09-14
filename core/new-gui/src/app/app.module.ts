@@ -96,6 +96,8 @@ import { MonacoEditorModule } from "ngx-monaco-editor";
 import { OperatorPropertyEditFrameComponent } from "./workspace/component/property-editor/operator-property-edit-frame/operator-property-edit-frame.component";
 import { BreakpointPropertyEditFrameComponent } from "./workspace/component/property-editor/breakpoint-property-edit-frame/breakpoint-property-edit-frame.component";
 import { NotificationComponent } from "./common/component/notification/notification/notification.component";
+import { DebuggerFrameComponent } from "./workspace/component/result-panel/debugger-frame/debugger-frame.component";
+import { NzTabsModule } from "ng-zorro-antd/tabs";
 
 registerLocaleData(en);
 
@@ -147,6 +149,10 @@ registerLocaleData(en);
     OperatorPropertyEditFrameComponent,
     BreakpointPropertyEditFrameComponent,
     NotificationComponent,
+    ResultTableFrameComponent,
+    OperatorPropertyEditFrameComponent,
+    BreakpointPropertyEditFrameComponent,
+    DebuggerFrameComponent,
   ],
   imports: [
     BrowserModule,
@@ -200,6 +206,7 @@ registerLocaleData(en);
     NzAvatarModule,
     DynamicModule,
     MonacoEditorModule.forRoot(),
+    NzTabsModule,
   ],
   entryComponents: [
     NgbdModalAddWorkflowComponent,

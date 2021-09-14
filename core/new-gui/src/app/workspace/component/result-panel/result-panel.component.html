@@ -1,6 +1,12 @@
 <div [hidden]="!showResultPanel" class="texera-workspace-result-panel-body texera-workflow-component-body">
-  <ndc-dynamic
-    [ndcDynamicComponent]="frameComponentConfig?.component"
-    [ndcDynamicInputs]="frameComponentConfig?.componentInputs"
-  ></ndc-dynamic>
+  <nz-tabset [nzSize]="'small'" [nzTabPosition]="'left'">
+    <div *ngFor="let config of frameComponentConfigs | keyvalue">
+      <nz-tab nzTitle="{{config.key}}">
+        <ndc-dynamic
+          [ndcDynamicComponent]="config.value?.component"
+          [ndcDynamicInputs]="config.value?.componentInputs"
+        ></ndc-dynamic>
+      </nz-tab>
+    </div>
+  </nz-tabset>
 </div>
