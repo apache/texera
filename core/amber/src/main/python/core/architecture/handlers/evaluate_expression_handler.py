@@ -1,5 +1,5 @@
 import re
-from typing import Any, List
+from typing import Any, Dict, List
 
 from proto.edu.uci.ics.amber.engine.architecture.worker import EvaluateExpressionV2, EvaluatedValue, TypedValue
 from .handler_base import Handler
@@ -26,9 +26,11 @@ class ExpressionEvaluator:
         return hasattr(obj, "__len__") and len(obj) == 0
 
     @staticmethod
-    def evaluate(expression: str, context: Context) -> EvaluatedValue:
-        contextualized_expression = ExpressionEvaluator.contextualize_expression(expression)
+    def evaluate(expression: str, context: Context, context_replacements: Dict[str, str]) -> EvaluatedValue:
 
+        assert context is not None, "needs a valid context to evaluate expression"
+
+        contextualized_expression = ExpressionEvaluator.contextualize_expression(expression, context_replacements)
         value = eval(contextualized_expression)
         value_str = repr(value)
         type_str = type(value).__name__
@@ -51,15 +53,10 @@ class ExpressionEvaluator:
         )
 
     @staticmethod
-    def contextualize_expression(expression: str) -> str:
-        context_replacements = [
-            (r'self', r'context.dp._udf_operator'),
-            (r'tuple_', r'context.dp._current_input_tuple'),
-            (r'link', r'context.dp._current_input_link'),
+    def contextualize_expression(expression: str, context_replacements: Dict[str, str]) -> str:
 
-        ]
         contextualized_expression = expression
-        for pattern, contextualized_pattern in context_replacements:
+        for pattern, contextualized_pattern in context_replacements.items():
             contextualized_expression = re.sub(pattern, contextualized_pattern, contextualized_expression)
         return contextualized_expression
 
@@ -114,6 +111,11 @@ class EvaluateExpressionHandler(Handler):
     cmd = EvaluateExpressionV2
 
     def __call__(self, context: Context, command: cmd, *args, **kwargs):
-        evaluated_value = ExpressionEvaluator.evaluate(command.expression, context)
+        context_replacements = {
+            r'self':   r'context.dp._udf_operator',
+            r'tuple_': r'context.dp._current_input_tuple',
+            r'link':   r'context.dp._current_input_link',
+        }
+        evaluated_value = ExpressionEvaluator.evaluate(command.expression, context, context_replacements)
 
         return evaluated_value
