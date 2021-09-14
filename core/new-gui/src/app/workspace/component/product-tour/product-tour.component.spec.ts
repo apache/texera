@@ -1,10 +1,6 @@
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 import { ProductTourComponent } from "./product-tour.component";
-import {
-  TourNgBootstrapModule,
-  TourService,
-  IStepOption
-} from "ngx-tour-ng-bootstrap";
+import { TourNgBootstrapModule, TourService, IStepOption } from "ngx-tour-ng-bootstrap";
 import { RouterTestingModule } from "@angular/router/testing";
 import { marbles } from "rxjs-marbles";
 import { map, tap } from "rxjs/operators";
@@ -17,12 +13,9 @@ describe("ProductTourComponent", () => {
   beforeEach(
     waitForAsync(() => {
       TestBed.configureTestingModule({
-        imports: [
-          RouterTestingModule.withRoutes([]),
-          TourNgBootstrapModule.forRoot()
-        ],
+        imports: [RouterTestingModule.withRoutes([]), TourNgBootstrapModule.forRoot()],
         declarations: [ProductTourComponent],
-        providers: [TourService]
+        providers: [TourService],
       }).compileComponents();
     })
   );
@@ -47,14 +40,12 @@ describe("ProductTourComponent", () => {
       expect(steps[1].placement).toEqual("right");
     });
 
-    const mockComponent: ProductTourComponent = new ProductTourComponent(
-      tourService
-    );
+    const mockComponent: ProductTourComponent = new ProductTourComponent(tourService);
   });
 
   it(
     "should trigger a start event when the toggle() method call is execute",
-    marbles((m) => {
+    marbles(m => {
       const tourServiceStartStream = tourService.start$.pipe(map(() => "a"));
       m.hot("-a-")
         .pipe(tap(() => tourService.toggle()))
@@ -66,7 +57,7 @@ describe("ProductTourComponent", () => {
 
   it(
     "should trigger an end event when the end() method call is executed",
-    marbles((m) => {
+    marbles(m => {
       const tourServiceEndStream = tourService.end$.pipe(map(() => "a"));
       m.hot("-a-")
         .pipe(tap(() => tourService.end()))

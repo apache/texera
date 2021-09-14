@@ -18,6 +18,7 @@ import { NzMessageService } from "ng-zorro-antd/message";
 import { WorkflowConsoleService } from "../service/workflow-console/workflow-console.service";
 import { debounceTime, filter } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { OperatorCacheStatusService } from "../service/workflow-status/operator-cache-status.service";
 
 @UntilDestroy()
 @Component({
@@ -27,7 +28,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
   providers: [
     // uncomment this line for manual testing without opening backend server
     // { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-  ]
+  ],
 })
 export class WorkspaceComponent implements AfterViewInit {
   public gitCommitHash: string = Version.raw;
@@ -41,6 +42,7 @@ export class WorkspaceComponent implements AfterViewInit {
     private schemaPropagationService: SchemaPropagationService,
     private undoRedoService: UndoRedoService,
     private userService: UserService,
+    private operatorCacheStatus: OperatorCacheStatusService,
     private workflowCacheService: WorkflowCacheService,
     private workflowPersistService: WorkflowPersistService,
     private workflowWebsocketService: WorkflowWebsocketService,
@@ -78,7 +80,7 @@ export class WorkspaceComponent implements AfterViewInit {
 
     this.operatorMetadataService
       .getOperatorMetadata()
-      .pipe(filter((metadata) => metadata.operators.length !== 0))
+      .pipe(filter(metadata => metadata.operators.length !== 0))
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         if (environment.userSystemEnabled) {
@@ -97,9 +99,7 @@ export class WorkspaceComponent implements AfterViewInit {
           this.registerAutoPersistWorkflow();
         } else {
           // load the cached workflow
-          this.workflowActionService.reloadWorkflow(
-            this.workflowCacheService.getCachedWorkflow()
-          );
+          this.workflowActionService.reloadWorkflow(this.workflowCacheService.getCachedWorkflow());
           // clear stack
           this.undoRedoService.clearUndoStack();
           this.undoRedoService.clearRedoStack();
@@ -111,7 +111,7 @@ export class WorkspaceComponent implements AfterViewInit {
     this.resultPanelToggleService
       .getToggleChangeStream()
       .pipe(untilDestroyed(this))
-      .subscribe((value) => (this.showResultPanel = value));
+      .subscribe(value => (this.showResultPanel = value));
   }
 
   private registerAutoCacheWorkFlow(): void {
@@ -120,9 +120,7 @@ export class WorkspaceComponent implements AfterViewInit {
       .pipe(debounceTime(100))
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        this.workflowCacheService.setCacheWorkflow(
-          this.workflowActionService.getWorkflow()
-        );
+        this.workflowCacheService.setCacheWorkflow(this.workflowActionService.getWorkflow());
       });
   }
 
@@ -162,9 +160,7 @@ export class WorkspaceComponent implements AfterViewInit {
           this.undoRedoService.clearRedoStack();
         },
         () => {
-          this.message.error(
-            "You don't have access to this workflow, please log in with an appropriate account"
-          );
+          this.message.error("You don't have access to this workflow, please log in with an appropriate account");
         }
       );
   }

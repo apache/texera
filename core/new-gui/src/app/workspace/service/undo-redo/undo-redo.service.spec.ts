@@ -2,11 +2,7 @@ import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-
 import { JointUIService } from "../joint-ui/joint-ui.service";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
-import {
-  mockScanPredicate,
-  mockResultPredicate,
-  mockPoint
-} from "../workflow-graph/model/mock-workflow-data";
+import { mockScanPredicate, mockResultPredicate, mockPoint } from "../workflow-graph/model/mock-workflow-data";
 import { TestBed, inject } from "@angular/core/testing";
 
 import { UndoRedoService } from "./undo-redo.service";
@@ -24,20 +20,17 @@ describe("UndoRedoService", () => {
         JointUIService,
         {
           provide: OperatorMetadataService,
-          useClass: StubOperatorMetadataService
-        }
-      ]
+          useClass: StubOperatorMetadataService,
+        },
+      ],
     });
     service = TestBed.get(UndoRedoService);
     workflowActionService = TestBed.get(WorkflowActionService);
   });
 
-  it("should be created", inject(
-    [UndoRedoService],
-    (injectedService: UndoRedoService) => {
-      expect(injectedService).toBeTruthy();
-    }
-  ));
+  it("should be created", inject([UndoRedoService], (injectedService: UndoRedoService) => {
+    expect(injectedService).toBeTruthy();
+  }));
 
   it("executing command should append to stack", () => {
     workflowActionService.addOperator(mockScanPredicate, mockPoint);

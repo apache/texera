@@ -20,6 +20,7 @@ import edu.uci.ics.texera.web.model.request.python.PythonExpressionEvaluateReque
     new Type(value = classOf[RetryRequest]),
     new Type(value = classOf[ResultPaginationRequest]),
     new Type(value = classOf[ResultExportRequest]),
+    new Type(value = classOf[CacheStatusUpdateRequest]),
     new Type(value = classOf[PythonExpressionEvaluateRequest])
   )
 )

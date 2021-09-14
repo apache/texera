@@ -28,10 +28,10 @@ describe("MiniMapComponent", () => {
           UndoRedoService,
           {
             provide: OperatorMetadataService,
-            useClass: StubOperatorMetadataService
-          }
+            useClass: StubOperatorMetadataService,
+          },
         ],
-        imports: [HttpClientTestingModule]
+        imports: [HttpClientTestingModule],
       }).compileComponents();
     })
   );

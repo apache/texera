@@ -8,5 +8,6 @@ import scala.collection.mutable
 case class ExecuteWorkflowRequest(
     operators: mutable.MutableList[OperatorDescriptor],
     links: mutable.MutableList[OperatorLink],
-    breakpoints: mutable.MutableList[BreakpointInfo]
+    breakpoints: mutable.MutableList[BreakpointInfo],
+    cachedOperatorIds: mutable.MutableList[String]
 ) extends TexeraWebSocketRequest

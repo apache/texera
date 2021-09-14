@@ -2,14 +2,11 @@ import {
   BreakpointInfo,
   LogicalOperator,
   LogicalPlan,
+  WebOutputMode,
   WorkflowResultUpdateEvent,
-  WorkflowStatusUpdate
+  WorkflowStatusUpdate,
 } from "./execute-workflow.interface";
-import {
-  BreakpointFaultedTuple,
-  BreakpointTriggerInfo,
-  PythonPrintTriggerInfo
-} from "./workflow-common.interface";
+import { BreakpointFaultedTuple, BreakpointTriggerInfo, PythonPrintTriggerInfo } from "./workflow-common.interface";
 
 /**
  *  @fileOverview Type Definitions of WebSocket (Ws) API
@@ -82,10 +79,28 @@ export type ResultExportRequest = Readonly<{
   operatorId: string;
 }>;
 
+export type CacheStatusUpdateRequest = LogicalPlan;
+
 export type ResultExportResponse = Readonly<{
   status: "success" | "error";
   message: string;
 }>;
+
+export type OperatorAvailableResult = Readonly<{
+  operatorID: string;
+  cacheValid: boolean;
+  outputMode: WebOutputMode;
+}>;
+
+export type WorkflowAvailableResultEvent = Readonly<{
+  availableOperators: ReadonlyArray<OperatorAvailableResult>;
+}>;
+
+export type OperatorResultCacheStatus = "cache invalid" | "cache valid" | "cache not enabled";
+export interface CacheStatusUpdateEvent
+  extends Readonly<{
+    cacheStatusMap: Record<string, OperatorResultCacheStatus>;
+  }> {}
 
 export type PythonExpressionEvaluateRequest = Readonly<{
   expression: string;
@@ -121,6 +136,7 @@ export type TexeraWebsocketRequestTypeMap = {
   AddBreakpointRequest: BreakpointInfo;
   ResultPaginationRequest: PaginationRequest;
   ResultExportRequest: ResultExportRequest;
+  CacheStatusUpdateRequest: CacheStatusUpdateRequest;
   PythonExpressionEvaluateRequest: PythonExpressionEvaluateRequest;
 };
 
@@ -137,11 +153,12 @@ export type TexeraWebsocketEventTypeMap = {
   RecoveryStartedEvent: {};
   BreakpointTriggeredEvent: BreakpointTriggerInfo;
   PythonPrintTriggeredEvent: PythonPrintTriggerInfo;
-  ModifyLogicCompletedEvent: {};
   OperatorCurrentTuplesUpdateEvent: OperatorCurrentTuples;
   PaginatedResultEvent: PaginatedResultEvent;
   WorkflowExecutionErrorEvent: WorkflowExecutionError;
   ResultExportResponse: ResultExportResponse;
+  WorkflowAvailableResultEvent: WorkflowAvailableResultEvent;
+  CacheStatusUpdateEvent: CacheStatusUpdateEvent;
   PythonExpressionEvaluateResponse: PythonExpressionEvaluateResponse;
 };
 
@@ -156,8 +173,7 @@ type CustomUnionType<T> = ValueOf<
 >;
 
 export type TexeraWebsocketRequestTypes = keyof TexeraWebsocketRequestTypeMap;
-export type TexeraWebsocketRequest =
-  CustomUnionType<TexeraWebsocketRequestTypeMap>;
+export type TexeraWebsocketRequest = CustomUnionType<TexeraWebsocketRequestTypeMap>;
 
 export type TexeraWebsocketEventTypes = keyof TexeraWebsocketEventTypeMap;
 export type TexeraWebsocketEvent = CustomUnionType<TexeraWebsocketEventTypeMap>;

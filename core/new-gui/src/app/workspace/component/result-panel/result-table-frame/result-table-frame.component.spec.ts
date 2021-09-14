@@ -18,9 +18,9 @@ describe("ResultTableFrameComponent", () => {
         providers: [
           {
             provide: OperatorMetadataService,
-            useClass: StubOperatorMetadataService
-          }
-        ]
+            useClass: StubOperatorMetadataService,
+          },
+        ],
       }).compileComponents();
     })
   );

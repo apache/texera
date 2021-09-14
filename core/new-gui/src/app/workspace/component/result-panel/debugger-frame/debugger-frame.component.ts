@@ -1,21 +1,12 @@
-import {
-  Component,
-  Input,
-  OnChanges,
-  OnInit,
-  SimpleChanges
-} from "@angular/core";
+import { Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { BreakpointTriggerInfo } from "../../../types/workflow-common.interface";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { WorkflowWebsocketService } from "../../../service/workflow-websocket/workflow-websocket.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { TypedValue } from "../../../types/workflow-websocket.interface";
 import { FlatTreeControl, TreeControl } from "@angular/cdk/tree";
-import {
-  CollectionViewer,
-  DataSource,
-  SelectionChange
-} from "@angular/cdk/collections";
+import { CollectionViewer, DataSource, SelectionChange } from "@angular/cdk/collections";
 import { BehaviorSubject, merge, Observable } from "rxjs";
 import { map, tap } from "rxjs/operators";
 
@@ -33,7 +24,7 @@ interface FlatTreeNode {
 @Component({
   selector: "texera-debugger-frame",
   templateUrl: "./debugger-frame.component.html",
-  styleUrls: ["./debugger-frame.component.scss"]
+  styleUrls: ["./debugger-frame.component.scss"],
 })
 export class DebuggerFrameComponent implements OnInit, OnChanges {
   @Input() operatorId?: string;
@@ -42,15 +33,16 @@ export class DebuggerFrameComponent implements OnInit, OnChanges {
   breakpointAction: boolean = false;
 
   expressionTreeControl = new FlatTreeControl<FlatTreeNode>(
-    (node) => node.level,
-    (node) => node.expandable
+    node => node.level,
+    node => node.expandable
   );
   pythonExpressionSource?: PythonExpressionSource;
   hasNoContent = (_: number, node: FlatTreeNode) => node.name === "";
 
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
-    private workflowWebsocketService: WorkflowWebsocketService
+    private workflowWebsocketService: WorkflowWebsocketService,
+    private notificationService: NotificationService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -60,20 +52,27 @@ export class DebuggerFrameComponent implements OnInit, OnChanges {
 
   renderConsole() {
     // try to fetch if we have breakpoint info
-    this.breakpointTriggerInfo =
-      this.executeWorkflowService.getBreakpointTriggerInfo();
+    this.breakpointTriggerInfo = this.executeWorkflowService.getBreakpointTriggerInfo();
     if (this.breakpointTriggerInfo) {
       this.breakpointAction = true;
     }
   }
 
   onClickSkipTuples(): void {
-    this.executeWorkflowService.skipTuples();
+    try {
+      this.executeWorkflowService.skipTuples();
+    } catch (e: any) {
+      this.notificationService.error(e);
+    }
     this.breakpointAction = false;
   }
 
   onClickRetry() {
-    this.executeWorkflowService.retryExecution();
+    try {
+      this.executeWorkflowService.retryExecution();
+    } catch (e: any) {
+      this.notificationService.error(e);
+    }
     this.breakpointAction = false;
   }
 
@@ -81,7 +80,7 @@ export class DebuggerFrameComponent implements OnInit, OnChanges {
     if (this.operatorId) {
       this.workflowWebsocketService.send("PythonExpressionEvaluateRequest", {
         expression: "self",
-        operatorId: this.operatorId
+        operatorId: this.operatorId,
       });
     }
   }
@@ -99,15 +98,13 @@ export class DebuggerFrameComponent implements OnInit, OnChanges {
       this.pythonExpressionSource?.removeNode(node);
       this.workflowWebsocketService.send("PythonExpressionEvaluateRequest", {
         expression: value,
-        operatorId: this.operatorId
+        operatorId: this.operatorId,
       });
-
     }
   }
 
   addNewNode(): void {
-    const flattenedData =
-      this.pythonExpressionSource?.flattenedDataSubject.getValue();
+    const flattenedData = this.pythonExpressionSource?.flattenedDataSubject.getValue();
     // append new expressions as new tree roots
     flattenedData?.push(<FlatTreeNode>{
       expandable: false,
@@ -116,7 +113,7 @@ export class DebuggerFrameComponent implements OnInit, OnChanges {
       type: "",
       value: "",
       level: 0,
-      loading: false
+      loading: false,
     });
     if (flattenedData) {
       this.pythonExpressionSource?.flattenedDataSubject.next(flattenedData);
@@ -142,36 +139,28 @@ class PythonExpressionSource implements DataSource<FlatTreeNode> {
 
   removeNode(node: FlatTreeNode): void {
     const flattenedData = this.flattenedDataSubject.getValue();
-    this.flattenedDataSubject.next(
-      flattenedData.filter((value, _, __) => value !== node)
-    );
+    this.flattenedDataSubject.next(flattenedData.filter((value, _, __) => value !== node));
     console.log(flattenedData.filter((value, _, __) => value !== node));
   }
 
   toFlatTreeNode(value: TypedValue, parentNode?: FlatTreeNode): FlatTreeNode {
     return <FlatTreeNode>{
-      expression:
-        (parentNode?.expression ? parentNode?.expression + "." : "") +
-        value.expression,
+      expression: (parentNode?.expression ? parentNode?.expression + "." : "") + value.expression,
       name: value.valueRef,
       type: value.valueType,
       value: value.valueStr,
       expandable: value.expandable,
-      level: (parentNode?.level ?? -1) + 1
+      level: (parentNode?.level ?? -1) + 1,
     };
   }
 
   connect(collectionViewer: CollectionViewer): Observable<FlatTreeNode[]> {
     const changes = [
       collectionViewer.viewChange,
-      this.treeControl.expansionModel.changed.pipe(
-        tap((change) => this.handleExpansionChange(change))
-      ),
-      this.flattenedDataSubject
+      this.treeControl.expansionModel.changed.pipe(tap(change => this.handleExpansionChange(change))),
+      this.flattenedDataSubject,
     ];
-    return merge(...changes).pipe(
-      map(() => this.expandFlattenedNodes(this.flattenedDataSubject.getValue()))
-    );
+    return merge(...changes).pipe(map(() => this.expandFlattenedNodes(this.flattenedDataSubject.getValue())));
   }
 
   expandFlattenedNodes(nodes: FlatTreeNode[]): FlatTreeNode[] {
@@ -181,7 +170,7 @@ class PythonExpressionSource implements DataSource<FlatTreeNode> {
     const currentExpand: boolean[] = [];
     currentExpand[0] = true;
 
-    nodes.forEach((node) => {
+    nodes.forEach(node => {
       let expand = true;
       for (let i = 0; i <= treeControl.getLevel(node); i++) {
         expand = expand && currentExpand[i];
@@ -190,8 +179,7 @@ class PythonExpressionSource implements DataSource<FlatTreeNode> {
         results.push(node);
       }
       if (treeControl.isExpandable(node)) {
-        currentExpand[treeControl.getLevel(node) + 1] =
-          treeControl.isExpanded(node);
+        currentExpand[treeControl.getLevel(node) + 1] = treeControl.isExpanded(node);
       }
     });
     return results;
@@ -199,7 +187,7 @@ class PythonExpressionSource implements DataSource<FlatTreeNode> {
 
   handleExpansionChange(change: SelectionChange<FlatTreeNode>): void {
     if (change.added) {
-      change.added.forEach((node) => this.loadChildren(node));
+      change.added.forEach(node => this.loadChildren(node));
     }
   }
 
@@ -219,7 +207,7 @@ class PythonExpressionSource implements DataSource<FlatTreeNode> {
     if (this.operatorId) {
       this.workflowWebsocketService.send("PythonExpressionEvaluateRequest", {
         expression: node.expression,
-        operatorId: this.operatorId
+        operatorId: this.operatorId,
       });
     }
   }
@@ -228,18 +216,14 @@ class PythonExpressionSource implements DataSource<FlatTreeNode> {
     this.workflowWebsocketService
       .subscribeToEvent("PythonExpressionEvaluateResponse")
       .pipe(untilDestroyed(this))
-      .subscribe((response) => {
+      .subscribe(response => {
         const flattenedData = this.flattenedDataSubject.getValue();
-        const parentNode = flattenedData.find(
-          (node) => node.expression === response.expression
-        );
+        const parentNode = flattenedData.find(node => node.expression === response.expression);
 
         if (parentNode) {
           // found parent node, add to it as children
-          response.values.forEach((evaluatedValue) => {
-            const treeNodes = evaluatedValue.attributes.map((typedValue) =>
-              this.toFlatTreeNode(typedValue, parentNode)
-            );
+          response.values.forEach(evaluatedValue => {
+            const treeNodes = evaluatedValue.attributes.map(typedValue => this.toFlatTreeNode(typedValue, parentNode));
             const index = flattenedData.indexOf(parentNode);
             if (index !== -1) {
               flattenedData.splice(index + 1, 0, ...treeNodes);
@@ -249,13 +233,10 @@ class PythonExpressionSource implements DataSource<FlatTreeNode> {
           });
         } else {
           // append new expressions as new tree roots
-          const newRootNodes = response.values.map((evaluatedValue) =>
-            this.toFlatTreeNode(evaluatedValue.value)
-          );
+          const newRootNodes = response.values.map(evaluatedValue => this.toFlatTreeNode(evaluatedValue.value));
           flattenedData.push(...newRootNodes);
         }
         this.flattenedDataSubject.next(flattenedData);
       });
   }
 }
-

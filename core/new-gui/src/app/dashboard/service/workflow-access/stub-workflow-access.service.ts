@@ -13,7 +13,7 @@ export const MOCK_WORKFLOW: Workflow = {
     " {\"operators\":[],\"operatorPositions\":{},\"links\":[],\"groups\":[],\"breakpoints\":{}}"
   ),
   creationTime: 1,
-  lastModifiedTime: 2
+  lastModifiedTime: 2,
 };
 
 type PublicInterfaceOf<Class> = {
@@ -21,8 +21,7 @@ type PublicInterfaceOf<Class> = {
 };
 
 @Injectable()
-export class StubWorkflowAccessService
-  implements PublicInterfaceOf<WorkflowAccessService> {
+export class StubWorkflowAccessService implements PublicInterfaceOf<WorkflowAccessService> {
   public workflow: Workflow;
 
   public message: string = "This is testing";
@@ -33,30 +32,19 @@ export class StubWorkflowAccessService
     this.workflow = MOCK_WORKFLOW;
   }
 
-  public retrieveGrantedWorkflowAccessList(
-    workflow: Workflow
-  ): Observable<ReadonlyArray<AccessEntry>> {
+  public retrieveGrantedWorkflowAccessList(workflow: Workflow): Observable<ReadonlyArray<AccessEntry>> {
     return of(this.mapString);
   }
 
-  public grantUserWorkflowAccess(
-    workflow: Workflow,
-    username: string,
-    accessLevel: string
-  ): Observable<Response> {
+  public grantUserWorkflowAccess(workflow: Workflow, username: string, accessLevel: string): Observable<Response> {
     return of();
   }
 
-  public revokeWorkflowAccess(
-    workflow: Workflow,
-    username: string
-  ): Observable<Response> {
+  public revokeWorkflowAccess(workflow: Workflow, username: string): Observable<Response> {
     return of();
   }
 
-  public getWorkflowOwner(
-    workflow: Workflow
-  ): Observable<Readonly<{ ownerName: string }>> {
+  public getWorkflowOwner(workflow: Workflow): Observable<Readonly<{ ownerName: string }>> {
     return of();
   }
 }

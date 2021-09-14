@@ -1,6 +1,5 @@
 import { Injectable } from "@angular/core";
-import { Subject } from "rxjs";
-import { Observable } from "rxjs";
+import { Observable, Subject } from "rxjs";
 
 export interface Notification {
   type: "success" | "info" | "error" | "warning" | "loading";
@@ -12,7 +11,7 @@ export interface Notification {
  * to show on NotificationComponent.
  */
 @Injectable({
-  providedIn: "root"
+  providedIn: "root",
 })
 export class NotificationService {
   private notificationStream = new Subject<Notification>();
@@ -33,8 +32,11 @@ export class NotificationService {
     this.sendNotification({ type: "info", message });
   }
 
-  error(message: string) {
-    this.sendNotification({ type: "error", message });
+  error(cause: Error | string) {
+    this.sendNotification({
+      type: "error",
+      message: cause instanceof Error ? cause.message : cause,
+    });
   }
 
   warning(message: string) {

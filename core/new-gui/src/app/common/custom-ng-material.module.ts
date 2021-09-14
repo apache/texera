@@ -89,7 +89,7 @@ import { MatTooltipModule } from "@angular/material/tooltip";
     MatToolbarModule,
     MatTooltipModule,
     MatNativeDateModule,
-    MatPaginatorModule
-  ]
+    MatPaginatorModule,
+  ],
 })
 export class CustomNgMaterialModule {}

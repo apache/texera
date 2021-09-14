@@ -1,16 +1,29 @@
-<h3
-  *ngIf="formTitle"
-  class="texera-workspace-property-editor-title"
-  mat-subheader
->
-  {{ formTitle }}
-</h3>
+<div *ngIf="!editingTitle" id="formly-title">
+  <h3 *ngIf="!editingTitle && formTitle" class="texera-workspace-property-editor-title" mat-subheader>
+    {{ formTitle }}
+  </h3>
+  <button
+    (click)="editingTitle=true"
+    nz-button
+    nz-tooltip="Customize Operator Name"
+    nzSize="small"
+    nzTooltipPlacement="bottom"
+    nzType="text"
+  >
+    <i nz-icon nzTheme="outline" nzType="edit"></i>
+  </button>
+</div>
 
-<form
-  *ngIf="formlyFields"
-  [formGroup]="formlyFormGroup"
-  class="texera-workspace-property-editor-form"
->
+<input
+  #customName
+  (focusout)="confirmChangeOperatorCustomName(customName.value)"
+  (keyup.enter)="confirmChangeOperatorCustomName(customName.value)"
+  *ngIf="editingTitle"
+  placeholder="{{formTitle}}"
+  value="{{formTitle}}"
+/>
+
+<form *ngIf="formlyFields" [formGroup]="formlyFormGroup" class="texera-workspace-property-editor-form">
   <formly-form
     (modelChange)="onFormChanges($event)"
     [fields]="formlyFields"
@@ -29,7 +42,7 @@
   nz-button
   nz-tooltip="Unlock the operator to change logic"
   nzTooltipPlacement="bottom"
-  (click)="allowChangeOperatorLogic()"
+  (click)="allowModifyOperatorLogic()"
   *ngIf="
 		currentOperatorId !== undefined &&
 		(this.executeWorkflowService.getExecutionState().state ===
@@ -37,16 +50,19 @@
 			this.executeWorkflowService.getExecutionState().state ===
 				ExecutionState.BreakpointTriggered) &&
 		this.interactive === false"
+  nz-button
+  nz-tooltip="Unlock the operator to change logic"
+  nzTooltipPlacement="bottom"
 >
   Unlock for Logic Change
-  <i nz-icon nzType="unlock" nzTheme="outline"></i>
+  <i nz-icon nzTheme="outline" nzType="unlock"></i>
 </button>
 
 <button
   nz-button
   nz-tooltip="Confirm change and modify the operator runtime"
   nzTooltipPlacement="bottom"
-  (click)="confirmChangeOperatorLogic()"
+  (click)="confirmModifyOperatorLogic()"
   *ngIf="
 		currentOperatorId !== undefined &&
 		(this.executeWorkflowService.getExecutionState().state ===
@@ -54,6 +70,9 @@
 			this.executeWorkflowService.getExecutionState().state ===
 				ExecutionState.BreakpointTriggered) &&
 		this.interactive === true"
+  nz-button
+  nz-tooltip="Confirm change and modify the operator runtime"
+  nzTooltipPlacement="bottom"
 >
   Confirm Change
 </button>

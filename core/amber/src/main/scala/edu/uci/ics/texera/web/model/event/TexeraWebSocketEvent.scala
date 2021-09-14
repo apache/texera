@@ -18,9 +18,8 @@ import edu.uci.ics.texera.web.model.event.python.PythonExpressionEvaluateRespons
     new Type(value = classOf[RecoveryStartedEvent]),
     new Type(value = classOf[BreakpointTriggeredEvent]),
     new Type(value = classOf[PythonPrintTriggeredEvent]),
-    new Type(value = classOf[ModifyLogicCompletedEvent]),
-    new Type(value = classOf[SkipTupleResponseEvent]),
     new Type(value = classOf[OperatorCurrentTuplesUpdateEvent]),
+    new Type(value = classOf[CacheStatusUpdateEvent]),
     new Type(value = classOf[PaginatedResultEvent]),
     new Type(value = classOf[PythonExpressionEvaluateResponse])
   )

@@ -1,0 +1,14 @@
+#formly-title {
+  position: relative;
+
+  h3 {
+    margin: 0;
+    display: inline-block;
+  }
+
+  button {
+    position: absolute;
+    top: 45%;
+    transform: translateY(-55%);
+  }
+}

@@ -10,14 +10,14 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 @Component({
   selector: "texera-ngbd-modal-file-share-access",
   templateUrl: "./ngbd-modal-user-file-share-access.component.html",
-  styleUrls: ["./ngbd-modal-user-file-share-access.component.scss"]
+  styleUrls: ["./ngbd-modal-user-file-share-access.component.scss"],
 })
 export class NgbdModalUserFileShareAccessComponent implements OnInit {
   @Input() dashboardUserFileEntry!: DashboardUserFileEntry;
 
   public shareForm = this.formBuilder.group({
     username: ["", [Validators.required]],
-    accessLevel: ["", [Validators.required]]
+    accessLevel: ["", [Validators.required]],
   });
 
   public allUserFileAccess: ReadonlyArray<AccessEntry> = [];
@@ -40,16 +40,14 @@ export class NgbdModalUserFileShareAccessComponent implements OnInit {
    * get all shared access of the current dashboardUserFileEntry
    * @param dashboardUserFileEntry target/current dashboardUserFileEntry
    */
-  public refreshGrantedUserFileAccessList(
-    dashboardUserFileEntry: DashboardUserFileEntry
-  ): void {
+  public refreshGrantedUserFileAccessList(dashboardUserFileEntry: DashboardUserFileEntry): void {
     this.userFileService
       .getUserFileAccessList(dashboardUserFileEntry)
       .pipe(untilDestroyed(this))
       .subscribe(
         (userFileAccess: ReadonlyArray<AccessEntry>) => {
           const newAccessList: AccessEntry[] = [];
-          userFileAccess.map((accessEntry) => {
+          userFileAccess.map(accessEntry => {
             if (accessEntry.accessLevel === "Owner") {
               this.fileOwner = accessEntry.userName;
             } else {
@@ -67,9 +65,7 @@ export class NgbdModalUserFileShareAccessComponent implements OnInit {
    * triggered by clicking the SUBMIT button, offers access based on the input information
    * @param dashboardUserFileEntry target/current file
    */
-  public onClickShareUserFile(
-    dashboardUserFileEntry: DashboardUserFileEntry
-  ): void {
+  public onClickShareUserFile(dashboardUserFileEntry: DashboardUserFileEntry): void {
     if (this.shareForm.get("username")?.invalid) {
       alert("Please Fill in Username");
       return;
@@ -95,10 +91,7 @@ export class NgbdModalUserFileShareAccessComponent implements OnInit {
    * @param dashboardUserFileEntry target/current file.
    * @param userNameToRemove
    */
-  public onClickRemoveUserFileAccess(
-    dashboardUserFileEntry: DashboardUserFileEntry,
-    userNameToRemove: string
-  ): void {
+  public onClickRemoveUserFileAccess(dashboardUserFileEntry: DashboardUserFileEntry, userNameToRemove: string): void {
     this.userFileService
       .revokeUserFileAccess(dashboardUserFileEntry, userNameToRemove)
       .pipe(untilDestroyed(this))

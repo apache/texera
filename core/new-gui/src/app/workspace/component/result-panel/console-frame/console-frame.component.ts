@@ -1,10 +1,4 @@
-import {
-  Component,
-  Input,
-  OnChanges,
-  OnInit,
-  SimpleChanges
-} from "@angular/core";
+import { Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { BreakpointTriggerInfo } from "../../../types/workflow-common.interface";
 import { ExecutionState } from "src/app/workspace/types/execute-workflow.interface";
@@ -15,7 +9,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 @Component({
   selector: "texera-console-frame",
   templateUrl: "./console-frame.component.html",
-  styleUrls: ["./console-frame.component.scss"]
+  styleUrls: ["./console-frame.component.scss"],
 })
 export class ConsoleFrameComponent implements OnInit, OnChanges {
   @Input() operatorId?: string;
@@ -44,7 +38,7 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
     this.executeWorkflowService
       .getExecutionStateStream()
       .pipe(untilDestroyed(this))
-      .subscribe((event) => {
+      .subscribe(event => {
         if (
           event.previous.state === ExecutionState.BreakpointTriggered &&
           event.current.state === ExecutionState.Completed
@@ -66,9 +60,8 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
     this.workflowConsoleService
       .getConsoleMessageUpdateStream()
       .pipe(untilDestroyed(this))
-      .subscribe((_) => this.renderConsole());
+      .subscribe(_ => this.renderConsole());
   }
-
 
 
   clearConsole() {
@@ -79,8 +72,7 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
 
   renderConsole() {
     // try to fetch if we have breakpoint info
-    const breakpointTriggerInfo =
-      this.executeWorkflowService.getBreakpointTriggerInfo();
+    const breakpointTriggerInfo = this.executeWorkflowService.getBreakpointTriggerInfo();
 
     if (this.operatorId) {
       // first display error messages if applicable
@@ -99,7 +91,7 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
 
   displayBreakpoint(breakpointTriggerInfo: BreakpointTriggerInfo) {
     const errorsMessages: Record<string, string> = {};
-    breakpointTriggerInfo.report.forEach((r) => {
+    breakpointTriggerInfo.report.forEach(r => {
       const splitPath = r.actorPath.split("/");
       const workerName = splitPath[splitPath.length - 1];
       const workerText = "Worker " + workerName + ":                ";
@@ -115,8 +107,6 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
   }
 
   displayConsoleMessages(operatorId: string) {
-    this.consoleMessages = operatorId
-      ? this.workflowConsoleService.getConsoleMessages(operatorId) || []
-      : [];
+    this.consoleMessages = operatorId ? this.workflowConsoleService.getConsoleMessages(operatorId) || [] : [];
   }
 }

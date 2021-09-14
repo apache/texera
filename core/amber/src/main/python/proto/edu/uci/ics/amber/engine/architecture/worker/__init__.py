@@ -64,24 +64,25 @@ class LocalOperatorExceptionV2(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class SendPythonUdfV2(betterproto.Message):
-    udf: str = betterproto.string_field(1)
+class InitializeOperatorLogicV2(betterproto.Message):
+    code: str = betterproto.string_field(1)
     is_source: bool = betterproto.bool_field(2)
 
 
 @dataclass(eq=False, repr=False)
-class RetryPythonV2(betterproto.Message):
+class ModifyOperatorLogicV2(betterproto.Message):
+    code: str = betterproto.string_field(1)
+    is_source: bool = betterproto.bool_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class ReplayCurrentTupleV2(betterproto.Message):
     pass
 
 
 @dataclass(eq=False, repr=False)
 class PythonPrintV2(betterproto.Message):
     message: str = betterproto.string_field(1)
-
-
-@dataclass(eq=False, repr=False)
-class ModifyPythonLogicV2(betterproto.Message):
-    code: str = betterproto.string_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -109,10 +110,16 @@ class ControlCommandV2(betterproto.Message):
     local_operator_exception: "LocalOperatorExceptionV2" = betterproto.message_field(
         8, group="sealed_value"
     )
-    send_python_udf: "SendPythonUdfV2" = betterproto.message_field(
+    initialize_operator_logic: "InitializeOperatorLogicV2" = betterproto.message_field(
         21, group="sealed_value"
     )
-    python_print: "PythonPrintV2" = betterproto.message_field(22, group="sealed_value")
+    modify_operator_logic: "ModifyOperatorLogicV2" = betterproto.message_field(
+        22, group="sealed_value"
+    )
+    python_print: "PythonPrintV2" = betterproto.message_field(23, group="sealed_value")
+    replay_current_tuple: "ReplayCurrentTupleV2" = betterproto.message_field(
+        24, group="sealed_value"
+    )
     retry_python: "RetryPythonV2" = betterproto.message_field(23, group="sealed_value")
     modify_python_logic: "ModifyPythonLogicV2" = betterproto.message_field(
         24, group="sealed_value"

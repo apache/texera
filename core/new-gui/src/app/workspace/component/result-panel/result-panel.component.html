@@ -1,8 +1,8 @@
-<div
-  [hidden]="!showResultPanel"
-  class="texera-workspace-result-panel-body texera-workflow-component-body"
->
+<div [hidden]="!showResultPanel" class="texera-workspace-result-panel-body texera-workflow-component-body">
   <nz-tabset [nzSize]="'small'" [nzTabPosition]="'left'">
+    <div *ngFor="let config of frameComponentConfigs | keyvalue">
+      <nz-tab nzTitle="{{config.key}}">
+        <nz-tabset [nzSize]="'small'" [nzTabPosition]="'left'">
     <div *ngFor="let config of frameComponentConfigs | keyvalue">
       <nz-tab nzTitle="{{config.key}}">
         <ndc-dynamic

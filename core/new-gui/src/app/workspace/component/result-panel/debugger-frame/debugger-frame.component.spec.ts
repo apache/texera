@@ -1,6 +1,9 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 
 import { DebuggerFrameComponent } from "./debugger-frame.component";
+import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
+import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
 
 describe("DebuggerFrameComponent", () => {
   let component: DebuggerFrameComponent;
@@ -8,7 +11,14 @@ describe("DebuggerFrameComponent", () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [DebuggerFrameComponent]
+      imports: [HttpClientTestingModule],
+      declarations: [DebuggerFrameComponent],
+      providers: [
+        {
+          provide: OperatorMetadataService,
+          useClass: StubOperatorMetadataService,
+        },
+      ],
     }).compileComponents();
   });
 

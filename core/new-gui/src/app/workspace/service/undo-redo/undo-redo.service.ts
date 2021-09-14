@@ -9,7 +9,7 @@ import { Command } from "../workflow-graph/model/workflow-action.service";
 after a certain period of time so we don't undo one character at a time */
 
 @Injectable({
-  providedIn: "root"
+  providedIn: "root",
 })
 export class UndoRedoService {
   // lets us know whether to listen to the JointJS observables, most of the time we don't
@@ -40,13 +40,8 @@ export class UndoRedoService {
   public undoAction(): void {
     // We have a toggle to let our service know to add to the redo stack
     if (this.undoStack.length > 0) {
-      if (
-        !this.workFlowModificationEnabled &&
-        this.undoStack[this.undoStack.length - 1].modifiesWorkflow
-      ) {
-        console.error(
-          "attempted to undo a workflow-modifying command while workflow modification is disabled"
-        );
+      if (!this.workFlowModificationEnabled && this.undoStack[this.undoStack.length - 1].modifiesWorkflow) {
+        console.error("attempted to undo a workflow-modifying command while workflow modification is disabled");
         return;
       }
 
@@ -65,13 +60,8 @@ export class UndoRedoService {
   public redoAction(): void {
     // need to figure out what to keep on the stack and off
     if (this.redoStack.length > 0) {
-      if (
-        !this.workFlowModificationEnabled &&
-        this.redoStack[this.redoStack.length - 1].modifiesWorkflow
-      ) {
-        console.error(
-          "attempted to redo a workflow-modifying command while workflow modification is disabled"
-        );
+      if (!this.workFlowModificationEnabled && this.redoStack[this.redoStack.length - 1].modifiesWorkflow) {
+        console.error("attempted to redo a workflow-modifying command while workflow modification is disabled");
         return;
       }
       const command = this.redoStack.pop();
@@ -109,8 +99,7 @@ export class UndoRedoService {
   public canUndo(): boolean {
     return (
       this.undoStack.length > 0 &&
-      (this.workFlowModificationEnabled ||
-        !this.undoStack[this.undoStack.length - 1].modifiesWorkflow)
+      (this.workFlowModificationEnabled || !this.undoStack[this.undoStack.length - 1].modifiesWorkflow)
     );
   }
 
@@ -121,8 +110,7 @@ export class UndoRedoService {
   public canRedo(): boolean {
     return (
       this.redoStack.length > 0 &&
-      (this.workFlowModificationEnabled ||
-        !this.redoStack[this.redoStack.length - 1].modifiesWorkflow)
+      (this.workFlowModificationEnabled || !this.redoStack[this.redoStack.length - 1].modifiesWorkflow)
     );
   }
 

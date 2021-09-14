@@ -10,14 +10,14 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 @Component({
   selector: "texera-ngbd-modal-share-access",
   templateUrl: "./ngbd-modal-workflow-share-access.component.html",
-  styleUrls: ["./ngbd-modal-workflow-share-access.component.scss"]
+  styleUrls: ["./ngbd-modal-workflow-share-access.component.scss"],
 })
 export class NgbdModalWorkflowShareAccessComponent implements OnInit {
   @Input() workflow!: Workflow;
 
   public shareForm = this.formBuilder.group({
     username: ["", [Validators.required]],
-    accessLevel: ["", [Validators.required]]
+    accessLevel: ["", [Validators.required]],
   });
 
   public accessLevels: string[] = ["read", "write"];
@@ -49,8 +49,7 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
       .retrieveGrantedWorkflowAccessList(workflow)
       .pipe(untilDestroyed(this))
       .subscribe(
-        (userWorkflowAccess: ReadonlyArray<AccessEntry>) =>
-          (this.allUserWorkflowAccess = userWorkflowAccess),
+        (userWorkflowAccess: ReadonlyArray<AccessEntry>) => (this.allUserWorkflowAccess = userWorkflowAccess),
         // @ts-ignore // TODO: fix this with notification component
         (err: unknown) => console.log(err.error)
       );
@@ -68,11 +67,7 @@ export class NgbdModalWorkflowShareAccessComponent implements OnInit {
    * @param userToShareWith the target user
    * @param accessLevel the type of access to be given
    */
-  public grantWorkflowAccess(
-    workflow: Workflow,
-    userToShareWith: string,
-    accessLevel: string
-  ): void {
+  public grantWorkflowAccess(workflow: Workflow, userToShareWith: string, accessLevel: string): void {
     this.workflowGrantAccessService
       .grantUserWorkflowAccess(workflow, userToShareWith, accessLevel)
       .pipe(untilDestroyed(this))

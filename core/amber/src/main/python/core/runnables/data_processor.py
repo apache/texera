@@ -213,7 +213,6 @@ class DataProcessor(StoppableQueueBlockingRunnable):
             # 3.8.
             try:
                 element = next(self._current_input_tuple_iter)
-                logger.info(element)
             except StopIteration:
                 # StopIteration is the standard way for an iterator to end, we handle
                 # it and terminate the loop.

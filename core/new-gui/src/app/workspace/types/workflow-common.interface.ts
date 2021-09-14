@@ -26,6 +26,8 @@ export interface OperatorPredicate
     outputPorts: { portID: string; displayName?: string }[];
     showAdvanced: boolean;
     isDisabled?: boolean;
+    isCached?: boolean;
+    customDisplayName?: string;
   }> {}
 
 export interface OperatorLink
@@ -42,15 +44,7 @@ export interface BreakpointSchema
 
 type ConditionBreakpoint = Readonly<{
   column: number;
-  condition:
-    | "="
-    | ">"
-    | ">="
-    | "<"
-    | "<="
-    | "!="
-    | "contains"
-    | "does not contain";
+  condition: "=" | ">" | ">=" | "<" | "<=" | "!=" | "contains" | "does not contain";
   value: string;
 }>;
 

@@ -11,10 +11,7 @@ import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 @Component({
   selector: "texera-add-workflow-section-modal",
   templateUrl: "ngbd-modal-add-workflow.component.html",
-  styleUrls: [
-    "../../../dashboard.component.scss",
-    "ngbd-modal-add-workflow.component.scss"
-  ]
+  styleUrls: ["../../../dashboard.component.scss", "ngbd-modal-add-workflow.component.scss"],
 })
 export class NgbdModalAddWorkflowComponent {
   public name: string = "";

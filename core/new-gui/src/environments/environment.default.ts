@@ -46,18 +46,28 @@ export const defaultEnvironment = {
   linkBreakpointEnabled: true,
 
   /**
+   * whether operator caching is enabled
+   */
+  operatorCacheEnabled: false,
+
+  /**
+   * whether debugger is enabled
+   */
+  debuggerEnabled: false,
+
+  /**
    * the access code for mapbox
    */
   mapbox: {
-    accessToken: ""
+    accessToken: "",
   },
 
   /**
    * all google-related configs
    */
   google: {
-    clientID: ""
-  }
+    clientID: "",
+  },
 };
 
 export type AppEnv = typeof defaultEnvironment;
