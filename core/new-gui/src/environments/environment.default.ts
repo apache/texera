@@ -51,6 +51,11 @@ export const defaultEnvironment = {
   operatorCacheEnabled: false,
 
   /**
+   * whether debugger is enabled
+   */
+  debuggerEnabled: false,
+
+  /**
    * the access code for mapbox
    */
   mapbox: {

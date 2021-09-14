@@ -20,6 +20,8 @@ type restrictedMethods =
  */
 export type WorkflowGraphReadonly = Omit<WorkflowGraph, restrictedMethods>;
 
+export const PYTHON_UDF_V2_OP_TYPE = "PythonUDFV2";
+
 export const VIEW_RESULT_OP_TYPE = "SimpleSink";
 export const VIEW_RESULT_OP_NAME = "View Results";
 
