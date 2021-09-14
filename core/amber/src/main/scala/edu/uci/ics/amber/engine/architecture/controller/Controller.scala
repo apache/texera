@@ -94,7 +94,7 @@ class Controller(
 
   def prepareWorkers(): Future[Seq[Unit]] = {
 
-    // initialize python udf code
+    // initialize python operator code
     val initializeOperatorLogicRequests: Seq[Future[Unit]] =
       workflow.getPythonWorkerToOperatorExec.map {
         case (workerId: ActorVirtualIdentity, pythonOperatorExec: PythonUDFOpExecV2) =>

@@ -2,7 +2,7 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import ModifyOperatorLog
 from .handler_base import Handler
 from ..managers.context import Context
 from ...models import Operator
-from ...util.udf.udf_util import load_operator
+from ...util.operator import load_operator
 
 
 class ModifyOperatorLogicHandler(Handler):
