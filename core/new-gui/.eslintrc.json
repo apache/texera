@@ -81,7 +81,10 @@
         ],
         "rxjs/no-nested-subscribe": "off",
         "rxjs/no-sharereplay": "off",
-        "rxjs/no-unsafe-subject-next": "off"
+        "rxjs/no-unsafe-subject-next": "off",
+        "rxjs/no-index": "error",
+        "rxjs/no-internal": "error",
+        "rxjs/no-compat": "error"
       },
       "plugins": ["rxjs-angular"]
     },
