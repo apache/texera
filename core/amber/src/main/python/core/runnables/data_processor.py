@@ -135,7 +135,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         """
         Process the Tuple/InputExhausted with the current link.
 
-        This is a wrapper to invoke operator operator.
+        This is a wrapper to invoke processing of the operator.
 
         :param tuple_: Union[Tuple, InputExhausted], the current tuple.
         :param link: LinkIdentity, the current link.

@@ -2,7 +2,6 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import InitializeOperato
 from .handler_base import Handler
 from ..managers.context import Context
 from ...models import Operator
-
 from ...util.operator import load_operator
 
 
