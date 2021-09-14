@@ -1,4 +1,4 @@
-from proto.edu.uci.ics.amber.engine.architecture.worker import EvaluateExpressionV2
+from proto.edu.uci.ics.amber.engine.architecture.worker import EvaluateExpressionV2, EvaluatedValue
 from .handler_base import Handler
 from ..managers.context import Context
 from ...util.expression_evaluator import ExpressionEvaluator, RuntimeContext
@@ -16,6 +16,6 @@ class EvaluateExpressionHandler(Handler):
             }
         )
 
-        evaluated_value = ExpressionEvaluator.evaluate(command.expression, runtime_context)
+        evaluated_value: EvaluatedValue = ExpressionEvaluator.evaluate(command.expression, runtime_context)
 
         return evaluated_value
