@@ -2356,21 +2356,21 @@
     enhanced-resolve "5.7.0"
     webpack-sources "2.2.0"
 
-"@ngx-formly/bootstrap@^5.10.21":
+"@ngx-formly/bootstrap@^5.10.22":
   version "5.10.22"
   resolved "https://registry.yarnpkg.com/@ngx-formly/bootstrap/-/bootstrap-5.10.22.tgz#311fd85e5eafece5dc8efb6e8d526b78ae09b7a8"
   integrity sha512-2gGxpoKywKyACYnClYkQ22YR7Lu7l3xppl+kB1aiNwsMvHbLjoTk09La6/ukrEDQnW/AJ/MajAN7WanQMna2Hw==
   dependencies:
     tslib "^1.9.0"
 
-"@ngx-formly/core@^5.10.21":
+"@ngx-formly/core@^5.10.22":
   version "5.10.22"
   resolved "https://registry.yarnpkg.com/@ngx-formly/core/-/core-5.10.22.tgz#e8723b932bb6f056b1b0d899179ac73dabf4f4ed"
   integrity sha512-HTgVN2xNf3TdPS10ayV4G7dvX1olHvggquhTUY/dzej1x03NVofDQulnPTxKEU1ObN92IQZNq3VL9pm3sBCR7A==
   dependencies:
     tslib "^1.7.1"
 
-"@ngx-formly/material@^5.10.21":
+"@ngx-formly/material@^5.10.22":
   version "5.10.22"
   resolved "https://registry.yarnpkg.com/@ngx-formly/material/-/material-5.10.22.tgz#99e60c98044e59c4602ea86e7016368de9596385"
   integrity sha512-k0umQZtcL3FA5LVoFSdBYIq4RpoPOWNUwPB/NI4Si6n9gS/k7rmaYZqj1LJUdh2lKh3uhZsIUJJHTYbASgIAEg==
@@ -2384,7 +2384,7 @@
   dependencies:
     tslib "^1.9.0"
 
-"@ngx-formly/schematics@^5.10.21":
+"@ngx-formly/schematics@^5.10.22":
   version "5.10.22"
   resolved "https://registry.yarnpkg.com/@ngx-formly/schematics/-/schematics-5.10.22.tgz#2ca43ef228c01dbf78a7d46e51514230c48ee55b"
   integrity sha512-zoRtB0KIrJFkxDxav4IzUa0HxllIz/HWYu66RfgRJx80DtoWvaR/zeFabWkLwBluS/o+8HXU8+E0izUnMNjyug==
