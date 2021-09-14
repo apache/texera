@@ -4,37 +4,15 @@ from typing import Any, Dict, List, Optional, Pattern
 from proto.edu.uci.ics.amber.engine.architecture.worker import EvaluatedValue, TypedValue
 
 
-class RuntimeContext:
-    """
-    A context container for explicit exposure of defined attributes.
-    It also provides a regex-based mapping to inject any expressions within the context.
-    """
-
-    def __init__(self, elements: Dict[str, Any]):
-        for name, value in elements.items():
-            self.__setattr__(name, value)
-
-    def to_mapping(self) -> Dict[Pattern[str], str]:
-        return {re.compile(name): f"runtime_context.{name}" for name in self.__dict__.keys()}
-
-
 class ExpressionEvaluator:
     """
     Provides a series of static evaluation methods of a given expression, with an optional context.
     """
 
     @staticmethod
-    def evaluate(expression: str, runtime_context: Optional[RuntimeContext] = None) -> EvaluatedValue:
-        if runtime_context:
-            assert isinstance(runtime_context, RuntimeContext), \
-                "needs a valid RuntimeContext to evaluate mapped expression"
+    def evaluate(expression: str, runtime_context: Optional[Dict[str, Any]] = None) -> EvaluatedValue:
 
-            context_mapping = runtime_context.to_mapping()
-            contextualized_expression = ExpressionEvaluator._contextualize_expression(expression, context_mapping)
-            value = eval(contextualized_expression)
-        else:
-            value = eval(expression)
-
+        value = eval(expression, runtime_context)
         value_str = repr(value)
         type_str = type(value).__name__
 

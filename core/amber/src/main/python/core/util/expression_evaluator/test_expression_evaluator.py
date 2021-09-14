@@ -1,4 +1,4 @@
-from core.util.expression_evaluator import ExpressionEvaluator, RuntimeContext
+from core.util.expression_evaluator import ExpressionEvaluator
 from proto.edu.uci.ics.amber.engine.architecture.worker import EvaluatedValue, TypedValue
 
 
@@ -6,7 +6,7 @@ class TestExpressionEvaluator:
 
     def test_evaluate_basic_expressions(self):
         i = 10
-        assert ExpressionEvaluator.evaluate("i", runtime_context=RuntimeContext({"i": i})) == \
+        assert ExpressionEvaluator.evaluate("i", runtime_context={"i": i}) == \
                EvaluatedValue(
                    value=TypedValue(
                        expression='i',
@@ -19,7 +19,7 @@ class TestExpressionEvaluator:
                )
 
         f = 1.1
-        assert ExpressionEvaluator.evaluate("f", runtime_context=RuntimeContext({"f": f})) == \
+        assert ExpressionEvaluator.evaluate("f", runtime_context={"f": f}) == \
                EvaluatedValue(
                    value=TypedValue(
                        expression='f',
@@ -33,7 +33,7 @@ class TestExpressionEvaluator:
 
     def test_evaluate_str_expression(self):
         s = "hello world"
-        assert ExpressionEvaluator.evaluate("s", runtime_context=RuntimeContext({"s": s})) == \
+        assert ExpressionEvaluator.evaluate("s", runtime_context={"s": s}) == \
                EvaluatedValue(
                    value=TypedValue(
                        expression='s',
@@ -67,8 +67,7 @@ class TestExpressionEvaluator:
                                   expandable=True)
                    ]
                )
-        assert ExpressionEvaluator.evaluate("s[4]",
-                                            runtime_context=RuntimeContext({"s": s})) == \
+        assert ExpressionEvaluator.evaluate("s[4]", runtime_context={"s": s}) == \
                EvaluatedValue(
                    value=TypedValue(
                        expression='s[4]',
@@ -83,8 +82,7 @@ class TestExpressionEvaluator:
                    ]
                )
 
-        assert ExpressionEvaluator.evaluate("s.__getitem__(2)",
-                                            runtime_context=RuntimeContext({"s": s})) == \
+        assert ExpressionEvaluator.evaluate("s.__getitem__(2)", runtime_context={"s": s}) == \
                EvaluatedValue(
                    value=TypedValue(
                        expression='s.__getitem__(2)',
@@ -107,7 +105,7 @@ class TestExpressionEvaluator:
 
         a = A()
 
-        assert ExpressionEvaluator.evaluate("a", runtime_context=RuntimeContext({"a": a})) == \
+        assert ExpressionEvaluator.evaluate("a", runtime_context={"a": a}) == \
                EvaluatedValue(
                    value=TypedValue(
                        expression='a', value_ref='a',
@@ -127,7 +125,7 @@ class TestExpressionEvaluator:
         f = 1.1
 
         l = [i, f, (i, f)]
-        assert ExpressionEvaluator.evaluate("l", runtime_context=RuntimeContext({"l": l})) == \
+        assert ExpressionEvaluator.evaluate("l", runtime_context={"l": l}) == \
                EvaluatedValue(
                    value=TypedValue(
                        expression='l',
@@ -146,7 +144,7 @@ class TestExpressionEvaluator:
                    ]
                )
         t = (i, f, {i, f})
-        assert ExpressionEvaluator.evaluate("t", runtime_context=RuntimeContext({"t": t})) == \
+        assert ExpressionEvaluator.evaluate("t", runtime_context={"t": t}) == \
                EvaluatedValue(
                    value=TypedValue(
                        expression='t',
@@ -164,7 +162,7 @@ class TestExpressionEvaluator:
                    ]
                )
         s = {i, f, (i, f)}
-        assert ExpressionEvaluator.evaluate("s", runtime_context=RuntimeContext({"s": s})) == \
+        assert ExpressionEvaluator.evaluate("s", runtime_context={"s": s}) == \
                EvaluatedValue(
                    value=TypedValue(
                        expression='s',
@@ -180,4 +178,31 @@ class TestExpressionEvaluator:
                        TypedValue(expression='__getitem__(2)', value_ref='2', value_str='(10, 1.1)', value_type='tuple',
                                   expandable=True)
                    ]
+               )
+
+    def test_evaluate_in_another_context(self):
+        i = 10
+        j = 20
+        assert ExpressionEvaluator.evaluate("j", runtime_context={"j": i, "i": j}) == \
+               EvaluatedValue(
+                   value=TypedValue(
+                       expression='j',
+                       value_ref='j',
+                       value_str='10',
+                       value_type='int',
+                       expandable=False
+                   ),
+                   attributes=[]
+               )
+
+        assert ExpressionEvaluator.evaluate("i", runtime_context={"j": i, "i": j}) == \
+               EvaluatedValue(
+                   value=TypedValue(
+                       expression='i',
+                       value_ref='i',
+                       value_str='20',
+                       value_type='int',
+                       expandable=False
+                   ),
+                   attributes=[]
                )
