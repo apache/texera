@@ -13,6 +13,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DynamicComponentConfig } from "../../../common/type/dynamic-component-config";
 import { DebuggerFrameComponent } from "./debugger-frame/debugger-frame.component";
 import { PYTHON_UDF_V2_OP_TYPE } from "../../service/workflow-graph/model/workflow-graph";
+import { environment } from "../../../../environments/environment";
 
 export type ResultFrameComponent =
   | ResultTableFrameComponent
@@ -107,7 +108,6 @@ export class ResultPanelComponent implements OnInit {
     const currentHighlightedOperator = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
     if (this.currentOperatorId !== currentHighlightedOperator) {
       // clear everything, prepare for state change
-
       this.clearResultPanel();
       this.currentOperatorId = currentHighlightedOperator;
     }
@@ -121,29 +121,36 @@ export class ResultPanelComponent implements OnInit {
       this.displayResult(this.currentOperatorId);
       const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
       if (operator.operatorType === PYTHON_UDF_V2_OP_TYPE) {
-        this.displayConsoleAndDebugger(this.currentOperatorId);
+        this.displayConsole(this.currentOperatorId);
+
+        if (environment.debuggerEnabled && this.hasErrorOrBreakpoint()) {
+          this.displayDebugger(this.currentOperatorId);
+        }
       }
     }
+  }
+
+  hasErrorOrBreakpoint(): boolean {
+    const executionState = this.executeWorkflowService.getExecutionState();
+    return [ExecutionState.Failed, ExecutionState.BreakpointTriggered].includes(executionState.state);
   }
 
   clearResultPanel(): void {
     this.frameComponentConfigs.clear();
   }
 
-  displayConsoleAndDebugger(operatorId: string) {
-    const executionState = this.executeWorkflowService.getExecutionState();
-    // display console for Python UDF V2
+  displayConsole(operatorId: string) {
     this.frameComponentConfigs.set("Console", {
       component: ConsoleFrameComponent,
       componentInputs: { operatorId },
     });
-    if (executionState.state === ExecutionState.Failed || executionState.state === ExecutionState.BreakpointTriggered) {
-      // display Debugger
-      this.frameComponentConfigs.set("Debugger", {
-        component: DebuggerFrameComponent,
-        componentInputs: { operatorId },
-      });
-    }
+  }
+
+  displayDebugger(operatorId: string) {
+    this.frameComponentConfigs.set("Debugger", {
+      component: DebuggerFrameComponent,
+      componentInputs: { operatorId },
+    });
   }
 
   displayResult(operatorId: string) {
