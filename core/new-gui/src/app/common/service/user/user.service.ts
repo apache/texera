@@ -91,6 +91,7 @@ export class UserService {
    * this method will clear the saved user account and trigger userChangeEvent
    */
   public logOut(): void {
+    localStorage.removeItem("access_token");
     this.http
       .get<Response>(`${AppSettings.getApiEndpoint()}/${UserService.LOG_OUT_ENDPOINT}`)
       .subscribe(() => this.changeUser(undefined));
