@@ -30,7 +30,6 @@ export class WorkflowWebsocketService {
   constructor(private userService: UserService) {
     this.startWebsocket();
 
-
     // set up heartbeat
     interval(WS_HEARTBEAT_INTERVAL_MS).subscribe(_ => this.send("HeartBeatRequest", {}));
 
@@ -77,7 +76,7 @@ export class WorkflowWebsocketService {
   private startWebsocket() {
     this.websocket = webSocket<TexeraWebsocketEvent | TexeraWebsocketRequest>(
       WorkflowWebsocketService.getWorkflowWebsocketUrl() +
-        (localStorage.getItem("access_token") === null ? "" : "?token=" + localStorage.getItem("access_token"))
+        (UserService.getAccessToken() === null ? "" : "?token=" + UserService.getAccessToken())
     );
     // setup reconnection logic
     const wsWithReconnect = this.websocket.pipe(
@@ -99,14 +98,14 @@ export class WorkflowWebsocketService {
     wsWithReconnect.subscribe(event => this.webSocketResponseSubject.next(event as TexeraWebsocketEvent));
   }
 
+  private registerRestartWebsocketUponUserChanges() {
+    this.userService.userChanged().subscribe(() => this.reStartWebsocket());
+  }
+
   public static getWorkflowWebsocketUrl(): string {
     const websocketUrl = new URL(WorkflowWebsocketService.TEXERA_WEBSOCKET_ENDPOINT, document.baseURI);
     // replace protocol, so that http -> ws, https -> wss
     websocketUrl.protocol = websocketUrl.protocol.replace("http", "ws");
     return websocketUrl.toString();
-  }
-
-  private registerRestartWebsocketUponUserChanges() {
-    this.userService.userChanged().subscribe(() => this.reStartWebsocket());
   }
 }

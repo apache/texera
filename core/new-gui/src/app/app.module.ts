@@ -161,7 +161,7 @@ registerLocaleData(en);
     HttpClientModule,
     JwtModule.forRoot({
       config: {
-        tokenGetter: () => localStorage.getItem("access_token"),
+        tokenGetter: UserService.getAccessToken,
       },
     }),
     MatTooltipModule,

@@ -8,6 +8,8 @@ import { GoogleAuthService } from "ng-gapi";
 import { filter } from "rxjs/operators";
 import { JwtHelperService } from "@auth0/angular-jwt";
 
+export const TOKEN_KEY = "access_token";
+
 /**
  * User Service contains the function of registering and logging the user.
  * It will save the user account inside for future use.
@@ -25,7 +27,11 @@ export class UserService {
   private currentUser: User | undefined = undefined;
   private userChangeSubject: ReplaySubject<User | undefined> = new ReplaySubject<User | undefined>(1);
 
-  constructor(private http: HttpClient,private jwtHelpService: JwtHelperService,  private googleAuth: GoogleAuthService) {
+  constructor(
+    private http: HttpClient,
+    private jwtHelpService: JwtHelperService,
+    private googleAuth: GoogleAuthService
+  ) {
     if (environment.userSystemEnabled) {
       this.loginFromSession();
     }
@@ -80,17 +86,20 @@ export class UserService {
     if (this.currentUser) {
       throw new Error("Already logged in when login in.");
     }
-    return this.http.post<Readonly<{ token: string }>>(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`, {
-      userName,
-      password,
-    });
+    return this.http.post<Readonly<{ token: string }>>(
+      `${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`,
+      {
+        userName,
+        password,
+      }
+    );
   }
 
   /**
    * this method will clear the saved user account and trigger userChangeEvent
    */
   public logOut(): void {
-    localStorage.removeItem("access_token");
+    UserService.removeAccessToken();
     this.changeUser(undefined);
   }
 
@@ -130,13 +139,24 @@ export class UserService {
   }
 
   private loginFromSession(): void {
-    const token = localStorage.getItem("access_token");
-    if (token !== null){
+    const token = UserService.getAccessToken();
+    if (token !== null) {
       const decoded = this.jwtHelpService.decodeToken(token);
-      this.changeUser(<User>{ name: decoded.sub});
+      this.changeUser(<User>{ name: decoded.sub });
     } else {
       this.changeUser(undefined);
     }
+  }
 
+  static setAccessToken(token: string): void {
+    localStorage.setItem(TOKEN_KEY, token);
+  }
+
+  static getAccessToken(): string | null {
+    return localStorage.getItem(TOKEN_KEY);
+  }
+
+  static removeAccessToken(): void {
+    localStorage.removeItem(TOKEN_KEY);
   }
 }
