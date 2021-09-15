@@ -19,18 +19,15 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
   WorkflowOfUser,
   WorkflowUserAccess
 }
-import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.web.resource.dashboard.WorkflowAccessResource.{
   WorkflowAccess,
   toAccessLevel
 }
 import edu.uci.ics.texera.web.resource.dashboard.WorkflowResource.context
 import io.dropwizard.auth.Auth
-import io.dropwizard.jersey.sessions.Session
 import org.jooq.types.UInteger
 
 import javax.annotation.security.PermitAll
-import javax.servlet.http.HttpSession
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
@@ -51,6 +48,7 @@ object WorkflowResource {
   val context = SqlServer.createDSLContext()
 }
 
+@PermitAll
 @Path("/workflow")
 @Produces(Array(MediaType.APPLICATION_JSON))
 class WorkflowResource {
@@ -68,7 +66,7 @@ class WorkflowResource {
     *
     * @return Workflow[]
     */
-  @PermitAll
+
   @GET
   @Path("/list")
   @Produces(Array(MediaType.APPLICATION_JSON))
@@ -123,19 +121,18 @@ class WorkflowResource {
   @GET
   @Path("/{wid}")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def retrieveWorkflow(@PathParam("wid") wid: UInteger, @Session session: HttpSession): Response = {
-    UserResource.getUser(session) match {
-      case Some(user) =>
-        if (
-          WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid) ||
-          WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, user.getUid)
-        ) {
-          Response.status(Response.Status.UNAUTHORIZED).build()
-        } else {
-          Response.ok(workflowDao.fetchOneByWid(wid)).build()
-        }
-      case None =>
-        Response.status(Response.Status.UNAUTHORIZED).build()
+  def retrieveWorkflow(
+      @PathParam("wid") wid: UInteger,
+      @Auth sessionUser: SessionUser
+  ): Response = {
+    val user = sessionUser.getUser
+    if (
+      WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid) ||
+      WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, user.getUid)
+    ) {
+      Response.status(Response.Status.UNAUTHORIZED).build()
+    } else {
+      Response.ok(workflowDao.fetchOneByWid(wid)).build()
     }
   }
 
@@ -151,95 +148,26 @@ class WorkflowResource {
   @Path("/persist")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def persistWorkflow(@Session session: HttpSession, workflow: Workflow): Response = {
-    UserResource.getUser(session) match {
-      case Some(user) =>
-        if (workflowOfUserExists(workflow.getWid, user.getUid)) {
-          // current user reading
-          workflowDao.update(workflow)
-        } else {
-          if (WorkflowAccessResource.hasNoWorkflowAccessRecord(workflow.getWid, user.getUid)) {
-            // not owner and not access record --> new record
-            insertWorkflow(workflow, user)
+  def persistWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): Response = {
+    val user = sessionUser.getUser
+    if (workflowOfUserExists(workflow.getWid, user.getUid)) {
+      // current user reading
+      workflowDao.update(workflow)
+    } else {
+      if (WorkflowAccessResource.hasNoWorkflowAccessRecord(workflow.getWid, user.getUid)) {
+        // not owner and not access record --> new record
+        insertWorkflow(workflow, user)
 
-          } else if (WorkflowAccessResource.hasWriteAccess(workflow.getWid, user.getUid)) {
-            // not owner but has write access
-            workflowDao.update(workflow)
-          } else {
-            // not owner and no write access -> rejected
-            Response.status(Response.Status.UNAUTHORIZED).build()
-          }
-        }
-        Response.ok(workflowDao.fetchOneByWid(workflow.getWid)).build()
-      case None =>
+      } else if (WorkflowAccessResource.hasWriteAccess(workflow.getWid, user.getUid)) {
+        // not owner but has write access
+        workflowDao.update(workflow)
+      } else {
+        // not owner and no write access -> rejected
         Response.status(Response.Status.UNAUTHORIZED).build()
+      }
     }
-  }
+    Response.ok(workflowDao.fetchOneByWid(workflow.getWid)).build()
 
-  /**
-    * This method duplicates the target workflow, the new workflow name is appended with `_copy`
-    *
-    * @param session  HttpSession
-    * @param workflow , a workflow to be duplicated
-    * @return Workflow, which contains the generated wid if not provided
-    */
-  @POST
-  @Path("/duplicate")
-  @Consumes(Array(MediaType.APPLICATION_JSON))
-  @Produces(Array(MediaType.APPLICATION_JSON))
-  def duplicateWorkflow(@Session session: HttpSession, workflow: Workflow): Response = {
-    val wid = workflow.getWid
-    UserResource.getUser(session) match {
-      case Some(user) =>
-        if (
-          WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid) ||
-          WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, user.getUid)
-        ) {
-          Response.status(Response.Status.UNAUTHORIZED).build()
-        } else {
-          val workflow: Workflow = workflowDao.fetchOneByWid(wid)
-          workflow.getContent
-          workflow.getName
-          createWorkflow(
-            session,
-            new Workflow(workflow.getName + "_copy", null, workflow.getContent, null, null)
-          )
-
-        }
-      case None =>
-        Response.status(Response.Status.UNAUTHORIZED).build()
-    }
-  }
-
-  /**
-    * This method creates and insert a new workflow to database
-    *
-    * @param session  HttpSession
-    * @param workflow , a workflow to be created
-    * @return Workflow, which contains the generated wid if not provided
-    */
-  @POST
-  @Path("/create")
-  @Consumes(Array(MediaType.APPLICATION_JSON))
-  @Produces(Array(MediaType.APPLICATION_JSON))
-  def createWorkflow(@Session session: HttpSession, workflow: Workflow): Response = {
-    UserResource.getUser(session) match {
-      case Some(user) =>
-        if (workflow.getWid != null) {
-          Response.status(Response.Status.BAD_REQUEST).build()
-        } else {
-          insertWorkflow(workflow, user)
-          val resp = DashboardWorkflowEntry(
-            isOwner = true,
-            WorkflowAccess.WRITE.toString,
-            user.getName,
-            workflowDao.fetchOneByWid(workflow.getWid)
-          )
-          Response.ok(resp).build()
-        }
-      case None =>
-        Response.status(Response.Status.UNAUTHORIZED).build()
-    }
   }
 
   private def insertWorkflow(workflow: Workflow, user: User): Unit = {
@@ -255,6 +183,74 @@ class WorkflowResource {
     )
   }
 
+  private def workflowOfUserExists(wid: UInteger, uid: UInteger): Boolean = {
+    workflowOfUserDao.existsById(
+      context
+        .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
+        .values(uid, wid)
+    )
+  }
+
+  /**
+    * This method duplicates the target workflow, the new workflow name is appended with `_copy`
+    *
+    * @param session  HttpSession
+    * @param workflow , a workflow to be duplicated
+    * @return Workflow, which contains the generated wid if not provided
+    */
+  @POST
+  @Path("/duplicate")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def duplicateWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): Response = {
+    val wid = workflow.getWid
+    val user = sessionUser.getUser
+    if (
+      WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid) ||
+      WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, user.getUid)
+    ) {
+      Response.status(Response.Status.UNAUTHORIZED).build()
+    } else {
+      val workflow: Workflow = workflowDao.fetchOneByWid(wid)
+      workflow.getContent
+      workflow.getName
+      createWorkflow(
+        new Workflow(workflow.getName + "_copy", null, workflow.getContent, null, null),
+        sessionUser
+      )
+
+    }
+
+  }
+
+  /**
+    * This method creates and insert a new workflow to database
+    *
+    * @param session  HttpSession
+    * @param workflow , a workflow to be created
+    * @return Workflow, which contains the generated wid if not provided
+    */
+  @POST
+  @Path("/create")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def createWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): Response = {
+    val user = sessionUser.getUser
+    if (workflow.getWid != null) {
+      Response.status(Response.Status.BAD_REQUEST).build()
+    } else {
+      insertWorkflow(workflow, user)
+      val resp = DashboardWorkflowEntry(
+        isOwner = true,
+        WorkflowAccess.WRITE.toString,
+        user.getName,
+        workflowDao.fetchOneByWid(workflow.getWid)
+      )
+      Response.ok(resp).build()
+    }
+
+  }
+
   /**
     * This method deletes the workflow from database
     *
@@ -263,26 +259,14 @@ class WorkflowResource {
     */
   @DELETE
   @Path("/{wid}")
-  def deleteWorkflow(@PathParam("wid") wid: UInteger, @Session session: HttpSession): Response = {
-    UserResource.getUser(session) match {
-      case Some(user) =>
-        if (workflowOfUserExists(wid, user.getUid)) {
-          workflowDao.deleteById(wid)
-          Response.ok().build()
-        } else {
-          Response.notModified().build()
-        }
-      case None =>
-        Response.status(Response.Status.UNAUTHORIZED).build()
+  def deleteWorkflow(@PathParam("wid") wid: UInteger, @Auth sessionUser: SessionUser): Response = {
+    val user = sessionUser.getUser
+    if (workflowOfUserExists(wid, user.getUid)) {
+      workflowDao.deleteById(wid)
+      Response.ok().build()
+    } else {
+      Response.notModified().build()
     }
-  }
-
-  private def workflowOfUserExists(wid: UInteger, uid: UInteger): Boolean = {
-    workflowOfUserDao.existsById(
-      context
-        .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
-        .values(uid, wid)
-    )
   }
 
 }
