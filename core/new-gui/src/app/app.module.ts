@@ -98,6 +98,7 @@ import { BreakpointPropertyEditFrameComponent } from "./workspace/component/prop
 import { NotificationComponent } from "./common/component/notification/notification/notification.component";
 import { DebuggerFrameComponent } from "./workspace/component/result-panel/debugger-frame/debugger-frame.component";
 import { NzTabsModule } from "ng-zorro-antd/tabs";
+import { JwtModule } from "@auth0/angular-jwt";
 
 registerLocaleData(en);
 
@@ -158,6 +159,11 @@ registerLocaleData(en);
     BrowserModule,
     AppRoutingModule,
     HttpClientModule,
+    JwtModule.forRoot({
+      config: {
+        tokenGetter: () => localStorage.getItem("access_token"),
+      },
+    }),
     MatTooltipModule,
     CustomNgMaterialModule,
     BrowserAnimationsModule,

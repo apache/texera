@@ -77,11 +77,11 @@ export class UserService {
    * @param userName
    * @param password
    */
-  public login(userName: string, password: string): Observable<Response> {
+  public login(userName: string, password: string): Observable<Readonly<{ token: string }>> {
     if (this.currentUser) {
       throw new Error("Already logged in when login in.");
     }
-    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`, {
+    return this.http.post<Readonly<{ token: string }>>(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`, {
       userName,
       password,
     });

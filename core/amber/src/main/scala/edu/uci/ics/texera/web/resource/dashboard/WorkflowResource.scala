@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
 import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.texera.web.basicauth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
   USER,
   WORKFLOW,
@@ -24,9 +25,11 @@ import edu.uci.ics.texera.web.resource.dashboard.WorkflowAccessResource.{
   toAccessLevel
 }
 import edu.uci.ics.texera.web.resource.dashboard.WorkflowResource.context
+import io.dropwizard.auth.Auth
 import io.dropwizard.jersey.sessions.Session
 import org.jooq.types.UInteger
 
+import javax.annotation.security.PermitAll
 import javax.servlet.http.HttpSession
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
@@ -63,51 +66,49 @@ class WorkflowResource {
   /**
     * This method returns the current in-session user's workflow list based on all workflows he/she has access to
     *
-    * @param session HttpSession
     * @return Workflow[]
     */
+  @PermitAll
   @GET
   @Path("/list")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def retrieveWorkflowsBySessionUser(
-      @Session session: HttpSession
+      @Auth sessionUser: SessionUser
   ): List[DashboardWorkflowEntry] = {
-    UserResource.getUser(session) match {
-      case Some(user) =>
-        val workflowEntries = context
-          .select(
-            WORKFLOW.WID,
-            WORKFLOW.NAME,
-            WORKFLOW.CREATION_TIME,
-            WORKFLOW.LAST_MODIFIED_TIME,
-            WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
-            WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
-            WORKFLOW_OF_USER.UID,
-            USER.NAME
-          )
-          .from(WORKFLOW)
-          .leftJoin(WORKFLOW_USER_ACCESS)
-          .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
-          .leftJoin(WORKFLOW_OF_USER)
-          .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
-          .leftJoin(USER)
-          .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
-          .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
-          .fetch()
-        workflowEntries
-          .map(workflowRecord =>
-            DashboardWorkflowEntry(
-              workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
-              toAccessLevel(
-                workflowRecord.into(WORKFLOW_USER_ACCESS).into(classOf[WorkflowUserAccess])
-              ).toString,
-              workflowRecord.into(USER).getName,
-              workflowRecord.into(WORKFLOW).into(classOf[Workflow])
-            )
-          )
-          .toList
-      case None => List()
-    }
+    val user = sessionUser.getUser
+    val workflowEntries = context
+      .select(
+        WORKFLOW.WID,
+        WORKFLOW.NAME,
+        WORKFLOW.CREATION_TIME,
+        WORKFLOW.LAST_MODIFIED_TIME,
+        WORKFLOW_USER_ACCESS.READ_PRIVILEGE,
+        WORKFLOW_USER_ACCESS.WRITE_PRIVILEGE,
+        WORKFLOW_OF_USER.UID,
+        USER.NAME
+      )
+      .from(WORKFLOW)
+      .leftJoin(WORKFLOW_USER_ACCESS)
+      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
+      .leftJoin(WORKFLOW_OF_USER)
+      .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
+      .leftJoin(USER)
+      .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
+      .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
+      .fetch()
+    workflowEntries
+      .map(workflowRecord =>
+        DashboardWorkflowEntry(
+          workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
+          toAccessLevel(
+            workflowRecord.into(WORKFLOW_USER_ACCESS).into(classOf[WorkflowUserAccess])
+          ).toString,
+          workflowRecord.into(USER).getName,
+          workflowRecord.into(WORKFLOW).into(classOf[Workflow])
+        )
+      )
+      .toList
+
   }
 
   /**
@@ -175,19 +176,6 @@ class WorkflowResource {
     }
   }
 
-  private def insertWorkflow(workflow: Workflow, user: User): Unit = {
-    workflowDao.insert(workflow)
-    workflowOfUserDao.insert(new WorkflowOfUser(user.getUid, workflow.getWid))
-    workflowUserAccessDao.insert(
-      new WorkflowUserAccess(
-        user.getUid,
-        workflow.getWid,
-        true, // readPrivilege
-        true // writePrivilege
-      )
-    )
-  }
-
   /**
     * This method duplicates the target workflow, the new workflow name is appended with `_copy`
     *
@@ -252,6 +240,19 @@ class WorkflowResource {
       case None =>
         Response.status(Response.Status.UNAUTHORIZED).build()
     }
+  }
+
+  private def insertWorkflow(workflow: Workflow, user: User): Unit = {
+    workflowDao.insert(workflow)
+    workflowOfUserDao.insert(new WorkflowOfUser(user.getUid, workflow.getWid))
+    workflowUserAccessDao.insert(
+      new WorkflowUserAccess(
+        user.getUid,
+        workflow.getWid,
+        true, // readPrivilege
+        true // writePrivilege
+      )
+    )
   }
 
   /**

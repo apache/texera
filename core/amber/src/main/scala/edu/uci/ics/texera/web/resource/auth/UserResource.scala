@@ -4,7 +4,6 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.typesafe.config.{Config, ConfigFactory}
-import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
@@ -14,9 +13,18 @@ import edu.uci.ics.texera.web.model.request.auth.{
   UserLoginRequest,
   UserRegistrationRequest
 }
-import edu.uci.ics.texera.web.resource.auth.UserResource.{getUser, setUserSession, validateUsername}
+import edu.uci.ics.texera.web.resource.auth.UserResource.{
+  getUser,
+  retrieveUserByUsernameAndPassword,
+  setUserSession,
+  validateUsername
+}
 import io.dropwizard.jersey.sessions.Session
 import org.apache.commons.lang3.tuple.Pair
+import org.jose4j.jws.AlgorithmIdentifiers.HMAC_SHA256
+import org.jose4j.jws.JsonWebSignature
+import org.jose4j.jwt.JwtClaims
+import org.jose4j.keys.HmacKey
 
 import javax.servlet.http.HttpSession
 import javax.ws.rs._
@@ -30,6 +38,22 @@ object UserResource {
   // TODO: rewrite this
   def getUser(session: HttpSession): Option[User] =
     Option.apply(session.getAttribute(SESSION_USER)).map(u => u.asInstanceOf[User])
+
+  /**
+    * Retrieve exactly one User from databases with the given username and password
+    * @param name String
+    * @param password String, plain text password
+    * @return
+    */
+  def retrieveUserByUsernameAndPassword(name: String, password: String): Option[User] = {
+    Option(
+      SqlServer.createDSLContext
+        .select()
+        .from(USER)
+        .where(USER.NAME.eq(name).and(USER.GOOGLE_ID.isNull))
+        .fetchOneInto(classOf[User])
+    ).filter(user => PasswordEncryption.checkPassword(user.getPassword, password))
+  }
 
   // TODO: rewrite this
   private def validateUsername(userName: String): Pair[Boolean, String] =
@@ -59,8 +83,8 @@ object UserResource {
 @Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON))
 class UserResource {
-
   final private val userDao = new UserDao(SqlServer.createDSLContext.configuration)
+  val jwtTokenSecret: String = "dfwzsdzwh823zebdwdz772632gdsbd21"
   val googleAPIConfig: Config = ConfigFactory.load("google_api")
   private val GOOGLE_CLIENT_ID: String = googleAPIConfig.getString("google.clientId")
   private val GOOGLE_CLIENT_SECRET: String = googleAPIConfig.getString("google.clientSecret")
@@ -75,14 +99,22 @@ class UserResource {
 
   @POST
   @Path("/login")
-  def login(@Session session: HttpSession, request: UserLoginRequest): Response = {
-
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def generateValidToken(request: UserLoginRequest): Response = {
     retrieveUserByUsernameAndPassword(request.userName, request.password) match {
       case Some(user) =>
-        setUserSession(session, Some(user))
-        Response.ok().build()
+        val claims = new JwtClaims
+        claims.setSubject(user.getName)
+        claims.setExpirationTimeMinutesInTheFuture(30)
+        val jws = new JsonWebSignature()
+        jws.setPayload(claims.toJson)
+        jws.setAlgorithmHeaderValue(HMAC_SHA256)
+        jws.setKey(new HmacKey(jwtTokenSecret.getBytes))
+        Response.ok.entity(Map("token" -> jws.getCompactSerialization)).build()
+
       case None => Response.status(Response.Status.UNAUTHORIZED).build()
     }
+
   }
 
   @POST
@@ -174,22 +206,6 @@ class UserResource {
         Response.ok().build()
     }
 
-  }
-
-  /**
-    * Retrieve exactly one User from databases with the given username and password
-    * @param name String
-    * @param password String, plain text password
-    * @return
-    */
-  private def retrieveUserByUsernameAndPassword(name: String, password: String): Option[User] = {
-    Option(
-      SqlServer.createDSLContext
-        .select()
-        .from(USER)
-        .where(USER.NAME.eq(name).and(USER.GOOGLE_ID.isNull))
-        .fetchOneInto(classOf[User])
-    ).filter(user => PasswordEncryption.checkPassword(user.getPassword, password))
   }
 
   @GET
