@@ -160,6 +160,14 @@ export class WorkspaceComponent implements AfterViewInit {
           this.undoRedoService.clearRedoStack();
         },
         () => {
+          // enable workspace for modification
+          this.workflowActionService.enableWorkflowModification();
+          // clear the current workflow
+          this.workflowActionService.reloadWorkflow(undefined);
+          // clear stack
+          this.undoRedoService.clearUndoStack();
+          this.undoRedoService.clearRedoStack();
+
           this.message.error("You don't have access to this workflow, please log in with an appropriate account");
         }
       );

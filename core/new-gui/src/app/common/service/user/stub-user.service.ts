@@ -55,10 +55,7 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
     throw new Error("unimplemented");
   }
 
-  public login(userName: string): Observable<Response> {
-    if (this.user) {
-      throw new Error("user is already logged in");
-    }
+  public login(userName: string, password: string): Observable<Readonly<{ token: string }>> {
     throw new Error("unimplemented");
   }
 

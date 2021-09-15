@@ -6,6 +6,7 @@ import { AppSettings } from "../../app-setting";
 import { User } from "../../type/user";
 import { GoogleAuthService } from "ng-gapi";
 import { filter } from "rxjs/operators";
+import { JwtHelperService } from "@auth0/angular-jwt";
 
 /**
  * User Service contains the function of registering and logging the user.
@@ -26,7 +27,7 @@ export class UserService {
   private currentUser: User | undefined = undefined;
   private userChangeSubject: ReplaySubject<User | undefined> = new ReplaySubject<User | undefined>(1);
 
-  constructor(private http: HttpClient, private googleAuth: GoogleAuthService) {
+  constructor(private http: HttpClient,private jwtHelpService: JwtHelperService,  private googleAuth: GoogleAuthService) {
     if (environment.userSystemEnabled) {
       this.loginFromSession();
     }
@@ -92,9 +93,7 @@ export class UserService {
    */
   public logOut(): void {
     localStorage.removeItem("access_token");
-    this.http
-      .get<Response>(`${AppSettings.getApiEndpoint()}/${UserService.LOG_OUT_ENDPOINT}`)
-      .subscribe(() => this.changeUser(undefined));
+    this.changeUser(undefined);
   }
 
   public getUser(): User | undefined {
@@ -133,8 +132,13 @@ export class UserService {
   }
 
   private loginFromSession(): void {
-    this.http
-      .get<User>(`${AppSettings.getApiEndpoint()}/${UserService.AUTH_STATUS_ENDPOINT}`)
-      .subscribe(user => this.changeUser(user != null ? user : undefined));
+    const token = localStorage.getItem("access_token");
+    if (token !== null){
+      const decoded = this.jwtHelpService.decodeToken(token);
+      this.changeUser(<User>{ name: decoded.sub});
+    } else {
+      this.changeUser(undefined);
+    }
+
   }
 }
