@@ -10,6 +10,8 @@ import {
   TexeraWebsocketRequestTypes,
 } from "../../types/workflow-websocket.interface";
 import { delayWhen, filter, map, retryWhen, tap } from "rxjs/operators";
+import { environment } from "../../../../environments/environment";
+import { UserService } from "../../../common/service/user/user.service";
 
 export const WS_HEARTBEAT_INTERVAL_MS = 10000;
 export const WS_RECONNECT_INTERVAL_MS = 3000;
@@ -22,29 +24,12 @@ export class WorkflowWebsocketService {
 
   public isConnected: boolean = false;
 
-  private readonly websocket: WebSocketSubject<TexeraWebsocketEvent | TexeraWebsocketRequest>;
+  private websocket?: WebSocketSubject<TexeraWebsocketEvent | TexeraWebsocketRequest>;
   private readonly webSocketResponseSubject: Subject<TexeraWebsocketEvent> = new Subject();
 
-  constructor() {
-    this.websocket = webSocket<TexeraWebsocketEvent | TexeraWebsocketRequest>(
-      WorkflowWebsocketService.getWorkflowWebsocketUrl()
-    );
+  constructor(private userService: UserService) {
+    this.startWebsocket();
 
-    // setup reconnection logic
-    const wsWithReconnect = this.websocket.pipe(
-      retryWhen(error =>
-        error.pipe(
-          tap(_ => (this.isConnected = false)), // update connection status
-          tap(_ =>
-            console.log(`websocket connection lost, reconnecting in ${WS_RECONNECT_INTERVAL_MS / 1000} seconds`)
-          ),
-          delayWhen(_ => timer(WS_RECONNECT_INTERVAL_MS)), // reconnect after delay
-          tap(
-            _ => this.send("HeartBeatRequest", {}) // try to send heartbeat immediately after reconnect
-          )
-        )
-      )
-    );
 
     // set up heartbeat
     interval(WS_HEARTBEAT_INTERVAL_MS).subscribe(_ => this.send("HeartBeatRequest", {}));
@@ -52,11 +37,12 @@ export class WorkflowWebsocketService {
     // refresh connection status
     this.websocketEvent().subscribe(_ => (this.isConnected = true));
 
-    // set up event listener on re-connectable websocket observable
-    wsWithReconnect.subscribe(event => this.webSocketResponseSubject.next(event as TexeraWebsocketEvent));
-
     // send hello world
     this.send("HelloWorldRequest", { message: "Texera on Amber" });
+
+    if (environment.userSystemEnabled) {
+      this.registerRestartWebsocketUponUserChanges();
+    }
   }
 
   public websocketEvent(): Observable<TexeraWebsocketEvent> {
@@ -80,7 +66,37 @@ export class WorkflowWebsocketService {
       type,
       ...payload,
     } as any as TexeraWebsocketRequest;
-    this.websocket.next(request);
+    this.websocket?.next(request);
+  }
+
+  public reStartWebsocket() {
+    this.websocket?.complete();
+    this.startWebsocket();
+  }
+
+  private startWebsocket() {
+    this.websocket = webSocket<TexeraWebsocketEvent | TexeraWebsocketRequest>(
+      WorkflowWebsocketService.getWorkflowWebsocketUrl() +
+        (localStorage.getItem("access_token") === null ? "" : "?token=" + localStorage.getItem("access_token"))
+    );
+    // setup reconnection logic
+    const wsWithReconnect = this.websocket.pipe(
+      retryWhen(error =>
+        error.pipe(
+          tap(_ => (this.isConnected = false)), // update connection status
+          tap(_ =>
+            console.log(`websocket connection lost, reconnecting in ${WS_RECONNECT_INTERVAL_MS / 1000} seconds`)
+          ),
+          delayWhen(_ => timer(WS_RECONNECT_INTERVAL_MS)), // reconnect after delay
+          tap(
+            _ => this.send("HeartBeatRequest", {}) // try to send heartbeat immediately after reconnect
+          )
+        )
+      )
+    );
+
+    // set up event listener on re-connectable websocket observable
+    wsWithReconnect.subscribe(event => this.webSocketResponseSubject.next(event as TexeraWebsocketEvent));
   }
 
   public static getWorkflowWebsocketUrl(): string {
@@ -88,5 +104,9 @@ export class WorkflowWebsocketService {
     // replace protocol, so that http -> ws, https -> wss
     websocketUrl.protocol = websocketUrl.protocol.replace("http", "ws");
     return websocketUrl.toString();
+  }
+
+  private registerRestartWebsocketUponUserChanges() {
+    this.userService.userChanged().subscribe(() => this.reStartWebsocket());
   }
 }

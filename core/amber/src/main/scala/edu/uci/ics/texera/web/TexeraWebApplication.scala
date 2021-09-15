@@ -110,7 +110,7 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
             .setJwtConsumer(consumer)
             .setRealm("realm")
             .setPrefix("Bearer")
-            .setAuthenticator(new AppAuthenticator())
+            .setAuthenticator(AppAuthenticator)
             .buildAuthFilter()
         )
       );

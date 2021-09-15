@@ -9,14 +9,13 @@ import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.model.{Spreadsheet, SpreadsheetProperties, ValueRange}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.texera.Utils.retry
+import edu.uci.ics.texera.web.basicauth.SessionUser
 import edu.uci.ics.texera.web.model.event.ResultExportResponse
 import edu.uci.ics.texera.web.model.request.ResultExportRequest
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
   sessionExportCache,
-  sessionMap,
   sessionResults
 }
-import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import org.jooq.types.UInteger
@@ -24,6 +23,7 @@ import org.jooq.types.UInteger
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.util
 import java.util.concurrent.{Executors, ThreadPoolExecutor}
+import javax.websocket.Session
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
@@ -39,23 +39,23 @@ object ResultExportResource {
   @volatile private var WORKFLOW_RESULT_FOLDER_ID: String = _
 
   def apply(
-      sessionId: String,
+      session: Session,
       request: ResultExportRequest
   ): ResultExportResponse = {
     // retrieve the file link saved in the session if exists
     if (
       sessionExportCache
-        .contains(sessionId) && sessionExportCache(sessionId).contains(request.exportType)
+        .contains(session.getId) && sessionExportCache(session.getId).contains(request.exportType)
     ) {
       return ResultExportResponse(
         "success",
-        s"Link retrieved from cache ${sessionExportCache(sessionId)(request.exportType)}"
+        s"Link retrieved from cache ${sessionExportCache(session.getId)(request.exportType)}"
       )
     }
 
     // By now the workflow should finish running
     val operatorWithResult: Option[OperatorResultService] =
-      sessionResults(sessionId).operatorResults.get(request.operatorId)
+      sessionResults(session.getId).operatorResults.get(request.operatorId)
     if (operatorWithResult.isEmpty) {
       return ResultExportResponse("error", "The workflow contains no results")
     }
@@ -68,9 +68,9 @@ object ResultExportResource {
     // handle the request according to export type
     request.exportType match {
       case "google_sheet" =>
-        handleGoogleSheetRequest(sessionId, request, results, attributeNames)
+        handleGoogleSheetRequest(session, request, results, attributeNames)
       case "csv" =>
-        handleCSVRequest(sessionId, request, results, attributeNames)
+        handleCSVRequest(session, request, results, attributeNames)
       case _ =>
         ResultExportResponse("error", s"Unknown export type: ${request.exportType}")
     }
@@ -78,7 +78,7 @@ object ResultExportResource {
   }
 
   def handleCSVRequest(
-      sessionId: String,
+      session: Session,
       request: ResultExportRequest,
       results: List[Tuple],
       headers: List[String]
@@ -89,10 +89,7 @@ object ResultExportResource {
     writer.writeAll(results.map(tuple => tuple.getFields.toList))
     writer.close()
     val fileName = s"${request.workflowName}-${request.operatorId}.csv"
-    val uid = UserResource
-      .getUser(sessionMap(sessionId)._2)
-      .map(u => u.getUid)
-      .get
+    val uid = session.getUserProperties.get(classOf[SessionUser].getName).asInstanceOf[SessionUser].getUser.getUid
     val fileNameStored = UserFileResource.saveUserFileSafe(
       uid,
       fileName,
@@ -105,7 +102,7 @@ object ResultExportResource {
   }
 
   private def handleGoogleSheetRequest(
-      sessionId: String,
+      session: Session,
       request: ResultExportRequest,
       results: List[ITuple],
       header: List[String]
@@ -144,13 +141,13 @@ object ResultExportResource {
     val message: String =
       s"Google sheet created. The results may be still uploading. You can access the sheet $link"
     // save the file link in the session cache
-    if (!sessionExportCache.contains(sessionId)) {
+    if (!sessionExportCache.contains(session.getId)) {
       sessionExportCache.put(
-        sessionId,
+        session.getId,
         mutable.HashMap(request.exportType -> link)
       )
     } else {
-      sessionExportCache(sessionId)
+      sessionExportCache(session.getId)
         .put(request.exportType, link)
     }
 
