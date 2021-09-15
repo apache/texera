@@ -14,7 +14,6 @@ import edu.uci.ics.texera.web.model.request.auth.{
   UserRegistrationRequest
 }
 import edu.uci.ics.texera.web.resource.auth.UserResource.{
-  getUser,
   retrieveUserByUsernameAndPassword,
   setUserSession,
   validateUsername
@@ -90,12 +89,6 @@ class UserResource {
   private val GOOGLE_CLIENT_SECRET: String = googleAPIConfig.getString("google.clientSecret")
   private val TRANSPORT = new NetHttpTransport
   private val JSON_FACTORY = new JacksonFactory
-
-  @GET
-  @Path("/auth/status")
-  def authStatus(@Session session: HttpSession): Option[User] = {
-    getUser(session)
-  }
 
   @POST
   @Path("/login")
@@ -206,13 +199,6 @@ class UserResource {
         Response.ok().build()
     }
 
-  }
-
-  @GET
-  @Path("/logout")
-  def logOut(@Session session: HttpSession): Response = {
-    setUserSession(session, None)
-    Response.ok().build()
   }
 
 }

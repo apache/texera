@@ -18,10 +18,8 @@ import { JwtHelperService } from "@auth0/angular-jwt";
   providedIn: "root",
 })
 export class UserService {
-  public static readonly AUTH_STATUS_ENDPOINT = "users/auth/status";
   public static readonly LOGIN_ENDPOINT = "users/login";
   public static readonly REGISTER_ENDPOINT = "users/register";
-  public static readonly LOG_OUT_ENDPOINT = "users/logout";
   public static readonly GOOGLE_LOGIN_ENDPOINT = "users/google-login";
 
   private currentUser: User | undefined = undefined;
