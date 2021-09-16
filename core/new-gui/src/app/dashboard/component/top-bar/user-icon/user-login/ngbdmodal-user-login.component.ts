@@ -75,7 +75,7 @@ export class NgbdModalUserLoginComponent implements OnInit {
       .subscribe(
         ({ token }) => {
           UserService.setAccessToken(token);
-          this.userService.changeUser(<User>{ name: normalUserName });
+          this.userService.loginFromSession();
           this.activeModal.close();
         },
         () => (this.loginErrorMessage = "Incorrect credentials")

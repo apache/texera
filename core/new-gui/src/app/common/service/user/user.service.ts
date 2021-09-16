@@ -1,11 +1,11 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { Observable, ReplaySubject } from "rxjs";
+import { Observable, of, ReplaySubject, Subscription } from "rxjs";
 import { environment } from "../../../../environments/environment";
 import { AppSettings } from "../../app-setting";
 import { User } from "../../type/user";
 import { GoogleAuthService } from "ng-gapi";
-import { filter } from "rxjs/operators";
+import { delay, filter } from "rxjs/operators";
 import { JwtHelperService } from "@auth0/angular-jwt";
 
 export const TOKEN_KEY = "access_token";
@@ -26,7 +26,7 @@ export class UserService {
 
   private currentUser: User | undefined = undefined;
   private userChangeSubject: ReplaySubject<User | undefined> = new ReplaySubject<User | undefined>(1);
-
+  private tokenSubscription?: Subscription;
   constructor(
     private http: HttpClient,
     private jwtHelpService: JwtHelperService,
@@ -138,11 +138,22 @@ export class UserService {
     return this.userChangeSubject.asObservable();
   }
 
-  private loginFromSession(): void {
+  public loginFromSession(): void {
+    this.tokenSubscription?.unsubscribe();
     const token = UserService.getAccessToken();
-    if (token !== null) {
+    if (token !== null && !this.jwtHelpService.isTokenExpired(token)) {
       const decoded = this.jwtHelpService.decodeToken(token);
       this.changeUser(<User>{ name: decoded.sub });
+      const expirationTime = this.jwtHelpService.getTokenExpirationDate(token)?.getTime();
+      if (expirationTime!== undefined){
+        this.tokenSubscription = of(null)
+          .pipe(delay( expirationTime- new Date().getTime()))
+          .subscribe(() => {
+            console.log("EXPIRED!!");
+            this.logOut();
+          });
+      }
+
     } else {
       this.changeUser(undefined);
     }
