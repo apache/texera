@@ -80,9 +80,9 @@ export class WorkflowWebsocketService {
   private openWebsocket() {
     const websocketUrl =
       WorkflowWebsocketService.getWorkflowWebsocketUrl() +
-      (environment.userSystemEnabled && UserService.getAccessToken() !== null)
-        ? "?access_token=" + UserService.getAccessToken()
-        : "";
+      (environment.userSystemEnabled && UserService.getAccessToken() !== null
+        ? "?access-token=" + UserService.getAccessToken()
+        : "");
     this.websocket = webSocket<TexeraWebsocketEvent | TexeraWebsocketRequest>(websocketUrl);
     // setup reconnection logic
     const wsWithReconnect = this.websocket.pipe(
@@ -99,7 +99,6 @@ export class WorkflowWebsocketService {
         )
       )
     );
-    // const wsWithReconnect = this.websocket.asObservable();
     // set up event listener on re-connectable websocket observable
     this.wsWithReconnectSubscription = wsWithReconnect.subscribe(event =>
       this.webSocketResponseSubject.next(event as TexeraWebsocketEvent)
