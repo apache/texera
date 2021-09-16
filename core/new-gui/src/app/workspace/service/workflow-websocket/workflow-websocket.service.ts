@@ -12,6 +12,7 @@ import {
 import { delayWhen, filter, map, retryWhen, tap } from "rxjs/operators";
 import { environment } from "../../../../environments/environment";
 import { UserService } from "../../../common/service/user/user.service";
+
 export const WS_HEARTBEAT_INTERVAL_MS = 10000;
 export const WS_RECONNECT_INTERVAL_MS = 3000;
 
@@ -28,16 +29,17 @@ export class WorkflowWebsocketService {
   private readonly webSocketResponseSubject: Subject<TexeraWebsocketEvent> = new Subject();
 
   constructor(private userService: UserService) {
-    this.startWebsocket();
+    // open a ws connection
+    this.openWebsocket();
 
-    // set up heartbeat
+    // setup heartbeat
     interval(WS_HEARTBEAT_INTERVAL_MS).subscribe(_ => this.send("HeartBeatRequest", {}));
 
     // refresh connection status
     this.websocketEvent().subscribe(_ => (this.isConnected = true));
 
     if (environment.userSystemEnabled) {
-      this.registerRestartWebsocketUponUserChanges();
+      this.registerReopenWebsocketUponUserChanges();
     }
   }
 
@@ -65,25 +67,23 @@ export class WorkflowWebsocketService {
     this.websocket?.next(request);
   }
 
-  public reStartWebsocket() {
-    try{
-      console.log("terminating websocket");
-      this.wsWithReconnectSubscription?.unsubscribe();
-      this.websocket?.complete();
-      console.log("terminated websocket");
-    }catch (e) {
-      console.log(e);
-    }
-
-    this.startWebsocket();
+  private reopenWebsocket() {
+    this.closeWebsocket();
+    this.openWebsocket();
   }
 
-  private startWebsocket() {
-    console.log("starting websocket");
-    this.websocket = webSocket<TexeraWebsocketEvent | TexeraWebsocketRequest>(
+  private closeWebsocket() {
+    this.wsWithReconnectSubscription?.unsubscribe();
+    this.websocket?.complete();
+  }
+
+  private openWebsocket() {
+    const websocketUrl =
       WorkflowWebsocketService.getWorkflowWebsocketUrl() +
-        (UserService.getAccessToken() === null ? "" : "?token=" + UserService.getAccessToken())
-    );
+      (environment.userSystemEnabled && UserService.getAccessToken() !== null)
+        ? "?access_token=" + UserService.getAccessToken()
+        : "";
+    this.websocket = webSocket<TexeraWebsocketEvent | TexeraWebsocketRequest>(websocketUrl);
     // setup reconnection logic
     const wsWithReconnect = this.websocket.pipe(
       retryWhen(errors =>
@@ -104,17 +104,16 @@ export class WorkflowWebsocketService {
     this.wsWithReconnectSubscription = wsWithReconnect.subscribe(event =>
       this.webSocketResponseSubject.next(event as TexeraWebsocketEvent)
     );
-    console.log("started");
 
     // send hello world
     this.send("HelloWorldRequest", { message: "Texera on Amber" });
   }
 
-  private registerRestartWebsocketUponUserChanges() {
-    this.userService.userChanged().subscribe(() => this.reStartWebsocket());
+  private registerReopenWebsocketUponUserChanges() {
+    this.userService.userChanged().subscribe(() => this.reopenWebsocket());
   }
 
-  public static getWorkflowWebsocketUrl(): string {
+  private static getWorkflowWebsocketUrl(): string {
     const websocketUrl = new URL(WorkflowWebsocketService.TEXERA_WEBSOCKET_ENDPOINT, document.baseURI);
     // replace protocol, so that http -> ws, https -> wss
     websocketUrl.protocol = websocketUrl.protocol.replace("http", "ws");

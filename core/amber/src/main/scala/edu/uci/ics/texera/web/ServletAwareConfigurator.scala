@@ -33,7 +33,7 @@ class ServletAwareConfigurator extends ServerEndpointConfig.Configurator with La
       params.asScala
         .map(pair => pair.getName -> pair.getValue)
         .toMap
-        .get("token")
+        .get("access_token")
         .map(token => {
           val claims = jwtConsumer.process(token).getJwtClaims
           config.getUserProperties.put(
