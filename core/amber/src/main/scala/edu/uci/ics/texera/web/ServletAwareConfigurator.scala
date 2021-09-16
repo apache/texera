@@ -1,11 +1,13 @@
 package edu.uci.ics.texera.web
 
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.web.basicauth.JwtAuth.jwtConsumer
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import org.apache.http.client.utils.URLEncodedUtils
 import org.jooq.types.UInteger
 
 import java.net.URI
+import java.nio.charset.Charset
 import javax.websocket.HandshakeResponse
 import javax.websocket.server.{HandshakeRequest, ServerEndpointConfig}
 import scala.jdk.CollectionConverters.asScalaBufferConverter
@@ -18,7 +20,7 @@ import scala.jdk.CollectionConverters.asScalaBufferConverter
   *   from-httpservletrequest-in-a-web-socket-serverendpoint"></a>
   * </pre>
   */
-class ServletAwareConfigurator extends ServerEndpointConfig.Configurator {
+class ServletAwareConfigurator extends ServerEndpointConfig.Configurator with LazyLogging {
 
   override def modifyHandshake(
       config: ServerEndpointConfig,
@@ -26,25 +28,28 @@ class ServletAwareConfigurator extends ServerEndpointConfig.Configurator {
       response: HandshakeResponse
   ): Unit = {
     try {
-      val queryString = "?" + request.getQueryString
-      val params = URLEncodedUtils.parse(new URI(queryString), "UTF8")
-      val scalaParams: Seq[(String, String)] =
-        collection.immutable.Seq(params.asScala: _*).map(pair => pair.getName -> pair.getValue)
-      val paramsMap: Map[String, String] = scalaParams.toMap
-      val token = paramsMap.get("token")
-      val claims = jwtConsumer.process(token.get).getJwtClaims
-      config.getUserProperties.put(
-        classOf[User].getName,
-        new User(
-          claims.getSubject,
-          UInteger.valueOf(claims.getClaimValue("userId").asInstanceOf[Long]),
-          null,
-          null
-        )
-      )
+      val params =
+        URLEncodedUtils.parse(new URI("?" + request.getQueryString), Charset.defaultCharset())
+      params.asScala
+        .map(pair => pair.getName -> pair.getValue)
+        .toMap
+        .get("token")
+        .map(token => {
+          val claims = jwtConsumer.process(token).getJwtClaims
+          config.getUserProperties.put(
+            classOf[User].getName,
+            new User(
+              claims.getSubject,
+              UInteger.valueOf(claims.getClaimValue("userId").asInstanceOf[Long]),
+              null,
+              null
+            )
+          )
+        })
+
     } catch {
       case e: Exception =>
-        e.printStackTrace()
+        logger.error("Failed to retrieve the User during websocket handshake", e)
     }
 
   }
