@@ -72,18 +72,16 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
     )
 
     // register JWT Auth layer
-    environment
-      .jersey()
-      .register(
-        new AuthDynamicFeature(
-          new JwtAuthFilter.Builder[SessionUser]()
-            .setJwtConsumer(jwtConsumer)
-            .setRealm("realm")
-            .setPrefix("Bearer")
-            .setAuthenticator(UserAuthenticator)
-            .buildAuthFilter()
-        )
-      );
+    environment.jersey.register(
+      new AuthDynamicFeature(
+        new JwtAuthFilter.Builder[SessionUser]()
+          .setJwtConsumer(jwtConsumer)
+          .setRealm("realm")
+          .setPrefix("Bearer")
+          .setAuthenticator(UserAuthenticator)
+          .buildAuthFilter()
+      )
+    )
     environment.jersey.register(
       new AuthValueFactoryProvider.Binder[SessionUser](classOf[SessionUser])
     )
