@@ -9,8 +9,8 @@ import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.model.{Spreadsheet, SpreadsheetProperties, ValueRange}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.texera.Utils.retry
-import edu.uci.ics.texera.web.basicauth.SessionUser
 import edu.uci.ics.texera.web.model.event.ResultExportResponse
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.request.ResultExportRequest
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
   sessionExportCache,
@@ -89,7 +89,11 @@ object ResultExportResource {
     writer.writeAll(results.map(tuple => tuple.getFields.toList))
     writer.close()
     val fileName = s"${request.workflowName}-${request.operatorId}.csv"
-    val uid = session.getUserProperties.get(classOf[SessionUser].getName).asInstanceOf[SessionUser].getUser.getUid
+    val uid =
+      session.getUserProperties.asScala
+        .get(classOf[User].getName)
+        .map(_.asInstanceOf[User].getUid)
+        .get
     val fileNameStored = UserFileResource.saveUserFileSafe(
       uid,
       fileName,

@@ -98,6 +98,7 @@ class UserResource {
       case Some(user) =>
         val claims = new JwtClaims
         claims.setSubject(user.getName)
+        claims.setClaim("userId", user.getUid)
         claims.setExpirationTimeMinutesInTheFuture(30)
         val jws = new JsonWebSignature()
         jws.setPayload(claims.toJson)

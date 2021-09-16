@@ -162,6 +162,8 @@ registerLocaleData(en);
     JwtModule.forRoot({
       config: {
         tokenGetter: UserService.getAccessToken,
+        skipWhenExpired: false,
+        throwNoTokenError: false,
       },
     }),
     MatTooltipModule,

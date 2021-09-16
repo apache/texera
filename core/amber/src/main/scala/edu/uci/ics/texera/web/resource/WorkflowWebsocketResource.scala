@@ -19,8 +19,8 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.Utils.objectMapper
-import edu.uci.ics.texera.web.basicauth.SessionUser
 import edu.uci.ics.texera.web.model.event._
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.request._
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource._
 import edu.uci.ics.texera.web.{ServletAwareConfigurator, TexeraWebApplication}
@@ -45,6 +45,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import javax.websocket._
 import javax.websocket.server.ServerEndpoint
 import scala.collection.{breakOut, mutable}
+import scala.jdk.CollectionConverters.mapAsScalaMapConverter
 
 object WorkflowWebsocketResource {
   // TODO should reorganize this resource.
@@ -255,8 +256,9 @@ class WorkflowWebsocketResource extends LazyLogging {
     val context = new WorkflowContext
     val jobId = Integer.toString(WorkflowWebsocketResource.nextJobId.incrementAndGet)
     context.jobId = jobId
-    context.userId = Option(session.getUserProperties.get(classOf[SessionUser].getName))
-      .map(_.asInstanceOf[SessionUser].getUser.getUid)
+    context.userId = session.getUserProperties.asScala
+      .get(classOf[User].getName)
+      .map(_.asInstanceOf[User].getUid)
 
     if (opResultSwitch) {
       updateCacheStatus(

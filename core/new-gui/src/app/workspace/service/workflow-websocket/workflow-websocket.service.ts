@@ -1,5 +1,5 @@
 import { Injectable } from "@angular/core";
-import { interval, Observable, Subject, timer } from "rxjs";
+import { interval, Observable, Subject, Subscription, timer } from "rxjs";
 import { webSocket, WebSocketSubject } from "rxjs/webSocket";
 import {
   TexeraWebsocketEvent,
@@ -12,7 +12,6 @@ import {
 import { delayWhen, filter, map, retryWhen, tap } from "rxjs/operators";
 import { environment } from "../../../../environments/environment";
 import { UserService } from "../../../common/service/user/user.service";
-
 export const WS_HEARTBEAT_INTERVAL_MS = 10000;
 export const WS_RECONNECT_INTERVAL_MS = 3000;
 
@@ -25,6 +24,7 @@ export class WorkflowWebsocketService {
   public isConnected: boolean = false;
 
   private websocket?: WebSocketSubject<TexeraWebsocketEvent | TexeraWebsocketRequest>;
+  private wsWithReconnectSubscription?: Subscription;
   private readonly webSocketResponseSubject: Subject<TexeraWebsocketEvent> = new Subject();
 
   constructor(private userService: UserService) {
@@ -35,9 +35,6 @@ export class WorkflowWebsocketService {
 
     // refresh connection status
     this.websocketEvent().subscribe(_ => (this.isConnected = true));
-
-    // send hello world
-    this.send("HelloWorldRequest", { message: "Texera on Amber" });
 
     if (environment.userSystemEnabled) {
       this.registerRestartWebsocketUponUserChanges();
@@ -69,19 +66,28 @@ export class WorkflowWebsocketService {
   }
 
   public reStartWebsocket() {
-    this.websocket?.complete();
+    try{
+      console.log("terminating websocket");
+      this.wsWithReconnectSubscription?.unsubscribe();
+      this.websocket?.complete();
+      console.log("terminated websocket");
+    }catch (e) {
+      console.log(e);
+    }
+
     this.startWebsocket();
   }
 
   private startWebsocket() {
+    console.log("starting websocket");
     this.websocket = webSocket<TexeraWebsocketEvent | TexeraWebsocketRequest>(
       WorkflowWebsocketService.getWorkflowWebsocketUrl() +
         (UserService.getAccessToken() === null ? "" : "?token=" + UserService.getAccessToken())
     );
     // setup reconnection logic
     const wsWithReconnect = this.websocket.pipe(
-      retryWhen(error =>
-        error.pipe(
+      retryWhen(errors =>
+        errors.pipe(
           tap(_ => (this.isConnected = false)), // update connection status
           tap(_ =>
             console.log(`websocket connection lost, reconnecting in ${WS_RECONNECT_INTERVAL_MS / 1000} seconds`)
@@ -93,9 +99,15 @@ export class WorkflowWebsocketService {
         )
       )
     );
-
+    // const wsWithReconnect = this.websocket.asObservable();
     // set up event listener on re-connectable websocket observable
-    wsWithReconnect.subscribe(event => this.webSocketResponseSubject.next(event as TexeraWebsocketEvent));
+    this.wsWithReconnectSubscription = wsWithReconnect.subscribe(event =>
+      this.webSocketResponseSubject.next(event as TexeraWebsocketEvent)
+    );
+    console.log("started");
+
+    // send hello world
+    this.send("HelloWorldRequest", { message: "Texera on Amber" });
   }
 
   private registerRestartWebsocketUponUserChanges() {

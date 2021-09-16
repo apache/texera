@@ -6,6 +6,7 @@ import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
 import com.github.toastshaman.dropwizard.auth.jwt.JwtAuthFilter
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.texera.Utils
+import edu.uci.ics.texera.web.basicauth.JwtAuth.{jwtConsumer, jwtTokenSecret}
 import edu.uci.ics.texera.web.basicauth.{AppAuthenticator, SessionUser}
 import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.web.resource.dashboard.file.{UserFileAccessResource, UserFileResource}
@@ -19,7 +20,7 @@ import org.eclipse.jetty.servlet.ErrorPageErrorHandler
 import org.eclipse.jetty.websocket.server.WebSocketUpgradeFilter
 import org.glassfish.jersey.media.multipart.MultiPartFeature
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
-import org.jose4j.jwt.consumer.JwtConsumerBuilder
+import org.jose4j.jwt.consumer.{JwtConsumer, JwtConsumerBuilder}
 import org.jose4j.keys.HmacKey
 
 import java.time.Duration
@@ -72,8 +73,30 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
       webSocketUpgradeFilter
     )
 
-    // add HTTPSessionInitializer to create HTTPSession if not presented in Websocket handshake
-    environment.getApplicationContext.addEventListener(new HTTPSessionInitializer)
+    val jwtConsumer: JwtConsumer = new JwtConsumerBuilder()
+        .setAllowedClockSkewInSeconds(30)
+        .setRequireExpirationTime()
+        .setRequireSubject()
+        .setVerificationKey(new HmacKey(jwtTokenSecret.getBytes))
+        .setRelaxVerificationKeyValidation()
+        .build
+    // register JWT Auth layer
+    environment
+        .jersey()
+        .register(
+          new AuthDynamicFeature(
+            new JwtAuthFilter.Builder[SessionUser]()
+                .setJwtConsumer(jwtConsumer)
+                .setRealm("realm")
+                .setPrefix("Bearer")
+                .setAuthenticator(new AppAuthenticator())
+                .buildAuthFilter()
+          )
+        );
+    environment.jersey.register(
+      new AuthValueFactoryProvider.Binder[SessionUser](classOf[SessionUser])
+    )
+    environment.jersey.register(classOf[RolesAllowedDynamicFeature])
 
     // register SessionHandler
     environment.jersey.register(classOf[SessionHandler])
@@ -92,32 +115,7 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
     environment.jersey.register(classOf[WorkflowAccessResource])
     environment.jersey.register(classOf[WorkflowResource])
 
-    val jwtTokenSecret: String = "dfwzsdzwh823zebdwdz772632gdsbd21"
-    // create the JwtConsumer instance
-    val consumer = new JwtConsumerBuilder()
-      .setAllowedClockSkewInSeconds(30)
-      .setRequireExpirationTime()
-      .setRequireSubject()
-      .setVerificationKey(new HmacKey(jwtTokenSecret.getBytes))
-      .setRelaxVerificationKeyValidation()
-      .build
 
-    environment
-      .jersey()
-      .register(
-        new AuthDynamicFeature(
-          new JwtAuthFilter.Builder[SessionUser]()
-            .setJwtConsumer(consumer)
-            .setRealm("realm")
-            .setPrefix("Bearer")
-            .setAuthenticator(AppAuthenticator)
-            .buildAuthFilter()
-        )
-      );
-    environment.jersey.register(
-      new AuthValueFactoryProvider.Binder[SessionUser](classOf[SessionUser])
-    )
-    environment.jersey.register(classOf[RolesAllowedDynamicFeature])
   }
 
 }
