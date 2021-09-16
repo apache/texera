@@ -8,7 +8,7 @@ import org.jose4j.jwt.consumer.JwtContext
 
 import java.util.Optional
 
-class UserAuthenticator extends Authenticator[JwtContext, SessionUser] with LazyLogging {
+object UserAuthenticator extends Authenticator[JwtContext, SessionUser] with LazyLogging {
   override def authenticate(context: JwtContext): Optional[SessionUser] = {
     // This method will be called once the token's signature has been verified,
     // including the jwtTokenSecret and the expiration time
