@@ -34,7 +34,6 @@ class StoppableQueueBlockingRunnable(Runnable, Stoppable):
     RUNNABLE_STOP = IQueue.QueueControl(msg="__RUNNABLE__STOP__MARKER__")
 
     def __init__(self, name: str, queue: IQueue):
-        super().__init__()
         self._internal_queue = queue
         self.name = name
 
