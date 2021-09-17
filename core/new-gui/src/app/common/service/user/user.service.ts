@@ -47,16 +47,18 @@ export class UserService {
    * @param userName
    * @param password
    */
-  public register(userName: string, password: string): Observable<{ accessToken: string }> {
-    // assume the text passed in should be correct
+  public register(userName: string, password: string): Observable<Readonly<{ accessToken: string }>> {
     if (this.currentUser) {
       throw new Error("Already logged in when register.");
     }
 
-    return this.http.post<{ accessToken: string }>(`${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`, {
-      userName,
-      password,
-    });
+    return this.http.post<Readonly<{ accessToken: string }>>(
+      `${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`,
+      {
+        userName,
+        password,
+      }
+    );
   }
 
   /**

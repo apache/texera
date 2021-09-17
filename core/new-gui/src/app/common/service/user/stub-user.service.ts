@@ -51,7 +51,7 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
     return this.user;
   }
 
-  public register(userName: string): Observable<Response> {
+  public register(userName: string): Observable<Readonly<{ accessToken: string }>> {
     throw new Error("unimplemented");
   }
 
