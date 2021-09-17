@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.web.basicauth
+package edu.uci.ics.texera.web.auth
 
 import org.jose4j.jwt.consumer.{JwtConsumer, JwtConsumerBuilder}
 import org.jose4j.keys.HmacKey

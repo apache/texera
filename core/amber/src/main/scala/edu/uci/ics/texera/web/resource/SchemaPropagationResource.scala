@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.resource
 
 import edu.uci.ics.texera.Utils
-import edu.uci.ics.texera.web.basicauth.SessionUser
+import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute

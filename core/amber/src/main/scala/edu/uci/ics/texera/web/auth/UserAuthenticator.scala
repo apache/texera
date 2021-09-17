@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.web.basicauth
+package edu.uci.ics.texera.web.auth
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User

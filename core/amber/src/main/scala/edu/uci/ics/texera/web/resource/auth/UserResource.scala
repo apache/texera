@@ -5,7 +5,7 @@ import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.typesafe.config.{Config, ConfigFactory}
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.basicauth.JwtAuth.{jwtConsumer, jwtTokenSecret}
+import edu.uci.ics.texera.web.auth.JwtAuth.{jwtConsumer, jwtTokenSecret}
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User

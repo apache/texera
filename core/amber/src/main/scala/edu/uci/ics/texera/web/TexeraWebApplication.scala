@@ -6,8 +6,8 @@ import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
 import com.github.toastshaman.dropwizard.auth.jwt.JwtAuthFilter
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.texera.Utils
-import edu.uci.ics.texera.web.basicauth.JwtAuth.jwtConsumer
-import edu.uci.ics.texera.web.basicauth.{SessionUser, UserAuthenticator}
+import edu.uci.ics.texera.web.auth.JwtAuth.jwtConsumer
+import edu.uci.ics.texera.web.auth.{SessionUser, UserAuthenticator}
 import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.web.resource.dashboard.file.{UserFileAccessResource, UserFileResource}
 import edu.uci.ics.texera.web.resource.dashboard.{WorkflowAccessResource, WorkflowResource}

@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web.resource.dashboard.file
 
 import com.google.common.io.Files
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.basicauth.SessionUser
+import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER_FILE_ACCESS}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileDao, UserDao, UserFileAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, User}

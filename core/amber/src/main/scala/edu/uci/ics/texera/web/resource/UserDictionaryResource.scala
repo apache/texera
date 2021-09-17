@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.resource
 
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.basicauth.SessionUser
+import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER_DICTIONARY
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDictionaryDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{User, UserDictionary}
