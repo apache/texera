@@ -97,10 +97,7 @@ class UserResource {
   def login(request: UserLoginRequest): Response = {
     retrieveUserByUsernameAndPassword(request.userName, request.password) match {
       case Some(user) =>
-        val claims = new JwtClaims
-        claims.setSubject(user.getName)
-        claims.setClaim("userId", user.getUid)
-        claims.setExpirationTimeMinutesInTheFuture(TOKEN_EXPIRE_TIME_IN_MIN)
+        val claims = generateNewJwtClaims(user)
         Response.ok.entity(Map("accessToken" -> generateNewJwtToken(claims))).build()
 
       case None => Response.status(Response.Status.UNAUTHORIZED).build()
@@ -108,6 +105,13 @@ class UserResource {
 
   }
 
+  private def generateNewJwtClaims(user: User): JwtClaims = {
+    val claims = new JwtClaims
+    claims.setSubject(user.getName)
+    claims.setClaim("userId", user.getUid)
+    claims.setExpirationTimeMinutesInTheFuture(TOKEN_EXPIRE_TIME_IN_MIN)
+    claims
+  }
   private def generateNewJwtToken(claims: JwtClaims): String = {
     val jws = new JsonWebSignature()
     jws.setPayload(claims.toJson)
@@ -193,7 +197,7 @@ class UserResource {
 
   @POST
   @Path("/register")
-  def register(@Session session: HttpSession, request: UserRegistrationRequest): Response = {
+  def register(request: UserRegistrationRequest): Response = {
     val userName = request.userName
     val password = request.password
     val validationResult = validateUsername(userName)
@@ -212,8 +216,8 @@ class UserResource {
         // hash the plain text password
         user.setPassword(PasswordEncryption.encrypt(password))
         userDao.insert(user)
-        setUserSession(session, Some(user))
-        Response.ok().build()
+        val claims = generateNewJwtClaims(user)
+        Response.ok.entity(Map("accessToken" -> generateNewJwtToken(claims))).build()
     }
 
   }
