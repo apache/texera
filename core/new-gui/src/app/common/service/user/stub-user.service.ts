@@ -1,7 +1,6 @@
 import { Injectable } from "@angular/core";
 
-import { Observable } from "rxjs";
-import { Subject } from "rxjs";
+import { Observable, Subject } from "rxjs";
 import { User } from "../../type/user";
 import { UserService } from "./user.service";
 import { PublicInterfaceOf } from "../../util/stub";
@@ -22,6 +21,9 @@ export const MOCK_USER = {
 export class StubUserService implements PublicInterfaceOf<UserService> {
   public userChangeSubject: Subject<User | undefined> = new Subject();
   public user: User | undefined;
+  private googleAuth = undefined;
+  private http = undefined;
+  private jwtHelpService = undefined;
 
   constructor() {
     this.user = MOCK_USER;
@@ -70,4 +72,6 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
   public changeUser(user: User | undefined): void {
     this.user = user;
   }
+
+  loginFromSession(): void {}
 }
