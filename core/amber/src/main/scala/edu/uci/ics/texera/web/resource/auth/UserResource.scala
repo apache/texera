@@ -5,15 +5,18 @@ import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.typesafe.config.{Config, ConfigFactory}
 import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.texera.web.basicauth.JwtAuth.{jwtConsumer, jwtTokenSecret}
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.request.auth.{
   GoogleUserLoginRequest,
+  RefreshTokenRequest,
   UserLoginRequest,
   UserRegistrationRequest
 }
 import edu.uci.ics.texera.web.resource.auth.UserResource.{
+  TOKEN_EXPIRE_TIME_IN_MIN,
   retrieveUserByUsernameAndPassword,
   setUserSession,
   validateUsername
@@ -25,18 +28,15 @@ import org.jose4j.jws.JsonWebSignature
 import org.jose4j.jwt.JwtClaims
 import org.jose4j.keys.HmacKey
 
+import javax.annotation.security.PermitAll
 import javax.servlet.http.HttpSession
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
 import scala.util.{Failure, Success, Try}
 
 object UserResource {
-
+  final private val TOKEN_EXPIRE_TIME_IN_MIN = 120
   private val SESSION_USER = "texera-user"
-
-  // TODO: rewrite this
-  def getUser(session: HttpSession): Option[User] =
-    Option.apply(session.getAttribute(SESSION_USER)).map(u => u.asInstanceOf[User])
 
   /**
     * Retrieve exactly one User from databases with the given username and password
@@ -82,8 +82,9 @@ object UserResource {
 @Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON))
 class UserResource {
+
   final private val userDao = new UserDao(SqlServer.createDSLContext.configuration)
-  val jwtTokenSecret: String = "dfwzsdzwh823zebdwdz772632gdsbd21"
+
   val googleAPIConfig: Config = ConfigFactory.load("google_api")
   private val GOOGLE_CLIENT_ID: String = googleAPIConfig.getString("google.clientId")
   private val GOOGLE_CLIENT_SECRET: String = googleAPIConfig.getString("google.clientSecret")
@@ -93,22 +94,37 @@ class UserResource {
   @POST
   @Path("/login")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def generateValidToken(request: UserLoginRequest): Response = {
+  def login(request: UserLoginRequest): Response = {
     retrieveUserByUsernameAndPassword(request.userName, request.password) match {
       case Some(user) =>
         val claims = new JwtClaims
         claims.setSubject(user.getName)
         claims.setClaim("userId", user.getUid)
-        claims.setExpirationTimeMinutesInTheFuture(30)
-        val jws = new JsonWebSignature()
-        jws.setPayload(claims.toJson)
-        jws.setAlgorithmHeaderValue(HMAC_SHA256)
-        jws.setKey(new HmacKey(jwtTokenSecret.getBytes))
-        Response.ok.entity(Map("token" -> jws.getCompactSerialization)).build()
+        claims.setExpirationTimeMinutesInTheFuture(TOKEN_EXPIRE_TIME_IN_MIN)
+        Response.ok.entity(Map("accessToken" -> generateNewJwtToken(claims))).build()
 
       case None => Response.status(Response.Status.UNAUTHORIZED).build()
     }
 
+  }
+
+  private def generateNewJwtToken(claims: JwtClaims): String = {
+    val jws = new JsonWebSignature()
+    jws.setPayload(claims.toJson)
+    print(claims.toJson)
+    jws.setAlgorithmHeaderValue(HMAC_SHA256)
+    jws.setKey(new HmacKey(jwtTokenSecret.getBytes))
+    jws.getCompactSerialization
+  }
+
+  @PermitAll
+  @POST
+  @Path("/refresh")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def refreshToken(request: RefreshTokenRequest): Response = {
+    val claims = jwtConsumer.process(request.accessToken).getJwtClaims
+    claims.setExpirationTimeMinutesInTheFuture(TOKEN_EXPIRE_TIME_IN_MIN)
+    Response.ok.entity(Map("accessToken" -> generateNewJwtToken(claims))).build()
   }
 
   @POST

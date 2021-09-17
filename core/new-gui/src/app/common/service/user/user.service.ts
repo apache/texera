@@ -1,14 +1,15 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { Observable, of, ReplaySubject, Subscription } from "rxjs";
+import { interval, Observable, of, ReplaySubject, Subscription } from "rxjs";
 import { environment } from "../../../../environments/environment";
 import { AppSettings } from "../../app-setting";
 import { User } from "../../type/user";
 import { GoogleAuthService } from "ng-gapi";
-import { delay, filter } from "rxjs/operators";
+import { delay, filter, startWith } from "rxjs/operators";
 import { JwtHelperService } from "@auth0/angular-jwt";
 
 export const TOKEN_KEY = "access_token";
+export const TOKEN_REFRESH_INTERVAL_IN_MIN = 15;
 
 /**
  * User Service contains the function of registering and logging the user.
@@ -21,12 +22,15 @@ export const TOKEN_KEY = "access_token";
 })
 export class UserService {
   public static readonly LOGIN_ENDPOINT = "users/login";
+  public static readonly REFRESH_TOKEN = "users/refresh";
   public static readonly REGISTER_ENDPOINT = "users/register";
   public static readonly GOOGLE_LOGIN_ENDPOINT = "users/google-login";
 
   private currentUser: User | undefined = undefined;
   private userChangeSubject: ReplaySubject<User | undefined> = new ReplaySubject<User | undefined>(1);
-  private tokenSubscription?: Subscription;
+  private tokenExpirationSubscription?: Subscription;
+  private refreshTokenSubscription?: Subscription;
+
   constructor(
     private http: HttpClient,
     private jwtHelpService: JwtHelperService,
@@ -82,25 +86,24 @@ export class UserService {
    * @param userName
    * @param password
    */
-  public login(userName: string, password: string): Observable<Readonly<{ token: string }>> {
+  public login(userName: string, password: string): Observable<Readonly<{ accessToken: string }>> {
     if (this.currentUser) {
       throw new Error("Already logged in when login in.");
     }
-    return this.http.post<Readonly<{ token: string }>>(
+    return this.http.post<Readonly<{ accessToken: string }>>(
       `${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`,
-      {
-        userName,
-        password,
-      }
+      { userName, password }
     );
   }
 
   /**
    * this method will clear the saved user account and trigger userChangeEvent
    */
-  public logOut(): void {
+  public logout(): void {
     UserService.removeAccessToken();
     this.changeUser(undefined);
+    this.tokenExpirationSubscription?.unsubscribe();
+    this.refreshTokenSubscription?.unsubscribe();
   }
 
   public getUser(): User | undefined {
@@ -139,23 +142,48 @@ export class UserService {
   }
 
   public loginFromSession(): void {
-    this.tokenSubscription?.unsubscribe();
+    this.tokenExpirationSubscription?.unsubscribe();
     const token = UserService.getAccessToken();
     if (token !== null && !this.jwtHelpService.isTokenExpired(token)) {
-      const decoded = this.jwtHelpService.decodeToken(token);
-      this.changeUser(<User>{ name: decoded.sub });
-      const expirationTime = this.jwtHelpService.getTokenExpirationDate(token)?.getTime();
-      if (expirationTime!== undefined){
-        this.tokenSubscription = of(null)
-          .pipe(delay( expirationTime- new Date().getTime()))
-          .subscribe(() => {
-            console.log("EXPIRED!!");
-            this.logOut();
-          });
-      }
-
+      this.changeUser(<User>{ name: this.jwtHelpService.decodeToken(token).sub });
+      this.registerAutoLogout();
+      this.registerAutoRefreshToken();
     } else {
       this.changeUser(undefined);
+    }
+  }
+
+  /**
+   * Refreshes the current accessToken to get a new accessToken
+   * // TODO: for better security, use a separate refresh token to perform this refresh
+   */
+  private refreshToken(): Observable<Readonly<{ accessToken: string }>> {
+    return this.http.post<Readonly<{ accessToken: string }>>(
+      `${AppSettings.getApiEndpoint()}/${UserService.REFRESH_TOKEN}`,
+      { accessToken: UserService.getAccessToken() }
+    );
+  }
+
+  private registerAutoRefreshToken() {
+    this.refreshTokenSubscription?.unsubscribe();
+    this.refreshTokenSubscription = interval(TOKEN_REFRESH_INTERVAL_IN_MIN * 60 * 1000)
+      .pipe(startWith(0)) // to trigger immediately for the first time.
+      .subscribe(() => {
+        this.refreshToken().subscribe(({ accessToken }) => {
+          UserService.setAccessToken(accessToken);
+          this.registerAutoLogout();
+        });
+      });
+  }
+
+  private registerAutoLogout() {
+    this.tokenExpirationSubscription?.unsubscribe();
+    const expirationTime = this.jwtHelpService.getTokenExpirationDate()?.getTime();
+    const token = UserService.getAccessToken();
+    if (token !== null && !this.jwtHelpService.isTokenExpired(token) && expirationTime !== undefined) {
+      this.tokenExpirationSubscription = of(null)
+        .pipe(delay(expirationTime - new Date().getTime()))
+        .subscribe(() => this.logout());
     }
   }
 

@@ -36,12 +36,12 @@ export class WorkspaceComponent implements AfterViewInit {
   userSystemEnabled = environment.userSystemEnabled;
 
   constructor(
+    private userService: UserService,
     private resultPanelToggleService: ResultPanelToggleService,
     // list additional services in constructor so they are initialized even if no one use them directly
     private sourceTablesService: SourceTablesService,
     private schemaPropagationService: SchemaPropagationService,
     private undoRedoService: UndoRedoService,
-    private userService: UserService,
     private operatorCacheStatus: OperatorCacheStatusService,
     private workflowCacheService: WorkflowCacheService,
     private workflowPersistService: WorkflowPersistService,

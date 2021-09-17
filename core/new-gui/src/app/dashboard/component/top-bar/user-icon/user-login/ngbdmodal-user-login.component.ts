@@ -73,8 +73,8 @@ export class NgbdModalUserLoginComponent implements OnInit {
       .login(normalUserName, normalUserPassword)
       .pipe(untilDestroyed(this))
       .subscribe(
-        ({ token }) => {
-          UserService.setAccessToken(token);
+        ({ accessToken }) => {
+          UserService.setAccessToken(accessToken);
           this.userService.loginFromSession();
           this.activeModal.close();
         },

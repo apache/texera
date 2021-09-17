@@ -55,11 +55,11 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
     throw new Error("unimplemented");
   }
 
-  public login(userName: string, password: string): Observable<Readonly<{ token: string }>> {
+  public login(userName: string, password: string): Observable<Readonly<{ accessToken: string }>> {
     throw new Error("unimplemented");
   }
 
-  public logOut(): void {
+  public logout(): void {
     throw new Error("unimplemented");
   }
 
