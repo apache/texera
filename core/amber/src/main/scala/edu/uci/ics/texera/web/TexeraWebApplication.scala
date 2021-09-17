@@ -94,7 +94,7 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
     // register MultiPartFeature
     environment.jersey.register(classOf[MultiPartFeature])
 
-    environment.jersey().register(classOf[SystemMetadataResource])
+    environment.jersey.register(classOf[SystemMetadataResource])
     //    environment.jersey().register(classOf[MockKillWorkerResource])
     environment.jersey.register(classOf[SchemaPropagationResource])
     environment.jersey.register(classOf[UserResource])
