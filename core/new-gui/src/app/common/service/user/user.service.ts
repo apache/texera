@@ -30,12 +30,9 @@ export class UserService {
   private userChangeSubject: ReplaySubject<User | undefined> = new ReplaySubject<User | undefined>(1);
   private tokenExpirationSubscription?: Subscription;
   private refreshTokenSubscription?: Subscription;
+  private jwtHelperService = new JwtHelperService();
 
-  constructor(
-    private http: HttpClient,
-    private jwtHelpService: JwtHelperService,
-    private googleAuth: GoogleAuthService
-  ) {
+  constructor(private http: HttpClient, private googleAuth: GoogleAuthService) {
     if (environment.userSystemEnabled) {
       this.loginFromSession();
     }
@@ -146,8 +143,8 @@ export class UserService {
   public loginFromSession(): void {
     this.tokenExpirationSubscription?.unsubscribe();
     const token = UserService.getAccessToken();
-    if (token !== null && !this.jwtHelpService.isTokenExpired(token)) {
-      this.changeUser(<User>{ name: this.jwtHelpService.decodeToken(token).sub });
+    if (token !== null && !this.jwtHelperService.isTokenExpired(token)) {
+      this.changeUser(<User>{ name: this.jwtHelperService.decodeToken(token).sub });
       this.registerAutoLogout();
       this.registerAutoRefreshToken();
     } else {
@@ -180,9 +177,9 @@ export class UserService {
 
   private registerAutoLogout() {
     this.tokenExpirationSubscription?.unsubscribe();
-    const expirationTime = this.jwtHelpService.getTokenExpirationDate()?.getTime();
+    const expirationTime = this.jwtHelperService.getTokenExpirationDate()?.getTime();
     const token = UserService.getAccessToken();
-    if (token !== null && !this.jwtHelpService.isTokenExpired(token) && expirationTime !== undefined) {
+    if (token !== null && !this.jwtHelperService.isTokenExpired(token) && expirationTime !== undefined) {
       this.tokenExpirationSubscription = of(null)
         .pipe(delay(expirationTime - new Date().getTime()))
         .subscribe(() => this.logout());

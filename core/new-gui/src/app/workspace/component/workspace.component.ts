@@ -78,6 +78,89 @@ export class WorkspaceComponent implements AfterViewInit {
     // clear the current workspace, reset as `WorkflowActionService.DEFAULT_WORKFLOW`
     this.workflowActionService.resetAsNewWorkflow();
 
+    this.registerLoadOperatorMetadata();
+
+    this.registerResultPanelToggleHandler();
+
+    if (environment.userSystemEnabled) {
+      this.registerReopenWebsocketUponUserChanges();
+    }
+  }
+
+  registerResultPanelToggleHandler() {
+    this.resultPanelToggleService
+      .getToggleChangeStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(value => (this.showResultPanel = value));
+  }
+
+  registerReopenWebsocketUponUserChanges() {
+    this.userService
+      .userChanged()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => this.workflowWebsocketService.reopenWebsocket());
+  }
+
+  registerAutoCacheWorkFlow(): void {
+    this.workflowActionService
+      .workflowChanged()
+      .pipe(debounceTime(100))
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.workflowCacheService.setCacheWorkflow(this.workflowActionService.getWorkflow());
+      });
+  }
+
+  registerAutoPersistWorkflow(): void {
+    this.workflowActionService
+      .workflowChanged()
+      .pipe(debounceTime(100))
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        if (this.userService.isLogin()) {
+          this.workflowPersistService
+            .persistWorkflow(this.workflowActionService.getWorkflow())
+            .pipe(untilDestroyed(this))
+            .subscribe((updatedWorkflow: Workflow) => {
+              this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
+              this.location.go(`/workflow/${updatedWorkflow.wid}`);
+            });
+          // to sync up with the updated information, such as workflow.wid
+        }
+      });
+  }
+
+  loadWorkflowWithId(wid: number): void {
+    // disable the workspace until the workflow is fetched from the backend
+    this.workflowActionService.disableWorkflowModification();
+    this.workflowPersistService
+      .retrieveWorkflow(wid)
+      .pipe(untilDestroyed(this))
+      .subscribe(
+        (workflow: Workflow) => {
+          // enable workspace for modification
+          this.workflowActionService.enableWorkflowModification();
+          // load the fetched workflow
+          this.workflowActionService.reloadWorkflow(workflow);
+          // clear stack
+          this.undoRedoService.clearUndoStack();
+          this.undoRedoService.clearRedoStack();
+        },
+        () => {
+          // enable workspace for modification
+          this.workflowActionService.enableWorkflowModification();
+          // clear the current workflow
+          this.workflowActionService.reloadWorkflow(undefined);
+          // clear stack
+          this.undoRedoService.clearUndoStack();
+          this.undoRedoService.clearRedoStack();
+
+          this.message.error("You don't have access to this workflow, please log in with an appropriate account");
+        }
+      );
+  }
+
+  registerLoadOperatorMetadata() {
     this.operatorMetadataService
       .getOperatorMetadata()
       .pipe(filter(metadata => metadata.operators.length !== 0))
@@ -107,69 +190,5 @@ export class WorkspaceComponent implements AfterViewInit {
           this.registerAutoCacheWorkFlow();
         }
       });
-
-    this.resultPanelToggleService
-      .getToggleChangeStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(value => (this.showResultPanel = value));
-  }
-
-  private registerAutoCacheWorkFlow(): void {
-    this.workflowActionService
-      .workflowChanged()
-      .pipe(debounceTime(100))
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        this.workflowCacheService.setCacheWorkflow(this.workflowActionService.getWorkflow());
-      });
-  }
-
-  private registerAutoPersistWorkflow(): void {
-    this.workflowActionService
-      .workflowChanged()
-      .pipe(debounceTime(100))
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        if (this.userService.isLogin()) {
-          this.workflowPersistService
-            .persistWorkflow(this.workflowActionService.getWorkflow())
-            .pipe(untilDestroyed(this))
-            .subscribe((updatedWorkflow: Workflow) => {
-              this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
-              this.location.go(`/workflow/${updatedWorkflow.wid}`);
-            });
-          // to sync up with the updated information, such as workflow.wid
-        }
-      });
-  }
-
-  private loadWorkflowWithId(wid: number): void {
-    // disable the workspace until the workflow is fetched from the backend
-    this.workflowActionService.disableWorkflowModification();
-    this.workflowPersistService
-      .retrieveWorkflow(wid)
-      .pipe(untilDestroyed(this))
-      .subscribe(
-        (workflow: Workflow) => {
-          // enable workspace for modification
-          this.workflowActionService.enableWorkflowModification();
-          // load the fetched workflow
-          this.workflowActionService.reloadWorkflow(workflow);
-          // clear stack
-          this.undoRedoService.clearUndoStack();
-          this.undoRedoService.clearRedoStack();
-        },
-        () => {
-          // enable workspace for modification
-          this.workflowActionService.enableWorkflowModification();
-          // clear the current workflow
-          this.workflowActionService.reloadWorkflow(undefined);
-          // clear stack
-          this.undoRedoService.clearUndoStack();
-          this.undoRedoService.clearRedoStack();
-
-          this.message.error("You don't have access to this workflow, please log in with an appropriate account");
-        }
-      );
   }
 }

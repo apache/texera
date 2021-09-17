@@ -28,7 +28,7 @@ export class WorkflowWebsocketService {
   private wsWithReconnectSubscription?: Subscription;
   private readonly webSocketResponseSubject: Subject<TexeraWebsocketEvent> = new Subject();
 
-  constructor(private userService: UserService) {
+  constructor() {
     // open a ws connection
     this.openWebsocket();
 
@@ -37,10 +37,6 @@ export class WorkflowWebsocketService {
 
     // refresh connection status
     this.websocketEvent().subscribe(_ => (this.isConnected = true));
-
-    if (environment.userSystemEnabled) {
-      this.registerReopenWebsocketUponUserChanges();
-    }
   }
 
   public websocketEvent(): Observable<TexeraWebsocketEvent> {
@@ -67,7 +63,7 @@ export class WorkflowWebsocketService {
     this.websocket?.next(request);
   }
 
-  private reopenWebsocket() {
+  public reopenWebsocket() {
     this.closeWebsocket();
     this.openWebsocket();
   }
@@ -106,10 +102,6 @@ export class WorkflowWebsocketService {
 
     // send hello world
     this.send("HelloWorldRequest", { message: "Texera on Amber" });
-  }
-
-  private registerReopenWebsocketUponUserChanges() {
-    this.userService.userChanged().subscribe(() => this.reopenWebsocket());
   }
 
   private static getWorkflowWebsocketUrl(): string {
