@@ -35,7 +35,7 @@ import javax.ws.rs.core.{MediaType, Response}
 import scala.util.{Failure, Success, Try}
 
 object UserResource {
-  final private val TOKEN_EXPIRE_TIME_IN_MIN = 120
+  final private val TOKEN_EXPIRE_TIME_IN_MIN = 30 * 24 * 60 // TODO: make this configurable
   private val SESSION_USER = "texera-user"
 
   /**
