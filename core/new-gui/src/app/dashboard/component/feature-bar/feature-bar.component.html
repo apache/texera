@@ -1,16 +1,28 @@
 <!--TODO: change to nz-menu-->
 <nz-list nzBordered>
   <nz-list-item>
-    <button class="feature-bar-btn" nz-button nzType="text" [routerLink]="['/dashboard/workflow']"
-            nz-tooltip="Open the saved workflows" nzTooltipPlacement="right">
-      <i class="feature-bar-btn-icon" nz-icon nzType="project" nzTheme="outline"></i>
+    <button
+      [routerLink]="['/dashboard/workflow']"
+      class="feature-bar-btn"
+      nz-button
+      nz-tooltip="Open the saved workflows"
+      nzTooltipPlacement="right"
+      nzType="text"
+    >
+      <i class="feature-bar-btn-icon" nz-icon nzTheme="outline" nzType="project"></i>
       Workflows
     </button>
   </nz-list-item>
   <nz-list-item>
-    <button class="feature-bar-btn" nz-button nzType="text" [routerLink]="['/dashboard/user-file']"
-            nz-tooltip="Look up the user files" nzTooltipPlacement="right">
-      <i class="feature-bar-btn-icon" nz-icon nzType="folder-open" nzTheme="outline"></i>
+    <button
+      [routerLink]="['/dashboard/user-file']"
+      class="feature-bar-btn"
+      nz-button
+      nz-tooltip="Look up the user files"
+      nzTooltipPlacement="right"
+      nzType="text"
+    >
+      <i class="feature-bar-btn-icon" nz-icon nzTheme="outline" nzType="folder-open"></i>
       User Files
     </button>
   </nz-list-item>
@@ -31,5 +43,4 @@
   <!--    <i class="fa fa-database" aria-hidden="true"></i>-->
   <!--    Data Source</button>-->
   <!--  <mat-divider></mat-divider>-->
-
 </nz-list>

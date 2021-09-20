@@ -1,4 +1,4 @@
-@import '../workspace.component.scss';
+@import "../workspace.component.scss";
 
 .texera-navigation-body {
   height: 100%;
@@ -40,11 +40,11 @@
     }
   }
 
-  .texera-navigation-user-icon{
+  .texera-navigation-user-icon {
     grid-column: 5/5;
     grid-row: 1/2;
     text-align: right;
-    z-index:2;
+    z-index: 2;
     overflow: visible;
   }
 
@@ -106,14 +106,14 @@
         font-style: italic;
       }
 
-      &:empty:after { // strange firefox bug (completely empty inline-block floats up?)
+      &:empty:after {
+        // strange firefox bug (completely empty inline-block floats up?)
         content: "\a0";
       }
 
       &:empty:not(:focus):after {
         content: attr(placeholder);
       }
-
 
       &:hover {
         box-shadow: 0 0 0 1px rgb(202, 202, 202);

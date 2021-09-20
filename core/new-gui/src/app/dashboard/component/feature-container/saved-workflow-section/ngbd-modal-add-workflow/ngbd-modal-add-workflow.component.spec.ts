@@ -1,34 +1,29 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
-import { MatDialogModule } from '@angular/material/dialog';
+import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
+import { MatDialogModule } from "@angular/material/dialog";
 
-import { NgbActiveModal, NgbModule } from '@ng-bootstrap/ng-bootstrap';
-import { FormsModule } from '@angular/forms';
+import { NgbActiveModal, NgbModule } from "@ng-bootstrap/ng-bootstrap";
+import { FormsModule } from "@angular/forms";
 
-import { HttpClientModule } from '@angular/common/http';
+import { HttpClientModule } from "@angular/common/http";
 
-import { NgbdModalAddWorkflowComponent } from './ngbd-modal-add-workflow.component';
+import { NgbdModalAddWorkflowComponent } from "./ngbd-modal-add-workflow.component";
 
-describe('NgbdModalAddProjectComponent', () => {
+describe("NgbdModalAddProjectComponent", () => {
   let component: NgbdModalAddWorkflowComponent;
   let fixture: ComponentFixture<NgbdModalAddWorkflowComponent>;
 
   let addcomponent: NgbdModalAddWorkflowComponent;
   let addfixture: ComponentFixture<NgbdModalAddWorkflowComponent>;
 
-  beforeEach(async(() => {
-    TestBed.configureTestingModule({
-      declarations: [NgbdModalAddWorkflowComponent],
-      providers: [
-        NgbActiveModal
-      ],
-      imports: [
-        MatDialogModule,
-        NgbModule,
-        FormsModule,
-        HttpClientModule]
+  beforeEach(
+    waitForAsync(() => {
+      TestBed.configureTestingModule({
+        declarations: [NgbdModalAddWorkflowComponent],
+        providers: [NgbActiveModal],
+        imports: [MatDialogModule, NgbModule, FormsModule, HttpClientModule],
+      }).compileComponents();
     })
-      .compileComponents();
-  }));
+  );
 
   beforeEach(() => {
     fixture = TestBed.createComponent(NgbdModalAddWorkflowComponent);
@@ -36,21 +31,21 @@ describe('NgbdModalAddProjectComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should create', () => {
+  it("should create", () => {
     expect(component).toBeTruthy();
   });
 
-  it('addWorkflowComponent addWorkflow should add new workflow', () => {
+  it("addWorkflowComponent addWorkflow should add new workflow", () => {
     addfixture = TestBed.createComponent(NgbdModalAddWorkflowComponent);
     addcomponent = addfixture.componentInstance;
     addfixture.detectChanges();
 
     let getResult: String;
-    getResult = '';
-    addcomponent.name = 'test';
+    getResult = "";
+    addcomponent.name = "test";
     // addcomponent.newProject.subscribe((out: any) => getResult = out);
     addcomponent.addWorkflow();
 
-    expect(getResult).toEqual('');
+    expect(getResult).toEqual("");
   });
 });

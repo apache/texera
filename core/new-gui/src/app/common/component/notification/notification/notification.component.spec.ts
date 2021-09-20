@@ -1,19 +1,20 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 
-import { NotificationComponent } from './notification.component';
-import { NzMessageModule } from 'ng-zorro-antd/message';
+import { NotificationComponent } from "./notification.component";
+import { NzMessageModule } from "ng-zorro-antd/message";
 
-describe('NotificationComponent', () => {
+describe("NotificationComponent", () => {
   let component: NotificationComponent;
   let fixture: ComponentFixture<NotificationComponent>;
 
-  beforeEach(async(() => {
-    TestBed.configureTestingModule({
-      declarations: [NotificationComponent],
-      imports: [NzMessageModule]
+  beforeEach(
+    waitForAsync(() => {
+      TestBed.configureTestingModule({
+        declarations: [NotificationComponent],
+        imports: [NzMessageModule],
+      }).compileComponents();
     })
-      .compileComponents();
-  }));
+  );
 
   beforeEach(() => {
     fixture = TestBed.createComponent(NotificationComponent);
@@ -21,7 +22,7 @@ describe('NotificationComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should create', () => {
+  it("should create", () => {
     expect(component).toBeTruthy();
   });
 });

@@ -22,8 +22,6 @@ object ControllerEvent {
 
   case class WorkflowResultUpdate(operatorResults: Map[String, OperatorResult])
 
-  case class ModifyLogicCompleted()
-
   case class BreakpointTriggered(
       report: mutable.HashMap[(ActorVirtualIdentity, FaultedTuple), Array[String]],
       operatorID: String = null
@@ -33,8 +31,6 @@ object ControllerEvent {
       message: String,
       operatorID: String = null
   )
-
-  case class SkipTupleResponse()
 
   case class ErrorOccurred(error: Throwable)
 

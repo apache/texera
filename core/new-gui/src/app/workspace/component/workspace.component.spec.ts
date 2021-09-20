@@ -1,4 +1,1 @@
-
-describe('WorkspaceComponent', () => {
-
-});
+describe("WorkspaceComponent", () => {});

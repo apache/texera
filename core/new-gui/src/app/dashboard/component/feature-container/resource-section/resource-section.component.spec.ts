@@ -1,17 +1,18 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 
-import { ResourceSectionComponent } from './resource-section.component';
+import { ResourceSectionComponent } from "./resource-section.component";
 
-describe('ResourceSectionComponent', () => {
+describe("ResourceSectionComponent", () => {
   let component: ResourceSectionComponent;
   let fixture: ComponentFixture<ResourceSectionComponent>;
 
-  beforeEach(async(() => {
-    TestBed.configureTestingModule({
-      declarations: [ResourceSectionComponent]
+  beforeEach(
+    waitForAsync(() => {
+      TestBed.configureTestingModule({
+        declarations: [ResourceSectionComponent],
+      }).compileComponents();
     })
-      .compileComponents();
-  }));
+  );
 
   beforeEach(() => {
     fixture = TestBed.createComponent(ResourceSectionComponent);
@@ -19,7 +20,7 @@ describe('ResourceSectionComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should create', () => {
+  it("should create", () => {
     expect(component).toBeTruthy();
   });
 });

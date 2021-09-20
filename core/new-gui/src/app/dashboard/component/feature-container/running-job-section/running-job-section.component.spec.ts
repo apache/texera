@@ -1,17 +1,18 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 
-import { RunningJobSectionComponent } from './running-job-section.component';
+import { RunningJobSectionComponent } from "./running-job-section.component";
 
-describe('RunningJobSectionComponent', () => {
+describe("RunningJobSectionComponent", () => {
   let component: RunningJobSectionComponent;
   let fixture: ComponentFixture<RunningJobSectionComponent>;
 
-  beforeEach(async(() => {
-    TestBed.configureTestingModule({
-      declarations: [RunningJobSectionComponent]
+  beforeEach(
+    waitForAsync(() => {
+      TestBed.configureTestingModule({
+        declarations: [RunningJobSectionComponent],
+      }).compileComponents();
     })
-      .compileComponents();
-  }));
+  );
 
   beforeEach(() => {
     fixture = TestBed.createComponent(RunningJobSectionComponent);
@@ -19,7 +20,7 @@ describe('RunningJobSectionComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should create', () => {
+  it("should create", () => {
     expect(component).toBeTruthy();
   });
 });

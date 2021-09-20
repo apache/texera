@@ -1,15 +1,17 @@
-import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs/Observable';
-import { of } from 'rxjs';
-import { WorkflowAccessService } from './workflow-access.service';
-import { Workflow, WorkflowContent } from '../../../common/type/workflow';
-import { jsonCast } from '../../../common/util/storage';
+import { Injectable } from "@angular/core";
+import { Observable } from "rxjs";
+import { of } from "rxjs";
+import { WorkflowAccessService } from "./workflow-access.service";
+import { Workflow, WorkflowContent } from "../../../common/type/workflow";
+import { jsonCast } from "../../../common/util/storage";
 import { AccessEntry } from "../../type/access.interface";
 
 export const MOCK_WORKFLOW: Workflow = {
   wid: 1,
-  name: 'project 1',
-  content: jsonCast<WorkflowContent>(' {"operators":[],"operatorPositions":{},"links":[],"groups":[],"breakpoints":{}}'),
+  name: "project 1",
+  content: jsonCast<WorkflowContent>(
+    " {\"operators\":[],\"operatorPositions\":{},\"links\":[],\"groups\":[],\"breakpoints\":{}}"
+  ),
   creationTime: 1,
   lastModifiedTime: 2,
 };
@@ -20,11 +22,9 @@ type PublicInterfaceOf<Class> = {
 
 @Injectable()
 export class StubWorkflowAccessService implements PublicInterfaceOf<WorkflowAccessService> {
-
-
   public workflow: Workflow;
 
-  public message: string = 'This is testing';
+  public message: string = "This is testing";
 
   public mapString: AccessEntry[] = [];
 
@@ -40,7 +40,6 @@ export class StubWorkflowAccessService implements PublicInterfaceOf<WorkflowAcce
     return of();
   }
 
-
   public revokeWorkflowAccess(workflow: Workflow, username: string): Observable<Response> {
     return of();
   }
@@ -48,6 +47,4 @@ export class StubWorkflowAccessService implements PublicInterfaceOf<WorkflowAcce
   public getWorkflowOwner(workflow: Workflow): Observable<Readonly<{ ownerName: string }>> {
     return of();
   }
-
-
 }

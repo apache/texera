@@ -1,37 +1,48 @@
 <div class="modal-header">
   <h4 class="modal-title">Add Files</h4>
-  <button type="button" class="close" aria-label="Close" (click)="activeModal.dismiss('close')">
+  <button (click)="activeModal.dismiss('close')" aria-label="Close" class="close" type="button">
     <span aria-hidden="true">&times;</span>
   </button>
 </div>
 <div class="modal-body">
-  <div ng2FileDrop [ngClass]="{'have-file-over': haveDropZoneOver}" (fileOver)="haveFileOver($event)"
-    (onFileDrop)="getFileDropped($event)" [uploader]="uploader" class="drag-file-area" (click)="clickUpload.click()">
-
+  <div
+    (click)="clickUpload.click()"
+    (fileOver)="haveFileOver($event)"
+    (onFileDrop)="getFileDropped($event)"
+    [ngClass]="{ 'have-file-over': haveDropZoneOver }"
+    [uploader]="uploader"
+    class="drag-file-area"
+    ng2FileDrop
+  >
     Drop Files Here
     <div id="hide">
-      <input #clickUpload type="file" accept=".txt" (change)="handleClickUploadFile($event)" multiple />
+      <input #clickUpload (change)="handleClickUploadFile($event)" accept=".txt" multiple type="file" />
     </div>
-
   </div>
   <div *ngIf="getFileArrayLength()">
     <li *ngFor="let fileUploadItem of getFileArray()" class="file-queue-item">
       <span>
         <label>{{ fileUploadItem.name }}</label>
       </span>
-      <button class="queue-delete-button" (click)="deleteFile(fileUploadItem)"
-        [disabled]="fileUploadItem.isUploadingFlag">
-        <i class="fa fa-trash" aria-hidden="true"></i>
+      <button
+        (click)="deleteFile(fileUploadItem)"
+        [disabled]="fileUploadItem.isUploadingFlag"
+        class="queue-delete-button"
+      >
+        <i aria-hidden="true" class="fa fa-trash"></i>
       </button>
     </li>
   </div>
-
 </div>
 <div class="modal-footer">
   <div *ngIf="getFileArrayLength()">
-    <button class="btn btn-primary btn-xs bottom-upload bottom-size" (click)="uploadAllFiles()"
-      [disabled]="isUploadAllButtonDisabled()"> upload
+    <button
+      (click)="uploadAllFiles()"
+      [disabled]="isUploadAllButtonDisabled()"
+      class="btn btn-primary btn-xs bottom-upload bottom-size"
+    >
+      upload
     </button>
   </div>
-  <button class="btn btn-outline-dark bottom-size" (click)="activeModal.dismiss('close')">Close</button>
+  <button (click)="activeModal.dismiss('close')" class="btn btn-outline-dark bottom-size">Close</button>
 </div>

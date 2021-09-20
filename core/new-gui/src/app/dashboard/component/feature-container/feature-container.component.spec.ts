@@ -1,19 +1,20 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 
-import { FeatureContainerComponent } from './feature-container.component';
-import { RouterTestingModule } from '@angular/router/testing';
+import { FeatureContainerComponent } from "./feature-container.component";
+import { RouterTestingModule } from "@angular/router/testing";
 
-describe('FeatureContainerComponent', () => {
+describe("FeatureContainerComponent", () => {
   let component: FeatureContainerComponent;
   let fixture: ComponentFixture<FeatureContainerComponent>;
 
-  beforeEach(async(() => {
-    TestBed.configureTestingModule({
-      declarations: [FeatureContainerComponent],
-      imports: [RouterTestingModule]
+  beforeEach(
+    waitForAsync(() => {
+      TestBed.configureTestingModule({
+        declarations: [FeatureContainerComponent],
+        imports: [RouterTestingModule],
+      }).compileComponents();
     })
-      .compileComponents();
-  }));
+  );
 
   beforeEach(() => {
     fixture = TestBed.createComponent(FeatureContainerComponent);
@@ -21,7 +22,7 @@ describe('FeatureContainerComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should create', () => {
+  it("should create", () => {
     expect(component).toBeTruthy();
   });
 });

@@ -1,11 +1,16 @@
-import { Subject } from 'rxjs/Subject';
-import { Observable } from 'rxjs/Observable';
-import { OperatorPredicate, OperatorLink, OperatorPort, Breakpoint, Point } from '../../../types/workflow-common.interface';
-import { isEqual } from 'lodash';
+import { Observable, Subject } from "rxjs";
+import { Breakpoint, OperatorLink, OperatorPort, OperatorPredicate } from "../../../types/workflow-common.interface";
+import { isEqual } from "lodash-es";
 
 // define the restricted methods that could change the graph
 type restrictedMethods =
-  'addOperator' | 'deleteOperator' | 'addLink' | 'deleteLink' | 'deleteLinkWithID' | 'setOperatorProperty' | 'setLinkBreakpoint';
+  | "addOperator"
+  | "deleteOperator"
+  | "addLink"
+  | "deleteLink"
+  | "deleteLinkWithID"
+  | "setOperatorProperty"
+  | "setLinkBreakpoint";
 
 /**
  * WorkflowGraphReadonly is a type that only contains the readonly methods of WorkflowGraph.
@@ -15,6 +20,11 @@ type restrictedMethods =
  */
 export type WorkflowGraphReadonly = Omit<WorkflowGraph, restrictedMethods>;
 
+export const PYTHON_UDF_V2_OP_TYPE = "PythonUDFV2";
+
+export const VIEW_RESULT_OP_TYPE = "SimpleSink";
+export const VIEW_RESULT_OP_NAME = "View Results";
+
 /**
  * WorkflowGraph represents the Texera's logical WorkflowGraph,
  *  it's a graph consisted of operators <OperatorPredicate> and links <OpreatorLink>,
@@ -22,23 +32,41 @@ export type WorkflowGraphReadonly = Omit<WorkflowGraph, restrictedMethods>;
  *
  */
 export class WorkflowGraph {
-
   private readonly operatorIDMap = new Map<string, OperatorPredicate>();
   private readonly operatorLinkMap = new Map<string, OperatorLink>();
   private readonly linkBreakpointMap = new Map<string, Breakpoint>();
 
   private readonly operatorAddSubject = new Subject<OperatorPredicate>();
-  private readonly operatorDeleteSubject = new Subject<{ deletedOperator: OperatorPredicate }>();
-  private readonly disabledOperatorChangedSubject = new Subject<{ newDisabled: string[], newEnabled: string[] }>();
-  private readonly linkAddSubject = new Subject<OperatorLink>();
-  private readonly linkDeleteSubject = new Subject<{ deletedLink: OperatorLink }>();
-  private readonly operatorPropertyChangeSubject = new Subject<{ oldProperty: object, operator: OperatorPredicate }>();
-  private readonly breakpointChangeStream = new Subject<{ oldBreakpoint: object | undefined, linkID: string }>();
 
-  constructor(
-    operatorPredicates: OperatorPredicate[] = [],
-    operatorLinks: OperatorLink[] = []
-  ) {
+  private readonly operatorDeleteSubject = new Subject<{
+    deletedOperator: OperatorPredicate;
+  }>();
+  private readonly disabledOperatorChangedSubject = new Subject<{
+    newDisabled: string[];
+    newEnabled: string[];
+  }>();
+  private readonly cachedOperatorChangedSubject = new Subject<{
+    newCached: string[];
+    newUnCached: string[];
+  }>();
+  private readonly operatorDisplayNameChangedSubject = new Subject<{
+    operatorID: string;
+    newDisplayName: string;
+  }>();
+  private readonly linkAddSubject = new Subject<OperatorLink>();
+  private readonly linkDeleteSubject = new Subject<{
+    deletedLink: OperatorLink;
+  }>();
+  private readonly operatorPropertyChangeSubject = new Subject<{
+    oldProperty: object;
+    operator: OperatorPredicate;
+  }>();
+  private readonly breakpointChangeStream = new Subject<{
+    oldBreakpoint: object | undefined;
+    linkID: string;
+  }>();
+
+  constructor(operatorPredicates: OperatorPredicate[] = [], operatorLinks: OperatorLink[] = []) {
     operatorPredicates.forEach(op => this.operatorIDMap.set(op.operatorID, op));
     operatorLinks.forEach(link => this.operatorLinkMap.set(link.linkID, link));
   }
@@ -76,8 +104,11 @@ export class WorkflowGraph {
     if (this.isOperatorDisabled(operatorID)) {
       return;
     }
-    this.operatorIDMap.set(operatorID, {...operator, isDisabled: true});
-    this.disabledOperatorChangedSubject.next({ newDisabled: [operatorID], newEnabled: [] });
+    this.operatorIDMap.set(operatorID, { ...operator, isDisabled: true });
+    this.disabledOperatorChangedSubject.next({
+      newDisabled: [operatorID],
+      newEnabled: [],
+    });
   }
 
   public enableOperator(operatorID: string): void {
@@ -85,11 +116,26 @@ export class WorkflowGraph {
     if (!operator) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
-    if (! this.isOperatorDisabled(operatorID)) {
+    if (!this.isOperatorDisabled(operatorID)) {
       return;
     }
-    this.operatorIDMap.set(operatorID, {...operator, isDisabled: false});
-    this.disabledOperatorChangedSubject.next({ newDisabled: [], newEnabled: [operatorID] });
+    this.operatorIDMap.set(operatorID, { ...operator, isDisabled: false });
+    this.disabledOperatorChangedSubject.next({
+      newDisabled: [],
+      newEnabled: [operatorID],
+    });
+  }
+
+  public changeOperatorDisplayName(operatorID: string, newDisplayName: string): void {
+    const operator = this.getOperator(operatorID);
+    if (operator.customDisplayName === newDisplayName) {
+      return;
+    }
+    this.operatorIDMap.set(operatorID, {
+      ...operator,
+      customDisplayName: newDisplayName,
+    });
+    this.operatorDisplayNameChangedSubject.next({ operatorID, newDisplayName });
   }
 
   public isOperatorDisabled(operatorID: string): boolean {
@@ -102,6 +148,51 @@ export class WorkflowGraph {
 
   public getDisabledOperators(): ReadonlySet<string> {
     return new Set(Array.from(this.operatorIDMap.keys()).filter(op => this.isOperatorDisabled(op)));
+  }
+
+  public cacheOperator(operatorID: string): void {
+    const operator = this.getOperator(operatorID);
+    if (!operator) {
+      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+    }
+    if (operator.operatorType === VIEW_RESULT_OP_TYPE) {
+      return;
+    }
+    if (this.isOperatorCached(operatorID)) {
+      return;
+    }
+    this.operatorIDMap.set(operatorID, { ...operator, isCached: true });
+    this.cachedOperatorChangedSubject.next({
+      newCached: [operatorID],
+      newUnCached: [],
+    });
+  }
+
+  public unCacheOperator(operatorID: string): void {
+    const operator = this.getOperator(operatorID);
+    if (!operator) {
+      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+    }
+    if (!this.isOperatorCached(operatorID)) {
+      return;
+    }
+    this.operatorIDMap.set(operatorID, { ...operator, isCached: false });
+    this.cachedOperatorChangedSubject.next({
+      newCached: [],
+      newUnCached: [operatorID],
+    });
+  }
+
+  public isOperatorCached(operatorID: string): boolean {
+    const operator = this.getOperator(operatorID);
+    if (!operator) {
+      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+    }
+    return operator.isCached ?? false;
+  }
+
+  public getCachedOperators(): ReadonlySet<string> {
+    return new Set(Array.from(this.operatorIDMap.keys()).filter(op => this.isOperatorCached(op)));
   }
 
   /**
@@ -133,7 +224,7 @@ export class WorkflowGraph {
   }
 
   public getAllEnabledOperators(): ReadonlyArray<OperatorPredicate> {
-    return Array.from(this.operatorIDMap.values()).filter(op => ! this.isOperatorDisabled(op.operatorID));
+    return Array.from(this.operatorIDMap.values()).filter(op => !this.isOperatorDisabled(op.operatorID));
   }
 
   /**
@@ -208,7 +299,7 @@ export class WorkflowGraph {
 
   public isLinkEnabled(linkID: string): boolean {
     const link = this.getLinkWithID(linkID);
-    return ! this.isOperatorDisabled(link.source.operatorID) && ! this.isOperatorDisabled(link.target.operatorID);
+    return !this.isOperatorDisabled(link.source.operatorID) && !this.isOperatorDisabled(link.target.operatorID);
   }
 
   /**
@@ -231,14 +322,12 @@ export class WorkflowGraph {
    * @param target target operator and port of the link
    */
   public getLink(source: OperatorPort, target: OperatorPort): OperatorLink {
-    const links = this.getAllLinks().filter(
-      value => isEqual(value.source, source) && isEqual(value.target, target)
-    );
+    const links = this.getAllLinks().filter(value => isEqual(value.source, source) && isEqual(value.target, target));
     if (links.length === 0) {
       throw new Error(`link with source ${source} and target ${target} does not exist`);
     }
     if (links.length > 1) {
-      throw new Error(`WorkflowGraph inconsistency: find duplicate links with same source and target`);
+      throw new Error("WorkflowGraph inconsistency: find duplicate links with same source and target");
     }
     return links[0];
   }
@@ -348,12 +437,31 @@ export class WorkflowGraph {
    * Gets the observable event stream of an operator being deleted from the graph.
    * The observable value is the deleted operator.
    */
-  public getOperatorDeleteStream(): Observable<{ deletedOperator: OperatorPredicate }> {
+  public getOperatorDeleteStream(): Observable<{
+    deletedOperator: OperatorPredicate;
+  }> {
     return this.operatorDeleteSubject.asObservable();
   }
 
-  public getDisabledOperatorsChangedStream(): Observable<{ newDisabled: ReadonlyArray<string>, newEnabled: ReadonlyArray<string> }> {
+  public getDisabledOperatorsChangedStream(): Observable<{
+    newDisabled: ReadonlyArray<string>;
+    newEnabled: ReadonlyArray<string>;
+  }> {
     return this.disabledOperatorChangedSubject.asObservable();
+  }
+
+  public getCachedOperatorsChangedStream(): Observable<{
+    newCached: ReadonlyArray<string>;
+    newUnCached: ReadonlyArray<string>;
+  }> {
+    return this.cachedOperatorChangedSubject.asObservable();
+  }
+
+  public getOperatorDisplayNameChangedStream(): Observable<{
+    operatorID: string;
+    newDisplayName: string;
+  }> {
+    return this.operatorDisplayNameChangedSubject.asObservable();
   }
 
   /**
@@ -375,14 +483,20 @@ export class WorkflowGraph {
    * Gets the observable event stream of a change in operator's properties.
    * The observable value includes the old property that is replaced, and the operator with new property.
    */
-  public getOperatorPropertyChangeStream(): Observable<{ oldProperty: object, operator: OperatorPredicate }> {
+  public getOperatorPropertyChangeStream(): Observable<{
+    oldProperty: object;
+    operator: OperatorPredicate;
+  }> {
     return this.operatorPropertyChangeSubject.asObservable();
   }
 
   /**
    * Gets the observable event stream of a link breakpoint is changed.
    */
-  public getBreakpointChangeStream(): Observable<{ oldBreakpoint: object | undefined, linkID: string }> {
+  public getBreakpointChangeStream(): Observable<{
+    oldBreakpoint: object | undefined;
+    linkID: string;
+  }> {
     return this.breakpointChangeStream.asObservable();
   }
 
@@ -450,7 +564,6 @@ export class WorkflowGraph {
    * @param link
    */
   public assertLinkIsValid(link: OperatorLink): void {
-
     const sourceOperator = this.getOperator(link.source.operatorID);
     if (!sourceOperator) {
       throw new Error(`link's source operator ${link.source.operatorID} doesn't exist`);
@@ -461,17 +574,13 @@ export class WorkflowGraph {
       throw new Error(`link's target operator ${link.target.operatorID} doesn't exist`);
     }
 
-    if (sourceOperator.outputPorts.find(
-      (port) => port.portID === link.source.portID) === undefined) {
+    if (sourceOperator.outputPorts.find(port => port.portID === link.source.portID) === undefined) {
       throw new Error(`link's source port ${link.source.portID} doesn't exist
           on output ports of the source operator ${link.source.operatorID}`);
     }
-    if (targetOperator.inputPorts.find(
-      (port) => port.portID === link.target.portID) === undefined) {
+    if (targetOperator.inputPorts.find(port => port.portID === link.target.portID) === undefined) {
       throw new Error(`link's target port ${link.target.portID} doesn't exist
           on input ports of the target operator ${link.target.operatorID}`);
     }
   }
-
-
 }

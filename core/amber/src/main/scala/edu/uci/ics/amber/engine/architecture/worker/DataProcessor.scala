@@ -9,6 +9,7 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue._
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.COMPLETED
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{COMPLETED, PAUSED}
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
@@ -126,6 +127,8 @@ class DataProcessor( // dependencies:
     if (outputTuple != null) {
       if (breakpointManager.evaluateTuple(outputTuple)) {
         pauseManager.pause()
+        disableDataQueue()
+        stateManager.transitTo(PAUSED)
       } else {
         outputTupleCount += 1
         batchProducer.passTupleToDownstream(outputTuple)

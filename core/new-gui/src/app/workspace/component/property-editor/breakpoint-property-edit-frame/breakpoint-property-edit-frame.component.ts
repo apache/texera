@@ -1,17 +1,17 @@
-import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from '@angular/core';
-import { cloneDeep, isEqual } from 'lodash';
-import { ExecuteWorkflowService } from '../../../service/execute-workflow/execute-workflow.service';
-import { DynamicSchemaService } from '../../../service/dynamic-schema/dynamic-schema.service';
-import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
-import { FormlyJsonschema } from '@ngx-formly/core/json-schema';
-import { ExecutionState } from 'src/app/workspace/types/execute-workflow.interface';
-import { FormGroup } from '@angular/forms';
-import { Subject } from 'rxjs/Subject';
-import { FormlyFieldConfig, FormlyFormOptions } from '@ngx-formly/core';
-import { CustomJSONSchema7 } from '../../../types/custom-json-schema.interface';
-import { Subscription } from 'rxjs';
-import { createOutputFormChangeEventStream } from 'src/app/common/formly/formly-utils';
-
+import { Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
+import { cloneDeep, isEqual } from "lodash-es";
+import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
+import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
+import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
+import { FormlyJsonschema } from "@ngx-formly/core/json-schema";
+import { ExecutionState } from "src/app/workspace/types/execute-workflow.interface";
+import { FormGroup } from "@angular/forms";
+import { Subject } from "rxjs";
+import { FormlyFieldConfig, FormlyFormOptions } from "@ngx-formly/core";
+import { CustomJSONSchema7 } from "../../../types/custom-json-schema.interface";
+import { createOutputFormChangeEventStream } from "src/app/common/formly/formly-utils";
+import { filter } from "rxjs/operators";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 /**
  * Property Editor uses JSON Schema to automatically generate the form from the JSON Schema of an operator.
@@ -29,24 +29,24 @@ import { createOutputFormChangeEventStream } from 'src/app/common/formly/formly-
  * We use library `@ngx-formly` to generate form from json schema
  * https://github.com/ngx-formly/ngx-formly
  */
+@UntilDestroy()
 @Component({
-  selector: 'texera-breakpoint-frame',
-  templateUrl: './breakpoint-property-edit-frame.component.html',
-  styleUrls: ['./breakpoint-property-edit-frame.component.scss']
+  selector: "texera-breakpoint-frame",
+  templateUrl: "./breakpoint-property-edit-frame.component.html",
+  styleUrls: ["./breakpoint-property-edit-frame.component.scss"],
 })
-export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy, OnChanges {
-  subscriptions = new Subscription();
-
+export class BreakpointPropertyEditFrameComponent implements OnInit, OnChanges {
   @Input() currentLinkId: string | undefined;
 
   // whether the editor can be edited
   interactive: boolean = true;
 
   // the source event stream of form change triggered by library at each user input
-  sourceFormChangeEventStream = new Subject<object>();
+  sourceFormChangeEventStream = new Subject<Record<string, unknown>>();
 
-  breakpointChangeStream = createOutputFormChangeEventStream(
-    this.sourceFormChangeEventStream, data => this.checkBreakpoint(data));
+  breakpointChangeStream = createOutputFormChangeEventStream(this.sourceFormChangeEventStream, data =>
+    this.checkBreakpoint(data)
+  );
 
   // inputs and two-way bindings to formly component
   formlyFormGroup: FormGroup | undefined;
@@ -60,22 +60,16 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy, 
     private workflowActionService: WorkflowActionService,
     private autocompleteService: DynamicSchemaService,
     private executeWorkflowService: ExecuteWorkflowService
-  ) { }
+  ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
     this.currentLinkId = changes.currentLinkId?.currentValue;
     if (this.currentLinkId) {
       this.showBreakpointEditor(this.currentLinkId);
     }
-
-  }
-
-  ngOnDestroy(): void {
-    this.subscriptions.unsubscribe();
   }
 
   ngOnInit(): void {
-
     // when the operator's property is updated via program instead of user updating the json schema form,
     //  this observable will be responsible in handling these events.
     this.registerOperatorPropertyChangeHandler();
@@ -83,7 +77,6 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy, 
     // handle the form change event on the user interface to actually set the operator property
     this.registerOnFormChangeHandler();
   }
-
 
   /**
    * This method handles the form change event
@@ -102,8 +95,10 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy, 
   handleAddBreakpoint() {
     if (this.currentLinkId && this.workflowActionService.getTexeraGraph().hasLinkWithID(this.currentLinkId)) {
       this.workflowActionService.setLinkBreakpoint(this.currentLinkId, this.formData);
-      if (this.executeWorkflowService.getExecutionState().state === ExecutionState.Paused ||
-        this.executeWorkflowService.getExecutionState().state === ExecutionState.BreakpointTriggered) {
+      if (
+        this.executeWorkflowService.getExecutionState().state === ExecutionState.Paused ||
+        this.executeWorkflowService.getExecutionState().state === ExecutionState.BreakpointTriggered
+      ) {
         this.executeWorkflowService.addBreakpointRuntime(this.currentLinkId, this.formData);
       }
     }
@@ -125,19 +120,25 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy, 
 
   showBreakpointEditor(linkID: string): void {
     if (!this.workflowActionService.getTexeraGraph().hasLinkWithID(linkID)) {
-      throw new Error(`change property editor: link does not exist`);
+      throw new Error("change property editor: link does not exist");
     }
     // set the operator data needed
     this.currentLinkId = linkID;
     const breakpointSchema = this.autocompleteService.getDynamicBreakpointSchema(linkID).jsonSchema;
 
-    this.formTitle = 'Breakpoint';
+    this.formTitle = "Breakpoint";
     const breakpoint = this.workflowActionService.getTexeraGraph().getLinkBreakpoint(linkID);
     this.formData = breakpoint !== undefined ? cloneDeep(breakpoint) : {};
     this.setFormlyFormBinding(breakpointSchema);
 
-    const interactive = this.executeWorkflowService.getExecutionState().state in [ExecutionState.Uninitialized,
-      ExecutionState.Paused, ExecutionState.BreakpointTriggered, ExecutionState.Completed];
+    const interactive =
+      this.executeWorkflowService.getExecutionState().state in
+      [
+        ExecutionState.Uninitialized,
+        ExecutionState.Paused,
+        ExecutionState.BreakpointTriggered,
+        ExecutionState.Completed,
+      ];
     this.setInteractivity(interactive);
   }
 
@@ -169,7 +170,7 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy, 
    * It only serves as a bridge from a callback function to RxJS Observable
    * @param event
    */
-  onFormChanges(event: object): void {
+  onFormChanges(event: Record<string, unknown>): void {
     this.sourceFormChangeEventStream.next(event);
   }
 
@@ -195,22 +196,35 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy, 
    *  invalid fields, this form will capture those events.
    */
   registerOperatorPropertyChangeHandler(): void {
-    this.subscriptions.add(this.workflowActionService.getTexeraGraph().getBreakpointChangeStream()
-      .filter(_ => this.currentLinkId !== undefined)
-      .filter(event => event.linkID === this.currentLinkId)
-      .filter(event => !isEqual(this.formData, this.workflowActionService.getTexeraGraph().getLinkBreakpoint(event.linkID)))
-      .subscribe(event => this.formData = cloneDeep(this.workflowActionService.getTexeraGraph().getLinkBreakpoint(event.linkID))));
+    this.workflowActionService
+      .getTexeraGraph()
+      .getBreakpointChangeStream()
+      .pipe(
+        filter(_ => this.currentLinkId !== undefined),
+        filter(event => event.linkID === this.currentLinkId),
+        filter(
+          event => !isEqual(this.formData, this.workflowActionService.getTexeraGraph().getLinkBreakpoint(event.linkID))
+        )
+      )
+      .pipe(untilDestroyed(this))
+      .subscribe(
+        event =>
+          (this.formData = cloneDeep(this.workflowActionService.getTexeraGraph().getLinkBreakpoint(event.linkID)))
+      );
   }
 
   setFormlyFormBinding(schema: CustomJSONSchema7) {
     // intercept JsonSchema -> FormlySchema process, adding custom options
     // this requires a one-to-one mapping.
     // for relational custom options, have to do it after FormlySchema is generated.
-    const jsonSchemaMapIntercept = (mappedField: FormlyFieldConfig, mapSource: CustomJSONSchema7): FormlyFieldConfig => {
+    const jsonSchemaMapIntercept = (
+      mappedField: FormlyFieldConfig,
+      mapSource: CustomJSONSchema7
+    ): FormlyFieldConfig => {
       // if the title is python script (for Python UDF), then make this field a custom template 'codearea'
-      if (mapSource?.description?.toLowerCase() === 'input your code here') {
+      if (mapSource?.description?.toLowerCase() === "input your code here") {
         if (mappedField.type) {
-          mappedField.type = 'codearea';
+          mappedField.type = "codearea";
         }
       }
       return mappedField;
@@ -219,13 +233,15 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnDestroy, 
     this.formlyFormGroup = new FormGroup({});
     this.formlyOptions = {};
     // convert the json schema to formly config, pass a copy because formly mutates the schema object
-    const field = this.formlyJsonschema.toFieldConfig(cloneDeep(schema), { map: jsonSchemaMapIntercept });
+    const field = this.formlyJsonschema.toFieldConfig(cloneDeep(schema), {
+      map: jsonSchemaMapIntercept,
+    });
     field.hooks = {
-      onInit: (fieldConfig) => {
+      onInit: fieldConfig => {
         if (!this.interactive) {
           fieldConfig?.form?.disable();
         }
-      }
+      },
     };
     this.formlyFields = field.fieldGroup;
   }

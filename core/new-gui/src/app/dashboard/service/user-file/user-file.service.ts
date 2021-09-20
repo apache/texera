@@ -1,10 +1,10 @@
-import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
-import { Observable, Subject } from 'rxjs';
-import { AppSettings } from '../../../common/app-setting';
-import { DashboardUserFileEntry, UserFile } from '../../type/dashboard-user-file-entry';
-import { UserService } from '../../../common/service/user/user.service';
-import { AccessEntry } from '../../type/access.interface';
+import { HttpClient } from "@angular/common/http";
+import { Injectable } from "@angular/core";
+import { Observable, Subject } from "rxjs";
+import { AppSettings } from "../../../common/app-setting";
+import { DashboardUserFileEntry, UserFile } from "../../type/dashboard-user-file-entry";
+import { UserService } from "../../../common/service/user/user.service";
+import { AccessEntry } from "../../type/access.interface";
 
 export const USER_FILE_BASE_URL = `${AppSettings.getApiEndpoint()}/user/file`;
 export const USER_FILE_LIST_URL = `${USER_FILE_BASE_URL}/list`;
@@ -15,19 +15,14 @@ export const USER_FILE_ACCESS_GRANT_URL = `${USER_FILE_ACCESS_BASE_URL}/grant`;
 export const USER_FILE_ACCESS_LIST_URL = `${USER_FILE_ACCESS_BASE_URL}/list`;
 export const USER_FILE_ACCESS_REVOKE_URL = `${USER_FILE_ACCESS_BASE_URL}/revoke`;
 
-
 @Injectable({
-  providedIn: 'root'
+  providedIn: "root",
 })
 export class UserFileService {
   private dashboardUserFileEntries: ReadonlyArray<DashboardUserFileEntry> = [];
   private dashboardUserFileEntryChanged = new Subject<null>();
 
-
-  constructor(
-    private http: HttpClient,
-    private userService: UserService
-  ) {
+  constructor(private http: HttpClient, private userService: UserService) {
     this.detectUserChanges();
   }
 
@@ -54,12 +49,10 @@ export class UserFileService {
       return;
     }
 
-    this.retrieveDashboardUserFileEntryList().subscribe(
-      dashboardUserFileEntries => {
-        this.dashboardUserFileEntries = dashboardUserFileEntries;
-        this.dashboardUserFileEntryChanged.next();
-      }
-    );
+    this.retrieveDashboardUserFileEntryList().subscribe(dashboardUserFileEntries => {
+      this.dashboardUserFileEntries = dashboardUserFileEntries;
+      this.dashboardUserFileEntryChanged.next();
+    });
   }
 
   /**
@@ -68,12 +61,13 @@ export class UserFileService {
    * @param targetUserFileEntry
    */
   public deleteDashboardUserFileEntry(targetUserFileEntry: DashboardUserFileEntry): void {
-
-    this.http.delete<Response>(
-      `${USER_FILE_DELETE_URL}/${targetUserFileEntry.file.name}/${targetUserFileEntry.ownerName}`).subscribe(
-      () => this.refreshDashboardUserFileEntries(),
-      err => alert('Can\'t delete the file entry: ' + err.error)
-    );
+    this.http
+      .delete<Response>(`${USER_FILE_DELETE_URL}/${targetUserFileEntry.file.name}/${targetUserFileEntry.ownerName}`)
+      .subscribe(
+        () => this.refreshDashboardUserFileEntries(),
+        // @ts-ignore // TODO: fix this with notification component
+        (err: unknown) => alert("Can't delete the file entry: " + err.error)
+      );
   }
 
   /**
@@ -83,11 +77,11 @@ export class UserFileService {
    */
   public addFileSizeUnit(fileSize: number): string {
     if (fileSize <= 1024) {
-      return fileSize + ' Byte';
+      return fileSize + " Byte";
     }
 
     let i = 0;
-    const byteUnits = [' Byte', ' KB', ' MB', ' GB', ' TB', ' PB', ' EB', ' ZB', ' YB'];
+    const byteUnits = [" Byte", " KB", " MB", " GB", " TB", " PB", " EB", " ZB", " YB"];
     while (fileSize > 1024 && i < byteUnits.length - 1) {
       fileSize = fileSize / 1024;
       i++;
@@ -102,10 +96,15 @@ export class UserFileService {
    * @param accessLevel the type of access offered
    * @return Response
    */
-  public grantUserFileAccess(userFileEntry: DashboardUserFileEntry, username: string, accessLevel: string): Observable<Response> {
+  public grantUserFileAccess(
+    userFileEntry: DashboardUserFileEntry,
+    username: string,
+    accessLevel: string
+  ): Observable<Response> {
     return this.http.post<Response>(
       `${USER_FILE_ACCESS_GRANT_URL}/${userFileEntry.file.name}/${userFileEntry.ownerName}/${username}/${accessLevel}`,
-      null);
+      null
+    );
   }
 
   /**
@@ -115,7 +114,8 @@ export class UserFileService {
    */
   public getUserFileAccessList(userFileEntry: DashboardUserFileEntry): Observable<ReadonlyArray<AccessEntry>> {
     return this.http.get<ReadonlyArray<AccessEntry>>(
-      `${USER_FILE_ACCESS_LIST_URL}/${userFileEntry.file.name}/${userFileEntry.ownerName}`);
+      `${USER_FILE_ACCESS_LIST_URL}/${userFileEntry.file.name}/${userFileEntry.ownerName}`
+    );
   }
 
   /**
@@ -126,12 +126,14 @@ export class UserFileService {
    */
   public revokeUserFileAccess(userFileEntry: DashboardUserFileEntry, username: string): Observable<Response> {
     return this.http.post<Response>(
-      `${USER_FILE_ACCESS_REVOKE_URL}/${userFileEntry.file.name}/${userFileEntry.ownerName}/${username}`, null);
+      `${USER_FILE_ACCESS_REVOKE_URL}/${userFileEntry.file.name}/${userFileEntry.ownerName}/${username}`,
+      null
+    );
   }
 
   public downloadUserFile(targetFile: UserFile): Observable<Blob> {
     const requestURL = `${USER_FILE_DOWNLOAD_URL}/${targetFile.fid}`;
-    return this.http.get(requestURL, {responseType: 'blob'});
+    return this.http.get(requestURL, { responseType: "blob" });
   }
 
   private retrieveDashboardUserFileEntryList(): Observable<ReadonlyArray<DashboardUserFileEntry>> {
@@ -142,15 +144,13 @@ export class UserFileService {
    * refresh the files in the service whenever the user changes.
    */
   private detectUserChanges(): void {
-    this.userService.userChanged().subscribe(
-      () => {
-        if (this.userService.isLogin()) {
-          this.refreshDashboardUserFileEntries();
-        } else {
-          this.clearDashboardUserFileEntries();
-        }
+    this.userService.userChanged().subscribe(() => {
+      if (this.userService.isLogin()) {
+        this.refreshDashboardUserFileEntries();
+      } else {
+        this.clearDashboardUserFileEntries();
       }
-    );
+    });
   }
 
   private clearDashboardUserFileEntries(): void {

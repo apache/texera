@@ -1,33 +1,30 @@
-<div class="result-table" [hidden]="!currentColumns">
+<div [hidden]="!currentColumns" class="result-table">
   <nz-table
     #basicTable
+    (nzQueryParams)="onTableQueryParamsChange($event)"
     [nzData]="currentResult"
-    nzBordered="true"
     [nzFrontPagination]="isFrontPagination"
     [nzLoading]="isLoadingResult"
-    [nzTotal]="totalNumTuples"
-    [nzSize]="'small'"
-    [nzScroll]="{y: '200px'}"
-    [nzTableLayout]="'fixed'"
     [nzPageIndex]="currentPageIndex"
     [nzPageSize]="pageSize"
     [nzPaginationPosition]="'bottom'"
-    (nzQueryParams)="onTableQueryParamsChange($event)"
+    [nzScroll]="{ y: '200px' }"
+    [nzSize]="'small'"
+    [nzTableLayout]="'fixed'"
+    [nzTotal]="totalNumTuples"
+    nzBordered="true"
   >
     <thead>
-    <tr>
-      <th *ngFor="let column of currentColumns">
-        {{column.header}}
-      </th>
-    </tr>
+      <tr>
+        <th *ngFor="let column of currentColumns">{{ column.header }}</th>
+      </tr>
     </thead>
     <tbody>
-    <tr *ngFor="let row of basicTable.data; let i=index;">
-      <td nzEllipsis (click)="open(row)" *ngFor="let column of currentColumns" class="table-row">
-        {{column.getCell(row)}}
-      </td>
-    </tr>
+      <tr *ngFor="let row of basicTable.data; let i = index">
+        <td (click)="open(row)" *ngFor="let column of currentColumns" class="table-row" nzEllipsis>
+          {{ column.getCell(row) }}
+        </td>
+      </tr>
     </tbody>
   </nz-table>
 </div>
-

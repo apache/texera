@@ -1,8 +1,7 @@
-import { Component, Inject } from '@angular/core';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
-import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
-import { OperatorPredicate } from '../../types/workflow-common.interface';
-
+import { Component, Inject } from "@angular/core";
+import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
+import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import { OperatorPredicate } from "../../types/workflow-common.interface";
 
 /**
  * CodeEditorDialogComponent is the content of the dialogue invoked by CodeareaCustomTemplateComponent.
@@ -14,13 +13,17 @@ import { OperatorPredicate } from '../../types/workflow-common.interface';
  * @author Xiaozhen Liu
  */
 @Component({
-  selector: 'texera-code-editor-dialog',
-  templateUrl: './code-editor-dialog.component.html',
-  styleUrls: ['./code-editor-dialog.component.scss']
+  selector: "texera-code-editor-dialog",
+  templateUrl: "./code-editor-dialog.component.html",
+  styleUrls: ["./code-editor-dialog.component.scss"],
 })
 export class CodeEditorDialogComponent {
-
-  editorOptions = { theme: 'vs-dark', language: 'python', fontSize: '11', automaticLayout: true };
+  editorOptions = {
+    theme: "vs-dark",
+    language: "python",
+    fontSize: "11",
+    automaticLayout: true,
+  };
   code: string;
 
   constructor(
@@ -34,8 +37,15 @@ export class CodeEditorDialogComponent {
   onCodeChange(code: string): void {
     this.code = code;
     // here the assumption is the operator being edited must be highlighted
-    const currentOperatorId: string = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
-    const currentOperatorPredicate: OperatorPredicate = this.workflowActionService.getTexeraGraph().getOperator(currentOperatorId);
-    this.workflowActionService.setOperatorProperty(currentOperatorId, { ...currentOperatorPredicate.operatorProperties, code });
+    const currentOperatorId: string = this.workflowActionService
+      .getJointGraphWrapper()
+      .getCurrentHighlightedOperatorIDs()[0];
+    const currentOperatorPredicate: OperatorPredicate = this.workflowActionService
+      .getTexeraGraph()
+      .getOperator(currentOperatorId);
+    this.workflowActionService.setOperatorProperty(currentOperatorId, {
+      ...currentOperatorPredicate.operatorProperties,
+      code,
+    });
   }
 }

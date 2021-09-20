@@ -77,7 +77,6 @@ val mbknorJacksonJsonSchemaDependencies = Seq(
   "javax.validation" % "validation-api" % "2.0.1.Final",
   "org.slf4j" % "slf4j-api" % slf4jVersion,
   "io.github.classgraph" % "classgraph" % "4.8.21",
-  "org.scalatest" %% "scalatest" % "3.0.8" % "test",
   "ch.qos.logback" % "logback-classic" % "1.2.3" % "test",
   "com.github.java-json-tools" % "json-schema-validator" % "2.2.11" % "test",
   "com.fasterxml.jackson.module" % "jackson-module-kotlin" % jacksonVersion % "test",
@@ -112,12 +111,21 @@ val googleServiceDependencies = Seq(
 
 /////////////////////////////////////////////////////////////////////////////
 // Arrow related
-val arrowVersion = "1.0.1"
+val arrowVersion = "5.0.0"
 val arrowDependencies = Seq(
   // https://mvnrepository.com/artifact/org.apache.arrow/flight-grpc
   "org.apache.arrow" % "flight-grpc" % arrowVersion,
   // https://mvnrepository.com/artifact/org.apache.arrow/flight-core
   "org.apache.arrow" % "flight-core" % arrowVersion
+)
+
+/////////////////////////////////////////////////////////////////////////////
+// MongoDB related
+val mongoDbDependencies = Seq(
+  // https://mvnrepository.com/artifact/org.mongodb/mongo-java-driver
+  "org.mongodb" % "mongo-java-driver" % "3.12.10",
+  // https://mvnrepository.com/artifact/org.apache.commons/commons-jcs3-core/3.0
+  "org.apache.commons" % "commons-jcs3-core" % "3.0"
 )
 
 libraryDependencies ++= akkaDependencies
@@ -126,6 +134,7 @@ libraryDependencies ++= dropwizardDependencies
 libraryDependencies ++= mbknorJacksonJsonSchemaDependencies
 libraryDependencies ++= arrowDependencies
 libraryDependencies ++= googleServiceDependencies
+libraryDependencies ++= mongoDbDependencies
 
 /////////////////////////////////////////////////////////////////////////////
 // protobuf related

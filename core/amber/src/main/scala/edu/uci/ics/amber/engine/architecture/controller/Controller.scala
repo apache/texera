@@ -19,7 +19,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
   RegisterActorRef
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputPort
-import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.SendPythonUdfHandler.SendPythonUdf
+import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
 import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
@@ -49,7 +49,6 @@ final case class ControllerConfig(
 object Controller {
 
   def props(
-      id: WorkflowIdentity,
       workflow: Workflow,
       eventListener: ControllerEventListener,
       controllerConfig: ControllerConfig = ControllerConfig.default,
@@ -57,7 +56,6 @@ object Controller {
   ): Props =
     Props(
       new Controller(
-        id,
         workflow,
         eventListener,
         controllerConfig,
@@ -67,7 +65,6 @@ object Controller {
 }
 
 class Controller(
-    val id: WorkflowIdentity,
     val workflow: Workflow,
     val eventListener: ControllerEventListener = ControllerEventListener(),
     val controllerConfig: ControllerConfig,
@@ -97,17 +94,18 @@ class Controller(
 
   def prepareWorkers(): Future[Seq[Unit]] = {
 
-    // send python udf code
-    val sendPythonUdfRequests: Seq[Future[Unit]] = workflow.getPythonWorkerToOperatorExec.map {
-      case (workerId: ActorVirtualIdentity, pythonOperatorExec: PythonUDFOpExecV2) =>
-        asyncRPCClient.send(
-          SendPythonUdf(
-            pythonOperatorExec.getCode,
-            pythonOperatorExec.isInstanceOf[ISourceOperatorExecutor]
-          ),
-          workerId
-        )
-    }.toSeq
+    // initialize python udf code
+    val initializeOperatorLogicRequests: Seq[Future[Unit]] =
+      workflow.getPythonWorkerToOperatorExec.map {
+        case (workerId: ActorVirtualIdentity, pythonOperatorExec: PythonUDFOpExecV2) =>
+          asyncRPCClient.send(
+            InitializeOperatorLogic(
+              pythonOperatorExec.getCode,
+              pythonOperatorExec.isInstanceOf[ISourceOperatorExecutor]
+            ),
+            workerId
+          )
+      }.toSeq
 
     // activate all links
     val activateLinkRequests: Seq[Future[Unit]] =
@@ -120,7 +118,7 @@ class Controller(
 
     Future
       .collect(
-        sendPythonUdfRequests ++ activateLinkRequests
+        initializeOperatorLogicRequests ++ activateLinkRequests
       )
       .onSuccess({ _ =>
         workflow.getAllOperators.foreach(_.setAllWorkerState(READY))

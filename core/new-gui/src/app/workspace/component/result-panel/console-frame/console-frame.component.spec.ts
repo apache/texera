@@ -1,22 +1,28 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 
-import { ConsoleFrameComponent } from './console-frame.component';
-import { OperatorMetadataService } from '../../../service/operator-metadata/operator-metadata.service';
-import { StubOperatorMetadataService } from '../../../service/operator-metadata/stub-operator-metadata.service';
-import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { ConsoleFrameComponent } from "./console-frame.component";
+import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
+import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
+import { HttpClientTestingModule } from "@angular/common/http/testing";
 
-describe('ConsoleFrameComponent', () => {
+describe("ConsoleFrameComponent", () => {
   let component: ConsoleFrameComponent;
   let fixture: ComponentFixture<ConsoleFrameComponent>;
 
-  beforeEach(async(() => {
-    TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      declarations: [ConsoleFrameComponent],
-      providers: [{ provide: OperatorMetadataService, useClass: StubOperatorMetadataService }]
+  beforeEach(
+    waitForAsync(() => {
+      TestBed.configureTestingModule({
+        imports: [HttpClientTestingModule],
+        declarations: [ConsoleFrameComponent],
+        providers: [
+          {
+            provide: OperatorMetadataService,
+            useClass: StubOperatorMetadataService,
+          },
+        ],
+      }).compileComponents();
     })
-      .compileComponents();
-  }));
+  );
 
   beforeEach(() => {
     fixture = TestBed.createComponent(ConsoleFrameComponent);
@@ -24,7 +30,7 @@ describe('ConsoleFrameComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should create', () => {
+  it("should create", () => {
     expect(component).toBeTruthy();
   });
 });

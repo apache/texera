@@ -1,18 +1,17 @@
-import { Injectable } from '@angular/core';
+import { Injectable } from "@angular/core";
 
-import { Observable } from 'rxjs/Observable';
-import { Subject } from 'rxjs';
-import { User } from '../../type/user';
-import { UserService } from './user.service';
-import { PublicInterfaceOf } from '../../util/stub';
+import { Observable } from "rxjs";
+import { Subject } from "rxjs";
+import { User } from "../../type/user";
+import { UserService } from "./user.service";
+import { PublicInterfaceOf } from "../../util/stub";
 
 export const MOCK_USER_ID = 1;
-export const MOCK_USER_NAME = 'testUser';
+export const MOCK_USER_NAME = "testUser";
 export const MOCK_USER = {
   name: MOCK_USER_NAME,
-  uid: MOCK_USER_ID
+  uid: MOCK_USER_ID,
 };
-
 
 /**
  * This StubUserService is to test other service's functionality that depends on UserService
@@ -30,19 +29,21 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
   }
 
   public getGoogleAuthInstance(): Observable<gapi.auth2.GoogleAuth> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
 
   public googleLogin(authCode: string): Observable<User> {
-    throw new Error('Method not implemented.');
+    throw new Error("Method not implemented.");
   }
 
-  public validateUsername(userName: string): { result: boolean; message: string; } {
-    throw new Error('Method not implemented.');
+  public validateUsername(userName: string): {
+    result: boolean;
+    message: string;
+  } {
+    throw new Error("Method not implemented.");
   }
 
   public userChanged(): Observable<User | undefined> {
-
     return this.userChangeSubject.asObservable();
   }
 
@@ -51,18 +52,18 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
   }
 
   public register(userName: string): Observable<Response> {
-    throw new Error('unimplemented');
+    throw new Error("unimplemented");
   }
 
   public login(userName: string): Observable<Response> {
     if (this.user) {
-      throw new Error('user is already logged in');
+      throw new Error("user is already logged in");
     }
-    throw new Error('unimplemented');
+    throw new Error("unimplemented");
   }
 
   public logOut(): void {
-    throw new Error('unimplemented');
+    throw new Error("unimplemented");
   }
 
   public isLogin(): boolean {
@@ -72,5 +73,4 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
   public changeUser(user: User | undefined): void {
     this.user = user;
   }
-
 }

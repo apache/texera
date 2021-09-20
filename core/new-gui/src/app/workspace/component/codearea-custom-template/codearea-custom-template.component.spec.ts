@@ -1,23 +1,24 @@
-/* tslint:disable:no-unused-variable */
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
-import { By } from '@angular/platform-browser';
-import { DebugElement } from '@angular/core';
+/* eslint-disable no-unused-vars, @typescript-eslint/no-unused-vars */
+import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
+import { DebugElement } from "@angular/core";
 
-import { CodeareaCustomTemplateComponent } from './codearea-custom-template.component';
-import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { Overlay } from '@angular/cdk/overlay';
+import { CodeareaCustomTemplateComponent } from "./codearea-custom-template.component";
+import { MatDialog, MatDialogModule } from "@angular/material/dialog";
+import { Overlay } from "@angular/cdk/overlay";
 
-describe('CodeareaCustomTemplateComponent', () => {
+describe("CodeareaCustomTemplateComponent", () => {
   let component: CodeareaCustomTemplateComponent;
   let fixture: ComponentFixture<CodeareaCustomTemplateComponent>;
 
-  beforeEach(async(() => {
-    TestBed.configureTestingModule({
-      declarations: [ CodeareaCustomTemplateComponent ],
-      imports: [ MatDialogModule ]
+  beforeEach(
+    waitForAsync(() => {
+      TestBed.configureTestingModule({
+        declarations: [CodeareaCustomTemplateComponent],
+        imports: [MatDialogModule],
+      }).compileComponents();
     })
-    .compileComponents();
-  }));
+  );
 
   beforeEach(() => {
     fixture = TestBed.createComponent(CodeareaCustomTemplateComponent);
@@ -25,7 +26,7 @@ describe('CodeareaCustomTemplateComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should create', () => {
+  it("should create", () => {
     expect(component).toBeTruthy();
   });
 });

@@ -3,7 +3,9 @@ package edu.uci.ics.amber.engine.architecture.worker.controlcommands
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PythonPrintHandler.PythonPrint
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
-import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.SendPythonUdfHandler.SendPythonUdf
+import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
+import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.ModifyOperatorLogicHandler.ModifyOperatorLogic
+import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.ReplayCurrentTupleHandler.ReplayCurrentTuple
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
 import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2
 import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value.Empty
@@ -37,8 +39,12 @@ object ControlCommandConvertUtils {
         QueryStatisticsV2()
       case QueryCurrentInputTuple() =>
         QueryCurrentInputTupleV2()
-      case SendPythonUdf(code, isSource) =>
-        SendPythonUdfV2(code, isSource)
+      case InitializeOperatorLogic(code, isSource) =>
+        InitializeOperatorLogicV2(code, isSource)
+      case ReplayCurrentTuple() =>
+        ReplayCurrentTupleV2()
+      case ModifyOperatorLogic(code, isSource) =>
+        ModifyOperatorLogicV2(code, isSource)
       case _ =>
         throw new UnsupportedOperationException(
           s"V1 controlCommand $controlCommand cannot be converted to V2"
