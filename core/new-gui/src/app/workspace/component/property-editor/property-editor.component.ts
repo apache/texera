@@ -6,7 +6,7 @@ import { BreakpointPropertyEditFrameComponent } from "./breakpoint-property-edit
 import { DynamicComponentConfig } from "../../../common/type/dynamic-component-config";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Subscription } from "rxjs";
-import { WorkflowVersionService } from "../../service/workflow-version/workflow-version.service";
+import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
 import { VersionsListDisplayComponent } from "./versions-display/versions-display.component";
 
 

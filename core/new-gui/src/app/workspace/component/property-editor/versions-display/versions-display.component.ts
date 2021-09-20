@@ -1,9 +1,8 @@
 import { Component, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowVersionEntry } from "../../../../dashboard/type/workflow-version-entry";
-import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import { WorkflowVersionService } from "../../../service/workflow-version/workflow-version.service";
+import { WorkflowVersionService } from "../../../../dashboard/service/workflow-version/workflow-version.service";
 import { NzTableQueryParams } from "ng-zorro-antd/table";
 
 @UntilDestroy()
@@ -20,7 +19,6 @@ export class VersionsListDisplayComponent implements OnInit {
   currentPageIndex: number = 1;
 
   constructor(
-    private workflowPersistService: WorkflowPersistService,
     private workflowActionService: WorkflowActionService,
     private workflowVersionService: WorkflowVersionService
   ) {}
@@ -33,7 +31,7 @@ export class VersionsListDisplayComponent implements OnInit {
   }
 
   getVersion(vid: number) {
-    this.workflowPersistService.retrieveWorkflowByVersion(<number>this.workflowActionService.
+    this.workflowVersionService.retrieveWorkflowByVersion(<number>this.workflowActionService.
     getWorkflowMetadata()?.wid, vid).pipe(untilDestroyed(this)).subscribe(workflow => {
       this.workflowActionService.reloadWorkflow(workflow);
     });

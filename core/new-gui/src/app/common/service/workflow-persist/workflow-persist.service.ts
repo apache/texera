@@ -6,11 +6,8 @@ import { AppSettings } from "../../app-setting";
 import { Workflow, WorkflowContent } from "../../type/workflow";
 import { jsonCast } from "../../util/storage";
 import { DashboardWorkflowEntry } from "../../../dashboard/type/dashboard-workflow-entry";
-import { WorkflowVersionEntry } from "../../../dashboard/type/workflow-version-entry";
 
 export const WORKFLOW_BASE_URL = "workflow";
-export const VERSIONS_URL = WORKFLOW_BASE_URL + "/versions";
-export const WORKFLOW_VERSION_URL = WORKFLOW_BASE_URL + "/version";
 export const WORKFLOW_PERSIST_URL = WORKFLOW_BASE_URL + "/persist";
 export const WORKFLOW_LIST_URL = WORKFLOW_BASE_URL + "/list";
 export const WORKFLOW_CREATE_URL = WORKFLOW_BASE_URL + "/create";
@@ -94,25 +91,6 @@ export class WorkflowPersistService {
   }
 
   /**
-   * retrieves a list of versions for a particular workflow from backend database
-   */
-  public retrieveVersionsOfWorkflow(wid: number): Observable<WorkflowVersionEntry[]> {
-    return this.http.get<WorkflowVersionEntry[]>(`${AppSettings.getApiEndpoint()}/${VERSIONS_URL}/${wid}`);
-  }
-
-  /**
-   * retrieves a version of the workflow from backend database
-   */
-  public retrieveWorkflowByVersion(wid: number, vid: number): Observable<Workflow> {
-    const formData: FormData = new FormData();
-    formData.append("wid", wid.toString());
-    formData.append("vid", vid.toString());
-    return this.http.post<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_VERSION_URL}`,
-      formData)
-      .pipe(filter((updatedWorkflow: Workflow) => updatedWorkflow != null), map(WorkflowPersistService.parseWorkflowInfo));
-  }
-
-  /**
    * deletes the given workflow, the user in the session must own the workflow.
    */
   public deleteWorkflow(wid: number): Observable<Response> {
@@ -125,7 +103,7 @@ export class WorkflowPersistService {
    * @param workflow
    * @private
    */
-  private static parseWorkflowInfo(workflow: Workflow): Workflow {
+  public static parseWorkflowInfo(workflow: Workflow): Workflow {
     if (workflow != null && typeof workflow.content === "string") {
       workflow.content = jsonCast<WorkflowContent>(workflow.content);
     }

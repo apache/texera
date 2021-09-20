@@ -18,7 +18,7 @@ import { WorkflowResultExportService } from "../../service/workflow-result-expor
 import { debounceTime } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { VIEW_RESULT_OP_TYPE } from "../../service/workflow-graph/model/workflow-graph";
-import { WorkflowVersionService } from "../../service/workflow-version/workflow-version.service";
+import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -432,7 +432,7 @@ export class NavigationComponent {
   }
 
   onClickGetAllVersions() {
-    this.workflowPersistService.retrieveVersionsOfWorkflow(<number>this.workflowActionService.
+    this.workflowVersionService.retrieveVersionsOfWorkflow(<number>this.workflowActionService.
     getWorkflowMetadata()?.wid).pipe(untilDestroyed(this)).subscribe(workflowVersionsResult => {
       this.workflowVersionService.prepareWorkflowVersions(workflowVersionsResult);
       });
