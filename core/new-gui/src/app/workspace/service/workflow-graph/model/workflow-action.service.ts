@@ -59,7 +59,7 @@ type GroupInfo = {
  */
 
 @Injectable({
-  providedIn: "root"
+  providedIn: "root",
 })
 export class WorkflowActionService {
   private static readonly DEFAULT_WORKFLOW_NAME = "Untitled Workflow";
@@ -67,7 +67,7 @@ export class WorkflowActionService {
     name: WorkflowActionService.DEFAULT_WORKFLOW_NAME,
     wid: undefined,
     creationTime: undefined,
-    lastModifiedTime: undefined
+    lastModifiedTime: undefined,
   };
 
   private readonly texeraGraph: WorkflowGraph;

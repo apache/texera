@@ -42,7 +42,7 @@ import { WorkflowVersionService } from "../../../dashboard/service/workflow-vers
   styleUrls: ["./navigation.component.scss"],
 })
 export class NavigationComponent {
-  public executionState: ExecutionState;  // set this to true when the workflow is started
+  public executionState: ExecutionState; // set this to true when the workflow is started
   public ExecutionState = ExecutionState; // make Angular HTML access enum definition
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
   public isSaving: boolean = false;
