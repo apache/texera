@@ -79,8 +79,7 @@ CREATE TABLE IF NOT EXISTS workflow
     `wid`                INT UNSIGNED AUTO_INCREMENT NOT NULL,
     `content`            TEXT                        NOT NULL,
     `creation_time`      TIMESTAMP                   NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `last_modified_time` TIMESTAMP                   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    `vid`                INT UNSIGNED                NOT NULL DEFAULT 0,
+    `last_modified_time` TIMESTAMP                   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     PRIMARY KEY (`wid`)
 ) ENGINE = INNODB,
   AUTO_INCREMENT = 1;
