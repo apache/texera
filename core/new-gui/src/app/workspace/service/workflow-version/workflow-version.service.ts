@@ -15,7 +15,7 @@ export class WorkflowVersionService {
   }
   public prepareWorkflowVersions(versionsList: WorkflowVersionEntry[]): void {
     const elements = this.workflowActionService.getJointGraphWrapper().getCurrentHighlights();
-    this.workflowActionService.getJointGraphWrapper().unhighlightElements(elements)
+    this.workflowActionService.getJointGraphWrapper().unhighlightElements(elements);
     this.workflowVersions = versionsList;
     this.workflowVersionsObservable.next(versionsList);
   }

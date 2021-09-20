@@ -433,7 +433,7 @@ export class NavigationComponent {
 
   onClickGetAllVersions() {
     this.workflowPersistService.retrieveVersionsOfWorkflow(<number>this.workflowActionService.
-    getWorkflowMetadata()?.wid).subscribe(workflowVersionsResult => {
+    getWorkflowMetadata()?.wid).pipe(untilDestroyed(this)).subscribe(workflowVersionsResult => {
       this.workflowVersionService.prepareWorkflowVersions(workflowVersionsResult);
       });
   }

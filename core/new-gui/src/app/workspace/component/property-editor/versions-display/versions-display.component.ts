@@ -16,7 +16,7 @@ export class VersionsListDisplayComponent implements OnInit {
 
   public versionsList: WorkflowVersionEntry[] | undefined;
 
-  public versionTableHeaders: string[] = ['Version#', 'Timestamp'];
+  public versionTableHeaders: string[] = ["Version#", "Timestamp"];
   currentPageIndex: number = 1;
 
   constructor(
@@ -34,7 +34,7 @@ export class VersionsListDisplayComponent implements OnInit {
 
   getVersion(vid: number) {
     this.workflowPersistService.retrieveWorkflowByVersion(<number>this.workflowActionService.
-    getWorkflowMetadata()?.wid, vid).subscribe(workflow => {
+    getWorkflowMetadata()?.wid, vid).pipe(untilDestroyed(this)).subscribe(workflow => {
       this.workflowActionService.reloadWorkflow(workflow);
     });
   }

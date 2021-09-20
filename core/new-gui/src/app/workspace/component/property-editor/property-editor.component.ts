@@ -5,7 +5,7 @@ import { OperatorPropertyEditFrameComponent } from "./operator-property-edit-fra
 import { BreakpointPropertyEditFrameComponent } from "./breakpoint-property-edit-frame/breakpoint-property-edit-frame.component";
 import { DynamicComponentConfig } from "../../../common/type/dynamic-component-config";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { Subscription } from 'rxjs';
+import { Subscription } from "rxjs";
 import { WorkflowVersionService } from "../../service/workflow-version/workflow-version.service";
 import { VersionsListDisplayComponent } from "./versions-display/versions-display.component";
 
@@ -81,8 +81,7 @@ export class PropertyEditorComponent implements OnInit {
             component: VersionsListDisplayComponent,
             componentInputs: {currentLinkId: highlightLinks[0]},
           });
-        }
-        else if (highlightedOperators.length === 1 && highlightedGroups.length === 0 && highlightLinks.length === 0) {
+        } else if (highlightedOperators.length === 1 && highlightedGroups.length === 0 && highlightLinks.length === 0) {
           this.workflowVersionService.resetResults();
           this.switchFrameComponent({
             component: OperatorPropertyEditFrameComponent,
@@ -94,8 +93,7 @@ export class PropertyEditorComponent implements OnInit {
             component: BreakpointPropertyEditFrameComponent,
             componentInputs: { currentLinkId: highlightLinks[0] },
           });
-        }
-        else {
+        } else {
           this.workflowVersionService.resetResults();
           this.switchFrameComponent(undefined);
         }
