@@ -1,35 +1,16 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
-import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.flipkart.zjsonpatch.{JsonDiff, JsonPatch}
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
-  USER,
-  WORKFLOW,
-  WORKFLOW_OF_USER,
-  WORKFLOW_USER_ACCESS,
-  WORKFLOW_VERSION
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  WorkflowDao,
-  WorkflowOfUserDao,
-  WorkflowUserAccessDao,
-  WorkflowVersionDao
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
-  User,
-  Workflow,
-  WorkflowOfUser,
-  WorkflowUserAccess,
-  WorkflowVersion
-}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS, WORKFLOW_VERSION}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowOfUserDao, WorkflowUserAccessDao, WorkflowVersionDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{User, Workflow, WorkflowOfUser, WorkflowUserAccess, WorkflowVersion}
 import edu.uci.ics.texera.web.resource.auth.UserResource
-import edu.uci.ics.texera.web.resource.dashboard.WorkflowAccessResource.{
-  WorkflowAccess,
-  toAccessLevel
-}
+import edu.uci.ics.texera.web.resource.dashboard.WorkflowAccessResource.{WorkflowAccess, toAccessLevel}
 import edu.uci.ics.texera.web.resource.dashboard.WorkflowResource.context
 import io.dropwizard.jersey.sessions.Session
+import org.glassfish.jersey.media.multipart.FormDataParam
 import org.jooq.types.UInteger
 
 import java.sql.Timestamp
@@ -152,8 +133,6 @@ class WorkflowResource {
     }
   }
 
-  //TODO should add an entry to store diff given a wid and diff content
-
   /**
     * This method persists the workflow into database
     *
@@ -170,17 +149,17 @@ class WorkflowResource {
     UserResource.getUser(session) match {
       case Some(user) =>
         if (workflowOfUserExists(workflow.getWid, user.getUid)) {
-          // todo retrieve current workflow from DB
+          // retrieve current workflow from DB
           val currentWorkflow = workflowDao.fetchOneByWid(workflow.getWid)
-          // todo compute diff
+          // compute diff
           val mapper = new ObjectMapper()
           val patch = JsonDiff.asJson(
             mapper.readTree(workflow.getContent),
             mapper.readTree(currentWorkflow.getContent)
           )
-          // todo if they are different
+          // if they are different
           if (!patch.isEmpty) {
-            // todo write into DB both diff and updated version
+            // write into DB both diff and updated version
             val workflowVersion = new WorkflowVersion()
             workflowVersion.setContent(patch.toString)
             workflowVersion.setWid(workflow.getWid)
@@ -246,7 +225,7 @@ class WorkflowResource {
           workflow.getName
           createWorkflow(
             session,
-            new Workflow(workflow.getName + "_copy", null, workflow.getContent, null, null, 0)
+            new Workflow(workflow.getName + "_copy", null, workflow.getContent, null, null)
           )
 
         }
@@ -317,7 +296,7 @@ class WorkflowResource {
   }
 
   /**
-    * This method returns the versions of a workflow
+    * This method returns the versions of a workflow given by its ID
     *
     * @param session HttpSession
     * @return versions[]
@@ -352,8 +331,9 @@ class WorkflowResource {
   }
 
   /**
-    * This method returns the versions of a workflow
-    *
+    * This method returns a particular version of a workflow given the vid and wid
+    * first, list the versions of the workflow; second, from the current version(last) apply the differences until the requested version
+    * third, return the requested workflow
     * @param wid workflowID of the current workflow the user is working on
     * @param vid versionID of the checked-out version to be computed and returned
     * @param session HttpSession
@@ -361,11 +341,11 @@ class WorkflowResource {
     */
   @POST
   @Path("/version")
-  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Consumes(Array(MediaType.MULTIPART_FORM_DATA))
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def retrieveWorkflowVersion(@Session session: HttpSession, workflow: Workflow): Response = {
-    val wid = workflow.getWid
-    val vid = workflow.getVid
+  def retrieveWorkflowVersion(@FormDataParam("wid") wid: UInteger,
+                                    @FormDataParam("vid") vid: UInteger,
+                                    @Session session: HttpSession): Response = {
     UserResource.getUser(session) match {
       case Some(user) =>
         if (
@@ -374,15 +354,15 @@ class WorkflowResource {
         ) {
           Response.status(Response.Status.UNAUTHORIZED).build()
         } else {
-          // todo fetch all versions preceeding this
+          // fetch all versions preceding this
           val versions = context
             .select(WORKFLOW_VERSION.VID, WORKFLOW_VERSION.CREATION_TIME, WORKFLOW_VERSION.CONTENT)
             .from(WORKFLOW_VERSION)
             .leftJoin(WORKFLOW)
             .on(WORKFLOW_VERSION.WID.eq(WORKFLOW.WID))
-            .where(WORKFLOW_VERSION.WID.eq(wid))
+            .where(WORKFLOW.WID.eq(wid).and(WORKFLOW_VERSION.VID.ge(vid)))
             .fetch()
-          // todo apply patch
+          // apply patch
           val currentWorkflow = workflowDao.fetchOneByWid(wid)
           val versionEntries = versions
             .map(workflowRecord =>
@@ -393,7 +373,7 @@ class WorkflowResource {
               )
             )
             .toList
-          //todo return result
+          // return result
           val res = applyPatch(versionEntries.reverse, currentWorkflow)
           Response
             .ok(res)
@@ -404,7 +384,7 @@ class WorkflowResource {
     }
   }
   private def applyPatch(versions: List[VersionEntry], workflow: Workflow): Workflow = {
-    // todo loop all versions and apply the patch
+    // loop all versions and apply the patch
     val mapper = new ObjectMapper()
     for (patch <- versions) {
       workflow.setContent(
@@ -412,10 +392,8 @@ class WorkflowResource {
           .apply(mapper.readTree(patch.content), mapper.readTree(workflow.getContent))
           .toString
       )
-      workflow.setVid(patch.vId.intValue())
-      workflow.setLastModifiedTime(patch.creationTime)
     }
-    //todo need to persist the chosen version to disk
+    // the checked out version is persisted to disk
     return workflow
   }
 }

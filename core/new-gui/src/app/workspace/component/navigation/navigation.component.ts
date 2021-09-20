@@ -18,7 +18,7 @@ import { WorkflowResultExportService } from "../../service/workflow-result-expor
 import { debounceTime } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { VIEW_RESULT_OP_TYPE } from "../../service/workflow-graph/model/workflow-graph";
-import {PropertyEditorComponent} from '../property-editor/property-editor.component';
+import { WorkflowVersionService } from "../../service/workflow-version/workflow-version.service";
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -65,9 +65,6 @@ export class NavigationComponent {
   public isDisableOperatorClickable: boolean = false;
   public isDisableOperator: boolean = true;
 
-  public versionsTableDisplay: PropertyEditorComponent = new PropertyEditorComponent(
-    this.workflowActionService, this.workflowPersistService);
-
   public operatorCacheEnabled: boolean = environment.operatorCacheEnabled;
   public isCacheOperatorClickable: boolean = false;
   public isCacheOperator: boolean = true;
@@ -81,6 +78,7 @@ export class NavigationComponent {
     public undoRedoService: UndoRedoService,
     public validationWorkflowService: ValidationWorkflowService,
     public workflowPersistService: WorkflowPersistService,
+    public workflowVersionService: WorkflowVersionService,
     public userService: UserService,
     private workflowCacheService: WorkflowCacheService,
     private datePipe: DatePipe,
@@ -437,7 +435,7 @@ export class NavigationComponent {
   onClickGetAllVersions() {
     this.workflowPersistService.retrieveVersionsOfWorkflow(<number>this.workflowActionService.
     getWorkflowMetadata()?.wid).subscribe(workflowVersionsResult => {
-      this.versionsTableDisplay?.displayVersionsResult(workflowVersionsResult);
+      this.workflowVersionService.prepareWorkflowVersions(workflowVersionsResult);
       });
   }
   /**

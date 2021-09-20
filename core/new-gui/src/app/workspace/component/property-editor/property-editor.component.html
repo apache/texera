@@ -3,32 +3,4 @@
     [ndcDynamicComponent]="frameComponentConfig?.component"
     [ndcDynamicInputs]="frameComponentConfig?.componentInputs"
   ></ndc-dynamic>
-  <div *ngIf="displayVersion">
-    <div class="result-table">
-      <nz-table
-        nzBordered="true"
-        [nzData] = testt
-        [nzSize]="'small'"
-        [nzPaginationPosition]="'bottom'"
-      >
-        <thead>
-        <tr>
-          <th *ngFor="let column of versionTableHeaders">
-            {{column}}
-          </th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr *ngFor="let row of testt; let i=index;">
-          <td nzEllipsis (click)="getVersion(row)"class="table-row">
-            {{i}}
-          </td>
-          <td nzEllipsis (click)="getVersion(row)"class="table-row">
-            {{row}}
-          </td>
-        </tr>
-        </tbody>
-      </nz-table>
-    </div>
-  </div>
 </div>

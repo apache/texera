@@ -104,8 +104,11 @@ export class WorkflowPersistService {
    * retrieves a version of the workflow from backend database
    */
   public retrieveWorkflowByVersion(wid: number, vid: number): Observable<Workflow> {
+    const formData: FormData = new FormData();
+    formData.append("wid", wid.toString());
+    formData.append("vid", vid.toString());
     return this.http.post<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_VERSION_URL}`,
-      { wid: wid, vid: vid})
+      formData)
       .pipe(filter((updatedWorkflow: Workflow) => updatedWorkflow != null), map(WorkflowPersistService.parseWorkflowInfo));
   }
 

@@ -66,16 +66,6 @@ public interface IWorkflow extends Serializable {
      */
     public Timestamp getLastModifiedTime();
 
-    /**
-     * Setter for <code>texera_db.workflow.vid</code>.
-     */
-    public void setVid(Integer value);
-
-    /**
-     * Getter for <code>texera_db.workflow.vid</code>.
-     */
-    public Integer getVid();
-
     // -------------------------------------------------------------------------
     // FROM and INTO
     // -------------------------------------------------------------------------
