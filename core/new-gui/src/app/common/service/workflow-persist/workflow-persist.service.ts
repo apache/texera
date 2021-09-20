@@ -6,7 +6,7 @@ import { AppSettings } from "../../app-setting";
 import { Workflow, WorkflowContent } from "../../type/workflow";
 import { jsonCast } from "../../util/storage";
 import { DashboardWorkflowEntry } from "../../../dashboard/type/dashboard-workflow-entry";
-import {WorkflowVersionEntry} from '../../../dashboard/type/workflow-version-entry';
+import { WorkflowVersionEntry } from '../../../dashboard/type/workflow-version-entry';
 
 export const WORKFLOW_BASE_URL = 'workflow';
 export const VERSIONS_URL = WORKFLOW_BASE_URL + '/versions';
@@ -105,8 +105,8 @@ export class WorkflowPersistService {
    */
   public retrieveWorkflowByVersion(wid: number, vid: number): Observable<Workflow> {
     return this.http.post<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_VERSION_URL}`,
-      { wid: wid, vid: vid}).filter((updatedWorkflow: Workflow) => updatedWorkflow != null)
-      .pipe(map(WorkflowPersistService.parseWorkflowInfo));
+      { wid: wid, vid: vid})
+      .pipe(filter((updatedWorkflow: Workflow) => updatedWorkflow != null), map(WorkflowPersistService.parseWorkflowInfo));
   }
 
   /**

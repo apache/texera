@@ -1,5 +1,5 @@
 import { DatePipe, Location } from "@angular/common";
-import { Component, ElementRef, Input, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, Input, ViewChild } from '@angular/core';
 import { TourService } from "ngx-tour-ng-bootstrap";
 import { environment } from "../../../../environments/environment";
 import { UserService } from "../../../common/service/user/user.service";
@@ -41,7 +41,7 @@ import {PropertyEditorComponent} from '../property-editor/property-editor.compon
   templateUrl: "./navigation.component.html",
   styleUrls: ["./navigation.component.scss"],
 })
-export class NavigationComponent implements OnInit {
+export class NavigationComponent {
 
   public executionState: ExecutionState;  // set this to true when the workflow is started
   public ExecutionState = ExecutionState; // make Angular HTML access enum definition
@@ -437,7 +437,6 @@ export class NavigationComponent implements OnInit {
   onClickGetAllVersions() {
     this.workflowPersistService.retrieveVersionsOfWorkflow(<number>this.workflowActionService.
     getWorkflowMetadata()?.wid).subscribe(workflowVersionsResult => {
-      console.log(workflowVersionsResult);
       this.versionsTableDisplay?.displayVersionsResult(workflowVersionsResult);
       });
   }
