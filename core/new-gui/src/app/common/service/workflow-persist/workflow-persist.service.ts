@@ -6,15 +6,15 @@ import { AppSettings } from "../../app-setting";
 import { Workflow, WorkflowContent } from "../../type/workflow";
 import { jsonCast } from "../../util/storage";
 import { DashboardWorkflowEntry } from "../../../dashboard/type/dashboard-workflow-entry";
-import { WorkflowVersionEntry } from '../../../dashboard/type/workflow-version-entry';
+import { WorkflowVersionEntry } from "../../../dashboard/type/workflow-version-entry";
 
-export const WORKFLOW_BASE_URL = 'workflow';
-export const VERSIONS_URL = WORKFLOW_BASE_URL + '/versions';
-export const WORKFLOW_VERSION_URL = WORKFLOW_BASE_URL + '/version';
-export const WORKFLOW_PERSIST_URL = WORKFLOW_BASE_URL + '/persist';
-export const WORKFLOW_LIST_URL = WORKFLOW_BASE_URL + '/list';
-export const WORKFLOW_CREATE_URL = WORKFLOW_BASE_URL + '/create';
-export const WORKFLOW_DUPLICATE_URL = WORKFLOW_BASE_URL + '/duplicate';
+export const WORKFLOW_BASE_URL = "workflow";
+export const VERSIONS_URL = WORKFLOW_BASE_URL + "/versions";
+export const WORKFLOW_VERSION_URL = WORKFLOW_BASE_URL + "/version";
+export const WORKFLOW_PERSIST_URL = WORKFLOW_BASE_URL + "/persist";
+export const WORKFLOW_LIST_URL = WORKFLOW_BASE_URL + "/list";
+export const WORKFLOW_CREATE_URL = WORKFLOW_BASE_URL + "/create";
+export const WORKFLOW_DUPLICATE_URL = WORKFLOW_BASE_URL + "/duplicate";
 
 @Injectable({
   providedIn: "root",

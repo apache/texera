@@ -3,11 +3,31 @@ package edu.uci.ics.texera.web.resource.dashboard
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.flipkart.zjsonpatch.{JsonDiff, JsonPatch}
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS, WORKFLOW_VERSION}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowOfUserDao, WorkflowUserAccessDao, WorkflowVersionDao}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{User, Workflow, WorkflowOfUser, WorkflowUserAccess, WorkflowVersion}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
+  USER,
+  WORKFLOW,
+  WORKFLOW_OF_USER,
+  WORKFLOW_USER_ACCESS,
+  WORKFLOW_VERSION
+}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+  WorkflowDao,
+  WorkflowOfUserDao,
+  WorkflowUserAccessDao,
+  WorkflowVersionDao
+}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
+  User,
+  Workflow,
+  WorkflowOfUser,
+  WorkflowUserAccess,
+  WorkflowVersion
+}
 import edu.uci.ics.texera.web.resource.auth.UserResource
-import edu.uci.ics.texera.web.resource.dashboard.WorkflowAccessResource.{WorkflowAccess, toAccessLevel}
+import edu.uci.ics.texera.web.resource.dashboard.WorkflowAccessResource.{
+  WorkflowAccess,
+  toAccessLevel
+}
 import edu.uci.ics.texera.web.resource.dashboard.WorkflowResource.context
 import io.dropwizard.jersey.sessions.Session
 import org.glassfish.jersey.media.multipart.FormDataParam
@@ -343,9 +363,11 @@ class WorkflowResource {
   @Path("/version")
   @Consumes(Array(MediaType.MULTIPART_FORM_DATA))
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def retrieveWorkflowVersion(@FormDataParam("wid") wid: UInteger,
-                                    @FormDataParam("vid") vid: UInteger,
-                                    @Session session: HttpSession): Response = {
+  def retrieveWorkflowVersion(
+      @FormDataParam("wid") wid: UInteger,
+      @FormDataParam("vid") vid: UInteger,
+      @Session session: HttpSession
+  ): Response = {
     UserResource.getUser(session) match {
       case Some(user) =>
         if (

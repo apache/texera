@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable } from "@angular/core";
 
 import * as joint from "jointjs";
 import { cloneDeep } from "lodash-es";
@@ -59,7 +59,7 @@ type GroupInfo = {
  */
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: "root"
 })
 export class WorkflowActionService {
   private static readonly DEFAULT_WORKFLOW_NAME = "Untitled Workflow";
@@ -67,8 +67,7 @@ export class WorkflowActionService {
     name: WorkflowActionService.DEFAULT_WORKFLOW_NAME,
     wid: undefined,
     creationTime: undefined,
-    lastModifiedTime: undefined,
-    vid: undefined
+    lastModifiedTime: undefined
   };
 
   private readonly texeraGraph: WorkflowGraph;

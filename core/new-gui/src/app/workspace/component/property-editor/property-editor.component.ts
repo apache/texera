@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit } from "@angular/core";
 import { merge } from "rxjs";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { OperatorPropertyEditFrameComponent } from "./operator-property-edit-frame/operator-property-edit-frame.component";
@@ -22,12 +22,11 @@ export type PropertyEditFrameConfig = DynamicComponentConfig<PropertyEditFrameCo
  */
 @UntilDestroy()
 @Component({
-  selector: 'texera-property-editor',
-  templateUrl: './property-editor.component.html',
-  styleUrls: ['./property-editor.component.scss']
+  selector: "texera-property-editor",
+  templateUrl: "./property-editor.component.html",
+  styleUrls: ["./property-editor.component.scss"],
 })
 export class PropertyEditorComponent implements OnInit {
-
   frameComponentConfig?: PropertyEditFrameConfig;
 
   subscriptions = new Subscription();

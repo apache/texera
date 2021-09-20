@@ -1,5 +1,5 @@
 import { DatePipe, Location } from "@angular/common";
-import { Component, ElementRef, Input, ViewChild } from '@angular/core';
+import { Component, ElementRef, Input, ViewChild } from "@angular/core";
 import { TourService } from "ngx-tour-ng-bootstrap";
 import { environment } from "../../../../environments/environment";
 import { UserService } from "../../../common/service/user/user.service";
@@ -42,19 +42,18 @@ import { WorkflowVersionService } from "../../service/workflow-version/workflow-
   styleUrls: ["./navigation.component.scss"],
 })
 export class NavigationComponent {
-
   public executionState: ExecutionState;  // set this to true when the workflow is started
   public ExecutionState = ExecutionState; // make Angular HTML access enum definition
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
   public isSaving: boolean = false;
 
-  @Input() public autoSaveState: string = '';
-  @Input() public currentWorkflowName: string = '';  // reset workflowName
-  @ViewChild('nameInput') nameInputBox: ElementRef<HTMLElement> | undefined;
+  @Input() public autoSaveState: string = "";
+  @Input() public currentWorkflowName: string = ""; // reset workflowName
+  @ViewChild("nameInput") nameInputBox: ElementRef<HTMLElement> | undefined;
 
   // variable bound with HTML to decide if the running spinner should show
-  public runButtonText = 'Run';
-  public runIcon = 'play-circle';
+  public runButtonText = "Run";
+  public runIcon = "play-circle";
   public runDisable = false;
 
   // whether user dashboard is enabled and accessible from the workspace
@@ -409,7 +408,7 @@ export class NavigationComponent {
 
   onClickCreateNewWorkflow() {
     this.workflowActionService.resetAsNewWorkflow();
-    this.location.go('/');
+    this.location.go("/");
   }
 
   registerWorkflowMetadataDisplayRefresh() {
