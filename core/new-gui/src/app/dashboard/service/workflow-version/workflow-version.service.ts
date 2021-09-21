@@ -2,17 +2,14 @@ import { Injectable } from "@angular/core";
 import { WorkflowVersionEntry } from "../../type/workflow-version-entry";
 import { Observable, Subject } from "rxjs";
 import { WorkflowActionService } from "../../../workspace/service/workflow-graph/model/workflow-action.service";
-import {AppSettings} from "../../../common/app-setting";
-import {Workflow} from "../../../common/type/workflow";
-import {filter, map} from "rxjs/operators";
-import {
-  WORKFLOW_BASE_URL,
-  WorkflowPersistService
-} from "../../../common/service/workflow-persist/workflow-persist.service";
+import { AppSettings } from "../../../common/app-setting";
+import { Workflow } from "../../../common/type/workflow";
+import { filter, map } from "rxjs/operators";
+import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { HttpClient } from "@angular/common/http";
-
-export const VERSIONS_URL = WORKFLOW_BASE_URL + "/versions";
-export const WORKFLOW_VERSION_URL = WORKFLOW_BASE_URL + "/version";
+export const VERSIONS_BASE_URL = "version"
+export const VERSIONS_URL = VERSIONS_BASE_URL + "/versions";
+export const WORKFLOW_VERSION_URL = VERSIONS_BASE_URL + "/version";
 
 @Injectable({
   providedIn: "root",
