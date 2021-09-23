@@ -65,7 +65,7 @@ export class PropertyEditorComponent implements OnInit {
       this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getLinkHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getLinkUnhighlightStream(),
-      this.workflowVersionService.workflowVersionsChosen()
+      this.workflowVersionService.isWorkflowVersionsChosen()
     )
       .pipe(untilDestroyed(this))
       .subscribe(() => {
@@ -74,27 +74,24 @@ export class PropertyEditorComponent implements OnInit {
           .getCurrentHighlightedOperatorIDs();
         const highlightedGroups = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
         const highlightLinks = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
-        const workflowVersions = this.workflowVersionService.getWorkflowVersions();
+        const versionDisplayHighlighted = this.workflowVersionService.getVersionDisplayHighlighted();
 
-        if (workflowVersions.length > 0 && highlightLinks.length === 0 && highlightedGroups.length === 0 && highlightedOperators.length === 0) {
+        if (versionDisplayHighlighted) {
+          this.workflowVersionService.unhighlightVersionsDisplay();
           this.switchFrameComponent({
             component: VersionsListDisplayComponent,
-            componentInputs: {currentLinkId: highlightLinks[0]},
           });
         } else if (highlightedOperators.length === 1 && highlightedGroups.length === 0 && highlightLinks.length === 0) {
-          this.workflowVersionService.resetResults();
           this.switchFrameComponent({
             component: OperatorPropertyEditFrameComponent,
             componentInputs: { currentOperatorId: highlightedOperators[0] },
           });
         } else if (highlightLinks.length === 1 && highlightedGroups.length === 0 && highlightedOperators.length === 0) {
-          this.workflowVersionService.resetResults();
           this.switchFrameComponent({
             component: BreakpointPropertyEditFrameComponent,
             componentInputs: { currentLinkId: highlightLinks[0] },
           });
         } else {
-          this.workflowVersionService.resetResults();
           this.switchFrameComponent(undefined);
         }
       });

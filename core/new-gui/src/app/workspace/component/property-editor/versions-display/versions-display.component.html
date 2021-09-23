@@ -1,9 +1,8 @@
 <div>
   <nz-table
-    (nzQueryParams)="onTableQueryParamsChange($event)"
     [nzData]="versionsList"
-    [nzPageIndex]="currentPageIndex"
-  >
+    [nzPageSize]="pageSize"
+    [nzTotal]="totalNumTuples">
     <thead>
     <tr>
       <th *ngFor="let column of versionTableHeaders">

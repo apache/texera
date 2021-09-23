@@ -46,7 +46,7 @@ class WorkflowVersionResource {
     * @return versions[]
     */
   @GET
-  @Path("/versions/{wid}")
+  @Path("/{wid}")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def retrieveVersionsOfWorkflow(
       @PathParam("wid") wid: UInteger,
@@ -83,13 +83,13 @@ class WorkflowVersionResource {
     * @param session HttpSession
     * @return workflow of a particular version
     */
-  @POST
-  @Path("/version")
+  @GET
+  @Path("/{wid}/{vid}")
   @Consumes(Array(MediaType.MULTIPART_FORM_DATA))
   @Produces(Array(MediaType.APPLICATION_JSON))
   def retrieveWorkflowVersion(
-      @FormDataParam("wid") wid: UInteger,
-      @FormDataParam("vid") vid: UInteger,
+      @PathParam("wid") wid: UInteger,
+      @PathParam("vid") vid: UInteger,
       @Session session: HttpSession
   ): Response = {
     UserResource.getUser(session) match {

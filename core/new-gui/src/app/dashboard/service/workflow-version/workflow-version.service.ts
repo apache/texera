@@ -7,55 +7,53 @@ import { Workflow } from "../../../common/type/workflow";
 import { filter, map } from "rxjs/operators";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { HttpClient } from "@angular/common/http";
-export const VERSIONS_BASE_URL = "version"
-export const VERSIONS_URL = VERSIONS_BASE_URL + "/versions";
-export const WORKFLOW_VERSION_URL = VERSIONS_BASE_URL + "/version";
+export const VERSIONS_BASE_URL = "version";
 
 @Injectable({
   providedIn: "root",
 })
 export class WorkflowVersionService {
 
-  private workflowVersions: WorkflowVersionEntry[] = [];
-  private workflowVersionsObservable = new Subject<WorkflowVersionEntry[]> ();
+  private workflowVersionsObservable = new Subject<boolean>();
+  private versionDisplayHighlighted: boolean = false;
   constructor (private http: HttpClient, private workflowActionService: WorkflowActionService) {
+  }
+
+  public highlightVersionsDisplay(): void {
+    this.prepareWorkflowVersions();
+    this.versionDisplayHighlighted = true;
+    this.workflowVersionsObservable.next(true);
+  }
+
+  public unhighlightVersionsDisplay(): void {
+    this.versionDisplayHighlighted = false;
   }
 
   /**
    * retrieves a list of versions for a particular workflow from backend database
    */
   public retrieveVersionsOfWorkflow(wid: number): Observable<WorkflowVersionEntry[]> {
-    return this.http.get<WorkflowVersionEntry[]>(`${AppSettings.getApiEndpoint()}/${VERSIONS_URL}/${wid}`);
+    return this.http.get<WorkflowVersionEntry[]>(`${AppSettings.getApiEndpoint()}/${VERSIONS_BASE_URL}/${wid}`);
   }
 
   /**
    * retrieves a version of the workflow from backend database
    */
   public retrieveWorkflowByVersion(wid: number, vid: number): Observable<Workflow> {
-    const formData: FormData = new FormData();
-    formData.append("wid", wid.toString());
-    formData.append("vid", vid.toString());
-    return this.http.post<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_VERSION_URL}`,
-      formData)
+    return this.http.get<Workflow>(`${AppSettings.getApiEndpoint()}/${VERSIONS_BASE_URL}/${wid}/${vid}`)
       .pipe(filter((updatedWorkflow: Workflow) => updatedWorkflow != null), map(WorkflowPersistService.parseWorkflowInfo));
   }
 
-  public prepareWorkflowVersions(versionsList: WorkflowVersionEntry[]): void {
+  public prepareWorkflowVersions(): void {
     const elements = this.workflowActionService.getJointGraphWrapper().getCurrentHighlights();
     this.workflowActionService.getJointGraphWrapper().unhighlightElements(elements);
-    this.workflowVersions = versionsList;
-    this.workflowVersionsObservable.next(versionsList);
   }
 
-  public getWorkflowVersions(): WorkflowVersionEntry[] {
-    return this.workflowVersions;
-  }
-
-  public resetResults(): void {
-    this.workflowVersions = [];
-  }
-
-  public workflowVersionsChosen() : Observable<WorkflowVersionEntry[]> {
+  public isWorkflowVersionsChosen(): Observable<boolean> {
     return this.workflowVersionsObservable.asObservable();
+  }
+
+  public getVersionDisplayHighlighted(): boolean {
+    return this.versionDisplayHighlighted;
   }
 }
