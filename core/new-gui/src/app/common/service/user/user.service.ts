@@ -148,7 +148,8 @@ export class UserService {
       this.registerAutoLogout();
       this.registerAutoRefreshToken();
     } else {
-      this.changeUser(undefined);
+      // access token is expired, logout instantly
+      this.logout();
     }
   }
 
@@ -168,10 +169,16 @@ export class UserService {
     this.refreshTokenSubscription = interval(TOKEN_REFRESH_INTERVAL_IN_MIN * 60 * 1000)
       .pipe(startWith(0)) // to trigger immediately for the first time.
       .subscribe(() => {
-        this.refreshToken().subscribe(({ accessToken }) => {
-          UserService.setAccessToken(accessToken);
-          this.registerAutoLogout();
-        });
+        this.refreshToken().subscribe(
+          ({ accessToken }) => {
+            UserService.setAccessToken(accessToken);
+            this.registerAutoLogout();
+          },
+          (_: unknown) => {
+            // failed to refresh the access token, logout instantly.
+            this.logout();
+          }
+        );
       });
   }
 
