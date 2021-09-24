@@ -121,16 +121,16 @@ class WorkflowWebsocketResource extends LazyLogging {
           send(session, HelloWorldResponse("hello from texera web server"))
         case heartbeat: HeartBeatRequest =>
           send(session, HeartBeatResponse())
-        case execute: ExecuteWorkflowRequest =>
+        case execute: WorkflowExecuteRequest =>
           println(execute)
           executeWorkflow(session, execute)
         case newLogic: ModifyLogicRequest =>
           modifyLogic(session, newLogic)
-        case pause: PauseWorkflowRequest =>
+        case pause: WorkflowPauseRequest =>
           pauseWorkflow(session)
-        case resume: ResumeWorkflowRequest =>
+        case resume: WorkflowResumeRequest =>
           resumeWorkflow(session)
-        case kill: KillWorkflowRequest =>
+        case kill: WorkflowKillRequest =>
           killWorkflow(session)
         case skipTupleMsg: SkipTupleRequest =>
           skipTuple(session, skipTupleMsg)
@@ -223,7 +223,7 @@ class WorkflowWebsocketResource extends LazyLogging {
     send(session, WorkflowResumedEvent())
   }
 
-  def executeWorkflow(session: Session, request: ExecuteWorkflowRequest): Unit = {
+  def executeWorkflow(session: Session, request: WorkflowExecuteRequest): Unit = {
     var cachedOperators: mutable.HashMap[String, OperatorDescriptor] = null
     var cacheSourceOperators: mutable.HashMap[String, CacheSourceOpDesc] = null
     var cacheSinkOperators: mutable.HashMap[String, CacheSinkOpDesc] = null

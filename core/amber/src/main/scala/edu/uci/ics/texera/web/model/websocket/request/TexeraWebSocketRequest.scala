@@ -6,20 +6,20 @@ import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes(
   Array(
-    new Type(value = classOf[HelloWorldRequest]),
-    new Type(value = classOf[HeartBeatRequest]),
-    new Type(value = classOf[ExecuteWorkflowRequest]),
-    new Type(value = classOf[PauseWorkflowRequest]),
-    new Type(value = classOf[ResumeWorkflowRequest]),
-    new Type(value = classOf[KillWorkflowRequest]),
-    new Type(value = classOf[ModifyLogicRequest]),
     new Type(value = classOf[AddBreakpointRequest]),
+    new Type(value = classOf[CacheStatusUpdateRequest]),
+    new Type(value = classOf[HeartBeatRequest]),
+    new Type(value = classOf[HelloWorldRequest]),
+    new Type(value = classOf[ModifyLogicRequest]),
     new Type(value = classOf[RemoveBreakpointRequest]),
-    new Type(value = classOf[SkipTupleRequest]),
-    new Type(value = classOf[RetryRequest]),
-    new Type(value = classOf[ResultPaginationRequest]),
     new Type(value = classOf[ResultExportRequest]),
-    new Type(value = classOf[CacheStatusUpdateRequest])
+    new Type(value = classOf[ResultPaginationRequest]),
+    new Type(value = classOf[RetryRequest]),
+    new Type(value = classOf[SkipTupleRequest]),
+    new Type(value = classOf[WorkflowExecuteRequest]),
+    new Type(value = classOf[WorkflowKillRequest]),
+    new Type(value = classOf[WorkflowPauseRequest]),
+    new Type(value = classOf[WorkflowResumeRequest])
   )
 )
 trait TexeraWebSocketRequest {}
