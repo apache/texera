@@ -116,7 +116,7 @@ export class NgbdModalUserLoginComponent implements OnInit {
    */
   public googleLogin(): void {
     this.userService
-      .googleAuth()
+      .googleLogin()
       .pipe(untilDestroyed(this))
       .subscribe(
         () => this.activeModal.close(),

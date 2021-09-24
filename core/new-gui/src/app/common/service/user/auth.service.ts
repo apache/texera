@@ -51,7 +51,7 @@ export class AuthService {
    * It will automatically login, save the user account inside and trigger userChangeEvent when success
    * @param authCode string
    */
-  public googleLogin(authCode: string): Observable<Readonly<{ accessToken: string }>> {
+  public googleAuth(authCode: string): Observable<Readonly<{ accessToken: string }>> {
     return this.http.post<Readonly<{ accessToken: string }>>(
       `${AppSettings.getApiEndpoint()}/${AuthService.GOOGLE_LOGIN_ENDPOINT}`,
       { authCode }
@@ -64,7 +64,7 @@ export class AuthService {
    * @param username
    * @param password
    */
-  public login(username: string, password: string): Observable<Readonly<{ accessToken: string }>> {
+  public auth(username: string, password: string): Observable<Readonly<{ accessToken: string }>> {
     return this.http.post<Readonly<{ accessToken: string }>>(
       `${AppSettings.getApiEndpoint()}/${AuthService.LOGIN_ENDPOINT}`,
       { username, password }

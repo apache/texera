@@ -1,6 +1,6 @@
 import { Injectable } from "@angular/core";
 
-import { Observable, Subject } from "rxjs";
+import { Observable, of, Subject } from "rxjs";
 import { User } from "../../type/user";
 import { UserService } from "./user.service";
 import { PublicInterfaceOf } from "../../util/stub";
@@ -21,57 +21,39 @@ export const MOCK_USER = {
 export class StubUserService implements PublicInterfaceOf<UserService> {
   public userChangeSubject: Subject<User | undefined> = new Subject();
   public user: User | undefined;
-  private googleAuth = undefined;
-  private http = undefined;
-  private jwtHelpService = undefined;
 
   constructor() {
     this.user = MOCK_USER;
     this.userChangeSubject.next(this.user);
   }
 
-  public getGoogleAuthInstance(): Observable<gapi.auth2.GoogleAuth> {
-    throw new Error("Method not implemented.");
-  }
-
-  public googleLogin(authCode: string): Observable<Readonly<{ accessToken: string }>> {
-    throw new Error("Method not implemented.");
-  }
-
-  public validateUsername(userName: string): {
-    result: boolean;
-    message: string;
-  } {
-    throw new Error("Method not implemented.");
-  }
-
-  public userChanged(): Observable<User | undefined> {
-    return this.userChangeSubject.asObservable();
-  }
-
-  public getUser(): User | undefined {
-    return this.user;
-  }
-
-  public register(userName: string): Observable<Readonly<{ accessToken: string }>> {
-    throw new Error("unimplemented");
-  }
-
-  public login(userName: string, password: string): Observable<Readonly<{ accessToken: string }>> {
-    throw new Error("unimplemented");
-  }
-
-  public logout(): void {
-    throw new Error("unimplemented");
-  }
-
-  public isLogin(): boolean {
-    return this.user !== undefined;
-  }
-
-  public changeUser(user: User | undefined): void {
+  changeUser(user: User | undefined): void {
     this.user = user;
   }
 
-  loginFromSession(): void {}
+  public googleLogin(): Observable<void> {
+    throw new Error("Method not implemented.");
+  }
+
+  isLogin(): boolean {
+    return this.user !== undefined;
+  }
+
+  login(username: string, password: string): Observable<void> {
+    return of();
+  }
+
+  logout(): void {}
+
+  register(username: string, password: string): Observable<void> {
+    return of();
+  }
+
+  userChanged(): Observable<User | undefined> {
+    return of();
+  }
+
+  validateUsername(username: string): { result: boolean; message: string } {
+    return { message: "", result: false };
+  }
 }

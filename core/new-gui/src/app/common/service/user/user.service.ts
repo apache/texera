@@ -26,25 +26,19 @@ export class UserService {
   }
 
   public login(username: string, password: string): Observable<void> {
-
-      // validate the credentials with backend
-      return this.authService.login(username, password).pipe(map(res => this.handleAccessToken(res.accessToken)));
-
+    // validate the credentials with backend
+    return this.authService.auth(username, password).pipe(map(res => this.handleAccessToken(res.accessToken)));
   }
 
-  public googleAuth() : Observable<void> {
+  public googleLogin(): Observable<void> {
     return this.googleAuthService.getAuth().pipe(
       map(Auth => {
         // grantOfflineAccess allows application to access specified scopes offline
-        Auth.grantOfflineAccess().then(code =>
-          this.authService.googleLogin(code["code"]).subscribe(res => this.handleAccessToken(res.accessToken))
+        Auth.grantOfflineAccess().then(({ code }) =>
+          this.authService.googleAuth(code).subscribe(res => this.handleAccessToken(res.accessToken))
         );
       })
     );
-  }
-
-  public getUser(): User | undefined {
-    return this.currentUser;
   }
 
   public isLogin(): boolean {
