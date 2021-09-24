@@ -4,6 +4,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.typesafe.config.{Config, ConfigFactory}
+import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.JwtAuth.{jwtConsumer, jwtTokenSecret}
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER
@@ -16,7 +17,7 @@ import edu.uci.ics.texera.web.model.request.auth.{
   UserRegistrationRequest
 }
 import edu.uci.ics.texera.web.resource.auth.UserResource.{
-  TOKEN_EXPIRE_TIME_IN_MIN,
+  TOKEN_EXPIRE_TIME_IN_DAYS,
   retrieveUserByUsernameAndPassword,
   setUserSession,
   validateUsername
@@ -35,7 +36,8 @@ import javax.ws.rs.core.{MediaType, Response}
 import scala.util.{Failure, Success, Try}
 
 object UserResource {
-  final private val TOKEN_EXPIRE_TIME_IN_MIN = 30 * 24 * 60 // TODO: make this configurable
+  final private val TOKEN_EXPIRE_TIME_IN_DAYS =
+    AmberUtils.amberConfig.getString("user-sys.jwt.exp-in-days").toInt
   private val SESSION_USER = "texera-user"
 
   /**
@@ -109,9 +111,10 @@ class UserResource {
     val claims = new JwtClaims
     claims.setSubject(user.getName)
     claims.setClaim("userId", user.getUid)
-    claims.setExpirationTimeMinutesInTheFuture(TOKEN_EXPIRE_TIME_IN_MIN)
+    claims.setExpirationTimeMinutesInTheFuture(TOKEN_EXPIRE_TIME_IN_DAYS * 24 * 60)
     claims
   }
+
   private def generateNewJwtToken(claims: JwtClaims): String = {
     val jws = new JsonWebSignature()
     jws.setPayload(claims.toJson)
@@ -127,7 +130,7 @@ class UserResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   def refreshToken(request: RefreshTokenRequest): Response = {
     val claims = jwtConsumer.process(request.accessToken).getJwtClaims
-    claims.setExpirationTimeMinutesInTheFuture(TOKEN_EXPIRE_TIME_IN_MIN)
+    claims.setExpirationTimeMinutesInTheFuture(TOKEN_EXPIRE_TIME_IN_DAYS * 24 * 60)
     Response.ok.entity(Map("accessToken" -> generateNewJwtToken(claims))).build()
   }
 
