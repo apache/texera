@@ -7,6 +7,7 @@ import edu.uci.ics.texera.web.auth.JwtAuth.{
   generateNewJwtToken,
   jwtConsumer
 }
+import edu.uci.ics.texera.web.auth.PasswordEncryption
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
