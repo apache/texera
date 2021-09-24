@@ -29,7 +29,7 @@ trait ModifyLogicHandler {
   registerHandler { (msg: ModifyLogic, sender) =>
     {
       val operatorUUID = msg.operatorDescriptor.operatorID
-      val operatorId = new OperatorIdentity(msg.operatorDescriptor.context.jobID, operatorUUID)
+      val operatorId = new OperatorIdentity(msg.operatorDescriptor.context.jobId, operatorUUID)
       val operator = workflow.getOperator(operatorId)
       val modifyOperatorLogic: ModifyOperatorLogic = msg.operatorDescriptor match {
         case desc: PythonUDFOpDescV2 =>

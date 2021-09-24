@@ -32,7 +32,7 @@ export class UserIconComponent {
    * handle the event when user click on the logout button
    */
   public onClickLogout(): void {
-    this.userService.logOut();
+    this.userService.logout();
   }
 
   /**

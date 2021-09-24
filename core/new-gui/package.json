@@ -31,6 +31,7 @@
     "@angular/platform-browser": "^11.2.14",
     "@angular/platform-browser-dynamic": "^11.2.14",
     "@angular/router": "^11.2.14",
+    "@auth0/angular-jwt": "^5.0.2",
     "@danmarshall/deckgl-typings": "^4.9.2",
     "@ng-bootstrap/ng-bootstrap": "^9.1.2",
     "@ngneat/until-destroy": "^8.1.4",

@@ -27,7 +27,7 @@ object Utils {
       workflowTag: String = "workflow-test"
   ): Props = {
     val context = new WorkflowContext
-    context.jobID = jobId
+    context.jobId = jobId
 
     val texeraWorkflowCompiler = new WorkflowCompiler(
       WorkflowInfo(operators, links, mutable.MutableList[BreakpointInfo]()),

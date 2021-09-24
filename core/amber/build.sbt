@@ -58,6 +58,9 @@ val jacksonVersion = "2.12.0"
 val dropwizardDependencies = Seq(
   "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
   "io.dropwizard" % "dropwizard-client" % dropwizardVersion,
+  "io.dropwizard" % "dropwizard-auth" % dropwizardVersion,
+  // https://mvnrepository.com/artifact/com.github.toastshaman/dropwizard-auth-jwt
+  "com.github.toastshaman" % "dropwizard-auth-jwt" % "1.1.2-0",
   "com.github.dirkraft.dropwizard" % "dropwizard-file-assets" % "0.0.2",
   "io.dropwizard-bundles" % "dropwizard-redirect-bundle" % "1.0.5",
   "com.liveperson" % "dropwizard-websockets" % "1.3.14",

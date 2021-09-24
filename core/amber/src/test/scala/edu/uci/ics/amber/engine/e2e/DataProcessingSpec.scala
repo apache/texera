@@ -50,7 +50,7 @@ class DataProcessingSpec
       links: mutable.MutableList[OperatorLink]
   ): Workflow = {
     val context = new WorkflowContext
-    context.jobID = "workflow-test"
+    context.jobId = "workflow-test"
 
     val texeraWorkflowCompiler = new WorkflowCompiler(
       WorkflowInfo(operators, links, mutable.MutableList[BreakpointInfo]()),
