@@ -5,7 +5,7 @@ import { environment } from "../../../../environments/environment";
 import { AppSettings } from "../../app-setting";
 import { User } from "../../type/user";
 import { GoogleAuthService } from "ng-gapi";
-import { delay, filter, startWith } from "rxjs/operators";
+import { delay, startWith } from "rxjs/operators";
 import { JwtHelperService } from "@auth0/angular-jwt";
 
 export const TOKEN_KEY = "access_token";
@@ -24,7 +24,7 @@ export class UserService {
   public static readonly LOGIN_ENDPOINT = "auth/login";
   public static readonly REFRESH_TOKEN = "auth/refresh";
   public static readonly REGISTER_ENDPOINT = "auth/register";
-  public static readonly GOOGLE_LOGIN_ENDPOINT = "auth/google-login";
+  public static readonly GOOGLE_LOGIN_ENDPOINT = "auth/google/login";
 
   private currentUser: User | undefined = undefined;
   private userChangeSubject: ReplaySubject<User | undefined> = new ReplaySubject<User | undefined>(1);
@@ -70,13 +70,14 @@ export class UserService {
    * It will automatically login, save the user account inside and trigger userChangeEvent when success
    * @param authCode string
    */
-  public googleLogin(authCode: string): Observable<User> {
+  public googleLogin(authCode: string): Observable<Readonly<{ accessToken: string }>> {
     if (this.currentUser) {
       throw new Error("Already logged in when login in.");
     }
-    return this.http
-      .post<User>(`${AppSettings.getApiEndpoint()}/${UserService.GOOGLE_LOGIN_ENDPOINT}`, { authCode })
-      .pipe(filter((user: User) => user != null));
+    return this.http.post<Readonly<{ accessToken: string }>>(
+      `${AppSettings.getApiEndpoint()}/${UserService.GOOGLE_LOGIN_ENDPOINT}`,
+      { authCode }
+    );
   }
 
   /**

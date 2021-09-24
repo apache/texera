@@ -1,27 +1,30 @@
 package edu.uci.ics.texera.web.resource.auth
 
-import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.auth.JwtAuth.{generateNewJwtClaims, generateNewJwtToken, jwtConsumer, jwtTokenSecret}
+import edu.uci.ics.texera.web.auth.JwtAuth.{
+  TOKEN_EXPIRE_TIME_IN_DAYS,
+  generateNewJwtClaims,
+  generateNewJwtToken,
+  jwtConsumer
+}
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
-import edu.uci.ics.texera.web.model.request.auth.{RefreshTokenRequest, UserLoginRequest, UserRegistrationRequest}
+import edu.uci.ics.texera.web.model.request.auth.{
+  RefreshTokenRequest,
+  UserLoginRequest,
+  UserRegistrationRequest
+}
 import edu.uci.ics.texera.web.resource.auth.AuthResource._
 import org.apache.commons.lang3.tuple.Pair
-import org.jose4j.jws.AlgorithmIdentifiers.HMAC_SHA256
-import org.jose4j.jws.JsonWebSignature
-import org.jose4j.jwt.JwtClaims
-import org.jose4j.keys.HmacKey
 
 import javax.annotation.security.PermitAll
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
 
 object AuthResource {
+
   final private val userDao = new UserDao(SqlServer.createDSLContext.configuration)
-  final private val TOKEN_EXPIRE_TIME_IN_DAYS =
-    AmberUtils.amberConfig.getString("user-sys.jwt.exp-in-days").toInt
 
   /**
     * Retrieve exactly one User from databases with the given username and password
@@ -38,8 +41,6 @@ object AuthResource {
         .fetchOneInto(classOf[User])
     ).filter(user => PasswordEncryption.checkPassword(user.getPassword, password))
   }
-
-
 
   // TODO: rewrite this
   private def validateUsername(userName: String): Pair[Boolean, String] =

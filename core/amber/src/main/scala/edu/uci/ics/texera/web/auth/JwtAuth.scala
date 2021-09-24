@@ -12,8 +12,9 @@ import org.jose4j.keys.HmacKey
 import java.util.Random
 
 object JwtAuth {
-  val jwtConfig: Config = AmberUtils.amberConfig.getConfig("user-sys.jwt")
-  val jwtTokenSecret: String = jwtConfig.getString("256-bit-secret").toLowerCase() match {
+  final val jwtConfig: Config = AmberUtils.amberConfig.getConfig("user-sys.jwt")
+  final val TOKEN_EXPIRE_TIME_IN_DAYS = jwtConfig.getString("exp-in-days").toInt
+  final val TOKEN_SECRET: String = jwtConfig.getString("256-bit-secret").toLowerCase() match {
     case "random" => getRandomHexString
     case _        => jwtConfig.getString("256-bit-secret")
   }
@@ -22,7 +23,7 @@ object JwtAuth {
     .setAllowedClockSkewInSeconds(30)
     .setRequireExpirationTime()
     .setRequireSubject()
-    .setVerificationKey(new HmacKey(jwtTokenSecret.getBytes))
+    .setVerificationKey(new HmacKey(TOKEN_SECRET.getBytes))
     .setRelaxVerificationKeyValidation()
     .build
 
@@ -30,7 +31,7 @@ object JwtAuth {
     val jws = new JsonWebSignature()
     jws.setPayload(claims.toJson)
     jws.setAlgorithmHeaderValue(HMAC_SHA256)
-    jws.setKey(new HmacKey(jwtTokenSecret.getBytes))
+    jws.setKey(new HmacKey(TOKEN_SECRET.getBytes))
     jws.getCompactSerialization
   }
 

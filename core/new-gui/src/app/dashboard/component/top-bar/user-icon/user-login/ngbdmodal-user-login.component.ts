@@ -1,7 +1,6 @@
 import { Component, OnInit } from "@angular/core";
 import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { UserService } from "../../../../../common/service/user/user.service";
-import { User } from "../../../../../common/type/user";
 import { FormBuilder, FormControl, FormGroup, Validators } from "@angular/forms";
 import { isDefined } from "../../../../../common/util/predicate";
 import { filter } from "rxjs/operators";
@@ -135,8 +134,9 @@ export class NgbdModalUserLoginComponent implements OnInit {
             .googleLogin(code["code"])
             .pipe(untilDestroyed(this))
             .subscribe(
-              googleUser => {
-                this.userService.changeUser(<User>{ name: googleUser.name });
+              ({ accessToken }) => {
+                UserService.setAccessToken(accessToken);
+                this.userService.loginFromSession();
                 this.activeModal.close();
               },
               () => (this.loginErrorMessage = "Incorrect credentials")

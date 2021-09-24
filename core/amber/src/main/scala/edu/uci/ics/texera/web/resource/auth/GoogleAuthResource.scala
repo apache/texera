@@ -5,19 +5,24 @@ import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.typesafe.config.{Config, ConfigFactory}
 import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.texera.web.auth.JwtAuth.{
+  TOKEN_EXPIRE_TIME_IN_DAYS,
+  generateNewJwtClaims,
+  generateNewJwtToken
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.request.auth.GoogleUserLoginRequest
-import edu.uci.ics.texera.web.resource.auth.GoogleAuthResource.{GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, SESSION_USER}
-import io.dropwizard.jersey.sessions.Session
+import edu.uci.ics.texera.web.resource.auth.GoogleAuthResource.{
+  GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET
+}
 
-import javax.servlet.http.HttpSession
 import javax.ws.rs.core.{MediaType, Response}
 import javax.ws.rs.{Consumes, POST, Path, Produces}
 import scala.util.{Failure, Success, Try}
 object GoogleAuthResource {
   val googleAPIConfig: Config = ConfigFactory.load("google_api")
-  private val SESSION_USER = "texera-user"
   private val GOOGLE_CLIENT_ID: String = googleAPIConfig.getString("google.clientId")
   private val GOOGLE_CLIENT_SECRET: String = googleAPIConfig.getString("google.clientSecret")
 }
@@ -33,29 +38,13 @@ class GoogleAuthResource {
 
   @POST
   @Path("/login")
-  def googleLogin(@Session session: HttpSession, request: GoogleUserLoginRequest): Response = {
+  def googleLogin(request: GoogleUserLoginRequest): Response = {
 
     retrieveUserByGoogleAuthCode(request.authCode) match {
       case Success(user) =>
-        setUserSession(session, Some(user))
-        Response.ok(user).build()
+        val claims = generateNewJwtClaims(user, TOKEN_EXPIRE_TIME_IN_DAYS)
+        Response.ok.entity(Map("accessToken" -> generateNewJwtToken(claims))).build()
       case Failure(_) => Response.status(Response.Status.UNAUTHORIZED).build()
-    }
-
-  }
-
-  /**
-    * Set user into the current HTTPSession. It will remove sensitive information of the user.
-    * @param session HttpSession, current session being retrieved.
-    * @param userToSet Option[User], a user that might contain sensitive information like password.
-    *             if None, the session will be cleared.
-    */
-  private def setUserSession(session: HttpSession, userToSet: Option[User]): Unit = {
-    userToSet match {
-      case Some(user) =>
-        session.setAttribute(SESSION_USER, new User(user.getName, user.getUid, null, null))
-      case None =>
-        session.setAttribute(SESSION_USER, null)
     }
 
   }
@@ -85,10 +74,6 @@ class GoogleAuthResource {
       val googleId = payload.getSubject
       // get the Google username of the user, will be used as Texera username
       val googleUsername = payload.get("name").asInstanceOf[String]
-
-      // get access token and refresh token (used for accessing Google API Service)
-      // val access_token = tokenResponse.getAccessToken
-      // val refresh_token = tokenResponse.getRefreshToken
 
       // store Google user id in database if it does not exist
       Option(userDao.fetchOneByGoogleId(googleId)) match {
