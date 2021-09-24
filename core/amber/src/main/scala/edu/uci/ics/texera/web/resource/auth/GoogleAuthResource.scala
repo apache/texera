@@ -10,7 +10,7 @@ import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_DAYS, generateNewJwtClaims, generateNewJwtToken}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
-import edu.uci.ics.texera.web.model.request.auth.GoogleUserLoginRequest
+import edu.uci.ics.texera.web.model.http.request.auth.GoogleUserLoginRequest
 import edu.uci.ics.texera.web.resource.auth.GoogleAuthResource.{GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GoogleAuthorizationCodeTokenV4Request}
 
 import javax.ws.rs.core.{MediaType, Response}

@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowResultUpdate
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.texera.web.model.event.TexeraWebSocketEvent
+import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.resource.WorkflowResultService.{
   PaginationMode,
   WebPaginationUpdate,
@@ -118,14 +118,15 @@ class WorkflowResultService(
   var operatorResults: mutable.HashMap[String, OperatorResultService] =
     mutable.HashMap[String, OperatorResultService]()
   workflowCompiler.workflow.getSinkOperators.map(sink => {
-    if (workflowCompiler.workflow.getOperator(sink).isInstanceOf[CacheSinkOpDesc]) {
-      val upstreamID = workflowCompiler.workflow.getUpstream(sink).head.operatorID
-      val service = new OperatorResultService(upstreamID, workflowCompiler, opResultStorage)
-      service.uuid = workflowCompiler.workflow.getOperator(sink).asInstanceOf[CacheSinkOpDesc].uuid
-      operatorResults += ((sink, service))
-    } else {
-      val service = new OperatorResultService(sink, workflowCompiler, opResultStorage)
-      operatorResults += ((sink, service))
+    workflowCompiler.workflow.getOperator(sink) match {
+      case desc: CacheSinkOpDesc =>
+        val upstreamID = workflowCompiler.workflow.getUpstream(sink).head.operatorID
+        val service = new OperatorResultService(upstreamID, workflowCompiler, opResultStorage)
+        service.uuid = desc.uuid
+        operatorResults += ((sink, service))
+      case _ =>
+        val service = new OperatorResultService(sink, workflowCompiler, opResultStorage)
+        operatorResults += ((sink, service))
     }
   })
 

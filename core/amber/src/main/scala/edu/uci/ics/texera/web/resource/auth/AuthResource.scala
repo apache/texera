@@ -11,7 +11,7 @@ import edu.uci.ics.texera.web.auth.PasswordEncryption
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
-import edu.uci.ics.texera.web.model.request.auth.{
+import edu.uci.ics.texera.web.model.http.request.auth.{
   RefreshTokenRequest,
   UserLoginRequest,
   UserRegistrationRequest
