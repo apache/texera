@@ -16,12 +16,7 @@ import edu.uci.ics.texera.web.model.request.auth.{
   UserLoginRequest,
   UserRegistrationRequest
 }
-import edu.uci.ics.texera.web.resource.auth.UserResource.{
-  TOKEN_EXPIRE_TIME_IN_DAYS,
-  retrieveUserByUsernameAndPassword,
-  setUserSession,
-  validateUsername
-}
+import edu.uci.ics.texera.web.resource.auth.AuthResource._
 import io.dropwizard.jersey.sessions.Session
 import org.apache.commons.lang3.tuple.Pair
 import org.jose4j.jws.AlgorithmIdentifiers.HMAC_SHA256
@@ -35,10 +30,13 @@ import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
 import scala.util.{Failure, Success, Try}
 
-object UserResource {
+object AuthResource {
   final private val TOKEN_EXPIRE_TIME_IN_DAYS =
     AmberUtils.amberConfig.getString("user-sys.jwt.exp-in-days").toInt
+  val googleAPIConfig: Config = ConfigFactory.load("google_api")
   private val SESSION_USER = "texera-user"
+  private val GOOGLE_CLIENT_ID: String = googleAPIConfig.getString("google.clientId")
+  private val GOOGLE_CLIENT_SECRET: String = googleAPIConfig.getString("google.clientSecret")
 
   /**
     * Retrieve exactly one User from databases with the given username and password
@@ -54,6 +52,22 @@ object UserResource {
         .where(USER.NAME.eq(name).and(USER.GOOGLE_ID.isNull))
         .fetchOneInto(classOf[User])
     ).filter(user => PasswordEncryption.checkPassword(user.getPassword, password))
+  }
+
+  def generateNewJwtToken(claims: JwtClaims): String = {
+    val jws = new JsonWebSignature()
+    jws.setPayload(claims.toJson)
+    jws.setAlgorithmHeaderValue(HMAC_SHA256)
+    jws.setKey(new HmacKey(jwtTokenSecret.getBytes))
+    jws.getCompactSerialization
+  }
+
+  def generateNewJwtClaims(user: User): JwtClaims = {
+    val claims = new JwtClaims
+    claims.setSubject(user.getName)
+    claims.setClaim("userId", user.getUid)
+    claims.setExpirationTimeMinutesInTheFuture(TOKEN_EXPIRE_TIME_IN_DAYS * 24 * 60)
+    claims
   }
 
   // TODO: rewrite this
@@ -80,16 +94,13 @@ object UserResource {
 
 }
 
-@Path("/users/")
+@Path("/auth/")
 @Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON))
-class UserResource {
+class AuthResource {
 
   final private val userDao = new UserDao(SqlServer.createDSLContext.configuration)
 
-  val googleAPIConfig: Config = ConfigFactory.load("google_api")
-  private val GOOGLE_CLIENT_ID: String = googleAPIConfig.getString("google.clientId")
-  private val GOOGLE_CLIENT_SECRET: String = googleAPIConfig.getString("google.clientSecret")
   private val TRANSPORT = new NetHttpTransport
   private val JSON_FACTORY = new JacksonFactory
 
@@ -105,23 +116,6 @@ class UserResource {
       case None => Response.status(Response.Status.UNAUTHORIZED).build()
     }
 
-  }
-
-  private def generateNewJwtClaims(user: User): JwtClaims = {
-    val claims = new JwtClaims
-    claims.setSubject(user.getName)
-    claims.setClaim("userId", user.getUid)
-    claims.setExpirationTimeMinutesInTheFuture(TOKEN_EXPIRE_TIME_IN_DAYS * 24 * 60)
-    claims
-  }
-
-  private def generateNewJwtToken(claims: JwtClaims): String = {
-    val jws = new JsonWebSignature()
-    jws.setPayload(claims.toJson)
-    print(claims.toJson)
-    jws.setAlgorithmHeaderValue(HMAC_SHA256)
-    jws.setKey(new HmacKey(jwtTokenSecret.getBytes))
-    jws.getCompactSerialization
   }
 
   @PermitAll
