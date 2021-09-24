@@ -12,7 +12,6 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.resource.auth.AuthResource._
-import org.apache.commons.lang3.tuple.Pair
 import org.jasypt.util.password.StrongPasswordEncryptor
 
 import javax.annotation.security.PermitAll
@@ -36,14 +35,14 @@ object AuthResource {
         .from(USER)
         .where(USER.NAME.eq(name).and(USER.GOOGLE_ID.isNull))
         .fetchOneInto(classOf[User])
-    ).filter(user => new StrongPasswordEncryptor().checkPassword(user.getPassword, password))
+    ).filter(user => new StrongPasswordEncryptor().checkPassword(password, user.getPassword))
   }
 
-  // TODO: rewrite this
-  private def validateUsername(userName: String): Pair[Boolean, String] =
-    if (userName == null) Pair.of(false, "username cannot be null")
-    else if (userName.trim.isEmpty) Pair.of(false, "username cannot be empty")
-    else Pair.of(true, "username validation success")
+  @throws[NotAcceptableException]
+  def validateUsername(username: String): Unit = {
+    if (username == null) throw new NotAcceptableException("Username cannot be null.")
+    if (username.trim.isEmpty) throw new NotAcceptableException("Username cannot be empty.")
+  }
 
 }
 
@@ -55,7 +54,7 @@ class AuthResource {
   @POST
   @Path("/login")
   def login(request: UserLoginRequest): TokenIssueResponse = {
-    retrieveUserByUsernameAndPassword(request.userName, request.password) match {
+    retrieveUserByUsernameAndPassword(request.username, request.password) match {
       case Some(user) =>
         TokenIssueResponse(jwtToken(jwtClaims(user, dayToMin(TOKEN_EXPIRE_TIME_IN_DAYS))))
       case None => throw new NotAuthorizedException("Login credentials are incorrect.")
@@ -74,20 +73,17 @@ class AuthResource {
   @POST
   @Path("/register")
   def register(request: UserRegistrationRequest): TokenIssueResponse = {
-    val userName = request.userName
-    val password = request.password
-    val validationResult = validateUsername(userName)
-    if (!validationResult.getLeft)
-      throw new NotAcceptableException("Invalid username.")
+    val username = request.username
+    validateUsername(username)
 
-    userDao.fetchByName(userName).size() match {
+    userDao.fetchByName(username).size() match {
       case 0 =>
         val user = new User
-        user.setName(userName)
+        user.setName(username)
         // hash the plain text password
-        user.setPassword(new StrongPasswordEncryptor().encryptPassword(password))
+        user.setPassword(new StrongPasswordEncryptor().encryptPassword(request.password))
         userDao.insert(user)
-        TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_DAYS * 24 * 60)))
+        TokenIssueResponse(jwtToken(jwtClaims(user, dayToMin(TOKEN_EXPIRE_TIME_IN_DAYS))))
       case _ =>
         // the username exists already
         throw new NotAcceptableException("Username exists already.")

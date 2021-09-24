@@ -41,10 +41,10 @@ export class UserService {
   /**
    * This method will handle the request for user registration.
    * It will automatically login, save the user account inside and trigger userChangeEvent when success
-   * @param userName
+   * @param username
    * @param password
    */
-  public register(userName: string, password: string): Observable<Readonly<{ accessToken: string }>> {
+  public register(username: string, password: string): Observable<Readonly<{ accessToken: string }>> {
     if (this.currentUser) {
       throw new Error("Already logged in when register.");
     }
@@ -52,7 +52,7 @@ export class UserService {
     return this.http.post<Readonly<{ accessToken: string }>>(
       `${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`,
       {
-        userName,
+        username,
         password,
       }
     );
@@ -83,16 +83,16 @@ export class UserService {
   /**
    * This method will handle the request for user login.
    * It will automatically login, save the user account inside and trigger userChangeEvent when success
-   * @param userName
+   * @param username
    * @param password
    */
-  public login(userName: string, password: string): Observable<Readonly<{ accessToken: string }>> {
+  public login(username: string, password: string): Observable<Readonly<{ accessToken: string }>> {
     if (this.currentUser) {
       throw new Error("Already logged in when login in.");
     }
     return this.http.post<Readonly<{ accessToken: string }>>(
       `${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`,
-      { userName, password }
+      { username, password }
     );
   }
 
@@ -125,16 +125,13 @@ export class UserService {
 
   /**
    * check the given parameter is legal for login/registration
-   * @param userName
+   * @param username
    */
-  public validateUsername(userName: string): {
-    result: boolean;
-    message: string;
-  } {
-    if (userName.trim().length === 0) {
-      return { result: false, message: "userName should not be empty" };
+  public validateUsername(username: string): { result: boolean; message: string } {
+    if (username.trim().length === 0) {
+      return { result: false, message: "Username should not be empty." };
     }
-    return { result: true, message: "userName frontend validation success" };
+    return { result: true, message: "Username frontend validation success." };
   }
 
   public userChanged(): Observable<User | undefined> {
