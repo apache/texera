@@ -34,7 +34,7 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
     throw new Error("Method not implemented.");
   }
 
-  public googleLogin(authCode: string): Observable<User> {
+  public googleLogin(authCode: string): Observable<Readonly<{ accessToken: string }>> {
     throw new Error("Method not implemented.");
   }
 
