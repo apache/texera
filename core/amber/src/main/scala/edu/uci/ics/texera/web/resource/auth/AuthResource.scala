@@ -8,21 +8,21 @@ import edu.uci.ics.texera.web.auth.JwtAuth.{
   jwtConsumer
 }
 import edu.uci.ics.texera.web.auth.PasswordEncryption
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.http.request.auth.{
   RefreshTokenRequest,
   UserLoginRequest,
   UserRegistrationRequest
 }
+import edu.uci.ics.texera.web.model.http.response.TokenIssueResponse
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.resource.auth.AuthResource._
 import org.apache.commons.lang3.tuple.Pair
 
 import javax.annotation.security.PermitAll
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
-
 object AuthResource {
 
   final private val userDao = new UserDao(SqlServer.createDSLContext.configuration)
@@ -58,22 +58,18 @@ class AuthResource {
 
   @POST
   @Path("/login")
-  @Produces(Array(MediaType.APPLICATION_JSON))
-  def login(request: UserLoginRequest): Response = {
+  def login(request: UserLoginRequest): TokenIssueResponse = {
     retrieveUserByUsernameAndPassword(request.userName, request.password) match {
       case Some(user) =>
         val claims = generateNewJwtClaims(user, TOKEN_EXPIRE_TIME_IN_DAYS)
-        Response.ok.entity(Map("accessToken" -> generateNewJwtToken(claims))).build()
-
-      case None => Response.status(Response.Status.UNAUTHORIZED).build()
+        TokenIssueResponse(generateNewJwtToken(claims))
+      case None => throw new NotAuthorizedException("Login credentials are incorrect.")
     }
-
   }
 
   @PermitAll
   @POST
   @Path("/refresh")
-  @Produces(Array(MediaType.APPLICATION_JSON))
   def refreshToken(request: RefreshTokenRequest): Response = {
     val claims = jwtConsumer.process(request.accessToken).getJwtClaims
     claims.setExpirationTimeMinutesInTheFuture(TOKEN_EXPIRE_TIME_IN_DAYS * 24 * 60)

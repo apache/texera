@@ -115,7 +115,6 @@ class WorkflowResource {
     * for future design, it should also take userID as an parameter.
     *
     * @param wid     workflow id, which serves as the primary key in the UserWorkflow database
-    * @param session HttpSession
     * @return a json string representing an savedWorkflow
     */
   @GET
@@ -139,7 +138,6 @@ class WorkflowResource {
   /**
     * This method persists the workflow into database
     *
-    * @param session  HttpSession
     * @param workflow , a workflow
     * @return Workflow, which contains the generated wid if not provided//
     *         TODO: divide into two endpoints -> one for new-workflow and one for updating existing workflow
@@ -194,7 +192,6 @@ class WorkflowResource {
   /**
     * This method duplicates the target workflow, the new workflow name is appended with `_copy`
     *
-    * @param session  HttpSession
     * @param workflow , a workflow to be duplicated
     * @return Workflow, which contains the generated wid if not provided
     */
@@ -226,7 +223,6 @@ class WorkflowResource {
   /**
     * This method creates and insert a new workflow to database
     *
-    * @param session  HttpSession
     * @param workflow , a workflow to be created
     * @return Workflow, which contains the generated wid if not provided
     */
@@ -254,7 +250,6 @@ class WorkflowResource {
   /**
     * This method deletes the workflow from database
     *
-    * @param session HttpSession
     * @return Response, deleted - 200, not deleted - 304 // TODO: change the error code
     */
   @DELETE
