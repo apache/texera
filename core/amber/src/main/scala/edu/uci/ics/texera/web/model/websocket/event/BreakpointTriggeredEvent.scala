@@ -2,15 +2,9 @@ package edu.uci.ics.texera.web.model.websocket.event
 
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent
 import edu.uci.ics.texera.web.model.common.FaultedTupleFrontend
+import edu.uci.ics.texera.web.model.websocket.event.BreakpointTriggeredEvent.BreakpointFault
 
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
-
-case class BreakpointFault(
-    actorPath: String,
-    faultedTuple: FaultedTupleFrontend,
-    messages: Array[String]
-)
 
 object BreakpointTriggeredEvent {
   def apply(event: ControllerEvent.BreakpointTriggered): BreakpointTriggeredEvent = {
@@ -24,6 +18,11 @@ object BreakpointTriggeredEvent {
     }
     BreakpointTriggeredEvent(faults, event.operatorID)
   }
+  case class BreakpointFault(
+      actorPath: String,
+      faultedTuple: FaultedTupleFrontend,
+      messages: Array[String]
+  )
 }
 
 case class BreakpointTriggeredEvent(

@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.web.model.websocket.event
 
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ReportCurrentProcessingTuple
+import edu.uci.ics.texera.web.model.websocket.event.OperatorCurrentTuplesUpdateEvent.WorkerTuples
 
 object OperatorCurrentTuplesUpdateEvent {
   def apply(report: ReportCurrentProcessingTuple): OperatorCurrentTuplesUpdateEvent = {
@@ -18,9 +19,8 @@ object OperatorCurrentTuplesUpdateEvent {
       .toList
     OperatorCurrentTuplesUpdateEvent(report.operatorID, workerTuples)
   }
+  case class WorkerTuples(workerID: String, tuple: List[String])
 }
-
-case class WorkerTuples(workerID: String, tuple: List[String])
 
 case class OperatorCurrentTuplesUpdateEvent(operatorID: String, tuples: List[WorkerTuples])
     extends TexeraWebSocketEvent

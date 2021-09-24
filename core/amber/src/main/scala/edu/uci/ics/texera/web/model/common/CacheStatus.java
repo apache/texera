@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.web.model.websocket.event;
+package edu.uci.ics.texera.web.model.common;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 
