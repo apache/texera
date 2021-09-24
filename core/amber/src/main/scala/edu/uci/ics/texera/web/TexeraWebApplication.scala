@@ -7,7 +7,7 @@ import com.github.toastshaman.dropwizard.auth.jwt.JwtAuthFilter
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.auth.JwtAuth.jwtConsumer
-import edu.uci.ics.texera.web.auth.{SessionUser, UserAuthenticator}
+import edu.uci.ics.texera.web.auth.{SessionUser, UserAuthenticator, UserRoleAuthorizer}
 import edu.uci.ics.texera.web.resource.auth.AuthResource
 import edu.uci.ics.texera.web.resource.dashboard.file.{UserFileAccessResource, UserFileResource}
 import edu.uci.ics.texera.web.resource.dashboard.{WorkflowAccessResource, WorkflowResource}
@@ -79,6 +79,7 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
           .setRealm("realm")
           .setPrefix("Bearer")
           .setAuthenticator(UserAuthenticator)
+          .setAuthorizer(UserRoleAuthorizer)
           .buildAuthFilter()
       )
     )
