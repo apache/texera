@@ -30,8 +30,8 @@ object GoogleAuthResource {
   val googleAPIConfig: Config = ConfigFactory.load("google_api")
   private val GOOGLE_CLIENT_ID: String = googleAPIConfig.getString("google.clientId")
   private val GOOGLE_CLIENT_SECRET: String = googleAPIConfig.getString("google.clientSecret")
-  private val TRANSPORT = new NetHttpTransport
-  private val JSON_FACTORY = new JacksonFactory
+  private val transport = new NetHttpTransport
+  private val jsonFactory = new JacksonFactory
 
   /**
     * Retrieve exactly one User from Google with the given googleAuthCode
@@ -44,8 +44,8 @@ object GoogleAuthResource {
     Try({
       // use authorization code to get tokens
       val tokenResponse = new GoogleAuthorizationCodeTokenV4Request(
-        TRANSPORT,
-        JSON_FACTORY,
+        transport,
+        jsonFactory,
         GOOGLE_CLIENT_ID,
         GOOGLE_CLIENT_SECRET,
         googleAuthCode,

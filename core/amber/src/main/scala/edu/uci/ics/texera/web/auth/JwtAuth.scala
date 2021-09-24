@@ -12,13 +12,14 @@ import org.jose4j.keys.HmacKey
 import java.util.Random
 
 object JwtAuth {
+
   final val jwtConfig: Config = AmberUtils.amberConfig.getConfig("user-sys.jwt")
   final val TOKEN_EXPIRE_TIME_IN_DAYS = jwtConfig.getString("exp-in-days").toInt
   final val TOKEN_SECRET: String = jwtConfig.getString("256-bit-secret").toLowerCase() match {
     case "random" => getRandomHexString
     case _        => jwtConfig.getString("256-bit-secret")
   }
-  // create the JwtConsumer instance
+
   val jwtConsumer: JwtConsumer = new JwtConsumerBuilder()
     .setAllowedClockSkewInSeconds(30)
     .setRequireExpirationTime()
@@ -39,7 +40,7 @@ object JwtAuth {
     val claims = new JwtClaims
     claims.setSubject(user.getName)
     claims.setClaim("userId", user.getUid)
-    claims.setExpirationTimeMinutesInTheFuture(expireInDays * 24 * 60)
+    claims.setExpirationTimeMinutesInTheFuture(dayToMin(expireInDays))
     claims
   }
 
