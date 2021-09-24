@@ -2,6 +2,10 @@ package edu.uci.ics.texera.web.auth
 
 import com.typesafe.config.Config
 import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
+import org.jose4j.jws.AlgorithmIdentifiers.HMAC_SHA256
+import org.jose4j.jws.JsonWebSignature
+import org.jose4j.jwt.JwtClaims
 import org.jose4j.jwt.consumer.{JwtConsumer, JwtConsumerBuilder}
 import org.jose4j.keys.HmacKey
 
@@ -21,6 +25,22 @@ object JwtAuth {
     .setVerificationKey(new HmacKey(jwtTokenSecret.getBytes))
     .setRelaxVerificationKeyValidation()
     .build
+
+  def generateNewJwtToken(claims: JwtClaims): String = {
+    val jws = new JsonWebSignature()
+    jws.setPayload(claims.toJson)
+    jws.setAlgorithmHeaderValue(HMAC_SHA256)
+    jws.setKey(new HmacKey(jwtTokenSecret.getBytes))
+    jws.getCompactSerialization
+  }
+
+  def generateNewJwtClaims(user: User, expireInDays: Int): JwtClaims = {
+    val claims = new JwtClaims
+    claims.setSubject(user.getName)
+    claims.setClaim("userId", user.getUid)
+    claims.setExpirationTimeMinutesInTheFuture(expireInDays * 24 * 60)
+    claims
+  }
 
   private def getRandomHexString: String = {
     val bytes = 32
