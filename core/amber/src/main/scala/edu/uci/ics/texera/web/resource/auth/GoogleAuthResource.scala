@@ -7,7 +7,7 @@ import com.google.api.client.json.JsonFactory
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.typesafe.config.{Config, ConfigFactory}
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_DAYS, generateNewJwtClaims, generateNewJwtToken}
+import edu.uci.ics.texera.web.auth.JwtAuth.{TOKEN_EXPIRE_TIME_IN_DAYS, jwtClaims, jwtToken}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.http.request.auth.GoogleUserLoginRequest
@@ -59,8 +59,8 @@ class GoogleAuthResource {
 
     retrieveUserByGoogleAuthCode(request.authCode) match {
       case Success(user) =>
-        val claims = generateNewJwtClaims(user, TOKEN_EXPIRE_TIME_IN_DAYS)
-        Response.ok.entity(Map("accessToken" -> generateNewJwtToken(claims))).build()
+        val claims = jwtClaims(user, TOKEN_EXPIRE_TIME_IN_DAYS)
+        Response.ok.entity(Map("accessToken" -> jwtToken(claims))).build()
       case Failure(_) => Response.status(Response.Status.UNAUTHORIZED).build()
     }
 

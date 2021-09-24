@@ -1,13 +1,7 @@
 package edu.uci.ics.texera.web.resource.auth
 
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.auth.JwtAuth.{
-  TOKEN_EXPIRE_TIME_IN_DAYS,
-  generateNewJwtClaims,
-  generateNewJwtToken,
-  jwtConsumer
-}
-import edu.uci.ics.texera.web.auth.PasswordEncryption
+import edu.uci.ics.texera.web.auth.JwtAuth._
 import edu.uci.ics.texera.web.model.http.request.auth.{
   RefreshTokenRequest,
   UserLoginRequest,
@@ -19,16 +13,18 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.resource.auth.AuthResource._
 import org.apache.commons.lang3.tuple.Pair
+import org.jasypt.util.password.StrongPasswordEncryptor
 
 import javax.annotation.security.PermitAll
 import javax.ws.rs._
-import javax.ws.rs.core.{MediaType, Response}
+import javax.ws.rs.core.MediaType
 object AuthResource {
 
   final private val userDao = new UserDao(SqlServer.createDSLContext.configuration)
 
   /**
-    * Retrieve exactly one User from databases with the given username and password
+    * Retrieve exactly one User from databases with the given username and password.
+    *  The password is used to validate against the hashed password stored in the db.
     * @param name String
     * @param password String, plain text password
     * @return
@@ -40,7 +36,7 @@ object AuthResource {
         .from(USER)
         .where(USER.NAME.eq(name).and(USER.GOOGLE_ID.isNull))
         .fetchOneInto(classOf[User])
-    ).filter(user => PasswordEncryption.checkPassword(user.getPassword, password))
+    ).filter(user => new StrongPasswordEncryptor().checkPassword(user.getPassword, password))
   }
 
   // TODO: rewrite this
@@ -61,8 +57,7 @@ class AuthResource {
   def login(request: UserLoginRequest): TokenIssueResponse = {
     retrieveUserByUsernameAndPassword(request.userName, request.password) match {
       case Some(user) =>
-        val claims = generateNewJwtClaims(user, TOKEN_EXPIRE_TIME_IN_DAYS)
-        TokenIssueResponse(generateNewJwtToken(claims))
+        TokenIssueResponse(jwtToken(jwtClaims(user, dayToMin(TOKEN_EXPIRE_TIME_IN_DAYS))))
       case None => throw new NotAuthorizedException("Login credentials are incorrect.")
     }
   }
@@ -70,37 +65,33 @@ class AuthResource {
   @PermitAll
   @POST
   @Path("/refresh")
-  def refreshToken(request: RefreshTokenRequest): Response = {
+  def refreshToken(request: RefreshTokenRequest): TokenIssueResponse = {
     val claims = jwtConsumer.process(request.accessToken).getJwtClaims
-    claims.setExpirationTimeMinutesInTheFuture(TOKEN_EXPIRE_TIME_IN_DAYS * 24 * 60)
-    Response.ok.entity(Map("accessToken" -> generateNewJwtToken(claims))).build()
+    claims.setExpirationTimeMinutesInTheFuture(dayToMin(TOKEN_EXPIRE_TIME_IN_DAYS))
+    TokenIssueResponse(jwtToken(claims))
   }
 
   @POST
   @Path("/register")
-  def register(request: UserRegistrationRequest): Response = {
+  def register(request: UserRegistrationRequest): TokenIssueResponse = {
     val userName = request.userName
     val password = request.password
     val validationResult = validateUsername(userName)
     if (!validationResult.getLeft)
-      // Using BAD_REQUEST as no other status code is suitable. Better to use 422.
-      return Response.status(Response.Status.BAD_REQUEST).build()
+      throw new NotAcceptableException("Invalid username.")
 
-    retrieveUserByUsernameAndPassword(userName, password) match {
-      case Some(_) =>
-        // the username is existing already
-        // Using BAD_REQUEST as no other status code is suitable. Better to use 422.
-        Response.status(Response.Status.BAD_REQUEST).build()
-      case None =>
+    userDao.fetchByName(userName).size() match {
+      case 0 =>
         val user = new User
         user.setName(userName)
         // hash the plain text password
-        user.setPassword(PasswordEncryption.encrypt(password))
+        user.setPassword(new StrongPasswordEncryptor().encryptPassword(password))
         userDao.insert(user)
-        val claims = generateNewJwtClaims(user, TOKEN_EXPIRE_TIME_IN_DAYS)
-        Response.ok.entity(Map("accessToken" -> generateNewJwtToken(claims))).build()
+        TokenIssueResponse(jwtToken(jwtClaims(user, TOKEN_EXPIRE_TIME_IN_DAYS * 24 * 60)))
+      case _ =>
+        // the username exists already
+        throw new NotAcceptableException("Username exists already.")
     }
-
   }
 
 }

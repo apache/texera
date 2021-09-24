@@ -27,7 +27,7 @@ object JwtAuth {
     .setRelaxVerificationKeyValidation()
     .build
 
-  def generateNewJwtToken(claims: JwtClaims): String = {
+  def jwtToken(claims: JwtClaims): String = {
     val jws = new JsonWebSignature()
     jws.setPayload(claims.toJson)
     jws.setAlgorithmHeaderValue(HMAC_SHA256)
@@ -35,12 +35,16 @@ object JwtAuth {
     jws.getCompactSerialization
   }
 
-  def generateNewJwtClaims(user: User, expireInDays: Int): JwtClaims = {
+  def jwtClaims(user: User, expireInDays: Int): JwtClaims = {
     val claims = new JwtClaims
     claims.setSubject(user.getName)
     claims.setClaim("userId", user.getUid)
     claims.setExpirationTimeMinutesInTheFuture(expireInDays * 24 * 60)
     claims
+  }
+
+  def dayToMin(days: Int): Int = {
+    days * 24 * 60
   }
 
   private def getRandomHexString: String = {
