@@ -1,15 +1,10 @@
-import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { interval, Observable, of, ReplaySubject, Subscription } from "rxjs";
-import { environment } from "../../../../environments/environment";
-import { AppSettings } from "../../app-setting";
+import { Observable, ReplaySubject } from "rxjs";
 import { User } from "../../type/user";
 import { GoogleAuthService } from "ng-gapi";
-import { delay, startWith } from "rxjs/operators";
-import { JwtHelperService } from "@auth0/angular-jwt";
-
-export const TOKEN_KEY = "access_token";
-export const TOKEN_REFRESH_INTERVAL_IN_MIN = 15;
+import { AuthService } from "./auth.service";
+import { environment } from "../../../../environments/environment";
+import { map } from "rxjs/operators";
 
 /**
  * User Service contains the function of registering and logging the user.
@@ -21,89 +16,31 @@ export const TOKEN_REFRESH_INTERVAL_IN_MIN = 15;
   providedIn: "root",
 })
 export class UserService {
-  public static readonly LOGIN_ENDPOINT = "auth/login";
-  public static readonly REFRESH_TOKEN = "auth/refresh";
-  public static readonly REGISTER_ENDPOINT = "auth/register";
-  public static readonly GOOGLE_LOGIN_ENDPOINT = "auth/google/login";
-
-  private currentUser: User | undefined = undefined;
+  private currentUser?: User = undefined;
   private userChangeSubject: ReplaySubject<User | undefined> = new ReplaySubject<User | undefined>(1);
-  private tokenExpirationSubscription?: Subscription;
-  private refreshTokenSubscription?: Subscription;
-  private jwtHelperService = new JwtHelperService();
 
-  constructor(private http: HttpClient, private googleAuth: GoogleAuthService) {
+  constructor(private googleAuthService: GoogleAuthService, private authService: AuthService) {
     if (environment.userSystemEnabled) {
-      this.loginFromSession();
+      this.authService.loginFromSession().subscribe(user => this.changeUser(user));
     }
   }
 
-  /**
-   * This method will handle the request for user registration.
-   * It will automatically login, save the user account inside and trigger userChangeEvent when success
-   * @param username
-   * @param password
-   */
-  public register(username: string, password: string): Observable<Readonly<{ accessToken: string }>> {
-    if (this.currentUser) {
-      throw new Error("Already logged in when register.");
-    }
+  public login(username: string, password: string): Observable<void> {
 
-    return this.http.post<Readonly<{ accessToken: string }>>(
-      `${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`,
-      {
-        username,
-        password,
-      }
+      // validate the credentials with backend
+      return this.authService.login(username, password).pipe(map(res => this.handleAccessToken(res.accessToken)));
+
+  }
+
+  public googleAuth() : Observable<void> {
+    return this.googleAuthService.getAuth().pipe(
+      map(Auth => {
+        // grantOfflineAccess allows application to access specified scopes offline
+        Auth.grantOfflineAccess().then(code =>
+          this.authService.googleLogin(code["code"]).subscribe(res => this.handleAccessToken(res.accessToken))
+        );
+      })
     );
-  }
-
-  /**
-   * this method returns a Google OAuth Instance
-   */
-  public getGoogleAuthInstance(): Observable<gapi.auth2.GoogleAuth> {
-    return this.googleAuth.getAuth();
-  }
-
-  /**
-   * This method will handle the request for Google login.
-   * It will automatically login, save the user account inside and trigger userChangeEvent when success
-   * @param authCode string
-   */
-  public googleLogin(authCode: string): Observable<Readonly<{ accessToken: string }>> {
-    if (this.currentUser) {
-      throw new Error("Already logged in when login in.");
-    }
-    return this.http.post<Readonly<{ accessToken: string }>>(
-      `${AppSettings.getApiEndpoint()}/${UserService.GOOGLE_LOGIN_ENDPOINT}`,
-      { authCode }
-    );
-  }
-
-  /**
-   * This method will handle the request for user login.
-   * It will automatically login, save the user account inside and trigger userChangeEvent when success
-   * @param username
-   * @param password
-   */
-  public login(username: string, password: string): Observable<Readonly<{ accessToken: string }>> {
-    if (this.currentUser) {
-      throw new Error("Already logged in when login in.");
-    }
-    return this.http.post<Readonly<{ accessToken: string }>>(
-      `${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`,
-      { username, password }
-    );
-  }
-
-  /**
-   * this method will clear the saved user account and trigger userChangeEvent
-   */
-  public logout(): void {
-    UserService.removeAccessToken();
-    this.changeUser(undefined);
-    this.tokenExpirationSubscription?.unsubscribe();
-    this.refreshTokenSubscription?.unsubscribe();
   }
 
   public getUser(): User | undefined {
@@ -138,68 +75,16 @@ export class UserService {
     return this.userChangeSubject.asObservable();
   }
 
-  public loginFromSession(): void {
-    this.tokenExpirationSubscription?.unsubscribe();
-    const token = UserService.getAccessToken();
-    if (token !== null && !this.jwtHelperService.isTokenExpired(token)) {
-      this.changeUser(<User>{ name: this.jwtHelperService.decodeToken(token).sub });
-      this.registerAutoLogout();
-      this.registerAutoRefreshToken();
-    } else {
-      // access token is expired, logout instantly
-      this.logout();
-    }
+  public logout(): void {
+    this.authService.logout().subscribe(_ => this.changeUser(undefined));
   }
 
-  /**
-   * Refreshes the current accessToken to get a new accessToken
-   * // TODO: for better security, use a separate refresh token to perform this refresh
-   */
-  private refreshToken(): Observable<Readonly<{ accessToken: string }>> {
-    return this.http.post<Readonly<{ accessToken: string }>>(
-      `${AppSettings.getApiEndpoint()}/${UserService.REFRESH_TOKEN}`,
-      { accessToken: UserService.getAccessToken() }
-    );
+  public register(username: string, password: string): Observable<void> {
+    return this.authService.register(username, password).pipe(map(res => this.handleAccessToken(res.accessToken)));
   }
 
-  private registerAutoRefreshToken() {
-    this.refreshTokenSubscription?.unsubscribe();
-    this.refreshTokenSubscription = interval(TOKEN_REFRESH_INTERVAL_IN_MIN * 60 * 1000)
-      .pipe(startWith(0)) // to trigger immediately for the first time.
-      .subscribe(() => {
-        this.refreshToken().subscribe(
-          ({ accessToken }) => {
-            UserService.setAccessToken(accessToken);
-            this.registerAutoLogout();
-          },
-          (_: unknown) => {
-            // failed to refresh the access token, logout instantly.
-            this.logout();
-          }
-        );
-      });
-  }
-
-  private registerAutoLogout() {
-    this.tokenExpirationSubscription?.unsubscribe();
-    const expirationTime = this.jwtHelperService.getTokenExpirationDate()?.getTime();
-    const token = UserService.getAccessToken();
-    if (token !== null && !this.jwtHelperService.isTokenExpired(token) && expirationTime !== undefined) {
-      this.tokenExpirationSubscription = of(null)
-        .pipe(delay(expirationTime - new Date().getTime()))
-        .subscribe(() => this.logout());
-    }
-  }
-
-  static setAccessToken(token: string): void {
-    localStorage.setItem(TOKEN_KEY, token);
-  }
-
-  static getAccessToken(): string | null {
-    return localStorage.getItem(TOKEN_KEY);
-  }
-
-  static removeAccessToken(): void {
-    localStorage.removeItem(TOKEN_KEY);
+  private handleAccessToken(accessToken: string) {
+    AuthService.setAccessToken(accessToken);
+    this.authService.loginFromSession().subscribe(user => this.changeUser(user));
   }
 }

@@ -99,6 +99,7 @@ import { NotificationComponent } from "./common/component/notification/notificat
 import { DebuggerFrameComponent } from "./workspace/component/result-panel/debugger-frame/debugger-frame.component";
 import { NzTabsModule } from "ng-zorro-antd/tabs";
 import { JwtModule } from "@auth0/angular-jwt";
+import { AuthService } from "./common/service/user/auth.service";
 
 registerLocaleData(en);
 
@@ -161,7 +162,7 @@ registerLocaleData(en);
     HttpClientModule,
     JwtModule.forRoot({
       config: {
-        tokenGetter: UserService.getAccessToken,
+        tokenGetter: AuthService.getAccessToken,
         skipWhenExpired: false,
         throwNoTokenError: false,
       },
