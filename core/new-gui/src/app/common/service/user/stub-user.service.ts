@@ -31,7 +31,7 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
     this.user = user;
   }
 
-  public googleLogin(): Observable<void> {
+  googleLogin(): Observable<void> {
     throw new Error("Method not implemented.");
   }
 

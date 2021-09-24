@@ -58,7 +58,7 @@ export class NgbdModalUserLoginComponent implements OnInit {
   public login(): void {
     // validate the credentials format
     this.loginErrorMessage = undefined;
-    const validation = this.userService.validateUsername(this.allForms.get("loginUsername")?.value);
+    const validation = UserService.validateUsername(this.allForms.get("loginUsername")?.value);
     if (!validation.result) {
       this.loginErrorMessage = validation.message;
       return;
@@ -86,7 +86,7 @@ export class NgbdModalUserLoginComponent implements OnInit {
     const registerPassword = this.allForms.get("registerPassword")?.value;
     const registerConfirmationPassword = this.allForms.get("registerConfirmationPassword")?.value;
     const registerUsername = this.allForms.get("registerUsername")?.value.trim();
-    const validation = this.userService.validateUsername(registerUsername);
+    const validation = UserService.validateUsername(registerUsername);
     if (registerPassword.length < 6) {
       this.registerErrorMessage = "Password length should be greater than 5";
       return;
