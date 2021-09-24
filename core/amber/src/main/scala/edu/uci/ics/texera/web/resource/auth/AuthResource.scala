@@ -64,7 +64,7 @@ class AuthResource {
   @PermitAll
   @POST
   @Path("/refresh")
-  def refreshToken(request: RefreshTokenRequest): TokenIssueResponse = {
+  def refresh(request: RefreshTokenRequest): TokenIssueResponse = {
     val claims = jwtConsumer.process(request.accessToken).getJwtClaims
     claims.setExpirationTimeMinutesInTheFuture(dayToMin(TOKEN_EXPIRE_TIME_IN_DAYS))
     TokenIssueResponse(jwtToken(claims))
