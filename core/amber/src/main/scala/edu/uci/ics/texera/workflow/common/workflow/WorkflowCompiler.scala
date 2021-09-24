@@ -95,8 +95,8 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
 
     val outLinks: mutable.Map[OperatorIdentity, mutable.Set[OperatorIdentity]] = mutable.Map()
     workflowInfo.links.foreach(link => {
-      val origin = OperatorIdentity(this.context.jobID, link.origin.operatorID)
-      val dest = OperatorIdentity(this.context.jobID, link.destination.operatorID)
+      val origin = OperatorIdentity(this.context.jobId, link.origin.operatorID)
+      val dest = OperatorIdentity(this.context.jobId, link.destination.operatorID)
       outLinks.getOrElseUpdate(origin, mutable.Set()).add(dest)
 
       val layerLink = LinkIdentity(

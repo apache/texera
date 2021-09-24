@@ -99,6 +99,7 @@ import { NotificationComponent } from "./common/component/notification/notificat
 import { DebuggerFrameComponent } from "./workspace/component/result-panel/debugger-frame/debugger-frame.component";
 import { NzTabsModule } from "ng-zorro-antd/tabs";
 import { NzTreeViewModule } from "ng-zorro-antd/tree-view";
+import { JwtModule } from "@auth0/angular-jwt";
 
 registerLocaleData(en);
 
@@ -159,6 +160,13 @@ registerLocaleData(en);
     BrowserModule,
     AppRoutingModule,
     HttpClientModule,
+    JwtModule.forRoot({
+      config: {
+        tokenGetter: UserService.getAccessToken,
+        skipWhenExpired: false,
+        throwNoTokenError: false,
+      },
+    }),
     MatTooltipModule,
     CustomNgMaterialModule,
     BrowserAnimationsModule,

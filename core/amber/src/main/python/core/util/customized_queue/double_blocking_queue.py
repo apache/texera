@@ -13,7 +13,6 @@ class DoubleBlockingQueue(IQueue):
     """
 
     def __init__(self, *sub_types: type):
-        super().__init__()
         self._input_queue = queue.Queue()
         self._main_queue = queue.Queue()
         self._sub_queue = queue.Queue()
