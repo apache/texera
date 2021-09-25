@@ -18,7 +18,7 @@ export const MOCK_USER = {
  */
 @Injectable()
 export class StubUserService implements PublicInterfaceOf<UserService> {
-  public userChangeSubject: ReplaySubject<User | undefined> = new ReplaySubject(1);
+  public userChangeSubject: Subject<User | undefined> = new Subject();
   public user: User | undefined;
 
   constructor() {

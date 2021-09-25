@@ -112,7 +112,6 @@ class UserFileResource {
   /**
     * This method returns a list fo all files accessible by the current user
     *
-    * @param session the session indicating current logged-in user
     * @return
     */
   @GET
@@ -152,7 +151,6 @@ class UserFileResource {
     * This method deletes a file from a user's repository
     * @param fileName the name of file being deleted
     * @param ownerName the name of the file's owner
-    * @param session the session indicating the current user
     * @return
     */
   @DELETE
