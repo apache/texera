@@ -102,10 +102,22 @@ class UserDictionaryResource {
   }
 
   /**
+    * This method checks if a given entry exists
+    * each tuple (uid, key) is a primary key in user_dictionary,
+    * and should uniquely identify one value
+    */
+  private def dictEntryExists(user: User, key: String): Boolean = {
+    userDictionaryDao.existsById(
+      SqlServer.createDSLContext
+        .newRecord(USER_DICTIONARY.UID, USER_DICTIONARY.KEY)
+        .values(user.getUid, key)
+    )
+  }
+
+  /**
     * This method deletes a key-value pair from the current in-session user's dictionary based on
     * the "key" attribute of the DeleteRequest
-    * @param session HttpSession
-    * @param req DeleteRequest
+    *
     * @return
     * 401 unauthorized -
     * 400 bad request -
@@ -121,19 +133,6 @@ class UserDictionaryResource {
     if (dictEntryExists(user, key)) {
       deleteDictEntry(user, key)
     }
-  }
-
-  /**
-    * This method checks if a given entry exists
-    * each tuple (uid, key) is a primary key in user_dictionary,
-    * and should uniquely identify one value
-    */
-  private def dictEntryExists(user: User, key: String): Boolean = {
-    userDictionaryDao.existsById(
-      SqlServer.createDSLContext
-        .newRecord(USER_DICTIONARY.UID, USER_DICTIONARY.KEY)
-        .values(user.getUid, key)
-    )
   }
 
   /**
