@@ -1,6 +1,6 @@
 import { Injectable } from "@angular/core";
 
-import { Observable, of, Subject } from "rxjs";
+import { Observable, of, ReplaySubject, Subject } from "rxjs";
 import { User } from "../../type/user";
 import { UserService } from "./user.service";
 import { PublicInterfaceOf } from "../../util/stub";
@@ -14,12 +14,11 @@ export const MOCK_USER = {
 
 /**
  * This StubUserService is to test other service's functionality that depends on UserService
- * The login/register will succeed when receive the user name {@link stubUserName} and fail otherwise.
  * It will correctly emit UserChangedEvent as the normal UserService do.
  */
 @Injectable()
 export class StubUserService implements PublicInterfaceOf<UserService> {
-  public userChangeSubject: Subject<User | undefined> = new Subject();
+  public userChangeSubject: ReplaySubject<User | undefined> = new ReplaySubject(1);
   public user: User | undefined;
 
   constructor() {
@@ -46,6 +45,6 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
   }
 
   userChanged(): Observable<User | undefined> {
-    return of();
+    return this.userChangeSubject.asObservable();
   }
 }

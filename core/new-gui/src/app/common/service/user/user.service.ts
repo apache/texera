@@ -7,10 +7,8 @@ import { environment } from "../../../../environments/environment";
 import { map } from "rxjs/operators";
 
 /**
- * User Service contains the function of registering and logging the user.
- * It will save the user account inside for future use.
- *
- * @author Adam
+ * User Service manages User information. It relies on different
+ * auth services to authenticate a valid User.
  */
 @Injectable({
   providedIn: "root",
@@ -19,9 +17,9 @@ export class UserService {
   private currentUser?: User = undefined;
   private userChangeSubject: ReplaySubject<User | undefined> = new ReplaySubject<User | undefined>(1);
 
-  constructor(private googleAuthService: GoogleAuthService, private authService: AuthService) {
+  constructor(private authService: AuthService) {
     if (environment.userSystemEnabled) {
-      this.authService.loginFromSession().subscribe(user => this.changeUser(user));
+      this.authService.loginWithExistingToken().subscribe(user => this.changeUser(user));
     }
   }
 
@@ -31,14 +29,7 @@ export class UserService {
   }
 
   public googleLogin(): Observable<void> {
-    return this.googleAuthService.getAuth().pipe(
-      map(Auth => {
-        // grantOfflineAccess allows application to access specified scopes offline
-        Auth.grantOfflineAccess().then(({ code }) =>
-          this.authService.googleAuth(code).subscribe(res => this.handleAccessToken(res.accessToken))
-        );
-      })
-    );
+    return this.authService.googleAuth().pipe(map(res => this.handleAccessToken(res.accessToken)));
   }
 
   public isLogin(): boolean {
@@ -68,14 +59,14 @@ export class UserService {
 
   private handleAccessToken(accessToken: string) {
     AuthService.setAccessToken(accessToken);
-    this.authService.loginFromSession().subscribe(user => this.changeUser(user));
+    this.authService.loginWithExistingToken().subscribe(user => this.changeUser(user));
   }
 
   /**
    * check the given parameter is legal for login/registration
    * @param username
    */
-  public static validateUsername(username: string): { result: boolean; message: string } {
+  static validateUsername(username: string): { result: boolean; message: string } {
     if (username.trim().length === 0) {
       return { result: false, message: "Username should not be empty." };
     }

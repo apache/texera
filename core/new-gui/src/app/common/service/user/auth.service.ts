@@ -1,10 +1,12 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { interval, Observable, of, Subscription } from "rxjs";
+import { from, interval, Observable, of, Subscription } from "rxjs";
 import { AppSettings } from "../../app-setting";
 import { User } from "../../type/user";
-import { delay, startWith } from "rxjs/operators";
+import { delay, mergeMap, startWith } from "rxjs/operators";
 import { JwtHelperService } from "@auth0/angular-jwt";
+import { GoogleAuthService } from "ng-gapi";
+import GoogleAuth = gapi.auth2.GoogleAuth;
 
 export const TOKEN_KEY = "access_token";
 export const TOKEN_REFRESH_INTERVAL_IN_MIN = 15;
@@ -26,9 +28,12 @@ export class AuthService {
 
   private tokenExpirationSubscription?: Subscription;
   private refreshTokenSubscription?: Subscription;
-  private jwtHelperService = new JwtHelperService();
 
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient,
+    private jwtHelperService: JwtHelperService,
+    private googleAuthService: GoogleAuthService
+  ) {}
 
   /**
    * This method will handle the request for user registration.
@@ -49,12 +54,21 @@ export class AuthService {
   /**
    * This method will handle the request for Google login.
    * It will automatically login, save the user account inside and trigger userChangeEvent when success
-   * @param authCode string
+
    */
-  public googleAuth(authCode: string): Observable<Readonly<{ accessToken: string }>> {
-    return this.http.post<Readonly<{ accessToken: string }>>(
-      `${AppSettings.getApiEndpoint()}/${AuthService.GOOGLE_LOGIN_ENDPOINT}`,
-      { authCode }
+  public googleAuth(): Observable<Readonly<{ accessToken: string }>> {
+    return this.googleAuthService.getAuth().pipe(
+      mergeMap((auth: GoogleAuth) =>
+        // grantOfflineAccess allows application to access specified scopes offline
+        from(auth.grantOfflineAccess()).pipe(
+          mergeMap(({ code }) =>
+            this.http.post<Readonly<{ accessToken: string }>>(
+              `${AppSettings.getApiEndpoint()}/${AuthService.GOOGLE_LOGIN_ENDPOINT}`,
+              { authCode: code }
+            )
+          )
+        )
+      )
     );
   }
 
@@ -93,7 +107,7 @@ export class AuthService {
     return { result: true, message: "Username frontend validation success." };
   }
 
-  public loginFromSession(): Observable<User | undefined> {
+  public loginWithExistingToken(): Observable<User | undefined> {
     this.tokenExpirationSubscription?.unsubscribe();
     const token = AuthService.getAccessToken();
     if (token !== null && !this.jwtHelperService.isTokenExpired(token)) {
