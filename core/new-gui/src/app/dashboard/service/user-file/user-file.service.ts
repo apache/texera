@@ -101,10 +101,12 @@ export class UserFileService {
     username: string,
     accessLevel: string
   ): Observable<Response> {
-    return this.http.post<Response>(
-      `${USER_FILE_ACCESS_GRANT_URL}/${userFileEntry.file.name}/${userFileEntry.ownerName}/${username}/${accessLevel}`,
-      null
-    );
+    return this.http.post<Response>(`${USER_FILE_ACCESS_GRANT_URL}`, {
+      username,
+      fileName: userFileEntry.file.name,
+      ownerName: userFileEntry.ownerName,
+      accessLevel,
+    });
   }
 
   /**
