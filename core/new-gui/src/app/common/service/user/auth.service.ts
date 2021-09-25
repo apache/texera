@@ -96,17 +96,6 @@ export class AuthService {
     return of(undefined);
   }
 
-  /**
-   * check the given parameter is legal for login/registration
-   * @param username
-   */
-  public validateUsername(username: string): { result: boolean; message: string } {
-    if (username.trim().length === 0) {
-      return { result: false, message: "Username should not be empty." };
-    }
-    return { result: true, message: "Username frontend validation success." };
-  }
-
   public loginWithExistingToken(): Observable<User | undefined> {
     this.tokenExpirationSubscription?.unsubscribe();
     const token = AuthService.getAccessToken();

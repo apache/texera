@@ -1,10 +1,9 @@
 import { Injectable } from "@angular/core";
 import { Observable, ReplaySubject } from "rxjs";
 import { User } from "../../type/user";
-import { GoogleAuthService } from "ng-gapi";
 import { AuthService } from "./auth.service";
 import { environment } from "../../../../environments/environment";
-import { map } from "rxjs/operators";
+import { map, mergeMap } from "rxjs/operators";
 
 /**
  * User Service manages User information. It relies on different
@@ -25,11 +24,13 @@ export class UserService {
 
   public login(username: string, password: string): Observable<void> {
     // validate the credentials with backend
-    return this.authService.auth(username, password).pipe(map(res => this.handleAccessToken(res.accessToken)));
+    return this.authService
+      .auth(username, password)
+      .pipe(mergeMap(({ accessToken }) => this.handleAccessToken(accessToken)));
   }
 
   public googleLogin(): Observable<void> {
-    return this.authService.googleAuth().pipe(map(res => this.handleAccessToken(res.accessToken)));
+    return this.authService.googleAuth().pipe(mergeMap(({ accessToken }) => this.handleAccessToken(accessToken)));
   }
 
   public isLogin(): boolean {
@@ -45,7 +46,9 @@ export class UserService {
   }
 
   public register(username: string, password: string): Observable<void> {
-    return this.authService.register(username, password).pipe(map(res => this.handleAccessToken(res.accessToken)));
+    return this.authService
+      .register(username, password)
+      .pipe(mergeMap(({ accessToken }) => this.handleAccessToken(accessToken)));
   }
 
   /**
@@ -57,9 +60,9 @@ export class UserService {
     this.userChangeSubject.next(this.currentUser);
   }
 
-  private handleAccessToken(accessToken: string) {
+  private handleAccessToken(accessToken: string): Observable<void> {
     AuthService.setAccessToken(accessToken);
-    this.authService.loginWithExistingToken().subscribe(user => this.changeUser(user));
+    return this.authService.loginWithExistingToken().pipe(map(user => this.changeUser(user)));
   }
 
   /**
