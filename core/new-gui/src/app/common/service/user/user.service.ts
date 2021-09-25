@@ -45,15 +45,6 @@ export class UserService {
     return this.currentUser !== undefined;
   }
 
-  /**
-   * changes the current user and triggers currentUserSubject
-   * @param user
-   */
-  public changeUser(user: User | undefined): void {
-    this.currentUser = user;
-    this.userChangeSubject.next(this.currentUser);
-  }
-
   public userChanged(): Observable<User | undefined> {
     return this.userChangeSubject.asObservable();
   }
@@ -64,6 +55,15 @@ export class UserService {
 
   public register(username: string, password: string): Observable<void> {
     return this.authService.register(username, password).pipe(map(res => this.handleAccessToken(res.accessToken)));
+  }
+
+  /**
+   * changes the current user and triggers currentUserSubject
+   * @param user
+   */
+  private changeUser(user: User | undefined): void {
+    this.currentUser = user;
+    this.userChangeSubject.next(this.currentUser);
   }
 
   private handleAccessToken(accessToken: string) {

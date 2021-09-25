@@ -27,10 +27,6 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
     this.userChangeSubject.next(this.user);
   }
 
-  changeUser(user: User | undefined): void {
-    this.user = user;
-  }
-
   googleLogin(): Observable<void> {
     throw new Error("Method not implemented.");
   }
@@ -51,9 +47,5 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
 
   userChanged(): Observable<User | undefined> {
     return of();
-  }
-
-  validateUsername(username: string): { result: boolean; message: string } {
-    return { message: "", result: false };
   }
 }
