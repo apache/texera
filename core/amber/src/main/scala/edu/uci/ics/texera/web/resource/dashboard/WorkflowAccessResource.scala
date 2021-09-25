@@ -122,7 +122,7 @@ object WorkflowAccessResource {
   * Provides endpoints for operations related to Workflow Access.
   */
 @PermitAll
-@Path("/workflow-access")
+@Path("/workflow/access")
 @Produces(Array(MediaType.APPLICATION_JSON))
 class WorkflowAccessResource() {
   private val userDao = new UserDao(context.configuration())
@@ -157,7 +157,6 @@ class WorkflowAccessResource() {
     * This method identifies the user access level of the given workflow
     *
     * @param wid     the given workflow
-    * @param session the session indicating current User
     * @return json object indicating uid, wid and access level, ex: {"level": "Write", "uid": 1, "wid": 15}
     */
   @GET
@@ -179,7 +178,6 @@ class WorkflowAccessResource() {
     * This method returns all current shared accesses of the given workflow
     *
     * @param wid     the given workflow
-    * @param session the session indicating current User
     * @return json object indicating user with access and access type, ex: [{"Jim": "Write"}]
     */
   @GET
@@ -245,7 +243,6 @@ class WorkflowAccessResource() {
     *
     * @param wid     the given workflow
     * @param username the username of the use whose access is about to be removed
-    * @param session the session indicating current User
     * @return message indicating a success message
     */
   @POST
@@ -289,7 +286,6 @@ class WorkflowAccessResource() {
     *
     * @param wid     the given workflow
     * @param username    the user name which the access is given to
-    * @param session the session indicating current User
     * @param accessLevel the type of Access given to the target user
     * @return rejection if user not permitted to share the workflow or Success Message
     */
