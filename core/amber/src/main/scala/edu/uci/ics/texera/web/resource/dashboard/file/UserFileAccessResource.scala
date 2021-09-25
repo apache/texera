@@ -79,7 +79,6 @@ class UserFileAccessResource {
     * Retrieves the list of all shared accesses of the target file
     * @param fileName    the file name of target file to be shared
     * @param ownerName the name of the file's owner
-    * @param session the session identifying the current user
     * @return A JSON array of File Accesses, Ex: [{username: TestUser, fileAccess: read}]
     */
   @GET
@@ -151,7 +150,6 @@ class UserFileAccessResource {
     * @param ownerName the name of the file's owner
     * @param username the username of target user to be shared to
     * @param accessType the type of access to be shared
-    * @param session the session identifying the current user
     * @return A successful resp if granted, failed resp otherwise
     */
   @POST
@@ -185,10 +183,9 @@ class UserFileAccessResource {
     * @param fileName    the file name of target file to be shared
     * @param ownerName the name of the file's owner
     * @param username the username of target user whose access is about to be revoked
-    * @param session the session identifying the current user
     * @return A successful resp if granted, failed resp otherwise
     */
-  @POST
+  @DELETE
   @Path("/revoke/{fileName}/{ownerName}/{username}")
   def revokeFileAccess(
       @PathParam("fileName") fileName: String,

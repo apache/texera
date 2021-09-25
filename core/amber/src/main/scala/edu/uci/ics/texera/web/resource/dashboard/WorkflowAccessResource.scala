@@ -245,7 +245,7 @@ class WorkflowAccessResource() {
     * @param username the username of the use whose access is about to be removed
     * @return message indicating a success message
     */
-  @POST
+  @DELETE
   @Path("/revoke/{wid}/{username}")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def revokeWorkflowAccess(

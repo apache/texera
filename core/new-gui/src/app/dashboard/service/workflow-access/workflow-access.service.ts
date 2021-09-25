@@ -44,7 +44,7 @@ export class WorkflowAccessService {
    * @return message of success
    */
   public revokeWorkflowAccess(workflow: Workflow, username: string): Observable<Response> {
-    return this.http.post<Response>(`${WORKFLOW_ACCESS_REVOKE_URL}/${workflow.wid}/${username}`, null);
+    return this.http.delete<Response>(`${WORKFLOW_ACCESS_REVOKE_URL}/${workflow.wid}/${username}`);
   }
 
   public getWorkflowOwner(workflow: Workflow): Observable<Readonly<{ ownerName: string }>> {
