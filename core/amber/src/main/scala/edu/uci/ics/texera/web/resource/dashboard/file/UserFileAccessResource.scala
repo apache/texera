@@ -1,32 +1,34 @@
 package edu.uci.ics.texera.web.resource.dashboard.file
 
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.common.AccessEntry
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER_FILE_ACCESS}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{UserDao, UserFileAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserFileAccess
-import edu.uci.ics.texera.web.resource.dashboard.file.UserFileAccessResource.{context, grantAccess}
-import io.dropwizard.auth.Auth
+import edu.uci.ics.texera.web.resource.dashboard.file.UserFileAccessResource.{
+  context,
+  grantAccess,
+  userDao
+}
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
 
 import javax.annotation.security.PermitAll
 import javax.ws.rs._
-import javax.ws.rs.core.{MediaType, Response}
+import javax.ws.rs.core.MediaType
 import scala.collection.JavaConverters._
 
 /**
   * A Utility Class used to for operations related to database
   */
 object UserFileAccessResource {
-  final private val context: DSLContext = SqlServer.createDSLContext
-  final private val userFileAccessDao = new UserFileAccessDao(
+  private lazy val userFileAccessDao = new UserFileAccessDao(
     context.configuration
   )
+  private lazy val userDao = new UserDao(context.configuration)
+  private lazy val context: DSLContext = SqlServer.createDSLContext
 
   def getFileId(ownerName: String, fileName: String): UInteger = {
-    val userDao = new UserDao(context.configuration)
     val uid = userDao.fetchByName(ownerName).get(0).getUid
     val file = context
       .select(FILE.FID)
@@ -37,7 +39,6 @@ object UserFileAccessResource {
   }
 
   def getUidOfUser(username: String): UInteger = {
-    val userDao = new UserDao(context.configuration)
     userDao.fetchByName(username).get(0).getUid
   }
 
@@ -73,8 +74,6 @@ object UserFileAccessResource {
 @Produces(Array(MediaType.APPLICATION_JSON))
 class UserFileAccessResource {
 
-  final private val userDao = new UserDao(context.configuration)
-
   /**
     * Retrieves the list of all shared accesses of the target file
     * @param fileName    the file name of target file to be shared
@@ -85,63 +84,30 @@ class UserFileAccessResource {
   @Path("list/{fileName}/{ownerName}")
   def getAllSharedFileAccess(
       @PathParam("fileName") fileName: String,
-      @PathParam("ownerName") ownerName: String,
-      @Auth sessionUser: SessionUser
-  ): Response = {
-    val user = sessionUser.getUser
+      @PathParam("ownerName") ownerName: String
+  ): List[AccessEntry] = {
     val fid = UserFileAccessResource.getFileId(ownerName, fileName)
     val fileAccess = context
       .select(USER_FILE_ACCESS.UID, USER_FILE_ACCESS.READ_ACCESS, USER_FILE_ACCESS.WRITE_ACCESS)
       .from(USER_FILE_ACCESS)
       .where(USER_FILE_ACCESS.FID.eq(fid))
       .fetch()
-    Response
-      .ok(
-        fileAccess
-          .getValues(0)
-          .asScala
-          .toList
-          .zipWithIndex
-          .map({
-            case (uid, index) =>
-              val userName = userDao.fetchOneByUid(uid.asInstanceOf[UInteger]).getName
-              if (userName == ownerName) {
-                AccessEntry(userName, "Owner")
-              } else if (fileAccess.getValue(index, 2) == true) {
-                AccessEntry(userName, "Write")
-              } else {
-                AccessEntry(userName, "Read")
-              }
-          })
-      )
-      .build()
-  }
-
-  /**
-    * Checks whether a user has access to a file
-    * @param fid     the fileId of target file to be checked
-    * @param uid     the userId of target user to be checked
-    * @return success resp if has access, failed resp otherwise
-    */
-  @GET
-  @Path("hasAccess/{uid}/{fid}")
-  def hasAccessTo(
-      @PathParam("uid") uid: UInteger,
-      @PathParam("fid") fid: UInteger,
-      @Auth sessionUser: SessionUser // TODO: check this unused sessionUser
-  ): Response = {
-    val exist = context
-      .fetchExists(
-        context
-          .selectFrom(USER_FILE_ACCESS)
-          .where(USER_FILE_ACCESS.UID.eq(uid).and(USER_FILE_ACCESS.FID.eq(fid)))
-      )
-    if (exist) {
-      Response.ok().build()
-    } else {
-      Response.status(Response.Status.BAD_REQUEST).entity("user has no access to file").build()
-    }
-
+    fileAccess
+      .getValues(0)
+      .asScala
+      .toList
+      .zipWithIndex
+      .map({
+        case (uid, index) =>
+          val userName = userDao.fetchOneByUid(uid.asInstanceOf[UInteger]).getName
+          if (userName == ownerName) {
+            AccessEntry(userName, "Owner")
+          } else if (fileAccess.getValue(index, 2) == true) {
+            AccessEntry(userName, "Write")
+          } else {
+            AccessEntry(userName, "Read")
+          }
+      })
   }
 
   /**
@@ -158,23 +124,17 @@ class UserFileAccessResource {
       @PathParam("username") username: String,
       @PathParam("fileName") fileName: String,
       @PathParam("ownerName") ownerName: String,
-      @PathParam("accessType") accessType: String,
-      @Auth sessionUser: SessionUser // TODO: check this unused sessionUser
-  ): Response = {
+      @PathParam("accessType") accessType: String
+  ): Unit = {
     val fid = UserFileAccessResource.getFileId(ownerName, fileName)
     val uid: UInteger =
       try {
         userDao.fetchByName(username).get(0).getUid
       } catch {
         case _: NullPointerException =>
-          return Response
-            .status(Response.Status.BAD_REQUEST)
-            .entity("Target User Does Not Exist")
-            .build()
+          throw new BadRequestException("Target User does not exist.")
       }
-
     grantAccess(uid, fid, accessType)
-    Response.ok().build()
   }
 
   /**
@@ -190,26 +150,19 @@ class UserFileAccessResource {
   def revokeFileAccess(
       @PathParam("fileName") fileName: String,
       @PathParam("ownerName") ownerName: String,
-      @PathParam("username") username: String,
-      @Auth sessionUser: SessionUser // TODO: check this unused sessionUser
-  ): Response = {
-
+      @PathParam("username") username: String
+  ): Unit = {
     val fid = UserFileAccessResource.getFileId(ownerName, fileName)
     val uid: UInteger =
       try {
         userDao.fetchByName(username).get(0).getUid
       } catch {
         case _: NullPointerException =>
-          return Response
-            .status(Response.Status.BAD_REQUEST)
-            .entity("Target User Does Not Exist")
-            .build()
+          throw new BadRequestException("Target User does not exist.")
       }
     context
       .deleteFrom(USER_FILE_ACCESS)
       .where(USER_FILE_ACCESS.UID.eq(uid).and(USER_FILE_ACCESS.FID.eq(fid)))
       .execute()
-    Response.ok().build()
-
   }
 }
