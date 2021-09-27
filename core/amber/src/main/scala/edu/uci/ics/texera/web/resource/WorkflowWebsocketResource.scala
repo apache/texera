@@ -20,9 +20,9 @@ import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.web.model.event._
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.request._
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource._
-import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.web.{ServletAwareConfigurator, TexeraWebApplication}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
@@ -39,20 +39,21 @@ import edu.uci.ics.texera.workflow.common.workflow.{
 }
 import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
+import org.jose4j.jwt.consumer.JwtContext
 
 import java.util.concurrent.atomic.AtomicInteger
-import javax.servlet.http.HttpSession
 import javax.websocket._
 import javax.websocket.server.ServerEndpoint
 import scala.collection.{breakOut, mutable}
+import scala.jdk.CollectionConverters.mapAsScalaMapConverter
 
 object WorkflowWebsocketResource {
   // TODO should reorganize this resource.
 
-  val nextJobID = new AtomicInteger(0)
+  val nextJobId = new AtomicInteger(0)
 
   // Map[sessionId, (Session, HttpSession)]
-  val sessionMap = new mutable.HashMap[String, (Session, HttpSession)]
+  val sessionMap = new mutable.HashMap[String, (Session, JwtContext)]
 
   // Map[sessionId, (WorkflowCompiler, ActorRef)]
   val sessionJobs = new mutable.HashMap[String, (WorkflowCompiler, ActorRef)]
@@ -104,11 +105,7 @@ class WorkflowWebsocketResource extends LazyLogging {
   }
 
   @OnOpen
-  def myOnOpen(session: Session, config: EndpointConfig): Unit = {
-    WorkflowWebsocketResource.sessionMap.update(
-      session.getId,
-      (session, config.getUserProperties.get("httpSession").asInstanceOf[HttpSession])
-    )
+  def myOnOpen(session: Session): Unit = {
     logger.info("connection open")
   }
 
@@ -257,11 +254,11 @@ class WorkflowWebsocketResource extends LazyLogging {
 
     logger.info(s"Session id: ${session.getId}")
     val context = new WorkflowContext
-    val jobID = Integer.toString(WorkflowWebsocketResource.nextJobID.incrementAndGet)
-    context.jobID = jobID
-    context.userID = UserResource
-      .getUser(sessionMap(session.getId)._2)
-      .map(u => u.getUid)
+    val jobId = Integer.toString(WorkflowWebsocketResource.nextJobId.incrementAndGet)
+    context.jobId = jobId
+    context.userId = session.getUserProperties.asScala
+      .get(classOf[User].getName)
+      .map(_.asInstanceOf[User].getUid)
 
     if (opResultSwitch) {
       updateCacheStatus(
@@ -302,7 +299,7 @@ class WorkflowWebsocketResource extends LazyLogging {
       return
     }
 
-    val workflow = texeraWorkflowCompiler.amberWorkflow(WorkflowIdentity(jobID))
+    val workflow = texeraWorkflowCompiler.amberWorkflow(WorkflowIdentity(jobId))
 
     val workflowResultService = new WorkflowResultService(texeraWorkflowCompiler, opResultStorage)
     if (!sessionResults.contains(session.getId)) {
@@ -464,13 +461,8 @@ class WorkflowWebsocketResource extends LazyLogging {
   }
 
   def exportResult(session: Session, request: ResultExportRequest): Unit = {
-    val resultExportResponse = ResultExportResource.apply(session.getId, request)
+    val resultExportResponse = ResultExportResource.apply(session, request)
     send(session, resultExportResponse)
-  }
-
-  def killWorkflow(session: Session): Unit = {
-    WorkflowWebsocketResource.sessionJobs(session.getId)._2 ! PoisonPill
-    logger.info("workflow killed")
   }
 
   @OnClose
@@ -487,6 +479,11 @@ class WorkflowWebsocketResource extends LazyLogging {
     if (opResultSwitch) {
       clearMaterialization(session)
     }
+  }
+
+  def killWorkflow(session: Session): Unit = {
+    WorkflowWebsocketResource.sessionJobs(session.getId)._2 ! PoisonPill
+    logger.info("workflow killed")
   }
 
   def clearMaterialization(session: Session): Unit = {

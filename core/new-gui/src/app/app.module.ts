@@ -100,6 +100,7 @@ import { DebuggerFrameComponent } from "./workspace/component/result-panel/debug
 import { NzTabsModule } from "ng-zorro-antd/tabs";
 import { VersionsListDisplayComponent } from "./workspace/component/property-editor/versions-display/versions-display.component";
 import { NzPaginationModule } from "ng-zorro-antd/pagination";
+import { JwtModule } from "@auth0/angular-jwt";
 
 registerLocaleData(en);
 
@@ -161,6 +162,13 @@ registerLocaleData(en);
     BrowserModule,
     AppRoutingModule,
     HttpClientModule,
+    JwtModule.forRoot({
+      config: {
+        tokenGetter: UserService.getAccessToken,
+        skipWhenExpired: false,
+        throwNoTokenError: false,
+      },
+    }),
     MatTooltipModule,
     CustomNgMaterialModule,
     BrowserAnimationsModule,

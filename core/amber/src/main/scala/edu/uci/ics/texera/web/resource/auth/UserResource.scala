@@ -4,32 +4,57 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.typesafe.config.{Config, ConfigFactory}
-import edu.uci.ics.texera.Utils
+import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.texera.web.auth.JwtAuth.{jwtConsumer, jwtTokenSecret}
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.request.auth.{
   GoogleUserLoginRequest,
+  RefreshTokenRequest,
   UserLoginRequest,
   UserRegistrationRequest
 }
-import edu.uci.ics.texera.web.resource.auth.UserResource.{getUser, setUserSession, validateUsername}
+import edu.uci.ics.texera.web.resource.auth.UserResource.{
+  TOKEN_EXPIRE_TIME_IN_DAYS,
+  retrieveUserByUsernameAndPassword,
+  setUserSession,
+  validateUsername
+}
 import io.dropwizard.jersey.sessions.Session
 import org.apache.commons.lang3.tuple.Pair
+import org.jose4j.jws.AlgorithmIdentifiers.HMAC_SHA256
+import org.jose4j.jws.JsonWebSignature
+import org.jose4j.jwt.JwtClaims
+import org.jose4j.keys.HmacKey
 
+import javax.annotation.security.PermitAll
 import javax.servlet.http.HttpSession
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
 import scala.util.{Failure, Success, Try}
 
 object UserResource {
-
+  final private val TOKEN_EXPIRE_TIME_IN_DAYS =
+    AmberUtils.amberConfig.getString("user-sys.jwt.exp-in-days").toInt
   private val SESSION_USER = "texera-user"
 
-  // TODO: rewrite this
-  def getUser(session: HttpSession): Option[User] =
-    Option.apply(session.getAttribute(SESSION_USER)).map(u => u.asInstanceOf[User])
+  /**
+    * Retrieve exactly one User from databases with the given username and password
+    * @param name String
+    * @param password String, plain text password
+    * @return
+    */
+  def retrieveUserByUsernameAndPassword(name: String, password: String): Option[User] = {
+    Option(
+      SqlServer.createDSLContext
+        .select()
+        .from(USER)
+        .where(USER.NAME.eq(name).and(USER.GOOGLE_ID.isNull))
+        .fetchOneInto(classOf[User])
+    ).filter(user => PasswordEncryption.checkPassword(user.getPassword, password))
+  }
 
   // TODO: rewrite this
   private def validateUsername(userName: String): Pair[Boolean, String] =
@@ -61,28 +86,52 @@ object UserResource {
 class UserResource {
 
   final private val userDao = new UserDao(SqlServer.createDSLContext.configuration)
+
   val googleAPIConfig: Config = ConfigFactory.load("google_api")
   private val GOOGLE_CLIENT_ID: String = googleAPIConfig.getString("google.clientId")
   private val GOOGLE_CLIENT_SECRET: String = googleAPIConfig.getString("google.clientSecret")
   private val TRANSPORT = new NetHttpTransport
   private val JSON_FACTORY = new JacksonFactory
 
-  @GET
-  @Path("/auth/status")
-  def authStatus(@Session session: HttpSession): Option[User] = {
-    getUser(session)
-  }
-
   @POST
   @Path("/login")
-  def login(@Session session: HttpSession, request: UserLoginRequest): Response = {
-
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def login(request: UserLoginRequest): Response = {
     retrieveUserByUsernameAndPassword(request.userName, request.password) match {
       case Some(user) =>
-        setUserSession(session, Some(user))
-        Response.ok().build()
+        val claims = generateNewJwtClaims(user)
+        Response.ok.entity(Map("accessToken" -> generateNewJwtToken(claims))).build()
+
       case None => Response.status(Response.Status.UNAUTHORIZED).build()
     }
+
+  }
+
+  private def generateNewJwtClaims(user: User): JwtClaims = {
+    val claims = new JwtClaims
+    claims.setSubject(user.getName)
+    claims.setClaim("userId", user.getUid)
+    claims.setExpirationTimeMinutesInTheFuture(TOKEN_EXPIRE_TIME_IN_DAYS * 24 * 60)
+    claims
+  }
+
+  private def generateNewJwtToken(claims: JwtClaims): String = {
+    val jws = new JsonWebSignature()
+    jws.setPayload(claims.toJson)
+    print(claims.toJson)
+    jws.setAlgorithmHeaderValue(HMAC_SHA256)
+    jws.setKey(new HmacKey(jwtTokenSecret.getBytes))
+    jws.getCompactSerialization
+  }
+
+  @PermitAll
+  @POST
+  @Path("/refresh")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def refreshToken(request: RefreshTokenRequest): Response = {
+    val claims = jwtConsumer.process(request.accessToken).getJwtClaims
+    claims.setExpirationTimeMinutesInTheFuture(TOKEN_EXPIRE_TIME_IN_DAYS * 24 * 60)
+    Response.ok.entity(Map("accessToken" -> generateNewJwtToken(claims))).build()
   }
 
   @POST
@@ -151,7 +200,7 @@ class UserResource {
 
   @POST
   @Path("/register")
-  def register(@Session session: HttpSession, request: UserRegistrationRequest): Response = {
+  def register(request: UserRegistrationRequest): Response = {
     val userName = request.userName
     val password = request.password
     val validationResult = validateUsername(userName)
@@ -170,33 +219,10 @@ class UserResource {
         // hash the plain text password
         user.setPassword(PasswordEncryption.encrypt(password))
         userDao.insert(user)
-        setUserSession(session, Some(user))
-        Response.ok().build()
+        val claims = generateNewJwtClaims(user)
+        Response.ok.entity(Map("accessToken" -> generateNewJwtToken(claims))).build()
     }
 
-  }
-
-  /**
-    * Retrieve exactly one User from databases with the given username and password
-    * @param name String
-    * @param password String, plain text password
-    * @return
-    */
-  private def retrieveUserByUsernameAndPassword(name: String, password: String): Option[User] = {
-    Option(
-      SqlServer.createDSLContext
-        .select()
-        .from(USER)
-        .where(USER.NAME.eq(name).and(USER.GOOGLE_ID.isNull))
-        .fetchOneInto(classOf[User])
-    ).filter(user => PasswordEncryption.checkPassword(user.getPassword, password))
-  }
-
-  @GET
-  @Path("/logout")
-  def logOut(@Session session: HttpSession): Response = {
-    setUserSession(session, None)
-    Response.ok().build()
   }
 
 }
