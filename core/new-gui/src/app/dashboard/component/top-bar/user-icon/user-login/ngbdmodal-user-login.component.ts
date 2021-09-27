@@ -73,8 +73,9 @@ export class NgbdModalUserLoginComponent implements OnInit {
       .login(normalUserName, normalUserPassword)
       .pipe(untilDestroyed(this))
       .subscribe(
-        () => {
-          this.userService.changeUser(<User>{ name: normalUserName });
+        ({ accessToken }) => {
+          UserService.setAccessToken(accessToken);
+          this.userService.loginFromSession();
           this.activeModal.close();
         },
         () => (this.loginErrorMessage = "Incorrect credentials")
@@ -109,8 +110,9 @@ export class NgbdModalUserLoginComponent implements OnInit {
       .register(registerUserName, registerPassword)
       .pipe(untilDestroyed(this))
       .subscribe(
-        () => {
-          this.userService.changeUser(<User>{ name: registerUserName });
+        ({ accessToken }) => {
+          UserService.setAccessToken(accessToken);
+          this.userService.loginFromSession();
           this.activeModal.close();
         },
         () => (this.registerErrorMessage = "Registration failed. Could due to duplicate username.")

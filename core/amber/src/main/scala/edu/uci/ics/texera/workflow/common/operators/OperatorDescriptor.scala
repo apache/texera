@@ -103,7 +103,7 @@ abstract class OperatorDescriptor extends Serializable {
   @JsonProperty(PropertyNameConstants.OPERATOR_ID)
   var operatorID: String = UUID.randomUUID.toString
 
-  def operatorIdentifier: OperatorIdentity = OperatorIdentity(context.jobID, operatorID)
+  def operatorIdentifier: OperatorIdentity = OperatorIdentity(context.jobId, operatorID)
 
   def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig
 
