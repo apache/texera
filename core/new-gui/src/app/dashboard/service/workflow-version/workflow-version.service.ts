@@ -5,9 +5,8 @@ import { WorkflowActionService } from "../../../workspace/service/workflow-graph
 import { AppSettings } from "../../../common/app-setting";
 import { Workflow } from "../../../common/type/workflow";
 import { filter, map } from "rxjs/operators";
-import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { HttpClient } from "@angular/common/http";
-import {WorkflowUtilService} from "../../../workspace/service/workflow-graph/util/workflow-util.service";
+import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/util/workflow-util.service";
 export const VERSIONS_BASE_URL = "version";
 
 @Injectable({
@@ -16,18 +15,18 @@ export const VERSIONS_BASE_URL = "version";
 export class WorkflowVersionService {
 
   private workflowVersionsObservable = new Subject<boolean>();
-  private versionDisplayHighlighted: boolean = false;
+  private versionDisplayClicked: boolean = false;
   constructor (private http: HttpClient, private workflowActionService: WorkflowActionService) {
   }
 
   public clickedVersionsDisplayButton(): void {
     this.prepareWorkflowVersions();
-    this.versionDisplayHighlighted = true;
+    this.versionDisplayClicked = true;
     this.workflowVersionsObservable.next(true);
   }
 
   public resetVersionsDisplayButton(): void {
-    this.versionDisplayHighlighted = false;
+    this.versionDisplayClicked = false;
   }
 
   /**
@@ -50,11 +49,11 @@ export class WorkflowVersionService {
     this.workflowActionService.getJointGraphWrapper().unhighlightElements(elements);
   }
 
-  public isWorkflowVersionsChosen(): Observable<boolean> {
+  public workflowVersionsDisplayObservable(): Observable<boolean> {
     return this.workflowVersionsObservable.asObservable();
   }
 
-  public getVersionDisplayHighlighted(): boolean {
-    return this.versionDisplayHighlighted;
+  public isVersionDisplayClicked(): boolean {
+    return this.versionDisplayClicked;
   }
 }

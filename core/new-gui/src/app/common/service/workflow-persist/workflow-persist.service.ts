@@ -5,7 +5,7 @@ import { filter, map } from "rxjs/operators";
 import { AppSettings } from "../../app-setting";
 import { Workflow, WorkflowContent } from "../../type/workflow";
 import { DashboardWorkflowEntry } from "../../../dashboard/type/dashboard-workflow-entry";
-import {WorkflowUtilService} from "../../../workspace/service/workflow-graph/util/workflow-util.service";
+import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/util/workflow-util.service";
 
 export const WORKFLOW_BASE_URL = "workflow";
 export const WORKFLOW_PERSIST_URL = WORKFLOW_BASE_URL + "/persist";

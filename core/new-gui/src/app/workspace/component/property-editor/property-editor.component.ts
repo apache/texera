@@ -5,7 +5,6 @@ import { OperatorPropertyEditFrameComponent } from "./operator-property-edit-fra
 import { BreakpointPropertyEditFrameComponent } from "./breakpoint-property-edit-frame/breakpoint-property-edit-frame.component";
 import { DynamicComponentConfig } from "../../../common/type/dynamic-component-config";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { Subscription } from "rxjs";
 import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
 import { VersionsListDisplayComponent } from "./versions-display/versions-display.component";
 
@@ -63,7 +62,7 @@ export class PropertyEditorComponent implements OnInit {
       this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getLinkHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getLinkUnhighlightStream(),
-      this.workflowVersionService.isWorkflowVersionsChosen()
+      this.workflowVersionService.workflowVersionsDisplayObservable()
     )
       .pipe(untilDestroyed(this))
       .subscribe(() => {
@@ -72,9 +71,9 @@ export class PropertyEditorComponent implements OnInit {
           .getCurrentHighlightedOperatorIDs();
         const highlightedGroups = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
         const highlightLinks = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
-        const versionDisplayHighlighted = this.workflowVersionService.getVersionDisplayHighlighted();
+        const versionDisplayClicked = this.workflowVersionService.isVersionDisplayClicked();
 
-        if (versionDisplayHighlighted) {
+        if (versionDisplayClicked) {
           this.workflowVersionService.resetVersionsDisplayButton();
           this.switchFrameComponent({
             component: VersionsListDisplayComponent,
