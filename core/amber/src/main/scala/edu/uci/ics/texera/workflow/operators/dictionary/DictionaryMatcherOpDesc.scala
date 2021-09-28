@@ -5,13 +5,14 @@ import com.google.common.base.Preconditions
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.operators.{OneToOneOpExecConfig, OperatorDescriptor}
-import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
 
 import java.util.Collections.singletonList
 import scala.collection.JavaConverters.asScalaBuffer
 
 /**
- * HTML Visualization operator to render any given HTML code
+ * Dictionary matcher operator matches a tuple if the specified column is in the given dictionary.
+ * It outputs an extra column to label the tuple if it is matched or not
  * This is the description of the operator
  */
 class DictionaryMatcherOpDesc extends OperatorDescriptor {
@@ -21,6 +22,9 @@ class DictionaryMatcherOpDesc extends OperatorDescriptor {
   @JsonProperty(value = "Attribute", required = true)
   @JsonPropertyDescription("column name to match")
   @AutofillAttributeName var attribute: String = _
+
+  @JsonProperty(value = "result attribute", required = true, defaultValue = "matched")
+  @JsonPropertyDescription("column name of the matching result") var resultAttribute: String = _
 
   @JsonProperty(value = "Matching type", required = true) var matchingType: MatchingType = _
 
@@ -41,7 +45,8 @@ class DictionaryMatcherOpDesc extends OperatorDescriptor {
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Preconditions.checkArgument(schemas.length == 1)
-    schemas(0)
+    if (resultAttribute == null || resultAttribute.trim.isEmpty) return null
+    Schema.newBuilder.add(schemas(0)).add(resultAttribute, AttributeType.BOOLEAN).build
   }
 }
 

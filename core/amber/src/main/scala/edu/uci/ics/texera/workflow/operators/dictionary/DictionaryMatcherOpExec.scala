@@ -1,13 +1,12 @@
 package edu.uci.ics.texera.workflow.operators.dictionary
 
-
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo}
 
-import scala.collection.{Iterator}
+import scala.collection.Iterator
 import scala.util.Either
 
 class DictionaryMatcherOpExec(opDesc: DictionaryMatcherOpDesc, operatorSchemaInfo: OperatorSchemaInfo)
@@ -27,11 +26,11 @@ class DictionaryMatcherOpExec(opDesc: DictionaryMatcherOpDesc, operatorSchemaInf
                                  ): Iterator[Tuple] =
     tuple match {
       case Left(t) =>
-        if (dictionaryValues.contains(t.getField(this.opDesc.attribute))) {
-          Iterator(t)
-        } else {
-          Iterator()
-        }
+          val result = Tuple
+            .newBuilder(operatorSchemaInfo.outputSchema)
+            .add(t).add(opDesc.resultAttribute, AttributeType.BOOLEAN, dictionaryValues.contains(t.getField(this.opDesc.attribute)))
+            .build()
+          Iterator(result)
 
       case Right(_) => Iterator()
     }
