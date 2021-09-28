@@ -17,7 +17,7 @@
           placeholder="Untitled Workflow"
         />
       </label>
-      <span class="save-state" spellcheck="false">{{ autoSaveState }}</span>
+      <span class="save-state" spellcheck="false" (click)="onClickGetAllVersions()">{{autoSaveState}}</span>
     </div>
 
     <div *ngIf="userSystemEnabled" class="texera-navigation-user-icon">

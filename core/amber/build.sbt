@@ -170,6 +170,11 @@ libraryDependencies += "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.4.0" % Test
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.9" % Test
 
 /////////////////////////////////////////////////////////////////////////////
+// Workflow version control related
+// https://mvnrepository.com/artifact/com.flipkart.zjsonpatch/zjsonpatch
+libraryDependencies += "com.flipkart.zjsonpatch" % "zjsonpatch" % "0.2.1"
+
+/////////////////////////////////////////////////////////////////////////////
 // Uncategorized
 
 // https://mvnrepository.com/artifact/org.postgresql/postgresql
