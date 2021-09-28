@@ -6,7 +6,6 @@ import {
   VERSIONS_BASE_URL,
   WorkflowVersionService
 } from "../../../../dashboard/service/workflow-version/workflow-version.service";
-import { DEFAULT_PAGE_SIZE } from "../../../service/workflow-result/workflow-result.service";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
 import { HttpClient } from "@angular/common/http";
@@ -22,8 +21,6 @@ export class VersionsListDisplayComponent implements OnInit {
   public versionsList: WorkflowVersionEntry[] | undefined;
 
   public versionTableHeaders: string[] = ["Version#", "Timestamp"];
-  pageSize = DEFAULT_PAGE_SIZE;
-  totalNumTuples: number = 0;
 
   constructor(private http: HttpClient,
               private workflowActionService: WorkflowActionService,

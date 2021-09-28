@@ -1,8 +1,5 @@
 <div>
-  <nz-table
-    [nzData]="versionsList"
-    [nzPageSize]="pageSize"
-    [nzTotal]="totalNumTuples">
+  <nz-table [nzData]="versionsList">
     <thead>
     <tr>
       <th *ngFor="let column of versionTableHeaders">
