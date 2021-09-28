@@ -13,11 +13,9 @@ export const VERSIONS_BASE_URL = "version";
   providedIn: "root",
 })
 export class WorkflowVersionService {
-
   private workflowVersionsObservable = new Subject<boolean>();
   private versionDisplayClicked: boolean = false;
-  constructor (private http: HttpClient, private workflowActionService: WorkflowActionService) {
-  }
+  constructor(private http: HttpClient, private workflowActionService: WorkflowActionService) {}
 
   public clickedVersionsDisplayButton(): void {
     this.prepareWorkflowVersions();
@@ -40,8 +38,10 @@ export class WorkflowVersionService {
    * retrieves a version of the workflow from backend database
    */
   public retrieveWorkflowByVersion(wid: number, vid: number): Observable<Workflow> {
-    return this.http.get<Workflow>(`${AppSettings.getApiEndpoint()}/${VERSIONS_BASE_URL}/${wid}/${vid}`)
-      .pipe(filter((updatedWorkflow: Workflow) => updatedWorkflow != null), map(WorkflowUtilService.parseWorkflowInfo));
+    return this.http.get<Workflow>(`${AppSettings.getApiEndpoint()}/${VERSIONS_BASE_URL}/${wid}/${vid}`).pipe(
+      filter((updatedWorkflow: Workflow) => updatedWorkflow != null),
+      map(WorkflowUtilService.parseWorkflowInfo)
+    );
   }
 
   public prepareWorkflowVersions(): void {

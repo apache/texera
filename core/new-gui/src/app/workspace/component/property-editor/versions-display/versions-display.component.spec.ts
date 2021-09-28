@@ -16,9 +16,7 @@ describe("VersionsListDisplayComponent", () => {
     waitForAsync(() => {
       TestBed.configureTestingModule({
         declarations: [VersionsListDisplayComponent],
-        providers: [
-          WorkflowActionService,
-        ],
+        providers: [WorkflowActionService],
         imports: [
           BrowserAnimationsModule,
           FormsModule,

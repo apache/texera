@@ -96,5 +96,4 @@ export class WorkflowPersistService {
   public deleteWorkflow(wid: number): Observable<Response> {
     return this.http.delete<Response>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/${wid}`);
   }
-
 }

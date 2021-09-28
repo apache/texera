@@ -12,8 +12,9 @@ import io.dropwizard.auth.Auth
 import org.jooq.types.UInteger
 
 import java.sql.Timestamp
+import javax.annotation.security.PermitAll
 import javax.ws.rs._
-import javax.ws.rs.core.{MediaType, Response}
+import javax.ws.rs.core.{MediaType}
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 /**
@@ -44,6 +45,7 @@ object WorkflowVersionResource {
 
 }
 
+@PermitAll
 @Path("/version")
 @Produces(Array(MediaType.APPLICATION_JSON))
 class WorkflowVersionResource {
@@ -97,13 +99,13 @@ class WorkflowVersionResource {
       @PathParam("wid") wid: UInteger,
       @PathParam("vid") vid: UInteger,
       @Auth sessionUser: SessionUser
-  ): Response = {
+  ): Workflow = {
     val user = sessionUser.getUser
     if (
       WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid) ||
       WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, user.getUid)
     ) {
-      Response.status(Response.Status.UNAUTHORIZED).build()
+      throw new ForbiddenException("No sufficient access privilege.")
     } else {
       // fetch all versions preceding this
       val versionEntries = context
@@ -118,9 +120,7 @@ class WorkflowVersionResource {
       val currentWorkflow = workflowDao.fetchOneByWid(wid)
       // return particular version of the workflow
       val res: Workflow = applyPatch(versionEntries.reverse, currentWorkflow)
-      Response
-        .ok(res)
-        .build()
+      res
     }
   }
 }

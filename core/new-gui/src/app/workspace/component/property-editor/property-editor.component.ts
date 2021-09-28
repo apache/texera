@@ -8,8 +8,10 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
 import { VersionsListDisplayComponent } from "./versions-display/versions-display.component";
 
-
-export type PropertyEditFrameComponent = OperatorPropertyEditFrameComponent | BreakpointPropertyEditFrameComponent | VersionsListDisplayComponent;
+export type PropertyEditFrameComponent =
+  | OperatorPropertyEditFrameComponent
+  | BreakpointPropertyEditFrameComponent
+  | VersionsListDisplayComponent;
 
 export type PropertyEditFrameConfig = DynamicComponentConfig<PropertyEditFrameComponent>;
 
@@ -28,13 +30,14 @@ export type PropertyEditFrameConfig = DynamicComponentConfig<PropertyEditFrameCo
 export class PropertyEditorComponent implements OnInit {
   frameComponentConfig?: PropertyEditFrameConfig;
 
-  constructor(public workflowActionService: WorkflowActionService,
-              public workflowVersionService: WorkflowVersionService) {}
+  constructor(
+    public workflowActionService: WorkflowActionService,
+    public workflowVersionService: WorkflowVersionService
+  ) {}
 
   ngOnInit(): void {
     this.registerHighlightEventsHandler();
   }
-
 
   switchFrameComponent(targetConfig?: PropertyEditFrameConfig) {
     if (

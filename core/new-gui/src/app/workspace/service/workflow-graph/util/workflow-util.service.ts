@@ -6,8 +6,8 @@ import { v4 as uuid } from "uuid";
 import * as Ajv from "ajv";
 
 import { Observable, Subject } from "rxjs";
-import {Workflow, WorkflowContent} from "../../../../common/type/workflow";
-import {jsonCast} from "../../../../common/util/storage";
+import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
+import { jsonCast } from "../../../../common/util/storage";
 
 /**
  * WorkflowUtilService provide utilities related to dealing with operator data.
