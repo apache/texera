@@ -210,7 +210,7 @@ describe("PropertyEditorComponent", () => {
     });
 
     // click on versions display
-    workflowVersionService.clickedVersionsDisplayButton();
+    workflowVersionService.clickDisplayWorkflowVersions();
     fixture.detectChanges();
 
     // all the elements shall be unhighlighted
