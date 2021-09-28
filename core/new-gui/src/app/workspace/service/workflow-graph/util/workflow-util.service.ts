@@ -6,6 +6,8 @@ import { v4 as uuid } from "uuid";
 import * as Ajv from "ajv";
 
 import { Observable, Subject } from "rxjs";
+import {Workflow, WorkflowContent} from "../../../../common/type/workflow";
+import {jsonCast} from "../../../../common/util/storage";
 
 /**
  * WorkflowUtilService provide utilities related to dealing with operator data.
@@ -117,5 +119,17 @@ export class WorkflowUtilService {
       isDisabled,
       customDisplayName,
     };
+  }
+
+  /**
+   * helper function to parse WorkflowInfo from a JSON string. In some case, for example reading from backend, the content would returned
+   * as a JSON string.
+   * @param workflow
+   */
+  public static parseWorkflowInfo(workflow: Workflow): Workflow {
+    if (workflow != null && typeof workflow.content === "string") {
+      workflow.content = jsonCast<WorkflowContent>(workflow.content);
+    }
+    return workflow;
   }
 }

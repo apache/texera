@@ -2,20 +2,16 @@ package edu.uci.ics.texera.web.resource.dashboard
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.flipkart.zjsonpatch.JsonPatch
-import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{WORKFLOW, WORKFLOW_VERSION}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Workflow
-import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.web.resource.dashboard.WorkflowResource.context
+import edu.uci.ics.texera.web.resource.dashboard.WorkflowVersionResource.applyPatch
 import io.dropwizard.auth.Auth
-import io.dropwizard.jersey.sessions.Session
-import org.glassfish.jersey.media.multipart.FormDataParam
 import org.jooq.types.UInteger
 
 import java.sql.Timestamp
-import javax.servlet.http.HttpSession
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
@@ -32,7 +28,20 @@ case class VersionEntry(
 )
 
 object WorkflowVersionResource {
-  val context = SqlServer.createDSLContext()
+  private def applyPatch(versions: List[VersionEntry], workflow: Workflow): Workflow = {
+    // loop all versions and apply the patch
+    val mapper = new ObjectMapper()
+    for (patch <- versions) {
+      workflow.setContent(
+        JsonPatch
+          .apply(mapper.readTree(patch.content), mapper.readTree(workflow.getContent))
+          .toString
+      )
+    }
+    // the checked out version is persisted to disk
+    return workflow
+  }
+
 }
 
 @Path("/version")
@@ -61,21 +70,13 @@ class WorkflowVersionResource {
     ) {
       List()
     } else {
-      val versions = context
+      context
         .select(WORKFLOW_VERSION.VID, WORKFLOW_VERSION.CREATION_TIME, WORKFLOW_VERSION.CONTENT)
         .from(WORKFLOW_VERSION)
         .leftJoin(WORKFLOW)
         .on(WORKFLOW_VERSION.WID.eq(WORKFLOW.WID))
         .where(WORKFLOW_VERSION.WID.eq(wid))
-        .fetch()
-      versions
-        .map(workflowRecord =>
-          VersionEntry(
-            workflowRecord.into(WORKFLOW_VERSION).getVid,
-            workflowRecord.into(WORKFLOW_VERSION).getCreationTime,
-            workflowRecord.into(WORKFLOW_VERSION).getContent
-          )
-        )
+        .fetchInto(classOf[VersionEntry])
         .toList
     }
   }
@@ -91,7 +92,6 @@ class WorkflowVersionResource {
     */
   @GET
   @Path("/{wid}/{vid}")
-  @Consumes(Array(MediaType.MULTIPART_FORM_DATA))
   @Produces(Array(MediaType.APPLICATION_JSON))
   def retrieveWorkflowVersion(
       @PathParam("wid") wid: UInteger,
@@ -106,42 +106,21 @@ class WorkflowVersionResource {
       Response.status(Response.Status.UNAUTHORIZED).build()
     } else {
       // fetch all versions preceding this
-      val versions = context
+      val versionEntries = context
         .select(WORKFLOW_VERSION.VID, WORKFLOW_VERSION.CREATION_TIME, WORKFLOW_VERSION.CONTENT)
         .from(WORKFLOW_VERSION)
         .leftJoin(WORKFLOW)
         .on(WORKFLOW_VERSION.WID.eq(WORKFLOW.WID))
         .where(WORKFLOW.WID.eq(wid).and(WORKFLOW_VERSION.VID.ge(vid)))
-        .fetch()
+        .fetchInto(classOf[VersionEntry])
+        .toList
       // apply patch
       val currentWorkflow = workflowDao.fetchOneByWid(wid)
-      val versionEntries = versions
-        .map(workflowRecord =>
-          VersionEntry(
-            workflowRecord.into(WORKFLOW_VERSION).getVid,
-            workflowRecord.into(WORKFLOW_VERSION).getCreationTime,
-            workflowRecord.into(WORKFLOW_VERSION).getContent
-          )
-        )
-        .toList
-      // return result
-      val res = applyPatch(versionEntries.reverse, currentWorkflow)
+      // return particular version of the workflow
+      val res: Workflow = applyPatch(versionEntries.reverse, currentWorkflow)
       Response
         .ok(res)
         .build()
     }
-  }
-  private def applyPatch(versions: List[VersionEntry], workflow: Workflow): Workflow = {
-    // loop all versions and apply the patch
-    val mapper = new ObjectMapper()
-    for (patch <- versions) {
-      workflow.setContent(
-        JsonPatch
-          .apply(mapper.readTree(patch.content), mapper.readTree(workflow.getContent))
-          .toString
-      )
-    }
-    // the checked out version is persisted to disk
-    return workflow
   }
 }

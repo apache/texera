@@ -432,7 +432,7 @@ export class NavigationComponent {
   }
 
   onClickGetAllVersions() {
-    this.workflowVersionService.highlightVersionsDisplay();
+    this.workflowVersionService.clickedVersionsDisplayButton();
   }
   /**
    * Updates the status of the disable operator icon:

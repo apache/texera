@@ -7,6 +7,7 @@ import { Workflow } from "../../../common/type/workflow";
 import { filter, map } from "rxjs/operators";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { HttpClient } from "@angular/common/http";
+import {WorkflowUtilService} from "../../../workspace/service/workflow-graph/util/workflow-util.service";
 export const VERSIONS_BASE_URL = "version";
 
 @Injectable({
@@ -19,13 +20,13 @@ export class WorkflowVersionService {
   constructor (private http: HttpClient, private workflowActionService: WorkflowActionService) {
   }
 
-  public highlightVersionsDisplay(): void {
+  public clickedVersionsDisplayButton(): void {
     this.prepareWorkflowVersions();
     this.versionDisplayHighlighted = true;
     this.workflowVersionsObservable.next(true);
   }
 
-  public unhighlightVersionsDisplay(): void {
+  public resetVersionsDisplayButton(): void {
     this.versionDisplayHighlighted = false;
   }
 
@@ -41,7 +42,7 @@ export class WorkflowVersionService {
    */
   public retrieveWorkflowByVersion(wid: number, vid: number): Observable<Workflow> {
     return this.http.get<Workflow>(`${AppSettings.getApiEndpoint()}/${VERSIONS_BASE_URL}/${wid}/${vid}`)
-      .pipe(filter((updatedWorkflow: Workflow) => updatedWorkflow != null), map(WorkflowPersistService.parseWorkflowInfo));
+      .pipe(filter((updatedWorkflow: Workflow) => updatedWorkflow != null), map(WorkflowUtilService.parseWorkflowInfo));
   }
 
   public prepareWorkflowVersions(): void {

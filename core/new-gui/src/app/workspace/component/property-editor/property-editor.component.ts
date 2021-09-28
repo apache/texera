@@ -29,8 +29,6 @@ export type PropertyEditFrameConfig = DynamicComponentConfig<PropertyEditFrameCo
 export class PropertyEditorComponent implements OnInit {
   frameComponentConfig?: PropertyEditFrameConfig;
 
-  subscriptions = new Subscription();
-
   constructor(public workflowActionService: WorkflowActionService,
               public workflowVersionService: WorkflowVersionService) {}
 
@@ -77,7 +75,7 @@ export class PropertyEditorComponent implements OnInit {
         const versionDisplayHighlighted = this.workflowVersionService.getVersionDisplayHighlighted();
 
         if (versionDisplayHighlighted) {
-          this.workflowVersionService.unhighlightVersionsDisplay();
+          this.workflowVersionService.resetVersionsDisplayButton();
           this.switchFrameComponent({
             component: VersionsListDisplayComponent,
           });
