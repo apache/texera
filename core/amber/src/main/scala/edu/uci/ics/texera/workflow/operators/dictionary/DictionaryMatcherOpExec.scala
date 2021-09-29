@@ -138,16 +138,12 @@ class DictionaryMatcherOpExec(
         if (t.getField(this.opDesc.attribute) != null) {
           matched = isTupleInDictionary(t)
         }
-        if (matched) {
-          val result = Tuple
-            .newBuilder(operatorSchemaInfo.outputSchema)
-            .add(t)
-            .add(opDesc.resultAttribute, AttributeType.BOOLEAN, matched)
-            .build()
-          Iterator(result)
-        } else {
-          Iterator()
-        }
+        val result = Tuple
+          .newBuilder(operatorSchemaInfo.outputSchema)
+          .add(t)
+          .add(opDesc.resultAttribute, AttributeType.BOOLEAN, matched)
+          .build()
+        Iterator(result)
       case Right(_) => Iterator()
     }
 }
