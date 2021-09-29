@@ -4,8 +4,8 @@ import { Observable } from "rxjs";
 import { filter, map } from "rxjs/operators";
 import { AppSettings } from "../../app-setting";
 import { Workflow, WorkflowContent } from "../../type/workflow";
-import { jsonCast } from "../../util/storage";
 import { DashboardWorkflowEntry } from "../../../dashboard/type/dashboard-workflow-entry";
+import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/util/workflow-util.service";
 
 export const WORKFLOW_BASE_URL = "workflow";
 export const WORKFLOW_PERSIST_URL = WORKFLOW_BASE_URL + "/persist";
@@ -32,7 +32,7 @@ export class WorkflowPersistService {
       })
       .pipe(
         filter((updatedWorkflow: Workflow) => updatedWorkflow != null),
-        map(WorkflowPersistService.parseWorkflowInfo)
+        map(WorkflowUtilService.parseWorkflowInfo)
       );
   }
 
@@ -70,7 +70,7 @@ export class WorkflowPersistService {
   public retrieveWorkflow(wid: number): Observable<Workflow> {
     return this.http.get<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/${wid}`).pipe(
       filter((workflow: Workflow) => workflow != null),
-      map(WorkflowPersistService.parseWorkflowInfo)
+      map(WorkflowUtilService.parseWorkflowInfo)
     );
   }
 
@@ -83,7 +83,7 @@ export class WorkflowPersistService {
         dashboardWorkflowEntries.map((workflowEntry: DashboardWorkflowEntry) => {
           return {
             ...workflowEntry,
-            dashboardWorkflowEntry: WorkflowPersistService.parseWorkflowInfo(workflowEntry.workflow),
+            dashboardWorkflowEntry: WorkflowUtilService.parseWorkflowInfo(workflowEntry.workflow),
           };
         })
       )
@@ -95,18 +95,5 @@ export class WorkflowPersistService {
    */
   public deleteWorkflow(wid: number): Observable<Response> {
     return this.http.delete<Response>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/${wid}`);
-  }
-
-  /**
-   * helper function to parse WorkflowInfo from a JSON string. In some case, for example reading from backend, the content would returned
-   * as a JSON string.
-   * @param workflow
-   * @private
-   */
-  private static parseWorkflowInfo(workflow: Workflow): Workflow {
-    if (workflow != null && typeof workflow.content === "string") {
-      workflow.content = jsonCast<WorkflowContent>(workflow.content);
-    }
-    return workflow;
   }
 }

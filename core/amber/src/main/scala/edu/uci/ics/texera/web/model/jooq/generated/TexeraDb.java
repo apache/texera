@@ -12,6 +12,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.UserFileAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Workflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfUser;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserAccess;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowVersion;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -28,7 +29,7 @@ import org.jooq.impl.SchemaImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class TexeraDb extends SchemaImpl {
 
-    private static final long serialVersionUID = -468602009;
+    private static final long serialVersionUID = 956293362;
 
     /**
      * The reference instance of <code>texera_db</code>
@@ -76,6 +77,11 @@ public class TexeraDb extends SchemaImpl {
     public final WorkflowUserAccess WORKFLOW_USER_ACCESS = edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserAccess.WORKFLOW_USER_ACCESS;
 
     /**
+     * The table <code>texera_db.workflow_version</code>.
+     */
+    public final WorkflowVersion WORKFLOW_VERSION = edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowVersion.WORKFLOW_VERSION;
+
+    /**
      * No further instances allowed
      */
     private TexeraDb() {
@@ -104,6 +110,7 @@ public class TexeraDb extends SchemaImpl {
             UserFileAccess.USER_FILE_ACCESS,
             Workflow.WORKFLOW,
             WorkflowOfUser.WORKFLOW_OF_USER,
-            WorkflowUserAccess.WORKFLOW_USER_ACCESS);
+            WorkflowUserAccess.WORKFLOW_USER_ACCESS,
+            WorkflowVersion.WORKFLOW_VERSION);
     }
 }
