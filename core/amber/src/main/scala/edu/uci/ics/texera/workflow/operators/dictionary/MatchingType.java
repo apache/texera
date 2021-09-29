@@ -2,8 +2,40 @@ package edu.uci.ics.texera.workflow.operators.dictionary;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 
-public enum MatchingType {
-    SUBSTRING_SCANBASED("Scan"),
+/**
+ * MatchingType: the type of matching to perform. <br>
+ * Currently we have 3 types of matching: <br>
+ *
+ * SCANBASED: <br>
+ * Performs simple matching of the query. Matching is
+ * case insensitive. <br>
+ *
+ * CONJUNCTION_INDEXBASED: <br>
+ * Performs search of conjunction of query tokens. The query is tokenized
+ * into keywords, with each token treated as a separate keyword. The order
+ * of tokens doesn't matter in the source tuple. <br>
+ *
+ * For example: <br>
+ * query "book appointment" <br>
+ * matches: "book appointment with the doctor" <br>
+ * also matches: "an appointment to pick up a book" <br>
+ * <br>
+ *
+ *
+ * PHRASE_INDEXBASED: <br>
+ * Performs a phrase search. The query is tokenized into keywords. The order of tokens matters in the
+ * source tuple. <br>
+ *
+ * For example: <br>
+ * query "book appointment" <br>
+ * matches: "book appointment with the doctor" <br>
+ * doesn't match: "an appointment to pick up book" <br>
+ *
+ *  @author Zuozhi Wang
+ */
+
+ public enum MatchingType {
+    SCANBASED("Scan"),
 
     CONJUNCTION_INDEXBASED("Conjunction"),
 
