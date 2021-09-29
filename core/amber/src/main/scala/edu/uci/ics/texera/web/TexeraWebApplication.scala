@@ -10,6 +10,12 @@ import edu.uci.ics.texera.web.auth.JwtAuth.jwtConsumer
 import edu.uci.ics.texera.web.auth.{SessionUser, UserAuthenticator}
 import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.web.resource.dashboard.file.{UserFileAccessResource, UserFileResource}
+import edu.uci.ics.texera.web.resource.dashboard.{
+  WorkflowAccessResource,
+  WorkflowResource,
+  WorkflowVersionResource
+}
+import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.resource.dashboard.{WorkflowAccessResource, WorkflowResource}
 import edu.uci.ics.texera.web.resource.{UserDictionaryResource, _}
 import io.dropwizard.auth.{AuthDynamicFeature, AuthValueFactoryProvider}
@@ -103,6 +109,7 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
     environment.jersey.register(classOf[UserFileResource])
     environment.jersey.register(classOf[WorkflowAccessResource])
     environment.jersey.register(classOf[WorkflowResource])
+    environment.jersey.register(classOf[WorkflowVersionResource])
 
   }
 
