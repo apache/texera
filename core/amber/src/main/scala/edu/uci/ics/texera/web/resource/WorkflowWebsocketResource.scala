@@ -163,11 +163,9 @@ class WorkflowWebsocketResource extends LazyLogging {
     if (!sessionResults(session.getId).operatorResults.contains(operatorID)) {
       val downstreamIDs = sessionResults(session.getId).workflowCompiler.workflow
         .getDownstream(operatorID)
-      for (elem <- downstreamIDs) {
-        if (elem.isInstanceOf[CacheSinkOpDesc]) {
-          operatorID = elem.operatorID
-          breakOut
-        }
+      // Get the first CacheSinkOpDesc, if exists
+      downstreamIDs.find(_.isInstanceOf[CacheSinkOpDesc]).foreach{ op =>
+        operatorID = op.operatorID
       }
     }
     val opResultService = sessionResults(session.getId).operatorResults(operatorID)
