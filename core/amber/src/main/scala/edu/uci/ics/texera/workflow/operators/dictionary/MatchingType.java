@@ -7,7 +7,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
  * Currently we have 3 types of matching: <br>
  *
  * SCANBASED: <br>
- * Performs simple matching of the query. Matching is
+ * Performs simple exact matching of the query. Matching is
  * case insensitive. <br>
  *
  * SUBSTRING: <br>
@@ -20,9 +20,9 @@ import com.fasterxml.jackson.annotation.JsonValue;
  * of tokens doesn't matter in the source tuple. <br>
  *
  * For example: <br>
- * query "book appointment" <br>
- * matches: "book appointment with the doctor" <br>
- * also matches: "an appointment to pick up a book" <br>
+ * query "book appointment with the doctor" <br>
+ * matches: "book appointment" <br>
+ * also matches: "an appointment for a book" <br>
  * <br>
  *
  *  @author Zuozhi Wang

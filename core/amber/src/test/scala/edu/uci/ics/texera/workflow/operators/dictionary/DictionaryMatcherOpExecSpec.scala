@@ -32,7 +32,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   var opDesc: DictionaryMatcherOpDesc = _
   val dictinaryScan = "nice a a person"
   val dictinarySubstring = "nice a a person and good"
-  val dictionaryConjunction = "beautiful person and nice"
+  val dictionaryConjunction = "a person"
 
   before {
     opDesc = new DictionaryMatcherOpDesc()
@@ -79,10 +79,10 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   /**
-    * Test cases that SCANBASED Matching Type should fail to match a query
+    * Test cases that SCANBASED and SUBSTRING Matching Types should fail to match a query
     */
   it should "not match a tuple if not present in the given dictionary entry when matching type is SCANBASED and not exact match" in {
-    opDesc.dictionary = dictinarySubstring
+    opDesc.dictionary = dictionaryConjunction
     opDesc.matchingType = MatchingType.SCANBASED
     opExec.open()
     val processedTuple = opExec.processTexeraTuple(Left(tuple), null).next()
@@ -90,17 +90,17 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opExec.close()
   }
 
-  it should "match a tuple if present in the given dictionary entry when matching type is SUBSTRING if it is a substring exact match" in {
-    opDesc.dictionary = dictinarySubstring
+  it should "not match a tuple if the given dictionary entry doesn't contain all the tuple when the matching type is SUBSTRING" in {
+    opDesc.dictionary = dictionaryConjunction
     opDesc.matchingType = MatchingType.SUBSTRING
     opExec.open()
     val processedTuple = opExec.processTexeraTuple(Left(tuple), null).next()
-    assert(processedTuple.getField("matched"))
+    assert(!processedTuple.getField("matched").asInstanceOf[Boolean])
     opExec.close()
   }
 
-  it should "match a tuple if present in the given dictionary entry when matching type is CONJUNCTION_INDEXBASED if it is a substring exact match" in {
-    opDesc.dictionary = dictinarySubstring
+  it should "match a tuple if present in the given dictionary entry when matching type is CONJUNCTION_INDEXBASED if it is not an exact match" in {
+    opDesc.dictionary = dictionaryConjunction
     opDesc.matchingType = MatchingType.CONJUNCTION_INDEXBASED
     opExec.open()
     val processedTuple = opExec.processTexeraTuple(Left(tuple), null).next()
@@ -109,10 +109,10 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   /**
-    * Test cases that only CONJUNCTION_INDEXBASED Matching Type should match the query
+    * Test cases that only SUBSTRING Matching Type should match the query
     */
-  it should "not match a tuple if not present in the given dictionary entry when matching type is SCANBASED when the order is different" in {
-    opDesc.dictionary = dictionaryConjunction
+  it should "not match a tuple if not present in the given dictionary entry when matching type is SCANBASED when the entry contains more text" in {
+    opDesc.dictionary = dictinarySubstring
     opDesc.matchingType = MatchingType.SCANBASED
     opExec.open()
     val processedTuple = opExec.processTexeraTuple(Left(tuple), null).next()
@@ -120,9 +120,18 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opExec.close()
   }
 
-  it should "match a tuple if not present in the given dictionary entry when matching type is CONJUNCTION_INDEXBASED even when the order is different" in {
-    opDesc.dictionary = dictionaryConjunction
+  it should "not match a tuple if not present in the given dictionary entry when matching type is CONJUNCTION_INDEXBASED when the entry contains more text" in {
+    opDesc.dictionary = dictinarySubstring
     opDesc.matchingType = MatchingType.CONJUNCTION_INDEXBASED
+    opExec.open()
+    val processedTuple = opExec.processTexeraTuple(Left(tuple), null).next()
+    assert(!processedTuple.getField("matched").asInstanceOf[Boolean])
+    opExec.close()
+  }
+
+  it should "match a tuple if not present in the given dictionary entry when matching type is CONJUNCTION_INDEXBASED when the entry contains more text" in {
+    opDesc.dictionary = dictinarySubstring
+    opDesc.matchingType = MatchingType.SUBSTRING
     opExec.open()
     val processedTuple = opExec.processTexeraTuple(Left(tuple), null).next()
     assert(processedTuple.getField("matched"))
