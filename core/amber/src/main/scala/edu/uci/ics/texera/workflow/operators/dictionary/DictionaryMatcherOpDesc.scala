@@ -9,7 +9,8 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.operators.{OneToOneOpExecConfig, OperatorDescriptor}
+import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
+import edu.uci.ics.texera.workflow.common.operators.{OneToOneOpExecConfig}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
 
 /**
@@ -17,7 +18,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorS
   * It outputs an extra column to label the tuple if it is matched or not
   * This is the description of the operator
   */
-class DictionaryMatcherOpDesc extends OperatorDescriptor {
+class DictionaryMatcherOpDesc extends MapOpDesc {
   @JsonProperty(value = "Dictionary", required = true)
   @JsonPropertyDescription("dictionary values separated by a comma") var dictionary: String = _
 

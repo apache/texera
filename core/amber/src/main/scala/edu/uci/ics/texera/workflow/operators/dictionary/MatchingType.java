@@ -10,6 +10,10 @@ import com.fasterxml.jackson.annotation.JsonValue;
  * Performs simple matching of the query. Matching is
  * case insensitive. <br>
  *
+ * SUBSTRING: <br>
+ * Performs simple substring matching of the query. Matching is
+ * case insensitive. <br>
+ *
  * CONJUNCTION_INDEXBASED: <br>
  * Performs search of conjunction of query tokens. The query is tokenized
  * into keywords, with each token treated as a separate keyword. The order
@@ -21,25 +25,15 @@ import com.fasterxml.jackson.annotation.JsonValue;
  * also matches: "an appointment to pick up a book" <br>
  * <br>
  *
- *
- * PHRASE_INDEXBASED: <br>
- * Performs a phrase search. The query is tokenized into keywords. The order of tokens matters in the
- * source tuple. <br>
- *
- * For example: <br>
- * query "book appointment" <br>
- * matches: "book appointment with the doctor" <br>
- * doesn't match: "an appointment to pick up book" <br>
- *
  *  @author Zuozhi Wang
  */
 
  public enum MatchingType {
     SCANBASED("Scan"),
 
-    CONJUNCTION_INDEXBASED("Conjunction"),
+    SUBSTRING("Substring"),
 
-    PHRASE_INDEXBASED("Phrase");
+    CONJUNCTION_INDEXBASED("Conjunction");
 
     private final String name;
 

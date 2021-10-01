@@ -30,15 +30,16 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   var opExec: DictionaryMatcherOpExec = _
   var opDesc: DictionaryMatcherOpDesc = _
-  val dictionaryEntry = "nice a a person"
-  val dictionaryEntryStopWord = "nice and beautiful person"
-  val dictionaryEntryOrder = "beautiful person and nice"
+  val dictinaryScan = "nice a a person"
+  val dictinarySubstring = "nice a a person and good"
+  val dictionaryConjunction = "beautiful person and nice"
 
   before {
     opDesc = new DictionaryMatcherOpDesc()
     opDesc.attribute = "field1"
-    opDesc.dictionary = dictionaryEntry
+    opDesc.dictionary = dictinaryScan
     opDesc.resultAttribute = "matched"
+    opDesc.matchingType = MatchingType.SCANBASED
     val outputSchema: Schema = opDesc.getOutputSchema(Array(tupleSchema))
     val operatorSchemaInfo: OperatorSchemaInfo =
       OperatorSchemaInfo(Array(tupleSchema), outputSchema)
@@ -48,32 +49,30 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "open" in {
     opExec.open()
     assert(opExec.dictionaryEntries != null)
-    assert(opExec.tokenizedDictionaryEntries != null)
-    assert(opExec.luceneAnalyzer != null)
   }
 
   /**
-    * Test cases that all Matching Type should match the query
+    * Test cases that all Matching Types should match the query
     */
   it should "match a tuple if present in the given dictionary entry when matching type is SCANBASED" in {
-    opExec.open()
     opDesc.matchingType = MatchingType.SCANBASED
+    opExec.open()
+    val processedTuple = opExec.processTexeraTuple(Left(tuple), null).next()
+    assert(processedTuple.getField("matched"))
+    opExec.close()
+  }
+
+  it should "match a tuple if present in the given dictionary entry when matching type is SUBSTRING" in {
+    opDesc.matchingType = MatchingType.SUBSTRING
+    opExec.open()
     val processedTuple = opExec.processTexeraTuple(Left(tuple), null).next()
     assert(processedTuple.getField("matched"))
     opExec.close()
   }
 
   it should "match a tuple if present in the given dictionary entry when matching type is CONJUNCTION_INDEXBASED" in {
-    opExec.open()
     opDesc.matchingType = MatchingType.CONJUNCTION_INDEXBASED
-    val processedTuple = opExec.processTexeraTuple(Left(tuple), null).next()
-    assert(processedTuple.getField("matched"))
-    opExec.close()
-  }
-
-  it should "match a tuple if present in the given dictionary entry when matching type is PHRASE_INDEXBASED" in {
     opExec.open()
-    opDesc.matchingType = MatchingType.PHRASE_INDEXBASED
     val processedTuple = opExec.processTexeraTuple(Left(tuple), null).next()
     assert(processedTuple.getField("matched"))
     opExec.close()
@@ -82,28 +81,28 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   /**
     * Test cases that SCANBASED Matching Type should fail to match a query
     */
-  it should "not match a tuple if not present in the given dictionary entry when matching type is SCANBASED" in {
-    opDesc.dictionary = dictionaryEntryStopWord
-    opExec.open()
+  it should "not match a tuple if not present in the given dictionary entry when matching type is SCANBASED and not exact match" in {
+    opDesc.dictionary = dictinarySubstring
     opDesc.matchingType = MatchingType.SCANBASED
+    opExec.open()
     val processedTuple = opExec.processTexeraTuple(Left(tuple), null).next()
     assert(!processedTuple.getField("matched").asInstanceOf[Boolean])
     opExec.close()
   }
 
-  it should "match a tuple if present in the given dictionary entry when matching type is CONJUNCTION_INDEXBASED even if there are stop words" in {
-    opDesc.dictionary = dictionaryEntryStopWord
+  it should "match a tuple if present in the given dictionary entry when matching type is SUBSTRING if it is a substring exact match" in {
+    opDesc.dictionary = dictinarySubstring
+    opDesc.matchingType = MatchingType.SUBSTRING
     opExec.open()
-    opDesc.matchingType = MatchingType.CONJUNCTION_INDEXBASED
     val processedTuple = opExec.processTexeraTuple(Left(tuple), null).next()
     assert(processedTuple.getField("matched"))
     opExec.close()
   }
 
-  it should "match a tuple if present in the given dictionary entry when matching type is PHRASE_INDEXBASED even if there are stop words" in {
-    opDesc.dictionary = dictionaryEntryStopWord
+  it should "match a tuple if present in the given dictionary entry when matching type is CONJUNCTION_INDEXBASED if it is a substring exact match" in {
+    opDesc.dictionary = dictinarySubstring
+    opDesc.matchingType = MatchingType.CONJUNCTION_INDEXBASED
     opExec.open()
-    opDesc.matchingType = MatchingType.PHRASE_INDEXBASED
     val processedTuple = opExec.processTexeraTuple(Left(tuple), null).next()
     assert(processedTuple.getField("matched"))
     opExec.close()
@@ -113,27 +112,18 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     * Test cases that only CONJUNCTION_INDEXBASED Matching Type should match the query
     */
   it should "not match a tuple if not present in the given dictionary entry when matching type is SCANBASED when the order is different" in {
-    opDesc.dictionary = dictionaryEntryOrder
-    opExec.open()
+    opDesc.dictionary = dictionaryConjunction
     opDesc.matchingType = MatchingType.SCANBASED
+    opExec.open()
     val processedTuple = opExec.processTexeraTuple(Left(tuple), null).next()
     assert(!processedTuple.getField("matched").asInstanceOf[Boolean])
     opExec.close()
   }
 
-  it should "not match a tuple if not present in the given dictionary entry when matching type is CONJUNCTION_INDEXBASED when the order is different" in {
-    opDesc.dictionary = dictionaryEntryOrder
-    opExec.open()
+  it should "match a tuple if not present in the given dictionary entry when matching type is CONJUNCTION_INDEXBASED even when the order is different" in {
+    opDesc.dictionary = dictionaryConjunction
     opDesc.matchingType = MatchingType.CONJUNCTION_INDEXBASED
-    val processedTuple = opExec.processTexeraTuple(Left(tuple), null).next()
-    assert(processedTuple.getField("matched"))
-    opExec.close()
-  }
-
-  it should "match a tuple if present in the given dictionary entry when matching type is PHRASE_INDEXBASED even when the order is different" in {
-    opDesc.dictionary = dictionaryEntryOrder
     opExec.open()
-    opDesc.matchingType = MatchingType.PHRASE_INDEXBASED
     val processedTuple = opExec.processTexeraTuple(Left(tuple), null).next()
     assert(processedTuple.getField("matched"))
     opExec.close()
