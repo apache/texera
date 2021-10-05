@@ -99,6 +99,8 @@ import { NotificationComponent } from "./common/component/notification/notificat
 import { DebuggerFrameComponent } from "./workspace/component/result-panel/debugger-frame/debugger-frame.component";
 import { NzTabsModule } from "ng-zorro-antd/tabs";
 import { NzTreeViewModule } from "ng-zorro-antd/tree-view";
+import { VersionsListDisplayComponent } from "./workspace/component/property-editor/versions-display/versions-display.component";
+import { NzPaginationModule } from "ng-zorro-antd/pagination";
 import { JwtModule } from "@auth0/angular-jwt";
 
 registerLocaleData(en);
@@ -110,6 +112,7 @@ registerLocaleData(en);
     NavigationComponent,
     OperatorPanelComponent,
     PropertyEditorComponent,
+    VersionsListDisplayComponent,
     WorkflowEditorComponent,
     ResultPanelComponent,
     OperatorLabelComponent,
@@ -217,6 +220,7 @@ registerLocaleData(en);
     MonacoEditorModule.forRoot(),
     NzTabsModule,
     NzTreeViewModule,
+    NzPaginationModule,
   ],
   entryComponents: [
     NgbdModalAddWorkflowComponent,
