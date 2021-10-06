@@ -180,6 +180,25 @@ class TestExpressionEvaluator:
                    ]
                )
 
+        d = {1: "a", 'b': [{i, f}], (i,): f}
+        assert ExpressionEvaluator.evaluate("d", runtime_context={"d": d}) == \
+               EvaluatedValue(
+                   value=TypedValue(
+                       expression='d',
+                       value_ref='d',
+                       value_str="{1: 'a', 'b': [{1.1, 10}], (10,): 1.1}",
+                       value_type='dict',
+                       expandable=True
+                   ), attributes=[
+                       TypedValue(expression='__getitem__(1)', value_ref='1', value_str="'a'", value_type='str',
+                                  expandable=True),
+                       TypedValue(expression="__getitem__('b')", value_ref="'b'", value_str='[{1.1, 10}]',
+                                  value_type='list', expandable=True),
+                       TypedValue(expression='__getitem__((10,))', value_ref='(10,)', value_str='1.1',
+                                  value_type='float', expandable=False)
+                   ]
+               )
+
         g = (i for i in range(10))
         assert ExpressionEvaluator.evaluate("g", runtime_context={"g": g}) == \
                EvaluatedValue(

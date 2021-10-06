@@ -1,7 +1,7 @@
 import inspect
 import re
 from typing import Any, Dict, List, Optional, Pattern, Tuple
-
+from collections.abc import Mapping
 from proto.edu.uci.ics.amber.engine.architecture.worker import EvaluatedValue, TypedValue
 
 
@@ -81,7 +81,9 @@ class ExpressionEvaluator:
 
     @staticmethod
     def _extract_container_items(value: Any) -> List[TypedValue]:
-        return ExpressionEvaluator._to_typed_values(enumerate(value), parent=value, to_getitem=True, ref_as_repr=True)
+        return ExpressionEvaluator._to_typed_values(
+            value.items() if isinstance(value, Mapping) else enumerate(value),
+            parent=value, to_getitem=True, ref_as_repr=True)
 
     @staticmethod
     def _extract_attributes(value: Any) -> List[TypedValue]:
@@ -97,7 +99,7 @@ class ExpressionEvaluator:
                          check_expandable=True):
         return [
             TypedValue(
-                expression=f"__getitem__({k})" if to_getitem else k,
+                expression=f"__getitem__({repr(k)})" if to_getitem else k,
                 value_ref=repr(k) if ref_as_repr else k,
                 value_str=repr(v),
                 value_type=type(v).__name__,
