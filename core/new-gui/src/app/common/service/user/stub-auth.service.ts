@@ -26,7 +26,7 @@ export class StubAuthService implements PublicInterfaceOf<AuthService> {
     if (password === "password") {
       return of(MOCK_TOKEN);
     } else {
-     return of(MOCK_INVALID_TOKEN);
+      return of(MOCK_INVALID_TOKEN);
     }
   }
 
