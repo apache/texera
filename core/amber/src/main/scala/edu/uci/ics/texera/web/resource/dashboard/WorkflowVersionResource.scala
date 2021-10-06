@@ -91,7 +91,7 @@ class WorkflowVersionResource {
     * This method returns a particular version of a workflow given the vid and wid
     * first, list the versions of the workflow; second, from the current version(last) apply the differences until the requested version
     * third, return the requested workflow
-   *
+    *
     * @param wid workflowID of the current workflow the user is working on
     * @param vid versionID of the checked-out version to be computed and returned
     * @return workflow of a particular version
