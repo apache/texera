@@ -1,15 +1,14 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.flipkart.zjsonpatch.{JsonDiff, JsonPatch}
+import com.flipkart.zjsonpatch.JsonDiff
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
   USER,
   WORKFLOW,
   WORKFLOW_OF_USER,
-  WORKFLOW_USER_ACCESS,
-  WORKFLOW_VERSION
+  WORKFLOW_USER_ACCESS
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   WorkflowDao,
@@ -17,31 +16,16 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   WorkflowUserAccessDao,
   WorkflowVersionDao
 }
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
-  User,
-  Workflow,
-  WorkflowOfUser,
-  WorkflowUserAccess,
-  WorkflowVersion
-}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.WorkflowAccessResource.{
   WorkflowAccess,
   toAccessLevel
 }
-import edu.uci.ics.texera.web.resource.dashboard.WorkflowResource.{
-  context,
-  insertWorkflow,
-  workflowDao,
-  workflowOfUserExists
-}
+import edu.uci.ics.texera.web.resource.dashboard.WorkflowResource._
 import io.dropwizard.auth.Auth
-import io.dropwizard.jersey.sessions.Session
-import org.glassfish.jersey.media.multipart.FormDataParam
 import org.jooq.types.UInteger
 
 import javax.annotation.security.PermitAll
-import java.sql.Timestamp
-import javax.servlet.http.HttpSession
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
@@ -59,7 +43,7 @@ case class DashboardWorkflowEntry(
     workflow: Workflow
 )
 object WorkflowResource {
-  final private val context = SqlServer.createDSLContext()
+  final private lazy val context = SqlServer.createDSLContext()
 
   final private val workflowDao = new WorkflowDao(context.configuration)
   final private val workflowVersionDao = new WorkflowVersionDao(context.configuration)

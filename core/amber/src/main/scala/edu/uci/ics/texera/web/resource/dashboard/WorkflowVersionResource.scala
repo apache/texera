@@ -2,19 +2,23 @@ package edu.uci.ics.texera.web.resource.dashboard
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.flipkart.zjsonpatch.JsonPatch
+import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{WORKFLOW, WORKFLOW_VERSION}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Workflow
-import edu.uci.ics.texera.web.resource.dashboard.WorkflowResource.context
-import edu.uci.ics.texera.web.resource.dashboard.WorkflowVersionResource.applyPatch
+import edu.uci.ics.texera.web.resource.dashboard.WorkflowVersionResource.{
+  applyPatch,
+  context,
+  workflowDao
+}
 import io.dropwizard.auth.Auth
 import org.jooq.types.UInteger
 
 import java.sql.Timestamp
 import javax.annotation.security.PermitAll
 import javax.ws.rs._
-import javax.ws.rs.core.{MediaType}
+import javax.ws.rs.core.MediaType
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 /**
@@ -29,6 +33,9 @@ case class VersionEntry(
 )
 
 object WorkflowVersionResource {
+  final private lazy val context = SqlServer.createDSLContext()
+  final private val workflowDao = new WorkflowDao(context.configuration)
+
   private def applyPatch(versions: List[VersionEntry], workflow: Workflow): Workflow = {
     // loop all versions and apply the patch
     val mapper = new ObjectMapper()
@@ -40,7 +47,7 @@ object WorkflowVersionResource {
       )
     }
     // the checked out version is persisted to disk
-    return workflow
+    workflow
   }
 
 }
@@ -50,12 +57,9 @@ object WorkflowVersionResource {
 @Produces(Array(MediaType.APPLICATION_JSON))
 class WorkflowVersionResource {
 
-  final private val workflowDao = new WorkflowDao(context.configuration)
-
   /**
     * This method returns the versions of a workflow given by its ID
     *
-    * @param session HttpSession
     * @return versions[]
     */
   @GET
@@ -87,9 +91,9 @@ class WorkflowVersionResource {
     * This method returns a particular version of a workflow given the vid and wid
     * first, list the versions of the workflow; second, from the current version(last) apply the differences until the requested version
     * third, return the requested workflow
+   *
     * @param wid workflowID of the current workflow the user is working on
     * @param vid versionID of the checked-out version to be computed and returned
-    * @param session HttpSession
     * @return workflow of a particular version
     */
   @GET
