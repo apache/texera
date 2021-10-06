@@ -1,6 +1,7 @@
 from loguru import logger
 
 from core.architecture.handlers.add_partitioning_handler import AddPartitioningHandler
+from core.architecture.handlers.evaluate_expression_handler import EvaluateExpressionHandler
 from core.architecture.handlers.handler_base import Handler
 from core.architecture.handlers.initialize_operator_logic_handler import InitializeOperatorLogicHandler
 from core.architecture.handlers.modify_operator_logic_handler import ModifyOperatorLogicHandler
@@ -34,6 +35,7 @@ class AsyncRPCServer:
         self.register(InitializeOperatorLogicHandler())
         self.register(ModifyOperatorLogicHandler())
         self.register(ReplayCurrentTupleHandler())
+        self.register(EvaluateExpressionHandler())
 
     def receive(self, from_: ActorVirtualIdentity, control_invocation: ControlInvocationV2):
         command: ControlCommandV2 = get_one_of(control_invocation.command)

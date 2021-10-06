@@ -183,8 +183,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
     } else {
       this.switchDisplayComponent(undefined);
     }
-
-    // execute set interactivity immediately in another task because of a formly bug
+// execute set interactivity immediately in another task because of a formly bug
     // whenever the form model is changed, formly can only disable it after the UI is rendered
     setTimeout(() => {
       const interactive = this.evaluateInteractivity();
@@ -236,12 +235,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
   registerOperatorSchemaChangeHandler(): void {
     this.dynamicSchemaService
       .getOperatorDynamicSchemaChangedStream()
+      .pipe(filter(({ operatorID }) => operatorID === this.currentOperatorId))
       .pipe(untilDestroyed(this))
-      .subscribe(event => {
-        if (event.operatorID === this.currentOperatorId) {
-          this.rerenderEditorForm();
-        }
-      });
+      .subscribe(_ => this.rerenderEditorForm());
   }
 
   /**

@@ -103,6 +103,27 @@ export interface CacheStatusUpdateEvent
     cacheStatusMap: Record<string, OperatorResultCacheStatus>;
   }> {}
 
+export type PythonExpressionEvaluateRequest = Readonly<{
+  expression: string;
+  operatorId: string;
+}>;
+export type TypedValue = Readonly<{
+  expression: string;
+  valueRef: string;
+  valueStr: string;
+  valueType: string;
+  expandable: boolean;
+}>;
+export type EvaluatedValue = Readonly<{
+  value: TypedValue;
+  attributes: TypedValue[];
+}>;
+
+export type PythonExpressionEvaluateResponse = Readonly<{
+  expression: string;
+  values: EvaluatedValue[];
+}>;
+
 export type TexeraWebsocketRequestTypeMap = {
   AddBreakpointRequest: BreakpointInfo;
   CacheStatusUpdateRequest: CacheStatusUpdateRequest;
@@ -117,6 +138,7 @@ export type TexeraWebsocketRequestTypeMap = {
   WorkflowKillRequest: {};
   WorkflowPauseRequest: {};
   WorkflowResumeRequest: {};
+  PythonExpressionEvaluateRequest: PythonExpressionEvaluateRequest;
 };
 
 export type TexeraWebsocketEventTypeMap = {
@@ -138,6 +160,7 @@ export type TexeraWebsocketEventTypeMap = {
   ResultExportResponse: ResultExportResponse;
   WorkflowAvailableResultEvent: WorkflowAvailableResultEvent;
   CacheStatusUpdateEvent: CacheStatusUpdateEvent;
+  PythonExpressionEvaluateResponse: PythonExpressionEvaluateResponse;
 };
 
 // helper type definitions to generate the request and event types
