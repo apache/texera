@@ -62,7 +62,7 @@ describe("WorkflowAccessService", () => {
   it("revokeWorkflowAccess works as expected", () => {
     service.revokeWorkflowAccess(TestWorkflow, username).pipe(first()).subscribe();
     const req = httpMock.expectOne(`${WORKFLOW_ACCESS_REVOKE_URL}/${TestWorkflow.wid}/${username}`);
-    expect(req.request.method).toEqual("POST");
+    expect(req.request.method).toEqual("DELETE");
     req.flush({ code: 0, message: "" });
   });
 });
