@@ -13,6 +13,34 @@ class ExpressionEvaluator:
 
     @staticmethod
     def evaluate(expression: str, runtime_context: Optional[Dict[str, Any]] = None) -> EvaluatedValue:
+        """
+        Evaluates the given expression and return a EvaluatedValue.
+
+        Right now, there is no validation performed on the input expression. User takes full
+        responsibility of using this method.
+        :param expression: a python statement string
+        :param runtime_context: a Mapping of expressions to values, to be used for evaluation
+        :return: EvaluatedValue which contains the current value and its children's value, all in the
+            format of TypedValue. A TypedValue contains
+                - expression: str, to match the request expression being evaluated;
+                - value_ref: str, the reference of this value, can be used to construct the
+                        next expression which expands the current value further;
+                - value_str: str, the value in string format, to be displayed;
+                - value_type: str, the type of this value, in string format, to be displayed;
+                - expandable: bool, whether this value can be expanded or not.
+
+        The TypedValue could be expanded. For now it supports the following types:
+         - Primitives (expandable = False);
+         - Collections
+            - Array/Tuple like (expandable = True);
+            - Dict/Mapping like (expandable = True);
+            - Set like (expandable = True, but its elements' expandable = False);
+         - Iterables (expandable = True);
+         - Iterators (expandable = False);
+         - Generators (expandable = True).
+
+         See test cases for more usage details.
+        """
 
         value = eval(expression, runtime_context)
         value_str = repr(value)
