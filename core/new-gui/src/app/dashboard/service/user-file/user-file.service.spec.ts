@@ -55,9 +55,13 @@ describe("UserFileService", () => {
 
   it("can share access", () => {
     service.grantUserFileAccess(testFileEntry, username, accessLevel).pipe(first()).subscribe();
-    const req = httpMock.expectOne(
-      `${USER_FILE_ACCESS_GRANT_URL}/${testFileEntry.file.name}/${testFileEntry.ownerName}/${username}/${accessLevel}`
-    );
+    const req = httpMock.expectOne(`${USER_FILE_ACCESS_GRANT_URL}`);
+    expect(req.request.body).toEqual({
+      fileName: testFileEntry.file.name,
+      ownerName: testFileEntry.ownerName,
+      username,
+      accessLevel,
+    });
     expect(req.request.method).toEqual("POST");
     req.flush({ code: 0, message: "" });
   });
@@ -67,7 +71,7 @@ describe("UserFileService", () => {
     const req = httpMock.expectOne(
       `${USER_FILE_ACCESS_REVOKE_URL}/${testFileEntry.file.name}/${testFileEntry.ownerName}/${username}`
     );
-    expect(req.request.method).toEqual("POST");
+    expect(req.request.method).toEqual("DELETE");
     req.flush({ code: 0, message: "" });
   });
 
