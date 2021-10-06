@@ -1,7 +1,8 @@
 import inspect
 import re
+from collections.abc import Iterator, Mapping
 from typing import Any, Dict, List, Optional, Pattern, Tuple
-from collections.abc import Mapping
+
 from proto.edu.uci.ics.amber.engine.architecture.worker import EvaluatedValue, TypedValue
 
 
@@ -25,6 +26,8 @@ class ExpressionEvaluator:
         if ExpressionEvaluator._is_iterable(value):
             if ExpressionEvaluator._is_generator(value):
                 to_be_expanded += ExpressionEvaluator._extract_generator_locals(value)
+            elif ExpressionEvaluator._is_iterator(value):
+                pass
             else:
                 to_be_expanded += ExpressionEvaluator._extract_container_items(value)
 
@@ -47,12 +50,21 @@ class ExpressionEvaluator:
     def _is_expandable(obj, parent=None) -> bool:
         # for set and set-like subclasses, the internal values cannot be expanded easily, disable for now
         return not isinstance(parent, set) and \
+               not (ExpressionEvaluator._is_iterator(obj) and not ExpressionEvaluator._is_generator(obj)) and \
                (ExpressionEvaluator._contains_attributes(obj) or \
                 (ExpressionEvaluator._is_iterable(obj) and not ExpressionEvaluator._is_empty_container(obj)))
 
     @staticmethod
+    def _is_mapping(obj) -> bool:
+        return isinstance(obj, Mapping)
+
+    @staticmethod
     def _is_generator(obj) -> bool:
         return inspect.isgenerator(obj)
+
+    @staticmethod
+    def _is_iterator(obj) -> bool:
+        return isinstance(obj, Iterator)
 
     @staticmethod
     def _is_iterable(obj) -> bool:
@@ -82,8 +94,11 @@ class ExpressionEvaluator:
     @staticmethod
     def _extract_container_items(value: Any) -> List[TypedValue]:
         return ExpressionEvaluator._to_typed_values(
-            value.items() if isinstance(value, Mapping) else enumerate(value),
-            parent=value, to_getitem=True, ref_as_repr=True)
+            value.items() if ExpressionEvaluator._is_mapping(value) else enumerate(value),
+            parent=value,
+            to_getitem=True,
+            ref_as_repr=True
+        )
 
     @staticmethod
     def _extract_attributes(value: Any) -> List[TypedValue]:

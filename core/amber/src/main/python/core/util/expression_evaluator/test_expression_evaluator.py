@@ -230,6 +230,31 @@ class TestExpressionEvaluator:
                    ]
                )
 
+        it = iter([1, 2, 3])
+        assert ExpressionEvaluator.evaluate("it", runtime_context={"it": it}) == \
+               EvaluatedValue(
+                   value=TypedValue(
+                       expression='it',
+                       value_ref='it',
+                       value_str=f'<list_iterator object at {hex(id(it))}>',
+                       value_type='list_iterator',
+                       expandable=False
+                   ), attributes=[]
+               )
+
+        it = iter([1, 2, 3])
+        next(it)
+        assert ExpressionEvaluator.evaluate("it", runtime_context={"it": it}) == \
+               EvaluatedValue(
+                   value=TypedValue(
+                       expression='it',
+                       value_ref='it',
+                       value_str=f'<list_iterator object at {hex(id(it))}>',
+                       value_type='list_iterator',
+                       expandable=False
+                   ), attributes=[]
+               )
+
     def test_evaluate_in_another_context(self):
         i = 10
         j = 20
