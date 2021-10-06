@@ -1,3 +1,4 @@
+import inspect
 import re
 from typing import Any, Dict, List, Optional, Pattern
 
@@ -21,26 +22,41 @@ class ExpressionEvaluator:
         # add attributes
         attributes += ExpressionEvaluator._extract_attributes(value)
 
-        # add container items
-        attributes += ExpressionEvaluator._extract_container_items(value)
+        if ExpressionEvaluator._is_iterable(value):
+            if ExpressionEvaluator._is_generator(value):
+                attributes += ExpressionEvaluator._extract_generator_locals(value)
+            else:
+                attributes += ExpressionEvaluator._extract_container_items(value)
         return EvaluatedValue(
             value=TypedValue(
                 expression=expression,
                 value_ref=expression,
                 value_str=value_str,
                 value_type=type_str,
-                expandable=ExpressionEvaluator._is_expandable(value)),
+                expandable=ExpressionEvaluator._is_expandable(value)
+            ),
             attributes=attributes
         )
 
     @staticmethod
-    def _is_expandable(obj) -> bool:
-        return ExpressionEvaluator._contains_attributes(obj) or \
-               (ExpressionEvaluator._is_iterable(obj) and not ExpressionEvaluator._is_empty_container(obj))
+    def _is_expandable(obj, parent=None) -> bool:
+        # for set and set-like subclasses, the internal values cannot be expanded easily, disable for now
+        return not isinstance(parent, set) and (ExpressionEvaluator._contains_attributes(obj) or \
+                                                (ExpressionEvaluator._is_iterable(
+                                                    obj) and not ExpressionEvaluator._is_empty_container(obj)))
+
+    @staticmethod
+    def _is_generator(obj) -> bool:
+        return inspect.isgenerator(obj)
 
     @staticmethod
     def _is_iterable(obj) -> bool:
-        return hasattr(obj, "__iter__")
+        """
+        According to https://www.pythonlikeyoumeanit.com/Module2_EssentialsOfPython/Iterables.html#Iterables,
+        an iterable is any Python object with an __iter__() method or with a __getitem__() method that
+        implements Sequence semantics.
+        """
+        return hasattr(obj, "__iter__") or hasattr(obj, "__getitem__")
 
     @staticmethod
     def _contains_attributes(obj) -> bool:
@@ -61,45 +77,45 @@ class ExpressionEvaluator:
     @staticmethod
     def _extract_container_items(value: Any) -> List[TypedValue]:
         contained_items = []
-        if ExpressionEvaluator._is_iterable(value):
-            if hasattr(value, "items"):
-                for k, v in value.items():
-                    contained_items.append(
-                        TypedValue(
-                            expression=f"__getitem__({repr(k)})",
-                            value_ref=repr(k),
-                            value_str=repr(v),
-                            value_type=type(v).__name__,
-                            expandable=ExpressionEvaluator._is_expandable(v)
-                        )
-                    )
-
-            else:
-                value_tuple = tuple(value)
-                for i, item in enumerate(value_tuple):
-                    contained_items.append(
-                        TypedValue(
-                            expression=f"__getitem__({i})",
-                            value_ref=repr(i),
-                            value_str=repr(value_tuple[i]),
-                            value_type=type(value_tuple[i]).__name__,
-                            expandable=ExpressionEvaluator._is_expandable(value_tuple[i])
-                        )
-                    )
+        for i, item in enumerate(value):
+            contained_items.append(
+                TypedValue(
+                    expression=f"__getitem__({i})",
+                    value_ref=repr(i),
+                    value_str=repr(item),
+                    value_type=type(item).__name__,
+                    expandable=ExpressionEvaluator._is_expandable(item, parent=value)
+                )
+            )
         return contained_items
 
     @staticmethod
     def _extract_attributes(value: Any) -> List[TypedValue]:
         attributes = []
         if hasattr(value, "__dict__"):
-            for k, v in value.__dict__.items():
+            for k, v in vars(value).items():
                 attributes.append(
                     TypedValue(
                         expression=k,
                         value_ref=k,
                         value_str=repr(v),
                         value_type=type(v).__name__,
-                        expandable=ExpressionEvaluator._is_expandable(v)
+                        expandable=ExpressionEvaluator._is_expandable(v, parent=value)
                     )
                 )
         return attributes
+
+    @staticmethod
+    def _extract_generator_locals(value: Any) -> List[TypedValue]:
+        locals = []
+        for k, v in filter(lambda t: t[0] != '.0', inspect.getgeneratorlocals(value).items()):
+            locals.append(
+                TypedValue(
+                    expression=k,
+                    value_ref=k,
+                    value_str=repr(v),
+                    value_type=type(v).__name__,
+                    expandable=False
+                )
+            )
+        return locals

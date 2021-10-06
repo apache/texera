@@ -176,7 +176,38 @@ class TestExpressionEvaluator:
                        TypedValue(expression='__getitem__(1)', value_ref='1', value_str='10', value_type='int',
                                   expandable=False),
                        TypedValue(expression='__getitem__(2)', value_ref='2', value_str='(10, 1.1)', value_type='tuple',
-                                  expandable=True)
+                                  expandable=False)
+                   ]
+               )
+
+        g = (i for i in range(10))
+        assert ExpressionEvaluator.evaluate("g", runtime_context={"g": g}) == \
+               EvaluatedValue(
+                   value=TypedValue(
+                       expression='g',
+                       value_ref='g',
+                       value_str=f'<generator object TestExpressionEvaluator.test_evaluate_container_expressions.<locals>.<genexpr> at {hex(id(g))}>',
+                       value_type='generator',
+                       expandable=True
+                   ), attributes=[]
+               )
+
+        def gen():
+            for i in range(10):
+                yield i
+
+        g = gen()
+        next(g)
+        assert ExpressionEvaluator.evaluate("g", runtime_context={"g": g}) == \
+               EvaluatedValue(
+                   value=TypedValue(
+                       expression='g',
+                       value_ref='g',
+                       value_str=f'<generator object TestExpressionEvaluator.test_evaluate_container_expressions.<locals>.gen at {hex(id(g))}>',
+                       value_type='generator',
+                       expandable=True
+                   ), attributes=[
+                       TypedValue(expression='i', value_ref='i', value_str='0', value_type='int', expandable=False)
                    ]
                )
 
