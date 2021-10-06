@@ -58,6 +58,10 @@ message PythonPrintV2 {
     string message = 1;
 }
 
+message EvaluateExpressionV2 {
+    string expression = 1;
+}
+
 message ControlCommandV2 {
     oneof sealed_value {
         StartWorkerV2 start_worker = 1;
@@ -76,6 +80,7 @@ message ControlCommandV2 {
         ModifyOperatorLogicV2 modify_operator_logic = 22;
         PythonPrintV2 python_print = 23;
         ReplayCurrentTupleV2 replay_current_tuple = 24;
+        EvaluateExpressionV2 evaluate_expression = 25;
 
         WorkerExecutionCompletedV2 worker_execution_completed = 101;
     }

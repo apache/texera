@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent._
+import edu.uci.ics.texera.web.model.event.python.PythonExpressionEvaluateResponse
 
 case class ControllerEventListener(
     var workflowCompletedListener: WorkflowCompleted => Unit = null,
@@ -11,5 +12,6 @@ case class ControllerEventListener(
     reportCurrentTuplesListener: ReportCurrentProcessingTuple => Unit = null,
     recoveryStartedListener: Unit => Unit = null,
     workflowExecutionErrorListener: ErrorOccurred => Unit = null,
-    pythonPrintTriggeredListener: PythonPrintTriggered => Unit = null
+    pythonPrintTriggeredListener: PythonPrintTriggered => Unit = null,
+    pythonExpressionEvaluatedListener: PythonExpressionEvaluateResponse => Unit = null
 )

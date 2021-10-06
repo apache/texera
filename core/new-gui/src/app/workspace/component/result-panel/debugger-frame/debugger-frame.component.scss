@@ -1,0 +1,21 @@
+.expression-tree-container {
+  .evaluated-expression {
+    font-family: monaco, serif;
+    font-style: normal;
+    font-variant: normal;
+    font-weight: 300;
+
+    .node-name {
+      color: #ff8a8e;
+      display: inline-block;
+    }
+
+    .node-type {
+      color: grey;
+      display: inline-block;
+    }
+    .node-value {
+      display: inline-block;
+    }
+  }
+}
