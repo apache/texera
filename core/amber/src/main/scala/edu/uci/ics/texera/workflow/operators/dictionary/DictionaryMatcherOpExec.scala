@@ -1,15 +1,11 @@
 package edu.uci.ics.texera.workflow.operators.dictionary
 
-import edu.uci.ics.amber.engine.common.InputExhausted
-import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo}
 import org.apache.lucene.analysis.Analyzer
-import org.apache.lucene.analysis.core.SimpleAnalyzer
 import org.apache.lucene.analysis.en.EnglishAnalyzer
-import org.apache.lucene.analysis.standard.StandardAnalyzer
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute
 
 import java.io.StringReader
@@ -34,7 +30,7 @@ class DictionaryMatcherOpExec(
     dictionaryEntries = this.opDesc.dictionary.split(",").toList.map(_.toLowerCase)
     if (opDesc.matchingType == MatchingType.CONJUNCTION_INDEXBASED) {
       // then tokenize each entry
-      this.luceneAnalyzer = new SimpleAnalyzer
+      this.luceneAnalyzer = new EnglishAnalyzer
       tokenizedDictionaryEntries = ListBuffer[Set[String]]()
       tokenizeDictionary()
     }

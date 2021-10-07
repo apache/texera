@@ -32,7 +32,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   var opDesc: DictionaryMatcherOpDesc = _
   val dictinaryScan = "nice a a person"
   val dictinarySubstring = "nice a a person and good"
-  val dictionaryConjunction = "a person"
+  val dictionaryConjunction = "a person is nice"
 
   before {
     opDesc = new DictionaryMatcherOpDesc()
@@ -99,7 +99,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opExec.close()
   }
 
-  it should "match a tuple if present in the given dictionary entry when matching type is CONJUNCTION_INDEXBASED if it is not an exact match" in {
+  it should "match a tuple if present in the given dictionary entry when matching type is CONJUNCTION_INDEXBASED even with different order" in {
     opDesc.dictionary = dictionaryConjunction
     opDesc.matchingType = MatchingType.CONJUNCTION_INDEXBASED
     opExec.open()
@@ -129,7 +129,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opExec.close()
   }
 
-  it should "match a tuple if not present in the given dictionary entry when matching type is CONJUNCTION_INDEXBASED when the entry contains more text" in {
+  it should "match a tuple if not present in the given dictionary entry when matching type is SUBSTRING when the entry contains more text" in {
     opDesc.dictionary = dictinarySubstring
     opDesc.matchingType = MatchingType.SUBSTRING
     opExec.open()

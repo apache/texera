@@ -88,6 +88,7 @@ object Utils {
     "net",
     "com",
     "store",
-    "www"
+    "www",
+    "html"
   )
 }
