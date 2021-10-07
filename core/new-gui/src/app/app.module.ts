@@ -98,6 +98,7 @@ import { BreakpointPropertyEditFrameComponent } from "./workspace/component/prop
 import { NotificationComponent } from "./common/component/notification/notification/notification.component";
 import { DebuggerFrameComponent } from "./workspace/component/result-panel/debugger-frame/debugger-frame.component";
 import { NzTabsModule } from "ng-zorro-antd/tabs";
+import { NzTreeViewModule } from "ng-zorro-antd/tree-view";
 import { VersionsListDisplayComponent } from "./workspace/component/property-editor/versions-display/versions-display.component";
 import { NzPaginationModule } from "ng-zorro-antd/pagination";
 import { JwtModule } from "@auth0/angular-jwt";
@@ -218,6 +219,7 @@ registerLocaleData(en);
     DynamicModule,
     MonacoEditorModule.forRoot(),
     NzTabsModule,
+    NzTreeViewModule,
     NzPaginationModule,
   ],
   entryComponents: [

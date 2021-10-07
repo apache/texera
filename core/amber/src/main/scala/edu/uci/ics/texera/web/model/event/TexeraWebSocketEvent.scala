@@ -2,6 +2,7 @@ package edu.uci.ics.texera.web.model.event
 
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
+import edu.uci.ics.texera.web.model.event.python.PythonExpressionEvaluateResponse
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes(
@@ -19,7 +20,8 @@ import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
     new Type(value = classOf[PythonPrintTriggeredEvent]),
     new Type(value = classOf[OperatorCurrentTuplesUpdateEvent]),
     new Type(value = classOf[CacheStatusUpdateEvent]),
-    new Type(value = classOf[PaginatedResultEvent])
+    new Type(value = classOf[PaginatedResultEvent]),
+    new Type(value = classOf[PythonExpressionEvaluateResponse])
   )
 )
 trait TexeraWebSocketEvent {}

@@ -29,6 +29,7 @@ class BatchToTupleConverter:
             return
 
         link = self._input_map[from_]
+
         if self._current_link is None or self._current_link != link:
             self._current_link = link
             yield SenderChangeMarker(link)

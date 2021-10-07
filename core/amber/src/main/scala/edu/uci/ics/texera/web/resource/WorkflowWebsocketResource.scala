@@ -3,6 +3,7 @@ package edu.uci.ics.texera.web.resource
 import akka.actor.{ActorRef, PoisonPill}
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.EvaluatePythonExpressionHandler.EvaluatePythonExpression
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ModifyLogicHandler.ModifyLogic
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
@@ -22,6 +23,7 @@ import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.web.model.event._
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.request._
+import edu.uci.ics.texera.web.model.request.python.PythonExpressionEvaluateRequest
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource._
 import edu.uci.ics.texera.web.{ServletAwareConfigurator, TexeraWebApplication}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -143,6 +145,8 @@ class WorkflowWebsocketResource extends LazyLogging {
           if (opResultSwitch) {
             updateCacheStatus(session, cacheStatusUpdateRequest)
           }
+        case pythonExpressionEvaluateRequest: PythonExpressionEvaluateRequest =>
+          evaluatePythonExpression(session, pythonExpressionEvaluateRequest)
       }
     } catch {
       case err: Exception =>
@@ -156,6 +160,14 @@ class WorkflowWebsocketResource extends LazyLogging {
 
     }
 
+  }
+
+  def evaluatePythonExpression(session: Session, request: PythonExpressionEvaluateRequest): Unit = {
+    val controller = WorkflowWebsocketResource.sessionJobs(session.getId)._2
+    controller ! ControlInvocation(
+      AsyncRPCClient.IgnoreReply,
+      EvaluatePythonExpression(request.expression, request.operatorId)
+    )
   }
 
   def resultPagination(session: Session, request: ResultPaginationRequest): Unit = {
@@ -370,6 +382,9 @@ class WorkflowWebsocketResource extends LazyLogging {
       },
       pythonPrintTriggeredListener = pythonPrintTriggered => {
         send(session, PythonPrintTriggeredEvent.apply(pythonPrintTriggered))
+      },
+      pythonExpressionEvaluatedListener = pythonExpressionEvaluateResponse => {
+        send(session, pythonExpressionEvaluateResponse)
       },
       workflowPausedListener = _ => {
         send(session, WorkflowPausedEvent())
