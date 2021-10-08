@@ -20,8 +20,10 @@ import edu.uci.ics.texera.workflow.common.workflow._
 import edu.uci.ics.texera.workflow.operators.aggregate.AggregationFunction
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-
 import java.sql.PreparedStatement
+
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowCompleted
+
 import scala.collection.mutable
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
@@ -62,10 +64,10 @@ class DataProcessingSpec
   def executeWorkflow(workflow: Workflow): Map[String, List[ITuple]] = {
     val parent = TestProbe()
     var results: Map[String, OperatorResult] = null
-    val eventListener = ControllerEventListener()
-    eventListener.workflowCompletedListener = evt => results = evt.result
+    val observables = ControllerSubjects()
+    observables.workflowCompleted.subscribe((evt:WorkflowCompleted) => results = evt.result)
     val controller = parent.childActorOf(
-      Controller.props(workflow, eventListener, ControllerConfig.default)
+      Controller.props(workflow, observables, ControllerConfig.default)
     )
     parent.expectMsg(ControllerState.Ready)
     controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, StartWorkflow())

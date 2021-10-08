@@ -1,4 +1,8 @@
-package edu.uci.ics.texera.web.resource
+package edu.uci.ics.texera.web.resource.execution
+
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
+import java.util
+import java.util.concurrent.{Executors, ThreadPoolExecutor}
 
 import com.github.tototoshi.csv.CSVWriter
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
@@ -9,54 +13,51 @@ import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.model.{Spreadsheet, SpreadsheetProperties, ValueRange}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.texera.Utils.retry
-import edu.uci.ics.texera.web.model.event.ResultExportResponse
+import edu.uci.ics.texera.web.model.event.{ResultExportResponse, TexeraWebSocketEvent}
 import edu.uci.ics.texera.web.model.request.ResultExportRequest
-import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
-  getExecutionContext,
-  getSessionContext,
-  getWId
-}
 import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource
+import edu.uci.ics.texera.web.resource.{GoogleResource, Observer}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import org.jooq.types.UInteger
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
-import java.util
-import java.util.concurrent.{Executors, ThreadPoolExecutor}
-
 import javax.servlet.http.HttpSession
+import org.jooq.types.UInteger
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
-object ResultExportResource {
 
-  private final val UPLOAD_BATCH_ROW_COUNT = 10000
-  private final val RETRY_ATTEMPTS = 7
-  private final val BASE_BACK_OOF_TIME_IN_MS = 1000
-  private final val WORKFLOW_RESULT_FOLDER_NAME = "workflow_results"
-  private final val pool: ThreadPoolExecutor =
+
+object ResultExportService {
+  final val UPLOAD_BATCH_ROW_COUNT = 10000
+  final val RETRY_ATTEMPTS = 7
+  final val BASE_BACK_OOF_TIME_IN_MS = 1000
+  final val WORKFLOW_RESULT_FOLDER_NAME = "workflow_results"
+  final val pool: ThreadPoolExecutor =
     Executors.newFixedThreadPool(3).asInstanceOf[ThreadPoolExecutor]
-  @volatile private var WORKFLOW_RESULT_FOLDER_ID: String = _
+}
 
-  def apply(
-      sessionId: String,
-      request: ResultExportRequest
-  ): ResultExportResponse = {
+class ResultExportService{
+  import ResultExportService._
+
+  private val cache = new mutable.HashMap[String, String]
+
+  def exportResult(
+             httpSession: HttpSession,
+             resultService: WorkflowResultService,
+             request: ResultExportRequest
+           ):ResultExportResponse = {
     // retrieve the file link saved in the session if exists
-    val wId = getWId(sessionId).get
-    val ec = getExecutionContext(wId).get
-    if (ec.exportCache.contains(request.exportType)) {
+    if (cache.contains(request.exportType)) {
       return ResultExportResponse(
         "success",
-        s"Link retrieved from cache ${ec.exportCache(request.exportType)}"
+        s"Link retrieved from cache ${cache(request.exportType)}"
       )
     }
 
     // By now the workflow should finish running
     val operatorWithResult: Option[OperatorResultService] =
-      ec.resultService.operatorResults.get(request.operatorId)
+      resultService.operatorResults.get(request.operatorId)
     if (operatorWithResult.isEmpty) {
       return ResultExportResponse("error", "The workflow contains no results")
     }
@@ -69,21 +70,21 @@ object ResultExportResource {
     // handle the request according to export type
     request.exportType match {
       case "google_sheet" =>
-        handleGoogleSheetRequest(wId, request, results, attributeNames)
+        handleGoogleSheetRequest(cache, request, results, attributeNames)
       case "csv" =>
-        handleCSVRequest(getSessionContext(sessionId).httpSession, request, results, attributeNames)
+        handleCSVRequest(httpSession, request, results, attributeNames)
       case _ =>
         ResultExportResponse("error", s"Unknown export type: ${request.exportType}")
     }
-
   }
 
+
   def handleCSVRequest(
-      httpSession: HttpSession,
-      request: ResultExportRequest,
-      results: List[Tuple],
-      headers: List[String]
-  ): ResultExportResponse = {
+                        httpSession: HttpSession,
+                        request: ResultExportRequest,
+                        results: List[Tuple],
+                        headers: List[String]
+                      ): ResultExportResponse = {
     val stream = new ByteArrayOutputStream()
     val writer = CSVWriter.open(stream)
     writer.writeRow(headers)
@@ -106,11 +107,11 @@ object ResultExportResource {
   }
 
   private def handleGoogleSheetRequest(
-      wId: String,
-      request: ResultExportRequest,
-      results: List[ITuple],
-      header: List[String]
-  ): ResultExportResponse = {
+                                        exportCache:mutable.HashMap[String, String],
+                                        request: ResultExportRequest,
+                                        results: List[ITuple],
+                                        header: List[String]
+                                      ): ResultExportResponse = {
     // create google sheet
     val sheetService: Sheets = GoogleResource.getSheetService
     val sheetId: String =
@@ -145,8 +146,7 @@ object ResultExportResource {
     val message: String =
       s"Google sheet created. The results may be still uploading. You can access the sheet $link"
     // save the file link in the session cache
-    val ec = getExecutionContext(wId).get
-    ec.exportCache(request.exportType) = link
+    exportCache(request.exportType) = link
     ResultExportResponse("success", message)
   }
 
@@ -168,15 +168,16 @@ object ResultExportResource {
     */
   @tailrec
   private def moveToResultFolder(
-      driveService: Drive,
-      sheetId: String,
-      retry: Boolean = true
-  ): Unit = {
+                                  driveService: Drive,
+                                  sheetId: String,
+                                  retry: Boolean = true
+                                ): Unit = {
+    val folderId = retrieveResultFolderId(driveService)
     try {
       driveService
         .files()
         .update(sheetId, null)
-        .setAddParents(WORKFLOW_RESULT_FOLDER_ID)
+        .setAddParents(folderId)
         .execute()
     } catch {
       case exception: GoogleJsonResponseException =>
@@ -184,8 +185,7 @@ object ResultExportResource {
           // This exception maybe caused by the full deletion of the target folder and
           // the cached folder id is obsolete.
           //  * note: by full deletion, the folder has to be deleted from trash as well.
-          // In this case, retrieve the folder id to try again.
-          retrieveResultFolderId(driveService)
+          // In this case, try again.
           moveToResultFolder(driveService, sheetId, retry = false)
         } else {
           // if the exception continues to show up then just throw it normally.
@@ -196,7 +196,6 @@ object ResultExportResource {
 
   private def retrieveResultFolderId(driveService: Drive): String =
     synchronized {
-
       val folderResult: FileList = driveService
         .files()
         .list()
@@ -211,21 +210,20 @@ object ResultExportResource {
         fileMetadata.setName(WORKFLOW_RESULT_FOLDER_NAME)
         fileMetadata.setMimeType("application/vnd.google-apps.folder")
         val targetFolder: File = driveService.files.create(fileMetadata).setFields("id").execute
-        WORKFLOW_RESULT_FOLDER_ID = targetFolder.getId
+        targetFolder.getId
       } else {
-        WORKFLOW_RESULT_FOLDER_ID = folderResult.getFiles.get(0).getId
+        folderResult.getFiles.get(0).getId
       }
-      WORKFLOW_RESULT_FOLDER_ID
     }
 
   /**
     * upload the result header to the google sheet
     */
   private def uploadHeader(
-      sheetService: Sheets,
-      sheetId: String,
-      header: List[AnyRef]
-  ): Unit = {
+                            sheetService: Sheets,
+                            sheetId: String,
+                            header: List[AnyRef]
+                          ): Unit = {
     uploadContent(sheetService, sheetId, List(header.asJava).asJava)
   }
 
@@ -283,10 +281,10 @@ object ResultExportResource {
     * The type of content is java list because the google API is in java
     */
   private def uploadContent(
-      sheetService: Sheets,
-      sheetId: String,
-      content: util.List[util.List[AnyRef]]
-  ): Unit = {
+                             sheetService: Sheets,
+                             sheetId: String,
+                             content: util.List[util.List[AnyRef]]
+                           ): Unit = {
     val body: ValueRange = new ValueRange().setValues(content)
     val range: String = "A1"
     val valueInputOption: String = "RAW"
@@ -300,4 +298,5 @@ object ResultExportResource {
     }
 
   }
+
 }

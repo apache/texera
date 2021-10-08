@@ -168,6 +168,8 @@ libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.9" % Test
 
 /////////////////////////////////////////////////////////////////////////////
 // Uncategorized
+// https://mvnrepository.com/artifact/io.reactivex/rxscala
+libraryDependencies += "io.reactivex" % "rxscala_2.12" % "0.27.0"
 
 // https://mvnrepository.com/artifact/org.postgresql/postgresql
 libraryDependencies += "org.postgresql" % "postgresql" % "42.2.18"

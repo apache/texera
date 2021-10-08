@@ -23,14 +23,14 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import scala.concurrent.duration.{DurationInt, FiniteDuration, MILLISECONDS}
 
 class ControllerAsyncRPCHandlerInitializer(
-    val actorContext: ActorContext,
-    val actorId: ActorVirtualIdentity,
-    val controlOutputPort: ControlOutputPort,
-    val eventListener: ControllerEventListener,
-    val workflow: Workflow,
-    val controllerConfig: ControllerConfig,
-    source: AsyncRPCClient,
-    receiver: AsyncRPCServer
+                                            val actorContext: ActorContext,
+                                            val actorId: ActorVirtualIdentity,
+                                            val controlOutputPort: ControlOutputPort,
+                                            val observables: ControllerSubjects,
+                                            val workflow: Workflow,
+                                            val controllerConfig: ControllerConfig,
+                                            source: AsyncRPCClient,
+                                            receiver: AsyncRPCServer
 ) extends AsyncRPCHandlerInitializer(source, receiver)
     with AmberLogging
     with LinkWorkersHandler
@@ -94,16 +94,11 @@ class ControllerAsyncRPCHandlerInitializer(
   }
 
   def updateFrontendWorkflowStatus(): Unit = {
-    if (eventListener.workflowStatusUpdateListener != null) {
-      eventListener.workflowStatusUpdateListener
-        .apply(WorkflowStatusUpdate(workflow.getWorkflowStatus))
-    }
+    observables.workflowStatusUpdate.onNext(WorkflowStatusUpdate(workflow.getWorkflowStatus))
   }
 
   def updateFrontendWorkflowResult(workflowResultUpdate: WorkflowResultUpdate): Unit = {
-    if (eventListener.workflowResultUpdateListener != null) {
-      eventListener.workflowResultUpdateListener.apply(workflowResultUpdate)
-    }
+    observables.workflowResultUpdate.onNext(workflowResultUpdate)
   }
 
 }

@@ -49,15 +49,13 @@ final case class ControllerConfig(
 object Controller {
 
   def props(
-      workflow: Workflow,
-      eventListener: ControllerEventListener,
-      controllerConfig: ControllerConfig = ControllerConfig.default,
-      parentNetworkCommunicationActorRef: ActorRef = null
+             workflow: Workflow,
+             controllerConfig: ControllerConfig = ControllerConfig.default,
+             parentNetworkCommunicationActorRef: ActorRef = null
   ): Props =
     Props(
       new Controller(
         workflow,
-        eventListener,
         controllerConfig,
         parentNetworkCommunicationActorRef
       )
@@ -65,10 +63,9 @@ object Controller {
 }
 
 class Controller(
-    val workflow: Workflow,
-    val eventListener: ControllerEventListener = ControllerEventListener(),
-    val controllerConfig: ControllerConfig,
-    parentNetworkCommunicationActorRef: ActorRef
+                  val workflow: Workflow,
+                  val controllerConfig: ControllerConfig,
+                  parentNetworkCommunicationActorRef: ActorRef
 ) extends WorkflowActor(CONTROLLER, parentNetworkCommunicationActorRef) {
   lazy val controlInputPort: NetworkInputPort[ControlPayload] =
     new NetworkInputPort[ControlPayload](this.actorId, this.handleControlPayloadWithTryCatch)
@@ -122,10 +119,7 @@ class Controller(
       )
       .onSuccess({ _ =>
         workflow.getAllOperators.foreach(_.setAllWorkerState(READY))
-        if (eventListener.workflowStatusUpdateListener != null) {
-          eventListener.workflowStatusUpdateListener
-            .apply(WorkflowStatusUpdate(workflow.getWorkflowStatus))
-        }
+        observables.workflowStatusUpdate.onNext(WorkflowStatusUpdate(workflow.getWorkflowStatus))
         // for testing, report ready state to parent
         context.parent ! ControllerState.Ready
         context.become(running)
@@ -134,10 +128,7 @@ class Controller(
       .onFailure((err: Throwable) => {
         logger.error("Failure when sending Python UDF code", err)
         // report error to frontend
-        if (eventListener.workflowExecutionErrorListener != null) {
-          eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
-        }
-
+       observables.workflowExecutionError.onNext(ErrorOccurred(err))
         // shutdown the system
         asyncRPCServer.execute(KillWorkflow(), CONTROLLER)
       })
@@ -177,10 +168,7 @@ class Controller(
     } catch safely {
       case err =>
         // report error to frontend
-        if (eventListener.workflowExecutionErrorListener != null) {
-          eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
-        }
-
+        observables.workflowExecutionError.onNext(ErrorOccurred(err))
         // re-throw the error to fail the actor
         throw err
     }

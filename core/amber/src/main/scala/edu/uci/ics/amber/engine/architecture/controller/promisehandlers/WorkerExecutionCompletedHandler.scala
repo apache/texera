@@ -61,9 +61,7 @@ trait WorkerExecutionCompletedHandler {
           val finalResult = execute(ControllerInitiateQueryResults(), CONTROLLER)
           // after query result come back: send completed event, cleanup ,and kill workflow
           finalResult.flatMap(ret => {
-            if (eventListener.workflowCompletedListener != null) {
-              eventListener.workflowCompletedListener.apply(WorkflowCompleted(ret))
-            }
+            observables.workflowCompleted.onNext(WorkflowCompleted(ret))
             disableStatusUpdate()
             actorContext.parent ! ControllerState.Completed // for testing
             // clean up all workers and terminate self

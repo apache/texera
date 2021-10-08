@@ -15,11 +15,9 @@ trait PythonPrintHandler {
   registerHandler { (msg: PythonPrint, sender) =>
     {
       // report the print message to the frontend
-      if (eventListener.pythonPrintTriggeredListener != null) {
-        eventListener.pythonPrintTriggeredListener.apply(
+      observables.pythonPrintTriggered.onNext(
           PythonPrintTriggered(msg.message, workflow.getOperator(sender).id.operator)
         )
-      }
     }
   }
 }

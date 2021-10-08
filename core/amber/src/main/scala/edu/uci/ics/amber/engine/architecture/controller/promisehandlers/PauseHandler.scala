@@ -60,19 +60,14 @@ trait PauseHandler {
             )
             .map { ret =>
               // for each paused operator, send the input tuple
-              if (eventListener.reportCurrentTuplesListener != null) {
-                eventListener.reportCurrentTuplesListener
-                  .apply(ReportCurrentProcessingTuple(operator.id.operator, buffer.toArray))
-              }
+              observables.reportCurrentTuples.onNext(ReportCurrentProcessingTuple(operator.id.operator, buffer.toArray))
             }
         }.toSeq)
         .map { ret =>
           // update frontend workflow status
           updateFrontendWorkflowStatus()
           // send paused to frontend
-          if (eventListener.workflowPausedListener != null) {
-            eventListener.workflowPausedListener.apply(WorkflowPaused())
-          }
+          observables.workflowPaused.onNext(WorkflowPaused())
           disableStatusUpdate() // to be enabled in resume
           actorContext.parent ! ControllerState.Paused // for testing
 

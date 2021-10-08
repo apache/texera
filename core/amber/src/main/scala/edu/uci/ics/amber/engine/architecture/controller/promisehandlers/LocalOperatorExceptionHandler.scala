@@ -41,8 +41,7 @@ trait LocalOperatorExceptionHandler {
       execute(PauseWorkflow(), CONTROLLER)
 
       // report the faulted tuple to the frontend with the exception
-      if (eventListener.breakpointTriggeredListener != null) {
-        eventListener.breakpointTriggeredListener.apply(
+     observables.breakpointTriggered.onNext(
           BreakpointTriggered(
             mutable.HashMap(
               (sender, FaultedTuple(msg.triggeredTuple, 0)) -> Array(
@@ -51,8 +50,7 @@ trait LocalOperatorExceptionHandler {
             ),
             workflow.getOperator(sender).id.operator
           )
-        )
-      }
+     )
     }
   }
 }

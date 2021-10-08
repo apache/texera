@@ -103,11 +103,9 @@ trait LocalBreakpointTriggeredHandler {
                     .unit
                 } else {
                   // other wise, report to frontend and pause entire workflow
-                  if (eventListener.breakpointTriggeredListener != null) {
-                    eventListener.breakpointTriggeredListener.apply(
+                  observables.breakpointTriggered.onNext(
                       BreakpointTriggered(mutable.HashMap.empty, opID)
                     )
-                  }
                   execute(PauseWorkflow(), CONTROLLER)
                 }
               }
