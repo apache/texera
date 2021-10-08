@@ -201,7 +201,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val handlerInitializer = wire[WorkerAsyncRPCHandlerInitializer]
     inSequence {
       (operator.processTuple _).expects(*, *).once()
-      (mockControlHandler.apply _).expects(*, *, * ,*).repeat(4)
+      (mockControlHandler.apply _).expects(*, *, *, *).repeat(4)
       (operator.processTuple _).expects(*, *).repeat(4)
       (batchProducer.emitEndOfUpstream _).expects().once()
       (operator.close _).expects().once()
