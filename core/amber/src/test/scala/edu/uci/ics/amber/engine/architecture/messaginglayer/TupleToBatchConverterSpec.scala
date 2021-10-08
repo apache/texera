@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
-import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, EndOfUpstream}
+import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, DataPayload, EndOfUpstream}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
@@ -13,8 +13,11 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
 class TupleToBatchConverterSpec extends AnyFlatSpec with MockFactory {
-  private val mockDataOutputPort = mock[DataOutputPort]
+  private val mockHandler =
+    mock[(ActorVirtualIdentity, ActorVirtualIdentity, Long, DataPayload) => Unit]
   private val identifier = ActorVirtualIdentity("batch producer mock")
+  private val mockDataOutputPort: NetworkOutputPort[DataPayload] =
+    new NetworkOutputPort[DataPayload](identifier, mockHandler)
   var counter: Int = 0
 
   def layerID(): LayerIdentity = {
