@@ -7,6 +7,7 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{
 }
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.AssignBreakpointHandler.AssignGlobalBreakpoint
+import edu.uci.ics.amber.engine.common.AmberClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.{
@@ -167,14 +168,14 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
       .toMap
   }
 
-  def initializeBreakpoint(controller: ActorRef): Unit = {
+  def initializeBreakpoint(client: AmberClient): Unit = {
     for (pair <- this.workflowInfo.breakpoints) {
-      addBreakpoint(controller, pair.operatorID, pair.breakpoint)
+      addBreakpoint(client, pair.operatorID, pair.breakpoint)
     }
   }
 
   def addBreakpoint(
-      controller: ActorRef,
+      client: AmberClient,
       operatorID: String,
       breakpoint: Breakpoint
   ): Unit = {
@@ -203,8 +204,7 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
             tuple => !tuple.getField(column).toString.trim.contains(conditionBp.value)
         }
 
-        controller ! ControlInvocation(
-          AsyncRPCClient.IgnoreReply,
+        client.send(
           AssignGlobalBreakpoint(
             new ConditionalGlobalBreakpoint(
               breakpointID,
@@ -217,8 +217,7 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
           )
         )
       case countBp: CountBreakpoint =>
-        controller ! ControlInvocation(
-          AsyncRPCClient.IgnoreReply,
+        client.send(
           AssignGlobalBreakpoint(new CountGlobalBreakpoint(breakpointID, countBp.count), operatorID)
         )
     }

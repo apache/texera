@@ -9,7 +9,7 @@ import edu.uci.ics.texera.web.model.event.python.PythonExpressionEvaluateRespons
 
 object EvaluatePythonExpressionHandler {
   final case class EvaluatePythonExpression(expression: String, operatorId: String)
-      extends ControlCommand[Unit]
+      extends ControlCommand[PythonExpressionEvaluateResponse]
 }
 
 trait EvaluatePythonExpressionHandler {
@@ -25,13 +25,9 @@ trait EvaluatePythonExpressionHandler {
             .map(worker => send(EvaluateExpression(msg.expression), worker))
             .toList
         )
-        .onSuccess(evaluatedValues => {
-          if (eventListener.pythonExpressionEvaluatedListener != null) {
-            eventListener.pythonExpressionEvaluatedListener
-              .apply(PythonExpressionEvaluateResponse(msg.expression, evaluatedValues.toList))
-          }
+        .map(evaluatedValues => {
+          PythonExpressionEvaluateResponse(msg.expression, evaluatedValues.toList)
         })
-        .unit
     }
   }
 }

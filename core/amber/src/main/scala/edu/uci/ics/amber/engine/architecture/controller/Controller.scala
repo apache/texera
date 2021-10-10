@@ -11,7 +11,6 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   ErrorOccurred,
   WorkflowStatusUpdate
 }
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.KillWorkflowHandler.KillWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
@@ -25,8 +24,7 @@ import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowControlMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer
-import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
+import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.error.ErrorUtils.safely
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
@@ -50,14 +48,12 @@ object Controller {
 
   def props(
       workflow: Workflow,
-      eventListener: ControllerEventListener,
       controllerConfig: ControllerConfig = ControllerConfig.default,
       parentNetworkCommunicationActorRef: ActorRef = null
   ): Props =
     Props(
       new Controller(
         workflow,
-        eventListener,
         controllerConfig,
         parentNetworkCommunicationActorRef
       )
@@ -66,7 +62,6 @@ object Controller {
 
 class Controller(
     val workflow: Workflow,
-    val eventListener: ControllerEventListener = ControllerEventListener(),
     val controllerConfig: ControllerConfig,
     parentNetworkCommunicationActorRef: ActorRef
 ) extends WorkflowActor(CONTROLLER, parentNetworkCommunicationActorRef) {
@@ -83,8 +78,9 @@ class Controller(
       .result(context.actorSelection("/user/cluster-info") ? GetAvailableNodeAddresses, 5.seconds)
       .asInstanceOf[Array[Address]]
 
-  // register controller itself
+  // register controller itself and client
   networkCommunicationActor ! RegisterActorRef(CONTROLLER, self)
+  networkCommunicationActor ! RegisterActorRef(CLIENT, context.parent)
 
   // build whole workflow
   workflow.build(availableNodes, networkCommunicationActor, context)
@@ -122,24 +118,14 @@ class Controller(
       )
       .onSuccess({ _ =>
         workflow.getAllOperators.foreach(_.setAllWorkerState(READY))
-        if (eventListener.workflowStatusUpdateListener != null) {
-          eventListener.workflowStatusUpdateListener
-            .apply(WorkflowStatusUpdate(workflow.getWorkflowStatus))
-        }
-        // for testing, report ready state to parent
-        context.parent ! ControllerState.Ready
+        asyncRPCClient.sendToOutsideWorld(WorkflowStatusUpdate(workflow.getWorkflowStatus))
         context.become(running)
         unstashAll()
       })
       .onFailure((err: Throwable) => {
         logger.error("Failure when sending Python UDF code", err)
         // report error to frontend
-        if (eventListener.workflowExecutionErrorListener != null) {
-          eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
-        }
-
-        // shutdown the system
-        asyncRPCServer.execute(KillWorkflow(), CONTROLLER)
+        asyncRPCClient.sendToOutsideWorld(ErrorOccurred(err))
       })
   }
 
@@ -154,7 +140,7 @@ class Controller(
 
   def acceptDirectInvocations: Receive = {
     case invocation: ControlInvocation =>
-      this.handleControlPayloadWithTryCatch(CONTROLLER, invocation)
+      this.handleControlPayloadWithTryCatch(CLIENT, invocation)
   }
 
   def handleControlPayloadWithTryCatch(
@@ -177,10 +163,7 @@ class Controller(
     } catch safely {
       case err =>
         // report error to frontend
-        if (eventListener.workflowExecutionErrorListener != null) {
-          eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
-        }
-
+        asyncRPCClient.send(ErrorOccurred(err), CLIENT)
         // re-throw the error to fail the actor
         throw err
     }
