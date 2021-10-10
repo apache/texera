@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web.model.event
 
 import com.fasterxml.jackson.databind.node.ObjectNode
 import edu.uci.ics.texera.web.model.request.ResultPaginationRequest
-import edu.uci.ics.texera.web.resource.WorkflowResultService.WebOutputMode
+import edu.uci.ics.texera.web.resource.execution.WorkflowResultService.WebOutputMode
 
 object PaginatedResultEvent {
   def apply(req: ResultPaginationRequest, table: List[ObjectNode]): PaginatedResultEvent = {
@@ -16,6 +16,7 @@ case class PaginatedResultEvent(
     pageIndex: Int,
     table: List[ObjectNode]
 ) extends TexeraWebSocketEvent
+    with FrameSynchronization
 
 case class OperatorAvailableResult(
     cacheValid: Boolean,

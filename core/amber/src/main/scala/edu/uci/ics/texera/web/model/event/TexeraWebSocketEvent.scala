@@ -7,12 +7,13 @@ import edu.uci.ics.texera.web.model.event.python.PythonExpressionEvaluateRespons
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes(
   Array(
-    new Type(value = classOf[HelloWorldResponse]),
+    new Type(value = classOf[RegisterWIdResponse]),
     new Type(value = classOf[HeartBeatResponse]),
     new Type(value = classOf[WorkflowErrorEvent]),
     new Type(value = classOf[WorkflowStartedEvent]),
     new Type(value = classOf[WorkflowCompletedEvent]),
     new Type(value = classOf[WebWorkflowStatusUpdateEvent]),
+    new Type(value = classOf[WebResultUpdateEvent]),
     new Type(value = classOf[WorkflowPausedEvent]),
     new Type(value = classOf[WorkflowResumedEvent]),
     new Type(value = classOf[RecoveryStartedEvent]),
@@ -25,3 +26,7 @@ import edu.uci.ics.texera.web.model.event.python.PythonExpressionEvaluateRespons
   )
 )
 trait TexeraWebSocketEvent {}
+
+trait StateSynchronization
+
+trait FrameSynchronization

@@ -24,6 +24,8 @@ export class WorkflowWebsocketService {
 
   public isConnected: boolean = false;
 
+  private currentWid: string;
+
   private websocket?: WebSocketSubject<TexeraWebsocketEvent | TexeraWebsocketRequest>;
   private wsWithReconnectSubscription?: Subscription;
   private readonly webSocketResponseSubject: Subject<TexeraWebsocketEvent> = new Subject();

@@ -7,7 +7,7 @@ import edu.uci.ics.texera.web.model.request.python.PythonExpressionEvaluateReque
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes(
   Array(
-    new Type(value = classOf[HelloWorldRequest]),
+    new Type(value = classOf[RegisterWIdRequest]),
     new Type(value = classOf[HeartBeatRequest]),
     new Type(value = classOf[ExecuteWorkflowRequest]),
     new Type(value = classOf[PauseWorkflowRequest]),

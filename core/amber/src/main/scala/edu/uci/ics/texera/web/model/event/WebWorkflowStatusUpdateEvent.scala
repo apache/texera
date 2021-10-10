@@ -15,3 +15,4 @@ object WebWorkflowStatusUpdateEvent {
 
 case class WebWorkflowStatusUpdateEvent(operatorStatistics: Map[String, OperatorStatistics])
     extends TexeraWebSocketEvent
+    with StateSynchronization

@@ -56,7 +56,6 @@ trait ModifyLogicHandler {
           })
         }.toSeq)
         .unit
-
     }
   }
 }
