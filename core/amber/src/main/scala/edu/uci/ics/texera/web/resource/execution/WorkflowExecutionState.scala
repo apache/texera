@@ -1,38 +1,34 @@
 package edu.uci.ics.texera.web.resource.execution
 
-import akka.actor.PoisonPill
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, Workflow}
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ModifyLogicHandler.ModifyLogic
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.RetryWorkflowHandler.RetryWorkflow
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
+import edu.uci.ics.amber.engine.common.AmberClient
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
-import edu.uci.ics.texera.web.model.event.{OperatorAvailableResult, PaginatedResultEvent, ResultExportResponse, TexeraWebSocketEvent, WorkflowAvailableResultEvent, WorkflowErrorEvent, WorkflowPausedEvent, WorkflowResumedEvent}
-import edu.uci.ics.texera.web.model.request.{AddBreakpointRequest, CacheStatusUpdateRequest, ExecuteWorkflowRequest, ModifyLogicRequest, RemoveBreakpointRequest, ResultExportRequest, ResultPaginationRequest, SkipTupleRequest}
-import edu.uci.ics.texera.web.resource.{Observable, Observer, Subject, Subscription, WorkflowWebsocketResource}
+import edu.uci.ics.texera.web.TexeraWebApplication
+import edu.uci.ics.texera.web.model.event.{ResultExportResponse, TexeraWebSocketEvent}
+import edu.uci.ics.texera.web.model.request.{CacheStatusUpdateRequest, ExecuteWorkflowRequest, ModifyLogicRequest, ResultExportRequest}
+import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource
 import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler.ConstraintViolationException
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowInfo.toJgraphtDAG
-import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo, WorkflowRewriter, WorkflowVertex}
-import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDesc
+import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo, WorkflowRewriter}
 import javax.servlet.http.HttpSession
+import org.jooq.types.UInteger
+import rx.lang.scala.subscriptions.CompositeSubscription
+import rx.lang.scala.{Observer, Subscription}
 
-import scala.collection.{breakOut, mutable}
+import scala.collection.mutable
 
-class WorkflowExecutionState(val operatorCache:OperatorCache, httpSession: HttpSession, request: ExecuteWorkflowRequest, prevResults:mutable.HashMap[String, OperatorResultService]) extends LazyLogging {
+class WorkflowExecutionState(val operatorCache:OperatorCache, uidOpt:Option[UInteger], request: ExecuteWorkflowRequest, prevResults:mutable.HashMap[String, OperatorResultService]) extends LazyLogging {
 
   val workflowContext:WorkflowContext = createWorkflowContext()
   val workflowInfo: WorkflowInfo = createWorkflowInfo(workflowContext)
   val workflowCompiler: WorkflowCompiler = createWorkflowCompiler(workflowInfo, workflowContext)
-  val workflow: Workflow = workflowCompiler.amberWorkflow(WorkflowIdentity(workflowContext.jobID))
-  val workflowRuntimeService:WorkflowRuntimeService = new WorkflowRuntimeService(workflow, controllerObservables)
-  val workflowResultService:WorkflowResultService = new WorkflowResultService(workflowInfo, OperatorCache.opResultStorage, controllerObservables)
-  val executionStatus:ExecutionStatus = new ExecutionStatus(controllerObservables)
+  val workflow: Workflow = workflowCompiler.amberWorkflow(WorkflowIdentity(workflowContext.jobId))
+  val client: AmberClient = TexeraWebApplication.createAmberRuntime(workflow, ControllerConfig.default)
+  val workflowRuntimeService:WorkflowRuntimeService = new WorkflowRuntimeService(workflow, client)
+  val workflowResultService:WorkflowResultService = new WorkflowResultService(workflowInfo, OperatorCache.opResultStorage, client)
   val resultExportService:ResultExportService = new ResultExportService()
 
   if (OperatorCache.isAvailable) {
@@ -43,7 +39,6 @@ class WorkflowExecutionState(val operatorCache:OperatorCache, httpSession: HttpS
     workflowRuntimeService.addBreakpoint(pair.operatorID, pair.breakpoint)
   }
   workflowRuntimeService.startWorkflow()
-  executionStatus.workflowStarted()
 
   private[this] def createWorkflowContext():WorkflowContext = {
     val jobID: String = Integer.toString(WorkflowWebsocketResource.nextExecutionID.incrementAndGet)
@@ -58,10 +53,8 @@ class WorkflowExecutionState(val operatorCache:OperatorCache, httpSession: HttpS
       )
     }
     val context = new WorkflowContext
-    context.jobID = jobID
-    context.userID = UserResource
-      .getUser(httpSession)
-      .map(u => u.getUid)
+    context.jobId = jobID
+    context.userId = uidOpt
     context
   }
 
@@ -100,10 +93,10 @@ class WorkflowExecutionState(val operatorCache:OperatorCache, httpSession: HttpS
 
 
   def subscribeAll(observer: Observer[TexeraWebSocketEvent]): Subscription = {
-    val subscription = workflowRuntimeService.subscribe(observer)
-    subscription.add(workflowResultService.subscribe(observer))
-    subscription.add(executionStatus.subscribe(observer))
-    subscription
+    CompositeSubscription(
+      SnapshotMulticast.subscribeSync(workflowRuntimeService,observer,client),
+      SnapshotMulticast.subscribeSync(workflowResultService,observer,client)
+    )
   }
 
   def modifyLogic(request:ModifyLogicRequest): Unit ={
@@ -111,8 +104,8 @@ class WorkflowExecutionState(val operatorCache:OperatorCache, httpSession: HttpS
     workflowRuntimeService.modifyLogic(request.operator)
   }
 
-  def exportResult(httpSession: HttpSession, request: ResultExportRequest): ResultExportResponse = {
-    resultExportService.exportResult(httpSession, workflowResultService, request)
+  def exportResult(uid:UInteger, request: ResultExportRequest): ResultExportResponse = {
+    resultExportService.exportResult(uid, workflowResultService, request)
   }
 
 }

@@ -43,7 +43,7 @@ class ResultExportService{
   private val cache = new mutable.HashMap[String, String]
 
   def exportResult(
-             httpSession: HttpSession,
+             uid: UInteger,
              resultService: WorkflowResultService,
              request: ResultExportRequest
            ):ResultExportResponse = {
@@ -72,7 +72,7 @@ class ResultExportService{
       case "google_sheet" =>
         handleGoogleSheetRequest(cache, request, results, attributeNames)
       case "csv" =>
-        handleCSVRequest(httpSession, request, results, attributeNames)
+        handleCSVRequest(uid, request, results, attributeNames)
       case _ =>
         ResultExportResponse("error", s"Unknown export type: ${request.exportType}")
     }
@@ -80,7 +80,7 @@ class ResultExportService{
 
 
   def handleCSVRequest(
-                        httpSession: HttpSession,
+                        uid: UInteger,
                         request: ResultExportRequest,
                         results: List[Tuple],
                         headers: List[String]
@@ -91,10 +91,6 @@ class ResultExportService{
     writer.writeAll(results.map(tuple => tuple.getFields.toList))
     writer.close()
     val fileName = s"${request.workflowName}-${request.operatorId}.csv"
-    val uid = UserResource
-      .getUser(httpSession)
-      .map(u => u.getUid)
-      .get
     val fileNameStored = UserFileResource.saveUserFileSafe(
       uid,
       fileName,

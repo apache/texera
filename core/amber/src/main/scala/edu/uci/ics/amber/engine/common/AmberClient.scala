@@ -2,28 +2,23 @@ package edu.uci.ics.amber.engine.common
 
 import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
 import com.twitter.util.{Return, Throw, Future => TwitterFuture, Promise => TwitterPromise}
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
-  NetworkAck,
-  NetworkMessage
-}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{NetworkAck, NetworkMessage}
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowControlMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import akka.pattern._
 import akka.util.Timeout
-import rx.lang.scala.{Observable, Subject}
+import rx.lang.scala.{Observable, Observer, Subject}
 
 import scala.collection.mutable
 import FutureBijection._
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  ErrorOccurred,
-  WorkflowCompleted
-}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{ErrorOccurred, WorkflowCompleted}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, Workflow}
 
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Await
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{Duration, DurationInt}
 import scala.concurrent.{ExecutionContext, Future => ScalaFuture, Promise => ScalaPromise}
 import scala.reflect.ClassTag
 
@@ -31,6 +26,8 @@ class AmberClient(system: ActorSystem, workflow: Workflow, controllerConfig: Con
 
   private case class CommandRequest[T](controlCommand: ControlCommand[T])
   private case class ObservableRequest(pf: PartialFunction[Any, Unit])
+  private case class ClosureRequest[T](closure: () => T)
+  private case class SubscribeRequest[T](subscriber: Observer[T])
   private val client = system.actorOf(Props(new ClientActor))
   private implicit val timeout: Timeout = Timeout(1.minute)
   private val registeredSubjects = new mutable.HashMap[Class[_], Subject[_]]()
@@ -55,6 +52,8 @@ class AmberClient(system: ActorSystem, workflow: Workflow, controllerConfig: Con
     var handlers: PartialFunction[Any, Unit] = PartialFunction.empty
 
     override def receive: Receive = {
+      case ClosureRequest(closure) =>
+        sender ! closure()
       case CommandRequest(controlCommand) =>
         controller ! ControlInvocation(controlId, controlCommand)
         senderMap(controlId) = sender
@@ -89,6 +88,10 @@ class AmberClient(system: ActorSystem, workflow: Workflow, controllerConfig: Con
       isActive = false
       client ! PoisonPill
     }
+  }
+
+  def execute[T](controlCommand: ControlCommand[T]):T ={
+    Await.result(sendAsScalaFuture(controlCommand),timeout.duration)
   }
 
   def sendAsTwitterFuture[T](controlCommand: ControlCommand[T]): TwitterFuture[T] = {
@@ -136,4 +139,10 @@ class AmberClient(system: ActorSystem, workflow: Workflow, controllerConfig: Con
     registeredSubjects(clazz) = ob
     ob
   }
+
+  def executeClosureSync[T](closure: => T): T = {
+    Await.result(client ? ClosureRequest(() => closure), timeout.duration).asInstanceOf[T]
+  }
+
+
 }

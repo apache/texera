@@ -1,66 +1,26 @@
 package edu.uci.ics.texera.web.resource
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.EvaluatePythonExpressionHandler.EvaluatePythonExpression
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ModifyLogicHandler.ModifyLogic
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.RetryWorkflowHandler.RetryWorkflow
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
-import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig}
-import edu.uci.ics.amber.engine.common.{AmberUtils, AmberClient}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.Utils
+import edu.uci.ics.texera.web.ServletAwareConfigurator
 import edu.uci.ics.texera.web.model.event._
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.request._
-import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.web.model.request.python.PythonExpressionEvaluateRequest
-import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource._
-import edu.uci.ics.texera.web.{ServletAwareConfigurator, TexeraWebApplication}
-import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
-import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.common.storage.memory.{JCSOpResultStorage, MemoryOpResultStorage}
-import edu.uci.ics.texera.workflow.common.storage.mongo.MongoOpResultStorage
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.workflow.WorkflowInfo.toJgraphtDAG
-import edu.uci.ics.texera.workflow.common.workflow.{
-  WorkflowCompiler,
-  WorkflowInfo,
-  WorkflowRewriter,
-  WorkflowVertex
-}
-import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDesc
-import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
-import org.jose4j.jwt.consumer.JwtContext
-import java.util.concurrent.atomic.AtomicInteger
-
-import edu.uci.ics.texera.web.resource.execution.{OperatorCache, OperatorResultService, WorkflowExecutionState, WorkflowResultService}
+import edu.uci.ics.texera.web.resource.execution.{OperatorCache, OperatorResultService, WorkflowExecutionState}
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler.ConstraintViolationException
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  BreakpointTriggered,
-  ErrorOccurred,
-  PythonPrintTriggered,
-  ReportCurrentProcessingTuple,
-  WorkflowCompleted,
-  WorkflowPaused,
-  WorkflowResultUpdate,
-  WorkflowStatusUpdate
-}
 import javax.websocket._
 import javax.websocket.server.ServerEndpoint
+import rx.lang.scala.{Observer, Subscription}
 
-import scala.collection.{breakOut, mutable}
+import scala.collection.mutable
 import scala.jdk.CollectionConverters.mapAsScalaMapConverter
-import scala.util.{Failure, Success}
 
 object WorkflowWebsocketResource {
   // TODO should reorganize this resource.
   val nextExecutionID = new AtomicInteger(0)
-  val sessionIdToHttpSession = new mutable.HashMap[String, HttpSession]()
   val sessionIdToWId = new mutable.HashMap[String, String]()
   val sessionIdToObserver = new mutable.HashMap[String, Observer[TexeraWebSocketEvent]]()
   val sessionIdToSubscription = new mutable.HashMap[String, Subscription]()
@@ -90,7 +50,6 @@ class WorkflowWebsocketResource extends LazyLogging{
 
   @OnOpen
   def myOnOpen(session: Session, config: EndpointConfig): Unit = {
-    sessionIdToHttpSession(session.getId) = config.getUserProperties.get("httpSession").asInstanceOf[HttpSession]
     val subscriber = new WebsocketSubscriber(session)
     sessionIdToObserver(session.getId) = subscriber
     val operatorCache = new OperatorCache()
@@ -101,40 +60,39 @@ class WorkflowWebsocketResource extends LazyLogging{
 
   @OnClose
   def myOnClose(session: Session, cr: CloseReason): Unit = {
-    tryUnbindExecution(session)
+    tryUnbindExecution(session.getId)
     sessionIdToOperatorCache.remove(session.getId)
-    sessionIdToHttpSession.remove(session.getId)
     sessionIdToObserver.remove(session.getId)
+    sessionIdToWId.remove(session.getId)
   }
 
-  def tryUnbindExecution(session: Session): Unit ={
-    if(sessionIdToSubscription.contains(session.getId)){
-      sessionIdToSubscription(session.getId).unsubscribe()
-      sessionIdToSubscription.remove(session.getId)
+  def tryUnbindExecution(sId:String): Unit ={
+    if(sessionIdToSubscription.contains(sId)){
+      sessionIdToSubscription(sId).unsubscribe()
+      sessionIdToSubscription.remove(sId)
     }
   }
 
-  def tryBindExecution(session:Session, wId:String):Unit ={
+  def BindSessionToExecution(sId:String, wId:String):Unit ={
+    tryUnbindExecution(sId)
     if(wIdToExecutionState.contains(wId)){
-      val subscription = wIdToExecutionState(wId).subscribeAll(sessionIdToObserver(session.getId))
-      sessionIdToSubscription(session.getId) = subscription
+      val subscription = wIdToExecutionState(wId).subscribeAll(sessionIdToObserver(sId))
+      sessionIdToSubscription(sId) = subscription
     }
   }
 
   @OnMessage
   def myOnMsg(session: Session, message: String): Unit = {
     val request = objectMapper.readValue(message, classOf[TexeraWebSocketRequest])
-
+    val uidOpt = session.getUserProperties.asScala
+      .get(classOf[User].getName)
+      .map(_.asInstanceOf[User].getUid)
     try {
       request match {
         case wIdRequest: RegisterWIdRequest =>
-          val uId = UserResource
-            .getUser(sessionIdToHttpSession(session.getId))
-            .map(u => u.getUid)
-          val wId = uId.toString + "-" + wIdRequest.wId
+          val wId = uidOpt.toString + "-" + wIdRequest.wId
           logger.info("start working on "+wId)
-          tryUnbindExecution(session)
-          tryBindExecution(session, wId)
+          BindSessionToExecution(session.getId, wId)
           sessionIdToWId(session.getId) = wId
           sendInternal(session, RegisterWIdResponse("wid registered"))
         case heartbeat: HeartBeatRequest =>
@@ -150,14 +108,16 @@ class WorkflowWebsocketResource extends LazyLogging{
               mutable.HashMap.empty
             }
           try{
-            executionState = new WorkflowExecutionState(sessionIdToOperatorCache(session.getId), sessionIdToHttpSession(session.getId), execute, prevResults)
+            executionState = new WorkflowExecutionState(sessionIdToOperatorCache(session.getId), uidOpt, execute, prevResults)
           }catch{
             case x:ConstraintViolationException => sendInternal(session, WorkflowErrorEvent(operatorErrors = x.violations))
             case other:Exception => throw other
           }
           wIdToExecutionState(wId) = executionState
-          tryUnbindExecution(session)
-          tryBindExecution(session, wId)
+          // bind existing sessions to new execution
+          sessionIdToWId.filter(_._2 == wId).foreach{
+            case (sId, _) => BindSessionToExecution(sId, wId)
+          }
         case newLogic: ModifyLogicRequest =>
           getExecutionState(session).foreach(_.modifyLogic(newLogic))
         case pause: PauseWorkflowRequest =>
@@ -170,20 +130,20 @@ class WorkflowWebsocketResource extends LazyLogging{
           getExecutionState(session).foreach(_.workflowRuntimeService.skipTuple(skipTupleMsg))
         case retryRequest: RetryRequest =>
           getExecutionState(session).foreach(_.workflowRuntimeService.retryWorkflow())
-        case breakpoint: AddBreakpointRequest =>
-          getExecutionState(session).foreach(_.workflowRuntimeService.addBreakpoint(breakpoint))
+        case req: AddBreakpointRequest =>
+          getExecutionState(session).foreach(_.workflowRuntimeService.addBreakpoint(req.operatorID, req.breakpoint))
         case paginationRequest: ResultPaginationRequest =>
           getExecutionState(session).foreach(_.workflowResultService.handleResultPagination(paginationRequest))
         case resultExportRequest: ResultExportRequest =>
           getExecutionState(session).foreach{
-            state => sendInternal(session, state.exportResult(sessionIdToHttpSession(session.getId), resultExportRequest))
+            state => sendInternal(session, state.exportResult(uidOpt.get, resultExportRequest))
           }
         case cacheStatusUpdateRequest: CacheStatusUpdateRequest =>
           if (OperatorCache.isAvailable) {
             getExecutionState(session).foreach(_.operatorCache.updateCacheStatus(cacheStatusUpdateRequest))
           }
         case pythonExpressionEvaluateRequest: PythonExpressionEvaluateRequest =>
-          evaluatePythonExpression(session, pythonExpressionEvaluateRequest)
+          getExecutionState(session).foreach(_.workflowRuntimeService.evaluatePythonExpression(pythonExpressionEvaluateRequest))
       }
     } catch {
       case err: Exception =>
@@ -195,14 +155,6 @@ class WorkflowWebsocketResource extends LazyLogging{
         throw err
     }
 
-    def evaluatePythonExpression(session: Session, request: PythonExpressionEvaluateRequest): Unit = {
-      val client = WorkflowWebsocketResource.sessionJobs(session.getId)._2
-      client
-        .sendAsTwitterFuture(EvaluatePythonExpression(request.expression, request.operatorId))
-        .onSuccess { ret =>
-          send(session, ret)
-        }
-    }
 
   }
 

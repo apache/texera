@@ -3,17 +3,17 @@ package edu.uci.ics.texera.web.resource.execution
 import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowResultUpdate
-import edu.uci.ics.amber.engine.architecture.controller.Workflow
+import edu.uci.ics.amber.engine.common.AmberClient
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.texera.web.model.event.{OperatorAvailableResult, PaginatedResultEvent, TexeraWebSocketEvent, WebResultUpdateEvent, WorkflowAvailableResultEvent}
 import edu.uci.ics.texera.web.model.request.ResultPaginationRequest
-import edu.uci.ics.texera.web.resource.Observer
 import edu.uci.ics.texera.web.resource.execution.WorkflowResultService.{PaginationMode, WebPaginationUpdate}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowInfo
 import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDesc
+import rx.lang.scala.Observer
 
 import scala.collection.{breakOut, mutable}
 
@@ -107,15 +107,15 @@ object WorkflowResultService {
 class WorkflowResultService(
     workflowInfo: WorkflowInfo,
     opResultStorage: OpResultStorage,
-    controllerObservables: ControllerSubjects
-) extends BehaviorSubject {
+    client:AmberClient
+) extends SnapshotMulticast[TexeraWebSocketEvent] {
 
   // OperatorResultService for each sink operator
   var operatorResults: mutable.HashMap[String, OperatorResultService] = mutable.HashMap[String, OperatorResultService]()
   val updatedSet: mutable.Set[String] = mutable.HashSet[String]()
   var availableResultMap:Map[String, OperatorAvailableResult] = Map.empty
 
-  controllerObservables.workflowResultUpdate.subscribe((evt: WorkflowResultUpdate) => onResultUpdate(evt))
+  client.getObservable[WorkflowResultUpdate].subscribe((evt: WorkflowResultUpdate) => onResultUpdate(evt))
   workflowInfo.toDAG.getSinkOperators.map(sink => {
     if (workflowInfo.toDAG.getOperator(sink).isInstanceOf[CacheSinkOpDesc]) {
       val upstreamID = workflowInfo.toDAG.getUpstream(sink).head.operatorID
@@ -146,7 +146,7 @@ class WorkflowResultService(
     val paginationResults = opResultService.getResult
       .slice(from, from + request.pageSize)
       .map(tuple => tuple.asInstanceOf[Tuple].asKeyValuePairJson())
-    onNext(PaginatedResultEvent.apply(request, paginationResults))
+    send(PaginatedResultEvent.apply(request, paginationResults))
   }
 
 
@@ -185,7 +185,7 @@ class WorkflowResultService(
     resultUpdate.operatorResults.foreach(e => operatorResults(e._1).updateResult(e._2))
 
     // return update event
-    onNext(WebResultUpdateEvent(webUpdateEvent))
+    send(WebResultUpdateEvent(webUpdateEvent))
   }
 
 

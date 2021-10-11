@@ -3,9 +3,8 @@ package edu.uci.ics.texera.web.resource.execution
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.AmberUtils
-import edu.uci.ics.texera.web.model.event.{CacheStatus, CacheStatusUpdateEvent, OperatorAvailableResult, TexeraWebSocketEvent, WorkflowAvailableResultEvent}
+import edu.uci.ics.texera.web.model.event.{CacheStatus, CacheStatusUpdateEvent, TexeraWebSocketEvent}
 import edu.uci.ics.texera.web.model.request.CacheStatusUpdateRequest
-import edu.uci.ics.texera.web.resource.{Observable, Observer}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.storage.memory.{JCSOpResultStorage, MemoryOpResultStorage}
@@ -13,6 +12,7 @@ import edu.uci.ics.texera.workflow.common.storage.mongo.MongoOpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.{WorkflowInfo, WorkflowRewriter, WorkflowVertex}
 import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
+import rx.lang.scala.Observer
 
 import scala.collection.mutable
 
@@ -39,7 +39,7 @@ object OperatorCache extends LazyLogging{
 
 
 
-class OperatorCache extends LazyLogging {
+class OperatorCache extends SnapshotMulticast[TexeraWebSocketEvent] with LazyLogging {
 
   val cachedOperators: mutable.HashMap[String, OperatorDescriptor] = mutable.HashMap[String, OperatorDescriptor]()
   val cacheSourceOperators: mutable.HashMap[String, CacheSourceOpDesc] = mutable.HashMap[String, CacheSourceOpDesc]()
@@ -75,7 +75,7 @@ class OperatorCache extends LazyLogging {
         }
       })
       .toMap
-    onNext(CacheStatusUpdateEvent(cacheStatusMap))
+    send(CacheStatusUpdateEvent(cacheStatusMap))
   }
 
   override def sendSnapshotTo(observer: Observer[TexeraWebSocketEvent]): Unit = {
