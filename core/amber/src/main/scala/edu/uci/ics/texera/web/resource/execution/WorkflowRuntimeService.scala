@@ -2,8 +2,17 @@ package edu.uci.ics.texera.web.resource.execution
 
 import com.google.common.collect.EvictingQueue
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{ConditionalGlobalBreakpoint, CountGlobalBreakpoint}
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{BreakpointTriggered, ErrorOccurred, PythonPrintTriggered, WorkflowCompleted, WorkflowStatusUpdate}
+import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{
+  ConditionalGlobalBreakpoint,
+  CountGlobalBreakpoint
+}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
+  BreakpointTriggered,
+  ErrorOccurred,
+  PythonPrintTriggered,
+  WorkflowCompleted,
+  WorkflowStatusUpdate
+}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.AssignBreakpointHandler.AssignGlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.EvaluatePythonExpressionHandler.EvaluatePythonExpression
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ModifyLogicHandler.ModifyLogic
@@ -16,18 +25,40 @@ import edu.uci.ics.amber.engine.architecture.principal.{OperatorState, OperatorS
 import edu.uci.ics.amber.engine.common.AmberClient
 import edu.uci.ics.texera.web.TexeraWebApplication
 import edu.uci.ics.texera.web.model.common.FaultedTupleFrontend
-import edu.uci.ics.texera.web.model.event.{BreakpointFault, BreakpointTriggeredEvent, PythonPrintTriggeredEvent, TexeraWebSocketEvent, WebWorkflowStatusUpdateEvent, WorkflowCompletedEvent, WorkflowExecutionErrorEvent, WorkflowPausedEvent, WorkflowResumedEvent, WorkflowStartedEvent}
+import edu.uci.ics.texera.web.model.event.{
+  BreakpointFault,
+  BreakpointTriggeredEvent,
+  PythonPrintTriggeredEvent,
+  TexeraWebSocketEvent,
+  WebWorkflowStatusUpdateEvent,
+  WorkflowCompletedEvent,
+  WorkflowExecutionErrorEvent,
+  WorkflowPausedEvent,
+  WorkflowResumedEvent,
+  WorkflowStartedEvent
+}
 import edu.uci.ics.texera.web.model.request.python.PythonExpressionEvaluateRequest
-import edu.uci.ics.texera.web.model.request.{AddBreakpointRequest, ModifyLogicRequest, RemoveBreakpointRequest, SkipTupleRequest}
+import edu.uci.ics.texera.web.model.request.{
+  AddBreakpointRequest,
+  ModifyLogicRequest,
+  RemoveBreakpointRequest,
+  SkipTupleRequest
+}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.workflow.{Breakpoint, BreakpointCondition, ConditionBreakpoint, CountBreakpoint, WorkflowInfo}
+import edu.uci.ics.texera.workflow.common.workflow.{
+  Breakpoint,
+  BreakpointCondition,
+  ConditionBreakpoint,
+  CountBreakpoint,
+  WorkflowInfo
+}
 import rx.lang.scala.Observer
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-object WorkflowRuntimeService{
+object WorkflowRuntimeService {
   val CONSOLE_BUFFER_SIZE = 100
 
   sealed trait ExecutionStatusEnum
@@ -37,19 +68,21 @@ object WorkflowRuntimeService{
   case object Completed extends ExecutionStatusEnum
 }
 
-
-class WorkflowRuntimeService(workflow:Workflow, client:AmberClient) extends SnapshotMulticast[TexeraWebSocketEvent] with LazyLogging {
+class WorkflowRuntimeService(workflow: Workflow, client: AmberClient)
+    extends SnapshotMulticast[TexeraWebSocketEvent]
+    with LazyLogging {
   import edu.uci.ics.texera.web.resource.execution.WorkflowRuntimeService._
 
-  class OperatorRuntimeState{
-    var stats:OperatorStatistics = OperatorStatistics(OperatorState.Uninitialized, 0, 0)
+  class OperatorRuntimeState {
+    var stats: OperatorStatistics = OperatorStatistics(OperatorState.Uninitialized, 0, 0)
     val pythonMessages: EvictingQueue[String] = EvictingQueue.create[String](CONSOLE_BUFFER_SIZE)
-    val faults:mutable.ArrayBuffer[BreakpointFault] = new ArrayBuffer[BreakpointFault]()
+    val faults: mutable.ArrayBuffer[BreakpointFault] = new ArrayBuffer[BreakpointFault]()
   }
 
   private var workflowStatus: ExecutionStatusEnum = Unknown
-  val operatorRuntimeStateMap: mutable.HashMap[String, OperatorRuntimeState] = new mutable.HashMap[String, OperatorRuntimeState]()
-  var workflowError:Throwable = _
+  val operatorRuntimeStateMap: mutable.HashMap[String, OperatorRuntimeState] =
+    new mutable.HashMap[String, OperatorRuntimeState]()
+  var workflowError: Throwable = _
 
   def startWorkflow(): Unit = {
     client.execute(StartWorkflow())
@@ -57,14 +90,13 @@ class WorkflowRuntimeService(workflow:Workflow, client:AmberClient) extends Snap
     send(WorkflowStartedEvent())
   }
 
-  def clearTriggeredBreakpoints(): Unit ={
-    operatorRuntimeStateMap.values.foreach{
-      state => state.faults.clear()
+  def clearTriggeredBreakpoints(): Unit = {
+    operatorRuntimeStateMap.values.foreach { state =>
+      state.faults.clear()
     }
   }
 
-  def addBreakpoint(operatorID: String,
-                    breakpoint: Breakpoint): Unit = {
+  def addBreakpoint(operatorID: String, breakpoint: Breakpoint): Unit = {
     val breakpointID = "breakpoint-" + operatorID + "-" + System.currentTimeMillis()
     breakpoint match {
       case conditionBp: ConditionBreakpoint =>
@@ -109,65 +141,76 @@ class WorkflowRuntimeService(workflow:Workflow, client:AmberClient) extends Snap
     }
   }
 
-  client.getObservable[BreakpointTriggered].subscribe((evt:BreakpointTriggered) => {
-    val faults = operatorRuntimeStateMap(evt.operatorID).faults
-    for (elem <- evt.report) {
-      val actorPath = elem._1._1.toString
-      val faultedTuple = elem._1._2
-      if (faultedTuple != null) {
-        faults += BreakpointFault(actorPath, FaultedTupleFrontend.apply(faultedTuple), elem._2)
-      }
-    }
-    send(BreakpointTriggeredEvent(faults.toArray, evt.operatorID))
-  })
-
-  client.getObservable[WorkflowStatusUpdate].subscribe((evt:WorkflowStatusUpdate) => {
-    evt.operatorStatistics.foreach{
-      case (opId, statistics) =>
-        if(!operatorRuntimeStateMap.contains(opId)){
-          operatorRuntimeStateMap(opId) = new OperatorRuntimeState()
+  client
+    .getObservable[BreakpointTriggered]
+    .subscribe((evt: BreakpointTriggered) => {
+      val faults = operatorRuntimeStateMap(evt.operatorID).faults
+      for (elem <- evt.report) {
+        val actorPath = elem._1._1.toString
+        val faultedTuple = elem._1._2
+        if (faultedTuple != null) {
+          faults += BreakpointFault(actorPath, FaultedTupleFrontend.apply(faultedTuple), elem._2)
         }
-        operatorRuntimeStateMap(opId).stats = statistics
-    }
-    send(WebWorkflowStatusUpdateEvent(evt))
-  })
+      }
+      send(BreakpointTriggeredEvent(faults.toArray, evt.operatorID))
+    })
 
-  client.getObservable[WorkflowCompleted].subscribe((evt:WorkflowCompleted) => {
-    workflowStatus = Completed
-    send(WorkflowCompletedEvent())
-  })
+  client
+    .getObservable[WorkflowStatusUpdate]
+    .subscribe((evt: WorkflowStatusUpdate) => {
+      evt.operatorStatistics.foreach {
+        case (opId, statistics) =>
+          if (!operatorRuntimeStateMap.contains(opId)) {
+            operatorRuntimeStateMap(opId) = new OperatorRuntimeState()
+          }
+          operatorRuntimeStateMap(opId).stats = statistics
+      }
+      send(WebWorkflowStatusUpdateEvent(evt))
+    })
 
-  client.getObservable[PythonPrintTriggered].subscribe((evt:PythonPrintTriggered) =>{
-    operatorRuntimeStateMap(evt.operatorID).pythonMessages.add(evt.message)
-    send(PythonPrintTriggeredEvent(evt))
-  })
+  client
+    .getObservable[WorkflowCompleted]
+    .subscribe((evt: WorkflowCompleted) => {
+      workflowStatus = Completed
+      send(WorkflowCompletedEvent())
+    })
 
-  client.getObservable[ErrorOccurred].subscribe((evt:ErrorOccurred) =>{
-    workflowError = evt.error
-    send(WorkflowExecutionErrorEvent(evt.error.getLocalizedMessage))
-  })
+  client
+    .getObservable[PythonPrintTriggered]
+    .subscribe((evt: PythonPrintTriggered) => {
+      operatorRuntimeStateMap(evt.operatorID).pythonMessages.add(evt.message)
+      send(PythonPrintTriggeredEvent(evt))
+    })
 
+  client
+    .getObservable[ErrorOccurred]
+    .subscribe((evt: ErrorOccurred) => {
+      workflowError = evt.error
+      send(WorkflowExecutionErrorEvent(evt.error.getLocalizedMessage))
+    })
 
   override def sendSnapshotTo(observer: Observer[TexeraWebSocketEvent]): Unit = {
-    workflowStatus match{
-      case Unknown => //skip
-      case Started => observer.onNext(WorkflowStartedEvent())
-      case Paused => observer.onNext(WorkflowPausedEvent())
+    workflowStatus match {
+      case Unknown   => //skip
+      case Started   => observer.onNext(WorkflowStartedEvent())
+      case Paused    => observer.onNext(WorkflowPausedEvent())
       case Completed => observer.onNext(WorkflowCompletedEvent())
     }
-    observer.onNext(WebWorkflowStatusUpdateEvent(operatorRuntimeStateMap.map{case (opId, state) => (opId, state.stats)}.toMap))
-    operatorRuntimeStateMap.foreach{
+    observer.onNext(WebWorkflowStatusUpdateEvent(operatorRuntimeStateMap.map {
+      case (opId, state) => (opId, state.stats)
+    }.toMap))
+    operatorRuntimeStateMap.foreach {
       case (opId, state) =>
-        if(state.faults.nonEmpty) {
+        if (state.faults.nonEmpty) {
           observer.onNext(BreakpointTriggeredEvent(state.faults.toArray, opId))
         }
-        if(!state.pythonMessages.isEmpty) {
+        if (!state.pythonMessages.isEmpty) {
           val stringBuilder = new StringBuilder()
           state.pythonMessages.forEach(s => stringBuilder.append(s))
           observer.onNext(PythonPrintTriggeredEvent(stringBuilder.toString(), opId))
         }
     }
-    if(workflowError != null){
+    if (workflowError != null) {
       observer.onNext(WorkflowExecutionErrorEvent(workflowError.getLocalizedMessage))
     }
   }
@@ -208,6 +251,5 @@ class WorkflowRuntimeService(workflow:Workflow, client:AmberClient) extends Snap
   def evaluatePythonExpression(request: PythonExpressionEvaluateRequest): Unit = {
     send(client.execute(EvaluatePythonExpression(request.expression, request.operatorId)))
   }
-
 
 }

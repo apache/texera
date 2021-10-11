@@ -27,7 +27,6 @@ import scala.collection.JavaConverters._
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
 
-
 object ResultExportService {
   final val UPLOAD_BATCH_ROW_COUNT = 10000
   final val RETRY_ATTEMPTS = 7
@@ -37,16 +36,16 @@ object ResultExportService {
     Executors.newFixedThreadPool(3).asInstanceOf[ThreadPoolExecutor]
 }
 
-class ResultExportService{
+class ResultExportService {
   import ResultExportService._
 
   private val cache = new mutable.HashMap[String, String]
 
   def exportResult(
-             uid: UInteger,
-             resultService: WorkflowResultService,
-             request: ResultExportRequest
-           ):ResultExportResponse = {
+      uid: UInteger,
+      resultService: WorkflowResultService,
+      request: ResultExportRequest
+  ): ResultExportResponse = {
     // retrieve the file link saved in the session if exists
     if (cache.contains(request.exportType)) {
       return ResultExportResponse(
@@ -78,13 +77,12 @@ class ResultExportService{
     }
   }
 
-
   def handleCSVRequest(
-                        uid: UInteger,
-                        request: ResultExportRequest,
-                        results: List[Tuple],
-                        headers: List[String]
-                      ): ResultExportResponse = {
+      uid: UInteger,
+      request: ResultExportRequest,
+      results: List[Tuple],
+      headers: List[String]
+  ): ResultExportResponse = {
     val stream = new ByteArrayOutputStream()
     val writer = CSVWriter.open(stream)
     writer.writeRow(headers)
@@ -103,11 +101,11 @@ class ResultExportService{
   }
 
   private def handleGoogleSheetRequest(
-                                        exportCache:mutable.HashMap[String, String],
-                                        request: ResultExportRequest,
-                                        results: List[ITuple],
-                                        header: List[String]
-                                      ): ResultExportResponse = {
+      exportCache: mutable.HashMap[String, String],
+      request: ResultExportRequest,
+      results: List[ITuple],
+      header: List[String]
+  ): ResultExportResponse = {
     // create google sheet
     val sheetService: Sheets = GoogleResource.getSheetService
     val sheetId: String =
@@ -164,10 +162,10 @@ class ResultExportService{
     */
   @tailrec
   private def moveToResultFolder(
-                                  driveService: Drive,
-                                  sheetId: String,
-                                  retry: Boolean = true
-                                ): Unit = {
+      driveService: Drive,
+      sheetId: String,
+      retry: Boolean = true
+  ): Unit = {
     val folderId = retrieveResultFolderId(driveService)
     try {
       driveService
@@ -216,10 +214,10 @@ class ResultExportService{
     * upload the result header to the google sheet
     */
   private def uploadHeader(
-                            sheetService: Sheets,
-                            sheetId: String,
-                            header: List[AnyRef]
-                          ): Unit = {
+      sheetService: Sheets,
+      sheetId: String,
+      header: List[AnyRef]
+  ): Unit = {
     uploadContent(sheetService, sheetId, List(header.asJava).asJava)
   }
 
@@ -277,10 +275,10 @@ class ResultExportService{
     * The type of content is java list because the google API is in java
     */
   private def uploadContent(
-                             sheetService: Sheets,
-                             sheetId: String,
-                             content: util.List[util.List[AnyRef]]
-                           ): Unit = {
+      sheetService: Sheets,
+      sheetId: String,
+      content: util.List[util.List[AnyRef]]
+  ): Unit = {
     val body: ValueRange = new ValueRange().setValues(content)
     val range: String = "A1"
     val valueInputOption: String = "RAW"

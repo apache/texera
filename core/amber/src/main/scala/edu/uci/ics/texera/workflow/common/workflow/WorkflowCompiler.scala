@@ -46,7 +46,8 @@ object WorkflowCompiler {
       .toList
   }
 
-  class ConstraintViolationException(val violations:Map[String, Set[ConstraintViolation]]) extends RuntimeException
+  class ConstraintViolationException(val violations: Map[String, Set[ConstraintViolation]])
+      extends RuntimeException
 
 }
 

@@ -9,7 +9,11 @@ import edu.uci.ics.texera.web.model.event._
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.request._
 import edu.uci.ics.texera.web.model.request.python.PythonExpressionEvaluateRequest
-import edu.uci.ics.texera.web.resource.execution.{OperatorCache, OperatorResultService, WorkflowExecutionState}
+import edu.uci.ics.texera.web.resource.execution.{
+  OperatorCache,
+  OperatorResultService,
+  WorkflowExecutionState
+}
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler.ConstraintViolationException
 import javax.websocket._
 import javax.websocket.server.ServerEndpoint
@@ -32,19 +36,19 @@ object WorkflowWebsocketResource {
   value = "/wsapi/workflow-websocket",
   configurator = classOf[ServletAwareConfigurator]
 )
-class WorkflowWebsocketResource extends LazyLogging{
+class WorkflowWebsocketResource extends LazyLogging {
 
   final val objectMapper = Utils.objectMapper
   import WorkflowWebsocketResource._
 
-  private def sendInternal(session: Session, msg:TexeraWebSocketEvent): Unit ={
+  private def sendInternal(session: Session, msg: TexeraWebSocketEvent): Unit = {
     session.getAsyncRemote.sendText(objectMapper.writeValueAsString(msg))
   }
 
-  private def getExecutionState(session:Session): Option[WorkflowExecutionState] ={
+  private def getExecutionState(session: Session): Option[WorkflowExecutionState] = {
     sessionIdToWId.get(session.getId) match {
       case Some(value) => wIdToExecutionState.get(value)
-      case None => None
+      case None        => None
     }
   }
 
@@ -66,16 +70,16 @@ class WorkflowWebsocketResource extends LazyLogging{
     sessionIdToWId.remove(session.getId)
   }
 
-  def tryUnbindExecution(sId:String): Unit ={
-    if(sessionIdToSubscription.contains(sId)){
+  def tryUnbindExecution(sId: String): Unit = {
+    if (sessionIdToSubscription.contains(sId)) {
       sessionIdToSubscription(sId).unsubscribe()
       sessionIdToSubscription.remove(sId)
     }
   }
 
-  def BindSessionToExecution(sId:String, wId:String):Unit ={
+  def BindSessionToExecution(sId: String, wId: String): Unit = {
     tryUnbindExecution(sId)
-    if(wIdToExecutionState.contains(wId)){
+    if (wIdToExecutionState.contains(wId)) {
       val subscription = wIdToExecutionState(wId).subscribeAll(sessionIdToObserver(sId))
       sessionIdToSubscription(sId) = subscription
     }
@@ -91,7 +95,7 @@ class WorkflowWebsocketResource extends LazyLogging{
       request match {
         case wIdRequest: RegisterWIdRequest =>
           val wId = uidOpt.toString + "-" + wIdRequest.wId
-          logger.info("start working on "+wId)
+          logger.info("start working on " + wId)
           BindSessionToExecution(session.getId, wId)
           sessionIdToWId(session.getId) = wId
           sendInternal(session, RegisterWIdResponse("wid registered"))
@@ -100,22 +104,28 @@ class WorkflowWebsocketResource extends LazyLogging{
         case execute: ExecuteWorkflowRequest =>
           println(execute)
           val wId = sessionIdToWId(session.getId)
-          var executionState:WorkflowExecutionState = null
-          val prevResults:mutable.HashMap[String, OperatorResultService] =
-            if(wIdToExecutionState.contains(wId)){
+          var executionState: WorkflowExecutionState = null
+          val prevResults: mutable.HashMap[String, OperatorResultService] =
+            if (wIdToExecutionState.contains(wId)) {
               wIdToExecutionState(wId).workflowResultService.operatorResults
-            }else{
+            } else {
               mutable.HashMap.empty
             }
-          try{
-            executionState = new WorkflowExecutionState(sessionIdToOperatorCache(session.getId), uidOpt, execute, prevResults)
-          }catch{
-            case x:ConstraintViolationException => sendInternal(session, WorkflowErrorEvent(operatorErrors = x.violations))
-            case other:Exception => throw other
+          try {
+            executionState = new WorkflowExecutionState(
+              sessionIdToOperatorCache(session.getId),
+              uidOpt,
+              execute,
+              prevResults
+            )
+          } catch {
+            case x: ConstraintViolationException =>
+              sendInternal(session, WorkflowErrorEvent(operatorErrors = x.violations))
+            case other: Exception => throw other
           }
           wIdToExecutionState(wId) = executionState
           // bind existing sessions to new execution
-          sessionIdToWId.filter(_._2 == wId).foreach{
+          sessionIdToWId.filter(_._2 == wId).foreach {
             case (sId, _) => BindSessionToExecution(sId, wId)
           }
         case newLogic: ModifyLogicRequest =>
@@ -131,23 +141,32 @@ class WorkflowWebsocketResource extends LazyLogging{
         case retryRequest: RetryRequest =>
           getExecutionState(session).foreach(_.workflowRuntimeService.retryWorkflow())
         case req: AddBreakpointRequest =>
-          getExecutionState(session).foreach(_.workflowRuntimeService.addBreakpoint(req.operatorID, req.breakpoint))
+          getExecutionState(session).foreach(
+            _.workflowRuntimeService.addBreakpoint(req.operatorID, req.breakpoint)
+          )
         case paginationRequest: ResultPaginationRequest =>
-          getExecutionState(session).foreach(_.workflowResultService.handleResultPagination(paginationRequest))
+          getExecutionState(session).foreach(
+            _.workflowResultService.handleResultPagination(paginationRequest)
+          )
         case resultExportRequest: ResultExportRequest =>
-          getExecutionState(session).foreach{
-            state => sendInternal(session, state.exportResult(uidOpt.get, resultExportRequest))
+          getExecutionState(session).foreach { state =>
+            sendInternal(session, state.exportResult(uidOpt.get, resultExportRequest))
           }
         case cacheStatusUpdateRequest: CacheStatusUpdateRequest =>
           if (OperatorCache.isAvailable) {
-            getExecutionState(session).foreach(_.operatorCache.updateCacheStatus(cacheStatusUpdateRequest))
+            getExecutionState(session).foreach(
+              _.operatorCache.updateCacheStatus(cacheStatusUpdateRequest)
+            )
           }
         case pythonExpressionEvaluateRequest: PythonExpressionEvaluateRequest =>
-          getExecutionState(session).foreach(_.workflowRuntimeService.evaluatePythonExpression(pythonExpressionEvaluateRequest))
+          getExecutionState(session).foreach(
+            _.workflowRuntimeService.evaluatePythonExpression(pythonExpressionEvaluateRequest)
+          )
       }
     } catch {
       case err: Exception =>
-        sendInternal(session,
+        sendInternal(
+          session,
           WorkflowErrorEvent(generalErrors =
             Map("exception" -> (err.getMessage + "\n" + err.getStackTrace.mkString("\n")))
           )
@@ -155,8 +174,6 @@ class WorkflowWebsocketResource extends LazyLogging{
         throw err
     }
 
-
   }
-
 
 }

@@ -32,7 +32,7 @@ case class WorkflowInfo(
 
   private lazy val dag = new WorkflowDAG(this)
 
-  def toDAG:WorkflowDAG = dag
+  def toDAG: WorkflowDAG = dag
 
   // helper class that converts the workflowInfo into a graph data structure
   class WorkflowDAG(workflowInfo: WorkflowInfo) {
@@ -59,7 +59,9 @@ case class WorkflowInfo(
 
     def getUpstream(operatorID: String): List[OperatorDescriptor] = {
       val upstream = new mutable.MutableList[OperatorDescriptor]
-      jgraphtDag.incomingEdgesOf(operatorID).forEach(e => upstream += operators(e.origin.operatorID))
+      jgraphtDag
+        .incomingEdgesOf(operatorID)
+        .forEach(e => upstream += operators(e.origin.operatorID))
       upstream.toList
     }
 

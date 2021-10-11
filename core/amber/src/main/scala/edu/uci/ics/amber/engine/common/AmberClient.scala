@@ -2,7 +2,10 @@ package edu.uci.ics.amber.engine.common
 
 import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
 import com.twitter.util.{Return, Throw, Future => TwitterFuture, Promise => TwitterPromise}
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{NetworkAck, NetworkMessage}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
+  NetworkAck,
+  NetworkMessage
+}
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowControlMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
@@ -12,7 +15,10 @@ import rx.lang.scala.{Observable, Observer, Subject}
 
 import scala.collection.mutable
 import FutureBijection._
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{ErrorOccurred, WorkflowCompleted}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
+  ErrorOccurred,
+  WorkflowCompleted
+}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, Workflow}
 
@@ -90,8 +96,8 @@ class AmberClient(system: ActorSystem, workflow: Workflow, controllerConfig: Con
     }
   }
 
-  def execute[T](controlCommand: ControlCommand[T]):T ={
-    Await.result(sendAsScalaFuture(controlCommand),timeout.duration)
+  def execute[T](controlCommand: ControlCommand[T]): T = {
+    Await.result(sendAsScalaFuture(controlCommand), timeout.duration)
   }
 
   def sendAsTwitterFuture[T](controlCommand: ControlCommand[T]): TwitterFuture[T] = {
@@ -143,6 +149,5 @@ class AmberClient(system: ActorSystem, workflow: Workflow, controllerConfig: Con
   def executeClosureSync[T](closure: => T): T = {
     Await.result(client ? ClosureRequest(() => closure), timeout.duration).asInstanceOf[T]
   }
-
 
 }

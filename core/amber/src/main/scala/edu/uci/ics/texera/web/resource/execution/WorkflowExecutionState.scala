@@ -6,13 +6,22 @@ import edu.uci.ics.amber.engine.common.AmberClient
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.web.TexeraWebApplication
 import edu.uci.ics.texera.web.model.event.{ResultExportResponse, TexeraWebSocketEvent}
-import edu.uci.ics.texera.web.model.request.{CacheStatusUpdateRequest, ExecuteWorkflowRequest, ModifyLogicRequest, ResultExportRequest}
+import edu.uci.ics.texera.web.model.request.{
+  CacheStatusUpdateRequest,
+  ExecuteWorkflowRequest,
+  ModifyLogicRequest,
+  ResultExportRequest
+}
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource
 import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler.ConstraintViolationException
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowInfo.toJgraphtDAG
-import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo, WorkflowRewriter}
+import edu.uci.ics.texera.workflow.common.workflow.{
+  WorkflowCompiler,
+  WorkflowInfo,
+  WorkflowRewriter
+}
 import javax.servlet.http.HttpSession
 import org.jooq.types.UInteger
 import rx.lang.scala.subscriptions.CompositeSubscription
@@ -20,16 +29,23 @@ import rx.lang.scala.{Observer, Subscription}
 
 import scala.collection.mutable
 
-class WorkflowExecutionState(val operatorCache:OperatorCache, uidOpt:Option[UInteger], request: ExecuteWorkflowRequest, prevResults:mutable.HashMap[String, OperatorResultService]) extends LazyLogging {
+class WorkflowExecutionState(
+    val operatorCache: OperatorCache,
+    uidOpt: Option[UInteger],
+    request: ExecuteWorkflowRequest,
+    prevResults: mutable.HashMap[String, OperatorResultService]
+) extends LazyLogging {
 
-  val workflowContext:WorkflowContext = createWorkflowContext()
+  val workflowContext: WorkflowContext = createWorkflowContext()
   val workflowInfo: WorkflowInfo = createWorkflowInfo(workflowContext)
   val workflowCompiler: WorkflowCompiler = createWorkflowCompiler(workflowInfo, workflowContext)
   val workflow: Workflow = workflowCompiler.amberWorkflow(WorkflowIdentity(workflowContext.jobId))
-  val client: AmberClient = TexeraWebApplication.createAmberRuntime(workflow, ControllerConfig.default)
-  val workflowRuntimeService:WorkflowRuntimeService = new WorkflowRuntimeService(workflow, client)
-  val workflowResultService:WorkflowResultService = new WorkflowResultService(workflowInfo, OperatorCache.opResultStorage, client)
-  val resultExportService:ResultExportService = new ResultExportService()
+  val client: AmberClient =
+    TexeraWebApplication.createAmberRuntime(workflow, ControllerConfig.default)
+  val workflowRuntimeService: WorkflowRuntimeService = new WorkflowRuntimeService(workflow, client)
+  val workflowResultService: WorkflowResultService =
+    new WorkflowResultService(workflowInfo, OperatorCache.opResultStorage, client)
+  val resultExportService: ResultExportService = new ResultExportService()
 
   if (OperatorCache.isAvailable) {
     workflowResultService.updateResultFromPreviousRun(prevResults, operatorCache.cachedOperators)
@@ -40,7 +56,7 @@ class WorkflowExecutionState(val operatorCache:OperatorCache, uidOpt:Option[UInt
   }
   workflowRuntimeService.startWorkflow()
 
-  private[this] def createWorkflowContext():WorkflowContext = {
+  private[this] def createWorkflowContext(): WorkflowContext = {
     val jobID: String = Integer.toString(WorkflowWebsocketResource.nextExecutionID.incrementAndGet)
     if (OperatorCache.isAvailable) {
       operatorCache.updateCacheStatus(
@@ -58,11 +74,13 @@ class WorkflowExecutionState(val operatorCache:OperatorCache, uidOpt:Option[UInt
     context
   }
 
-  private[this] def createWorkflowInfo(context:WorkflowContext): WorkflowInfo ={
+  private[this] def createWorkflowInfo(context: WorkflowContext): WorkflowInfo = {
     var workflowInfo = WorkflowInfo(request.operators, request.links, request.breakpoints)
     if (OperatorCache.isAvailable) {
       workflowInfo.cachedOperatorIds = request.cachedOperatorIds
-      logger.debug(s"Cached operators: ${operatorCache.cachedOperators} with ${request.cachedOperatorIds}")
+      logger.debug(
+        s"Cached operators: ${operatorCache.cachedOperators} with ${request.cachedOperatorIds}"
+      )
       val workflowRewriter = new WorkflowRewriter(
         workflowInfo,
         operatorCache.cachedOperators,
@@ -82,7 +100,10 @@ class WorkflowExecutionState(val operatorCache:OperatorCache, uidOpt:Option[UInt
     workflowInfo
   }
 
-  private[this] def createWorkflowCompiler(workflowInfo: WorkflowInfo, context:WorkflowContext): WorkflowCompiler ={
+  private[this] def createWorkflowCompiler(
+      workflowInfo: WorkflowInfo,
+      context: WorkflowContext
+  ): WorkflowCompiler = {
     val compiler = new WorkflowCompiler(workflowInfo, context)
     val violations = compiler.validate
     if (violations.nonEmpty) {
@@ -91,20 +112,19 @@ class WorkflowExecutionState(val operatorCache:OperatorCache, uidOpt:Option[UInt
     compiler
   }
 
-
   def subscribeAll(observer: Observer[TexeraWebSocketEvent]): Subscription = {
     CompositeSubscription(
-      SnapshotMulticast.subscribeSync(workflowRuntimeService,observer,client),
-      SnapshotMulticast.subscribeSync(workflowResultService,observer,client)
+      SnapshotMulticast.subscribeSync(workflowRuntimeService, observer, client),
+      SnapshotMulticast.subscribeSync(workflowResultService, observer, client)
     )
   }
 
-  def modifyLogic(request:ModifyLogicRequest): Unit ={
+  def modifyLogic(request: ModifyLogicRequest): Unit = {
     workflowCompiler.initOperator(request.operator)
     workflowRuntimeService.modifyLogic(request.operator)
   }
 
-  def exportResult(uid:UInteger, request: ResultExportRequest): ResultExportResponse = {
+  def exportResult(uid: UInteger, request: ResultExportRequest): ResultExportResponse = {
     resultExportService.exportResult(uid, workflowResultService, request)
   }
 

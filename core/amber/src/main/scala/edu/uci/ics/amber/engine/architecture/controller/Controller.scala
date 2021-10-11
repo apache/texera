@@ -47,8 +47,8 @@ final case class ControllerConfig(
 object Controller {
 
   def props(
-             workflow: Workflow,
-             controllerConfig: ControllerConfig = ControllerConfig.default,
+      workflow: Workflow,
+      controllerConfig: ControllerConfig = ControllerConfig.default,
       parentNetworkCommunicationActorRef: ActorRef = null
   ): Props =
     Props(
@@ -61,9 +61,9 @@ object Controller {
 }
 
 class Controller(
-                  val workflow: Workflow,
-                  val controllerConfig: ControllerConfig,
-                  parentNetworkCommunicationActorRef: ActorRef
+    val workflow: Workflow,
+    val controllerConfig: ControllerConfig,
+    parentNetworkCommunicationActorRef: ActorRef
 ) extends WorkflowActor(CONTROLLER, parentNetworkCommunicationActorRef) {
   lazy val controlInputPort: NetworkInputPort[ControlPayload] =
     new NetworkInputPort[ControlPayload](this.actorId, this.handleControlPayloadWithTryCatch)

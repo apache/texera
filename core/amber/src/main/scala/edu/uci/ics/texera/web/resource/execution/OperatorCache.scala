@@ -3,7 +3,11 @@ package edu.uci.ics.texera.web.resource.execution
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.AmberUtils
-import edu.uci.ics.texera.web.model.event.{CacheStatus, CacheStatusUpdateEvent, TexeraWebSocketEvent}
+import edu.uci.ics.texera.web.model.event.{
+  CacheStatus,
+  CacheStatusUpdateEvent,
+  TexeraWebSocketEvent
+}
 import edu.uci.ics.texera.web.model.request.CacheStatusUpdateRequest
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
@@ -16,7 +20,7 @@ import rx.lang.scala.Observer
 
 import scala.collection.mutable
 
-object OperatorCache extends LazyLogging{
+object OperatorCache extends LazyLogging {
   val opResultStorageConfig: Config = ConfigFactory.load("application")
   val storageType: String = AmberUtils.amberConfig.getString("cache.storage").toLowerCase
   def isAvailable: Boolean = storageType != "off"
@@ -37,15 +41,17 @@ object OperatorCache extends LazyLogging{
   }
 }
 
-
-
 class OperatorCache extends SnapshotMulticast[TexeraWebSocketEvent] with LazyLogging {
 
-  val cachedOperators: mutable.HashMap[String, OperatorDescriptor] = mutable.HashMap[String, OperatorDescriptor]()
-  val cacheSourceOperators: mutable.HashMap[String, CacheSourceOpDesc] = mutable.HashMap[String, CacheSourceOpDesc]()
-  val cacheSinkOperators: mutable.HashMap[String, CacheSinkOpDesc] = mutable.HashMap[String, CacheSinkOpDesc]()
-  val operatorRecord: mutable.HashMap[String, WorkflowVertex] = mutable.HashMap[String, WorkflowVertex]()
-  var cacheStatusMap:Map[String, CacheStatus] = _
+  val cachedOperators: mutable.HashMap[String, OperatorDescriptor] =
+    mutable.HashMap[String, OperatorDescriptor]()
+  val cacheSourceOperators: mutable.HashMap[String, CacheSourceOpDesc] =
+    mutable.HashMap[String, CacheSourceOpDesc]()
+  val cacheSinkOperators: mutable.HashMap[String, CacheSinkOpDesc] =
+    mutable.HashMap[String, CacheSinkOpDesc]()
+  val operatorRecord: mutable.HashMap[String, WorkflowVertex] =
+    mutable.HashMap[String, WorkflowVertex]()
+  var cacheStatusMap: Map[String, CacheStatus] = _
 
   def updateCacheStatus(request: CacheStatusUpdateRequest): Unit = {
     val workflowInfo = WorkflowInfo(request.operators, request.links, request.breakpoints)
@@ -79,7 +85,7 @@ class OperatorCache extends SnapshotMulticast[TexeraWebSocketEvent] with LazyLog
   }
 
   override def sendSnapshotTo(observer: Observer[TexeraWebSocketEvent]): Unit = {
-    if(cacheStatusMap != null){
+    if (cacheStatusMap != null) {
       observer.onNext(CacheStatusUpdateEvent(cacheStatusMap))
     }
   }
