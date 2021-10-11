@@ -36,7 +36,7 @@ object AsyncRPCClient {
   final val IgnoreReply = -1
   final val IgnoreReplyAndDoNotLog = -2
 
-  def noReplyNeeded(id: Long): Boolean = id < 0 && id > -3
+  def noReplyNeeded(id: Long): Boolean = id < 0
 
   /** The invocation of a control command
     * @param commandID

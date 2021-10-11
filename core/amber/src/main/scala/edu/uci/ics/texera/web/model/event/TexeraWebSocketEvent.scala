@@ -26,7 +26,3 @@ import edu.uci.ics.texera.web.model.event.python.PythonExpressionEvaluateRespons
   )
 )
 trait TexeraWebSocketEvent {}
-
-trait StateSynchronization
-
-trait FrameSynchronization

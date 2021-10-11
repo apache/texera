@@ -73,12 +73,6 @@ object Utils {
     }
   }
 
-  def runIfOptionNonEmpty[T](opt: Option[T])(fn: T => Unit): Unit = {
-    if (opt.nonEmpty) {
-      fn(opt.get)
-    }
-  }
-
   private def isAmberHomePath(path: Path): Boolean = {
     path.toRealPath().endsWith(AMBER_HOME_FOLDER_NAME)
   }
