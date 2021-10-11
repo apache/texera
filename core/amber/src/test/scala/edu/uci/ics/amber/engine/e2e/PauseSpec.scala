@@ -57,7 +57,7 @@ class PauseSpec
     client
       .getObservable[WorkflowCompleted]
       .subscribe(evt => {
-        completion.success()
+        completion.success(scala.runtime.BoxedUnit.UNIT)
       })
     Await.result(client.sendAsScalaFuture(StartWorkflow()), 1.second)
     Await.result(client.sendAsScalaFuture(PauseWorkflow()), 1.second)

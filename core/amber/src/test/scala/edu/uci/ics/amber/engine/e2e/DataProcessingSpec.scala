@@ -68,7 +68,7 @@ class DataProcessingSpec
       .getObservable[WorkflowCompleted]
       .subscribe(evt => {
         results = evt.result
-        completion.success()
+        completion.success(scala.runtime.BoxedUnit.UNIT)
       })
     Await.result(client.sendAsScalaFuture(StartWorkflow()), 1.second)
     Await.result(completion.future, 1.minute)
