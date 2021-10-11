@@ -7,6 +7,12 @@ import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 
 import scala.collection.mutable
 
+/**
+  * NetworkOutput for generating sequence number when sending payloads
+  * @param selfID ActorVirtualIdentity for the sender
+  * @param handler actual sending logic
+  * @tparam T payload
+  */
 class NetworkOutputPort[T](
     selfID: ActorVirtualIdentity,
     val handler: (ActorVirtualIdentity, ActorVirtualIdentity, Long, T) => Unit
