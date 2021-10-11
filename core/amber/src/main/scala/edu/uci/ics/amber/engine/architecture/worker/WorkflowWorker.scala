@@ -8,12 +8,13 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErr
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   NetworkMessage,
-  RegisterActorRef
+  RegisterActorRef,
+  SendRequest
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   BatchToTupleConverter,
-  DataOutputPort,
   NetworkInputPort,
+  NetworkOutputPort,
   TupleToBatchConverter
 }
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ShutdownDPThreadHandler.ShutdownDPThread
@@ -60,7 +61,8 @@ class WorkflowWorker(
     new NetworkInputPort[DataPayload](this.actorId, this.handleDataPayload)
   lazy val controlInputPort: NetworkInputPort[ControlPayload] =
     new NetworkInputPort[ControlPayload](this.actorId, this.handleControlPayload)
-  lazy val dataOutputPort: DataOutputPort = wire[DataOutputPort]
+  lazy val dataOutputPort: NetworkOutputPort[DataPayload] =
+    new NetworkOutputPort[DataPayload](this.actorId, this.outputDataPayload)
   lazy val batchProducer: TupleToBatchConverter = wire[TupleToBatchConverter]
   lazy val tupleProducer: BatchToTupleConverter = wire[BatchToTupleConverter]
   lazy val breakpointManager: BreakpointManager = wire[BreakpointManager]
@@ -124,6 +126,16 @@ class WorkflowWorker(
       case _ =>
         throw new WorkflowRuntimeException(s"unhandled control payload: $controlPayload")
     }
+  }
+
+  def outputDataPayload(
+      to: ActorVirtualIdentity,
+      self: ActorVirtualIdentity,
+      seqNum: Long,
+      payload: DataPayload
+  ): Unit = {
+    val msg = WorkflowDataMessage(self, seqNum, payload)
+    networkCommunicationActor ! SendRequest(to, msg)
   }
 
   override def postStop(): Unit = {

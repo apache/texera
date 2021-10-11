@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{ControlOutputPort, DataOutputPort}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputPort
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
   controlInvocationToV1,
@@ -19,8 +19,8 @@ import scala.collection.mutable
 private class AmberProducer(
     allocator: BufferAllocator,
     location: Location,
-    controlOutputPort: ControlOutputPort,
-    dataOutputPort: DataOutputPort
+    controlOutputPort: NetworkOutputPort[ControlPayload],
+    dataOutputPort: NetworkOutputPort[DataPayload]
 ) extends InMemoryStore(allocator, location) {
 
   override def doAction(
@@ -92,8 +92,8 @@ private class AmberProducer(
 
 class PythonProxyServer(
     portNumber: Int,
-    controlOutputPort: ControlOutputPort,
-    dataOutputPort: DataOutputPort,
+    controlOutputPort: NetworkOutputPort[ControlPayload],
+    dataOutputPort: NetworkOutputPort[DataPayload],
     val actorId: ActorVirtualIdentity
 ) extends Runnable
     with AutoCloseable

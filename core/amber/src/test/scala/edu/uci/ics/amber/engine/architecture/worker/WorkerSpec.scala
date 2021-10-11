@@ -5,12 +5,12 @@ import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkMessage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
-  ControlOutputPort,
+  NetworkOutputPort,
   TupleToBatchConverter
 }
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
-import edu.uci.ics.amber.engine.common.ambermessage.WorkflowControlMessage
+import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowControlMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
@@ -35,7 +35,11 @@ class WorkerSpec
   }
 
   "Worker" should "process AddDateSendingPolicy message correctly" in {
-    val mockControlOutputPort = mock[ControlOutputPort]
+    val mockHandler =
+      mock[(ActorVirtualIdentity, ActorVirtualIdentity, Long, ControlPayload) => Unit]
+    val identifier = ActorVirtualIdentity("worker mock")
+    val mockControlOutputPort: NetworkOutputPort[ControlPayload] =
+      new NetworkOutputPort[ControlPayload](identifier, mockHandler)
     val mockTupleToBatchConverter = mock[TupleToBatchConverter]
     val identifier1 = ActorVirtualIdentity("worker-1")
     val identifier2 = ActorVirtualIdentity("worker-2")
@@ -56,7 +60,7 @@ class WorkerSpec
 
     val worker = TestActorRef(new WorkflowWorker(identifier1, mockOpExecutor, TestProbe().ref) {
       override lazy val batchProducer: TupleToBatchConverter = mockTupleToBatchConverter
-      override lazy val controlOutputPort: ControlOutputPort = mockControlOutputPort
+      override lazy val controlOutputPort: NetworkOutputPort[ControlPayload] = mockControlOutputPort
     })
     val invocation = ControlInvocation(0, AddPartitioning(mockTag, mockPolicy))
     worker ! NetworkMessage(
