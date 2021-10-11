@@ -47,14 +47,16 @@ class WorkflowExecutionState(
     new WorkflowResultService(workflowInfo, OperatorCache.opResultStorage, client)
   val resultExportService: ResultExportService = new ResultExportService()
 
-  if (OperatorCache.isAvailable) {
-    workflowResultService.updateResultFromPreviousRun(prevResults, operatorCache.cachedOperators)
+  def startWorkflow(): Unit = {
+    if (OperatorCache.isAvailable) {
+      workflowResultService.updateResultFromPreviousRun(prevResults, operatorCache.cachedOperators)
+    }
+    workflowResultService.updateAvailableResult(request.operators)
+    for (pair <- workflowInfo.breakpoints) {
+      workflowRuntimeService.addBreakpoint(pair.operatorID, pair.breakpoint)
+    }
+    workflowRuntimeService.startWorkflow()
   }
-  workflowResultService.updateAvailableResult(request.operators)
-  for (pair <- workflowInfo.breakpoints) {
-    workflowRuntimeService.addBreakpoint(pair.operatorID, pair.breakpoint)
-  }
-  workflowRuntimeService.startWorkflow()
 
   private[this] def createWorkflowContext(): WorkflowContext = {
     val jobID: String = Integer.toString(WorkflowWebsocketResource.nextExecutionID.incrementAndGet)
