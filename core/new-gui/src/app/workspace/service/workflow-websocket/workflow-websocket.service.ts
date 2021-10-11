@@ -12,7 +12,8 @@ import {
 import { delayWhen, filter, map, retryWhen, tap } from "rxjs/operators";
 import { environment } from "../../../../environments/environment";
 import { UserService } from "../../../common/service/user/user.service";
-
+import {ExecuteWorkflowService} from "../execute-workflow/execute-workflow.service";
+import {WorkflowActionService} from "../workflow-graph/model/workflow-action.service";
 export const WS_HEARTBEAT_INTERVAL_MS = 10000;
 export const WS_RECONNECT_INTERVAL_MS = 3000;
 
@@ -30,7 +31,10 @@ export class WorkflowWebsocketService {
   private wsWithReconnectSubscription?: Subscription;
   private readonly webSocketResponseSubject: Subject<TexeraWebsocketEvent> = new Subject();
 
-  constructor() {
+  constructor(private workflowActionService: WorkflowActionService) {
+    // set current wid
+    this.currentWid = String((workflowActionService.getWorkflowMetadata().wid) ?? "undefined workflow");
+
     // open a ws connection
     this.openWebsocket();
 
@@ -39,6 +43,15 @@ export class WorkflowWebsocketService {
 
     // refresh connection status
     this.websocketEvent().subscribe(_ => (this.isConnected = true));
+
+    // listen to workflow metadata changed event
+    workflowActionService.workflowMetaDataChanged().subscribe(() => {
+      const newWid = String((workflowActionService.getWorkflowMetadata().wid) ?? "undefined workflow");
+      if(newWid !== this.currentWid){
+        this.currentWid = newWid;
+        this.send("RegisterWIdRequest", { wId: this.currentWid, recoverFrontendState: false });
+      }
+    });
   }
 
   public websocketEvent(): Observable<TexeraWebsocketEvent> {
@@ -92,7 +105,10 @@ export class WorkflowWebsocketService {
           ),
           delayWhen(_ => timer(WS_RECONNECT_INTERVAL_MS)), // reconnect after delay
           tap(
-            _ => this.send("HeartBeatRequest", {}) // try to send heartbeat immediately after reconnect
+            _ => {
+              this.send("RegisterWIdRequest", { wId: this.currentWid, recoverFrontendState: false}); // re-register wid               
+              this.send("HeartBeatRequest", {}); // try to send heartbeat immediately after reconnect
+            }
           )
         )
       )
@@ -102,8 +118,8 @@ export class WorkflowWebsocketService {
       this.webSocketResponseSubject.next(event as TexeraWebsocketEvent)
     );
 
-    // send hello world
-    this.send("HelloWorldRequest", { message: "Texera on Amber" });
+    // send wid registration and recover frontend state
+    this.send("RegisterWIdRequest", { wId: this.currentWid, recoverFrontendState: true });
   }
 
   private static getWorkflowWebsocketUrl(): string {

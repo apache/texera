@@ -85,9 +85,10 @@ class WorkflowRuntimeService(workflow: Workflow, client: AmberClient)
   var workflowError: Throwable = _
 
   def startWorkflow(): Unit = {
-    client.execute(StartWorkflow())
-    workflowStatus = Started
-    send(WorkflowStartedEvent())
+    client.sendAsTwitterFuture(StartWorkflow()).onSuccess { x =>
+      workflowStatus = Started
+      send(WorkflowStartedEvent())
+    }
   }
 
   def clearTriggeredBreakpoints(): Unit = {

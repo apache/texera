@@ -4,7 +4,7 @@ import edu.uci.ics.amber.engine.common.AmberClient
 import rx.lang.scala.{Observable, Observer, Subject, Subscription}
 
 object SnapshotMulticast {
-  def subscribeSync[T](
+  def syncState[T](
       snapshotSubject: SnapshotMulticast[T],
       observer: Observer[T],
       client: AmberClient
@@ -13,6 +13,14 @@ object SnapshotMulticast {
       snapshotSubject.sendSnapshotTo(observer)
       snapshotSubject.subscribe(observer)
     }
+  }
+
+  def syncState[T](
+      snapshotSubject: SnapshotMulticast[T],
+      observer: Observer[T]
+  ): Subscription = {
+    snapshotSubject.sendSnapshotTo(observer)
+    snapshotSubject.subscribe(observer)
   }
 }
 

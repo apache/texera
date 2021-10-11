@@ -12,6 +12,7 @@ import edu.uci.ics.texera.web.model.request.python.PythonExpressionEvaluateReque
 import edu.uci.ics.texera.web.resource.execution.{
   OperatorCache,
   OperatorResultService,
+  SnapshotMulticast,
   WorkflowExecutionState
 }
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler.ConstraintViolationException
@@ -57,7 +58,7 @@ class WorkflowWebsocketResource extends LazyLogging {
     val subscriber = new WebsocketSubscriber(session)
     sessionIdToObserver(session.getId) = subscriber
     val operatorCache = new OperatorCache()
-    operatorCache.subscribe(subscriber)
+    SnapshotMulticast.syncState(operatorCache, subscriber)
     sessionIdToOperatorCache(session.getId) = operatorCache
     logger.info("connection open")
   }
@@ -154,9 +155,7 @@ class WorkflowWebsocketResource extends LazyLogging {
           }
         case cacheStatusUpdateRequest: CacheStatusUpdateRequest =>
           if (OperatorCache.isAvailable) {
-            getExecutionState(session).foreach(
-              _.operatorCache.updateCacheStatus(cacheStatusUpdateRequest)
-            )
+            sessionIdToOperatorCache(session.getId).updateCacheStatus(cacheStatusUpdateRequest)
           }
         case pythonExpressionEvaluateRequest: PythonExpressionEvaluateRequest =>
           getExecutionState(session).foreach(

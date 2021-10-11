@@ -30,7 +30,7 @@ import rx.lang.scala.{Observer, Subscription}
 import scala.collection.mutable
 
 class WorkflowExecutionState(
-    val operatorCache: OperatorCache,
+    operatorCache: OperatorCache,
     uidOpt: Option[UInteger],
     request: ExecuteWorkflowRequest,
     prevResults: mutable.HashMap[String, OperatorResultService]
@@ -114,8 +114,8 @@ class WorkflowExecutionState(
 
   def subscribeAll(observer: Observer[TexeraWebSocketEvent]): Subscription = {
     CompositeSubscription(
-      SnapshotMulticast.subscribeSync(workflowRuntimeService, observer, client),
-      SnapshotMulticast.subscribeSync(workflowResultService, observer, client)
+      SnapshotMulticast.syncState(workflowRuntimeService, observer, client),
+      SnapshotMulticast.syncState(workflowResultService, observer, client)
     )
   }
 

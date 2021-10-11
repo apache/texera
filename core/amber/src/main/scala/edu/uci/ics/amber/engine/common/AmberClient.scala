@@ -147,7 +147,11 @@ class AmberClient(system: ActorSystem, workflow: Workflow, controllerConfig: Con
   }
 
   def executeClosureSync[T](closure: => T): T = {
-    Await.result(client ? ClosureRequest(() => closure), timeout.duration).asInstanceOf[T]
+    if (!isActive) {
+      closure
+    } else {
+      Await.result(client ? ClosureRequest(() => closure), timeout.duration).asInstanceOf[T]
+    }
   }
 
 }
