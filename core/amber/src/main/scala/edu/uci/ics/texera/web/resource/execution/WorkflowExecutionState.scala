@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web.resource.execution
 
 import akka.actor.PoisonPill
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, ControllerSubjects, Workflow}
+import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ModifyLogicHandler.ModifyLogic
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
@@ -30,7 +30,6 @@ class WorkflowExecutionState(val operatorCache:OperatorCache, httpSession: HttpS
   val workflowInfo: WorkflowInfo = createWorkflowInfo(workflowContext)
   val workflowCompiler: WorkflowCompiler = createWorkflowCompiler(workflowInfo, workflowContext)
   val workflow: Workflow = workflowCompiler.amberWorkflow(WorkflowIdentity(workflowContext.jobID))
-  val controllerObservables:ControllerSubjects = ControllerSubjects()
   val workflowRuntimeService:WorkflowRuntimeService = new WorkflowRuntimeService(workflow, controllerObservables)
   val workflowResultService:WorkflowResultService = new WorkflowResultService(workflowInfo, OperatorCache.opResultStorage, controllerObservables)
   val executionStatus:ExecutionStatus = new ExecutionStatus(controllerObservables)

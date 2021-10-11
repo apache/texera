@@ -39,7 +39,7 @@ object OperatorCache extends LazyLogging{
 
 
 
-class OperatorCache extends BehaviorSubject with LazyLogging {
+class OperatorCache extends LazyLogging {
 
   val cachedOperators: mutable.HashMap[String, OperatorDescriptor] = mutable.HashMap[String, OperatorDescriptor]()
   val cacheSourceOperators: mutable.HashMap[String, CacheSourceOpDesc] = mutable.HashMap[String, CacheSourceOpDesc]()

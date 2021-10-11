@@ -3,7 +3,7 @@ package edu.uci.ics.texera.web.resource.execution
 import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowResultUpdate
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerSubjects, Workflow}
+import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.texera.web.model.event.{OperatorAvailableResult, PaginatedResultEvent, TexeraWebSocketEvent, WebResultUpdateEvent, WorkflowAvailableResultEvent}
 import edu.uci.ics.texera.web.model.request.ResultPaginationRequest

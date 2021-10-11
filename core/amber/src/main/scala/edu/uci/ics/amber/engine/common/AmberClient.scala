@@ -15,7 +15,6 @@ import rx.lang.scala.{Observable, Subject}
 
 import scala.collection.mutable
 import FutureBijection._
-import akka.routing.Broadcast
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   ErrorOccurred,
   WorkflowCompleted

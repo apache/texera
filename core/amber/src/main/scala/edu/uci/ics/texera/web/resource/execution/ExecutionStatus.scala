@@ -1,9 +1,10 @@
 package edu.uci.ics.texera.web.resource.execution
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{WorkflowCompleted, WorkflowPaused}
-import edu.uci.ics.amber.engine.architecture.controller.ControllerSubjects
+import edu.uci.ics.amber.engine.common.AmberClient
 import edu.uci.ics.texera.web.model.event.{TexeraWebSocketEvent, WorkflowCompletedEvent, WorkflowPausedEvent, WorkflowStartedEvent}
 import edu.uci.ics.texera.web.resource.Observer
 import edu.uci.ics.texera.web.resource.execution.ExecutionStatus._
+import rx.lang.scala.subjects.BehaviorSubject
 
 object ExecutionStatus{
   sealed trait ExecutionStatusEnum
@@ -13,11 +14,11 @@ object ExecutionStatus{
   case object Completed extends ExecutionStatusEnum
 }
 
-class ExecutionStatus(controllerObservables: ControllerSubjects) extends BehaviorSubject {
+class ExecutionStatus(client:AmberClient) {
 
   var currentStatus:ExecutionStatusEnum = Unknown
 
-  controllerObservables.workflowPaused.subscribe((evt:WorkflowPaused) => {
+  client.getObservable[WorkflowPaused].subscribe((evt:WorkflowPaused) => {
     currentStatus = Paused
     onNext(WorkflowPausedEvent())
   })
