@@ -1,8 +1,11 @@
 package edu.uci.ics.texera.web.resource.execution
 
+import java.time.LocalDateTime
+import java.time.{Duration => JDuration}
 import java.util.concurrent.ConcurrentHashMap
 
 import akka.actor.Cancellable
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.web.TexeraWebApplication
 import edu.uci.ics.texera.web.model.request.ExecuteWorkflowRequest
 import edu.uci.ics.texera.web.resource.execution.WorkflowRuntimeService.{
@@ -34,7 +37,7 @@ object WorkflowState {
   }
 }
 
-class WorkflowState(wid: String) {
+class WorkflowState(wid: String) extends LazyLogging {
   // state across execution:
   val operatorCache: OperatorCache = new OperatorCache()
   var executionState: Option[WorkflowExecutionState] = None
@@ -46,7 +49,9 @@ class WorkflowState(wid: String) {
     synchronized {
       if (subCount > 0 || status == Running) {
         cleanUpJob.cancel()
-        println(wid + ": clean up job cancelled due to user usage or running status")
+        logger.info(
+          s"[$wid] workflow state clean up postponed. current user count = $subCount, workflow status = $status"
+        )
       } else {
         refreshDeadline()
       }
@@ -55,7 +60,9 @@ class WorkflowState(wid: String) {
 
   private[this] def refreshDeadline(): Unit = {
     if (cleanUpJob.isCancelled || cleanUpJob.cancel()) {
-      println(wid + ": clean up job will begin in 30 seconds from now")
+      logger.info(
+        s"[$wid] workflow state clean up will start at ${LocalDateTime.now().plus(JDuration.ofMillis(WORKFLOW_CLEANUP_DEADLINE.toMillis))}"
+      )
       cleanUpJob = TexeraWebApplication.scheduleCallThroughActorSystem(WORKFLOW_CLEANUP_DEADLINE) {
         cleanUp()
       }
@@ -66,11 +73,11 @@ class WorkflowState(wid: String) {
     synchronized {
       if (subCount > 0) {
         // do nothing
-        println(wid + ": Cannot clean up, at least one user is using this workflow state")
+        logger.info(s"[$wid] workflow state clean up failed. current user count = $subCount")
       } else {
         WorkflowState.wIdToWorkflowState.remove(wid)
         executionState.foreach(_.workflowRuntimeService.killWorkflow())
-        println(wid + ": clean up this workflow state")
+        logger.info(s"[$wid] workflow state clean up completed.")
       }
     }
   }
@@ -79,7 +86,7 @@ class WorkflowState(wid: String) {
     synchronized {
       subCount += 1
       cleanUpJob.cancel()
-      println(wid + ": clean up job cancelled due to user usage")
+      logger.info(s"[$wid] workflow state clean up postponed. current user count = $subCount")
     }
   }
 
@@ -90,6 +97,8 @@ class WorkflowState(wid: String) {
         subCount == 0 && !executionState.map(_.workflowRuntimeService.getStatus).contains(Running)
       ) {
         refreshDeadline()
+      } else {
+        logger.info(s"[$wid] workflow state clean up postponed. current user count = $subCount")
       }
     }
   }
