@@ -10,7 +10,11 @@ import edu.uci.ics.texera.web.auth.JwtAuth.jwtConsumer
 import edu.uci.ics.texera.web.auth.{SessionUser, UserAuthenticator}
 import edu.uci.ics.texera.web.resource.auth.UserResource
 import edu.uci.ics.texera.web.resource.dashboard.file.{UserFileAccessResource, UserFileResource}
-import edu.uci.ics.texera.web.resource.dashboard.{WorkflowAccessResource, WorkflowResource, WorkflowVersionResource}
+import edu.uci.ics.texera.web.resource.dashboard.{
+  WorkflowAccessResource,
+  WorkflowResource,
+  WorkflowVersionResource
+}
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.resource.dashboard.{WorkflowAccessResource, WorkflowResource}
 import edu.uci.ics.texera.web.resource.{UserDictionaryResource, _}
@@ -34,7 +38,7 @@ object TexeraWebApplication {
     new AmberClient(actorSystem, workflow, conf)
   }
 
-  def scheduleCallThroughActorSystem(delay:FiniteDuration)(call: => Unit): Cancellable ={
+  def scheduleCallThroughActorSystem(delay: FiniteDuration)(call: => Unit): Cancellable = {
     actorSystem.scheduler.scheduleOnce(delay)(call)
   }
 

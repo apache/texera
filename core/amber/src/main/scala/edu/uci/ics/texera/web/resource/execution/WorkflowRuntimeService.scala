@@ -2,8 +2,17 @@ package edu.uci.ics.texera.web.resource.execution
 
 import com.google.common.collect.EvictingQueue
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{ConditionalGlobalBreakpoint, CountGlobalBreakpoint}
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{BreakpointTriggered, ErrorOccurred, PythonPrintTriggered, WorkflowCompleted, WorkflowStatusUpdate}
+import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{
+  ConditionalGlobalBreakpoint,
+  CountGlobalBreakpoint
+}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
+  BreakpointTriggered,
+  ErrorOccurred,
+  PythonPrintTriggered,
+  WorkflowCompleted,
+  WorkflowStatusUpdate
+}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.AssignBreakpointHandler.AssignGlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.EvaluatePythonExpressionHandler.EvaluatePythonExpression
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ModifyLogicHandler.ModifyLogic
@@ -16,12 +25,34 @@ import edu.uci.ics.amber.engine.architecture.principal.{OperatorState, OperatorS
 import edu.uci.ics.amber.engine.common.AmberClient
 import edu.uci.ics.texera.web.TexeraWebApplication
 import edu.uci.ics.texera.web.model.common.FaultedTupleFrontend
-import edu.uci.ics.texera.web.model.event.{BreakpointFault, BreakpointTriggeredEvent, PythonPrintTriggeredEvent, TexeraWebSocketEvent, WebWorkflowStatusUpdateEvent, WorkflowCompletedEvent, WorkflowExecutionErrorEvent, WorkflowPausedEvent, WorkflowResumedEvent, WorkflowStartedEvent}
+import edu.uci.ics.texera.web.model.event.{
+  BreakpointFault,
+  BreakpointTriggeredEvent,
+  PythonPrintTriggeredEvent,
+  TexeraWebSocketEvent,
+  WebWorkflowStatusUpdateEvent,
+  WorkflowCompletedEvent,
+  WorkflowExecutionErrorEvent,
+  WorkflowPausedEvent,
+  WorkflowResumedEvent,
+  WorkflowStartedEvent
+}
 import edu.uci.ics.texera.web.model.request.python.PythonExpressionEvaluateRequest
-import edu.uci.ics.texera.web.model.request.{AddBreakpointRequest, ModifyLogicRequest, RemoveBreakpointRequest, SkipTupleRequest}
+import edu.uci.ics.texera.web.model.request.{
+  AddBreakpointRequest,
+  ModifyLogicRequest,
+  RemoveBreakpointRequest,
+  SkipTupleRequest
+}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.workflow.{Breakpoint, BreakpointCondition, ConditionBreakpoint, CountBreakpoint, WorkflowInfo}
+import edu.uci.ics.texera.workflow.common.workflow.{
+  Breakpoint,
+  BreakpointCondition,
+  ConditionBreakpoint,
+  CountBreakpoint,
+  WorkflowInfo
+}
 import rx.lang.scala.{Observable, Observer}
 import rx.lang.scala.subjects.BehaviorSubject
 
@@ -50,7 +81,8 @@ class WorkflowRuntimeService(workflow: Workflow, client: AmberClient)
     val faults: mutable.ArrayBuffer[BreakpointFault] = new ArrayBuffer[BreakpointFault]()
   }
 
-  private var workflowStatus: BehaviorSubject[ExecutionStatusEnum] = BehaviorSubject[ExecutionStatusEnum](Unknown)
+  private var workflowStatus: BehaviorSubject[ExecutionStatusEnum] =
+    BehaviorSubject[ExecutionStatusEnum](Unknown)
   val operatorRuntimeStateMap: mutable.HashMap[String, OperatorRuntimeState] =
     new mutable.HashMap[String, OperatorRuntimeState]()
   var workflowError: Throwable = _
@@ -62,9 +94,9 @@ class WorkflowRuntimeService(workflow: Workflow, client: AmberClient)
     }
   }
 
-  def getStatus:ExecutionStatusEnum = workflowStatus.asJavaSubject.getValue
+  def getStatus: ExecutionStatusEnum = workflowStatus.asJavaSubject.getValue
 
-  def getStatusObservable:Observable[ExecutionStatusEnum] = workflowStatus
+  def getStatusObservable: Observable[ExecutionStatusEnum] = workflowStatus
 
   def clearTriggeredBreakpoints(): Unit = {
     operatorRuntimeStateMap.values.foreach { state =>
@@ -169,9 +201,9 @@ class WorkflowRuntimeService(workflow: Workflow, client: AmberClient)
 
   override def sendSnapshotTo(observer: Observer[TexeraWebSocketEvent]): Unit = {
     workflowStatus.asJavaSubject.getValue match {
-      case Unknown  => //skip
-      case Running   => observer.onNext(WorkflowStartedEvent())
-      case Paused    => observer.onNext(WorkflowPausedEvent())
+      case Unknown             => //skip
+      case Running             => observer.onNext(WorkflowStartedEvent())
+      case Paused              => observer.onNext(WorkflowPausedEvent())
       case Completed | Aborted => observer.onNext(WorkflowCompletedEvent())
     }
     observer.onNext(WebWorkflowStatusUpdateEvent(operatorRuntimeStateMap.map {
