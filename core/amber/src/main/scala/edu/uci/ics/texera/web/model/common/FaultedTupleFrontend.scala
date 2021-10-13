@@ -18,10 +18,10 @@ object FaultedTupleFrontend {
 
 case class FaultedTupleFrontend(tuple: List[String], id: Long, isInput: Boolean = false) {
 
-  def toFaultedTuple(): FaultedTuple = {
+  def toFaultedTuple: FaultedTuple = {
     val tupleList = this.tuple
     val amberTuple = new AmberTuple(tupleList.toArray)
-    new FaultedTuple(amberTuple, this.id, this.isInput)
+    FaultedTuple(amberTuple, this.id, this.isInput)
   }
 
 }

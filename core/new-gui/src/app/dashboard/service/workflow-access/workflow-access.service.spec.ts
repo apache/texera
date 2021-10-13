@@ -8,7 +8,6 @@ import {
   WORKFLOW_ACCESS_REVOKE_URL,
   WorkflowAccessService,
 } from "./workflow-access.service";
-import { AppSettings } from "../../../common/app-setting";
 import { first } from "rxjs/operators";
 
 describe("WorkflowAccessService", () => {
@@ -47,9 +46,7 @@ describe("WorkflowAccessService", () => {
   it("grantUserWorkflowAccess works as expected", () => {
     service.grantUserWorkflowAccess(TestWorkflow, username, accessType).pipe(first()).subscribe();
     console.log(httpMock);
-    const req = httpMock.expectOne(
-      `${AppSettings.getApiEndpoint()}/${WORKFLOW_ACCESS_GRANT_URL}/${TestWorkflow.wid}/${username}/${accessType}`
-    );
+    const req = httpMock.expectOne(`${WORKFLOW_ACCESS_GRANT_URL}/${TestWorkflow.wid}/${username}/${accessType}`);
     console.log(req.request);
     expect(req.request.method).toEqual("POST");
     req.flush({ code: 0, message: "" });
@@ -57,17 +54,15 @@ describe("WorkflowAccessService", () => {
 
   it("retrieveGrantedWorkflowAccessList works as expected", () => {
     service.retrieveGrantedWorkflowAccessList(TestWorkflow).pipe(first()).subscribe();
-    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${WORKFLOW_ACCESS_LIST_URL}/${TestWorkflow.wid}`);
+    const req = httpMock.expectOne(`${WORKFLOW_ACCESS_LIST_URL}/${TestWorkflow.wid}`);
     expect(req.request.method).toEqual("GET");
     req.flush({ code: 0, message: "" });
   });
 
   it("revokeWorkflowAccess works as expected", () => {
     service.revokeWorkflowAccess(TestWorkflow, username).pipe(first()).subscribe();
-    const req = httpMock.expectOne(
-      `${AppSettings.getApiEndpoint()}/${WORKFLOW_ACCESS_REVOKE_URL}/${TestWorkflow.wid}/${username}`
-    );
-    expect(req.request.method).toEqual("POST");
+    const req = httpMock.expectOne(`${WORKFLOW_ACCESS_REVOKE_URL}/${TestWorkflow.wid}/${username}`);
+    expect(req.request.method).toEqual("DELETE");
     req.flush({ code: 0, message: "" });
   });
 });

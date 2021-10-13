@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent._
-import edu.uci.ics.texera.web.model.event.python.PythonExpressionEvaluateResponse
+import edu.uci.ics.texera.web.model.websocket.response.python.PythonExpressionEvaluateResponse
 
 case class ControllerEventListener(
     var workflowCompletedListener: WorkflowCompleted => Unit = null,

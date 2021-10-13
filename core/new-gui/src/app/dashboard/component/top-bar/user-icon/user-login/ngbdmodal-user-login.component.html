@@ -12,8 +12,8 @@
       <div class="content">
         <mat-dialog-content>
           <mat-form-field>
-            <input formControlName="loginUserName" matInput placeholder="Username" required />
-            <mat-error *ngIf="allForms.controls['loginUserName'].errors?.required"
+            <input formControlName="loginUsername" matInput placeholder="Username" required />
+            <mat-error *ngIf="allForms.controls['loginUsername'].errors?.required"
               >{{ errorMessageUsernameNull() }}</mat-error
             >
           </mat-form-field>
@@ -28,7 +28,7 @@
         <div>
           <button (click)="login()" class="btn btn-info">Sign In</button>
         </div>
-        <div (click)="authenticate()" class="g-sign-in-button">
+        <div (click)="googleLogin()" class="g-sign-in-button">
           <div class="content-wrapper">
             <div class="logo-wrapper">
               <img alt="g-sign-in-button" src="https://developers.google.com/identity/images/g-logo.png" />
@@ -45,8 +45,8 @@
       <div class="content">
         <mat-dialog-content>
           <mat-form-field>
-            <input formControlName="registerUserName" matInput placeholder="Username" required />
-            <mat-error *ngIf="allForms.controls['registerUserName'].errors?.required"
+            <input formControlName="registerUsername" matInput placeholder="Username" required />
+            <mat-error *ngIf="allForms.controls['registerUsername'].errors?.required"
               >{{ errorMessageUsernameNull() }}</mat-error
             >
           </mat-form-field>

@@ -169,7 +169,7 @@ export class ExecuteWorkflowService {
     console.log(logicalPlan);
     // wait for the form debounce to complete, then send
     window.setTimeout(() => {
-      this.workflowWebsocketService.send("ExecuteWorkflowRequest", logicalPlan);
+      this.workflowWebsocketService.send("WorkflowExecuteRequest", logicalPlan);
     }, FORM_DEBOUNCE_TIME_MS);
     this.updateExecutionState({ state: ExecutionState.WaitingToRun });
     this.setExecutionTimeout("submit workflow timeout", ExecutionState.Running, ExecutionState.Failed);
@@ -193,7 +193,7 @@ export class ExecuteWorkflowService {
     if (this.currentState === undefined || this.currentState.state !== ExecutionState.Running) {
       throw new Error("cannot pause workflow, the current execution state is " + this.currentState?.state);
     }
-    this.workflowWebsocketService.send("PauseWorkflowRequest", {});
+    this.workflowWebsocketService.send("WorkflowPauseRequest", {});
     this.updateExecutionState({ state: ExecutionState.Pausing });
     this.setExecutionTimeout("pause operation timeout", ExecutionState.Paused, ExecutionState.Failed);
   }
@@ -208,7 +208,7 @@ export class ExecuteWorkflowService {
     ) {
       throw new Error("cannot kill workflow, the current execution state is " + this.currentState.state);
     }
-    this.workflowWebsocketService.send("KillWorkflowRequest", {});
+    this.workflowWebsocketService.send("WorkflowKillRequest", {});
     this.updateExecutionState({ state: ExecutionState.Completed });
   }
 
@@ -224,7 +224,7 @@ export class ExecuteWorkflowService {
     ) {
       throw new Error("cannot resume workflow, the current execution state is " + this.currentState.state);
     }
-    this.workflowWebsocketService.send("ResumeWorkflowRequest", {});
+    this.workflowWebsocketService.send("WorkflowResumeRequest", {});
     this.updateExecutionState({ state: ExecutionState.Resuming });
     this.setExecutionTimeout("resume operation timeout", ExecutionState.Running, ExecutionState.Failed);
   }

@@ -11,7 +11,7 @@ import {
 } from "../../types/workflow-websocket.interface";
 import { delayWhen, filter, map, retryWhen, tap } from "rxjs/operators";
 import { environment } from "../../../../environments/environment";
-import { UserService } from "../../../common/service/user/user.service";
+import { AuthService } from "../../../common/service/user/auth.service";
 
 export const WS_HEARTBEAT_INTERVAL_MS = 10000;
 export const WS_RECONNECT_INTERVAL_MS = 3000;
@@ -76,8 +76,8 @@ export class WorkflowWebsocketService {
   private openWebsocket() {
     const websocketUrl =
       WorkflowWebsocketService.getWorkflowWebsocketUrl() +
-      (environment.userSystemEnabled && UserService.getAccessToken() !== null
-        ? "?access-token=" + UserService.getAccessToken()
+      (environment.userSystemEnabled && AuthService.getAccessToken() !== null
+        ? "?access-token=" + AuthService.getAccessToken()
         : "");
     this.websocket = webSocket<TexeraWebsocketEvent | TexeraWebsocketRequest>(websocketUrl);
     // setup reconnection logic

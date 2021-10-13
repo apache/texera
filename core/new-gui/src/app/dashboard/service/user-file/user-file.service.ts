@@ -101,10 +101,12 @@ export class UserFileService {
     username: string,
     accessLevel: string
   ): Observable<Response> {
-    return this.http.post<Response>(
-      `${USER_FILE_ACCESS_GRANT_URL}/${userFileEntry.file.name}/${userFileEntry.ownerName}/${username}/${accessLevel}`,
-      null
-    );
+    return this.http.post<Response>(`${USER_FILE_ACCESS_GRANT_URL}`, {
+      username,
+      fileName: userFileEntry.file.name,
+      ownerName: userFileEntry.ownerName,
+      accessLevel,
+    });
   }
 
   /**
@@ -125,9 +127,8 @@ export class UserFileService {
    * @return message of success
    */
   public revokeUserFileAccess(userFileEntry: DashboardUserFileEntry, username: string): Observable<Response> {
-    return this.http.post<Response>(
-      `${USER_FILE_ACCESS_REVOKE_URL}/${userFileEntry.file.name}/${userFileEntry.ownerName}/${username}`,
-      null
+    return this.http.delete<Response>(
+      `${USER_FILE_ACCESS_REVOKE_URL}/${userFileEntry.file.name}/${userFileEntry.ownerName}/${username}`
     );
   }
 

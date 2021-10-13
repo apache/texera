@@ -64,7 +64,7 @@ class RecoverySpec
 //    val request =
 //      objectMapper.readValue(
 //        WorkflowJSONExamples.csvToKeywordToSink,
-//        classOf[ExecuteWorkflowRequest]
+//        classOf[WorkflowExecuteRequest]
 //      )
 //    val texeraWorkflowCompiler = new WorkflowCompiler(
 //      WorkflowInfo(request.operators, request.links, request.breakpoints),
