@@ -12,7 +12,10 @@ import edu.uci.ics.texera.Utils.retry
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.request.ResultExportRequest
 import edu.uci.ics.texera.web.model.websocket.response.ResultExportResponse
-import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{sessionExportCache, sessionResults}
+import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{
+  sessionExportCache,
+  sessionResults
+}
 import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource
 import edu.uci.ics.texera.web.service.OperatorResultService
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
