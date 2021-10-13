@@ -7,7 +7,13 @@ import akka.util.Timeout
 import com.twitter.util.{Await, Promise}
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ControllerState}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
-import edu.uci.ics.texera.workflow.common.workflow.{BreakpointInfo, OperatorLink, OperatorPort, WorkflowCompiler, WorkflowInfo}
+import edu.uci.ics.texera.workflow.common.workflow.{
+  BreakpointInfo,
+  OperatorLink,
+  OperatorPort,
+  WorkflowCompiler,
+  WorkflowInfo
+}
 import org.scalatest.BeforeAndAfterAll
 
 import scala.collection.mutable
