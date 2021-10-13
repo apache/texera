@@ -1,27 +1,14 @@
-package edu.uci.ics.texera.web.resource.dashboard
+package edu.uci.ics.texera.web.resource.dashboard.workflow
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.flipkart.zjsonpatch.JsonDiff
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
-  USER,
-  WORKFLOW,
-  WORKFLOW_OF_USER,
-  WORKFLOW_USER_ACCESS
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  WorkflowDao,
-  WorkflowOfUserDao,
-  WorkflowUserAccessDao,
-  WorkflowVersionDao
-}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowOfUserDao, WorkflowUserAccessDao, WorkflowVersionDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
-import edu.uci.ics.texera.web.resource.dashboard.WorkflowAccessResource.{
-  WorkflowAccess,
-  toAccessLevel
-}
-import edu.uci.ics.texera.web.resource.dashboard.WorkflowResource._
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{WorkflowAccess, toAccessLevel}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{DashboardWorkflowEntry, context, insertWorkflow, workflowDao, workflowOfUserExists, workflowVersionDao}
 import io.dropwizard.auth.Auth
 import org.jooq.types.UInteger
 
@@ -36,15 +23,8 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
   * The details of UserWorkflowTable can be found in /core/scripts/sql/texera_ddl.sql
   */
 
-case class DashboardWorkflowEntry(
-    isOwner: Boolean,
-    accessLevel: String,
-    ownerName: String,
-    workflow: Workflow
-)
 object WorkflowResource {
   final private lazy val context = SqlServer.createDSLContext()
-
   final private val workflowDao = new WorkflowDao(context.configuration)
   final private val workflowVersionDao = new WorkflowVersionDao(context.configuration)
   final private val workflowOfUserDao = new WorkflowOfUserDao(
@@ -66,6 +46,7 @@ object WorkflowResource {
       )
     )
   }
+
   private def workflowOfUserExists(wid: UInteger, uid: UInteger): Boolean = {
     workflowOfUserDao.existsById(
       context
@@ -73,6 +54,13 @@ object WorkflowResource {
         .values(uid, wid)
     )
   }
+
+  case class DashboardWorkflowEntry(
+      isOwner: Boolean,
+      accessLevel: String,
+      ownerName: String,
+      workflow: Workflow
+  )
 
 }
 

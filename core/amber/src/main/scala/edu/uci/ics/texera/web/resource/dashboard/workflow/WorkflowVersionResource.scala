@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.web.resource.dashboard
+package edu.uci.ics.texera.web.resource.dashboard.workflow
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.flipkart.zjsonpatch.JsonPatch
@@ -7,7 +7,8 @@ import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{WORKFLOW, WORKFLOW_VERSION}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Workflow
-import edu.uci.ics.texera.web.resource.dashboard.WorkflowVersionResource.{
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowVersionResource.{
+  VersionEntry,
   applyPatch,
   context,
   workflowDao
@@ -26,12 +27,6 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
   * The details of the mysql tables can be found in /core/scripts/sql/texera_ddl.sql
   */
 
-case class VersionEntry(
-    vId: UInteger,
-    creationTime: Timestamp,
-    content: String
-)
-
 object WorkflowVersionResource {
   final private lazy val context = SqlServer.createDSLContext()
   final private val workflowDao = new WorkflowDao(context.configuration)
@@ -49,6 +44,11 @@ object WorkflowVersionResource {
     // the checked out version is persisted to disk
     workflow
   }
+  case class VersionEntry(
+      vId: UInteger,
+      creationTime: Timestamp,
+      content: String
+  )
 
 }
 

@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.web.model.request.python
+package edu.uci.ics.texera.web.model.websocket.request.python
 
 import edu.uci.ics.texera.web.model.websocket.request.TexeraWebSocketRequest
 

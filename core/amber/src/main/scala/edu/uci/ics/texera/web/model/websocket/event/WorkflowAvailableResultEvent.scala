@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.model.websocket.event
 
 import edu.uci.ics.texera.web.model.websocket.event.WorkflowAvailableResultEvent.OperatorAvailableResult
-import edu.uci.ics.texera.web.resource.WorkflowResultService.WebOutputMode
+import edu.uci.ics.texera.web.service.WorkflowResultService.WebOutputMode
 
 object WorkflowAvailableResultEvent {
   case class OperatorAvailableResult(

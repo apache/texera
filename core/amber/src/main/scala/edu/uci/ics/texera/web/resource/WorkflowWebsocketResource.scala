@@ -22,13 +22,14 @@ import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.web.model.common.CacheStatus
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
-import edu.uci.ics.texera.web.model.request._
-import edu.uci.ics.texera.web.model.request.python.PythonExpressionEvaluateRequest
 import edu.uci.ics.texera.web.model.websocket.event.WorkflowAvailableResultEvent.OperatorAvailableResult
 import edu.uci.ics.texera.web.model.websocket.event._
+import edu.uci.ics.texera.web.model.websocket.event.python.PythonPrintTriggeredEvent
 import edu.uci.ics.texera.web.model.websocket.request._
+import edu.uci.ics.texera.web.model.websocket.request.python.PythonExpressionEvaluateRequest
 import edu.uci.ics.texera.web.model.websocket.response.{HeartBeatResponse, HelloWorldResponse}
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource._
+import edu.uci.ics.texera.web.service.WorkflowResultService
 import edu.uci.ics.texera.web.{ServletAwareConfigurator, TexeraWebApplication}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
@@ -50,7 +51,7 @@ import org.jose4j.jwt.consumer.JwtContext
 import java.util.concurrent.atomic.AtomicInteger
 import javax.websocket._
 import javax.websocket.server.ServerEndpoint
-import scala.collection.{breakOut, mutable}
+import scala.collection.mutable
 import scala.jdk.CollectionConverters.mapAsScalaMapConverter
 
 object WorkflowWebsocketResource {
@@ -482,6 +483,11 @@ class WorkflowWebsocketResource extends LazyLogging {
     send(session, resultExportResponse)
   }
 
+  def killWorkflow(session: Session): Unit = {
+    WorkflowWebsocketResource.sessionJobs(session.getId)._2 ! PoisonPill
+    logger.info("workflow killed")
+  }
+
   @OnClose
   def myOnClose(session: Session, cr: CloseReason): Unit = {
     if (WorkflowWebsocketResource.sessionJobs.contains(session.getId)) {
@@ -496,11 +502,6 @@ class WorkflowWebsocketResource extends LazyLogging {
     if (opResultSwitch) {
       clearMaterialization(session)
     }
-  }
-
-  def killWorkflow(session: Session): Unit = {
-    WorkflowWebsocketResource.sessionJobs(session.getId)._2 ! PoisonPill
-    logger.info("workflow killed")
   }
 
   def clearMaterialization(session: Session): Unit = {
