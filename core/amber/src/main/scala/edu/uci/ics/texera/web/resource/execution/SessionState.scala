@@ -26,16 +26,11 @@ object SessionState {
 }
 
 class SessionState(session: Session) {
-  private var wId: String = _
   private var subscription: Subscription = Subscription()
   private val observer: Observer[TexeraWebSocketEvent] = new WebsocketSubscriber(session)
   private var currentWorkflowState: Option[WorkflowState] = None
 
   def getCurrentWorkflowState: Option[WorkflowState] = currentWorkflowState
-
-  def changeWorkflow(newWId: String): Unit = {
-    wId = newWId
-  }
 
   def unbind(): Unit = {
     subscription.unsubscribe()

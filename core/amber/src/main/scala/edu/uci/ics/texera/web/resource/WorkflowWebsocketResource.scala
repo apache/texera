@@ -66,7 +66,6 @@ class WorkflowWebsocketResource extends LazyLogging {
         case wIdRequest: RegisterWIdRequest =>
           val wId = uidOpt.toString + "-" + wIdRequest.wId
           val workflowState = WorkflowState.getOrCreate(wId)
-          sessionState.changeWorkflow(wId)
           sessionState.bind(workflowState)
           logger.info("start working on " + wId)
           send(session, RegisterWIdResponse("wid registered"))

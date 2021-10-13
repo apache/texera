@@ -81,7 +81,7 @@ class WorkflowRuntimeService(workflow: Workflow, client: AmberClient)
     val faults: mutable.ArrayBuffer[BreakpointFault] = new ArrayBuffer[BreakpointFault]()
   }
 
-  private var workflowStatus: BehaviorSubject[ExecutionStatusEnum] =
+  private val workflowStatus: BehaviorSubject[ExecutionStatusEnum] =
     BehaviorSubject[ExecutionStatusEnum](Unknown)
   val operatorRuntimeStateMap: mutable.HashMap[String, OperatorRuntimeState] =
     new mutable.HashMap[String, OperatorRuntimeState]()
