@@ -11,7 +11,7 @@ import java.util.Optional
 object UserAuthenticator extends Authenticator[JwtContext, SessionUser] with LazyLogging {
   override def authenticate(context: JwtContext): Optional[SessionUser] = {
     // This method will be called once the token's signature has been verified,
-    // including the jwtTokenSecret and the expiration time
+    // including the token secret and the expiration time
     try {
       val userName = context.getJwtClaims.getSubject
       val userId = UInteger.valueOf(context.getJwtClaims.getClaimValue("userId").asInstanceOf[Long])
