@@ -1,7 +1,6 @@
 import { Component, OnInit } from "@angular/core";
 import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { UserService } from "../../../../../common/service/user/user.service";
-import { User } from "../../../../../common/type/user";
 import { FormBuilder, FormControl, FormGroup, Validators } from "@angular/forms";
 import { isDefined } from "../../../../../common/util/predicate";
 import { filter } from "rxjs/operators";
@@ -26,8 +25,8 @@ export class NgbdModalUserLoginComponent implements OnInit {
 
   constructor(private formBuilder: FormBuilder, public activeModal: NgbActiveModal, private userService: UserService) {
     this.allForms = this.formBuilder.group({
-      loginUserName: new FormControl("", [Validators.required]),
-      registerUserName: new FormControl("", [Validators.required]),
+      loginUsername: new FormControl("", [Validators.required]),
+      registerUsername: new FormControl("", [Validators.required]),
       loginPassword: new FormControl("", [Validators.required]),
       registerPassword: new FormControl("", [Validators.required]),
       registerConfirmationPassword: new FormControl("", [Validators.required]),
@@ -59,25 +58,20 @@ export class NgbdModalUserLoginComponent implements OnInit {
   public login(): void {
     // validate the credentials format
     this.loginErrorMessage = undefined;
-    const validation = this.userService.validateUsername(this.allForms.get("loginUserName")?.value);
+    const validation = UserService.validateUsername(this.allForms.get("loginUsername")?.value);
     if (!validation.result) {
       this.loginErrorMessage = validation.message;
       return;
     }
 
-    const normalUserName = this.allForms.get("loginUserName")?.value.trim();
-    const normalUserPassword = this.allForms.get("loginPassword")?.value;
+    const username = this.allForms.get("loginUsername")?.value.trim();
+    const password = this.allForms.get("loginPassword")?.value;
 
-    // validate the credentials with backend
     this.userService
-      .login(normalUserName, normalUserPassword)
+      .login(username, password)
       .pipe(untilDestroyed(this))
       .subscribe(
-        ({ accessToken }) => {
-          UserService.setAccessToken(accessToken);
-          this.userService.loginFromSession();
-          this.activeModal.close();
-        },
+        () => this.activeModal.close(),
         () => (this.loginErrorMessage = "Incorrect credentials")
       );
   }
@@ -91,8 +85,8 @@ export class NgbdModalUserLoginComponent implements OnInit {
     this.registerErrorMessage = undefined;
     const registerPassword = this.allForms.get("registerPassword")?.value;
     const registerConfirmationPassword = this.allForms.get("registerConfirmationPassword")?.value;
-    const registerUserName = this.allForms.get("registerUserName")?.value.trim();
-    const validation = this.userService.validateUsername(this.allForms.get("registerUserName")?.value.trim());
+    const registerUsername = this.allForms.get("registerUsername")?.value.trim();
+    const validation = UserService.validateUsername(registerUsername);
     if (registerPassword.length < 6) {
       this.registerErrorMessage = "Password length should be greater than 5";
       return;
@@ -107,14 +101,10 @@ export class NgbdModalUserLoginComponent implements OnInit {
     }
     // register the credentials with backend
     this.userService
-      .register(registerUserName, registerPassword)
+      .register(registerUsername, registerPassword)
       .pipe(untilDestroyed(this))
       .subscribe(
-        ({ accessToken }) => {
-          UserService.setAccessToken(accessToken);
-          this.userService.loginFromSession();
-          this.activeModal.close();
-        },
+        () => this.activeModal.close(),
         () => (this.registerErrorMessage = "Registration failed. Could due to duplicate username.")
       );
   }
@@ -124,25 +114,14 @@ export class NgbdModalUserLoginComponent implements OnInit {
    * with that available instance, get googleUsername and authorization code respectively,
    * then sending the code to the backend
    */
-  public authenticate(): void {
+  public googleLogin(): void {
     this.userService
-      .getGoogleAuthInstance()
+      .googleLogin()
       .pipe(untilDestroyed(this))
-      .subscribe(Auth => {
-        // grantOfflineAccess allows application to access specified scopes offline
-        Auth.grantOfflineAccess().then(code =>
-          this.userService
-            .googleLogin(code["code"])
-            .pipe(untilDestroyed(this))
-            .subscribe(
-              googleUser => {
-                this.userService.changeUser(<User>{ name: googleUser.name });
-                this.activeModal.close();
-              },
-              () => (this.loginErrorMessage = "Incorrect credentials")
-            )
-        );
-      });
+      .subscribe(
+        () => this.activeModal.close(),
+        () => (this.loginErrorMessage = "Incorrect credentials")
+      );
   }
 
   /**
