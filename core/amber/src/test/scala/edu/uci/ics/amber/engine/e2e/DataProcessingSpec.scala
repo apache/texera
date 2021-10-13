@@ -20,11 +20,11 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import java.sql.PreparedStatement
 
+import com.twitter.util.{Await, Promise}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowCompleted
 import edu.uci.ics.amber.engine.common.AmberClient
 
 import scala.collection.mutable
-import scala.concurrent.{Await, ExecutionContextExecutor, Promise}
 import scala.concurrent.duration._
 
 class DataProcessingSpec
@@ -35,7 +35,6 @@ class DataProcessingSpec
     with BeforeAndAfterEach {
 
   implicit val timeout: Timeout = Timeout(5.seconds)
-  implicit val executionContext: ExecutionContextExecutor = system.dispatcher
 
   var inMemoryMySQLInstance: Option[DB] = None
 
@@ -68,10 +67,10 @@ class DataProcessingSpec
       .getObservable[WorkflowCompleted]
       .subscribe(evt => {
         results = evt.result
-        completion.success(scala.runtime.BoxedUnit.UNIT)
+        completion.setDone()
       })
-    Await.result(client.sendAsScalaFuture(StartWorkflow()), 1.second)
-    Await.result(completion.future, 1.minute)
+    client.sendSync(StartWorkflow(), 1.second)
+    Await.result(completion)
     results.map(e => (e._1, e._2.result))
   }
 

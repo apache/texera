@@ -4,19 +4,13 @@ import edu.uci.ics.amber.clustering.SingleNodeListener
 import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import akka.util.Timeout
+import com.twitter.util.{Await, Promise}
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ControllerState}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
-import edu.uci.ics.texera.workflow.common.workflow.{
-  BreakpointInfo,
-  OperatorLink,
-  OperatorPort,
-  WorkflowCompiler,
-  WorkflowInfo
-}
+import edu.uci.ics.texera.workflow.common.workflow.{BreakpointInfo, OperatorLink, OperatorPort, WorkflowCompiler, WorkflowInfo}
 import org.scalatest.BeforeAndAfterAll
 
 import scala.collection.mutable
-import scala.concurrent.{Await, ExecutionContextExecutor, Promise}
 import scala.concurrent.duration._
 import com.typesafe.scalalogging.Logger
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowCompleted
@@ -24,8 +18,6 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHan
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.common.AmberClient
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import org.scalatest.flatspec.AnyFlatSpecLike
 
 class PauseSpec
@@ -35,7 +27,6 @@ class PauseSpec
     with BeforeAndAfterAll {
 
   implicit val timeout: Timeout = Timeout(5.seconds)
-  implicit val executionContext: ExecutionContextExecutor = system.dispatcher
 
   val logger = Logger("PauseSpecLogger")
 
@@ -57,17 +48,17 @@ class PauseSpec
     client
       .getObservable[WorkflowCompleted]
       .subscribe(evt => {
-        completion.success(scala.runtime.BoxedUnit.UNIT)
+        completion.setDone()
       })
-    Await.result(client.sendAsScalaFuture(StartWorkflow()), 1.second)
-    Await.result(client.sendAsScalaFuture(PauseWorkflow()), 1.second)
+    client.sendSync(StartWorkflow(), 1.second)
+    client.sendSync(PauseWorkflow(), 1.second)
     Thread.sleep(4000)
-    Await.result(client.sendAsScalaFuture(ResumeWorkflow()), 1.second)
+    client.sendSync(ResumeWorkflow(), 1.second)
     Thread.sleep(400)
-    Await.result(client.sendAsScalaFuture(PauseWorkflow()), 1.second)
+    client.sendSync(PauseWorkflow(), 1.second)
     Thread.sleep(4000)
-    Await.result(client.sendAsScalaFuture(ResumeWorkflow()), 1.second)
-    Await.result(completion.future, 1.minute)
+    client.sendSync(ResumeWorkflow(), 1.second)
+    Await.result(completion)
   }
 
   "Engine" should "be able to pause csv->sink workflow" in {

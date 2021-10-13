@@ -103,7 +103,7 @@ trait LocalBreakpointTriggeredHandler {
                     .unit
                 } else {
                   // other wise, report to frontend and pause entire workflow
-                  sendToOutsideWorld(BreakpointTriggered(mutable.HashMap.empty, opID))
+                  sendToClient(BreakpointTriggered(mutable.HashMap.empty, opID))
                   execute(PauseWorkflow(), CONTROLLER)
                 }
               }

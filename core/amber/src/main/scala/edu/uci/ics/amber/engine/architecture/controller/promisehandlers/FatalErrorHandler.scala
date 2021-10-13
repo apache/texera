@@ -22,7 +22,7 @@ trait FatalErrorHandler {
       logger.error("FatalError received", msg)
 
       //report to client
-      sendToOutsideWorld(msg)
+      sendToClient(msg)
     }
   }
 }

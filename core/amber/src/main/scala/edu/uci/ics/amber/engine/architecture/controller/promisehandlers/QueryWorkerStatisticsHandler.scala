@@ -56,7 +56,7 @@ trait QueryWorkerStatisticsHandler {
     // wait for all workers to reply before notifying frontend
     Future
       .collect(requests)
-      .map(_ => sendToOutsideWorld(WorkflowStatusUpdate(workflow.getWorkflowStatus)))
+      .map(_ => sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus)))
   })
 
   registerHandler((msg: ControllerInitiateQueryResults, sender) => {
@@ -90,7 +90,7 @@ trait QueryWorkerStatisticsHandler {
           })
         // send update result to frontend
         if (operatorResultUpdate.nonEmpty) {
-          sendToOutsideWorld(WorkflowResultUpdate(operatorResultUpdate.toMap))
+          sendToClient(WorkflowResultUpdate(operatorResultUpdate.toMap))
         }
         operatorResultUpdate.toMap
       })

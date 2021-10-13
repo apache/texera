@@ -66,7 +66,7 @@ class AsyncRPCClient(
     p
   }
 
-  def sendToOutsideWorld[T](cmd: ControlCommand[T]): Unit = {
+  def sendToClient(cmd: ControlCommand[_]): Unit = {
     controlOutputEndpoint.sendTo(CLIENT, ControlInvocation(0, cmd))
   }
 

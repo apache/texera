@@ -10,7 +10,7 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHa
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.RetryWorkflowHandler.RetryWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig}
-import edu.uci.ics.amber.engine.common.{AmberUtils, AmberClient}
+import edu.uci.ics.amber.engine.common.{AmberClient, AmberUtils}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
@@ -55,6 +55,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   WorkflowResultUpdate,
   WorkflowStatusUpdate
 }
+import edu.uci.ics.texera.web.model.websocket.response.python.PythonExpressionEvaluateResponse
 import javax.websocket._
 import javax.websocket.server.ServerEndpoint
 
@@ -178,10 +179,8 @@ class WorkflowWebsocketResource extends LazyLogging {
   def evaluatePythonExpression(session: Session, request: PythonExpressionEvaluateRequest): Unit = {
     val client = WorkflowWebsocketResource.sessionJobs(session.getId)._2
     client
-      .sendAsTwitterFuture(EvaluatePythonExpression(request.expression, request.operatorId))
-      .onSuccess { ret =>
-        send(session, ret)
-      }
+      .sendAsync(EvaluatePythonExpression(request.expression, request.operatorId))
+      .onSuccess { ret: PythonExpressionEvaluateResponse => send(session, ret) }
   }
 
   def resultPagination(session: Session, request: ResultPaginationRequest): Unit = {
@@ -222,26 +221,26 @@ class WorkflowWebsocketResource extends LazyLogging {
     val texeraOperator = newLogic.operator
     val (compiler, client) = WorkflowWebsocketResource.sessionJobs(session.getId)
     compiler.initOperator(texeraOperator)
-    client.send(ModifyLogic(texeraOperator))
+    client.fireAndForget(ModifyLogic(texeraOperator))
   }
 
   def retryWorkflow(session: Session): Unit = {
-    val (compiler, client) = WorkflowWebsocketResource.sessionJobs(session.getId)
+    val (_, client) = WorkflowWebsocketResource.sessionJobs(session.getId)
     client
-      .sendAsTwitterFuture(RetryWorkflow())
-      .onSuccess(x => send(session, WorkflowResumedEvent()))
+      .sendAsync(RetryWorkflow())
+      .onSuccess(_ => send(session, WorkflowResumedEvent()))
   }
 
   def pauseWorkflow(session: Session): Unit = {
     val client = WorkflowWebsocketResource.sessionJobs(session.getId)._2
-    client.sendAsTwitterFuture(PauseWorkflow()).onSuccess(x => send(session, WorkflowPausedEvent()))
+    client.sendAsync(PauseWorkflow()).onSuccess(x => send(session, WorkflowPausedEvent()))
   }
 
   def resumeWorkflow(session: Session): Unit = {
     val client = WorkflowWebsocketResource.sessionJobs(session.getId)._2
     client
-      .sendAsTwitterFuture(ResumeWorkflow())
-      .onSuccess(x => send(session, WorkflowResumedEvent()))
+      .sendAsync(ResumeWorkflow())
+      .onSuccess(_ => send(session, WorkflowResumedEvent()))
   }
 
   def executeWorkflow(session: Session, request: WorkflowExecuteRequest): Unit = {
@@ -422,7 +421,7 @@ class WorkflowWebsocketResource extends LazyLogging {
         send(session, WorkflowExecutionErrorEvent(errorOccurred.error.getLocalizedMessage))
       })
 
-    client.send(StartWorkflow())
+    client.fireAndForget(StartWorkflow())
 
     WorkflowWebsocketResource.sessionJobs(session.getId) = (texeraWorkflowCompiler, client)
 

@@ -21,7 +21,7 @@ trait WorkerExecutionStartedHandler {
     {
       // set the state
       workflow.getOperator(sender).getWorker(sender).state = msg.state
-      sendToOutsideWorld(WorkflowStatusUpdate(workflow.getWorkflowStatus))
+      sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus))
     }
   }
 }

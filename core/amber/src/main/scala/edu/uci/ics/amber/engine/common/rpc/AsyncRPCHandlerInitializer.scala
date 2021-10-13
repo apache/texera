@@ -80,8 +80,8 @@ class AsyncRPCHandlerInitializer(
     ctrlReceiver.execute((cmd, sender)).asInstanceOf[Future[T]]
   }
 
-  def sendToOutsideWorld[T](cmd: ControlCommand[T]): Unit = {
-    ctrlSource.sendToOutsideWorld(cmd)
+  def sendToClient(cmd: ControlCommand[_]): Unit = {
+    ctrlSource.sendToClient(cmd)
   }
 
 }

@@ -204,7 +204,7 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
             tuple => !tuple.getField(column).toString.trim.contains(conditionBp.value)
         }
 
-        client.send(
+        client.fireAndForget(
           AssignGlobalBreakpoint(
             new ConditionalGlobalBreakpoint(
               breakpointID,
@@ -217,7 +217,7 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
           )
         )
       case countBp: CountBreakpoint =>
-        client.send(
+        client.fireAndForget(
           AssignGlobalBreakpoint(new CountGlobalBreakpoint(breakpointID, countBp.count), operatorID)
         )
     }

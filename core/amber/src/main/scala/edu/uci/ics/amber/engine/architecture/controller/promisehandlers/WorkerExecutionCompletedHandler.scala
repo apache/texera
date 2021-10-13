@@ -60,7 +60,7 @@ trait WorkerExecutionCompletedHandler {
           val finalResult = execute(ControllerInitiateQueryResults(), CONTROLLER)
           // after query result come back: send completed event, cleanup ,and kill workflow
           finalResult.flatMap(ret => {
-            sendToOutsideWorld(WorkflowCompleted(ret))
+            sendToClient(WorkflowCompleted(ret))
             disableStatusUpdate()
             Future.Done
           })
