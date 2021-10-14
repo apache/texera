@@ -90,8 +90,9 @@ class WorkflowRuntimeService(workflow: Workflow, client: AmberClient)
   def startWorkflow(): Unit = {
     client.sendAsTwitterFuture(StartWorkflow()).onSuccess { x =>
       workflowStatus.onNext(Running)
-      send(WorkflowStartedEvent())
     }
+    // hack: send it immediately to prevent frontend request timeout
+    send(WorkflowStartedEvent())
   }
 
   def getStatus: ExecutionStatusEnum = workflowStatus.asJavaSubject.getValue

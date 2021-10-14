@@ -36,6 +36,7 @@ class SessionState(session: Session) {
     subscription.unsubscribe()
     if (currentWorkflowState.isDefined) {
       currentWorkflowState.get.disconnect()
+      currentWorkflowState = None
     }
   }
 
@@ -44,11 +45,9 @@ class SessionState(session: Session) {
     currentWorkflowState = Some(executionState)
     executionState.connect()
     val opCacheSubscription = SnapshotMulticast.syncState(executionState.operatorCache, observer)
-    executionState.executionState match {
-      case Some(value) =>
-        subscription = CompositeSubscription(value.subscribeAll(observer), opCacheSubscription)
-      case None =>
-        subscription = opCacheSubscription
-    }
+    subscription = CompositeSubscription(opCacheSubscription,
+    executionState.getExecutionStateObservable.subscribe(executionState =>{
+      subscription = CompositeSubscription(executionState.subscribeAll(observer), subscription)
+    }))
   }
 }

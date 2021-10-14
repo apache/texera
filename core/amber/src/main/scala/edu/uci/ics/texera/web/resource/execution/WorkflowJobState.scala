@@ -29,7 +29,7 @@ import rx.lang.scala.{Observer, Subscription}
 
 import scala.collection.mutable
 
-class WorkflowExecutionState(
+class WorkflowJobState(
     operatorCache: OperatorCache,
     uidOpt: Option[UInteger],
     request: ExecuteWorkflowRequest,
