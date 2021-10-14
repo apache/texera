@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.ServletAwareConfigurator
-import edu.uci.ics.texera.web.model.event._
+import edu.uci.ics.texera.web.model.common.CacheStatus
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.request._
 import edu.uci.ics.texera.web.model.request.python.PythonExpressionEvaluateRequest
@@ -71,7 +71,7 @@ class WorkflowWebsocketResource extends LazyLogging {
           send(session, RegisterWIdResponse("wid registered"))
         case heartbeat: HeartBeatRequest =>
           send(session, HeartBeatResponse())
-        case execute: ExecuteWorkflowRequest =>
+        case execute: WorkflowExecuteRequest =>
           println(execute)
           try {
             workflowStateOpt.get.initExecutionState(execute, uidOpt)
@@ -82,15 +82,15 @@ class WorkflowWebsocketResource extends LazyLogging {
           }
         case newLogic: ModifyLogicRequest =>
           workflowStateOpt.foreach(_.jobState.foreach(_.modifyLogic(newLogic)))
-        case pause: PauseWorkflowRequest =>
+        case pause: WorkflowPauseRequest =>
           workflowStateOpt.foreach(
             _.jobState.foreach(_.workflowRuntimeService.pauseWorkflow())
           )
-        case resume: ResumeWorkflowRequest =>
+        case resume: WorkflowResumeRequest =>
           workflowStateOpt.foreach(
             _.jobState.foreach(_.workflowRuntimeService.resumeWorkflow())
           )
-        case kill: KillWorkflowRequest =>
+        case kill: WorkflowKillRequest =>
           workflowStateOpt.foreach(
             _.jobState.foreach(_.workflowRuntimeService.killWorkflow())
           )

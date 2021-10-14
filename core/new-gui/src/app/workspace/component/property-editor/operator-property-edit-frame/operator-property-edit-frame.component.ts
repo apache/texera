@@ -183,7 +183,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
     } else {
       this.switchDisplayComponent(undefined);
     }
-// execute set interactivity immediately in another task because of a formly bug
+    // execute set interactivity immediately in another task because of a formly bug
     // whenever the form model is changed, formly can only disable it after the UI is rendered
     setTimeout(() => {
       const interactive = this.evaluateInteractivity();

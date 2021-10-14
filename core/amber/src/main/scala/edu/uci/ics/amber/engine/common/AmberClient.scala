@@ -1,31 +1,28 @@
 package edu.uci.ics.amber.engine.common
 
 import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
-import com.twitter.util.{Return, Throw, Future => TwitterFuture, Promise => TwitterPromise}
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
-  NetworkAck,
-  NetworkMessage
-}
-import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowControlMessage}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import akka.pattern._
 import akka.util.Timeout
-import rx.lang.scala.{Observable, Observer, Subject}
-
-import scala.collection.mutable
-import FutureBijection._
+import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   ErrorOccurred,
   WorkflowCompleted
 }
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, Workflow}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
+  NetworkAck,
+  NetworkMessage
+}
+import edu.uci.ics.amber.engine.common.FutureBijection._
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowControlMessage
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
+import rx.lang.scala.{Observable, Subject}
 
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable
 import scala.concurrent.Await
 import scala.concurrent.duration.{Duration, DurationInt}
-import scala.concurrent.{ExecutionContext, Future => ScalaFuture, Promise => ScalaPromise}
 import scala.reflect.ClassTag
 
 class AmberClient(system: ActorSystem, workflow: Workflow, controllerConfig: ControllerConfig) {
@@ -100,23 +97,23 @@ class AmberClient(system: ActorSystem, workflow: Workflow, controllerConfig: Con
     Await.result(sendAsScalaFuture(controlCommand), timeout.duration)
   }
 
-  def sendAsTwitterFuture[T](controlCommand: ControlCommand[T]): TwitterFuture[T] = {
+  def sendAsync[T](controlCommand: ControlCommand[T]): Future[T] = {
     if (!isActive) {
-      TwitterFuture.exception(new RuntimeException("amber runtime environment is not active"))
+      Future.exception(new RuntimeException("amber runtime environment is not active"))
     } else {
-      (client ? CommandRequest(controlCommand)).asTwitter().asInstanceOf[TwitterFuture[T]]
+      (client ? CommandRequest(controlCommand)).asTwitter().asInstanceOf[Future[T]]
     }
   }
 
-  def sendAsScalaFuture[T](controlCommand: ControlCommand[T]): ScalaFuture[T] = {
+  def sendSync[T](controlCommand: ControlCommand[T], deadline: Duration = timeout.duration): T = {
     if (!isActive) {
-      ScalaFuture.failed(new RuntimeException("amber runtime environment is not active"))
+      throw new RuntimeException("amber runtime environment is not active")
     } else {
-      (client ? CommandRequest(controlCommand)).asInstanceOf[ScalaFuture[T]]
+      Await.result(client ? CommandRequest(controlCommand), deadline).asInstanceOf[T]
     }
   }
 
-  def send[T](controlCommand: ControlCommand[T]): Unit = {
+  def fireAndForget[T](controlCommand: ControlCommand[T]): Unit = {
     if (!isActive) {
       throw new RuntimeException("amber runtime environment is not active")
     } else {

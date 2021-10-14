@@ -61,14 +61,14 @@ trait PauseHandler {
             )
             .map { ret =>
               // for each paused operator, send the input tuple
-              sendToOutsideWorld(ReportCurrentProcessingTuple(operator.id.operator, buffer.toArray))
+              sendToClient(ReportCurrentProcessingTuple(operator.id.operator, buffer.toArray))
             }
         }.toSeq)
         .map { ret =>
           // update frontend workflow status
-          sendToOutsideWorld(WorkflowStatusUpdate(workflow.getWorkflowStatus))
+          sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus))
           // send paused to frontend
-          sendToOutsideWorld(WorkflowPaused())
+          sendToClient(WorkflowPaused())
           disableStatusUpdate() // to be enabled in resume
 
         }

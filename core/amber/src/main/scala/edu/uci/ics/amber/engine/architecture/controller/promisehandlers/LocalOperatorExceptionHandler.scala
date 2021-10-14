@@ -41,7 +41,7 @@ trait LocalOperatorExceptionHandler {
       execute(PauseWorkflow(), CONTROLLER)
 
       // report the faulted tuple to the frontend with the exception
-      sendToOutsideWorld(
+      sendToClient(
         BreakpointTriggered(
           mutable.HashMap(
             (sender, FaultedTuple(msg.triggeredTuple, 0)) -> Array(

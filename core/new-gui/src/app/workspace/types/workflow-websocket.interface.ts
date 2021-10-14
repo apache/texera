@@ -103,6 +103,7 @@ export type WorkflowAvailableResultEvent = Readonly<{
 }>;
 
 export type OperatorResultCacheStatus = "cache invalid" | "cache valid" | "cache not enabled";
+
 export interface CacheStatusUpdateEvent
   extends Readonly<{
     cacheStatusMap: Record<string, OperatorResultCacheStatus>;
@@ -131,18 +132,18 @@ export type PythonExpressionEvaluateResponse = Readonly<{
 
 export type TexeraWebsocketRequestTypeMap = {
   RegisterWIdRequest: RegisterWIdRequest;
-  HeartBeatRequest: {};
-  ExecuteWorkflowRequest: LogicalPlan;
-  PauseWorkflowRequest: {};
-  ResumeWorkflowRequest: {};
-  KillWorkflowRequest: {};
-  ModifyLogicRequest: ModifyOperatorLogic;
-  SkipTupleRequest: SkipTuple;
-  RetryRequest: {};
   AddBreakpointRequest: BreakpointInfo;
-  ResultPaginationRequest: PaginationRequest;
-  ResultExportRequest: ResultExportRequest;
   CacheStatusUpdateRequest: CacheStatusUpdateRequest;
+  HeartBeatRequest: {};
+  ModifyLogicRequest: ModifyOperatorLogic;
+  ResultExportRequest: ResultExportRequest;
+  ResultPaginationRequest: PaginationRequest;
+  RetryRequest: {};
+  SkipTupleRequest: SkipTuple;
+  WorkflowExecuteRequest: LogicalPlan;
+  WorkflowKillRequest: {};
+  WorkflowPauseRequest: {};
+  WorkflowResumeRequest: {};
   PythonExpressionEvaluateRequest: PythonExpressionEvaluateRequest;
 };
 

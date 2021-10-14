@@ -118,14 +118,14 @@ class Controller(
       )
       .onSuccess({ _ =>
         workflow.getAllOperators.foreach(_.setAllWorkerState(READY))
-        asyncRPCClient.sendToOutsideWorld(WorkflowStatusUpdate(workflow.getWorkflowStatus))
+        asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus))
         context.become(running)
         unstashAll()
       })
       .onFailure((err: Throwable) => {
         logger.error("Failure when sending Python UDF code", err)
         // report error to frontend
-        asyncRPCClient.sendToOutsideWorld(ErrorOccurred(err))
+        asyncRPCClient.sendToClient(ErrorOccurred(err))
       })
   }
 

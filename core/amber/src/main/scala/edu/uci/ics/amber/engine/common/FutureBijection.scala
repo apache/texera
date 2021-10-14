@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.common
 import com.twitter.util.{Return, Throw, Future => TwitterFuture, Promise => TwitterPromise}
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{ExecutionContext, Future => ScalaFuture, Promise => ScalaPromise}
+import scala.concurrent.{Future => ScalaFuture, Promise => ScalaPromise}
 import scala.util.{Failure, Success}
 
 object FutureBijection {

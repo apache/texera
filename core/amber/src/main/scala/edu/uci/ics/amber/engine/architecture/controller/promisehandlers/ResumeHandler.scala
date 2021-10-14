@@ -34,7 +34,7 @@ trait ResumeHandler {
         }.toSeq)
         .map { _ =>
           // update frontend status
-          sendToOutsideWorld(WorkflowStatusUpdate(workflow.getWorkflowStatus))
+          sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus))
           enableStatusUpdate() //re-enabled it since it is disabled in pause
 
         }

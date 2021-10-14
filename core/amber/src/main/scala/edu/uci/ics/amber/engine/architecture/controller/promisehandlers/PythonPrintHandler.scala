@@ -15,7 +15,7 @@ trait PythonPrintHandler {
   registerHandler { (msg: PythonPrint, sender) =>
     {
       // report the print message to the frontend
-      sendToOutsideWorld(
+      sendToClient(
         PythonPrintTriggered(msg.message, workflow.getOperator(sender).id.operator)
       )
     }
