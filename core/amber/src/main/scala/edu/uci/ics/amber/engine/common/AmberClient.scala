@@ -4,21 +4,15 @@ import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
 import akka.pattern._
 import akka.util.Timeout
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  ErrorOccurred,
-  WorkflowCompleted
-}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{ErrorOccurred, WorkflowCompleted}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, Workflow}
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
-  NetworkAck,
-  NetworkMessage
-}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{NetworkAck, NetworkMessage}
 import edu.uci.ics.amber.engine.common.FutureBijection._
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowControlMessage
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import rx.lang.scala.{Observable, Subject}
+import rx.lang.scala.{Observable, Observer, Subject}
 
 import scala.collection.mutable
 import scala.concurrent.Await
@@ -91,10 +85,6 @@ class AmberClient(system: ActorSystem, workflow: Workflow, controllerConfig: Con
       isActive = false
       client ! PoisonPill
     }
-  }
-
-  def execute[T](controlCommand: ControlCommand[T]): T = {
-    Await.result(sendAsScalaFuture(controlCommand), timeout.duration)
   }
 
   def sendAsync[T](controlCommand: ControlCommand[T]): Future[T] = {

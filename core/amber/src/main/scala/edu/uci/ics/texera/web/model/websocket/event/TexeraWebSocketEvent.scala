@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import edu.uci.ics.texera.web.model.websocket.event.python.PythonPrintTriggeredEvent
 import edu.uci.ics.texera.web.model.websocket.response.python.PythonExpressionEvaluateResponse
-import edu.uci.ics.texera.web.model.websocket.response.{HeartBeatResponse, HelloWorldResponse}
+import edu.uci.ics.texera.web.model.websocket.response.{HeartBeatResponse, RegisterWIdResponse}
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes(

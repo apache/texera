@@ -2,17 +2,9 @@ package edu.uci.ics.texera.web.resource.execution
 
 import com.google.common.collect.EvictingQueue
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{
-  ConditionalGlobalBreakpoint,
-  CountGlobalBreakpoint
-}
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  BreakpointTriggered,
-  ErrorOccurred,
-  PythonPrintTriggered,
-  WorkflowCompleted,
-  WorkflowStatusUpdate
-}
+import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{ConditionalGlobalBreakpoint, CountGlobalBreakpoint}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent._
+import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.AssignBreakpointHandler.AssignGlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.EvaluatePythonExpressionHandler.EvaluatePythonExpression
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ModifyLogicHandler.ModifyLogic
@@ -20,41 +12,18 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHan
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.RetryWorkflowHandler.RetryWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
-import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.architecture.principal.{OperatorState, OperatorStatistics}
 import edu.uci.ics.amber.engine.common.AmberClient
-import edu.uci.ics.texera.web.TexeraWebApplication
 import edu.uci.ics.texera.web.model.common.FaultedTupleFrontend
-import edu.uci.ics.texera.web.model.event.{
-  BreakpointFault,
-  BreakpointTriggeredEvent,
-  PythonPrintTriggeredEvent,
-  TexeraWebSocketEvent,
-  WebWorkflowStatusUpdateEvent,
-  WorkflowCompletedEvent,
-  WorkflowExecutionErrorEvent,
-  WorkflowPausedEvent,
-  WorkflowResumedEvent,
-  WorkflowStartedEvent
-}
-import edu.uci.ics.texera.web.model.request.python.PythonExpressionEvaluateRequest
-import edu.uci.ics.texera.web.model.request.{
-  AddBreakpointRequest,
-  ModifyLogicRequest,
-  RemoveBreakpointRequest,
-  SkipTupleRequest
-}
+import edu.uci.ics.texera.web.model.websocket.event.python.PythonPrintTriggeredEvent
+import edu.uci.ics.texera.web.model.websocket.event._
+import edu.uci.ics.texera.web.model.websocket.request.python.PythonExpressionEvaluateRequest
+import edu.uci.ics.texera.web.model.websocket.request.{RemoveBreakpointRequest, SkipTupleRequest}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.workflow.{
-  Breakpoint,
-  BreakpointCondition,
-  ConditionBreakpoint,
-  CountBreakpoint,
-  WorkflowInfo
-}
-import rx.lang.scala.{Observable, Observer}
+import edu.uci.ics.texera.workflow.common.workflow.{Breakpoint, BreakpointCondition, ConditionBreakpoint, CountBreakpoint}
 import rx.lang.scala.subjects.BehaviorSubject
+import rx.lang.scala.{Observable, Observer}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -88,7 +57,7 @@ class WorkflowRuntimeService(workflow: Workflow, client: AmberClient)
   var workflowError: Throwable = _
 
   def startWorkflow(): Unit = {
-    client.sendAsTwitterFuture(StartWorkflow()).onSuccess { x =>
+    client.sendAsync(StartWorkflow()).onSuccess { x =>
       workflowStatus.onNext(Running)
     }
     // hack: send it immediately to prevent frontend request timeout
@@ -131,7 +100,7 @@ class WorkflowRuntimeService(workflow: Workflow, client: AmberClient)
             tuple => !tuple.getField(column).toString.trim.contains(conditionBp.value)
         }
 
-        client.execute(
+        client.sendSync(
           AssignGlobalBreakpoint(
             new ConditionalGlobalBreakpoint(
               breakpointID,
@@ -144,7 +113,7 @@ class WorkflowRuntimeService(workflow: Workflow, client: AmberClient)
           )
         )
       case countBp: CountBreakpoint =>
-        client.execute(
+        client.sendSync(
           AssignGlobalBreakpoint(new CountGlobalBreakpoint(breakpointID, countBp.count), operatorID)
         )
     }
@@ -231,24 +200,24 @@ class WorkflowRuntimeService(workflow: Workflow, client: AmberClient)
   }
 
   def modifyLogic(operatorDescriptor: OperatorDescriptor): Unit = {
-    client.execute(ModifyLogic(operatorDescriptor))
+    client.sendSync(ModifyLogic(operatorDescriptor))
   }
 
   def retryWorkflow(): Unit = {
     clearTriggeredBreakpoints()
-    client.execute(RetryWorkflow())
+    client.sendSync(RetryWorkflow())
     send(WorkflowResumedEvent())
   }
 
   def pauseWorkflow(): Unit = {
-    client.execute(PauseWorkflow())
+    client.sendSync(PauseWorkflow())
     workflowStatus.onNext(Paused)
     send(WorkflowPausedEvent())
   }
 
   def resumeWorkflow(): Unit = {
     clearTriggeredBreakpoints()
-    client.execute(ResumeWorkflow())
+    client.sendSync(ResumeWorkflow())
     workflowStatus.onNext(Running)
     send(WorkflowResumedEvent())
   }
@@ -262,7 +231,7 @@ class WorkflowRuntimeService(workflow: Workflow, client: AmberClient)
   }
 
   def evaluatePythonExpression(request: PythonExpressionEvaluateRequest): Unit = {
-    send(client.execute(EvaluatePythonExpression(request.expression, request.operatorId)))
+    send(client.sendSync(EvaluatePythonExpression(request.expression, request.operatorId)))
   }
 
 }

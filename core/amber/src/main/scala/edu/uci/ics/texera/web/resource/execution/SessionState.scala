@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.web.resource.execution
 
-import edu.uci.ics.texera.web.model.event.TexeraWebSocketEvent
+import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.resource.WebsocketSubscriber
 import javax.websocket.Session
 import rx.lang.scala.subscriptions.CompositeSubscription

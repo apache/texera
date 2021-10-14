@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.resource
 
 import edu.uci.ics.texera.Utils.objectMapper
-import edu.uci.ics.texera.web.model.event.TexeraWebSocketEvent
+import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import javax.websocket.Session
 import rx.lang.scala.Observer
 

@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web.resource.execution
 
 import edu.uci.ics.amber.engine.architecture.principal.OperatorResult
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.texera.web.resource.execution.WorkflowResultService._
+import edu.uci.ics.texera.web.service.WorkflowResultService._
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode.{SET_DELTA, SET_SNAPSHOT}
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.Tuple

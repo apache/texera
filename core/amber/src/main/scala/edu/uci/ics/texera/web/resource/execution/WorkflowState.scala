@@ -7,7 +7,7 @@ import java.util.concurrent.ConcurrentHashMap
 import akka.actor.Cancellable
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.web.TexeraWebApplication
-import edu.uci.ics.texera.web.model.request.ExecuteWorkflowRequest
+import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
 import edu.uci.ics.texera.web.resource.execution.WorkflowRuntimeService.{ExecutionStatusEnum, Running}
 import edu.uci.ics.texera.web.resource.execution.WorkflowState.WORKFLOW_CLEANUP_DEADLINE
 import org.jooq.types.UInteger
@@ -102,7 +102,7 @@ class WorkflowState(wid: String) extends LazyLogging {
     }
   }
 
-  def initExecutionState(req: ExecuteWorkflowRequest, uidOpt: Option[UInteger]): Unit = {
+  def initExecutionState(req: WorkflowExecuteRequest, uidOpt: Option[UInteger]): Unit = {
     val prevResults = jobState match {
       case Some(value) => value.workflowResultService.operatorResults
       case None        => mutable.HashMap[String, OperatorResultService]()

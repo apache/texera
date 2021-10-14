@@ -3,12 +3,9 @@ package edu.uci.ics.texera.web.resource.execution
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.AmberUtils
-import edu.uci.ics.texera.web.model.event.{
-  CacheStatus,
-  CacheStatusUpdateEvent,
-  TexeraWebSocketEvent
-}
-import edu.uci.ics.texera.web.model.request.CacheStatusUpdateRequest
+import edu.uci.ics.texera.web.model.common.CacheStatus
+import edu.uci.ics.texera.web.model.websocket.event.{CacheStatusUpdateEvent, TexeraWebSocketEvent}
+import edu.uci.ics.texera.web.model.websocket.request.CacheStatusUpdateRequest
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.storage.memory.{JCSOpResultStorage, MemoryOpResultStorage}
