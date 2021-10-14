@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowStatusUpdate
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.{
   ControllerAsyncRPCHandlerInitializer,
@@ -33,9 +34,8 @@ trait ResumeHandler {
         }.toSeq)
         .map { _ =>
           // update frontend status
-          updateFrontendWorkflowStatus()
+          sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus))
           enableStatusUpdate() //re-enabled it since it is disabled in pause
-          actorContext.parent ! ControllerState.Running //for testing
 
         }
     }

@@ -2,7 +2,10 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowResultUpdate
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
+  WorkflowResultUpdate,
+  WorkflowStatusUpdate
+}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.{
   ControllerInitiateQueryResults,
   ControllerInitiateQueryStatistics
@@ -51,7 +54,9 @@ trait QueryWorkerStatisticsHandler {
     )
 
     // wait for all workers to reply before notifying frontend
-    Future.collect(requests).map(_ => updateFrontendWorkflowStatus())
+    Future
+      .collect(requests)
+      .map(_ => sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus)))
   })
 
   registerHandler((msg: ControllerInitiateQueryResults, sender) => {
@@ -85,7 +90,7 @@ trait QueryWorkerStatisticsHandler {
           })
         // send update result to frontend
         if (operatorResultUpdate.nonEmpty) {
-          updateFrontendWorkflowResult(WorkflowResultUpdate(operatorResultUpdate.toMap))
+          sendToClient(WorkflowResultUpdate(operatorResultUpdate.toMap))
         }
         operatorResultUpdate.toMap
       })

@@ -44,9 +44,7 @@ trait StartWorkflowHandler {
             .toSeq
         )
         .map { _ =>
-          actorContext.parent ! ControllerState.Running // for testing
           enableStatusUpdate()
-
         }
     }
   }

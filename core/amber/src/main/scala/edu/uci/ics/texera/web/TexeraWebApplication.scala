@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
 import com.github.toastshaman.dropwizard.auth.jwt.JwtAuthFilter
-import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.amber.engine.common.{AmberUtils, AmberClient}
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.auth.JwtAuth.jwtConsumer
 import edu.uci.ics.texera.web.auth.{SessionUser, UserAuthenticator, UserRoleAuthorizer}
@@ -24,11 +24,16 @@ import org.eclipse.jetty.servlet.ErrorPageErrorHandler
 import org.eclipse.jetty.websocket.server.WebSocketUpgradeFilter
 import org.glassfish.jersey.media.multipart.MultiPartFeature
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
-
 import java.time.Duration
+
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 object TexeraWebApplication {
 
-  var actorSystem: ActorSystem = _
+  def createAmberRuntime(workflow: Workflow, conf: ControllerConfig): AmberClient = {
+    new AmberClient(actorSystem, workflow, conf)
+  }
+
+  private var actorSystem: ActorSystem = _
 
   def main(args: Array[String]): Unit = {
     // start actor system master node
