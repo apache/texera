@@ -17,6 +17,7 @@ import javax.websocket.server.ServerEndpoint
 
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.mapAsScalaMapConverter
+import scala.util.{Failure, Success}
 
 object WorkflowWebsocketResource {
   val nextExecutionID = new AtomicInteger(0)

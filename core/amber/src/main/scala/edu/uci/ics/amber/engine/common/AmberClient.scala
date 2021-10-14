@@ -12,7 +12,7 @@ import edu.uci.ics.amber.engine.common.FutureBijection._
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowControlMessage
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import rx.lang.scala.{Observable, Observer, Subject}
+import rx.lang.scala.{Observable, Subject}
 
 import scala.collection.mutable
 import scala.concurrent.Await
@@ -24,7 +24,6 @@ class AmberClient(system: ActorSystem, workflow: Workflow, controllerConfig: Con
   private case class CommandRequest[T](controlCommand: ControlCommand[T])
   private case class ObservableRequest(pf: PartialFunction[Any, Unit])
   private case class ClosureRequest[T](closure: () => T)
-  private case class SubscribeRequest[T](subscriber: Observer[T])
   private val client = system.actorOf(Props(new ClientActor))
   private implicit val timeout: Timeout = Timeout(1.minute)
   private val registeredSubjects = new mutable.HashMap[Class[_], Subject[_]]()
