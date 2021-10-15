@@ -2,10 +2,7 @@ package edu.uci.ics.texera.web.service
 
 import com.google.common.collect.EvictingQueue
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{
-  ConditionalGlobalBreakpoint,
-  CountGlobalBreakpoint
-}
+import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{ConditionalGlobalBreakpoint, CountGlobalBreakpoint}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent._
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.AssignBreakpointHandler.AssignGlobalBreakpoint
@@ -25,12 +22,7 @@ import edu.uci.ics.texera.web.model.websocket.request.python.PythonExpressionEva
 import edu.uci.ics.texera.web.model.websocket.request.{RemoveBreakpointRequest, SkipTupleRequest}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.workflow.{
-  Breakpoint,
-  BreakpointCondition,
-  ConditionBreakpoint,
-  CountBreakpoint
-}
+import edu.uci.ics.texera.workflow.common.workflow.{Breakpoint, BreakpointCondition, ConditionBreakpoint, CountBreakpoint}
 import rx.lang.scala.subjects.BehaviorSubject
 import rx.lang.scala.{Observable, Observer}
 
@@ -51,6 +43,8 @@ object WorkflowRuntimeService {
 class WorkflowRuntimeService(workflow: Workflow, client: AmberClient)
     extends SnapshotMulticast[TexeraWebSocketEvent]
     with LazyLogging {
+
+  import edu.uci.ics.texera.web.service.WorkflowRuntimeService._
 
   class OperatorRuntimeState {
     var stats: OperatorStatistics = OperatorStatistics(OperatorState.Uninitialized, 0, 0)
