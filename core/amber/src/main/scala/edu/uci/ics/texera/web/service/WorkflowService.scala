@@ -1,35 +1,29 @@
-package edu.uci.ics.texera.web.resource.execution
+package edu.uci.ics.texera.web.service
 
-import java.time.LocalDateTime
-import java.time.{Duration => JDuration}
+import java.time.{LocalDateTime, Duration => JDuration}
 import java.util.concurrent.ConcurrentHashMap
 
 import akka.actor.Cancellable
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.web.TexeraWebApplication
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
-import edu.uci.ics.texera.web.resource.execution.WorkflowRuntimeService.{
-  ExecutionStatusEnum,
-  Running
-}
-import edu.uci.ics.texera.web.resource.execution.WorkflowState.WORKFLOW_CLEANUP_DEADLINE
 import org.jooq.types.UInteger
 import rx.lang.scala.subjects.BehaviorSubject
-import rx.lang.scala.{Observable, Subject, Subscription}
+import rx.lang.scala.{Observable, Subscription}
 
 import scala.collection.mutable
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
-object WorkflowState {
-  private val wIdToWorkflowState = new ConcurrentHashMap[String, WorkflowState]()
+object WorkflowService {
+  private val wIdToWorkflowState = new ConcurrentHashMap[String, WorkflowService]()
   val WORKFLOW_CLEANUP_DEADLINE: FiniteDuration = 30.seconds
 
-  def getOrCreate(wId: String): WorkflowState = {
+  def getOrCreate(wId: String): WorkflowService = {
     wIdToWorkflowState.compute(
       wId,
       (_, v) => {
         if (v == null) {
-          new WorkflowState(wId)
+          new WorkflowService(wId)
         } else {
           v
         }
@@ -38,14 +32,14 @@ object WorkflowState {
   }
 }
 
-class WorkflowState(wid: String) extends LazyLogging {
+class WorkflowService(wid: String) extends LazyLogging {
   // state across execution:
-  val operatorCache: OperatorCache = new OperatorCache()
-  var jobState: Option[WorkflowJobState] = None
+  val operatorCache: OperatorCacheService = new OperatorCacheService()
+  var jobState: Option[WorkflowJobService] = None
   private var refCount = 0
   private var cleanUpJob: Cancellable = Cancellable.alreadyCancelled
   private var statusUpdateSubscription: Subscription = Subscription()
-  private val jobStateSubject = BehaviorSubject[WorkflowJobState]()
+  private val jobStateSubject = BehaviorSubject[WorkflowJobService]()
 
   private[this] def setCleanUpDeadline(status: ExecutionStatusEnum): Unit = {
     synchronized {
@@ -77,7 +71,7 @@ class WorkflowState(wid: String) extends LazyLogging {
         // do nothing
         logger.info(s"[$wid] workflow state clean up failed. current user count = $refCount")
       } else {
-        WorkflowState.wIdToWorkflowState.remove(wid)
+        WorkflowService.wIdToWorkflowState.remove(wid)
         jobState.foreach(_.workflowRuntimeService.killWorkflow())
         logger.info(s"[$wid] workflow state clean up completed.")
       }
@@ -108,7 +102,7 @@ class WorkflowState(wid: String) extends LazyLogging {
       case Some(value) => value.workflowResultService.operatorResults
       case None        => mutable.HashMap[String, OperatorResultService]()
     }
-    val state = new WorkflowJobState(
+    val state = new WorkflowJobService(
       operatorCache,
       uidOpt,
       req,
@@ -124,5 +118,5 @@ class WorkflowState(wid: String) extends LazyLogging {
     state.startWorkflow()
   }
 
-  def getExecutionStateObservable: Observable[WorkflowJobState] = jobStateSubject
+  def getExecutionStateObservable: Observable[WorkflowJobService] = jobStateSubject
 }

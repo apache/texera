@@ -1,7 +1,7 @@
-package edu.uci.ics.texera.web.resource.execution
+package edu.uci.ics.texera.web
 
 import edu.uci.ics.amber.engine.common.AmberClient
-import rx.lang.scala.{Observable, Observer, Subject, Subscription}
+import rx.lang.scala.{Observer, Subject, Subscription}
 
 object SnapshotMulticast {
   def syncState[T](

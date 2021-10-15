@@ -4,20 +4,12 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.Utils
-import edu.uci.ics.texera.web.ServletAwareConfigurator
+import edu.uci.ics.texera.web.{ServletAwareConfigurator, SessionState, SnapshotMulticast}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.event.{TexeraWebSocketEvent, WorkflowErrorEvent}
 import edu.uci.ics.texera.web.model.websocket.request._
 import edu.uci.ics.texera.web.model.websocket.request.python.PythonExpressionEvaluateRequest
 import edu.uci.ics.texera.web.model.websocket.response._
-import edu.uci.ics.texera.web.resource.execution.{
-  OperatorCache,
-  OperatorResultService,
-  SessionState,
-  SnapshotMulticast,
-  WorkflowJobState,
-  WorkflowState
-}
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler.ConstraintViolationException
 import javax.websocket._
 import javax.websocket.server.ServerEndpoint
@@ -66,7 +58,7 @@ class WorkflowWebsocketResource extends LazyLogging {
       request match {
         case wIdRequest: RegisterWIdRequest =>
           val wId = uidOpt.toString + "-" + wIdRequest.wId
-          val workflowState = WorkflowState.getOrCreate(wId)
+          val workflowState = WorkflowService.getOrCreate(wId)
           sessionState.bind(workflowState)
           logger.info("start working on " + wId)
           send(session, RegisterWIdResponse("wid registered"))
@@ -120,7 +112,7 @@ class WorkflowWebsocketResource extends LazyLogging {
             send(session, state.exportResult(uidOpt.get, resultExportRequest))
           })
         case cacheStatusUpdateRequest: CacheStatusUpdateRequest =>
-          if (OperatorCache.isAvailable) {
+          if (OperatorCacheService.isAvailable) {
             workflowStateOpt.foreach(_.operatorCache.updateCacheStatus(cacheStatusUpdateRequest))
           }
         case pythonExpressionEvaluateRequest: PythonExpressionEvaluateRequest =>

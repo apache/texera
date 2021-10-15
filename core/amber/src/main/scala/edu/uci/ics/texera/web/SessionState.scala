@@ -1,7 +1,8 @@
-package edu.uci.ics.texera.web.resource.execution
+package edu.uci.ics.texera.web
 
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.resource.WebsocketSubscriber
+import edu.uci.ics.texera.web.service.WorkflowService
 import javax.websocket.Session
 import rx.lang.scala.subscriptions.CompositeSubscription
 import rx.lang.scala.{Observer, Subscription}
@@ -28,9 +29,9 @@ object SessionState {
 class SessionState(session: Session) {
   private var subscription: Subscription = Subscription()
   private val observer: Observer[TexeraWebSocketEvent] = new WebsocketSubscriber(session)
-  private var currentWorkflowState: Option[WorkflowState] = None
+  private var currentWorkflowState: Option[WorkflowService] = None
 
-  def getCurrentWorkflowState: Option[WorkflowState] = currentWorkflowState
+  def getCurrentWorkflowState: Option[WorkflowService] = currentWorkflowState
 
   def unbind(): Unit = {
     subscription.unsubscribe()
@@ -40,7 +41,7 @@ class SessionState(session: Session) {
     }
   }
 
-  def bind(executionState: WorkflowState): Unit = {
+  def bind(executionState: WorkflowService): Unit = {
     unbind()
     currentWorkflowState = Some(executionState)
     executionState.connect()

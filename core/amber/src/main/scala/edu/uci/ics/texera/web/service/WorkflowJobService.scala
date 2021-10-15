@@ -1,39 +1,29 @@
-package edu.uci.ics.texera.web.resource.execution
+package edu.uci.ics.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.common.AmberClient
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
-import edu.uci.ics.texera.web.TexeraWebApplication
+import edu.uci.ics.texera.web.{SnapshotMulticast, TexeraWebApplication}
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
-import edu.uci.ics.texera.web.model.websocket.request.{
-  CacheStatusUpdateRequest,
-  ModifyLogicRequest,
-  ResultExportRequest,
-  WorkflowExecuteRequest
-}
+import edu.uci.ics.texera.web.model.websocket.request.{CacheStatusUpdateRequest, ModifyLogicRequest, ResultExportRequest, WorkflowExecuteRequest}
 import edu.uci.ics.texera.web.model.websocket.response.ResultExportResponse
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource
-import edu.uci.ics.texera.web.service.WorkflowResultService
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler.ConstraintViolationException
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowInfo.toJgraphtDAG
-import edu.uci.ics.texera.workflow.common.workflow.{
-  WorkflowCompiler,
-  WorkflowInfo,
-  WorkflowRewriter
-}
+import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo, WorkflowRewriter}
 import org.jooq.types.UInteger
 import rx.lang.scala.subscriptions.CompositeSubscription
 import rx.lang.scala.{Observer, Subscription}
 
 import scala.collection.mutable
 
-class WorkflowJobState(
-    operatorCache: OperatorCache,
-    uidOpt: Option[UInteger],
-    request: WorkflowExecuteRequest,
-    prevResults: mutable.HashMap[String, OperatorResultService]
+class WorkflowJobService(
+                          operatorCache: OperatorCacheService,
+                          uidOpt: Option[UInteger],
+                          request: WorkflowExecuteRequest,
+                          prevResults: mutable.HashMap[String, OperatorResultService]
 ) extends LazyLogging {
 
   val workflowContext: WorkflowContext = createWorkflowContext()
@@ -44,11 +34,11 @@ class WorkflowJobState(
     TexeraWebApplication.createAmberRuntime(workflow, ControllerConfig.default)
   val workflowRuntimeService: WorkflowRuntimeService = new WorkflowRuntimeService(workflow, client)
   val workflowResultService: WorkflowResultService =
-    new WorkflowResultService(workflowInfo, OperatorCache.opResultStorage, client)
+    new WorkflowResultService(workflowInfo, OperatorCacheService.opResultStorage, client)
   val resultExportService: ResultExportService = new ResultExportService()
 
   def startWorkflow(): Unit = {
-    if (OperatorCache.isAvailable) {
+    if (OperatorCacheService.isAvailable) {
       workflowResultService.updateResultFromPreviousRun(prevResults, operatorCache.cachedOperators)
     }
     workflowResultService.updateAvailableResult(request.operators)
@@ -60,7 +50,7 @@ class WorkflowJobState(
 
   private[this] def createWorkflowContext(): WorkflowContext = {
     val jobID: String = Integer.toString(WorkflowWebsocketResource.nextExecutionID.incrementAndGet)
-    if (OperatorCache.isAvailable) {
+    if (OperatorCacheService.isAvailable) {
       operatorCache.updateCacheStatus(
         CacheStatusUpdateRequest(
           request.operators,
@@ -78,7 +68,7 @@ class WorkflowJobState(
 
   private[this] def createWorkflowInfo(context: WorkflowContext): WorkflowInfo = {
     var workflowInfo = WorkflowInfo(request.operators, request.links, request.breakpoints)
-    if (OperatorCache.isAvailable) {
+    if (OperatorCacheService.isAvailable) {
       workflowInfo.cachedOperatorIds = request.cachedOperatorIds
       logger.debug(
         s"Cached operators: ${operatorCache.cachedOperators} with ${request.cachedOperatorIds}"
@@ -89,7 +79,7 @@ class WorkflowJobState(
         operatorCache.cacheSourceOperators,
         operatorCache.cacheSinkOperators,
         operatorCache.operatorRecord,
-        OperatorCache.opResultStorage
+        OperatorCacheService.opResultStorage
       )
       val newWorkflowInfo = workflowRewriter.rewrite
       val oldWorkflowInfo = workflowInfo

@@ -1,8 +1,9 @@
-package edu.uci.ics.texera.web.resource.execution
+package edu.uci.ics.texera.web.service
 
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.texera.web.SnapshotMulticast
 import edu.uci.ics.texera.web.model.common.CacheStatus
 import edu.uci.ics.texera.web.model.websocket.event.{CacheStatusUpdateEvent, TexeraWebSocketEvent}
 import edu.uci.ics.texera.web.model.websocket.request.CacheStatusUpdateRequest
@@ -17,7 +18,7 @@ import rx.lang.scala.Observer
 
 import scala.collection.mutable
 
-object OperatorCache extends LazyLogging {
+object OperatorCacheService extends LazyLogging {
   val opResultStorageConfig: Config = ConfigFactory.load("application")
   val storageType: String = AmberUtils.amberConfig.getString("cache.storage").toLowerCase
   def isAvailable: Boolean = storageType != "off"
@@ -38,7 +39,7 @@ object OperatorCache extends LazyLogging {
   }
 }
 
-class OperatorCache extends SnapshotMulticast[TexeraWebSocketEvent] with LazyLogging {
+class OperatorCacheService extends SnapshotMulticast[TexeraWebSocketEvent] with LazyLogging {
 
   val cachedOperators: mutable.HashMap[String, OperatorDescriptor] =
     mutable.HashMap[String, OperatorDescriptor]()
@@ -60,7 +61,7 @@ class OperatorCache extends SnapshotMulticast[TexeraWebSocketEvent] with LazyLog
       cacheSourceOperators.clone(),
       cacheSinkOperators.clone(),
       operatorRecord.clone(),
-      OperatorCache.opResultStorage
+      OperatorCacheService.opResultStorage
     )
 
     val invalidSet = workflowRewriter.cacheStatusUpdate()
