@@ -6,13 +6,22 @@ import edu.uci.ics.amber.engine.common.AmberClient
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.web.{SnapshotMulticast, TexeraWebApplication}
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
-import edu.uci.ics.texera.web.model.websocket.request.{CacheStatusUpdateRequest, ModifyLogicRequest, ResultExportRequest, WorkflowExecuteRequest}
+import edu.uci.ics.texera.web.model.websocket.request.{
+  CacheStatusUpdateRequest,
+  ModifyLogicRequest,
+  ResultExportRequest,
+  WorkflowExecuteRequest
+}
 import edu.uci.ics.texera.web.model.websocket.response.ResultExportResponse
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler.ConstraintViolationException
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowInfo.toJgraphtDAG
-import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo, WorkflowRewriter}
+import edu.uci.ics.texera.workflow.common.workflow.{
+  WorkflowCompiler,
+  WorkflowInfo,
+  WorkflowRewriter
+}
 import org.jooq.types.UInteger
 import rx.lang.scala.subscriptions.CompositeSubscription
 import rx.lang.scala.{Observer, Subscription}
@@ -20,10 +29,10 @@ import rx.lang.scala.{Observer, Subscription}
 import scala.collection.mutable
 
 class WorkflowJobService(
-                          operatorCache: OperatorCacheService,
-                          uidOpt: Option[UInteger],
-                          request: WorkflowExecuteRequest,
-                          prevResults: mutable.HashMap[String, OperatorResultService]
+    operatorCache: OperatorCacheService,
+    uidOpt: Option[UInteger],
+    request: WorkflowExecuteRequest,
+    prevResults: mutable.HashMap[String, OperatorResultService]
 ) extends LazyLogging {
 
   val workflowContext: WorkflowContext = createWorkflowContext()
