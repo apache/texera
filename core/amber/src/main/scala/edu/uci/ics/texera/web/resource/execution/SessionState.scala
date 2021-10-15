@@ -45,9 +45,11 @@ class SessionState(session: Session) {
     currentWorkflowState = Some(executionState)
     executionState.connect()
     val opCacheSubscription = SnapshotMulticast.syncState(executionState.operatorCache, observer)
-    subscription = CompositeSubscription(opCacheSubscription,
-    executionState.getExecutionStateObservable.subscribe(executionState =>{
-      subscription = CompositeSubscription(executionState.subscribeAll(observer), subscription)
-    }))
+    subscription = CompositeSubscription(
+      opCacheSubscription,
+      executionState.getExecutionStateObservable.subscribe(executionState => {
+        subscription = CompositeSubscription(executionState.subscribeAll(observer), subscription)
+      })
+    )
   }
 }

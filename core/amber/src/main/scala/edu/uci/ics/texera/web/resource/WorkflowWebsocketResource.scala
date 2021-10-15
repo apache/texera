@@ -10,7 +10,14 @@ import edu.uci.ics.texera.web.model.websocket.event.{TexeraWebSocketEvent, Workf
 import edu.uci.ics.texera.web.model.websocket.request._
 import edu.uci.ics.texera.web.model.websocket.request.python.PythonExpressionEvaluateRequest
 import edu.uci.ics.texera.web.model.websocket.response._
-import edu.uci.ics.texera.web.resource.execution.{OperatorCache, OperatorResultService, SessionState, SnapshotMulticast, WorkflowJobState, WorkflowState}
+import edu.uci.ics.texera.web.resource.execution.{
+  OperatorCache,
+  OperatorResultService,
+  SessionState,
+  SnapshotMulticast,
+  WorkflowJobState,
+  WorkflowState
+}
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler.ConstraintViolationException
 import javax.websocket._
 import javax.websocket.server.ServerEndpoint

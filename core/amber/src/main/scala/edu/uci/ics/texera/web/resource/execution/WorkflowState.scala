@@ -8,7 +8,10 @@ import akka.actor.Cancellable
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.web.TexeraWebApplication
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
-import edu.uci.ics.texera.web.resource.execution.WorkflowRuntimeService.{ExecutionStatusEnum, Running}
+import edu.uci.ics.texera.web.resource.execution.WorkflowRuntimeService.{
+  ExecutionStatusEnum,
+  Running
+}
 import edu.uci.ics.texera.web.resource.execution.WorkflowState.WORKFLOW_CLEANUP_DEADLINE
 import org.jooq.types.UInteger
 import rx.lang.scala.subjects.BehaviorSubject
@@ -92,9 +95,7 @@ class WorkflowState(wid: String) extends LazyLogging {
   def disconnect(): Unit = {
     synchronized {
       refCount -= 1
-      if (
-        refCount == 0 && !jobState.map(_.workflowRuntimeService.getStatus).contains(Running)
-      ) {
+      if (refCount == 0 && !jobState.map(_.workflowRuntimeService.getStatus).contains(Running)) {
         refreshDeadline()
       } else {
         logger.info(s"[$wid] workflow state clean up postponed. current user count = $refCount")
@@ -123,5 +124,5 @@ class WorkflowState(wid: String) extends LazyLogging {
     state.startWorkflow()
   }
 
-  def getExecutionStateObservable:Observable[WorkflowJobState] = jobStateSubject
+  def getExecutionStateObservable: Observable[WorkflowJobState] = jobStateSubject
 }

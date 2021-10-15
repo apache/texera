@@ -6,10 +6,19 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.Workflow
 import edu.uci.ics.amber.engine.common.AmberClient
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.texera.web.model.websocket.event.WorkflowAvailableResultEvent.OperatorAvailableResult
-import edu.uci.ics.texera.web.model.websocket.event.{PaginatedResultEvent, TexeraWebSocketEvent, WebResultUpdateEvent, WorkflowAvailableResultEvent}
+import edu.uci.ics.texera.web.model.websocket.event.{
+  PaginatedResultEvent,
+  TexeraWebSocketEvent,
+  WebResultUpdateEvent,
+  WorkflowAvailableResultEvent
+}
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
 import edu.uci.ics.texera.web.resource.execution.{OperatorResultService, SnapshotMulticast}
-import edu.uci.ics.texera.web.service.WorkflowResultService.{PaginationMode, WebPaginationUpdate, defaultPageSize}
+import edu.uci.ics.texera.web.service.WorkflowResultService.{
+  PaginationMode,
+  WebPaginationUpdate,
+  defaultPageSize
+}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -108,10 +117,10 @@ object WorkflowResultService {
   *  - send result update event to the frontend
   */
 class WorkflowResultService(
-    workflowInfo:WorkflowInfo,
+    workflowInfo: WorkflowInfo,
     opResultStorage: OpResultStorage,
-    client:AmberClient
-) extends SnapshotMulticast[TexeraWebSocketEvent]  {
+    client: AmberClient
+) extends SnapshotMulticast[TexeraWebSocketEvent] {
   var operatorResults: mutable.HashMap[String, OperatorResultService] =
     mutable.HashMap[String, OperatorResultService]()
   val updatedSet: mutable.Set[String] = mutable.HashSet[String]()
@@ -154,8 +163,8 @@ class WorkflowResultService(
   }
 
   def onResultUpdate(
-                      resultUpdate: WorkflowResultUpdate
-                    ): Unit = {
+      resultUpdate: WorkflowResultUpdate
+  ): Unit = {
     val tmpUpdatedSet = updatedSet.clone()
     for (id <- tmpUpdatedSet) {
       if (!operatorResults.contains(id)) {
@@ -192,9 +201,9 @@ class WorkflowResultService(
   }
 
   def updateResultFromPreviousRun(
-                                   previousResults: mutable.HashMap[String, OperatorResultService],
-                                   cachedOps: mutable.HashMap[String, OperatorDescriptor]
-                                 ): Unit = {
+      previousResults: mutable.HashMap[String, OperatorResultService],
+      cachedOps: mutable.HashMap[String, OperatorDescriptor]
+  ): Unit = {
     operatorResults.foreach(e => {
       if (previousResults.contains(e._2.operatorID)) {
         previousResults(e._2.operatorID) = e._2
