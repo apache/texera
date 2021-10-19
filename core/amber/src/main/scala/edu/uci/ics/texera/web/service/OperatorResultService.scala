@@ -116,11 +116,12 @@ class OperatorResultService(
   }
 
   def getSnapshot: WebResultUpdate = {
+    val res = getResult
     webOutputMode match {
       case PaginationMode() =>
-        WebPaginationUpdate(PaginationMode(), result.size, List.empty)
+        WebPaginationUpdate(PaginationMode(), res.size, List.empty)
       case SetSnapshotMode() | SetDeltaMode() =>
-        webDataFromTuple(webOutputMode, result, chartType)
+        webDataFromTuple(webOutputMode, res, chartType)
     }
   }
 
