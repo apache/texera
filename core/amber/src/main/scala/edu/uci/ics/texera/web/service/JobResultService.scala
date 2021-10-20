@@ -14,7 +14,7 @@ import edu.uci.ics.texera.web.model.websocket.event.{
   WorkflowAvailableResultEvent
 }
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
-import edu.uci.ics.texera.web.service.WorkflowResultService.{
+import edu.uci.ics.texera.web.service.JobResultService.{
   PaginationMode,
   WebPaginationUpdate,
   defaultPageSize
@@ -29,7 +29,7 @@ import rx.lang.scala.Observer
 
 import scala.collection.mutable
 
-object WorkflowResultService {
+object JobResultService {
 
   val defaultPageSize: Int = 10
 
@@ -116,7 +116,7 @@ object WorkflowResultService {
   *  - update the result data for each operator,
   *  - send result update event to the frontend
   */
-class WorkflowResultService(
+class JobResultService(
     workflowInfo: WorkflowInfo,
     opResultStorage: OpResultStorage,
     client: AmberClient

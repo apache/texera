@@ -29,10 +29,10 @@ import rx.lang.scala.{Observer, Subscription}
 import scala.collection.mutable
 
 class WorkflowJobService(
-    operatorCache: OperatorCacheService,
-    uidOpt: Option[UInteger],
-    request: WorkflowExecuteRequest,
-    prevResults: mutable.HashMap[String, OperatorResultService]
+                          operatorCache: WorkflowCacheService,
+                          uidOpt: Option[UInteger],
+                          request: WorkflowExecuteRequest,
+                          prevResults: mutable.HashMap[String, OperatorResultService]
 ) extends LazyLogging {
 
   val workflowContext: WorkflowContext = createWorkflowContext()
@@ -41,13 +41,13 @@ class WorkflowJobService(
   val workflow: Workflow = workflowCompiler.amberWorkflow(WorkflowIdentity(workflowContext.jobId))
   val client: AmberClient =
     TexeraWebApplication.createAmberRuntime(workflow, ControllerConfig.default)
-  val workflowRuntimeService: WorkflowRuntimeService = new WorkflowRuntimeService(workflow, client)
-  val workflowResultService: WorkflowResultService =
-    new WorkflowResultService(workflowInfo, OperatorCacheService.opResultStorage, client)
+  val workflowRuntimeService: JobRuntimeService = new JobRuntimeService(workflow, client)
+  val workflowResultService: JobResultService =
+    new JobResultService(workflowInfo, WorkflowCacheService.opResultStorage, client)
   val resultExportService: ResultExportService = new ResultExportService()
 
   def startWorkflow(): Unit = {
-    if (OperatorCacheService.isAvailable) {
+    if (WorkflowCacheService.isAvailable) {
       workflowResultService.updateResultFromPreviousRun(prevResults, operatorCache.cachedOperators)
     }
     workflowResultService.updateAvailableResult(request.operators)
@@ -59,7 +59,7 @@ class WorkflowJobService(
 
   private[this] def createWorkflowContext(): WorkflowContext = {
     val jobID: String = Integer.toString(WorkflowWebsocketResource.nextExecutionID.incrementAndGet)
-    if (OperatorCacheService.isAvailable) {
+    if (WorkflowCacheService.isAvailable) {
       operatorCache.updateCacheStatus(
         CacheStatusUpdateRequest(
           request.operators,
@@ -77,7 +77,7 @@ class WorkflowJobService(
 
   private[this] def createWorkflowInfo(context: WorkflowContext): WorkflowInfo = {
     var workflowInfo = WorkflowInfo(request.operators, request.links, request.breakpoints)
-    if (OperatorCacheService.isAvailable) {
+    if (WorkflowCacheService.isAvailable) {
       workflowInfo.cachedOperatorIds = request.cachedOperatorIds
       logger.debug(
         s"Cached operators: ${operatorCache.cachedOperators} with ${request.cachedOperatorIds}"
@@ -88,7 +88,7 @@ class WorkflowJobService(
         operatorCache.cacheSourceOperators,
         operatorCache.cacheSinkOperators,
         operatorCache.operatorRecord,
-        OperatorCacheService.opResultStorage
+        WorkflowCacheService.opResultStorage
       )
       val newWorkflowInfo = workflowRewriter.rewrite
       val oldWorkflowInfo = workflowInfo

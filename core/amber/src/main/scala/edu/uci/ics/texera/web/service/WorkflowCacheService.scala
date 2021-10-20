@@ -18,7 +18,7 @@ import rx.lang.scala.Observer
 
 import scala.collection.mutable
 
-object OperatorCacheService extends LazyLogging {
+object WorkflowCacheService extends LazyLogging {
   val opResultStorageConfig: Config = ConfigFactory.load("application")
   val storageType: String = AmberUtils.amberConfig.getString("cache.storage").toLowerCase
   def isAvailable: Boolean = storageType != "off"
@@ -39,7 +39,7 @@ object OperatorCacheService extends LazyLogging {
   }
 }
 
-class OperatorCacheService extends SnapshotMulticast[TexeraWebSocketEvent] with LazyLogging {
+class WorkflowCacheService extends SnapshotMulticast[TexeraWebSocketEvent] with LazyLogging {
 
   val cachedOperators: mutable.HashMap[String, OperatorDescriptor] =
     mutable.HashMap[String, OperatorDescriptor]()
@@ -61,7 +61,7 @@ class OperatorCacheService extends SnapshotMulticast[TexeraWebSocketEvent] with 
       cacheSourceOperators.clone(),
       cacheSinkOperators.clone(),
       operatorRecord.clone(),
-      OperatorCacheService.opResultStorage
+      WorkflowCacheService.opResultStorage
     )
 
     val invalidSet = workflowRewriter.cacheStatusUpdate()

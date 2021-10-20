@@ -34,8 +34,6 @@ object ControllerEvent {
       operatorID: String = null
   ) extends ControlCommand[Unit]
 
-  case class ErrorOccurred(error: Throwable) extends ControlCommand[Unit]
-
   case class ReportCurrentProcessingTuple(
       operatorID: String,
       tuple: Array[(ITuple, ActorVirtualIdentity)]

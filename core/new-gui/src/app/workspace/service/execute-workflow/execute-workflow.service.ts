@@ -78,18 +78,22 @@ export class ExecuteWorkflowService {
 
   public handleExecutionEvent(event: TexeraWebsocketEvent): ExecutionStateInfo | undefined {
     switch (event.type) {
-      case "WorkflowStartedEvent":
-        return { state: ExecutionState.Running };
-      case "WorkflowCompletedEvent":
-        return { state: ExecutionState.Completed };
-      case "WorkflowPausedEvent":
-        if (
-          this.currentState.state === ExecutionState.BreakpointTriggered ||
-          this.currentState.state === ExecutionState.Paused
-        ) {
-          return this.currentState;
-        } else {
-          return { state: ExecutionState.Paused, currentTuples: {} };
+      case "WorkflowStatusEvent":
+        switch(event.status){
+          case ExecutionState.Paused:
+            if (
+              this.currentState.state === ExecutionState.BreakpointTriggered ||
+              this.currentState.state === ExecutionState.Paused
+            ) {
+              return this.currentState;
+            } else {
+              return { state: ExecutionState.Paused, currentTuples: {} };
+            }
+            case ExecutionState.Aborted:
+            case ExecutionState.BreakpointTriggered:
+              return undefined;
+            default:
+              return {state: event.status};
         }
       case "RecoveryStartedEvent":
         return { state: ExecutionState.Recovering };
@@ -113,8 +117,6 @@ export class ExecuteWorkflowService {
           state: ExecutionState.Paused,
           currentTuples: newCurrentTuples,
         };
-      case "WorkflowResumedEvent":
-        return { state: ExecutionState.Running };
       case "BreakpointTriggeredEvent":
         return { state: ExecutionState.BreakpointTriggered, breakpoint: event };
       case "WorkflowErrorEvent":
@@ -125,11 +127,11 @@ export class ExecuteWorkflowService {
         Object.entries(event.generalErrors).forEach(entry => {
           errorMessages[entry[0]] = entry[1];
         });
-        return { state: ExecutionState.Failed, errorMessages: errorMessages };
+        return { state: ExecutionState.Aborted, errorMessages: errorMessages };
       // TODO: Merge WorkflowErrorEvent and ErrorEvent
       case "WorkflowExecutionErrorEvent":
         return {
-          state: ExecutionState.Failed,
+          state: ExecutionState.Aborted,
           errorMessages: { WorkflowExecutionError: event.message },
         };
       default:
@@ -142,7 +144,7 @@ export class ExecuteWorkflowService {
   }
 
   public getErrorMessages(): Readonly<Record<string, string>> | undefined {
-    if (this.currentState?.state === ExecutionState.Failed) {
+    if (this.currentState?.state === ExecutionState.Aborted) {
       return this.currentState.errorMessages;
     }
     return undefined;
@@ -171,8 +173,8 @@ export class ExecuteWorkflowService {
     window.setTimeout(() => {
       this.workflowWebsocketService.send("WorkflowExecuteRequest", logicalPlan);
     }, FORM_DEBOUNCE_TIME_MS);
-    this.updateExecutionState({ state: ExecutionState.WaitingToRun });
-    this.setExecutionTimeout("submit workflow timeout", ExecutionState.Running, ExecutionState.Failed);
+    this.updateExecutionState({ state: ExecutionState.Initializing });
+    this.setExecutionTimeout("submit workflow timeout", ExecutionState.Running, ExecutionState.Aborted);
 
     // add flag for new execution of workflow
     // so when next time the result panel is displayed, it will use new data
@@ -194,8 +196,7 @@ export class ExecuteWorkflowService {
       throw new Error("cannot pause workflow, the current execution state is " + this.currentState?.state);
     }
     this.workflowWebsocketService.send("WorkflowPauseRequest", {});
-    this.updateExecutionState({ state: ExecutionState.Pausing });
-    this.setExecutionTimeout("pause operation timeout", ExecutionState.Paused, ExecutionState.Failed);
+    this.setExecutionTimeout("pause operation timeout", ExecutionState.Paused, ExecutionState.Aborted);
   }
 
   public killWorkflow(): void {
@@ -209,7 +210,6 @@ export class ExecuteWorkflowService {
       throw new Error("cannot kill workflow, the current execution state is " + this.currentState.state);
     }
     this.workflowWebsocketService.send("WorkflowKillRequest", {});
-    this.updateExecutionState({ state: ExecutionState.Completed });
   }
 
   public resumeWorkflow(): void {
@@ -225,8 +225,7 @@ export class ExecuteWorkflowService {
       throw new Error("cannot resume workflow, the current execution state is " + this.currentState.state);
     }
     this.workflowWebsocketService.send("WorkflowResumeRequest", {});
-    this.updateExecutionState({ state: ExecutionState.Resuming });
-    this.setExecutionTimeout("resume operation timeout", ExecutionState.Running, ExecutionState.Failed);
+    this.setExecutionTimeout("resume operation timeout", ExecutionState.Running, ExecutionState.Aborted);
   }
 
   public addBreakpointRuntime(linkID: string, breakpointData: Breakpoint): void {
@@ -303,7 +302,7 @@ export class ExecuteWorkflowService {
     }
     this.executionTimeoutID = window.setTimeout(() => {
       this.updateExecutionState({
-        state: ExecutionState.Failed,
+        state: ExecutionState.Aborted,
         errorMessages: { timeout: message },
       });
     }, EXECUTION_TIMEOUT);
@@ -342,7 +341,7 @@ export class ExecuteWorkflowService {
   private updateWorkflowActionLock(stateInfo: ExecutionStateInfo): void {
     switch (stateInfo.state) {
       case ExecutionState.Completed:
-      case ExecutionState.Failed:
+      case ExecutionState.Aborted:
       case ExecutionState.Uninitialized:
       case ExecutionState.BreakpointTriggered:
         this.workflowActionService.enableWorkflowModification();
@@ -352,7 +351,7 @@ export class ExecuteWorkflowService {
       case ExecutionState.Recovering:
       case ExecutionState.Resuming:
       case ExecutionState.Running:
-      case ExecutionState.WaitingToRun:
+      case ExecutionState.Initializing:
         this.workflowActionService.disableWorkflowModification();
         return;
       default:

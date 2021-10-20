@@ -5,9 +5,10 @@ import java.util.concurrent.ConcurrentHashMap
 
 import akka.actor.Cancellable
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.texera.web.TexeraWebApplication
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
-import edu.uci.ics.texera.web.service.WorkflowRuntimeService.{ExecutionStatusEnum, Running}
+import edu.uci.ics.texera.web.service.JobRuntimeService.{ExecutionStatusEnum, Running}
 import org.jooq.types.UInteger
 import rx.lang.scala.subjects.BehaviorSubject
 import rx.lang.scala.{Observable, Subscription}
@@ -17,8 +18,7 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 object WorkflowService {
   private val wIdToWorkflowState = new ConcurrentHashMap[String, WorkflowService]()
-  val WORKFLOW_CLEANUP_DEADLINE: FiniteDuration = 30.seconds
-
+  val cleanUpDeadlineInSeconds: Int = AmberUtils.amberConfig.getInt("web-server.workflow-state-cleanup-in-seconds")
   def getOrCreate(wId: String): WorkflowService = {
     wIdToWorkflowState.compute(
       wId,
@@ -36,8 +36,8 @@ object WorkflowService {
 class WorkflowService(wid: String) extends LazyLogging {
   import WorkflowService._
   // state across execution:
-  val operatorCache: OperatorCacheService = new OperatorCacheService()
-  var jobState: Option[WorkflowJobService] = None
+  val operatorCache: WorkflowCacheService = new WorkflowCacheService()
+  var jobService: Option[WorkflowJobService] = None
   private var refCount = 0
   private var cleanUpJob: Cancellable = Cancellable.alreadyCancelled
   private var statusUpdateSubscription: Subscription = Subscription()
@@ -59,9 +59,9 @@ class WorkflowService(wid: String) extends LazyLogging {
   private[this] def refreshDeadline(): Unit = {
     if (cleanUpJob.isCancelled || cleanUpJob.cancel()) {
       logger.info(
-        s"[$wid] workflow state clean up will start at ${LocalDateTime.now().plus(JDuration.ofMillis(WORKFLOW_CLEANUP_DEADLINE.toMillis))}"
+        s"[$wid] workflow state clean up will start at ${LocalDateTime.now().plus(JDuration.ofSeconds(cleanUpDeadlineInSeconds))}"
       )
-      cleanUpJob = TexeraWebApplication.scheduleCallThroughActorSystem(WORKFLOW_CLEANUP_DEADLINE) {
+      cleanUpJob = TexeraWebApplication.scheduleCallThroughActorSystem(cleanUpDeadlineInSeconds.seconds) {
         cleanUp()
       }
     }
@@ -74,7 +74,7 @@ class WorkflowService(wid: String) extends LazyLogging {
         logger.info(s"[$wid] workflow state clean up failed. current user count = $refCount")
       } else {
         WorkflowService.wIdToWorkflowState.remove(wid)
-        jobState.foreach(_.workflowRuntimeService.killWorkflow())
+        jobService.foreach(_.workflowRuntimeService.killWorkflow())
         logger.info(s"[$wid] workflow state clean up completed.")
       }
     }
@@ -91,7 +91,7 @@ class WorkflowService(wid: String) extends LazyLogging {
   def disconnect(): Unit = {
     synchronized {
       refCount -= 1
-      if (refCount == 0 && !jobState.map(_.workflowRuntimeService.getStatus).contains(Running)) {
+      if (refCount == 0 && !jobService.map(_.workflowRuntimeService.getStatus).contains(Running)) {
         refreshDeadline()
       } else {
         logger.info(s"[$wid] workflow state clean up postponed. current user count = $refCount")
@@ -100,7 +100,7 @@ class WorkflowService(wid: String) extends LazyLogging {
   }
 
   def initExecutionState(req: WorkflowExecuteRequest, uidOpt: Option[UInteger]): Unit = {
-    val prevResults = jobState match {
+    val prevResults = jobService match {
       case Some(value) => value.workflowResultService.operatorResults
       case None        => mutable.HashMap[String, OperatorResultService]()
     }
@@ -115,7 +115,7 @@ class WorkflowService(wid: String) extends LazyLogging {
     statusUpdateSubscription = state.workflowRuntimeService.getStatusObservable.subscribe(status =>
       setCleanUpDeadline(status)
     )
-    jobState = Some(state)
+    jobService = Some(state)
     jobStateSubject.onNext(state)
     state.startWorkflow()
   }

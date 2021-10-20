@@ -10,7 +10,7 @@ import edu.uci.ics.texera.web.model.websocket.event.{TexeraWebSocketEvent, Workf
 import edu.uci.ics.texera.web.model.websocket.request._
 import edu.uci.ics.texera.web.model.websocket.request.python.PythonExpressionEvaluateRequest
 import edu.uci.ics.texera.web.model.websocket.response._
-import edu.uci.ics.texera.web.service.{OperatorCacheService, WorkflowService}
+import edu.uci.ics.texera.web.service.{WorkflowCacheService, WorkflowService}
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler.ConstraintViolationException
 import javax.websocket._
 import javax.websocket.server.ServerEndpoint
@@ -75,50 +75,50 @@ class WorkflowWebsocketResource extends LazyLogging {
             case other: Exception => throw other
           }
         case newLogic: ModifyLogicRequest =>
-          workflowStateOpt.foreach(_.jobState.foreach(_.modifyLogic(newLogic)))
+          workflowStateOpt.foreach(_.jobService.foreach(_.modifyLogic(newLogic)))
         case pause: WorkflowPauseRequest =>
           workflowStateOpt.foreach(
-            _.jobState.foreach(_.workflowRuntimeService.pauseWorkflow())
+            _.jobService.foreach(_.workflowRuntimeService.pauseWorkflow())
           )
         case resume: WorkflowResumeRequest =>
           workflowStateOpt.foreach(
-            _.jobState.foreach(_.workflowRuntimeService.resumeWorkflow())
+            _.jobService.foreach(_.workflowRuntimeService.resumeWorkflow())
           )
         case kill: WorkflowKillRequest =>
           workflowStateOpt.foreach(
-            _.jobState.foreach(_.workflowRuntimeService.killWorkflow())
+            _.jobService.foreach(_.workflowRuntimeService.killWorkflow())
           )
         case skipTupleMsg: SkipTupleRequest =>
           workflowStateOpt.foreach(
-            _.jobState.foreach(_.workflowRuntimeService.skipTuple(skipTupleMsg))
+            _.jobService.foreach(_.workflowRuntimeService.skipTuple(skipTupleMsg))
           )
         case retryRequest: RetryRequest =>
           workflowStateOpt.foreach(
-            _.jobState.foreach(_.workflowRuntimeService.retryWorkflow())
+            _.jobService.foreach(_.workflowRuntimeService.retryWorkflow())
           )
         case req: AddBreakpointRequest =>
           workflowStateOpt.foreach(
-            _.jobState.foreach(
+            _.jobService.foreach(
               _.workflowRuntimeService.addBreakpoint(req.operatorID, req.breakpoint)
             )
           )
         case paginationRequest: ResultPaginationRequest =>
           workflowStateOpt.foreach(
-            _.jobState.foreach(
+            _.jobService.foreach(
               _.workflowResultService.handleResultPagination(paginationRequest)
             )
           )
         case resultExportRequest: ResultExportRequest =>
-          workflowStateOpt.foreach(_.jobState.foreach { state =>
+          workflowStateOpt.foreach(_.jobService.foreach { state =>
             send(session, state.exportResult(uidOpt.get, resultExportRequest))
           })
         case cacheStatusUpdateRequest: CacheStatusUpdateRequest =>
-          if (OperatorCacheService.isAvailable) {
+          if (WorkflowCacheService.isAvailable) {
             workflowStateOpt.foreach(_.operatorCache.updateCacheStatus(cacheStatusUpdateRequest))
           }
         case pythonExpressionEvaluateRequest: PythonExpressionEvaluateRequest =>
           workflowStateOpt.foreach(
-            _.jobState.foreach(
+            _.jobService.foreach(
               _.workflowRuntimeService.evaluatePythonExpression(pythonExpressionEvaluateRequest)
             )
           )

@@ -4,10 +4,7 @@ import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
 import akka.pattern._
 import akka.util.Timeout
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  ErrorOccurred,
-  WorkflowCompleted
-}
+
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
@@ -35,14 +32,14 @@ class AmberClient(system: ActorSystem, workflow: Workflow, controllerConfig: Con
   private val registeredSubjects = new mutable.HashMap[Class[_], Subject[_]]()
   @volatile private var isActive = true
 
-  getObservable[WorkflowCompleted].subscribe(evt => {
-    shutdown()
-  })
-
-  getObservable[ErrorOccurred].subscribe(evt => {
-    shutdown()
-  })
-
+//  getObservable[WorkflowCompleted].subscribe(evt => {
+//    shutdown()
+//  })
+//
+//  getObservable[ErrorOccurred].subscribe(evt => {
+//    shutdown()
+//  })
+//
   getObservable[FatalError].subscribe(evt => {
     shutdown()
   })

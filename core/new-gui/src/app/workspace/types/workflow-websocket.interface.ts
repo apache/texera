@@ -1,5 +1,6 @@
 import {
   BreakpointInfo,
+  ExecutionState,
   LogicalOperator,
   LogicalPlan,
   WebOutputMode,
@@ -130,6 +131,10 @@ export type PythonExpressionEvaluateResponse = Readonly<{
   values: EvaluatedValue[];
 }>;
 
+export type WorkflowStatus = Readonly<{
+  status: ExecutionState
+}>;
+
 export type TexeraWebsocketRequestTypeMap = {
   RegisterWIdRequest: RegisterWIdRequest;
   AddBreakpointRequest: BreakpointInfo;
@@ -150,13 +155,10 @@ export type TexeraWebsocketRequestTypeMap = {
 export type TexeraWebsocketEventTypeMap = {
   RegisterWIdResponse: RegisterWIdEvent;
   HeartBeatResponse: {};
+  WorkflowStatusEvent: WorkflowStatus;
   WorkflowErrorEvent: WorkflowError;
-  WorkflowStartedEvent: {};
-  WorkflowCompletedEvent: {};
   WebWorkflowStatusUpdateEvent: WorkflowStatusUpdate;
   WebResultUpdateEvent: WorkflowResultUpdateEvent;
-  WorkflowPausedEvent: {};
-  WorkflowResumedEvent: {};
   RecoveryStartedEvent: {};
   BreakpointTriggeredEvent: BreakpointTriggerInfo;
   PythonPrintTriggeredEvent: PythonPrintTriggerInfo;

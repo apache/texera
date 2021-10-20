@@ -40,9 +40,9 @@ class ResultExportService {
   private val cache = new mutable.HashMap[String, String]
 
   def exportResult(
-      uid: UInteger,
-      resultService: WorkflowResultService,
-      request: ResultExportRequest
+                    uid: UInteger,
+                    resultService: JobResultService,
+                    request: ResultExportRequest
   ): ResultExportResponse = {
     // retrieve the file link saved in the session if exists
     if (cache.contains(request.exportType)) {
