@@ -72,7 +72,7 @@ export interface OperatorStatistics
     aggregatedOutputRowCount: number;
   }> {}
 
-export interface WorkflowStatusUpdate
+export interface WorkflowStatsUpdate
   extends Readonly<{
     operatorStatistics: Record<string, OperatorStatistics>;
   }> {}

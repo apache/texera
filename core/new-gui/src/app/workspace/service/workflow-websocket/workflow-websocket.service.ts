@@ -49,7 +49,7 @@ export class WorkflowWebsocketService {
       const newWid = String((workflowActionService.getWorkflowMetadata().wid) ?? "undefined workflow");
       if(newWid !== this.currentWid){
         this.currentWid = newWid;
-        this.send("RegisterWIdRequest", { wId: this.currentWid, recoverFrontendState: false });
+        this.send("RegisterWIdRequest", { wId: this.currentWid});
       }
     });
   }
@@ -106,7 +106,7 @@ export class WorkflowWebsocketService {
           delayWhen(_ => timer(WS_RECONNECT_INTERVAL_MS)), // reconnect after delay
           tap(
             _ => {
-              this.send("RegisterWIdRequest", { wId: this.currentWid, recoverFrontendState: false}); // re-register wid
+              this.send("RegisterWIdRequest", { wId: this.currentWid}); // re-register wid
               this.send("HeartBeatRequest", {}); // try to send heartbeat immediately after reconnect
             }
           )
@@ -119,7 +119,7 @@ export class WorkflowWebsocketService {
     );
 
     // send wid registration and recover frontend state
-    this.send("RegisterWIdRequest", { wId: this.currentWid, recoverFrontendState: true });
+    this.send("RegisterWIdRequest", { wId: this.currentWid});
   }
 
   private static getWorkflowWebsocketUrl(): string {

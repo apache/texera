@@ -2,7 +2,10 @@ package edu.uci.ics.texera.web.service
 
 import com.google.common.collect.EvictingQueue
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{ConditionalGlobalBreakpoint, CountGlobalBreakpoint}
+import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{
+  ConditionalGlobalBreakpoint,
+  CountGlobalBreakpoint
+}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent._
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.AssignBreakpointHandler.AssignGlobalBreakpoint
@@ -23,7 +26,12 @@ import edu.uci.ics.texera.web.model.websocket.request.python.PythonExpressionEva
 import edu.uci.ics.texera.web.model.websocket.request.{RemoveBreakpointRequest, SkipTupleRequest}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.workflow.{Breakpoint, BreakpointCondition, ConditionBreakpoint, CountBreakpoint}
+import edu.uci.ics.texera.workflow.common.workflow.{
+  Breakpoint,
+  BreakpointCondition,
+  ConditionBreakpoint,
+  CountBreakpoint
+}
 import rx.lang.scala.subjects.BehaviorSubject
 import rx.lang.scala.{Observable, Observer}
 
@@ -31,54 +39,38 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 object JobRuntimeService {
-
   val bufferSize: Int = AmberUtils.amberConfig.getInt("web-server.python-console-buffer-size")
-
-  sealed trait ExecutionStatusEnum
-  case object Uninitialized extends ExecutionStatusEnum
-  case object Initializing extends ExecutionStatusEnum
-  case object Running extends ExecutionStatusEnum
-  case object Pausing extends ExecutionStatusEnum
-  case object Paused extends ExecutionStatusEnum
-  case object Resuming extends ExecutionStatusEnum
-  case object Completed extends ExecutionStatusEnum
-  case object Aborted extends ExecutionStatusEnum
 }
 
-class JobRuntimeService(workflow: Workflow, client: AmberClient)
+class JobRuntimeService(workflowStatus: BehaviorSubject[ExecutionStatusEnum], client: AmberClient)
     extends SnapshotMulticast[TexeraWebSocketEvent]
     with LazyLogging {
 
-  import edu.uci.ics.texera.web.service.JobRuntimeService._
-
   class OperatorRuntimeState {
     var stats: OperatorStatistics = OperatorStatistics(OperatorState.Uninitialized, 0, 0)
-    val pythonMessages: EvictingQueue[String] = EvictingQueue.create[String](bufferSize)
+    val pythonMessages: EvictingQueue[String] =
+      EvictingQueue.create[String](JobRuntimeService.bufferSize)
     val faults: mutable.ArrayBuffer[BreakpointFault] = new ArrayBuffer[BreakpointFault]()
   }
 
-  private val workflowStatus: BehaviorSubject[ExecutionStatusEnum] =
-    BehaviorSubject[ExecutionStatusEnum](Uninitialized)
   val operatorRuntimeStateMap: mutable.HashMap[String, OperatorRuntimeState] =
     new mutable.HashMap[String, OperatorRuntimeState]()
   var workflowError: Throwable = _
 
   registerCallbacks()
 
-  private[this] def registerCallbacks(): Unit ={
+  private[this] def registerCallbacks(): Unit = {
     registerCallbackOnBreakpoint()
     registerCallbackOnFatalError()
     registerCallbackOnPythonPrint()
     registerCallbackOnWorkflowComplete()
-    registerCallbackOnWorkflowStatusChange()
     registerCallbackOnWorkflowStatusUpdate()
   }
 
-
-  /***
+  /** *
     *  Callback Functions to register upon construction
     */
-  private[this] def registerCallbackOnBreakpoint(): Unit ={
+  private[this] def registerCallbackOnBreakpoint(): Unit = {
     client
       .getObservable[BreakpointTriggered]
       .subscribe((evt: BreakpointTriggered) => {
@@ -95,7 +87,7 @@ class JobRuntimeService(workflow: Workflow, client: AmberClient)
       })
   }
 
-  private[this] def registerCallbackOnWorkflowStatusUpdate(): Unit ={
+  private[this] def registerCallbackOnWorkflowStatusUpdate(): Unit = {
     client
       .getObservable[WorkflowStatusUpdate]
       .subscribe((evt: WorkflowStatusUpdate) => {
@@ -110,7 +102,7 @@ class JobRuntimeService(workflow: Workflow, client: AmberClient)
       })
   }
 
-  private[this] def registerCallbackOnWorkflowComplete(): Unit ={
+  private[this] def registerCallbackOnWorkflowComplete(): Unit = {
     client
       .getObservable[WorkflowCompleted]
       .subscribe((evt: WorkflowCompleted) => {
@@ -139,11 +131,7 @@ class JobRuntimeService(workflow: Workflow, client: AmberClient)
       })
   }
 
-  private[this] def registerCallbackOnWorkflowStatusChange(): Unit ={
-    workflowStatus.subscribe(x => send(WorkflowStatusEvent(x)))
-  }
-
-  /***
+  /** *
     *  Utility Functions
     */
 
@@ -211,7 +199,6 @@ class JobRuntimeService(workflow: Workflow, client: AmberClient)
   }
 
   override def sendSnapshotTo(observer: Observer[TexeraWebSocketEvent]): Unit = {
-    observer.onNext(WorkflowStatusEvent(workflowStatus.asJavaSubject.getValue))
     observer.onNext(WebWorkflowStatsUpdateEvent(operatorRuntimeStateMap.map {
       case (opId, state) => (opId, state.stats)
     }.toMap))
@@ -243,16 +230,16 @@ class JobRuntimeService(workflow: Workflow, client: AmberClient)
     clearTriggeredBreakpoints()
     val f = client.sendAsync(RetryWorkflow())
     workflowStatus.onNext(Resuming)
-    f.onSuccess {
-      _ => workflowStatus.onNext(Running)
+    f.onSuccess { _ =>
+      workflowStatus.onNext(Running)
     }
   }
 
   def pauseWorkflow(): Unit = {
     val f = client.sendAsync(PauseWorkflow())
     workflowStatus.onNext(Pausing)
-    f.onSuccess{
-      _ => workflowStatus.onNext(Paused)
+    f.onSuccess { _ =>
+      workflowStatus.onNext(Paused)
     }
   }
 
@@ -260,9 +247,8 @@ class JobRuntimeService(workflow: Workflow, client: AmberClient)
     clearTriggeredBreakpoints()
     val f = client.sendAsync(ResumeWorkflow())
     workflowStatus.onNext(Resuming)
-    f.onSuccess {
-      _ =>
-        workflowStatus.onNext(Running)
+    f.onSuccess { _ =>
+      workflowStatus.onNext(Running)
     }
   }
 

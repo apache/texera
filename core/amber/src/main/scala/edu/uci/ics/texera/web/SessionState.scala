@@ -41,15 +41,19 @@ class SessionState(session: Session) {
     }
   }
 
-  def bind(executionState: WorkflowService): Unit = {
+  def bind(workflowService: WorkflowService): Unit = {
     unbind()
-    currentWorkflowState = Some(executionState)
-    executionState.connect()
-    val opCacheSubscription = SnapshotMulticast.syncState(executionState.operatorCache, observer)
+    currentWorkflowState = Some(workflowService)
+    workflowService.connect()
+    val opCacheSubscription = SnapshotMulticast.syncState(workflowService.operatorCache, observer)
     subscription = CompositeSubscription(
       opCacheSubscription,
-      executionState.getExecutionStateObservable.subscribe(executionState => {
-        subscription = CompositeSubscription(executionState.subscribeAll(observer), subscription)
+      workflowService.getJobServiceObservable.subscribe(jobService => {
+        subscription = CompositeSubscription(
+          jobService.subscribeRuntimeComponents(observer),
+          jobService.subscribe(observer),
+          subscription
+        )
       })
     )
   }

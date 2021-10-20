@@ -7,8 +7,8 @@ import akka.actor.Cancellable
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.texera.web.TexeraWebApplication
+import edu.uci.ics.texera.web.model.websocket.event.{ExecutionStatusEnum, Running}
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
-import edu.uci.ics.texera.web.service.JobRuntimeService.{ExecutionStatusEnum, Running}
 import org.jooq.types.UInteger
 import rx.lang.scala.subjects.BehaviorSubject
 import rx.lang.scala.{Observable, Subscription}
@@ -18,7 +18,8 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 object WorkflowService {
   private val wIdToWorkflowState = new ConcurrentHashMap[String, WorkflowService]()
-  val cleanUpDeadlineInSeconds: Int = AmberUtils.amberConfig.getInt("web-server.workflow-state-cleanup-in-seconds")
+  val cleanUpDeadlineInSeconds: Int =
+    AmberUtils.amberConfig.getInt("web-server.workflow-state-cleanup-in-seconds")
   def getOrCreate(wId: String): WorkflowService = {
     wIdToWorkflowState.compute(
       wId,
@@ -61,9 +62,10 @@ class WorkflowService(wid: String) extends LazyLogging {
       logger.info(
         s"[$wid] workflow state clean up will start at ${LocalDateTime.now().plus(JDuration.ofSeconds(cleanUpDeadlineInSeconds))}"
       )
-      cleanUpJob = TexeraWebApplication.scheduleCallThroughActorSystem(cleanUpDeadlineInSeconds.seconds) {
-        cleanUp()
-      }
+      cleanUpJob =
+        TexeraWebApplication.scheduleCallThroughActorSystem(cleanUpDeadlineInSeconds.seconds) {
+          cleanUp()
+        }
     }
   }
 
@@ -120,5 +122,5 @@ class WorkflowService(wid: String) extends LazyLogging {
     state.startWorkflow()
   }
 
-  def getExecutionStateObservable: Observable[WorkflowJobService] = jobStateSubject
+  def getJobServiceObservable: Observable[WorkflowJobService] = jobStateSubject
 }

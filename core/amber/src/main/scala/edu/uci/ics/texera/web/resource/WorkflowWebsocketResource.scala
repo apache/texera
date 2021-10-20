@@ -6,7 +6,12 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.{ServletAwareConfigurator, SessionState, SnapshotMulticast}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
-import edu.uci.ics.texera.web.model.websocket.event.{TexeraWebSocketEvent, WorkflowErrorEvent}
+import edu.uci.ics.texera.web.model.websocket.event.{
+  TexeraWebSocketEvent,
+  Uninitialized,
+  WorkflowErrorEvent,
+  WorkflowStatusEvent
+}
 import edu.uci.ics.texera.web.model.websocket.request._
 import edu.uci.ics.texera.web.model.websocket.request.python.PythonExpressionEvaluateRequest
 import edu.uci.ics.texera.web.model.websocket.response._
@@ -58,6 +63,8 @@ class WorkflowWebsocketResource extends LazyLogging {
     try {
       request match {
         case wIdRequest: RegisterWIdRequest =>
+          // hack to refresh frontend run button state
+          send(session, WorkflowStatusEvent(Uninitialized))
           val wId = uidOpt.toString + "-" + wIdRequest.wId
           val workflowState = WorkflowService.getOrCreate(wId)
           sessionState.bind(workflowState)

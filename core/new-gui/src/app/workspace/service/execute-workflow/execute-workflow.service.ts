@@ -79,7 +79,8 @@ export class ExecuteWorkflowService {
   public handleExecutionEvent(event: TexeraWebsocketEvent): ExecutionStateInfo | undefined {
     switch (event.type) {
       case "WorkflowStatusEvent":
-        switch(event.status){
+        let status = ExecutionState[event.status];
+        switch(status){
           case ExecutionState.Paused:
             if (
               this.currentState.state === ExecutionState.BreakpointTriggered ||
@@ -93,7 +94,7 @@ export class ExecuteWorkflowService {
             case ExecutionState.BreakpointTriggered:
               return undefined;
             default:
-              return {state: event.status};
+              return {state: status};
         }
       case "RecoveryStartedEvent":
         return { state: ExecutionState.Recovering };
@@ -173,8 +174,7 @@ export class ExecuteWorkflowService {
     window.setTimeout(() => {
       this.workflowWebsocketService.send("WorkflowExecuteRequest", logicalPlan);
     }, FORM_DEBOUNCE_TIME_MS);
-    this.updateExecutionState({ state: ExecutionState.Initializing });
-    this.setExecutionTimeout("submit workflow timeout", ExecutionState.Running, ExecutionState.Aborted);
+    this.setExecutionTimeout("submit workflow timeout",ExecutionState.Initializing, ExecutionState.Running, ExecutionState.Aborted);
 
     // add flag for new execution of workflow
     // so when next time the result panel is displayed, it will use new data
@@ -294,6 +294,12 @@ export class ExecuteWorkflowService {
     current: ExecutionStateInfo;
   }> {
     return this.executionStateStream.asObservable();
+  }
+
+  public resetExecutionState(): void{
+    this.currentState = {
+      state: ExecutionState.Uninitialized,
+    };
   }
 
   private setExecutionTimeout(message: string, ...clearTimeoutState: ExecutionState[]) {

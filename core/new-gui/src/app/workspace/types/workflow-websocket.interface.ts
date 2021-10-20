@@ -5,7 +5,7 @@ import {
   LogicalPlan,
   WebOutputMode,
   WorkflowResultUpdateEvent,
-  WorkflowStatusUpdate,
+  WorkflowStatsUpdate,
 } from "./execute-workflow.interface";
 import { BreakpointFaultedTuple, BreakpointTriggerInfo, PythonPrintTriggerInfo } from "./workflow-common.interface";
 
@@ -25,7 +25,6 @@ import { BreakpointFaultedTuple, BreakpointTriggerInfo, PythonPrintTriggerInfo }
 export interface RegisterWIdRequest
   extends Readonly<{
     wId: string;
-    recoverFrontendState: boolean;
   }> {}
 
 export interface RegisterWIdEvent extends Readonly<{ message: string }> {}
@@ -157,7 +156,7 @@ export type TexeraWebsocketEventTypeMap = {
   HeartBeatResponse: {};
   WorkflowStatusEvent: WorkflowStatus;
   WorkflowErrorEvent: WorkflowError;
-  WebWorkflowStatusUpdateEvent: WorkflowStatusUpdate;
+  WebWorkflowStatsUpdateEvent: WorkflowStatsUpdate;
   WebResultUpdateEvent: WorkflowResultUpdateEvent;
   RecoveryStartedEvent: {};
   BreakpointTriggeredEvent: BreakpointTriggerInfo;
