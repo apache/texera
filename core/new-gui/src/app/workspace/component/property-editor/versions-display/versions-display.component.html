@@ -1,0 +1,15 @@
+<div>
+  <nz-table [nzData]="versionsList">
+    <thead>
+      <tr>
+        <th *ngFor="let column of versionTableHeaders">{{column}}</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let row of versionsList; let i=index;">
+        <td nzEllipsis (click)="getVersion(row.vId)">{{(i + 1)}}</td>
+        <td nzEllipsis (click)="getVersion(row.vId)">{{row.creationTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
+      </tr>
+    </tbody>
+  </nz-table>
+</div>

@@ -10,8 +10,9 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWor
   ControllerInitiateQueryStatistics
 }
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers._
-import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlOutputPort
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputPort
 import edu.uci.ics.amber.engine.common.AmberLogging
+import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.{
   AsyncRPCClient,
@@ -25,8 +26,7 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration, MILLISECONDS}
 class ControllerAsyncRPCHandlerInitializer(
     val actorContext: ActorContext,
     val actorId: ActorVirtualIdentity,
-    val controlOutputPort: ControlOutputPort,
-    val eventListener: ControllerEventListener,
+    val controlOutputPort: NetworkOutputPort[ControlPayload],
     val workflow: Workflow,
     val controllerConfig: ControllerConfig,
     source: AsyncRPCClient,
@@ -43,12 +43,12 @@ class ControllerAsyncRPCHandlerInitializer(
     with QueryWorkerStatisticsHandler
     with ResumeHandler
     with StartWorkflowHandler
-    with KillWorkflowHandler
     with LinkCompletedHandler
     with FatalErrorHandler
     with PythonPrintHandler
     with RetryWorkflowHandler
-    with ModifyLogicHandler {
+    with ModifyLogicHandler
+    with EvaluatePythonExpressionHandler {
 
   var statusUpdateAskHandle: Option[Cancellable] = None
   var resultUpdateAskHandle: Option[Cancellable] = None
@@ -90,19 +90,6 @@ class ControllerAsyncRPCHandlerInitializer(
     if (resultUpdateAskHandle.nonEmpty) {
       resultUpdateAskHandle.get.cancel()
       resultUpdateAskHandle = Option.empty
-    }
-  }
-
-  def updateFrontendWorkflowStatus(): Unit = {
-    if (eventListener.workflowStatusUpdateListener != null) {
-      eventListener.workflowStatusUpdateListener
-        .apply(WorkflowStatusUpdate(workflow.getWorkflowStatus))
-    }
-  }
-
-  def updateFrontendWorkflowResult(workflowResultUpdate: WorkflowResultUpdate): Unit = {
-    if (eventListener.workflowResultUpdateListener != null) {
-      eventListener.workflowResultUpdateListener.apply(workflowResultUpdate)
     }
   }
 

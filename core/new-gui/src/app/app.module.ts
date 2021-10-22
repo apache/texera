@@ -98,6 +98,11 @@ import { BreakpointPropertyEditFrameComponent } from "./workspace/component/prop
 import { NotificationComponent } from "./common/component/notification/notification/notification.component";
 import { DebuggerFrameComponent } from "./workspace/component/result-panel/debugger-frame/debugger-frame.component";
 import { NzTabsModule } from "ng-zorro-antd/tabs";
+import { NzTreeViewModule } from "ng-zorro-antd/tree-view";
+import { VersionsListDisplayComponent } from "./workspace/component/property-editor/versions-display/versions-display.component";
+import { NzPaginationModule } from "ng-zorro-antd/pagination";
+import { JwtModule } from "@auth0/angular-jwt";
+import { AuthService } from "./common/service/user/auth.service";
 
 registerLocaleData(en);
 
@@ -108,6 +113,7 @@ registerLocaleData(en);
     NavigationComponent,
     OperatorPanelComponent,
     PropertyEditorComponent,
+    VersionsListDisplayComponent,
     WorkflowEditorComponent,
     ResultPanelComponent,
     OperatorLabelComponent,
@@ -158,6 +164,13 @@ registerLocaleData(en);
     BrowserModule,
     AppRoutingModule,
     HttpClientModule,
+    JwtModule.forRoot({
+      config: {
+        tokenGetter: AuthService.getAccessToken,
+        skipWhenExpired: false,
+        throwNoTokenError: false,
+      },
+    }),
     MatTooltipModule,
     CustomNgMaterialModule,
     BrowserAnimationsModule,
@@ -207,6 +220,8 @@ registerLocaleData(en);
     DynamicModule,
     MonacoEditorModule.forRoot(),
     NzTabsModule,
+    NzTreeViewModule,
+    NzPaginationModule,
   ],
   entryComponents: [
     NgbdModalAddWorkflowComponent,

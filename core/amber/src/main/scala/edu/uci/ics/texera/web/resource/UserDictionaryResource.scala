@@ -1,13 +1,13 @@
 package edu.uci.ics.texera.web.resource
 
 import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER_DICTIONARY
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDictionaryDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{User, UserDictionary}
-import edu.uci.ics.texera.web.resource.auth.UserResource
-import io.dropwizard.jersey.sessions.Session
+import io.dropwizard.auth.Auth
 
-import javax.servlet.http.HttpSession
+import javax.annotation.security.PermitAll
 import javax.ws.rs._
 import javax.ws.rs.core._
 import scala.jdk.CollectionConverters.asScalaBuffer
@@ -18,6 +18,7 @@ import scala.jdk.CollectionConverters.asScalaBuffer
   * This is accomplished using a mysql table called user_dictionary.
   * The details of user_dictionary can be found in /core/scripts/sql/texera_ddl.sql
   */
+@PermitAll
 @Path("/users/dictionary")
 @Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON))
@@ -27,78 +28,39 @@ class UserDictionaryResource {
   )
 
   @GET
-  def getAllDict(@Session session: HttpSession): Map[String, String] = {
-    val user = UserResource.getUser(session)
-    if (user.isEmpty) {
-      throw new NotAuthorizedException("Request unauthorized: user not logged in")
-    }
-    getDict(user.get)
+  def getAllDict(@Auth sessionUser: SessionUser): Map[String, String] = {
+    val user = sessionUser.getUser
+    getDict(user)
+  }
+
+  /**
+    * This method retrieves all of a user's dictionary entries in
+    * the user_dictionary table as a json object
+    */
+  private def getDict(user: User): Map[String, String] = {
+    Map(
+      asScalaBuffer(
+        SqlServer.createDSLContext
+          .select()
+          .from(USER_DICTIONARY)
+          .where(USER_DICTIONARY.UID.eq(user.getUid))
+          .fetchInto(classOf[UserDictionary])
+      ) map { entry => (entry.getKey, entry.getValue) }: _*
+    )
   }
 
   @GET
   @Path("/{key}")
-  def getEntry(@Session session: HttpSession, @PathParam("key") key: String): String = {
-    val user = UserResource.getUser(session)
-    if (user.isEmpty) {
-      throw new NotAuthorizedException("Request unauthorized: user not logged in")
-    }
+  def getEntry(@PathParam("key") key: String, @Auth sessionUser: SessionUser): String = {
+    val user = sessionUser.getUser
+
     if (key == null || key.trim.isEmpty) {
       throw new BadRequestException("key cannot be null or empty")
     }
-    if (!dictEntryExists(user.get, key)) {
+    if (!dictEntryExists(user, key)) {
       null
     } else {
-      getValueByKey(user.get, key)
-    }
-  }
-
-  /**
-    * This method creates or updates an entry in the current in-session user's dictionary based on
-    * the "key" and "value" attributes of the PostRequest
-    */
-  @PUT
-  @Path("/{key}")
-  def setEntry(
-      @Session session: HttpSession,
-      @PathParam("key") key: String,
-      @FormParam("value") value: String
-  ): Unit = {
-    val user = UserResource.getUser(session)
-    if (user.isEmpty) {
-      throw new NotAuthorizedException("Request unauthorized: user not logged in")
-    }
-    if (key == null || key.trim.isEmpty) {
-      throw new BadRequestException("key cannot be null or empty")
-    }
-    if (dictEntryExists(user.get, key)) {
-      userDictionaryDao.update(new UserDictionary(user.get.getUid, key, value))
-    } else {
-      userDictionaryDao.insert(new UserDictionary(user.get.getUid, key, value))
-    }
-  }
-
-  /**
-    * This method deletes a key-value pair from the current in-session user's dictionary based on
-    * the "key" attribute of the DeleteRequest
-    * @param session HttpSession
-    * @param req DeleteRequest
-    * @return
-    * 401 unauthorized -
-    * 400 bad request -
-    * 422 Unprocessable Entity - payload: "no such entry" (if no entry exists for provided key)
-    */
-  @DELETE
-  @Path("/{key}")
-  def deleteEntry(@Session session: HttpSession, @PathParam("key") key: String): Unit = {
-    val user = UserResource.getUser(session)
-    if (user.isEmpty) {
-      throw new NotAuthorizedException("Request unauthorized: user not logged in")
-    }
-    if (key == null || key.trim.isEmpty) {
-      throw new BadRequestException("key cannot be null or empty")
-    }
-    if (dictEntryExists(user.get, key)) {
-      deleteDictEntry(user.get, key)
+      getValueByKey(user, key)
     }
   }
 
@@ -118,19 +80,25 @@ class UserDictionaryResource {
   }
 
   /**
-    * This method retrieves all of a user's dictionary entries in
-    * the user_dictionary table as a json object
+    * This method creates or updates an entry in the current in-session user's dictionary based on
+    * the "key" and "value" attributes of the PostRequest
     */
-  private def getDict(user: User): Map[String, String] = {
-    Map(
-      asScalaBuffer(
-        SqlServer.createDSLContext
-          .select()
-          .from(USER_DICTIONARY)
-          .where(USER_DICTIONARY.UID.eq(user.getUid))
-          .fetchInto(classOf[UserDictionary])
-      ) map { entry => (entry.getKey, entry.getValue) }: _*
-    )
+  @PUT
+  @Path("/{key}")
+  def setEntry(
+      @PathParam("key") key: String,
+      @FormParam("value") value: String,
+      @Auth sessionUser: SessionUser
+  ): Unit = {
+    val user = sessionUser.getUser
+    if (key == null || key.trim.isEmpty) {
+      throw new BadRequestException("key cannot be null or empty")
+    }
+    if (dictEntryExists(user, key)) {
+      userDictionaryDao.update(new UserDictionary(user.getUid, key, value))
+    } else {
+      userDictionaryDao.insert(new UserDictionary(user.getUid, key, value))
+    }
   }
 
   /**
@@ -144,6 +112,27 @@ class UserDictionaryResource {
         .newRecord(USER_DICTIONARY.UID, USER_DICTIONARY.KEY)
         .values(user.getUid, key)
     )
+  }
+
+  /**
+    * This method deletes a key-value pair from the current in-session user's dictionary based on
+    * the "key" attribute of the DeleteRequest
+    *
+    * @return
+    * 401 unauthorized -
+    * 400 bad request -
+    * 422 Unprocessable Entity - payload: "no such entry" (if no entry exists for provided key)
+    */
+  @DELETE
+  @Path("/{key}")
+  def deleteEntry(@PathParam("key") key: String, @Auth sessionUser: SessionUser): Unit = {
+    val user = sessionUser.getUser
+    if (key == null || key.trim.isEmpty) {
+      throw new BadRequestException("key cannot be null or empty")
+    }
+    if (dictEntryExists(user, key)) {
+      deleteDictEntry(user, key)
+    }
   }
 
   /**

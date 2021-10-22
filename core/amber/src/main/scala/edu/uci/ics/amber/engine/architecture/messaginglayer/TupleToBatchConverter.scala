@@ -7,6 +7,7 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners.{
   RoundRobinPartitioner
 }
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
+import edu.uci.ics.amber.engine.common.ambermessage.DataPayload
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 
@@ -19,7 +20,7 @@ import scala.collection.mutable
   */
 class TupleToBatchConverter(
     selfID: ActorVirtualIdentity,
-    dataOutputPort: DataOutputPort
+    dataOutputPort: NetworkOutputPort[DataPayload]
 ) {
   private val partitioners = mutable.HashMap[LinkIdentity, Partitioner]()
 

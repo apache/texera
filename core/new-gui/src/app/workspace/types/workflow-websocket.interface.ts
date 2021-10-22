@@ -97,25 +97,48 @@ export type WorkflowAvailableResultEvent = Readonly<{
 }>;
 
 export type OperatorResultCacheStatus = "cache invalid" | "cache valid" | "cache not enabled";
+
 export interface CacheStatusUpdateEvent
   extends Readonly<{
     cacheStatusMap: Record<string, OperatorResultCacheStatus>;
   }> {}
 
+export type PythonExpressionEvaluateRequest = Readonly<{
+  expression: string;
+  operatorId: string;
+}>;
+export type TypedValue = Readonly<{
+  expression: string;
+  valueRef: string;
+  valueStr: string;
+  valueType: string;
+  expandable: boolean;
+}>;
+export type EvaluatedValue = Readonly<{
+  value: TypedValue;
+  attributes: TypedValue[];
+}>;
+
+export type PythonExpressionEvaluateResponse = Readonly<{
+  expression: string;
+  values: EvaluatedValue[];
+}>;
+
 export type TexeraWebsocketRequestTypeMap = {
-  HelloWorldRequest: WebSocketHelloWorld;
-  HeartBeatRequest: {};
-  ExecuteWorkflowRequest: LogicalPlan;
-  PauseWorkflowRequest: {};
-  ResumeWorkflowRequest: {};
-  KillWorkflowRequest: {};
-  ModifyLogicRequest: ModifyOperatorLogic;
-  SkipTupleRequest: SkipTuple;
-  RetryRequest: {};
   AddBreakpointRequest: BreakpointInfo;
-  ResultPaginationRequest: PaginationRequest;
-  ResultExportRequest: ResultExportRequest;
   CacheStatusUpdateRequest: CacheStatusUpdateRequest;
+  HeartBeatRequest: {};
+  HelloWorldRequest: WebSocketHelloWorld;
+  ModifyLogicRequest: ModifyOperatorLogic;
+  ResultExportRequest: ResultExportRequest;
+  ResultPaginationRequest: PaginationRequest;
+  RetryRequest: {};
+  SkipTupleRequest: SkipTuple;
+  WorkflowExecuteRequest: LogicalPlan;
+  WorkflowKillRequest: {};
+  WorkflowPauseRequest: {};
+  WorkflowResumeRequest: {};
+  PythonExpressionEvaluateRequest: PythonExpressionEvaluateRequest;
 };
 
 export type TexeraWebsocketEventTypeMap = {
@@ -137,6 +160,7 @@ export type TexeraWebsocketEventTypeMap = {
   ResultExportResponse: ResultExportResponse;
   WorkflowAvailableResultEvent: WorkflowAvailableResultEvent;
   CacheStatusUpdateEvent: CacheStatusUpdateEvent;
+  PythonExpressionEvaluateResponse: PythonExpressionEvaluateResponse;
 };
 
 // helper type definitions to generate the request and event types

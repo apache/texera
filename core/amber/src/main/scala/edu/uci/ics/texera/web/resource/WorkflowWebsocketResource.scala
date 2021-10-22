@@ -3,26 +3,29 @@ package edu.uci.ics.texera.web.resource
 import akka.actor.{ActorRef, PoisonPill}
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.EvaluatePythonExpressionHandler.EvaluatePythonExpression
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ModifyLogicHandler.ModifyLogic
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.RetryWorkflowHandler.RetryWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
-import edu.uci.ics.amber.engine.architecture.controller.{
-  Controller,
-  ControllerConfig,
-  ControllerEventListener
-}
-import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig}
+import edu.uci.ics.amber.engine.common.{AmberClient, AmberUtils}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.Utils.objectMapper
-import edu.uci.ics.texera.web.model.event._
-import edu.uci.ics.texera.web.model.request._
+import edu.uci.ics.texera.web.model.common.CacheStatus
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
+import edu.uci.ics.texera.web.model.websocket.event.WorkflowAvailableResultEvent.OperatorAvailableResult
+import edu.uci.ics.texera.web.model.websocket.event._
+import edu.uci.ics.texera.web.model.websocket.event.python.PythonPrintTriggeredEvent
+import edu.uci.ics.texera.web.model.websocket.request._
+import edu.uci.ics.texera.web.model.websocket.request.python.PythonExpressionEvaluateRequest
+import edu.uci.ics.texera.web.model.websocket.response.{HeartBeatResponse, HelloWorldResponse}
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource._
-import edu.uci.ics.texera.web.resource.auth.UserResource
+import edu.uci.ics.texera.web.service.WorkflowResultService
 import edu.uci.ics.texera.web.{ServletAwareConfigurator, TexeraWebApplication}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
@@ -39,23 +42,37 @@ import edu.uci.ics.texera.workflow.common.workflow.{
 }
 import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
-
+import org.jose4j.jwt.consumer.JwtContext
 import java.util.concurrent.atomic.AtomicInteger
-import javax.servlet.http.HttpSession
+
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
+  BreakpointTriggered,
+  ErrorOccurred,
+  PythonPrintTriggered,
+  ReportCurrentProcessingTuple,
+  WorkflowCompleted,
+  WorkflowPaused,
+  WorkflowResultUpdate,
+  WorkflowStatusUpdate
+}
+import edu.uci.ics.texera.web.model.websocket.response.python.PythonExpressionEvaluateResponse
 import javax.websocket._
 import javax.websocket.server.ServerEndpoint
-import scala.collection.{breakOut, mutable}
+
+import scala.collection.mutable
+import scala.jdk.CollectionConverters.mapAsScalaMapConverter
+import scala.util.{Failure, Success}
 
 object WorkflowWebsocketResource {
   // TODO should reorganize this resource.
 
-  val nextJobID = new AtomicInteger(0)
+  val nextJobId = new AtomicInteger(0)
 
   // Map[sessionId, (Session, HttpSession)]
-  val sessionMap = new mutable.HashMap[String, (Session, HttpSession)]
+  val sessionMap = new mutable.HashMap[String, (Session, JwtContext)]
 
   // Map[sessionId, (WorkflowCompiler, ActorRef)]
-  val sessionJobs = new mutable.HashMap[String, (WorkflowCompiler, ActorRef)]
+  val sessionJobs = new mutable.HashMap[String, (WorkflowCompiler, AmberClient)]
 
   // Map[sessionId, Map[operatorId, List[ITuple]]]
   val sessionResults = new mutable.HashMap[String, WorkflowResultService]
@@ -104,11 +121,7 @@ class WorkflowWebsocketResource extends LazyLogging {
   }
 
   @OnOpen
-  def myOnOpen(session: Session, config: EndpointConfig): Unit = {
-    WorkflowWebsocketResource.sessionMap.update(
-      session.getId,
-      (session, config.getUserProperties.get("httpSession").asInstanceOf[HttpSession])
-    )
+  def myOnOpen(session: Session): Unit = {
     logger.info("connection open")
   }
 
@@ -121,16 +134,16 @@ class WorkflowWebsocketResource extends LazyLogging {
           send(session, HelloWorldResponse("hello from texera web server"))
         case heartbeat: HeartBeatRequest =>
           send(session, HeartBeatResponse())
-        case execute: ExecuteWorkflowRequest =>
+        case execute: WorkflowExecuteRequest =>
           println(execute)
           executeWorkflow(session, execute)
         case newLogic: ModifyLogicRequest =>
           modifyLogic(session, newLogic)
-        case pause: PauseWorkflowRequest =>
+        case pause: WorkflowPauseRequest =>
           pauseWorkflow(session)
-        case resume: ResumeWorkflowRequest =>
+        case resume: WorkflowResumeRequest =>
           resumeWorkflow(session)
-        case kill: KillWorkflowRequest =>
+        case kill: WorkflowKillRequest =>
           killWorkflow(session)
         case skipTupleMsg: SkipTupleRequest =>
           skipTuple(session, skipTupleMsg)
@@ -146,6 +159,8 @@ class WorkflowWebsocketResource extends LazyLogging {
           if (opResultSwitch) {
             updateCacheStatus(session, cacheStatusUpdateRequest)
           }
+        case pythonExpressionEvaluateRequest: PythonExpressionEvaluateRequest =>
+          evaluatePythonExpression(session, pythonExpressionEvaluateRequest)
       }
     } catch {
       case err: Exception =>
@@ -161,16 +176,21 @@ class WorkflowWebsocketResource extends LazyLogging {
 
   }
 
+  def evaluatePythonExpression(session: Session, request: PythonExpressionEvaluateRequest): Unit = {
+    val client = WorkflowWebsocketResource.sessionJobs(session.getId)._2
+    client
+      .sendAsync(EvaluatePythonExpression(request.expression, request.operatorId))
+      .onSuccess { ret: PythonExpressionEvaluateResponse => send(session, ret) }
+  }
+
   def resultPagination(session: Session, request: ResultPaginationRequest): Unit = {
     var operatorID = request.operatorID
     if (!sessionResults(session.getId).operatorResults.contains(operatorID)) {
       val downstreamIDs = sessionResults(session.getId).workflowCompiler.workflow
         .getDownstream(operatorID)
-      for (elem <- downstreamIDs) {
-        if (elem.isInstanceOf[CacheSinkOpDesc]) {
-          operatorID = elem.operatorID
-          breakOut
-        }
+      // Get the first CacheSinkOpDesc, if exists
+      downstreamIDs.find(_.isInstanceOf[CacheSinkOpDesc]).foreach { op =>
+        operatorID = op.operatorID
       }
     }
     val opResultService = sessionResults(session.getId).operatorResults(operatorID)
@@ -185,45 +205,45 @@ class WorkflowWebsocketResource extends LazyLogging {
 
   def addBreakpoint(session: Session, addBreakpoint: AddBreakpointRequest): Unit = {
     val compiler = WorkflowWebsocketResource.sessionJobs(session.getId)._1
-    val controller = WorkflowWebsocketResource.sessionJobs(session.getId)._2
-    compiler.addBreakpoint(controller, addBreakpoint.operatorID, addBreakpoint.breakpoint)
+    val client = WorkflowWebsocketResource.sessionJobs(session.getId)._2
+    compiler.addBreakpoint(client, addBreakpoint.operatorID, addBreakpoint.breakpoint)
   }
 
   def skipTuple(session: Session, tupleReq: SkipTupleRequest): Unit = {
 //    val actorPath = tupleReq.actorPath
 //    val faultedTuple = tupleReq.faultedTuple
-//    val controller = WorkflowWebsocketResource.sessionJobs(session.getId)._2
-//    controller ! SkipTupleGivenWorkerRef(actorPath, faultedTuple.toFaultedTuple())
+//    val client = WorkflowWebsocketResource.sessionJobs(session.getId)._2
+//    client ! SkipTupleGivenWorkerRef(actorPath, faultedTuple.toFaultedTuple())
     throw new RuntimeException("skipping tuple is temporarily disabled")
   }
 
   def modifyLogic(session: Session, newLogic: ModifyLogicRequest): Unit = {
     val texeraOperator = newLogic.operator
-    val (compiler, controller) = WorkflowWebsocketResource.sessionJobs(session.getId)
+    val (compiler, client) = WorkflowWebsocketResource.sessionJobs(session.getId)
     compiler.initOperator(texeraOperator)
-    controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, ModifyLogic(texeraOperator))
+    client.fireAndForget(ModifyLogic(texeraOperator))
   }
 
   def retryWorkflow(session: Session): Unit = {
-    val (compiler, controller) = WorkflowWebsocketResource.sessionJobs(session.getId)
-    controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, RetryWorkflow())
-    send(session, WorkflowResumedEvent())
+    val (_, client) = WorkflowWebsocketResource.sessionJobs(session.getId)
+    client
+      .sendAsync(RetryWorkflow())
+      .onSuccess(_ => send(session, WorkflowResumedEvent()))
   }
 
   def pauseWorkflow(session: Session): Unit = {
-    val controller = WorkflowWebsocketResource.sessionJobs(session.getId)._2
-    controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, PauseWorkflow())
-    // workflow paused event will be send after workflow is actually paused
-    // the callback function will handle sending the paused event to frontend
+    val client = WorkflowWebsocketResource.sessionJobs(session.getId)._2
+    client.sendAsync(PauseWorkflow()).onSuccess(x => send(session, WorkflowPausedEvent()))
   }
 
   def resumeWorkflow(session: Session): Unit = {
-    val controller = WorkflowWebsocketResource.sessionJobs(session.getId)._2
-    controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, ResumeWorkflow())
-    send(session, WorkflowResumedEvent())
+    val client = WorkflowWebsocketResource.sessionJobs(session.getId)._2
+    client
+      .sendAsync(ResumeWorkflow())
+      .onSuccess(_ => send(session, WorkflowResumedEvent()))
   }
 
-  def executeWorkflow(session: Session, request: ExecuteWorkflowRequest): Unit = {
+  def executeWorkflow(session: Session, request: WorkflowExecuteRequest): Unit = {
     var cachedOperators: mutable.HashMap[String, OperatorDescriptor] = null
     var cacheSourceOperators: mutable.HashMap[String, CacheSourceOpDesc] = null
     var cacheSinkOperators: mutable.HashMap[String, CacheSinkOpDesc] = null
@@ -257,11 +277,11 @@ class WorkflowWebsocketResource extends LazyLogging {
 
     logger.info(s"Session id: ${session.getId}")
     val context = new WorkflowContext
-    val jobID = Integer.toString(WorkflowWebsocketResource.nextJobID.incrementAndGet)
-    context.jobID = jobID
-    context.userID = UserResource
-      .getUser(sessionMap(session.getId)._2)
-      .map(u => u.getUid)
+    val jobId = Integer.toString(WorkflowWebsocketResource.nextJobId.incrementAndGet)
+    context.jobId = jobId
+    context.userId = session.getUserProperties.asScala
+      .get(classOf[User].getName)
+      .map(_.asInstanceOf[User].getUid)
 
     if (opResultSwitch) {
       updateCacheStatus(
@@ -302,7 +322,7 @@ class WorkflowWebsocketResource extends LazyLogging {
       return
     }
 
-    val workflow = texeraWorkflowCompiler.amberWorkflow(WorkflowIdentity(jobID))
+    val workflow = texeraWorkflowCompiler.amberWorkflow(WorkflowIdentity(jobId))
 
     val workflowResultService = new WorkflowResultService(texeraWorkflowCompiler, opResultStorage)
     if (!sessionResults.contains(session.getId)) {
@@ -348,8 +368,12 @@ class WorkflowWebsocketResource extends LazyLogging {
 
     send(session, availableResultEvent)
 
-    val eventListener = ControllerEventListener(
-      workflowCompletedListener = completed => {
+    val client = TexeraWebApplication.createAmberRuntime(workflow, ControllerConfig.default)
+    texeraWorkflowCompiler.initializeBreakpoint(client)
+
+    client
+      .getObservable[WorkflowCompleted]
+      .subscribe(completed => {
         sessionExportCache.remove(session.getId)
         send(session, WorkflowCompletedEvent())
         if (opResultSwitch) {
@@ -363,42 +387,43 @@ class WorkflowWebsocketResource extends LazyLogging {
             )
           )
         }
-      },
-      workflowStatusUpdateListener = statusUpdate => {
+      })
+
+    client
+      .getObservable[WorkflowStatusUpdate]
+      .subscribe(statusUpdate => {
         send(session, WebWorkflowStatusUpdateEvent.apply(statusUpdate))
-      },
-      workflowResultUpdateListener = resultUpdate => {
+      })
+    client
+      .getObservable[WorkflowResultUpdate]
+      .subscribe(resultUpdate => {
         workflowResultService.onResultUpdate(resultUpdate, session)
-      },
-      breakpointTriggeredListener = breakpointTriggered => {
+      })
+    client
+      .getObservable[BreakpointTriggered]
+      .subscribe(breakpointTriggered => {
         send(session, BreakpointTriggeredEvent.apply(breakpointTriggered))
-      },
-      pythonPrintTriggeredListener = pythonPrintTriggered => {
+      })
+    client
+      .getObservable[PythonPrintTriggered]
+      .subscribe(pythonPrintTriggered => {
         send(session, PythonPrintTriggeredEvent.apply(pythonPrintTriggered))
-      },
-      workflowPausedListener = _ => {
-        send(session, WorkflowPausedEvent())
-      },
-      reportCurrentTuplesListener = report => {
+      })
+    client
+      .getObservable[ReportCurrentProcessingTuple]
+      .subscribe(report => {
         //        send(session, OperatorCurrentTuplesUpdateEvent.apply(report))
-      },
-      recoveryStartedListener = _ => {
-        send(session, RecoveryStartedEvent())
-      },
-      workflowExecutionErrorListener = errorOccurred => {
+      })
+    client
+      .getObservable[ErrorOccurred]
+      .subscribe(errorOccurred => {
         logger.error("Workflow execution has error: {}.", errorOccurred.error)
         send(session, WorkflowExecutionErrorEvent(errorOccurred.error.getLocalizedMessage))
-      }
-    )
+      })
 
-    val controllerActorRef = TexeraWebApplication.actorSystem.actorOf(
-      Controller.props(workflow, eventListener, ControllerConfig.default)
-    )
-    texeraWorkflowCompiler.initializeBreakpoint(controllerActorRef)
-    controllerActorRef ! ControlInvocation(AsyncRPCClient.IgnoreReply, StartWorkflow())
+    client.fireAndForget(StartWorkflow())
 
-    WorkflowWebsocketResource.sessionJobs(session.getId) =
-      (texeraWorkflowCompiler, controllerActorRef)
+    WorkflowWebsocketResource.sessionJobs(session.getId) = (texeraWorkflowCompiler, client)
 
     send(session, WorkflowStartedEvent())
 
@@ -464,19 +489,19 @@ class WorkflowWebsocketResource extends LazyLogging {
   }
 
   def exportResult(session: Session, request: ResultExportRequest): Unit = {
-    val resultExportResponse = ResultExportResource.apply(session.getId, request)
+    val resultExportResponse = ResultExportResource.apply(session, request)
     send(session, resultExportResponse)
   }
 
   def killWorkflow(session: Session): Unit = {
-    WorkflowWebsocketResource.sessionJobs(session.getId)._2 ! PoisonPill
+    WorkflowWebsocketResource.sessionJobs(session.getId)._2.shutdown()
     logger.info("workflow killed")
   }
 
   @OnClose
   def myOnClose(session: Session, cr: CloseReason): Unit = {
     if (WorkflowWebsocketResource.sessionJobs.contains(session.getId)) {
-      logger.info(s"session ${session.getId} disconnected, kill its controller actor")
+      logger.info(s"session ${session.getId} disconnected, kill its client actor")
       this.killWorkflow(session)
     }
 

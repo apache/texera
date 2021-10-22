@@ -18,6 +18,7 @@ import { WorkflowResultExportService } from "../../service/workflow-result-expor
 import { debounceTime } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { VIEW_RESULT_OP_TYPE } from "../../service/workflow-graph/model/workflow-graph";
+import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -76,6 +77,7 @@ export class NavigationComponent {
     public undoRedoService: UndoRedoService,
     public validationWorkflowService: ValidationWorkflowService,
     public workflowPersistService: WorkflowPersistService,
+    public workflowVersionService: WorkflowVersionService,
     public userService: UserService,
     private workflowCacheService: WorkflowCacheService,
     private datePipe: DatePipe,
@@ -429,6 +431,9 @@ export class NavigationComponent {
       });
   }
 
+  onClickGetAllVersions() {
+    this.workflowVersionService.clickDisplayWorkflowVersions();
+  }
   /**
    * Updates the status of the disable operator icon:
    * If all selected operators are disabled, then click it will re-enable the operators
