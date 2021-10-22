@@ -27,7 +27,6 @@ class ControllerAsyncRPCHandlerInitializer(
     val actorContext: ActorContext,
     val actorId: ActorVirtualIdentity,
     val controlOutputPort: NetworkOutputPort[ControlPayload],
-    val eventListener: ControllerEventListener,
     val workflow: Workflow,
     val controllerConfig: ControllerConfig,
     source: AsyncRPCClient,
@@ -44,7 +43,6 @@ class ControllerAsyncRPCHandlerInitializer(
     with QueryWorkerStatisticsHandler
     with ResumeHandler
     with StartWorkflowHandler
-    with KillWorkflowHandler
     with LinkCompletedHandler
     with FatalErrorHandler
     with PythonPrintHandler
@@ -92,19 +90,6 @@ class ControllerAsyncRPCHandlerInitializer(
     if (resultUpdateAskHandle.nonEmpty) {
       resultUpdateAskHandle.get.cancel()
       resultUpdateAskHandle = Option.empty
-    }
-  }
-
-  def updateFrontendWorkflowStatus(): Unit = {
-    if (eventListener.workflowStatusUpdateListener != null) {
-      eventListener.workflowStatusUpdateListener
-        .apply(WorkflowStatusUpdate(workflow.getWorkflowStatus))
-    }
-  }
-
-  def updateFrontendWorkflowResult(workflowResultUpdate: WorkflowResultUpdate): Unit = {
-    if (eventListener.workflowResultUpdateListener != null) {
-      eventListener.workflowResultUpdateListener.apply(workflowResultUpdate)
     }
   }
 

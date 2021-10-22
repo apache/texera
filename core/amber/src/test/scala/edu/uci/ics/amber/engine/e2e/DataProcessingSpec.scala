@@ -8,8 +8,6 @@ import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.controller._
 import edu.uci.ics.amber.engine.architecture.principal.OperatorResult
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -20,10 +18,13 @@ import edu.uci.ics.texera.workflow.common.workflow._
 import edu.uci.ics.texera.workflow.operators.aggregate.AggregationFunction
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-
 import java.sql.PreparedStatement
+
+import com.twitter.util.{Await, Promise}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowCompleted
+import edu.uci.ics.amber.engine.common.AmberClient
+
 import scala.collection.mutable
-import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
 
 class DataProcessingSpec
@@ -34,7 +35,6 @@ class DataProcessingSpec
     with BeforeAndAfterEach {
 
   implicit val timeout: Timeout = Timeout(5.seconds)
-  implicit val executionContext: ExecutionContextExecutor = system.dispatcher
 
   var inMemoryMySQLInstance: Option[DB] = None
 
@@ -60,18 +60,17 @@ class DataProcessingSpec
   }
 
   def executeWorkflow(workflow: Workflow): Map[String, List[ITuple]] = {
-    val parent = TestProbe()
     var results: Map[String, OperatorResult] = null
-    val eventListener = ControllerEventListener()
-    eventListener.workflowCompletedListener = evt => results = evt.result
-    val controller = parent.childActorOf(
-      Controller.props(workflow, eventListener, ControllerConfig.default)
-    )
-    parent.expectMsg(ControllerState.Ready)
-    controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, StartWorkflow())
-    parent.expectMsg(ControllerState.Running)
-    parent.expectMsg(1.minute, ControllerState.Completed)
-    parent.ref ! PoisonPill
+    val client = new AmberClient(system, workflow, ControllerConfig.default)
+    val completion = Promise[Unit]
+    client
+      .getObservable[WorkflowCompleted]
+      .subscribe(evt => {
+        results = evt.result
+        completion.setDone()
+      })
+    client.sendSync(StartWorkflow(), 1.second)
+    Await.result(completion)
     results.map(e => (e._1, e._2.result))
   }
 

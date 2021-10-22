@@ -8,6 +8,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{OperatorInfo, PropertyNameCo
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
 import edu.uci.ics.texera.workflow.operators.aggregate.SpecializedAverageOpDesc
+import edu.uci.ics.texera.workflow.operators.dictionary.{DictionaryMatcherOpDesc}
 import edu.uci.ics.texera.workflow.operators.difference.DifferenceOpDesc
 import edu.uci.ics.texera.workflow.operators.distinct.DistinctOpDesc
 import edu.uci.ics.texera.workflow.operators.filter.SpecializedFilterOpDesc
@@ -90,7 +91,8 @@ import java.util.UUID
     new Type(value = classOf[IntersectOpDesc], name = "Intersect"),
     new Type(value = classOf[SymmetricDifferenceOpDesc], name = "SymmetricDifference"),
     new Type(value = classOf[DifferenceOpDesc], name = "Difference"),
-    new Type(value = classOf[IntervalJoinOpDesc], name = "IntervalJoin")
+    new Type(value = classOf[IntervalJoinOpDesc], name = "IntervalJoin"),
+    new Type(value = classOf[DictionaryMatcherOpDesc], name = "DictionaryMatcher")
   )
 )
 abstract class OperatorDescriptor extends Serializable {
