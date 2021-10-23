@@ -294,7 +294,11 @@ class WorkflowResource {
   @Path("/update/name/{wid}/{workflowName}")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def updateWorkflowName(@PathParam("wid") wid: UInteger, @PathParam("workflowName") workflowName: String, @Auth sessionUser: SessionUser): Unit = {
+  def updateWorkflowName(
+      @PathParam("wid") wid: UInteger,
+      @PathParam("workflowName") workflowName: String,
+      @Auth sessionUser: SessionUser
+  ): Unit = {
     val user = sessionUser.getUser
     if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
       throw new ForbiddenException("No sufficient access privilege.")
