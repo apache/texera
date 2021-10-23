@@ -29,9 +29,11 @@ class SessionState(session: Session) {
     currentWorkflowState = Some(workflowService)
     workflowService.connect()
     subscribedComponents.append(workflowService.operatorCache.subscribe(observer))
-    workflowService.getJobServiceObservable.first.subscribe(jobService => {
-      subscribedComponents.append(jobService.subscribeRuntimeComponents(observer))
-      subscribedComponents.append(jobService.subscribe(observer))
-    })
+    subscribedComponents.append(
+      workflowService.getJobServiceObservable.first.subscribe(jobService => {
+        subscribedComponents.append(jobService.subscribeRuntimeComponents(observer))
+        subscribedComponents.append(jobService.subscribe(observer))
+      })
+    )
   }
 }
