@@ -9,14 +9,15 @@ import rx.lang.scala.{Observer, Subscription}
 import scala.collection.mutable
 
 class SessionState(session: Session) {
-  private var subscribedComponents: Subscription = Subscription()
+  private var subscribedComponents: mutable.ArrayBuffer[Subscription] = mutable.ArrayBuffer.empty
   private val observer: Observer[TexeraWebSocketEvent] = new WebsocketSubscriber(session)
   private var currentWorkflowState: Option[WorkflowService] = None
 
   def getCurrentWorkflowState: Option[WorkflowService] = currentWorkflowState
 
   def unsubscribe(): Unit = {
-    subscribedComponents.unsubscribe()
+    subscribedComponents.foreach(_.unsubscribe())
+    subscribedComponents.clear()
     if (currentWorkflowState.isDefined) {
       currentWorkflowState.get.disconnect()
       currentWorkflowState = None
@@ -27,16 +28,10 @@ class SessionState(session: Session) {
     unsubscribe()
     currentWorkflowState = Some(workflowService)
     workflowService.connect()
-    val opCacheSubscription = workflowService.operatorCache.subscribe(observer)
-    subscribedComponents = CompositeSubscription(
-      opCacheSubscription,
-      workflowService.getJobServiceObservable.subscribe(jobService => {
-        subscribedComponents = CompositeSubscription(
-          jobService.subscribeRuntimeComponents(observer),
-          jobService.subscribe(observer),
-          subscribedComponents
-        )
-      })
-    )
+    subscribedComponents.append(workflowService.operatorCache.subscribe(observer))
+    workflowService.getJobServiceObservable.first.subscribe(jobService => {
+      subscribedComponents.append(jobService.subscribeRuntimeComponents(observer))
+      subscribedComponents.append(jobService.subscribe(observer))
+    })
   }
 }
