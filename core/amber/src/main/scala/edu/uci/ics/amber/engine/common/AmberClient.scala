@@ -40,9 +40,9 @@ class AmberClient(system: ActorSystem, workflow: Workflow, controllerConfig: Con
 //    shutdown()
 //  })
 //
-  getObservable[FatalError].subscribe(evt => {
-    shutdown()
-  })
+//  getObservable[FatalError].subscribe(evt => {
+//    shutdown()
+//  })
 
   class ClientActor extends Actor {
     val controller: ActorRef = context.actorOf(Controller.props(workflow, controllerConfig))
@@ -52,7 +52,12 @@ class AmberClient(system: ActorSystem, workflow: Workflow, controllerConfig: Con
 
     override def receive: Receive = {
       case ClosureRequest(closure) =>
-        sender ! closure()
+        try {
+          sender ! closure()
+        } catch {
+          case e: Throwable =>
+            sender ! e
+        }
       case CommandRequest(controlCommand) =>
         controller ! ControlInvocation(controlId, controlCommand)
         senderMap(controlId) = sender

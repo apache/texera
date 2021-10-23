@@ -136,8 +136,8 @@ class WorkflowJobService(
 
   def subscribeRuntimeComponents(observer: Observer[TexeraWebSocketEvent]): Subscription = {
     CompositeSubscription(
-      SnapshotMulticast.syncState(workflowRuntimeService, observer, client),
-      SnapshotMulticast.syncState(workflowResultService, observer, client)
+      workflowRuntimeService.subscribeWithAmberClient(observer, client),
+      workflowResultService.subscribeWithAmberClient(observer, client)
     )
   }
 

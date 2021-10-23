@@ -4,7 +4,12 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.Utils
-import edu.uci.ics.texera.web.{ServletAwareConfigurator, SessionState, SnapshotMulticast}
+import edu.uci.ics.texera.web.{
+  ServletAwareConfigurator,
+  SessionState,
+  SessionStateManager,
+  SnapshotMulticast
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.event.{
   TexeraWebSocketEvent,
@@ -26,7 +31,6 @@ import scala.util.{Failure, Success}
 
 object WorkflowWebsocketResource {
   val nextExecutionID = new AtomicInteger(0)
-  val sessionIdToSessionState = new mutable.HashMap[String, SessionState]()
 }
 
 @ServerEndpoint(
@@ -43,13 +47,13 @@ class WorkflowWebsocketResource extends LazyLogging {
 
   @OnOpen
   def myOnOpen(session: Session, config: EndpointConfig): Unit = {
-    SessionState.registerState(session.getId, new SessionState(session))
+    SessionStateManager.setState(session.getId, new SessionState(session))
     logger.info("connection open")
   }
 
   @OnClose
   def myOnClose(session: Session, cr: CloseReason): Unit = {
-    SessionState.unregisterState(session.getId)
+    SessionStateManager.removeState(session.getId)
   }
 
   @OnMessage
@@ -58,7 +62,7 @@ class WorkflowWebsocketResource extends LazyLogging {
     val uidOpt = session.getUserProperties.asScala
       .get(classOf[User].getName)
       .map(_.asInstanceOf[User].getUid)
-    val sessionState = SessionState.getState(session.getId)
+    val sessionState = SessionStateManager.getState(session.getId)
     val workflowStateOpt = sessionState.getCurrentWorkflowState
     try {
       request match {
@@ -67,7 +71,7 @@ class WorkflowWebsocketResource extends LazyLogging {
           send(session, WorkflowStatusEvent(Uninitialized))
           val wId = uidOpt.toString + "-" + wIdRequest.wId
           val workflowState = WorkflowService.getOrCreate(wId)
-          sessionState.bind(workflowState)
+          sessionState.subscribe(workflowState)
           logger.info("start working on " + wId)
           send(session, RegisterWIdResponse("wid registered"))
         case heartbeat: HeartBeatRequest =>

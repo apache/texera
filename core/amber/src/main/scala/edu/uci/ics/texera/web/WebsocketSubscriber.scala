@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.web.resource
+package edu.uci.ics.texera.web
 
 import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
