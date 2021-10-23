@@ -160,16 +160,13 @@ export class UserFileService {
     this.dashboardUserFileEntryChanged.next();
   }
 
-
   /**
    * updates the file name of a given userFileEntry
    */
-  public updateFileName(fid: number, name: string): Observable<Response> {
-    return this.http.post<Response>(
-      `${USER_FILE_NAME_UPDATE_URL}`, {
-        fid: fid,
-        name: name,
-      }
-    );
-  } 
+  public updateFileName(fid: number, name: string): Observable<void> {
+    return this.http.post<void>(`${USER_FILE_NAME_UPDATE_URL}`, {
+      fid: fid,
+      name: name,
+    });
+  }
 }

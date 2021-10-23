@@ -288,23 +288,21 @@ class WorkflowResource {
   /**
     * This method updates the name of a given workflow
     *
-    * @param workflow the to be updated workflow
     * @return Response
     */
   @POST
-  @Path("/update/name")
+  @Path("/update/name/{wid}/{workflowName}")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def updateWorkflowName(workflow: Workflow, @Auth sessionUser: SessionUser): Unit = {
+  def updateWorkflowName(@PathParam("wid") wid: UInteger, @PathParam("workflowName") workflowName: String, @Auth sessionUser: SessionUser): Unit = {
     val user = sessionUser.getUser
-    val wid = workflow.getWid
-    if (!WorkflowAccessResource.hasWriteAccess(workflow.getWid, user.getUid)) {
+    if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
       throw new ForbiddenException("No sufficient access privilege.")
     } else if (!workflowOfUserExists(wid, user.getUid)) {
       throw new BadRequestException("The workflow does not exist.")
     } else {
-      val userWorkflow = workflowDao.fetchOneByWid(wid);
-      userWorkflow.setName(workflow.getName)
+      val userWorkflow = workflowDao.fetchOneByWid(wid)
+      userWorkflow.setName(workflowName)
       workflowDao.update(userWorkflow)
     }
   }
