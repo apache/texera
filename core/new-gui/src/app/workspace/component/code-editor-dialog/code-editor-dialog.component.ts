@@ -25,13 +25,24 @@ export class CodeEditorDialogComponent {
     automaticLayout: true,
   };
   code: string;
+  // TODO: fetch starter code from the backend
+  placeholder: string = "# Uncomment the starter code below\n" +
+    "# from typing import Iterator, Optional, Union\n" +
+    "# from pytexera import InputExhausted, Tuple, TupleLike, UDFOperator, overrides\n" +
+    "# \n" +
+    "# class EchoOperator(UDFOperator):\n" +
+    "#     \n" +
+    "#     @overrides\n" +
+    "#     def process_tuple(self, tuple_: Union[Tuple, InputExhausted], input_: int) -> Iterator[Optional[TupleLike]]:\n" +
+    "#        if isinstance(tuple_, Tuple):\n" +
+    "#             yield tuple_";
 
   constructor(
     private dialogRef: MatDialogRef<CodeEditorDialogComponent>,
     @Inject(MAT_DIALOG_DATA) code: any,
     private workflowActionService: WorkflowActionService
   ) {
-    this.code = code;
+    this.code = code === "" ? this.placeholder : code;
   }
 
   onCodeChange(code: string): void {
