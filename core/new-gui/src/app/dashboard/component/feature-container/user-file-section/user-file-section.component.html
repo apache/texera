@@ -16,13 +16,35 @@
 
   <nz-card class="user-file-list subsection-grid-container">
     <nz-list>
-      <nz-list-item *ngFor="let dashboardUserFileEntry of getFileArray()" class="user-file-list-item">
+      <nz-list-item
+        *ngFor="let dashboardUserFileEntry of getFileArray();let indexOfElement=index"
+        class="user-file-list-item"
+      >
         <nz-list-item-meta>
           <nz-list-item-meta-title>
             <div class="file-name">
-              <h4 class="file-title">
+              <h4 *ngIf="isEditingName.indexOf(indexOfElement) === -1; else customeFileName " class="file-title">
                 {{ dashboardUserFileEntry.ownerName + "/" + dashboardUserFileEntry.file.name }}
               </h4>
+              <ng-template #customeFileName>
+                <input
+                  #customeFileName
+                  (focusout)="confirmUpdateFileCustomName(dashboardUserFileEntry, customeFileName.value, indexOfElement)"
+                  (keyup.enter)="confirmUpdateFileCustomName(dashboardUserFileEntry, customeFileName.value, indexOfElement)"
+                  placeholder="{{ dashboardUserFileEntry.file.name }}"
+                  value="{{ dashboardUserFileEntry.file.name }}"
+                />
+              </ng-template>
+              <button
+                (click)="isEditingName.push(indexOfElement)"
+                nz-button
+                nz-tooltip="Customize File Name"
+                nzSize="small"
+                nzTooltipPlacement="bottom"
+                nzType="text"
+              >
+                <i nz-icon nzTheme="outline" nzType="edit"></i>
+              </button>
               <i
                 *ngIf="dashboardUserFileEntry.isOwner"
                 ngbTooltip="You are the OWNER"
