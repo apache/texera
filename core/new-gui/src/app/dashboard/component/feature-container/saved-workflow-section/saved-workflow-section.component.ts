@@ -9,6 +9,7 @@ import { NgbdModalWorkflowShareAccessComponent } from "./ngbd-modal-share-access
 import { DashboardWorkflowEntry } from "../../../type/dashboard-workflow-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { NotificationService } from "src/app/common/service/notification/notification.service";
 
 export const ROUTER_WORKFLOW_BASE_URL = "/workflow";
 export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
@@ -21,10 +22,13 @@ export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
 })
 export class SavedWorkflowSectionComponent implements OnInit {
   public dashboardWorkflowEntries: DashboardWorkflowEntry[] = [];
+  public dashboardWorkflowEntriesIsEditingName: number[] = [];
+  private defaultWorkflowName: string = "Untitled Workflow";
 
   constructor(
     private userService: UserService,
     private workflowPersistService: WorkflowPersistService,
+    private notificationService: NotificationService,
     private modalService: NgbModal,
     private router: Router
   ) {}
@@ -167,5 +171,28 @@ export class SavedWorkflowSectionComponent implements OnInit {
 
   private clearDashboardWorkflowEntries(): void {
     this.dashboardWorkflowEntries = [];
+  }
+
+  public confirmUpdateWorkflowCustomName(
+    dashboardWorkflowEntry: DashboardWorkflowEntry,
+    name: string,
+    index: number
+  ): void {
+    const { workflow } = dashboardWorkflowEntry;
+    this.workflowPersistService
+      .updateWorkflowName(workflow.wid, name || this.defaultWorkflowName)
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        let updatedDashboardWorkFlowEntry = { ...dashboardWorkflowEntry };
+        updatedDashboardWorkFlowEntry.workflow = { ...workflow };
+        updatedDashboardWorkFlowEntry.workflow.name = name || this.defaultWorkflowName;
+
+        this.dashboardWorkflowEntries[index] = updatedDashboardWorkFlowEntry;
+      })
+      .add(() => {
+        this.dashboardWorkflowEntriesIsEditingName = this.dashboardWorkflowEntriesIsEditingName.filter(
+          entryIsEditingIndex => entryIsEditingIndex != index
+        );
+      });
   }
 }

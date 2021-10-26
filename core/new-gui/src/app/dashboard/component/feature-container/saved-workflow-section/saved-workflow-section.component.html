@@ -37,7 +37,10 @@
 
   <nz-card class="workflow-list-container subsection-grid-container">
     <nz-list>
-      <nz-list-item *ngFor="let dashboardWorkflowEntry of dashboardWorkflowEntries" class="workflow-list-item">
+      <nz-list-item
+        *ngFor="let dashboardWorkflowEntry of dashboardWorkflowEntries;let indexOfElement=index"
+        class="workflow-list-item"
+      >
         <nz-list-item-meta>
           <nz-list-item-meta-avatar>
             <nz-avatar
@@ -50,9 +53,31 @@
           </nz-list-item-meta-avatar>
           <nz-list-item-meta-title>
             <span class="workflow-dashboard-entry">
-              <label (click)="jumpToWorkflow(dashboardWorkflowEntry)" class="workflow-name"
+              <label
+                *ngIf="dashboardWorkflowEntriesIsEditingName.indexOf(indexOfElement) === -1; else customeWorkflow "
+                (click)="jumpToWorkflow(dashboardWorkflowEntry)"
+                class="workflow-name"
                 >{{ dashboardWorkflowEntry.workflow.name }}</label
               >
+              <ng-template #customeWorkflow>
+                <input
+                  #customName
+                  (focusout)="confirmUpdateWorkflowCustomName(dashboardWorkflowEntry, customName.value, indexOfElement)"
+                  (keyup.enter)="confirmUpdateWorkflowCustomName(dashboardWorkflowEntry, customName.value, indexOfElement)"
+                  placeholder="{{ dashboardWorkflowEntry.workflow.name }}"
+                  value="{{ dashboardWorkflowEntry.workflow.name }}"
+                />
+              </ng-template>
+              <button
+                (click)="dashboardWorkflowEntriesIsEditingName.push(indexOfElement)"
+                nz-button
+                nz-tooltip="Customize Workflow Name"
+                nzSize="small"
+                nzTooltipPlacement="bottom"
+                nzType="text"
+              >
+                <i nz-icon nzTheme="outline" nzType="edit"></i>
+              </button>
               <i
                 *ngIf="dashboardWorkflowEntry.isOwner"
                 ngbTooltip="You are the OWNER"
