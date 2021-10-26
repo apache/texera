@@ -235,7 +235,6 @@ class DataProcessor(StoppableQueueBlockingRunnable):
             except Exception as err:
                 logger.exception(err)
 
-
     def _pause(self) -> None:
         """
         Pause the data processing.
