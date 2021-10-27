@@ -4,10 +4,7 @@ import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
 import akka.pattern._
 import akka.util.Timeout
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  ErrorOccurred,
-  WorkflowCompleted
-}
+
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
@@ -29,22 +26,23 @@ class AmberClient(system: ActorSystem, workflow: Workflow, controllerConfig: Con
 
   private case class CommandRequest[T](controlCommand: ControlCommand[T])
   private case class ObservableRequest(pf: PartialFunction[Any, Unit])
+  private case class ClosureRequest[T](closure: () => T)
   private val client = system.actorOf(Props(new ClientActor))
   private implicit val timeout: Timeout = Timeout(1.minute)
   private val registeredSubjects = new mutable.HashMap[Class[_], Subject[_]]()
   @volatile private var isActive = true
 
-  getObservable[WorkflowCompleted].subscribe(evt => {
-    shutdown()
-  })
-
-  getObservable[ErrorOccurred].subscribe(evt => {
-    shutdown()
-  })
-
-  getObservable[FatalError].subscribe(evt => {
-    shutdown()
-  })
+//  getObservable[WorkflowCompleted].subscribe(evt => {
+//    shutdown()
+//  })
+//
+//  getObservable[ErrorOccurred].subscribe(evt => {
+//    shutdown()
+//  })
+//
+//  getObservable[FatalError].subscribe(evt => {
+//    shutdown()
+//  })
 
   class ClientActor extends Actor {
     val controller: ActorRef = context.actorOf(Controller.props(workflow, controllerConfig))
@@ -53,6 +51,13 @@ class AmberClient(system: ActorSystem, workflow: Workflow, controllerConfig: Con
     var handlers: PartialFunction[Any, Unit] = PartialFunction.empty
 
     override def receive: Receive = {
+      case ClosureRequest(closure) =>
+        try {
+          sender ! closure()
+        } catch {
+          case e: Throwable =>
+            sender ! e
+        }
       case CommandRequest(controlCommand) =>
         controller ! ControlInvocation(controlId, controlCommand)
         senderMap(controlId) = sender
@@ -134,4 +139,13 @@ class AmberClient(system: ActorSystem, workflow: Workflow, controllerConfig: Con
     registeredSubjects(clazz) = ob
     ob
   }
+
+  def executeClosureSync[T](closure: => T): T = {
+    if (!isActive) {
+      closure
+    } else {
+      Await.result(client ? ClosureRequest(() => closure), timeout.duration).asInstanceOf[T]
+    }
+  }
+
 }

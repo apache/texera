@@ -9,7 +9,6 @@ import scala.collection.mutable
 case class BreakpointInfo(operatorID: String, breakpoint: Breakpoint)
 
 object WorkflowInfo {
-
   def toJgraphtDAG(workflowInfo: WorkflowInfo): DirectedAcyclicGraph[String, OperatorLink] = {
     val workflowDag =
       new DirectedAcyclicGraph[String, OperatorLink](classOf[OperatorLink])
@@ -30,43 +29,49 @@ case class WorkflowInfo(
     breakpoints: mutable.MutableList[BreakpointInfo]
 ) {
   var cachedOperatorIds: mutable.MutableList[String] = _
-}
 
-// helper class that converts the workflowInfo into a graph data structure
-class WorkflowDAG(workflowInfo: WorkflowInfo) {
+  private lazy val dag = new WorkflowDAG(this)
 
-  val operators: Map[String, OperatorDescriptor] =
-    workflowInfo.operators.map(op => (op.operatorID, op)).toMap
+  def toDAG: WorkflowDAG = dag
 
-  val jgraphtDag: DirectedAcyclicGraph[String, OperatorLink] =
-    WorkflowInfo.toJgraphtDAG(workflowInfo)
+  // helper class that converts the workflowInfo into a graph data structure
+  class WorkflowDAG(workflowInfo: WorkflowInfo) {
 
-  val sourceOperators: List[String] =
-    operators.keys.filter(op => jgraphtDag.inDegreeOf(op) == 0).toList
+    val operators: Map[String, OperatorDescriptor] =
+      workflowInfo.operators.map(op => (op.operatorID, op)).toMap
 
-  val sinkOperators: List[String] =
-    operators.keys
-      .filter(op => operators(op).isInstanceOf[SimpleSinkOpDesc])
-      .toList
+    val jgraphtDag: DirectedAcyclicGraph[String, OperatorLink] =
+      WorkflowInfo.toJgraphtDAG(workflowInfo)
 
-  def getOperator(operatorID: String): OperatorDescriptor = operators(operatorID)
+    val sourceOperators: List[String] =
+      operators.keys.filter(op => jgraphtDag.inDegreeOf(op) == 0).toList
 
-  def getSourceOperators: List[String] = this.sourceOperators
+    val sinkOperators: List[String] =
+      operators.keys
+        .filter(op => operators(op).isInstanceOf[SimpleSinkOpDesc])
+        .toList
 
-  def getSinkOperators: List[String] = this.sinkOperators
+    def getOperator(operatorID: String): OperatorDescriptor = operators(operatorID)
 
-  def getUpstream(operatorID: String): List[OperatorDescriptor] = {
-    val upstream = new mutable.MutableList[OperatorDescriptor]
-    jgraphtDag.incomingEdgesOf(operatorID).forEach(e => upstream += operators(e.origin.operatorID))
-    upstream.toList
+    def getSourceOperators: List[String] = this.sourceOperators
+
+    def getSinkOperators: List[String] = this.sinkOperators
+
+    def getUpstream(operatorID: String): List[OperatorDescriptor] = {
+      val upstream = new mutable.MutableList[OperatorDescriptor]
+      jgraphtDag
+        .incomingEdgesOf(operatorID)
+        .forEach(e => upstream += operators(e.origin.operatorID))
+      upstream.toList
+    }
+
+    def getDownstream(operatorID: String): List[OperatorDescriptor] = {
+      val downstream = new mutable.MutableList[OperatorDescriptor]
+      jgraphtDag
+        .outgoingEdgesOf(operatorID)
+        .forEach(e => downstream += operators(e.destination.operatorID))
+      downstream.toList
+    }
+
   }
-
-  def getDownstream(operatorID: String): List[OperatorDescriptor] = {
-    val downstream = new mutable.MutableList[OperatorDescriptor]
-    jgraphtDag
-      .outgoingEdgesOf(operatorID)
-      .forEach(e => downstream += operators(e.destination.operatorID))
-    downstream.toList
-  }
-
 }
