@@ -98,7 +98,7 @@ class JobRuntimeService(workflowStatus: BehaviorSubject[ExecutionStatusEnum], cl
             }
             operatorRuntimeStateMap(opId).stats = statistics
         }
-        send(WebWorkflowStatsUpdateEvent(evt))
+        send(OperatorStatisticsUpdateEvent(evt))
       })
   }
 
@@ -199,7 +199,7 @@ class JobRuntimeService(workflowStatus: BehaviorSubject[ExecutionStatusEnum], cl
   }
 
   override def sendSnapshotTo(observer: Observer[TexeraWebSocketEvent]): Unit = {
-    observer.onNext(WebWorkflowStatsUpdateEvent(operatorRuntimeStateMap.map {
+    observer.onNext(OperatorStatisticsUpdateEvent(operatorRuntimeStateMap.map {
       case (opId, state) => (opId, state.stats)
     }.toMap))
     operatorRuntimeStateMap.foreach {

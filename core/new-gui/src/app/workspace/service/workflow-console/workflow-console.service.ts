@@ -33,8 +33,8 @@ export class WorkflowConsoleService {
   }
 
   registerAutoClearConsoleMessages() {
-    this.workflowWebsocketService.subscribeToEvent("WorkflowStatusEvent").subscribe(event => {
-      if(event.status === ExecutionState.Initializing){
+    this.workflowWebsocketService.subscribeToEvent("WorkflowStateEvent").subscribe(event => {
+      if (event.state === ExecutionState.Initializing) {
         this.consoleMessages.clear();
       }
     });

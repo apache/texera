@@ -15,7 +15,7 @@ import edu.uci.ics.texera.web.model.websocket.event.{
   TexeraWebSocketEvent,
   Uninitialized,
   WorkflowErrorEvent,
-  WorkflowStatusEvent
+  WorkflowStateEvent
 }
 import edu.uci.ics.texera.web.model.websocket.request._
 import edu.uci.ics.texera.web.model.websocket.request.python.PythonExpressionEvaluateRequest
@@ -68,11 +68,16 @@ class WorkflowWebsocketResource extends LazyLogging {
       request match {
         case wIdRequest: RegisterWIdRequest =>
           // hack to refresh frontend run button state
-          send(session, WorkflowStatusEvent(Uninitialized))
-          val wId = uidOpt.toString + "-" + wIdRequest.wId
-          val workflowState = WorkflowService.getOrCreate(wId)
+          send(session, WorkflowStateEvent(Uninitialized))
+          val workflowState = uidOpt match {
+            case Some(value) =>
+              val wId = value + "-" + wIdRequest.wId
+              WorkflowService.getOrCreate(wId)
+            case None =>
+              // set immediately cleanup
+              WorkflowService.getOrCreate("anonymous session " + session.getId, 0)
+          }
           sessionState.subscribe(workflowState)
-          logger.info("start working on " + wId)
           send(session, RegisterWIdResponse("wid registered"))
         case heartbeat: HeartBeatRequest =>
           send(session, HeartBeatResponse())

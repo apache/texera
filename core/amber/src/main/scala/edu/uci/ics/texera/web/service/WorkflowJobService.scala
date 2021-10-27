@@ -9,7 +9,7 @@ import edu.uci.ics.texera.web.model.websocket.event.{
   ExecutionStatusEnum,
   TexeraWebSocketEvent,
   Uninitialized,
-  WorkflowStatusEvent
+  WorkflowStateEvent
 }
 import edu.uci.ics.texera.web.model.websocket.request.{
   CacheStatusUpdateRequest,
@@ -74,7 +74,7 @@ class WorkflowJobService(
 
   private[this] def createWorkflowStatus(): BehaviorSubject[ExecutionStatusEnum] = {
     val status = BehaviorSubject[ExecutionStatusEnum](Uninitialized)
-    status.subscribe(x => send(WorkflowStatusEvent(x)))
+    status.subscribe(x => send(WorkflowStateEvent(x)))
     status
   }
 
@@ -151,6 +151,6 @@ class WorkflowJobService(
   }
 
   override def sendSnapshotTo(observer: Observer[TexeraWebSocketEvent]): Unit = {
-    observer.onNext(WorkflowStatusEvent(workflowStatus.asJavaSubject.getValue))
+    observer.onNext(WorkflowStateEvent(workflowStatus.asJavaSubject.getValue))
   }
 }

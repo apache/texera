@@ -20,12 +20,12 @@ object WorkflowService {
   private val wIdToWorkflowState = new ConcurrentHashMap[String, WorkflowService]()
   val cleanUpDeadlineInSeconds: Int =
     AmberUtils.amberConfig.getInt("web-server.workflow-state-cleanup-in-seconds")
-  def getOrCreate(wId: String): WorkflowService = {
+  def getOrCreate(wId: String, cleanupTimeout: Int = cleanUpDeadlineInSeconds): WorkflowService = {
     wIdToWorkflowState.compute(
       wId,
       (_, v) => {
         if (v == null) {
-          new WorkflowService(wId)
+          new WorkflowService(wId, cleanupTimeout)
         } else {
           v
         }
@@ -34,8 +34,7 @@ object WorkflowService {
   }
 }
 
-class WorkflowService(wid: String) extends LazyLogging {
-  import WorkflowService._
+class WorkflowService(wid: String, cleanUpTimeout: Int) extends LazyLogging {
   // state across execution:
   val operatorCache: WorkflowCacheService = new WorkflowCacheService()
   var jobService: Option[WorkflowJobService] = None
@@ -60,12 +59,11 @@ class WorkflowService(wid: String) extends LazyLogging {
   private[this] def refreshDeadline(): Unit = {
     if (cleanUpJob.isCancelled || cleanUpJob.cancel()) {
       logger.info(
-        s"[$wid] workflow state clean up will start at ${LocalDateTime.now().plus(JDuration.ofSeconds(cleanUpDeadlineInSeconds))}"
+        s"[$wid] workflow state clean up will start at ${LocalDateTime.now().plus(JDuration.ofSeconds(cleanUpTimeout))}"
       )
-      cleanUpJob =
-        TexeraWebApplication.scheduleCallThroughActorSystem(cleanUpDeadlineInSeconds.seconds) {
-          cleanUp()
-        }
+      cleanUpJob = TexeraWebApplication.scheduleCallThroughActorSystem(cleanUpTimeout.seconds) {
+        cleanUp()
+      }
     }
   }
 

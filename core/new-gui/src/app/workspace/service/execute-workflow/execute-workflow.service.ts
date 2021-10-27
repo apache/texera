@@ -78,9 +78,10 @@ export class ExecuteWorkflowService {
 
   public handleExecutionEvent(event: TexeraWebsocketEvent): ExecutionStateInfo | undefined {
     switch (event.type) {
-      case "WorkflowStatusEvent":
-        let status = ExecutionState[event.status];
-        switch(status){
+      case "WorkflowStateEvent":
+        console.log(event);
+        let newState = ExecutionState[event.state];
+        switch (newState) {
           case ExecutionState.Paused:
             if (
               this.currentState.state === ExecutionState.BreakpointTriggered ||
@@ -90,11 +91,12 @@ export class ExecuteWorkflowService {
             } else {
               return { state: ExecutionState.Paused, currentTuples: {} };
             }
-            case ExecutionState.Aborted:
-            case ExecutionState.BreakpointTriggered:
-              return undefined;
-            default:
-              return {state: status};
+          case ExecutionState.Aborted:
+          case ExecutionState.BreakpointTriggered:
+            // for these 2 states, backend will send an additional message after this status event.
+            return undefined;
+          default:
+            return { state: newState };
         }
       case "RecoveryStartedEvent":
         return { state: ExecutionState.Recovering };
@@ -174,7 +176,12 @@ export class ExecuteWorkflowService {
     window.setTimeout(() => {
       this.workflowWebsocketService.send("WorkflowExecuteRequest", logicalPlan);
     }, FORM_DEBOUNCE_TIME_MS);
-    this.setExecutionTimeout("submit workflow timeout",ExecutionState.Initializing, ExecutionState.Running, ExecutionState.Aborted);
+    this.setExecutionTimeout(
+      "submit workflow timeout",
+      ExecutionState.Initializing,
+      ExecutionState.Running,
+      ExecutionState.Aborted
+    );
 
     // add flag for new execution of workflow
     // so when next time the result panel is displayed, it will use new data
@@ -296,7 +303,7 @@ export class ExecuteWorkflowService {
     return this.executionStateStream.asObservable();
   }
 
-  public resetExecutionState(): void{
+  public resetExecutionState(): void {
     this.currentState = {
       state: ExecutionState.Uninitialized,
     };

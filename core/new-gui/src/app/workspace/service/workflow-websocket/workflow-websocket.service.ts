@@ -12,8 +12,6 @@ import {
 import { delayWhen, filter, map, retryWhen, tap } from "rxjs/operators";
 import { environment } from "../../../../environments/environment";
 import { AuthService } from "../../../common/service/user/auth.service";
-import {ExecuteWorkflowService} from "../execute-workflow/execute-workflow.service";
-import {WorkflowActionService} from "../workflow-graph/model/workflow-action.service";
 export const WS_HEARTBEAT_INTERVAL_MS = 10000;
 export const WS_RECONNECT_INTERVAL_MS = 3000;
 
@@ -25,33 +23,14 @@ export class WorkflowWebsocketService {
 
   public isConnected: boolean = false;
 
-  private currentWid: string;
-
   private websocket?: WebSocketSubject<TexeraWebsocketEvent | TexeraWebsocketRequest>;
   private wsWithReconnectSubscription?: Subscription;
   private readonly webSocketResponseSubject: Subject<TexeraWebsocketEvent> = new Subject();
 
-  constructor(private workflowActionService: WorkflowActionService) {
-    // set current wid
-    this.currentWid = String((workflowActionService.getWorkflowMetadata().wid) ?? "undefined workflow");
-
-    // open a ws connection
-    this.openWebsocket();
-
+  constructor() {
     // setup heartbeat
     interval(WS_HEARTBEAT_INTERVAL_MS).subscribe(_ => this.send("HeartBeatRequest", {}));
 
-    // refresh connection status
-    this.websocketEvent().subscribe(_ => (this.isConnected = true));
-
-    // listen to workflow metadata changed event
-    workflowActionService.workflowMetaDataChanged().subscribe(() => {
-      const newWid = String((workflowActionService.getWorkflowMetadata().wid) ?? "undefined workflow");
-      if(newWid !== this.currentWid){
-        this.currentWid = newWid;
-        this.send("RegisterWIdRequest", { wId: this.currentWid});
-      }
-    });
   }
 
   public websocketEvent(): Observable<TexeraWebsocketEvent> {
@@ -78,17 +57,12 @@ export class WorkflowWebsocketService {
     this.websocket?.next(request);
   }
 
-  public reopenWebsocket() {
-    this.closeWebsocket();
-    this.openWebsocket();
-  }
-
-  private closeWebsocket() {
+  public closeWebsocket() {
     this.wsWithReconnectSubscription?.unsubscribe();
     this.websocket?.complete();
   }
 
-  private openWebsocket() {
+  public openWebsocket(wid:number) {
     const websocketUrl =
       WorkflowWebsocketService.getWorkflowWebsocketUrl() +
       (environment.userSystemEnabled && AuthService.getAccessToken() !== null
@@ -106,7 +80,7 @@ export class WorkflowWebsocketService {
           delayWhen(_ => timer(WS_RECONNECT_INTERVAL_MS)), // reconnect after delay
           tap(
             _ => {
-              this.send("RegisterWIdRequest", { wId: this.currentWid}); // re-register wid
+              this.send("RegisterWIdRequest", { wId: wid}); // re-register wid
               this.send("HeartBeatRequest", {}); // try to send heartbeat immediately after reconnect
             }
           )
@@ -119,7 +93,10 @@ export class WorkflowWebsocketService {
     );
 
     // send wid registration and recover frontend state
-    this.send("RegisterWIdRequest", { wId: this.currentWid});
+    this.send("RegisterWIdRequest", { wId: wid});
+
+    // refresh connection status
+    this.websocketEvent().subscribe(_ => (this.isConnected = true));
   }
 
   private static getWorkflowWebsocketUrl(): string {

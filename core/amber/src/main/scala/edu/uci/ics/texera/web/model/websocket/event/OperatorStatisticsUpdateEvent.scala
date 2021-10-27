@@ -7,11 +7,11 @@ import edu.uci.ics.texera.workflow.common.IncrementalOutputMode
 import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler
 
-object WebWorkflowStatsUpdateEvent {
-  def apply(update: WorkflowStatusUpdate): WebWorkflowStatsUpdateEvent = {
-    WebWorkflowStatsUpdateEvent(update.operatorStatistics)
+object OperatorStatisticsUpdateEvent {
+  def apply(update: WorkflowStatusUpdate): OperatorStatisticsUpdateEvent = {
+    OperatorStatisticsUpdateEvent(update.operatorStatistics)
   }
 }
 
-case class WebWorkflowStatsUpdateEvent(operatorStatistics: Map[String, OperatorStatistics])
+case class OperatorStatisticsUpdateEvent(operatorStatistics: Map[String, OperatorStatistics])
     extends TexeraWebSocketEvent

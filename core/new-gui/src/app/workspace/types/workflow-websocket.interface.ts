@@ -5,7 +5,7 @@ import {
   LogicalPlan,
   WebOutputMode,
   WorkflowResultUpdateEvent,
-  WorkflowStatsUpdate,
+  OperatorStatsUpdate,
 } from "./execute-workflow.interface";
 import { BreakpointFaultedTuple, BreakpointTriggerInfo, PythonPrintTriggerInfo } from "./workflow-common.interface";
 
@@ -24,7 +24,7 @@ import { BreakpointFaultedTuple, BreakpointTriggerInfo, PythonPrintTriggerInfo }
 
 export interface RegisterWIdRequest
   extends Readonly<{
-    wId: string;
+    wId: number;
   }> {}
 
 export interface RegisterWIdEvent extends Readonly<{ message: string }> {}
@@ -130,8 +130,8 @@ export type PythonExpressionEvaluateResponse = Readonly<{
   values: EvaluatedValue[];
 }>;
 
-export type WorkflowStatus = Readonly<{
-  status: ExecutionState
+export type WorkflowStateInfo = Readonly<{
+  state: ExecutionState;
 }>;
 
 export type TexeraWebsocketRequestTypeMap = {
@@ -154,9 +154,9 @@ export type TexeraWebsocketRequestTypeMap = {
 export type TexeraWebsocketEventTypeMap = {
   RegisterWIdResponse: RegisterWIdEvent;
   HeartBeatResponse: {};
-  WorkflowStatusEvent: WorkflowStatus;
+  WorkflowStateEvent: WorkflowStateInfo;
   WorkflowErrorEvent: WorkflowError;
-  WebWorkflowStatsUpdateEvent: WorkflowStatsUpdate;
+  OperatorStatisticsUpdateEvent: OperatorStatsUpdate;
   WebResultUpdateEvent: WorkflowResultUpdateEvent;
   RecoveryStartedEvent: {};
   BreakpointTriggeredEvent: BreakpointTriggerInfo;
