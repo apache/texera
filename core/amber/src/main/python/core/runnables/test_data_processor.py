@@ -1,12 +1,11 @@
 from threading import Thread
 
-import pandas
 import pytest
 from loguru import logger
 
-from core.models import ControlElement, DataElement, DataFrame, EndOfUpstream, InternalQueue
+from core.models import ControlElement, DataElement, DataFrame, EndOfUpstream, InternalQueue, Tuple
+from pytexera.udf.examples.echo_operator import EchoOperator
 from core.runnables import DataProcessor
-from core.udf.examples import EchoOperator
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import OneToOnePartitioning, Partitioning
 from proto.edu.uci.ics.amber.engine.architecture.worker import AddPartitioningV2, ControlCommandV2, ControlReturnV2, \
@@ -32,7 +31,7 @@ class TestDataProcessor:
 
     @pytest.fixture
     def mock_tuple(self):
-        return pandas.Series({"test-1": "hello", "test-2": 10})
+        return Tuple({"test-1": "hello", "test-2": 10})
 
     @pytest.fixture
     def mock_sender_actor(self):
@@ -94,8 +93,8 @@ class TestDataProcessor:
     @pytest.fixture
     def data_processor(self, input_queue, output_queue, mock_udf):
         data_processor = DataProcessor(input_queue, output_queue)
-        # mock the udf binding
-        data_processor._udf_operator = mock_udf
+        # mock the operator binding
+        data_processor._operator = mock_udf
         yield data_processor
         data_processor.stop()
 

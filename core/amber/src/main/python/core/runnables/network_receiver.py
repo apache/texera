@@ -4,7 +4,7 @@ from loguru import logger
 from overrides import overrides
 from pyarrow.lib import Table
 
-from core.models import ControlElement, DataElement, DataFrame, EndOfUpstream, InternalQueue
+from core.models import ControlElement, DataElement, DataFrame, EndOfUpstream, InternalQueue, Tuple
 from core.proxy import ProxyServer
 from core.util import Stoppable
 from core.util.runnable.runnable import Runnable
@@ -32,7 +32,7 @@ class NetworkReceiver(Runnable, Stoppable):
                     schema_map[field.name] = field
                 shared_queue.put(DataElement(
                     tag=data_header.tag,
-                    payload=DataFrame([row for _, row in table.to_pandas().iterrows()])
+                    payload=DataFrame([Tuple(row) for _, row in table.to_pandas().iterrows()])
                 ))
             else:
                 shared_queue.put(DataElement(tag=data_header.tag, payload=EndOfUpstream()))
