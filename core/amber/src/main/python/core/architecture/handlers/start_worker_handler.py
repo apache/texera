@@ -9,7 +9,7 @@ class StartWorkerHandler(Handler):
     cmd = StartWorkerV2
 
     def __call__(self, context: Context, command: cmd, *args, **kwargs):
-        if context.dp._udf_operator.is_source:
+        if context.dp._operator.is_source:
             context.state_manager.transit_to(WorkerState.RUNNING)
             context.input_queue.put(DataElement(tag=BatchToTupleConverter.SOURCE_STARTER, payload=None))
         state = context.state_manager.get_current_state()
