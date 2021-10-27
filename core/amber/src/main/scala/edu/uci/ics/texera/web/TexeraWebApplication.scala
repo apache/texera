@@ -1,10 +1,10 @@
 package edu.uci.ics.texera.web
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem, Cancellable}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
 import com.github.toastshaman.dropwizard.auth.jwt.JwtAuthFilter
-import edu.uci.ics.amber.engine.common.{AmberUtils, AmberClient}
+import edu.uci.ics.amber.engine.common.{AmberClient, AmberUtils}
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.auth.JwtAuth.jwtConsumer
 import edu.uci.ics.texera.web.auth.{SessionUser, UserAuthenticator, UserRoleAuthorizer}
@@ -24,13 +24,20 @@ import org.eclipse.jetty.servlet.ErrorPageErrorHandler
 import org.eclipse.jetty.websocket.server.WebSocketUpgradeFilter
 import org.glassfish.jersey.media.multipart.MultiPartFeature
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.FiniteDuration
 import java.time.Duration
 
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 object TexeraWebApplication {
 
   def createAmberRuntime(workflow: Workflow, conf: ControllerConfig): AmberClient = {
     new AmberClient(actorSystem, workflow, conf)
+  }
+
+  def scheduleCallThroughActorSystem(delay: FiniteDuration)(call: => Unit): Cancellable = {
+    actorSystem.scheduler.scheduleOnce(delay)(call)
   }
 
   private var actorSystem: ActorSystem = _

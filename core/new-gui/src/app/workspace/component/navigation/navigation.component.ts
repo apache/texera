@@ -144,14 +144,14 @@ export class NavigationComponent {
     switch (executionState) {
       case ExecutionState.Uninitialized:
       case ExecutionState.Completed:
-      case ExecutionState.Failed:
+      case ExecutionState.Aborted:
         return {
           text: "Run",
           icon: "play-circle",
           disable: false,
           onClick: () => this.executeWorkflowService.executeWorkflow(),
         };
-      case ExecutionState.WaitingToRun:
+      case ExecutionState.Initializing:
         return {
           text: "Submitting",
           icon: "loading",

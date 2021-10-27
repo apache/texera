@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 
 object FatalErrorHandler {
-  final case class FatalError(e: WorkflowRuntimeException) extends ControlCommand[Unit]
+  final case class FatalError(e: Throwable) extends ControlCommand[Unit]
 }
 
 /** Indicate a fatal error has occurred in the workflow

@@ -2,11 +2,11 @@ package edu.uci.ics.texera.web.service
 
 import edu.uci.ics.amber.engine.architecture.principal.OperatorResult
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.texera.web.service.WorkflowResultService._
+import edu.uci.ics.texera.web.service.JobResultService._
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode.{SET_DELTA, SET_SNAPSHOT}
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler
+import edu.uci.ics.texera.workflow.common.workflow.WorkflowInfo
 import edu.uci.ics.texera.workflow.operators.sink.{CacheSinkOpDesc, SimpleSinkOpDesc}
 
 /**
@@ -15,17 +15,17 @@ import edu.uci.ics.texera.workflow.operators.sink.{CacheSinkOpDesc, SimpleSinkOp
   */
 class OperatorResultService(
     val operatorID: String,
-    val workflowCompiler: WorkflowCompiler,
+    val workflowInfo: WorkflowInfo,
     opResultStorage: OpResultStorage
 ) {
 
   var uuid: String = _
 
-  assert(workflowCompiler.workflowInfo.cachedOperatorIds != null)
+  assert(workflowInfo.cachedOperatorIds != null)
 
   // derive the web output mode from the sink operator type
   val webOutputMode: WebOutputMode = {
-    val op = workflowCompiler.workflow.getOperator(operatorID)
+    val op = workflowInfo.toDAG.getOperator(operatorID)
     if (!op.isInstanceOf[SimpleSinkOpDesc]) {
       PaginationMode()
       //        throw new RuntimeException("operator is not sink: " + op.operatorID)
@@ -44,7 +44,7 @@ class OperatorResultService(
 
   // chartType of this sink operator
   val chartType: Option[String] = {
-    val op = workflowCompiler.workflow.getOperator(operatorID)
+    val op = workflowInfo.toDAG.getOperator(operatorID)
     if (!op.isInstanceOf[SimpleSinkOpDesc]) {
       new SimpleSinkOpDesc().getChartType
       //        throw new RuntimeException("operator is not sink: " + op.operatorID)
@@ -88,7 +88,7 @@ class OperatorResultService(
     * Updates the current result of this operator.
     */
   def updateResult(resultUpdate: OperatorResult): Unit = {
-    workflowCompiler.workflow.getOperator(operatorID) match {
+    workflowInfo.toDAG.getOperator(operatorID) match {
       case op: CacheSinkOpDesc =>
         resultUpdate.outputMode match {
           case SET_SNAPSHOT =>
@@ -108,10 +108,20 @@ class OperatorResultService(
   }
 
   def getResult: List[ITuple] = {
-    if (workflowCompiler.workflowInfo.cachedOperatorIds.contains(operatorID)) {
+    if (workflowInfo.cachedOperatorIds.contains(operatorID)) {
       opResultStorage.get(uuid)
     } else {
       this.result
+    }
+  }
+
+  def getSnapshot: WebResultUpdate = {
+    val res = getResult
+    webOutputMode match {
+      case PaginationMode() =>
+        WebPaginationUpdate(PaginationMode(), res.size, List.empty)
+      case SetSnapshotMode() | SetDeltaMode() =>
+        webDataFromTuple(webOutputMode, res, chartType)
     }
   }
 

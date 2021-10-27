@@ -1,22 +1,18 @@
 package edu.uci.ics.texera.web
 
 import edu.uci.ics.texera.Utils
-import edu.uci.ics.texera.workflow.common.workflow.{
-  Breakpoint,
-  BreakpointCondition,
-  ConditionBreakpoint
-}
+import edu.uci.ics.texera.web.model.websocket.event.{ExecutionStatusEnum, Running}
 
 object JsonTest {
 
   def main(args: Array[String]): Unit = {
-    val a = ConditionBreakpoint("0", BreakpointCondition.EQ, "100")
+    val a = Running
     val om = Utils.objectMapper
 
     val str = om.writeValueAsString(a)
     println(str)
 
-    val des = om.readValue(str, classOf[Breakpoint])
+    val des = om.readValue(str, classOf[ExecutionStatusEnum])
     println(des)
 
   }

@@ -1,10 +1,11 @@
 import {
   BreakpointInfo,
+  ExecutionState,
   LogicalOperator,
   LogicalPlan,
   WebOutputMode,
   WorkflowResultUpdateEvent,
-  WorkflowStatusUpdate,
+  OperatorStatsUpdate,
 } from "./execute-workflow.interface";
 import { BreakpointFaultedTuple, BreakpointTriggerInfo, PythonPrintTriggerInfo } from "./workflow-common.interface";
 
@@ -21,7 +22,12 @@ import { BreakpointFaultedTuple, BreakpointTriggerInfo, PythonPrintTriggerInfo }
  * 2. value is the payload this request/event needs
  */
 
-export interface WebSocketHelloWorld extends Readonly<{ message: string }> {}
+export interface RegisterWIdRequest
+  extends Readonly<{
+    wId: number;
+  }> {}
+
+export interface RegisterWIdEvent extends Readonly<{ message: string }> {}
 
 export interface TexeraConstraintViolation
   extends Readonly<{
@@ -124,11 +130,15 @@ export type PythonExpressionEvaluateResponse = Readonly<{
   values: EvaluatedValue[];
 }>;
 
+export type WorkflowStateInfo = Readonly<{
+  state: ExecutionState;
+}>;
+
 export type TexeraWebsocketRequestTypeMap = {
+  RegisterWIdRequest: RegisterWIdRequest;
   AddBreakpointRequest: BreakpointInfo;
   CacheStatusUpdateRequest: CacheStatusUpdateRequest;
   HeartBeatRequest: {};
-  HelloWorldRequest: WebSocketHelloWorld;
   ModifyLogicRequest: ModifyOperatorLogic;
   ResultExportRequest: ResultExportRequest;
   ResultPaginationRequest: PaginationRequest;
@@ -142,15 +152,12 @@ export type TexeraWebsocketRequestTypeMap = {
 };
 
 export type TexeraWebsocketEventTypeMap = {
-  HelloWorldResponse: WebSocketHelloWorld;
+  RegisterWIdResponse: RegisterWIdEvent;
   HeartBeatResponse: {};
+  WorkflowStateEvent: WorkflowStateInfo;
   WorkflowErrorEvent: WorkflowError;
-  WorkflowStartedEvent: {};
-  WorkflowCompletedEvent: {};
-  WebWorkflowStatusUpdateEvent: WorkflowStatusUpdate;
+  OperatorStatisticsUpdateEvent: OperatorStatsUpdate;
   WebResultUpdateEvent: WorkflowResultUpdateEvent;
-  WorkflowPausedEvent: {};
-  WorkflowResumedEvent: {};
   RecoveryStartedEvent: {};
   BreakpointTriggeredEvent: BreakpointTriggerInfo;
   PythonPrintTriggeredEvent: PythonPrintTriggerInfo;

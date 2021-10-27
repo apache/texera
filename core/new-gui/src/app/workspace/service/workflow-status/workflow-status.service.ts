@@ -23,7 +23,7 @@ export class WorkflowStatusService {
     this.getStatusUpdateStream().subscribe(event => (this.currentStatus = event));
 
     this.workflowWebsocketService.websocketEvent().subscribe(event => {
-      if (event.type !== "WebWorkflowStatusUpdateEvent") {
+      if (event.type !== "OperatorStatisticsUpdateEvent") {
         return;
       }
       this.statusSubject.next(event.operatorStatistics);
