@@ -79,7 +79,6 @@ export class ExecuteWorkflowService {
   public handleExecutionEvent(event: TexeraWebsocketEvent): ExecutionStateInfo | undefined {
     switch (event.type) {
       case "WorkflowStateEvent":
-        console.log(event);
         let newState = ExecutionState[event.state];
         switch (newState) {
           case ExecutionState.Paused:
