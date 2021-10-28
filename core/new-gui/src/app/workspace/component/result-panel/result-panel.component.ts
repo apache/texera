@@ -12,7 +12,7 @@ import { filter } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DynamicComponentConfig } from "../../../common/type/dynamic-component-config";
 import { DebuggerFrameComponent } from "./debugger-frame/debugger-frame.component";
-import { PYTHON_UDF_V2_OP_TYPE } from "../../service/workflow-graph/model/workflow-graph";
+import { PYTHON_UDF_SOURCE_V2_OP_TYPE, PYTHON_UDF_V2_OP_TYPE } from "../../service/workflow-graph/model/workflow-graph";
 import { environment } from "../../../../environments/environment";
 
 export type ResultFrameComponent =
@@ -120,7 +120,8 @@ export class ResultPanelComponent implements OnInit {
     if (this.currentOperatorId) {
       this.displayResult(this.currentOperatorId);
       const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
-      if (operator.operatorType === PYTHON_UDF_V2_OP_TYPE) {
+      console.log(operator.operatorType);
+      if ([PYTHON_UDF_V2_OP_TYPE, PYTHON_UDF_SOURCE_V2_OP_TYPE].includes(operator.operatorType)) {
         this.displayConsole(this.currentOperatorId);
 
         if (environment.debuggerEnabled && this.hasErrorOrBreakpoint()) {
