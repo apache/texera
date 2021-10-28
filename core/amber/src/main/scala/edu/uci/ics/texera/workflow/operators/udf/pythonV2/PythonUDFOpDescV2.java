@@ -30,7 +30,7 @@ public class PythonUDFOpDescV2 extends OperatorDescriptor {
             "# from typing import Iterator, Optional, Union\n" +
                     "# from pytexera import InputExhausted, Tuple, TupleLike, UDFOperator, overrides\n" +
                     "# \n" +
-                    "# class EchoOperator(UDFOperator):\n" +
+                    "# class ProcessOperator(UDFOperator):\n" +
                     "#     \n" +
                     "#     @overrides\n" +
                     "#     def process_tuple(self, tuple_: Union[Tuple, InputExhausted], input_: int) -> Iterator[Optional[TupleLike]]:\n" +
