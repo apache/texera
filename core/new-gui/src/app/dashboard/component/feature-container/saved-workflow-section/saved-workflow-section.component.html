@@ -36,12 +36,16 @@
   </nz-card>
 
   <nz-card class="workflow-list-container subsection-grid-container">
-    <nz-input-group [nzSuffix]="suffixIconSearch" class="texera-dashboard-saved-workflow-search-box-input">
+    <nz-input-group
+      [nzPrefix]="prefixPopoverButton"
+      [nzSuffix]="suffixIconSearch"
+      class="texera-dashboard-saved-workflow-search-box-input"
+    >
       <input
         [(ngModel)]="workflowSearchValue"
         autocomplete="on"
         nz-input
-        placeholder='id:1 owner:ownerName "workflowName" access:read'
+        placeholder='"workflowName" id:workflowId owner:ownerName read:ownerName write:ownerName'
         (ngModelChange)="searchInputOnChange($event)"
         type="text"
         [nzAutocomplete]="auto"
@@ -49,6 +53,17 @@
       />
       <ng-template #suffixIconSearch>
         <i nz-icon nzType="search"></i>
+      </ng-template>
+      <ng-template #prefixPopoverButton>
+        <i
+          style="vertical-align: baseline; margin-right: 10px"
+          nz-icon
+          nz-popover
+          nzPopoverTitle="Search  Instruction"
+          nzPopoverContent='"workflowName" id:workflowId owner:ownerName read:ownerName write:ownerName'
+          nzType="question-circle"
+          nzTheme="outline"
+        ></i>
       </ng-template>
       <nz-autocomplete
         [nzDefaultActiveFirstOption]="false"
