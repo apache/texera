@@ -14,16 +14,16 @@ import edu.uci.ics.texera.workflow.common.operators.flatmap.FlatMapOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
 
 class UnnestStringOpDesc extends FlatMapOpDesc {
-  @JsonProperty(value = "delimiter", required = true, defaultValue = ",")
+  @JsonProperty(value = "Delimiter", required = true, defaultValue = ",")
   @JsonPropertyDescription("string that separates the data")
   var delimiter: String = _
 
-  @JsonProperty(value = "attribute", required = true)
+  @JsonProperty(value = "Attribute", required = true)
   @JsonPropertyDescription("column of the string to unnest")
   @AutofillAttributeName
   var attribute: String = _
 
-  @JsonProperty(value = "result attribute", required = true, defaultValue = "unnestResult")
+  @JsonProperty(value = "Result attribute", required = true, defaultValue = "unnestResult")
   @JsonPropertyDescription("column name of the unnest result")
   var resultAttribute: String = _
 
