@@ -14,6 +14,7 @@ export const USER_FILE_ACCESS_BASE_URL = `${USER_FILE_BASE_URL}/access`;
 export const USER_FILE_ACCESS_GRANT_URL = `${USER_FILE_ACCESS_BASE_URL}/grant`;
 export const USER_FILE_ACCESS_LIST_URL = `${USER_FILE_ACCESS_BASE_URL}/list`;
 export const USER_FILE_ACCESS_REVOKE_URL = `${USER_FILE_ACCESS_BASE_URL}/revoke`;
+export const USER_FILE_NAME_UPDATE_URL = `${USER_FILE_BASE_URL}/update/name`;
 
 @Injectable({
   providedIn: "root",
@@ -101,10 +102,12 @@ export class UserFileService {
     username: string,
     accessLevel: string
   ): Observable<Response> {
-    return this.http.post<Response>(
-      `${USER_FILE_ACCESS_GRANT_URL}/${userFileEntry.file.name}/${userFileEntry.ownerName}/${username}/${accessLevel}`,
-      null
-    );
+    return this.http.post<Response>(`${USER_FILE_ACCESS_GRANT_URL}`, {
+      username,
+      fileName: userFileEntry.file.name,
+      ownerName: userFileEntry.ownerName,
+      accessLevel,
+    });
   }
 
   /**
@@ -125,9 +128,8 @@ export class UserFileService {
    * @return message of success
    */
   public revokeUserFileAccess(userFileEntry: DashboardUserFileEntry, username: string): Observable<Response> {
-    return this.http.post<Response>(
-      `${USER_FILE_ACCESS_REVOKE_URL}/${userFileEntry.file.name}/${userFileEntry.ownerName}/${username}`,
-      null
+    return this.http.delete<Response>(
+      `${USER_FILE_ACCESS_REVOKE_URL}/${userFileEntry.file.name}/${userFileEntry.ownerName}/${username}`
     );
   }
 
@@ -156,5 +158,15 @@ export class UserFileService {
   private clearDashboardUserFileEntries(): void {
     this.dashboardUserFileEntries = [];
     this.dashboardUserFileEntryChanged.next();
+  }
+
+  /**
+   * updates the file name of a given userFileEntry
+   */
+  public updateFileName(fid: number, name: string): Observable<void> {
+    return this.http.post<void>(`${USER_FILE_NAME_UPDATE_URL}`, {
+      fid: fid,
+      name: name,
+    });
   }
 }

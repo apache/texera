@@ -33,11 +33,8 @@ class WorkflowRewriter(
 
   var visitedOpIdSet: mutable.HashSet[String] = new mutable.HashSet[String]()
 
-  private val workflowDAG: WorkflowDAG = if (workflowInfo != null) {
-    new WorkflowDAG(workflowInfo)
-  } else {
-    null
-  }
+  private def workflowDAG: workflowInfo.WorkflowDAG = workflowInfo.toDAG
+
   private val rewrittenToCacheOperatorIDs = if (null != workflowInfo) {
     new mutable.HashSet[String]()
   } else {
@@ -79,10 +76,7 @@ class WorkflowRewriter(
     null
   }
 
-  var addCacheSinkWorkflowInfo: WorkflowInfo = _
-  var addCacheSinkWorkflowDAG: WorkflowDAG = _
   var addCacheSourceWorkflowInfo: WorkflowInfo = _
-  var addCacheSourceWorkflowDAG: WorkflowDAG = _
 
   def rewrite: WorkflowInfo = {
     if (null == workflowInfo) {
@@ -114,11 +108,10 @@ class WorkflowRewriter(
 
       addCacheSourceWorkflowInfo =
         WorkflowInfo(addCacheSourceNewOps, addCacheSourceNewLinks, addCacheSourceNewBreakpoints)
-      addCacheSourceWorkflowDAG = new WorkflowDAG(addCacheSourceWorkflowInfo)
-      addCacheSourceWorkflowDAG.getSinkOperators.foreach(addCacheSourceOpIdQue.+=)
+      addCacheSourceWorkflowInfo.toDAG.getSinkOperators.foreach(addCacheSourceOpIdQue.+=)
 
       // Topological traverse and add cache sink operators.
-      val addCacheSinkOpIdIter = addCacheSourceWorkflowDAG.jgraphtDag.iterator()
+      val addCacheSinkOpIdIter = addCacheSourceWorkflowInfo.toDAG.jgraphtDag.iterator()
       var addCacheSinkOpIds: mutable.MutableList[String] = mutable.MutableList[String]()
       addCacheSinkOpIdIter.forEachRemaining(opId => addCacheSinkOpIds.+=(opId))
       addCacheSinkOpIds = addCacheSinkOpIds.reverse
@@ -129,7 +122,7 @@ class WorkflowRewriter(
   }
 
   private def addCacheSink(opId: String): Unit = {
-    val op = addCacheSourceWorkflowDAG.getOperator(opId)
+    val op = addCacheSourceWorkflowInfo.toDAG.getOperator(opId)
     if (isCacheEnabled(op) && !isCacheValid(op)) {
       val cacheSinkOp = generateCacheSinkOperator(op)
       val cacheSinkLink = generateCacheSinkLink(cacheSinkOp, op)
@@ -137,7 +130,7 @@ class WorkflowRewriter(
       addCacheSinkNewLinks += cacheSinkLink
     }
     addCacheSinkNewOps += op
-    addCacheSourceWorkflowDAG.jgraphtDag
+    addCacheSourceWorkflowInfo.toDAG.jgraphtDag
       .outgoingEdgesOf(opId)
       .forEach(link => {
         addCacheSinkNewLinks += link

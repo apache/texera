@@ -1,22 +1,20 @@
 package edu.uci.ics.texera.web
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem, Cancellable}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
 import com.github.toastshaman.dropwizard.auth.jwt.JwtAuthFilter
-import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.amber.engine.common.{AmberClient, AmberUtils}
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.auth.JwtAuth.jwtConsumer
-import edu.uci.ics.texera.web.auth.{SessionUser, UserAuthenticator}
-import edu.uci.ics.texera.web.resource.auth.UserResource
+import edu.uci.ics.texera.web.auth.{SessionUser, UserAuthenticator, UserRoleAuthorizer}
+import edu.uci.ics.texera.web.resource.auth.{AuthResource, GoogleAuthResource}
 import edu.uci.ics.texera.web.resource.dashboard.file.{UserFileAccessResource, UserFileResource}
-import edu.uci.ics.texera.web.resource.dashboard.{
+import edu.uci.ics.texera.web.resource.dashboard.workflow.{
   WorkflowAccessResource,
   WorkflowResource,
   WorkflowVersionResource
 }
-import edu.uci.ics.texera.Utils
-import edu.uci.ics.texera.web.resource.dashboard.{WorkflowAccessResource, WorkflowResource}
 import edu.uci.ics.texera.web.resource.{UserDictionaryResource, _}
 import io.dropwizard.auth.{AuthDynamicFeature, AuthValueFactoryProvider}
 import io.dropwizard.setup.{Bootstrap, Environment}
@@ -26,11 +24,23 @@ import org.eclipse.jetty.servlet.ErrorPageErrorHandler
 import org.eclipse.jetty.websocket.server.WebSocketUpgradeFilter
 import org.glassfish.jersey.media.multipart.MultiPartFeature
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.FiniteDuration
 import java.time.Duration
+
 object TexeraWebApplication {
 
-  var actorSystem: ActorSystem = _
+  def createAmberRuntime(workflow: Workflow, conf: ControllerConfig): AmberClient = {
+    new AmberClient(actorSystem, workflow, conf)
+  }
+
+  def scheduleCallThroughActorSystem(delay: FiniteDuration)(call: => Unit): Cancellable = {
+    actorSystem.scheduler.scheduleOnce(delay)(call)
+  }
+
+  private var actorSystem: ActorSystem = _
 
   def main(args: Array[String]): Unit = {
     // start actor system master node
@@ -85,6 +95,7 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
           .setRealm("realm")
           .setPrefix("Bearer")
           .setAuthenticator(UserAuthenticator)
+          .setAuthorizer(UserRoleAuthorizer)
           .buildAuthFilter()
       )
     )
@@ -103,7 +114,8 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
     environment.jersey.register(classOf[SystemMetadataResource])
     //    environment.jersey().register(classOf[MockKillWorkerResource])
     environment.jersey.register(classOf[SchemaPropagationResource])
-    environment.jersey.register(classOf[UserResource])
+    environment.jersey.register(classOf[AuthResource])
+    environment.jersey.register(classOf[GoogleAuthResource])
     environment.jersey.register(classOf[UserDictionaryResource])
     environment.jersey.register(classOf[UserFileAccessResource])
     environment.jersey.register(classOf[UserFileResource])

@@ -62,6 +62,8 @@ class WorkerSpec
       override lazy val batchProducer: TupleToBatchConverter = mockTupleToBatchConverter
       override lazy val controlOutputPort: NetworkOutputPort[ControlPayload] = mockControlOutputPort
     })
+    (mockTupleToBatchConverter.addPartitionerWithPartitioning _).expects(mockTag, mockPolicy).once()
+    (mockHandler.apply _).expects(*, *, *, *).once()
     val invocation = ControlInvocation(0, AddPartitioning(mockTag, mockPolicy))
     worker ! NetworkMessage(
       0,

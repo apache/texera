@@ -5,11 +5,11 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandle
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.EvaluatePythonExpressionHandler.EvaluatePythonExpression
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.EvaluateExpressionHandler.EvaluateExpression
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.texera.web.model.event.python.PythonExpressionEvaluateResponse
+import edu.uci.ics.texera.web.model.websocket.response.python.PythonExpressionEvaluateResponse
 
 object EvaluatePythonExpressionHandler {
   final case class EvaluatePythonExpression(expression: String, operatorId: String)
-      extends ControlCommand[Unit]
+      extends ControlCommand[PythonExpressionEvaluateResponse]
 }
 
 trait EvaluatePythonExpressionHandler {
@@ -25,13 +25,9 @@ trait EvaluatePythonExpressionHandler {
             .map(worker => send(EvaluateExpression(msg.expression), worker))
             .toList
         )
-        .onSuccess(evaluatedValues => {
-          if (eventListener.pythonExpressionEvaluatedListener != null) {
-            eventListener.pythonExpressionEvaluatedListener
-              .apply(PythonExpressionEvaluateResponse(msg.expression, evaluatedValues.toList))
-          }
+        .map(evaluatedValues => {
+          PythonExpressionEvaluateResponse(msg.expression, evaluatedValues.toList)
         })
-        .unit
     }
   }
 }

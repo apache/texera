@@ -4,7 +4,8 @@ import edu.uci.ics.amber.clustering.SingleNodeListener
 import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import akka.util.Timeout
-import edu.uci.ics.amber.engine.architecture.controller.ControllerState
+import com.twitter.util.{Await, Promise}
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ControllerState}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.workflow.{
   BreakpointInfo,
@@ -16,14 +17,13 @@ import edu.uci.ics.texera.workflow.common.workflow.{
 import org.scalatest.BeforeAndAfterAll
 
 import scala.collection.mutable
-import scala.concurrent.{Await, ExecutionContextExecutor}
 import scala.concurrent.duration._
 import com.typesafe.scalalogging.Logger
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
+import edu.uci.ics.amber.engine.common.AmberClient
 import org.scalatest.flatspec.AnyFlatSpecLike
 
 class PauseSpec
@@ -33,7 +33,6 @@ class PauseSpec
     with BeforeAndAfterAll {
 
   implicit val timeout: Timeout = Timeout(5.seconds)
-  implicit val executionContext: ExecutionContextExecutor = system.dispatcher
 
   val logger = Logger("PauseSpecLogger")
 
@@ -49,26 +48,23 @@ class PauseSpec
       operators: mutable.MutableList[OperatorDescriptor],
       links: mutable.MutableList[OperatorLink]
   ): Unit = {
-    val parent = TestProbe()
-    val controller = parent.childActorOf(
-      Utils.getControllerProps(operators, links)
-    )
-    parent.expectMsg(ControllerState.Ready)
-    controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, StartWorkflow())
-    parent.expectMsg(ControllerState.Running)
-    controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, PauseWorkflow())
-    parent.expectMsg(ControllerState.Paused)
+    val client =
+      new AmberClient(system, Utils.getWorkflow(operators, links), ControllerConfig.default)
+    val completion = Promise[Unit]
+    client
+      .getObservable[WorkflowCompleted]
+      .subscribe(evt => {
+        completion.setDone()
+      })
+    client.sendSync(StartWorkflow(), 1.second)
+    client.sendSync(PauseWorkflow(), 1.second)
     Thread.sleep(4000)
-    controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, ResumeWorkflow())
-    parent.expectMsg(ControllerState.Running)
+    client.sendSync(ResumeWorkflow(), 1.second)
     Thread.sleep(400)
-    controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, PauseWorkflow())
-    parent.expectMsg(ControllerState.Paused)
+    client.sendSync(PauseWorkflow(), 1.second)
     Thread.sleep(4000)
-    controller ! ControlInvocation(AsyncRPCClient.IgnoreReply, ResumeWorkflow())
-    parent.expectMsg(ControllerState.Running)
-    parent.expectMsg(1.minute, ControllerState.Completed)
-    parent.ref ! PoisonPill
+    client.sendSync(ResumeWorkflow(), 1.second)
+    Await.result(completion)
   }
 
   "Engine" should "be able to pause csv->sink workflow" in {

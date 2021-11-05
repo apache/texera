@@ -45,20 +45,17 @@ trait ModifyLogicHandler {
           send(modifyOperatorLogic, worker).onFailure((err: Throwable) => {
             logger.error("Failure when sending Python UDF code", err)
             // report error to frontend
-            if (eventListener.breakpointTriggeredListener != null) {
-              eventListener.breakpointTriggeredListener.apply(
-                BreakpointTriggered(
-                  mutable.HashMap(
-                    (worker, FaultedTuple(null, 0)) -> Array(err.toString)
-                  ),
-                  operatorUUID
-                )
+            sendToClient(
+              BreakpointTriggered(
+                mutable.HashMap(
+                  (worker, FaultedTuple(null, 0)) -> Array(err.toString)
+                ),
+                operatorUUID
               )
-            }
+            )
           })
         }.toSeq)
         .unit
-
     }
   }
 }

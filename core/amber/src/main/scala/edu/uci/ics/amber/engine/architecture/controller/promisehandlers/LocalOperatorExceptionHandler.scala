@@ -41,18 +41,16 @@ trait LocalOperatorExceptionHandler {
       execute(PauseWorkflow(), CONTROLLER)
 
       // report the faulted tuple to the frontend with the exception
-      if (eventListener.breakpointTriggeredListener != null) {
-        eventListener.breakpointTriggeredListener.apply(
-          BreakpointTriggered(
-            mutable.HashMap(
-              (sender, FaultedTuple(msg.triggeredTuple, 0)) -> Array(
-                msg.e.toString
-              )
-            ),
-            workflow.getOperator(sender).id.operator
-          )
+      sendToClient(
+        BreakpointTriggered(
+          mutable.HashMap(
+            (sender, FaultedTuple(msg.triggeredTuple, 0)) -> Array(
+              msg.e.toString
+            )
+          ),
+          workflow.getOperator(sender).id.operator
         )
-      }
+      )
     }
   }
 }

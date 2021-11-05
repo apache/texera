@@ -6,7 +6,6 @@ describe("WorkflowResultService", () => {
   let service: WorkflowResultService;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
     service = TestBed.inject(WorkflowResultService);
   });
 

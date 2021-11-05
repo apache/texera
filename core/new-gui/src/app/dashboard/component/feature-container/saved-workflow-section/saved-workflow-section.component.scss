@@ -13,6 +13,14 @@
   margin-left: 5px;
 }
 
+.ant-btn-icon-only {
+  margin-right: 10px;
+
+  &.ant-btn-sm {
+    transform: translateY(-5px);
+  }
+}
+
 /**
 * this css is used for creating a 2*1 grid area for the 2 main
 * sub parts. The first row contains add and sort button. The second
@@ -77,7 +85,6 @@ $header-height: 120px;
 .workflow-name {
   font-size: 20px;
   font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-  margin-right: 10px;
   text-align: center;
 }
 

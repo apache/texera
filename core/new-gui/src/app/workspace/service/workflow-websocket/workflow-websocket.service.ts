@@ -11,8 +11,7 @@ import {
 } from "../../types/workflow-websocket.interface";
 import { delayWhen, filter, map, retryWhen, tap } from "rxjs/operators";
 import { environment } from "../../../../environments/environment";
-import { UserService } from "../../../common/service/user/user.service";
-
+import { AuthService } from "../../../common/service/user/auth.service";
 export const WS_HEARTBEAT_INTERVAL_MS = 10000;
 export const WS_RECONNECT_INTERVAL_MS = 3000;
 
@@ -29,14 +28,9 @@ export class WorkflowWebsocketService {
   private readonly webSocketResponseSubject: Subject<TexeraWebsocketEvent> = new Subject();
 
   constructor() {
-    // open a ws connection
-    this.openWebsocket();
-
     // setup heartbeat
     interval(WS_HEARTBEAT_INTERVAL_MS).subscribe(_ => this.send("HeartBeatRequest", {}));
 
-    // refresh connection status
-    this.websocketEvent().subscribe(_ => (this.isConnected = true));
   }
 
   public websocketEvent(): Observable<TexeraWebsocketEvent> {
@@ -63,21 +57,16 @@ export class WorkflowWebsocketService {
     this.websocket?.next(request);
   }
 
-  public reopenWebsocket() {
-    this.closeWebsocket();
-    this.openWebsocket();
-  }
-
-  private closeWebsocket() {
+  public closeWebsocket() {
     this.wsWithReconnectSubscription?.unsubscribe();
     this.websocket?.complete();
   }
 
-  private openWebsocket() {
+  public openWebsocket(wid:number) {
     const websocketUrl =
       WorkflowWebsocketService.getWorkflowWebsocketUrl() +
-      (environment.userSystemEnabled && UserService.getAccessToken() !== null
-        ? "?access-token=" + UserService.getAccessToken()
+      (environment.userSystemEnabled && AuthService.getAccessToken() !== null
+        ? "?access-token=" + AuthService.getAccessToken()
         : "");
     this.websocket = webSocket<TexeraWebsocketEvent | TexeraWebsocketRequest>(websocketUrl);
     // setup reconnection logic
@@ -90,7 +79,10 @@ export class WorkflowWebsocketService {
           ),
           delayWhen(_ => timer(WS_RECONNECT_INTERVAL_MS)), // reconnect after delay
           tap(
-            _ => this.send("HeartBeatRequest", {}) // try to send heartbeat immediately after reconnect
+            _ => {
+              this.send("RegisterWIdRequest", { wId: wid}); // re-register wid
+              this.send("HeartBeatRequest", {}); // try to send heartbeat immediately after reconnect
+            }
           )
         )
       )
@@ -100,8 +92,11 @@ export class WorkflowWebsocketService {
       this.webSocketResponseSubject.next(event as TexeraWebsocketEvent)
     );
 
-    // send hello world
-    this.send("HelloWorldRequest", { message: "Texera on Amber" });
+    // send wid registration and recover frontend state
+    this.send("RegisterWIdRequest", { wId: wid});
+
+    // refresh connection status
+    this.websocketEvent().subscribe(_ => (this.isConnected = true));
   }
 
   private static getWorkflowWebsocketUrl(): string {

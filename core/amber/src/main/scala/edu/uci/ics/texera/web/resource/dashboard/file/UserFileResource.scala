@@ -6,14 +6,18 @@ import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER_FILE_ACCESS}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileDao, UserDao, UserFileAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, User}
-import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.{context, saveUserFileSafe}
+import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.{
+  DashboardFileEntry,
+  context,
+  saveUserFileSafe
+}
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.tuple.Pair
 import org.glassfish.jersey.media.multipart.{FormDataContentDisposition, FormDataParam}
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
 
-import java.io.{IOException, InputStream, OutputStream}
+import java.io.{FileInputStream, IOException, InputStream, OutputStream}
 import java.nio.file.Paths
 import java.util
 import javax.annotation.security.PermitAll
@@ -25,12 +29,6 @@ import scala.collection.mutable
 /**
   * Model `File` corresponds to `core/new-gui/src/app/common/type/user-file.ts` (frontend).
   */
-case class DashboardFileEntry(
-    ownerName: String,
-    accessLevel: String,
-    isOwner: Boolean,
-    file: File
-)
 
 object UserFileResource {
   private val context: DSLContext = SqlServer.createDSLContext
@@ -68,6 +66,12 @@ object UserFileResource {
     UserFileAccessResource.grantAccess(uid, fid, "write")
     fileNameStored
   }
+  case class DashboardFileEntry(
+      ownerName: String,
+      accessLevel: String,
+      isOwner: Boolean,
+      file: File
+  )
 }
 
 @PermitAll
@@ -112,7 +116,6 @@ class UserFileResource {
   /**
     * This method returns a list fo all files accessible by the current user
     *
-    * @param session the session indicating current logged-in user
     * @return
     */
   @GET
@@ -152,7 +155,6 @@ class UserFileResource {
     * This method deletes a file from a user's repository
     * @param fileName the name of file being deleted
     * @param ownerName the name of the file's owner
-    * @param session the session indicating the current user
     * @return
     */
   @DELETE
@@ -256,6 +258,49 @@ class UserFileResource {
         .build()
     }
 
+  }
+
+  /**
+    * This method updates the name of a given userFile
+    *
+    * @param file the to be updated file
+    * @return the updated userFile
+    */
+  @POST
+  @Path("/update/name")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def changeUserFileName(file: File, @Auth sessionUser: SessionUser): Unit = {
+    val userId = sessionUser.getUser.getUid
+    val fid = file.getFid
+    val newFileName = file.getName
+
+    val validationRes = this.validateFileName(newFileName, userId)
+    val hasWriteAccess = context
+      .select(USER_FILE_ACCESS.WRITE_ACCESS)
+      .from(USER_FILE_ACCESS)
+      .where(USER_FILE_ACCESS.UID.eq(userId).and(USER_FILE_ACCESS.FID.eq(fid)))
+      .fetch()
+      .getValue(0, 0)
+    if (hasWriteAccess == false) {
+      throw new ForbiddenException("No sufficient access privilege.")
+    }
+    if (validationRes.getLeft == false) {
+      throw new BadRequestException(validationRes.getRight)
+    } else {
+      val userFile = fileDao.fetchOneByFid(fid)
+      val filePath = userFile.getPath
+
+      val uploadedInputStream = new FileInputStream(filePath)
+      // delete the original file
+      UserFileUtils.deleteFile(Paths.get(filePath))
+      // store the file with the new file name
+      val fileNameStored = UserFileUtils.storeFileSafe(uploadedInputStream, newFileName, userId)
+
+      userFile.setName(newFileName)
+      userFile.setPath(UserFileUtils.getFilePath(userId, fileNameStored).toString)
+      fileDao.update(userFile)
+    }
   }
 
 }
