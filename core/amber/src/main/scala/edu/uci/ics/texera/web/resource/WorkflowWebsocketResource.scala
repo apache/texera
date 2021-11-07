@@ -77,9 +77,9 @@ class WorkflowWebsocketResource extends LazyLogging {
               // use a fixed wid for reconnection
               val workflowStateId = "dummy wid"
               WorkflowService.getOrCreate(workflowStateId)
-              // Alternative:
-              // anonymous session: set immediately cleanup
-              // WorkflowService.getOrCreate("anonymous session " + session.getId, 0)
+            // Alternative:
+            // anonymous session: set immediately cleanup
+            // WorkflowService.getOrCreate("anonymous session " + session.getId, 0)
           }
           sessionState.subscribe(workflowState)
           send(session, RegisterWIdResponse("wid registered"))
