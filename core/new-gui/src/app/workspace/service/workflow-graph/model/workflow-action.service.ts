@@ -913,6 +913,10 @@ export class WorkflowActionService {
   }
 
   public setWorkflowMetadata(workflowMetaData: WorkflowMetadata | undefined): void {
+    if (this.workflowMetadata === workflowMetaData) {
+      return;
+    }
+
     this.workflowMetadata = workflowMetaData === undefined ? WorkflowActionService.DEFAULT_WORKFLOW : workflowMetaData;
     this.workflowMetadataChangeSubject.next();
   }

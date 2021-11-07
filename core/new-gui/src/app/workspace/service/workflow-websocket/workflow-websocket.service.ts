@@ -12,6 +12,7 @@ import {
 import { delayWhen, filter, map, retryWhen, tap } from "rxjs/operators";
 import { environment } from "../../../../environments/environment";
 import { AuthService } from "../../../common/service/user/auth.service";
+
 export const WS_HEARTBEAT_INTERVAL_MS = 10000;
 export const WS_RECONNECT_INTERVAL_MS = 3000;
 
@@ -30,7 +31,6 @@ export class WorkflowWebsocketService {
   constructor() {
     // setup heartbeat
     interval(WS_HEARTBEAT_INTERVAL_MS).subscribe(_ => this.send("HeartBeatRequest", {}));
-
   }
 
   public websocketEvent(): Observable<TexeraWebsocketEvent> {
@@ -62,7 +62,7 @@ export class WorkflowWebsocketService {
     this.websocket?.complete();
   }
 
-  public openWebsocket(wid:number) {
+  public openWebsocket(wId: number) {
     const websocketUrl =
       WorkflowWebsocketService.getWorkflowWebsocketUrl() +
       (environment.userSystemEnabled && AuthService.getAccessToken() !== null
@@ -78,12 +78,10 @@ export class WorkflowWebsocketService {
             console.log(`websocket connection lost, reconnecting in ${WS_RECONNECT_INTERVAL_MS / 1000} seconds`)
           ),
           delayWhen(_ => timer(WS_RECONNECT_INTERVAL_MS)), // reconnect after delay
-          tap(
-            _ => {
-              this.send("RegisterWIdRequest", { wId: wid}); // re-register wid
-              this.send("HeartBeatRequest", {}); // try to send heartbeat immediately after reconnect
-            }
-          )
+          tap(_ => {
+            this.send("RegisterWIdRequest", { wId }); // re-register wid
+            this.send("HeartBeatRequest", {}); // try to send heartbeat immediately after reconnect
+          })
         )
       )
     );
@@ -93,10 +91,15 @@ export class WorkflowWebsocketService {
     );
 
     // send wid registration and recover frontend state
-    this.send("RegisterWIdRequest", { wId: wid});
+    this.send("RegisterWIdRequest", { wId });
 
     // refresh connection status
     this.websocketEvent().subscribe(_ => (this.isConnected = true));
+  }
+
+  public reopenWebsocket(wId: number) {
+    this.closeWebsocket();
+    this.openWebsocket(wId);
   }
 
   private static getWorkflowWebsocketUrl(): string {
