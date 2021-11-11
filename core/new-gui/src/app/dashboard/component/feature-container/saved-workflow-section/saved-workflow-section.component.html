@@ -45,7 +45,7 @@
         [(ngModel)]="workflowSearchValue"
         autocomplete="on"
         nz-input
-        placeholder='"workflowName" id:workflowId owner:ownerName read:ownerName write:ownerName'
+        placeholder="Search all workflows"
         (ngModelChange)="searchInputOnChange($event)"
         type="text"
         [nzAutocomplete]="auto"
@@ -54,13 +54,31 @@
       <ng-template #suffixIconSearch>
         <i nz-icon nzType="search"></i>
       </ng-template>
+      <ng-template #popContent>
+        We support the following search criteria:
+        <ul>
+          <li>Search by Workflow Name: <strong>workflowName</strong></li>
+          <li>Search by Workflow Id: <strong>id</strong>:workflowId</li>
+          <li>Search by Two Access Levels <ul>
+            <li>Read Access: <strong>read</strong>:ownerName</li>
+            <li>Write Access: <strong>write</strong>:ownerName</li>
+          </ul>
+        </ul>
+      <strong>
+        For any workflow name and owner name, if the name contains space, using double quotes to enclose the name is required.
+      </strong>
+      <br>
+      Example:
+        "Untitled Workflow" id:1 read:John write:John <br>
+      Meaning: Search for the workflow with name Untitled Workflow and id 1. That workflow is readable and writeable for owner whose name is John.
+      </ng-template>
       <ng-template #prefixPopoverButton>
         <i
           style="vertical-align: baseline; margin-right: 10px"
           nz-icon
           nz-popover
-          nzPopoverTitle="Search  Instruction"
-          nzPopoverContent='"workflowName" id:workflowId owner:ownerName read:ownerName write:ownerName'
+          nzPopoverTitle="Search Instructions"
+          [nzPopoverContent]="popContent"
           nzType="question-circle"
           nzTheme="outline"
         ></i>
