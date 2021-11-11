@@ -54,7 +54,7 @@ export class UserFileSectionComponent {
     if (!fileArray) {
       return [];
     } else if (this.userFileSearchValue !== "" && this.isTyping === false) {
-      return fileArray.filter(file => file.file.name === this.userFileSearchValue);
+      return fileArray.filter(file => file.file.name.includes(this.userFileSearchValue));
     }
     return fileArray;
   }

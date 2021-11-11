@@ -104,7 +104,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
         (workflowSearchField === "owner" && dashboardWorkflowEntry.ownerName !== workflowSeachNamewithoutQuote) ||
         (workflowSearchField === "id" && dashboardWorkflowEntry.workflow.wid !== +workflowSeachNamewithoutQuote) ||
         (workflowSearchField === "workflowName" &&
-          dashboardWorkflowEntry.workflow.name !== workflowSeachNamewithoutQuote) ||
+          !dashboardWorkflowEntry.workflow.name.includes( workflowSeachNamewithoutQuote)) ||
         (workflowSearchField === "read" &&
           (dashboardWorkflowEntry.accessLevel.toUpperCase() !== workflowSearchField.toUpperCase() ||
             dashboardWorkflowEntry.ownerName !== workflowSeachNamewithoutQuote)) ||
