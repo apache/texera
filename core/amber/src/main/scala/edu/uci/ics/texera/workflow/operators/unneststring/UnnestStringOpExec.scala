@@ -14,8 +14,7 @@ class UnnestStringOpExec(opDesc: UnnestStringOpDesc, operatorSchemaInfo: Operato
   def splitByDelimiter(tuple: Tuple): Iterator[Tuple] = {
 
     val tupleValue = tuple.getField(this.opDesc.attribute).toString
-    val unnestData = tupleValue.split(this.opDesc.delimiter)
-    val dataIterator = unnestData.filter(!_.equals("")).toIterator
+    val dataIterator = this.opDesc.delimiter.r.split(tupleValue).filter(!_.equals("")).toIterator
 
     dataIterator.map(split => {
       Tuple

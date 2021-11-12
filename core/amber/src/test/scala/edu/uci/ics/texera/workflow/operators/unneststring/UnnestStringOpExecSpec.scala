@@ -75,4 +75,21 @@ class UnnestStringOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("split"))
     opExec.close()
   }
+
+  it should "split by regex delimiter" in {
+    opDesc.delimiter = "<\\d*>"
+    val tuple: Tuple = Tuple
+      .newBuilder(tupleSchema)
+      .add(new Attribute("field1", AttributeType.STRING), "<>a<1>b<12>")
+      .add(new Attribute("field2", AttributeType.INTEGER), 1)
+      .add(new Attribute("field3", AttributeType.STRING), "a")
+      .build()
+
+    opExec.open()
+    val processedTuple = opExec.processTexeraTuple(Left(tuple), null)
+    assert(processedTuple.next().getField("split").equals("a"))
+    assert(processedTuple.next().getField("split").equals("b"))
+    assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("split"))
+    opExec.close()
+  }
 }
