@@ -38,7 +38,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
     geolocation: List[String],
     geoAttributes: List[String],
     searchByColumnForRegex: Option[String],
-    regex: Option[String],
+    regex: Option[String]
 ) extends SQLSourceOpExec(
       schema,
       table,
@@ -216,12 +216,14 @@ class AsterixDBSourceOpExec private[asterixdb] (
         throw new IllegalArgumentException("Can't do keyword search on type " + columnType.toString)
     }
 
-    if(searchByColumnForRegex.isDefined && regex.isDefined){
+    if (searchByColumnForRegex.isDefined && regex.isDefined) {
       val regexColumnType = schema.getAttribute(searchByColumnForRegex.get).getType
-      if(regexColumnType == AttributeType.STRING){
+      if (regexColumnType == AttributeType.STRING) {
         queryBuilder ++= "AND regexp_contains(" + searchByColumnForRegex.get + ", \"" + regex.get + "\") "
-      }else
-        throw new IllegalArgumentException("Can't do regex search on type " + regexColumnType.toString)
+      } else
+        throw new IllegalArgumentException(
+          "Can't do regex search on type " + regexColumnType.toString
+        )
     }
 
     // geolocation must contain more than 1 points to from a rectangle or polygon

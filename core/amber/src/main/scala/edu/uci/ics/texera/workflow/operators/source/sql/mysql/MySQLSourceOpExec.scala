@@ -47,11 +47,11 @@ class MySQLSourceOpExec private[mysql] (
 
   @throws[RuntimeException]
   override def addFilterConditions(queryBuilder: StringBuilder): Unit = {
-    if (search.getOrElse(false) && searchByColumn.isDefined && keywords.isDefined){
+    if (search.getOrElse(false) && searchByColumn.isDefined && keywords.isDefined) {
       val columnType = schema.getAttribute(searchByColumn.get).getType
 
       if (columnType == AttributeType.STRING)
-      // in sql prepared statement, column name cannot be inserted using PreparedStatement.setString either
+        // in sql prepared statement, column name cannot be inserted using PreparedStatement.setString either
         queryBuilder ++= " AND MATCH(" + searchByColumn.get + ") AGAINST (? IN BOOLEAN MODE)"
       else
         throw new RuntimeException("Can't do keyword search on type " + columnType.toString)
