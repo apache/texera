@@ -34,7 +34,9 @@ class AsterixDBSourceOpExec private[asterixdb] (
     batchByColumn: Option[String],
     min: Option[String],
     max: Option[String],
-    interval: Long
+    interval: Long,
+    geolocation: List[String],
+    geoAttributes: List[String]
 ) extends SQLSourceOpExec(
       schema,
       table,
@@ -210,6 +212,29 @@ class AsterixDBSourceOpExec private[asterixdb] (
       queryBuilder ++= " AND ftcontains(" + searchByColumn.get + ", " + keywords.get + ") "
     } else
       throw new IllegalArgumentException("Can't do keyword search on type " + columnType.toString)
+
+    // geolocation must contain more than 1 points to from a rectangle or polygon
+    if (geolocation.size > 1) {
+      val shape = {
+        val points = geolocation.flatMap(s => s.split(",").map(sub => sub.toDouble))
+        if (geolocation.size == 2) {
+          "create_rectangle(create_point(%.6f,%.6f), create_point(%.6f,%.6f))".format(points: _*)
+        } else {
+          "create_polygon([" + points.map(x => "%.6f".format(x)).mkString(",") + "])"
+        }
+      }
+      queryBuilder ++= " AND ("
+      var first = true
+      geoAttributes.foreach { attr =>
+        if (first) {
+          first = false
+        } else {
+          queryBuilder ++= " OR "
+        }
+        queryBuilder ++= s"spatial_intersect($attr, $shape)"
+      }
+      queryBuilder ++= " ) "
+    }
   }
 
   /**

@@ -13,12 +13,16 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.metadata.annotations.UIWidget
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{
+  AutofillAttributeName,
+  AutofillAttributeNameList,
+  UIWidget
+}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
   AttributeType,
-  Schema,
-  OperatorSchemaInfo
+  OperatorSchemaInfo,
+  Schema
 }
 import edu.uci.ics.texera.workflow.operators.source.sql.{SQLSourceOpDesc, SQLSourceOpExecConfig}
 import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBConnUtil.{
@@ -26,8 +30,8 @@ import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBConnU
   queryAsterixDB
 }
 import kong.unirest.json.JSONObject
-
 import java.util.Collections.singletonList
+
 import scala.jdk.CollectionConverters.asScalaBuffer
 
 @JsonIgnoreProperties(value = Array("username", "password"))
@@ -41,6 +45,21 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
     "\"['hello', 'world'], {'mode':'any'}\" OR \"['hello', 'world'], {'mode':'all'}\""
   )
   override def getKeywords: Option[String] = super.getKeywords
+
+  @JsonProperty()
+  @JsonSchemaTitle("GeoAttributes")
+  @JsonPropertyDescription(
+    "attribute name(s) to check if any of them is in the bounding box below"
+  )
+  @AutofillAttributeNameList
+  var geoAttributes: List[String] = List.empty
+
+  @JsonProperty()
+  @JsonSchemaTitle("GeoLocation Bounding Box")
+  @JsonPropertyDescription(
+    "each entry is a 2d point"
+  )
+  var geoLocation: List[String] = List.empty
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig =
     new SQLSourceOpExecConfig(
@@ -61,7 +80,9 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
           batchByColumn,
           min,
           max,
-          interval
+          interval,
+          geoLocation,
+          geoAttributes
         )
     )
 
