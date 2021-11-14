@@ -374,7 +374,7 @@ abstract class SQLSourceOpExec(
   @throws[SQLException]
   protected def loadTableNames(): Unit
 
-  protected def addKeywordSearch(queryBuilder: StringBuilder): Unit
+  protected def addFilterConditions(queryBuilder: StringBuilder): Unit
 
   /**
     * generate sql query string using the info provided by user. One of following
@@ -404,8 +404,7 @@ abstract class SQLSourceOpExec(
     addBaseSelect(queryBuilder)
 
     // add keyword search if applicable
-    if (search.getOrElse(false) && searchByColumn.isDefined && keywords.isDefined)
-      addKeywordSearch(queryBuilder)
+    addFilterConditions(queryBuilder)
 
     // add sliding window if progressive mode is enabled
     if (progressive.getOrElse(false) && batchByColumn.isDefined && interval > 0L)

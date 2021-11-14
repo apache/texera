@@ -36,7 +36,9 @@ class AsterixDBSourceOpExec private[asterixdb] (
     max: Option[String],
     interval: Long,
     geolocation: List[String],
-    geoAttributes: List[String]
+    geoAttributes: List[String],
+    searchByColumnForRegex: Option[String],
+    regex: Option[String],
 ) extends SQLSourceOpExec(
       schema,
       table,
@@ -203,18 +205,27 @@ class AsterixDBSourceOpExec private[asterixdb] (
     * @throws IllegalArgumentException if attribute does not support string based search
     */
   @throws[IllegalArgumentException]
-  def addKeywordSearch(queryBuilder: StringBuilder): Unit = {
+  def addFilterConditions(queryBuilder: StringBuilder): Unit = {
+    if (search.getOrElse(false) && searchByColumn.isDefined && keywords.isDefined) {
+      val columnType = schema.getAttribute(searchByColumn.get).getType
 
-    val columnType = schema.getAttribute(searchByColumn.get).getType
+      if (columnType == AttributeType.STRING) {
 
-    if (columnType == AttributeType.STRING) {
+        queryBuilder ++= " AND ftcontains(" + searchByColumn.get + ", " + keywords.get + ") "
+      } else
+        throw new IllegalArgumentException("Can't do keyword search on type " + columnType.toString)
+    }
 
-      queryBuilder ++= " AND ftcontains(" + searchByColumn.get + ", " + keywords.get + ") "
-    } else
-      throw new IllegalArgumentException("Can't do keyword search on type " + columnType.toString)
+    if(searchByColumnForRegex.isDefined && regex.isDefined){
+      val regexColumnType = schema.getAttribute(searchByColumnForRegex.get).getType
+      if(regexColumnType == AttributeType.STRING){
+        queryBuilder ++= "AND regexp_contains(" + searchByColumnForRegex.get + ", \"" + regex.get + "\") "
+      }else
+        throw new IllegalArgumentException("Can't do regex search on type " + regexColumnType.toString)
+    }
 
     // geolocation must contain more than 1 points to from a rectangle or polygon
-    if (geolocation.size > 1) {
+    if (geolocation.size > 1 && geoAttributes.nonEmpty) {
       val shape = {
         val points = geolocation.flatMap(s => s.split(",").map(sub => sub.toDouble))
         if (geolocation.size == 2) {

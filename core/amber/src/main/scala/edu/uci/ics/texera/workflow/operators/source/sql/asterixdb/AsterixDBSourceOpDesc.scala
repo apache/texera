@@ -37,14 +37,11 @@ import scala.jdk.CollectionConverters.asScalaBuffer
 @JsonIgnoreProperties(value = Array("username", "password"))
 class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
 
-  @JsonProperty()
-  @JsonSchemaTitle("Keywords to Search")
-  @JsonDeserialize(contentAs = classOf[java.lang.String])
-  @JsonSchemaInject(json = UIWidget.UIWidgetTextArea)
-  @JsonPropertyDescription(
-    "\"['hello', 'world'], {'mode':'any'}\" OR \"['hello', 'world'], {'mode':'all'}\""
-  )
-  override def getKeywords: Option[String] = super.getKeywords
+  @JsonProperty(defaultValue = "false")
+  @JsonSchemaTitle("Geo Search?")
+  @JsonDeserialize(contentAs = classOf[java.lang.Boolean])
+  @JsonSchemaInject(json = """{"toggleHidden" : ["geoAttributes", "geoLocation"]}""")
+  var geoSearch: Option[Boolean] = Option(false)
 
   @JsonProperty()
   @JsonSchemaTitle("GeoAttributes")
@@ -60,6 +57,33 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
     "each entry is a 2d point"
   )
   var geoLocation: List[String] = List.empty
+
+  @JsonProperty(defaultValue = "false")
+  @JsonSchemaTitle("Regex Search?")
+  @JsonDeserialize(contentAs = classOf[java.lang.Boolean])
+  @JsonSchemaInject(json = """{"toggleHidden" : ["searchByColumnForRegex", "regex"]}""")
+  var regexSearch: Option[Boolean] = Option(false)
+
+  @JsonProperty()
+  @JsonSchemaTitle("Regex Search Column")
+  @JsonDeserialize(contentAs = classOf[java.lang.String])
+  @AutofillAttributeName
+  var searchByColumnForRegex: Option[String] = None
+
+  @JsonProperty()
+  @JsonSchemaTitle("Regex to Search")
+  @JsonDeserialize(contentAs = classOf[java.lang.String])
+  @JsonSchemaInject(json = UIWidget.UIWidgetTextArea)
+  var regex: Option[String] = None
+
+  @JsonProperty()
+  @JsonSchemaTitle("Keywords to Search")
+  @JsonDeserialize(contentAs = classOf[java.lang.String])
+  @JsonSchemaInject(json = UIWidget.UIWidgetTextArea)
+  @JsonPropertyDescription(
+    "\"['hello', 'world'], {'mode':'any'}\" OR \"['hello', 'world'], {'mode':'all'}\""
+  )
+  override def getKeywords: Option[String] = super.getKeywords
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig =
     new SQLSourceOpExecConfig(
@@ -82,7 +106,9 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
           max,
           interval,
           geoLocation,
-          geoAttributes
+          geoAttributes,
+          searchByColumnForRegex,
+          regex
         )
     )
 

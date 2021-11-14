@@ -46,14 +46,16 @@ class MySQLSourceOpExec private[mysql] (
   override def establishConn(): Connection = connect(host, port, database, username, password)
 
   @throws[RuntimeException]
-  override def addKeywordSearch(queryBuilder: StringBuilder): Unit = {
-    val columnType = schema.getAttribute(searchByColumn.get).getType
+  override def addFilterConditions(queryBuilder: StringBuilder): Unit = {
+    if (search.getOrElse(false) && searchByColumn.isDefined && keywords.isDefined){
+      val columnType = schema.getAttribute(searchByColumn.get).getType
 
-    if (columnType == AttributeType.STRING)
+      if (columnType == AttributeType.STRING)
       // in sql prepared statement, column name cannot be inserted using PreparedStatement.setString either
-      queryBuilder ++= " AND MATCH(" + searchByColumn.get + ") AGAINST (? IN BOOLEAN MODE)"
-    else
-      throw new RuntimeException("Can't do keyword search on type " + columnType.toString)
+        queryBuilder ++= " AND MATCH(" + searchByColumn.get + ") AGAINST (? IN BOOLEAN MODE)"
+      else
+        throw new RuntimeException("Can't do keyword search on type " + columnType.toString)
+    }
   }
 
   @throws[SQLException]

@@ -45,18 +45,20 @@ class PostgreSQLSourceOpExec private[postgresql] (
   override def establishConn(): Connection = connect(host, port, database, username, password)
 
   @throws[RuntimeException]
-  override def addKeywordSearch(queryBuilder: StringBuilder): Unit = {
-    val columnType = schema.getAttribute(searchByColumn.get).getType
+  override def addFilterConditions(queryBuilder: StringBuilder): Unit = {
+    if (search.getOrElse(false) && searchByColumn.isDefined && keywords.isDefined) {
+      val columnType = schema.getAttribute(searchByColumn.get).getType
 
-    if (columnType == AttributeType.STRING) {
-      // in sql prepared statement, column name cannot be inserted using PreparedStatement.setString either
-      queryBuilder ++= " AND " + searchByColumn.get + " @@ to_tsquery(?)"
+      if (columnType == AttributeType.STRING) {
+        // in sql prepared statement, column name cannot be inserted using PreparedStatement.setString either
+        queryBuilder ++= " AND " + searchByColumn.get + " @@ to_tsquery(?)"
 
-      // OPTIMIZE: no fulltext index is required, having a built fulltext index can help performance on large dataset.
+        // OPTIMIZE: no fulltext index is required, having a built fulltext index can help performance on large dataset.
 
-      // OPTIMIZE: limited support on the default language, english. equivalent `to_tsquery('english', ?)`
-    } else
-      throw new RuntimeException("Can't do keyword search on type " + columnType.toString)
+        // OPTIMIZE: limited support on the default language, english. equivalent `to_tsquery('english', ?)`
+      } else
+        throw new RuntimeException("Can't do keyword search on type " + columnType.toString)
+    }
   }
 
   @throws[SQLException]
