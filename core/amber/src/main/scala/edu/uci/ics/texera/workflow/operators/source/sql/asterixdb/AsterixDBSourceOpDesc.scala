@@ -44,19 +44,19 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
   var geoSearch: Option[Boolean] = Option(false)
 
   @JsonProperty()
-  @JsonSchemaTitle("GeoAttributes")
+  @JsonSchemaTitle("Geo Search By Columns")
   @JsonPropertyDescription(
-    "attribute name(s) to check if any of them is in the bounding box below"
+    "column(s) to check if any of them is in the bounding box below"
   )
   @AutofillAttributeNameList
-  var geoAttributes: List[String] = List.empty
+  var geoSearchByColumns: List[String] = List.empty
 
   @JsonProperty()
-  @JsonSchemaTitle("GeoLocation Bounding Box")
+  @JsonSchemaTitle("Geo Search Bounding Box")
   @JsonPropertyDescription(
-    "each entry is a 2d point"
+    "at least 2 entries should be provided to form a bounding box. format of each entry: long, lat"
   )
-  var geoLocation: List[String] = List.empty
+  var geoSearchBoundingBox: List[String] = List.empty
 
   @JsonProperty(defaultValue = "false")
   @JsonSchemaTitle("Regex Search?")
@@ -65,10 +65,10 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
   var regexSearch: Option[Boolean] = Option(false)
 
   @JsonProperty()
-  @JsonSchemaTitle("Regex Search Column")
+  @JsonSchemaTitle("Regex Search By Column")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
   @AutofillAttributeName
-  var searchByColumnForRegex: Option[String] = None
+  var regexSearchByColumn: Option[String] = None
 
   @JsonProperty()
   @JsonSchemaTitle("Regex to Search")
@@ -97,18 +97,20 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
           table,
           limit,
           offset,
-          search,
-          searchByColumn,
-          keywords,
           progressive,
           batchByColumn,
           min,
           max,
           interval,
-          geoLocation,
-          geoAttributes,
-          searchByColumnForRegex,
-          regex
+          keywordSearch.getOrElse(false),
+          keywordSearchByColumn.orNull,
+          keywords.orNull,
+          geoSearch.getOrElse(false),
+          geoSearchByColumns,
+          geoSearchBoundingBox,
+          regexSearch.getOrElse(false),
+          regexSearchByColumn.orNull,
+          regex.orNull
         )
     )
 

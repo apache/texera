@@ -10,10 +10,12 @@ import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBConnU
   queryAsterixDB,
   updateAsterixDBVersionMapping
 }
-
 import java.sql._
 import java.time.format.DateTimeFormatter
 import java.time.{ZoneId, ZoneOffset}
+
+import com.mongodb.QueryBuilder
+
 import scala.collection.Iterator
 import scala.jdk.CollectionConverters.asScalaBufferConverter
 import scala.util.control.Breaks.{break, breakable}
@@ -27,31 +29,33 @@ class AsterixDBSourceOpExec private[asterixdb] (
     table: String,
     limit: Option[Long],
     offset: Option[Long],
-    search: Option[Boolean],
-    searchByColumn: Option[String],
-    keywords: Option[String],
     progressive: Option[Boolean],
     batchByColumn: Option[String],
     min: Option[String],
     max: Option[String],
     interval: Long,
-    geolocation: List[String],
-    geoAttributes: List[String],
-    searchByColumnForRegex: Option[String],
-    regex: Option[String]
+    keywordSearch: Boolean,
+    keywordSearchByColumn: String,
+    keywords: String,
+    geoSearch: Boolean,
+    geoSearchByColumns: List[String],
+    geoSearchBoundingBox: List[String],
+    regexSearch: Boolean,
+    regexSearchByColumn: String,
+    regex: String
 ) extends SQLSourceOpExec(
       schema,
       table,
       limit,
       offset,
-      search,
-      searchByColumn,
-      keywords,
       progressive,
       batchByColumn,
       min,
       max,
-      interval
+      interval,
+      keywordSearch,
+      keywordSearchByColumn,
+      keywords
     ) {
   // update AsterixDB API version upon initialization.
   updateAsterixDBVersionMapping(host, port)
@@ -206,31 +210,47 @@ class AsterixDBSourceOpExec private[asterixdb] (
     */
   @throws[IllegalArgumentException]
   def addFilterConditions(queryBuilder: StringBuilder): Unit = {
-    if (search.getOrElse(false) && searchByColumn.isDefined && keywords.isDefined) {
-      val columnType = schema.getAttribute(searchByColumn.get).getType
+    if (keywordSearch) {
+      addKeywordSearch(queryBuilder)
+    }
 
+    if (regexSearch) {
+      addRegexSearch(queryBuilder)
+    }
+
+    if (geoSearch) {
+      addGeoSearch(queryBuilder)
+    }
+  }
+
+  private def addKeywordSearch(queryBuilder: StringBuilder): Unit = {
+    if (keywordSearchByColumn != null && keywords != null) {
+      val columnType = schema.getAttribute(keywordSearchByColumn).getType
       if (columnType == AttributeType.STRING) {
-
-        queryBuilder ++= " AND ftcontains(" + searchByColumn.get + ", " + keywords.get + ") "
+        queryBuilder ++= " AND ftcontains(" + keywordSearchByColumn + ", " + keywords + ") "
       } else
         throw new IllegalArgumentException("Can't do keyword search on type " + columnType.toString)
     }
+  }
 
-    if (searchByColumnForRegex.isDefined && regex.isDefined) {
-      val regexColumnType = schema.getAttribute(searchByColumnForRegex.get).getType
+  private def addRegexSearch(queryBuilder: StringBuilder): Unit = {
+    if (regexSearchByColumn != null && regex != null) {
+      val regexColumnType = schema.getAttribute(regexSearchByColumn).getType
       if (regexColumnType == AttributeType.STRING) {
-        queryBuilder ++= "AND regexp_contains(" + searchByColumnForRegex.get + ", \"" + regex.get + "\") "
+        queryBuilder ++= " AND regexp_contains(" + regexSearchByColumn + ", \"" + regex + "\") "
       } else
         throw new IllegalArgumentException(
           "Can't do regex search on type " + regexColumnType.toString
         )
     }
+  }
 
+  private def addGeoSearch(queryBuilder: StringBuilder): Unit = {
     // geolocation must contain more than 1 points to from a rectangle or polygon
-    if (geolocation.size > 1 && geoAttributes.nonEmpty) {
+    if (geoSearchBoundingBox.size > 1 && geoSearchByColumns.nonEmpty) {
       val shape = {
-        val points = geolocation.flatMap(s => s.split(",").map(sub => sub.toDouble))
-        if (geolocation.size == 2) {
+        val points = geoSearchBoundingBox.flatMap(s => s.split(",").map(sub => sub.toDouble))
+        if (geoSearchBoundingBox.size == 2) {
           "create_rectangle(create_point(%.6f,%.6f), create_point(%.6f,%.6f))".format(points: _*)
         } else {
           "create_polygon([" + points.map(x => "%.6f".format(x)).mkString(",") + "])"
@@ -238,7 +258,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
       }
       queryBuilder ++= " AND ("
       var first = true
-      geoAttributes.foreach { attr =>
+      geoSearchByColumns.foreach { attr =>
         if (first) {
           first = false
         } else {
