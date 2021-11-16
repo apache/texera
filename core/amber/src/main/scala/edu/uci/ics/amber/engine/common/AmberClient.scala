@@ -7,7 +7,6 @@ import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.common.ClientActor.{
   ClosureRequest,
-  CommandRequest,
   InitializeRequest,
   ObservableRequest
 }
@@ -22,17 +21,17 @@ import scala.reflect.ClassTag
 
 class AmberClient(system: ActorSystem, workflow: Workflow, controllerConfig: ControllerConfig) {
 
-  private val client = system.actorOf(Props(new ClientActor))
+  private val clientActor = system.actorOf(Props(new ClientActor))
   private implicit val timeout: Timeout = Timeout(1.minute)
   private val registeredObservables = new mutable.HashMap[Class[_], Observable[_]]()
   @volatile private var isActive = true
 
-  Await.result(client ? InitializeRequest(workflow, controllerConfig), 10.seconds)
+  Await.result(clientActor ? InitializeRequest(workflow, controllerConfig), 10.seconds)
 
   def shutdown(): Unit = {
     if (isActive) {
       isActive = false
-      client ! PoisonPill
+      clientActor ! PoisonPill
     }
   }
 
@@ -40,7 +39,7 @@ class AmberClient(system: ActorSystem, workflow: Workflow, controllerConfig: Con
     if (!isActive) {
       Future.exception(new RuntimeException("amber runtime environment is not active"))
     } else {
-      (client ? CommandRequest(controlCommand)).asTwitter().asInstanceOf[Future[T]]
+      (clientActor ? controlCommand).asTwitter().asInstanceOf[Future[T]]
     }
   }
 
@@ -48,7 +47,7 @@ class AmberClient(system: ActorSystem, workflow: Workflow, controllerConfig: Con
     if (!isActive) {
       throw new RuntimeException("amber runtime environment is not active")
     } else {
-      Await.result(client ? CommandRequest(controlCommand), deadline).asInstanceOf[T]
+      Await.result(clientActor ? controlCommand, deadline).asInstanceOf[T]
     }
   }
 
@@ -56,7 +55,7 @@ class AmberClient(system: ActorSystem, workflow: Workflow, controllerConfig: Con
     if (!isActive) {
       throw new RuntimeException("amber runtime environment is not active")
     } else {
-      client ! CommandRequest(controlCommand)
+      clientActor ! controlCommand
     }
   }
 
@@ -65,7 +64,7 @@ class AmberClient(system: ActorSystem, workflow: Workflow, controllerConfig: Con
       throw new RuntimeException("amber runtime environment is not active")
     }
     assert(
-      client.path.address.hasLocalScope,
+      clientActor.path.address.hasLocalScope,
       "get observable with a remote client actor is not supported"
     )
     val clazz = ct.runtimeClass
@@ -77,7 +76,7 @@ class AmberClient(system: ActorSystem, workflow: Workflow, controllerConfig: Con
       case x: T =>
         sub.onNext(x)
     })
-    Await.result(client ? req, 2.seconds)
+    Await.result(clientActor ? req, 2.seconds)
     val ob = sub.onTerminateDetach
     registeredObservables(clazz) = ob
     ob
@@ -87,7 +86,7 @@ class AmberClient(system: ActorSystem, workflow: Workflow, controllerConfig: Con
     if (!isActive) {
       closure
     } else {
-      Await.result(client ? ClosureRequest(() => closure), timeout.duration).asInstanceOf[T]
+      Await.result(clientActor ? ClosureRequest(() => closure), timeout.duration).asInstanceOf[T]
     }
   }
 

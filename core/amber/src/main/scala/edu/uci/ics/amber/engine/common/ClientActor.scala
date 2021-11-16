@@ -20,7 +20,6 @@ import scala.collection.mutable
 
 object ClientActor {
   case class InitializeRequest(workflow: Workflow, controllerConfig: ControllerConfig)
-  case class CommandRequest[T](controlCommand: ControlCommand[T])
   case class ObservableRequest(pf: PartialFunction[Any, Unit])
   case class ClosureRequest[T](closure: () => T)
 }
@@ -43,7 +42,7 @@ class ClientActor extends Actor {
         case e: Throwable =>
           sender ! e
       }
-    case CommandRequest(controlCommand) =>
+    case controlCommand: ControlCommand[_] =>
       controller ! ControlInvocation(controlId, controlCommand)
       senderMap(controlId) = sender
       controlId += 1

@@ -17,7 +17,7 @@ trait ShutdownDPThreadHandler {
     {
       dataProcessor.shutdown()
       throw new InterruptedException() // actively interrupt itself
-      () // return unit. this will actually never be called
+      ()
     }
   }
 
