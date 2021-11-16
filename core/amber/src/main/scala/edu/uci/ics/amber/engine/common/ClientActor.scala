@@ -8,7 +8,6 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
 }
 import edu.uci.ics.amber.engine.common.ClientActor.{
   ClosureRequest,
-  CommandRequest,
   InitializeRequest,
   ObservableRequest
 }
