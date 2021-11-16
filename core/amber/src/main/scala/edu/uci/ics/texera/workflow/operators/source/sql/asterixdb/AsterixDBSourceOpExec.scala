@@ -14,8 +14,6 @@ import java.sql._
 import java.time.format.DateTimeFormatter
 import java.time.{ZoneId, ZoneOffset}
 
-import com.mongodb.QueryBuilder
-
 import scala.collection.Iterator
 import scala.jdk.CollectionConverters.asScalaBufferConverter
 import scala.util.control.Breaks.{break, breakable}
