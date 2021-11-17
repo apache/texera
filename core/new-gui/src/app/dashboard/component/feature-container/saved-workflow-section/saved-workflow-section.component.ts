@@ -27,7 +27,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
   public filteredDashboardWorkflowNames: Set<string> = new Set();
   public workflowSearchValue: string = "";
   private defaultWorkflowName: string = "Untitled Workflow";
-  public searchCriteria: string[] = ["owner", "id", "read", "write"];
+  public searchCriteria: string[] = ["owner", "id"];
 
   constructor(
     private userService: UserService,
@@ -63,7 +63,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
   }
 
   /**
-   * search workflows by owner names or workflow names
+   * search workflows by owner name, workflow name or workflow id
    */
   public searchWorkflow(): void {
     this.dashboardWorkflowEntries = cloneDeep(this.allDashboardWorkflowEntries);
@@ -104,13 +104,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
         (workflowSearchField === "owner" && dashboardWorkflowEntry.ownerName !== workflowSeachNamewithoutQuote) ||
         (workflowSearchField === "id" && dashboardWorkflowEntry.workflow.wid !== +workflowSeachNamewithoutQuote) ||
         (workflowSearchField === "workflowName" &&
-          !dashboardWorkflowEntry.workflow.name.includes( workflowSeachNamewithoutQuote)) ||
-        (workflowSearchField === "read" &&
-          (dashboardWorkflowEntry.accessLevel.toUpperCase() !== workflowSearchField.toUpperCase() ||
-            dashboardWorkflowEntry.ownerName !== workflowSeachNamewithoutQuote)) ||
-        (workflowSearchField === "write" &&
-          (dashboardWorkflowEntry.accessLevel.toUpperCase() !== workflowSearchField.toUpperCase() ||
-            dashboardWorkflowEntry.ownerName !== workflowSeachNamewithoutQuote))
+          !dashboardWorkflowEntry.workflow.name.includes( workflowSeachNamewithoutQuote))
       ) {
         this.dashboardWorkflowEntries.splice(i, 1);
       }
