@@ -255,15 +255,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
         }
       }
       queryBuilder ++= " AND ("
-      var first = true
-      geoSearchByColumns.foreach { attr =>
-        if (first) {
-          first = false
-        } else {
-          queryBuilder ++= " OR "
-        }
-        queryBuilder ++= s"spatial_intersect($attr, $shape)"
-      }
+      queryBuilder ++= geoSearchByColumns.map{ attr =>  s"spatial_intersect($attr, $shape)"} .mkString(" OR ")
       queryBuilder ++= " ) "
     }
   }
