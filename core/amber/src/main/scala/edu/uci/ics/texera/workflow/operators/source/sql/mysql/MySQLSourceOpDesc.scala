@@ -30,14 +30,14 @@ class MySQLSourceOpDesc extends SQLSourceOpDesc {
           password,
           limit,
           offset,
-          search,
-          searchByColumn,
-          keywords,
           progressive,
           batchByColumn,
           min,
           max,
-          interval
+          interval,
+          keywordSearch.getOrElse(false),
+          keywordSearchByColumn.orNull,
+          keywords.orNull
         )
     )
 
