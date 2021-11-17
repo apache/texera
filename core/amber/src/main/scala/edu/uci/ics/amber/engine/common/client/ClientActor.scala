@@ -17,6 +17,7 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 
 import scala.collection.mutable
 
+// TODO: Rename or refactor it since it has mixed duties (send/receive messages, execute callbacks)
 private[client] object ClientActor {
   case class InitializeRequest(workflow: Workflow, controllerConfig: ControllerConfig)
   case class ObservableRequest(pf: PartialFunction[Any, Unit])
