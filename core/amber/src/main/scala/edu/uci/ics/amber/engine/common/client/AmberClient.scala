@@ -1,16 +1,16 @@
-package edu.uci.ics.amber.engine.common
+package edu.uci.ics.amber.engine.common.client
 
-import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
+import akka.actor.{ActorSystem, PoisonPill, Props}
 import akka.pattern._
 import akka.util.Timeout
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, Workflow}
-import edu.uci.ics.amber.engine.common.ClientActor.{
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
+import edu.uci.ics.amber.engine.common.FutureBijection._
+import edu.uci.ics.amber.engine.common.client.ClientActor.{
   ClosureRequest,
   InitializeRequest,
   ObservableRequest
 }
-import edu.uci.ics.amber.engine.common.FutureBijection._
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import rx.lang.scala.{Observable, Subject}
 

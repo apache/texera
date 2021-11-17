@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.engine.common
+package edu.uci.ics.amber.engine.common.client
 
 import akka.actor.{Actor, ActorRef}
 import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, Workflow}
@@ -6,24 +6,24 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
   NetworkAck,
   NetworkMessage
 }
-import edu.uci.ics.amber.engine.common.ClientActor.{
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowControlMessage
+import edu.uci.ics.amber.engine.common.client.ClientActor.{
   ClosureRequest,
   InitializeRequest,
   ObservableRequest
 }
-import edu.uci.ics.amber.engine.common.ambermessage.WorkflowControlMessage
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 
 import scala.collection.mutable
 
-object ClientActor {
+private[client] object ClientActor {
   case class InitializeRequest(workflow: Workflow, controllerConfig: ControllerConfig)
   case class ObservableRequest(pf: PartialFunction[Any, Unit])
   case class ClosureRequest[T](closure: () => T)
 }
 
-class ClientActor extends Actor {
+private[client] class ClientActor extends Actor {
   var controller: ActorRef = _
   var controlId = 0L
   val senderMap = new mutable.LongMap[ActorRef]()

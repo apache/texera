@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.web
 
-import edu.uci.ics.amber.engine.common.AmberClient
+import edu.uci.ics.amber.engine.common.client.AmberClient
 import rx.lang.scala.{Observer, Subject, Subscription}
 
 abstract class SnapshotMulticast[T] {

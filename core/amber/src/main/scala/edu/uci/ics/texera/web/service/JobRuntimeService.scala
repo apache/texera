@@ -17,7 +17,8 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHa
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.RetryWorkflowHandler.RetryWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.principal.{OperatorState, OperatorStatistics}
-import edu.uci.ics.amber.engine.common.{AmberClient, AmberUtils}
+import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.web.SnapshotMulticast
 import edu.uci.ics.texera.web.model.common.FaultedTupleFrontend
 import edu.uci.ics.texera.web.model.websocket.event._
