@@ -49,6 +49,7 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
     "column(s) to check if any of them is in the bounding box below"
   )
   @AutofillAttributeNameList
+  // TODO: set it to one column in the future since it implicitly adds OR semantics
   var geoSearchByColumns: List[String] = List.empty
 
   @JsonProperty()
