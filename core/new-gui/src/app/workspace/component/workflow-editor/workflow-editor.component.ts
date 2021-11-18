@@ -140,6 +140,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleViewExpandGroup();
     this.handlePaperPan();
     this.handleGroupResize();
+    this.handleViewMouseoverOperator();
+    this.handleViewMouseoutOperator();
 
     if (environment.executionStatusEnabled) {
       this.handleOperatorStatisticsUpdate();
@@ -714,6 +716,28 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .pipe(untilDestroyed(this))
       .subscribe(elementView => {
         this.workflowActionService.deleteOperator(elementView.model.id.toString());
+      });
+  }
+
+  private handleViewMouseoverOperator(): void {
+    fromEvent<JointPaperEvent>(this.getJointPaper(), "element:mouseover")
+    .pipe(
+        map(value => value[0])
+      )
+      .pipe(untilDestroyed(this))
+      .subscribe(elementView => {
+        this.jointUIService.showCompleteOperatorStatistics(this.getJointPaper(), elementView.model.id.toString());
+      });
+  }
+
+  private handleViewMouseoutOperator(): void {
+    fromEvent<JointPaperEvent>(this.getJointPaper(), "element:mouseout")
+    .pipe(
+        map(value => value[0])
+      )
+      .pipe(untilDestroyed(this))
+      .subscribe(elementView => {
+      this.jointUIService.abbreviateOperatorStatistics(this.getJointPaper(), elementView.model.id.toString());
       });
   }
 

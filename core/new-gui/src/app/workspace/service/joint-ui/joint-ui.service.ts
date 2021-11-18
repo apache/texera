@@ -7,6 +7,7 @@ import { OperatorLink, OperatorPredicate, Point } from "../../types/workflow-com
 import { Group, GroupBoundingBox } from "../workflow-graph/model/operator-group";
 import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
 import { OperatorResultCacheStatus } from "../../types/workflow-websocket.interface";
+import { abbreviateNumber } from "js-abbreviation-number";
 
 /**
  * Defines the SVG element for the breakpoint button
@@ -80,6 +81,7 @@ export const operatorStateClass = "texera-operator-state";
 
 export const operatorProcessedCountClass = "texera-operator-processed-count";
 export const operatorOutputCountClass = "texera-operator-output-count";
+export const operatorAbbreviatedCountClass = "texera-operator-abbreviated-count"
 
 export const operatorIconClass = "texera-operator-icon";
 export const operatorNameClass = "texera-operator-name";
@@ -99,6 +101,7 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
       <text class="${operatorNameClass}"></text>
       <text class="${operatorProcessedCountClass}"></text>
       <text class="${operatorOutputCountClass}"></text>
+      <text class="${operatorAbbreviatedCountClass}"></text>
       <text class="${operatorStateClass}"></text>
       <text class="${operatorCacheTextClass}"></text>
       <image class="${operatorCacheIconClass}"></image>
@@ -238,6 +241,30 @@ export class JointUIService {
     const outputText = "Output:    " + statistics.aggregatedOutputRowCount.toLocaleString();
     jointPaper.getModelById(operatorID).attr(`.${operatorProcessedCountClass}/text`, processedText);
     jointPaper.getModelById(operatorID).attr(`.${operatorOutputCountClass}/text`, outputText);
+    const processedCountText = abbreviateNumber(statistics.aggregatedInputRowCount);
+    const outputCountText = abbreviateNumber(statistics.aggregatedOutputRowCount);
+    const abbreviatedText = processedCountText + " → " + outputCountText;
+    jointPaper.getModelById(operatorID).attr(`.${operatorAbbreviatedCountClass}/text`, abbreviatedText);
+  }
+
+  public abbreviateOperatorStatistics(
+    jointPaper: joint.dia.Paper,
+    operatorID: string
+  ): void {
+    jointPaper.getModelById(operatorID).attr(`.${operatorAbbreviatedCountClass}/visibility`, "visible");
+    jointPaper.getModelById(operatorID).attr(`.${operatorProcessedCountClass}/visibility`, "hidden");
+    jointPaper.getModelById(operatorID).attr(`.${operatorOutputCountClass}/visibility`, "hidden");
+    jointPaper.getModelById(operatorID).attr(`.${operatorStateClass}/visibility`, "hidden");
+  }
+
+  public showCompleteOperatorStatistics(
+    jointPaper: joint.dia.Paper,
+    operatorID: string
+  ): void {
+    jointPaper.getModelById(operatorID).attr(`.${operatorAbbreviatedCountClass}/visibility`, "hidden");
+    jointPaper.getModelById(operatorID).attr(`.${operatorProcessedCountClass}/visibility`, "visible");
+    jointPaper.getModelById(operatorID).attr(`.${operatorOutputCountClass}/visibility`, "visible");
+    jointPaper.getModelById(operatorID).attr(`.${operatorStateClass}/visibility`, "visible");
   }
 
   /**
@@ -285,7 +312,7 @@ export class JointUIService {
         break;
       case OperatorState.Pausing:
       case OperatorState.Paused:
-        fillColor = "red";
+        fillColor = "magenta";
         break;
       default:
         fillColor = "orange";
@@ -294,6 +321,10 @@ export class JointUIService {
 
     jointPaper.getModelById(operatorID).attr(`.${operatorStateClass}/text`, operatorState.toString());
     jointPaper.getModelById(operatorID).attr(`.${operatorStateClass}/fill`, fillColor);
+    jointPaper.getModelById(operatorID).attr("rect/stroke", fillColor);
+    jointPaper.getModelById(operatorID).attr(`.${operatorAbbreviatedCountClass}/fill`, fillColor);
+    jointPaper.getModelById(operatorID).attr(`.${operatorProcessedCountClass}/fill`, fillColor);
+    jointPaper.getModelById(operatorID).attr(`.${operatorOutputCountClass}/fill`, fillColor);
   }
 
   /**
@@ -579,9 +610,21 @@ export class JointUIService {
       ".texera-operator-state": {
         text: "",
         "font-size": "14px",
-        visible: true,
+        visibility: "hidden",
         "ref-x": 0.5,
         "ref-y": 100,
+        ref: "rect",
+        "y-alignment": "middle",
+        "x-alignment": "middle",
+      },
+      ".texera-operator-abbreviated-count": {
+        text: "",
+        fill: "green",
+        "font-size": "14px",
+        'font-weight': 'bold',
+        visibility: "visible",
+        "ref-x": 0.5,
+        "ref-y": -30,
         ref: "rect",
         "y-alignment": "middle",
         "x-alignment": "middle",
@@ -590,9 +633,9 @@ export class JointUIService {
         text: "",
         fill: "green",
         "font-size": "14px",
-        visible: true,
+        visibility: "hidden",
         "ref-x": 0.5,
-        "ref-y": -40,
+        "ref-y": -50,
         ref: "rect",
         "y-alignment": "middle",
         "x-alignment": "middle",
@@ -601,9 +644,9 @@ export class JointUIService {
         text: "",
         fill: "green",
         "font-size": "14px",
-        visible: true,
+        visibility: "hidden",
         "ref-x": 0.5,
-        "ref-y": -20,
+        "ref-y": -30,
         ref: "rect",
         "y-alignment": "middle",
         "x-alignment": "middle",
