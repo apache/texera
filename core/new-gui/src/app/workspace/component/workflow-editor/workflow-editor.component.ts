@@ -223,7 +223,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
           // if operator is not in a group or in a group that isn't collapsed, it is okay to draw statistics on it
           if (!parentGroup || !parentGroup.collapsed) {
-            this.jointUIService.changeOperatorStatistics(this.getJointPaper(), operatorID, status[operatorID]);
+            const isSource = this.workflowActionService.getTexeraGraph().getOperator(operatorID).inputPorts.length == 0;
+            const isSink = this.workflowActionService.getTexeraGraph().getOperator(operatorID).outputPorts.length == 0;
+            this.jointUIService.changeOperatorStatistics(this.getJointPaper(), operatorID, status[operatorID], isSource, isSink);
           }
 
           // if operator is in a group, write statistics to the group's operatorInfo
@@ -244,7 +246,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .subscribe(group => {
         group.operators.forEach((operatorInfo, operatorID) => {
           if (operatorInfo.statistics) {
-            this.jointUIService.changeOperatorStatistics(this.getJointPaper(), operatorID, operatorInfo.statistics);
+            const isSource = this.workflowActionService.getTexeraGraph().getOperator(operatorID).inputPorts.length == 0;
+            const isSink = this.workflowActionService.getTexeraGraph().getOperator(operatorID).outputPorts.length == 0;
+            this.jointUIService.changeOperatorStatistics(this.getJointPaper(), operatorID, operatorInfo.statistics, isSource, isSink);
           }
         });
       });
@@ -629,7 +633,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .pipe(untilDestroyed(this))
       .subscribe(elementIDs =>
         elementIDs.forEach(elementID =>
-          this.getJointPaper().findViewByModel(elementID).highlight("rect", { highlighter: highlightOptions })
+          this.getJointPaper().findViewByModel(elementID).highlight("rect.body", { highlighter: highlightOptions })
         )
       );
 
@@ -641,7 +645,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .pipe(untilDestroyed(this))
       .subscribe(elementIDs =>
         elementIDs.forEach(elementID =>
-          this.getJointPaper().findViewByModel(elementID).unhighlight("rect", { highlighter: highlightOptions })
+          this.getJointPaper().findViewByModel(elementID).unhighlight("rect.body", { highlighter: highlightOptions })
         )
       );
   }
@@ -661,14 +665,14 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .getOperatorSuggestionHighlightStream()
       .pipe(untilDestroyed(this))
       .subscribe(value =>
-        this.getJointPaper().findViewByModel(value).highlight("rect", { highlighter: highlightOptions })
+        this.getJointPaper().findViewByModel(value).highlight("rect.body", { highlighter: highlightOptions })
       );
 
     this.dragDropService
       .getOperatorSuggestionUnhighlightStream()
       .pipe(untilDestroyed(this))
       .subscribe(value =>
-        this.getJointPaper().findViewByModel(value).unhighlight("rect", { highlighter: highlightOptions })
+        this.getJointPaper().findViewByModel(value).unhighlight("rect.body", { highlighter: highlightOptions })
       );
   }
 
@@ -726,7 +730,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       )
       .pipe(untilDestroyed(this))
       .subscribe(elementView => {
-        this.jointUIService.showCompleteOperatorStatistics(this.getJointPaper(), elementView.model.id.toString());
+        this.jointUIService.unfoldOperatorDetails(this.getJointPaper(), elementView.model.id.toString());
       });
   }
 
@@ -737,7 +741,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       )
       .pipe(untilDestroyed(this))
       .subscribe(elementView => {
-      this.jointUIService.abbreviateOperatorStatistics(this.getJointPaper(), elementView.model.id.toString());
+      this.jointUIService.foldOperatorDetails(this.getJointPaper(), elementView.model.id.toString());
       });
   }
 
