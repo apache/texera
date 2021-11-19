@@ -2,22 +2,22 @@ import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable, of, Subject } from "rxjs";
 import { AppSettings } from "src/app/common/app-setting";
-import { UserService } from "../../../common/service/user/user.service";
+import { UserService } from "../user.service";
 import { shareReplay, tap } from "rxjs/operators";
 import { isType } from "src/app/common/util/assert";
 
-export type UserDictionary = {
+export type UserConfig = {
   [key: string]: string;
 };
 
 @Injectable({
   providedIn: "root",
 })
-export class DictionaryService {
-  public static readonly USER_DICTIONARY_ENDPOINT = "users/dictionary";
+export class UserConfigService {
+  public static readonly USER_DICTIONARY_ENDPOINT = "user/config";
 
   private dictionaryChangedSubject = new Subject<void>();
-  private localUserDictionary: UserDictionary = {};
+  private localUserDictionary: UserConfig = {};
 
   constructor(private http: HttpClient, private userService: UserService) {
     if (this.userService.isLogin()) {
@@ -32,7 +32,7 @@ export class DictionaryService {
     });
   }
 
-  public getDict(): Readonly<UserDictionary> {
+  public getDict(): Readonly<UserConfig> {
     return this.localUserDictionary;
   }
 
@@ -50,7 +50,7 @@ export class DictionaryService {
     if (key.trim().length === 0) {
       throw new Error("Dictionary Service: key cannot be empty");
     }
-    const url = `${AppSettings.getApiEndpoint()}/${DictionaryService.USER_DICTIONARY_ENDPOINT}/${key}`;
+    const url = `${AppSettings.getApiEndpoint()}/${UserConfigService.USER_DICTIONARY_ENDPOINT}/${key}`;
     const req = this.http.get(url, {responseType: "text"}).pipe(
       tap(res => {this.updateEntry(key, res)}),
       shareReplay(1)
@@ -63,12 +63,12 @@ export class DictionaryService {
    * get the entire dictionary from the backend.
    * @returns UserDictionary object with string attributes;
    */
-  public fetchAll(): Observable<Readonly<UserDictionary>> {
+  public fetchAll(): Observable<Readonly<UserConfig>> {
     if (!this.userService.isLogin()) {
       throw new Error("user not logged in");
     }
-    const url = `${AppSettings.getApiEndpoint()}/${DictionaryService.USER_DICTIONARY_ENDPOINT}`;
-    const req = this.http.get<UserDictionary>(url).pipe(
+    const url = `${AppSettings.getApiEndpoint()}/${UserConfigService.USER_DICTIONARY_ENDPOINT}`;
+    const req = this.http.get<UserConfig>(url).pipe(
       tap(res => this.updateDict(res)),
       shareReplay(1)
     );
@@ -90,7 +90,7 @@ export class DictionaryService {
     if (key.trim().length === 0) {
       throw new Error("Dictionary Service: key cannot be empty");
     }
-    const url = `${AppSettings.getApiEndpoint()}/${DictionaryService.USER_DICTIONARY_ENDPOINT}/${key}`;
+    const url = `${AppSettings.getApiEndpoint()}/${UserConfigService.USER_DICTIONARY_ENDPOINT}/${key}`;
     const req = this.http.put<void>(url, value).pipe(
       tap(_ => this.updateEntry(key, value)),
       shareReplay(1)
@@ -115,7 +115,7 @@ export class DictionaryService {
     if (!(key in this.localUserDictionary)) {
       return of();
     }
-    const url = `${AppSettings.getApiEndpoint()}/${DictionaryService.USER_DICTIONARY_ENDPOINT}/${key}`;
+    const url = `${AppSettings.getApiEndpoint()}/${UserConfigService.USER_DICTIONARY_ENDPOINT}/${key}`;
     const req = this.http.delete<void>(url).pipe(
       tap(_ => this.updateEntry(key, undefined)),
       shareReplay(1)
@@ -141,7 +141,7 @@ export class DictionaryService {
     }
   }
 
-  private updateDict(newDict: UserDictionary) {
+  private updateDict(newDict: UserConfig) {
     this.localUserDictionary = newDict;
     this.dictionaryChangedSubject.next();
   }

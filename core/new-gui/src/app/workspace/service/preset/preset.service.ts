@@ -3,7 +3,7 @@ import * as Ajv from "ajv";
 import { cloneDeep, has, indexOf, isEqual, merge, pickBy } from "lodash";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { Observable, of, Subject } from "rxjs";
-import { DictionaryService } from "src/app/dashboard/service/user-dictionary/dictionary.service";
+import { UserConfigService } from "src/app/common/service/user/config/user-config.service";
 import { asType, isType } from "src/app/common/util/assert";
 import { CustomJSONSchema7 } from "../../types/custom-json-schema.interface";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
@@ -66,7 +66,7 @@ export class PresetService {
   private savePresetSubject = new Subject<{ type: string; target: string; presets: Preset[] }>(); // event stream for saving preset[]s to a target (usually type "operator" an operatorType as target)
 
   constructor(
-    private dictionaryService: DictionaryService,
+    private userConfigService: UserConfigService,
     private messageService: NzMessageService,
     private workflowActionService: WorkflowActionService,
     private operatorMetadataService: OperatorMetadataService
@@ -103,9 +103,9 @@ export class PresetService {
     messageType: AlertMessageType = "success"
   ) {
     if (presets.length > 0) {
-      this.dictionaryService.set(`${type}-${target}`, JSON.stringify(presets))
+      this.userConfigService.set(`${type}-${target}`, JSON.stringify(presets))
     } else {
-      this.dictionaryService.delete(`${type}-${target}`)
+      this.userConfigService.delete(`${type}-${target}`)
     }
     this.savePresetSubject.next({ type: type, target: target, presets: presets });
     this.displaySavePresetMessage(messageType, displayMessage);
@@ -126,7 +126,7 @@ export class PresetService {
     displayMessage?: string | null,
     messageType: AlertMessageType = "success"
   ) {
-    this.dictionaryService.fetchKey(`${type}-${target}`)
+    this.userConfigService.fetchKey(`${type}-${target}`)
       .pipe(first())
       .subscribe(
         presetsString => {
@@ -156,7 +156,7 @@ export class PresetService {
     displayMessage?: string | null,
     messageType: AlertMessageType = "success"
   ) {
-    this.dictionaryService.fetchKey(`${type}-${target}`)
+    this.userConfigService.fetchKey(`${type}-${target}`)
       .pipe(first())
       .subscribe(
         presetsString => {
@@ -190,11 +190,12 @@ export class PresetService {
     displayMessage?: string | null,
     messageType: AlertMessageType = "success"
   ) {
-    this.dictionaryService.fetchKey(`${type}-${target}`)
+    this.userConfigService.fetchKey(`${type}-${target}`)
       .pipe(first())
       .subscribe(
         oldpresets=> {
           let presets = JSON.parse(oldpresets ?? "[]") as Preset[]
+          debugger;
           if (isEqual(originalPreset, replacementPreset)){
             // no modification: no update required
           } else if (!contains(presets, originalPreset) && !contains(presets, replacementPreset)) {
@@ -244,7 +245,7 @@ export class PresetService {
    * @returns Preset[]
    */
   public getPresets(type: string, target: string): Observable<Readonly<Preset[]>> {
-    return this.dictionaryService.fetchKey(`${type}-${target}`).pipe(
+    return this.userConfigService.fetchKey(`${type}-${target}`).pipe(
       map(
         presets => {
           let parsedPresets = JSON.parse(presets ?? "[]");
