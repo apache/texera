@@ -1,10 +1,10 @@
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import { FieldWrapper, FormlyFieldConfig } from "@ngx-formly/core";
-import { merge } from "lodash";
+import { isEqual, merge } from "lodash";
 import { ReplaySubject } from "rxjs";
-import { takeUntil, debounceTime, filter } from "rxjs/operators";
+import { takeUntil, debounceTime, filter, first } from "rxjs/operators";
 import { Preset, PresetService } from "src/app/workspace/service/preset/preset.service";
-import { asType } from "../../util/assert";
+import { asType, nonNull } from "../../util/assert";
 
 /**
  * PresetWrapperComponent is a custom formly form field wrapper: https://formly.dev/guide/custom-formly-wrapper
@@ -35,10 +35,12 @@ export interface PresetKey {
 })
 export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDestroy {
   public searchResults: Preset[] = []; // the list of presets shown in the dropdown
+  public presetMenuVisible = false;
   private searchTerm: string = ""; // a copy of the form field value, used as a search term to narrow suggested presets
   private presetType: string = ""; // corresponds to type used in presetService.getPresets(type, target). Usually "operator"
   private saveTarget: string = ""; // corresponds to target used in presetService.getPresets(type, target). Usually operator type, i.e. "MySQLSource"
   private applyTarget: string = ""; // corresponds to target used in presetService.applyPreset(type, target). Usually operatorID, i.e "MySQLSource-operator-8fb88f81-1bb1-4b00-bbd1-3d2f23c5e1d7"
+  private basePreset: Preset = {};
   private teardownObservable: ReplaySubject<boolean> = new ReplaySubject(1); // observable used OnDestroy to tear down subscriptions that takeUntil(teardownObservable)
 
   constructor(private presetService: PresetService) {
@@ -60,14 +62,13 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
     this.presetType = presetKey.presetType;
     this.saveTarget = presetKey.saveTarget;
     this.applyTarget = presetKey.applyTarget;
-    this.searchResults = this.getSearchResults(
-      this.presetService.getPresets(this.presetType, this.saveTarget),
-      this.searchTerm,
-      true
-    );
+    this.updateSearchResults();
+    this.basePreset = this.filterPresetFromForm();
 
     this.handleSavePresets(); // handles when presets for this saveTarget change
+    this.handleApplyPreset(); // handles when presets for this saveTarget change
     this.handleFieldValueChanges(); // handles updating search results as the user types
+    console.log(this)
   }
 
   /**
@@ -135,11 +136,7 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
    */
   public onDropdownVisibilityEvent(visible: boolean) {
     if (visible) {
-      this.searchResults = this.getSearchResults(
-        this.presetService.getPresets(this.presetType, this.saveTarget),
-        this.searchTerm,
-        true
-      );
+      this.updateSearchResults();
     }
   }
 
@@ -150,6 +147,19 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
   public ngOnDestroy() {
     this.teardownObservable.next(true);
     this.teardownObservable.complete();
+  }
+
+  public savePreset() {
+    const preset = this.filterPresetFromForm()
+    console.log(preset, this.presetService.isValidPreset(preset))
+    if (this.presetService.isValidPreset(preset)) {
+      this.presetService.updateOrCreatePreset(
+        this.presetType,
+        this.saveTarget,
+        this.basePreset,
+        preset
+      )
+    }
   }
 
   /**
@@ -164,9 +174,43 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
       )
       .subscribe({
         next: saveEvent => {
-          this.searchResults = this.getSearchResults(saveEvent.presets, this.searchTerm, false);
+          this.searchResults = this.getSearchResults(saveEvent.presets, this.searchTerm, true);
         },
       });
+  }
+
+  /**
+   * handles when presets for the current presetType are changed due to saving new presets
+   * updates search results to account for new presets
+   */
+   private handleApplyPreset() {
+    this.presetService.applyPresetStream
+      .pipe(
+        filter(presets => presets.type === this.presetType && presets.target === this.applyTarget),
+        takeUntil(this.teardownObservable)
+      )
+      .subscribe({
+        next: applyEvent => {
+          this.basePreset = applyEvent.preset;
+        },
+      });
+  }
+
+  /**
+   * Filters formData to only include members that are in the preset schema of the given operatorType
+   * @param operatorType
+   * @param formData
+   * @returns partially finished Preset. use PresetService.isValidOperatorPreset to verify all preset attributes exist
+  */
+  filterPresetFromForm(): Preset {
+    let preset: Preset = {}
+    let arr =  this.field.parent?.fieldGroup?.filter(formfield => formfield.wrappers?.includes("preset-wrapper"));
+    (arr as FormlyFieldConfig[]) .forEach(field => {
+        const key = asType(field.key, "string")
+        preset[key] = field.model[key]
+      });
+
+    return preset
   }
 
   /**
@@ -182,14 +226,31 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
     // hence the debounceTime(0) to slow this function down.
     this.formControl.valueChanges.pipe(debounceTime(0), takeUntil(this.teardownObservable)).subscribe({
       next: (value: string | number | boolean) => {
-        this.searchTerm = value.toString();
-        this.searchResults = this.getSearchResults(
-          this.presetService.getPresets(this.presetType, this.saveTarget),
-          this.searchTerm,
-          false
-        );
+        this.searchTerm = (value ?? "").toString();
+        if (this.presetMenuVisible == true){
+          this.updateSearchResults(false);
+        }
       },
     });
+  }
+
+  
+
+  /**
+   * updates search results
+   */
+  private updateSearchResults(showAllResults = true) {
+    this.presetService.getPresets(this.presetType, this.saveTarget)
+    .pipe(first())
+    .subscribe(
+      presets => {
+        this.searchResults = this.getSearchResults(
+          presets,
+          this.searchTerm,
+          showAllResults
+        );
+      }
+    )
   }
 
   /**
