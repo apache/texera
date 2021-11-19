@@ -16,27 +16,27 @@ class MySQLSourceOpExec private[mysql] (
     password: String,
     limit: Option[Long],
     offset: Option[Long],
-    search: Option[Boolean],
-    searchByColumn: Option[String],
-    keywords: Option[String],
     progressive: Option[Boolean],
     batchByColumn: Option[String],
     min: Option[String],
     max: Option[String],
-    interval: Long
+    interval: Long,
+    keywordSearch: Boolean,
+    keywordSearchByColumn: String,
+    keywords: String
 ) extends SQLSourceOpExec(
       schema,
       table,
       limit,
       offset,
-      search,
-      searchByColumn,
-      keywords,
       progressive,
       batchByColumn,
       min,
       max,
-      interval
+      interval,
+      keywordSearch,
+      keywordSearchByColumn,
+      keywords
     ) {
 
   val FETCH_TABLE_NAMES_SQL =
@@ -46,14 +46,16 @@ class MySQLSourceOpExec private[mysql] (
   override def establishConn(): Connection = connect(host, port, database, username, password)
 
   @throws[RuntimeException]
-  override def addKeywordSearch(queryBuilder: StringBuilder): Unit = {
-    val columnType = schema.getAttribute(searchByColumn.get).getType
+  override def addFilterConditions(queryBuilder: StringBuilder): Unit = {
+    if (keywordSearch && keywordSearchByColumn != null && keywords != null) {
+      val columnType = schema.getAttribute(keywordSearchByColumn).getType
 
-    if (columnType == AttributeType.STRING)
-      // in sql prepared statement, column name cannot be inserted using PreparedStatement.setString either
-      queryBuilder ++= " AND MATCH(" + searchByColumn.get + ") AGAINST (? IN BOOLEAN MODE)"
-    else
-      throw new RuntimeException("Can't do keyword search on type " + columnType.toString)
+      if (columnType == AttributeType.STRING)
+        // in sql prepared statement, column name cannot be inserted using PreparedStatement.setString either
+        queryBuilder ++= " AND MATCH(" + keywordSearchByColumn + ") AGAINST (? IN BOOLEAN MODE)"
+      else
+        throw new RuntimeException("Can't do keyword search on type " + columnType.toString)
+    }
   }
 
   @throws[SQLException]
