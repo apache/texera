@@ -2,9 +2,9 @@ package edu.uci.ics.texera.web.resource
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER_DICTIONARY
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDictionaryDao
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{User, UserDictionary}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER_CONFIG
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserConfigDao
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{User, UserConfig}
 import io.dropwizard.auth.Auth
 
 import javax.annotation.security.PermitAll
@@ -19,10 +19,10 @@ import scala.jdk.CollectionConverters.asScalaBuffer
   * The details of user_dictionary can be found in /core/scripts/sql/texera_ddl.sql
   */
 @PermitAll
-@Path("/users/dictionary")
+@Path("/user/config")
 @Consumes(Array(MediaType.TEXT_PLAIN))
-class UserDictionaryResource {
-  final private val userDictionaryDao = new UserDictionaryDao(
+class UserConfigResource {
+  final private val userDictionaryDao = new UserConfigDao(
     SqlServer.createDSLContext.configuration
   )
 
@@ -42,9 +42,9 @@ class UserDictionaryResource {
       asScalaBuffer(
         SqlServer.createDSLContext
           .select()
-          .from(USER_DICTIONARY)
-          .where(USER_DICTIONARY.UID.eq(user.getUid))
-          .fetchInto(classOf[UserDictionary])
+          .from(USER_CONFIG)
+          .where(USER_CONFIG.UID.eq(user.getUid))
+          .fetchInto(classOf[UserConfig])
       ) map { entry => (entry.getKey, entry.getValue) }: _*
     )
   }
@@ -74,8 +74,8 @@ class UserDictionaryResource {
   private def getValueByKey(user: User, key: String): String = {
     SqlServer.createDSLContext
       .fetchOne(
-        USER_DICTIONARY,
-        USER_DICTIONARY.UID.eq(user.getUid).and(USER_DICTIONARY.KEY.eq(key))
+        USER_CONFIG,
+        USER_CONFIG.UID.eq(user.getUid).and(USER_CONFIG.KEY.eq(key))
       )
       .getValue
   }
@@ -96,9 +96,9 @@ class UserDictionaryResource {
       throw new BadRequestException("key cannot be null or empty")
     }
     if (dictEntryExists(user, key)) {
-      userDictionaryDao.update(new UserDictionary(user.getUid, key, value))
+      userDictionaryDao.update(new UserConfig(user.getUid, key, value))
     } else {
-      userDictionaryDao.insert(new UserDictionary(user.getUid, key, value))
+      userDictionaryDao.insert(new UserConfig(user.getUid, key, value))
     }
   }
 
@@ -110,7 +110,7 @@ class UserDictionaryResource {
   private def dictEntryExists(user: User, key: String): Boolean = {
     userDictionaryDao.existsById(
       SqlServer.createDSLContext
-        .newRecord(USER_DICTIONARY.UID, USER_DICTIONARY.KEY)
+        .newRecord(USER_CONFIG.UID, USER_CONFIG.KEY)
         .values(user.getUid, key)
     )
   }
@@ -144,7 +144,7 @@ class UserDictionaryResource {
   private def deleteDictEntry(user: User, key: String): Unit = {
     userDictionaryDao.deleteById(
       SqlServer.createDSLContext
-        .newRecord(USER_DICTIONARY.UID, USER_DICTIONARY.KEY)
+        .newRecord(USER_CONFIG.UID, USER_CONFIG.KEY)
         .values(user.getUid, key)
     )
   }
