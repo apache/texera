@@ -20,14 +20,14 @@ import scala.jdk.CollectionConverters.asScalaBuffer
   */
 @PermitAll
 @Path("/users/dictionary")
-@Consumes(Array(MediaType.APPLICATION_JSON))
-@Produces(Array(MediaType.APPLICATION_JSON))
+@Consumes(Array(MediaType.TEXT_PLAIN))
 class UserDictionaryResource {
   final private val userDictionaryDao = new UserDictionaryDao(
     SqlServer.createDSLContext.configuration
   )
 
   @GET
+  @Produces(Array(MediaType.APPLICATION_JSON))
   def getAllDict(@Auth sessionUser: SessionUser): Map[String, String] = {
     val user = sessionUser.getUser
     getDict(user)
@@ -50,6 +50,7 @@ class UserDictionaryResource {
   }
 
   @GET
+  @Produces(Array(MediaType.TEXT_PLAIN))
   @Path("/{key}")
   def getEntry(@PathParam("key") key: String, @Auth sessionUser: SessionUser): String = {
     val user = sessionUser.getUser
@@ -87,7 +88,7 @@ class UserDictionaryResource {
   @Path("/{key}")
   def setEntry(
       @PathParam("key") key: String,
-      @FormParam("value") value: String,
+      value: String,
       @Auth sessionUser: SessionUser
   ): Unit = {
     val user = sessionUser.getUser
