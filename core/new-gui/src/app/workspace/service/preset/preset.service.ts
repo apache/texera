@@ -1,13 +1,14 @@
 import { Injectable } from "@angular/core";
 import * as Ajv from "ajv";
-import { cloneDeep, has, isEqual, merge, pickBy } from "lodash";
+import { cloneDeep, has, indexOf, isEqual, merge, pickBy } from "lodash";
 import { NzMessageService } from "ng-zorro-antd/message";
-import { Observable, Subject } from "rxjs";
+import { Observable, of, Subject } from "rxjs";
 import { DictionaryService } from "src/app/dashboard/service/user-dictionary/dictionary.service";
 import { asType, isType } from "src/app/common/util/assert";
 import { CustomJSONSchema7 } from "../../types/custom-json-schema.interface";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
+import { first, map } from "rxjs/operators";
 
 /**
  * Preset service enables saving and applying of Presets, which are objects
@@ -33,6 +34,7 @@ const PresetSchema: CustomJSONSchema7 = {
   type: "object",
   additionalProperties: {
     type: "string",
+    pattern: "^\\S.*$"
   },
 };
 
@@ -59,11 +61,6 @@ export class PresetService {
 
   public readonly applyPresetStream: Observable<{ type: string; target: string; preset: Preset }>;
   public readonly savePresetsStream: Observable<{ type: string; target: string; presets: Preset[] }>;
-  public presetDict: PresetDictionary;
-
-  // readyness check is required when using presets. Output of methods is undefined when unready
-  // this is because PresetService uses DictionaryService which initializes asynchronously and also requires readyness check
-  public ready: { promise: Promise<boolean>; value: boolean } = { promise: Promise.resolve(false), value: false };
 
   private applyPresetSubject = new Subject<{ type: string; target: string; preset: Preset }>(); // event stream for applying presets to a target (usually type "operator" with specific operatorID as target)
   private savePresetSubject = new Subject<{ type: string; target: string; presets: Preset[] }>(); // event stream for saving preset[]s to a target (usually type "operator" an operatorType as target)
@@ -76,9 +73,7 @@ export class PresetService {
   ) {
     this.applyPresetStream = this.applyPresetSubject.asObservable();
     this.savePresetsStream = this.savePresetSubject.asObservable();
-    this.presetDict = this.getPresetDict();
     this.handleApplyOperatorPresets();
-    this.ready = this.dictionaryService.ready;
   }
 
   /**
@@ -108,9 +103,9 @@ export class PresetService {
     messageType: AlertMessageType = "success"
   ) {
     if (presets.length > 0) {
-      this.presetDict[`${type}-${target}`] = presets;
+      this.dictionaryService.set(`${type}-${target}`, JSON.stringify(presets))
     } else {
-      delete this.presetDict[`${type}-${target}`];
+      this.dictionaryService.delete(`${type}-${target}`)
     }
     this.savePresetSubject.next({ type: type, target: target, presets: presets });
     this.displaySavePresetMessage(messageType, displayMessage);
@@ -118,28 +113,105 @@ export class PresetService {
 
   /**
    * broadcast savePresets event and also save preset to presetDict, which is a *view* (in the database sense) of DictionaryService's dictionary that only stores presets
-   * removes originalPreset if it exists
-   * adds newPreset to preset[]
    * @param type string, usually "operator"
    * @param target string, usualy operatorType
-   * @param originalPreset preset to remove
-   * @param newPreset preset to add
+   * @param presets Preset[]
    * @param displayMessage message to display when saving presets
    * @param messageType see AlertMessageType, determines icon used in popup message
    */
-  public updatePreset(
+   public createPreset(
     type: string,
     target: string,
-    originalPreset: Preset,
-    newPreset: Preset,
+    preset: Preset,
     displayMessage?: string | null,
     messageType: AlertMessageType = "success"
   ) {
-    const presets = cloneDeep(this.getPresets(type, target)).filter(oldPreset => !isEqual(oldPreset, originalPreset));
-    presets.push(newPreset);
-
-    this.savePresets(type, target, presets, displayMessage, messageType);
+    this.dictionaryService.fetchKey(`${type}-${target}`)
+      .pipe(first())
+      .subscribe(
+        presetsString => {
+          let presets = (JSON.parse(presetsString ?? "[]")) as Preset[]
+          if (contains(presets, preset)) {
+            throw new Error(`attempting to create preset that already exists`);
+          }
+          presets.push(preset)
+          this.savePresets(type, target, presets, displayMessage, messageType)
+        }
+      )
   }
+
+  /**
+   * broadcast savePresets event and also save preset to presetDict, which is a *view* (in the database sense) of DictionaryService's dictionary that only stores presets
+   * @param type string, usually "operator"
+   * @param target string, usualy operatorType
+   * @param presets Preset[]
+   * @param displayMessage message to display when saving presets
+   * @param messageType see AlertMessageType, determines icon used in popup message
+   */
+   public updatePreset(
+    type: string,
+    target: string,
+    originalPreset: Preset,
+    replacementPreset: Preset,
+    displayMessage?: string | null,
+    messageType: AlertMessageType = "success"
+  ) {
+    this.dictionaryService.fetchKey(`${type}-${target}`)
+      .pipe(first())
+      .subscribe(
+        presetsString => {
+          let presets = JSON.parse(presetsString ?? "[]") as Preset[]
+          if (!contains(presets, originalPreset)) {
+            throw new Error(`attempting to update preset that doesn't exist`);
+          } else if (contains(presets, replacementPreset)) {
+            // implicit deletion by replacing original with existing preset
+            presets.splice(indexOf(presets, originalPreset), 1)
+          } else {
+            presets[indexOf(presets, originalPreset)] = replacementPreset
+          }
+          this.savePresets(type, target, presets, displayMessage, messageType)
+        }
+      )
+  }
+
+  /**
+   * broadcast savePresets event and also save preset to presetDict, which is a *view* (in the database sense) of DictionaryService's dictionary that only stores presets
+   * @param type string, usually "operator"
+   * @param target string, usualy operatorType
+   * @param presets Preset[]
+   * @param displayMessage message to display when saving presets
+   * @param messageType see AlertMessageType, determines icon used in popup message
+   */
+   public updateOrCreatePreset(
+    type: string,
+    target: string,
+    originalPreset: Preset,
+    replacementPreset: Preset,
+    displayMessage?: string | null,
+    messageType: AlertMessageType = "success"
+  ) {
+    this.dictionaryService.fetchKey(`${type}-${target}`)
+      .pipe(first())
+      .subscribe(
+        oldpresets=> {
+          let presets = JSON.parse(oldpresets ?? "[]") as Preset[]
+          if (isEqual(originalPreset, replacementPreset)){
+            // no modification: no update required
+          } else if (!contains(presets, originalPreset) && !contains(presets, replacementPreset)) {
+            presets.push(replacementPreset);
+          } else if (!contains(presets, originalPreset) && contains(presets, replacementPreset)){
+            // no modification: old preset doesn't exist to be updated, new preset already exists
+          } else if (contains(presets, originalPreset) && contains(presets, replacementPreset)) {
+            // implicit deletion by replacing original with existing preset
+            presets.splice(indexOf(presets, originalPreset), 1)
+          } else {
+            presets[indexOf(presets, originalPreset)] = replacementPreset
+          }
+          this.savePresets(type, target, presets, displayMessage, messageType)
+        }
+      )
+  }
+
 
   /**
    * broadcast savePresets event and also save preset to presetDict, which is a *view* (in the database sense) of DictionaryService's dictionary that only stores presets
@@ -157,9 +229,12 @@ export class PresetService {
     displayMessage?: string | null,
     messageType: AlertMessageType = "error"
   ) {
-    const presets = cloneDeep(this.getPresets(type, target)).filter(oldPreset => !isEqual(oldPreset, preset));
-
-    this.savePresets(type, target, presets, displayMessage, messageType);
+    this.getPresets(type, target).pipe(first()).subscribe(
+      presets => {
+        let modifiedPresets = presets.filter(oldPreset => !isEqual(oldPreset, preset));
+        this.savePresets(type, target, modifiedPresets, displayMessage, messageType);
+      }
+    );
   }
 
   /**
@@ -168,13 +243,20 @@ export class PresetService {
    * @param target string, usualy operatorType
    * @returns Preset[]
    */
-  public getPresets(type: string, target: string): Readonly<Preset[]> {
-    const presets = this.presetDict[`${type}-${target}`] ?? [];
-    if (this.isPresetArray(presets)) {
-      return presets;
-    } else {
-      throw new Error(`stored preset data ${presets} is formatted incorrectly`);
-    }
+  public getPresets(type: string, target: string): Observable<Readonly<Preset[]>> {
+    return this.dictionaryService.fetchKey(`${type}-${target}`).pipe(
+      map(
+        presets => {
+          let parsedPresets = JSON.parse(presets ?? "[]");
+          if (this.isValidPresetArray(parsedPresets)) {
+            return parsedPresets;
+          } else {
+            throw new Error(`stored preset data ${presets} is formatted incorrectly`);
+          }
+        }
+      )
+    )
+    
   }
 
   /**
@@ -204,63 +286,25 @@ export class PresetService {
    * @param operatorID
    * @returns boolean
    */
-  public isValidNewOperatorPreset(preset: Preset, operatorID: string): boolean {
-    const isNewPreset = !this.getPresets(
+  public isValidNewOperatorPreset(preset: Preset, operatorID: string): Observable<boolean> {
+
+    if (!this.isValidOperatorPreset(preset, operatorID))
+      return of(false);
+
+    return this.getPresets(
       "operator",
       this.workflowActionService.getTexeraGraph().getOperator(operatorID).operatorType
-    ).some(existingPreset => isEqual(preset, existingPreset));
-
-    return isNewPreset && this.isValidOperatorPreset(preset, operatorID);
-  }
-
-  /**
-   * gets a *view* (in the database sense) of DictionaryService dictionaries, that only has Preset[]'s in them
-   * Keys are constructed from 'DICT_PREFIX-type-target'
-   * @returns
-   */
-  private getPresetDict(): PresetDictionary {
-    const presetService = this;
-    const dict = this.dictionaryService.forceGetUserDictionary();
-    return new Proxy(
-      {},
-      {
-        get(_, key: string | symbol) {
-          if (!isType(key, "string")) throw Error("Preset entries must have string keys"); // validate key is string
-          if (dict[`${PresetService.DICT_PREFIX}-${key}`] === undefined) return undefined; // validate dict entry is defined
-          const presets = JSON.parse(dict[`${PresetService.DICT_PREFIX}-${key}`]); // validate dict entry is a preset array
-          if (!presetService.isPresetArray(presets))
-            throw Error(`Expected preset dict to contain a Preset[] but instead got ${presets}`);
-          return presets;
-        },
-        set(_, key: string | symbol, value: any) {
-          if (!isType(key, "string")) throw Error("Preset entries must have string keys"); // validate key is string
-          if (!presetService.isPresetArray(value)) throw Error("Preset entries must have Preset[] values"); // validate value is preset []
-          dict[`${PresetService.DICT_PREFIX}-${key}`] = JSON.stringify(value);
-          return true;
-        },
-        deleteProperty(_, key: string) {
-          if (!isType(key, "string")) throw Error("Preset entries must have string keys"); // validate key is string
-          delete dict[`${PresetService.DICT_PREFIX}-${key}`];
-          return true;
-        },
-        defineProperty(_, key: string, attr: PropertyDescriptor) {
-          if (!isType(key, "string")) throw Error("Preset entries must have string keys"); // validate key is string
-          if (!presetService.isPresetArray(attr.value)) throw Error("Preset entries must have Preset[] values"); // validate value is preset []
-          dict[`${PresetService.DICT_PREFIX}-${key}`] = JSON.stringify(attr.value);
-          return true;
-        },
-        has(_, key: string) {
-          return `${PresetService.DICT_PREFIX}-${key}` in dict;
-        },
-      }
+    ).pipe(
+      first(), 
+      map( presets => {console.log(!presets.some(existingPreset => isEqual(preset, existingPreset)), "vn") ;return !presets.some(existingPreset => isEqual(preset, existingPreset))} )
     );
   }
 
-  private isPreset(presets: any[]): presets is Preset[] {
-    return asType(PresetService.isPreset(presets), "boolean");
+  public isValidPreset(preset: any): preset is Preset {
+    return asType(PresetService.isPreset(preset), "boolean");
   }
 
-  private isPresetArray(presets: any[]): presets is Preset[] {
+  public isValidPresetArray(presets: any[]): presets is Preset[] {
     return asType(PresetService.isPresetArray(presets), "boolean");
   }
 
@@ -393,4 +437,8 @@ export class PresetService {
     strip(copy);
     return copy;
   }
+}
+
+function contains(arr: any[], value: any){
+  return arr.some(elem => isEqual(elem, value))
 }

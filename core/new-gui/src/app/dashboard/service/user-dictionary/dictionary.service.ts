@@ -1,64 +1,14 @@
-import { HttpClient, HttpErrorResponse } from "@angular/common/http";
+import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { Observable, Subject } from "rxjs";
+import { Observable, of, Subject } from "rxjs";
 import { AppSettings } from "src/app/common/app-setting";
-import { asType } from "src/app/common/util/assert";
-
-/**
- * User-Dictionary service stores and retrieves key-value pairs
- * If the user is logged in, the saved key-value pairs are persistent across sessions and
- * only accessible to the user that created it.
- *
- * @author Albert Liu
- */
-export type JSONValue = string | object | string[] | object[];
-
-// export type UserDictionary = {
-//   [Key: string]: JSONValue;
-// };
+import { UserService } from "../../../common/service/user/user.service";
+import { shareReplay, tap } from "rxjs/operators";
+import { isType } from "src/app/common/util/assert";
 
 export type UserDictionary = {
-  [Key: string]: string;
+  [key: string]: string;
 };
-
-export enum EVENT_TYPE {
-  GET,
-  SET,
-  DELETE,
-  GET_ALL,
-}
-
-export type GET_EVENT = {
-  type: EVENT_TYPE.GET;
-  key: string;
-  value: string;
-};
-
-export type SET_EVENT = {
-  type: EVENT_TYPE.SET;
-  key: string;
-  value: string;
-};
-
-export type DELETE_EVENT = {
-  type: EVENT_TYPE.DELETE;
-  key: string;
-};
-
-export type GET_ALL_EVENT = {
-  type: EVENT_TYPE.GET_ALL;
-  value: UserDictionary;
-};
-
-export type USER_DICT_EVENT = GET_EVENT | SET_EVENT | DELETE_EVENT | GET_ALL_EVENT;
-
-export class NotReadyError extends Error {
-  constructor(message?: string) {
-    super(message);
-    Object.setPrototypeOf(this, new.target.prototype);
-    this.name = "NotReadyError";
-  }
-}
 
 @Injectable({
   providedIn: "root",
@@ -66,211 +16,133 @@ export class NotReadyError extends Error {
 export class DictionaryService {
   public static readonly USER_DICTIONARY_ENDPOINT = "users/dictionary";
 
-  private dictionaryEventSubject = new Subject<USER_DICT_EVENT>();
-  private localUserDictionary: UserDictionary = {}; // asynchronously initialized after construction (see initLocalDict)
-  public ready: { promise: Promise<boolean>; value: boolean } = { promise: Promise.resolve(false), value: false };
+  private dictionaryChangedSubject = new Subject<void>();
+  private localUserDictionary: UserDictionary = {};
 
-  constructor(private http: HttpClient) {
-    this.initLocalDict();
-    this.handleDictionaryEventStream();
-  }
-
-  public getUserDictionary(): UserDictionary {
-    if (this.ready.value === false) {
-      throw new NotReadyError("incomplete initialization of user-dictionary service");
+  constructor(private http: HttpClient, private userService: UserService) {
+    if (this.userService.isLogin()) {
+      this.fetchAll();
     }
-    return this.proxyUserDictionary(this.localUserDictionary);
-  }
-
-  public forceGetUserDictionary(): UserDictionary {
-    // gets userdictionary even if local dictionary isn't initialized
-    return this.proxyUserDictionary(this.localUserDictionary);
-  }
-
-  public getUserDictionaryAsync(): Promise<UserDictionary> {
-    return this.ready.promise.then(() => this.getUserDictionary());
-  }
-
-  public getDictionaryEventStream(): Observable<USER_DICT_EVENT> {
-    return this.dictionaryEventSubject.asObservable();
-  }
-
-  public get(key: string): Promise<string | object> {
-    return this.http
-      .get<string>(`${AppSettings.getApiEndpoint()}/${DictionaryService.USER_DICTIONARY_ENDPOINT}?key=${key}`)
-      .toPromise()
-      .then<string | object>(
-        result => {
-          try {
-            result = JSON.parse(result);
-            this.dictionaryEventSubject.next({ type: EVENT_TYPE.GET, key: key, value: result });
-            return result;
-          } catch (e) {
-            if (e instanceof SyntaxError) {
-              // result was not json
-              this.dictionaryEventSubject.next({ type: EVENT_TYPE.GET, key: key, value: result });
-              return result;
-            } else {
-              throw e;
-            }
-          }
-        },
-        reason => {
-          switch (asType(reason, HttpErrorResponse).status) {
-            case 401:
-              this.dictionaryEventSubject.next({ type: EVENT_TYPE.GET, key: key, value: undefined as any });
-              return undefined as any;
-            default:
-              this.dictionaryEventSubject.next({ type: EVENT_TYPE.GET, key: key, value: undefined as any });
-              console.warn(reason);
-              return undefined as any;
-          }
-        }
-      );
-  }
-
-  public set(key: string, value: string): Promise<boolean> {
-    // const strValue: String = (value instanceof String ? value : JSON.stringify(value));
-
-    return this.http
-      .post<string>(`${AppSettings.getApiEndpoint()}/${DictionaryService.USER_DICTIONARY_ENDPOINT}?key=${key}`, value)
-      .toPromise()
-      .then(
-        () => {
-          this.dictionaryEventSubject.next({ type: EVENT_TYPE.SET, key: key, value: value });
-          return true;
-        },
-        reason => {
-          switch (asType(reason, HttpErrorResponse).status) {
-            case 401:
-              this.dictionaryEventSubject.next({ type: EVENT_TYPE.SET, key: key, value: value });
-              return true;
-            default:
-              throw reason;
-          }
-        }
-      );
-  }
-
-  public delete(key: string): Promise<boolean> {
-    return this.http
-      .delete<string>(`${AppSettings.getApiEndpoint()}/${DictionaryService.USER_DICTIONARY_ENDPOINT}?key=${key}`)
-      .toPromise()
-      .then(
-        () => {
-          this.dictionaryEventSubject.next({ type: EVENT_TYPE.DELETE, key: key });
-          return true;
-        },
-        reason => {
-          switch (asType(reason, HttpErrorResponse).status) {
-            case 401:
-              this.dictionaryEventSubject.next({ type: EVENT_TYPE.DELETE, key: key });
-              return true;
-            default:
-              throw reason;
-          }
-        }
-      );
-  }
-
-  public getAll(): Promise<Readonly<UserDictionary>> {
-    return this.http
-      .get(`${AppSettings.getApiEndpoint()}/${DictionaryService.USER_DICTIONARY_ENDPOINT}`, { observe: "response" })
-      .toPromise()
-      .then<UserDictionary>(
-        result => {
-          const value = result.body as UserDictionary;
-          this.dictionaryEventSubject.next({ type: EVENT_TYPE.GET_ALL, value: value });
-          return value;
-        },
-        reason => {
-          switch (asType(reason, HttpErrorResponse).status) {
-            case 401:
-              this.dictionaryEventSubject.next({ type: EVENT_TYPE.GET_ALL, value: {} });
-              return {} as any;
-            default:
-              this.dictionaryEventSubject.next({ type: EVENT_TYPE.GET_ALL, value: {} });
-              console.warn(reason);
-              return {} as any;
-          }
-        }
-      );
-  }
-
-  private initLocalDict() {
-    let resolveReady: (read: boolean) => void;
-    this.ready = { promise: new Promise(resolvefunc => (resolveReady = resolvefunc)), value: false };
-
-    // getAll automatically creates a dictionaryEvent that updates the localdict with the remote
-    this.getAll().then(() => {
-      this.ready.value = true;
-      resolveReady(true);
-    });
-  }
-
-  private handleDictionaryEventStream() {
-    this.getDictionaryEventStream().subscribe(event => {
-      switch (event.type) {
-        case EVENT_TYPE.GET:
-          if (
-            event.key in this.localUserDictionary &&
-            JSON.stringify(this.localUserDictionary[event.key]) !== JSON.stringify(event.value)
-          ) {
-            console.warn(
-              `[user-dictionary service] Dictionary desynchronized at key "${event.key}": locally had ${
-                this.localUserDictionary[event.key]
-              } but remote reported  ${event.value}`
-            );
-          }
-          this.localUserDictionary[event.key] = event.value;
-          break;
-
-        case EVENT_TYPE.SET:
-          this.localUserDictionary[event.key] = event.value;
-          break;
-
-        case EVENT_TYPE.DELETE:
-          delete this.localUserDictionary[event.key];
-          break;
-
-        case EVENT_TYPE.GET_ALL:
-          if (JSON.stringify(this.localUserDictionary) !== JSON.stringify(event.value)) {
-            console.warn(
-              `[user-dictionary service] Dictionary was desynchronized, local had ${this.localUserDictionary}, but remote reported ${event.value}`
-            );
-
-            // setting this.localUserDictionary = event.value would
-            // ruin the references to this.localUserDictionary in all the proxy dictionaries
-            for (const key in this.localUserDictionary) {
-              if (this.localUserDictionary.hasOwnProperty(key)) {
-                delete this.localUserDictionary[key];
-              }
-            }
-            Object.assign(this.localUserDictionary, event.value);
-          }
+    this.userService.userChanged().subscribe(() => {
+      if (this.userService.isLogin()) {
+        this.fetchAll();
+      } else {
+        this.updateDict({});
       }
     });
   }
 
-  private proxyUserDictionary(snapshot: Readonly<UserDictionary>): UserDictionary {
-    return new Proxy<UserDictionary>(snapshot, this.generateProxyHandler());
+  public getDict(): Readonly<UserDictionary> {
+    return this.localUserDictionary;
   }
 
-  private generateProxyHandler(): ProxyHandler<UserDictionary> {
-    const _this = this;
-    return {
-      set(localUserDictionary: Readonly<UserDictionary>, key: string, value: string) {
-        _this.set(key, value);
-        return true;
-      },
-      deleteProperty: function (localUserDictionary: Readonly<UserDictionary>, key: string) {
-        _this.delete(key);
-        return true;
-      },
-      defineProperty(localUserDictionary: Readonly<UserDictionary>, key: string, value: PropertyDescriptor) {
-        _this.set(key, value.value);
-        return true;
-      },
-    };
+  /**
+   * get a value from the backend.
+   * keys and values must be strings.
+   * @param key string key that uniquely identifies a value
+   * @returns string value corresponding to the key from the backend;
+   * throws Error("No such entry") (invalid key) or Error("Invalid session") (not logged in).
+   */
+  public fetchKey(key: string): Observable<string|null> {
+    if (!this.userService.isLogin()) {
+      throw new Error("user not logged in");
+    }
+    if (key.trim().length === 0) {
+      throw new Error("Dictionary Service: key cannot be empty");
+    }
+    const url = `${AppSettings.getApiEndpoint()}/${DictionaryService.USER_DICTIONARY_ENDPOINT}/${key}`;
+    const req = this.http.get(url, {responseType: "text"}).pipe(
+      tap(res => {this.updateEntry(key, res)}),
+      shareReplay(1)
+    );
+    req.subscribe(); // causes post request to be sent regardless caller's subscription
+    return req;
+  }
+
+  /**
+   * get the entire dictionary from the backend.
+   * @returns UserDictionary object with string attributes;
+   */
+  public fetchAll(): Observable<Readonly<UserDictionary>> {
+    if (!this.userService.isLogin()) {
+      throw new Error("user not logged in");
+    }
+    const url = `${AppSettings.getApiEndpoint()}/${DictionaryService.USER_DICTIONARY_ENDPOINT}`;
+    const req = this.http.get<UserDictionary>(url).pipe(
+      tap(res => this.updateDict(res)),
+      shareReplay(1)
+    );
+    req.subscribe(); // causes post request to be sent regardless caller's subscription
+    return req;
+  }
+
+  /**
+   * saves or updates (if it already exists) an entry (key-value pair) on the backend.
+   * keys and values must be strings.
+   * @param key string key that uniquely identifies a value
+   * @param value string value corresponding to the key from the backend
+   * @returns observable indicating the backend has been successfully updated
+   */
+  public set(key: string, value: string): Observable<void> {
+    if (!this.userService.isLogin()) {
+      throw new Error("user not logged in");
+    }
+    if (key.trim().length === 0) {
+      throw new Error("Dictionary Service: key cannot be empty");
+    }
+    const url = `${AppSettings.getApiEndpoint()}/${DictionaryService.USER_DICTIONARY_ENDPOINT}/${key}`;
+    const req = this.http.put<void>(url, value).pipe(
+      tap(_ => this.updateEntry(key, value)),
+      shareReplay(1)
+    );
+    req.subscribe();
+    return req;
+  }
+
+  /**
+   * delete a value from the backend.
+   * keys and values must be strings.
+   * @param key string key that uniquely identifies a value
+   * @returns observable indicating the backend has been successfully updated
+   */
+  public delete(key: string): Observable<void> {
+    if (!this.userService.isLogin()) {
+      throw new Error("user not logged in");
+    }
+    if (key.trim().length === 0) {
+      throw new Error("Dictionary Service: key cannot be empty");
+    }
+    if (!(key in this.localUserDictionary)) {
+      return of();
+    }
+    const url = `${AppSettings.getApiEndpoint()}/${DictionaryService.USER_DICTIONARY_ENDPOINT}/${key}`;
+    const req = this.http.delete<void>(url).pipe(
+      tap(_ => this.updateEntry(key, undefined)),
+      shareReplay(1)
+    );
+    req.subscribe();
+    return req;
+  }
+
+  private updateEntry(key: string, value: string | undefined) {
+    if (key.trim().length === 0) {
+      throw new Error("Dictionary Service: key cannot be empty");
+    }
+    if (value === undefined) {
+      if (key in this.localUserDictionary) {
+        delete this.localUserDictionary[key];
+        this.dictionaryChangedSubject.next();
+      }
+    } else {
+      if (this.localUserDictionary[key] !== value) {
+        this.localUserDictionary[key] = value;
+        this.dictionaryChangedSubject.next();
+      }
+    }
+  }
+
+  private updateDict(newDict: UserDictionary) {
+    this.localUserDictionary = newDict;
+    this.dictionaryChangedSubject.next();
   }
 }
