@@ -61,7 +61,6 @@ $header-height: 120px;
 
 .file-title {
   color: rgb(62, 202, 253);
-  margin-right: 10px;
 }
 
 .file-name > i {
@@ -73,4 +72,8 @@ $header-height: 120px;
 button {
   border-radius: 5px;
   border: none;
+}
+
+.ant-btn-icon-only {
+  margin-right: 10px;
 }

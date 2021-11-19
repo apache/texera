@@ -12,7 +12,7 @@ import { filter } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DynamicComponentConfig } from "../../../common/type/dynamic-component-config";
 import { DebuggerFrameComponent } from "./debugger-frame/debugger-frame.component";
-import { PYTHON_UDF_V2_OP_TYPE } from "../../service/workflow-graph/model/workflow-graph";
+import { PYTHON_UDF_SOURCE_V2_OP_TYPE, PYTHON_UDF_V2_OP_TYPE } from "../../service/workflow-graph/model/workflow-graph";
 import { environment } from "../../../../environments/environment";
 
 export type ResultFrameComponent =
@@ -69,7 +69,7 @@ export class ResultPanelComponent implements OnInit {
           }
           this.resultPanelToggleService.openResultPanel();
         }
-        if (event.current.state === ExecutionState.Failed) {
+        if (event.current.state === ExecutionState.Aborted) {
           this.resultPanelToggleService.openResultPanel();
         }
         if (event.current.state === ExecutionState.Completed || event.current.state === ExecutionState.Running) {
@@ -120,7 +120,7 @@ export class ResultPanelComponent implements OnInit {
     if (this.currentOperatorId) {
       this.displayResult(this.currentOperatorId);
       const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
-      if (operator.operatorType === PYTHON_UDF_V2_OP_TYPE) {
+      if ([PYTHON_UDF_V2_OP_TYPE, PYTHON_UDF_SOURCE_V2_OP_TYPE].includes(operator.operatorType)) {
         this.displayConsole(this.currentOperatorId);
 
         if (environment.debuggerEnabled && this.hasErrorOrBreakpoint()) {
@@ -132,7 +132,7 @@ export class ResultPanelComponent implements OnInit {
 
   hasErrorOrBreakpoint(): boolean {
     const executionState = this.executeWorkflowService.getExecutionState();
-    return [ExecutionState.Failed, ExecutionState.BreakpointTriggered].includes(executionState.state);
+    return [ExecutionState.Aborted, ExecutionState.BreakpointTriggered].includes(executionState.state);
   }
 
   clearResultPanel(): void {
@@ -176,7 +176,7 @@ export class ResultPanelComponent implements OnInit {
     current: ExecutionStateInfo;
   }): boolean {
     // transitioning from any state to failed state
-    if (event.current.state === ExecutionState.Failed) {
+    if (event.current.state === ExecutionState.Aborted) {
       return true;
     }
     // transitioning from any state to breakpoint triggered state

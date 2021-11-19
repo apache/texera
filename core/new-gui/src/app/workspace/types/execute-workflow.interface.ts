@@ -72,7 +72,7 @@ export interface OperatorStatistics
     aggregatedOutputRowCount: number;
   }> {}
 
-export interface WorkflowStatusUpdate
+export interface OperatorStatsUpdate
   extends Readonly<{
     operatorStatistics: Record<string, OperatorStatistics>;
   }> {}
@@ -118,7 +118,7 @@ export function isWebDataUpdate(update: WebResultUpdate): update is WebDataUpdat
 
 export enum ExecutionState {
   Uninitialized = "Uninitialized",
-  WaitingToRun = "WaitingToRun",
+  Initializing = "Initializing",
   Running = "Running",
   Pausing = "Pausing",
   Paused = "Paused",
@@ -126,14 +126,14 @@ export enum ExecutionState {
   Recovering = "Recovering",
   BreakpointTriggered = "BreakpointTriggered",
   Completed = "Completed",
-  Failed = "Failed",
+  Aborted = "Aborted",
 }
 
 export type ExecutionStateInfo = Readonly<
   | {
       state:
         | ExecutionState.Uninitialized
-        | ExecutionState.WaitingToRun
+        | ExecutionState.Initializing
         | ExecutionState.Pausing
         | ExecutionState.Running
         | ExecutionState.Resuming
@@ -151,7 +151,7 @@ export type ExecutionStateInfo = Readonly<
       state: ExecutionState.Completed;
     }
   | {
-      state: ExecutionState.Failed;
+      state: ExecutionState.Aborted;
       errorMessages: Readonly<Record<string, string>>;
     }
 >;

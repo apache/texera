@@ -1,23 +1,25 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { Observable } from "rxjs";
-import { filter, map } from "rxjs/operators";
+import { Observable, throwError } from "rxjs";
+import { filter, map, catchError } from "rxjs/operators";
 import { AppSettings } from "../../app-setting";
 import { Workflow, WorkflowContent } from "../../type/workflow";
 import { DashboardWorkflowEntry } from "../../../dashboard/type/dashboard-workflow-entry";
 import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/util/workflow-util.service";
+import { NotificationService } from "../notification/notification.service";
 
 export const WORKFLOW_BASE_URL = "workflow";
 export const WORKFLOW_PERSIST_URL = WORKFLOW_BASE_URL + "/persist";
 export const WORKFLOW_LIST_URL = WORKFLOW_BASE_URL + "/list";
 export const WORKFLOW_CREATE_URL = WORKFLOW_BASE_URL + "/create";
 export const WORKFLOW_DUPLICATE_URL = WORKFLOW_BASE_URL + "/duplicate";
+export const WORKFLOW_UPDATENAME_URL = WORKFLOW_BASE_URL + "/update/name";
 
 @Injectable({
   providedIn: "root",
 })
 export class WorkflowPersistService {
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private notificationService: NotificationService) {}
 
   /**
    * persists a workflow to backend database and returns its updated information (e.g., new wid)
@@ -95,5 +97,18 @@ export class WorkflowPersistService {
    */
   public deleteWorkflow(wid: number): Observable<Response> {
     return this.http.delete<Response>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/${wid}`);
+  }
+
+  /**
+   * updates the name of a given workflow, the user in the session must own the workflow.
+   */
+  public updateWorkflowName(wid: number | undefined, name: string): Observable<Response> {
+    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_UPDATENAME_URL}/${wid}/${name}`, null).pipe(
+      catchError((error: unknown) => {
+        // @ts-ignore // TODO: fix this with notification component
+        this.notificationService.error(error.error.message);
+        return throwError(error);
+      })
+    );
   }
 }

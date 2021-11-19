@@ -1,6 +1,6 @@
 import traceback
 import typing
-from typing import Iterator, Optional, Union
+from typing import Iterator, List, MutableMapping, Optional, Union
 
 from loguru import logger
 from overrides import overrides
@@ -10,10 +10,7 @@ from core.architecture.managers.context import Context
 from core.architecture.packaging.batch_to_tuple_converter import EndOfAllMarker
 from core.architecture.rpc.async_rpc_client import AsyncRPCClient
 from core.architecture.rpc.async_rpc_server import AsyncRPCServer
-from core.models.internal_queue import ControlElement, DataElement, InternalQueue
-from core.models.marker import SenderChangeMarker
-from core.models.tuple import InputExhausted, Tuple
-from core.udf.udf_operator import UDFOperator
+from core.models import ControlElement, DataElement, InputExhausted, InternalQueue, Operator, SenderChangeMarker, Tuple
 from core.util import IQueue, StoppableQueueBlockingRunnable, get_one_of, set_one_of
 from core.util.print_writer.print_log_handler import PrintLogHandler
 from proto.edu.uci.ics.amber.engine.architecture.worker import ControlCommandV2, LocalOperatorExceptionV2, \
@@ -29,10 +26,12 @@ class DataProcessor(StoppableQueueBlockingRunnable):
 
         self._input_queue: InternalQueue = input_queue
         self._output_queue: InternalQueue = output_queue
-        self._udf_operator: Optional[UDFOperator] = None
+        self._operator: Optional[Operator] = None
         self._current_input_tuple: Optional[Union[Tuple, InputExhausted]] = None
         self._current_input_link: Optional[LinkIdentity] = None
         self._current_input_tuple_iter: Optional[Iterator[Union[Tuple, InputExhausted]]] = None
+        self._input_links: List[LinkIdentity] = list()
+        self._input_link_map: MutableMapping[LinkIdentity, int] = dict()
 
         self.context = Context(self)
         self._async_rpc_server = AsyncRPCServer(output_queue, context=self.context)
@@ -46,7 +45,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         logger.add(
             self._print_log_handler,
             level='PRINT',
-            filter="udf_module"
+            filter="operators"
         )
 
     def complete(self) -> None:
@@ -55,7 +54,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         """
         # flush the buffered console prints
         self._print_log_handler.flush()
-        self._udf_operator.close()
+        self._operator.close()
         self.context.state_manager.transit_to(WorkerState.COMPLETED)
         control_command = set_one_of(ControlCommandV2, WorkerExecutionCompletedV2())
         self._async_rpc_client.send(ActorVirtualIdentity(name="CONTROLLER"), control_command)
@@ -122,6 +121,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
             for tuple_ in self.process_tuple_with_udf(self._current_input_tuple, self._current_input_link):
                 self.check_and_process_control()
                 if tuple_ is not None:
+                    logger.info(tuple_)
                     self.context.statistics_manager.increase_output_tuple_count()
                     for to, batch in self.context.tuple_to_batch_converter.tuple_to_batch(tuple_):
                         self._output_queue.put(DataElement(tag=to, payload=batch))
@@ -135,13 +135,20 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         """
         Process the Tuple/InputExhausted with the current link.
 
-        This is a wrapper to invoke udf operator.
+        This is a wrapper to invoke processing of the operator.
 
         :param tuple_: Union[Tuple, InputExhausted], the current tuple.
         :param link: LinkIdentity, the current link.
         :return: Iterator[Tuple], iterator of result Tuple(s).
         """
-        return self._udf_operator.process_texera_tuple(tuple_, link)
+
+        # bind link with input index
+        if link not in self._input_link_map:
+            self._input_links.append(link)
+            index = len(self._input_links) - 1
+            self._input_link_map[link] = index
+        input_ = self._input_link_map[link]
+        return map(lambda t: Tuple(t) if t is not None else None, self._operator.process_tuple(tuple_, input_))
 
     def report_exception(self) -> None:
         """
@@ -227,7 +234,6 @@ class DataProcessor(StoppableQueueBlockingRunnable):
                 )
             except Exception as err:
                 logger.exception(err)
-
 
     def _pause(self) -> None:
         """

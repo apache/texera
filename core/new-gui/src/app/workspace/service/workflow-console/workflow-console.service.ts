@@ -4,6 +4,7 @@ import { PythonPrintTriggerInfo } from "../../types/workflow-common.interface";
 import { Subject } from "rxjs";
 import { Observable } from "rxjs";
 import { RingBuffer } from "ring-buffer-ts";
+import { ExecutionState } from "../../types/execute-workflow.interface";
 
 export const CONSOLE_BUFFER_SIZE = 100;
 
@@ -32,8 +33,10 @@ export class WorkflowConsoleService {
   }
 
   registerAutoClearConsoleMessages() {
-    this.workflowWebsocketService.subscribeToEvent("WorkflowStartedEvent").subscribe(_ => {
-      this.consoleMessages.clear();
+    this.workflowWebsocketService.subscribeToEvent("WorkflowStateEvent").subscribe(event => {
+      if (event.state === ExecutionState.Initializing) {
+        this.consoleMessages.clear();
+      }
     });
   }
 

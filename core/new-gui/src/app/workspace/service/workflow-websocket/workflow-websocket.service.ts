@@ -29,14 +29,8 @@ export class WorkflowWebsocketService {
   private readonly webSocketResponseSubject: Subject<TexeraWebsocketEvent> = new Subject();
 
   constructor() {
-    // open a ws connection
-    this.openWebsocket();
-
     // setup heartbeat
     interval(WS_HEARTBEAT_INTERVAL_MS).subscribe(_ => this.send("HeartBeatRequest", {}));
-
-    // refresh connection status
-    this.websocketEvent().subscribe(_ => (this.isConnected = true));
   }
 
   public websocketEvent(): Observable<TexeraWebsocketEvent> {
@@ -63,17 +57,12 @@ export class WorkflowWebsocketService {
     this.websocket?.next(request);
   }
 
-  public reopenWebsocket() {
-    this.closeWebsocket();
-    this.openWebsocket();
-  }
-
-  private closeWebsocket() {
+  public closeWebsocket() {
     this.wsWithReconnectSubscription?.unsubscribe();
     this.websocket?.complete();
   }
 
-  private openWebsocket() {
+  public openWebsocket(wId: number) {
     const websocketUrl =
       WorkflowWebsocketService.getWorkflowWebsocketUrl() +
       (environment.userSystemEnabled && AuthService.getAccessToken() !== null
@@ -89,9 +78,10 @@ export class WorkflowWebsocketService {
             console.log(`websocket connection lost, reconnecting in ${WS_RECONNECT_INTERVAL_MS / 1000} seconds`)
           ),
           delayWhen(_ => timer(WS_RECONNECT_INTERVAL_MS)), // reconnect after delay
-          tap(
-            _ => this.send("HeartBeatRequest", {}) // try to send heartbeat immediately after reconnect
-          )
+          tap(_ => {
+            this.send("RegisterWIdRequest", { wId }); // re-register wid
+            this.send("HeartBeatRequest", {}); // try to send heartbeat immediately after reconnect
+          })
         )
       )
     );
@@ -100,8 +90,16 @@ export class WorkflowWebsocketService {
       this.webSocketResponseSubject.next(event as TexeraWebsocketEvent)
     );
 
-    // send hello world
-    this.send("HelloWorldRequest", { message: "Texera on Amber" });
+    // send wid registration and recover frontend state
+    this.send("RegisterWIdRequest", { wId });
+
+    // refresh connection status
+    this.websocketEvent().subscribe(_ => (this.isConnected = true));
+  }
+
+  public reopenWebsocket(wId: number) {
+    this.closeWebsocket();
+    this.openWebsocket(wId);
   }
 
   private static getWorkflowWebsocketUrl(): string {

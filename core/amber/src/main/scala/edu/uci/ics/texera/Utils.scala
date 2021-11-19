@@ -4,9 +4,9 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import org.apache.lucene.analysis.CharArraySet
-
 import java.nio.file.{Files, Path, Paths}
 import java.text.SimpleDateFormat
+
 import scala.annotation.tailrec
 
 object Utils {

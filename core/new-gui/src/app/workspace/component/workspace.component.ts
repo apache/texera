@@ -1,5 +1,5 @@
 import { Location } from "@angular/common";
-import { AfterViewInit, Component } from "@angular/core";
+import { AfterViewInit, Component, OnDestroy } from "@angular/core";
 import { ActivatedRoute } from "@angular/router";
 import { environment } from "../../../environments/environment";
 import { Version } from "../../../environments/version";
@@ -16,9 +16,11 @@ import { WorkflowActionService } from "../service/workflow-graph/model/workflow-
 import { WorkflowWebsocketService } from "../service/workflow-websocket/workflow-websocket.service";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { WorkflowConsoleService } from "../service/workflow-console/workflow-console.service";
-import { debounceTime, filter } from "rxjs/operators";
+import { debounceTime, distinctUntilChanged, filter, switchMap } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { OperatorCacheStatusService } from "../service/workflow-status/operator-cache-status.service";
+import { of } from "rxjs";
+import { isDefined } from "../../common/util/predicate";
 
 @UntilDestroy()
 @Component({
@@ -30,7 +32,7 @@ import { OperatorCacheStatusService } from "../service/workflow-status/operator-
     // { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
   ],
 })
-export class WorkspaceComponent implements AfterViewInit {
+export class WorkspaceComponent implements AfterViewInit, OnDestroy {
   public gitCommitHash: string = Version.raw;
   public showResultPanel: boolean = false;
   userSystemEnabled = environment.userSystemEnabled;
@@ -78,13 +80,20 @@ export class WorkspaceComponent implements AfterViewInit {
     // clear the current workspace, reset as `WorkflowActionService.DEFAULT_WORKFLOW`
     this.workflowActionService.resetAsNewWorkflow();
 
+    if(this.userSystemEnabled){
+      this.registerReEstablishWebsocketUponWIdChange();
+    }else{
+      let wid = this.route.snapshot.params.id ?? 0;
+      this.workflowWebsocketService.openWebsocket(wid);
+    }
+
     this.registerLoadOperatorMetadata();
 
     this.registerResultPanelToggleHandler();
+  }
 
-    if (environment.userSystemEnabled) {
-      this.registerReopenWebsocketUponUserChanges();
-    }
+  ngOnDestroy() {
+    this.workflowWebsocketService.closeWebsocket();
   }
 
   registerResultPanelToggleHandler() {
@@ -92,13 +101,6 @@ export class WorkspaceComponent implements AfterViewInit {
       .getToggleChangeStream()
       .pipe(untilDestroyed(this))
       .subscribe(value => (this.showResultPanel = value));
-  }
-
-  registerReopenWebsocketUponUserChanges() {
-    this.userService
-      .userChanged()
-      .pipe(untilDestroyed(this))
-      .subscribe(() => this.workflowWebsocketService.reopenWebsocket());
   }
 
   registerAutoCacheWorkFlow(): void {
@@ -166,10 +168,10 @@ export class WorkspaceComponent implements AfterViewInit {
       .pipe(filter(metadata => metadata.operators.length !== 0))
       .pipe(untilDestroyed(this))
       .subscribe(() => {
+        let wid = this.route.snapshot.params.id;
         if (environment.userSystemEnabled) {
           // load workflow with wid if presented in the URL
-          if (this.route.snapshot.params.id) {
-            const wid = this.route.snapshot.params.id;
+          if (wid) {
             // if wid is present in the url, load it from the backend
             this.userService
               .userChanged()
@@ -190,5 +192,17 @@ export class WorkspaceComponent implements AfterViewInit {
           this.registerAutoCacheWorkFlow();
         }
       });
+  }
+
+  registerReEstablishWebsocketUponWIdChange() {
+    this.workflowActionService
+      .workflowMetaDataChanged()
+      .pipe(
+        switchMap(() => of(this.workflowActionService.getWorkflowMetadata().wid)),
+        filter(isDefined),
+        distinctUntilChanged()
+      )
+      .pipe(untilDestroyed(this))
+      .subscribe(wid => this.workflowWebsocketService.reopenWebsocket(wid));
   }
 }

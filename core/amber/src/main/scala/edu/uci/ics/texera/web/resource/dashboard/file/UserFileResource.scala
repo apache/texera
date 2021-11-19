@@ -17,7 +17,7 @@ import org.glassfish.jersey.media.multipart.{FormDataContentDisposition, FormDat
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
 
-import java.io.{IOException, InputStream, OutputStream}
+import java.io.{FileInputStream, IOException, InputStream, OutputStream}
 import java.nio.file.Paths
 import java.util
 import javax.annotation.security.PermitAll
@@ -258,6 +258,49 @@ class UserFileResource {
         .build()
     }
 
+  }
+
+  /**
+    * This method updates the name of a given userFile
+    *
+    * @param file the to be updated file
+    * @return the updated userFile
+    */
+  @POST
+  @Path("/update/name")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def changeUserFileName(file: File, @Auth sessionUser: SessionUser): Unit = {
+    val userId = sessionUser.getUser.getUid
+    val fid = file.getFid
+    val newFileName = file.getName
+
+    val validationRes = this.validateFileName(newFileName, userId)
+    val hasWriteAccess = context
+      .select(USER_FILE_ACCESS.WRITE_ACCESS)
+      .from(USER_FILE_ACCESS)
+      .where(USER_FILE_ACCESS.UID.eq(userId).and(USER_FILE_ACCESS.FID.eq(fid)))
+      .fetch()
+      .getValue(0, 0)
+    if (hasWriteAccess == false) {
+      throw new ForbiddenException("No sufficient access privilege.")
+    }
+    if (validationRes.getLeft == false) {
+      throw new BadRequestException(validationRes.getRight)
+    } else {
+      val userFile = fileDao.fetchOneByFid(fid)
+      val filePath = userFile.getPath
+
+      val uploadedInputStream = new FileInputStream(filePath)
+      // delete the original file
+      UserFileUtils.deleteFile(Paths.get(filePath))
+      // store the file with the new file name
+      val fileNameStored = UserFileUtils.storeFileSafe(uploadedInputStream, newFileName, userId)
+
+      userFile.setName(newFileName)
+      userFile.setPath(UserFileUtils.getFilePath(userId, fileNameStored).toString)
+      fileDao.update(userFile)
+    }
   }
 
 }

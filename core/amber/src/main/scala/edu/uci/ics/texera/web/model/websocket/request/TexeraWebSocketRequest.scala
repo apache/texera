@@ -7,10 +7,10 @@ import edu.uci.ics.texera.web.model.websocket.request.python.PythonExpressionEva
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes(
   Array(
+    new Type(value = classOf[RegisterWIdRequest]),
     new Type(value = classOf[AddBreakpointRequest]),
     new Type(value = classOf[CacheStatusUpdateRequest]),
     new Type(value = classOf[HeartBeatRequest]),
-    new Type(value = classOf[HelloWorldRequest]),
     new Type(value = classOf[ModifyLogicRequest]),
     new Type(value = classOf[RemoveBreakpointRequest]),
     new Type(value = classOf[ResultExportRequest]),

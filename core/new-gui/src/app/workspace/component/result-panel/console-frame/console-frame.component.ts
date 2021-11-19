@@ -46,7 +46,7 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
           // intentionally do nothing to leave the information displayed as it is
           // when kill a workflow after hitting breakpoint
         } else if (
-          event.previous.state === ExecutionState.WaitingToRun &&
+          event.previous.state === ExecutionState.Initializing &&
           event.current.state === ExecutionState.Running
         ) {
           // clear the console for the next execution
