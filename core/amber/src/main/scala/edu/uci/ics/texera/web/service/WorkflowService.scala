@@ -120,5 +120,5 @@ class WorkflowService(wid: String, cleanUpTimeout: Int) extends LazyLogging {
     state.startWorkflow()
   }
 
-  def getJobServiceObservable: Observable[WorkflowJobService] = jobStateSubject
+  def getJobServiceObservable: Observable[WorkflowJobService] = jobStateSubject.onTerminateDetach
 }

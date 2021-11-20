@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
-import edu.uci.ics.amber.engine.common.AmberClient
+import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.web.{SnapshotMulticast, TexeraWebApplication}
 import edu.uci.ics.texera.web.model.websocket.event.{
@@ -74,7 +74,7 @@ class WorkflowJobService(
 
   private[this] def createWorkflowStatus(): BehaviorSubject[ExecutionStatusEnum] = {
     val status = BehaviorSubject[ExecutionStatusEnum](Uninitialized)
-    status.subscribe(x => send(WorkflowStateEvent(x)))
+    status.onTerminateDetach.subscribe(x => send(WorkflowStateEvent(x)))
     status
   }
 

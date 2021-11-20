@@ -4,7 +4,7 @@ import akka.actor.{ActorSystem, Cancellable}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
 import com.github.toastshaman.dropwizard.auth.jwt.JwtAuthFilter
-import edu.uci.ics.amber.engine.common.{AmberClient, AmberUtils}
+import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.auth.JwtAuth.jwtConsumer
 import edu.uci.ics.texera.web.auth.{SessionUser, UserAuthenticator, UserRoleAuthorizer}
@@ -29,6 +29,8 @@ import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workf
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
 import java.time.Duration
+
+import edu.uci.ics.amber.engine.common.client.AmberClient
 
 object TexeraWebApplication {
 
