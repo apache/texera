@@ -7,7 +7,6 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{
   CountGlobalBreakpoint
 }
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent._
-import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.AssignBreakpointHandler.AssignGlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.EvaluatePythonExpressionHandler.EvaluatePythonExpression
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
