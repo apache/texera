@@ -84,8 +84,8 @@ export const operatorProcessedCountBGClass = "texera-operator-processed-count-ba
 export const operatorProcessedCountClass = "texera-operator-processed-count";
 export const operatorOutputCountBGClass = "texera-operator-output-count-background";
 export const operatorOutputCountClass = "texera-operator-output-count";
-export const operatorAbbreviatedCountBGClass = "texera-operator-abbreviated-count-background"
-export const operatorAbbreviatedCountClass = "texera-operator-abbreviated-count"
+export const operatorAbbreviatedCountBGClass = "texera-operator-abbreviated-count-background";
+export const operatorAbbreviatedCountClass = "texera-operator-abbreviated-count";
 
 export const operatorIconClass = "texera-operator-icon";
 export const operatorNameClass = "texera-operator-name";
@@ -739,7 +739,7 @@ export class JointUIService {
         ry: "5px",
       },
       "rect.boundary": {
-        fill: 'rgba(0,0,0,0)',
+        fill: "rgba(0,0,0,0)",
         "width": this.DEFAULT_OPERATOR_WIDTH + 50,
         "height": this.DEFAULT_OPERATOR_HEIGHT + 100,
         ref: "rect.body",
