@@ -13,7 +13,7 @@ export function setHideExpression(toggleHidden: string[], fields: FormlyFieldCon
   toggleHidden.forEach(hiddenFieldName => {
     const fieldToBeHidden = getFieldByName(hiddenFieldName, fields);
     if (isDefined(fieldToBeHidden)) {
-      fieldToBeHidden.hideExpression = "!model." + hiddenBy;
+      fieldToBeHidden.hideExpression = "!field.parent.model." + hiddenBy;
     }
   });
 }
