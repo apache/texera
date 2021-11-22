@@ -7,6 +7,7 @@ import { UserService } from "../../../../common/service/user/user.service";
 import { NgbdModalUserFileShareAccessComponent } from "./ngbd-modal-file-share-access/ngbd-modal-user-file-share-access.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
+import Fuse from "fuse.js";
 
 @UntilDestroy()
 @Component({
@@ -28,6 +29,14 @@ export class UserFileSectionComponent {
   public userFileSearchValue: string = "";
   public filteredFilenames: Set<string> = new Set();
   public isTyping: boolean = false;
+  public fuse = new Fuse([] as ReadonlyArray<DashboardUserFileEntry>, {
+    shouldSort: true,
+    threshold: 0.2,
+    location: 0,
+    distance: 100,
+    minMatchCharLength: 1,
+    keys: ["file.name"],
+  });
 
   public openFileAddComponent() {
     this.modalService.open(NgbdModalFileAddComponent);
@@ -54,7 +63,10 @@ export class UserFileSectionComponent {
     if (!fileArray) {
       return [];
     } else if (this.userFileSearchValue !== "" && this.isTyping === false) {
-      return fileArray.filter(file => file.file.name.includes(this.userFileSearchValue));
+      this.fuse.setCollection(fileArray);
+      return this.fuse.search(this.userFileSearchValue).map(item => {
+        return item.item;
+      });
     }
     return fileArray;
   }

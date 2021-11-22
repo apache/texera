@@ -10,7 +10,7 @@ import { DashboardWorkflowEntry } from "../../../type/dashboard-workflow-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
-import { Document } from "flexsearch";
+import Fuse from "fuse.js";
 
 export const ROUTER_WORKFLOW_BASE_URL = "/workflow";
 export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
@@ -26,29 +26,23 @@ export class SavedWorkflowSectionComponent implements OnInit {
   public dashboardWorkflowEntriesIsEditingName: number[] = [];
   public allDashboardWorkflowEntries: DashboardWorkflowEntry[] = [];
   public filteredDashboardWorkflowNames: Set<string> = new Set();
-  public filterdDashboardWorkflowIds: Set<number | string> = new Set();
+  public fuse = new Fuse([] as ReadonlyArray<DashboardWorkflowEntry>, {
+    shouldSort: true,
+    threshold: 0.2,
+    location: 0,
+    distance: 100,
+    minMatchCharLength: 1,
+    keys: ["workflow.wid", "workflow.name", "ownerName"],
+  });
+  public searchCriteriaPathMap: Map<string, string[]> = new Map([
+    ["workflowName", ["workflow", "name"]],
+    ["id", ["workflow", "wid"]],
+    ["owner", ["ownerName"]],
+  ]);
 
   public workflowSearchValue: string = "";
   private defaultWorkflowName: string = "Untitled Workflow";
   public searchCriteria: string[] = ["owner", "id"];
-  /**
-   * Initialize the index for searching
-   * Check https://github.com/nextapps-de/flexsearch#field-search for index build for Nested Data Fields search
-   * */
-  public flexSearchIndex: Document<Object> = new Document({
-    document: {
-      id: "workflow:wid",
-      index: ["workflow:wid", "workflow:name", "ownerName"],
-    },
-  });
-  /**
-   * Map search criteria key words to the flex search indexes
-   * */
-  public flexSearchIndexMapping: Map<string, string> = new Map([
-    ["workflowName", "workflow:name"],
-    ["id", "workflow:wid"],
-    ["owner", "ownerName"],
-  ]);
 
   constructor(
     private userService: UserService,
@@ -83,19 +77,41 @@ export class SavedWorkflowSectionComponent implements OnInit {
     }
   }
 
+  // check https://fusejs.io/api/query.html#logical-query-operators for logical query operators rule
+  public buildAndPathQuery(
+    workflowSearchField: string,
+    workflowSearchValue: string
+  ): {
+    $path: ReadonlyArray<string>;
+    $val: string;
+  } {
+    return {
+      $path: this.searchCriteriaPathMap.get(workflowSearchField) as ReadonlyArray<string>,
+      $val: workflowSearchValue,
+    };
+  }
+
   /**
    * Search workflows by owner name, workflow name or workflow id
-   * Use flex search https://github.com/nextapps-de/flexsearch as the tool for searching
+   * Use fuse.js https://fusejs.io/ as the tool for searching
    */
   public searchWorkflow(): void {
-    this.dashboardWorkflowEntries = cloneDeep(this.allDashboardWorkflowEntries);
-    this.allDashboardWorkflowEntries.forEach(dashboardWorkflow => {
-      if (dashboardWorkflow.workflow.wid) this.filterdDashboardWorkflowIds.add(dashboardWorkflow.workflow.wid);
-    });
+    let andPathQuery: Object[] = [];
+    this.dashboardWorkflowEntries = [];
+    // empty search value, return all workflow entries
     if (this.workflowSearchValue.trim() === "") {
+      this.dashboardWorkflowEntries = cloneDeep(this.allDashboardWorkflowEntries);
       return;
     } else if (!this.workflowSearchValue.includes(":")) {
-      this.workflowSearchFilter("workflowName", this.workflowSearchValue);
+      // search only by workflow name
+      andPathQuery.push(this.buildAndPathQuery("workflowName", this.workflowSearchValue));
+      this.fuse
+        .search({
+          $and: andPathQuery,
+        })
+        .forEach(res => {
+          this.dashboardWorkflowEntries.push(res.item);
+        });
       return;
     }
     const searchConsitionsSet = new Set(this.workflowSearchValue.trim().split(/ +(?=(?:(?:[^"]*"){2})*[^"]*$)/g));
@@ -108,21 +124,24 @@ export class SavedWorkflowSectionComponent implements OnInit {
           return;
         }
         const workflowSearchField = conditionArray[0];
-        const workflowSearchName = conditionArray[1];
+        const workflowSearchValue = conditionArray[1];
         if (!this.searchCriteria.includes(workflowSearchField)) {
           this.notificationService.error("Cannot search by " + workflowSearchField);
           return;
         }
-        this.workflowSearchFilter(workflowSearchField, workflowSearchName);
+        andPathQuery.push(this.buildAndPathQuery(workflowSearchField, workflowSearchValue));
       } else {
         //search by workflow name
-        this.workflowSearchFilter("workflowName", condition);
+        andPathQuery.push(this.buildAndPathQuery("workflowName", condition));
       }
     });
-  }
-
-  private getIntersectOfSets(setA: Set<number | string>, setB: Set<number | string>) { 
-    return new Set([...setA].filter(i => setB.has(i)));
+    this.fuse
+      .search({
+        $and: andPathQuery,
+      })
+      .forEach(res => {
+        this.dashboardWorkflowEntries.push(res.item);
+      });
   }
 
   public filteredDashboardWorkflowEntriesByWid(widSet: Set<number | string>) {
@@ -131,19 +150,6 @@ export class SavedWorkflowSectionComponent implements OnInit {
         return widSet.has(workflowEntry.workflow.wid);
       }
     });
-  }
-
-  public workflowSearchFilter(workflowSearchField: string, workflowSearchName: string): void {
-    const workflowSeachNamewithoutQuote = workflowSearchName.replace(/"/g, "");
-    // search for one condition each time, so the length of the result set is bound to be either one (found) or zero (not found)
-    const searchResult = this.flexSearchIndex.search(workflowSeachNamewithoutQuote, {
-      enrich: true,
-      index: this.flexSearchIndexMapping.get(workflowSearchField),
-    });
-    // resultSetIndex contains the wid(s) of the resulting workflow(s)
-    const resultSetIndex = searchResult.length == 0 ? new Set<string | number>() : new Set(searchResult[0].result);
-    this.filterdDashboardWorkflowIds = this.getIntersectOfSets(resultSetIndex, this.filterdDashboardWorkflowIds);
-    this.filteredDashboardWorkflowEntriesByWid(this.filterdDashboardWorkflowIds);
   }
 
   /**
@@ -270,11 +276,10 @@ export class SavedWorkflowSectionComponent implements OnInit {
       .subscribe(dashboardWorkflowEntries => {
         this.dashboardWorkflowEntries = dashboardWorkflowEntries;
         this.allDashboardWorkflowEntries = dashboardWorkflowEntries;
+        this.fuse.setCollection(this.allDashboardWorkflowEntries);
         dashboardWorkflowEntries.forEach(dashboardWorkflowEntry => {
           const workflow = dashboardWorkflowEntry.workflow;
           this.filteredDashboardWorkflowNames.add(workflow.name);
-          // Add text item to the index
-          this.flexSearchIndex.add(dashboardWorkflowEntry);
         });
       });
   }
