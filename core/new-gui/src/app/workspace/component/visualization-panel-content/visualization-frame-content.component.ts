@@ -127,12 +127,9 @@ export class VisualizationFrameContentComponent implements AfterContentInit, OnD
     if (!this.data || !this.chartType) {
       return;
     }
-    console.log("starttt");
-    console.log("data" + this.data);
     if (this.data?.length < 1) {
       return;
     }
-    console.log("enddd");
     this.displayHTML = false;
     this.displayWordCloud = false;
     this.displayMap = true;
@@ -363,8 +360,6 @@ export class VisualizationFrameContentComponent implements AfterContentInit, OnD
     for (let i = 1; i < Object.values(result[0]).length; i++) {
       category.push(String(Object.keys(result[0])[i]));
     }
-    console.log("cate:" + category);
-
     const columnCount = category.length;
 
     // data
@@ -375,8 +370,6 @@ export class VisualizationFrameContentComponent implements AfterContentInit, OnD
       }
       dataToDisplay.push(items);
     }
-    console.log("data:" + dataToDisplay);
-
     // generate chart
     if (this.c3ChartElement) {
       this.c3ChartElement.destroy();
