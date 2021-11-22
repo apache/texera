@@ -73,8 +73,10 @@ describe("VisualizationFrameContentComponent", () => {
   it("should draw the line chart", () => {
     const testData: WebDataUpdate = {
       mode: { type: "SetSnapshotMode" },
-      table: [{ id: 1, data1: 100, data2: 200 },
-      { id: 2, data1: 101, data2: 201 }],
+      table: [
+        { id: 1, data1: 100, data2: 200 },
+        { id: 2, data1: 101, data2: 201 },
+      ],
       chartType: ChartType.LINE,
     };
     operatorResultService.handleResultUpdate(testData);
@@ -89,8 +91,10 @@ describe("VisualizationFrameContentComponent", () => {
   it("should draw the bar chart", () => {
     const testData: WebDataUpdate = {
       mode: { type: "SetSnapshotMode" },
-      table: [{ id: 1, data1: 100, data2: 200 },
-      { id: 2, data1: 101, data2: 201 }],
+      table: [
+        { id: 1, data1: 100, data2: 200 },
+        { id: 2, data1: 101, data2: 201 },
+      ],
       chartType: ChartType.BAR,
     };
     operatorResultService.handleResultUpdate(testData);
