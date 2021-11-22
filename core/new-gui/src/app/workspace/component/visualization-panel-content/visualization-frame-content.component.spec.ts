@@ -91,7 +91,7 @@ describe("VisualizationFrameContentComponent", () => {
       mode: { type: "SetSnapshotMode" },
       table: [{ id: 1, data1: 100, data2: 200 },
       { id: 2, data1: 101, data2: 201 }],
-      chartType: ChartType.LINE,
+      chartType: ChartType.BAR,
     };
     operatorResultService.handleResultUpdate(testData);
 
