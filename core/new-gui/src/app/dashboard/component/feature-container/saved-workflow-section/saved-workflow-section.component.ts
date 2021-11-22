@@ -34,12 +34,11 @@ export class SavedWorkflowSectionComponent implements OnInit {
     minMatchCharLength: 1,
     keys: ["workflow.wid", "workflow.name", "ownerName"],
   });
-  public searchCriteriaPathMap: Map<string, string[]> = new Map([
+  public searchCriteriaPathMapping: Map<string, string[]> = new Map([
     ["workflowName", ["workflow", "name"]],
     ["id", ["workflow", "wid"]],
     ["owner", ["ownerName"]],
   ]);
-
   public workflowSearchValue: string = "";
   private defaultWorkflowName: string = "Untitled Workflow";
   public searchCriteria: string[] = ["owner", "id"];
@@ -86,7 +85,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
     $val: string;
   } {
     return {
-      $path: this.searchCriteriaPathMap.get(workflowSearchField) as ReadonlyArray<string>,
+      $path: this.searchCriteriaPathMapping.get(workflowSearchField) as ReadonlyArray<string>,
       $val: workflowSearchValue,
     };
   }
@@ -142,14 +141,6 @@ export class SavedWorkflowSectionComponent implements OnInit {
       .forEach(res => {
         this.dashboardWorkflowEntries.push(res.item);
       });
-  }
-
-  public filteredDashboardWorkflowEntriesByWid(widSet: Set<number | string>) {
-    this.dashboardWorkflowEntries = this.dashboardWorkflowEntries.filter(workflowEntry => {
-      if (workflowEntry.workflow.wid) {
-        return widSet.has(workflowEntry.workflow.wid);
-      }
-    });
   }
 
   /**
