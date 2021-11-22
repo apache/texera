@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.web
 
-import edu.uci.ics.amber.engine.common.AmberClient
+import edu.uci.ics.amber.engine.common.client.AmberClient
 import rx.lang.scala.{Observer, Subject, Subscription}
 
 abstract class SnapshotMulticast[T] {
@@ -18,7 +18,7 @@ abstract class SnapshotMulticast[T] {
     */
   def subscribe(observer: Observer[T]): Subscription = {
     sendSnapshotTo(observer)
-    subject.subscribe(observer)
+    subject.onTerminateDetach.subscribe(observer)
   }
 
   /**
@@ -29,7 +29,7 @@ abstract class SnapshotMulticast[T] {
   def subscribeWithAmberClient(observer: Observer[T], client: AmberClient): Subscription = {
     client.executeClosureSync {
       sendSnapshotTo(observer)
-      subject.subscribe(observer)
+      subject.onTerminateDetach.subscribe(observer)
     }
   }
 
