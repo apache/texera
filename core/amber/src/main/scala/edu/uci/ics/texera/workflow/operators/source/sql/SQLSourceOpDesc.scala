@@ -53,13 +53,13 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
   @JsonSchemaTitle("Keyword Search?")
   @JsonDeserialize(contentAs = classOf[java.lang.Boolean])
   @JsonSchemaInject(json = """{"toggleHidden" : ["searchByColumn", "keywords"]}""")
-  var search: Option[Boolean] = Option(false)
+  var keywordSearch: Option[Boolean] = Option(false)
 
   @JsonProperty()
   @JsonSchemaTitle("Keyword Search Column")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
   @AutofillAttributeName
-  var searchByColumn: Option[String] = None
+  var keywordSearchByColumn: Option[String] = None
 
   @JsonProperty()
   @JsonSchemaTitle("Keywords to Search")
