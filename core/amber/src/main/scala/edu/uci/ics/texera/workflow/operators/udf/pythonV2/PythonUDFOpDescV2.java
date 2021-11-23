@@ -28,7 +28,7 @@ public class PythonUDFOpDescV2 extends OperatorDescriptor {
 
     @JsonProperty(required = true, defaultValue =
             "# Choose from the following templates:\n" +
-                    "# \n " +
+                    "# \n" +
                     "# from typing import Iterator, Optional, Union\n" +
                     "# from pytexera import *\n" +
                     "# \n" +
