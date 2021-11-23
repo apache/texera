@@ -25,14 +25,23 @@ import static scala.collection.JavaConverters.asScalaBuffer;
 public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
 
     @JsonProperty(required = true, defaultValue =
-            "# from typing import Iterator, Optional, Union\n" +
-                    "# from pytexera import InputExhausted, Tuple, TupleLike, UDFOperator, overrides\n" +
+            "# Choose from the following templates:\n" +
+                    "# \n " +
+                    "# from typing import Iterator, Optional, Union\n" +
+                    "# from pytexera import *\n" +
                     "# \n" +
-                    "# class SourceOperator(UDFOperator):\n" +
+                    "# class ProcessOperator(UDFOperator):\n" +
                     "#     \n" +
                     "#     @overrides\n" +
                     "#     def process_tuple(self, tuple_: Union[Tuple, InputExhausted], input_: int) -> Iterator[Optional[TupleLike]]:\n" +
-                    "#         yield {\"text\": \"hello world\"}")
+                    "#         if isinstance(tuple_, Tuple):\n" +
+                    "#             yield tuple_\n" +
+                    "# \n" +
+                    "# class EchoTableOperator(UDFTableOperator):\n" +
+                    "# \n" +
+                    "#     @overrides\n" +
+                    "#     def process_table(self, table: Table, input_: int) -> Iterator[Optional[TableLike]]:\n" +
+                    "#         yield table\n")
     @JsonSchemaTitle("Python script")
     @JsonPropertyDescription("Input your code here")
     public String code;
