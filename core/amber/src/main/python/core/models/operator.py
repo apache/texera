@@ -4,8 +4,7 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from typing import Iterator, Optional, Union, Mapping, List
 
-from . import InputExhausted, Tuple, TupleLike
-from .table import Table, TableLike
+from . import InputExhausted, Tuple, TupleLike, Table, TableLike
 
 
 class TupleOperator(ABC):

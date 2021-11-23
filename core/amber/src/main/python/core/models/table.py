@@ -1,7 +1,8 @@
-import pandas
-from typing import TypeVar, List
+from typing import List, TypeVar
 
-from core.models import TupleLike
+import pandas
+
+from . import TupleLike
 
 TableLike = TypeVar('TableLike', pandas.DataFrame, List[TupleLike])
 
