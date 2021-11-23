@@ -1,8 +1,11 @@
-from core.models import InputExhausted, TupleOperator, Tuple, TupleLike
+from core.models import InputExhausted, Table, TableLike, TableOperator, Tuple, TupleLike, TupleOperator
 
 __all__ = [
     'InputExhausted',
     'Tuple',
     'TupleLike',
-    'TupleOperator'
+    'TupleOperator',
+    'Table',
+    'TableLike',
+    'TableOperator'
 ]
