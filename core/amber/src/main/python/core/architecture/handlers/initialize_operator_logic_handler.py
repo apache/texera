@@ -10,7 +10,6 @@ class InitializeOperatorLogicHandler(Handler):
 
     def __call__(self, context: Context, command: cmd, *args, **kwargs):
         operator: type(Operator) = load_operator(command.code)
-        print(operator)
         context.dp._operator = operator()
         context.dp._operator.is_source = command.is_source
         context.dp._operator.open()

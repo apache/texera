@@ -1,17 +1,16 @@
 import traceback
 import typing
+from typing import Iterator, List, MutableMapping, Optional, Union
+
 from loguru import logger
 from overrides import overrides
 from pampy import match
-from typing import Iterator, List, MutableMapping, Optional, Union
 
 from core.architecture.managers.context import Context
 from core.architecture.packaging.batch_to_tuple_converter import EndOfAllMarker
 from core.architecture.rpc.async_rpc_client import AsyncRPCClient
 from core.architecture.rpc.async_rpc_server import AsyncRPCServer
-from core.models import ControlElement, DataElement, InputExhausted, InternalQueue, TupleOperator, SenderChangeMarker, \
-    Tuple
-from core.models.operator import TableOperator
+from core.models import ControlElement, DataElement, InputExhausted, InternalQueue, Operator, SenderChangeMarker, Tuple
 from core.util import IQueue, StoppableQueueBlockingRunnable, get_one_of, set_one_of
 from core.util.print_writer.print_log_handler import PrintLogHandler
 from proto.edu.uci.ics.amber.engine.architecture.worker import ControlCommandV2, LocalOperatorExceptionV2, \
@@ -27,7 +26,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
 
         self._input_queue: InternalQueue = input_queue
         self._output_queue: InternalQueue = output_queue
-        self._operator: Optional[Union[TupleOperator, TableOperator]] = None
+        self._operator: Optional[Operator] = None
         self._current_input_tuple: Optional[Union[Tuple, InputExhausted]] = None
         self._current_input_link: Optional[LinkIdentity] = None
         self._current_input_tuple_iter: Optional[Iterator[Union[Tuple, InputExhausted]]] = None
