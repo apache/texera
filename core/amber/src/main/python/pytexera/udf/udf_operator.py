@@ -1,10 +1,10 @@
 from abc import abstractmethod
 from typing import Iterator, Optional, Union
 
-from pyamber import InputExhausted, Operator, Tuple, TupleLike
+from pyamber import InputExhausted, TupleOperator, Tuple, TupleLike
 
 
-class UDFOperator(Operator):
+class UDFOperator(TupleOperator):
     """
     Base class for row-oriented user-defined operators. A concrete implementation must
     be provided upon using.

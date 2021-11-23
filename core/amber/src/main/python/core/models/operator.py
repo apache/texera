@@ -1,13 +1,16 @@
 import overrides
+import pandas
 from abc import ABC, abstractmethod
-from typing import Iterator, Optional, Union
+from collections import defaultdict
+from typing import Iterator, Optional, Union, Mapping, List
 
 from . import InputExhausted, Tuple, TupleLike
+from .table import Table, TableLike
 
 
-class Operator(ABC):
+class TupleOperator(ABC):
     """
-    Base class for row-oriented operators. A concrete implementation must
+    Base class for tuple-oriented operators. A concrete implementation must
     be provided upon using.
     """
 
@@ -46,6 +49,74 @@ class Operator(ABC):
 
         :param input_: int, input index of the current Tuple.
         :return: Iterator[Optional[TupleLike]], producing one TupleLike object at a time, or None.
+        """
+        pass
+
+    def close(self) -> None:
+        """
+        Close the context of the operator.
+        """
+        pass
+
+
+class TableOperator(ABC):
+    """
+    Base class for table-oriented operators. A concrete implementation must
+    be provided upon using.
+    """
+
+    def __init__(self):
+        self.__internal_is_source: bool = False
+        self.__table_data: Mapping[int, List[Tuple]] = defaultdict(list)
+
+    @property
+    @overrides.final
+    def is_source(self) -> bool:
+        """
+        Whether the operator is a source operator. Source operators generates output
+        Tuples without having input Tuples.
+        :return:
+        """
+        return self.__internal_is_source
+
+    @is_source.setter
+    @overrides.final
+    def is_source(self, value: bool) -> None:
+        self.__internal_is_source = value
+
+    def open(self) -> None:
+        """
+        Open a context of the operator. Usually can be used for loading/initiating some
+        resources, such as a file, a model, or an API client.
+        """
+        pass
+
+    @abstractmethod
+    def process_tuple(self, tuple_: Union[Tuple, InputExhausted], input_: int) -> Iterator[Optional[TupleLike]]:
+        """
+        Process an input Tuple from the given link. The Tuple is represented as pandas.Series.
+        :param tuple_: Union[Tuple, InputExhausted], either
+                        1. a Tuple from a link to be processed;
+                        2. an InputExhausted indicating no more data from this link.
+
+        :param input_: int, input index of the current Tuple.
+        :return: Iterator[Optional[TupleLike]], producing one TupleLike object at a time, or None.
+        """
+        if isinstance(tuple_, Tuple):
+            self.__table_data.get(input_).append(tuple_)
+        else:
+            table = Table(pandas.DataFrame(self.__table_data.get(input_)))
+            for i, output_tuple, in self.process_table(table, input_):
+                yield output_tuple
+
+    @abstractmethod
+    def process_table(self, table: Table, input_: int) -> Iterator[Optional[TableLike]]:
+        """
+        Process an input Table from the given link. The Tuple is represented as pandas.DataFrame.
+        :param table: Table, a table to be processed.
+
+        :param input_: int, input index of the current Tuple.
+        :return: Iterator[Optional[TableLike]], producing one TableLike object at a time, or None.
         """
         pass
 
