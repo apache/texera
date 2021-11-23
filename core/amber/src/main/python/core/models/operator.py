@@ -92,8 +92,9 @@ class TableOperator(TupleOperator):
         else:
             table = Table(pandas.DataFrame(self.__table_data[input_]))
             for output_table in self.process_table(table, input_):
-                for _, output_tuple in output_table.iterrows():
-                    yield output_tuple
+                if output_table is not None:
+                    for _, output_tuple in output_table.iterrows():
+                        yield output_tuple
 
     @abstractmethod
     def process_table(self, table: Table, input_: int) -> Iterator[Optional[TableLike]]:
