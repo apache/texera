@@ -140,6 +140,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleViewExpandGroup();
     this.handlePaperPan();
     this.handleGroupResize();
+    this.handleViewMouseoverOperator();
+    this.handleViewMouseoutOperator();
 
     if (environment.executionStatusEnabled) {
       this.handleOperatorStatisticsUpdate();
@@ -221,7 +223,13 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
           // if operator is not in a group or in a group that isn't collapsed, it is okay to draw statistics on it
           if (!parentGroup || !parentGroup.collapsed) {
-            this.jointUIService.changeOperatorStatistics(this.getJointPaper(), operatorID, status[operatorID]);
+            this.jointUIService.changeOperatorStatistics(
+              this.getJointPaper(),
+              operatorID,
+              status[operatorID],
+              this.isSource(operatorID),
+              this.isSink(operatorID)
+            );
           }
 
           // if operator is in a group, write statistics to the group's operatorInfo
@@ -242,7 +250,13 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .subscribe(group => {
         group.operators.forEach((operatorInfo, operatorID) => {
           if (operatorInfo.statistics) {
-            this.jointUIService.changeOperatorStatistics(this.getJointPaper(), operatorID, operatorInfo.statistics);
+            this.jointUIService.changeOperatorStatistics(
+              this.getJointPaper(),
+              operatorID,
+              operatorInfo.statistics,
+              this.isSource(operatorID),
+              this.isSink(operatorID)
+            );
           }
         });
       });
@@ -627,7 +641,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .pipe(untilDestroyed(this))
       .subscribe(elementIDs =>
         elementIDs.forEach(elementID =>
-          this.getJointPaper().findViewByModel(elementID).highlight("rect", { highlighter: highlightOptions })
+          this.getJointPaper().findViewByModel(elementID).highlight("rect.body", { highlighter: highlightOptions })
         )
       );
 
@@ -639,7 +653,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .pipe(untilDestroyed(this))
       .subscribe(elementIDs =>
         elementIDs.forEach(elementID =>
-          this.getJointPaper().findViewByModel(elementID).unhighlight("rect", { highlighter: highlightOptions })
+          this.getJointPaper().findViewByModel(elementID).unhighlight("rect.body", { highlighter: highlightOptions })
         )
       );
   }
@@ -659,14 +673,14 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .getOperatorSuggestionHighlightStream()
       .pipe(untilDestroyed(this))
       .subscribe(value =>
-        this.getJointPaper().findViewByModel(value).highlight("rect", { highlighter: highlightOptions })
+        this.getJointPaper().findViewByModel(value).highlight("rect.body", { highlighter: highlightOptions })
       );
 
     this.dragDropService
       .getOperatorSuggestionUnhighlightStream()
       .pipe(untilDestroyed(this))
       .subscribe(value =>
-        this.getJointPaper().findViewByModel(value).unhighlight("rect", { highlighter: highlightOptions })
+        this.getJointPaper().findViewByModel(value).unhighlight("rect.body", { highlighter: highlightOptions })
       );
   }
 
@@ -714,6 +728,24 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .pipe(untilDestroyed(this))
       .subscribe(elementView => {
         this.workflowActionService.deleteOperator(elementView.model.id.toString());
+      });
+  }
+
+  private handleViewMouseoverOperator(): void {
+    fromEvent<JointPaperEvent>(this.getJointPaper(), "element:mouseover")
+      .pipe(map(value => value[0]))
+      .pipe(untilDestroyed(this))
+      .subscribe(elementView => {
+        this.jointUIService.unfoldOperatorDetails(this.getJointPaper(), elementView.model.id.toString());
+      });
+  }
+
+  private handleViewMouseoutOperator(): void {
+    fromEvent<JointPaperEvent>(this.getJointPaper(), "element:mouseout")
+      .pipe(map(value => value[0]))
+      .pipe(untilDestroyed(this))
+      .subscribe(elementView => {
+        this.jointUIService.foldOperatorDetails(this.getJointPaper(), elementView.model.id.toString());
       });
   }
 
@@ -1550,6 +1582,14 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .subscribe(linkID => {
         this.getJointPaper().getModelById(linkID.linkID).findView(this.getJointPaper()).hideTools();
       });
+  }
+
+  private isSource(operatorID: string): boolean {
+    return this.workflowActionService.getTexeraGraph().getOperator(operatorID).inputPorts.length == 0;
+  }
+
+  private isSink(operatorID: string): boolean {
+    return this.workflowActionService.getTexeraGraph().getOperator(operatorID).outputPorts.length == 0;
   }
 
   /**

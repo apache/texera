@@ -282,8 +282,8 @@ describe("WorkflowEditorComponent", () => {
       workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, newProperty);
       const operator1 = component.getJointPaper().getModelById(mockScanPredicate.operatorID);
       const operator2 = component.getJointPaper().getModelById(mockResultPredicate.operatorID);
-      expect(operator1.attr("rect/stroke")).toEqual("#CFCFCF");
-      expect(operator2.attr("rect/stroke")).toEqual("#CFCFCF");
+      expect(operator1.attr("rect/stroke")).not.toEqual("red");
+      expect(operator2.attr("rect/stroke")).not.toEqual("red");
     });
 
     it("should validate operator connections correctly", () => {
