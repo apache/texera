@@ -56,7 +56,6 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
     @JsonPropertyDescription("The columns of the source")
     public List<Attribute> columns;
 
-
     @Override
     public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         Function1<Object, IOperatorExecutor> exec = (i) ->
@@ -78,7 +77,6 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                 scala.collection.immutable.List.empty(),
                 asScalaBuffer(singletonList(new OutputPort(""))).toList());
     }
-
 
     @Override
     public Schema sourceSchema() {

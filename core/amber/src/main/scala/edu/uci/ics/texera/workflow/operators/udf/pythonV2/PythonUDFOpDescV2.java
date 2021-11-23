@@ -64,7 +64,6 @@ public class PythonUDFOpDescV2 extends OperatorDescriptor {
     @JsonPropertyDescription("Name of the newly added output columns that the UDF will produce, if any")
     public List<Attribute> outputColumns;
 
-
     @Override
     public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         Function1<Object, IOperatorExecutor> exec = (i) ->
