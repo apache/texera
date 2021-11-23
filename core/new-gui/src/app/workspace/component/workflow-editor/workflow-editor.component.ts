@@ -223,9 +223,13 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
           // if operator is not in a group or in a group that isn't collapsed, it is okay to draw statistics on it
           if (!parentGroup || !parentGroup.collapsed) {
-            const isSource = this.workflowActionService.getTexeraGraph().getOperator(operatorID).inputPorts.length == 0;
-            const isSink = this.workflowActionService.getTexeraGraph().getOperator(operatorID).outputPorts.length == 0;
-            this.jointUIService.changeOperatorStatistics(this.getJointPaper(), operatorID, status[operatorID], isSource, isSink);
+            this.jointUIService.changeOperatorStatistics(
+              this.getJointPaper(),
+              operatorID,
+              status[operatorID],
+              this.isSource(operatorID),
+              this.isSink(operatorID)
+            );
           }
 
           // if operator is in a group, write statistics to the group's operatorInfo
@@ -246,9 +250,13 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .subscribe(group => {
         group.operators.forEach((operatorInfo, operatorID) => {
           if (operatorInfo.statistics) {
-            const isSource = this.workflowActionService.getTexeraGraph().getOperator(operatorID).inputPorts.length == 0;
-            const isSink = this.workflowActionService.getTexeraGraph().getOperator(operatorID).outputPorts.length == 0;
-            this.jointUIService.changeOperatorStatistics(this.getJointPaper(), operatorID, operatorInfo.statistics, isSource, isSink);
+            this.jointUIService.changeOperatorStatistics(
+              this.getJointPaper(),
+              operatorID,
+              operatorInfo.statistics,
+              this.isSource(operatorID),
+              this.isSink(operatorID)
+            );
           }
         });
       });
@@ -725,9 +733,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   private handleViewMouseoverOperator(): void {
     fromEvent<JointPaperEvent>(this.getJointPaper(), "element:mouseover")
-    .pipe(
-        map(value => value[0])
-      )
+      .pipe(map(value => value[0]))
       .pipe(untilDestroyed(this))
       .subscribe(elementView => {
         this.jointUIService.unfoldOperatorDetails(this.getJointPaper(), elementView.model.id.toString());
@@ -736,12 +742,10 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   private handleViewMouseoutOperator(): void {
     fromEvent<JointPaperEvent>(this.getJointPaper(), "element:mouseout")
-    .pipe(
-        map(value => value[0])
-      )
+      .pipe(map(value => value[0]))
       .pipe(untilDestroyed(this))
       .subscribe(elementView => {
-      this.jointUIService.foldOperatorDetails(this.getJointPaper(), elementView.model.id.toString());
+        this.jointUIService.foldOperatorDetails(this.getJointPaper(), elementView.model.id.toString());
       });
   }
 
@@ -1578,6 +1582,14 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .subscribe(linkID => {
         this.getJointPaper().getModelById(linkID.linkID).findView(this.getJointPaper()).hideTools();
       });
+  }
+
+  private isSource(operatorID: string): boolean {
+    return this.workflowActionService.getTexeraGraph().getOperator(operatorID).inputPorts.length == 0;
+  }
+
+  private isSink(operatorID: string): boolean {
+    return this.workflowActionService.getTexeraGraph().getOperator(operatorID).outputPorts.length == 0;
   }
 
   /**

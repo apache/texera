@@ -262,15 +262,12 @@ export class JointUIService {
     jointPaper.getModelById(operatorID).attr(`.${operatorOutputCountBGClass}/text`, outputText);
     const processedCountText = isSource ? "" : abbreviateNumber(statistics.aggregatedInputRowCount);
     const outputCountText = isSink ? "" : abbreviateNumber(statistics.aggregatedOutputRowCount);
-    const abbreviatedText = processedCountText + ((isSource || isSink) ? "" : " → ") + outputCountText;
+    const abbreviatedText = processedCountText + (isSource || isSink ? "" : " → ") + outputCountText;
     jointPaper.getModelById(operatorID).attr(`.${operatorAbbreviatedCountClass}/text`, abbreviatedText);
     jointPaper.getModelById(operatorID).attr(`.${operatorAbbreviatedCountBGClass}/text`, abbreviatedText);
   }
 
-  public foldOperatorDetails(
-    jointPaper: joint.dia.Paper,
-    operatorID: string
-  ): void {
+  public foldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
     jointPaper.getModelById(operatorID).attr(`.${operatorAbbreviatedCountBGClass}/visibility`, "visible");
     jointPaper.getModelById(operatorID).attr(`.${operatorAbbreviatedCountClass}/visibility`, "visible");
     jointPaper.getModelById(operatorID).attr(`.${operatorProcessedCountBGClass}/visibility`, "hidden");
@@ -282,10 +279,7 @@ export class JointUIService {
     jointPaper.getModelById(operatorID).attr(".delete-button/visibility", "hidden");
   }
 
-  public unfoldOperatorDetails(
-    jointPaper: joint.dia.Paper,
-    operatorID: string
-  ): void {
+  public unfoldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
     jointPaper.getModelById(operatorID).attr(`.${operatorAbbreviatedCountBGClass}/visibility`, "hidden");
     jointPaper.getModelById(operatorID).attr(`.${operatorAbbreviatedCountClass}/visibility`, "hidden");
     jointPaper.getModelById(operatorID).attr(`.${operatorProcessedCountBGClass}/visibility`, "visible");
@@ -642,8 +636,8 @@ export class JointUIService {
       ".texera-operator-state-background": {
         text: "",
         "font-size": "14px",
-        "stroke":"#f5f5f5",
-        "stroke-width":"1em",
+        stroke: "#f5f5f5",
+        "stroke-width": "1em",
         visibility: "hidden",
         "ref-x": 0.5,
         "ref-y": 100,
@@ -664,8 +658,8 @@ export class JointUIService {
       ".texera-operator-abbreviated-count-background": {
         text: "",
         "font-size": "14px",
-        "stroke":"#f5f5f5",
-        "stroke-width":"1em",
+        stroke: "#f5f5f5",
+        "stroke-width": "1em",
         visibility: "visible",
         "ref-x": 0.5,
         "ref-y": -30,
@@ -687,8 +681,8 @@ export class JointUIService {
       ".texera-operator-processed-count-background": {
         text: "",
         "font-size": "14px",
-        "stroke":"#f5f5f5",
-        "stroke-width":"1em",
+        stroke: "#f5f5f5",
+        "stroke-width": "1em",
         visibility: "hidden",
         "ref-x": 0.5,
         "ref-y": -50,
@@ -710,8 +704,8 @@ export class JointUIService {
       ".texera-operator-output-count-background": {
         text: "",
         "font-size": "14px",
-        "stroke":"#f5f5f5",
-        "stroke-width":"1em",
+        stroke: "#f5f5f5",
+        "stroke-width": "1em",
         visibility: "hidden",
         "ref-x": 0.5,
         "ref-y": -30,
@@ -740,17 +734,17 @@ export class JointUIService {
       },
       "rect.boundary": {
         fill: "rgba(0,0,0,0)",
-        "width": this.DEFAULT_OPERATOR_WIDTH + 50,
-        "height": this.DEFAULT_OPERATOR_HEIGHT + 100,
+        width: this.DEFAULT_OPERATOR_WIDTH + 50,
+        height: this.DEFAULT_OPERATOR_HEIGHT + 100,
         ref: "rect.body",
         "ref-x": -25,
-        "ref-y": -50
+        "ref-y": -50,
       },
       ".texera-operator-name-background": {
         text: operatorDisplayName,
         "font-size": "14px",
-        "stroke":"#f5f5f5",
-        "stroke-width":"1em",
+        stroke: "#f5f5f5",
+        "stroke-width": "1em",
         "ref-x": 0.5,
         "ref-y": 80,
         ref: "rect.body",
@@ -773,7 +767,7 @@ export class JointUIService {
         cursor: "pointer",
         fill: "#D8656A",
         event: "element:delete",
-        visibility: "hidden"
+        visibility: "hidden",
       },
       ".texera-operator-icon": {
         "xlink:href": "assets/operator_images/" + operatorType + ".png",
