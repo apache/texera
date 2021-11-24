@@ -40,7 +40,7 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
   @JsonProperty(defaultValue = "false")
   @JsonSchemaTitle("Geo Search?")
   @JsonDeserialize(contentAs = classOf[java.lang.Boolean])
-  @JsonSchemaInject(json = """{"toggleHidden" : ["geoAttributes", "geoLocation"]}""")
+  @JsonSchemaInject(json = """{"toggleHidden" : ["geoSearchByColumns", "geoSearchBoundingBox"]}""")
   var geoSearch: Option[Boolean] = Option(false)
 
   @JsonProperty()
@@ -62,7 +62,7 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
   @JsonProperty(defaultValue = "false")
   @JsonSchemaTitle("Regex Search?")
   @JsonDeserialize(contentAs = classOf[java.lang.Boolean])
-  @JsonSchemaInject(json = """{"toggleHidden" : ["searchByColumnForRegex", "regex"]}""")
+  @JsonSchemaInject(json = """{"toggleHidden" : ["regexSearchByColumn", "regex"]}""")
   var regexSearch: Option[Boolean] = Option(false)
 
   @JsonProperty()
