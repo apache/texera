@@ -1,0 +1,24 @@
+from collections import deque
+
+import pytest
+
+from pytexera import InputExhausted, Tuple
+from .echo_table_operator import EchoTableOperator
+
+
+class TestEchoTableOperator:
+
+    @pytest.fixture
+    def echo_table_operator(self):
+        return EchoTableOperator()
+
+    def test_echo_table_operator(self, echo_table_operator):
+        echo_table_operator.open()
+        tuple_ = Tuple({"test-1": "hello", "test-2": 10})
+        deque(echo_table_operator.process_tuple(tuple_, 0))
+        outputs = echo_table_operator.process_tuple(InputExhausted(), 0)
+        output_tuple = Tuple(next(outputs))
+        assert (output_tuple == tuple_).all()
+        with pytest.raises(StopIteration):
+            next(outputs)
+        echo_table_operator.close()
