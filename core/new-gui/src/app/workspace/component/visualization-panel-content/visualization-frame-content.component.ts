@@ -353,20 +353,24 @@ export class VisualizationFrameContentComponent implements AfterContentInit, OnD
 
     const dataToDisplay: Array<[string, ...PrimitiveArray]> = [];
     const category: string[] = [];
-    for (let i = 1; i < this.columns?.length; i++) {
-      category.push(this.columns[i]);
+
+    const result = this.data as Array<Record<string, Primitive>>;
+
+    // category for x-axis
+    for (let i = 1; i < Object.values(result[0]).length; i++) {
+      category.push(String(Object.keys(result[0])[i]));
     }
+    const columnCount = category.length;
 
-    const columnCount = this.columns.length;
-
-    for (const row of this.data) {
-      const items: [string, ...PrimitiveArray] = [Object.values(row)[0]];
-      for (let i = 1; i < columnCount; i++) {
+    // data
+    for (const row of result) {
+      var items: [string, ...PrimitiveArray] = [String(Object.values(row)[0])];
+      for (let i = 1; i < columnCount + 1; i++) {
         items.push(Number(Object.values(row)[i]));
       }
       dataToDisplay.push(items);
     }
-
+    // generate chart
     if (this.c3ChartElement) {
       this.c3ChartElement.destroy();
     }

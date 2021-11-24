@@ -55,11 +55,47 @@ describe("VisualizationFrameContentComponent", () => {
     expect(component).toBeTruthy();
   });
 
-  it("should draw the figure", () => {
+  it("should draw the pie chart", () => {
     const testData: WebDataUpdate = {
       mode: { type: "SetSnapshotMode" },
       table: [{ id: 1, data: 2 }],
       chartType: ChartType.PIE,
+    };
+    operatorResultService.handleResultUpdate(testData);
+
+    spyOn(component, "generateChart");
+
+    component.ngAfterContentInit();
+
+    expect(component.generateChart).toHaveBeenCalled();
+  });
+
+  it("should draw the line chart", () => {
+    const testData: WebDataUpdate = {
+      mode: { type: "SetSnapshotMode" },
+      table: [
+        { id: 1, data1: 100, data2: 200 },
+        { id: 2, data1: 101, data2: 201 },
+      ],
+      chartType: ChartType.LINE,
+    };
+    operatorResultService.handleResultUpdate(testData);
+
+    spyOn(component, "generateChart");
+
+    component.ngAfterContentInit();
+
+    expect(component.generateChart).toHaveBeenCalled();
+  });
+
+  it("should draw the bar chart", () => {
+    const testData: WebDataUpdate = {
+      mode: { type: "SetSnapshotMode" },
+      table: [
+        { id: 1, data1: 100, data2: 200 },
+        { id: 2, data1: 101, data2: 201 },
+      ],
+      chartType: ChartType.BAR,
     };
     operatorResultService.handleResultUpdate(testData);
 
