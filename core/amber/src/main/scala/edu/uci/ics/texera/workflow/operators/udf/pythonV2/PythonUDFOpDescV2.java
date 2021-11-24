@@ -27,15 +27,23 @@ import static scala.collection.JavaConverters.asScalaBuffer;
 public class PythonUDFOpDescV2 extends OperatorDescriptor {
 
     @JsonProperty(required = true, defaultValue =
-            "# from typing import Iterator, Optional, Union\n" +
-                    "# from pytexera import InputExhausted, Tuple, TupleLike, UDFOperator, overrides\n" +
+            "# Choose from the following templates:\n" +
                     "# \n" +
-                    "# class ProcessOperator(UDFOperator):\n" +
+                    "# from typing import Iterator, Optional, Union\n" +
+                    "# from pytexera import *\n" +
+                    "# \n" +
+                    "# class ProcessTupleOperator(UDFOperator):\n" +
                     "#     \n" +
                     "#     @overrides\n" +
                     "#     def process_tuple(self, tuple_: Union[Tuple, InputExhausted], input_: int) -> Iterator[Optional[TupleLike]]:\n" +
                     "#         if isinstance(tuple_, Tuple):\n" +
-                    "#             yield tuple_"
+                    "#             yield tuple_\n" +
+                    "# \n" +
+                    "# class ProcessTableOperator(UDFTableOperator):\n" +
+                    "# \n" +
+                    "#     @overrides\n" +
+                    "#     def process_table(self, table: Table, input_: int) -> Iterator[Optional[TableLike]]:\n" +
+                    "#         yield table\n"
     )
     @JsonSchemaTitle("Python script")
     @JsonPropertyDescription("Input your code here")
@@ -55,7 +63,6 @@ public class PythonUDFOpDescV2 extends OperatorDescriptor {
     @JsonSchemaTitle("Extra output column(s)")
     @JsonPropertyDescription("Name of the newly added output columns that the UDF will produce, if any")
     public List<Attribute> outputColumns;
-
 
     @Override
     public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {

@@ -121,7 +121,6 @@ class DataProcessor(StoppableQueueBlockingRunnable):
             for tuple_ in self.process_tuple_with_udf(self._current_input_tuple, self._current_input_link):
                 self.check_and_process_control()
                 if tuple_ is not None:
-                    logger.info(tuple_)
                     self.context.statistics_manager.increase_output_tuple_count()
                     for to, batch in self.context.tuple_to_batch_converter.tuple_to_batch(tuple_):
                         self._output_queue.put(DataElement(tag=to, payload=batch))
