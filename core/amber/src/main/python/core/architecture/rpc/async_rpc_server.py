@@ -45,6 +45,7 @@ class AsyncRPCServer:
             control_return: ControlReturnV2 = set_one_of(ControlReturnV2, handler(self._context, command))
 
         except Exception as exception:
+            logger.exception(exception)
             control_return: ControlReturnV2 = set_one_of(ControlReturnV2, ControlException(str(exception)))
 
         payload: ControlPayloadV2 = set_one_of(
