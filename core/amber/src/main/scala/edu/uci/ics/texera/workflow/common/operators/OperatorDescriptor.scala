@@ -29,9 +29,10 @@ import edu.uci.ics.texera.workflow.operators.visualization.lineChart.LineChartOp
 import edu.uci.ics.texera.workflow.operators.visualization.pieChart.PieChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.WordCloudOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
-
 import java.util.UUID
+
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
+import edu.uci.ics.texera.workflow.operators.generated.GenerateDataSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.hashJoinSpecial.HashJoinSpecialOpDesc
 import edu.uci.ics.texera.workflow.operators.hashJoinSpecial2.HashJoinSpecial2OpDesc
 import edu.uci.ics.texera.workflow.operators.hashJoinTweets.HashJoinTweetsOpDesc
@@ -47,6 +48,7 @@ import edu.uci.ics.texera.workflow.operators.sortOneLayer.SortOneLayerOpDesc
 )
 @JsonSubTypes(
   Array(
+    new Type(value = classOf[GenerateDataSourceOpDesc], name = "GenerateData"),
     new Type(value = classOf[LocalCsvFileScanOpDesc], name = "LocalCsvFileScan"),
     new Type(value = classOf[SimpleSinkOpDesc], name = "SimpleSink"),
     new Type(value = classOf[RegexOpDesc], name = "Regex"),
