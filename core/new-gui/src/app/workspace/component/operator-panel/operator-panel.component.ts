@@ -74,7 +74,6 @@ export class OperatorPanelComponent implements OnInit {
           this.operatorSearchHasResults = false;
           return [];
         }
-        // TODO: remove this cast after we upgrade to Typescript 3
         const results = this.fuse.search(v).map(item => {
           return item.item;
         });
