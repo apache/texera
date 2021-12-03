@@ -28,9 +28,6 @@ import { DynamicComponentConfig } from "../../../../common/type/dynamic-componen
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { filter, first, map, takeUntil } from "rxjs/operators";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { Preset, PresetService } from "src/app/workspace/service/preset/preset.service";
-import { asType, isType, nonNull } from "src/app/common/util/assert";
-import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
 import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
 
 export type PropertyDisplayComponent = TypeCastingDisplayComponent;
@@ -91,16 +88,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   // for display component of some extra information
   extraDisplayComponentConfig?: PropertyDisplayComponentConfig;
 
-  // vars used in form preset feature. TODO: separate this logic into it's own mini-service
-  @ViewChild("promptSavePresetDialogButton") promptSaveDialogButton?: ElementRef<HTMLAnchorElement>;
-  public presetContext = {
-    hasPresetFields: false,
-    showPrompt: false,
-    resolvePrompt: (ok: boolean) => {},
-    promptResult: Promise.resolve(false),
-    originalPreset: <Preset | null>null,
-  };
-
   // used to tear down subscriptions that takeUntil(teardownObservable)
   private teardownObservable: Subject<void> = new Subject();
 
@@ -110,11 +97,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     public executeWorkflowService: ExecuteWorkflowService,
     private dynamicSchemaService: DynamicSchemaService,
     private schemaPropagationService: SchemaPropagationService,
-    private notificationService: NotificationService,
-    private operatorMetadataService: OperatorMetadataService,
-    private presetService: PresetService
+    private notificationService: NotificationService
   ) {
-    console.log(presetService);
   }
 
   ngOnChanges(changes: SimpleChanges): void {
