@@ -153,7 +153,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   async ngOnDestroy() {
     // await this.checkAndSavePreset();
     this.teardownObservable.complete();
-    this.teardownObservable.complete();
   }
 
   /**

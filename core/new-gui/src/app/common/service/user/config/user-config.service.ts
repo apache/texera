@@ -52,7 +52,9 @@ export class UserConfigService {
     }
     const url = `${AppSettings.getApiEndpoint()}/${UserConfigService.USER_DICTIONARY_ENDPOINT}/${key}`;
     const req = this.http.get(url, {responseType: "text"}).pipe(
-      tap(res => {this.updateEntry(key, res)}),
+      tap(res => {
+        this.updateEntry(key, res);
+      }),
       shareReplay(1)
     );
     req.subscribe(); // causes post request to be sent regardless caller's subscription

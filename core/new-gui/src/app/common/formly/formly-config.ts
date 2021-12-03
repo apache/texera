@@ -56,7 +56,7 @@ export const TEXERA_FORMLY_CONFIG = {
     { name: "codearea", component: CodeareaCustomTemplateComponent },
   ],
   wrappers: [
-    { name: 'preset-wrapper', component: PresetWrapperComponent },
+    { name: "preset-wrapper", component: PresetWrapperComponent },
   ]
 };
 

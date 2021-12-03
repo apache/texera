@@ -103,9 +103,9 @@ export class PresetService {
     messageType: AlertMessageType = "success"
   ) {
     if (presets.length > 0) {
-      this.userConfigService.set(`${type}-${target}`, JSON.stringify(presets))
+      this.userConfigService.set(`${type}-${target}`, JSON.stringify(presets));
     } else {
-      this.userConfigService.delete(`${type}-${target}`)
+      this.userConfigService.delete(`${type}-${target}`);
     }
     this.savePresetSubject.next({ type: type, target: target, presets: presets });
     this.displaySavePresetMessage(messageType, displayMessage);
@@ -130,14 +130,14 @@ export class PresetService {
       .pipe(first())
       .subscribe(
         presetsString => {
-          let presets = (JSON.parse(presetsString ?? "[]")) as Preset[]
+          let presets = (JSON.parse(presetsString ?? "[]")) as Preset[];
           if (contains(presets, preset)) {
-            throw new Error(`attempting to create preset that already exists`);
+            throw new Error("attempting to create preset that already exists");
           }
-          presets.push(preset)
-          this.savePresets(type, target, presets, displayMessage, messageType)
+          presets.push(preset);
+          this.savePresets(type, target, presets, displayMessage, messageType);
         }
-      )
+      );
   }
 
   /**
@@ -160,18 +160,18 @@ export class PresetService {
       .pipe(first())
       .subscribe(
         presetsString => {
-          let presets = JSON.parse(presetsString ?? "[]") as Preset[]
+          let presets = JSON.parse(presetsString ?? "[]") as Preset[];
           if (!contains(presets, originalPreset)) {
-            throw new Error(`attempting to update preset that doesn't exist`);
+            throw new Error("attempting to update preset that doesn't exist");
           } else if (contains(presets, replacementPreset)) {
             // implicit deletion by replacing original with existing preset
-            presets.splice(indexOf(presets, originalPreset), 1)
+            presets.splice(indexOf(presets, originalPreset), 1);
           } else {
-            presets[indexOf(presets, originalPreset)] = replacementPreset
+            presets[indexOf(presets, originalPreset)] = replacementPreset;
           }
-          this.savePresets(type, target, presets, displayMessage, messageType)
+          this.savePresets(type, target, presets, displayMessage, messageType);
         }
-      )
+      );
   }
 
   /**
@@ -194,8 +194,7 @@ export class PresetService {
       .pipe(first())
       .subscribe(
         oldpresets=> {
-          let presets = JSON.parse(oldpresets ?? "[]") as Preset[]
-          debugger;
+          let presets = JSON.parse(oldpresets ?? "[]") as Preset[];
           if (isEqual(originalPreset, replacementPreset)){
             // no modification: no update required
           } else if (!contains(presets, originalPreset) && !contains(presets, replacementPreset)) {
@@ -204,13 +203,13 @@ export class PresetService {
             // no modification: old preset doesn't exist to be updated, new preset already exists
           } else if (contains(presets, originalPreset) && contains(presets, replacementPreset)) {
             // implicit deletion by replacing original with existing preset
-            presets.splice(indexOf(presets, originalPreset), 1)
+            presets.splice(indexOf(presets, originalPreset), 1);
           } else {
-            presets[indexOf(presets, originalPreset)] = replacementPreset
+            presets[indexOf(presets, originalPreset)] = replacementPreset;
           }
-          this.savePresets(type, target, presets, displayMessage, messageType)
+          this.savePresets(type, target, presets, displayMessage, messageType);
         }
-      )
+      );
   }
 
 
@@ -256,8 +255,7 @@ export class PresetService {
           }
         }
       )
-    )
-    
+    );
   }
 
   /**
@@ -297,7 +295,9 @@ export class PresetService {
       this.workflowActionService.getTexeraGraph().getOperator(operatorID).operatorType
     ).pipe(
       first(), 
-      map( presets => {console.log(!presets.some(existingPreset => isEqual(preset, existingPreset)), "vn") ;return !presets.some(existingPreset => isEqual(preset, existingPreset))} )
+      map( presets => {
+      console.log(!presets.some(existingPreset => isEqual(preset, existingPreset)), "vn") ;return !presets.some(existingPreset => isEqual(preset, existingPreset));
+      } )
     );
   }
 
@@ -441,5 +441,5 @@ export class PresetService {
 }
 
 function contains(arr: any[], value: any){
-  return arr.some(elem => isEqual(elem, value))
+  return arr.some(elem => isEqual(elem, value));
 }

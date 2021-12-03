@@ -71,7 +71,7 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
     this.handleSavePresets(); // handles when presets for this saveTarget change
     this.handleApplyPreset(); // handles when presets for this saveTarget change
     this.handleFieldValueChanges(); // handles updating search results as the user types
-    console.log(this)
+    console.log(this);
   }
 
   /**
@@ -153,17 +153,17 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
   }
 
   public savePreset() {
-    const preset = this.filterPresetFromForm()
-    console.log(preset, this.presetService.isValidPreset(preset))
+    const preset = this.filterPresetFromForm();
+    console.log(preset, this.presetService.isValidPreset(preset));
     if (this.presetService.isValidPreset(preset)) {
       this.presetService.updateOrCreatePreset(
         this.presetType,
         this.saveTarget,
         this.basePreset,
         preset
-      )
+      );
     } else {
-      this.messageService.error("Preset not saved: Fill out all preset fields.")
+      this.messageService.error("Preset not saved: Fill out all preset fields.");
     }
   }
 
@@ -208,14 +208,14 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
    * @returns partially finished Preset. use PresetService.isValidOperatorPreset to verify all preset attributes exist
   */
   filterPresetFromForm(): Preset {
-    let preset: Preset = {}
+    let preset: Preset = {};
     let arr =  this.field.parent?.fieldGroup?.filter(formfield => formfield.wrappers?.includes("preset-wrapper"));
     (arr as FormlyFieldConfig[]) .forEach(field => {
-        const key = asType(field.key, "string")
-        preset[key] = field.model[key]
+        const key = asType(field.key, "string");
+        preset[key] = field.model[key];
       });
 
-    return preset
+    return preset;
   }
 
   /**
@@ -246,7 +246,7 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
    */
   private updateSearchResults(showAllResults = true) {
     this.presetService.getPresets(this.presetType, this.saveTarget)
-    .pipe(first())
+    .pipe(first(), takeUntil(this.teardownObservable))
     .subscribe(
       presets => {
         this.searchResults = this.getSearchResults(
@@ -255,7 +255,7 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
           showAllResults
         );
       }
-    )
+    );
   }
 
   /**
