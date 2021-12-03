@@ -5,6 +5,7 @@ import { ReplaySubject } from "rxjs";
 import { takeUntil, debounceTime, filter, first } from "rxjs/operators";
 import { Preset, PresetService } from "src/app/workspace/service/preset/preset.service";
 import { asType, nonNull } from "../../util/assert";
+import { NzMessageService } from "ng-zorro-antd/message";
 
 /**
  * PresetWrapperComponent is a custom formly form field wrapper: https://formly.dev/guide/custom-formly-wrapper
@@ -43,7 +44,9 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
   private basePreset: Preset = {};
   private teardownObservable: ReplaySubject<boolean> = new ReplaySubject(1); // observable used OnDestroy to tear down subscriptions that takeUntil(teardownObservable)
 
-  constructor(private presetService: PresetService) {
+  constructor(
+    private presetService: PresetService,
+    private messageService: NzMessageService) {
     super();
   }
 
@@ -159,6 +162,8 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
         this.basePreset,
         preset
       )
+    } else {
+      this.messageService.error("Preset not saved: Fill out all preset fields.")
     }
   }
 
