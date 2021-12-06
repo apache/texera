@@ -59,6 +59,10 @@ $header-height: 120px;
   grid-row-start: 2;
   grid-row-end: 3;
   overflow: auto;
+
+  .texera-dashboard-saved-workflow-search-box-input {
+    margin-bottom: 30px;
+  }
 }
 
 .workflow-list-item {

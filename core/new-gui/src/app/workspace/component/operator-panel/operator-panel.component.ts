@@ -1,7 +1,7 @@
 import { Component, OnInit } from "@angular/core";
 import { FormControl } from "@angular/forms";
 import { MatAutocompleteSelectedEvent } from "@angular/material/autocomplete";
-import * as Fuse from "fuse.js";
+import Fuse from "fuse.js";
 import { Observable } from "rxjs";
 import { map } from "rxjs/operators";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
@@ -56,7 +56,6 @@ export class OperatorPanelComponent implements OnInit {
     threshold: 0.3,
     location: 0,
     distance: 100,
-    maxPatternLength: 32,
     minMatchCharLength: 1,
     keys: ["additionalMetadata.userFriendlyName"],
   });
@@ -75,8 +74,9 @@ export class OperatorPanelComponent implements OnInit {
           this.operatorSearchHasResults = false;
           return [];
         }
-        // TODO: remove this cast after we upgrade to Typescript 3
-        const results = this.fuse.search(v) as OperatorSchema[];
+        const results = this.fuse.search(v).map(item => {
+          return item.item;
+        });
         this.operatorSearchHasResults = true;
         return results;
       })

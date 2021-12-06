@@ -10,6 +10,7 @@ import { DashboardWorkflowEntry } from "../../../type/dashboard-workflow-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
+import Fuse from "fuse.js";
 
 export const ROUTER_WORKFLOW_BASE_URL = "/workflow";
 export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
@@ -23,7 +24,24 @@ export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
 export class SavedWorkflowSectionComponent implements OnInit {
   public dashboardWorkflowEntries: DashboardWorkflowEntry[] = [];
   public dashboardWorkflowEntriesIsEditingName: number[] = [];
+  public allDashboardWorkflowEntries: DashboardWorkflowEntry[] = [];
+  public filteredDashboardWorkflowNames: Set<string> = new Set();
+  public fuse = new Fuse([] as ReadonlyArray<DashboardWorkflowEntry>, {
+    shouldSort: true,
+    threshold: 0.2,
+    location: 0,
+    distance: 100,
+    minMatchCharLength: 1,
+    keys: ["workflow.wid", "workflow.name", "ownerName"],
+  });
+  public searchCriteriaPathMapping: Map<string, string[]> = new Map([
+    ["workflowName", ["workflow", "name"]],
+    ["id", ["workflow", "wid"]],
+    ["owner", ["ownerName"]],
+  ]);
+  public workflowSearchValue: string = "";
   private defaultWorkflowName: string = "Untitled Workflow";
+  public searchCriteria: string[] = ["owner", "id"];
 
   constructor(
     private userService: UserService,
@@ -43,6 +61,86 @@ export class SavedWorkflowSectionComponent implements OnInit {
   public onClickOpenShareAccess({ workflow }: DashboardWorkflowEntry): void {
     const modalRef = this.modalService.open(NgbdModalWorkflowShareAccessComponent);
     modalRef.componentInstance.workflow = workflow;
+  }
+
+  public searchInputOnChange(value: string): void {
+    // enable autocomplete only when searching for workflow name
+    if (!value.includes(":")) {
+      this.filteredDashboardWorkflowNames = new Set();
+      this.allDashboardWorkflowEntries.forEach(dashboardEntry => {
+        const workflowName = dashboardEntry.workflow.name;
+        if (workflowName.toLowerCase().indexOf(value.toLowerCase()) !== -1) {
+          this.filteredDashboardWorkflowNames.add(workflowName);
+        }
+      });
+    }
+  }
+
+  // check https://fusejs.io/api/query.html#logical-query-operators for logical query operators rule
+  public buildAndPathQuery(
+    workflowSearchField: string,
+    workflowSearchValue: string
+  ): {
+    $path: ReadonlyArray<string>;
+    $val: string;
+  } {
+    return {
+      $path: this.searchCriteriaPathMapping.get(workflowSearchField) as ReadonlyArray<string>,
+      $val: workflowSearchValue,
+    };
+  }
+
+  /**
+   * Search workflows by owner name, workflow name or workflow id
+   * Use fuse.js https://fusejs.io/ as the tool for searching
+   */
+  public searchWorkflow(): void {
+    let andPathQuery: Object[] = [];
+    this.dashboardWorkflowEntries = [];
+    // empty search value, return all workflow entries
+    if (this.workflowSearchValue.trim() === "") {
+      this.dashboardWorkflowEntries = cloneDeep(this.allDashboardWorkflowEntries);
+      return;
+    } else if (!this.workflowSearchValue.includes(":")) {
+      // search only by workflow name
+      andPathQuery.push(this.buildAndPathQuery("workflowName", this.workflowSearchValue));
+      this.fuse
+        .search({
+          $and: andPathQuery,
+        })
+        .forEach(res => {
+          this.dashboardWorkflowEntries.push(res.item);
+        });
+      return;
+    }
+    const searchConsitionsSet = new Set(this.workflowSearchValue.trim().split(/ +(?=(?:(?:[^"]*"){2})*[^"]*$)/g));
+    searchConsitionsSet.forEach(condition => {
+      // field search
+      if (condition.includes(":")) {
+        const conditionArray = condition.split(":");
+        if (conditionArray.length !== 2) {
+          this.notificationService.error("Please check the format of the search query");
+          return;
+        }
+        const workflowSearchField = conditionArray[0];
+        const workflowSearchValue = conditionArray[1];
+        if (!this.searchCriteria.includes(workflowSearchField)) {
+          this.notificationService.error("Cannot search by " + workflowSearchField);
+          return;
+        }
+        andPathQuery.push(this.buildAndPathQuery(workflowSearchField, workflowSearchValue));
+      } else {
+        //search by workflow name
+        andPathQuery.push(this.buildAndPathQuery("workflowName", condition));
+      }
+    });
+    this.fuse
+      .search({
+        $and: andPathQuery,
+      })
+      .forEach(res => {
+        this.dashboardWorkflowEntries.push(res.item);
+      });
   }
 
   /**
@@ -166,7 +264,15 @@ export class SavedWorkflowSectionComponent implements OnInit {
     this.workflowPersistService
       .retrieveWorkflowsBySessionUser()
       .pipe(untilDestroyed(this))
-      .subscribe(dashboardWorkflowEntries => (this.dashboardWorkflowEntries = dashboardWorkflowEntries));
+      .subscribe(dashboardWorkflowEntries => {
+        this.dashboardWorkflowEntries = dashboardWorkflowEntries;
+        this.allDashboardWorkflowEntries = dashboardWorkflowEntries;
+        this.fuse.setCollection(this.allDashboardWorkflowEntries);
+        dashboardWorkflowEntries.forEach(dashboardWorkflowEntry => {
+          const workflow = dashboardWorkflowEntry.workflow;
+          this.filteredDashboardWorkflowNames.add(workflow.name);
+        });
+      });
   }
 
   private clearDashboardWorkflowEntries(): void {

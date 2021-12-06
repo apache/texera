@@ -15,6 +15,27 @@
   </nz-card>
 
   <nz-card class="user-file-list subsection-grid-container">
+    <nz-input-group [nzSuffix]="suffixIconSearch" class="texera-dashboard-user-file-search-box-input">
+      <input
+        [(ngModel)]="userFileSearchValue"
+        nz-input
+        nzBackdrop="false"
+        placeholder="Search User Files..."
+        (keyup.enter)="isTyping = false"
+        type="text"
+        (ngModelChange)="searchInputOnChange($event)"
+        [nzAutocomplete]="auto"
+      />
+      <ng-template #suffixIconSearch>
+        <i nz-icon nzType="search"></i>
+      </ng-template>
+      <nz-autocomplete
+        [nzDefaultActiveFirstOption]="false"
+        [nzDataSource]="filteredFilenames"
+        nzBackfill
+        #auto
+      ></nz-autocomplete>
+    </nz-input-group>
     <nz-list>
       <nz-list-item
         *ngFor="let dashboardUserFileEntry of getFileArray();let indexOfElement=index"
