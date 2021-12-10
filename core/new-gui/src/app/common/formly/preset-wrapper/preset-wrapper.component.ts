@@ -156,10 +156,10 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
     const preset = this.filterPresetFromForm();
     console.log(preset, this.presetService.isValidPreset(preset));
     if (this.presetService.isValidPreset(preset)) {
-      this.presetService.updateOrCreatePreset(
+      this.presetService.createPreset(
         this.presetType,
         this.saveTarget,
-        this.basePreset,
+        // this.basePreset,
         preset
       );
     } else {
@@ -239,7 +239,7 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
     });
   }
 
-  
+
 
   /**
    * updates search results
@@ -280,6 +280,10 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
           saveTarget: saveTarget,
           applyTarget: applyTarget,
         },
+        // disable browser's default autocomplete to not block our preset autocomplete
+        attributes: {
+          autocomplete: 'off'
+        }
       },
     };
     merge(config, fieldConfig);

@@ -294,7 +294,7 @@ export class PresetService {
       "operator",
       this.workflowActionService.getTexeraGraph().getOperator(operatorID).operatorType
     ).pipe(
-      first(), 
+      first(),
       map( presets => {
       console.log(!presets.some(existingPreset => isEqual(preset, existingPreset)), "vn") ;return !presets.some(existingPreset => isEqual(preset, existingPreset));
       } )

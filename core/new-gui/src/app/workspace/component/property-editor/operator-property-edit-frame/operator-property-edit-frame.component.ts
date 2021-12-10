@@ -29,6 +29,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { filter, first, map, takeUntil } from "rxjs/operators";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
+import { environment } from "src/environments/environment";
 
 export type PropertyDisplayComponent = TypeCastingDisplayComponent;
 
@@ -311,6 +312,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       }
       // if presetService is ready and operator property allows presets, setup formly field to display presets
       if (
+        environment.userSystemEnabled && environment.userPresetEnabled &&
         mapSource["enable-presets"] !== undefined &&
         this.currentOperatorId !== undefined
       ) {
