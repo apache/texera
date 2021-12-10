@@ -80,9 +80,9 @@ export class WorkspaceComponent implements AfterViewInit, OnDestroy {
     // clear the current workspace, reset as `WorkflowActionService.DEFAULT_WORKFLOW`
     this.workflowActionService.resetAsNewWorkflow();
 
-    if(this.userSystemEnabled){
+    if (this.userSystemEnabled) {
       this.registerReEstablishWebsocketUponWIdChange();
-    }else{
+    } else {
       let wid = this.route.snapshot.params.id ?? 0;
       this.workflowWebsocketService.openWebsocket(wid);
     }
