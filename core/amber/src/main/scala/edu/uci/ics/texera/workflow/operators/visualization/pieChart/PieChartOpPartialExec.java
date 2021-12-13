@@ -47,10 +47,10 @@ public class PieChartOpPartialExec implements OperatorExecutor {
             Tuple inputTuple = tuple.left().get();
             String name = inputTuple.getField(nameColumn);
             Double data;
-            if (inputTuple.getSchema().getAttribute(dataColumn).getType() == AttributeType.STRING) {
-                data = Double.parseDouble(inputTuple.getField(dataColumn));
-            } else {
+            if (inputTuple.getSchema().getAttribute(dataColumn).getType() == AttributeType.DOUBLE) {
                 data = inputTuple.getField(dataColumn);
+            } else {
+                data = Double.parseDouble(inputTuple.getField(dataColumn).toString());
             }
             Schema oldSchema = tuple.left().get().getSchema();
             Attribute dataAttribute = new Attribute(oldSchema.getAttribute(dataColumn).getName(), AttributeType.DOUBLE);

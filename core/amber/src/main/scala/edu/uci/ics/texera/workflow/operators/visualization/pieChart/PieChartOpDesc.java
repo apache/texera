@@ -8,6 +8,7 @@ import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
+import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
@@ -77,7 +78,7 @@ public class PieChartOpDesc extends VisualizationOperator {
 
         return Schema.newBuilder().add(
                 schemas[0].getAttribute(nameColumn),
-                schemas[0].getAttribute(dataColumn)
+                new Attribute(schemas[0].getAttribute(dataColumn).getName(), AttributeType.DOUBLE)
         ).build();
     }
 }
