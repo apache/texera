@@ -7,8 +7,9 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttribut
 import edu.uci.ics.texera.workflow.common.operators.aggregate.DistributedAggregation
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseTimestamp
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
+
 import java.util.Collections.singletonList
 import scala.jdk.CollectionConverters.asScalaBuffer
 
@@ -21,21 +22,20 @@ class DistributedBarChartDesc extends VisualizationOperator{
   @JsonPropertyDescription("column(s) of data (for y-axis)")
   @AutofillAttributeNameList var dataColumns: List[String] = _
 
-  val noDataCol: Boolean = dataColumns == null || dataColumns.isEmpty
-
-  @JsonIgnore
-  val resultAttribute: String = if (noDataCol) "count" else dataColumns.head
-
-  override def chartType: String = VisualizationConstants.BAR
-
   @JsonIgnore
   private var groupBySchema: Schema = _
   @JsonIgnore
   private var finalAggValueSchema: Schema = _
 
+  override def chartType: String = VisualizationConstants.BAR
+
+  def noDataCol: Boolean = dataColumns == null || dataColumns.isEmpty
+
+  def resultAttributeNames: List[String] = if (noDataCol) List("count") else dataColumns
+
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-    if (nameColumn == null) {
-      throw new RuntimeException("bar chart: name column is null")
+    if (nameColumn == null|| nameColumn == "") {
+      throw new RuntimeException("bar chart: name column is null or empty")
     }
 
     this.groupBySchema = getGroupByKeysSchema(operatorSchemaInfo.inputSchemas)
@@ -50,23 +50,26 @@ class DistributedBarChartDesc extends VisualizationOperator{
         partial => {
           Tuple
             .newBuilder(finalAggValueSchema)
-            .add(resultAttribute, AttributeType.INTEGER, partial)
+            .add(resultAttributeNames.head, AttributeType.INTEGER, partial)
             .build
         },
         groupByFunc()
-      ) else new DistributedAggregation[java.lang.Double](
-        () => 0,
+      ) else new DistributedAggregation[Array[Double]](
+        () => Array.fill(dataColumns.length)(0),
         (partial, tuple) => {
-          val value = getNumericalValue(tuple)
-          partial + (if (value.isDefined) value.get else 0)
-
+          for (i <- dataColumns.indices) {
+            partial(i) = partial(i) + getNumericalValue(tuple, dataColumns(i))
+          }
+          partial
         },
-        (partial1, partial2) => partial1 + partial2,
+        (partial1, partial2) => partial1.zip(partial2).map { case (x, y) => x + y },
         partial => {
-          Tuple
-            .newBuilder(finalAggValueSchema)
-            .add(resultAttribute, AttributeType.DOUBLE, partial)
-            .build
+          print(finalAggValueSchema.toString)
+          val resultBuilder = Tuple.newBuilder(finalAggValueSchema)
+          for (i <- dataColumns.indices) {
+            resultBuilder.add(resultAttributeNames(i), AttributeType.DOUBLE, partial(i))
+          }
+          resultBuilder.build()
         },
         groupByFunc()
       )
@@ -89,15 +92,14 @@ class DistributedBarChartDesc extends VisualizationOperator{
       .build()
   }
 
-  private def getNumericalValue(tuple: Tuple): Option[Double] = {
-    val attribute = dataColumns.head
+  private def getNumericalValue(tuple: Tuple, attribute: String): Double = {
     val value: Object = tuple.getField(attribute)
     if (value == null)
-      return None
+      return 0
 
     if (tuple.getSchema.getAttribute(attribute).getType == AttributeType.TIMESTAMP)
-      Option(parseTimestamp(value.toString).getTime.toDouble)
-    else Option(value.toString.toDouble)
+      parseTimestamp(value.toString).getTime.toDouble
+    else value.toString.toDouble
   }
 
   private def getGroupByKeysSchema(schemas: Array[Schema]): Schema = {
@@ -109,10 +111,17 @@ class DistributedBarChartDesc extends VisualizationOperator{
   }
 
   private def getFinalAggValueSchema: Schema = {
-    Schema
-      .newBuilder()
-      .add(resultAttribute, if (noDataCol) AttributeType.INTEGER else AttributeType.DOUBLE)
-      .build()
+    if (noDataCol) {
+      Schema
+        .newBuilder()
+        .add(resultAttributeNames.head, AttributeType.INTEGER)
+        .build()
+    } else {
+      Schema
+        .newBuilder()
+        .add(resultAttributeNames.map(key => new Attribute(key, AttributeType.DOUBLE)).toArray: _*)
+        .build()
+    }
   }
 
   def groupByFunc(): Schema => Schema = {
