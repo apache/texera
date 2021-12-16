@@ -17,12 +17,14 @@ class DistributedBarChartDesc extends VisualizationOperator{
   @JsonPropertyDescription("column of name (for x-axis)")
   @AutofillAttributeName var nameColumn: String = _
 
-  @JsonProperty(value = "data column(s)", required = true)
+  @JsonProperty(value = "data column(s)", required = false)
   @JsonPropertyDescription("column(s) of data (for y-axis)")
   @AutofillAttributeNameList var dataColumns: List[String] = _
 
+  val noDataCol: Boolean = dataColumns == null || dataColumns.isEmpty
+
   @JsonIgnore
-  private var resultAttribute = "AggregatedDataColumn"
+  val resultAttribute: String = if (noDataCol) "count" else dataColumns.head
 
   override def chartType: String = VisualizationConstants.BAR
 
@@ -35,31 +37,40 @@ class DistributedBarChartDesc extends VisualizationOperator{
     if (nameColumn == null) {
       throw new RuntimeException("bar chart: name column is null")
     }
-    if (dataColumns == null || dataColumns.isEmpty) {
-      throw new RuntimeException("bar chart: data column is null or empty")
-    }
 
     this.groupBySchema = getGroupByKeysSchema(operatorSchemaInfo.inputSchemas)
     this.finalAggValueSchema = getFinalAggValueSchema
 
-    val aggregation = new DistributedAggregation[java.lang.Double](
-      () => 0,
-      (partial, tuple) => {
-        val value = getNumericalValue(tuple)
-        partial + (if (value.isDefined) value.get else 0)
+    val aggregation = if (noDataCol) new DistributedAggregation[Integer](
+        () => 0,
+        (partial, tuple) => {
+          partial + (if (tuple.getField(nameColumn) != null) 1 else 0)
+        },
+        (partial1, partial2) => partial1 + partial2,
+        partial => {
+          Tuple
+            .newBuilder(finalAggValueSchema)
+            .add(resultAttribute, AttributeType.INTEGER, partial)
+            .build
+        },
+        groupByFunc()
+      ) else new DistributedAggregation[java.lang.Double](
+        () => 0,
+        (partial, tuple) => {
+          val value = getNumericalValue(tuple)
+          partial + (if (value.isDefined) value.get else 0)
 
-      },
-      (partial1, partial2) => partial1 + partial2,
-      partial => {
-        Tuple
-          .newBuilder(finalAggValueSchema)
-          .add(resultAttribute, AttributeType.DOUBLE, partial)
-          .build
-      },
-      groupByFunc()
-    )
-
-    new DistributedBarChartOpExecConfig(operatorIdentifier, aggregation,this, operatorSchemaInfo)
+        },
+        (partial1, partial2) => partial1 + partial2,
+        partial => {
+          Tuple
+            .newBuilder(finalAggValueSchema)
+            .add(resultAttribute, AttributeType.DOUBLE, partial)
+            .build
+        },
+        groupByFunc()
+      )
+      new DistributedBarChartOpExecConfig(operatorIdentifier, aggregation,this, operatorSchemaInfo)
   }
 
   override def operatorInfo: OperatorInfo = OperatorInfo(
@@ -100,7 +111,7 @@ class DistributedBarChartDesc extends VisualizationOperator{
   private def getFinalAggValueSchema: Schema = {
     Schema
       .newBuilder()
-      .add(resultAttribute, AttributeType.DOUBLE)
+      .add(resultAttribute, if (noDataCol) AttributeType.INTEGER else AttributeType.DOUBLE)
       .build()
   }
 

@@ -12,9 +12,9 @@ import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.aggregate.{DistributedAggregation, FinalAggregateOpExec, PartialAggregateOpExec}
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
-class DistributedBarChartOpExecConfig(
+class DistributedBarChartOpExecConfig[P <: AnyRef](
                                          id: OperatorIdentity,
-                                         val aggFunc: DistributedAggregation[java.lang.Double],
+                                         val aggFunc: DistributedAggregation[P],
                                          desc: DistributedBarChartDesc,
                                          operatorSchemaInfo: OperatorSchemaInfo
                                        ) extends OpExecConfig(id) {

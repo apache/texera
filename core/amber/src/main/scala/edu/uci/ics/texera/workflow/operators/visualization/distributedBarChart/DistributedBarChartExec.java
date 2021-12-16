@@ -23,7 +23,7 @@ public class DistributedBarChartExec extends MapOpExec {
         Schema inputSchema = t.getSchema();
 
         builder.add(inputSchema.getAttribute(opDesc.nameColumn()), t.getField(opDesc.nameColumn()));
-        String dataColumn = "AggregatedDataColumn";
+        String dataColumn = opDesc.resultAttribute();
         builder.add(inputSchema.getAttribute(dataColumn), t.getField(dataColumn));
 
         return builder.build();
