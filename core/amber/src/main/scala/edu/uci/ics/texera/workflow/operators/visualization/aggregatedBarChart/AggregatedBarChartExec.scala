@@ -1,13 +1,14 @@
-package edu.uci.ics.texera.workflow.operators.visualization.distributedBarChart
+package edu.uci.ics.texera.workflow.operators.visualization.aggregatedBarChart
 
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
+import edu.uci.ics.texera.workflow.operators.visualization.AggregatedVizOpExec
 
-class DistributedBarChartExec(
-                               opDesc: DistributedBarChartDesc,
+class AggregatedBarChartExec(
+                               opDesc: AggregatedBarChartDesc,
                                operatorSchemaInfo: OperatorSchemaInfo
-                             ) extends MapOpExec{
+                             ) extends MapOpExec with AggregatedVizOpExec{
 
   setMapFunc(this.processTuple)
 

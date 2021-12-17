@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.visualization.distributedBarChart
+package edu.uci.ics.texera.workflow.operators.visualization
 
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.{FollowPrevious, UseAll}
@@ -12,12 +12,12 @@ import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.aggregate.{DistributedAggregation, FinalAggregateOpExec, PartialAggregateOpExec}
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
-class DistributedBarChartOpExecConfig[P <: AnyRef](
-                                         id: OperatorIdentity,
-                                         val aggFunc: DistributedAggregation[P],
-                                         desc: DistributedBarChartDesc,
-                                         operatorSchemaInfo: OperatorSchemaInfo
-                                       ) extends OpExecConfig(id) {
+class AggregatedVizOpExecConfig[P <: AnyRef](
+                                              id: OperatorIdentity,
+                                              val aggFunc: DistributedAggregation[P],
+                                              exec: AggregatedVizOpExec,
+                                              operatorSchemaInfo: OperatorSchemaInfo
+                                            ) extends OpExecConfig(id) {
 
   override lazy val topology: Topology = {
       val partialLayer = new WorkerLayer(
@@ -34,9 +34,9 @@ class DistributedBarChartOpExecConfig[P <: AnyRef](
         FollowPrevious(),
         RoundRobinDeployment()
       )
-      val barChartLayer = new WorkerLayer(
-        makeLayer(id, "barChart"),
-        _ => new DistributedBarChartExec(desc, operatorSchemaInfo),
+      val vizLayer = new WorkerLayer(
+        makeLayer(id, "visualize"),
+        _ => exec,
         Constants.currentWorkerNum,
         FollowPrevious(),
         RoundRobinDeployment()
@@ -45,7 +45,7 @@ class DistributedBarChartOpExecConfig[P <: AnyRef](
         Array(
           partialLayer,
           finalLayer,
-          barChartLayer
+          vizLayer
         ),
         Array(
           new HashBasedShuffle(
@@ -56,7 +56,7 @@ class DistributedBarChartOpExecConfig[P <: AnyRef](
           ),
           new OneToOne(
             finalLayer,
-            barChartLayer,
+            vizLayer,
             Constants.defaultBatchSize
           )
         )

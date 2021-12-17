@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.visualization.distributedBarChart
+package edu.uci.ics.texera.workflow.operators.visualization.aggregatedBarChart
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
@@ -8,12 +8,12 @@ import edu.uci.ics.texera.workflow.common.operators.aggregate.DistributedAggrega
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseTimestamp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.texera.workflow.operators.visualization.{AggregatedVizOpExecConfig, VisualizationConstants, VisualizationOperator}
 
 import java.util.Collections.singletonList
 import scala.jdk.CollectionConverters.asScalaBuffer
 
-class DistributedBarChartDesc extends VisualizationOperator{
+class AggregatedBarChartDesc extends VisualizationOperator{
   @JsonProperty(value = "name column", required = true)
   @JsonPropertyDescription("column of name (for x-axis)")
   @AutofillAttributeName var nameColumn: String = _
@@ -73,7 +73,12 @@ class DistributedBarChartDesc extends VisualizationOperator{
         },
         groupByFunc()
       )
-      new DistributedBarChartOpExecConfig(operatorIdentifier, aggregation,this, operatorSchemaInfo)
+      new AggregatedVizOpExecConfig(
+        operatorIdentifier,
+        aggregation,
+        new AggregatedBarChartExec(this, operatorSchemaInfo),
+        operatorSchemaInfo
+      )
   }
 
   override def operatorInfo: OperatorInfo = OperatorInfo(

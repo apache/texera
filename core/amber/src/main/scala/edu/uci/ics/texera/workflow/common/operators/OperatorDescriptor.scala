@@ -38,7 +38,7 @@ import edu.uci.ics.texera.workflow.operators.udf.pythonV1.PythonUDFOpDesc
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.source.PythonUDFSourceOpDescV2
 import edu.uci.ics.texera.workflow.operators.union.UnionOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.barChart.BarChartOpDesc
-import edu.uci.ics.texera.workflow.operators.visualization.distributedBarChart.DistributedBarChartDesc
+import edu.uci.ics.texera.workflow.operators.visualization.aggregatedBarChart.AggregatedBarChartDesc
 import edu.uci.ics.texera.workflow.operators.visualization.htmlviz.HtmlVizOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.lineChart.LineChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.pieChart.PieChartOpDesc
@@ -74,7 +74,7 @@ import java.util.UUID
     new Type(value = classOf[LinearRegressionOpDesc], name = "LinearRegression"),
     new Type(value = classOf[LineChartOpDesc], name = "LineChart"),
     new Type(value = classOf[BarChartOpDesc], name = "BarChart"),
-    new Type(value = classOf[DistributedBarChartDesc], name = "DistributedBarchart"),
+    new Type(value = classOf[AggregatedBarChartDesc], name = "DistributedBarchart"),
     new Type(value = classOf[PieChartOpDesc], name = "PieChart"),
     new Type(value = classOf[WordCloudOpDesc], name = "WordCloud"),
     new Type(value = classOf[HtmlVizOpDesc], name = "HTMLVisualizer"),
