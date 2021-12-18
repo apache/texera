@@ -12,6 +12,14 @@ import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.aggregate.{DistributedAggregation, FinalAggregateOpExec, PartialAggregateOpExec}
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
+/**
+  * Generic config for a visualization operator that supports aggregation internally.
+  * @param id A descriptor's OperatorIdentity.
+  * @param aggFunc Custom aggregation function to be applied on the data, the first two layers.
+  * @param exec The final layer, wraps things up for whatever is needed by the frontend.
+  * @param operatorSchemaInfo The descriptor's OperatorSchemaInfo.
+  * @tparam P The type of the aggregation data.
+  */
 class AggregatedVizOpExecConfig[P <: AnyRef](
                                               id: OperatorIdentity,
                                               val aggFunc: DistributedAggregation[P],

@@ -5,10 +5,15 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 import edu.uci.ics.texera.workflow.operators.visualization.AggregatedVizOpExec
 
+/**
+  * Simply mocks the data.
+  * @param opDesc BarChartOpDesc.
+  * @param operatorSchemaInfo The descriptor's schema info.
+  */
 class BarChartOpExec(
                       opDesc: BarChartOpDesc,
                       operatorSchemaInfo: OperatorSchemaInfo
-                             ) extends MapOpExec with AggregatedVizOpExec{
+                    ) extends MapOpExec with AggregatedVizOpExec{
 
   setMapFunc(this.processTuple)
 

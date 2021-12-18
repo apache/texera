@@ -13,6 +13,11 @@ import edu.uci.ics.texera.workflow.operators.visualization.{AggregatedVizOpExecC
 import java.util.Collections.singletonList
 import scala.jdk.CollectionConverters.asScalaBuffer
 
+/**
+  * Supports a bar chart with internal aggregation for one name column (label, x-axis) and multiple data columns (y-axis).
+  * If no data column is provided, the count of each label is returned; else the aggregated sum over each data column,
+  * grouped by each label is returned.
+  */
 class BarChartOpDesc extends VisualizationOperator{
   @JsonProperty(value = "name column", required = true)
   @JsonPropertyDescription("column of name (for x-axis)")
@@ -64,7 +69,6 @@ class BarChartOpDesc extends VisualizationOperator{
         },
         (partial1, partial2) => partial1.zip(partial2).map { case (x, y) => x + y },
         partial => {
-          print(finalAggValueSchema.toString)
           val resultBuilder = Tuple.newBuilder(finalAggValueSchema)
           for (i <- dataColumns.indices) {
             resultBuilder.add(resultAttributeNames(i), AttributeType.DOUBLE, partial(i))
@@ -82,7 +86,7 @@ class BarChartOpDesc extends VisualizationOperator{
   }
 
   override def operatorInfo: OperatorInfo = OperatorInfo(
-    "Distributed Bar Chart",
+    "Bar Chart",
     "View the result in bar chart",
     OperatorGroupConstants.VISUALIZATION_GROUP,
     asScalaBuffer(singletonList(InputPort(""))).toList,
