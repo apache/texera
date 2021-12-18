@@ -16,7 +16,7 @@ object PropertyNameConstants { // logical plan property names
   // common operator property names
   final val ATTRIBUTE_NAMES = "attributes"
   final val ATTRIBUTE_NAME = "attribute"
-  final val RESULT_ATTRIBUTE_NAME = "resultAttributeNames"
+  final val RESULT_ATTRIBUTE_NAME = "resultAttribute"
   final val SPAN_LIST_NAME = "spanListName"
   final val TABLE_NAME = "tableName"
 }

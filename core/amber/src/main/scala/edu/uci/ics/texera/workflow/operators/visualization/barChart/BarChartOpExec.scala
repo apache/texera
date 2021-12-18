@@ -1,13 +1,13 @@
-package edu.uci.ics.texera.workflow.operators.visualization.aggregatedBarChart
+package edu.uci.ics.texera.workflow.operators.visualization.barChart
 
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 import edu.uci.ics.texera.workflow.operators.visualization.AggregatedVizOpExec
 
-class AggregatedBarChartExec(
-                               opDesc: AggregatedBarChartDesc,
-                               operatorSchemaInfo: OperatorSchemaInfo
+class BarChartOpExec(
+                      opDesc: BarChartOpDesc,
+                      operatorSchemaInfo: OperatorSchemaInfo
                              ) extends MapOpExec with AggregatedVizOpExec{
 
   setMapFunc(this.processTuple)

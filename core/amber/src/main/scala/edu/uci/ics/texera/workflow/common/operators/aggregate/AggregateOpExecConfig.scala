@@ -45,12 +45,10 @@ class AggregateOpExecConfig[P <: AnyRef](
         ForceLocal(),
         RandomDeployment()
       )
-      val barchartLayer = null
       new Topology(
         Array(
           partialLayer,
-          finalLayer,
-          barchartLayer
+          finalLayer
         ),
         Array(
           new AllToOne(partialLayer, finalLayer, Constants.defaultBatchSize)

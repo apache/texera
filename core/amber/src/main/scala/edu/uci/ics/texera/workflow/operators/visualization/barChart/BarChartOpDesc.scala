@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.visualization.aggregatedBarChart
+package edu.uci.ics.texera.workflow.operators.visualization.barChart
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
@@ -13,7 +13,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.{AggregatedVizOpExecC
 import java.util.Collections.singletonList
 import scala.jdk.CollectionConverters.asScalaBuffer
 
-class AggregatedBarChartDesc extends VisualizationOperator{
+class BarChartOpDesc extends VisualizationOperator{
   @JsonProperty(value = "name column", required = true)
   @JsonPropertyDescription("column of name (for x-axis)")
   @AutofillAttributeName var nameColumn: String = _
@@ -76,7 +76,7 @@ class AggregatedBarChartDesc extends VisualizationOperator{
       new AggregatedVizOpExecConfig(
         operatorIdentifier,
         aggregation,
-        new AggregatedBarChartExec(this, operatorSchemaInfo),
+        new BarChartOpExec(this, operatorSchemaInfo),
         operatorSchemaInfo
       )
   }
