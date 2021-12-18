@@ -11,9 +11,10 @@ import edu.uci.ics.texera.workflow.operators.visualization.AggregatedVizOpExec
   * @param operatorSchemaInfo The descriptor's schema info.
   */
 class BarChartOpExec(
-                      opDesc: BarChartOpDesc,
-                      operatorSchemaInfo: OperatorSchemaInfo
-                    ) extends MapOpExec with AggregatedVizOpExec{
+    opDesc: BarChartOpDesc,
+    operatorSchemaInfo: OperatorSchemaInfo
+) extends MapOpExec
+    with AggregatedVizOpExec {
 
   setMapFunc(this.processTuple)
 
