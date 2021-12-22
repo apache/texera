@@ -252,43 +252,45 @@ export class JointUIService {
 
     const processedText = isSource ? "" : "Processed: " + statistics.aggregatedInputRowCount.toLocaleString();
     const outputText = isSink ? "" : "Output: " + statistics.aggregatedOutputRowCount.toLocaleString();
-    jointPaper.getModelById(operatorID).attr(`.${operatorProcessedCountClass}/text`, processedText);
-    jointPaper.getModelById(operatorID).attr(`.${operatorProcessedCountBGClass}/text`, processedText);
-    if (isSink) {
-      jointPaper.getModelById(operatorID).attr(`.${operatorProcessedCountClass}/ref-y`, -30);
-      jointPaper.getModelById(operatorID).attr(`.${operatorProcessedCountBGClass}/ref-y`, -30);
-    }
-    jointPaper.getModelById(operatorID).attr(`.${operatorOutputCountClass}/text`, outputText);
-    jointPaper.getModelById(operatorID).attr(`.${operatorOutputCountBGClass}/text`, outputText);
     const processedCountText = isSource ? "" : abbreviateNumber(statistics.aggregatedInputRowCount);
     const outputCountText = isSink ? "" : abbreviateNumber(statistics.aggregatedOutputRowCount);
     const abbreviatedText = processedCountText + (isSource || isSink ? "" : " → ") + outputCountText;
-    jointPaper.getModelById(operatorID).attr(`.${operatorAbbreviatedCountClass}/text`, abbreviatedText);
-    jointPaper.getModelById(operatorID).attr(`.${operatorAbbreviatedCountBGClass}/text`, abbreviatedText);
+    jointPaper.getModelById(operatorID).attr({
+      [`.${operatorProcessedCountBGClass}`]: isSink ? { text: processedText, "ref-y": -30 } : { text: processedText },
+      [`.${operatorProcessedCountClass}`]: isSink ? { text: processedText, "ref-y": -30 } : { text: processedText },
+      [`.${operatorOutputCountClass}`]: { text: outputText },
+      [`.${operatorOutputCountBGClass}`]: { text: outputText },
+      [`.${operatorAbbreviatedCountClass}`]: { text: abbreviatedText },
+      [`.${operatorAbbreviatedCountBGClass}`]: { text: abbreviatedText },
+    });
   }
 
   public foldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
-    jointPaper.getModelById(operatorID).attr(`.${operatorAbbreviatedCountBGClass}/visibility`, "visible");
-    jointPaper.getModelById(operatorID).attr(`.${operatorAbbreviatedCountClass}/visibility`, "visible");
-    jointPaper.getModelById(operatorID).attr(`.${operatorProcessedCountBGClass}/visibility`, "hidden");
-    jointPaper.getModelById(operatorID).attr(`.${operatorProcessedCountClass}/visibility`, "hidden");
-    jointPaper.getModelById(operatorID).attr(`.${operatorOutputCountBGClass}/visibility`, "hidden");
-    jointPaper.getModelById(operatorID).attr(`.${operatorOutputCountClass}/visibility`, "hidden");
-    jointPaper.getModelById(operatorID).attr(`.${operatorStateBGClass}/visibility`, "hidden");
-    jointPaper.getModelById(operatorID).attr(`.${operatorStateClass}/visibility`, "hidden");
-    jointPaper.getModelById(operatorID).attr(".delete-button/visibility", "hidden");
+    jointPaper.getModelById(operatorID).attr({
+      [`.${operatorAbbreviatedCountBGClass}`]: { visibility: "visible" },
+      [`.${operatorAbbreviatedCountClass}`]: { visibility: "visible" },
+      [`.${operatorProcessedCountClass}`]: { visibility: "hidden" },
+      [`.${operatorProcessedCountBGClass}`]: { visibility: "hidden" },
+      [`.${operatorOutputCountBGClass}`]: { visibility: "hidden" },
+      [`.${operatorOutputCountClass}`]: { visibility: "hidden" },
+      [`.${operatorStateBGClass}`]: { visibility: "hidden" },
+      [`.${operatorStateClass}`]: { visibility: "hidden" },
+      ".delete-button": { visibility: "hidden" },
+    });
   }
 
   public unfoldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
-    jointPaper.getModelById(operatorID).attr(`.${operatorAbbreviatedCountBGClass}/visibility`, "hidden");
-    jointPaper.getModelById(operatorID).attr(`.${operatorAbbreviatedCountClass}/visibility`, "hidden");
-    jointPaper.getModelById(operatorID).attr(`.${operatorProcessedCountBGClass}/visibility`, "visible");
-    jointPaper.getModelById(operatorID).attr(`.${operatorProcessedCountClass}/visibility`, "visible");
-    jointPaper.getModelById(operatorID).attr(`.${operatorOutputCountBGClass}/visibility`, "visible");
-    jointPaper.getModelById(operatorID).attr(`.${operatorOutputCountClass}/visibility`, "visible");
-    jointPaper.getModelById(operatorID).attr(`.${operatorStateBGClass}/visibility`, "visible");
-    jointPaper.getModelById(operatorID).attr(`.${operatorStateClass}/visibility`, "visible");
-    jointPaper.getModelById(operatorID).attr(".delete-button/visibility", "visible");
+    jointPaper.getModelById(operatorID).attr({
+      [`.${operatorAbbreviatedCountBGClass}`]: { visibility: "hidden" },
+      [`.${operatorAbbreviatedCountClass}`]: { visibility: "hidden" },
+      [`.${operatorProcessedCountClass}`]: { visibility: "visible" },
+      [`.${operatorProcessedCountBGClass}`]: { visibility: "visible" },
+      [`.${operatorOutputCountBGClass}`]: { visibility: "visible" },
+      [`.${operatorOutputCountClass}`]: { visibility: "visible" },
+      [`.${operatorStateBGClass}`]: { visibility: "visible" },
+      [`.${operatorStateClass}`]: { visibility: "visible" },
+      ".delete-button": { visibility: "visible" },
+    });
   }
 
   /**
@@ -342,14 +344,15 @@ export class JointUIService {
         fillColor = "orange";
         break;
     }
-
-    jointPaper.getModelById(operatorID).attr(`.${operatorStateClass}/text`, operatorState.toString());
-    jointPaper.getModelById(operatorID).attr(`.${operatorStateBGClass}/text`, operatorState.toString());
-    jointPaper.getModelById(operatorID).attr(`.${operatorStateClass}/fill`, fillColor);
-    jointPaper.getModelById(operatorID).attr("rect.body/stroke", fillColor);
-    jointPaper.getModelById(operatorID).attr(`.${operatorAbbreviatedCountClass}/fill`, fillColor);
-    jointPaper.getModelById(operatorID).attr(`.${operatorProcessedCountClass}/fill`, fillColor);
-    jointPaper.getModelById(operatorID).attr(`.${operatorOutputCountClass}/fill`, fillColor);
+    jointPaper.getModelById(operatorID).attr({
+      [`.${operatorStateClass}`]: { text: operatorState.toString() },
+      [`.${operatorStateBGClass}`]: { text: operatorState.toString() },
+      [`.${operatorStateClass}`]: { fill: fillColor },
+      "rect.body": { stroke: fillColor },
+      [`.${operatorAbbreviatedCountClass}`]: { fill: fillColor },
+      [`.${operatorProcessedCountClass}`]: { fill: fillColor },
+      [`.${operatorOutputCountClass}`]: { fill: fillColor },
+    });
   }
 
   /**
