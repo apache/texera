@@ -256,40 +256,40 @@ export class JointUIService {
     const outputCountText = isSink ? "" : abbreviateNumber(statistics.aggregatedOutputRowCount);
     const abbreviatedText = processedCountText + (isSource || isSink ? "" : " → ") + outputCountText;
     jointPaper.getModelById(operatorID).attr({
-      [`.${operatorProcessedCountBGClass}`]: isSink?{text:processedText, "ref-y":-30}:{text:processedText},
-      [`.${operatorProcessedCountClass}`]:isSink?{text:processedText, "ref-y":-30}:{text:processedText},
-      [`.${operatorOutputCountClass}`]:{text:outputText},
-      [`.${operatorOutputCountBGClass}`]:{text:outputText},
-      [`.${operatorAbbreviatedCountClass}`]:{text:abbreviatedText},
-      [`.${operatorAbbreviatedCountBGClass}`]: {text:abbreviatedText}
-        });
+      [`.${operatorProcessedCountBGClass}`]: isSink ? { text: processedText, "ref-y": -30 } : { text: processedText },
+      [`.${operatorProcessedCountClass}`]: isSink ? { text: processedText, "ref-y": -30 } : { text: processedText },
+      [`.${operatorOutputCountClass}`]: { text: outputText },
+      [`.${operatorOutputCountBGClass}`]: { text: outputText },
+      [`.${operatorAbbreviatedCountClass}`]: { text: abbreviatedText },
+      [`.${operatorAbbreviatedCountBGClass}`]: { text: abbreviatedText },
+    });
   }
 
   public foldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
     jointPaper.getModelById(operatorID).attr({
-      [`.${operatorAbbreviatedCountBGClass}`]: {"visibility":"visible"},
-      [`.${operatorAbbreviatedCountClass}`]: {"visibility": "visible"},
-      [`.${operatorProcessedCountClass}`]: {"visibility": "hidden"},
-      [`.${operatorProcessedCountBGClass}`]:{"visibility":"hidden"},
-      [`.${operatorOutputCountBGClass}`]:{"visibility":"hidden"},
-      [`.${operatorOutputCountClass}`]:{"visibility":"hidden"},
-      [`.${operatorStateBGClass}`]:{"visibility":"hidden"},
-      [`.${operatorStateClass}`]:{"visibility":"hidden"},
-      '.delete-button':{"visibility":"hidden"},
+      [`.${operatorAbbreviatedCountBGClass}`]: { visibility: "visible" },
+      [`.${operatorAbbreviatedCountClass}`]: { visibility: "visible" },
+      [`.${operatorProcessedCountClass}`]: { visibility: "hidden" },
+      [`.${operatorProcessedCountBGClass}`]: { visibility: "hidden" },
+      [`.${operatorOutputCountBGClass}`]: { visibility: "hidden" },
+      [`.${operatorOutputCountClass}`]: { visibility: "hidden" },
+      [`.${operatorStateBGClass}`]: { visibility: "hidden" },
+      [`.${operatorStateClass}`]: { visibility: "hidden" },
+      ".delete-button": { visibility: "hidden" },
     });
   }
 
   public unfoldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
     jointPaper.getModelById(operatorID).attr({
-      [`.${operatorAbbreviatedCountBGClass}`]: {"visibility":"hidden"},
-      [`.${operatorAbbreviatedCountClass}`]: {"visibility": "hidden"},
-      [`.${operatorProcessedCountClass}`]: {"visibility": "visible"},
-      [`.${operatorProcessedCountBGClass}`]:{"visibility":"visible"},
-      [`.${operatorOutputCountBGClass}`]:{"visibility":"visible"},
-      [`.${operatorOutputCountClass}`]:{"visibility":"visible"},
-      [`.${operatorStateBGClass}`]:{"visibility":"visible"},
-      [`.${operatorStateClass}`]:{"visibility":"visible"},
-      '.delete-button':{"visibility":"visible"},
+      [`.${operatorAbbreviatedCountBGClass}`]: { visibility: "hidden" },
+      [`.${operatorAbbreviatedCountClass}`]: { visibility: "hidden" },
+      [`.${operatorProcessedCountClass}`]: { visibility: "visible" },
+      [`.${operatorProcessedCountBGClass}`]: { visibility: "visible" },
+      [`.${operatorOutputCountBGClass}`]: { visibility: "visible" },
+      [`.${operatorOutputCountClass}`]: { visibility: "visible" },
+      [`.${operatorStateBGClass}`]: { visibility: "visible" },
+      [`.${operatorStateClass}`]: { visibility: "visible" },
+      ".delete-button": { visibility: "visible" },
     });
   }
 
@@ -345,13 +345,13 @@ export class JointUIService {
         break;
     }
     jointPaper.getModelById(operatorID).attr({
-      [`.${operatorStateClass}`]: {text:operatorState.toString()},
-      [`.${operatorStateBGClass}`]: {text:operatorState.toString()},
-      [`.${operatorStateClass}`]: {fill:fillColor},
-      "rect.body": {stroke:fillColor},
-      [`.${operatorAbbreviatedCountClass}`]: {fill:fillColor},
-      [`.${operatorProcessedCountClass}`]: {fill:fillColor},
-      [`.${operatorOutputCountClass}`]: {fill:fillColor}
+      [`.${operatorStateClass}`]: { text: operatorState.toString() },
+      [`.${operatorStateBGClass}`]: { text: operatorState.toString() },
+      [`.${operatorStateClass}`]: { fill: fillColor },
+      "rect.body": { stroke: fillColor },
+      [`.${operatorAbbreviatedCountClass}`]: { fill: fillColor },
+      [`.${operatorProcessedCountClass}`]: { fill: fillColor },
+      [`.${operatorOutputCountClass}`]: { fill: fillColor },
     });
   }
 
