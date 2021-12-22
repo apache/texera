@@ -8,7 +8,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.{
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.RoundRobinDeployment
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.linksemantics.{HashBasedShuffle, OneToOne}
-import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.{Constants, IOperatorExecutor}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
@@ -34,7 +34,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 class AggregatedVizOpExecConfig[P <: AnyRef](
     id: OperatorIdentity,
     val aggFunc: DistributedAggregation[P],
-    exec: AggregatedVizOpExec,
+    exec: IOperatorExecutor,
     operatorSchemaInfo: OperatorSchemaInfo
 ) extends OpExecConfig(id) {
 

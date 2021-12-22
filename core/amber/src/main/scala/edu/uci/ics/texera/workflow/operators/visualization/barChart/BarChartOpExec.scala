@@ -3,7 +3,6 @@ package edu.uci.ics.texera.workflow.operators.visualization.barChart
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
-import edu.uci.ics.texera.workflow.operators.visualization.AggregatedVizOpExec
 
 /**
   * Simply mocks the data.
@@ -13,8 +12,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.AggregatedVizOpExec
 class BarChartOpExec(
     opDesc: BarChartOpDesc,
     operatorSchemaInfo: OperatorSchemaInfo
-) extends MapOpExec
-    with AggregatedVizOpExec {
+) extends MapOpExec {
 
   setMapFunc(this.processTuple)
 
