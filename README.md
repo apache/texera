@@ -12,6 +12,8 @@ To use Texera, follow instructions on the [Getting Started](https://github.com/T
 * (7/2020) Demonstration of Interactive Runtime Debugging of
 Distributed Dataflows in Texera, Zuozhi Wang, Avinash Kumar, Shengquan Ni, Chen Li, VLDB 2020 [PDF](http://www.vldb.org/pvldb/vol13/p2953-wang.pdf), [Video](https://www.youtube.com/watch?v=SP-XiDADbw0), [Slides](https://docs.google.com/presentation/d/14U6RPZfeb8Ho0aO2HsCSc8lRs6ul6AxEIm5gpjeVUYA/edit?usp=sharing)
 * (1/2022) Reshape: Adaptive Skew Handling Using Fast Control Messages in Big Data Workflows, Avinash Kumar, Sadeem Alsudais, Shengquan Ni, Zuozhi Wang, Yicong Huang, Chen Li [Under Review]
+* (1/2022) Optimizing Machine Learning Inference Queries with Correlative Proxy Models, Zhihui Yang, Zuozhi Wang, Yicong Huang, Yao Lu, Chen Li, X. Sean Wang (Under Review) [PDF](https://arxiv.org/pdf/2201.00309.pdf)
+
 
 ## Videos
 
