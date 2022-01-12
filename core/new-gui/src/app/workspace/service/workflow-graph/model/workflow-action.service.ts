@@ -841,52 +841,56 @@ export class WorkflowActionService {
    * Reload the given workflow, update workflowMetadata and workflowContent.
    */
   public reloadWorkflow(workflow: Workflow | undefined): void {
-    this.setWorkflowMetadata(workflow);
-    // remove the existing operators on the paper currently
-    this.deleteOperatorsAndLinks(
-      this.getTexeraGraph()
-        .getAllOperators()
-        .map(op => op.operatorID),
-      []
+    this.jointGraphWrapper.jointGraphContext.withContext(
+      {async: true},
+      () => {
+        this.setWorkflowMetadata(workflow);
+        // remove the existing operators on the paper currently
+        this.deleteOperatorsAndLinks(
+          this.getTexeraGraph()
+            .getAllOperators()
+            .map(op => op.operatorID),
+          []
+        );
+
+        if (workflow === undefined) {
+          return;
+        }
+
+        const workflowContent: WorkflowContent = workflow.content;
+
+        const operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
+        workflowContent.operators.forEach(op => {
+          const opPosition = workflowContent.operatorPositions[op.operatorID];
+          if (!opPosition) {
+            throw new Error("position error");
+          }
+          operatorsAndPositions.push({ op: op, pos: opPosition });
+        });
+
+        const links: OperatorLink[] = workflowContent.links;
+
+        const groups: readonly Group[] = workflowContent.groups.map(group => {
+          return {
+            groupID: group.groupID,
+            operators: recordToMap(group.operators),
+            links: recordToMap(group.links),
+            inLinks: group.inLinks,
+            outLinks: group.outLinks,
+            collapsed: group.collapsed,
+          };
+        });
+
+        const breakpoints = new Map(Object.entries(workflowContent.breakpoints));
+        this.addOperatorsAndLinks(operatorsAndPositions, links, groups, breakpoints);
+
+        // operators shouldn't be highlighted during page reload
+        const jointGraphWrapper = this.getJointGraphWrapper();
+        jointGraphWrapper.unhighlightOperators(...jointGraphWrapper.getCurrentHighlightedOperatorIDs());
+        // restore the view point
+        this.getJointGraphWrapper().restoreDefaultZoomAndOffset();
+      }  
     );
-
-    if (workflow === undefined) {
-      return;
-    }
-
-    const workflowContent: WorkflowContent = workflow.content;
-
-    const operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
-    workflowContent.operators.forEach(op => {
-      const opPosition = workflowContent.operatorPositions[op.operatorID];
-      if (!opPosition) {
-        throw new Error("position error");
-      }
-      operatorsAndPositions.push({ op: op, pos: opPosition });
-    });
-
-    const links: OperatorLink[] = workflowContent.links;
-
-    const groups: readonly Group[] = workflowContent.groups.map(group => {
-      return {
-        groupID: group.groupID,
-        operators: recordToMap(group.operators),
-        links: recordToMap(group.links),
-        inLinks: group.inLinks,
-        outLinks: group.outLinks,
-        collapsed: group.collapsed,
-      };
-    });
-
-    const breakpoints = new Map(Object.entries(workflowContent.breakpoints));
-
-    this.addOperatorsAndLinks(operatorsAndPositions, links, groups, breakpoints);
-
-    // operators shouldn't be highlighted during page reload
-    const jointGraphWrapper = this.getJointGraphWrapper();
-    jointGraphWrapper.unhighlightOperators(...jointGraphWrapper.getCurrentHighlightedOperatorIDs());
-    // restore the view point
-    this.getJointGraphWrapper().restoreDefaultZoomAndOffset();
   }
 
   public workflowChanged(): Observable<void> {
