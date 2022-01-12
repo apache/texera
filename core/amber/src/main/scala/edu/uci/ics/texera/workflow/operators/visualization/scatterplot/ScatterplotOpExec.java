@@ -1,16 +1,11 @@
 package edu.uci.ics.texera.workflow.operators.visualization.scatterplot;
 
+import edu.uci.ics.amber.engine.common.Constants;
 import edu.uci.ics.amber.engine.common.InputExhausted;
-import edu.uci.ics.amber.engine.common.tuple.ITuple;
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity;
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor;
-import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
-import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
-import scala.Function1;
-import scala.Serializable;
 import scala.collection.Iterator;
 import scala.collection.JavaConverters;
 import scala.util.Either;
@@ -24,8 +19,6 @@ import java.util.*;
 public class ScatterplotOpExec implements OperatorExecutor {
     private final ScatterplotOpDesc opDesc;
     private final OperatorSchemaInfo operatorSchemaInfo;
-    private final int MAX_RESOLUTION_ROWS = 2000;
-    private final int MAX_RESOLUTION_COLUMNS = 2000;
     private boolean[][] pixelGrid;
     private List<Tuple> result;
 
@@ -38,8 +31,8 @@ public class ScatterplotOpExec implements OperatorExecutor {
         result.clear();
 
         if (opDesc.isGeometric) {
-            int row_index = (int) Math.floor(lngX(t.getField(opDesc.xColumn)) * MAX_RESOLUTION_ROWS);
-            int column_index = (int) Math.floor(latY(t.getField(opDesc.yColumn)) * MAX_RESOLUTION_COLUMNS);
+            int row_index = (int) Math.floor(lngX(t.getField(opDesc.xColumn)) * Constants.MAX_RESOLUTION_ROWS());
+            int column_index = (int) Math.floor(latY(t.getField(opDesc.yColumn)) * Constants.MAX_RESOLUTION_COLUMNS());
             if (pixelGrid[row_index][column_index]) {
                 return result;
             }
@@ -68,7 +61,7 @@ public class ScatterplotOpExec implements OperatorExecutor {
     public void open() {
         result = new ArrayList<>();
         if (opDesc.isGeometric) {
-            pixelGrid = new boolean[MAX_RESOLUTION_ROWS][MAX_RESOLUTION_COLUMNS];
+            pixelGrid = new boolean[Constants.MAX_RESOLUTION_ROWS()][Constants.MAX_RESOLUTION_COLUMNS()];
         }
     }
 

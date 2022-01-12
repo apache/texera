@@ -47,8 +47,9 @@ class ScatterplotVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "process more tuples" in {
-    val processedTuple: Tuple = scatterplotOpExec.processTuple(tuple)
-    val processedAnotherTuple: Tuple = scatterplotOpExec.processTuple(extratuple)
+    val processedTuple: Tuple = scatterplotOpExec.processTexeraTuple(Left(tuple), null).next()
+    val processedAnotherTuple: Tuple =
+      scatterplotOpExec.processTexeraTuple(Left(extratuple), null).next()
     assert(processedTuple.getField("xColumn").asInstanceOf[Double] == 73.142)
     assert(processedTuple.getField("yColumn").asInstanceOf[Integer] == 32)
     assert(processedAnotherTuple.getField("xColumn").asInstanceOf[Double] == 77.142)

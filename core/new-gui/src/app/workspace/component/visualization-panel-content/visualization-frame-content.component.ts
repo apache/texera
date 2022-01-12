@@ -1,4 +1,4 @@
-import { AfterContentInit, Component, Input, OnDestroy } from "@angular/core";
+import { AfterContentInit, Component, Input, OnDestroy, OnInit } from "@angular/core";
 import * as c3 from "c3";
 import { Primitive, PrimitiveArray } from "c3";
 import * as d3 from "d3";
@@ -35,7 +35,7 @@ type WordCloudControlsType = {
   templateUrl: "./visualization-frame-content.component.html",
   styleUrls: ["./visualization-frame-content.component.scss"],
 })
-export class VisualizationFrameContentComponent implements AfterContentInit, OnDestroy {
+export class VisualizationFrameContentComponent implements OnInit, AfterContentInit, OnDestroy {
   // this readonly variable must be the same as HTML element ID for visualization
   public static readonly CHART_ID = "#texera-result-chart-content";
   public static readonly MAP_CONTAINER = "texera-result-map-container";
@@ -88,7 +88,7 @@ export class VisualizationFrameContentComponent implements AfterContentInit, OnD
 
   ngOnInit() {
     this.initMap();
-    this.map?.on('styledata', () => {
+    this.map?.on("styledata", () => {
       this.isMapStyleRendered = true;
     });
   }
@@ -209,14 +209,14 @@ export class VisualizationFrameContentComponent implements AfterContentInit, OnD
       bindto: VisualizationFrameContentComponent.CHART_ID,
     });
   }
-  generateSpatialScatterplot() {
+  generateSpatialScatterPlot() {
     /* after the map style is loaded, we add a layer of the data points */
     if (!this.isMapStyleRendered) {
       this.map?.on("styledata", () => {
-        this.addNeworReplaceExistingLayer();
+        this.addNewOrReplaceExistingLayer();
       });
     } else {
-      this.addNeworReplaceExistingLayer();
+      this.addNewOrReplaceExistingLayer();
     }
   }
 
