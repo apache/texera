@@ -1,17 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
-import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.worker.WorkerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
-import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.{
-  Completed,
-  Paused,
-  Ready,
-  Running,
-  WorkerState
-}
-import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{PAUSED, READY, RUNNING}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 
 object PauseHandler {
 
@@ -22,10 +15,10 @@ trait PauseHandler {
   this: WorkerAsyncRPCHandlerInitializer =>
 
   registerHandler { (pause: PauseWorker, sender) =>
-    if (stateManager.confirmState(Running, Ready)) {
+    if (stateManager.confirmState(RUNNING, READY)) {
       pauseManager.pause()
       dataProcessor.disableDataQueue()
-      stateManager.transitTo(Paused)
+      stateManager.transitTo(PAUSED)
     }
     stateManager.getCurrentState
   }

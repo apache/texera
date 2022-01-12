@@ -22,7 +22,6 @@ export interface ManualDictionaryUploadItem {
   isUploadingFlag: boolean;
 }
 
-
 /**
  * This interface stores the information about the users' files when uploading.
  * These information is used to upload the file to the backend.

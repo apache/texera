@@ -1,26 +1,24 @@
-import { DragDropService } from './../../../service/drag-drop/drag-drop.service';
-import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service' ;
-import { Component, Input, AfterViewInit, OnInit, ElementRef, OnDestroy } from '@angular/core';
-import { Observable, of, Subject, Subscription, zip } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { DragDropService } from "../../../service/drag-drop/drag-drop.service";
+import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
+import { AfterViewInit, Component, Input, OnInit } from "@angular/core";
 
-import { OperatorSchema } from '../../../types/operator-schema.interface';
-import { assertType } from 'src/app/common/util/assert';
+import { OperatorSchema } from "../../../types/operator-schema.interface";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 /**
  * OperatorLabelComponent is one operator box in the operator panel.
  *
  * @author Zuozhi Wang
  */
+@UntilDestroy()
 @Component({
-  selector: 'texera-operator-label',
-  templateUrl: './operator-label.component.html',
-  styleUrls: ['./operator-label.component.scss']
+  selector: "texera-operator-label",
+  templateUrl: "./operator-label.component.html",
+  styleUrls: ["./operator-label.component.scss"],
 })
-export class OperatorLabelComponent implements OnInit, AfterViewInit, OnDestroy {
-
-  public static operatorLabelPrefix = 'texera-operator-label-';
-  public static operatorLabelSearchBoxPrefix = 'texera-operator-label-search-result-';
+export class OperatorLabelComponent implements OnInit, AfterViewInit {
+  public static operatorLabelPrefix = "texera-operator-label-";
+  public static operatorLabelSearchBoxPrefix = "texera-operator-label-search-result-";
 
   // tooltipWindow is an instance of ngbTooltip (popup box)
   @Input() operator?: OperatorSchema;
@@ -30,25 +28,17 @@ export class OperatorLabelComponent implements OnInit, AfterViewInit, OnDestroy 
 
   // bound to ngClass
   public draggable = true;
-  public animate = '';
+  public animate = "";
 
   // is mouse down over this label
   private isMouseDown = false;
 
-  // keep subscription in order to unsubscribe when component is destroyed
-  private workflowModificationEnabledSubscription: Subscription;
-
-
-  constructor(
-    private dragDropService: DragDropService,
-    private workflowActionService: WorkflowActionService,
-  ) {
-    this.workflowModificationEnabledSubscription = this.handleWorkFlowModificationEnabled();
-  }
+  constructor(private dragDropService: DragDropService, private workflowActionService: WorkflowActionService) {}
 
   ngOnInit() {
-    if (! this.operator) {
-      throw new Error('operator label component: operator is not specified');
+    this.handleWorkFlowModificationEnabled();
+    if (!this.operator) {
+      throw new Error("operator label component: operator is not specified");
     }
     if (this.fromSearchBox) {
       this.operatorLabelID = OperatorLabelComponent.operatorLabelSearchBoxPrefix + this.operator.operatorType;
@@ -58,15 +48,10 @@ export class OperatorLabelComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   ngAfterViewInit() {
-    if (! this.operatorLabelID || ! this.operator) {
-      throw new Error('operator label component: operator is not specified');
+    if (!this.operatorLabelID || !this.operator) {
+      throw new Error("operator label component: operator is not specified");
     }
     this.dragDropService.registerOperatorLabelDrag(this.operatorLabelID, this.operator.operatorType);
-
-  }
-
-  ngOnDestroy() {
-    this.workflowModificationEnabledSubscription.unsubscribe();
   }
 
   // mouseDownEventStream sends out a value
@@ -90,15 +75,22 @@ export class OperatorLabelComponent implements OnInit, AfterViewInit, OnDestroy 
 
   private animateReject(): void {
     // remove and re-add shake animation to replay it
-    this.animate = '';
-    setTimeout(() => { this.animate = 'reject'; }, 0);
-    setTimeout(() => { this.animate = ''; }, 400);
+    this.animate = "";
+    setTimeout(() => {
+      this.animate = "reject";
+    }, 0);
+    setTimeout(() => {
+      this.animate = "";
+    }, 400);
   }
 
-  private handleWorkFlowModificationEnabled(): Subscription {
-    return this.workflowActionService.getWorkflowModificationEnabledStream().subscribe( enabled => {
-      this.draggable = enabled;
-    });
+  private handleWorkFlowModificationEnabled(): void {
+    this.workflowActionService
+      .getWorkflowModificationEnabledStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(canModify => {
+        this.draggable = canModify;
+      });
   }
 
   public static isOperatorLabelElementFromSearchBox(elementID: string) {

@@ -41,7 +41,7 @@ query-results/
 .DS_Store
 
 # Ignoring jenv related files
-**/.java-version
+.java-version
 
 # Ignoring scala related files
 hs_err_pid*
@@ -53,6 +53,10 @@ __pycache__/
 *$py.class
 .ipynb_checkpoints
 .pytype/
+
+# Ignoring python generated files
+*.model
+*.pkl
 
 # Ingoring user generated resources
 user-resources/
@@ -78,3 +82,14 @@ rebel.xml
 
 # Ignoring log files
 *.log
+*.log.gz
+
+# Ignoring package-lock.json
+package-lock.json
+
+# Ignoring protobuf related files
+scalapb/scalapb
+
+# Ignoring credentials
+client_secret_*
+StoredCredential*

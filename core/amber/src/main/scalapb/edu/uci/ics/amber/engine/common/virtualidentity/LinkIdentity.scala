@@ -12,20 +12,26 @@ package edu.uci.ics.amber.engine.common.virtualidentity
   */
 @SerialVersionUID(0L)
 final case class LinkIdentity(
-    from: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity] = _root_.scala.None,
-    to: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity] = _root_.scala.None
+    from: edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity,
+    to: edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[LinkIdentity] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
     private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
-      if (from.isDefined) {
-        val __value = from.get
-        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+      
+      {
+        val __value = from
+        if (__value != edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity.defaultInstance) {
+          __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+        }
       };
-      if (to.isDefined) {
-        val __value = to.get
-        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+      
+      {
+        val __value = to
+        if (__value != edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity.defaultInstance) {
+          __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+        }
       };
       __size
     }
@@ -38,36 +44,42 @@ final case class LinkIdentity(
       read
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
-      from.foreach { __v =>
-        val __m = __v
-        _output__.writeTag(1, 2)
-        _output__.writeUInt32NoTag(__m.serializedSize)
-        __m.writeTo(_output__)
+      {
+        val __v = from
+        if (__v != edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity.defaultInstance) {
+          _output__.writeTag(1, 2)
+          _output__.writeUInt32NoTag(__v.serializedSize)
+          __v.writeTo(_output__)
+        }
       };
-      to.foreach { __v =>
-        val __m = __v
-        _output__.writeTag(2, 2)
-        _output__.writeUInt32NoTag(__m.serializedSize)
-        __m.writeTo(_output__)
+      {
+        val __v = to
+        if (__v != edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity.defaultInstance) {
+          _output__.writeTag(2, 2)
+          _output__.writeUInt32NoTag(__v.serializedSize)
+          __v.writeTo(_output__)
+        }
       };
     }
-    def getFrom: edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity = from.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity.defaultInstance)
-    def clearFrom: LinkIdentity = copy(from = _root_.scala.None)
-    def withFrom(__v: edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity): LinkIdentity = copy(from = Option(__v))
-    def getTo: edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity = to.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity.defaultInstance)
-    def clearTo: LinkIdentity = copy(to = _root_.scala.None)
-    def withTo(__v: edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity): LinkIdentity = copy(to = Option(__v))
+    def withFrom(__v: edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity): LinkIdentity = copy(from = __v)
+    def withTo(__v: edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity): LinkIdentity = copy(to = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
-        case 1 => from.orNull
-        case 2 => to.orNull
+        case 1 => {
+          val __t = from
+          if (__t != edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity.defaultInstance) __t else null
+        }
+        case 2 => {
+          val __t = to
+          if (__t != edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity.defaultInstance) __t else null
+        }
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
-        case 1 => from.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
-        case 2 => to.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 1 => from.toPMessage
+        case 2 => to.toPMessage
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -86,23 +98,23 @@ object LinkIdentity extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.
       _tag__ match {
         case 0 => _done__ = true
         case 10 =>
-          __from = Option(__from.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __from = _root_.scala.Some(__from.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 18 =>
-          __to = Option(__to.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __to = _root_.scala.Some(__to.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity(
-        from = __from,
-        to = __to
+        from = __from.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity.defaultInstance),
+        to = __to.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity.defaultInstance)
     )
   }
   implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity(
-        from = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity]]),
-        to = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity]])
+        from = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity.defaultInstance),
+        to = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity.defaultInstance)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -119,20 +131,18 @@ object LinkIdentity extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity(
-    from = _root_.scala.None,
-    to = _root_.scala.None
+    from = edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity.defaultInstance,
+    to = edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity.defaultInstance
   )
   implicit class LinkIdentityLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity](_l) {
-    def from: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity] = field(_.getFrom)((c_, f_) => c_.copy(from = Option(f_)))
-    def optionalFrom: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity]] = field(_.from)((c_, f_) => c_.copy(from = f_))
-    def to: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity] = field(_.getTo)((c_, f_) => c_.copy(to = Option(f_)))
-    def optionalTo: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity]] = field(_.to)((c_, f_) => c_.copy(to = f_))
+    def from: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity] = field(_.from)((c_, f_) => c_.copy(from = f_))
+    def to: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity] = field(_.to)((c_, f_) => c_.copy(to = f_))
   }
   final val FROM_FIELD_NUMBER = 1
   final val TO_FIELD_NUMBER = 2
   def of(
-    from: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity],
-    to: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity]
+    from: edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity,
+    to: edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity
   ): _root_.edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity = _root_.edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity(
     from,
     to

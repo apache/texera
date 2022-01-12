@@ -2,17 +2,18 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
+import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.LocalBreakpoint
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.AssignBreakpointHandler.AssignGlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignLocalBreakpointHandler.AssignLocalBreakpoint
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
-import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 object AssignBreakpointHandler {
   final case class AssignGlobalBreakpoint[T](
       breakpoint: GlobalBreakpoint[T],
-      operatorID: OperatorIdentity
-  ) extends ControlCommand[CommandCompleted]
+      operatorID: String
+  ) extends ControlCommand[List[ActorVirtualIdentity]]
 }
 
 /** Assign a breakpoint to a specific operator
@@ -30,20 +31,17 @@ trait AssignBreakpointHandler {
       operator.attachedBreakpoints(msg.breakpoint.id) = msg.breakpoint
       // get target workers from the operator given a breakpoint
       val targetWorkers = operator.assignBreakpoint(msg.breakpoint)
+
+      val workersTobeAssigned: List[(ActorVirtualIdentity, LocalBreakpoint)] =
+        msg.breakpoint.partition(targetWorkers).toList
+
       // send AssignLocalBreakpoint message to each worker
       Future
-        .collect(
-          msg.breakpoint
-            .partition(targetWorkers)
-            .map {
-              case (identity, breakpoint) =>
-                send(AssignLocalBreakpoint(breakpoint), identity)
-            }
-            .toSeq
-        )
-        .map { ret =>
-          CommandCompleted()
-        }
+        .collect(workersTobeAssigned map {
+          case (workerId, breakpoint) => send(AssignLocalBreakpoint(breakpoint), workerId)
+        })
+        // return workerIds to caller
+        .map(_ => workersTobeAssigned.map({ case (workerId, _) => workerId }))
     }
   }
 

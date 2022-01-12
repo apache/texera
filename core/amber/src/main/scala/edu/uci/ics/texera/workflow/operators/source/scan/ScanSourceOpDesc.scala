@@ -57,15 +57,27 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   override def setContext(workflowContext: WorkflowContext): Unit = {
     super.setContext(workflowContext)
 
-    if (context.userID.isDefined)
-      // if context has a valid user ID, the fileName will be a file name,
+    if (fileName.isEmpty) {
+      throw new RuntimeException("no input file name")
+    }
+
+    if (context.userId.isDefined) {
+      // if context has a valid user ID, the fileName will be in the following format:
+      //    ownerName/fileName
       // resolve fileName to be the actual file path.
-      filePath = Option(
-        UserFileUtils.getFilePath(context.userID.get.toString, fileName.get).toString
-      )
-    else
+      val splitNames = fileName.get.split("/")
+      filePath = UserFileUtils
+        .getFilePathByInfo(
+          ownerName = splitNames.apply(0),
+          fileName = splitNames.apply(1),
+          context.userId.get
+        )
+        .map(_.toString)
+
+    } else {
       // otherwise, the fileName will be inputted by user, which is the filePath.
       filePath = fileName
+    }
 
   }
 

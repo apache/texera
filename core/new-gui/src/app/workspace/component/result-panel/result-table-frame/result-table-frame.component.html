@@ -1,0 +1,30 @@
+<div [hidden]="!currentColumns" class="result-table">
+  <nz-table
+    #basicTable
+    (nzQueryParams)="onTableQueryParamsChange($event)"
+    [nzData]="currentResult"
+    [nzFrontPagination]="isFrontPagination"
+    [nzLoading]="isLoadingResult"
+    [nzPageIndex]="currentPageIndex"
+    [nzPageSize]="pageSize"
+    [nzPaginationPosition]="'bottom'"
+    [nzScroll]="{ y: '200px' }"
+    [nzSize]="'small'"
+    [nzTableLayout]="'fixed'"
+    [nzTotal]="totalNumTuples"
+    nzBordered="true"
+  >
+    <thead>
+      <tr>
+        <th *ngFor="let column of currentColumns">{{ column.header }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let row of basicTable.data; let i = index">
+        <td (click)="open(row)" *ngFor="let column of currentColumns" class="table-row" nzEllipsis>
+          {{ column.getCell(row) }}
+        </td>
+      </tr>
+    </tbody>
+  </nz-table>
+</div>

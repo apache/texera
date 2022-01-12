@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.workflow.common.tuple
 
+import edu.uci.ics.texera.workflow.common.tuple.TupleUtils.{json2tuple, tuple2json}
 import edu.uci.ics.texera.workflow.common.tuple.exception.TupleBuildingException
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -78,5 +79,21 @@ class TupleSpec extends AnyFlatSpec {
     // This is the important test. Input tuple has 3 attributes but output tuple has only 2
     // It's because of isStrictSchemaMatch=false
     assert(outputTuple.size == 2);
+  }
+
+  it should "produce identical strings" in {
+    val inputSchema =
+      Schema.newBuilder().add(stringAttribute).add(integerAttribute).add(boolAttribute).build()
+    val inputTuple = Tuple
+      .newBuilder(inputSchema)
+      .add(integerAttribute, 1)
+      .add(stringAttribute, "string-attr")
+      .add(boolAttribute, true)
+      .build()
+
+    val line = tuple2json(inputTuple)
+    val newTuple = json2tuple(line)
+    assert(line == tuple2json(newTuple))
+
   }
 }

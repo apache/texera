@@ -1,8 +1,9 @@
-import { Component } from '@angular/core';
-import { NgbModal, NgbModalRef } from '@ng-bootstrap/ng-bootstrap';
-import { UserService } from '../../../../common/service/user/user.service';
-import { User } from '../../../../common/type/user';
-import { NgbdModalUserLoginComponent } from './user-login/ngbdmodal-user-login.component';
+import { Component } from "@angular/core";
+import { NgbModal, NgbModalRef } from "@ng-bootstrap/ng-bootstrap";
+import { UserService } from "../../../../common/service/user/user.service";
+import { User } from "../../../../common/type/user";
+import { NgbdModalUserLoginComponent } from "./user-login/ngbdmodal-user-login.component";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 /**
  * UserIconComponent is used to control user system on the top right corner
@@ -11,27 +12,27 @@ import { NgbdModalUserLoginComponent } from './user-login/ngbdmodal-user-login.c
  *
  * @author Adam
  */
+@UntilDestroy()
 @Component({
-  selector: 'texera-user-icon',
-  templateUrl: './user-icon.component.html',
-  styleUrls: ['./user-icon.component.scss']
+  selector: "texera-user-icon",
+  templateUrl: "./user-icon.component.html",
+  styleUrls: ["./user-icon.component.scss"],
 })
 export class UserIconComponent {
   public user: User | undefined;
 
-  constructor(
-    private modalService: NgbModal,
-    private userService: UserService
-  ) {
-
-    this.userService.userChanged().subscribe(user => this.user = user);
+  constructor(private modalService: NgbModal, private userService: UserService) {
+    this.userService
+      .userChanged()
+      .pipe(untilDestroyed(this))
+      .subscribe(user => (this.user = user));
   }
 
   /**
    * handle the event when user click on the logout button
    */
   public onClickLogout(): void {
-    this.userService.logOut();
+    this.userService.logout();
   }
 
   /**
@@ -57,5 +58,4 @@ export class UserIconComponent {
     const modalRef: NgbModalRef = this.modalService.open(NgbdModalUserLoginComponent);
     modalRef.componentInstance.selectedTab = mode;
   }
-
 }

@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.source.apis.twitter
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaDescription, JsonSchemaTitle}
 import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorGroupConstants,
   OperatorInfo,
@@ -10,8 +10,8 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 
 import java.util.Collections.singletonList
-import scala.collection.immutable.List
 import scala.collection.JavaConverters.asScalaBuffer
+import scala.collection.immutable.List
 
 abstract class TwitterSourceOpDesc extends SourceOperatorDescriptor {
 
@@ -25,6 +25,11 @@ abstract class TwitterSourceOpDesc extends SourceOperatorDescriptor {
   @JsonProperty(required = true)
   @JsonSchemaTitle("API Secret Key")
   var apiSecretKey: String = _
+
+  @JsonProperty(required = true, defaultValue = "false")
+  @JsonSchemaTitle("Stop Upon Rate Limit")
+  @JsonSchemaDescription("Stop when hitting rate limit?")
+  var stopWhenRateLimited: Boolean = false
 
   override def operatorInfo: OperatorInfo = {
     OperatorInfo(

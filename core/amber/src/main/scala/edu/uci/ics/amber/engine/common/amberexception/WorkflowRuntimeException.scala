@@ -1,7 +1,20 @@
 package edu.uci.ics.amber.engine.common.amberexception
 
-import edu.uci.ics.amber.error.WorkflowRuntimeError
+class WorkflowRuntimeException(message: String)
+    extends RuntimeException(message)
+    with Serializable {
 
-class WorkflowRuntimeException(val runtimeError: WorkflowRuntimeError)
-    extends RuntimeException(runtimeError.errorMessage)
-    with Serializable {}
+  def this(message: String, cause: Throwable) {
+    this(message)
+    initCause(cause)
+  }
+
+  def this(cause: Throwable) {
+    this(Option(cause).map(_.toString).orNull, cause)
+  }
+
+  def this() {
+    this(null: String)
+  }
+
+}

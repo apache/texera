@@ -161,7 +161,6 @@
 //     );
 //   }));
 
-
 //   it('should check if the local storage is updated when operator property change event is triggered', marbles((m) => {
 //     autoSaveWorkflowService.handleAutoCacheWorkFlow();
 //     const mockProperties = {tableName: 'mockTableName'};

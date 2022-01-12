@@ -3,12 +3,12 @@ package edu.uci.ics.amber.engine.architecture.worker
 import akka.actor.ActorContext
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   BatchToTupleConverter,
-  ControlOutputPort,
-  DataOutputPort,
+  NetworkOutputPort,
   TupleToBatchConverter
 }
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers._
-import edu.uci.ics.amber.engine.common.{IOperatorExecutor, WorkflowLogger}
+import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, DataPayload}
+import edu.uci.ics.amber.engine.common.{AmberLogging, IOperatorExecutor}
 import edu.uci.ics.amber.engine.common.rpc.{
   AsyncRPCClient,
   AsyncRPCHandlerInitializer,
@@ -18,9 +18,9 @@ import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 class WorkerAsyncRPCHandlerInitializer(
-    val selfID: ActorVirtualIdentity,
-    val controlOutputPort: ControlOutputPort,
-    val dataOutputPort: DataOutputPort,
+    val actorId: ActorVirtualIdentity,
+    val controlOutputPort: NetworkOutputPort[ControlPayload],
+    val dataOutputPort: NetworkOutputPort[DataPayload],
     val tupleToBatchConverter: TupleToBatchConverter,
     val batchToTupleConverter: BatchToTupleConverter,
     val pauseManager: PauseManager,
@@ -32,15 +32,16 @@ class WorkerAsyncRPCHandlerInitializer(
     source: AsyncRPCClient,
     receiver: AsyncRPCServer
 ) extends AsyncRPCHandlerInitializer(source, receiver)
+    with AmberLogging
     with PauseHandler
-    with AddOutputPolicyHandler
+    with AddPartitioningHandler
     with QueryAndRemoveBreakpointsHandler
     with QueryCurrentInputTupleHandler
     with QueryStatisticsHandler
     with ResumeHandler
     with StartHandler
     with UpdateInputLinkingHandler
+    with AssignLocalBreakpointHandler
     with ShutdownDPThreadHandler {
-  val logger: WorkflowLogger = WorkflowLogger("WorkerControlHandler")
   var lastReportTime = 0L
 }

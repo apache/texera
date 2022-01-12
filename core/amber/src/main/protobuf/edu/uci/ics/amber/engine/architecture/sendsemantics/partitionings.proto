@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package edu.uci.ics.amber.engine.architecture.sendsemantics;
+
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+  scope: FILE,
+  preserve_unknown_fields: false
+  no_default_values_in_constructor: true
+};
+
+import "edu/uci/ics/amber/engine/common/virtualidentity.proto";
+
+message Partitioning{
+  oneof sealed_value{
+    OneToOnePartitioning oneToOnePartitioning = 1;
+    RoundRobinPartitioning roundRobinPartitioning = 2;
+    HashBasedShufflePartitioning hashBasedShufflePartitioning = 3;
+  }
+}
+
+message OneToOnePartitioning{
+  int32 batchSize = 1;
+  repeated edu.uci.ics.amber.engine.common.ActorVirtualIdentity receivers = 2;
+}
+
+message RoundRobinPartitioning{
+  int32 batchSize = 1;
+  repeated edu.uci.ics.amber.engine.common.ActorVirtualIdentity receivers = 2;
+}
+
+message HashBasedShufflePartitioning{
+  int32 batchSize = 1;
+  repeated edu.uci.ics.amber.engine.common.ActorVirtualIdentity receivers = 2;
+  repeated int32 hashColumnIndices = 3;
+}
+

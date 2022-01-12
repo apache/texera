@@ -14,7 +14,11 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Sche
 class SymmetricDifferenceOpDesc extends OperatorDescriptor {
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-    new HashOpExecConfig(operatorIdentifier, _ => new SymmetricDifferenceOpExec())
+    new HashOpExecConfig(
+      operatorIdentifier,
+      _ => new SymmetricDifferenceOpExec(),
+      operatorSchemaInfo.inputSchemas(0).getAttributes.toArray.indices.toArray
+    )
   }
 
   override def operatorInfo: OperatorInfo =

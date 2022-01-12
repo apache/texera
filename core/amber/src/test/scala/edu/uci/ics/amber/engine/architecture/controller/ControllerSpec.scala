@@ -185,7 +185,7 @@ class ControllerSpec
 //    controller ! ModifyLogic(
 //      new KeywordSearchMetadata(
 //        OperatorTag("sample", "KeywordSearch"),
-//        Constants.defaultNumWorkers,
+//        Constants.currentWorkerNum,
 //        0,
 //        "asia"
 //      )

@@ -16,12 +16,13 @@ import io.github.redouane59.twitter.dto.user.UserV2.UserData
 import java.time.format.DateTimeFormatter
 import java.time.{LocalDateTime, ZoneId, ZoneOffset}
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
+import scala.collection.mutable.ListBuffer
 import scala.collection.{Iterator, mutable}
 import scala.jdk.CollectionConverters.asScalaBufferConverter
 class TwitterFullArchiveSearchSourceOpExec(
     desc: TwitterFullArchiveSearchSourceOpDesc,
     operatorSchemaInfo: OperatorSchemaInfo
-) extends TwitterSourceOpExec(desc.apiKey, desc.apiSecretKey) {
+) extends TwitterSourceOpExec(desc.apiKey, desc.apiSecretKey, desc.stopWhenRateLimited) {
   val outputSchemaAttributes: Array[AttributeType] = operatorSchemaInfo.outputSchema.getAttributes
     .map((attribute: Attribute) => { attribute.getType })
     .toArray
@@ -30,7 +31,7 @@ class TwitterFullArchiveSearchSourceOpExec(
   var nextToken: String = _
   // contains tweets from the previous request.
   var tweetCache: mutable.Buffer[TweetData] = mutable.Buffer()
-  var userCache: Map[String, UserData] = _
+  var userCache: Map[String, UserData] = Map()
   var hasNextRequest: Boolean = curLimit > 0
   var lastQueryTime: Long = 0
 
@@ -87,6 +88,18 @@ class TwitterFullArchiveSearchSourceOpExec(
             java.lang.Long.valueOf(tweet.getQuoteCount),
             java.lang.Long.valueOf(tweet.getReplyCount),
             java.lang.Long.valueOf(tweet.getRetweetCount),
+            Option(tweet.getEntities)
+              .map(e => Option(e.getHashtags).map(_.map(x => x.getText).mkString(",")).orNull)
+              .orNull,
+            Option(tweet.getEntities)
+              .map(e => Option(e.getSymbols).map(_.map(x => x.getText).mkString(",")).orNull)
+              .orNull,
+            Option(tweet.getEntities)
+              .map(e => Option(e.getUrls).map(_.map(x => x.getExpandedUrl).mkString(",")).orNull)
+              .orNull,
+            Option(tweet.getEntities)
+              .map(e => Option(e.getUserMentions).map(_.map(x => x.getText).mkString(",")).orNull)
+              .orNull,
             user.get.getId,
             user.get.getCreatedAt,
             user.get.getName,
@@ -153,16 +166,28 @@ class TwitterFullArchiveSearchSourceOpExec(
       enforceRateLimit()
       response = twitterClient.searchAllTweets(query, params)
       retry -= 1
+
+      if (response == null || response.getMeta == null) {
+        // Error in request, result in null responses
+        throw new RuntimeException("error in requesting Twitter API, please check your query.")
+
+      }
     } while (response.getMeta.getNextToken == null && retry > 0)
 
     nextToken = response.getMeta.getNextToken
 
+    tweetCache =
+      if (response != null && response.getData != null) response.getData.asScala else ListBuffer()
+
+    userCache =
+      if (response != null && response.getIncludes != null && response.getIncludes.getUsers != null)
+        response.getIncludes.getUsers
+          .map((userData: UserData) => userData.getId -> userData)
+          .toMap
+      else Map()
+
     // when there is no more pages left, no need to request any more
     hasNextRequest = nextToken != null
-
-    tweetCache = response.getData.asScala
-    userCache =
-      response.getIncludes.getUsers.map((userData: UserData) => userData.getId -> userData).toMap
 
   }
 

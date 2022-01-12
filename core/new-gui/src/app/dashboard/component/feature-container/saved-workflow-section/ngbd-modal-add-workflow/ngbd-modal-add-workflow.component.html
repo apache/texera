@@ -1,19 +1,16 @@
 <div class="modal-header">
   <h4 class="modal-title">Add New Project</h4>
-  <button type="button" class="close" aria-label="Close" (click)="activeModal.close()">
+  <button (click)="activeModal.close()" aria-label="Close" class="close" type="button">
     <span aria-hidden="true">&times;</span>
   </button>
 </div>
 <div class="modal-body">
-
   <mat-dialog-content>
-    <input matInput [(ngModel)]="this.name" placeholder="Name of New Project">
+    <input [(ngModel)]="this.name" matInput placeholder="Name of New Project" />
   </mat-dialog-content>
-  <div id="warning" class="warning-note"></div>
-
-
+  <div class="warning-note" id="warning"></div>
 </div>
 <div class="modal-footer">
   <button (click)="addWorkflow()" class="btn btn-outline-dark add-button" type="button">Add</button>
-  <button type="button" class="btn btn-outline-dark" (click)="activeModal.close()">Close</button>
+  <button (click)="activeModal.close()" class="btn btn-outline-dark" type="button">Close</button>
 </div>

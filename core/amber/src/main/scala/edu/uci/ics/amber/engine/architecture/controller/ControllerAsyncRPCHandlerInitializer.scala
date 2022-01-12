@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
-import akka.actor.{ActorContext, ActorRef, Cancellable}
+import akka.actor.{ActorContext, Cancellable}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   WorkflowResultUpdate,
   WorkflowStatusUpdate
@@ -9,24 +9,10 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWor
   ControllerInitiateQueryResults,
   ControllerInitiateQueryStatistics
 }
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.{
-  AssignBreakpointHandler,
-  FatalErrorHandler,
-  KillWorkflowHandler,
-  LinkCompletedHandler,
-  LinkWorkersHandler,
-  LocalBreakpointTriggeredHandler,
-  LocalOperatorExceptionHandler,
-  PauseHandler,
-  QueryWorkerStatisticsHandler,
-  ResumeHandler,
-  StartWorkflowHandler,
-  WorkerExecutionCompletedHandler,
-  WorkerExecutionStartedHandler
-}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
-import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlOutputPort
-import edu.uci.ics.amber.engine.common.WorkflowLogger
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers._
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputPort
+import edu.uci.ics.amber.engine.common.AmberLogging
+import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.{
   AsyncRPCClient,
@@ -35,20 +21,18 @@ import edu.uci.ics.amber.engine.common.rpc.{
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
-import scala.collection.mutable
 import scala.concurrent.duration.{DurationInt, FiniteDuration, MILLISECONDS}
 
 class ControllerAsyncRPCHandlerInitializer(
-    val logger: WorkflowLogger,
     val actorContext: ActorContext,
-    val selfID: ActorVirtualIdentity,
-    val controlOutputPort: ControlOutputPort,
-    val eventListener: ControllerEventListener,
+    val actorId: ActorVirtualIdentity,
+    val controlOutputPort: NetworkOutputPort[ControlPayload],
     val workflow: Workflow,
     val controllerConfig: ControllerConfig,
     source: AsyncRPCClient,
     receiver: AsyncRPCServer
 ) extends AsyncRPCHandlerInitializer(source, receiver)
+    with AmberLogging
     with LinkWorkersHandler
     with AssignBreakpointHandler
     with WorkerExecutionCompletedHandler
@@ -59,9 +43,12 @@ class ControllerAsyncRPCHandlerInitializer(
     with QueryWorkerStatisticsHandler
     with ResumeHandler
     with StartWorkflowHandler
-    with KillWorkflowHandler
     with LinkCompletedHandler
-    with FatalErrorHandler {
+    with FatalErrorHandler
+    with PythonPrintHandler
+    with RetryWorkflowHandler
+    with ModifyLogicHandler
+    with EvaluatePythonExpressionHandler {
 
   var statusUpdateAskHandle: Option[Cancellable] = None
   var resultUpdateAskHandle: Option[Cancellable] = None
@@ -103,19 +90,6 @@ class ControllerAsyncRPCHandlerInitializer(
     if (resultUpdateAskHandle.nonEmpty) {
       resultUpdateAskHandle.get.cancel()
       resultUpdateAskHandle = Option.empty
-    }
-  }
-
-  def updateFrontendWorkflowStatus(): Unit = {
-    if (eventListener.workflowStatusUpdateListener != null) {
-      eventListener.workflowStatusUpdateListener
-        .apply(WorkflowStatusUpdate(workflow.getWorkflowStatus))
-    }
-  }
-
-  def updateFrontendWorkflowResult(workflowResultUpdate: WorkflowResultUpdate): Unit = {
-    if (eventListener.workflowResultUpdateListener != null) {
-      eventListener.workflowResultUpdateListener.apply(workflowResultUpdate)
     }
   }
 

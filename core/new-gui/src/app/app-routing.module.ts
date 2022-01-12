@@ -1,13 +1,13 @@
-import { NgModule } from '@angular/core';
-import { RouterModule, Routes } from '@angular/router';
-import { environment } from '../environments/environment';
+import { NgModule } from "@angular/core";
+import { RouterModule, Routes } from "@angular/router";
+import { environment } from "../environments/environment";
 
-import { DashboardComponent } from './dashboard/component/dashboard.component';
-import { SavedWorkflowSectionComponent } from './dashboard/component/feature-container/saved-workflow-section/saved-workflow-section.component';
-import { UserDictionarySectionComponent } from './dashboard/component/feature-container/user-dictionary-section/user-dictionary-section.component';
-import { UserFileSectionComponent } from './dashboard/component/feature-container/user-file-section/user-file-section.component';
+import { DashboardComponent } from "./dashboard/component/dashboard.component";
+import { SavedWorkflowSectionComponent } from "./dashboard/component/feature-container/saved-workflow-section/saved-workflow-section.component";
+import { UserDictionarySectionComponent } from "./dashboard/component/feature-container/user-dictionary-section/user-dictionary-section.component";
+import { UserFileSectionComponent } from "./dashboard/component/feature-container/user-file-section/user-file-section.component";
 
-import { WorkspaceComponent } from './workspace/component/workspace.component';
+import { WorkspaceComponent } from "./workspace/component/workspace.component";
 
 /*
  *  This file defines the url path
@@ -15,54 +15,51 @@ import { WorkspaceComponent } from './workspace/component/workspace.component';
  */
 const routes: Routes = [
   {
-    path: '',
-    component: WorkspaceComponent
+    path: "",
+    component: WorkspaceComponent,
   },
   {
-    path: 'workflow/:id',
-    component: WorkspaceComponent
-  }
+    path: "workflow/:id",
+    component: WorkspaceComponent,
+  },
 ];
 
-
 if (environment.userSystemEnabled) {
-
   /*
    *  The user dashboard is under path '/dashboard'
    *  The saved workflow is under path '/dashboard/workflow'
-   *  The user dictionary is under path '/dashboard/userdictionary'
+   *  The user file is under path '/dashboard/user-file'
+   *  The user dictionary is under path '/dashboard/user-dictionary'
    */
 
-  routes.push(
-    {
-      path: 'dashboard',
-      component: DashboardComponent,
-      children: [
-        {
-          path: 'workflow',
-          component: SavedWorkflowSectionComponent
-        },
-        {
-          path: 'userdictionary',
-          component: UserDictionarySectionComponent
-        },
-        {
-          path: 'userfile',
-          component: UserFileSectionComponent
-        }
-      ]
-    });
+  routes.push({
+    path: "dashboard",
+    component: DashboardComponent,
+    children: [
+      {
+        path: "workflow",
+        component: SavedWorkflowSectionComponent,
+      },
+      {
+        path: "user-dictionary",
+        component: UserDictionarySectionComponent,
+      },
+      {
+        path: "user-file",
+        component: UserFileSectionComponent,
+      },
+    ],
+  });
 }
 
 // redirect all other paths to index.
 routes.push({
-  path: '**',
-  redirectTo: ''
+  path: "**",
+  redirectTo: "",
 });
 
 @NgModule({
-  imports: [RouterModule.forRoot(routes)],
-  exports: [RouterModule]
+  imports: [RouterModule.forRoot(routes, { relativeLinkResolution: "legacy" })],
+  exports: [RouterModule],
 })
-export class AppRoutingModule {
-}
+export class AppRoutingModule {}

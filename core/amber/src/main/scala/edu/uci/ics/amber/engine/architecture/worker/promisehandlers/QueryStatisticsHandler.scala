@@ -1,16 +1,13 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
-import edu.uci.ics.amber.engine.architecture.worker.{
-  WorkerAsyncRPCHandlerInitializer,
-  WorkerResult,
-  WorkerStatistics
-}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.{
   QueryStatistics,
   QueryWorkerResult
 }
-import edu.uci.ics.amber.engine.common.{Constants, ITupleSinkOperatorExecutor}
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
+import edu.uci.ics.amber.engine.architecture.worker.{WorkerAsyncRPCHandlerInitializer, WorkerResult}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
+import edu.uci.ics.amber.engine.common.{Constants, ITupleSinkOperatorExecutor}
 
 object QueryStatisticsHandler {
   final case class QueryStatistics() extends ControlCommand[WorkerStatistics]
@@ -24,7 +21,7 @@ trait QueryStatisticsHandler {
     // report internal queue length if the gap > 30s
     val now = System.currentTimeMillis()
     if (now - lastReportTime > Constants.loggingQueueSizeInterval) {
-      logger.logInfo(
+      logger.info(
         s"Data Queue Length = ${dataProcessor.getDataQueueLength}, Control Queue Length = ${dataProcessor.getControlQueueLength}"
       )
       lastReportTime = now

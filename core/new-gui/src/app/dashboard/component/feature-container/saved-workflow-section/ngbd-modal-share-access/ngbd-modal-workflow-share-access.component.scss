@@ -1,0 +1,12 @@
+.modal-body {
+  word-wrap: break-word;
+  min-height: calc(100vh - 200px);
+  max-height: calc(100vh - 200px);
+  overflow: auto !important;
+
+  button {
+    border: none;
+    top: 80%;
+    transform: translateY(-20%);
+  }
+}

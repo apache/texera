@@ -9,7 +9,7 @@ export const defaultEnvironment = {
   /**
    * root API URL of the backend
    */
-  apiUrl: 'api',
+  apiUrl: "api",
   /**
    * whether fetching available source tables is enabled
    * see SourceTablesService for details
@@ -29,9 +29,9 @@ export const defaultEnvironment = {
    */
   executionStatusEnabled: true,
   /**
-   * whether download execution result is supported
+   * whether export execution result is supported
    */
-  downloadExecutionResultEnabled: false,
+  exportExecutionResultEnabled: false,
 
   /**
    * whether user system is enabled
@@ -46,20 +46,28 @@ export const defaultEnvironment = {
   linkBreakpointEnabled: true,
 
   /**
+   * whether operator caching is enabled
+   */
+  operatorCacheEnabled: false,
+
+  /**
+   * whether debugger is enabled
+   */
+  debuggerEnabled: false,
+
+  /**
    * the access code for mapbox
    */
   mapbox: {
-    accessToken: ''
+    accessToken: "",
   },
 
   /**
    * all google-related configs
    */
   google: {
-    clientID: ''
-  }
-
+    clientID: "",
+  },
 };
 
 export type AppEnv = typeof defaultEnvironment;
-

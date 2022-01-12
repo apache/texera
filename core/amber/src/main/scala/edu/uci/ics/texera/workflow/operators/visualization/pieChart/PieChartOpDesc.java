@@ -55,7 +55,7 @@ public class PieChartOpDesc extends VisualizationOperator {
         }
         if (pruneRatio < 0 || pruneRatio > 1) throw new RuntimeException("pie chart: prune ratio not within in [0,1]");
 
-        return new PieChartOpExecConfig(this.operatorIdentifier(), Constants.defaultNumWorkers(), nameColumn, dataColumn, pruneRatio);
+        return new PieChartOpExecConfig(this.operatorIdentifier(), Constants.currentWorkerNum(), nameColumn, dataColumn, pruneRatio, operatorSchemaInfo);
     }
 
     @Override

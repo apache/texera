@@ -19,11 +19,15 @@
             "polyfills": "src/polyfills.ts",
             "assets": [
               "src/assets",
-              "src/favicon.ico",
               {
                 "glob": "**/*",
                 "input": "./node_modules/@ant-design/icons-angular/src/inline-svg/",
                 "output": "/assets/"
+              },
+              {
+                "glob": "**/*",
+                "input": "node_modules/ngx-monaco-editor/assets/monaco",
+                "output": "./assets/monaco/"
               }
             ],
             "styles": [
@@ -34,10 +38,7 @@
               "node_modules/bootstrap/dist/css/bootstrap.min.css",
               "src/styles.scss"
             ],
-            "scripts": [
-              "./node_modules/ace-builds/src-min/ace.js",
-              "./node_modules/ace-builds/src-min/mode-python.js"
-            ]
+            "scripts": ["./node_modules/ngx-monaco-editor/assets/monaco/vs/loader.js"]
           },
           "configurations": {
             "production": {
@@ -50,7 +51,6 @@
               "optimization": true,
               "outputHashing": "all",
               "sourceMap": false,
-              "extractCss": true,
               "namedChunks": false,
               "aot": true,
               "extractLicenses": true,
@@ -86,10 +86,7 @@
         "test": {
           "builder": "@angular-devkit/build-angular:karma",
           "options": {
-            "assets": [
-              "src/assets",
-              "src/favicon.ico"
-            ],
+            "assets": ["src/assets"],
             "fileReplacements": [
               {
                 "replace": "src/environments/environment.ts",
@@ -113,32 +110,20 @@
         "e2e": {
           "builder": "multi-target:multi-target",
           "options": {
-            "targets": [
-              "texera-gui:build:production",
-              "texera-gui:cypress-headless-with-fullstack"
-            ],
+            "targets": ["texera-gui:build:production", "texera-gui:cypress-headless-with-fullstack"],
             "sequential": true
           },
           "configurations": {
             "watch": {
-              "targets": [
-                "texera-gui:build:production",
-                "texera-gui:cypress-watch-with-fullstack"
-              ],
+              "targets": ["texera-gui:build:production", "texera-gui:cypress-watch-with-fullstack"],
               "sequential": true
             }
           }
         },
         "lint": {
-          "builder": "@angular-devkit/build-angular:tslint",
+          "builder": "@angular-eslint/builder:lint",
           "options": {
-            "tsConfig": [
-              "src/tsconfig.app.json",
-              "src/tsconfig.spec.json"
-            ],
-            "exclude": [
-              "**/node_modules/**"
-            ]
+            "lintFilePatterns": ["src/**/*.ts", "src/**/*.html"]
           }
         },
         "fullstack": {
@@ -178,22 +163,14 @@
         "cypress-headless-with-fullstack": {
           "builder": "multi-target:multi-target",
           "options": {
-            "targets": [
-              "texera-gui:fullstack",
-              "texera-gui:cypress-headless",
-              "texera-gui:kill-fullstack"
-            ],
+            "targets": ["texera-gui:fullstack", "texera-gui:cypress-headless", "texera-gui:kill-fullstack"],
             "sequential": true
           }
         },
         "cypress-watch-with-fullstack": {
           "builder": "multi-target:multi-target",
           "options": {
-            "targets": [
-              "texera-gui:fullstack",
-              "texera-gui:cypress-watch",
-              "texera-gui:kill-fullstack"
-            ],
+            "targets": ["texera-gui:fullstack", "texera-gui:cypress-watch", "texera-gui:kill-fullstack"],
             "sequential": true
           }
         }
@@ -211,6 +188,7 @@
     }
   },
   "cli": {
-    "analytics": false
+    "analytics": false,
+    "defaultCollection": "@angular-eslint/schematics"
   }
 }

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component } from "@angular/core";
 
 /**
  * FeatureContainerComponent is the container for dashboard features,
@@ -8,15 +8,8 @@ import { Component, OnInit } from '@angular/core';
  * @author Zhaomin Li
  */
 @Component({
-  selector: 'texera-feature-container',
-  templateUrl: './feature-container.component.html',
-  styleUrls: ['./feature-container.component.scss']
+  selector: "texera-feature-container",
+  templateUrl: "./feature-container.component.html",
+  styleUrls: ["./feature-container.component.scss"],
 })
-export class FeatureContainerComponent implements OnInit {
-
-  constructor() { }
-
-  ngOnInit() {
-  }
-
-}
+export class FeatureContainerComponent {}

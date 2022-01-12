@@ -1,15 +1,32 @@
-<mat-list class="feature-bar-outline">
-  <button [routerLink]="['/dashboard/workflow']" class="feature-bar-btn" mat-button placement="right"
-          ngbTooltip="Open the saved user projects">
-    <i class="fa fa-product-hunt" aria-hidden="true"></i>
-    Workflow
-  </button>
-  <mat-divider></mat-divider>
-  <button mat-button class="feature-bar-btn" [routerLink]="['/dashboard/userfile']" placement="right"
-    ngbTooltip="Look up the user files">
-    <i class="fa fa-book" aria-hidden="true"></i>
-    User File</button>
-  <mat-divider></mat-divider>
+<!--TODO: change to nz-menu-->
+<nz-list nzBordered>
+  <nz-list-item>
+    <button
+      [routerLink]="['/dashboard/workflow']"
+      class="feature-bar-btn"
+      nz-button
+      nz-tooltip="Open the saved workflows"
+      nzTooltipPlacement="right"
+      nzType="text"
+    >
+      <i class="feature-bar-btn-icon" nz-icon nzTheme="outline" nzType="project"></i>
+      Workflows
+    </button>
+  </nz-list-item>
+  <nz-list-item>
+    <button
+      [routerLink]="['/dashboard/user-file']"
+      class="feature-bar-btn"
+      nz-button
+      nz-tooltip="Look up the user files"
+      nzTooltipPlacement="right"
+      nzType="text"
+    >
+      <i class="feature-bar-btn-icon" nz-icon nzTheme="outline" nzType="folder-open"></i>
+      User Files
+    </button>
+  </nz-list-item>
+
   <!--  <button mat-button class="feature-bar-btn" [routerLink]="['/dashboard/userdictionary']" placement="right"-->
   <!--    ngbTooltip="Look up the user dictionaries">-->
   <!--    <i class="fa fa-book" aria-hidden="true"></i>-->
@@ -26,4 +43,4 @@
   <!--    <i class="fa fa-database" aria-hidden="true"></i>-->
   <!--    Data Source</button>-->
   <!--  <mat-divider></mat-divider>-->
-</mat-list>
+</nz-list>

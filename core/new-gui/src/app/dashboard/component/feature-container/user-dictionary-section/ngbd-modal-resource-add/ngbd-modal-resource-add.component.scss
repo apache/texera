@@ -2,9 +2,8 @@
   word-wrap: break-word;
 }
 
-
 .file-upload-btn {
-  background-color: #1dc739
+  background-color: #1dc739;
 }
 
 .or-separator {
@@ -15,7 +14,7 @@
   margin-top: 20px;
 }
 
-.add-dictionary-container>* {
+.add-dictionary-container > * {
   display: flex;
   flex-direction: column;
   column-fill: balance;
@@ -87,23 +86,23 @@
   width: 75px;
 }
 
-#hide input[type=file] {
+#hide input[type="file"] {
   display: none;
   margin: 10px;
 }
 
-#hide input[type=file]+label {
+#hide input[type="file"] + label {
   display: inline-block;
   margin: 20px;
   padding: 4px 32px;
-  background-color: #FFFFFF;
-  border: solid 1px #666F77;
+  background-color: #ffffff;
+  border: solid 1px #666f77;
   border-radius: 6px;
-  color: #666F77;
+  color: #666f77;
 }
 
-#hide input[type=file]:active+label {
+#hide input[type="file"]:active + label {
   background-image: none;
-  background-color: #2D6C7A;
-  color: #FFFFFF;
+  background-color: #2d6c7a;
+  color: #ffffff;
 }

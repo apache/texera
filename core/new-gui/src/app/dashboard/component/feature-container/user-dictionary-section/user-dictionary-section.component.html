@@ -1,20 +1,23 @@
 <div class="user-dictionary-container subsection-grid-container">
-
   <mat-card class="button-area subsection-grid-container">
-    <div ngbDropdown class="d-inline-block">
+    <div class="d-inline-block" ngbDropdown>
       <button class="btn btn-outline-primary" id="sortDropdown" ngbDropdownToggle>Sort</button>
-      <div ngbDropdownMenu aria-labelledby="dropdownBasic1">
+      <div aria-labelledby="dropdownBasic1" ngbDropdownMenu>
         <mat-list>
-          <button mat-button class="sorting_func" (click)="ascSort()">A -> Z</button>
+          <button (click)="ascSort()" class="sorting_func" mat-button>A -> Z</button>
           <mat-divider></mat-divider>
-          <button mat-button class="sorting_func" (click)="dscSort()">Z -> A</button>
+          <button (click)="dscSort()" class="sorting_func" mat-button>Z -> A</button>
           <mat-divider></mat-divider>
-          <button mat-button class="sorting_func" (click)="sizeSort()">By Dictionary Size</button>
+          <button (click)="sizeSort()" class="sorting_func" mat-button>By Dictionary Size</button>
           <mat-divider></mat-divider>
         </mat-list>
       </div>
-      <button type="button" class="btn btn-outline-dark add-button" (click)="openNgbdModalResourceAddComponent()"
-        [disabled]="disableAddbutton()">
+      <button
+        (click)="openNgbdModalResourceAddComponent()"
+        [disabled]="disableAddbutton()"
+        class="btn btn-outline-dark add-button"
+        type="button"
+      >
         <i class="fa fa-cloud-upload"></i>
       </button>
     </div>
@@ -27,27 +30,38 @@
         <br />
         <div class="scroll">
           <mat-list-item *ngFor="let dictionary of getDictArray()" class="user-dictionary-list-item">
-            <ng-template #tipContent>Description: {{dictionary.description}}</ng-template>
-            <div class="section-for-tip" placement="bottom" [ngbTooltip]="tipContent">
-              <p font-size=10px><span class="dict-name">
-                  {{dictionary.name}}</span>
+            <ng-template #tipContent>Description: {{ dictionary.description }}</ng-template>
+            <div [ngbTooltip]="tipContent" class="section-for-tip" placement="bottom">
+              <p font-size="10px">
+                <span class="dict-name"> {{ dictionary.name }}</span>
               </p>
               <p>
                 Item Preview:
-                <mat-chip class="preview-item" *ngFor="let item of dictionary.items.slice(0,6)" [selectable]="true">
-                  {{limitPreviewItemSize(item)}}
+                <mat-chip *ngFor="let item of dictionary.items.slice(0, 6)" [selectable]="true" class="preview-item">
+                  {{ limitPreviewItemSize(item) }}
                 </mat-chip>
               </p>
             </div>
             <span class="gap-filler"></span>
-            <button type="button" class="btn btn-outline-dark view-button"
-              (click)="openNgbdModalResourceViewComponent(dictionary)">View</button>
-            <button mat-button class="delete-project-btn" placement="bottom" ngbTooltip="Delete the {{dictionary.name}}"
-              (click)="openNgbdModalResourceDeleteComponent(dictionary)"><i class="fa fa-trash"></i></button>
+            <button
+              (click)="openNgbdModalResourceViewComponent(dictionary)"
+              class="btn btn-outline-dark view-button"
+              type="button"
+            >
+              View
+            </button>
+            <button
+              (click)="openNgbdModalResourceDeleteComponent(dictionary)"
+              class="delete-project-btn"
+              mat-button
+              ngbTooltip="Delete the {{ dictionary.name }}"
+              placement="bottom"
+            >
+              <i class="fa fa-trash"></i>
+            </button>
           </mat-list-item>
         </div>
       </mat-list>
     </mat-card-content>
   </mat-card>
-
 </div>

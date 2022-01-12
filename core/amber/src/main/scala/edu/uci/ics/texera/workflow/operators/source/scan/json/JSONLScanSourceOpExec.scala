@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.json
 
-import edu.uci.ics.texera.workflow.common.Utils.objectMapper
+import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseField

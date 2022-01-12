@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package edu.uci.ics.amber.engine.common;
+
+import "edu/uci/ics/amber/engine/architecture/worker/controlcommands.proto";
+import "edu/uci/ics/amber/engine/architecture/worker/controlreturns.proto";
+import "edu/uci/ics/amber/engine/common/virtualidentity.proto";
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+    scope: FILE,
+    preserve_unknown_fields: false
+    no_default_values_in_constructor: true
+};
+
+message ControlInvocationV2 {
+    int64 command_id = 1;
+    architecture.worker.ControlCommandV2 command = 2 [(scalapb.field).no_box = true];
+}
+
+message ReturnInvocationV2 {
+    int64 original_command_id = 1;
+    architecture.worker.ControlReturnV2 control_return = 2 [(scalapb.field).no_box = true];
+}
+
+message ControlPayloadV2 {
+    oneof sealed_value {
+        ControlInvocationV2 control_invocation = 1;
+        ReturnInvocationV2 return_invocation = 2;
+    }
+}
+
+message PythonDataHeader {
+    common.ActorVirtualIdentity tag = 1 [(scalapb.field).no_box = true];
+    bool is_end = 2;
+}
+
+message PythonControlMessage {
+    common.ActorVirtualIdentity tag = 1 [(scalapb.field).no_box = true];
+    ControlPayloadV2 payload = 2 [(scalapb.field).no_box = true];
+}
+

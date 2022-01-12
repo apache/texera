@@ -6,7 +6,7 @@
 //  ExceptionBreakpoint,
 //  LocalBreakpoint
 //}
-//import Engine.Architecture.SendSemantics.DataTransferPolicy.OneToOnePolicy
+//import Engine.Architecture.SendSemantics.DataTransferPolicy.OneToOnePartitioning
 //import Engine.Architecture.SendSemantics.Routees.DirectRoutee
 //import Engine.Common.AmberMessage.ControlMessage.{
 //  LocalBreakpointTriggered,
@@ -73,7 +73,7 @@
 //    val execActor =
 //      system.actorOf(Generator.props(new SimpleTupleProducer(totalTuples), workerTag()))
 //    execActor ? AckedWorkerInitialization
-//    val output = new OneToOnePolicy(1)
+//    val output = new OneToOnePartitioning(1)
 //    execActor ? UpdateOutputLinking(output, linkTag(), Array(new DirectRoutee(testActor)))
 //    val start = System.nanoTime()
 //    execActor ? Start
@@ -94,7 +94,7 @@
 //    val execActor =
 //      system.actorOf(Generator.props(new SimpleTupleProducer(totalTuples), workerTag()))
 //    execActor ? AckedWorkerInitialization
-//    val output = new OneToOnePolicy(1)
+//    val output = new OneToOnePartitioning(1)
 //    execActor ? UpdateOutputLinking(output, linkTag(), Array(new DirectRoutee(testActor)))
 //    val start = System.nanoTime()
 //    execActor ? Start
@@ -110,7 +110,7 @@
 //    val execActor =
 //      system.actorOf(Generator.props(new SimpleTupleProducer(totalTuples), workerTag()))
 //    execActor ? AckedWorkerInitialization
-//    val output = new OneToOnePolicy(1)
+//    val output = new OneToOnePartitioning(1)
 //    execActor ? UpdateOutputLinking(output, linkTag(), Array(new DirectRoutee(testActor)))
 //    val start = System.nanoTime()
 //    execActor ? Start
@@ -128,7 +128,7 @@
 //    probe.expectMsg(ReportState(WorkerState.Paused))
 //    execActor.tell(Resume, probe.ref)
 //    probe.expectMsg(ReportState(WorkerState.Ready))
-//    val output = new OneToOnePolicy(1)
+//    val output = new OneToOnePartitioning(1)
 //    execActor ? UpdateOutputLinking(output, linkTag(), Array(new DirectRoutee(testActor)))
 //    val start = System.nanoTime()
 //    execActor ? Start
@@ -142,7 +142,7 @@
 //      probe.childActorOf(Generator.props(new SimpleTupleProducer(totalTuples), workerTag()))
 //    execActor ? AckedWorkerInitialization
 //    probe.expectMsg(ReportState(WorkerState.Ready))
-//    val output = new OneToOnePolicy(1)
+//    val output = new OneToOnePartitioning(1)
 //    execActor ? UpdateOutputLinking(output, linkTag(), Array(new DirectRoutee(testActor)))
 //    val start = System.nanoTime()
 //    execActor ? Start
@@ -163,7 +163,7 @@
 //    probe.expectMsg(ReportState(WorkerState.Uninitialized))
 //    execActor ? AckedWorkerInitialization
 //    probe.expectMsg(ReportState(WorkerState.Ready))
-//    val output = new OneToOnePolicy(1)
+//    val output = new OneToOnePartitioning(1)
 //    execActor ? UpdateOutputLinking(output, linkTag(), Array(new DirectRoutee(testActor)))
 //    val start = System.nanoTime()
 //    execActor ? Start

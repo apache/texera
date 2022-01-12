@@ -34,7 +34,7 @@ $header-height: 70px;
 
 .user-dictionary-container {
   display: grid;
-  grid-template-rows : $header-height calc((100% - #{$header-height}))
+  grid-template-rows: $header-height calc((100% - #{$header-height}));
 }
 
 .button-area {
@@ -69,17 +69,17 @@ $header-height: 70px;
 }
 
 .view-button {
-  background-color: #1fe23f7c
+  background-color: #1fe23f7c;
 }
 
 .dict-name {
   color: rgb(62, 202, 253);
   font-size: 20px;
-  font-family: Roboto, Arial, sans-serif
+  font-family: Roboto, Arial, sans-serif;
 }
 
 .delete-workflow-btn {
-  width: 1%
+  width: 1%;
 }
 
 .preview-item {

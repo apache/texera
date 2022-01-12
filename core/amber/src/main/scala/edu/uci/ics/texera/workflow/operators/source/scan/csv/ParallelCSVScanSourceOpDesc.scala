@@ -43,7 +43,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
     filePath match {
       case Some(path) =>
         val totalBytes: Long = new File(path).length()
-        val numWorkers: Int = Constants.defaultNumWorkers
+        val numWorkers: Int = Constants.currentWorkerNum
 
         new OneToOneOpExecConfig(
           operatorIdentifier,

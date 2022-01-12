@@ -1,8 +1,14 @@
 import {
-  BuilderContext, BuilderOutput, BuilderRun, createBuilder,
-  ScheduleOptions, Target, targetStringFromTarget, targetFromTargetString
-} from '@angular-devkit/architect';
-import { JsonObject, logging } from '@angular-devkit/core';
+  BuilderContext,
+  BuilderOutput,
+  BuilderRun,
+  createBuilder,
+  ScheduleOptions,
+  Target,
+  targetStringFromTarget,
+  targetFromTargetString,
+} from "@angular-devkit/architect";
+import { JsonObject, logging } from "@angular-devkit/core";
 
 /**
  * properties:
@@ -37,7 +43,6 @@ class TargetData {
   private targetSuccesses: number;
   private failSubscribers: ((targetFails: number) => void)[] = [];
   private successSubscribers: ((targetSuccesses: number) => void)[] = [];
-
 
   constructor(totalTargets: number, targetFails: number, targetSuccesses: number) {
     this.totalTargets = totalTargets;
@@ -77,7 +82,7 @@ class TargetData {
    *
    * @param fn gets called every incrementTargetFails()
    */
-  subscribeToFails(fn: ((targetFails: number) => void)) {
+  subscribeToFails(fn: (targetFails: number) => void) {
     this.failSubscribers.push(fn);
   }
 
@@ -85,7 +90,7 @@ class TargetData {
    *
    * @param fn gets called every incrementTargetSuccesses()
    */
-  subscribeToSuccesses(fn: ((targetSuccesses: number) => void)) {
+  subscribeToSuccesses(fn: (targetSuccesses: number) => void) {
     this.successSubscribers.push(fn);
   }
 }
@@ -110,14 +115,18 @@ function multiBuilder(options: Options, context: BuilderContext): Promise<Builde
   // running is automatic after a BuilderRun is scheduled. BuilderRun.result is a promise of BuilderOutput
 
   // const used to label/prefix logs
-  const multiTargetStr: string = (context.target === undefined) ? 'Anonymous Multi-Target Builder' : targetStringFromTarget(context.target);
+  const multiTargetStr: string =
+    context.target === undefined ? "Anonymous Multi-Target Builder" : targetStringFromTarget(context.target);
 
   return new Promise<BuilderOutput>(async (resolve, reject) => {
-
     if (options.sequential && options.race) {
       const errorMsg = `(${multiTargetStr}) invalid config: options 'race: true' and 'sequential: true' are incompatible`;
       context.logger.fatal(errorMsg);
-      reject({ success: false, target: context.target as Target, error: errorMsg });
+      reject({
+        success: false,
+        target: context.target as Target,
+        error: errorMsg,
+      });
     }
 
     // Each BuilderRun represents a builder successfully scheduled and running.
@@ -132,13 +141,21 @@ function multiBuilder(options: Options, context: BuilderContext): Promise<Builde
         const subTargetStr = targetStringFromTarget(targetData.failedTargets[targetData.failedTargets.length - 1]);
         const errorMsg = `(${multiTargetStr})-->(${subTargetStr}) failed!`;
         context.logger.fatal(errorMsg);
-        reject({ success: false, target: context.target as Target, error: errorMsg });
+        reject({
+          success: false,
+          target: context.target as Target,
+          error: errorMsg,
+        });
       } else if (options.race && targetFails === targetData.totalTargets) {
         const errorMsg = `(${multiTargetStr}) failed: all sub-targets failed! (race: true).`;
         context.logger.fatal(errorMsg);
-        reject({ success: false, target: context.target as Target, error: errorMsg });
+        reject({
+          success: false,
+          target: context.target as Target,
+          error: errorMsg,
+        });
       } else if (options.race && targetFails < targetData.totalTargets) {
-        const  subTargetStr = targetStringFromTarget(targetData.failedTargets[targetData.failedTargets.length - 1]);
+        const subTargetStr = targetStringFromTarget(targetData.failedTargets[targetData.failedTargets.length - 1]);
         const errorMsg = `(${multiTargetStr})-->(${subTargetStr}) failed. Ignoring due to config (race: true) `;
         context.logger.warn(errorMsg);
       }
@@ -175,7 +192,11 @@ function multiBuilder(options: Options, context: BuilderContext): Promise<Builde
         });
       });
       // if sequential, await scheduleTarget scheduling a BuilderRun and said BuilderRun.result resolving into a BuilderOutput
-      if (options.sequential) { await (await builderRuns[i]).result; }
+      if (options.sequential) {
+        await (
+          await builderRuns[i]
+        ).result;
+      }
     }
   });
 }

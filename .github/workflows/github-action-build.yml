@@ -2,7 +2,7 @@ name: build
 
 on:
   push:
-    branches: 
+    branches:
       - 'ci-enable/**'
       - 'master'
   pull_request:
@@ -13,7 +13,7 @@ on:
       - '**.csv'
       - '**.txt'
   workflow_dispatch:
-  
+
 jobs:
   gui:
     runs-on: ${{ matrix.os }}
@@ -26,6 +26,12 @@ jobs:
         architecture:
           - x64
     steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.9.1
+        with:
+          ignore_sha: true
+          all_but_latest: true
+          access_token: ${{ github.token }}
       - name: Checkout Texera
         uses: actions/checkout@v2
       - name: Setup node
@@ -33,38 +39,72 @@ jobs:
         with:
           node-version: ${{ matrix.node_version }}
           architecture: ${{ matrix.architecture }}
-      - name: Cache npm and node_modules
-        uses: actions/cache@v2
+      - uses: actions/cache@v2
         with:
           path: |
-            ~/.npm
             core/new-gui/node_modules
             core/new-gui/multi-target/node_modules
-          key: ${{ runner.os }}-node-with-modules-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-yarn-cache-v4-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
-            ${{ runner.os }}-node-with-modules-
-      - name: Install dependency with npm install
-        run: npm --prefix core/new-gui install --progress=false
-      - name: Backup - Install dependency with npm ci
-        if: ${{ failure() }}
-        run: npm --prefix core/new-gui ci --progress=false
-      - name: Build with npm
-        run: npm run --prefix core/new-gui build --prod --progress=false
+            ${{ runner.os }}-yarn-cache-v4-
+      - name: Install dependency
+        run: yarn --cwd core/new-gui install --frozen-lockfile --progress=false
+      - name: Lint with ESLint
+        run: yarn --cwd core/new-gui eslint ./src
       - name: Run frontend unit tests
-        run: npm run --prefix core/new-gui test:ci
+        run: yarn --cwd core/new-gui run test:ci
+      - name: Prod build
+        run: yarn --cwd core/new-gui run build
 
   amber:
     runs-on: ubuntu-latest
     steps:
-      - name: Cancel Previous Runs  # add cancel here since this stage is the fastest one.
-        uses: styfle/cancel-workflow-action@0.6.0
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.9.1
         with:
+          ignore_sha: true
+          all_but_latest: true
           access_token: ${{ github.token }}
       - name: Checkout Texera
         uses: actions/checkout@v2
+      - uses: coursier/cache-action@v6
       - name: Lint with scalafmt
         run: cd core/amber && sbt scalafmtCheckAll
       - name: Compile with sbt
-        run: cd core/amber && sbt clean compile
+        run: cd core/amber && sbt clean package
       - name: Run backend tests
         run: cd core/amber && sbt -v -J-Xmx2G test
+
+  python_udf:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [ 3.6, 3.7, 3.8, 3.9 ]
+
+    steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.9.1
+        with:
+          ignore_sha: true
+          all_but_latest: true
+          access_token: ${{ github.token }}
+      - name: Checkout Texera
+        uses: actions/checkout@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 pytest
+          if [ -f core/amber/requirements.txt ]; then pip install -r core/amber/requirements.txt; fi
+      - name: Lint with flake8
+        run: |
+          # stop the build if there are Python syntax errors or undefined names
+          flake8 core/amber/src/main/python --count --select=E9,F63,F7,F82 --show-source --statistics
+          # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+          flake8 core/amber/src/main/python --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+      - name: Test with pytest
+        run: |
+          cd core/amber/src/main/python && pytest -sv

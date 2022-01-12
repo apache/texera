@@ -6,7 +6,6 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.Us
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.RoundRobinDeployment
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{makeLayer, toOperatorIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
@@ -15,13 +14,13 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   OperatorIdentity
 }
 import edu.uci.ics.amber.engine.operators.OpExecConfig
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
 class HashJoinOpExecConfig[K](
     id: OperatorIdentity,
     val probeAttributeName: String,
     val buildAttributeName: String,
+    val joinType: JoinType,
     val operatorSchemaInfo: OperatorSchemaInfo
 ) extends OpExecConfig(id) {
 
@@ -31,7 +30,7 @@ class HashJoinOpExecConfig[K](
         new WorkerLayer(
           makeLayer(id, "main"),
           null,
-          Constants.defaultNumWorkers,
+          Constants.currentWorkerNum,
           UseAll(),
           RoundRobinDeployment()
         )
@@ -48,22 +47,24 @@ class HashJoinOpExecConfig[K](
     workflow.getSources(toOperatorIdentity(probeLink.from)).foreach { source =>
       workflow.getOperator(source).topology.layers.head.startAfter(buildLink)
     }
-    topology.layers.head.metadata = _ =>
+    topology.layers.head.initIOperatorExecutor = _ =>
       new HashJoinOpExec[K](
         buildTable,
         buildAttributeName,
         probeAttributeName,
+        joinType,
         operatorSchemaInfo
       )
   }
 
   override def requiredShuffle: Boolean = true
 
-  override def getShuffleHashFunction(layer: LayerIdentity): ITuple => Int = {
-    if (layer == buildTable.from.get) { t: ITuple =>
-      t.asInstanceOf[Tuple].getField(buildAttributeName).hashCode()
-    } else { t: ITuple =>
-      t.asInstanceOf[Tuple].getField(probeAttributeName).hashCode()
+  override def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = {
+    if (layer == buildTable.from) {
+      Array(operatorSchemaInfo.inputSchemas(0).getIndex(buildAttributeName))
+
+    } else {
+      Array(operatorSchemaInfo.inputSchemas(1).getIndex(probeAttributeName))
     }
   }
 

@@ -1,18 +1,19 @@
-import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
-import { isEqual } from 'lodash';
-import { NGXLogger } from 'ngx-logger';
-import { EMPTY, Observable } from 'rxjs';
-import { CustomJSONSchema7 } from 'src/app/workspace/types/custom-json-schema.interface';
-import { environment } from '../../../../../environments/environment';
-import { AppSettings } from '../../../../common/app-setting';
-import { OperatorSchema } from '../../../types/operator-schema.interface';
-import { ExecuteWorkflowService } from '../../execute-workflow/execute-workflow.service';
-import { WorkflowActionService } from '../../workflow-graph/model/workflow-action.service';
-import { DynamicSchemaService } from '../dynamic-schema.service';
+import { HttpClient } from "@angular/common/http";
+import { Injectable } from "@angular/core";
+import { isEqual } from "lodash-es";
+import { NGXLogger } from "ngx-logger";
+import { EMPTY, merge, Observable } from "rxjs";
+import { CustomJSONSchema7 } from "src/app/workspace/types/custom-json-schema.interface";
+import { environment } from "../../../../../environments/environment";
+import { AppSettings } from "../../../../common/app-setting";
+import { OperatorSchema } from "../../../types/operator-schema.interface";
+import { ExecuteWorkflowService } from "../../execute-workflow/execute-workflow.service";
+import { WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
+import { DynamicSchemaService } from "../dynamic-schema.service";
+import { catchError, debounceTime, filter, mergeMap } from "rxjs/operators";
 
 // endpoint for schema propagation
-export const SCHEMA_PROPAGATION_ENDPOINT = 'queryplan/autocomplete';
+export const SCHEMA_PROPAGATION_ENDPOINT = "queryplan/autocomplete";
 
 export const SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS = 500;
 
@@ -27,11 +28,12 @@ export const SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS = 500;
  *  and schema propagation can provide autocomplete for the column names.
  */
 @Injectable({
-  providedIn: 'root'
+  providedIn: "root",
 })
 export class SchemaPropagationService {
-
-  private operatorInputSchemaMap: Readonly<{ [key: string]: OperatorInputSchema }> = {};
+  private operatorInputSchemaMap: Readonly<{
+    [key: string]: OperatorInputSchema;
+  }> = {};
 
   constructor(
     private httpClient: HttpClient,
@@ -46,19 +48,23 @@ export class SchemaPropagationService {
 
     // invoke schema propagation API when: link is added/deleted,
     // or any property of any operator is changed
-    Observable
-      .merge(
-        this.workflowActionService.getTexeraGraph().getLinkAddStream(),
-        this.workflowActionService.getTexeraGraph().getLinkDeleteStream(),
-        this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream()
-          .debounceTime(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS))
-      .flatMap(() => this.invokeSchemaPropagationAPI())
-      .filter(response => response.code === 0)
+    merge(
+      this.workflowActionService.getTexeraGraph().getLinkAddStream(),
+      this.workflowActionService.getTexeraGraph().getLinkDeleteStream(),
+      this.workflowActionService
+        .getTexeraGraph()
+        .getOperatorPropertyChangeStream()
+        .pipe(debounceTime(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS)),
+      this.workflowActionService.getTexeraGraph().getDisabledOperatorsChangedStream()
+    )
+      .pipe(
+        mergeMap(() => this.invokeSchemaPropagationAPI()),
+        filter(response => response.code === 0)
+      )
       .subscribe(response => {
         this.operatorInputSchemaMap = response.result;
         this._applySchemaPropagationResult(this.operatorInputSchemaMap);
       });
-
   }
 
   public getOperatorInputSchema(operatorID: string): OperatorInputSchema | undefined {
@@ -84,7 +90,9 @@ export class SchemaPropagationService {
       let newDynamicSchema: OperatorSchema;
       if (schemaPropagationResult[operatorID]) {
         newDynamicSchema = SchemaPropagationService.setOperatorInputAttrs(
-          currentDynamicSchema, schemaPropagationResult[operatorID]);
+          currentDynamicSchema,
+          schemaPropagationResult[operatorID]
+        );
       } else {
         // otherwise, the input attributes of the operator is unknown
         // if the operator is not a source operator, restore its original schema of input attributes
@@ -99,7 +107,6 @@ export class SchemaPropagationService {
         // SchemaPropagationService.resetAttributeOfOperator(this.workflowActionService, operatorID);
         this.dynamicSchemaService.setDynamicSchema(operatorID, newDynamicSchema);
       }
-
     });
   }
 
@@ -114,14 +121,18 @@ export class SchemaPropagationService {
     // create a Logical Plan based on the workflow graph
     const body = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
     // make a http post request to the API endpoint with the logical plan object
-    return this.httpClient.post<SchemaPropagationResponse>(
-      `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`,
-      JSON.stringify(body),
-      {headers: {'Content-Type': 'application/json'}})
-      .catch(err => {
-        this.logger.error('schema propagation API returns error', err);
-        return EMPTY;
-      });
+    return this.httpClient
+      .post<SchemaPropagationResponse>(
+        `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`,
+        JSON.stringify(body),
+        { headers: { "Content-Type": "application/json" } }
+      )
+      .pipe(
+        catchError((err: unknown) => {
+          this.logger.error("schema propagation API returns error", err);
+          return EMPTY;
+        })
+      );
   }
 
   /**
@@ -145,10 +156,13 @@ export class SchemaPropagationService {
     // recursive function that removes the attribute properties and returns the new object
     const walkPropertiesRecurse = (propertyObject: { [key: string]: any }) => {
       Object.keys(propertyObject).forEach(key => {
-        if (key === 'attribute' || key === 'attributes') {
-          const {[key]: [], ...removedAttributeProperties} = propertyObject;
+        if (key === "attribute" || key === "attributes") {
+          const {
+            [key]: [],
+            ...removedAttributeProperties
+          } = propertyObject;
           propertyObject = removedAttributeProperties;
-        } else if (typeof propertyObject[key] === 'object') {
+        } else if (typeof propertyObject[key] === "object") {
           propertyObject[key] = walkPropertiesRecurse(propertyObject[key]);
         }
       });
@@ -160,7 +174,10 @@ export class SchemaPropagationService {
     workflowActionService.setOperatorProperty(operatorID, propertyClone);
   }
 
-  public static setOperatorInputAttrs(operatorSchema: OperatorSchema, inputAttributes: OperatorInputSchema | undefined): OperatorSchema {
+  public static setOperatorInputAttrs(
+    operatorSchema: OperatorSchema,
+    inputAttributes: OperatorInputSchema | undefined
+  ): OperatorSchema {
     // If the inputSchema is empty, just return the original operator metadata.
     if (!inputAttributes || inputAttributes.length === 0) {
       return operatorSchema;
@@ -180,47 +197,80 @@ export class SchemaPropagationService {
       return inputAttrAtPort.map(attr => attr.attributeName);
     };
 
-    newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, (k, v) => v.autofill === 'attributeName',
-      old => ({...old, type: 'string', enum: getAttrNames(old), uniqueItems: true}));
-
-    newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, (k, v) => v.autofill === 'attributeNameList',
+    newJsonSchema = DynamicSchemaService.mutateProperty(
+      newJsonSchema,
+      (k, v) => v.autofill === "attributeName",
       old => ({
-        ...old, type: 'array', uniqueItems: true,
-        items: {...(old.items as CustomJSONSchema7), type: 'string', enum: getAttrNames(old)}
-      }));
+        ...old,
+        type: "string",
+        enum: getAttrNames(old),
+        uniqueItems: true,
+      })
+    );
+
+    newJsonSchema = DynamicSchemaService.mutateProperty(
+      newJsonSchema,
+      (k, v) => v.autofill === "attributeNameList",
+      old => ({
+        ...old,
+        type: "array",
+        uniqueItems: true,
+        items: {
+          ...(old.items as CustomJSONSchema7),
+          type: "string",
+          enum: getAttrNames(old),
+        },
+      })
+    );
 
     return {
       ...operatorSchema,
-      jsonSchema: newJsonSchema
+      jsonSchema: newJsonSchema,
     };
   }
 
   public static restoreOperatorInputAttrs(operatorSchema: OperatorSchema): OperatorSchema {
-
     let newJsonSchema = operatorSchema.jsonSchema;
 
-    newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, (k, v) => v.autofill === 'attributeName',
-      old => ({...old, type: 'string', enum: undefined, uniqueItems: undefined}));
-
-    newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, (k, v) => v.autofill === 'attributeNameList',
+    newJsonSchema = DynamicSchemaService.mutateProperty(
+      newJsonSchema,
+      (k, v) => v.autofill === "attributeName",
       old => ({
-        ...old, type: 'array', uniqueItems: undefined,
-        items: {...(old.items as CustomJSONSchema7), type: 'string', enum: undefined}
-      }));
+        ...old,
+        type: "string",
+        enum: undefined,
+        uniqueItems: undefined,
+      })
+    );
+
+    newJsonSchema = DynamicSchemaService.mutateProperty(
+      newJsonSchema,
+      (k, v) => v.autofill === "attributeNameList",
+      old => ({
+        ...old,
+        type: "array",
+        uniqueItems: undefined,
+        items: {
+          ...(old.items as CustomJSONSchema7),
+          type: "string",
+          enum: undefined,
+        },
+      })
+    );
 
     return {
       ...operatorSchema,
-      jsonSchema: newJsonSchema
+      jsonSchema: newJsonSchema,
     };
   }
-
 }
 
 // schema: an array of attribute names and types
-export interface SchemaAttribute extends Readonly<{
-  attributeName: string,
-  attributeType: 'string' | 'integer' | 'double' | 'boolean' | 'long' | 'timestamp' | 'ANY'
-}> {}
+export interface SchemaAttribute
+  extends Readonly<{
+    attributeName: string;
+    attributeType: "string" | "integer" | "double" | "boolean" | "long" | "timestamp" | "ANY";
+  }> {}
 
 // input schema of an operator: an array of schemas at each input port
 export type OperatorInputSchema = ReadonlyArray<ReadonlyArray<SchemaAttribute> | null>;
@@ -241,18 +291,20 @@ export type OperatorInputSchema = ReadonlyArray<ReadonlyArray<SchemaAttribute> |
  *  }
  * }
  */
-export interface SchemaPropagationResponse extends Readonly<{
-  code: 0,
-  result: {
-    [key: string]: OperatorInputSchema
-  }
-}> {}
+export interface SchemaPropagationResponse
+  extends Readonly<{
+    code: 0;
+    result: {
+      [key: string]: OperatorInputSchema;
+    };
+  }> {}
 
 /**
  * The backend interface of the return object of a failed execution of
  * autocomplete API
  */
-export interface SchemaPropagationError extends Readonly<{
-  code: -1,
-  message: string
-}> {}
+export interface SchemaPropagationError
+  extends Readonly<{
+    code: -1;
+    message: string;
+  }> {}

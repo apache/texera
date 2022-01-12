@@ -1,13 +1,14 @@
 package edu.uci.ics.amber.engine.common.rpc
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlOutputPort
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputPort
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
-import edu.uci.ics.amber.engine.common.WorkflowLogger
+import edu.uci.ics.amber.engine.common.AmberLogging
+import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{
-  noReplyNeeded,
   ControlInvocation,
-  ReturnPayload
+  ReturnInvocation,
+  noReplyNeeded
 }
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
@@ -34,11 +35,12 @@ object AsyncRPCServer {
 
   trait ControlCommand[T]
 
-  final case class CommandCompleted()
-
 }
 
-class AsyncRPCServer(controlOutputPort: ControlOutputPort, logger: WorkflowLogger) {
+class AsyncRPCServer(
+    controlOutputEndpoint: NetworkOutputPort[ControlPayload],
+    val actorId: ActorVirtualIdentity
+) extends AmberLogging {
 
   // all handlers
   protected var handlers: PartialFunction[(ControlCommand[_], ActorVirtualIdentity), Future[_]] =
@@ -55,27 +57,36 @@ class AsyncRPCServer(controlOutputPort: ControlOutputPort, logger: WorkflowLogge
 
   def receive(control: ControlInvocation, senderID: ActorVirtualIdentity): Unit = {
     try {
-      execute((control.command, senderID)) match {
-        case f: Future[_] =>
-          // user's code returns a future
-          // the result should be returned after the future is resolved.
-          f.onSuccess { ret =>
-            returnResult(senderID, control.commandID, ret)
-          }
-          f.onFailure { err =>
-            returnResult(senderID, control.commandID, err)
-          }
-      }
+      execute((control.command, senderID))
+        .onSuccess { ret =>
+          returnResult(senderID, control.commandID, ret)
+        }
+        .onFailure { err =>
+          logger.error("Exception occurred", err)
+          returnResult(senderID, control.commandID, err)
+        }
+
     } catch {
-      case e: Throwable =>
+      case err: Throwable =>
         // if error occurs, return it to the sender.
-        returnResult(senderID, control.commandID, e)
-        throw e
+        returnResult(senderID, control.commandID, err)
+
+      // if throw this exception right now, the above message might not be able
+      // to be sent out. We do not throw for now.
+      //        throw err
     }
   }
 
   def execute(cmd: (ControlCommand[_], ActorVirtualIdentity)): Future[_] = {
     handlers(cmd)
+  }
+
+  @inline
+  private def returnResult(sender: ActorVirtualIdentity, id: Long, ret: Any): Unit = {
+    if (noReplyNeeded(id)) {
+      return
+    }
+    controlOutputEndpoint.sendTo(sender, ReturnInvocation(id, ret))
   }
 
   def logControlInvocation(call: ControlInvocation, sender: ActorVirtualIdentity): Unit = {
@@ -85,17 +96,9 @@ class AsyncRPCServer(controlOutputPort: ControlOutputPort, logger: WorkflowLogge
     if (call.command.isInstanceOf[QueryStatistics]) {
       return
     }
-    logger.logInfo(
-      s"receive command: ${call.command} from ${sender.toString} (controlID: ${call.commandID})"
+    logger.info(
+      s"receive command: ${call.command} from $sender (controlID: ${call.commandID})"
     )
-  }
-
-  @inline
-  private def returnResult(sender: ActorVirtualIdentity, id: Long, ret: Any): Unit = {
-    if (noReplyNeeded(id)) {
-      return
-    }
-    controlOutputPort.sendTo(sender, ReturnPayload(id, ret))
   }
 
 }

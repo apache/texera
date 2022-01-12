@@ -1,16 +1,15 @@
-import { TestBed } from '@angular/core/testing';
+import { TestBed } from "@angular/core/testing";
 
-import { WorkflowResultService } from './workflow-result.service';
+import { WorkflowResultService } from "./workflow-result.service";
 
-describe('WorkflowResultService', () => {
+describe("WorkflowResultService", () => {
   let service: WorkflowResultService;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
     service = TestBed.inject(WorkflowResultService);
   });
 
-  it('should be created', () => {
+  it("should be created", () => {
     expect(service).toBeTruthy();
   });
 });

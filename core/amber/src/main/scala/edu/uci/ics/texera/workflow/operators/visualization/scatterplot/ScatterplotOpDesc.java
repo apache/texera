@@ -18,9 +18,8 @@ import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstant
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
 import java.util.EnumSet;
 import java.util.Set;
+
 import static edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType.*;
-
-
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
 
@@ -64,7 +63,7 @@ public class ScatterplotOpDesc extends VisualizationOperator {
         if (!allowedAttributeTypesNumbersOnly.contains(yType)) {
             throw new IllegalArgumentException(yColumn + " is not a number \n");
         }
-        return new ScatterplotOpExecConfig(this.operatorIdentifier(), this, operatorSchemaInfo);
+        return new OneToOneOpExecConfig(operatorIdentifier(), worker -> new ScatterplotOpExec(this, operatorSchemaInfo));
     }
 
     @Override

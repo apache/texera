@@ -1,23 +1,23 @@
 package edu.uci.ics.texera.workflow.operators.source.sql.asterixdb
 
 import com.github.tototoshi.csv.CSVParser
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseField
+import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
+import edu.uci.ics.texera.workflow.operators.source.sql.SQLSourceOpExec
 import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBConnUtil.{
   queryAsterixDB,
   updateAsterixDBVersionMapping
 }
-import edu.uci.ics.texera.workflow.operators.source.sql.SQLSourceOpExec
-
 import java.sql._
-import java.time.{ZoneId, ZoneOffset}
 import java.time.format.DateTimeFormatter
+import java.time.{ZoneId, ZoneOffset}
+
 import scala.collection.Iterator
 import scala.jdk.CollectionConverters.asScalaBufferConverter
-import scala.util.{Failure, Success, Try}
 import scala.util.control.Breaks.{break, breakable}
+import scala.util.{Failure, Success, Try}
 
 class AsterixDBSourceOpExec private[asterixdb] (
     schema: Schema,
@@ -27,27 +27,33 @@ class AsterixDBSourceOpExec private[asterixdb] (
     table: String,
     limit: Option[Long],
     offset: Option[Long],
-    search: Option[Boolean],
-    searchByColumn: Option[String],
-    keywords: Option[String],
     progressive: Option[Boolean],
     batchByColumn: Option[String],
     min: Option[String],
     max: Option[String],
-    interval: Long
+    interval: Long,
+    keywordSearch: Boolean,
+    keywordSearchByColumn: String,
+    keywords: String,
+    geoSearch: Boolean,
+    geoSearchByColumns: List[String],
+    geoSearchBoundingBox: List[String],
+    regexSearch: Boolean,
+    regexSearchByColumn: String,
+    regex: String
 ) extends SQLSourceOpExec(
       schema,
       table,
       limit,
       offset,
-      search,
-      searchByColumn,
-      keywords,
       progressive,
       batchByColumn,
       min,
       max,
-      interval
+      interval,
+      keywordSearch,
+      keywordSearchByColumn,
+      keywords
     ) {
   // update AsterixDB API version upon initialization.
   updateAsterixDBVersionMapping(host, port)
@@ -139,6 +145,51 @@ class AsterixDBSourceOpExec private[asterixdb] (
   }
 
   /**
+    * Build a Texera.Tuple from a row of curResultIterator
+    *
+    * @return the new Texera.Tuple
+    */
+  override def buildTupleFromRow: Tuple = {
+
+    val tupleBuilder = Tuple.newBuilder(schema)
+    val row = curResultIterator.get.next().toString
+
+    var values: Option[List[String]] = None
+    try {
+      values = CSVParser.parse(row, '\\', ',', '"')
+      if (values == null) {
+        return null
+      }
+      for (i <- 0 until schema.getAttributes.size()) {
+        val attr = schema.getAttributes.get(i)
+        breakable {
+          val columnType = attr.getType
+
+          var value: String = null
+          Try({ value = values.get(i) })
+
+          if (value == null || value.equals("null")) {
+            // add the field as null
+            tupleBuilder.add(attr, null)
+            break
+          }
+
+          // otherwise, transform the type of the value
+          tupleBuilder.add(
+            attr,
+            parseField(value.stripSuffix("\"").stripPrefix("\""), columnType)
+          )
+        }
+      }
+      tupleBuilder.build
+    } catch {
+      case _: Exception =>
+        null
+    }
+
+  }
+
+  /**
     * close curResultIterator, curQueryString
     */
   override def close(): Unit = {
@@ -156,15 +207,59 @@ class AsterixDBSourceOpExec private[asterixdb] (
     * @throws IllegalArgumentException if attribute does not support string based search
     */
   @throws[IllegalArgumentException]
-  def addKeywordSearch(queryBuilder: StringBuilder): Unit = {
+  def addFilterConditions(queryBuilder: StringBuilder): Unit = {
+    if (keywordSearch) {
+      addKeywordSearch(queryBuilder)
+    }
 
-    val columnType = schema.getAttribute(searchByColumn.get).getType
+    if (regexSearch) {
+      addRegexSearch(queryBuilder)
+    }
 
-    if (columnType == AttributeType.STRING) {
+    if (geoSearch) {
+      addGeoSearch(queryBuilder)
+    }
+  }
 
-      queryBuilder ++= " AND ftcontains(" + searchByColumn.get + ", " + keywords.get + ") "
-    } else
-      throw new IllegalArgumentException("Can't do keyword search on type " + columnType.toString)
+  private def addKeywordSearch(queryBuilder: StringBuilder): Unit = {
+    if (keywordSearchByColumn != null && keywords != null) {
+      val columnType = schema.getAttribute(keywordSearchByColumn).getType
+      if (columnType == AttributeType.STRING) {
+        queryBuilder ++= " AND ftcontains(" + keywordSearchByColumn + ", " + keywords + ") "
+      } else
+        throw new IllegalArgumentException("Can't do keyword search on type " + columnType.toString)
+    }
+  }
+
+  private def addRegexSearch(queryBuilder: StringBuilder): Unit = {
+    if (regexSearchByColumn != null && regex != null) {
+      val regexColumnType = schema.getAttribute(regexSearchByColumn).getType
+      if (regexColumnType == AttributeType.STRING) {
+        queryBuilder ++= " AND regexp_contains(" + regexSearchByColumn + ", \"" + regex + "\") "
+      } else
+        throw new IllegalArgumentException(
+          "Can't do regex search on type " + regexColumnType.toString
+        )
+    }
+  }
+
+  private def addGeoSearch(queryBuilder: StringBuilder): Unit = {
+    // geolocation must contain more than 1 points to from a rectangle or polygon
+    if (geoSearchBoundingBox.size > 1 && geoSearchByColumns.nonEmpty) {
+      val shape = {
+        val points = geoSearchBoundingBox.flatMap(s => s.split(",").map(sub => sub.toDouble))
+        if (geoSearchBoundingBox.size == 2) {
+          "create_rectangle(create_point(%.6f,%.6f), create_point(%.6f,%.6f))".format(points: _*)
+        } else {
+          "create_polygon([" + points.map(x => "%.6f".format(x)).mkString(",") + "])"
+        }
+      }
+      queryBuilder ++= " AND ("
+      queryBuilder ++= geoSearchByColumns
+        .map { attr => s"spatial_intersect($attr, $shape)" }
+        .mkString(" OR ")
+      queryBuilder ++= " ) "
+    }
   }
 
   /**
@@ -193,49 +288,6 @@ class AsterixDBSourceOpExec private[asterixdb] (
 
       case None => 0
     }
-  }
-
-  /**
-    * Build a Texera.Tuple from a row of curResultIterator
-    *
-    * @return the new Texera.Tuple
-    */
-  override def buildTupleFromRow: Tuple = {
-
-    val tupleBuilder = Tuple.newBuilder(schema)
-    val row = curResultIterator.get.next().toString
-
-    var values: Option[List[String]] = None
-    Try(values = CSVParser.parse(row, '\\', ',', '"'))
-    if (values.isEmpty) return null
-    Try(
-      for (i <- 0 until schema.getAttributes.size()) {
-
-        val attr = schema.getAttributes.get(i)
-        breakable {
-          val columnType = attr.getType
-
-          var value: String = null
-          Try(value = values.get(i))
-
-          if (value == null || value.equals("null")) {
-            // add the field as null
-            tupleBuilder.add(attr, null)
-            break
-          }
-
-          // otherwise, transform the type of the value
-          tupleBuilder.add(
-            attr,
-            parseField(value.stripSuffix("\"").stripPrefix("\""), columnType)
-          )
-        }
-      }
-    ) match {
-      case Success(_) => tupleBuilder.build
-      case Failure(_) => null
-    }
-
   }
 
   override def addBaseSelect(queryBuilder: StringBuilder): Unit = {

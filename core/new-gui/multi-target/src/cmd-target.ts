@@ -1,7 +1,7 @@
-import { BuilderOutput, BuilderContext, createBuilder, Target } from '@angular-devkit/architect';
-import { ChildProcess, spawn, execSync } from 'child_process';
-import { platform, kill } from 'process';
-import { JsonObject } from '@angular-devkit/core';
+import { BuilderContext, BuilderOutput, createBuilder, Target } from "@angular-devkit/architect";
+import { ChildProcess, execSync, spawn } from "child_process";
+import { kill, platform } from "process";
+import { JsonObject } from "@angular-devkit/core";
 
 // cmd-target logs cmd's output with a header that gets truncated to CMD_LENGTH characters
 // eg: "echo foo" -> "(echo foo): foo", "echo supercalifragilisticexpialidocious" -> "(ech...ous): supercalifragilisticexpialidocious"
@@ -17,7 +17,7 @@ const liveTasks: CmdTask[] = [];
  *  - **detached**: *bool* execute in detached shell. cmd is assumed to run successfully. can be killed later.
  *  - **kill**: *bool* true to kill process with matching cmd that was run previously.
  *  - **killChildren**: *bool* true to also kill process descendants (processes launched by cmd)
-*/
+ */
 interface Options extends JsonObject {
   cmd: string;
   daemon: boolean;
@@ -36,13 +36,15 @@ interface CmdTask {
   cmd: string;
 }
 
-
 type PromiseFunc = (value?: BuilderOutput | PromiseLike<BuilderOutput> | undefined) => void;
 
 export default createBuilder<Options>(cmdBuilder);
+
 function cmdBuilder(options: Options, context: BuilderContext): Promise<BuilderOutput> {
   return new Promise<BuilderOutput>(async (resolve: PromiseFunc, reject: PromiseFunc) => {
-    const builderOutput: BuilderOutput = options.kill ? killTarget(options, context) : await execTarget(options, context);
+    const builderOutput: BuilderOutput = options.kill
+      ? killTarget(options, context)
+      : await execTarget(options, context);
     builderOutput.success ? resolve(builderOutput) : reject(builderOutput);
   });
 }
@@ -57,7 +59,11 @@ function clampCmd(cmd: string, length: number): string {
   if (cmd.length <= length) {
     return cmd;
   } else {
-    return cmd.substring(0, Math.floor(length / 2)) + '...' + cmd.substring(cmd.length - Math.ceil(length / 2) - 1, cmd.length);
+    return (
+      cmd.substring(0, Math.floor(length / 2)) +
+      "..." +
+      cmd.substring(cmd.length - Math.ceil(length / 2) - 1, cmd.length)
+    );
   }
 }
 
@@ -65,15 +71,18 @@ function clampCmd(cmd: string, length: number): string {
  *
  * @param parentPID pid of parent process
  */
-function killDescendants(parentPID: number): void {
-
-  function isNumber(value: number| undefined): asserts value is number {
+function killDescendants(parentPID?: number): void {
+  function isNumber(value: number | undefined): asserts value is number {
     if (value === undefined) {
       throw new Error(`KillDescendants Failed: PID ${value} is not a number`);
     }
   }
 
-  if (platform === 'win32') {
+  if (!parentPID) {
+    return;
+  }
+
+  if (platform === "win32") {
     // On windows, use wmic to lookup processes by PPID
     // and using a Stack, "recursively" discover all descendants, and descendants of descendants, etc
     const descendantPids: Set<number> = new Set();
@@ -84,8 +93,10 @@ function killDescendants(parentPID: number): void {
       if (!descendantPids.has(currentPid)) {
         descendantPids.add(currentPid);
         // execute windows command WMIC to lookup child processes
-        const wmicOutput: string = execSync(`wmic process where (ParentProcessId=${parentPID}) get ProcessId`).toString();
-        const lines: string[] = (wmicOutput.match(/\S+/g) || []); // matches non-whitespace, forming array of "words"
+        const wmicOutput: string = execSync(
+          `wmic process where (ParentProcessId=${parentPID}) get ProcessId`
+        ).toString();
+        const lines: string[] = wmicOutput.match(/\S+/g) || []; // matches non-whitespace, forming array of "words"
         lines.shift(); // remove 0th item, which would be the column label "ProcessId" if we were in a shell
         const childPids: number[] = lines.map(x => parseInt(x, 10));
         childPids.forEach((pid: number) => {
@@ -97,11 +108,11 @@ function killDescendants(parentPID: number): void {
     descendantPids.forEach((pid: number) => {
       kill(pid);
     });
-  } else if (platform === 'linux') {
+  } else if (platform === "linux") {
     execSync(`kill -TERM -${parentPID}`); // kills parentPID assuming it's a linux process group. <3 linux so ez
   } else {
     // platform = AIX|Darwin|FreeBSD|OpenBSD|SunOS according to nodejs docs
-    console.warn(`Warning: killing process descendants currently only implemented on windows and linux.`);
+    console.warn("Warning: killing process descendants currently only implemented on windows and linux.");
   }
 }
 
@@ -115,9 +126,12 @@ function killCmdTask(cmd: string, killChildren: boolean): boolean {
   const index = liveTasks.findIndex(element => element.cmd === cmd);
   if (index !== -1) {
     if (killChildren) {
-      killDescendants(liveTasks[index].process.pid);
+      const pid = liveTasks[index].process.pid;
+      if (pid !== undefined) {
+        killDescendants(pid);
+      }
     }
-    liveTasks[index].process.kill('SIGINT');
+    liveTasks[index].process.kill("SIGINT");
     liveTasks.splice(index, 1); // remove livetask (since it's been killed)
     return true;
   } else {
@@ -134,15 +148,19 @@ function killCmdTask(cmd: string, killChildren: boolean): boolean {
  * @returns created CmdTask, with process already running
  */
 function execCmdTask(cmd: string, loggerPrefix: string, options: Options, context: BuilderContext): CmdTask {
-  const child: ChildProcess = spawn(cmd, [], { stdio: options.daemon ? 'ignore' : 'pipe', detached: options.detached, shell: true });
+  const child: ChildProcess = spawn(cmd, [], {
+    stdio: options.daemon ? "ignore" : "pipe",
+    detached: options.detached,
+    shell: true,
+  });
 
   if (!options.daemon) {
     // @ts-ignore: stdout won't be null since not running as daemon (childprocess's stdio = 'pipe')
-    child.stdout.on('data', (data) => {
+    child.stdout.on("data", data => {
       context.logger.info(loggerPrefix + data.toString());
     });
     // @ts-ignore: stderr won't be null since not running as daemon (childprocess's stdio = 'pipe')
-    child.stderr.on('data', (data) => {
+    child.stderr.on("data", data => {
       context.logger.error(loggerPrefix + data.toString());
     });
   }
@@ -156,7 +174,7 @@ function execCmdTask(cmd: string, loggerPrefix: string, options: Options, contex
  * @returns BuilderOutput. BuilderOutput.success == true if successful
  */
 function killTarget(options: Options, context: BuilderContext): BuilderOutput {
-  context.logger.info(`Killing ${options.daemon ? 'daemon ' : ''} '${options.cmd}'`);
+  context.logger.info(`Killing ${options.daemon ? "daemon " : ""} '${options.cmd}'`);
   if (!killCmdTask(options.cmd, options.killChildren)) {
     context.logger.warn(`Couldn't find/kill cmd '${options.cmd}'. it may not have been executed or already terminated`);
     return { success: false, target: context.target as Target };
@@ -171,7 +189,7 @@ function killTarget(options: Options, context: BuilderContext): BuilderOutput {
  */
 function execTarget(options: Options, context: BuilderContext): Promise<BuilderOutput> {
   context.reportStatus(options.cmd);
-  context.logger.info(`Executing ${options.daemon ? 'as daemon ' : ''} '${options.cmd}'`);
+  context.logger.info(`Executing ${options.daemon ? "as daemon " : ""} '${options.cmd}'`);
 
   const prefix = `(${clampCmd(options.cmd, CMD_LENGTH)}):`;
   const task = execCmdTask(options.cmd, prefix, options, context);
@@ -181,7 +199,7 @@ function execTarget(options: Options, context: BuilderContext): Promise<BuilderO
     return Promise.resolve({ success: true, target: context.target as Target });
   } else {
     return new Promise<BuilderOutput>((resolve, reject) => {
-      task.process.on('close', code => {
+      task.process.on("close", code => {
         const index = liveTasks.findIndex(element => element === task);
         if (index !== -1) {
           liveTasks.splice(index, 1); // remove livetask (since it terminated)

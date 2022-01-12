@@ -5,7 +5,8 @@ import io.github.redouane59.twitter.signature.TwitterCredentials
 
 abstract class TwitterSourceOpExec(
     apiKey: String,
-    apiSecretKey: String
+    apiSecretKey: String,
+    stopWhenRateLimited: Boolean
 ) extends SourceOperatorExecutor {
   // batch size for each API request defined by Twitter
   //  500 is the maximum tweets for each request
@@ -30,6 +31,7 @@ abstract class TwitterSourceOpExec(
         .apiSecretKey(apiSecretKey)
         .build()
     )
+    twitterClient.setAutomaticRetry(!stopWhenRateLimited)
   }
 
   override def close(): Unit = {}

@@ -1,22 +1,45 @@
 <div class="texera-workspace-operator-panel-body">
   <div class="texera-workspace-operator-panel-search-box">
-        <input nz-input nz-dropdown class="texera-workspace-operator-panel-search-box-input" type="text" placeholder="Search Operators..." aria-label="Operator-Search"
-        [formControl]="operatorSearchFormControl" [nzDropdownMenu]="autocomplete_menu"
-        nzTrigger = "click" nzBackdrop = "false" appearance="outline" autocomplete="off" >
-        <nz-dropdown-menu #autocomplete_menu="nzDropdownMenu" class="texera-workspace-operator-panel-search-box-dropdown"
-        (optionSelected)="onSearchOperatorSelected($event)">
-          <ul nz-menu nzBordered nzSelectable = false class='texera-workspace-operator-panel-search-box-dropdown-menu'>
-            <li nz-menu-item class='dropdown-menu-items' *ngFor="let operatorSchema of operatorSearchResults | async">
-              <texera-operator-label [operator]="operatorSchema" [fromSearchBox]="true" class="texera-workspace-operator-panel-search-box-dropdown-menu-name-wrapper"></texera-operator-label>
-            </li>
-          </ul>
-        </nz-dropdown-menu>
+    <input
+      [formControl]="operatorSearchFormControl"
+      [nzDropdownMenu]="autocomplete_menu"
+      appearance="outline"
+      aria-label="Operator-Search"
+      autocomplete="off"
+      class="texera-workspace-operator-panel-search-box-input"
+      nz-dropdown
+      nz-input
+      nzBackdrop="false"
+      nzTrigger="click"
+      placeholder="Search Operators..."
+      type="text"
+    />
+    <nz-dropdown-menu
+      #autocomplete_menu="nzDropdownMenu"
+      (optionSelected)="onSearchOperatorSelected($event)"
+      class="texera-workspace-operator-panel-search-box-dropdown"
+    >
+      <ul class="texera-workspace-operator-panel-search-box-dropdown-menu" nz-menu nzBordered nzSelectable="false">
+        <li *ngFor="let operatorSchema of operatorSearchResults | async" class="dropdown-menu-items" nz-menu-item>
+          <texera-operator-label
+            [fromSearchBox]="true"
+            [operator]="operatorSchema"
+            class="texera-workspace-operator-panel-search-box-dropdown-menu-name-wrapper"
+          ></texera-operator-label>
+        </li>
+      </ul>
+    </nz-dropdown-menu>
   </div>
-  <nz-collapse nzAccordion [nzBordered]="false"class="texera-workspace-operator-panel-menu" >
-    <nz-collapse-panel class="texera-workspace-operator-panel-subgroup" *ngFor="let groupName of groupNamesOrdered" [nzHeader]="groupName" [tourAnchor]='groupName'>
-      <ul nz-menu class="texera-workspace-operator-panel-subgroup-menu" nzSelectable = false>
-        <li class = 'texera-operator-label' nz-menu-item *ngFor="let operatorSchema of operatorGroupMap.get(groupName)">
-          <texera-operator-label [operator]="operatorSchema" [fromSearchBox]="false"></texera-operator-label>
+  <nz-collapse [nzBordered]="false" class="texera-workspace-operator-panel-menu" nzAccordion>
+    <nz-collapse-panel
+      *ngFor="let groupName of groupNamesOrdered"
+      [nzHeader]="groupName"
+      [tourAnchor]="groupName"
+      class="texera-workspace-operator-panel-subgroup"
+    >
+      <ul class="texera-workspace-operator-panel-subgroup-menu" nz-menu nzSelectable="false">
+        <li *ngFor="let operatorSchema of operatorGroupMap.get(groupName)" class="texera-operator-label" nz-menu-item>
+          <texera-operator-label [fromSearchBox]="false" [operator]="operatorSchema"></texera-operator-label>
         </li>
       </ul>
     </nz-collapse-panel>

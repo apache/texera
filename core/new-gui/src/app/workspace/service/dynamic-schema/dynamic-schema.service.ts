@@ -1,14 +1,13 @@
-import { Injectable } from '@angular/core';
-import { JSONSchema7, JSONSchema7Definition } from 'json-schema';
-import { cloneDeep, isEqual } from 'lodash';
-import { Observable } from 'rxjs/Observable';
-import { Subject } from 'rxjs/Subject';
-import '../../../common/rxjs-operators';
-import { CustomJSONSchema7 } from '../../types/custom-json-schema.interface';
-import { OperatorSchema } from '../../types/operator-schema.interface';
-import { BreakpointSchema, OperatorPredicate } from '../../types/workflow-common.interface';
-import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
-import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
+import { Injectable } from "@angular/core";
+import { JSONSchema7, JSONSchema7Definition } from "json-schema";
+import { cloneDeep, isEqual } from "lodash-es";
+import { Observable } from "rxjs";
+import { Subject } from "rxjs";
+import { CustomJSONSchema7 } from "../../types/custom-json-schema.interface";
+import { OperatorSchema } from "../../types/operator-schema.interface";
+import { BreakpointSchema, OperatorPredicate } from "../../types/workflow-common.interface";
+import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
+import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 
 export type SchemaTransformer = (operator: OperatorPredicate, schema: OperatorSchema) => OperatorSchema;
 
@@ -26,10 +25,9 @@ export type SchemaTransformer = (operator: OperatorPredicate, schema: OperatorSc
  *
  */
 @Injectable({
-  providedIn: 'root'
+  providedIn: "root",
 })
 export class DynamicSchemaService {
-
   // dynamic schema of operators in the current workflow, specific to an operator and different from the static schema
   // directly calling `set()` is prohibited, it must go through `setDynamicSchema()`
   private dynamicSchemaMap = new Map<string, OperatorSchema>();
@@ -40,24 +38,32 @@ export class DynamicSchemaService {
   private initialSchemaTransformers: SchemaTransformer[] = [];
 
   // this stream is used to capture the event when the dynamic schema of an existing operator is changed
-  private operatorDynamicSchemaChangedStream = new Subject<{ operatorID: string }>();
+  private operatorDynamicSchemaChangedStream = new Subject<{
+    operatorID: string;
+  }>();
 
   constructor(
     private workflowActionService: WorkflowActionService,
     private operatorMetadataService: OperatorMetadataService
   ) {
     // when an operator is added, add it to the dynamic schema map
-    this.workflowActionService.getTexeraGraph().getOperatorAddStream()
+    this.workflowActionService
+      .getTexeraGraph()
+      .getOperatorAddStream()
       .subscribe(operator => {
         this.setDynamicSchema(operator.operatorID, this.getInitialDynamicSchema(operator));
       });
 
     // when an operator is deleted, remove it from the dynamic schema map
-    this.workflowActionService.getTexeraGraph().getOperatorDeleteStream()
+    this.workflowActionService
+      .getTexeraGraph()
+      .getOperatorDeleteStream()
       .subscribe(event => this.dynamicSchemaMap.delete(event.deletedOperator.operatorID));
 
     // when a link is deleted, remove it from the dynamic schema map
-    this.workflowActionService.getTexeraGraph().getLinkDeleteStream()
+    this.workflowActionService
+      .getTexeraGraph()
+      .getLinkDeleteStream()
       .subscribe(event => this.dynamicBreakpointSchemaMap.delete(event.deletedLink.linkID));
   }
 
@@ -75,7 +81,9 @@ export class DynamicSchemaService {
   /**
    * Returns the observable which outputs the operatorID of which the dynamic schema has changed.
    */
-  public getOperatorDynamicSchemaChangedStream(): Observable<{ operatorID: string }> {
+  public getOperatorDynamicSchemaChangedStream(): Observable<{
+    operatorID: string;
+  }> {
     return this.operatorDynamicSchemaChangedStream.asObservable();
   }
 
@@ -108,7 +116,7 @@ export class DynamicSchemaService {
     }
     const dynamicBreakpointSchema = this.dynamicBreakpointSchemaMap.get(linkID);
     if (!dynamicBreakpointSchema) {
-      throw new Error('dynamic breakpoint schema not found.');
+      throw new Error("dynamic breakpoint schema not found.");
     }
     return dynamicBreakpointSchema;
   }
@@ -139,7 +147,7 @@ export class DynamicSchemaService {
     this.dynamicSchemaMap.set(operatorID, dynamicSchema);
     // only emit event if the old dynamic schema is not present
     if (currentDynamicSchema) {
-      this.operatorDynamicSchemaChangedStream.next({operatorID});
+      this.operatorDynamicSchemaChangedStream.next({ operatorID });
     }
   }
 
@@ -151,7 +159,7 @@ export class DynamicSchemaService {
    */
   private getInitialDynamicSchema(operator: OperatorPredicate): OperatorSchema {
     let initialSchema = this.operatorMetadataService.getOperatorSchema(operator.operatorType);
-    this.initialSchemaTransformers.forEach(transformer => initialSchema = transformer(operator, initialSchema));
+    this.initialSchemaTransformers.forEach(transformer => (initialSchema = transformer(operator, initialSchema)));
 
     return initialSchema;
   }
@@ -169,7 +177,6 @@ export class DynamicSchemaService {
     matchFunc: (propertyName: string, propertyValue: CustomJSONSchema7) => boolean,
     mutationFunc: (propertyValue: CustomJSONSchema7) => CustomJSONSchema7
   ): CustomJSONSchema7 {
-
     // recursively walks the JSON schema property tree to find the property name
     const mutatePropertyRecurse = (jsonSchema: JSONSchema7) => {
       const schemaProperties = jsonSchema.properties;
@@ -177,9 +184,9 @@ export class DynamicSchemaService {
       const schemaItems = jsonSchema.items;
 
       // nested JSON schema property can have 2 types: object or array
-      const mutateObjectProperty = (objectProperty: { [key: string]: JSONSchema7Definition })  => {
+      const mutateObjectProperty = (objectProperty: { [key: string]: JSONSchema7Definition }) => {
         Object.entries(objectProperty).forEach(([propertyName, propertyValue]) => {
-          if (typeof propertyValue === 'boolean') {
+          if (typeof propertyValue === "boolean") {
             return;
           }
           if (matchFunc(propertyName, propertyValue as CustomJSONSchema7)) {
@@ -191,7 +198,7 @@ export class DynamicSchemaService {
       };
       const mutateArrayProperty = (arrayProperty: JSONSchema7Definition[]) => {
         arrayProperty.forEach(item => {
-          if (typeof item !== 'boolean') {
+          if (typeof item !== "boolean") {
             mutatePropertyRecurse(item);
           }
         });
@@ -203,7 +210,7 @@ export class DynamicSchemaService {
       if (schemaDefinitions) {
         mutateObjectProperty(schemaDefinitions);
       }
-      if (schemaItems && typeof schemaItems !== 'boolean') {
+      if (schemaItems && typeof schemaItems !== "boolean") {
         if (Array.isArray(schemaItems)) {
           mutateArrayProperty(schemaItems);
         } else {
@@ -218,5 +225,4 @@ export class DynamicSchemaService {
 
     return jsonSchemaCopy;
   }
-
 }

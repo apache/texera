@@ -1,16 +1,14 @@
-import { StubOperatorMetadataService } from './../operator-metadata/stub-operator-metadata.service';
-import { JointUIService } from './../joint-ui/joint-ui.service';
-import { OperatorMetadataService } from './../operator-metadata/operator-metadata.service';
-import { WorkflowActionService } from './../workflow-graph/model/workflow-action.service';
-import {
-  mockScanPredicate, mockResultPredicate, mockPoint
-} from './../workflow-graph/model/mock-workflow-data';
-import { TestBed, inject } from '@angular/core/testing';
+import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-metadata.service";
+import { JointUIService } from "../joint-ui/joint-ui.service";
+import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
+import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
+import { mockScanPredicate, mockResultPredicate, mockPoint } from "../workflow-graph/model/mock-workflow-data";
+import { TestBed, inject } from "@angular/core/testing";
 
-import { UndoRedoService } from './undo-redo.service';
-import { WorkflowUtilService } from '../workflow-graph/util/workflow-util.service';
+import { UndoRedoService } from "./undo-redo.service";
+import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 
-describe('UndoRedoService', () => {
+describe("UndoRedoService", () => {
   let service: UndoRedoService;
   let workflowActionService: WorkflowActionService;
   beforeEach(() => {
@@ -20,25 +18,28 @@ describe('UndoRedoService', () => {
         WorkflowActionService,
         WorkflowUtilService,
         JointUIService,
-        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
-      ]
+        {
+          provide: OperatorMetadataService,
+          useClass: StubOperatorMetadataService,
+        },
+      ],
     });
     service = TestBed.get(UndoRedoService);
     workflowActionService = TestBed.get(WorkflowActionService);
   });
 
-  it('should be created', inject([UndoRedoService], (injectedService: UndoRedoService) => {
+  it("should be created", inject([UndoRedoService], (injectedService: UndoRedoService) => {
     expect(injectedService).toBeTruthy();
   }));
 
-  it('executing command should append to stack', () => {
+  it("executing command should append to stack", () => {
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
 
     expect(service.getUndoLength()).toEqual(1);
     expect(service.getRedoLength()).toEqual(0);
   });
 
-  it('redoing command should move from undo to redo stack and vice versa', () => {
+  it("redoing command should move from undo to redo stack and vice versa", () => {
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
 
     service.undoAction();
@@ -50,7 +51,7 @@ describe('UndoRedoService', () => {
     expect(service.getRedoLength()).toEqual(0);
   });
 
-  it('executing new action clears redo stack', () => {
+  it("executing new action clears redo stack", () => {
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
 
     service.undoAction();

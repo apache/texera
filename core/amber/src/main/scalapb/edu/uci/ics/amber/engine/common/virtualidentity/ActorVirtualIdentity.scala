@@ -9,7 +9,7 @@ package edu.uci.ics.amber.engine.common.virtualidentity
   */
 @SerialVersionUID(0L)
 final case class ActorVirtualIdentity(
-    name: _root_.scala.Predef.String = ""
+    name: _root_.scala.Predef.String
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[ActorVirtualIdentity] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0

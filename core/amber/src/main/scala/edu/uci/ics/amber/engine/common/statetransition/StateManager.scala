@@ -2,45 +2,25 @@ package edu.uci.ics.amber.engine.common.statetransition
 
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.statetransition.StateManager.{
-  IntermediateState,
   InvalidStateException,
   InvalidTransitionException
 }
-import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.collection.mutable
 
 object StateManager {
-  case class InvalidStateException(message: String)
-      extends WorkflowRuntimeException(
-        WorkflowRuntimeError(
-          message,
-          Thread.currentThread().getStackTrace.mkString("\n"),
-          Map.empty
-        )
-      )
-      with Serializable
-  case class InvalidTransitionException(message: String)
-      extends WorkflowRuntimeException(
-        WorkflowRuntimeError(
-          message,
-          Thread.currentThread().getStackTrace.mkString("\n"),
-          Map.empty
-        )
-      )
-      with Serializable
 
-  trait IntermediateState
+  case class InvalidStateException(message: String) extends WorkflowRuntimeException(message)
+
+  case class InvalidTransitionException(message: String) extends WorkflowRuntimeException(message)
 }
 
 class StateManager[T](stateTransitionGraph: Map[T, Set[T]], initialState: T) {
 
-  @volatile private var currentState: T = initialState
   private val stateStack = mutable.Stack[T]()
+  @volatile private var currentState: T = initialState
 
-  if (!initialState.isInstanceOf[IntermediateState]) {
-    stateStack.push(initialState)
-  }
+  stateStack.push(initialState)
 
   def assertState(state: T): Unit = {
     if (currentState != state) {
@@ -58,6 +38,8 @@ class StateManager[T](stateTransitionGraph: Map[T, Set[T]], initialState: T) {
 
   def confirmState(state: T): Boolean = getCurrentState == state
 
+  def getCurrentState: T = currentState
+
   def confirmState(states: T*): Boolean = states.contains(getCurrentState)
 
   def transitTo(state: T, discardOldStates: Boolean = true): Unit = {
@@ -68,9 +50,9 @@ class StateManager[T](stateTransitionGraph: Map[T, Set[T]], initialState: T) {
     if (discardOldStates) {
       stateStack.clear()
     }
-    if (!state.isInstanceOf[IntermediateState]) {
-      stateStack.push(state)
-    }
+
+    stateStack.push(state)
+
     if (!stateTransitionGraph.getOrElse(currentState, Set()).contains(state)) {
       throw InvalidTransitionException(s"cannot transit from $currentState to $state")
     }
@@ -83,7 +65,5 @@ class StateManager[T](stateTransitionGraph: Map[T, Set[T]], initialState: T) {
     }
     currentState = stateStack.pop()
   }
-
-  def getCurrentState: T = currentState
 
 }

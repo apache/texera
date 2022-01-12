@@ -1,12 +1,8 @@
-<h1 mat-dialog-title>
-  Python Script
-</h1>
-
-<c-ngx-ace
-      [(text)]="text"
-      [mode]="'python'"
-      [options]="aclOptions"
-      [theme]="'textmate'"
-      [placeholder]="'import texera_udf_operator_base'"
-      >
-</c-ngx-ace>
+<h1 mat-dialog-title>Python Script</h1>
+<ngx-monaco-editor
+  (ngModelChange)="onCodeChange($event)"
+  [ngModel]="code"
+  [options]="editorOptions"
+  class="code-editor"
+>
+</ngx-monaco-editor>

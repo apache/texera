@@ -1,8 +1,19 @@
-<div [ngClass]="{ 'texera-operator-label-container': true, 'disable-drag-drop': !draggable}">
-  <div class='texera-operator-label-body' [ngClass] = "{'shake-animation': animate == 'reject' }" [attr.id]="operatorLabelID" [tourAnchor]="operatorLabelID"
-title="{{operator?.additionalMetadata.operatorDescription}}" (mouseleave) = 'mouseLeave()' (mousedown) = 'mouseDown()' (mouseup) = 'mouseUp()'>
-    <span class="text">
-      {{operator?.additionalMetadata.userFriendlyName}}
-    </span>
+<div
+  [ngClass]="{
+		'texera-operator-label-container': true,
+		'disable-drag-drop': !draggable
+	}"
+>
+  <div
+    (mousedown)="mouseDown()"
+    (mouseleave)="mouseLeave()"
+    (mouseup)="mouseUp()"
+    [attr.id]="operatorLabelID"
+    [ngClass]="{ 'shake-animation': animate == 'reject' }"
+    [tourAnchor]="operatorLabelID"
+    class="texera-operator-label-body"
+    title="{{ operator?.additionalMetadata.operatorDescription }}"
+  >
+    <span class="text"> {{ operator?.additionalMetadata.userFriendlyName }} </span>
   </div>
 </div>

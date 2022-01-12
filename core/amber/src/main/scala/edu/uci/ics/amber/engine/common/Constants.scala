@@ -3,17 +3,16 @@ package edu.uci.ics.amber.engine.common
 import scala.concurrent.duration._
 
 object Constants {
-  val defaultBatchSize = 400
-  val remoteHDFSPath = "hdfs://10.138.0.2:8020"
-  val remoteHDFSIP = "10.138.0.2"
-  var defaultNumWorkers = 0
-  var dataset = 0
-  var masterNodeAddr: String = null
+  val defaultBatchSize: Int = AmberUtils.amberConfig.getInt("constants.default-batch-size")
+  // time interval for logging queue sizes
+  val loggingQueueSizeInterval: Int =
+    AmberUtils.amberConfig.getInt("constants.logging-queue-size-interval")
 
-  var numWorkerPerNode = 2
-  var dataVolumePerNode = 10
+  // Non constants: TODO: move out from Constants
+  var numWorkerPerNode: Int = AmberUtils.amberConfig.getInt("constants.num-worker-per-node")
+  var dataVolumePerNode: Int = AmberUtils.amberConfig.getInt("constants.data-volume-per-node")
+  var currentWorkerNum = 0
+  var currentDataSetNum = 0
+  var masterNodeAddr: Option[String] = None
   var defaultTau: FiniteDuration = 10.milliseconds
-
-  // time interval for logging queue sizes - 30s
-  val loggingQueueSizeInterval = 30000
 }

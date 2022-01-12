@@ -1,10 +1,16 @@
-<div [ngClass]="{'grid-container' : true,
-'texera-workspace' : true,
-'texera-original-workspace-grid-container' : !showResultPanel ,
-'texera-workspace-grid-container' : showResultPanel,
-'user-system-enabled': userSystemEnabled}">
-  <texera-navigation class="texera-navigation-grid-container grid-container"
-                     tourAnchor="texera-navigation-grid-container">
+<div
+  [ngClass]="{
+		'grid-container': true,
+		'texera-workspace': true,
+		'texera-original-workspace-grid-container': !this.showResultPanel,
+		'texera-workspace-grid-container': this.showResultPanel,
+		'user-system-enabled': this.userSystemEnabled
+	}"
+>
+  <texera-navigation
+    class="texera-navigation-grid-container grid-container"
+    tourAnchor="texera-navigation-grid-container"
+  >
   </texera-navigation>
 
   <texera-operator-panel class="texera-operator-panel-grid-container grid-container" tourAnchor="texera-operator-panel">
@@ -12,28 +18,27 @@
 
   <div class="texera-property-editor-grid-container grid-container">
     <div class="texera-right-side-bar-split-editor-minimap">
-      <texera-property-editor style='overflow: auto;'
-      tourAnchor="texera-property-editor-grid-container">
+      <texera-property-editor style="overflow: auto" tourAnchor="texera-property-editor-grid-container">
       </texera-property-editor>
-      <texera-mini-map>
-      </texera-mini-map>
+      <texera-mini-map> </texera-mini-map>
     </div>
   </div>
 
-
-
-  <texera-workflow-editor class="texera-workflow-editor-grid-container grid-container"
-                          tourAnchor="texera-workflow-editor-grid-container">
+  <texera-workflow-editor
+    class="texera-workflow-editor-grid-container grid-container"
+    tourAnchor="texera-workflow-editor-grid-container"
+  >
   </texera-workflow-editor>
-
-
 
   <texera-result-panel-toggle class="texera-result-panel-toggle-grid-container grid-container">
   </texera-result-panel-toggle>
 
-  <texera-result-panel class="texera-result-panel-grid-container grid-container"
-                       tourAnchor="texera-result-view-grid-container">
+  <texera-result-panel
+    class="texera-result-panel-grid-container grid-container"
+    tourAnchor="texera-result-view-grid-container"
+  >
   </texera-result-panel>
-  <div class="texera-git-commit-id"><span>Version 0.5.3 <br>Git hash: {{gitCommitHash}}</span></div>
-
+  <div class="texera-git-commit-id">
+    <span>Version 0.5.3 <br />Git hash: {{ gitCommitHash }}</span>
+  </div>
 </div>

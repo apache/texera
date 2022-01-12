@@ -1,21 +1,22 @@
-import { Subject } from 'rxjs/Subject';
-import { Observable } from 'rxjs/Observable';
-import { WorkflowUtilService } from '../util/workflow-util.service';
-import { Point, OperatorPredicate, OperatorLink } from '../../../types/workflow-common.interface';
-import { WorkflowGraph } from './workflow-graph';
-import { JointGraphWrapper } from './joint-graph-wrapper';
-import { JointUIService } from '../../joint-ui/joint-ui.service';
-import { environment } from './../../../../../environments/environment';
-import { OperatorStatistics } from 'src/app/workspace/types/execute-workflow.interface';
+import { Subject } from "rxjs";
+import { Observable } from "rxjs";
+import { WorkflowUtilService } from "../util/workflow-util.service";
+import { Point, OperatorPredicate, OperatorLink } from "../../../types/workflow-common.interface";
+import { WorkflowGraph } from "./workflow-graph";
+import { JointGraphWrapper } from "./joint-graph-wrapper";
+import { JointUIService } from "../../joint-ui/joint-ui.service";
+import { environment } from "./../../../../../environments/environment";
+import { OperatorStatistics } from "src/app/workspace/types/execute-workflow.interface";
 
-export interface Group extends Readonly<{
-  groupID: string;
-  operators: Map<string, OperatorInfo>;
-  links: Map<string, LinkInfo>;
-  inLinks: string[];
-  outLinks: string[];
-  collapsed: boolean;
-}> { }
+export interface Group
+  extends Readonly<{
+    groupID: string;
+    operators: Map<string, OperatorInfo>;
+    links: Map<string, LinkInfo>;
+    inLinks: string[];
+    outLinks: string[];
+    collapsed: boolean;
+  }> {}
 
 export interface PlainGroup {
   groupID: string;
@@ -27,36 +28,42 @@ export interface PlainGroup {
 }
 
 export type OperatorInfo = {
-  operator: OperatorPredicate,
-  position: Point,
-  layer: number
-  statistics?: OperatorStatistics
+  operator: OperatorPredicate;
+  position: Point;
+  layer: number;
+  statistics?: OperatorStatistics;
 };
 
 export type LinkInfo = {
-  link: OperatorLink,
-  layer: number
+  link: OperatorLink;
+  layer: number;
 };
 
 export type GroupBoundingBox = {
-  topLeft: Point,
-  bottomRight: Point
+  topLeft: Point;
+  bottomRight: Point;
 };
 
 type groupSizeType = {
-  groupID: string,
-  width: number,
-  height: number
+  groupID: string;
+  width: number;
+  height: number;
 };
 
-type restrictedMethods = 'addGroup' | 'deleteGroup' | 'collapseGroup' | 'expandGroup' | 'setGroupCollapsed'
-  | 'setSyncTexeraGraph' | 'hideOperatorsAndLinks' | 'showOperatorsAndLinks';
+type restrictedMethods =
+  | "addGroup"
+  | "deleteGroup"
+  | "collapseGroup"
+  | "expandGroup"
+  | "setGroupCollapsed"
+  | "setSyncTexeraGraph"
+  | "hideOperatorsAndLinks"
+  | "showOperatorsAndLinks";
 
 // readonly version of OperatorGroup
 export type OperatorGroupReadonly = Omit<OperatorGroup, restrictedMethods>;
 
 export class OperatorGroup {
-
   private groupIDMap = new Map<string, Group>();
 
   private syncTexeraGraph = true;
@@ -74,7 +81,7 @@ export class OperatorGroup {
     private jointGraphWrapper: JointGraphWrapper,
     private workflowUtilService: WorkflowUtilService,
     private jointUIService: JointUIService
-  ) { }
+  ) {}
 
   /**
    * Adds a new group to the graph.
@@ -136,7 +143,7 @@ export class OperatorGroup {
    */
   public setGroupCollapsed(groupID: string, collapsed: boolean): void {
     const group = this.getGroup(groupID);
-    this.groupIDMap.set(groupID, {...group, collapsed: collapsed});
+    this.groupIDMap.set(groupID, { ...group, collapsed: collapsed });
   }
 
   /**
@@ -167,25 +174,31 @@ export class OperatorGroup {
 
     const position = this.jointGraphWrapper.getElementPosition(operatorID);
     const layer = this.jointGraphWrapper.getCellLayer(operatorID);
-    group.operators.set(operatorID, {operator, position, layer});
+    group.operators.set(operatorID, { operator, position, layer });
 
-    this.texeraGraph.getAllLinks().filter(link => link.source.operatorID === operatorID).forEach(link => {
-      if (group.operators.has(link.target.operatorID)) {
-        group.inLinks.splice(group.inLinks.indexOf(link.linkID), 1);
-        this.addLinkToGroup(link.linkID, groupID);
-      } else {
-        this.addOutLinkToGroup(link.linkID, groupID);
-      }
-    });
+    this.texeraGraph
+      .getAllLinks()
+      .filter(link => link.source.operatorID === operatorID)
+      .forEach(link => {
+        if (group.operators.has(link.target.operatorID)) {
+          group.inLinks.splice(group.inLinks.indexOf(link.linkID), 1);
+          this.addLinkToGroup(link.linkID, groupID);
+        } else {
+          this.addOutLinkToGroup(link.linkID, groupID);
+        }
+      });
 
-    this.texeraGraph.getAllLinks().filter(link => link.target.operatorID === operatorID).forEach(link => {
-      if (group.operators.has(link.source.operatorID)) {
-        group.outLinks.splice(group.outLinks.indexOf(link.linkID), 1);
-        this.addLinkToGroup(link.linkID, groupID);
-      } else {
-        this.addInLinkToGroup(link.linkID, groupID);
-      }
-    });
+    this.texeraGraph
+      .getAllLinks()
+      .filter(link => link.target.operatorID === operatorID)
+      .forEach(link => {
+        if (group.operators.has(link.source.operatorID)) {
+          group.outLinks.splice(group.outLinks.indexOf(link.linkID), 1);
+          this.addLinkToGroup(link.linkID, groupID);
+        } else {
+          this.addInLinkToGroup(link.linkID, groupID);
+        }
+      });
 
     if (group.collapsed) {
       this.setSyncTexeraGraph(false);
@@ -228,7 +241,7 @@ export class OperatorGroup {
       }
 
       const layer = this.jointGraphWrapper.getCellLayer(linkID);
-      group.links.set(linkID, {link, layer});
+      group.links.set(linkID, { link, layer });
 
       if (group.collapsed) {
         this.setSyncTexeraGraph(false);
@@ -236,7 +249,7 @@ export class OperatorGroup {
         this.setSyncTexeraGraph(true);
       }
     } else {
-      group.links.set(linkID, {link, layer: this.getHighestLayer() + 1});
+      group.links.set(linkID, { link, layer: this.getHighestLayer() + 1 });
     }
   }
 
@@ -273,8 +286,8 @@ export class OperatorGroup {
 
     if (group.collapsed) {
       this.setSyncTexeraGraph(false);
-      const jointLinkCell = <joint.dia.Link> this.jointGraph.getCell(linkID);
-      jointLinkCell.set('target', {id: groupID});
+      const jointLinkCell = <joint.dia.Link>this.jointGraph.getCell(linkID);
+      jointLinkCell.set("target", { id: groupID });
       this.setSyncTexeraGraph(true);
     }
   }
@@ -312,8 +325,8 @@ export class OperatorGroup {
 
     if (group.collapsed) {
       this.setSyncTexeraGraph(false);
-      const jointLinkCell = <joint.dia.Link> this.jointGraph.getCell(linkID);
-      jointLinkCell.set('source', {id: groupID});
+      const jointLinkCell = <joint.dia.Link>this.jointGraph.getCell(linkID);
+      jointLinkCell.set("source", { id: groupID });
       this.setSyncTexeraGraph(true);
     }
   }
@@ -518,7 +531,7 @@ export class OperatorGroup {
    */
   public assertGroupIsValid(group: Group): void {
     if (group.operators.size < 2) {
-      throw Error(`group has less than two operators`);
+      throw Error("group has less than two operators");
     }
 
     // checks if the group contains operators from another group
@@ -637,7 +650,7 @@ export class OperatorGroup {
    */
   public getNewGroup(operatorIDs: readonly string[], groupID?: string): Group {
     if (!this.operatorsGroupable(operatorIDs)) {
-      throw Error('given operators are not groupable');
+      throw Error("given operators are not groupable");
     }
 
     if (!groupID) {
@@ -649,23 +662,28 @@ export class OperatorGroup {
       const operator = this.texeraGraph.getOperator(operatorID);
       const position = this.jointGraphWrapper.getElementPosition(operatorID);
       const layer = this.jointGraphWrapper.getCellLayer(operatorID);
-      operators.set(operatorID, {operator, position, layer});
+      operators.set(operatorID, { operator, position, layer });
     });
 
     const links = new Map<string, LinkInfo>();
-    this.texeraGraph.getAllLinks()
+    this.texeraGraph
+      .getAllLinks()
       .filter(link => operators.has(link.source.operatorID) && operators.has(link.target.operatorID))
       .forEach(link => {
         const layer = this.jointGraphWrapper.getCellLayer(link.linkID);
-        links.set(link.linkID, {link, layer});
+        links.set(link.linkID, { link, layer });
       });
 
-    const inLinks = this.texeraGraph.getAllLinks().filter(link => !operators.has(link.source.operatorID) &&
-      operators.has(link.target.operatorID)).map(link => link.linkID);
-    const outLinks = this.texeraGraph.getAllLinks().filter(link => operators.has(link.source.operatorID) &&
-      !operators.has(link.target.operatorID)).map(link => link.linkID);
+    const inLinks = this.texeraGraph
+      .getAllLinks()
+      .filter(link => !operators.has(link.source.operatorID) && operators.has(link.target.operatorID))
+      .map(link => link.linkID);
+    const outLinks = this.texeraGraph
+      .getAllLinks()
+      .filter(link => operators.has(link.source.operatorID) && !operators.has(link.target.operatorID))
+      .map(link => link.linkID);
 
-    return {groupID, operators, links, inLinks, outLinks, collapsed: false};
+    return { groupID, operators, links, inLinks, outLinks, collapsed: false };
   }
 
   /**
@@ -685,8 +703,14 @@ export class OperatorGroup {
       throw new Error(`Internal error: group with ID ${group.groupID} is invalid`);
     }
 
-    const topLeft = {x: randomOperator.position.x, y: randomOperator.position.y};
-    const bottomRight = {x: randomOperator.position.x, y: randomOperator.position.y};
+    const topLeft = {
+      x: randomOperator.position.x,
+      y: randomOperator.position.y,
+    };
+    const bottomRight = {
+      x: randomOperator.position.x,
+      y: randomOperator.position.y,
+    };
 
     group.operators.forEach(operatorInfo => {
       if (operatorInfo.position.x < topLeft.x) {
@@ -703,7 +727,7 @@ export class OperatorGroup {
       }
     });
 
-    return {topLeft, bottomRight};
+    return { topLeft, bottomRight };
   }
 
   /**
@@ -769,7 +793,7 @@ export class OperatorGroup {
    * @param group
    */
   public repositionGroup(group: Group): void {
-    const {topLeft, bottomRight} = this.getGroupBoundingBox(group);
+    const { topLeft, bottomRight } = this.getGroupBoundingBox(group);
 
     // calculate group's new position
     const originalPosition = this.jointGraphWrapper.getElementPosition(group.groupID);
@@ -777,8 +801,13 @@ export class OperatorGroup {
     const offsetY = topLeft.y - JointUIService.DEFAULT_GROUP_MARGIN - originalPosition.y;
 
     // calculate group's new height & width
-    const width = bottomRight.x - topLeft.x + JointUIService.DEFAULT_OPERATOR_WIDTH + 2 * JointUIService.DEFAULT_GROUP_MARGIN;
-    const height = bottomRight.y - topLeft.y + JointUIService.DEFAULT_OPERATOR_HEIGHT + JointUIService.DEFAULT_GROUP_MARGIN +
+    const width =
+      bottomRight.x - topLeft.x + JointUIService.DEFAULT_OPERATOR_WIDTH + 2 * JointUIService.DEFAULT_GROUP_MARGIN;
+    const height =
+      bottomRight.y -
+      topLeft.y +
+      JointUIService.DEFAULT_OPERATOR_HEIGHT +
+      JointUIService.DEFAULT_GROUP_MARGIN +
       JointUIService.DEFAULT_GROUP_MARGIN_BOTTOM;
 
     // reposition the group according to the new position
@@ -791,7 +820,11 @@ export class OperatorGroup {
 
     // resize the group according to the new size
     this.jointGraphWrapper.setElementSize(group.groupID, width, height);
-    this.groupResizeStream.next({groupID: group.groupID, height: height, width: width});
+    this.groupResizeStream.next({
+      groupID: group.groupID,
+      height: height,
+      width: width,
+    });
   }
 
   /**
@@ -809,13 +842,13 @@ export class OperatorGroup {
     group.links.forEach((linkInfo, linkID) => this.jointGraph.getCell(linkID).remove());
 
     group.inLinks.forEach(linkID => {
-      const jointLinkCell = <joint.dia.Link> this.jointGraph.getCell(linkID);
-      jointLinkCell.set('target', {id: group.groupID});
+      const jointLinkCell = <joint.dia.Link>this.jointGraph.getCell(linkID);
+      jointLinkCell.set("target", { id: group.groupID });
     });
 
     group.outLinks.forEach(linkID => {
-      const jointLinkCell = <joint.dia.Link> this.jointGraph.getCell(linkID);
-      jointLinkCell.set('source', {id: group.groupID});
+      const jointLinkCell = <joint.dia.Link>this.jointGraph.getCell(linkID);
+      jointLinkCell.set("source", { id: group.groupID });
     });
 
     group.operators.forEach((operatorInfo, operatorID) => {
@@ -838,7 +871,10 @@ export class OperatorGroup {
     this.setSyncTexeraGraph(false);
 
     group.operators.forEach((operatorInfo, operatorID) => {
-      const operatorJointElement = this.jointUIService.getJointOperatorElement(operatorInfo.operator, operatorInfo.position);
+      const operatorJointElement = this.jointUIService.getJointOperatorElement(
+        operatorInfo.operator,
+        operatorInfo.position
+      );
       this.jointGraph.addCell(operatorJointElement);
       this.jointGraphWrapper.setCellLayer(operatorID, operatorInfo.layer);
     });
@@ -851,17 +887,22 @@ export class OperatorGroup {
 
     group.inLinks.forEach(linkID => {
       const link = this.texeraGraph.getLinkWithID(linkID);
-      const jointLinkCell = <joint.dia.Link> this.jointGraph.getCell(linkID);
-      jointLinkCell.set('target', {id: link.target.operatorID, port: link.target.portID});
+      const jointLinkCell = <joint.dia.Link>this.jointGraph.getCell(linkID);
+      jointLinkCell.set("target", {
+        id: link.target.operatorID,
+        port: link.target.portID,
+      });
     });
 
     group.outLinks.forEach(linkID => {
       const link = this.texeraGraph.getLinkWithID(linkID);
-      const jointLinkCell = <joint.dia.Link> this.jointGraph.getCell(linkID);
-      jointLinkCell.set('source', {id: link.source.operatorID, port: link.source.portID});
+      const jointLinkCell = <joint.dia.Link>this.jointGraph.getCell(linkID);
+      jointLinkCell.set("source", {
+        id: link.source.operatorID,
+        port: link.source.portID,
+      });
     });
 
     this.setSyncTexeraGraph(true);
   }
-
 }

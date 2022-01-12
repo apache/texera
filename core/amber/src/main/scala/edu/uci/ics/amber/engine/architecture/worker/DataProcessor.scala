@@ -1,35 +1,38 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.messaginglayer.TupleToBatchConverter
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue._
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
-import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, WorkflowLogger}
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.COMPLETED
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{COMPLETED, PAUSED}
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
-import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.Completed
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
+import edu.uci.ics.amber.engine.common.{AmberLogging, IOperatorExecutor, InputExhausted}
 import edu.uci.ics.amber.error.ErrorUtils.safely
-import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import java.util.concurrent.{ExecutorService, Executors, Future}
 
 class DataProcessor( // dependencies:
-    logger: WorkflowLogger, // logger of the worker actor
     operator: IOperatorExecutor, // core logic
     asyncRPCClient: AsyncRPCClient, // to send controls
     batchProducer: TupleToBatchConverter, // to send output tuples
     pauseManager: PauseManager, // to pause/resume
     breakpointManager: BreakpointManager, // to evaluate breakpoints
     stateManager: WorkerStateManager,
-    asyncRPCServer: AsyncRPCServer
-) extends WorkerInternalQueue {
+    asyncRPCServer: AsyncRPCServer,
+    val actorId: ActorVirtualIdentity
+) extends WorkerInternalQueue
+    with AmberLogging {
   // initialize dp thread upon construction
   private val dpThreadExecutor: ExecutorService = Executors.newSingleThreadExecutor
   private val dpThread: Future[_] = dpThreadExecutor.submit(new Runnable() {
@@ -39,11 +42,14 @@ class DataProcessor( // dependencies:
         operator.open()
         runDPThreadMainLogic()
       } catch safely {
-        case e: InterruptedException =>
-          logger.logInfo("DP Thread exits")
-        case e =>
-          val error = WorkflowRuntimeError(e, "DP Thread internal logic")
-          logger.logError(error)
+        case _: InterruptedException =>
+          logger.info("DP Thread exits")
+        case err: Exception =>
+          logger.error("DP Thread exists unexpectedly", err)
+          asyncRPCClient.send(
+            FatalError(new WorkflowRuntimeException("DP Thread exists unexpectedly", err)),
+            CONTROLLER
+          )
         // dp thread will stop here
       }
     }
@@ -121,6 +127,8 @@ class DataProcessor( // dependencies:
     if (outputTuple != null) {
       if (breakpointManager.evaluateTuple(outputTuple)) {
         pauseManager.pause()
+        disableDataQueue()
+        stateManager.transitTo(PAUSED)
       } else {
         outputTupleCount += 1
         batchProducer.passTupleToDownstream(outputTuple)
@@ -152,14 +160,14 @@ class DataProcessor( // dependencies:
           // end of processing, break DP loop
           isCompleted = true
           batchProducer.emitEndOfUpstream()
-        case ControlElement(cmd, from) =>
-          processControlCommand(cmd, from)
+        case ControlElement(payload, from) =>
+          processControlCommand(payload, from)
       }
     }
     // Send Completed signal to worker actor.
-    logger.logInfo(s"${operator.toString} completed")
+    logger.info(s"$operator completed")
     asyncRPCClient.send(WorkerExecutionCompleted(), CONTROLLER)
-    stateManager.transitTo(Completed)
+    stateManager.transitTo(COMPLETED)
     disableDataQueue()
     processControlCommandsAfterCompletion()
   }
@@ -176,7 +184,7 @@ class DataProcessor( // dependencies:
         CONTROLLER
       )
     }
-    logger.logWarning(e.getLocalizedMessage + "\n" + e.getStackTrace.mkString("\n"))
+    logger.warn(e.getLocalizedMessage + "\n" + e.getStackTrace.mkString("\n"))
     // invoke a pause in-place
     asyncRPCServer.execute(PauseWorker(), SELF)
   }
@@ -223,15 +231,18 @@ class DataProcessor( // dependencies:
 
   private[this] def takeOneControlCommandAndProcess(): Unit = {
     val control = getElement.asInstanceOf[ControlElement]
-    processControlCommand(control.cmd, control.from)
+    processControlCommand(control.payload, control.from)
   }
 
-  private[this] def processControlCommand(cmd: ControlPayload, from: ActorVirtualIdentity): Unit = {
-    cmd match {
+  private[this] def processControlCommand(
+      payload: ControlPayload,
+      from: ActorVirtualIdentity
+  ): Unit = {
+    payload match {
       case invocation: ControlInvocation =>
         asyncRPCServer.logControlInvocation(invocation, from)
         asyncRPCServer.receive(invocation, from)
-      case ret: ReturnPayload =>
+      case ret: ReturnInvocation =>
         asyncRPCClient.logControlReply(ret, from)
         asyncRPCClient.fulfillPromise(ret)
     }

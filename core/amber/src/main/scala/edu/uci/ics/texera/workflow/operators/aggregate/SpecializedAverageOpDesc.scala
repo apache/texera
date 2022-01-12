@@ -2,15 +2,15 @@ package edu.uci.ics.texera.workflow.operators.aggregate
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{
+  AutofillAttributeName,
+  AutofillAttributeNameList
+}
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
   OperatorInfo,
   OutputPort
-}
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{
-  AutofillAttributeName,
-  AutofillAttributeNameList
 }
 import edu.uci.ics.texera.workflow.common.operators.aggregate.{
   AggregateOpDesc,
@@ -18,8 +18,8 @@ import edu.uci.ics.texera.workflow.common.operators.aggregate.{
   DistributedAggregation
 }
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseTimestamp
+import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
 
 import java.io.Serializable
 
@@ -56,20 +56,20 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       operatorSchemaInfo: OperatorSchemaInfo
   ): AggregateOpExecConfig[_] = {
     this.groupBySchema = getGroupByKeysSchema(operatorSchemaInfo.inputSchemas)
-    this.finalAggValueSchema = getFinalAggValueSchema()
+    this.finalAggValueSchema = getFinalAggValueSchema
 
     aggFunction match {
-      case AggregationFunction.AVERAGE => averageAgg()
-      case AggregationFunction.COUNT   => countAgg()
-      case AggregationFunction.MAX     => maxAgg()
-      case AggregationFunction.MIN     => minAgg()
-      case AggregationFunction.SUM     => sumAgg()
+      case AggregationFunction.AVERAGE => averageAgg(operatorSchemaInfo)
+      case AggregationFunction.COUNT   => countAgg(operatorSchemaInfo)
+      case AggregationFunction.MAX     => maxAgg(operatorSchemaInfo)
+      case AggregationFunction.MIN     => minAgg(operatorSchemaInfo)
+      case AggregationFunction.SUM     => sumAgg(operatorSchemaInfo)
       case _ =>
         throw new UnsupportedOperationException("Unknown aggregation function: " + aggFunction)
     }
   }
 
-  def sumAgg(): AggregateOpExecConfig[_] = {
+  def sumAgg(operatorSchemaInfo: OperatorSchemaInfo): AggregateOpExecConfig[_] = {
     val aggregation = new DistributedAggregation[java.lang.Double](
       () => 0,
       (partial, tuple) => {
@@ -88,11 +88,12 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     )
     new AggregateOpExecConfig[java.lang.Double](
       operatorIdentifier,
-      aggregation
+      aggregation,
+      operatorSchemaInfo
     )
   }
 
-  def countAgg(): AggregateOpExecConfig[_] = {
+  def countAgg(operatorSchemaInfo: OperatorSchemaInfo): AggregateOpExecConfig[_] = {
     val aggregation = new DistributedAggregation[Integer](
       () => 0,
       (partial, tuple) => {
@@ -109,30 +110,12 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     )
     new AggregateOpExecConfig[Integer](
       operatorIdentifier,
-      aggregation
+      aggregation,
+      operatorSchemaInfo
     )
   }
 
-  def groupByFunc(): Tuple => Tuple = {
-    if (this.groupByKeys == null) null
-    else
-      tuple => {
-        // Since this is a partially evaluated tuple, there is no actual schema for this
-        // available anywhere. Constructing it once for re-use
-        if (groupBySchema == null) {
-          val schemaBuilder = Schema.newBuilder()
-          groupByKeys.foreach(key => schemaBuilder.add(tuple.getSchema.getAttribute(key)))
-          groupBySchema = schemaBuilder.build
-        }
-        val builder = Tuple.newBuilder(groupBySchema)
-        groupByKeys.foreach(key =>
-          builder.add(tuple.getSchema.getAttribute(key), tuple.getField(key))
-        )
-        builder.build()
-      }
-  }
-
-  def minAgg(): AggregateOpExecConfig[_] = {
+  def minAgg(operatorSchemaInfo: OperatorSchemaInfo): AggregateOpExecConfig[_] = {
     val aggregation = new DistributedAggregation[java.lang.Double](
       () => Double.MaxValue,
       (partial, tuple) => {
@@ -152,11 +135,12 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     )
     new AggregateOpExecConfig[java.lang.Double](
       operatorIdentifier,
-      aggregation
+      aggregation,
+      operatorSchemaInfo
     )
   }
 
-  def maxAgg(): AggregateOpExecConfig[_] = {
+  def maxAgg(operatorSchemaInfo: OperatorSchemaInfo): AggregateOpExecConfig[_] = {
     val aggregation = new DistributedAggregation[java.lang.Double](
       () => Double.MinValue,
       (partial, tuple) => {
@@ -176,11 +160,37 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     )
     new AggregateOpExecConfig[java.lang.Double](
       operatorIdentifier,
-      aggregation
+      aggregation,
+      operatorSchemaInfo
     )
   }
 
-  def averageAgg(): AggregateOpExecConfig[_] = {
+  def groupByFunc(): Schema => Schema = {
+    if (this.groupByKeys == null) null
+    else
+      schema => {
+        // Since this is a partially evaluated tuple, there is no actual schema for this
+        // available anywhere. Constructing it once for re-use
+        if (groupBySchema == null) {
+          val schemaBuilder = Schema.newBuilder()
+          groupByKeys.foreach(key => schemaBuilder.add(schema.getAttribute(key)))
+          groupBySchema = schemaBuilder.build
+        }
+        groupBySchema
+      }
+  }
+
+  private def getNumericalValue(tuple: Tuple): Option[Double] = {
+    val value: Object = tuple.getField(attribute)
+    if (value == null)
+      return None
+
+    if (tuple.getSchema.getAttribute(attribute).getType == AttributeType.TIMESTAMP)
+      Option(parseTimestamp(value.toString).getTime.toDouble)
+    else Option(value.toString.toDouble)
+  }
+
+  def averageAgg(operatorSchemaInfo: OperatorSchemaInfo): AggregateOpExecConfig[_] = {
     val aggregation = new DistributedAggregation[AveragePartialObj](
       () => AveragePartialObj(0, 0),
       (partial, tuple) => {
@@ -203,8 +213,33 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     )
     new AggregateOpExecConfig[AveragePartialObj](
       operatorIdentifier,
-      aggregation
+      aggregation,
+      operatorSchemaInfo
     )
+  }
+
+  private def getGroupByKeysSchema(schemas: Array[Schema]): Schema = {
+    if (groupByKeys == null) {
+      groupByKeys = List()
+    }
+    Schema
+      .newBuilder()
+      .add(groupByKeys.map(key => schemas(0).getAttribute(key)).toArray: _*)
+      .build()
+  }
+
+  private def getFinalAggValueSchema: Schema = {
+    if (this.aggFunction.equals(AggregationFunction.COUNT)) {
+      Schema
+        .newBuilder()
+        .add(resultAttribute, AttributeType.INTEGER)
+        .build()
+    } else {
+      Schema
+        .newBuilder()
+        .add(resultAttribute, AttributeType.DOUBLE)
+        .build()
+    }
   }
 
   override def operatorInfo: OperatorInfo =
@@ -223,42 +258,8 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
     Schema
       .newBuilder()
       .add(getGroupByKeysSchema(schemas).getAttributes)
-      .add(getFinalAggValueSchema().getAttributes)
+      .add(getFinalAggValueSchema.getAttributes)
       .build()
-  }
-
-  private def getGroupByKeysSchema(schemas: Array[Schema]): Schema = {
-    if (groupByKeys == null) {
-      groupByKeys = List()
-    }
-    Schema
-      .newBuilder()
-      .add(groupByKeys.map(key => schemas(0).getAttribute(key)).toArray: _*)
-      .build()
-  }
-
-  private def getFinalAggValueSchema(): Schema = {
-    if (this.aggFunction.equals(AggregationFunction.COUNT)) {
-      Schema
-        .newBuilder()
-        .add(resultAttribute, AttributeType.INTEGER)
-        .build()
-    } else {
-      Schema
-        .newBuilder()
-        .add(resultAttribute, AttributeType.DOUBLE)
-        .build()
-    }
-  }
-
-  private def getNumericalValue(tuple: Tuple): Option[Double] = {
-    val value: Object = tuple.getField(attribute)
-    if (value == null)
-      return None
-
-    if (tuple.getSchema.getAttribute(attribute).getType == AttributeType.TIMESTAMP)
-      Option(parseTimestamp(value.toString).getTime.toDouble)
-    else Option(value.toString.toDouble)
   }
 
 }

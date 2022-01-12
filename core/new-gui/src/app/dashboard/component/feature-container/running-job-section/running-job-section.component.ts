@@ -1,15 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component } from "@angular/core";
 
 @Component({
-  selector: 'texera-running-job-section',
-  templateUrl: './running-job-section.component.html',
-  styleUrls: ['./running-job-section.component.scss']
+  selector: "texera-running-job-section",
+  templateUrl: "./running-job-section.component.html",
+  styleUrls: ["./running-job-section.component.scss"],
 })
-export class RunningJobSectionComponent implements OnInit {
-
-  constructor() { }
-
-  ngOnInit() {
-  }
-
-}
+export class RunningJobSectionComponent {}

@@ -1,4 +1,6 @@
-*, *:before, *:after {
+*,
+*:before,
+*:after {
   box-sizing: border-box;
 }
 
@@ -11,7 +13,7 @@
   color: #fff;
   border-radius: 1px;
   box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.25);
-  transition: background-color .218s, border-color .218s, box-shadow .218s;
+  transition: background-color 0.218s, border-color 0.218s, box-shadow 0.218s;
 }
 
 .g-sign-in-button:hover {
@@ -21,7 +23,7 @@
 }
 
 .g-sign-in-button:active {
-  background-color: #3367D6;
+  background-color: #3367d6;
   transition: background-color 0.2s;
 }
 
@@ -49,7 +51,7 @@
 .g-sign-in-button .text-container {
   font-family: Roboto, arial, sans-serif;
   font-weight: 500;
-  letter-spacing: .21px;
+  letter-spacing: 0.21px;
   font-size: 16px;
   line-height: 48px;
   vertical-align: top;

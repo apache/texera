@@ -1,8 +1,8 @@
 <div ngbDropdown class="d-inline-block user-icon">
-  <button class="btn btn-outline-primary" id="dropdownBasic1" ngbDropdownToggle>{{user?.name || "Sign In"}}</button>
-  <div ngbDropdownMenu aria-labelledby="dropdownBasic1" class="user-dropdown">
-    <button *ngIf="!user" class="dropdown-item" (click)="onClickLogin()">Sign In</button>
-    <button *ngIf="!user" class="dropdown-item" (click)="onClickRegister()">Sign up</button>
-    <button *ngIf="user" class="dropdown-item" (click)="onClickLogout()">Sign Out</button>
+  <button class="btn btn-outline-primary" id="dropdownBasic1" ngbDropdownToggle>{{ user?.name || "Sign In" }}</button>
+  <div aria-labelledby="dropdownBasic1" class="user-dropdown" ngbDropdownMenu>
+    <button (click)="onClickLogin()" *ngIf="!user" class="dropdown-item">Sign In</button>
+    <button (click)="onClickRegister()" *ngIf="!user" class="dropdown-item">Sign up</button>
+    <button (click)="onClickLogout()" *ngIf="user" class="dropdown-item">Sign Out</button>
   </div>
 </div>

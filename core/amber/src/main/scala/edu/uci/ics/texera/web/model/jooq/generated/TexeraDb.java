@@ -8,9 +8,11 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.File;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.KeywordDictionary;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserDictionary;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.UserFileAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Workflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfUser;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserAccess;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowVersion;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,7 +29,7 @@ import org.jooq.impl.SchemaImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class TexeraDb extends SchemaImpl {
 
-    private static final long serialVersionUID = 1761177904;
+    private static final long serialVersionUID = 956293362;
 
     /**
      * The reference instance of <code>texera_db</code>
@@ -55,6 +57,11 @@ public class TexeraDb extends SchemaImpl {
     public final UserDictionary USER_DICTIONARY = edu.uci.ics.texera.web.model.jooq.generated.tables.UserDictionary.USER_DICTIONARY;
 
     /**
+     * The table <code>texera_db.user_file_access</code>.
+     */
+    public final UserFileAccess USER_FILE_ACCESS = edu.uci.ics.texera.web.model.jooq.generated.tables.UserFileAccess.USER_FILE_ACCESS;
+
+    /**
      * The table <code>texera_db.workflow</code>.
      */
     public final Workflow WORKFLOW = edu.uci.ics.texera.web.model.jooq.generated.tables.Workflow.WORKFLOW;
@@ -68,6 +75,11 @@ public class TexeraDb extends SchemaImpl {
      * The table <code>texera_db.workflow_user_access</code>.
      */
     public final WorkflowUserAccess WORKFLOW_USER_ACCESS = edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserAccess.WORKFLOW_USER_ACCESS;
+
+    /**
+     * The table <code>texera_db.workflow_version</code>.
+     */
+    public final WorkflowVersion WORKFLOW_VERSION = edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowVersion.WORKFLOW_VERSION;
 
     /**
      * No further instances allowed
@@ -95,8 +107,10 @@ public class TexeraDb extends SchemaImpl {
             KeywordDictionary.KEYWORD_DICTIONARY,
             User.USER,
             UserDictionary.USER_DICTIONARY,
+            UserFileAccess.USER_FILE_ACCESS,
             Workflow.WORKFLOW,
             WorkflowOfUser.WORKFLOW_OF_USER,
-            WorkflowUserAccess.WORKFLOW_USER_ACCESS);
+            WorkflowUserAccess.WORKFLOW_USER_ACCESS,
+            WorkflowVersion.WORKFLOW_VERSION);
     }
 }

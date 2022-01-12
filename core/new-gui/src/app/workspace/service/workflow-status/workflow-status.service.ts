@@ -1,13 +1,12 @@
-import { Injectable } from '@angular/core';
-import { Observable, Subject } from 'rxjs';
-import { environment } from '../../../../environments/environment';
-import { ExecutionState, OperatorState, OperatorStatistics } from '../../types/execute-workflow.interface';
-import { ExecuteWorkflowService } from '../execute-workflow/execute-workflow.service';
-import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
-import { WorkflowWebsocketService } from '../workflow-websocket/workflow-websocket.service';
+import { Injectable } from "@angular/core";
+import { Observable, Subject } from "rxjs";
+import { environment } from "../../../../environments/environment";
+import { OperatorStatistics } from "../../types/execute-workflow.interface";
+import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
+import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: "root",
 })
 export class WorkflowStatusService {
   // status is responsible for passing websocket responses to other components
@@ -16,33 +15,18 @@ export class WorkflowStatusService {
 
   constructor(
     private workflowActionService: WorkflowActionService,
-    private workflowWebsocketService: WorkflowWebsocketService,
-    private executeWorkflowService: ExecuteWorkflowService
+    private workflowWebsocketService: WorkflowWebsocketService
   ) {
     if (!environment.executionStatusEnabled) {
       return;
     }
-    this.getStatusUpdateStream().subscribe(event => this.currentStatus = event);
+    this.getStatusUpdateStream().subscribe(event => (this.currentStatus = event));
 
     this.workflowWebsocketService.websocketEvent().subscribe(event => {
-      if (event.type !== 'WebWorkflowStatusUpdateEvent') {
+      if (event.type !== "OperatorStatisticsUpdateEvent") {
         return;
       }
       this.statusSubject.next(event.operatorStatistics);
-    });
-
-    this.executeWorkflowService.getExecutionStateStream().subscribe(event => {
-      if (event.current.state === ExecutionState.WaitingToRun) {
-        const initialStatistics: Record<string, OperatorStatistics> = {};
-        this.workflowActionService.getTexeraGraph().getAllOperators().forEach(op => {
-          initialStatistics[op.operatorID] = {
-            operatorState: OperatorState.Initializing,
-            aggregatedInputRowCount: 0,
-            aggregatedOutputRowCount: 0,
-          };
-        });
-        this.statusSubject.next(initialStatistics);
-      }
     });
   }
 
@@ -53,5 +37,4 @@ export class WorkflowStatusService {
   public getCurrentStatus(): Record<string, OperatorStatistics> {
     return this.currentStatus;
   }
-
 }

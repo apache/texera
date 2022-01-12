@@ -1,5 +1,5 @@
-import { Component, OnInit } from '@angular/core';
-import { WorkflowPersistService } from '../../common/service/user/workflow-persist/workflow-persist.service';
+import { Component } from "@angular/core";
+import { WorkflowPersistService } from "../../common/service/workflow-persist/workflow-persist.service";
 
 /**
  * dashboardComponent is the component which contains all the subcomponents
@@ -9,19 +9,9 @@ import { WorkflowPersistService } from '../../common/service/user/workflow-persi
  * @author Zhaomin Li
  */
 @Component({
-  selector: 'texera-dashboard',
-  templateUrl: './dashboard.component.html',
-  styleUrls: ['./dashboard.component.scss'],
-  providers: [
-    WorkflowPersistService
-  ]
+  selector: "texera-dashboard",
+  templateUrl: "./dashboard.component.html",
+  styleUrls: ["./dashboard.component.scss"],
+  providers: [WorkflowPersistService],
 })
-export class DashboardComponent implements OnInit {
-
-  constructor() {
-  }
-
-  ngOnInit() {
-  }
-
-}
+export class DashboardComponent {}

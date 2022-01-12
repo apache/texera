@@ -4,15 +4,15 @@ import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddOutputPolicyHandler.AddOutputPolicy
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 
 object LinkWorkersHandler {
-  final case class LinkWorkers(link: LinkStrategy) extends ControlCommand[CommandCompleted]
+  final case class LinkWorkers(link: LinkStrategy) extends ControlCommand[Unit]
 }
 
-/** add a data transfer policy to the sender workers and update input linking
+/** add a data transfer partitioning to the sender workers and update input linking
   * for the receiver workers of a link strategy.
   *
   * possible sender: controller, client
@@ -22,17 +22,17 @@ trait LinkWorkersHandler {
 
   registerHandler { (msg: LinkWorkers, sender) =>
     {
-      // get the list of (sender id, policy, set of receiver ids) from the link
-      val futures = msg.link.getPolicies.flatMap {
-        case (from, policy, tos) =>
+      // get the list of (sender id, partitioning, set of receiver ids) from the link
+      val futures = msg.link.getPartitioning.flatMap {
+        case (from, link, partitioning, tos) =>
           // send messages to sender worker and receiver workers
-          Seq(send(AddOutputPolicy(policy), from)) ++ tos.map(
+          Seq(send(AddPartitioning(link, partitioning), from)) ++ tos.map(
             send(UpdateInputLinking(from, msg.link.id), _)
           )
       }
-      Future.collect(futures.toSeq).map { x =>
+      Future.collect(futures.toSeq).map { _ =>
         // returns when all has completed
-        CommandCompleted()
+
       }
     }
   }
