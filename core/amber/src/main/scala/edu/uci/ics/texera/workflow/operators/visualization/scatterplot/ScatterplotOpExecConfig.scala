@@ -1,8 +1,8 @@
 package edu.uci.ics.texera.workflow.operators.visualization.scatterplot
 
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
-import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.{ForceLocal}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.{RandomDeployment}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.{UseAll}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.{RoundRobinDeployment}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, OperatorIdentity}
@@ -12,6 +12,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 class ScatterplotOpExecConfig(
     tag: OperatorIdentity,
     opDesc: ScatterplotOpDesc,
+    numWorkers: Int,
     schemaInfo: OperatorSchemaInfo
 ) extends OpExecConfig(tag) {
 
@@ -20,9 +21,9 @@ class ScatterplotOpExecConfig(
       new WorkerLayer(
         makeLayer(tag, "main"),
         _ => new ScatterplotOpExec(opDesc, schemaInfo),
-        1,
-        ForceLocal(),
-        RandomDeployment()
+        numWorkers,
+        UseAll(),
+        RoundRobinDeployment()
       )
     ),
     Array()
