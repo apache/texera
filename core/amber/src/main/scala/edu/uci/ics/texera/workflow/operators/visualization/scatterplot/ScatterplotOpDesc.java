@@ -3,13 +3,13 @@ package edu.uci.ics.texera.workflow.operators.visualization.scatterplot;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
+import edu.uci.ics.amber.engine.common.Constants;
 import edu.uci.ics.amber.engine.operators.OpExecConfig;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
-import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
@@ -44,6 +44,8 @@ public class ScatterplotOpDesc extends VisualizationOperator {
     @JsonPropertyDescription("plot on a map")
     public boolean isGeometric;
 
+    private int numWorkers = Constants.currentWorkerNum();
+
     @Override
     public String chartType() {
         if(isGeometric) {
@@ -63,7 +65,10 @@ public class ScatterplotOpDesc extends VisualizationOperator {
         if (!allowedAttributeTypesNumbersOnly.contains(yType)) {
             throw new IllegalArgumentException(yColumn + " is not a number \n");
         }
-        return new OneToOneOpExecConfig(operatorIdentifier(), worker -> new ScatterplotOpExec(this, operatorSchemaInfo));
+        if(isGeometric){
+            numWorkers = 1;
+        }
+        return new ScatterplotOpExecConfig(this.operatorIdentifier(),this, numWorkers, operatorSchemaInfo);
     }
 
     @Override
