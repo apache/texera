@@ -43,7 +43,7 @@ export class UserConfigService {
    * @returns string value corresponding to the key from the backend;
    * throws Error("No such entry") (invalid key) or Error("Invalid session") (not logged in).
    */
-  public fetchKey(key: string): Observable<string|null> {
+  public fetchKey(key: string): Observable<string | null> {
     if (!this.userService.isLogin()) {
       throw new Error("user not logged in");
     }
@@ -51,7 +51,7 @@ export class UserConfigService {
       throw new Error("Dictionary Service: key cannot be empty");
     }
     const url = `${AppSettings.getApiEndpoint()}/${UserConfigService.USER_DICTIONARY_ENDPOINT}/${key}`;
-    const req = this.http.get(url, {responseType: "text"}).pipe(
+    const req = this.http.get(url, { responseType: "text" }).pipe(
       tap(res => {
         this.updateEntry(key, res);
       }),

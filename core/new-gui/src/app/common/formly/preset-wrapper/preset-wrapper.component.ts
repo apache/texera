@@ -44,9 +44,7 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
   private basePreset: Preset = {};
   private teardownObservable: ReplaySubject<boolean> = new ReplaySubject(1); // observable used OnDestroy to tear down subscriptions that takeUntil(teardownObservable)
 
-  constructor(
-    private presetService: PresetService,
-    private messageService: NzMessageService) {
+  constructor(private presetService: PresetService, private messageService: NzMessageService) {
     super();
   }
 
@@ -188,7 +186,7 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
    * handles when presets for the current presetType are changed due to saving new presets
    * updates search results to account for new presets
    */
-   private handleApplyPreset() {
+  private handleApplyPreset() {
     this.presetService.applyPresetStream
       .pipe(
         filter(presets => presets.type === this.presetType && presets.target === this.applyTarget),
@@ -206,14 +204,14 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
    * @param operatorType
    * @param formData
    * @returns partially finished Preset. use PresetService.isValidOperatorPreset to verify all preset attributes exist
-  */
+   */
   filterPresetFromForm(): Preset {
     let preset: Preset = {};
-    let arr =  this.field.parent?.fieldGroup?.filter(formfield => formfield.wrappers?.includes("preset-wrapper"));
-    (arr as FormlyFieldConfig[]) .forEach(field => {
-        const key = asType(field.key, "string");
-        preset[key] = field.model[key];
-      });
+    let arr = this.field.parent?.fieldGroup?.filter(formfield => formfield.wrappers?.includes("preset-wrapper"));
+    (arr as FormlyFieldConfig[]).forEach(field => {
+      const key = asType(field.key, "string");
+      preset[key] = field.model[key];
+    });
 
     return preset;
   }
@@ -232,30 +230,23 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
     this.formControl.valueChanges.pipe(debounceTime(0), takeUntil(this.teardownObservable)).subscribe({
       next: (value: string | number | boolean) => {
         this.searchTerm = (value ?? "").toString();
-        if (this.presetMenuVisible == true){
+        if (this.presetMenuVisible == true) {
           this.updateSearchResults(false);
         }
       },
     });
   }
 
-
-
   /**
    * updates search results
    */
   private updateSearchResults(showAllResults = true) {
-    this.presetService.getPresets(this.presetType, this.saveTarget)
-    .pipe(first(), takeUntil(this.teardownObservable))
-    .subscribe(
-      presets => {
-        this.searchResults = this.getSearchResults(
-          presets,
-          this.searchTerm,
-          showAllResults
-        );
-      }
-    );
+    this.presetService
+      .getPresets(this.presetType, this.saveTarget)
+      .pipe(first(), takeUntil(this.teardownObservable))
+      .subscribe(presets => {
+        this.searchResults = this.getSearchResults(presets, this.searchTerm, showAllResults);
+      });
   }
 
   /**
@@ -282,8 +273,8 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
         },
         // disable browser's default autocomplete to not block our preset autocomplete
         attributes: {
-          autocomplete: 'off'
-        }
+          autocomplete: "off",
+        },
       },
     };
     merge(config, fieldConfig);

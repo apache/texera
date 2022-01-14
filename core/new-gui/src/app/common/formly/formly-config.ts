@@ -55,9 +55,7 @@ export const TEXERA_FORMLY_CONFIG = {
     { name: "multischema", component: MultiSchemaTypeComponent },
     { name: "codearea", component: CodeareaCustomTemplateComponent },
   ],
-  wrappers: [
-    { name: "preset-wrapper", component: PresetWrapperComponent },
-  ]
+  wrappers: [{ name: "preset-wrapper", component: PresetWrapperComponent }],
 };
 
 export function minItemsValidationMessage(err: any, field: FormlyFieldConfig) {

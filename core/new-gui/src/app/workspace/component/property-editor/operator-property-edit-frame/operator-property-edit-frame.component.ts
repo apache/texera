@@ -99,8 +99,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private dynamicSchemaService: DynamicSchemaService,
     private schemaPropagationService: SchemaPropagationService,
     private notificationService: NotificationService
-  ) {
-  }
+  ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
     this.currentOperatorId = changes.currentOperatorId?.currentValue;
@@ -312,7 +311,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       }
       // if presetService is ready and operator property allows presets, setup formly field to display presets
       if (
-        environment.userSystemEnabled && environment.userPresetEnabled &&
+        environment.userSystemEnabled &&
+        environment.userPresetEnabled &&
         mapSource["enable-presets"] !== undefined &&
         this.currentOperatorId !== undefined
       ) {
