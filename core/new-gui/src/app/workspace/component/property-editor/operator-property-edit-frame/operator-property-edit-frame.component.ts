@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
+import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { Subject } from "rxjs";
 import { FormGroup } from "@angular/forms";
@@ -6,7 +6,7 @@ import { FormlyFieldConfig, FormlyFormOptions } from "@ngx-formly/core";
 import * as Ajv from "ajv";
 import { FormlyJsonschema } from "@ngx-formly/core/json-schema";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import { cloneDeep, isEqual } from "lodash-es";
+import { cloneDeep, isEqual, every, findIndex } from "lodash-es";
 import { CustomJSONSchema7 } from "../../../types/custom-json-schema.interface";
 import { isDefined } from "../../../../common/util/predicate";
 import { ExecutionState } from "src/app/workspace/types/execute-workflow.interface";
@@ -26,8 +26,10 @@ import {
 } from "../typecasting-display/type-casting-display.component";
 import { DynamicComponentConfig } from "../../../../common/type/dynamic-component-config";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { filter } from "rxjs/operators";
+import { filter, first, map, takeUntil } from "rxjs/operators";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
+import { environment } from "src/environments/environment";
 
 export type PropertyDisplayComponent = TypeCastingDisplayComponent;
 
@@ -55,7 +57,7 @@ export type PropertyDisplayComponentConfig = DynamicComponentConfig<PropertyDisp
   templateUrl: "./operator-property-edit-frame.component.html",
   styleUrls: ["./operator-property-edit-frame.component.scss"],
 })
-export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
+export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, OnDestroy {
   @Input() currentOperatorId?: string;
 
   // re-declare enum for angular template to access it
@@ -86,6 +88,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
 
   // for display component of some extra information
   extraDisplayComponentConfig?: PropertyDisplayComponentConfig;
+
+  // used to tear down subscriptions that takeUntil(teardownObservable)
+  private teardownObservable: Subject<void> = new Subject();
 
   constructor(
     private formlyJsonschema: FormlyJsonschema,
@@ -127,6 +132,11 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
     this.registerOnFormChangeHandler();
 
     this.registerDisableEditorInteractivityHandler();
+  }
+
+  async ngOnDestroy() {
+    // await this.checkAndSavePreset();
+    this.teardownObservable.complete();
   }
 
   /**
@@ -298,6 +308,20 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
         if (mappedField.type) {
           mappedField.type = "codearea";
         }
+      }
+      // if presetService is ready and operator property allows presets, setup formly field to display presets
+      if (
+        environment.userSystemEnabled &&
+        environment.userPresetEnabled &&
+        mapSource["enable-presets"] !== undefined &&
+        this.currentOperatorId !== undefined
+      ) {
+        PresetWrapperComponent.setupFieldConfig(
+          mappedField,
+          "operator",
+          this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType,
+          this.currentOperatorId
+        );
       }
       return mappedField;
     };

@@ -9,6 +9,7 @@ import { VIEW_RESULT_OP_TYPE } from "./workflow-graph";
  *  - 2: NlpSentiment
  *  - 3: ViewResults
  *  - 4: MultiInputOutputOperator
+ *  - 5: PresetEnabledOperator
  *
  * Links:
  *  - link-1: ScanSource -> ViewResults
@@ -64,6 +65,15 @@ export const mockMultiInputOutputPredicate: OperatorPredicate = {
   outputPorts: [{ portID: "output-0" }, { portID: "output-1" }, { portID: "output-2" }],
   showAdvanced: true,
   isDisabled: false,
+};
+
+export const mockPresetEnabledPredicate: OperatorPredicate = {
+  operatorID: "5",
+  operatorType: "PresetEnabledOp",
+  operatorProperties: {},
+  inputPorts: [],
+  outputPorts: [],
+  showAdvanced: true,
 };
 
 export const mockScanResultLink: OperatorLink = {
