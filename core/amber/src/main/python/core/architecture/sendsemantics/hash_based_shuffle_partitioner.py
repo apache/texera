@@ -24,7 +24,7 @@ class HashBasedShufflePartitioner(Partitioner):
     @overrides
     def add_tuple_to_batch(self, tuple_: ImmutableTuple) -> Iterator[typing.Tuple[ActorVirtualIdentity, OutputDataFrame]]:
         partial_tuple = tuple_.get_fields(self.hash_column_indices)
-        hash_code = hash(tuple(partial_tuple)) % len(self.receivers)
+        hash_code = hash(partial_tuple) % len(self.receivers)
         receiver, batch = self.receivers[hash_code]
         batch.append(tuple_)
         if len(batch) == self.batch_size:

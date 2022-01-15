@@ -16,15 +16,31 @@ class InputExhausted:
 
 
 class ArrowTableTupleProvider:
+    """
+    This class provides "view"s for tuple from an arrow table
+    """
+
     def __init__(self, table):
+        """
+        Construct a provider from an arrow table.
+        Keep the current chunk and tuple idx as its state.
+        """
         self.table = table
         self.current_idx = 0
         self.current_chunk = 0
 
     def __iter__(self):
+        """
+        return itself as it is iterable.
+        """
         return self
 
     def __next__(self):
+        """
+        provide the field accessor of the next tuple.
+        If current chunk is exhausted, move to the first
+        tuple of the next chunk.
+        """
         if self.current_idx >= len(self.table.column(0).chunks[self.current_chunk]):
             self.current_idx = 0
             self.current_chunk += 1
@@ -35,6 +51,11 @@ class ArrowTableTupleProvider:
         tuple_idx = self.current_idx
 
         def field_accessor(field_name):
+            """
+            retrieve the field value by a given field name.
+            This abstracts and hides the underlying implementation
+            of the tuple data storage from the user.
+            """
             return self.table.column(field_name).chunks[chunk_idx][tuple_idx]
 
         self.current_idx += 1
@@ -53,23 +74,28 @@ class Tuple:
         :param field_names: all field names that can be fetched
         :param field_accessor: a lambda function that fetches a field with given field name
         """
-        self.field_accessor = field_accessor
-        self.field_names = field_names
+        self.__field_accessor = field_accessor
+        self.__field_names = field_names
         if field_data is None:
-            self.field_data = {}
+            self.__field_data = {}
         else:
-            self.field_data = dict(field_data)
+            self.__field_data = dict(field_data)
 
-    def __getitem__(self, item):
+    def __getitem__(self, item) -> Any:
         """
         Get a field with given name. If it's not present, fetch it from accessor.
         :param item: field name
         :return: field value
         """
-        if item not in self.field_data:
+        assert isinstance(item, (str, int)), "field can only be retrieved by index or name"
+
+        if isinstance(item, int):
+            item = self.__field_names[item]
+
+        if item not in self.__field_data:
             # evaluate the field now
-            self.field_data[item] = self.field_accessor(item).as_py()
-        return self.field_data[item]
+            self.__field_data[item] = self.__field_accessor(item).as_py()
+        return self.__field_data[item]
 
     def __setitem__(self, key, value):
         """
@@ -77,33 +103,40 @@ class Tuple:
         :param key: field name
         :param value: field value
         """
-        self.field_data[key] = value
+        assert isinstance(key, str), "field can only be set by name"
+        self.__field_data[key] = value
 
     def as_series(self) -> pandas.Series:
+        """convert the tuple to Pandas series format"""
         return pandas.Series(self.as_dict())
 
     def as_dict(self) -> Mapping[str, Any]:
         """
-        Return a dictionary reference of this tuple.
+        Return a dictionary copy of this tuple.
         Fields will be fetched from accessor if absent.
         :return: dict with all the fields
         """
         # evaluate all the fields now
-        if self.field_names is not None:
-            for field in self.field_names:
-                if field not in self.field_data:
-                    self.field_data[field] = self.field_accessor(field).as_py()
-        return self.field_data
+        result = {}
+        if self.__field_names is not None:
+            for field in self.__field_names:
+                if field not in self.__field_data:
+                    self.__field_data[field] = self.__field_accessor(field).as_py()
+                result[field] = self.__field_data[field]
+        return result
 
     def as_key_value_pairs(self) -> List[typing.Tuple[str, Any]]:
-        return list(self.as_dict().items())
+        return [(k, v) for k, v in self.as_dict().items()]
 
-    def to_values(self, output_field_names=None):
+    def to_values(self, output_field_names=None) -> typing.Tuple[Any, ...]:
+        """
+        Get values from tuple for selected fields.
+        """
         if output_field_names is None:
-            if self.field_names is None:
-                return tuple(self.field_data.values())
+            if self.__field_names is None:
+                return tuple(self.__field_data.values())
             else:
-                return tuple(self[i] for i in self.field_names)
+                return tuple(self[i] for i in self.__field_names)
         return tuple(self[i] for i in output_field_names)
 
     def __str__(self) -> str:
@@ -120,6 +153,9 @@ class Tuple:
     def __ne__(self, other) -> bool:
         return not self.__eq__(other)
 
+    def __iter__(self):
+        return (self[i] for i in self.__field_names)
+
     def reset(self, field_accessor):
         """
         Reset the tuple with given field accessor
@@ -128,8 +164,8 @@ class Tuple:
         will not be reset in this operation.
         :param field_accessor: new accessor
         """
-        self.field_data.clear()
-        self.field_accessor = field_accessor
+        self.__field_data.clear()
+        self.__field_accessor = field_accessor
 
 
 class ImmutableTuple:
@@ -137,6 +173,7 @@ class ImmutableTuple:
     Container of pure data values. Only used after user returns
     a modified tuple or tuple-like.
     """
+
     def __init__(self, tuple_like, output_field_names):
         """
         Create a ImmutableTuple from tuple-like objects or tuple.
@@ -150,10 +187,13 @@ class ImmutableTuple:
                 field_dict = dict(tuple_like)
             else:
                 field_dict = tuple_like
-            self.data = (field_dict[i] if i in field_dict else None for i in output_field_names)
+            self.data = tuple(field_dict[i] if i in field_dict else None for i in output_field_names)
 
-    def get_fields(self, indices):
-        return (self.data[i] for i in indices)
+    def get_fields(self, indices) -> typing.Tuple[Any, ...]:
+        """
+        Get values from immutable tuple for selected indices.
+        """
+        return tuple(self.data[i] for i in indices)
 
     def __iter__(self):
         return iter(self.data)
