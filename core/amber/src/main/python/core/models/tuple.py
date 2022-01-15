@@ -151,7 +151,7 @@ class Tuple:
         if not isinstance(other, Tuple):
             return False
         else:
-            return pandas.Series.__eq__(self.as_series(), other.as_series()).all()
+            return self.__field_names == other.__field_names and all(self[i] == other[i] for i in self.__field_names)
 
     def __ne__(self, other) -> bool:
         return not self.__eq__(other)
