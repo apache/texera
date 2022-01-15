@@ -5,16 +5,8 @@ import { OperatorPropertyEditFrameComponent } from "./operator-property-edit-fra
 import { BreakpointPropertyEditFrameComponent } from "./breakpoint-property-edit-frame/breakpoint-property-edit-frame.component";
 import { DynamicComponentConfig } from "../../../common/type/dynamic-component-config";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import {
-  DISPLAY_WORKFLOW_VERIONS_EVENT,
-  WorkflowVersionService,
-} from "../../../dashboard/service/workflow-version/workflow-version.service";
-import { VersionsListDisplayComponent } from "./versions-display/versions-display.component";
 
-export type PropertyEditFrameComponent =
-  | OperatorPropertyEditFrameComponent
-  | BreakpointPropertyEditFrameComponent
-  | VersionsListDisplayComponent;
+export type PropertyEditFrameComponent = OperatorPropertyEditFrameComponent | BreakpointPropertyEditFrameComponent;
 
 export type PropertyEditFrameConfig = DynamicComponentConfig<PropertyEditFrameComponent>;
 
@@ -33,10 +25,7 @@ export type PropertyEditFrameConfig = DynamicComponentConfig<PropertyEditFrameCo
 export class PropertyEditorComponent implements OnInit {
   frameComponentConfig?: PropertyEditFrameConfig;
 
-  constructor(
-    public workflowActionService: WorkflowActionService,
-    public workflowVersionService: WorkflowVersionService
-  ) {}
+  constructor(public workflowActionService: WorkflowActionService) {}
 
   ngOnInit(): void {
     this.registerHighlightEventsHandler();
@@ -67,24 +56,17 @@ export class PropertyEditorComponent implements OnInit {
       this.workflowActionService.getJointGraphWrapper().getJointGroupHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getLinkHighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getLinkUnhighlightStream(),
-      this.workflowVersionService.workflowVersionsDisplayObservable()
+      this.workflowActionService.getJointGraphWrapper().getLinkUnhighlightStream()
     )
       .pipe(untilDestroyed(this))
-      .subscribe(event => {
-        const isDisplayWorkflowVersions = event.length === 1 && event[0] === DISPLAY_WORKFLOW_VERIONS_EVENT;
-
+      .subscribe(() => {
         const highlightedOperators = this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs();
         const highlightedGroups = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
         const highlightLinks = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
 
-        if (isDisplayWorkflowVersions) {
-          this.switchFrameComponent({
-            component: VersionsListDisplayComponent,
-          });
-        } else if (highlightedOperators.length === 1 && highlightedGroups.length === 0 && highlightLinks.length === 0) {
+        if (highlightedOperators.length === 1 && highlightedGroups.length === 0 && highlightLinks.length === 0) {
           this.switchFrameComponent({
             component: OperatorPropertyEditFrameComponent,
             componentInputs: { currentOperatorId: highlightedOperators[0] },

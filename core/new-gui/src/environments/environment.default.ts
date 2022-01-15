@@ -38,6 +38,11 @@ export const defaultEnvironment = {
    */
   userSystemEnabled: false,
 
+  /**
+   * whether user preset feature is enabled, requires user system to be enabled
+   */
+  userPresetEnabled: false,
+
   amberEngineEnabled: true,
 
   /**

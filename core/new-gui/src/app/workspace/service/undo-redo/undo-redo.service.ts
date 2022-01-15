@@ -1,6 +1,6 @@
 import { Injectable } from "@angular/core";
 import { Observable, Subject } from "rxjs";
-import { assertType } from "../../../common/util/assert";
+import { nonNull } from "../../../common/util/assert";
 import { Command } from "../workflow-graph/model/workflow-action.service";
 
 /* TODO LIST FOR BUGS
@@ -45,8 +45,7 @@ export class UndoRedoService {
         return;
       }
 
-      const command = this.undoStack.pop();
-      assertType<Command>(command);
+      const command = nonNull(this.undoStack.pop());
       this.setListenJointCommand(false);
       command.undo();
       this.redoStack.push(command);
@@ -64,8 +63,7 @@ export class UndoRedoService {
         console.error("attempted to redo a workflow-modifying command while workflow modification is disabled");
         return;
       }
-      const command = this.redoStack.pop();
-      assertType<Command>(command);
+      const command = nonNull(this.redoStack.pop());
       this.setListenJointCommand(false);
       if (command.redo) {
         command.redo();
