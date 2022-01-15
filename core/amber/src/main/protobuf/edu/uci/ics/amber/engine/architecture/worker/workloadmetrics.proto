@@ -11,7 +11,9 @@ option (scalapb.options) = {
 
 };
 
+// TODO: change the names to remove "self"
 message SelfWorkloadMetrics {
+  // TODO: change the names to remove "queue_size" which is implicit
   int64 unprocessed_data_input_queue_size = 1;
   int64 unprocessed_control_input_queue_size = 2;
   int64 stashed_data_input_queue_size = 3;
