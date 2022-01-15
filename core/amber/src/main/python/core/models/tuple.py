@@ -80,6 +80,9 @@ class Tuple:
             self.__field_data = {}
         else:
             self.__field_data = dict(field_data)
+            if self.__field_names is None:
+                # try to infer field names if not provided
+                self.__field_names = self.__field_data.keys()
 
     def __getitem__(self, item) -> Any:
         """
