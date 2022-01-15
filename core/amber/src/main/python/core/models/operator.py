@@ -101,7 +101,7 @@ class TableOperator(TupleOperator):
         if isinstance(tuple_, Tuple):
             self.__table_data[input_].append(tuple_)
         else:
-            table = Table(pandas.DataFrame(self.__table_data[input_]))
+            table = Table(pandas.DataFrame([i.as_series() for i in self.__table_data[input_]]))
             for output_table in self.process_table(table, input_):
                 if output_table is not None:
                     for _, output_tuple in output_table.iterrows():
