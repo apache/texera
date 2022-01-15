@@ -4,6 +4,7 @@ import { ObjectTypeComponent } from "./object.type";
 import { MultiSchemaTypeComponent } from "./multischema.type";
 import { FormlyFieldConfig } from "@ngx-formly/core";
 import { CodeareaCustomTemplateComponent } from "../../workspace/component/codearea-custom-template/codearea-custom-template.component";
+import { PresetWrapperComponent } from "./preset-wrapper/preset-wrapper.component";
 
 /**
  * Configuration for using Json Schema with Formly.
@@ -54,6 +55,7 @@ export const TEXERA_FORMLY_CONFIG = {
     { name: "multischema", component: MultiSchemaTypeComponent },
     { name: "codearea", component: CodeareaCustomTemplateComponent },
   ],
+  wrappers: [{ name: "preset-wrapper", component: PresetWrapperComponent }],
 };
 
 export function minItemsValidationMessage(err: any, field: FormlyFieldConfig) {
