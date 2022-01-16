@@ -74,11 +74,10 @@ export const defaultEnvironment = {
     clientID: "",
   },
 
-   /**
-    * Whether workflow collab should be active
-    */
-
-    enableWorkflowCollab: false,
+  /**
+   * Whether workflow collab should be active
+   */
+  workflowCollabEnabled: false,
 };
 
 export type AppEnv = typeof defaultEnvironment;

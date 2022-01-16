@@ -7,11 +7,6 @@
     "target": "http://localhost:8080",
     "secure": false,
     "ws": true
-  },
-    "/collaboration": {
-    "target": "http://localhost:8080",
-    "secure": false,
-    "ws": true
   }
 
 }

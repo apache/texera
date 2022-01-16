@@ -26,7 +26,7 @@ export class UndoRedoService {
   private canRedoStream = new Subject<boolean>();
 
   constructor(private workflowCollabService: WorkflowCollabService) {
-    this.handleRemoteChange();
+    this.listenToRemoteChange();
   }
 
   public enableWorkFlowModification() {
@@ -54,10 +54,9 @@ export class UndoRedoService {
       this.redoStack.push(command);
       this.setListenJointCommand(true);
       this.canUndoStream.next(this.canUndo());
-
-      console.log("service can undo", this.canUndo());
       const commandMessage: CommandMessage = { action: "undoredo", parameters: [], type: "undo" };
-      this.sendCommand(JSON.stringify(commandMessage));
+      this.workflowCollabService.sendCommand(commandMessage);
+      console.log("service can undo", this.canUndo());
     }
   }
 
@@ -78,9 +77,9 @@ export class UndoRedoService {
       this.undoStack.push(command);
       this.setListenJointCommand(true);
       this.canRedoStream.next(this.canRedo());
-      console.log("service can redo", this.canRedo());
       const commandMessage: CommandMessage = { action: "undoredo", parameters: [], type: "redo" };
-      this.sendCommand(JSON.stringify(commandMessage));
+      this.workflowCollabService.sendCommand(commandMessage);
+      console.log("service can redo", this.canRedo());
     }
   }
 
@@ -131,23 +130,16 @@ export class UndoRedoService {
     this.redoStack = [];
   }
 
-  private sendCommand(update: string): void {
-    if (this.workflowCollabService.getSendData()) {
-      this.workflowCollabService.sendCommand(update);
-    }
-  }
-
-  private handleRemoteChange(): void {
-    const self = this;
+  private listenToRemoteChange(): void {
     this.workflowCollabService.getCommandMessageStream().subscribe(message => {
       if (message.type === "undo") {
-        self.workflowCollabService.setSendData(false);
-        self.undoAction();
-        self.workflowCollabService.setSendData(true);
+        this.workflowCollabService.handleRemoteChange(() => {
+          this.undoAction();
+        });
       } else if (message.type === "redo") {
-        self.workflowCollabService.setSendData(false);
-        self.redoAction();
-        self.workflowCollabService.setSendData(true);
+        this.workflowCollabService.handleRemoteChange(() => {
+          this.redoAction();
+        });
       }
     });
   }

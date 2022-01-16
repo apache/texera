@@ -108,8 +108,6 @@ export type CommandMessage = ValueOf<
   providedIn: "root",
 })
 export class WorkflowActionService {
-  public functionMap: { [key: string]: Function } = {};
-
   private static readonly DEFAULT_WORKFLOW_NAME = "Untitled Workflow";
   private static readonly DEFAULT_WORKFLOW = {
     name: WorkflowActionService.DEFAULT_WORKFLOW_NAME,
@@ -155,13 +153,16 @@ export class WorkflowActionService {
     this.handleJointLinkAdd();
     this.handleJointOperatorDrag();
     this.handleHighlightedElementPositionChange();
-    this.handleRemoteChange();
+    this.listenToRemoteChange();
   }
 
+  /**
+   * Dummy method used to send a CommandMessage for undo or redo.
+   */
   public undoredo(): void {}
 
   public toggleSendData(toggle: boolean): void {
-    this.workflowCollabService.setSendData(toggle);
+    this.workflowCollabService.toggleCollabEnabled(toggle);
   }
 
   // workflow modification lock interface (allows or prevents commands that would modify the workflow graph)
@@ -197,7 +198,7 @@ export class WorkflowActionService {
           redo: () => this.addLinkInternal(link),
         };
         const commandMessage: CommandMessage = { action: "addLink", parameters: [link], type: "execute" };
-        this.sendCommand(JSON.stringify(commandMessage));
+        this.workflowCollabService.sendCommand(commandMessage);
         this.executeAndStoreCommand(command);
       });
   }
@@ -287,7 +288,7 @@ export class WorkflowActionService {
           parameters: [currentHighlighted, offsetX, offsetY],
           type: "execute",
         };
-        this.sendCommand(JSON.stringify(commandMessage));
+        this.workflowCollabService.sendCommand(commandMessage);
         this.executeAndStoreCommand(command);
       });
   }
@@ -407,7 +408,7 @@ export class WorkflowActionService {
       },
     };
     const commandMessage: CommandMessage = { action: "addOperator", parameters: [operator, point], type: "execute" };
-    this.sendCommand(JSON.stringify(commandMessage));
+    this.workflowCollabService.sendCommand(commandMessage);
     this.executeAndStoreCommand(command);
   }
 
@@ -461,7 +462,7 @@ export class WorkflowActionService {
     };
 
     const commandMessage: CommandMessage = { action: "deleteOperator", parameters: [operatorID], type: "execute" };
-    this.sendCommand(JSON.stringify(commandMessage));
+    this.workflowCollabService.sendCommand(commandMessage);
     this.executeAndStoreCommand(command);
   }
 
@@ -539,7 +540,7 @@ export class WorkflowActionService {
       parameters: [operatorsAndPositions, links],
       type: "execute",
     };
-    this.sendCommand(JSON.stringify(commandMessage));
+    this.workflowCollabService.sendCommand(commandMessage);
     this.executeAndStoreCommand(command);
   }
 
@@ -669,7 +670,7 @@ export class WorkflowActionService {
       parameters: [operatorIDs, linkIDs],
       type: "execute",
     };
-    this.sendCommand(JSON.stringify(commandMessage));
+    this.workflowCollabService.sendCommand(commandMessage);
     this.executeAndStoreCommand(command);
   }
 
@@ -699,7 +700,7 @@ export class WorkflowActionService {
       },
     };
     const commandMessage: CommandMessage = { action: "autoLayoutWorkflow", parameters: [], type: "execute" };
-    this.sendCommand(JSON.stringify(commandMessage));
+    this.workflowCollabService.sendCommand(commandMessage);
     this.executeAndStoreCommand(command);
   }
 
@@ -715,7 +716,7 @@ export class WorkflowActionService {
       undo: () => this.deleteLinkWithIDInternal(link.linkID),
     };
     const commandMessage: CommandMessage = { action: "addLink", parameters: [link], type: "execute" };
-    this.sendCommand(JSON.stringify(commandMessage));
+    this.workflowCollabService.sendCommand(commandMessage);
     this.executeAndStoreCommand(command);
   }
 
@@ -744,7 +745,7 @@ export class WorkflowActionService {
       },
     };
     const commandMessage: CommandMessage = { action: "deleteLinkWithID", parameters: [linkID], type: "execute" };
-    this.sendCommand(JSON.stringify(commandMessage));
+    this.workflowCollabService.sendCommand(commandMessage);
     this.executeAndStoreCommand(command);
   }
 
@@ -907,7 +908,7 @@ export class WorkflowActionService {
       parameters: [operatorID, newProperty],
       type: "execute",
     };
-    this.sendCommand(JSON.stringify(commandMessage));
+    this.workflowCollabService.sendCommand(commandMessage);
     this.executeAndStoreCommand(command);
   }
 
@@ -1097,7 +1098,7 @@ export class WorkflowActionService {
       parameters: [],
       type: "execute",
     };
-    this.sendCommand(JSON.stringify(commandMessage));
+    this.workflowCollabService.sendCommand(commandMessage);
   }
 
   private addOperatorInternal(operator: OperatorPredicate, point: Point): void {
@@ -1281,19 +1282,13 @@ export class WorkflowActionService {
     }
   }
 
-  private sendCommand(update: string): void {
-    if (this.workflowCollabService.getSendData()) {
-      this.workflowCollabService.sendCommand(update);
-    }
-  }
-
-  private handleRemoteChange(): void {
+  private listenToRemoteChange(): void {
     this.workflowCollabService.getCommandMessageStream().subscribe(message => {
       if (message.type === "execute") {
-        this.toggleSendData(false);
-        const func = message.action;
-        (this[func] as any).apply(this, message.parameters);
-        this.toggleSendData(true);
+        this.workflowCollabService.handleRemoteChange(() => {
+          const func = message.action;
+          (this[func] as any).apply(this, message.parameters);
+        });
       }
     });
   }

@@ -4,54 +4,51 @@ import { CommandMessage } from "../workflow-graph/model/workflow-action.service"
 import { environment } from "../../../../environments/environment";
 import { Subject, Observable } from "rxjs";
 
+/**
+ *
+ * WorkflowCollabService manages functions related to workflow collaboration. For now it only supports
+ * sending commands to the backend to propagate actions.
+ *
+ */
+
 @Injectable({
   providedIn: "root",
 })
-
-// This service will be for workflow collab
-// First step: move the arrays from undo/redo service into Yjs doc.
-// Once we have some stuff set I'll send the changes between clients and just see how to work with them.
-// Need to find a way to push as part of change, not update like that
-
-// How do we recover if the connection gets dropped?
 export class WorkflowCollabService {
-  private sendData: boolean = false; // set initial value to false to disable service
+  private isCollabEnabled: boolean = false; // set initial value to false to disable service
 
   private socket = webSocket({
     url: this.getWorkflowWebsocketUrl(),
     deserializer: msg => msg["data"],
   });
 
-  // maybe create a subject for testing?
   private messageSubject: Subject<CommandMessage> = new Subject<CommandMessage>();
 
   constructor() {
-    const self = this;
-    if (environment.enableWorkflowCollab) {
-      // to disable service, change to true to enable
-      this.setSendData(true);
+    if (environment.workflowCollabEnabled) {
+      this.toggleCollabEnabled(true);
       this.socket.subscribe({
-        next(response) {
+        next: response => {
           const message = JSON.parse(response) as CommandMessage;
-          self.messageSubject.next(message);
+          this.messageSubject.next(message);
         },
-        complete() {
+        complete: () => {
           console.log("websocket finished and disconnected");
         },
       });
     }
   }
 
-  public setSendData(toggle: boolean): void {
-    this.sendData = toggle;
+  public toggleCollabEnabled(toggle: boolean): void {
+    this.isCollabEnabled = toggle;
   }
 
-  public getSendData(): boolean {
-    return this.sendData;
+  public getIsCollabEnabled(): boolean {
+    return this.isCollabEnabled;
   }
 
-  public sendCommand(update: string): void {
-    this.socket.next(JSON.parse(update));
+  public sendCommand(update: CommandMessage): void {
+    if (this.getIsCollabEnabled()) this.socket.next(update);
   }
 
   public getCommandMessageStream(): Observable<CommandMessage> {
@@ -59,9 +56,15 @@ export class WorkflowCollabService {
   }
 
   public getWorkflowWebsocketUrl(): string {
-    const websocketUrl = new URL("collaboration", document.baseURI);
+    const websocketUrl = new URL("wsapi/collab", document.baseURI);
     // replace protocol, so that http -> ws, https -> wss
     websocketUrl.protocol = websocketUrl.protocol.replace("http", "ws");
     return websocketUrl.toString();
+  }
+
+  public handleRemoteChange(callback: Function): void {
+    this.toggleCollabEnabled(false);
+    callback();
+    this.toggleCollabEnabled(true);
   }
 }

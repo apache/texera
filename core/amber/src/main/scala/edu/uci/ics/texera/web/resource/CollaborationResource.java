@@ -8,7 +8,7 @@ import java.util.HashMap;
 
 
 @ServerEndpoint(
-        value = "/collaboration",
+        value = "/wsapi/collab",
         configurator = ServletAwareConfigurator.class
 )
 public class CollaborationResource {
@@ -20,23 +20,20 @@ public class CollaborationResource {
     }
 
     @OnMessage
-    public void myOnMsg(final Session session, String message) {
-
-        message = "{" + message.substring(1, message.length() - 1) + "}";
-
-        for(String key: websocketSessionMap.keySet()) {
-            // only send to other sessions, not the session that send the message
-            Session sess = websocketSessionMap.get(key);
-                if (sess != session) {
-                    websocketSessionMap.get(key).getAsyncRemote().sendText(message);
-                }
-            System.out.println("Message propagated: " + message);
+    public void myOnMsg(final Session senderSession, String message) {
+        for(String sessionId: websocketSessionMap.keySet()) {
+            // only send to other sessions, not the session that sent the message
+            Session session = websocketSessionMap.get(sessionId);
+            if (session != senderSession) {
+                websocketSessionMap.get(sessionId).getAsyncRemote().sendText(message);
+            }
         }
+        System.out.println("[COLLAB] message propagated: " + message);
     }
 
     @OnClose
-    public void myOnClose(final Session session, CloseReason cr) {
+    public void myOnClose(final Session session) {
         websocketSessionMap.remove(session.getId());
-        System.out.println("Session disconnected");
+        System.out.println("[COLLAB] session " + session.getId() + " disconnected");
     }
 }
