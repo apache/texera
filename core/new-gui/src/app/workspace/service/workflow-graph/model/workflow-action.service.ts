@@ -50,6 +50,7 @@ type GroupInfo = {
 
 // At least for some of them, have to do a bit more thinking.
 
+// TODO: refactor into a separate file.
 export type commandFuncs =
   | "undoredo"
   | "addOperator"
@@ -1259,6 +1260,7 @@ export class WorkflowActionService {
     });
   }
 
+  // TODO: Might need to merge with sendCommand
   private executeAndStoreCommand(command: Command): void {
     // if command would modify workflow (adding link, operator, changing operator properties), throw an error
     // non-modifying commands include dragging an operator.
