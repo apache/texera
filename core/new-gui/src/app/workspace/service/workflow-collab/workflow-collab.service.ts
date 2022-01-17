@@ -3,6 +3,7 @@ import { webSocket } from "rxjs/webSocket";
 import { CommandMessage } from "../workflow-graph/model/workflow-action.service";
 import { environment } from "../../../../environments/environment";
 import { Subject, Observable } from "rxjs";
+import { getWebsocketUrl } from "src/app/common/util/url";
 
 /**
  *
@@ -15,10 +16,11 @@ import { Subject, Observable } from "rxjs";
   providedIn: "root",
 })
 export class WorkflowCollabService {
+  private static readonly TEXERA_COLLAB_ENDPOINT = "wsapi/collab";
   private isCollabEnabled: boolean = false; // set initial value to false to disable service
 
   private socket = webSocket({
-    url: this.getWorkflowWebsocketUrl(),
+    url: getWebsocketUrl(WorkflowCollabService.TEXERA_COLLAB_ENDPOINT),
     deserializer: msg => msg["data"],
   });
 
@@ -53,13 +55,6 @@ export class WorkflowCollabService {
 
   public getCommandMessageStream(): Observable<CommandMessage> {
     return this.messageSubject.asObservable();
-  }
-
-  public getWorkflowWebsocketUrl(): string {
-    const websocketUrl = new URL("wsapi/collab", document.baseURI);
-    // replace protocol, so that http -> ws, https -> wss
-    websocketUrl.protocol = websocketUrl.protocol.replace("http", "ws");
-    return websocketUrl.toString();
   }
 
   public handleRemoteChange(callback: Function): void {
