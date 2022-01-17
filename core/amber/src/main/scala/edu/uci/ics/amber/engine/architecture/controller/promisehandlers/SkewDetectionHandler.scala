@@ -4,8 +4,10 @@ import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.SkewDetectionHandler.{
   ControllerInitiateSkewDetection,
+  endTimeForBuildRepl,
   getSkewedAndHelperWorkersEligibleForFirstPhase,
-  previousCallFinished
+  previousCallFinished,
+  startTimeForBuildRepl
 }
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerWorkloadInfo
 import edu.uci.ics.amber.engine.common.Constants
@@ -19,6 +21,8 @@ import scala.util.control.Breaks.{break, breakable}
 
 object SkewDetectionHandler {
   var previousCallFinished = true
+  var startTimeForBuildRepl: Long = _
+  var endTimeForBuildRepl: Long = _
 
   var skewedToHelperWorkerHistory =
     new mutable.HashMap[ActorVirtualIdentity, ActorVirtualIdentity]()
@@ -130,13 +134,44 @@ trait SkewDetectionHandler {
     } else {
       previousCallFinished = false
 
+      var skewedAndHelperPairs =
+        new ArrayBuffer[(ActorVirtualIdentity, ActorVirtualIdentity, Boolean)]
       workflow.getAllOperators.foreach(opConfig => {
         if (opConfig.isInstanceOf[HashJoinOpExecConfig[Any]]) {
           // Skew handling is only for hash-join operator for now
-          val skewedAndHelperPairs =
+          skewedAndHelperPairs =
             getSkewedAndHelperWorkersEligibleForFirstPhase(opConfig.workerToWorkloadInfo)
+          skewedAndHelperPairs.foreach(skewedAndHelper =>
+            logger.info(
+              s"Reshape: Skewed ${skewedAndHelper._1.toString()} :: Helper ${skewedAndHelper._2
+                .toString()} - Replication required: ${skewedAndHelper._3.toString()}"
+            )
+          )
         }
       })
+      if (skewedAndHelperPairs.nonEmpty) {
+        val buildTableMigrateFuturesArr = new ArrayBuffer[Future[Seq[Unit]]]()
+        startTimeForBuildRepl = System.nanoTime()
+        skewedAndHelperPairs.foreach(skewedAndHelper => {
+          if (skewedAndHelper._3) {
+            buildTableMigrateFuturesArr.append(
+              send(SendBuildTable(skewedAndHelper._2), skewedAndHelper._1)
+            )
+          }
+        })
+
+        if (buildTableMigrateFuturesArr.nonEmpty) {
+          Future
+            .collect(buildTableMigrateFuturesArr)
+            .flatMap(res => {
+              endTimeForBuildRepl = System.nanoTime()
+              logger.info(
+                s"Reshape: Build Tables Copied in ${(endTimeForBuildRepl - startTimeForBuildRepl) / 1e9d}s"
+              )
+              Future.Done
+            })
+        }
+      }
       previousCallFinished = true
       Future.Done
     }
