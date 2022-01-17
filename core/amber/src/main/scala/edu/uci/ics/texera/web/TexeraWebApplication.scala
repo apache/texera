@@ -68,6 +68,7 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
     bootstrap.addBundle(new FileAssetsBundle("../new-gui/dist", "/", "index.html"))
     // add websocket bundle
     bootstrap.addBundle(new WebsocketBundle(classOf[WorkflowWebsocketResource]))
+    bootstrap.addBundle(new WebsocketBundle(classOf[CollaborationResource]))
     // register scala module to dropwizard default object mapper
     bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
   }

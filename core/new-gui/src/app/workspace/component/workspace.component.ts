@@ -21,6 +21,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { OperatorCacheStatusService } from "../service/workflow-status/operator-cache-status.service";
 import { of } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
+import { WorkflowCollabService } from "../service/workflow-collab/workflow-collab.service";
 
 @UntilDestroy()
 @Component({
@@ -50,6 +51,7 @@ export class WorkspaceComponent implements AfterViewInit, OnDestroy {
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowActionService: WorkflowActionService,
     private workflowConsoleService: WorkflowConsoleService,
+    private workflowCollabService: WorkflowCollabService,
     private location: Location,
     private route: ActivatedRoute,
     private operatorMetadataService: OperatorMetadataService,

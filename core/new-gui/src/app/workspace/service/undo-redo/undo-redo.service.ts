@@ -1,7 +1,8 @@
 import { Injectable } from "@angular/core";
 import { Observable, Subject } from "rxjs";
-import { nonNull } from "../../../common/util/assert";
-import { Command } from "../workflow-graph/model/workflow-action.service";
+import { assertType, nonNull } from "../../../common/util/assert";
+import { Command, CommandMessage } from "../workflow-graph/model/workflow-action.service";
+import { WorkflowCollabService } from "./../workflow-collab/workflow-collab.service";
 
 /* TODO LIST FOR BUGS
 1. Problem with repeatedly adding and deleting a link without letting go, unintended behavior
@@ -24,7 +25,9 @@ export class UndoRedoService {
   private canUndoStream = new Subject<boolean>();
   private canRedoStream = new Subject<boolean>();
 
-  constructor() {}
+  constructor(private workflowCollabService: WorkflowCollabService) {
+    this.listenToRemoteChange();
+  }
 
   public enableWorkFlowModification() {
     this.workFlowModificationEnabled = true;
@@ -51,7 +54,8 @@ export class UndoRedoService {
       this.redoStack.push(command);
       this.setListenJointCommand(true);
       this.canUndoStream.next(this.canUndo());
-
+      const commandMessage: CommandMessage = { action: "undoredo", parameters: [], type: "undo" };
+      this.workflowCollabService.sendCommand(commandMessage);
       console.log("service can undo", this.canUndo());
     }
   }
@@ -73,6 +77,8 @@ export class UndoRedoService {
       this.undoStack.push(command);
       this.setListenJointCommand(true);
       this.canRedoStream.next(this.canRedo());
+      const commandMessage: CommandMessage = { action: "undoredo", parameters: [], type: "redo" };
+      this.workflowCollabService.sendCommand(commandMessage);
       console.log("service can redo", this.canRedo());
     }
   }
@@ -122,5 +128,19 @@ export class UndoRedoService {
 
   public clearRedoStack(): void {
     this.redoStack = [];
+  }
+
+  private listenToRemoteChange(): void {
+    this.workflowCollabService.getCommandMessageStream().subscribe(message => {
+      if (message.type === "undo") {
+        this.workflowCollabService.handleRemoteChange(() => {
+          this.undoAction();
+        });
+      } else if (message.type === "redo") {
+        this.workflowCollabService.handleRemoteChange(() => {
+          this.redoAction();
+        });
+      }
+    });
   }
 }

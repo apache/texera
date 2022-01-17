@@ -12,6 +12,7 @@ import {
 import { delayWhen, filter, map, retryWhen, tap } from "rxjs/operators";
 import { environment } from "../../../../environments/environment";
 import { AuthService } from "../../../common/service/user/auth.service";
+import { getWebsocketUrl } from "src/app/common/util/url";
 
 export const WS_HEARTBEAT_INTERVAL_MS = 10000;
 export const WS_RECONNECT_INTERVAL_MS = 3000;
@@ -64,7 +65,7 @@ export class WorkflowWebsocketService {
 
   public openWebsocket(wId: number) {
     const websocketUrl =
-      WorkflowWebsocketService.getWorkflowWebsocketUrl() +
+      getWebsocketUrl(WorkflowWebsocketService.TEXERA_WEBSOCKET_ENDPOINT) +
       (environment.userSystemEnabled && AuthService.getAccessToken() !== null
         ? "?access-token=" + AuthService.getAccessToken()
         : "");
@@ -100,12 +101,5 @@ export class WorkflowWebsocketService {
   public reopenWebsocket(wId: number) {
     this.closeWebsocket();
     this.openWebsocket(wId);
-  }
-
-  private static getWorkflowWebsocketUrl(): string {
-    const websocketUrl = new URL(WorkflowWebsocketService.TEXERA_WEBSOCKET_ENDPOINT, document.baseURI);
-    // replace protocol, so that http -> ws, https -> wss
-    websocketUrl.protocol = websocketUrl.protocol.replace("http", "ws");
-    return websocketUrl.toString();
   }
 }
