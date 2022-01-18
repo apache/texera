@@ -40,12 +40,15 @@ class LineChartOpDesc extends VisualizationOperator {
   @JsonPropertyDescription("column(s) of data (for y-axis)")
   @AutofillAttributeNameList var dataColumns: List[String] = _
 
+  @JsonProperty(value = "chart style", required = true)
+  var lineChartEnum: LineChartEnum = _
+
   @JsonIgnore
   private var groupBySchema: Schema = _
   @JsonIgnore
   private var finalAggValueSchema: Schema = _
 
-  override def chartType: String = VisualizationConstants.LINE
+  override def chartType: String = lineChartEnum.getChartStyle
 
   def noDataCol: Boolean = dataColumns == null || dataColumns.isEmpty
 
