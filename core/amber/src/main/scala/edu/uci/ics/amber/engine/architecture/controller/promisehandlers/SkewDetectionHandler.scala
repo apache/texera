@@ -10,6 +10,7 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.SkewDete
   startTimeForBuildRepl
 }
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerWorkloadInfo
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.SendImmutableStateHandler.SendImmutableState
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
@@ -51,6 +52,8 @@ object SkewDetectionHandler {
     */
   def isEligibleForHelper(worker: ActorVirtualIdentity): Boolean = {
     !skewedToHelperWorkerHistory.keySet.contains(
+      worker
+    ) && !skewedToHelperWorkerHistory.values.toList.contains(
       worker
     )
   }
@@ -156,19 +159,19 @@ trait SkewDetectionHandler {
         }
       })
       if (skewedAndHelperPairs.nonEmpty) {
-        val buildTableMigrateFuturesArr = new ArrayBuffer[Future[Seq[Unit]]]()
+        val stateMigrateFuturesArr = new ArrayBuffer[Future[Boolean]]()
         startTimeForBuildRepl = System.nanoTime()
         skewedAndHelperPairs.foreach(skewedAndHelper => {
           if (skewedAndHelper._3) {
-            buildTableMigrateFuturesArr.append(
-              send(SendBuildTable(skewedAndHelper._2), skewedAndHelper._1)
+            stateMigrateFuturesArr.append(
+              send(SendImmutableState(skewedAndHelper._2), skewedAndHelper._1)
             )
           }
         })
 
-        if (buildTableMigrateFuturesArr.nonEmpty) {
+        if (stateMigrateFuturesArr.nonEmpty) {
           Future
-            .collect(buildTableMigrateFuturesArr)
+            .collect(stateMigrateFuturesArr)
             .flatMap(res => {
               endTimeForBuildRepl = System.nanoTime()
               logger.info(
