@@ -13,14 +13,15 @@ import scala.collection.mutable.ArrayBuffer
 // join-skew research related.
 object SendImmutableStateHandler {
   final case class SendImmutableState(
-      helperReceiverId: ActorVirtualIdentity
-  ) extends ControlCommand[Boolean]
+                                       helperReceiverId: ActorVirtualIdentity
+                                     ) extends ControlCommand[Boolean]
 }
 
 trait SendImmutableStateHandler {
   this: WorkerAsyncRPCHandlerInitializer =>
 
   registerHandler { (cmd: SendImmutableState, sender) =>
+    // Returns true if the build table was replicated successfully.
     try {
       val joinOpExec = dataProcessor.getOperatorExecutor().asInstanceOf[HashJoinOpExec[Any]]
       if (joinOpExec.isBuildTableFinished) {
