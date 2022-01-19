@@ -62,7 +62,7 @@ class DataProcessor( // dependencies:
   private var currentInputLink: LinkIdentity = _
   private var currentOutputIterator: Iterator[ITuple] = _
   private var isCompleted = false
-  
+
   def getOperatorExecutor(): IOperatorExecutor = operator
 
   /** provide API for actor to get stats of this operator
