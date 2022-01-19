@@ -13,8 +13,8 @@ import scala.collection.mutable.ArrayBuffer
 // join-skew research related.
 object SendImmutableStateHandler {
   final case class SendImmutableState(
-                                       helperReceiverId: ActorVirtualIdentity
-                                     ) extends ControlCommand[Boolean]
+      helperReceiverId: ActorVirtualIdentity
+  ) extends ControlCommand[Boolean]
 }
 
 trait SendImmutableStateHandler {
