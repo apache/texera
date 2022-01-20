@@ -114,7 +114,7 @@ export class NavigationComponent {
       });
 
     this.registerWorkflowMetadataDisplayRefresh();
-
+    this.handleVersionDisplay();
     this.handleDisableOperatorStatusChange();
     this.handleCacheOperatorStatusChange();
   }
@@ -438,12 +438,34 @@ export class NavigationComponent {
     this.workflowVersionService.clickDisplayWorkflowVersions();
   }
 
-  closeParticularVersionDisplay() {
+  private handleVersionDisplay(): void {
+    this.workflowVersionService.getDisplayParticularVersionStream().pipe(untilDestroyed(this)).subscribe(displayVersionFlag => {
+      this.particularVersionDate = this.workflowActionService.getWorkflowMetadata().creationTime === undefined
+        ? ""
+        : "" +
+        this.datePipe.transform(
+          this.workflowActionService.getWorkflowMetadata().creationTime,
+          "MM/dd/yyyy HH:mm:ss zzz",
+          Intl.DateTimeFormat().resolvedOptions().timeZone,
+          "en"
+        );
+      this.displayParticularWorkflowVersion = displayVersionFlag;
+    });
+  }
 
+  closeParticularVersionDisplay() {
+    this.displayParticularWorkflowVersion = false;
+    this.workflowActionService.enableWorkflowModification();
+    // reload the old workflow don't persist anything
+    this.workflowActionService.reloadWorkflow(this.workflowActionService.getTempWorkflow());
+    this.workflowActionService.resetTempWorkflow();
   }
 
   revertToVersion() {
-
+    this.displayParticularWorkflowVersion = false;
+    this.workflowActionService.enableWorkflowModification();
+    // swap the workflow to this and persist it
+    this.workflowActionService.resetTempWorkflow();
   }
 
   /**

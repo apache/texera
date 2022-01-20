@@ -1,5 +1,5 @@
 import { Injectable } from "@angular/core";
-import { Observable, Subject } from "rxjs";
+import { BehaviorSubject, Observable, Subject } from "rxjs";
 import { WorkflowActionService } from "../../../workspace/service/workflow-graph/model/workflow-action.service";
 
 export const DISPLAY_WORKFLOW_VERIONS_EVENT = "display_workflow_versions_event";
@@ -9,6 +9,7 @@ export const DISPLAY_WORKFLOW_VERIONS_EVENT = "display_workflow_versions_event";
 })
 export class WorkflowVersionService {
   private workflowVersionsObservable = new Subject<readonly string[]>();
+  private displayParticularWorkflowVersion = new BehaviorSubject<boolean>(false);
   constructor(private workflowActionService: WorkflowActionService) {}
 
   public clickDisplayWorkflowVersions(): void {
@@ -22,5 +23,13 @@ export class WorkflowVersionService {
 
   public workflowVersionsDisplayObservable(): Observable<readonly string[]> {
     return this.workflowVersionsObservable.asObservable();
+  }
+
+  public setDisplayParticularVersion(flag: boolean): void {
+    this.displayParticularWorkflowVersion.next(flag);
+  }
+
+  public getDisplayParticularVersionStream(): Observable<boolean> {
+    return this.displayParticularWorkflowVersion.asObservable();
   }
 }
