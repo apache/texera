@@ -77,7 +77,7 @@ export class ResultPanelComponent implements OnInit {
             .getTexeraGraph()
             .getAllOperators()
             .filter(op => op.operatorType.toLowerCase().includes("sink"))
-            .filter(op => ! op.isDisabled);
+            .filter(op => !op.isDisabled);
           if (activeSinkOperators.length > 0 && !this.currentOperatorId) {
             this.workflowActionService.getJointGraphWrapper().unhighlightOperators(...currentlyHighlighted);
             this.workflowActionService.getJointGraphWrapper().highlightOperators(activeSinkOperators[0].operatorID);
