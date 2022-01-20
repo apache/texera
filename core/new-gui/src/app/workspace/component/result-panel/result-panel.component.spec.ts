@@ -181,10 +181,10 @@ describe("ResultPanelComponent", () => {
   });
 
   it("should show the result panel if a workflow finishes execution", () => {
-    executeWorkflowService['updateExecutionState']({
+    executeWorkflowService["updateExecutionState"]({
       state: ExecutionState.Running,
     });
-    executeWorkflowService['updateExecutionState']({
+    executeWorkflowService["updateExecutionState"]({
       state: ExecutionState.Completed,
     });
     fixture.detectChanges();
@@ -210,10 +210,10 @@ describe("ResultPanelComponent", () => {
     const resultPanelDiv = fixture.debugElement.query(By.css(".texera-workspace-result-panel-body"));
     const resultPanelHtmlElement: HTMLElement = resultPanelDiv.nativeElement;
 
-    executeWorkflowService['updateExecutionState']({
+    executeWorkflowService["updateExecutionState"]({
       state: ExecutionState.Running,
     });
-    executeWorkflowService['updateExecutionState']({
+    executeWorkflowService["updateExecutionState"]({
       state: ExecutionState.Completed,
     });
     fixture.detectChanges();
