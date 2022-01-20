@@ -42,7 +42,7 @@ export class VersionsListDisplayComponent implements OnInit {
         // we need to display the version on the paper but keep the original workflow in the background
         this.workflowActionService.setTempWorkflow(this.workflowActionService.getWorkflow());
         // disable persist to DB because it is read only
-
+        this.workflowActionService.setWorkflowPersistFlag(false);
         this.workflowActionService.reloadWorkflow(workflow);
         // disable modifications because it is read only
         this.workflowActionService.disableWorkflowModification();

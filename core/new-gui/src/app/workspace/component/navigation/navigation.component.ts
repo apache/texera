@@ -459,6 +459,7 @@ export class NavigationComponent {
     // reload the old workflow don't persist anything
     this.workflowActionService.reloadWorkflow(this.workflowActionService.getTempWorkflow());
     this.workflowActionService.resetTempWorkflow();
+    this.workflowActionService.setWorkflowPersistFlag(true);
   }
 
   revertToVersion() {
@@ -466,6 +467,8 @@ export class NavigationComponent {
     this.workflowActionService.enableWorkflowModification();
     // swap the workflow to this and persist it
     this.workflowActionService.resetTempWorkflow();
+    this.workflowActionService.setWorkflowPersistFlag(true);
+    this.persistWorkflow();
   }
 
   /**
