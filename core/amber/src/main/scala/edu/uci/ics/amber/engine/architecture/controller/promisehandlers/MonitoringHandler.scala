@@ -6,12 +6,13 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.Monitori
   ControllerInitiateMonitoring,
   previousCallFinished
 }
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerWorkloadInfo
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QuerySelfWorkloadMetrics
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QueryWorkloadMetrics
+import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 object MonitoringHandler {
   var previousCallFinished = true
@@ -24,6 +25,33 @@ object MonitoringHandler {
 trait MonitoringHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
+  def updateWorkloadSamples(
+      collectedAt: ActorVirtualIdentity,
+      workerToNewSamples: mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]
+  ): Unit = {
+    val existingSamples = workloadSamples.getOrElse(
+      collectedAt,
+      new mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]()
+    )
+    for ((wid, samples) <- workerToNewSamples) {
+      var existingSamplesForWorker = existingSamples.getOrElse(wid, new ArrayBuffer[Long]())
+      existingSamplesForWorker.appendAll(samples)
+
+      // clean up to save memory
+      val maxSamplesPerWorker = 500
+      if (existingSamplesForWorker.size >= maxSamplesPerWorker) {
+        existingSamplesForWorker = existingSamplesForWorker.slice(
+          existingSamplesForWorker.size - maxSamplesPerWorker,
+          existingSamplesForWorker.size
+        )
+      }
+
+      existingSamples(wid) = existingSamplesForWorker
+    }
+    workloadSamples(collectedAt) = existingSamples
+
+  }
+
   registerHandler((msg: ControllerInitiateMonitoring, sender) => {
     if (!previousCallFinished) {
       Future.Done
@@ -34,11 +62,12 @@ trait MonitoringHandler {
 
       // send Monitoring message
       val requests = workers.map(worker =>
-        send(QuerySelfWorkloadMetrics(), worker).map(metric => {
+        send(QueryWorkloadMetrics(), worker).map(value => {
           workflow.getOperator(worker).getWorkerWorkloadInfo(worker).dataInputWorkload =
-            metric.unprocessedDataInputQueueSize + metric.stashedDataInputQueueSize
+            value._1.unprocessedDataInputQueueSize + value._1.stashedDataInputQueueSize
           workflow.getOperator(worker).getWorkerWorkloadInfo(worker).controlInputWorkload =
-            metric.unprocessedControlInputQueueSize + metric.stashedControlInputQueueSize
+            value._1.unprocessedControlInputQueueSize + value._1.stashedControlInputQueueSize
+          updateWorkloadSamples(worker, value._2)
         })
       )
 

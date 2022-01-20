@@ -11,7 +11,7 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partiti
 import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2
 import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value.Empty
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QuerySelfWorkloadMetrics
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QueryWorkloadMetrics
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryCurrentInputTupleHandler.QueryCurrentInputTuple
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
@@ -49,7 +49,7 @@ object ControlCommandConvertUtils {
         ModifyOperatorLogicV2(code, isSource)
       case EvaluateExpression(expression) =>
         EvaluateExpressionV2(expression)
-      case QuerySelfWorkloadMetrics() =>
+      case QueryWorkloadMetrics() =>
         QuerySelfWorkloadMetricsV2()
       case _ =>
         throw new UnsupportedOperationException(
