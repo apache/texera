@@ -72,14 +72,15 @@ export class ResultPanelComponent implements OnInit {
         if (event.current.state === ExecutionState.Aborted) {
           this.resultPanelToggleService.openResultPanel();
         }
-        if (event.current.state === ExecutionState.Completed || event.current.state === ExecutionState.Running) {
-          const sinkOperators = this.workflowActionService
+        if (event.previous.state === ExecutionState.Running && event.current.state === ExecutionState.Completed) {
+          const activeSinkOperators = this.workflowActionService
             .getTexeraGraph()
             .getAllOperators()
-            .filter(op => op.operatorType.toLowerCase().includes("sink"));
-          if (sinkOperators.length > 0 && !this.currentOperatorId) {
+            .filter(op => op.operatorType.toLowerCase().includes("sink"))
+            .filter(op => ! op.isDisabled);
+          if (activeSinkOperators.length > 0 && !this.currentOperatorId) {
             this.workflowActionService.getJointGraphWrapper().unhighlightOperators(...currentlyHighlighted);
-            this.workflowActionService.getJointGraphWrapper().highlightOperators(sinkOperators[0].operatorID);
+            this.workflowActionService.getJointGraphWrapper().highlightOperators(activeSinkOperators[0].operatorID);
           }
           this.resultPanelToggleService.openResultPanel();
         }
