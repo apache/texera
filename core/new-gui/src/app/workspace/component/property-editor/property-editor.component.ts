@@ -5,10 +5,16 @@ import { OperatorPropertyEditFrameComponent } from "./operator-property-edit-fra
 import { BreakpointPropertyEditFrameComponent } from "./breakpoint-property-edit-frame/breakpoint-property-edit-frame.component";
 import { DynamicComponentConfig } from "../../../common/type/dynamic-component-config";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { DISPLAY_WORKFLOW_VERIONS_EVENT, WorkflowVersionService } from "src/app/dashboard/service/workflow-version/workflow-version.service";
+import {
+  DISPLAY_WORKFLOW_VERIONS_EVENT,
+  WorkflowVersionService,
+} from "src/app/dashboard/service/workflow-version/workflow-version.service";
 import { VersionsListDisplayComponent } from "./versions-display/versions-display.component";
 
-export type PropertyEditFrameComponent = OperatorPropertyEditFrameComponent | BreakpointPropertyEditFrameComponent | VersionsListDisplayComponent;
+export type PropertyEditFrameComponent =
+  | OperatorPropertyEditFrameComponent
+  | BreakpointPropertyEditFrameComponent
+  | VersionsListDisplayComponent;
 
 export type PropertyEditFrameConfig = DynamicComponentConfig<PropertyEditFrameComponent>;
 
@@ -29,7 +35,8 @@ export class PropertyEditorComponent implements OnInit {
 
   constructor(
     public workflowActionService: WorkflowActionService,
-    public workflowVersionService: WorkflowVersionService) {}
+    public workflowVersionService: WorkflowVersionService
+  ) {}
 
   ngOnInit(): void {
     this.registerHighlightEventsHandler();
@@ -61,7 +68,7 @@ export class PropertyEditorComponent implements OnInit {
       this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getLinkHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getLinkUnhighlightStream(),
-      this.workflowVersionService.workflowVersionsDisplayObservable(),
+      this.workflowVersionService.workflowVersionsDisplayObservable()
     )
       .pipe(untilDestroyed(this))
       .subscribe(event => {
