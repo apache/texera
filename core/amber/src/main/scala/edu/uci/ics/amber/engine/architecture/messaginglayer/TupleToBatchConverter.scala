@@ -3,6 +3,7 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners.{
   HashBasedShufflePartitioner,
   OneToOnePartitioner,
+  ParallelBatchingPartitioner,
   Partitioner,
   RoundRobinPartitioner
 }
@@ -13,9 +14,11 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, Li
 
 import scala.Function.tupled
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 /** This class is a container of all the transfer partitioners.
-  * @param selfID ActorVirtualIdentity of self.
+  *
+  * @param selfID         ActorVirtualIdentity of self.
   * @param dataOutputPort DataOutputPort
   */
 class TupleToBatchConverter(
@@ -25,7 +28,25 @@ class TupleToBatchConverter(
   private val partitioners = mutable.HashMap[LinkIdentity, Partitioner]()
 
   /**
+    * Used to return the workload samples of the next operator's workers to the controller.
+    */
+  def getWorkloadHistory(): mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]] = {
+    var samples: mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]] = null
+    partitioners.foreach(partitioner => {
+      if (partitioner.isInstanceOf[ParallelBatchingPartitioner]) {
+        // Reshape only needs samples from workers that shuffle data across nodes
+        samples = partitioner.asInstanceOf[ParallelBatchingPartitioner].getWorkloadHistory()
+      }
+    })
+    if (samples == null) {
+      samples = new mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]
+    }
+    samples
+  }
+
+  /**
     * Add down stream operator and its corresponding Partitioner.
+    *
     * @param partitioning Partitioning, describes how and whom to send to.
     */
   def addPartitionerWithPartitioning(tag: LinkIdentity, partitioning: Partitioning): Unit = {
@@ -48,6 +69,7 @@ class TupleToBatchConverter(
   /**
     * Push one tuple to the downstream, will be batched by each transfer partitioning.
     * Should ONLY be called by DataProcessor.
+    *
     * @param tuple ITuple to be passed.
     */
   def passTupleToDownstream(tuple: ITuple): Unit = {
