@@ -181,10 +181,11 @@ describe("ResultPanelComponent", () => {
   });
 
   it("should show the result panel if a workflow finishes execution", () => {
-    (executeWorkflowService as any).updateExecutionState({
+    executeWorkflowService['updateExecutionState']({
+      state: ExecutionState.Running,
+    });
+    executeWorkflowService['updateExecutionState']({
       state: ExecutionState.Completed,
-      resultID: "resultID",
-      resultMap: new Map([]),
     });
     fixture.detectChanges();
     const resultPanelDiv = fixture.debugElement.query(By.css(".texera-workspace-result-panel-body"));
@@ -209,10 +210,11 @@ describe("ResultPanelComponent", () => {
     const resultPanelDiv = fixture.debugElement.query(By.css(".texera-workspace-result-panel-body"));
     const resultPanelHtmlElement: HTMLElement = resultPanelDiv.nativeElement;
 
-    (executeWorkflowService as any).updateExecutionState({
+    executeWorkflowService['updateExecutionState']({
+      state: ExecutionState.Running,
+    });
+    executeWorkflowService['updateExecutionState']({
       state: ExecutionState.Completed,
-      resultID: "resultID",
-      resultMap: new Map([]),
     });
     fixture.detectChanges();
     expect(resultPanelHtmlElement.hasAttribute("hidden")).toBeFalsy();
