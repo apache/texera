@@ -12,7 +12,7 @@ import { filter } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DynamicComponentConfig } from "../../../common/type/dynamic-component-config";
 import { DebuggerFrameComponent } from "./debugger-frame/debugger-frame.component";
-import { PYTHON_UDF_SOURCE_V2_OP_TYPE, PYTHON_UDF_V2_OP_TYPE } from "../../service/workflow-graph/model/workflow-graph";
+import { isPythonUdf, isSink } from "../../service/workflow-graph/model/workflow-graph";
 import { environment } from "../../../../environments/environment";
 
 export type ResultFrameComponent =
@@ -76,13 +76,27 @@ export class ResultPanelComponent implements OnInit {
           const activeSinkOperators = this.workflowActionService
             .getTexeraGraph()
             .getAllOperators()
-            .filter(op => op.operatorType.toLowerCase().includes("sink"))
+            .filter(op => isSink(op))
             .filter(op => !op.isDisabled);
           if (activeSinkOperators.length > 0 && !this.currentOperatorId) {
             this.workflowActionService.getJointGraphWrapper().unhighlightOperators(...currentlyHighlighted);
             this.workflowActionService.getJointGraphWrapper().highlightOperators(activeSinkOperators[0].operatorID);
+            this.resultPanelToggleService.openResultPanel();
           }
-          this.resultPanelToggleService.openResultPanel();
+        }
+        if (event.current.state === ExecutionState.Running) {
+          const activePythonUDFOperators = this.workflowActionService
+            .getTexeraGraph()
+            .getAllOperators()
+            .filter(op => isPythonUdf(op))
+            .filter(op => !op.isDisabled);
+          if (activePythonUDFOperators.length > 0 && !this.currentOperatorId) {
+            this.workflowActionService.getJointGraphWrapper().unhighlightOperators(...currentlyHighlighted);
+            this.workflowActionService
+              .getJointGraphWrapper()
+              .highlightOperators(activePythonUDFOperators[0].operatorID);
+            this.resultPanelToggleService.openResultPanel();
+          }
         }
       });
   }
@@ -121,7 +135,7 @@ export class ResultPanelComponent implements OnInit {
     if (this.currentOperatorId) {
       this.displayResult(this.currentOperatorId);
       const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
-      if ([PYTHON_UDF_V2_OP_TYPE, PYTHON_UDF_SOURCE_V2_OP_TYPE].includes(operator.operatorType)) {
+      if (isPythonUdf(operator)) {
         this.displayConsole(this.currentOperatorId);
 
         if (environment.debuggerEnabled && this.hasErrorOrBreakpoint()) {
