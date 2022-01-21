@@ -414,12 +414,12 @@ export class WorkflowActionService {
         // unhighlight previous highlights
         this.jointGraphWrapper.unhighlightElements(currentHighlights);
         this.jointGraphWrapper.setMultiSelectMode(operatorsAndPositions.length > 1);
+        this.addOperatorsInternal(operatorsAndPositions);
         operatorsAndPositions.forEach(o => {
-          this.addOperatorInternal(o.op, o.pos);
           this.jointGraphWrapper.highlightOperators(o.op.operatorID);
         });
         if (links) {
-          links.forEach(l => this.addLinkInternal(l));
+          this.addLinksInternal(links);
           if (breakpoints !== undefined) {
             breakpoints.forEach((breakpoint, linkID) => this.setLinkBreakpointInternal(linkID, breakpoint));
           }
@@ -1004,6 +1004,38 @@ export class WorkflowActionService {
     this.texeraGraph.addOperator(operator);
   }
 
+  private addOperatorsInternal(operatorsAndPositions: readonly { op: OperatorPredicate; pos: Point }[]): void {
+
+    const operatorJointElements: joint.dia.Element[] = new Array(operatorsAndPositions.length);
+
+    for (let i = 0; i < operatorsAndPositions.length; i++){
+      let operator = operatorsAndPositions[i].op;
+      let point = operatorsAndPositions[i].pos;
+
+      // check that the operator doesn't exist
+      this.texeraGraph.assertOperatorNotExists(operator.operatorID);
+      // check that the operator type exists
+      if (!this.operatorMetadataService.operatorTypeExists(operator.operatorType)) {
+        throw new Error(`operator type ${operator.operatorType} is invalid`);
+      }
+
+      // get the JointJS UI element for operator
+      operatorJointElements[i] = this.jointUIService.getJointOperatorElement(operator, point);
+    }
+
+    // add operator to joint graph first
+    // if jointJS throws an error, it won't cause the inconsistency in texera graph
+    this.jointGraph.addCells(operatorJointElements);
+
+    for (let i = 0; i < operatorsAndPositions.length; i++){
+      let operator = operatorsAndPositions[i].op;
+      let point = operatorsAndPositions[i].pos;
+      this.jointGraphWrapper.setCellLayer(operator.operatorID, this.operatorGroup.getHighestLayer() + 1);
+      // add operator to texera graph
+      this.texeraGraph.addOperator(operator);
+    }
+  }
+
   private deleteOperatorInternal(operatorID: string): void {
     this.texeraGraph.assertOperatorExists(operatorID);
     const group = this.operatorGroup.getGroupByOperator(operatorID);
@@ -1042,6 +1074,52 @@ export class WorkflowActionService {
       this.operatorGroup.setSyncTexeraGraph(true);
 
       this.texeraGraph.addLink(link);
+    }
+  }
+
+  private addLinksInternal(links: readonly OperatorLink[]): void {
+    const jointLinkCells: joint.dia.Link[] = new Array(links.length); 
+
+    for (let i = 0; i < links.length; i++){
+      let link = links[i];
+
+      this.texeraGraph.assertLinkNotExists(link);
+      this.texeraGraph.assertLinkIsValid(link);
+
+      const sourceGroup = this.operatorGroup.getGroupByOperator(link.source.operatorID);
+      const targetGroup = this.operatorGroup.getGroupByOperator(link.target.operatorID);
+
+      if (sourceGroup && targetGroup && sourceGroup.groupID === targetGroup.groupID && sourceGroup.collapsed) {
+        this.texeraGraph.addLink(link);
+      } else {
+        // if a group is collapsed, jointjs target is the group not the operator
+        const jointLinkCell = JointUIService.getJointLinkCell(link);
+        if (sourceGroup && sourceGroup.collapsed) {
+          jointLinkCell.set("source", { id: sourceGroup.groupID });
+        }
+        if (targetGroup && targetGroup.collapsed) {
+          jointLinkCell.set("target", { id: targetGroup.groupID });
+        }
+
+        jointLinkCells[i] = jointLinkCell;
+      }
+    }
+
+    this.operatorGroup.setSyncTexeraGraph(false);
+    this.jointGraph.addCells(jointLinkCells.filter(x => x !== undefined));
+    this.operatorGroup.setSyncTexeraGraph(true);
+
+    for (let i = 0; i < links.length; i++){
+      let link = links[i];
+      let jointLinkCell = jointLinkCells[i];
+
+      if (jointLinkCell != undefined){
+        // manually add a link element (normally automatic when syncTexeraGraph = true)
+        this.operatorGroup.setSyncTexeraGraph(false);
+        this.jointGraphWrapper.setCellLayer(link.linkID, this.operatorGroup.getHighestLayer() + 1);
+        this.operatorGroup.setSyncTexeraGraph(true);
+        this.texeraGraph.addLink(link);
+      }
     }
   }
 
