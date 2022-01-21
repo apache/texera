@@ -29,12 +29,17 @@ trait MonitoringHandler {
       collectedAt: ActorVirtualIdentity,
       workerToNewSamples: mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]
   ): Unit = {
+    if (workerToNewSamples.isEmpty) {
+      return
+    }
     val existingSamples = workloadSamples.getOrElse(
       collectedAt,
       new mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]()
     )
     for ((wid, samples) <- workerToNewSamples) {
       var existingSamplesForWorker = existingSamples.getOrElse(wid, new ArrayBuffer[Long]())
+      // Remove the lowest sample as it may be incomplete
+      samples.remove(samples.indexOf(samples.min))
       existingSamplesForWorker.appendAll(samples)
 
       // clean up to save memory
@@ -49,7 +54,6 @@ trait MonitoringHandler {
       existingSamples(wid) = existingSamplesForWorker
     }
     workloadSamples(collectedAt) = existingSamples
-
   }
 
   registerHandler((msg: ControllerInitiateMonitoring, sender) => {

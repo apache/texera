@@ -32,7 +32,7 @@ class TupleToBatchConverter(
     */
   def getWorkloadHistory(): mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]] = {
     var samples: mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]] = null
-    partitioners.foreach(partitioner => {
+    partitioners.values.foreach(partitioner => {
       if (partitioner.isInstanceOf[ParallelBatchingPartitioner]) {
         // Reshape only needs samples from workers that shuffle data across nodes
         samples = partitioner.asInstanceOf[ParallelBatchingPartitioner].getWorkloadHistory()
