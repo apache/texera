@@ -439,18 +439,22 @@ export class NavigationComponent {
   }
 
   private handleVersionDisplay(): void {
-    this.workflowVersionService.getDisplayParticularVersionStream().pipe(untilDestroyed(this)).subscribe(displayVersionFlag => {
-      this.particularVersionDate = this.workflowActionService.getWorkflowMetadata().creationTime === undefined
-        ? ""
-        : "" +
-        this.datePipe.transform(
-          this.workflowActionService.getWorkflowMetadata().creationTime,
-          "MM/dd/yyyy HH:mm:ss zzz",
-          Intl.DateTimeFormat().resolvedOptions().timeZone,
-          "en"
-        );
-      this.displayParticularWorkflowVersion = displayVersionFlag;
-    });
+    this.workflowVersionService
+      .getDisplayParticularVersionStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(displayVersionFlag => {
+        this.particularVersionDate =
+          this.workflowActionService.getWorkflowMetadata().creationTime === undefined
+            ? ""
+            : "" +
+              this.datePipe.transform(
+                this.workflowActionService.getWorkflowMetadata().creationTime,
+                "MM/dd/yyyy HH:mm:ss zzz",
+                Intl.DateTimeFormat().resolvedOptions().timeZone,
+                "en"
+              );
+        this.displayParticularWorkflowVersion = displayVersionFlag;
+      });
   }
 
   closeParticularVersionDisplay() {
