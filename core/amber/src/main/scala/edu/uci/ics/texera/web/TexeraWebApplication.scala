@@ -15,7 +15,7 @@ import edu.uci.ics.texera.web.resource.dashboard.workflow.{
   WorkflowResource,
   WorkflowVersionResource
 }
-import edu.uci.ics.texera.web.resource.{UserDictionaryResource, _}
+import edu.uci.ics.texera.web.resource.{UserConfigResource, _}
 import io.dropwizard.auth.{AuthDynamicFeature, AuthValueFactoryProvider}
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
@@ -68,6 +68,7 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
     bootstrap.addBundle(new FileAssetsBundle("../new-gui/dist", "/", "index.html"))
     // add websocket bundle
     bootstrap.addBundle(new WebsocketBundle(classOf[WorkflowWebsocketResource]))
+    bootstrap.addBundle(new WebsocketBundle(classOf[CollaborationResource]))
     // register scala module to dropwizard default object mapper
     bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
   }
@@ -118,7 +119,7 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
     environment.jersey.register(classOf[SchemaPropagationResource])
     environment.jersey.register(classOf[AuthResource])
     environment.jersey.register(classOf[GoogleAuthResource])
-    environment.jersey.register(classOf[UserDictionaryResource])
+    environment.jersey.register(classOf[UserConfigResource])
     environment.jersey.register(classOf[UserFileAccessResource])
     environment.jersey.register(classOf[UserFileResource])
     environment.jersey.register(classOf[WorkflowAccessResource])
