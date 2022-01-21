@@ -19,7 +19,7 @@ abstract class ParallelBatchingPartitioner(batchSize: Int, receivers: Seq[ActorV
   var receiverToBatch = new mutable.HashMap[ActorVirtualIdentity, Array[ITuple]]()
   var receiverToCurrBatchSize = new mutable.HashMap[ActorVirtualIdentity, Int]()
   val samplingSize =
-    5000 // For every `samplingSize` tuples, record the tuple count to each receiver.
+    2000 // For every `samplingSize` tuples, record the tuple count to each receiver.
   var tupleIndexForSampling = 0 // goes from 0 to `samplingSize` and then resets to 0
   var receiverToWorkloadSamples = new mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]()
   @volatile var currentSampleCollectionIndex =
@@ -40,15 +40,15 @@ abstract class ParallelBatchingPartitioner(batchSize: Int, receivers: Seq[ActorV
       val collectedTillNow = new mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]()
       receiverToWorkloadSamples.keys.foreach(rec => {
         collectedTillNow(rec) = new ArrayBuffer[Long]()
-        // copy all but last element because the last element is still forming
-        for (i <- 0 to receiverToWorkloadSamples(rec).size - 2) {
+        for (i <- 0 to receiverToWorkloadSamples(rec).size - 1) {
           collectedTillNow(rec).append(receiverToWorkloadSamples(rec)(i))
         }
-        val mostRecentHistory =
-          receiverToWorkloadSamples(rec)(receiverToWorkloadSamples(rec).size - 1)
-        currentSampleCollectionIndex = 0
-        receiverToWorkloadSamples(rec) = ArrayBuffer[Long](mostRecentHistory)
       })
+
+      currentSampleCollectionIndex = 0
+      for (i <- 0 until numBuckets) {
+        receiverToWorkloadSamples(receivers(i)) = ArrayBuffer[Long](0)
+      }
       collectedTillNow
     } else {
       new mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]
@@ -80,15 +80,22 @@ abstract class ParallelBatchingPartitioner(batchSize: Int, receivers: Seq[ActorV
       storedSamples(currentSampleCollectionIndex) = storedSamples(currentSampleCollectionIndex) + 1
       tupleIndexForSampling += 1
       if (tupleIndexForSampling % samplingSize == 0) {
-        if (currentSampleCollectionIndex >= maxSamples) {
-          // write over the older samples
+        if (currentSampleCollectionIndex >= maxSamples - 1) {
+          // Maximum number of samples have been collected.
+          // Write over the older samples
           currentSampleCollectionIndex = 0
         } else {
-          receiverToWorkloadSamples.keys.foreach(rec => {
-            receiverToWorkloadSamples(rec).append(0)
-          })
+          if (storedSamples.size < maxSamples) {
+            receiverToWorkloadSamples.keys.foreach(rec => {
+              receiverToWorkloadSamples(rec).append(0)
+            })
+          }
           currentSampleCollectionIndex += 1
         }
+        // Set to 0 before starting new sample
+        receiverToWorkloadSamples.keys.foreach(rec =>
+          receiverToWorkloadSamples(rec)(currentSampleCollectionIndex) = 0
+        )
         tupleIndexForSampling = 0
       }
     }
