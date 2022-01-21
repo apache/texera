@@ -49,6 +49,8 @@ public class PieChartOpPartialExec implements OperatorExecutor {
             Double data;
             if (inputTuple.getSchema().getAttribute(dataColumn).getType() == AttributeType.STRING) {
                 data = Double.parseDouble(inputTuple.getField(dataColumn));
+            } else if (inputTuple.getSchema().getAttribute(dataColumn).getType() == AttributeType.INTEGER) {
+                data = Double.parseDouble(Integer.toString(inputTuple.getField(dataColumn)));
             } else {
                 data = inputTuple.getField(dataColumn);
             }

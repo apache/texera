@@ -3,11 +3,15 @@ package edu.uci.ics.texera.workflow.operators.visualization.pieChart
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.{
   FollowPrevious,
+  ForceLocal,
   UseAll
 }
-import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.RoundRobinDeployment
+import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.{
+  RandomDeployment,
+  RoundRobinDeployment
+}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
-import edu.uci.ics.amber.engine.architecture.linksemantics.HashBasedShuffle
+import edu.uci.ics.amber.engine.architecture.linksemantics.{AllToOne, HashBasedShuffle}
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
 import edu.uci.ics.amber.engine.common.virtualidentity.{
@@ -39,8 +43,8 @@ class PieChartOpExecConfig(
       makeLayer(tag, "globalPieChartProcessor"),
       _ => new PieChartOpFinalExec(pruneRatio),
       1,
-      FollowPrevious(),
-      RoundRobinDeployment()
+      ForceLocal(),
+      RandomDeployment()
     )
     new Topology(
       Array(
@@ -48,11 +52,10 @@ class PieChartOpExecConfig(
         finalLayer
       ),
       Array(
-        new HashBasedShuffle(
+        new AllToOne(
           partialLayer,
           finalLayer,
-          Constants.defaultBatchSize,
-          getPartitionColumnIndices(partialLayer.id)
+          Constants.defaultBatchSize
         )
       )
     )
