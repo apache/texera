@@ -77,10 +77,14 @@ export class ResultPanelComponent implements OnInit {
             .getTexeraGraph()
             .getAllOperators()
             .filter(op => isSink(op))
-            .filter(op => !op.isDisabled);
-          if (activeSinkOperators.length > 0 && !this.currentOperatorId) {
-            this.workflowActionService.getJointGraphWrapper().unhighlightOperators(...currentlyHighlighted);
-            this.workflowActionService.getJointGraphWrapper().highlightOperators(activeSinkOperators[0].operatorID);
+            .filter(op => !op.isDisabled)
+            .map(op => op.operatorID);
+
+          if (activeSinkOperators.length > 0) {
+            if (!(currentlyHighlighted.length == 1 && activeSinkOperators.includes(currentlyHighlighted[0]))) {
+              this.workflowActionService.getJointGraphWrapper().unhighlightOperators(...currentlyHighlighted);
+              this.workflowActionService.getJointGraphWrapper().highlightOperators(activeSinkOperators[0]);
+            }
             this.resultPanelToggleService.openResultPanel();
           }
         }
@@ -89,12 +93,14 @@ export class ResultPanelComponent implements OnInit {
             .getTexeraGraph()
             .getAllOperators()
             .filter(op => isPythonUdf(op))
-            .filter(op => !op.isDisabled);
-          if (activePythonUDFOperators.length > 0 && !this.currentOperatorId) {
-            this.workflowActionService.getJointGraphWrapper().unhighlightOperators(...currentlyHighlighted);
-            this.workflowActionService
-              .getJointGraphWrapper()
-              .highlightOperators(activePythonUDFOperators[0].operatorID);
+            .filter(op => !op.isDisabled)
+            .map(op => op.operatorID);
+
+          if (activePythonUDFOperators.length > 0) {
+            if (!(currentlyHighlighted.length == 1 && activePythonUDFOperators.includes(activePythonUDFOperators[0]))) {
+              this.workflowActionService.getJointGraphWrapper().unhighlightOperators(...currentlyHighlighted);
+              this.workflowActionService.getJointGraphWrapper().highlightOperators(activePythonUDFOperators[0]);
+            }
             this.resultPanelToggleService.openResultPanel();
           }
         }
