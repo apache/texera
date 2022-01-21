@@ -14,7 +14,7 @@ describe("FeatureBarComponent", () => {
     waitForAsync(() => {
       TestBed.configureTestingModule({
         declarations: [FeatureBarComponent],
-        imports: [RouterTestingModule, MatDividerModule, MatListModule]
+        imports: [RouterTestingModule, MatDividerModule, MatListModule],
       }).compileComponents();
     })
   );

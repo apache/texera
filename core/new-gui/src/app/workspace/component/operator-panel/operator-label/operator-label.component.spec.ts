@@ -33,7 +33,7 @@ describe("OperatorLabelComponent", () => {
           CustomNgMaterialModule,
           RouterTestingModule.withRoutes([]),
           TourNgBootstrapModule.forRoot(),
-          NgbModule
+          NgbModule,
         ],
         providers: [
           DragDropService,
@@ -43,10 +43,10 @@ describe("OperatorLabelComponent", () => {
           UndoRedoService,
           {
             provide: OperatorMetadataService,
-            useClass: StubOperatorMetadataService
+            useClass: StubOperatorMetadataService,
           },
-          TourService
-        ]
+          TourService,
+        ],
       }).compileComponents();
     })
   );
@@ -69,13 +69,8 @@ describe("OperatorLabelComponent", () => {
   });
 
   it("should display operator user friendly name on the UI", () => {
-    const element = <HTMLElement>(
-      fixture.debugElement.query(By.css(".texera-operator-label-body"))
-        .nativeElement
-    );
-    expect(element.firstChild?.textContent?.trim()).toEqual(
-      mockOperatorData.additionalMetadata.userFriendlyName
-    );
+    const element = <HTMLElement>fixture.debugElement.query(By.css(".texera-operator-label-body")).nativeElement;
+    expect(element.firstChild?.textContent?.trim()).toEqual(mockOperatorData.additionalMetadata.userFriendlyName);
   });
 
   it("should register itself as a draggable element", () => {
@@ -85,27 +80,21 @@ describe("OperatorLabelComponent", () => {
 
   it("should call the mouseLeave function once the cursor leaves a operator label", () => {
     const spy = spyOn<any>(component, "mouseLeave");
-    const operatorLabelElement = fixture.debugElement.query(
-      By.css("#" + component.operatorLabelID)
-    );
+    const operatorLabelElement = fixture.debugElement.query(By.css("#" + component.operatorLabelID));
     operatorLabelElement.triggerEventHandler("mouseleave", component);
     expect(spy).toHaveBeenCalled();
   });
 
   it("should call the mouseDown function once the cursor clicks the operator label", () => {
     const spy = spyOn<any>(component, "mouseDown");
-    const operatorLabelElement = fixture.debugElement.query(
-      By.css("#" + component.operatorLabelID)
-    );
+    const operatorLabelElement = fixture.debugElement.query(By.css("#" + component.operatorLabelID));
     operatorLabelElement.triggerEventHandler("mousedown", component);
     expect(spy).toHaveBeenCalled();
   });
 
   it("should call the mouseUp function once the cursor un-clicks operator label", () => {
     const spy = spyOn<any>(component, "mouseUp");
-    const operatorLabelElement = fixture.debugElement.query(
-      By.css("#" + component.operatorLabelID)
-    );
+    const operatorLabelElement = fixture.debugElement.query(By.css("#" + component.operatorLabelID));
     operatorLabelElement.triggerEventHandler("mouseup", component);
     expect(spy).toHaveBeenCalled();
   });

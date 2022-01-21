@@ -10,10 +10,7 @@ import { UndoRedoService } from "../../../service/undo-redo/undo-redo.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowUtilService } from "../../../service/workflow-graph/util/workflow-util.service";
 import { VisualizationFrameComponent } from "./visualization-frame.component";
-import {
-  OperatorResultService,
-  WorkflowResultService
-} from "../../../service/workflow-result/workflow-result.service";
+import { OperatorResultService, WorkflowResultService } from "../../../service/workflow-result/workflow-result.service";
 import { WebDataUpdate } from "../../../types/execute-workflow.interface";
 import { ChartType } from "../../../types/visualization.interface";
 
@@ -25,7 +22,7 @@ describe("VisualizationFameComponent", () => {
   const testData: WebDataUpdate = {
     mode: { type: "SetSnapshotMode" },
     chartType: ChartType.BAR,
-    table: []
+    table: [],
   };
 
   beforeEach(
@@ -40,11 +37,11 @@ describe("VisualizationFameComponent", () => {
           WorkflowActionService,
           {
             provide: OperatorMetadataService,
-            useClass: StubOperatorMetadataService
+            useClass: StubOperatorMetadataService,
           },
           WorkflowResultService,
-          ExecuteWorkflowService
-        ]
+          ExecuteWorkflowService,
+        ],
       }).compileComponents();
     })
   );
@@ -55,13 +52,10 @@ describe("VisualizationFameComponent", () => {
     fixture.detectChanges();
 
     workflowResultService = TestBed.get(WorkflowResultService);
-    const operatorResultService: OperatorResultService =
-      new OperatorResultService(operatorID);
+    const operatorResultService: OperatorResultService = new OperatorResultService(operatorID);
     operatorResultService.handleResultUpdate(testData);
 
-    spyOn(workflowResultService, "getResultService").and.returnValue(
-      operatorResultService
-    );
+    spyOn(workflowResultService, "getResultService").and.returnValue(operatorResultService);
   });
 
   it("should create", () => {

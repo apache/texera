@@ -1,11 +1,6 @@
 <div class="modal-header">
   <h4 class="modal-title">{{ dictionary.name }}</h4>
-  <button
-    (click)="activeModal.close()"
-    aria-label="Close"
-    class="close"
-    type="button"
-  >
+  <button (click)="activeModal.close()" aria-label="Close" class="close" type="button">
     <span aria-hidden="true">&times;</span>
   </button>
 </div>
@@ -29,28 +24,11 @@
   <br />
 
   <mat-dialog-actions>
-    <input
-      *ngIf="ifAdd"
-      [(ngModel)]="name"
-      matInput
-      placeholder="Add into dictionary"
-    />
-    <button
-      (click)="addDictionaryItem()"
-      class="btn btn-outline-dark add-button"
-      type="button"
-    >
-      Add
-    </button>
+    <input *ngIf="ifAdd" [(ngModel)]="name" matInput placeholder="Add into dictionary" />
+    <button (click)="addDictionaryItem()" class="btn btn-outline-dark add-button" type="button">Add</button>
   </mat-dialog-actions>
 </div>
 
 <div class="modal-footer">
-  <button
-    (click)="activeModal.close()"
-    class="btn btn-outline-dark"
-    type="button"
-  >
-    Close
-  </button>
+  <button (click)="activeModal.close()" class="btn btn-outline-dark" type="button">Close</button>
 </div>

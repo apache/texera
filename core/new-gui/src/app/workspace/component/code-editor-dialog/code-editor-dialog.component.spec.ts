@@ -17,12 +17,12 @@ describe("CodeEditorDialogComponent", () => {
             provide: MatDialogRef,
             useValue: {
               keydownEvents: () => EMPTY,
-              backdropClick: () => EMPTY
-            }
+              backdropClick: () => EMPTY,
+            },
           },
-          { provide: MAT_DIALOG_DATA, useValue: {} }
+          { provide: MAT_DIALOG_DATA, useValue: {} },
         ],
-        imports: [HttpClientTestingModule]
+        imports: [HttpClientTestingModule],
       }).compileComponents();
     })
   );

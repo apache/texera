@@ -25,7 +25,7 @@ import { TourService, IStepOption } from "ngx-tour-ng-bootstrap";
 @Component({
   selector: "texera-product-tour",
   templateUrl: "./product-tour.component.html",
-  styleUrls: ["./product-tour.component.scss"]
+  styleUrls: ["./product-tour.component.scss"],
 })
 export class ProductTourComponent {
   private steps: IStepOption[] = [
@@ -50,7 +50,7 @@ export class ProductTourComponent {
     `,
       placement: "bottom",
       title: "Welcome",
-      preventScrolling: true
+      preventScrolling: true,
     },
     {
       anchorId: "texera-operator-panel",
@@ -63,7 +63,7 @@ export class ProductTourComponent {
     `,
       placement: "right",
       title: "Operator Panel",
-      preventScrolling: true
+      preventScrolling: true,
     },
     {
       anchorId: "texera-operator-panel",
@@ -75,7 +75,7 @@ export class ProductTourComponent {
     `,
       title: "Select Operator",
       placement: "right",
-      preventScrolling: true
+      preventScrolling: true,
     },
     {
       anchorId: "texera-property-editor-grid-container",
@@ -88,7 +88,7 @@ export class ProductTourComponent {
     `,
       placement: "left",
       title: "Property Editor",
-      preventScrolling: true
+      preventScrolling: true,
     },
     {
       anchorId: "texera-operator-panel",
@@ -98,7 +98,7 @@ export class ProductTourComponent {
     `,
       placement: "right",
       title: "Operator Panel",
-      preventScrolling: true
+      preventScrolling: true,
     },
     {
       anchorId: "texera-operator-panel",
@@ -109,7 +109,7 @@ export class ProductTourComponent {
     `,
       placement: "right",
       title: "Select Operator",
-      preventScrolling: true
+      preventScrolling: true,
     },
     {
       anchorId: "texera-property-editor-grid-container",
@@ -120,7 +120,7 @@ export class ProductTourComponent {
     `,
       placement: "left",
       title: "Connecting operators",
-      preventScrolling: true
+      preventScrolling: true,
     },
     {
       anchorId: "texera-workspace-navigation-run",
@@ -129,7 +129,7 @@ export class ProductTourComponent {
     `,
       title: "Running the workflow",
       placement: "bottom",
-      preventScrolling: true
+      preventScrolling: true,
     },
     {
       anchorId: "texera-result-view-grid-container",
@@ -138,7 +138,7 @@ export class ProductTourComponent {
     `,
       placement: "top",
       title: "Viewing the results",
-      preventScrolling: true
+      preventScrolling: true,
     },
     {
       anchorId: "texera-navigation-grid-container",
@@ -151,8 +151,8 @@ export class ProductTourComponent {
     `,
       placement: "bottom",
       title: "Ending of tutorial",
-      preventScrolling: true
-    }
+      preventScrolling: true,
+    },
   ];
 
   constructor(public tourService: TourService) {

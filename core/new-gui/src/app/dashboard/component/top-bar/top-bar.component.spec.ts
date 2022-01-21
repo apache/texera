@@ -17,15 +17,8 @@ describe("TopBarComponent", () => {
     waitForAsync(() => {
       TestBed.configureTestingModule({
         declarations: [TopBarComponent, UserIconComponent],
-        providers: [
-          NgbModal,
-          { provide: UserService, useClass: StubUserService }
-        ],
-        imports: [
-          HttpClientTestingModule,
-          RouterTestingModule,
-          CustomNgMaterialModule
-        ]
+        providers: [NgbModal, { provide: UserService, useClass: StubUserService }],
+        imports: [HttpClientTestingModule, RouterTestingModule, CustomNgMaterialModule],
       }).compileComponents();
     })
   );

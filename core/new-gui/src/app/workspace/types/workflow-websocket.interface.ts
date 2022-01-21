@@ -1,15 +1,13 @@
 import {
   BreakpointInfo,
+  ExecutionState,
   LogicalOperator,
   LogicalPlan,
+  WebOutputMode,
   WorkflowResultUpdateEvent,
-  WorkflowStatusUpdate
+  OperatorStatsUpdate,
 } from "./execute-workflow.interface";
-import {
-  BreakpointFaultedTuple,
-  BreakpointTriggerInfo,
-  PythonPrintTriggerInfo
-} from "./workflow-common.interface";
+import { BreakpointFaultedTuple, BreakpointTriggerInfo, PythonPrintTriggerInfo } from "./workflow-common.interface";
 
 /**
  *  @fileOverview Type Definitions of WebSocket (Ws) API
@@ -24,7 +22,12 @@ import {
  * 2. value is the payload this request/event needs
  */
 
-export interface WebSocketHelloWorld extends Readonly<{ message: string }> {}
+export interface RegisterWIdRequest
+  extends Readonly<{
+    wId: number;
+  }> {}
+
+export interface RegisterWIdEvent extends Readonly<{ message: string }> {}
 
 export interface TexeraConstraintViolation
   extends Readonly<{
@@ -82,43 +85,89 @@ export type ResultExportRequest = Readonly<{
   operatorId: string;
 }>;
 
+export type CacheStatusUpdateRequest = LogicalPlan;
+
 export type ResultExportResponse = Readonly<{
   status: "success" | "error";
   message: string;
 }>;
 
+export type OperatorAvailableResult = Readonly<{
+  operatorID: string;
+  cacheValid: boolean;
+  outputMode: WebOutputMode;
+}>;
+
+export type WorkflowAvailableResultEvent = Readonly<{
+  availableOperators: ReadonlyArray<OperatorAvailableResult>;
+}>;
+
+export type OperatorResultCacheStatus = "cache invalid" | "cache valid" | "cache not enabled";
+
+export interface CacheStatusUpdateEvent
+  extends Readonly<{
+    cacheStatusMap: Record<string, OperatorResultCacheStatus>;
+  }> {}
+
+export type PythonExpressionEvaluateRequest = Readonly<{
+  expression: string;
+  operatorId: string;
+}>;
+export type TypedValue = Readonly<{
+  expression: string;
+  valueRef: string;
+  valueStr: string;
+  valueType: string;
+  expandable: boolean;
+}>;
+export type EvaluatedValue = Readonly<{
+  value: TypedValue;
+  attributes: TypedValue[];
+}>;
+
+export type PythonExpressionEvaluateResponse = Readonly<{
+  expression: string;
+  values: EvaluatedValue[];
+}>;
+
+export type WorkflowStateInfo = Readonly<{
+  state: ExecutionState;
+}>;
+
 export type TexeraWebsocketRequestTypeMap = {
-  HelloWorldRequest: WebSocketHelloWorld;
-  HeartBeatRequest: {};
-  ExecuteWorkflowRequest: LogicalPlan;
-  PauseWorkflowRequest: {};
-  ResumeWorkflowRequest: {};
-  KillWorkflowRequest: {};
-  ModifyLogicRequest: ModifyOperatorLogic;
-  SkipTupleRequest: SkipTuple;
+  RegisterWIdRequest: RegisterWIdRequest;
   AddBreakpointRequest: BreakpointInfo;
-  ResultPaginationRequest: PaginationRequest;
+  CacheStatusUpdateRequest: CacheStatusUpdateRequest;
+  HeartBeatRequest: {};
+  ModifyLogicRequest: ModifyOperatorLogic;
   ResultExportRequest: ResultExportRequest;
+  ResultPaginationRequest: PaginationRequest;
+  RetryRequest: {};
+  SkipTupleRequest: SkipTuple;
+  WorkflowExecuteRequest: LogicalPlan;
+  WorkflowKillRequest: {};
+  WorkflowPauseRequest: {};
+  WorkflowResumeRequest: {};
+  PythonExpressionEvaluateRequest: PythonExpressionEvaluateRequest;
 };
 
 export type TexeraWebsocketEventTypeMap = {
-  HelloWorldResponse: WebSocketHelloWorld;
+  RegisterWIdResponse: RegisterWIdEvent;
   HeartBeatResponse: {};
+  WorkflowStateEvent: WorkflowStateInfo;
   WorkflowErrorEvent: WorkflowError;
-  WorkflowStartedEvent: {};
-  WorkflowCompletedEvent: {};
-  WebWorkflowStatusUpdateEvent: WorkflowStatusUpdate;
+  OperatorStatisticsUpdateEvent: OperatorStatsUpdate;
   WebResultUpdateEvent: WorkflowResultUpdateEvent;
-  WorkflowPausedEvent: {};
-  WorkflowResumedEvent: {};
   RecoveryStartedEvent: {};
   BreakpointTriggeredEvent: BreakpointTriggerInfo;
   PythonPrintTriggeredEvent: PythonPrintTriggerInfo;
-  ModifyLogicCompletedEvent: {};
   OperatorCurrentTuplesUpdateEvent: OperatorCurrentTuples;
   PaginatedResultEvent: PaginatedResultEvent;
   WorkflowExecutionErrorEvent: WorkflowExecutionError;
   ResultExportResponse: ResultExportResponse;
+  WorkflowAvailableResultEvent: WorkflowAvailableResultEvent;
+  CacheStatusUpdateEvent: CacheStatusUpdateEvent;
+  PythonExpressionEvaluateResponse: PythonExpressionEvaluateResponse;
 };
 
 // helper type definitions to generate the request and event types
@@ -132,8 +181,7 @@ type CustomUnionType<T> = ValueOf<
 >;
 
 export type TexeraWebsocketRequestTypes = keyof TexeraWebsocketRequestTypeMap;
-export type TexeraWebsocketRequest =
-  CustomUnionType<TexeraWebsocketRequestTypeMap>;
+export type TexeraWebsocketRequest = CustomUnionType<TexeraWebsocketRequestTypeMap>;
 
 export type TexeraWebsocketEventTypes = keyof TexeraWebsocketEventTypeMap;
 export type TexeraWebsocketEvent = CustomUnionType<TexeraWebsocketEventTypeMap>;

@@ -38,6 +38,11 @@ export const defaultEnvironment = {
    */
   userSystemEnabled: true,
 
+  /**
+   * whether user preset feature is enabled, requires user system to be enabled
+   */
+  userPresetEnabled: false,
+
   amberEngineEnabled: true,
 
   /**
@@ -46,18 +51,33 @@ export const defaultEnvironment = {
   linkBreakpointEnabled: true,
 
   /**
+   * whether operator caching is enabled
+   */
+  operatorCacheEnabled: false,
+
+  /**
+   * whether debugger is enabled
+   */
+  debuggerEnabled: false,
+
+  /**
    * the access code for mapbox
    */
   mapbox: {
-    accessToken: ""
+    accessToken: "",
   },
 
   /**
    * all google-related configs
    */
   google: {
-    clientID: ""
-  }
+    clientID: "",
+  },
+
+  /**
+   * Whether workflow collab should be active
+   */
+  workflowCollabEnabled: false,
 };
 
 export type AppEnv = typeof defaultEnvironment;

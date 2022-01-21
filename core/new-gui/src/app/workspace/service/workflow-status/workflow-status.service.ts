@@ -6,7 +6,7 @@ import { WorkflowActionService } from "../workflow-graph/model/workflow-action.s
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 
 @Injectable({
-  providedIn: "root"
+  providedIn: "root",
 })
 export class WorkflowStatusService {
   // status is responsible for passing websocket responses to other components
@@ -20,21 +20,17 @@ export class WorkflowStatusService {
     if (!environment.executionStatusEnabled) {
       return;
     }
-    this.getStatusUpdateStream().subscribe(
-      (event) => (this.currentStatus = event)
-    );
+    this.getStatusUpdateStream().subscribe(event => (this.currentStatus = event));
 
-    this.workflowWebsocketService.websocketEvent().subscribe((event) => {
-      if (event.type !== "WebWorkflowStatusUpdateEvent") {
+    this.workflowWebsocketService.websocketEvent().subscribe(event => {
+      if (event.type !== "OperatorStatisticsUpdateEvent") {
         return;
       }
       this.statusSubject.next(event.operatorStatistics);
     });
   }
 
-  public getStatusUpdateStream(): Observable<
-    Record<string, OperatorStatistics>
-  > {
+  public getStatusUpdateStream(): Observable<Record<string, OperatorStatistics>> {
     return this.statusSubject.asObservable();
   }
 

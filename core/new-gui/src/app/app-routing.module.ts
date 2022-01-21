@@ -16,12 +16,12 @@ import { WorkspaceComponent } from "./workspace/component/workspace.component";
 const routes: Routes = [
   {
     path: "",
-    component: WorkspaceComponent
+    component: WorkspaceComponent,
   },
   {
     path: "workflow/:id",
-    component: WorkspaceComponent
-  }
+    component: WorkspaceComponent,
+  },
 ];
 
 if (environment.userSystemEnabled) {
@@ -38,28 +38,28 @@ if (environment.userSystemEnabled) {
     children: [
       {
         path: "workflow",
-        component: SavedWorkflowSectionComponent
+        component: SavedWorkflowSectionComponent,
       },
       {
         path: "user-dictionary",
-        component: UserDictionarySectionComponent
+        component: UserDictionarySectionComponent,
       },
       {
         path: "user-file",
-        component: UserFileSectionComponent
-      }
-    ]
+        component: UserFileSectionComponent,
+      },
+    ],
   });
 }
 
 // redirect all other paths to index.
 routes.push({
   path: "**",
-  redirectTo: ""
+  redirectTo: "",
 });
 
 @NgModule({
   imports: [RouterModule.forRoot(routes, { relativeLinkResolution: "legacy" })],
-  exports: [RouterModule]
+  exports: [RouterModule],
 })
 export class AppRoutingModule {}

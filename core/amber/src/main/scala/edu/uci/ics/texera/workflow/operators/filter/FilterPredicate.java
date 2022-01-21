@@ -9,6 +9,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils;
 
 import java.sql.Timestamp;
+import java.util.Objects;
 
 public class FilterPredicate {
 
@@ -113,4 +114,21 @@ public class FilterPredicate {
         }
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        FilterPredicate that = (FilterPredicate) o;
+        return Objects.equals(attribute, that.attribute) && condition == that.condition
+            && Objects.equals(value, that.value);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(attribute, condition, value);
+    }
 }

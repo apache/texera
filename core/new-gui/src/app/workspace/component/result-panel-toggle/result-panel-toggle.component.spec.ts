@@ -10,7 +10,7 @@ describe("ResultPanelToggleComponent", () => {
     waitForAsync(() => {
       TestBed.configureTestingModule({
         declarations: [ResultPanelToggleComponent],
-        providers: [ResultPanelToggleService]
+        providers: [ResultPanelToggleService],
       }).compileComponents();
     })
   );

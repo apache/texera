@@ -11,12 +11,11 @@ import { CodeEditorDialogComponent } from "../code-editor-dialog/code-editor-dia
  *
  * Clicking on the 'Edit code content' button will create a new dialogue with CodeEditorComponent
  * as its content. The data of this field will be sent to this dialogue, which contains a Monaco editor.
- * @author Xiaozhen Liu
  */
 @Component({
   selector: "texera-codearea-custom-template",
   templateUrl: "./codearea-custom-template.component.html",
-  styleUrls: ["./codearea-custom-template.component.scss"]
+  styleUrls: ["./codearea-custom-template.component.scss"],
 })
 export class CodeareaCustomTemplateComponent extends FieldType {
   constructor(public dialog: MatDialog) {
@@ -25,7 +24,7 @@ export class CodeareaCustomTemplateComponent extends FieldType {
 
   onClickEditor(): void {
     this.dialog.open(CodeEditorDialogComponent, {
-      data: this?.formControl?.value || ""
+      data: this.formControl?.value || "",
     });
   }
 }

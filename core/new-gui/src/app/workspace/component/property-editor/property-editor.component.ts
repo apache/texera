@@ -6,12 +6,9 @@ import { BreakpointPropertyEditFrameComponent } from "./breakpoint-property-edit
 import { DynamicComponentConfig } from "../../../common/type/dynamic-component-config";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
-export type PropertyEditFrameComponent =
-  | OperatorPropertyEditFrameComponent
-  | BreakpointPropertyEditFrameComponent;
+export type PropertyEditFrameComponent = OperatorPropertyEditFrameComponent | BreakpointPropertyEditFrameComponent;
 
-export type PropertyEditFrameConfig =
-  DynamicComponentConfig<PropertyEditFrameComponent>;
+export type PropertyEditFrameConfig = DynamicComponentConfig<PropertyEditFrameComponent>;
 
 /**
  * PropertyEditorComponent is the panel that allows user to edit operator properties.
@@ -23,7 +20,7 @@ export type PropertyEditFrameConfig =
 @Component({
   selector: "texera-property-editor",
   templateUrl: "./property-editor.component.html",
-  styleUrls: ["./property-editor.component.scss"]
+  styleUrls: ["./property-editor.component.scss"],
 })
 export class PropertyEditorComponent implements OnInit {
   frameComponentConfig?: PropertyEditFrameConfig;
@@ -37,8 +34,7 @@ export class PropertyEditorComponent implements OnInit {
   switchFrameComponent(targetConfig?: PropertyEditFrameConfig) {
     if (
       this.frameComponentConfig?.component === targetConfig?.component &&
-      this.frameComponentConfig?.componentInputs ===
-        targetConfig?.componentInputs
+      this.frameComponentConfig?.componentInputs === targetConfig?.componentInputs
     ) {
       return;
     }
@@ -95,23 +91,15 @@ export class PropertyEditorComponent implements OnInit {
           .getJointGraphWrapper()
           .getCurrentHighlightedCommentBoxIDs();
 
-        if (
-          highlightedOperators.length === 1 &&
-          highlightedGroups.length === 0 &&
-          highlightLinks.length === 0
-        ) {
+        if (highlightedOperators.length === 1 && highlightedGroups.length === 0 && highlightLinks.length === 0) {
           this.switchFrameComponent({
             component: OperatorPropertyEditFrameComponent,
-            componentInputs: { currentOperatorId: highlightedOperators[0] }
+            componentInputs: { currentOperatorId: highlightedOperators[0] },
           });
-        } else if (
-          highlightLinks.length === 1 &&
-          highlightedGroups.length === 0 &&
-          highlightedOperators.length === 0
-        ) {
+        } else if (highlightLinks.length === 1 && highlightedGroups.length === 0 && highlightedOperators.length === 0) {
           this.switchFrameComponent({
             component: BreakpointPropertyEditFrameComponent,
-            componentInputs: { currentLinkId: highlightLinks[0] }
+            componentInputs: { currentLinkId: highlightLinks[0] },
           });
         } else {
           this.switchFrameComponent(undefined);

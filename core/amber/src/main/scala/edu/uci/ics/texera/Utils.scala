@@ -3,9 +3,10 @@ package edu.uci.ics.texera
 import com.fasterxml.jackson.annotation.JsonInclude.Include
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-
+import org.apache.lucene.analysis.CharArraySet
 import java.nio.file.{Files, Path, Paths}
 import java.text.SimpleDateFormat
+
 import scala.annotation.tailrec
 
 object Utils {
@@ -76,4 +77,18 @@ object Utils {
   private def isAmberHomePath(path: Path): Boolean = {
     path.toRealPath().endsWith(AMBER_HOME_FOLDER_NAME)
   }
+
+  /** An unmodifiable set containing some common URL words that are not usually useful
+    * for searching.
+    */
+  final val URL_STOP_WORDS_SET = List[String](
+    "http",
+    "https",
+    "org",
+    "net",
+    "com",
+    "store",
+    "www",
+    "html"
+  )
 }

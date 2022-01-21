@@ -1,6 +1,7 @@
 import typing
 from collections import OrderedDict
 from itertools import chain
+from loguru import logger
 from typing import Iterable, Iterator
 
 from core.architecture.sendsemantics.hash_based_shuffle_partitioner import HashBasedShufflePartitioner
@@ -34,9 +35,9 @@ class TupleToBatchConverter:
         :return:
         """
         the_partitioning = get_one_of(partitioning)
-        partitioners: type = self._partitioning_to_partitioner[type(the_partitioning)]
-        partitioner: Partitioner = partitioners(the_partitioning)
-        self._partitioners.update({tag: partitioner})
+        logger.debug(f"adding {the_partitioning}")
+        partitioner: type = self._partitioning_to_partitioner[type(the_partitioning)]
+        self._partitioners.update({tag: partitioner(the_partitioning)})
 
     def tuple_to_batch(self, tuple_: Tuple) -> Iterator[typing.Tuple[ActorVirtualIdentity, DataFrame]]:
         return chain(*(partitioner.add_tuple_to_batch(tuple_) for partitioner in self._partitioners.values()))

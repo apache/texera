@@ -3,11 +3,11 @@ package edu.uci.ics.amber.engine.architecture.worker
 import akka.actor.ActorContext
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   BatchToTupleConverter,
-  ControlOutputPort,
-  DataOutputPort,
+  NetworkOutputPort,
   TupleToBatchConverter
 }
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers._
+import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, DataPayload}
 import edu.uci.ics.amber.engine.common.{AmberLogging, IOperatorExecutor}
 import edu.uci.ics.amber.engine.common.rpc.{
   AsyncRPCClient,
@@ -19,8 +19,8 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 class WorkerAsyncRPCHandlerInitializer(
     val actorId: ActorVirtualIdentity,
-    val controlOutputPort: ControlOutputPort,
-    val dataOutputPort: DataOutputPort,
+    val controlOutputPort: NetworkOutputPort[ControlPayload],
+    val dataOutputPort: NetworkOutputPort[DataPayload],
     val tupleToBatchConverter: TupleToBatchConverter,
     val batchToTupleConverter: BatchToTupleConverter,
     val pauseManager: PauseManager,

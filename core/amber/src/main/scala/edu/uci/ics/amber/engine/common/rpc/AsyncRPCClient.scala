@@ -1,8 +1,7 @@
 package edu.uci.ics.amber.engine.common.rpc
 
 import com.twitter.util.{Future, Promise}
-import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlOutputPort
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputPort
 import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlException
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.common.AmberLogging
@@ -10,6 +9,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
 
 import scala.collection.mutable
 
@@ -52,16 +52,22 @@ object AsyncRPCClient {
 
 }
 
-class AsyncRPCClient(controlOutputPort: ControlOutputPort, val actorId: ActorVirtualIdentity)
-    extends AmberLogging {
+class AsyncRPCClient(
+    controlOutputEndpoint: NetworkOutputPort[ControlPayload],
+    val actorId: ActorVirtualIdentity
+) extends AmberLogging {
 
   private val unfulfilledPromises = mutable.LongMap[WorkflowPromise[_]]()
   private var promiseID = 0L
 
   def send[T](cmd: ControlCommand[T], to: ActorVirtualIdentity): Future[T] = {
     val (p, id) = createPromise[T]()
-    controlOutputPort.sendTo(to, ControlInvocation(id, cmd))
+    controlOutputEndpoint.sendTo(to, ControlInvocation(id, cmd))
     p
+  }
+
+  def sendToClient(cmd: ControlCommand[_]): Unit = {
+    controlOutputEndpoint.sendTo(CLIENT, ControlInvocation(0, cmd))
   }
 
   private def createPromise[T](): (Promise[T], Long) = {

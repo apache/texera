@@ -24,7 +24,7 @@ describe("NgbdModalFileAddComponent", () => {
           { provide: UserService, useClass: StubUserService },
           UserFileService,
           UserFileUploadService,
-          NgbActiveModal
+          NgbActiveModal,
         ],
         imports: [
           CustomNgMaterialModule,
@@ -32,8 +32,8 @@ describe("NgbdModalFileAddComponent", () => {
           FormsModule,
           FileUploadModule,
           ReactiveFormsModule,
-          HttpClientTestingModule
-        ]
+          HttpClientTestingModule,
+        ],
       }).compileComponents();
     })
   );

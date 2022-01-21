@@ -1,27 +1,16 @@
 import { Component } from "@angular/core";
 import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
-import {
-  DictionaryUploadItem,
-  ManualDictionaryUploadItem
-} from "../../../../../common/type/user-dictionary";
+import { DictionaryUploadItem, ManualDictionaryUploadItem } from "../../../../../common/type/user-dictionary";
 import { UserDictionaryUploadService } from "../../../../service/user-dictionary/user-dictionary-upload.service";
 
 import { FileUploader } from "ng2-file-upload";
 import { MatTabChangeEvent } from "@angular/material/tabs";
 
 import { ErrorStateMatcher } from "@angular/material/core";
-import {
-  FormControl,
-  FormGroupDirective,
-  NgForm,
-  Validators
-} from "@angular/forms";
+import { FormControl, FormGroupDirective, NgForm, Validators } from "@angular/forms";
 
 class DictionaryErrorStateMatcher implements ErrorStateMatcher {
-  isErrorState(
-    control: FormControl | null,
-    form: FormGroupDirective | NgForm | null
-  ): boolean {
+  isErrorState(control: FormControl | null, form: FormGroupDirective | NgForm | null): boolean {
     return !!(control && control.invalid && (control.dirty || control.touched));
   }
 }
@@ -39,10 +28,7 @@ class DictionaryErrorStateMatcher implements ErrorStateMatcher {
 @Component({
   selector: "texera-resource-section-add-dict-modal",
   templateUrl: "ngbd-modal-resource-add.component.html",
-  styleUrls: [
-    "./ngbd-modal-resource-add.component.scss",
-    "../../../dashboard.component.scss"
-  ]
+  styleUrls: ["./ngbd-modal-resource-add.component.scss", "../../../dashboard.component.scss"],
 })
 export class NgbdModalResourceAddComponent {
   // This checks whether the user has hover a file over the file upload area
@@ -56,20 +42,11 @@ export class NgbdModalResourceAddComponent {
 
   // These are used to create custom form control validators.
   public matcher = new DictionaryErrorStateMatcher();
-  public nameValidator: FormControl = new FormControl("", [
-    Validators.required
-  ]);
-  public contentValidator: FormControl = new FormControl("", [
-    Validators.required
-  ]);
-  public descriptionValidator: FormControl = new FormControl("", [
-    Validators.required
-  ]);
+  public nameValidator: FormControl = new FormControl("", [Validators.required]);
+  public contentValidator: FormControl = new FormControl("", [Validators.required]);
+  public descriptionValidator: FormControl = new FormControl("", [Validators.required]);
 
-  constructor(
-    public activeModal: NgbActiveModal,
-    public userDictionaryUploadService: UserDictionaryUploadService
-  ) {}
+  constructor(public activeModal: NgbActiveModal, public userDictionaryUploadService: UserDictionaryUploadService) {}
 
   /**
    * Handles the tab change event in the modal popup
@@ -85,14 +62,11 @@ export class NgbdModalResourceAddComponent {
   }
 
   public getDictionaryArrayLength(): number {
-    return this.userDictionaryUploadService.getDictionariesToBeUploaded()
-      .length;
+    return this.userDictionaryUploadService.getDictionariesToBeUploaded().length;
   }
 
   public deleteDictionary(dictionaryUploadItem: DictionaryUploadItem): void {
-    this.userDictionaryUploadService.removeFileFromUploadArray(
-      dictionaryUploadItem
-    );
+    this.userDictionaryUploadService.removeFileFromUploadArray(dictionaryUploadItem);
   }
 
   /**
@@ -110,9 +84,7 @@ export class NgbdModalResourceAddComponent {
   }
 
   public isItemValid(dictionaryUploadItem: DictionaryUploadItem): boolean {
-    return this.userDictionaryUploadService.validateDictionaryUploadItem(
-      dictionaryUploadItem
-    );
+    return this.userDictionaryUploadService.validateDictionaryUploadItem(dictionaryUploadItem);
   }
 
   public validateAllDictionaryUploadItems(): boolean {
@@ -122,15 +94,13 @@ export class NgbdModalResourceAddComponent {
   public isAllItemsUploading(): boolean {
     return this.userDictionaryUploadService
       .getDictionariesToBeUploaded()
-      .every((dictionaryUploadItem) => dictionaryUploadItem.isUploadingFlag);
+      .every(dictionaryUploadItem => dictionaryUploadItem.isUploadingFlag);
   }
   /**
    * this method handles the event when user click on the file dropping area.
    * @param clickUploadEvent
    */
-  public handleClickUploadFile(clickUploadEvent: {
-    target: HTMLInputElement;
-  }): void {
+  public handleClickUploadFile(clickUploadEvent: { target: HTMLInputElement }): void {
     const fileList: FileList | null = clickUploadEvent.target.files;
     if (fileList === null) {
       throw new Error("browser upload does not work as intended");

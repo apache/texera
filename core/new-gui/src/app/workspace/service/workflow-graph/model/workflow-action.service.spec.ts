@@ -12,21 +12,19 @@ import {
   mockSentimentResultLink,
   mockFalseResultSentimentLink,
   mockFalseSentimentScanLink,
-  mockPoint
+  mockPoint,
 } from "./mock-workflow-data";
 import { TestBed, inject } from "@angular/core/testing";
 
 import { WorkflowActionService } from "./workflow-action.service";
-import {
-  OperatorPredicate,
-  Point
-} from "../../../types/workflow-common.interface";
+import { OperatorPredicate, Point } from "../../../types/workflow-common.interface";
 import { g } from "jointjs";
 import { environment } from "./../../../../../environments/environment";
 import { WorkflowUtilService } from "../util/workflow-util.service";
 
 describe("WorkflowActionService", () => {
   let service: WorkflowActionService;
+  let undoRedo: UndoRedoService;
   let texeraGraph: WorkflowGraph;
   let jointGraph: joint.dia.Graph;
 
@@ -39,22 +37,20 @@ describe("WorkflowActionService", () => {
         UndoRedoService,
         {
           provide: OperatorMetadataService,
-          useClass: StubOperatorMetadataService
-        }
+          useClass: StubOperatorMetadataService,
+        },
       ],
-      imports: []
+      imports: [],
     });
-    service = TestBed.get(WorkflowActionService);
+    service = TestBed.inject(WorkflowActionService);
+    undoRedo = TestBed.inject(UndoRedoService);
     texeraGraph = (service as any).texeraGraph;
     jointGraph = (service as any).jointGraph;
   });
 
-  it("should be created", inject(
-    [WorkflowActionService],
-    (injectedService: WorkflowActionService) => {
-      expect(injectedService).toBeTruthy();
-    }
-  ));
+  it("should be created", inject([WorkflowActionService], (injectedService: WorkflowActionService) => {
+    expect(injectedService).toBeTruthy();
+  }));
 
   it("should add an operator to both jointjs and texera graph correctly", () => {
     service.addOperator(mockScanPredicate, mockPoint);
@@ -74,7 +70,7 @@ describe("WorkflowActionService", () => {
   it("should throw an error when adding an operator with invalid operator type", () => {
     const invalidOperator: OperatorPredicate = {
       ...mockScanPredicate,
-      operatorType: "invalidOperatorTypeForTesting"
+      operatorType: "invalidOperatorTypeForTesting",
     };
 
     expect(() => {
@@ -103,9 +99,7 @@ describe("WorkflowActionService", () => {
 
     service.addLink(mockScanResultLink);
 
-    expect(
-      texeraGraph.hasLink(mockScanResultLink.source, mockScanResultLink.target)
-    ).toBeTruthy();
+    expect(texeraGraph.hasLink(mockScanResultLink.source, mockScanResultLink.target)).toBeTruthy();
     expect(texeraGraph.hasLinkWithID(mockScanResultLink.linkID)).toBeTruthy();
     expect(jointGraph.getCell(mockScanResultLink.linkID)).toBeTruthy();
   });
@@ -122,7 +116,7 @@ describe("WorkflowActionService", () => {
 
     const sameLinkDifferentID = {
       ...mockScanResultLink,
-      linkID: "link-2"
+      linkID: "link-2",
     };
 
     // same link but different id already exist
@@ -163,9 +157,7 @@ describe("WorkflowActionService", () => {
     // test delete by link ID
     service.deleteLinkWithID(mockScanResultLink.linkID);
 
-    expect(
-      texeraGraph.hasLink(mockScanResultLink.source, mockScanResultLink.target)
-    ).toBeFalsy();
+    expect(texeraGraph.hasLink(mockScanResultLink.source, mockScanResultLink.target)).toBeFalsy();
     expect(texeraGraph.hasLinkWithID(mockScanResultLink.linkID)).toBeFalsy();
     expect(jointGraph.getCell(mockScanResultLink.linkID)).toBeFalsy();
   });
@@ -178,9 +170,7 @@ describe("WorkflowActionService", () => {
     // test delete by link source and target
     service.deleteLink(mockScanResultLink.source, mockScanResultLink.target);
 
-    expect(
-      texeraGraph.hasLink(mockScanResultLink.source, mockScanResultLink.target)
-    ).toBeFalsy();
+    expect(texeraGraph.hasLink(mockScanResultLink.source, mockScanResultLink.target)).toBeFalsy();
     expect(texeraGraph.hasLinkWithID(mockScanResultLink.linkID)).toBeFalsy();
     expect(jointGraph.getCell(mockScanResultLink.linkID)).toBeFalsy();
   });
@@ -234,6 +224,34 @@ describe("WorkflowActionService", () => {
     expect(texeraGraph.getAllLinks().length).toEqual(0);
   });
 
+  it("should reformat the workflow", () => {
+    service.addOperator(mockScanPredicate, mockPoint);
+    service.addOperator(mockSentimentPredicate, mockPoint);
+    service.addOperator(mockResultPredicate, mockPoint);
+    // add link scan -> result, and sentiment -> result
+    service.addLink(mockScanResultLink);
+    service.addLink(mockSentimentResultLink);
+
+    service.autoLayoutWorkflow();
+
+    // test it's actually reformated
+    let sentimentOpPos = service.getJointGraphWrapper().getElementPosition(mockSentimentPredicate.operatorID);
+    let resultOpPos = service.getJointGraphWrapper().getElementPosition(mockResultPredicate.operatorID);
+
+    expect(sentimentOpPos).not.toEqual(mockPoint);
+    expect(resultOpPos).not.toEqual(mockPoint);
+
+    // test undo reformat restoring the original positions
+    expect(undoRedo.canUndo()).toBeTruthy();
+
+    undoRedo.undoAction();
+    sentimentOpPos = service.getJointGraphWrapper().getElementPosition(mockSentimentPredicate.operatorID);
+    resultOpPos = service.getJointGraphWrapper().getElementPosition(mockResultPredicate.operatorID);
+
+    expect(sentimentOpPos).toEqual(mockPoint);
+    expect(resultOpPos).toEqual(mockPoint);
+  });
+
   describe("when linkBreakpoint is enabled", () => {
     beforeAll(() => {
       environment.linkBreakpointEnabled = true;
@@ -249,14 +267,10 @@ describe("WorkflowActionService", () => {
       service.addLink(mockScanResultLink);
       const mockBreakpoint = { count: 100 };
       service.setLinkBreakpoint(mockScanResultLink.linkID, mockBreakpoint);
-      expect(texeraGraph.getLinkBreakpoint(mockScanResultLink.linkID)).toEqual(
-        mockBreakpoint
-      );
+      expect(texeraGraph.getLinkBreakpoint(mockScanResultLink.linkID)).toEqual(mockBreakpoint);
 
       service.removeLinkBreakpoint(mockScanResultLink.linkID);
-      expect(
-        texeraGraph.getLinkBreakpoint(mockScanResultLink.linkID)
-      ).toBeUndefined();
+      expect(texeraGraph.getLinkBreakpoint(mockScanResultLink.linkID)).toBeUndefined();
     });
   });
 

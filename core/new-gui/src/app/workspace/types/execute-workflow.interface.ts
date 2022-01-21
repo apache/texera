@@ -5,10 +5,7 @@
  */
 
 import { ChartType } from "./visualization.interface";
-import {
-  BreakpointRequest,
-  BreakpointTriggerInfo
-} from "./workflow-common.interface";
+import { BreakpointRequest, BreakpointTriggerInfo } from "./workflow-common.interface";
 import { OperatorCurrentTuples } from "./workflow-websocket.interface";
 
 export interface LogicalLink
@@ -23,11 +20,7 @@ export interface LogicalOperator
     operatorType: string;
     // reason for not using `any` in this case is to
     //  prevent types such as `undefined` or `null`
-    [uniqueAttributes: string]:
-      | string
-      | number
-      | boolean
-      | Record<string, unknown>;
+    [uniqueAttributes: string]: string | number | boolean | Record<string, unknown>;
   }> {}
 
 export interface BreakpointInfo
@@ -46,6 +39,7 @@ export interface LogicalPlan
     operators: LogicalOperator[];
     links: LogicalLink[];
     breakpoints: BreakpointInfo[];
+    cachedOperatorIds: string[];
   }> {}
 
 /**
@@ -68,7 +62,7 @@ export enum OperatorState {
   Paused = "Paused",
   Resuming = "Resuming",
   Completed = "Completed",
-  Recovering = "Recovering"
+  Recovering = "Recovering",
 }
 
 export interface OperatorStatistics
@@ -78,7 +72,7 @@ export interface OperatorStatistics
     aggregatedOutputRowCount: number;
   }> {}
 
-export interface WorkflowStatusUpdate
+export interface OperatorStatsUpdate
   extends Readonly<{
     operatorStatistics: Record<string, OperatorStatistics>;
   }> {}
@@ -114,24 +108,17 @@ export interface WorkflowResultUpdateEvent
 // user-defined type guards to check the type of the result update
 // because TypeScript can't do Tagged Unions on nested data types https://github.com/microsoft/TypeScript/issues/18758
 // and the unions have to be defined as nested because of JSON serialization options
-export function isWebPaginationUpdate(
-  update: WebResultUpdate
-): update is WebPaginationUpdate {
+export function isWebPaginationUpdate(update: WebResultUpdate): update is WebPaginationUpdate {
   return update !== undefined && update.mode.type === "PaginationMode";
 }
 
-export function isWebDataUpdate(
-  update: WebResultUpdate
-): update is WebDataUpdate {
-  return (
-    (update !== undefined && update.mode.type === "SetSnapshotMode") ||
-    update.mode.type === "SetDeltaMode"
-  );
+export function isWebDataUpdate(update: WebResultUpdate): update is WebDataUpdate {
+  return (update !== undefined && update.mode.type === "SetSnapshotMode") || update.mode.type === "SetDeltaMode";
 }
 
 export enum ExecutionState {
   Uninitialized = "Uninitialized",
-  WaitingToRun = "WaitingToRun",
+  Initializing = "Initializing",
   Running = "Running",
   Pausing = "Pausing",
   Paused = "Paused",
@@ -139,14 +126,14 @@ export enum ExecutionState {
   Recovering = "Recovering",
   BreakpointTriggered = "BreakpointTriggered",
   Completed = "Completed",
-  Failed = "Failed"
+  Aborted = "Aborted",
 }
 
 export type ExecutionStateInfo = Readonly<
   | {
       state:
         | ExecutionState.Uninitialized
-        | ExecutionState.WaitingToRun
+        | ExecutionState.Initializing
         | ExecutionState.Pausing
         | ExecutionState.Running
         | ExecutionState.Resuming
@@ -164,7 +151,7 @@ export type ExecutionStateInfo = Readonly<
       state: ExecutionState.Completed;
     }
   | {
-      state: ExecutionState.Failed;
+      state: ExecutionState.Aborted;
       errorMessages: Readonly<Record<string, string>>;
     }
 >;

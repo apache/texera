@@ -10,14 +10,15 @@ import { Injectable } from "@angular/core";
 import { v4 as uuid } from "uuid";
 import * as Ajv from "ajv";
 
-import { Subject } from "rxjs";
-import { Observable } from "rxjs";
+import { Observable, Subject } from "rxjs";
+import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
+import { jsonCast } from "../../../../common/util/storage";
 
 /**
  * WorkflowUtilService provide utilities related to dealing with operator data.
  */
 @Injectable({
-  providedIn: "root"
+  providedIn: "root",
 })
 export class WorkflowUtilService {
   private operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
@@ -25,11 +26,10 @@ export class WorkflowUtilService {
   // used to fetch default values in json schema to initialize new operator
   private ajv = new Ajv({ useDefaults: true });
 
-  private operatorSchemaListCreatedSubject: Subject<boolean> =
-    new Subject<boolean>();
+  private operatorSchemaListCreatedSubject: Subject<boolean> = new Subject<boolean>();
 
   constructor(private operatorMetadataService: OperatorMetadataService) {
-    this.operatorMetadataService.getOperatorMetadata().subscribe((value) => {
+    this.operatorMetadataService.getOperatorMetadata().subscribe(value => {
       this.operatorSchemaList = value.operators;
       this.operatorSchemaListCreatedSubject.next(true);
     });
@@ -85,17 +85,12 @@ export class WorkflowUtilService {
    * @returns a new OperatorPredicate of the operatorType
    */
   public getNewOperatorPredicate(operatorType: string): OperatorPredicate {
-    const operatorSchema = this.operatorSchemaList.find(
-      (schema) => schema.operatorType === operatorType
-    );
+    const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operatorType);
     if (operatorSchema === undefined) {
-      throw new Error(
-        `operatorType ${operatorType} doesn't exist in operator metadata`
-      );
+      throw new Error(`operatorType ${operatorType} doesn't exist in operator metadata`);
     }
 
-    const operatorID =
-      operatorSchema.operatorType + "-" + this.getOperatorRandomUUID();
+    const operatorID = operatorSchema.operatorType + "-" + this.getOperatorRandomUUID();
     const operatorProperties = {};
 
     // Remove the ID field for the schema to prevent warning messages from Ajv
@@ -114,25 +109,18 @@ export class WorkflowUtilService {
     // by default, the operator is not disabled
     const isDisabled = false;
 
-    for (
-      let i = 0;
-      i < operatorSchema.additionalMetadata.inputPorts.length;
-      i++
-    ) {
+    // by default, the operator name is the user friendly name
+    const customDisplayName = operatorSchema.additionalMetadata.userFriendlyName;
+
+    for (let i = 0; i < operatorSchema.additionalMetadata.inputPorts.length; i++) {
       const portID = "input-" + i.toString();
-      const displayName =
-        operatorSchema.additionalMetadata.inputPorts[i].displayName;
+      const displayName = operatorSchema.additionalMetadata.inputPorts[i].displayName;
       inputPorts.push({ portID, displayName });
     }
 
-    for (
-      let i = 0;
-      i < operatorSchema.additionalMetadata.outputPorts.length;
-      i++
-    ) {
+    for (let i = 0; i < operatorSchema.additionalMetadata.outputPorts.length; i++) {
       const portID = "output-" + i.toString();
-      const displayName =
-        operatorSchema.additionalMetadata.outputPorts[i].displayName;
+      const displayName = operatorSchema.additionalMetadata.outputPorts[i].displayName;
       outputPorts.push({ portID, displayName });
     }
 
@@ -143,7 +131,20 @@ export class WorkflowUtilService {
       inputPorts,
       outputPorts,
       showAdvanced,
-      isDisabled
+      isDisabled,
+      customDisplayName,
     };
+  }
+
+  /**
+   * helper function to parse WorkflowInfo from a JSON string. In some case, for example reading from backend, the content would returned
+   * as a JSON string.
+   * @param workflow
+   */
+  public static parseWorkflowInfo(workflow: Workflow): Workflow {
+    if (workflow != null && typeof workflow.content === "string") {
+      workflow.content = jsonCast<WorkflowContent>(workflow.content);
+    }
+    return workflow;
   }
 }

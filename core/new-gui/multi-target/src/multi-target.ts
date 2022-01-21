@@ -6,7 +6,7 @@ import {
   ScheduleOptions,
   Target,
   targetStringFromTarget,
-  targetFromTargetString
+  targetFromTargetString,
 } from "@angular-devkit/architect";
 import { JsonObject, logging } from "@angular-devkit/core";
 
@@ -44,11 +44,7 @@ class TargetData {
   private failSubscribers: ((targetFails: number) => void)[] = [];
   private successSubscribers: ((targetSuccesses: number) => void)[] = [];
 
-  constructor(
-    totalTargets: number,
-    targetFails: number,
-    targetSuccesses: number
-  ) {
+  constructor(totalTargets: number, targetFails: number, targetSuccesses: number) {
     this.totalTargets = totalTargets;
     this.targetFails = targetFails;
     this.targetSuccesses = targetSuccesses;
@@ -62,7 +58,7 @@ class TargetData {
    */
   incrementTargetFails() {
     this.targetFails += 1;
-    this.failSubscribers.forEach((fn) => fn(this.targetFails));
+    this.failSubscribers.forEach(fn => fn(this.targetFails));
   }
 
   /**
@@ -71,7 +67,7 @@ class TargetData {
    */
   incrementTargetSuccesses() {
     this.targetSuccesses += 1;
-    this.successSubscribers.forEach((fn) => fn(this.targetSuccesses));
+    this.successSubscribers.forEach(fn => fn(this.targetSuccesses));
   }
 
   getTargetFails(): number {
@@ -107,10 +103,7 @@ export default createBuilder(multiBuilder);
  * @param context BuilderContext
  * @returns promise of builderOutput, resolves if build successful, rejects if not. Always produces a BuilderOutput either way.
  */
-function multiBuilder(
-  options: Options,
-  context: BuilderContext
-): Promise<BuilderOutput> {
+function multiBuilder(options: Options, context: BuilderContext): Promise<BuilderOutput> {
   // For help understanding builders/Architect, visit https://angular.io/guide/cli-builder.
 
   // multiBuilder takes a list of build targets (options.targets) and runs them.
@@ -123,9 +116,7 @@ function multiBuilder(
 
   // const used to label/prefix logs
   const multiTargetStr: string =
-    context.target === undefined
-      ? "Anonymous Multi-Target Builder"
-      : targetStringFromTarget(context.target);
+    context.target === undefined ? "Anonymous Multi-Target Builder" : targetStringFromTarget(context.target);
 
   return new Promise<BuilderOutput>(async (resolve, reject) => {
     if (options.sequential && options.race) {
@@ -134,7 +125,7 @@ function multiBuilder(
       reject({
         success: false,
         target: context.target as Target,
-        error: errorMsg
+        error: errorMsg,
       });
     }
 
@@ -147,15 +138,13 @@ function multiBuilder(
     // Subscribing to changes in targetData.targetFails lets us determine when to reject (this builder has failed)
     targetData.subscribeToFails((targetFails: number) => {
       if (!options.race) {
-        const subTargetStr = targetStringFromTarget(
-          targetData.failedTargets[targetData.failedTargets.length - 1]
-        );
+        const subTargetStr = targetStringFromTarget(targetData.failedTargets[targetData.failedTargets.length - 1]);
         const errorMsg = `(${multiTargetStr})-->(${subTargetStr}) failed!`;
         context.logger.fatal(errorMsg);
         reject({
           success: false,
           target: context.target as Target,
-          error: errorMsg
+          error: errorMsg,
         });
       } else if (options.race && targetFails === targetData.totalTargets) {
         const errorMsg = `(${multiTargetStr}) failed: all sub-targets failed! (race: true).`;
@@ -163,12 +152,10 @@ function multiBuilder(
         reject({
           success: false,
           target: context.target as Target,
-          error: errorMsg
+          error: errorMsg,
         });
       } else if (options.race && targetFails < targetData.totalTargets) {
-        const subTargetStr = targetStringFromTarget(
-          targetData.failedTargets[targetData.failedTargets.length - 1]
-        );
+        const subTargetStr = targetStringFromTarget(targetData.failedTargets[targetData.failedTargets.length - 1]);
         const errorMsg = `(${multiTargetStr})-->(${subTargetStr}) failed. Ignoring due to config (race: true) `;
         context.logger.warn(errorMsg);
       }
@@ -222,10 +209,7 @@ function multiBuilder(
  * Each **BuilderRun** represents a builder successfully scheduled and running.
  * Each **BuilderRun.result** is the **Promise<BuilderOutput>** of that builder (resolves if builder runs successfully).
  */
-function scheduleTarget(
-  target: Target,
-  context: BuilderContext
-): Promise<BuilderRun> {
+function scheduleTarget(target: Target, context: BuilderContext): Promise<BuilderRun> {
   // @ts-ignore logger is actually Logger but was interfaced (as part of BuilderContext) into a LoggerApi.
   const opt: ScheduleOptions = { logger: <logging.Logger>context.logger };
   const overrides: JsonObject | undefined = undefined;

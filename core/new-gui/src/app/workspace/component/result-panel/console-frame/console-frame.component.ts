@@ -1,10 +1,4 @@
-import {
-  Component,
-  Input,
-  OnChanges,
-  OnInit,
-  SimpleChanges
-} from "@angular/core";
+import { Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { BreakpointTriggerInfo } from "../../../types/workflow-common.interface";
 import { ExecutionState } from "src/app/workspace/types/execute-workflow.interface";
@@ -15,15 +9,12 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 @Component({
   selector: "texera-console-frame",
   templateUrl: "./console-frame.component.html",
-  styleUrls: ["./console-frame.component.scss"]
+  styleUrls: ["./console-frame.component.scss"],
 })
 export class ConsoleFrameComponent implements OnInit, OnChanges {
   @Input() operatorId?: string;
   // display error message:
   errorMessages?: Readonly<Record<string, string>>;
-  // display breakpoint
-  breakpointTriggerInfo?: BreakpointTriggerInfo;
-  breakpointAction: boolean = false;
 
   // display print
   consoleMessages: ReadonlyArray<string> = [];
@@ -47,7 +38,7 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
     this.executeWorkflowService
       .getExecutionStateStream()
       .pipe(untilDestroyed(this))
-      .subscribe((event) => {
+      .subscribe(event => {
         if (
           event.previous.state === ExecutionState.BreakpointTriggered &&
           event.current.state === ExecutionState.Completed
@@ -55,7 +46,7 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
           // intentionally do nothing to leave the information displayed as it is
           // when kill a workflow after hitting breakpoint
         } else if (
-          event.previous.state === ExecutionState.WaitingToRun &&
+          event.previous.state === ExecutionState.Initializing &&
           event.current.state === ExecutionState.Running
         ) {
           // clear the console for the next execution
@@ -69,24 +60,17 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
     this.workflowConsoleService
       .getConsoleMessageUpdateStream()
       .pipe(untilDestroyed(this))
-      .subscribe((_) => this.renderConsole());
-  }
-
-  onClickSkipTuples(): void {
-    this.executeWorkflowService.skipTuples();
-    this.breakpointAction = false;
+      .subscribe(_ => this.renderConsole());
   }
 
   clearConsole() {
     this.consoleMessages = [];
     this.errorMessages = undefined;
-    this.breakpointTriggerInfo = undefined;
   }
 
   renderConsole() {
     // try to fetch if we have breakpoint info
-    const breakpointTriggerInfo =
-      this.executeWorkflowService.getBreakpointTriggerInfo();
+    const breakpointTriggerInfo = this.executeWorkflowService.getBreakpointTriggerInfo();
 
     if (this.operatorId) {
       // first display error messages if applicable
@@ -104,12 +88,8 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
   }
 
   displayBreakpoint(breakpointTriggerInfo: BreakpointTriggerInfo) {
-    this.breakpointTriggerInfo = breakpointTriggerInfo;
-    this.breakpointAction = true;
-    // const result = breakpointTriggerInfo.report.map(r => r.faultedTuple.tuple).filter(t => t !== undefined);
-    // this.setupResultTable(result, result.length);
     const errorsMessages: Record<string, string> = {};
-    breakpointTriggerInfo.report.forEach((r) => {
+    breakpointTriggerInfo.report.forEach(r => {
       const splitPath = r.actorPath.split("/");
       const workerName = splitPath[splitPath.length - 1];
       const workerText = "Worker " + workerName + ":                ";
@@ -125,8 +105,6 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
   }
 
   displayConsoleMessages(operatorId: string) {
-    this.consoleMessages = operatorId
-      ? this.workflowConsoleService.getConsoleMessages(operatorId) || []
-      : [];
+    this.consoleMessages = operatorId ? this.workflowConsoleService.getConsoleMessages(operatorId) || [] : [];
   }
 }

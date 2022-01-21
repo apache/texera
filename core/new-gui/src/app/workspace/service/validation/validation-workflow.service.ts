@@ -27,7 +27,7 @@ export type Validation = { isValid: true } | ValidationError;
  * @author Angela Wang
  */
 @Injectable({
-  providedIn: "root"
+  providedIn: "root",
 })
 export class ValidationWorkflowService {
   public static readonly VALIDATION_OPERATOR_INPUT_MESSAGE = "inputs";
@@ -61,8 +61,8 @@ export class ValidationWorkflowService {
     // fetch operator schema list
     this.operatorMetadataService
       .getOperatorMetadata()
-      .pipe(filter((metadata) => metadata.operators.length > 0))
-      .subscribe((metadata) => {
+      .pipe(filter(metadata => metadata.operators.length > 0))
+      .subscribe(metadata => {
         this.operatorSchemaList = metadata.operators;
         this.initializeValidation();
       });
@@ -99,18 +99,12 @@ export class ValidationWorkflowService {
   }
 
   public validateOperator(operatorID: string): Validation {
-    if (
-      this.workflowActionService.getTexeraGraph().isOperatorDisabled(operatorID)
-    ) {
+    if (this.workflowActionService.getTexeraGraph().isOperatorDisabled(operatorID)) {
       return { isValid: true };
     }
     const jsonSchemaValidation = this.validateJsonSchema(operatorID);
-    const operatorConnectionValidation =
-      this.validateOperatorConnection(operatorID);
-    return ValidationWorkflowService.combineValidation(
-      jsonSchemaValidation,
-      operatorConnectionValidation
-    );
+    const operatorConnectionValidation = this.validateOperatorConnection(operatorID);
+    return ValidationWorkflowService.combineValidation(jsonSchemaValidation, operatorConnectionValidation);
   }
 
   private updateValidationState(operatorID: string, validation: Validation) {
@@ -138,31 +132,23 @@ export class ValidationWorkflowService {
     this.workflowActionService
       .getTexeraGraph()
       .getAllOperators()
-      .forEach((operator) => {
-        this.updateValidationState(
-          operator.operatorID,
-          this.validateOperator(operator.operatorID)
-        );
+      .forEach(operator => {
+        this.updateValidationState(operator.operatorID, this.validateOperator(operator.operatorID));
       });
 
     // Capture the operator add event and validate the newly added operator
     this.workflowActionService
       .getTexeraGraph()
       .getOperatorAddStream()
-      .subscribe((operator) =>
-        this.updateValidationState(
-          operator.operatorID,
-          this.validateOperator(operator.operatorID)
-        )
+      .subscribe(operator =>
+        this.updateValidationState(operator.operatorID, this.validateOperator(operator.operatorID))
       );
 
     // Capture the operator delete event but not validate the deleted operator
     this.workflowActionService
       .getTexeraGraph()
       .getOperatorDeleteStream()
-      .subscribe((operator) =>
-        this.updateValidationStateOnDelete(operator.deletedOperator.operatorID)
-      );
+      .subscribe(operator => this.updateValidationStateOnDelete(operator.deletedOperator.operatorID));
 
     // Capture the link add and delete event and validate the source and target operators for this link
     merge(
@@ -170,61 +156,42 @@ export class ValidationWorkflowService {
       this.workflowActionService
         .getTexeraGraph()
         .getLinkDeleteStream()
-        .pipe(map((link) => link.deletedLink))
-    ).subscribe((link) => {
-      this.updateValidationState(
-        link.source.operatorID,
-        this.validateOperator(link.source.operatorID)
-      );
-      this.updateValidationState(
-        link.target.operatorID,
-        this.validateOperator(link.target.operatorID)
-      );
+        .pipe(map(link => link.deletedLink))
+    ).subscribe(link => {
+      this.updateValidationState(link.source.operatorID, this.validateOperator(link.source.operatorID));
+      this.updateValidationState(link.target.operatorID, this.validateOperator(link.target.operatorID));
     });
 
     // Capture the operator property change event and validate the current operator being changed
     this.workflowActionService
       .getTexeraGraph()
       .getOperatorPropertyChangeStream()
-      .subscribe((value) =>
-        this.updateValidationState(
-          value.operator.operatorID,
-          this.validateOperator(value.operator.operatorID)
-        )
+      .subscribe(value =>
+        this.updateValidationState(value.operator.operatorID, this.validateOperator(value.operator.operatorID))
       );
 
     // on enable / disable operator - re-validate the changed operators
     this.workflowActionService
       .getTexeraGraph()
       .getDisabledOperatorsChangedStream()
-      .subscribe((event) => {
+      .subscribe(event => {
         const operatorsToRevalidate = new Set<string>();
 
         // for every changed operator:
-        event.newDisabled.concat(event.newEnabled).forEach((op) => {
+        event.newDisabled.concat(event.newEnabled).forEach(op => {
           // revalidate itself
           operatorsToRevalidate.add(op);
 
           // revalidate all its input operators
-          const inputs = this.workflowActionService
-            .getTexeraGraph()
-            .getInputLinksByOperatorId(op);
-          inputs.forEach((link) =>
-            operatorsToRevalidate.add(link.source.operatorID)
-          );
+          const inputs = this.workflowActionService.getTexeraGraph().getInputLinksByOperatorId(op);
+          inputs.forEach(link => operatorsToRevalidate.add(link.source.operatorID));
 
           // revliadate all its output operators
-          const outputs = this.workflowActionService
-            .getTexeraGraph()
-            .getOutputLinksByOperatorId(op);
-          outputs.forEach((link) =>
-            operatorsToRevalidate.add(link.target.operatorID)
-          );
+          const outputs = this.workflowActionService.getTexeraGraph().getOutputLinksByOperatorId(op);
+          outputs.forEach(link => operatorsToRevalidate.add(link.target.operatorID));
         });
 
-        operatorsToRevalidate.forEach((op) =>
-          this.updateValidationState(op, this.validateOperator(op))
-        );
+        operatorsToRevalidate.forEach(op => this.updateValidationState(op, this.validateOperator(op)));
       });
   }
 
@@ -233,23 +200,16 @@ export class ValidationWorkflowService {
    *  If completed correctly, the operator is valid.
    */
   private validateJsonSchema(operatorID: string): Validation {
-    const operator = this.workflowActionService
-      .getTexeraGraph()
-      .getOperator(operatorID);
+    const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
     if (operator === undefined) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
-    const operatorSchema = this.operatorSchemaList.find(
-      (schema) => schema.operatorType === operator.operatorType
-    );
+    const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operator.operatorType);
     if (operatorSchema === undefined) {
       throw new Error("operatorSchema doesn't exist");
     }
 
-    const isValid = this.ajv.validate(
-      operatorSchema.jsonSchema,
-      operator.operatorProperties
-    );
+    const isValid = this.ajv.validate(operatorSchema.jsonSchema, operator.operatorProperties);
     if (isValid) {
       return { isValid: true };
     }
@@ -257,10 +217,7 @@ export class ValidationWorkflowService {
     const errors = this.ajv.errors;
     const validationError: Record<string, string> = {};
     if (errors) {
-      errors.forEach(
-        (error) =>
-          (validationError[error.keyword] = error.message ? error.message : "")
-      );
+      errors.forEach(error => (validationError[error.keyword] = error.message ? error.message : ""));
     }
     return { isValid: false, messages: validationError };
   }
@@ -270,16 +227,12 @@ export class ValidationWorkflowService {
    *  if all ports of the operator are connected, the operator is valid.
    */
   private validateOperatorConnection(operatorID: string): Validation {
-    const operator = this.workflowActionService
-      .getTexeraGraph()
-      .getOperator(operatorID);
+    const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
     if (operator === undefined) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
 
-    const operatorSchema = this.operatorSchemaList.find(
-      (schema) => schema.operatorType === operator.operatorType
-    );
+    const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operator.operatorType);
     if (operatorSchema === undefined) {
       throw new Error("operatorSchema doesn't exist");
     }
@@ -288,7 +241,7 @@ export class ValidationWorkflowService {
 
     // check if input links satisfy the requirement
     const numInputLinksByPort = new Map<string, number>();
-    texeraGraph.getInputLinksByOperatorId(operatorID).forEach((inLink) => {
+    texeraGraph.getInputLinksByOperatorId(operatorID).forEach(inLink => {
       if (texeraGraph.isLinkEnabled(inLink.linkID)) {
         const portID = inLink.target.portID;
         const num = numInputLinksByPort.get(portID) ?? 0;
@@ -300,8 +253,7 @@ export class ValidationWorkflowService {
     let inputPortsViolationMessage = "";
     for (let i = 0; i < operator.inputPorts.length; i++) {
       const portInfo = operatorSchema.additionalMetadata.inputPorts[i];
-      const portNumInputs =
-        numInputLinksByPort.get(operator.inputPorts[i].portID) ?? 0;
+      const portNumInputs = numInputLinksByPort.get(operator.inputPorts[i].portID) ?? 0;
       if (portInfo.allowMultiInputs) {
         if (portNumInputs < 1) {
           satisfyInput = false;
@@ -312,9 +264,7 @@ export class ValidationWorkflowService {
       } else {
         if (portNumInputs !== 1) {
           satisfyInput = false;
-          inputPortsViolationMessage += `${
-            portInfo.displayName ?? ""
-          } requires 1 input, has ${portNumInputs}`;
+          inputPortsViolationMessage += `${portInfo.displayName ?? ""} requires 1 input, has ${portNumInputs}`;
         }
       }
     }
@@ -323,12 +273,12 @@ export class ValidationWorkflowService {
     const requiredOutputNum = operator.outputPorts.length;
     const actualOutputNum = texeraGraph
       .getOutputLinksByOperatorId(operatorID)
-      .filter((link) => texeraGraph.isLinkEnabled(link.linkID)).length;
+      .filter(link => texeraGraph.isLinkEnabled(link.linkID)).length;
 
     // If the operator is the sink operator, the actual output number must be equal to required number.
     const satisyOutput =
-      this.operatorMetadataService.getOperatorSchema(operator.operatorType)
-        .additionalMetadata.operatorGroupName === "View Results"
+      this.operatorMetadataService.getOperatorSchema(operator.operatorType).additionalMetadata.operatorGroupName ===
+      "View Results"
         ? requiredOutputNum === actualOutputNum
         : requiredOutputNum <= actualOutputNum;
 
@@ -341,12 +291,10 @@ export class ValidationWorkflowService {
     } else {
       const messages: Record<string, string> = {};
       if (!satisfyInput) {
-        messages[ValidationWorkflowService.VALIDATION_OPERATOR_INPUT_MESSAGE] =
-          inputPortsViolationMessage;
+        messages[ValidationWorkflowService.VALIDATION_OPERATOR_INPUT_MESSAGE] = inputPortsViolationMessage;
       }
       if (!satisyOutput) {
-        messages[ValidationWorkflowService.VALIDATION_OPERATOR_OUTPUT_MESSAGE] =
-          outputPortsViolationMessage;
+        messages[ValidationWorkflowService.VALIDATION_OPERATOR_OUTPUT_MESSAGE] = outputPortsViolationMessage;
       }
       return { isValid: false, messages: messages };
     }
@@ -355,7 +303,7 @@ export class ValidationWorkflowService {
   public static combineValidation(...validations: Validation[]): Validation {
     let isValid = true;
     let messages = {};
-    validations.forEach((validation) => {
+    validations.forEach(validation => {
       isValid = isValid && validation.isValid;
       if (!validation.isValid) {
         messages = { ...messages, ...validation.messages };

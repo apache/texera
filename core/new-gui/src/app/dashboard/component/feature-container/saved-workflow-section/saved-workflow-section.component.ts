@@ -9,6 +9,8 @@ import { NgbdModalWorkflowShareAccessComponent } from "./ngbd-modal-share-access
 import { DashboardWorkflowEntry } from "../../../type/dashboard-workflow-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { NotificationService } from "src/app/common/service/notification/notification.service";
+import Fuse from "fuse.js";
 
 export const ROUTER_WORKFLOW_BASE_URL = "/workflow";
 export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
@@ -17,17 +19,34 @@ export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
 @Component({
   selector: "texera-saved-workflow-section",
   templateUrl: "./saved-workflow-section.component.html",
-  styleUrls: [
-    "./saved-workflow-section.component.scss",
-    "../../dashboard.component.scss"
-  ]
+  styleUrls: ["./saved-workflow-section.component.scss", "../../dashboard.component.scss"],
 })
 export class SavedWorkflowSectionComponent implements OnInit {
   public dashboardWorkflowEntries: DashboardWorkflowEntry[] = [];
+  public dashboardWorkflowEntriesIsEditingName: number[] = [];
+  public allDashboardWorkflowEntries: DashboardWorkflowEntry[] = [];
+  public filteredDashboardWorkflowNames: Set<string> = new Set();
+  public fuse = new Fuse([] as ReadonlyArray<DashboardWorkflowEntry>, {
+    shouldSort: true,
+    threshold: 0.2,
+    location: 0,
+    distance: 100,
+    minMatchCharLength: 1,
+    keys: ["workflow.wid", "workflow.name", "ownerName"],
+  });
+  public searchCriteriaPathMapping: Map<string, string[]> = new Map([
+    ["workflowName", ["workflow", "name"]],
+    ["id", ["workflow", "wid"]],
+    ["owner", ["ownerName"]],
+  ]);
+  public workflowSearchValue: string = "";
+  private defaultWorkflowName: string = "Untitled Workflow";
+  public searchCriteria: string[] = ["owner", "id"];
 
   constructor(
     private userService: UserService,
     private workflowPersistService: WorkflowPersistService,
+    private notificationService: NotificationService,
     private modalService: NgbModal,
     private router: Router
   ) {}
@@ -40,10 +59,88 @@ export class SavedWorkflowSectionComponent implements OnInit {
    * open the Modal based on the workflow clicked on
    */
   public onClickOpenShareAccess({ workflow }: DashboardWorkflowEntry): void {
-    const modalRef = this.modalService.open(
-      NgbdModalWorkflowShareAccessComponent
-    );
+    const modalRef = this.modalService.open(NgbdModalWorkflowShareAccessComponent);
     modalRef.componentInstance.workflow = workflow;
+  }
+
+  public searchInputOnChange(value: string): void {
+    // enable autocomplete only when searching for workflow name
+    if (!value.includes(":")) {
+      this.filteredDashboardWorkflowNames = new Set();
+      this.allDashboardWorkflowEntries.forEach(dashboardEntry => {
+        const workflowName = dashboardEntry.workflow.name;
+        if (workflowName.toLowerCase().indexOf(value.toLowerCase()) !== -1) {
+          this.filteredDashboardWorkflowNames.add(workflowName);
+        }
+      });
+    }
+  }
+
+  // check https://fusejs.io/api/query.html#logical-query-operators for logical query operators rule
+  public buildAndPathQuery(
+    workflowSearchField: string,
+    workflowSearchValue: string
+  ): {
+    $path: ReadonlyArray<string>;
+    $val: string;
+  } {
+    return {
+      $path: this.searchCriteriaPathMapping.get(workflowSearchField) as ReadonlyArray<string>,
+      $val: workflowSearchValue,
+    };
+  }
+
+  /**
+   * Search workflows by owner name, workflow name or workflow id
+   * Use fuse.js https://fusejs.io/ as the tool for searching
+   */
+  public searchWorkflow(): void {
+    let andPathQuery: Object[] = [];
+    this.dashboardWorkflowEntries = [];
+    // empty search value, return all workflow entries
+    if (this.workflowSearchValue.trim() === "") {
+      this.dashboardWorkflowEntries = cloneDeep(this.allDashboardWorkflowEntries);
+      return;
+    } else if (!this.workflowSearchValue.includes(":")) {
+      // search only by workflow name
+      andPathQuery.push(this.buildAndPathQuery("workflowName", this.workflowSearchValue));
+      this.fuse
+        .search({
+          $and: andPathQuery,
+        })
+        .forEach(res => {
+          this.dashboardWorkflowEntries.push(res.item);
+        });
+      return;
+    }
+    const searchConsitionsSet = new Set(this.workflowSearchValue.trim().split(/ +(?=(?:(?:[^"]*"){2})*[^"]*$)/g));
+    searchConsitionsSet.forEach(condition => {
+      // field search
+      if (condition.includes(":")) {
+        const conditionArray = condition.split(":");
+        if (conditionArray.length !== 2) {
+          this.notificationService.error("Please check the format of the search query");
+          return;
+        }
+        const workflowSearchField = conditionArray[0];
+        const workflowSearchValue = conditionArray[1];
+        if (!this.searchCriteria.includes(workflowSearchField)) {
+          this.notificationService.error("Cannot search by " + workflowSearchField);
+          return;
+        }
+        andPathQuery.push(this.buildAndPathQuery(workflowSearchField, workflowSearchValue));
+      } else {
+        //search by workflow name
+        andPathQuery.push(this.buildAndPathQuery("workflowName", condition));
+      }
+    });
+    this.fuse
+      .search({
+        $and: andPathQuery,
+      })
+      .forEach(res => {
+        this.dashboardWorkflowEntries.push(res.item);
+      });
   }
 
   /**
@@ -51,9 +148,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
    */
   public ascSort(): void {
     this.dashboardWorkflowEntries.sort((t1, t2) =>
-      t1.workflow.name
-        .toLowerCase()
-        .localeCompare(t2.workflow.name.toLowerCase())
+      t1.workflow.name.toLowerCase().localeCompare(t2.workflow.name.toLowerCase())
     );
   }
 
@@ -62,9 +157,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
    */
   public dscSort(): void {
     this.dashboardWorkflowEntries.sort((t1, t2) =>
-      t2.workflow.name
-        .toLowerCase()
-        .localeCompare(t1.workflow.name.toLowerCase())
+      t2.workflow.name.toLowerCase().localeCompare(t1.workflow.name.toLowerCase())
     );
   }
 
@@ -72,12 +165,10 @@ export class SavedWorkflowSectionComponent implements OnInit {
    * sort the project by creating time
    */
   public dateSort(): void {
-    this.dashboardWorkflowEntries.sort(
-      (left: DashboardWorkflowEntry, right: DashboardWorkflowEntry) =>
-        left.workflow.creationTime !== undefined &&
-        right.workflow.creationTime !== undefined
-          ? left.workflow.creationTime - right.workflow.creationTime
-          : 0
+    this.dashboardWorkflowEntries.sort((left: DashboardWorkflowEntry, right: DashboardWorkflowEntry) =>
+      left.workflow.creationTime !== undefined && right.workflow.creationTime !== undefined
+        ? left.workflow.creationTime - right.workflow.creationTime
+        : 0
     );
   }
 
@@ -85,12 +176,10 @@ export class SavedWorkflowSectionComponent implements OnInit {
    * sort the project by last modified time
    */
   public lastSort(): void {
-    this.dashboardWorkflowEntries.sort(
-      (left: DashboardWorkflowEntry, right: DashboardWorkflowEntry) =>
-        left.workflow.lastModifiedTime !== undefined &&
-        right.workflow.lastModifiedTime !== undefined
-          ? left.workflow.lastModifiedTime - right.workflow.lastModifiedTime
-          : 0
+    this.dashboardWorkflowEntries.sort((left: DashboardWorkflowEntry, right: DashboardWorkflowEntry) =>
+      left.workflow.lastModifiedTime !== undefined && right.workflow.lastModifiedTime !== undefined
+        ? left.workflow.lastModifiedTime - right.workflow.lastModifiedTime
+        : 0
     );
   }
 
@@ -105,9 +194,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
    * duplicate the current workflow. A new record will appear in frontend
    * workflow list and backend database.
    */
-  public onClickDuplicateWorkflow({
-    workflow: { wid }
-  }: DashboardWorkflowEntry): void {
+  public onClickDuplicateWorkflow({ workflow: { wid } }: DashboardWorkflowEntry): void {
     if (wid) {
       this.workflowPersistService
         .duplicateWorkflow(wid)
@@ -128,9 +215,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
    * message to frontend and delete the workflow on frontend. It
    * calls the deleteProject method in service which implements backend API.
    */
-  public openNgbdModalDeleteWorkflowComponent({
-    workflow
-  }: DashboardWorkflowEntry): void {
+  public openNgbdModalDeleteWorkflowComponent({ workflow }: DashboardWorkflowEntry): void {
     const modalRef = this.modalService.open(NgbdModalDeleteWorkflowComponent);
     modalRef.componentInstance.workflow = cloneDeep(workflow);
 
@@ -143,11 +228,10 @@ export class SavedWorkflowSectionComponent implements OnInit {
             .deleteWorkflow(wid)
             .pipe(untilDestroyed(this))
             .subscribe(
-              (_) => {
-                this.dashboardWorkflowEntries =
-                  this.dashboardWorkflowEntries.filter(
-                    (workflowEntry) => workflowEntry.workflow.wid !== wid
-                  );
+              _ => {
+                this.dashboardWorkflowEntries = this.dashboardWorkflowEntries.filter(
+                  workflowEntry => workflowEntry.workflow.wid !== wid
+                );
               },
               // @ts-ignore // TODO: fix this with notification component
               (err: unknown) => alert(err.error)
@@ -180,13 +264,41 @@ export class SavedWorkflowSectionComponent implements OnInit {
     this.workflowPersistService
       .retrieveWorkflowsBySessionUser()
       .pipe(untilDestroyed(this))
-      .subscribe(
-        (dashboardWorkflowEntries) =>
-          (this.dashboardWorkflowEntries = dashboardWorkflowEntries)
-      );
+      .subscribe(dashboardWorkflowEntries => {
+        this.dashboardWorkflowEntries = dashboardWorkflowEntries;
+        this.allDashboardWorkflowEntries = dashboardWorkflowEntries;
+        this.fuse.setCollection(this.allDashboardWorkflowEntries);
+        dashboardWorkflowEntries.forEach(dashboardWorkflowEntry => {
+          const workflow = dashboardWorkflowEntry.workflow;
+          this.filteredDashboardWorkflowNames.add(workflow.name);
+        });
+      });
   }
 
   private clearDashboardWorkflowEntries(): void {
     this.dashboardWorkflowEntries = [];
+  }
+
+  public confirmUpdateWorkflowCustomName(
+    dashboardWorkflowEntry: DashboardWorkflowEntry,
+    name: string,
+    index: number
+  ): void {
+    const { workflow } = dashboardWorkflowEntry;
+    this.workflowPersistService
+      .updateWorkflowName(workflow.wid, name || this.defaultWorkflowName)
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        let updatedDashboardWorkFlowEntry = { ...dashboardWorkflowEntry };
+        updatedDashboardWorkFlowEntry.workflow = { ...workflow };
+        updatedDashboardWorkFlowEntry.workflow.name = name || this.defaultWorkflowName;
+
+        this.dashboardWorkflowEntries[index] = updatedDashboardWorkFlowEntry;
+      })
+      .add(() => {
+        this.dashboardWorkflowEntriesIsEditingName = this.dashboardWorkflowEntriesIsEditingName.filter(
+          entryIsEditingIndex => entryIsEditingIndex != index
+        );
+      });
   }
 }

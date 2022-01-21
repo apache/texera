@@ -14,11 +14,8 @@ describe("UserIconComponent", () => {
     waitForAsync(() => {
       TestBed.configureTestingModule({
         declarations: [UserIconComponent],
-        providers: [
-          NgbModal,
-          { provide: UserService, useClass: StubUserService }
-        ],
-        imports: [HttpClientTestingModule]
+        providers: [NgbModal, { provide: UserService, useClass: StubUserService }],
+        imports: [HttpClientTestingModule],
       }).compileComponents();
     })
   );

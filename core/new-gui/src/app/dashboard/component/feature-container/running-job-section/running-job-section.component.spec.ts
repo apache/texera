@@ -9,7 +9,7 @@ describe("RunningJobSectionComponent", () => {
   beforeEach(
     waitForAsync(() => {
       TestBed.configureTestingModule({
-        declarations: [RunningJobSectionComponent]
+        declarations: [RunningJobSectionComponent],
       }).compileComponents();
     })
   );

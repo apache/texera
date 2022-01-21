@@ -1,19 +1,16 @@
 import traceback
 import typing
-from typing import Iterator, Optional, Union
+from typing import Iterator, List, MutableMapping, Optional, Union
 
 from loguru import logger
 from overrides import overrides
 from pampy import match
 
 from core.architecture.managers.context import Context
-from core.architecture.packaging.batch_to_tuple_converter import EndMarker, EndOfAllMarker
+from core.architecture.packaging.batch_to_tuple_converter import EndOfAllMarker
 from core.architecture.rpc.async_rpc_client import AsyncRPCClient
 from core.architecture.rpc.async_rpc_server import AsyncRPCServer
-from core.models.internal_queue import ControlElement, DataElement, InternalQueue
-from core.models.marker import SenderChangeMarker
-from core.models.tuple import InputExhausted, Tuple
-from core.udf.udf_operator import UDFOperator
+from core.models import ControlElement, DataElement, InputExhausted, InternalQueue, Operator, SenderChangeMarker, Tuple
 from core.util import IQueue, StoppableQueueBlockingRunnable, get_one_of, set_one_of
 from core.util.print_writer.print_log_handler import PrintLogHandler
 from proto.edu.uci.ics.amber.engine.architecture.worker import ControlCommandV2, LocalOperatorExceptionV2, \
@@ -29,9 +26,12 @@ class DataProcessor(StoppableQueueBlockingRunnable):
 
         self._input_queue: InternalQueue = input_queue
         self._output_queue: InternalQueue = output_queue
-        self._udf_operator: Optional[UDFOperator] = None
+        self._operator: Optional[Operator] = None
         self._current_input_tuple: Optional[Union[Tuple, InputExhausted]] = None
         self._current_input_link: Optional[LinkIdentity] = None
+        self._current_input_tuple_iter: Optional[Iterator[Union[Tuple, InputExhausted]]] = None
+        self._input_links: List[LinkIdentity] = list()
+        self._input_link_map: MutableMapping[LinkIdentity, int] = dict()
 
         self.context = Context(self)
         self._async_rpc_server = AsyncRPCServer(output_queue, context=self.context)
@@ -45,7 +45,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         logger.add(
             self._print_log_handler,
             level='PRINT',
-            filter="udf_module"
+            filter="operators"
         )
 
     def complete(self) -> None:
@@ -54,7 +54,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         """
         # flush the buffered console prints
         self._print_log_handler.flush()
-        self._udf_operator.close()
+        self._operator.close()
         self.context.state_manager.transit_to(WorkerState.COMPLETED)
         control_command = set_one_of(ControlCommandV2, WorkerExecutionCompletedV2())
         self._async_rpc_client.send(ActorVirtualIdentity(name="CONTROLLER"), control_command)
@@ -90,9 +90,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         match(
             next_entry,
             DataElement, self._process_data_element,
-            ControlElement, self._process_control_element,
-            EndMarker, self._process_end_marker,
-            EndOfAllMarker, self._process_end_of_all_marker
+            ControlElement, self._process_control_element
         )
 
     def process_control_payload(self, tag: ActorVirtualIdentity, payload: ControlPayloadV2) -> None:
@@ -136,13 +134,20 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         """
         Process the Tuple/InputExhausted with the current link.
 
-        This is a wrapper to invoke udf operator.
+        This is a wrapper to invoke processing of the operator.
 
         :param tuple_: Union[Tuple, InputExhausted], the current tuple.
         :param link: LinkIdentity, the current link.
         :return: Iterator[Tuple], iterator of result Tuple(s).
         """
-        return self._udf_operator.process_texera_tuple(tuple_, link)
+
+        # bind link with input index
+        if link not in self._input_link_map:
+            self._input_links.append(link)
+            index = len(self._input_links) - 1
+            self._input_link_map[link] = index
+        input_ = self._input_link_map[link]
+        return map(lambda t: Tuple(t) if t is not None else None, self._operator.process_tuple(tuple_, input_))
 
     def report_exception(self) -> None:
         """
@@ -152,7 +157,6 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         message: str = traceback.format_exc(limit=-1)
         control_command = set_one_of(ControlCommandV2, LocalOperatorExceptionV2(message=message))
         self._async_rpc_client.send(ActorVirtualIdentity(name="CONTROLLER"), control_command)
-        self._pause()
 
     def _process_control_element(self, control_element: ControlElement) -> None:
         """
@@ -162,7 +166,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         """
         self.process_control_payload(control_element.tag, control_element.payload)
 
-    def _process_tuple(self, tuple_: Tuple) -> None:
+    def _process_tuple(self, tuple_: Union[Tuple, InputExhausted]) -> None:
         self._current_input_tuple = tuple_
         self.process_input_tuple()
         self.check_and_process_control()
@@ -174,17 +178,6 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         :param sender_change_marker: SenderChangeMarker which contains sender link.
         """
         self._current_input_link = sender_change_marker.link
-
-    def _process_end_marker(self, _: EndMarker) -> None:
-        """
-        Upon receipt of an EndMarker, which indicates the end of the current input link.
-        process an InputExhausted for the current input link.
-
-        :param _: EndMarker
-        """
-        self._current_input_tuple = InputExhausted()
-        self.process_input_tuple()
-        self.check_and_process_control()
 
     def _process_end_of_all_marker(self, _: EndOfAllMarker) -> None:
         """
@@ -212,15 +205,34 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         if self.context.state_manager.confirm_state(WorkerState.READY):
             self.context.state_manager.transit_to(WorkerState.RUNNING)
 
-        for element in self.context.batch_to_tuple_converter.process_data_payload(
-                data_element.tag, data_element.payload):
-            match(
-                element,
-                Tuple, self._process_tuple,
-                SenderChangeMarker, self._process_sender_change_marker,
-                EndMarker, self._process_end_marker,
-                EndOfAllMarker, self._process_end_of_all_marker
-            )
+        self._current_input_tuple_iter = self.context.batch_to_tuple_converter.process_data_payload(
+            data_element.tag, data_element.payload)
+
+        if self._current_input_tuple_iter is None:
+            return
+        # here the self._current_input_tuple_iter could be modified during iteration,
+        # thus we are using the try-while-stop_iteration way to iterate through the
+        # iterator, instead of the for-each-loop syntax sugar.
+        while True:
+            # In Python@3.8 there is a new `:=` operator to simplify this assignment
+            # in while-loop. For now we keep it this way to support versions below
+            # 3.8.
+            try:
+                element = next(self._current_input_tuple_iter)
+            except StopIteration:
+                # StopIteration is the standard way for an iterator to end, we handle
+                # it and terminate the loop.
+                break
+            try:
+                match(
+                    element,
+                    Tuple, self._process_tuple,
+                    InputExhausted, self._process_tuple,
+                    SenderChangeMarker, self._process_sender_change_marker,
+                    EndOfAllMarker, self._process_end_of_all_marker
+                )
+            except Exception as err:
+                logger.exception(err)
 
     def _pause(self) -> None:
         """

@@ -8,6 +8,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{OperatorInfo, PropertyNameCo
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
 import edu.uci.ics.texera.workflow.operators.aggregate.SpecializedAverageOpDesc
+import edu.uci.ics.texera.workflow.operators.dictionary.{DictionaryMatcherOpDesc}
 import edu.uci.ics.texera.workflow.operators.difference.DifferenceOpDesc
 import edu.uci.ics.texera.workflow.operators.distinct.DistinctOpDesc
 import edu.uci.ics.texera.workflow.operators.filter.SpecializedFilterOpDesc
@@ -29,6 +30,7 @@ import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONLScanSourceOpD
 import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.mysql.MySQLSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.postgresql.PostgreSQLSourceOpDesc
+import edu.uci.ics.texera.workflow.operators.unneststring.UnnestStringOpDesc
 import edu.uci.ics.texera.workflow.operators.symmetricDifference.SymmetricDifferenceOpDesc
 import edu.uci.ics.texera.workflow.operators.typecasting.TypeCastingOpDesc
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpDescV2
@@ -90,7 +92,9 @@ import java.util.UUID
     new Type(value = classOf[IntersectOpDesc], name = "Intersect"),
     new Type(value = classOf[SymmetricDifferenceOpDesc], name = "SymmetricDifference"),
     new Type(value = classOf[DifferenceOpDesc], name = "Difference"),
-    new Type(value = classOf[IntervalJoinOpDesc], name = "IntervalJoin")
+    new Type(value = classOf[IntervalJoinOpDesc], name = "IntervalJoin"),
+    new Type(value = classOf[UnnestStringOpDesc], name = "UnnestString"),
+    new Type(value = classOf[DictionaryMatcherOpDesc], name = "DictionaryMatcher")
   )
 )
 abstract class OperatorDescriptor extends Serializable {
@@ -101,7 +105,7 @@ abstract class OperatorDescriptor extends Serializable {
   @JsonProperty(PropertyNameConstants.OPERATOR_ID)
   var operatorID: String = UUID.randomUUID.toString
 
-  def operatorIdentifier: OperatorIdentity = OperatorIdentity(context.jobID, operatorID)
+  def operatorIdentifier: OperatorIdentity = OperatorIdentity(context.jobId, operatorID)
 
   def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig
 

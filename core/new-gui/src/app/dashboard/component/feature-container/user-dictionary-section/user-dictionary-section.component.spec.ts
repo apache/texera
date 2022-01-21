@@ -19,12 +19,7 @@ describe("UserDictionarySectionComponent", () => {
       TestBed.configureTestingModule({
         declarations: [UserDictionarySectionComponent],
         providers: [UserDictionaryService, NgbActiveModal],
-        imports: [
-          CustomNgMaterialModule,
-          NgbModule,
-          FormsModule,
-          HttpClientTestingModule
-        ]
+        imports: [CustomNgMaterialModule, NgbModule, FormsModule, HttpClientTestingModule],
       }).compileComponents();
     })
   );

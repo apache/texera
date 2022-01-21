@@ -3,8 +3,8 @@ import org.jooq.types.UInteger
 
 class WorkflowContext {
 
-  var jobID: String = _
+  var jobId: String = _
 
-  var userID: Option[UInteger] = None
+  var userId: Option[UInteger] = None
 
 }

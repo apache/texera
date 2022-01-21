@@ -4,11 +4,12 @@ from time import sleep
 import pandas
 import pytest
 
+from core.models import Tuple
 from core.models.internal_queue import ControlElement, DataElement, InternalQueue
 from core.models.payload import DataFrame, EndOfUpstream
 from core.runnables.network_receiver import NetworkReceiver
 from core.runnables.network_sender import NetworkSender
-from core.util.proto.proto_utils import set_one_of
+from core.util.proto import set_one_of
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlInvocationV2, ControlPayloadV2
 
 
@@ -45,7 +46,7 @@ class TestNetworkReceiver:
             'Brand': ['Honda Civic', 'Toyota Corolla', 'Ford Focus', 'Audi A4'],
             'Price': [22000, 25000, 27000, 35000]
         }, columns=['Brand', 'Price'])
-        return DataFrame(frame=[r for _, r in df_to_sent.iterrows()])
+        return DataFrame(frame=[Tuple(r) for _, r in df_to_sent.iterrows()])
 
     @pytest.mark.timeout(0.5)
     def test_network_receiver_can_stop(self, schema_map):

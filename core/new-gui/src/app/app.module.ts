@@ -18,8 +18,10 @@ import { NzDatePickerModule } from "ng-zorro-antd/date-picker";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { NzFormModule } from "ng-zorro-antd/form";
 import { en_US, NZ_I18N } from "ng-zorro-antd/i18n";
+import { NzAutocompleteModule } from "ng-zorro-antd/auto-complete";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzInputModule } from "ng-zorro-antd/input";
+import { NzPopoverModule } from "ng-zorro-antd/popover";
 import { NzListModule } from "ng-zorro-antd/list";
 import { NzMenuModule } from "ng-zorro-antd/menu";
 import { NzMessageModule } from "ng-zorro-antd/message";
@@ -30,6 +32,7 @@ import { NzSelectModule } from "ng-zorro-antd/select";
 import { NzSliderModule } from "ng-zorro-antd/slider";
 import { NzSpaceModule } from "ng-zorro-antd/space";
 import { NzBadgeModule } from "ng-zorro-antd/badge";
+import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { FileUploadModule } from "ng2-file-upload";
 import { NgxJsonViewerModule } from "ngx-json-viewer";
 import { LoggerModule, NgxLoggerLevel } from "ngx-logger";
@@ -96,6 +99,14 @@ import { MonacoEditorModule } from "ngx-monaco-editor";
 import { OperatorPropertyEditFrameComponent } from "./workspace/component/property-editor/operator-property-edit-frame/operator-property-edit-frame.component";
 import { BreakpointPropertyEditFrameComponent } from "./workspace/component/property-editor/breakpoint-property-edit-frame/breakpoint-property-edit-frame.component";
 import { NotificationComponent } from "./common/component/notification/notification/notification.component";
+import { DebuggerFrameComponent } from "./workspace/component/result-panel/debugger-frame/debugger-frame.component";
+import { NzTabsModule } from "ng-zorro-antd/tabs";
+import { NzTreeViewModule } from "ng-zorro-antd/tree-view";
+import { VersionsListDisplayComponent } from "./workspace/component/property-editor/versions-display/versions-display.component";
+import { NzPaginationModule } from "ng-zorro-antd/pagination";
+import { JwtModule } from "@auth0/angular-jwt";
+import { AuthService } from "./common/service/user/auth.service";
+import { PresetWrapperComponent } from "./common/formly/preset-wrapper/preset-wrapper.component";
 import { NzModalCommentBoxComponent } from "./workspace/component/workflow-editor/comment-box-modal/nz-modal-comment-box.component";
 import { NzCommentModule } from "ng-zorro-antd/comment";
 
@@ -108,6 +119,7 @@ registerLocaleData(en);
     NavigationComponent,
     OperatorPanelComponent,
     PropertyEditorComponent,
+    VersionsListDisplayComponent,
     WorkflowEditorComponent,
     ResultPanelComponent,
     OperatorLabelComponent,
@@ -135,6 +147,7 @@ registerLocaleData(en);
     ResultPanelToggleComponent,
     ArrayTypeComponent,
     ObjectTypeComponent,
+    PresetWrapperComponent,
     MultiSchemaTypeComponent,
     NullTypeComponent,
     VisualizationFrameComponent,
@@ -149,6 +162,11 @@ registerLocaleData(en);
     OperatorPropertyEditFrameComponent,
     BreakpointPropertyEditFrameComponent,
     NotificationComponent,
+    ResultTableFrameComponent,
+    OperatorPropertyEditFrameComponent,
+    BreakpointPropertyEditFrameComponent,
+    DebuggerFrameComponent,
+    NotificationComponent,
     NgbdModalUserFileShareAccessComponent,
     NzModalCommentBoxComponent,
   ],
@@ -156,6 +174,13 @@ registerLocaleData(en);
     BrowserModule,
     AppRoutingModule,
     HttpClientModule,
+    JwtModule.forRoot({
+      config: {
+        tokenGetter: AuthService.getAccessToken,
+        skipWhenExpired: false,
+        throwNoTokenError: false,
+      },
+    }),
     MatTooltipModule,
     CustomNgMaterialModule,
     BrowserAnimationsModule,
@@ -167,10 +192,8 @@ registerLocaleData(en);
     FormsModule,
     ReactiveFormsModule,
     LoggerModule.forRoot({
-      level: environment.production
-        ? NgxLoggerLevel.ERROR
-        : NgxLoggerLevel.DEBUG,
-      serverLogLevel: NgxLoggerLevel.OFF
+      level: environment.production ? NgxLoggerLevel.ERROR : NgxLoggerLevel.DEBUG,
+      serverLogLevel: NgxLoggerLevel.OFF,
     }),
     FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
     FormlyMaterialModule,
@@ -178,16 +201,18 @@ registerLocaleData(en);
     GoogleApiModule.forRoot({
       provide: NG_GAPI_CONFIG,
       useValue: {
-        client_id: environment.google.clientID
-      }
+        client_id: environment.google.clientID,
+      },
     }),
     NzDatePickerModule,
     NzDropDownModule,
     NzButtonModule,
+    NzAutocompleteModule,
     NzIconModule,
     NzFormModule,
     NzListModule,
     NzInputModule,
+    NzPopoverModule,
     NzMenuModule,
     NzMessageModule,
     NzCollapseModule,
@@ -206,6 +231,10 @@ registerLocaleData(en);
     NzAvatarModule,
     DynamicModule,
     MonacoEditorModule.forRoot(),
+    NzTabsModule,
+    NzTreeViewModule,
+    NzPaginationModule,
+    MonacoEditorModule.forRoot(),
     NzAvatarModule,
     NzCommentModule
   ],
@@ -219,22 +248,22 @@ registerLocaleData(en);
     RowModalComponent,
     NgbdModalFileAddComponent,
     NgbdModalWorkflowShareAccessComponent,
+    NgbdModalWorkflowShareAccessComponent,
     NzModalCommentBoxComponent
   ],
   providers: [
     UserService,
     UserFileService,
     UserFileUploadService,
-    UserDictionaryService,
     UserDictionaryUploadService,
     { provide: NZ_I18N, useValue: en_US },
     {
       provide: HTTP_INTERCEPTORS,
       useClass: BlobErrorHttpInterceptor,
-      multi: true
-    }
+      multi: true,
+    },
   ],
-  bootstrap: [AppComponent]
+  bootstrap: [AppComponent],
   // dynamically created component must be placed in the entryComponents attribute
 })
 export class AppModule {}

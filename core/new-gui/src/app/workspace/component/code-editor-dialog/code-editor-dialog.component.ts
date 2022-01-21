@@ -10,19 +10,18 @@ import { OperatorPredicate } from "../../types/workflow-common.interface";
  * the button in CodeareaCustomTemplateComponent, the data of the custom field (or empty String if no data)
  * will be sent to the Monaco editor as its text. The dialogue can be closed with ESC key or by clicking on areas outside
  * the dialogue. Closing the dialogue will send the edited contend back to the custom template field.
- * @author Xiaozhen Liu
  */
 @Component({
   selector: "texera-code-editor-dialog",
   templateUrl: "./code-editor-dialog.component.html",
-  styleUrls: ["./code-editor-dialog.component.scss"]
+  styleUrls: ["./code-editor-dialog.component.scss"],
 })
 export class CodeEditorDialogComponent {
   editorOptions = {
     theme: "vs-dark",
     language: "python",
     fontSize: "11",
-    automaticLayout: true
+    automaticLayout: true,
   };
   code: string;
 
@@ -40,13 +39,12 @@ export class CodeEditorDialogComponent {
     const currentOperatorId: string = this.workflowActionService
       .getJointGraphWrapper()
       .getCurrentHighlightedOperatorIDs()[0];
-    const currentOperatorPredicate: OperatorPredicate =
-      this.workflowActionService
-        .getTexeraGraph()
-        .getOperator(currentOperatorId);
+    const currentOperatorPredicate: OperatorPredicate = this.workflowActionService
+      .getTexeraGraph()
+      .getOperator(currentOperatorId);
     this.workflowActionService.setOperatorProperty(currentOperatorId, {
       ...currentOperatorPredicate.operatorProperties,
-      code
+      code,
     });
   }
 }

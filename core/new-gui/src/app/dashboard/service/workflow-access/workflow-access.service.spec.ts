@@ -1,17 +1,13 @@
 import { TestBed } from "@angular/core/testing";
 import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { jsonCast } from "../../../common/util/storage";
-import {
-  HttpClientTestingModule,
-  HttpTestingController
-} from "@angular/common/http/testing";
+import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import {
   WORKFLOW_ACCESS_GRANT_URL,
   WORKFLOW_ACCESS_LIST_URL,
   WORKFLOW_ACCESS_REVOKE_URL,
-  WorkflowAccessService
+  WorkflowAccessService,
 } from "./workflow-access.service";
-import { AppSettings } from "../../../common/app-setting";
 import { first } from "rxjs/operators";
 
 describe("WorkflowAccessService", () => {
@@ -22,7 +18,7 @@ describe("WorkflowAccessService", () => {
       " {\"operators\":[],\"operatorPositions\":{},\"links\":[],\"groups\":[],\"breakpoints\":{}}"
     ),
     creationTime: 1,
-    lastModifiedTime: 2
+    lastModifiedTime: 2,
   };
 
   const username = "Jim";
@@ -34,7 +30,7 @@ describe("WorkflowAccessService", () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [WorkflowAccessService],
-      imports: [HttpClientTestingModule]
+      imports: [HttpClientTestingModule],
     });
     service = TestBed.get(WorkflowAccessService);
     httpMock = TestBed.get(HttpTestingController);
@@ -48,46 +44,25 @@ describe("WorkflowAccessService", () => {
     expect(service).toBeTruthy();
   });
   it("grantUserWorkflowAccess works as expected", () => {
-    service
-      .grantUserWorkflowAccess(TestWorkflow, username, accessType)
-      .pipe(first())
-      .subscribe();
+    service.grantUserWorkflowAccess(TestWorkflow, username, accessType).pipe(first()).subscribe();
     console.log(httpMock);
-    const req = httpMock.expectOne(
-      `${AppSettings.getApiEndpoint()}/${WORKFLOW_ACCESS_GRANT_URL}/${
-        TestWorkflow.wid
-      }/${username}/${accessType}`
-    );
+    const req = httpMock.expectOne(`${WORKFLOW_ACCESS_GRANT_URL}/${TestWorkflow.wid}/${username}/${accessType}`);
     console.log(req.request);
     expect(req.request.method).toEqual("POST");
     req.flush({ code: 0, message: "" });
   });
 
   it("retrieveGrantedWorkflowAccessList works as expected", () => {
-    service
-      .retrieveGrantedWorkflowAccessList(TestWorkflow)
-      .pipe(first())
-      .subscribe();
-    const req = httpMock.expectOne(
-      `${AppSettings.getApiEndpoint()}/${WORKFLOW_ACCESS_LIST_URL}/${
-        TestWorkflow.wid
-      }`
-    );
+    service.retrieveGrantedWorkflowAccessList(TestWorkflow).pipe(first()).subscribe();
+    const req = httpMock.expectOne(`${WORKFLOW_ACCESS_LIST_URL}/${TestWorkflow.wid}`);
     expect(req.request.method).toEqual("GET");
     req.flush({ code: 0, message: "" });
   });
 
   it("revokeWorkflowAccess works as expected", () => {
-    service
-      .revokeWorkflowAccess(TestWorkflow, username)
-      .pipe(first())
-      .subscribe();
-    const req = httpMock.expectOne(
-      `${AppSettings.getApiEndpoint()}/${WORKFLOW_ACCESS_REVOKE_URL}/${
-        TestWorkflow.wid
-      }/${username}`
-    );
-    expect(req.request.method).toEqual("POST");
+    service.revokeWorkflowAccess(TestWorkflow, username).pipe(first()).subscribe();
+    const req = httpMock.expectOne(`${WORKFLOW_ACCESS_REVOKE_URL}/${TestWorkflow.wid}/${username}`);
+    expect(req.request.method).toEqual("DELETE");
     req.flush({ code: 0, message: "" });
   });
 });

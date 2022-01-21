@@ -12,18 +12,14 @@ export const USER_FILE_UPLOAD_URL = "user/file/upload";
 // export const USER_FILE_VALIDATE_URL = 'user/file/validate';
 
 @Injectable({
-  providedIn: "root"
+  providedIn: "root",
 })
 export class UserFileUploadService {
   // files a user added to the upload list,
   // these files won't be uploaded until the user hits the "upload" button
   private filesToBeUploaded: FileUploadItem[] = [];
 
-  constructor(
-    private userService: UserService,
-    private userFileService: UserFileService,
-    private http: HttpClient
-  ) {
+  constructor(private userService: UserService, private userFileService: UserFileService, private http: HttpClient) {
     this.detectUserChanges();
   }
 
@@ -39,18 +35,14 @@ export class UserFileUploadService {
    * @param file
    */
   public addFileToUploadArray(file: File): void {
-    this.filesToBeUploaded.push(
-      UserFileUploadService.createFileUploadItem(file)
-    );
+    this.filesToBeUploaded.push(UserFileUploadService.createFileUploadItem(file));
   }
 
   /**
    * removes a file from the "to be uploaded" file array.
    */
   public removeFileFromUploadArray(fileUploadItem: FileUploadItem): void {
-    this.filesToBeUploaded = this.filesToBeUploaded.filter(
-      (file) => file !== fileUploadItem
-    );
+    this.filesToBeUploaded = this.filesToBeUploaded.filter(file => file !== fileUploadItem);
   }
 
   /**
@@ -59,7 +51,7 @@ export class UserFileUploadService {
    */
   public uploadAllFiles(): void {
     this.filesToBeUploaded
-      .filter((fileUploadItem) => !fileUploadItem.isUploadingFlag)
+      .filter(fileUploadItem => !fileUploadItem.isUploadingFlag)
       .forEach((fileUploadItem: FileUploadItem) =>
         this.uploadFile(fileUploadItem).subscribe(
           () => {
@@ -96,30 +88,24 @@ export class UserFileUploadService {
     formData.append("description", fileUploadItem.description);
 
     return this.http
-      .post<Response>(
-        `${AppSettings.getApiEndpoint()}/${USER_FILE_UPLOAD_URL}`,
-        formData,
-        { reportProgress: true, observe: "events" }
-      )
+      .post<Response>(`${AppSettings.getApiEndpoint()}/${USER_FILE_UPLOAD_URL}`, formData, {
+        reportProgress: true,
+        observe: "events",
+      })
       .pipe(
-        filter((event) => {
+        filter(event => {
           // retrieve and remove upload progress
           if (event.type === HttpEventType.UploadProgress) {
             fileUploadItem.uploadProgress = event.loaded;
             const total = event.total ? event.total : fileUploadItem.file.size;
             // TODO the upload progress does not fit the speed user feel, it seems faster
             // TODO show progress in user friendly way
-            console.log(
-              `File ${fileUploadItem.name} is ${(
-                (100 * event.loaded) /
-                total
-              ).toFixed(1)}% uploaded.`
-            );
+            console.log(`File ${fileUploadItem.name} is ${((100 * event.loaded) / total).toFixed(1)}% uploaded.`);
             return false;
           }
           return event.type === HttpEventType.Response;
         }),
-        map((event) => {
+        map(event => {
           // convert the type HttpEvent<GenericWebResponse> into GenericWebResponse
           if (event.type === HttpEventType.Response) {
             fileUploadItem.isUploadingFlag = false;
@@ -154,7 +140,7 @@ export class UserFileUploadService {
       name: file.name,
       description: "",
       uploadProgress: 0,
-      isUploadingFlag: false
+      isUploadingFlag: false,
     };
   }
 }

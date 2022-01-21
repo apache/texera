@@ -58,6 +58,9 @@ val jacksonVersion = "2.12.0"
 val dropwizardDependencies = Seq(
   "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
   "io.dropwizard" % "dropwizard-client" % dropwizardVersion,
+  "io.dropwizard" % "dropwizard-auth" % dropwizardVersion,
+  // https://mvnrepository.com/artifact/com.github.toastshaman/dropwizard-auth-jwt
+  "com.github.toastshaman" % "dropwizard-auth-jwt" % "1.1.2-0",
   "com.github.dirkraft.dropwizard" % "dropwizard-file-assets" % "0.0.2",
   "io.dropwizard-bundles" % "dropwizard-redirect-bundle" % "1.0.5",
   "com.liveperson" % "dropwizard-websockets" % "1.3.14",
@@ -65,21 +68,18 @@ val dropwizardDependencies = Seq(
   "com.fasterxml.jackson.module" % "jackson-module-jsonSchema" % jacksonVersion,
   "com.fasterxml.jackson.module" % "jackson-module-scala_2.12" % jacksonVersion,
   // https://mvnrepository.com/artifact/commons-io/commons-io
-   "commons-io" % "commons-io" % "2.11.0"
+  "commons-io" % "commons-io" % "2.11.0"
 )
-
-
 
 // deps from library
 //"com.kjetland" % "mbknor-jackson-jsonschema_2.12" % "1.0.39"
 
 val slf4jVersion = "1.7.26"
-val mbknorJacksonJsonSchemaDependencies  = Seq(
+val mbknorJacksonJsonSchemaDependencies = Seq(
   "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
   "javax.validation" % "validation-api" % "2.0.1.Final",
   "org.slf4j" % "slf4j-api" % slf4jVersion,
   "io.github.classgraph" % "classgraph" % "4.8.21",
-  "org.scalatest" %% "scalatest" % "3.0.8" % "test",
   "ch.qos.logback" % "logback-classic" % "1.2.3" % "test",
   "com.github.java-json-tools" % "json-schema-validator" % "2.2.11" % "test",
   "com.fasterxml.jackson.module" % "jackson-module-kotlin" % jacksonVersion % "test",
@@ -114,12 +114,21 @@ val googleServiceDependencies = Seq(
 
 /////////////////////////////////////////////////////////////////////////////
 // Arrow related
-val arrowVersion = "1.0.1"
+val arrowVersion = "5.0.0"
 val arrowDependencies = Seq(
   // https://mvnrepository.com/artifact/org.apache.arrow/flight-grpc
   "org.apache.arrow" % "flight-grpc" % arrowVersion,
   // https://mvnrepository.com/artifact/org.apache.arrow/flight-core
   "org.apache.arrow" % "flight-core" % arrowVersion
+)
+
+/////////////////////////////////////////////////////////////////////////////
+// MongoDB related
+val mongoDbDependencies = Seq(
+  // https://mvnrepository.com/artifact/org.mongodb/mongo-java-driver
+  "org.mongodb" % "mongo-java-driver" % "3.12.10",
+  // https://mvnrepository.com/artifact/org.apache.commons/commons-jcs3-core/3.0
+  "org.apache.commons" % "commons-jcs3-core" % "3.0"
 )
 
 libraryDependencies ++= akkaDependencies
@@ -128,6 +137,7 @@ libraryDependencies ++= dropwizardDependencies
 libraryDependencies ++= mbknorJacksonJsonSchemaDependencies
 libraryDependencies ++= arrowDependencies
 libraryDependencies ++= googleServiceDependencies
+libraryDependencies ++= mongoDbDependencies
 
 /////////////////////////////////////////////////////////////////////////////
 // protobuf related
@@ -160,7 +170,15 @@ libraryDependencies += "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.4.0" % Test
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.9" % Test
 
 /////////////////////////////////////////////////////////////////////////////
+// Workflow version control related
+// https://mvnrepository.com/artifact/com.flipkart.zjsonpatch/zjsonpatch
+libraryDependencies += "com.flipkart.zjsonpatch" % "zjsonpatch" % "0.2.1"
+
+/////////////////////////////////////////////////////////////////////////////
 // Uncategorized
+
+// https://mvnrepository.com/artifact/io.reactivex/rxscala
+libraryDependencies += "io.reactivex" % "rxscala_2.12" % "0.27.0"
 
 // https://mvnrepository.com/artifact/org.postgresql/postgresql
 libraryDependencies += "org.postgresql" % "postgresql" % "42.2.18"

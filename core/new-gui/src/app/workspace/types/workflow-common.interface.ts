@@ -17,6 +17,18 @@ export interface OperatorPort
     portID: string;
   }> {}
 
+export interface OperatorPredicate
+  extends Readonly<{
+    operatorID: string;
+    operatorType: string;
+    operatorProperties: Readonly<{ [key: string]: any }>;
+    inputPorts: { portID: string; displayName?: string }[];
+    outputPorts: { portID: string; displayName?: string }[];
+    showAdvanced: boolean;
+    isDisabled?: boolean;
+    isCached?: boolean;
+    customDisplayName?: string;
+  }> {}
 export interface Comment extends Readonly<{
   content: string;
   creationTime: string;
@@ -29,15 +41,6 @@ export interface CommentBox {
   commentBoxPosition: Point;
 }
 
-export interface OperatorPredicate extends Readonly<{
-  operatorID: string;
-  operatorType: string;
-  operatorProperties: Readonly<{[key: string]: any}>;
-  inputPorts: {portID: string, displayName?: string}[];
-  outputPorts: {portID: string, displayName?: string}[];
-  showAdvanced: boolean;
-  isDisabled?: boolean;
-}> { }
 
 export interface OperatorLink
   extends Readonly<{
@@ -53,15 +56,7 @@ export interface BreakpointSchema
 
 type ConditionBreakpoint = Readonly<{
   column: number;
-  condition:
-    | "="
-    | ">"
-    | ">="
-    | "<"
-    | "<="
-    | "!="
-    | "contains"
-    | "does not contain";
+  condition: "=" | ">" | ">=" | "<" | "<=" | "!=" | "contains" | "does not contain";
   value: string;
 }>;
 

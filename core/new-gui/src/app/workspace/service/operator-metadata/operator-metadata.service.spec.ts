@@ -1,14 +1,8 @@
 import { TestBed } from "@angular/core/testing";
 
 import { HttpClient } from "@angular/common/http";
-import {
-  HttpClientTestingModule,
-  HttpTestingController
-} from "@angular/common/http/testing";
-import {
-  EMPTY_OPERATOR_METADATA,
-  OperatorMetadataService
-} from "./operator-metadata.service";
+import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
+import { EMPTY_OPERATOR_METADATA, OperatorMetadataService } from "./operator-metadata.service";
 import { mockOperatorMetaData } from "./mock-operator-metadata.data";
 import { first, last } from "rxjs/operators";
 
@@ -20,7 +14,7 @@ describe("OperatorMetadataService", () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
-      providers: [OperatorMetadataService, HttpClient]
+      providers: [OperatorMetadataService, HttpClient],
     });
 
     httpClient = TestBed.get(HttpClient);
@@ -36,15 +30,15 @@ describe("OperatorMetadataService", () => {
     service
       .getOperatorMetadata()
       .pipe(first())
-      .subscribe((value) => expect(value).toEqual(EMPTY_OPERATOR_METADATA));
+      .subscribe(value => expect(value).toEqual(EMPTY_OPERATOR_METADATA));
   });
 
   it("should send http request once", () => {
     service
       .getOperatorMetadata()
       .pipe(last())
-      .subscribe((value) => expect(value).toBeTruthy());
-    httpTestingController.expectOne((request) => request.method === "GET");
+      .subscribe(value => expect(value).toBeTruthy());
+    httpTestingController.expectOne(request => request.method === "GET");
   });
 
   it("should check if operatorType exists correctly", () => {
@@ -55,9 +49,7 @@ describe("OperatorMetadataService", () => {
         expect(service.operatorTypeExists("ScanSource")).toBeTruthy();
         expect(service.operatorTypeExists("InvalidOperatorType")).toBeFalsy();
       });
-    const req = httpTestingController.match(
-      (request) => request.method === "GET"
-    );
+    const req = httpTestingController.match(request => request.method === "GET");
     req[0].flush(mockOperatorMetaData);
   });
 });

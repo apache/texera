@@ -22,7 +22,7 @@ describe("NgbdModalDeleteProjectComponent", () => {
     wid: 4,
     content: jsonCast<WorkflowContent>("{}"),
     creationTime: 1,
-    lastModifiedTime: 2
+    lastModifiedTime: 2,
   };
 
   beforeEach(
@@ -30,7 +30,7 @@ describe("NgbdModalDeleteProjectComponent", () => {
       TestBed.configureTestingModule({
         declarations: [NgbdModalDeleteWorkflowComponent],
         providers: [NgbActiveModal],
-        imports: [MatDialogModule, NgbModule, FormsModule, HttpClientModule]
+        imports: [MatDialogModule, NgbModule, FormsModule, HttpClientModule],
       }).compileComponents();
     })
   );

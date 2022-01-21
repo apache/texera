@@ -5,14 +5,16 @@ import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   GetActorRef,
   NetworkSenderActorRef,
-  RegisterActorRef
+  RegisterActorRef,
+  SendRequest
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
-  ControlOutputPort,
-  NetworkCommunicationActor
+  NetworkCommunicationActor,
+  NetworkOutputPort
 }
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
+import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowControlMessage}
 import edu.uci.ics.amber.engine.common.rpc.{
   AsyncRPCClient,
   AsyncRPCHandlerInitializer,
@@ -26,8 +28,8 @@ abstract class WorkflowActor(
 ) extends Actor
     with Stash
     with AmberLogging {
-
-  lazy val controlOutputPort: ControlOutputPort = wire[ControlOutputPort]
+  lazy val controlOutputPort: NetworkOutputPort[ControlPayload] =
+    new NetworkOutputPort[ControlPayload](this.actorId, this.outputControlPayload)
   lazy val asyncRPCClient: AsyncRPCClient = wire[AsyncRPCClient]
   lazy val asyncRPCServer: AsyncRPCServer = wire[AsyncRPCServer]
   val networkCommunicationActor: NetworkSenderActorRef = NetworkSenderActorRef(
@@ -37,6 +39,16 @@ abstract class WorkflowActor(
   // this variable cannot be lazy
   // because it should be initialized with the actor itself
   val rpcHandlerInitializer: AsyncRPCHandlerInitializer
+
+  def outputControlPayload(
+      to: ActorVirtualIdentity,
+      self: ActorVirtualIdentity,
+      seqNum: Long,
+      payload: ControlPayload
+  ): Unit = {
+    val msg = WorkflowControlMessage(self, seqNum, payload)
+    networkCommunicationActor ! SendRequest(to, msg)
+  }
 
   def disallowActorRefRelatedMessages: Receive = {
     case GetActorRef =>

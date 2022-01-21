@@ -3,7 +3,11 @@ package edu.uci.ics.texera.workflow.operators.source.sql
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, UIWidget}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{
+  AutofillAttributeName,
+  EnablePresets,
+  UIWidget
+}
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 
@@ -11,23 +15,28 @@ import java.sql._
 
 abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
 
+  @EnablePresets
   @JsonProperty(required = true)
   @JsonSchemaTitle("Host")
   var host: String = _
 
+  @EnablePresets
   @JsonProperty(required = true, defaultValue = "default")
   @JsonSchemaTitle("Port")
   @JsonPropertyDescription("A port number or 'default'")
   var port: String = _
 
+  @EnablePresets
   @JsonProperty(required = true)
   @JsonSchemaTitle("Database")
   var database: String = _
 
+  @EnablePresets
   @JsonProperty(required = true)
   @JsonSchemaTitle("Table Name")
   var table: String = _
 
+  @EnablePresets
   @JsonProperty(required = true)
   @JsonSchemaTitle("Username")
   var username: String = _
@@ -52,14 +61,14 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
   @JsonProperty(defaultValue = "false")
   @JsonSchemaTitle("Keyword Search?")
   @JsonDeserialize(contentAs = classOf[java.lang.Boolean])
-  @JsonSchemaInject(json = """{"toggleHidden" : ["searchByColumn", "keywords"]}""")
-  var search: Option[Boolean] = Option(false)
+  @JsonSchemaInject(json = """{"toggleHidden" : ["keywordSearchByColumn", "keywords"]}""")
+  var keywordSearch: Option[Boolean] = Option(false)
 
   @JsonProperty()
   @JsonSchemaTitle("Keyword Search Column")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
   @AutofillAttributeName
-  var searchByColumn: Option[String] = None
+  var keywordSearchByColumn: Option[String] = None
 
   @JsonProperty()
   @JsonSchemaTitle("Keywords to Search")

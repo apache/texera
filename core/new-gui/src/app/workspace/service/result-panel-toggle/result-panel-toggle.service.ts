@@ -10,7 +10,7 @@ import { Subject } from "rxjs";
  * @author Angela Wang
  */
 @Injectable({
-  providedIn: "root"
+  providedIn: "root",
 })
 export class ResultPanelToggleService {
   private currentResultPanelStatus: boolean = false;

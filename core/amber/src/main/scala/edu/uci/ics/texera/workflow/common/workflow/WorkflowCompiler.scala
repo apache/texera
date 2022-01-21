@@ -7,6 +7,7 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{
 }
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.AssignBreakpointHandler.AssignGlobalBreakpoint
+import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.{
@@ -45,11 +46,13 @@ object WorkflowCompiler {
       .toList
   }
 
+  class ConstraintViolationException(val violations: Map[String, Set[ConstraintViolation]])
+      extends RuntimeException
+
 }
 
 class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowContext) {
-  val workflow = new WorkflowDAG(workflowInfo)
-  workflow.operators.values.foreach(initOperator)
+  workflowInfo.toDAG.operators.values.foreach(initOperator)
 
   def initOperator(operator: OperatorDescriptor): Unit = {
     operator.setContext(context)
@@ -67,15 +70,17 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
 
   def amberWorkflow(workflowId: WorkflowIdentity): Workflow = {
     // pre-process: set output mode for sink based on the visualization operator before it
-    this.workflow.getSinkOperators.foreach(sinkOpId => {
-      val sinkOp = this.workflow.getOperator(sinkOpId)
-      val upstream = this.workflow.getUpstream(sinkOpId)
-      (upstream.head, sinkOp) match {
-        // match the combination of a visualization operator followed by a sink operator
-        case (viz: VisualizationOperator, sink: SimpleSinkOpDesc) =>
-          sink.setOutputMode(viz.outputMode())
-          sink.setChartType(viz.chartType())
-        case _ =>
+    workflowInfo.toDAG.getSinkOperators.foreach(sinkOpId => {
+      val sinkOp = workflowInfo.toDAG.getOperator(sinkOpId)
+      val upstream = workflowInfo.toDAG.getUpstream(sinkOpId)
+      if (upstream.nonEmpty) {
+        (upstream.head, sinkOp) match {
+          // match the combination of a visualization operator followed by a sink operator
+          case (viz: VisualizationOperator, sink: SimpleSinkOpDesc) =>
+            sink.setOutputMode(viz.outputMode())
+            sink.setChartType(viz.chartType())
+          case _ =>
+        }
       }
     })
 
@@ -93,8 +98,8 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
 
     val outLinks: mutable.Map[OperatorIdentity, mutable.Set[OperatorIdentity]] = mutable.Map()
     workflowInfo.links.foreach(link => {
-      val origin = OperatorIdentity(this.context.jobID, link.origin.operatorID)
-      val dest = OperatorIdentity(this.context.jobID, link.destination.operatorID)
+      val origin = OperatorIdentity(this.context.jobId, link.origin.operatorID)
+      val dest = OperatorIdentity(this.context.jobId, link.destination.operatorID)
       outLinks.getOrElseUpdate(origin, mutable.Set()).add(dest)
 
       val layerLink = LinkIdentity(
@@ -117,9 +122,9 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
         .withDefault(op => mutable.MutableList.fill(op.operatorInfo.inputPorts.size)(Option.empty))
 
     // propagate output schema following topological order
-    val topologicalOrderIterator = workflow.jgraphtDag.iterator()
+    val topologicalOrderIterator = workflowInfo.toDAG.jgraphtDag.iterator()
     topologicalOrderIterator.forEachRemaining(opID => {
-      val op = workflow.getOperator(opID)
+      val op = workflowInfo.toDAG.getOperator(opID)
       // infer output schema of this operator based on its input schema
       val outputSchema: Option[Schema] = {
         // call to "getOutputSchema" might cause exceptions, wrap in try/catch and return empty schema
@@ -163,63 +168,6 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
       .filter(e => !(e._2.exists(s => s.isEmpty) || e._2.isEmpty))
       .map(e => (e._1, e._2.toList))
       .toMap
-  }
-
-  def initializeBreakpoint(controller: ActorRef): Unit = {
-    for (pair <- this.workflowInfo.breakpoints) {
-      addBreakpoint(controller, pair.operatorID, pair.breakpoint)
-    }
-  }
-
-  def addBreakpoint(
-      controller: ActorRef,
-      operatorID: String,
-      breakpoint: Breakpoint
-  ): Unit = {
-    val breakpointID = "breakpoint-" + operatorID + "-" + System.currentTimeMillis()
-    breakpoint match {
-      case conditionBp: ConditionBreakpoint =>
-        val column = conditionBp.column
-        val predicate: Tuple => Boolean = conditionBp.condition match {
-          case BreakpointCondition.EQ =>
-            tuple => {
-              tuple.getField(column).toString.trim == conditionBp.value
-            }
-          case BreakpointCondition.LT =>
-            tuple => tuple.getField(column).toString.trim < conditionBp.value
-          case BreakpointCondition.LE =>
-            tuple => tuple.getField(column).toString.trim <= conditionBp.value
-          case BreakpointCondition.GT =>
-            tuple => tuple.getField(column).toString.trim > conditionBp.value
-          case BreakpointCondition.GE =>
-            tuple => tuple.getField(column).toString.trim >= conditionBp.value
-          case BreakpointCondition.NE =>
-            tuple => tuple.getField(column).toString.trim != conditionBp.value
-          case BreakpointCondition.CONTAINS =>
-            tuple => tuple.getField(column).toString.trim.contains(conditionBp.value)
-          case BreakpointCondition.NOT_CONTAINS =>
-            tuple => !tuple.getField(column).toString.trim.contains(conditionBp.value)
-        }
-
-        controller ! ControlInvocation(
-          AsyncRPCClient.IgnoreReply,
-          AssignGlobalBreakpoint(
-            new ConditionalGlobalBreakpoint(
-              breakpointID,
-              tuple => {
-                val texeraTuple = tuple.asInstanceOf[Tuple]
-                predicate.apply(texeraTuple)
-              }
-            ),
-            operatorID
-          )
-        )
-      case countBp: CountBreakpoint =>
-        controller ! ControlInvocation(
-          AsyncRPCClient.IgnoreReply,
-          AssignGlobalBreakpoint(new CountGlobalBreakpoint(breakpointID, countBp.count), operatorID)
-        )
-    }
   }
 
 }

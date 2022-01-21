@@ -1,13 +1,9 @@
 import { Injectable } from "@angular/core";
 import { Workflow } from "../../../common/type/workflow";
-import {
-  localGetObject,
-  localRemoveObject,
-  localSetObject
-} from "../../../common/util/storage";
+import { localGetObject, localRemoveObject, localSetObject } from "../../../common/util/storage";
 
 @Injectable({
-  providedIn: "root"
+  providedIn: "root",
 })
 export class WorkflowCacheService {
   private static readonly WORKFLOW_KEY: string = "workflow";

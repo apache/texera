@@ -1,9 +1,10 @@
 package edu.uci.ics.amber.engine.common.rpc
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlOutputPort
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputPort
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
 import edu.uci.ics.amber.engine.common.AmberLogging
+import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{
   ControlInvocation,
   ReturnInvocation,
@@ -36,8 +37,10 @@ object AsyncRPCServer {
 
 }
 
-class AsyncRPCServer(controlOutputPort: ControlOutputPort, val actorId: ActorVirtualIdentity)
-    extends AmberLogging {
+class AsyncRPCServer(
+    controlOutputEndpoint: NetworkOutputPort[ControlPayload],
+    val actorId: ActorVirtualIdentity
+) extends AmberLogging {
 
   // all handlers
   protected var handlers: PartialFunction[(ControlCommand[_], ActorVirtualIdentity), Future[_]] =
@@ -83,7 +86,7 @@ class AsyncRPCServer(controlOutputPort: ControlOutputPort, val actorId: ActorVir
     if (noReplyNeeded(id)) {
       return
     }
-    controlOutputPort.sendTo(sender, ReturnInvocation(id, ret))
+    controlOutputEndpoint.sendTo(sender, ReturnInvocation(id, ret))
   }
 
   def logControlInvocation(call: ControlInvocation, sender: ActorVirtualIdentity): Unit = {

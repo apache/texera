@@ -9,7 +9,7 @@ describe("ResourceSectionComponent", () => {
   beforeEach(
     waitForAsync(() => {
       TestBed.configureTestingModule({
-        declarations: [ResourceSectionComponent]
+        declarations: [ResourceSectionComponent],
       }).compileComponents();
     })
   );

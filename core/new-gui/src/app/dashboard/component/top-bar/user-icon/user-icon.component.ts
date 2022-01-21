@@ -16,26 +16,23 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 @Component({
   selector: "texera-user-icon",
   templateUrl: "./user-icon.component.html",
-  styleUrls: ["./user-icon.component.scss"]
+  styleUrls: ["./user-icon.component.scss"],
 })
 export class UserIconComponent {
   public user: User | undefined;
 
-  constructor(
-    private modalService: NgbModal,
-    private userService: UserService
-  ) {
+  constructor(private modalService: NgbModal, private userService: UserService) {
     this.userService
       .userChanged()
       .pipe(untilDestroyed(this))
-      .subscribe((user) => (this.user = user));
+      .subscribe(user => (this.user = user));
   }
 
   /**
    * handle the event when user click on the logout button
    */
   public onClickLogout(): void {
-    this.userService.logOut();
+    this.userService.logout();
   }
 
   /**
@@ -58,9 +55,7 @@ export class UserIconComponent {
    * @param mode 0 indicates login and 1 indicates registration
    */
   private openLoginComponent(mode: 0 | 1): void {
-    const modalRef: NgbModalRef = this.modalService.open(
-      NgbdModalUserLoginComponent
-    );
+    const modalRef: NgbModalRef = this.modalService.open(NgbdModalUserLoginComponent);
     modalRef.componentInstance.selectedTab = mode;
   }
 }

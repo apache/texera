@@ -21,6 +21,7 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
   lazy val topology: Topology = null
   var inputToOrdinalMapping = new mutable.HashMap[LinkIdentity, Int]()
   var attachedBreakpoints = new mutable.HashMap[String, GlobalBreakpoint[_]]()
+  var caughtLocalExceptions = new mutable.HashMap[ActorVirtualIdentity, Throwable]()
 
   def getAllWorkers: Iterable[ActorVirtualIdentity] = topology.layers.flatMap(l => l.identifiers)
 

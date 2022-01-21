@@ -15,18 +15,9 @@
       >
         Next »
       </button>
-      <button
-        (click)="tourService.end()"
-        class="btn btn-sm btn-danger"
-        id="EndButton"
-      >
-        End
-      </button>
+      <button (click)="tourService.end()" class="btn btn-sm btn-danger" id="EndButton">End</button>
     </div>
     <br />
-    <p
-      [innerHTML]="tourService.currentStep.content"
-      class="tour-step-content"
-    ></p>
+    <p [innerHTML]="tourService.currentStep.content" class="tour-step-content"></p>
   </ng-template>
 </tour-step-template>

@@ -3,7 +3,8 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   ReportCurrentProcessingTuple,
-  WorkflowPaused
+  WorkflowPaused,
+  WorkflowStatusUpdate
 }
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.{
@@ -60,21 +61,15 @@ trait PauseHandler {
             )
             .map { ret =>
               // for each paused operator, send the input tuple
-              if (eventListener.reportCurrentTuplesListener != null) {
-                eventListener.reportCurrentTuplesListener
-                  .apply(ReportCurrentProcessingTuple(operator.id.operator, buffer.toArray))
-              }
+              sendToClient(ReportCurrentProcessingTuple(operator.id.operator, buffer.toArray))
             }
         }.toSeq)
         .map { ret =>
           // update frontend workflow status
-          updateFrontendWorkflowStatus()
+          sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus))
           // send paused to frontend
-          if (eventListener.workflowPausedListener != null) {
-            eventListener.workflowPausedListener.apply(WorkflowPaused())
-          }
+          sendToClient(WorkflowPaused())
           disableStatusUpdate() // to be enabled in resume
-          actorContext.parent ! ControllerState.Paused // for testing
 
         }
     }

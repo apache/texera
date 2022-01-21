@@ -25,6 +25,7 @@ import { SyncOperatorGroup } from "./sync-operator-group";
 import { SyncTexeraModel } from "./sync-texera-model";
 import { WorkflowGraph, WorkflowGraphReadonly } from "./workflow-graph";
 import { debounceTime, filter } from "rxjs/operators";
+import { WorkflowCollabService } from "../../workflow-collab/workflow-collab.service";
 
 export interface Command {
   modifiesWorkflow: boolean;
@@ -46,6 +47,52 @@ type GroupInfo = {
   layer: number;
 };
 
+// Caveat: These operations must be performed in order, and the ability to sync up multiple clients relies
+// on the fact that different clients rest at the same state.
+
+// At least for some of them, have to do a bit more thinking.
+
+// TODO: refactor into a separate file.
+export type commandFuncs =
+  | "undoredo"
+  | "addOperator"
+  | "deleteOperator"
+  | "addOperatorsAndLinks"
+  | "deleteOperatorsAndLinks"
+  | "changeOperatorPosition"
+  | "autoLayoutWorkflow"
+  | "setOperatorProperty"
+  | "addLink"
+  | "deleteLink"
+  | "deleteLinkWithID"
+  | "resetAsNewWorkflow";
+
+// keyof yields permitted property names for T. When we pass function, it'll return value of that function?
+// For this type, we index T with the property names for T, which results in us getting the values.
+/**
+ * type Foo = { a: string, b: number };
+ * type ValueOfFoo = ValueOf<Foo>; // string | number
+ * ValueOf<Foo> = Foo[a | b] = string | number
+ */
+type ValueOf<T> = T[keyof T];
+
+// Pick<WorkflowActionService, commandFuncs>: from WorkflowActionService, pick a set of properties whose keys
+// are in commandFuncs. commandFuncs are names of functions, so this pick will only allow existing func names.
+// So when we make CommandMessage, the function will get inferred from action. Then, it'll require that
+// parameters are the parameters for WorkflowActionService[P], or that function.
+
+// P in keyof Pick: P will be one of the properties that exists in there(set of properties from service).
+// If we have a name in commandFuncs that doesn't match a property in service, we get error. P picks one of them
+export type CommandMessage = ValueOf<
+  {
+    [P in keyof Pick<WorkflowActionService, commandFuncs>]: {
+      action: P;
+      parameters: Parameters<WorkflowActionService[P]>;
+      type: string;
+    };
+  }
+>;
+
 /**
  *
  * WorkflowActionService exposes functions (actions) to modify the workflow graph model of both JointJS and Texera,
@@ -61,7 +108,7 @@ type GroupInfo = {
  */
 
 @Injectable({
-  providedIn: "root"
+  providedIn: "root",
 })
 export class WorkflowActionService {
   private static readonly DEFAULT_WORKFLOW_NAME = "Untitled Workflow";
@@ -69,7 +116,7 @@ export class WorkflowActionService {
     name: WorkflowActionService.DEFAULT_WORKFLOW_NAME,
     wid: undefined,
     creationTime: undefined,
-    lastModifiedTime: undefined
+    lastModifiedTime: undefined,
   };
 
   private readonly texeraGraph: WorkflowGraph;
@@ -89,7 +136,8 @@ export class WorkflowActionService {
     private operatorMetadataService: OperatorMetadataService,
     private jointUIService: JointUIService,
     private undoRedoService: UndoRedoService,
-    private workflowUtilService: WorkflowUtilService
+    private workflowUtilService: WorkflowUtilService,
+    private workflowCollabService: WorkflowCollabService
   ) {
     this.texeraGraph = new WorkflowGraph();
     this.jointGraph = new joint.dia.Graph();
@@ -101,21 +149,23 @@ export class WorkflowActionService {
       this.workflowUtilService,
       this.jointUIService
     );
-    this.syncTexeraModel = new SyncTexeraModel(
-      this.texeraGraph,
-      this.jointGraphWrapper,
-      this.operatorGroup
-    );
-    this.syncOperatorGroup = new SyncOperatorGroup(
-      this.texeraGraph,
-      this.jointGraphWrapper,
-      this.operatorGroup
-    );
+    this.syncTexeraModel = new SyncTexeraModel(this.texeraGraph, this.jointGraphWrapper, this.operatorGroup);
+    this.syncOperatorGroup = new SyncOperatorGroup(this.texeraGraph, this.jointGraphWrapper, this.operatorGroup);
     this.workflowMetadata = WorkflowActionService.DEFAULT_WORKFLOW;
 
     this.handleJointLinkAdd();
     this.handleJointOperatorDrag();
     this.handleHighlightedElementPositionChange();
+    this.listenToRemoteChange();
+  }
+
+  /**
+   * Dummy method used to send a CommandMessage for undo or redo.
+   */
+  public undoredo(): void {}
+
+  public toggleSendData(toggle: boolean): void {
+    this.workflowCollabService.toggleCollabEnabled(toggle);
   }
 
   // workflow modification lock interface (allows or prevents commands that would modify the workflow graph)
@@ -143,13 +193,15 @@ export class WorkflowActionService {
     this.texeraGraph
       .getLinkAddStream()
       .pipe(filter(() => this.undoRedoService.listenJointCommand))
-      .subscribe((link) => {
+      .subscribe(link => {
         const command: Command = {
           modifiesWorkflow: true,
           execute: () => {},
           undo: () => this.deleteLinkWithIDInternal(link.linkID),
-          redo: () => this.addLinkInternal(link)
+          redo: () => this.addLinkInternal(link),
         };
+        const commandMessage: CommandMessage = { action: "addLink", parameters: [link], type: "execute" };
+        this.workflowCollabService.sendCommand(commandMessage);
         this.executeAndStoreCommand(command);
       });
   }
@@ -169,7 +221,7 @@ export class WorkflowActionService {
         filter(() => !gotOldPosition),
         filter(() => this.undoRedoService.listenJointCommand)
       )
-      .subscribe((event) => {
+      .subscribe(event => {
         oldPosition = event.oldPosition;
         gotOldPosition = true;
         dragRoot = event.elementID;
@@ -180,92 +232,66 @@ export class WorkflowActionService {
       .getElementPositionChangeEvent()
       .pipe(
         filter(() => this.undoRedoService.listenJointCommand),
-        filter((value) => value.elementID === dragRoot),
+        filter(value => value.elementID === dragRoot),
         debounceTime(100) // emit only when no further events have occurred in 100ms
       )
-      .subscribe((event) => {
+      .subscribe(event => {
         gotOldPosition = false;
         const offsetX = event.newPosition.x - oldPosition.x;
         const offsetY = event.newPosition.y - oldPosition.y;
         // remember currently highlighted operators and groups
-        const currentHighlightedOperators = new Set(
-          this.jointGraphWrapper.getCurrentHighlightedOperatorIDs().slice()
-        );
-        const currentHighlightedGroups = this.jointGraphWrapper
-          .getCurrentHighlightedGroupIDs()
-          .slice();
+        const currentHighlightedOperators = new Set(this.jointGraphWrapper.getCurrentHighlightedOperatorIDs().slice());
+        const currentHighlightedGroups = this.jointGraphWrapper.getCurrentHighlightedGroupIDs().slice();
 
         // un-remember child operators of groups (they will move with the group's movement, so we must avoid moving them twice)
-        currentHighlightedGroups.forEach((groupID) => {
-          this.operatorGroup
-            .getGroup(groupID)
-            .operators.forEach((operatorInfo, operatorID) => {
-              currentHighlightedOperators.delete(operatorID);
-            });
+        currentHighlightedGroups.forEach(groupID => {
+          this.operatorGroup.getGroup(groupID).operators.forEach((operatorInfo, operatorID) => {
+            currentHighlightedOperators.delete(operatorID);
+          });
         });
 
         const command: Command = {
           modifiesWorkflow: false,
           execute: () => {},
           undo: () => {
-            this.jointGraphWrapper.unhighlightOperators(
-              ...this.jointGraphWrapper.getCurrentHighlightedOperatorIDs()
-            );
-            this.jointGraphWrapper.unhighlightGroups(
-              ...this.jointGraphWrapper.getCurrentHighlightedGroupIDs()
-            );
+            this.jointGraphWrapper.unhighlightOperators(...this.jointGraphWrapper.getCurrentHighlightedOperatorIDs());
+            this.jointGraphWrapper.unhighlightGroups(...this.jointGraphWrapper.getCurrentHighlightedGroupIDs());
             this.jointGraphWrapper.setMultiSelectMode(
-              currentHighlightedOperators.size +
-                currentHighlightedGroups.length >
-                1
+              currentHighlightedOperators.size + currentHighlightedGroups.length > 1
             );
-            currentHighlightedOperators.forEach((operatorID) => {
+            currentHighlightedOperators.forEach(operatorID => {
               this.jointGraphWrapper.highlightOperators(operatorID);
-              this.jointGraphWrapper.setElementPosition(
-                operatorID,
-                -offsetX,
-                -offsetY
-              );
+              this.jointGraphWrapper.setElementPosition(operatorID, -offsetX, -offsetY);
             });
-            currentHighlightedGroups.forEach((groupID) => {
+            currentHighlightedGroups.forEach(groupID => {
               this.jointGraphWrapper.highlightGroups(groupID);
-              this.jointGraphWrapper.setElementPosition(
-                groupID,
-                -offsetX,
-                -offsetY
-              );
+              this.jointGraphWrapper.setElementPosition(groupID, -offsetX, -offsetY);
             });
           },
           redo: () => {
-            this.jointGraphWrapper.unhighlightOperators(
-              ...this.jointGraphWrapper.getCurrentHighlightedOperatorIDs()
-            );
-            this.jointGraphWrapper.unhighlightGroups(
-              ...this.jointGraphWrapper.getCurrentHighlightedGroupIDs()
-            );
+            this.jointGraphWrapper.unhighlightOperators(...this.jointGraphWrapper.getCurrentHighlightedOperatorIDs());
+            this.jointGraphWrapper.unhighlightGroups(...this.jointGraphWrapper.getCurrentHighlightedGroupIDs());
             this.jointGraphWrapper.setMultiSelectMode(
-              currentHighlightedOperators.size +
-                currentHighlightedGroups.length >
-                1
+              currentHighlightedOperators.size + currentHighlightedGroups.length > 1
             );
-            currentHighlightedOperators.forEach((operatorID) => {
+            currentHighlightedOperators.forEach(operatorID => {
               this.jointGraphWrapper.highlightOperators(operatorID);
-              this.jointGraphWrapper.setElementPosition(
-                operatorID,
-                offsetX,
-                offsetY
-              );
+              this.jointGraphWrapper.setElementPosition(operatorID, offsetX, offsetY);
             });
-            currentHighlightedGroups.forEach((groupID) => {
+            currentHighlightedGroups.forEach(groupID => {
               this.jointGraphWrapper.highlightGroups(groupID);
-              this.jointGraphWrapper.setElementPosition(
-                groupID,
-                offsetX,
-                offsetY
-              );
+              this.jointGraphWrapper.setElementPosition(groupID, offsetX, offsetY);
             });
-          }
+          },
         };
+        // Send command message here since this is where change first gets detected
+        const currentHighlighted = Array.from(currentHighlightedOperators);
+        const commandMessage: CommandMessage = {
+          action: "changeOperatorPosition",
+          parameters: [currentHighlighted, offsetX, offsetY],
+          type: "execute",
+        };
+        this.workflowCollabService.sendCommand(commandMessage);
         this.executeAndStoreCommand(command);
       });
   }
@@ -288,60 +314,34 @@ export class WorkflowActionService {
         filter(() => this.jointGraphWrapper.getListenPositionChange()),
         filter(() => this.undoRedoService.listenJointCommand),
         filter(
-          (movedElement) =>
-            this.jointGraphWrapper
-              .getCurrentHighlightedOperatorIDs()
-              .includes(movedElement.elementID) ||
-            this.jointGraphWrapper
-              .getCurrentHighlightedGroupIDs()
-              .includes(movedElement.elementID)
+          movedElement =>
+            this.jointGraphWrapper.getCurrentHighlightedOperatorIDs().includes(movedElement.elementID) ||
+            this.jointGraphWrapper.getCurrentHighlightedGroupIDs().includes(movedElement.elementID)
         )
       )
-      .subscribe((movedElement) => {
-        const selectedElements = this.jointGraphWrapper
-          .getCurrentHighlightedGroupIDs()
-          .slice(); // operators added to this list later
-        const movedGroup = this.operatorGroup.getGroupByOperator(
-          movedElement.elementID
-        );
+      .subscribe(movedElement => {
+        const selectedElements = this.jointGraphWrapper.getCurrentHighlightedGroupIDs().slice(); // operators added to this list later
+        const movedGroup = this.operatorGroup.getGroupByOperator(movedElement.elementID);
 
         if (movedGroup && selectedElements.includes(movedGroup.groupID)) {
-          movedGroup.operators.forEach((operatorInfo, operatorID) =>
-            selectedElements.push(operatorID)
-          );
-          selectedElements.splice(
-            selectedElements.indexOf(movedGroup.groupID),
-            1
-          );
+          movedGroup.operators.forEach((operatorInfo, operatorID) => selectedElements.push(operatorID));
+          selectedElements.splice(selectedElements.indexOf(movedGroup.groupID), 1);
         }
-        this.jointGraphWrapper
-          .getCurrentHighlightedOperatorIDs()
-          .forEach((operatorID) => {
-            const group = this.operatorGroup.getGroupByOperator(operatorID);
-            // operators move with their groups,
-            // do not add elements that are in a group that will also be moved
-            if (
-              !group ||
-              !this.jointGraphWrapper
-                .getCurrentHighlightedGroupIDs()
-                .includes(group.groupID)
-            ) {
-              selectedElements.push(operatorID);
-            }
-          });
+        this.jointGraphWrapper.getCurrentHighlightedOperatorIDs().forEach(operatorID => {
+          const group = this.operatorGroup.getGroupByOperator(operatorID);
+          // operators move with their groups,
+          // do not add elements that are in a group that will also be moved
+          if (!group || !this.jointGraphWrapper.getCurrentHighlightedGroupIDs().includes(group.groupID)) {
+            selectedElements.push(operatorID);
+          }
+        });
         const offsetX = movedElement.newPosition.x - movedElement.oldPosition.x;
         const offsetY = movedElement.newPosition.y - movedElement.oldPosition.y;
         this.jointGraphWrapper.setListenPositionChange(false);
         this.undoRedoService.setListenJointCommand(false);
         selectedElements
-          .filter((elementID) => elementID !== movedElement.elementID)
-          .forEach((elementID) =>
-            this.jointGraphWrapper.setElementPosition(
-              elementID,
-              offsetX,
-              offsetY
-            )
-          );
+          .filter(elementID => elementID !== movedElement.elementID)
+          .forEach(elementID => this.jointGraphWrapper.setElementPosition(elementID, offsetX, offsetY));
         this.jointGraphWrapper.setListenPositionChange(true);
         this.undoRedoService.setListenJointCommand(true);
       });
@@ -403,18 +403,15 @@ export class WorkflowActionService {
         // remove the operator from JointJS
         this.deleteOperatorInternal(operator.operatorID);
         // restore previous highlights
-        this.jointGraphWrapper.unhighlightElements(
-          this.jointGraphWrapper.getCurrentHighlights()
-        );
+        this.jointGraphWrapper.unhighlightElements(this.jointGraphWrapper.getCurrentHighlights());
         this.jointGraphWrapper.setMultiSelectMode(
-          currentHighlights.operators.length +
-            currentHighlights.groups.length +
-            currentHighlights.links.length >
-            1
+          currentHighlights.operators.length + currentHighlights.groups.length + currentHighlights.links.length > 1
         );
         this.jointGraphWrapper.highlightElements(currentHighlights);
-      }
+      },
     };
+    const commandMessage: CommandMessage = { action: "addOperator", parameters: [operator, point], type: "execute" };
+    this.workflowCollabService.sendCommand(commandMessage);
     this.executeAndStoreCommand(command);
   }
 
@@ -425,43 +422,24 @@ export class WorkflowActionService {
    */
   public deleteOperator(operatorID: string): void {
     const operator = this.getTexeraGraph().getOperator(operatorID);
-    const position =
-      this.getOperatorGroup().getOperatorPositionByGroup(operatorID);
+    const position = this.getOperatorGroup().getOperatorPositionByGroup(operatorID);
     const layer = this.getOperatorGroup().getOperatorLayerByGroup(operatorID);
 
     const linksToDelete = new Map<OperatorLink, number>();
     this.getTexeraGraph()
       .getAllLinks()
-      .filter(
-        (link) =>
-          link.source.operatorID === operatorID ||
-          link.target.operatorID === operatorID
-      )
-      .forEach((link) =>
-        linksToDelete.set(
-          link,
-          this.getOperatorGroup().getLinkLayerByGroup(link.linkID)
-        )
-      );
+      .filter(link => link.source.operatorID === operatorID || link.target.operatorID === operatorID)
+      .forEach(link => linksToDelete.set(link, this.getOperatorGroup().getLinkLayerByGroup(link.linkID)));
 
-    const group = cloneDeep(
-      this.getOperatorGroup().getGroupByOperator(operatorID)
-    );
-    const groupLayer = group
-      ? this.getJointGraphWrapper().getCellLayer(group.groupID)
-      : undefined;
+    const group = cloneDeep(this.getOperatorGroup().getGroupByOperator(operatorID));
+    const groupLayer = group ? this.getJointGraphWrapper().getCellLayer(group.groupID) : undefined;
 
     const command: Command = {
       modifiesWorkflow: true,
       execute: () => {
-        linksToDelete.forEach((linkLayer, link) =>
-          this.deleteLinkWithIDInternal(link.linkID)
-        );
+        linksToDelete.forEach((linkLayer, link) => this.deleteLinkWithIDInternal(link.linkID));
         this.deleteOperatorInternal(operatorID);
-        if (
-          group &&
-          this.getOperatorGroup().getGroup(group.groupID).operators.size < 2
-        ) {
+        if (group && this.getOperatorGroup().getGroup(group.groupID).operators.size < 2) {
           this.unGroupInternal(group.groupID);
         }
       },
@@ -483,8 +461,11 @@ export class WorkflowActionService {
           this.getJointGraphWrapper().setMultiSelectMode(false);
           this.getJointGraphWrapper().highlightOperators(operatorID);
         }
-      }
+      },
     };
+
+    const commandMessage: CommandMessage = { action: "deleteOperator", parameters: [operatorID], type: "execute" };
+    this.workflowCollabService.sendCommand(commandMessage);
     this.executeAndStoreCommand(command);
   }
 
@@ -522,31 +503,24 @@ export class WorkflowActionService {
       execute: () => {
         // unhighlight previous highlights
         this.jointGraphWrapper.unhighlightElements(currentHighlights);
-        this.jointGraphWrapper.setMultiSelectMode(
-          operatorsAndPositions.length > 1
-        );
-        operatorsAndPositions.forEach((o) => {
+        this.jointGraphWrapper.setMultiSelectMode(operatorsAndPositions.length > 1);
+        operatorsAndPositions.forEach(o => {
           this.addOperatorInternal(o.op, o.pos);
           this.jointGraphWrapper.highlightOperators(o.op.operatorID);
         });
         if (links) {
-          links.forEach((l) => this.addLinkInternal(l));
+          links.forEach(l => this.addLinkInternal(l));
           if (breakpoints !== undefined) {
-            breakpoints.forEach((breakpoint, linkID) =>
-              this.setLinkBreakpointInternal(linkID, breakpoint)
-            );
+            breakpoints.forEach((breakpoint, linkID) => this.setLinkBreakpointInternal(linkID, breakpoint));
           }
         }
 
         if (groups) {
-          groups.forEach((group) => {
+          groups.forEach(group => {
             // make a copy, because groups can be mutated after being given to operatorGroup (deletion for example)
             const groupCopy = cloneDeep(group);
             this.addGroupInternal(groupCopy);
-            this.operatorGroup.moveGroupToLayer(
-              groupCopy,
-              this.operatorGroup.getHighestLayer() + 1
-            );
+            this.operatorGroup.moveGroupToLayer(groupCopy, this.operatorGroup.getHighestLayer() + 1);
           });
         }
       },
@@ -554,37 +528,39 @@ export class WorkflowActionService {
         console.log("somehow it is undoing");
 
         if (groups) {
-          groups.forEach((group) => {
+          groups.forEach(group => {
             this.unGroupInternal(group.groupID);
           });
         }
 
         // remove links
         if (links) {
-          links.forEach((l) => this.deleteLinkWithIDInternal(l.linkID));
+          links.forEach(l => this.deleteLinkWithIDInternal(l.linkID));
         }
         // remove the operators from JointJS
-        operatorsAndPositions.forEach((o) =>
-          this.deleteOperatorInternal(o.op.operatorID)
-        );
+        operatorsAndPositions.forEach(o => this.deleteOperatorInternal(o.op.operatorID));
         if (breakpoints !== undefined) {
-          breakpoints.forEach((breakpoint, linkID) =>
-            this.setLinkBreakpointInternal(linkID, undefined)
-          );
+          breakpoints.forEach((breakpoint, linkID) => this.setLinkBreakpointInternal(linkID, undefined));
         }
         // restore previous highlights
-        this.jointGraphWrapper.unhighlightElements(
-          this.jointGraphWrapper.getCurrentHighlights()
-        );
+        this.jointGraphWrapper.unhighlightElements(this.jointGraphWrapper.getCurrentHighlights());
         this.jointGraphWrapper.setMultiSelectMode(
-          currentHighlights.operators.length +
-            currentHighlights.groups.length +
-            currentHighlights.links.length >
-            1
+          currentHighlights.operators.length + currentHighlights.groups.length + currentHighlights.links.length > 1
         );
         this.jointGraphWrapper.highlightElements(currentHighlights);
-      }
+      },
     };
+    const operators: OperatorPredicate[] = [];
+    operatorsAndPositions.forEach(o => {
+      operators.push(o.op);
+    });
+
+    const commandMessage: CommandMessage = {
+      action: "addOperatorsAndLinks",
+      parameters: [operatorsAndPositions, links],
+      type: "execute",
+    };
+    this.workflowCollabService.sendCommand(commandMessage);
     this.executeAndStoreCommand(command);
   }
 
@@ -606,26 +582,22 @@ export class WorkflowActionService {
     const operatorIDsCopy = Array.from(
       new Set(
         operatorIDs.concat(
-          (groupIDs ?? []).flatMap((groupID) =>
-            Array.from(
-              this.operatorGroup.getGroup(groupID).operators.values()
-            ).map((operatorInfo) => operatorInfo.operator.operatorID)
+          (groupIDs ?? []).flatMap(groupID =>
+            Array.from(this.operatorGroup.getGroup(groupID).operators.values()).map(
+              operatorInfo => operatorInfo.operator.operatorID
+            )
           )
         )
       )
     );
 
     // save operators to be deleted and their current positions
-    const operatorsAndPositions = new Map<
-      OperatorPredicate,
-      OperatorPosition
-    >();
+    const operatorsAndPositions = new Map<OperatorPredicate, OperatorPosition>();
 
-    operatorIDsCopy.forEach((operatorID) =>
+    operatorIDsCopy.forEach(operatorID =>
       operatorsAndPositions.set(this.getTexeraGraph().getOperator(operatorID), {
-        position:
-          this.getOperatorGroup().getOperatorPositionByGroup(operatorID),
-        layer: this.getOperatorGroup().getOperatorLayerByGroup(operatorID)
+        position: this.getOperatorGroup().getOperatorPositionByGroup(operatorID),
+        layer: this.getOperatorGroup().getOperatorLayerByGroup(operatorID),
       })
     );
 
@@ -633,38 +605,24 @@ export class WorkflowActionService {
     const linksToDelete = new Map<OperatorLink, number>();
     // delete links required by this command
     linkIDs
-      .map((linkID) => this.getTexeraGraph().getLinkWithID(linkID))
-      .forEach((link) =>
-        linksToDelete.set(
-          link,
-          this.getOperatorGroup().getLinkLayerByGroup(link.linkID)
-        )
-      );
+      .map(linkID => this.getTexeraGraph().getLinkWithID(linkID))
+      .forEach(link => linksToDelete.set(link, this.getOperatorGroup().getLinkLayerByGroup(link.linkID)));
     // delete links related to the deleted operator
     this.getTexeraGraph()
       .getAllLinks()
       .filter(
-        (link) =>
-          operatorIDsCopy.includes(link.source.operatorID) ||
-          operatorIDsCopy.includes(link.target.operatorID)
+        link => operatorIDsCopy.includes(link.source.operatorID) || operatorIDsCopy.includes(link.target.operatorID)
       )
-      .forEach((link) =>
-        linksToDelete.set(
-          link,
-          this.getOperatorGroup().getLinkLayerByGroup(link.linkID)
-        )
-      );
+      .forEach(link => linksToDelete.set(link, this.getOperatorGroup().getLinkLayerByGroup(link.linkID)));
 
     // save groups that deleted operators reside in
     const groups = new Map<string, GroupInfo>();
-    operatorIDsCopy.forEach((operatorID) => {
-      const group = cloneDeep(
-        this.getOperatorGroup().getGroupByOperator(operatorID)
-      );
+    operatorIDsCopy.forEach(operatorID => {
+      const group = cloneDeep(this.getOperatorGroup().getGroupByOperator(operatorID));
       if (group) {
         groups.set(operatorID, {
           group,
-          layer: this.getJointGraphWrapper().getCellLayer(group.groupID)
+          layer: this.getJointGraphWrapper().getCellLayer(group.groupID),
         });
       }
     });
@@ -675,21 +633,18 @@ export class WorkflowActionService {
     const command: Command = {
       modifiesWorkflow: true,
       execute: () => {
-        (groupIDs ?? []).forEach((groupID) => {
+        (groupIDs ?? []).forEach(groupID => {
           this.unGroupInternal(groupID);
         });
-        linksToDelete.forEach((layer, link) =>
-          this.deleteLinkWithIDInternal(link.linkID)
-        );
-        operatorIDsCopy.forEach((operatorID) => {
+        linksToDelete.forEach((layer, link) => this.deleteLinkWithIDInternal(link.linkID));
+        operatorIDsCopy.forEach(operatorID => {
           this.deleteOperatorInternal(operatorID);
           // if the group has less than 2 operators left, delete the group
           const groupInfo = groups.get(operatorID);
           if (
             groupInfo &&
             this.getOperatorGroup().hasGroup(groupInfo.group.groupID) &&
-            this.getOperatorGroup().getGroup(groupInfo.group.groupID).operators
-              .size < 2
+            this.getOperatorGroup().getGroup(groupInfo.group.groupID).operators.size < 2
           ) {
             this.unGroupInternal(groupInfo.group.groupID);
           }
@@ -698,20 +653,11 @@ export class WorkflowActionService {
       undo: () => {
         operatorsAndPositions.forEach((pos, operator) => {
           this.addOperatorInternal(operator, pos.position);
-          this.getJointGraphWrapper().setCellLayer(
-            operator.operatorID,
-            pos.layer
-          );
+          this.getJointGraphWrapper().setCellLayer(operator.operatorID, pos.layer);
           // if the group still exists, add the operator back to the group
           const groupInfo = groups.get(operator.operatorID);
-          if (
-            groupInfo &&
-            this.getOperatorGroup().hasGroup(groupInfo.group.groupID)
-          ) {
-            this.getOperatorGroup().addOperatorToGroup(
-              operator.operatorID,
-              groupInfo.group.groupID
-            );
+          if (groupInfo && this.getOperatorGroup().hasGroup(groupInfo.group.groupID)) {
+            this.getOperatorGroup().addOperatorToGroup(operator.operatorID, groupInfo.group.groupID);
           }
         });
         linksToDelete.forEach((layer, link) => {
@@ -728,33 +674,60 @@ export class WorkflowActionService {
           }
         });
         // add back groups that were deleted when deleting operators
-        groups.forEach((groupInfo) => {
+        groups.forEach(groupInfo => {
           if (!this.getOperatorGroup().hasGroup(groupInfo.group.groupID)) {
             this.addGroupInternal(cloneDeep(groupInfo.group));
-            this.getJointGraphWrapper().setCellLayer(
-              groupInfo.group.groupID,
-              groupInfo.layer
-            );
+            this.getJointGraphWrapper().setCellLayer(groupInfo.group.groupID, groupInfo.layer);
           }
         });
         // restore previous highlights
-        this.jointGraphWrapper.unhighlightElements(
-          this.jointGraphWrapper.getCurrentHighlights()
-        );
+        this.jointGraphWrapper.unhighlightElements(this.jointGraphWrapper.getCurrentHighlights());
         this.jointGraphWrapper.setMultiSelectMode(
-          currentHighlights.operators.length +
-            currentHighlights.groups.length +
-            currentHighlights.links.length >
-            1
+          currentHighlights.operators.length + currentHighlights.groups.length + currentHighlights.links.length > 1
         );
         this.jointGraphWrapper.highlightElements(currentHighlights);
-      }
+      },
     };
 
+    const commandMessage: CommandMessage = {
+      action: "deleteOperatorsAndLinks",
+      parameters: [operatorIDs, linkIDs],
+      type: "execute",
+    };
+    this.workflowCollabService.sendCommand(commandMessage);
     this.executeAndStoreCommand(command);
   }
 
-  // not used I believe
+  /**
+   * Handles the auto layout function
+   *
+   * @param Workflow
+   */
+  // Originally: drag Operator
+  public autoLayoutWorkflow(): void {
+    // remeber old position
+    const operatorPositions: { [key: string]: Point } = {};
+    this.texeraGraph
+      .getAllOperators()
+      .forEach(
+        op => (operatorPositions[op.operatorID] = this.getJointGraphWrapper().getElementPosition(op.operatorID))
+      );
+    const command: Command = {
+      modifiesWorkflow: false,
+      execute: () => {
+        this.jointGraphWrapper.autoLayoutJoint();
+      },
+      undo: () => {
+        Object.entries(operatorPositions).forEach(opPosition => {
+          this.jointGraphWrapper.setAbsolutePosition(opPosition[0], opPosition[1].x, opPosition[1].y);
+        });
+      },
+    };
+    const commandMessage: CommandMessage = { action: "autoLayoutWorkflow", parameters: [], type: "execute" };
+    this.workflowCollabService.sendCommand(commandMessage);
+    this.executeAndStoreCommand(command);
+  }
+
   /**
    * Adds a link to the workflow graph
    * Throws an Error if the link ID or the link with same source and target already exists.
@@ -764,8 +737,10 @@ export class WorkflowActionService {
     const command: Command = {
       modifiesWorkflow: true,
       execute: () => this.addLinkInternal(link),
-      undo: () => this.deleteLinkWithIDInternal(link.linkID)
+      undo: () => this.deleteLinkWithIDInternal(link.linkID),
     };
+    const commandMessage: CommandMessage = { action: "addLink", parameters: [link], type: "execute" };
+    this.workflowCollabService.sendCommand(commandMessage);
     this.executeAndStoreCommand(command);
   }
 
@@ -791,8 +766,10 @@ export class WorkflowActionService {
         } else {
           this.getJointGraphWrapper().setCellLayer(linkID, layer);
         }
-      }
+      },
     };
+    const commandMessage: CommandMessage = { action: "deleteLinkWithID", parameters: [linkID], type: "execute" };
+    this.workflowCollabService.sendCommand(commandMessage);
     this.executeAndStoreCommand(command);
   }
 
@@ -809,21 +786,18 @@ export class WorkflowActionService {
     const command: Command = {
       modifiesWorkflow: false,
       execute: () => {
-        groups.forEach((group) => {
+        groups.forEach(group => {
           // make a copy, because groups can be mutated after being given to operatorGroup (deletion for example)
           const groupCopy = cloneDeep(group);
           this.addGroupInternal(groupCopy);
-          this.operatorGroup.moveGroupToLayer(
-            groupCopy,
-            this.operatorGroup.getHighestLayer() + 1
-          );
+          this.operatorGroup.moveGroupToLayer(groupCopy, this.operatorGroup.getHighestLayer() + 1);
         });
       },
       undo: () => {
-        groups.forEach((group) => {
+        groups.forEach(group => {
           this.unGroupInternal(group.groupID);
         });
-      }
+      },
     };
     this.executeAndStoreCommand(command);
   }
@@ -833,25 +807,19 @@ export class WorkflowActionService {
    * @param groupIDs
    */
   public unGroupGroups(...groupIDs: readonly string[]): void {
-    const groups = groupIDs.map((groupID) =>
-      cloneDeep(this.operatorGroup.getGroup(groupID))
-    );
+    const groups = groupIDs.map(groupID => cloneDeep(this.operatorGroup.getGroup(groupID)));
 
     const command: Command = {
       modifiesWorkflow: false,
-      execute: () =>
-        groupIDs.forEach((groupID) => this.unGroupInternal(groupID)),
+      execute: () => groupIDs.forEach(groupID => this.unGroupInternal(groupID)),
       undo: () => {
-        groups.forEach((group) => {
+        groups.forEach(group => {
           // make a copy, because groups can be mutated after being given to operatorGroup (deletion for example)
           const groupCopy = cloneDeep(group);
           this.addGroupInternal(groupCopy);
-          this.operatorGroup.moveGroupToLayer(
-            groupCopy,
-            this.operatorGroup.getHighestLayer() + 1
-          );
+          this.operatorGroup.moveGroupToLayer(groupCopy, this.operatorGroup.getHighestLayer() + 1);
         });
-      }
+      },
     };
     this.executeAndStoreCommand(command);
   }
@@ -863,10 +831,8 @@ export class WorkflowActionService {
   public collapseGroups(...groupIDs: readonly string[]): void {
     const command: Command = {
       modifiesWorkflow: false,
-      execute: () =>
-        groupIDs.forEach((groupID) => this.collapseGroupInternal(groupID)),
-      undo: () =>
-        groupIDs.forEach((groupID) => this.expandGroupInternal(groupID))
+      execute: () => groupIDs.forEach(groupID => this.collapseGroupInternal(groupID)),
+      undo: () => groupIDs.forEach(groupID => this.expandGroupInternal(groupID)),
     };
     this.executeAndStoreCommand(command);
   }
@@ -878,10 +844,8 @@ export class WorkflowActionService {
   public expandGroups(...groupIDs: string[]): void {
     const command: Command = {
       modifiesWorkflow: false,
-      execute: () =>
-        groupIDs.forEach((groupID) => this.expandGroupInternal(groupID)),
-      undo: () =>
-        groupIDs.forEach((groupID) => this.collapseGroupInternal(groupID))
+      execute: () => groupIDs.forEach(groupID => this.expandGroupInternal(groupID)),
+      undo: () => groupIDs.forEach(groupID => this.collapseGroupInternal(groupID)),
     };
     this.executeAndStoreCommand(command);
   }
@@ -894,69 +858,43 @@ export class WorkflowActionService {
     // save all explicitly deleted group operators and links
     // this is necessary because deleteGroupAndOperatorsInternal deletes operators and links,
     // trying to add back a group whose operators are gone will cause an error (referencing a deleted operator)
-    const operators = groupIDs.map((groupID) =>
-      Array.from(this.operatorGroup.getGroup(groupID).operators.values())
+    const operators = groupIDs.map(groupID => Array.from(this.operatorGroup.getGroup(groupID).operators.values()));
+    const links = groupIDs.map(groupID => Array.from(this.operatorGroup.getGroup(groupID).links.values()));
+    const inLinks = groupIDs.map(groupID =>
+      this.operatorGroup.getGroup(groupID).inLinks.map(linkID => this.texeraGraph.getLinkWithID(linkID))
     );
-    const links = groupIDs.map((groupID) =>
-      Array.from(this.operatorGroup.getGroup(groupID).links.values())
-    );
-    const inLinks = groupIDs.map((groupID) =>
-      this.operatorGroup
-        .getGroup(groupID)
-        .inLinks.map((linkID) => this.texeraGraph.getLinkWithID(linkID))
-    );
-    const outLinks = groupIDs.map((groupID) =>
-      this.operatorGroup
-        .getGroup(groupID)
-        .outLinks.map((linkID) => this.texeraGraph.getLinkWithID(linkID))
+    const outLinks = groupIDs.map(groupID =>
+      this.operatorGroup.getGroup(groupID).outLinks.map(linkID => this.texeraGraph.getLinkWithID(linkID))
     );
 
     const command: Command = {
       modifiesWorkflow: true,
-      execute: () =>
-        groupIDs.forEach((groupID) =>
-          this.deleteGroupAndOperatorsInternal(groupID)
-        ),
+      execute: () => groupIDs.forEach(groupID => this.deleteGroupAndOperatorsInternal(groupID)),
       undo: () => {
         for (let i = 0; i < groupIDs.length; i++) {
           // add back operators and links of deleted groups
-          operators[i].forEach((operatorInfo) =>
-            this.addOperatorInternal(
-              operatorInfo.operator,
-              operatorInfo.position
-            )
-          );
-          links[i].forEach((linkInfo) => this.addLinkInternal(linkInfo.link));
-          inLinks[i].forEach((operatorLink) =>
-            this.addLinkInternal(operatorLink)
-          );
-          outLinks[i].forEach((operatorLink) =>
-            this.addLinkInternal(operatorLink)
-          );
+          operators[i].forEach(operatorInfo => this.addOperatorInternal(operatorInfo.operator, operatorInfo.position));
+          links[i].forEach(linkInfo => this.addLinkInternal(linkInfo.link));
+          inLinks[i].forEach(operatorLink => this.addLinkInternal(operatorLink));
+          outLinks[i].forEach(operatorLink => this.addLinkInternal(operatorLink));
 
           // re-create group with same operators and ID
           const recreatedGroup = this.operatorGroup.getNewGroup(
-            operators[i].map(
-              (operatorInfo) => operatorInfo.operator.operatorID
-            ),
+            operators[i].map(operatorInfo => operatorInfo.operator.operatorID),
             groupIDs[i]
           );
 
           // add back group as if normal
           this.addGroupInternal(recreatedGroup);
-          this.operatorGroup.moveGroupToLayer(
-            recreatedGroup,
-            this.operatorGroup.getHighestLayer() + 1
-          );
+          this.operatorGroup.moveGroupToLayer(recreatedGroup, this.operatorGroup.getHighestLayer() + 1);
         }
-      }
+      },
     };
     this.executeAndStoreCommand(command);
   }
 
   public setOperatorProperty(operatorID: string, newProperty: object): void {
-    const prevProperty =
-      this.getTexeraGraph().getOperator(operatorID).operatorProperties;
+    const prevProperty = this.getTexeraGraph().getOperator(operatorID).operatorProperties;
     const group = this.getOperatorGroup().getGroupByOperator(operatorID);
     const command: Command = {
       modifiesWorkflow: true,
@@ -964,54 +902,49 @@ export class WorkflowActionService {
         this.setOperatorPropertyInternal(operatorID, newProperty);
 
         // unhighlight everything but the operator being modified
-        const currentHighlightedOperators = <string[]>(
-          this.jointGraphWrapper.getCurrentHighlightedOperatorIDs().slice()
-        );
-        if (
-          (!group || !group.collapsed) &&
-          !currentHighlightedOperators.includes(operatorID)
-        ) {
+        const currentHighlightedOperators = <string[]>this.jointGraphWrapper.getCurrentHighlightedOperatorIDs().slice();
+        if ((!group || !group.collapsed) && !currentHighlightedOperators.includes(operatorID)) {
           this.jointGraphWrapper.setMultiSelectMode(false);
           this.jointGraphWrapper.highlightOperators(operatorID);
         } else if (!group || !group.collapsed) {
-          currentHighlightedOperators.splice(
-            currentHighlightedOperators.indexOf(operatorID),
-            1
-          );
-          this.jointGraphWrapper.unhighlightOperators(
-            ...currentHighlightedOperators
-          );
-          this.jointGraphWrapper.unhighlightGroups(
-            ...this.jointGraphWrapper.getCurrentHighlightedGroupIDs()
-          );
+          currentHighlightedOperators.splice(currentHighlightedOperators.indexOf(operatorID), 1);
+          this.jointGraphWrapper.unhighlightOperators(...currentHighlightedOperators);
+          this.jointGraphWrapper.unhighlightGroups(...this.jointGraphWrapper.getCurrentHighlightedGroupIDs());
         }
       },
       undo: () => {
         this.setOperatorPropertyInternal(operatorID, prevProperty);
 
         // unhighlight everything but the operator being modified
-        const currentHighlightedOperators = <string[]>(
-          this.jointGraphWrapper.getCurrentHighlightedOperatorIDs().slice()
-        );
-        if (
-          (!group || !group.collapsed) &&
-          !currentHighlightedOperators.includes(operatorID)
-        ) {
+        const currentHighlightedOperators = <string[]>this.jointGraphWrapper.getCurrentHighlightedOperatorIDs().slice();
+        if ((!group || !group.collapsed) && !currentHighlightedOperators.includes(operatorID)) {
           this.jointGraphWrapper.setMultiSelectMode(false);
           this.jointGraphWrapper.highlightOperators(operatorID);
         } else if (!group || !group.collapsed) {
-          currentHighlightedOperators.splice(
-            currentHighlightedOperators.indexOf(operatorID),
-            1
-          );
-          this.jointGraphWrapper.unhighlightOperators(
-            ...currentHighlightedOperators
-          );
-          this.jointGraphWrapper.unhighlightGroups(
-            ...this.jointGraphWrapper.getCurrentHighlightedGroupIDs()
-          );
+          currentHighlightedOperators.splice(currentHighlightedOperators.indexOf(operatorID), 1);
+          this.jointGraphWrapper.unhighlightOperators(...currentHighlightedOperators);
+          this.jointGraphWrapper.unhighlightGroups(...this.jointGraphWrapper.getCurrentHighlightedGroupIDs());
         }
-      }
+      },
+    };
+    const commandMessage: CommandMessage = {
+      action: "setOperatorProperty",
+      parameters: [operatorID, newProperty],
+      type: "execute",
+    };
+    this.workflowCollabService.sendCommand(commandMessage);
+    this.executeAndStoreCommand(command);
+  }
+
+  public changeOperatorPosition(currentHighlighted: string[], offsetX: number, offsetY: number) {
+    const command: Command = {
+      modifiesWorkflow: false,
+      execute: () => {
+        this.changeOperatorPositionInternal(currentHighlighted, offsetX, offsetY);
+      },
+      undo: () => {
+        this.changeOperatorPositionInternal(currentHighlighted, -offsetX, -offsetY);
+      },
     };
     this.executeAndStoreCommand(command);
   }
@@ -1019,10 +952,7 @@ export class WorkflowActionService {
   /**
    * set a given link's breakpoint properties to specific values
    */
-  public setLinkBreakpoint(
-    linkID: string,
-    newBreakpoint: Breakpoint | undefined
-  ): void {
+  public setLinkBreakpoint(linkID: string, newBreakpoint: Breakpoint | undefined): void {
     const prevBreakpoint = this.getTexeraGraph().getLinkBreakpoint(linkID);
     const command: Command = {
       modifiesWorkflow: true,
@@ -1031,7 +961,7 @@ export class WorkflowActionService {
       },
       undo: () => {
         this.setLinkBreakpointInternal(linkID, prevBreakpoint);
-      }
+      },
     };
     this.executeAndStoreCommand(command);
   }
@@ -1054,7 +984,7 @@ export class WorkflowActionService {
     this.deleteOperatorsAndLinks(
       this.getTexeraGraph()
         .getAllOperators()
-        .map((op) => op.operatorID),
+        .map(op => op.operatorID),
       []
     );
     this.getTexeraGraph()
@@ -1067,7 +997,7 @@ export class WorkflowActionService {
     const workflowContent: WorkflowContent = workflow.content;
 
     const operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
-    workflowContent.operators.forEach((op) => {
+    workflowContent.operators.forEach(op => {
       const opPosition = workflowContent.operatorPositions[op.operatorID];
       if (!opPosition) {
         throw new Error("position error");
@@ -1077,14 +1007,14 @@ export class WorkflowActionService {
 
     const links: OperatorLink[] = workflowContent.links;
 
-    const groups: readonly Group[] = workflowContent.groups.map((group) => {
+    const groups: readonly Group[] = workflowContent.groups.map(group => {
       return {
         groupID: group.groupID,
         operators: recordToMap(group.operators),
         links: recordToMap(group.links),
         inLinks: group.inLinks,
         outLinks: group.outLinks,
-        collapsed: group.collapsed
+        collapsed: group.collapsed,
       };
     });
 
@@ -1094,18 +1024,11 @@ export class WorkflowActionService {
 
     const breakpoints = new Map(Object.entries(workflowContent.breakpoints));
 
-    this.addOperatorsAndLinks(
-      operatorsAndPositions,
-      links,
-      groups,
-      breakpoints
-    );
+    this.addOperatorsAndLinks(operatorsAndPositions, links, groups, breakpoints);
 
     // operators shouldn't be highlighted during page reload
     const jointGraphWrapper = this.getJointGraphWrapper();
-    jointGraphWrapper.unhighlightOperators(
-      ...jointGraphWrapper.getCurrentHighlightedOperatorIDs()
-    );
+    jointGraphWrapper.unhighlightOperators(...jointGraphWrapper.getCurrentHighlightedOperatorIDs());
     // restore the view point
     this.getJointGraphWrapper().restoreDefaultZoomAndOffset();
   }
@@ -1126,7 +1049,9 @@ export class WorkflowActionService {
       this.getTexeraGraph().getDisabledOperatorsChangedStream(),
       this.getTexeraGraph().getCommentBoxAddStream(),
       this.getTexeraGraph().getCommentBoxDeleteStream(),
-      this.getTexeraGraph().getCommentBoxAddCommentStream()
+      this.getTexeraGraph().getCommentBoxAddCommentStream(),
+      this.getTexeraGraph().getCachedOperatorsChangedStream(),
+      this.getTexeraGraph().getOperatorDisplayNameChangedStream()
     );
   }
 
@@ -1134,13 +1059,12 @@ export class WorkflowActionService {
     return this.workflowMetadataChangeSubject.asObservable();
   }
 
-  public setWorkflowMetadata(
-    workflowMetaData: WorkflowMetadata | undefined
-  ): void {
-    this.workflowMetadata =
-      workflowMetaData === undefined
-        ? WorkflowActionService.DEFAULT_WORKFLOW
-        : workflowMetaData;
+  public setWorkflowMetadata(workflowMetaData: WorkflowMetadata | undefined): void {
+    if (this.workflowMetadata === workflowMetaData) {
+      return;
+    }
+
+    this.workflowMetadata = workflowMetaData === undefined ? WorkflowActionService.DEFAULT_WORKFLOW : workflowMetaData;
     this.workflowMetadataChangeSubject.next();
   }
 
@@ -1158,14 +1082,14 @@ export class WorkflowActionService {
 
     const groups = this.getOperatorGroup()
       .getAllGroups()
-      .map((group) => {
+      .map(group => {
         return {
           groupID: group.groupID,
           operators: mapToRecord(group.operators),
           links: mapToRecord(group.links),
           inLinks: group.inLinks,
           outLinks: group.outLinks,
-          collapsed: group.collapsed
+          collapsed: group.collapsed,
         };
       });
     const breakpointsMap = texeraGraph.getAllLinkBreakpoints();
@@ -1174,9 +1098,7 @@ export class WorkflowActionService {
     texeraGraph
       .getAllOperators()
       .forEach(
-        (op) =>
-          (operatorPositions[op.operatorID] =
-            this.getJointGraphWrapper().getElementPosition(op.operatorID))
+        op => (operatorPositions[op.operatorID] = this.getJointGraphWrapper().getElementPosition(op.operatorID))
       );
     commentBoxes.forEach(
       (commentBox) =>
@@ -1199,7 +1121,7 @@ export class WorkflowActionService {
   public getWorkflow(): Workflow {
     return {
       ...this.workflowMetadata,
-      ...{ content: this.getWorkflowContent() }
+      ...{ content: this.getWorkflowContent() },
     };
   }
 
@@ -1208,10 +1130,7 @@ export class WorkflowActionService {
   }
 
   public setWorkflowName(name: string): void {
-    this.workflowMetadata.name =
-      name.trim().length > 0
-        ? name
-        : WorkflowActionService.DEFAULT_WORKFLOW_NAME;
+    this.workflowMetadata.name = name.trim().length > 0 ? name : WorkflowActionService.DEFAULT_WORKFLOW_NAME;
     this.workflowMetadataChangeSubject.next();
   }
 
@@ -1219,6 +1138,12 @@ export class WorkflowActionService {
     this.reloadWorkflow(undefined);
     this.undoRedoService.clearUndoStack();
     this.undoRedoService.clearRedoStack();
+    const commandMessage: CommandMessage = {
+      action: "resetAsNewWorkflow",
+      parameters: [],
+      type: "execute",
+    };
+    this.workflowCollabService.sendCommand(commandMessage);
   }
 
   private addCommentBoxInternal(commentBox: CommentBox): void {
@@ -1232,24 +1157,16 @@ export class WorkflowActionService {
     // check that the operator doesn't exist
     this.texeraGraph.assertOperatorNotExists(operator.operatorID);
     // check that the operator type exists
-    if (
-      !this.operatorMetadataService.operatorTypeExists(operator.operatorType)
-    ) {
+    if (!this.operatorMetadataService.operatorTypeExists(operator.operatorType)) {
       throw new Error(`operator type ${operator.operatorType} is invalid`);
     }
     // get the JointJS UI element for operator
-    const operatorJointElement = this.jointUIService.getJointOperatorElement(
-      operator,
-      point
-    );
+    const operatorJointElement = this.jointUIService.getJointOperatorElement(operator, point);
 
     // add operator to joint graph first
     // if jointJS throws an error, it won't cause the inconsistency in texera graph
     this.jointGraph.addCell(operatorJointElement);
-    this.jointGraphWrapper.setCellLayer(
-      operator.operatorID,
-      this.operatorGroup.getHighestLayer() + 1
-    );
+    this.jointGraphWrapper.setCellLayer(operator.operatorID, this.operatorGroup.getHighestLayer() + 1);
 
     // add operator to texera graph
     this.texeraGraph.addOperator(operator);
@@ -1271,19 +1188,10 @@ export class WorkflowActionService {
     this.texeraGraph.assertLinkNotExists(link);
     this.texeraGraph.assertLinkIsValid(link);
 
-    const sourceGroup = this.operatorGroup.getGroupByOperator(
-      link.source.operatorID
-    );
-    const targetGroup = this.operatorGroup.getGroupByOperator(
-      link.target.operatorID
-    );
+    const sourceGroup = this.operatorGroup.getGroupByOperator(link.source.operatorID);
+    const targetGroup = this.operatorGroup.getGroupByOperator(link.target.operatorID);
 
-    if (
-      sourceGroup &&
-      targetGroup &&
-      sourceGroup.groupID === targetGroup.groupID &&
-      sourceGroup.collapsed
-    ) {
+    if (sourceGroup && targetGroup && sourceGroup.groupID === targetGroup.groupID && sourceGroup.collapsed) {
       this.texeraGraph.addLink(link);
     } else {
       // if a group is collapsed, jointjs target is the group not the operator
@@ -1298,10 +1206,7 @@ export class WorkflowActionService {
       // manually add a link element (normally automatic when syncTexeraGraph = true)
       this.operatorGroup.setSyncTexeraGraph(false);
       this.jointGraph.addCell(jointLinkCell);
-      this.jointGraphWrapper.setCellLayer(
-        link.linkID,
-        this.operatorGroup.getHighestLayer() + 1
-      );
+      this.jointGraphWrapper.setCellLayer(link.linkID, this.operatorGroup.getHighestLayer() + 1);
       this.operatorGroup.setSyncTexeraGraph(true);
 
       this.texeraGraph.addLink(link);
@@ -1384,14 +1289,10 @@ export class WorkflowActionService {
   private deleteGroupAndOperatorsInternal(groupID: string): void {
     const group = this.operatorGroup.getGroup(groupID);
     // delete operators and links from the group
-    group.links.forEach((linkInfo, linkID) =>
-      this.deleteLinkWithIDInternal(linkID)
-    );
-    group.inLinks.forEach((linkID) => this.deleteLinkWithIDInternal(linkID));
-    group.outLinks.forEach((linkID) => this.deleteLinkWithIDInternal(linkID));
-    group.operators.forEach((operatorInfo, operatorID) =>
-      this.deleteOperatorInternal(operatorID)
-    );
+    group.links.forEach((linkInfo, linkID) => this.deleteLinkWithIDInternal(linkID));
+    group.inLinks.forEach(linkID => this.deleteLinkWithIDInternal(linkID));
+    group.outLinks.forEach(linkID => this.deleteLinkWithIDInternal(linkID));
+    group.operators.forEach((operatorInfo, operatorID) => this.deleteOperatorInternal(operatorID));
     // delete the group from joint graph and group ID map
     this.jointGraph.getCell(groupID).remove();
     this.operatorGroup.unGroup(groupID);
@@ -1408,13 +1309,20 @@ export class WorkflowActionService {
     this.jointGraph.getCell(commentBoxID).remove();
   }
 
+  private changeOperatorPositionInternal(currentHighlighted: string[], offsetX: number, offsetY: number) {
+    this.jointGraphWrapper.setMultiSelectMode(currentHighlighted.length > 1);
+    currentHighlighted.forEach(operatorID => {
+      this.jointGraphWrapper.highlightOperators(operatorID);
+      this.jointGraphWrapper.setElementPosition(operatorID, offsetX, offsetY);
+    });
+  }
+
+  // TODO: Might need to merge with sendCommand
   private executeAndStoreCommand(command: Command): void {
     // if command would modify workflow (adding link, operator, changing operator properties), throw an error
     // non-modifying commands include dragging an operator.
     if (command.modifiesWorkflow && !this.workflowModificationEnabled) {
-      console.error(
-        "attempted to execute workflow action when workflow service is disabled"
-      );
+      console.error("attempted to execute workflow action when workflow service is disabled");
       return;
     }
 
@@ -1424,18 +1332,23 @@ export class WorkflowActionService {
     this.undoRedoService.setListenJointCommand(true);
   }
 
-  private setLinkBreakpointInternal(
-    linkID: string,
-    newBreakpoint: Breakpoint | undefined
-  ): void {
+  private setLinkBreakpointInternal(linkID: string, newBreakpoint: Breakpoint | undefined): void {
     this.texeraGraph.setLinkBreakpoint(linkID, newBreakpoint);
-    if (
-      newBreakpoint === undefined ||
-      Object.keys(newBreakpoint).length === 0
-    ) {
+    if (newBreakpoint === undefined || Object.keys(newBreakpoint).length === 0) {
       this.getJointGraphWrapper().hideLinkBreakpoint(linkID);
     } else {
       this.getJointGraphWrapper().showLinkBreakpoint(linkID);
     }
+  }
+
+  private listenToRemoteChange(): void {
+    this.workflowCollabService.getCommandMessageStream().subscribe(message => {
+      if (message.type === "execute") {
+        this.workflowCollabService.handleRemoteChange(() => {
+          const func = message.action;
+          (this[func] as any).apply(this, message.parameters);
+        });
+      }
+    });
   }
 }
