@@ -24,7 +24,7 @@
       <button *ngIf="displayParticularWorkflowVersion" class="btn btn-primary btn-sm" (click)="revertToVersion()">
         Restore this version
       </button>
-      <span *ngIf="!displayParticularWorkflowVersion" class="save-state" spellcheck="false" (click)="onClickGetAllVersions()">{{autoSaveState}}</span>
+      <button *ngIf="!displayParticularWorkflowVersion" nz-button nzType="link" title="Open version history" class="save-state" spellcheck="false" (click)="onClickGetAllVersions()">{{autoSaveState}}</button>
     </div>
 
     <div *ngIf="userSystemEnabled" class="texera-navigation-user-icon">
