@@ -125,8 +125,6 @@ export class WorkflowActionService {
   private readonly syncOperatorGroup: SyncOperatorGroup;
   // variable to temporarily hold the current workflow to switch view to a particular version
   private tempWorkflow = <Workflow>{};
-  // flag to disable workflow persist when displaying the read only particular version
-  private workflowPersistFlag = true;
   private workflowModificationEnabled = true;
   private enableModificationStream = new BehaviorSubject<boolean>(true);
 
@@ -1098,14 +1096,6 @@ export class WorkflowActionService {
 
   public getTempWorkflow(): Workflow {
     return this.tempWorkflow;
-  }
-
-  public setWorkflowPersistFlag(flag: boolean): void {
-    this.workflowPersistFlag = flag;
-  }
-
-  public isWorkflowPersistEnabled(): boolean {
-    return this.workflowPersistFlag;
   }
 
   public setWorkflowName(name: string): void {

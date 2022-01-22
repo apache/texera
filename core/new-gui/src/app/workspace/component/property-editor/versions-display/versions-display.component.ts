@@ -38,14 +38,7 @@ export class VersionsListDisplayComponent implements OnInit {
     this.retrieveWorkflowByVersion(<number>this.workflowActionService.getWorkflowMetadata()?.wid, vid)
       .pipe(untilDestroyed(this))
       .subscribe(workflow => {
-        // we need to display the version on the paper but keep the original workflow in the background
-        this.workflowActionService.setTempWorkflow(this.workflowActionService.getWorkflow());
-        // disable persist to DB because it is read only
-        this.workflowActionService.setWorkflowPersistFlag(false);
-        this.workflowActionService.reloadWorkflow(workflow);
-        this.workflowVersionService.setDisplayParticularVersion(true);
-        // disable modifications because it is read only
-        this.workflowActionService.disableWorkflowModification();
+        this.workflowVersionService.displayParticularVersion(workflow);
       });
   }
 
@@ -60,7 +53,7 @@ export class VersionsListDisplayComponent implements OnInit {
     this.retrieveVersionsOfWorkflow(wid)
       .pipe(untilDestroyed(this))
       .subscribe(versionsList => {
-        this.versionsList = versionsList.reverse();
+        this.versionsList = versionsList;
       });
   }
 

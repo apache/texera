@@ -86,6 +86,7 @@ class WorkflowVersionResource {
         .where(WORKFLOW_VERSION.WID.eq(wid))
         .fetchInto(classOf[VersionEntry])
         .toList
+        .reverse
     }
   }
 

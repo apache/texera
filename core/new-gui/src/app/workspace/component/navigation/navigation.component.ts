@@ -68,7 +68,7 @@ export class NavigationComponent {
   public isDisableOperator: boolean = true;
 
   public operatorCacheEnabled: boolean = environment.operatorCacheEnabled;
-  public isCacheOperatorClickable: boolean = true;
+  public isCacheOperatorClickable: boolean = false;
   public isCacheOperator: boolean = true;
 
   constructor(
@@ -459,19 +459,13 @@ export class NavigationComponent {
 
   closeParticularVersionDisplay() {
     this.displayParticularWorkflowVersion = false;
-    this.workflowActionService.enableWorkflowModification();
-    // reload the old workflow don't persist anything
-    this.workflowActionService.reloadWorkflow(this.workflowActionService.getTempWorkflow());
-    this.workflowActionService.resetTempWorkflow();
-    this.workflowActionService.setWorkflowPersistFlag(true);
+    this.workflowVersionService.closeParticularVersionDisplay();
   }
 
   revertToVersion() {
     this.displayParticularWorkflowVersion = false;
-    this.workflowActionService.enableWorkflowModification();
-    // swap the workflow to this and persist it
-    this.workflowActionService.resetTempWorkflow();
-    this.workflowActionService.setWorkflowPersistFlag(true);
+    this.workflowVersionService.revertToVersion();
+    // after swapping the workflows to point to the particular version, persist it in DB
     this.persistWorkflow();
   }
 
