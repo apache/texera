@@ -7,7 +7,7 @@ package edu.uci.ics.texera.web.model.jooq.generated;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.File;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.KeywordDictionary;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.UserDictionary;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.UserConfig;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserFileAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Workflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfUser;
@@ -37,9 +37,9 @@ public class Tables {
     public static final User USER = User.USER;
 
     /**
-     * The table <code>texera_db.user_dictionary</code>.
+     * The table <code>texera_db.user_config</code>.
      */
-    public static final UserDictionary USER_DICTIONARY = UserDictionary.USER_DICTIONARY;
+    public static final UserConfig USER_CONFIG = UserConfig.USER_CONFIG;
 
     /**
      * The table <code>texera_db.user_file_access</code>.
