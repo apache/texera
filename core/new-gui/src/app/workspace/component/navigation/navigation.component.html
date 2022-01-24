@@ -183,7 +183,7 @@
       <nz-button-group nzSize="large">
         <button
           (click)="undoRedoService.undoAction()"
-          [disabled]="!undoRedoService.canUndo()"
+          [disabled]="displayParticularWorkflowVersion || !undoRedoService.canUndo()"
           class="animate-to-reveal-stop-button"
           nz-button
           nzType="default"
@@ -192,7 +192,7 @@
         </button>
         <button
           (click)="undoRedoService.redoAction()"
-          [disabled]="!undoRedoService.canRedo()"
+          [disabled]="displayParticularWorkflowVersion || !undoRedoService.canRedo()"
           class="animate-to-reveal-stop-button"
           nz-button
           nzType="default"

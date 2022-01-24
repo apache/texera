@@ -114,7 +114,7 @@ export class NavigationComponent {
       });
 
     this.registerWorkflowMetadataDisplayRefresh();
-    this.handleVersionDisplay();
+    this.handleWorkflowVersionDisplay();
     this.handleDisableOperatorStatusChange();
     this.handleCacheOperatorStatusChange();
   }
@@ -438,7 +438,7 @@ export class NavigationComponent {
     this.workflowVersionService.clickDisplayWorkflowVersions();
   }
 
-  private handleVersionDisplay(): void {
+  private handleWorkflowVersionDisplay(): void {
     this.workflowVersionService
       .getDisplayParticularVersionStream()
       .pipe(untilDestroyed(this))
@@ -458,12 +458,10 @@ export class NavigationComponent {
   }
 
   closeParticularVersionDisplay() {
-    this.displayParticularWorkflowVersion = false;
     this.workflowVersionService.closeParticularVersionDisplay();
   }
 
   revertToVersion() {
-    this.displayParticularWorkflowVersion = false;
     this.workflowVersionService.revertToVersion();
     // after swapping the workflows to point to the particular version, persist it in DB
     this.persistWorkflow();
