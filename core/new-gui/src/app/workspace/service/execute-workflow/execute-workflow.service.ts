@@ -17,8 +17,6 @@ import { OperatorCurrentTuples, TexeraWebsocketEvent } from "../../types/workflo
 import { isEqual } from "lodash-es";
 import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from "../../types/result-table.interface";
 import { sessionGetObject, sessionSetObject } from "../../../common/util/storage";
-import {WorkflowExecutionsService} from "../../../dashboard/service/workflow-executions/workflow-executions.service";
-import {untilDestroyed} from "@ngneat/until-destroy";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -65,8 +63,7 @@ export class ExecuteWorkflowService {
 
   constructor(
     private workflowActionService: WorkflowActionService,
-    private workflowWebsocketService: WorkflowWebsocketService,
-    private workflowExecutionsService: WorkflowExecutionsService
+    private workflowWebsocketService: WorkflowWebsocketService
   ) {
     if (environment.amberEngineEnabled) {
       workflowWebsocketService.websocketEvent().subscribe(event => {
@@ -171,11 +168,6 @@ export class ExecuteWorkflowService {
   }
 
   public executeWorkflowAmberTexera(): void {
-    // start a new execution, let the executions service handle metadata information
-    let wid = this.workflowActionService.getWorkflowMetadata().wid;
-    if (wid !== undefined) {
-      this.workflowExecutionsService.startNewExecution(wid);
-    }
     // get the current workflow graph
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
     console.log(logicalPlan);

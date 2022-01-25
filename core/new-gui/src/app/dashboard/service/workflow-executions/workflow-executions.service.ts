@@ -18,7 +18,7 @@ export class WorkflowExecutionsService {
    * @param wid the workflow id
    * @return message of success/failure
    */
-  public startNewExecution(wid: number): Observable<Response> {
+  public persistNewExecution(wid: number): Observable<Response> {
       return this.http.post<Response>(`${WORKFLOW_EXECUTIONS_NEW_ENTRY}/${wid}`, null);
   }
 

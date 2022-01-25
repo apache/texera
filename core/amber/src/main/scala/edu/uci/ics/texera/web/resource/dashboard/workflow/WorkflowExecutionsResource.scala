@@ -53,12 +53,20 @@ class WorkflowExecutionsResource {
                            @PathParam("wid") wid: UInteger,
                            @Auth sessionUser: SessionUser
                          ): Unit = {
-// first retrieve the latest version of this workflow
-    val vid = getLatestVersion(wid)
-    val newExecution = new WorkflowExecutions();
-    newExecution.setWid(wid)
-    newExecution.setVid(vid)
-    workflowExecutionsDao.insert(newExecution);
+    val user = sessionUser.getUser
+    if (
+      WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid) ||
+        WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, user.getUid)
+    ) {
+      return
+    } else {
+      // first retrieve the latest version of this workflow
+      val vid = getLatestVersion(wid)
+      val newExecution = new WorkflowExecutions();
+      newExecution.setWid(wid)
+      newExecution.setVid(vid)
+      workflowExecutionsDao.insert(newExecution);
+    }
   }
 
   /**
