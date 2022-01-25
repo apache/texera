@@ -31,7 +31,7 @@
           {{particularVersionDate}}
         </span>
       </label>
-      <button *ngIf="displayParticularWorkflowVersion" class="btn btn-primary btn-sm" (click)="revertToVersion()">
+      <button *ngIf="displayParticularWorkflowVersion" nz-button nzType="primary" (click)="revertToVersion()">
         Restore this version
       </button>
       <button
