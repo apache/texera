@@ -17,9 +17,15 @@ object Constants {
   var defaultTau: FiniteDuration = 10.milliseconds
 
   var reshapeSkewHandlingEnabled: Boolean =
-    AmberUtils.amberConfig.getBoolean("constants.reshape-skew-handling-enabled")
+    AmberUtils.amberConfig.getBoolean("reshape.skew-handling-enabled")
   var reshapeEtaThreshold: Int =
-    AmberUtils.amberConfig.getInt("constants.reshape-eta-threshold")
+    AmberUtils.amberConfig.getInt("reshape.eta-threshold")
   var reshapeTauThreshold: Int =
-    AmberUtils.amberConfig.getInt("constants.reshape-tau-threshold")
+    AmberUtils.amberConfig.getInt("reshape.tau-threshold")
+  var reshapeHelperOverloadThreshold: Int =
+    AmberUtils.amberConfig.getInt("reshape.helper-overload-threshold")
+  var reshapeFirstPhaseSharingNumerator: Int =
+    AmberUtils.amberConfig.getInt("reshape.first-phase-sharing-numerator")
+  var reshapeFirstPhaseSharingDenominator: Int =
+    AmberUtils.amberConfig.getInt("reshape.first-phase-sharing-denominator")
 }
