@@ -5,7 +5,9 @@ import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecuto
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.operators.sink.storage.SinkStorageReader
 
-class CacheSourceOpExec(storage: SinkStorageReader) extends SourceOperatorExecutor with LazyLogging {
+class CacheSourceOpExec(storage: SinkStorageReader)
+    extends SourceOperatorExecutor
+    with LazyLogging {
 
   override def produceTexeraTuple(): Iterator[Tuple] = {
     storage.getAll.iterator

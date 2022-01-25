@@ -15,7 +15,8 @@ import edu.uci.ics.texera.workflow.operators.sink.storage.{
   */
 class OpResultStorage(mode: String = "memory") extends Serializable with LazyLogging {
 
-  val cache: ConcurrentHashMap[String, SinkStorageReader] = new ConcurrentHashMap[String, SinkStorageReader]()
+  val cache: ConcurrentHashMap[String, SinkStorageReader] =
+    new ConcurrentHashMap[String, SinkStorageReader]()
 
   /**
     * Retrieve the result of an operator from OpResultStorage
