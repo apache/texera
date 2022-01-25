@@ -93,6 +93,53 @@ class TupleToBatchConverter(
   }
 
   /**
+    * Used by Reshape to share the input of skewed worker with the helper worker.
+    * For every `tuplesToRedirectDenominator` tuples in the partition of the skewed
+    * worker, `tuplesToRedirectNumerator` tuples will be redirected to the helper.
+    */
+  def sharePartition(
+      skewedReceiverId: ActorVirtualIdentity,
+      helperReceiverId: ActorVirtualIdentity,
+      tuplesToRedirectNumerator: Long,
+      tuplesToRedirectDenominator: Long
+  ): Boolean = {
+    partitioners.values.foreach(partitioner => {
+      if (partitioner.isInstanceOf[ParallelBatchingPartitioner]) {
+        return partitioner
+          .asInstanceOf[ParallelBatchingPartitioner]
+          .addReceiverToBucket(
+            skewedReceiverId,
+            helperReceiverId,
+            tuplesToRedirectNumerator,
+            tuplesToRedirectDenominator
+          )
+      }
+    })
+    false
+  }
+
+  /**
+    * Used by Reshape to temporarily pause the mitigation if the helper worker gets
+    * too overloaded.
+    */
+  def pauseSkewMitigation(
+      skewedReceiverId: ActorVirtualIdentity,
+      helperReceiverId: ActorVirtualIdentity
+  ): Boolean = {
+    partitioners.values.foreach(partitioner => {
+      if (partitioner.isInstanceOf[ParallelBatchingPartitioner]) {
+        return partitioner
+          .asInstanceOf[ParallelBatchingPartitioner]
+          .removeReceiverFromBucket(
+            skewedReceiverId,
+            helperReceiverId
+          )
+      }
+    })
+    false
+  }
+
+  /**
     * Add down stream operator and its corresponding Partitioner.
     *
     * @param partitioning Partitioning, describes how and whom to send to.

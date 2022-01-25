@@ -9,7 +9,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 abstract class ParallelBatchingPartitioner(batchSize: Int, receivers: Seq[ActorVirtualIdentity])
-    extends Partitioner {
+  extends Partitioner {
 
   // A bucket corresponds to a partition. When Reshape is not enabled, a bucket has just one receiver.
   // Reshape divides a skewed partition onto multiple workers. So, with Reshape, a bucket can have
@@ -83,18 +83,20 @@ abstract class ParallelBatchingPartitioner(batchSize: Int, receivers: Seq[ActorV
     * tuples are redirected to the helper worker.
     */
   def addReceiverToBucket(
-      defaultRecId: ActorVirtualIdentity,
-      helperRecId: ActorVirtualIdentity,
-      tuplesToRedirectNumerator: Long,
-      tuplesToRedirectDenominator: Long
-  ): Boolean = {
+                           defaultRecId: ActorVirtualIdentity,
+                           helperRecId: ActorVirtualIdentity,
+                           tuplesToRedirectNumerator: Long,
+                           tuplesToRedirectDenominator: Long
+                         ): Boolean = {
     var defaultBucket: Int = -1
     bucketsToReceivers.keys.foreach(b => {
       if (bucketsToReceivers(b)(0) == defaultRecId) {
         defaultBucket = b
       }
     })
-    if (defaultBucket == -1) { return false }
+    if (defaultBucket == -1) {
+      return false
+    }
     if (!bucketsToReceivers(defaultBucket).contains(helperRecId)) {
       bucketsToReceivers(defaultBucket).append(helperRecId)
     }
@@ -106,16 +108,18 @@ abstract class ParallelBatchingPartitioner(batchSize: Int, receivers: Seq[ActorV
   }
 
   def removeReceiverFromBucket(
-      defaultRecId: ActorVirtualIdentity,
-      helperRecIdToRemove: ActorVirtualIdentity
-  ): Boolean = {
+                                defaultRecId: ActorVirtualIdentity,
+                                helperRecIdToRemove: ActorVirtualIdentity
+                              ): Boolean = {
     var defaultBucket: Int = -1
     bucketsToReceivers.keys.foreach(b => {
       if (bucketsToReceivers(b)(0) == defaultRecId) {
         defaultBucket = b
       }
     })
-    if (defaultBucket == -1) { return false }
+    if (defaultBucket == -1) {
+      return false
+    }
     bucketsToSharingEnabled(defaultBucket) = false
     true
   }
@@ -145,6 +149,7 @@ abstract class ParallelBatchingPartitioner(batchSize: Int, receivers: Seq[ActorV
 
   /**
     * Record the sample when the input is received for a bucket
+    *
     * @param bucket
     */
   def recordSample(bucket: Int): Unit = {
@@ -199,8 +204,8 @@ abstract class ParallelBatchingPartitioner(batchSize: Int, receivers: Seq[ActorV
   }
 
   override def addTupleToBatch(
-      tuple: ITuple
-  ): Option[(ActorVirtualIdentity, DataPayload)] = {
+                                tuple: ITuple
+                              ): Option[(ActorVirtualIdentity, DataPayload)] = {
     val index = selectBatchingIndex(tuple)
     var receiver: ActorVirtualIdentity = null
     if (Constants.reshapeSkewHandlingEnabled) {
