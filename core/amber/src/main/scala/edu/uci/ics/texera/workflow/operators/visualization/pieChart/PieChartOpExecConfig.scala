@@ -11,7 +11,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.{
   RoundRobinDeployment
 }
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
-import edu.uci.ics.amber.engine.architecture.linksemantics.{AllToOne, HashBasedShuffle}
+import edu.uci.ics.amber.engine.architecture.linksemantics.{AllToOne, HashBasedShuffle, OneToOne}
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
 import edu.uci.ics.amber.engine.common.virtualidentity.{
@@ -20,18 +20,38 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   OperatorIdentity
 }
 import edu.uci.ics.amber.engine.operators.OpExecConfig
+import edu.uci.ics.texera.workflow.common.operators.aggregate.{
+  DistributedAggregation,
+  FinalAggregateOpExec,
+  PartialAggregateOpExec
+}
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
-class PieChartOpExecConfig(
+class PieChartOpExecConfig[P <: AnyRef](
     tag: OperatorIdentity,
     val numWorkers: Int,
     val nameColumn: String,
     val dataColumn: String,
     val pruneRatio: Double,
+    val aggFunc: DistributedAggregation[P],
     operatorSchemaInfo: OperatorSchemaInfo
 ) extends OpExecConfig(tag) {
 
   override lazy val topology: Topology = {
+    val aggPartialLayer = new WorkerLayer(
+      makeLayer(id, "localAgg"),
+      _ => new PartialAggregateOpExec(aggFunc),
+      numWorkers,
+      UseAll(),
+      RoundRobinDeployment()
+    )
+    val aggFinalLayer = new WorkerLayer(
+      makeLayer(id, "globalAgg"),
+      _ => new FinalAggregateOpExec(aggFunc),
+      numWorkers,
+      FollowPrevious(),
+      RoundRobinDeployment()
+    )
     val partialLayer = new WorkerLayer(
       makeLayer(tag, "localPieChartProcessor"),
       _ => new PieChartOpPartialExec(nameColumn, dataColumn),
@@ -48,10 +68,23 @@ class PieChartOpExecConfig(
     )
     new Topology(
       Array(
+        aggPartialLayer,
+        aggFinalLayer,
         partialLayer,
         finalLayer
       ),
       Array(
+        new HashBasedShuffle(
+          aggPartialLayer,
+          aggFinalLayer,
+          Constants.defaultBatchSize,
+          getPartitionColumnIndices(partialLayer.id)
+        ),
+        new OneToOne(
+          aggFinalLayer,
+          partialLayer,
+          Constants.defaultBatchSize
+        ),
         new AllToOne(
           partialLayer,
           finalLayer,
@@ -60,8 +93,14 @@ class PieChartOpExecConfig(
       )
     )
   }
+
   override def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = {
-    operatorSchemaInfo.inputSchemas(0).getAttributes.toArray.indices.toArray
+    aggFunc
+      .groupByFunc(operatorSchemaInfo.inputSchemas(0))
+      .getAttributes
+      .toArray
+      .indices
+      .toArray
   }
 
   override def assignBreakpoint(
