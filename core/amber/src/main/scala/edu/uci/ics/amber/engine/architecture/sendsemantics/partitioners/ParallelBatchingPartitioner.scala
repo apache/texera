@@ -174,6 +174,16 @@ abstract class ParallelBatchingPartitioner(batchSize: Int, receivers: Seq[ActorV
     }
   }
 
+  def recordSampleAndGetReceiverForReshape(bucket: Int): ActorVirtualIdentity = {
+    recordSample(bucket)
+    if (bucketsToSharingEnabled.contains(bucket) && bucketsToSharingEnabled(bucket)) {
+      // if skew mitigation (either first or second phase) is happening
+      getAndIncrementReceiverForBucket(bucket)
+    } else {
+      getDefaultReceiverForBucket(bucket)
+    }
+  }
+
   override def noMore(): Array[(ActorVirtualIdentity, DataPayload)] = {
     val receiversAndBatches = new ArrayBuffer[(ActorVirtualIdentity, DataPayload)]
 
@@ -192,14 +202,9 @@ abstract class ParallelBatchingPartitioner(batchSize: Int, receivers: Seq[ActorV
       tuple: ITuple
   ): Option[(ActorVirtualIdentity, DataPayload)] = {
     val index = selectBatchingIndex(tuple)
-    if (Constants.reshapeSkewHandlingEnabled) {
-      recordSample(index)
-    }
-
     var receiver: ActorVirtualIdentity = null
-    if (bucketsToSharingEnabled(index)) {
-      // if skew mitigation (either first or second phase) is happening
-      receiver = getAndIncrementReceiverForBucket(index)
+    if (Constants.reshapeSkewHandlingEnabled) {
+      receiver = recordSampleAndGetReceiverForReshape(index)
     } else {
       receiver = getDefaultReceiverForBucket(index)
     }
