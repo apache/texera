@@ -1091,7 +1091,7 @@ export class WorkflowActionService {
   }
 
   public resetTempWorkflow(): void {
-    this.tempWorkflow = <Workflow>{};
+    this.tempWorkflow = undefined;
   }
 
   public getTempWorkflow(): Workflow | undefined {
