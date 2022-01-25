@@ -19,9 +19,6 @@ body,
   width: 100%;
   height: 100%;
   margin: 0;
-  overflow: hidden !important; // oddly, overflow set to scroll by zorro-antd modal service when modal is created
-  left: auto !important; // oddly, left set to -16px by zorro-antd modal service when modal is created
-  // now that I think of it, left -16px is approx same width as a scrollbar. Maybe they are meant to cancel out???
 }
 
 .popover {

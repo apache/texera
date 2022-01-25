@@ -36,6 +36,57 @@
   </nz-card>
 
   <nz-card class="workflow-list-container subsection-grid-container">
+    <nz-input-group
+      [nzPrefix]="prefixPopoverButton"
+      [nzSuffix]="suffixIconSearch"
+      class="texera-dashboard-saved-workflow-search-box-input"
+    >
+      <input
+        [(ngModel)]="workflowSearchValue"
+        autocomplete="on"
+        nz-input
+        placeholder="Search all workflows"
+        (ngModelChange)="searchInputOnChange($event)"
+        type="text"
+        [nzAutocomplete]="auto"
+        (keyup.enter)="searchWorkflow()"
+      />
+      <ng-template #suffixIconSearch>
+        <i nz-icon nzType="search"></i>
+      </ng-template>
+      <ng-template #popContent>
+        We support the following search criteria:
+        <ul>
+          <li>Search by Workflow Name: <strong>workflowName</strong></li>
+          <li>Search by Workflow Id: <strong>id:workflowId</strong></li>
+          <li>Search by Workflow Owner: <strong>owner:John</strong></li>
+        </ul>
+        <strong>
+          For any workflow name and owner name, if the name contains space, using double quotes to enclose the name is
+          required.
+        </strong>
+        <br />
+        Example: "Untitled Workflow" id:1 owner:John<br />
+        Meaning: Search for the workflow with name Untitled Workflow, id 1, and the owner called John.
+      </ng-template>
+      <ng-template #prefixPopoverButton>
+        <i
+          style="vertical-align: baseline; margin-right: 10px"
+          nz-icon
+          nz-popover
+          nzPopoverTitle="Search Instructions"
+          [nzPopoverContent]="popContent"
+          nzType="question-circle"
+          nzTheme="outline"
+        ></i>
+      </ng-template>
+      <nz-autocomplete
+        [nzDefaultActiveFirstOption]="false"
+        [nzDataSource]="!workflowSearchValue.includes(':') ? filteredDashboardWorkflowNames : []"
+        nzBackfill
+        #auto
+      ></nz-autocomplete>
+    </nz-input-group>
     <nz-list>
       <nz-list-item
         *ngFor="let dashboardWorkflowEntry of dashboardWorkflowEntries;let indexOfElement=index"

@@ -33,7 +33,7 @@ import scala.concurrent.{Await, ExecutionContext}
 object ControllerConfig {
   def default: ControllerConfig =
     ControllerConfig(
-      statusUpdateIntervalMs = Option(100),
+      statusUpdateIntervalMs = Option(500),
       resultUpdateIntervalMs = Option(1000)
     )
 }

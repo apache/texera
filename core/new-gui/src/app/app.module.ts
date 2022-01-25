@@ -18,8 +18,10 @@ import { NzDatePickerModule } from "ng-zorro-antd/date-picker";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { NzFormModule } from "ng-zorro-antd/form";
 import { en_US, NZ_I18N } from "ng-zorro-antd/i18n";
+import { NzAutocompleteModule } from "ng-zorro-antd/auto-complete";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzInputModule } from "ng-zorro-antd/input";
+import { NzPopoverModule } from "ng-zorro-antd/popover";
 import { NzListModule } from "ng-zorro-antd/list";
 import { NzMenuModule } from "ng-zorro-antd/menu";
 import { NzMessageModule } from "ng-zorro-antd/message";
@@ -30,6 +32,7 @@ import { NzSelectModule } from "ng-zorro-antd/select";
 import { NzSliderModule } from "ng-zorro-antd/slider";
 import { NzSpaceModule } from "ng-zorro-antd/space";
 import { NzBadgeModule } from "ng-zorro-antd/badge";
+import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { FileUploadModule } from "ng2-file-upload";
 import { NgxJsonViewerModule } from "ngx-json-viewer";
 import { LoggerModule, NgxLoggerLevel } from "ngx-logger";
@@ -104,6 +107,7 @@ import { NzPaginationModule } from "ng-zorro-antd/pagination";
 import { NzImageModule } from "ng-zorro-antd/image";
 import { JwtModule } from "@auth0/angular-jwt";
 import { AuthService } from "./common/service/user/auth.service";
+import { PresetWrapperComponent } from "./common/formly/preset-wrapper/preset-wrapper.component";
 
 registerLocaleData(en);
 
@@ -142,6 +146,7 @@ registerLocaleData(en);
     ResultPanelToggleComponent,
     ArrayTypeComponent,
     ObjectTypeComponent,
+    PresetWrapperComponent,
     MultiSchemaTypeComponent,
     NullTypeComponent,
     VisualizationFrameComponent,
@@ -199,10 +204,12 @@ registerLocaleData(en);
     NzDropDownModule,
     NzImageModule,
     NzButtonModule,
+    NzAutocompleteModule,
     NzIconModule,
     NzFormModule,
     NzListModule,
     NzInputModule,
+    NzPopoverModule,
     NzMenuModule,
     NzMessageModule,
     NzCollapseModule,
@@ -240,7 +247,6 @@ registerLocaleData(en);
     UserService,
     UserFileService,
     UserFileUploadService,
-    UserDictionaryService,
     UserDictionaryUploadService,
     { provide: NZ_I18N, useValue: en_US },
     {

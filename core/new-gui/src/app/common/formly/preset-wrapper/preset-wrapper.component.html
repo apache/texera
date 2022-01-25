@@ -1,0 +1,51 @@
+<div
+  class="preset-field"
+  nz-dropdown
+  [nzDropdownMenu]="menu"
+  nzTrigger="click"
+  nzBackdrop="false"
+  [nzOverlayClassName]="searchResults.length == 0 ? 'preset-dropdown no-results' : 'preset-dropdown'"
+  (nzVisibleChange)="onDropdownVisibilityEvent($event)"
+  [nzVisible]="presetMenuVisible"
+  nzClickHide="true"
+>
+  <span class="formly-field" autocomplete="off">
+    <ng-container #fieldComponent></ng-container>
+  </span>
+
+  <button
+    class="save-button"
+    nz-button
+    nzType="default"
+    nzType="primary"
+    nzSize="small"
+    nzShape="circle"
+    (click)="savePreset()"
+  >
+    <i nz-icon nzType="save" nzTheme="outline"></i>
+  </button>
+</div>
+<nz-dropdown-menu #menu="nzDropdownMenu">
+  <ul nz-menu nzBordered nzSelectable="false" class="preset-menu">
+    <li nz-menu-item *ngFor="let preset of searchResults; index as i">
+      <div class="preset-dropdown-item">
+        <span class="dropdown-entry" (click)="applyPreset(preset)">
+          <span class="title">{{this.getEntryTitle(preset)}}</span>
+          <span class="description">{{this.getEntryDescription(preset)}}</span>
+        </span>
+        <button
+          class="delete-button"
+          nz-button
+          nzType="default"
+          nzDanger
+          nzType="primary"
+          nzSize="small"
+          nzShape="circle"
+          (click)="$event.stopPropagation(); deletePreset(preset)"
+        >
+          <i nz-icon nzType="close"></i>
+        </button>
+      </div>
+    </li>
+  </ul>
+</nz-dropdown-menu>
