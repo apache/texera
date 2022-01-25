@@ -158,8 +158,8 @@ object AttributeTypeUtils extends Serializable {
         ).getOrElse(throw parseError)
 
       case long: java.lang.Long => new Timestamp(long)
-
       case timestamp: Timestamp => timestamp
+      case date: java.util.Date => new Timestamp(date.getTime)
       // Integer, Double and Boolean are considered to be illegal here.
       case _ =>
         throw parseError

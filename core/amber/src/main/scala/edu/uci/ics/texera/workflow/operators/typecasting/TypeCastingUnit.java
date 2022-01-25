@@ -17,4 +17,6 @@ public class TypeCastingUnit {
     @JsonSchemaTitle("Cast type")
     @JsonPropertyDescription("Result type after type casting")
     public AttributeType resultType;
+
+    //TODO: override equals to pass equality check for typecasting operator during cache status update
 }

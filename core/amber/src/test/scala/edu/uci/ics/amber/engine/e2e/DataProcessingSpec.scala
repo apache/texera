@@ -7,7 +7,6 @@ import ch.vorburger.mariadb4j.DB
 import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.controller._
-import edu.uci.ics.amber.engine.architecture.principal.OperatorResult
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -23,6 +22,7 @@ import java.sql.PreparedStatement
 import com.twitter.util.{Await, Promise}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowCompleted
 import edu.uci.ics.amber.engine.common.client.AmberClient
+import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 
 import scala.collection.mutable
 import scala.concurrent.duration._
@@ -38,11 +38,14 @@ class DataProcessingSpec
 
   var inMemoryMySQLInstance: Option[DB] = None
 
+  val resultStorage = new OpResultStorage()
+
   override def beforeAll: Unit = {
     system.actorOf(Props[SingleNodeListener], "cluster-info")
   }
   override def afterAll: Unit = {
     TestKit.shutdownActorSystem(system)
+    resultStorage.close()
   }
 
   def buildWorkflow(
@@ -56,22 +59,25 @@ class DataProcessingSpec
       WorkflowInfo(operators, links, mutable.MutableList[BreakpointInfo]()),
       context
     )
-    texeraWorkflowCompiler.amberWorkflow(WorkflowIdentity("workflow-test"))
+    texeraWorkflowCompiler.amberWorkflow(WorkflowIdentity("workflow-test"), resultStorage)
   }
 
   def executeWorkflow(workflow: Workflow): Map[String, List[ITuple]] = {
-    var results: Map[String, OperatorResult] = null
+    var results: Map[String, List[ITuple]] = null
     val client = new AmberClient(system, workflow, ControllerConfig.default)
     val completion = Promise[Unit]
     client
       .getObservable[WorkflowCompleted]
       .subscribe(evt => {
-        results = evt.result
+        results = workflow.getEndOperators
+          .filter(op => resultStorage.contains(op.id.operator))
+          .map { op => (op.id.operator, resultStorage.get(op.id.operator).getAll.toList) }
+          .toMap
         completion.setDone()
       })
     client.sendSync(StartWorkflow(), 1.second)
     Await.result(completion)
-    results.map(e => (e._1, e._2.result))
+    results
   }
 
   def initializeInMemoryMySQLInstance(): (String, String, String, String, String, String) = {

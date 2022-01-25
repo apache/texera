@@ -17,7 +17,9 @@ import edu.uci.ics.texera.web.model.websocket.request.ResultExportRequest
 import edu.uci.ics.texera.web.model.websocket.response.ResultExportResponse
 import edu.uci.ics.texera.web.resource.GoogleResource
 import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource
+import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.texera.workflow.operators.sink.storage.SinkStorageReader
 import org.jooq.types.UInteger
 
 import scala.annotation.tailrec
@@ -41,7 +43,7 @@ class ResultExportService {
 
   def exportResult(
       uid: UInteger,
-      resultService: JobResultService,
+      opResultStorage: OpResultStorage,
       request: ResultExportRequest
   ): ResultExportResponse = {
     // retrieve the file link saved in the session if exists
@@ -53,15 +55,14 @@ class ResultExportService {
     }
 
     // By now the workflow should finish running
-    val operatorWithResult: Option[OperatorResultService] =
-      resultService.operatorResults.get(request.operatorId)
-    if (operatorWithResult.isEmpty) {
+    val operatorWithResult: SinkStorageReader =
+      opResultStorage.get(request.operatorId)
+    if (operatorWithResult == null) {
       return ResultExportResponse("error", "The workflow contains no results")
     }
 
     // convert the ITuple into tuple
-    val results: List[Tuple] =
-      operatorWithResult.get.getResult.map(iTuple => iTuple.asInstanceOf[Tuple])
+    val results: Iterable[Tuple] = operatorWithResult.getAll
     val attributeNames = results.head.getSchema.getAttributeNames.asScala.toList
 
     // handle the request according to export type
@@ -78,13 +79,15 @@ class ResultExportService {
   def handleCSVRequest(
       uid: UInteger,
       request: ResultExportRequest,
-      results: List[Tuple],
+      results: Iterable[Tuple],
       headers: List[String]
   ): ResultExportResponse = {
     val stream = new ByteArrayOutputStream()
     val writer = CSVWriter.open(stream)
     writer.writeRow(headers)
-    writer.writeAll(results.map(tuple => tuple.getFields.toList))
+    results.foreach { tuple =>
+      writer.writeRow(tuple.getFields.toSeq)
+    }
     writer.close()
     val fileName = s"${request.workflowName}-${request.operatorId}.csv"
     val fileNameStored = UserFileResource.saveUserFileSafe(
@@ -101,7 +104,7 @@ class ResultExportService {
   private def handleGoogleSheetRequest(
       exportCache: mutable.HashMap[String, String],
       request: ResultExportRequest,
-      results: List[ITuple],
+      results: Iterable[ITuple],
       header: List[String]
   ): ResultExportResponse = {
     // create google sheet
@@ -222,7 +225,11 @@ class ResultExportService {
   /**
     * upload the result body to the google sheet
     */
-  private def uploadResult(sheetService: Sheets, sheetId: String, result: List[ITuple]): Unit = {
+  private def uploadResult(
+      sheetService: Sheets,
+      sheetId: String,
+      result: Iterable[ITuple]
+  ): Unit = {
     val content: util.List[util.List[AnyRef]] =
       Lists.newArrayListWithCapacity(UPLOAD_BATCH_ROW_COUNT)
     // use for loop to avoid copying the whole result at the same time

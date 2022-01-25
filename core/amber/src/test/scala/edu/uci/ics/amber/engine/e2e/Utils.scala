@@ -5,6 +5,7 @@ import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerC
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
+import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.{
   BreakpointInfo,
   OperatorLink,
@@ -30,7 +31,7 @@ object Utils {
       context
     )
 
-    texeraWorkflowCompiler.amberWorkflow(WorkflowIdentity(workflowTag))
+    texeraWorkflowCompiler.amberWorkflow(WorkflowIdentity(workflowTag), new OpResultStorage())
   }
 
 }

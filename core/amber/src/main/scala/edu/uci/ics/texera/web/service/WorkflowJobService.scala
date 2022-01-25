@@ -20,6 +20,7 @@ import edu.uci.ics.texera.web.model.websocket.request.{
 import edu.uci.ics.texera.web.model.websocket.response.ResultExportResponse
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource
 import edu.uci.ics.texera.workflow.common.WorkflowContext
+import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler.ConstraintViolationException
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowInfo.toJgraphtDAG
 import edu.uci.ics.texera.workflow.common.workflow.{
@@ -38,7 +39,7 @@ class WorkflowJobService(
     operatorCache: WorkflowCacheService,
     uidOpt: Option[UInteger],
     request: WorkflowExecuteRequest,
-    prevResults: mutable.HashMap[String, OperatorResultService]
+    opResultStorage: OpResultStorage
 ) extends SnapshotMulticast[TexeraWebSocketEvent]
     with LazyLogging {
 
@@ -49,7 +50,10 @@ class WorkflowJobService(
   val workflowContext: WorkflowContext = createWorkflowContext()
   val workflowInfo: WorkflowInfo = createWorkflowInfo(workflowContext)
   val workflowCompiler: WorkflowCompiler = createWorkflowCompiler(workflowInfo, workflowContext)
-  val workflow: Workflow = workflowCompiler.amberWorkflow(WorkflowIdentity(workflowContext.jobId))
+  val workflow: Workflow = workflowCompiler.amberWorkflow(
+    WorkflowIdentity(workflowContext.jobId),
+    opResultStorage
+  )
 
   // Runtime starts from here:
   val client: AmberClient =
@@ -58,13 +62,10 @@ class WorkflowJobService(
 
   // Result-related services start from here:
   val workflowResultService: JobResultService =
-    new JobResultService(workflowInfo, WorkflowCacheService.opResultStorage, client)
+    new JobResultService(workflowInfo, client, opResultStorage)
   val resultExportService: ResultExportService = new ResultExportService()
 
   def startWorkflow(): Unit = {
-    if (WorkflowCacheService.isAvailable) {
-      workflowResultService.updateResultFromPreviousRun(prevResults, operatorCache.cachedOperators)
-    }
     workflowResultService.updateAvailableResult(request.operators)
     for (pair <- workflowInfo.breakpoints) {
       workflowRuntimeService.addBreakpoint(pair.operatorID, pair.breakpoint)
@@ -109,7 +110,7 @@ class WorkflowJobService(
         operatorCache.cacheSourceOperators,
         operatorCache.cacheSinkOperators,
         operatorCache.operatorRecord,
-        WorkflowCacheService.opResultStorage
+        opResultStorage
       )
       val newWorkflowInfo = workflowRewriter.rewrite
       val oldWorkflowInfo = workflowInfo
@@ -147,7 +148,7 @@ class WorkflowJobService(
   }
 
   def exportResult(uid: UInteger, request: ResultExportRequest): ResultExportResponse = {
-    resultExportService.exportResult(uid, workflowResultService, request)
+    resultExportService.exportResult(uid, opResultStorage, request)
   }
 
   override def sendSnapshotTo(observer: Observer[TexeraWebSocketEvent]): Unit = {

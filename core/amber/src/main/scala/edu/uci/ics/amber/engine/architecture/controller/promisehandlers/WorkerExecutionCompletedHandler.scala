@@ -2,16 +2,12 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowCompleted
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.{
-  ControllerInitiateQueryResults,
-  ControllerInitiateQueryStatistics
-}
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.ControllerInitiateQueryStatistics
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.controller.{
   ControllerAsyncRPCHandlerInitializer,
   ControllerState
 }
-import edu.uci.ics.amber.engine.architecture.principal.OperatorResult
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
@@ -36,8 +32,6 @@ trait WorkerExecutionCompletedHandler {
   registerHandler { (msg: WorkerExecutionCompleted, sender) =>
     {
       assert(sender.isInstanceOf[ActorVirtualIdentity])
-      // get the corresponding operator of this worker
-      val operator = workflow.getOperator(sender)
 
       // after worker execution is completed, query statistics immediately one last time
       // because the worker might be killed before the next query statistics interval
@@ -45,29 +39,19 @@ trait WorkerExecutionCompletedHandler {
       val statsRequests = new mutable.MutableList[Future[Unit]]()
       statsRequests += execute(ControllerInitiateQueryStatistics(Option(List(sender))), CONTROLLER)
 
-      // if operator is sink, additionally query result immediately one last time
-      val resultRequests = new mutable.MutableList[Future[Map[String, OperatorResult]]]()
-      if (operator.isInstanceOf[SinkOpExecConfig]) {
-        resultRequests += execute(ControllerInitiateQueryResults(Option(List(sender))), CONTROLLER)
-      }
-
-      val allRequests = Future.collect(statsRequests ++ resultRequests)
-
-      allRequests.flatMap(_ => {
-        // if entire workflow is completed, clean up
-        if (workflow.isCompleted) {
-          // send query result again to collect final execution result
-          val finalResult = execute(ControllerInitiateQueryResults(), CONTROLLER)
-          // after query result come back: send completed event, cleanup ,and kill workflow
-          finalResult.flatMap(ret => {
-            sendToClient(WorkflowCompleted(ret))
+      Future
+        .collect(statsRequests)
+        .flatMap(_ => {
+          // if entire workflow is completed, clean up
+          if (workflow.isCompleted) {
+            // after query result come back: send completed event, cleanup ,and kill workflow
+            sendToClient(WorkflowCompleted())
             disableStatusUpdate()
             Future.Done
-          })
-        } else {
-          Future.Done
-        }
-      })
+          } else {
+            Future.Done
+          }
+        })
     }
   }
 }

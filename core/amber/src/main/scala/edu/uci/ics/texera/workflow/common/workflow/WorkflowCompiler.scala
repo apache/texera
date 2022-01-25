@@ -18,10 +18,11 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
+import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
-import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
+import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator
 
 import scala.collection.mutable
@@ -68,7 +69,7 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
       .toMap
       .filter(pair => pair._2.nonEmpty)
 
-  def amberWorkflow(workflowId: WorkflowIdentity): Workflow = {
+  def amberWorkflow(workflowId: WorkflowIdentity, opResultStorage: OpResultStorage): Workflow = {
     // pre-process: set output mode for sink based on the visualization operator before it
     workflowInfo.toDAG.getSinkOperators.foreach(sinkOpId => {
       val sinkOp = workflowInfo.toDAG.getOperator(sinkOpId)
@@ -76,10 +77,11 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
       if (upstream.nonEmpty) {
         (upstream.head, sinkOp) match {
           // match the combination of a visualization operator followed by a sink operator
-          case (viz: VisualizationOperator, sink: SimpleSinkOpDesc) =>
+          case (viz: VisualizationOperator, sink: ProgressiveSinkOpDesc) =>
             sink.setOutputMode(viz.outputMode())
             sink.setChartType(viz.chartType())
           case _ =>
+          //skip
         }
       }
     })
@@ -88,9 +90,20 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
     val amberOperators: mutable.Map[OperatorIdentity, OpExecConfig] = mutable.Map()
     workflowInfo.operators.foreach(o => {
       val inputSchemas = inputSchemaMap(o).map(s => s.get).toArray
-      val outputSchema =
+      val outputSchema = {
         if (o.isInstanceOf[SourceOperatorDescriptor]) o.getOutputSchema(Array())
         else o.getOutputSchema(inputSchemas)
+      }
+      // assign storage to texera-managed sinks before generating exec config
+      o match {
+        case sink: ProgressiveSinkOpDesc =>
+          sink.getCachedUpstreamId match {
+            case Some(upstreamId) =>
+              sink.setStorage(opResultStorage.create(upstreamId, outputSchema))
+            case None => sink.setStorage(opResultStorage.create(o.operatorID, outputSchema))
+          }
+        case _ =>
+      }
       val amberOperator: OpExecConfig =
         o.operatorExecutor(OperatorSchemaInfo(inputSchemas, outputSchema))
       amberOperators.put(amberOperator.id, amberOperator)

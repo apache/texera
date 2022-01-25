@@ -8,6 +8,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.{
 }
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
+import org.bson.Document
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
@@ -67,6 +68,14 @@ object TupleUtils {
     } catch {
       case e: Exception => throw e
     }
+  }
+
+  def document2Tuple(doc: Document, schema: Schema): Tuple = {
+    val builder = Tuple.newBuilder(schema)
+    schema.getAttributes.forEach(attr =>
+      builder.add(attr, parseField(doc.get(attr.getName), attr.getType))
+    )
+    builder.build()
   }
 
 }
