@@ -79,7 +79,6 @@ class WorkflowJobService(
     for (pair <- workflowInfo.breakpoints) {
       jobBreakpointService.addBreakpoint(pair.operatorID, pair.breakpoint)
     }
-    throw new RuntimeException("123")
     resultService.attachToJob(workflowInfo, client)
     val f = client.sendAsync(StartWorkflow())
     stateStore.jobStateStore.updateState(jobInfo => jobInfo.withState(READY))
