@@ -61,7 +61,7 @@ class PieChartOpExecConfig[P <: AnyRef](
     )
     val finalLayer = new WorkerLayer(
       makeLayer(tag, "globalPieChartProcessor"),
-      _ => new PieChartOpFinalExec(pruneRatio),
+      _ => new PieChartOpFinalExec(pruneRatio, dataColumn),
       1,
       ForceLocal(),
       RandomDeployment()
