@@ -16,7 +16,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
 }
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QuerySelfWorkloadMetrics
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QueryWorkloadMetrics
 import edu.uci.ics.amber.engine.architecture.worker.workloadmetrics.SelfWorkloadMetrics
 import edu.uci.ics.amber.engine.common.ambermessage.{
   ControlPayload,
@@ -34,6 +34,7 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 
 import scala.concurrent.duration._
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 class WorkerSpec
     extends TestKit(ActorSystem("WorkerSpec"))
@@ -116,7 +117,7 @@ class WorkerSpec
         WorkflowControlMessage(
           CONTROLLER,
           0,
-          ControlInvocation(0, QuerySelfWorkloadMetrics())
+          ControlInvocation(0, QueryWorkloadMetrics())
         )
       )
     )
@@ -131,12 +132,42 @@ class WorkerSpec
         returnValue match {
           case e: Throwable => throw e
           case _ =>
-            assert(returnValue.asInstanceOf[SelfWorkloadMetrics].unprocessedDataInputQueueSize == 0)
             assert(
-              returnValue.asInstanceOf[SelfWorkloadMetrics].unprocessedControlInputQueueSize == 0
+              returnValue
+                .asInstanceOf[Tuple2[
+                  SelfWorkloadMetrics,
+                  mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]
+                ]]
+                ._1
+                .unprocessedDataInputQueueSize == 0
             )
-            assert(returnValue.asInstanceOf[SelfWorkloadMetrics].stashedDataInputQueueSize == 0)
-            assert(returnValue.asInstanceOf[SelfWorkloadMetrics].stashedControlInputQueueSize == 0)
+            assert(
+              returnValue
+                .asInstanceOf[Tuple2[
+                  SelfWorkloadMetrics,
+                  mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]
+                ]]
+                ._1
+                .unprocessedControlInputQueueSize == 0
+            )
+            assert(
+              returnValue
+                .asInstanceOf[Tuple2[
+                  SelfWorkloadMetrics,
+                  mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]
+                ]]
+                ._1
+                .stashedDataInputQueueSize == 0
+            )
+            assert(
+              returnValue
+                .asInstanceOf[Tuple2[
+                  SelfWorkloadMetrics,
+                  mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]
+                ]]
+                ._1
+                .stashedControlInputQueueSize == 0
+            )
         }
       case other =>
       //skip
