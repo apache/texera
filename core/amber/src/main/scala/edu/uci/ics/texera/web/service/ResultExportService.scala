@@ -19,7 +19,7 @@ import edu.uci.ics.texera.web.resource.GoogleResource
 import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.operators.sink.storage.SinkStorage
+import edu.uci.ics.texera.workflow.operators.sink.storage.SinkStorageReader
 import org.jooq.types.UInteger
 
 import scala.annotation.tailrec
@@ -55,7 +55,7 @@ class ResultExportService {
     }
 
     // By now the workflow should finish running
-    val operatorWithResult: SinkStorage =
+    val operatorWithResult: SinkStorageReader =
       opResultStorage.get(request.operatorId)
     if (operatorWithResult == null) {
       return ResultExportResponse("error", "The workflow contains no results")

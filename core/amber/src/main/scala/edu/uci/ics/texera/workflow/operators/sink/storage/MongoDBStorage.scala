@@ -13,7 +13,7 @@ import org.bson.Document
 import scala.collection.mutable
 import collection.JavaConverters._
 
-class MongoDBStorage(id: String, schema: Schema) extends SinkStorage {
+class MongoDBStorage(id: String, schema: Schema) extends SinkStorageReader {
 
   schema.getAttributeNames.stream.forEach(name =>
     assert(!name.matches(".*[\\$\\.].*"), s"illegal attribute name '$name' for mongo DB")
@@ -26,7 +26,7 @@ class MongoDBStorage(id: String, schema: Schema) extends SinkStorage {
   val commitBatchSize: Int = AmberUtils.amberConfig.getInt("storage.mongodb.commit-batch-size")
   database.getCollection(id).drop()
 
-  class MongoDBShardedStorage(bufferSize: Int) extends ShardedStorage {
+  class MongoDBSinkStorageWriter(bufferSize: Int) extends SinkStorageWriter {
     var client: MongoClient = _
     var uncommittedInsertions: mutable.HashSet[Tuple] = _
     var collection: MongoCollection[Document] = _
@@ -76,8 +76,8 @@ class MongoDBStorage(id: String, schema: Schema) extends SinkStorage {
     mkTupleIterable(cursor)
   }
 
-  override def getShardedStorage(idx: Int): ShardedStorage =
-    new MongoDBShardedStorage(commitBatchSize)
+  override def getShardedStorage(idx: Int): SinkStorageWriter =
+    new MongoDBSinkStorageWriter(commitBatchSize)
 
   override def clear(): Unit = {
     database.getCollection(id).drop()

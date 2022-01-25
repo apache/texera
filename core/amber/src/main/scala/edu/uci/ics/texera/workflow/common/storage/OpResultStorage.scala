@@ -7,7 +7,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.operators.sink.storage.{
   MemoryStorage,
   MongoDBStorage,
-  SinkStorage
+  SinkStorageReader
 }
 
 /**
@@ -15,15 +15,7 @@ import edu.uci.ics.texera.workflow.operators.sink.storage.{
   */
 class OpResultStorage(mode: String = "memory") extends Serializable with LazyLogging {
 
-  val cache: ConcurrentHashMap[String, SinkStorage] = new ConcurrentHashMap[String, SinkStorage]()
-
-//  /**
-//    * Put the result of an operator to OpResultStorage.
-//    * @param key The key used for storage and retrieval.
-//    *            Currently it is the uuid inside the cache source or cache sink operator.
-//    * @param records The results.
-//    */
-//  def put(key: String, records: List[Tuple]): Unit
+  val cache: ConcurrentHashMap[String, SinkStorageReader] = new ConcurrentHashMap[String, SinkStorageReader]()
 
   /**
     * Retrieve the result of an operator from OpResultStorage
@@ -31,12 +23,12 @@ class OpResultStorage(mode: String = "memory") extends Serializable with LazyLog
     *            Currently it is the uuid inside the cache source or cache sink operator.
     * @return The storage of this operator.
     */
-  def get(key: String): SinkStorage = {
+  def get(key: String): SinkStorageReader = {
     cache.get(key)
   }
 
-  def create(key: String, schema: Schema): SinkStorage = {
-    val storage: SinkStorage =
+  def create(key: String, schema: Schema): SinkStorageReader = {
+    val storage: SinkStorageReader =
       if (mode == "memory") {
         new MemoryStorage(schema)
       } else {
@@ -70,20 +62,6 @@ class OpResultStorage(mode: String = "memory") extends Serializable with LazyLog
     }
     cache.remove(key)
     logger.debug(s"remove $key end")
-  }
-
-  /**
-    * Dump everything in result storage. Called when the system exits.
-    */
-  def dump(): Unit = {
-    throw new NotImplementedError()
-  }
-
-  /**
-    * Load and initialize result storage. Called when the system init.
-    */
-  def load(): Unit = {
-    throw new NotImplementedError()
   }
 
   /**

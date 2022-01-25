@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.operators.sink.storage
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
-trait SinkStorage {
+trait SinkStorageReader {
 
   def getSchema: Schema
 
@@ -15,7 +15,7 @@ trait SinkStorage {
 
   def getCount: Long
 
-  def getShardedStorage(idx: Int): ShardedStorage
+  def getStorageWriter(): SinkStorageWriter
 
   def clear(): Unit
 }

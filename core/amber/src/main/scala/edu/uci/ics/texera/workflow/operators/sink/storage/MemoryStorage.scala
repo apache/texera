@@ -5,7 +5,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
 import scala.collection.mutable.ArrayBuffer
 
-class MemoryStorage(schema: Schema) extends SinkStorage with ShardedStorage {
+class MemoryStorage(schema: Schema) extends SinkStorageReader with SinkStorageWriter {
 
   private val results = new ArrayBuffer[Tuple]()
 
@@ -38,7 +38,7 @@ class MemoryStorage(schema: Schema) extends SinkStorage with ShardedStorage {
 
   override def close(): Unit = {}
 
-  override def getShardedStorage(idx: Int): ShardedStorage = this
+  override def getShardedStorage(idx: Int): SinkStorageWriter = this
 
   override def getRange(from: Int, to: Int): Iterable[Tuple] =
     synchronized {

@@ -7,14 +7,14 @@ import edu.uci.ics.texera.workflow.common.IncrementalOutputMode._
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 import edu.uci.ics.texera.workflow.common.{IncrementalOutputMode, ProgressiveUtils}
-import edu.uci.ics.texera.workflow.operators.sink.storage.{ShardedStorage, SinkStorage}
+import edu.uci.ics.texera.workflow.operators.sink.storage.{SinkStorageWriter, SinkStorageReader}
 
 import scala.collection.mutable
 
 class ProgressiveSinkOpExec(
     val operatorSchemaInfo: OperatorSchemaInfo,
     val outputMode: IncrementalOutputMode,
-    val storage: ShardedStorage
+    val storage: SinkStorageWriter
 ) extends ISinkOperatorExecutor {
 
   override def open(): Unit = storage.open()
