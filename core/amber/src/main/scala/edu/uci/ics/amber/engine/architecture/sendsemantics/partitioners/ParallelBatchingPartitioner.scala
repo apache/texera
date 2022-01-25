@@ -149,8 +149,6 @@ abstract class ParallelBatchingPartitioner(batchSize: Int, receivers: Seq[ActorV
 
   /**
     * Record the sample when the input is received for a bucket
-    *
-    * @param bucket
     */
   def recordSample(bucket: Int): Unit = {
     // the first receiver in a bucket is the actual receiver for the partition
