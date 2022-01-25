@@ -38,7 +38,7 @@ class MemoryStorage(schema: Schema) extends SinkStorageReader with SinkStorageWr
 
   override def close(): Unit = {}
 
-  override def getShardedStorage(idx: Int): SinkStorageWriter = this
+  override def getStorageWriter(): SinkStorageWriter = this
 
   override def getRange(from: Int, to: Int): Iterable[Tuple] =
     synchronized {
