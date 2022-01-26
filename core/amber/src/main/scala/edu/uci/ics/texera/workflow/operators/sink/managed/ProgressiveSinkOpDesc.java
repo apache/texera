@@ -11,7 +11,7 @@ import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc;
-import edu.uci.ics.texera.workflow.operators.sink.storage.SinkStorage;
+import edu.uci.ics.texera.workflow.operators.sink.storage.SinkStorageReader;
 import scala.Option;
 import scala.collection.immutable.List;
 
@@ -31,7 +31,7 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
     private Option<String> chartType = Option.empty();
 
     @JsonIgnore
-    private SinkStorage storage = null;
+    private SinkStorageReader storage = null;
 
     @JsonIgnore
     private Option<String> cachedUpstreamId = Option.empty();
@@ -93,10 +93,10 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
     }
 
     @JsonIgnore
-    public void setStorage(SinkStorage storage){ this.storage = storage; }
+    public void setStorage(SinkStorageReader storage){ this.storage = storage; }
 
     @JsonIgnore
-    public SinkStorage getStorage(){ return this.storage; }
+    public SinkStorageReader getStorage(){ return this.storage; }
 
     @JsonIgnore
     public Option<String> getCachedUpstreamId(){ return this.cachedUpstreamId;}
