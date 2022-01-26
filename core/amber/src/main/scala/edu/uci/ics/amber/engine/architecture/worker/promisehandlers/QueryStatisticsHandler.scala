@@ -1,17 +1,13 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.{
-  QueryStatistics,
-  QueryWorkerResult
-}
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.architecture.worker.{WorkerAsyncRPCHandlerInitializer, WorkerResult}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.{Constants, ITupleSinkOperatorExecutor}
+import edu.uci.ics.amber.engine.common.{Constants, ISinkOperatorExecutor}
 
 object QueryStatisticsHandler {
   final case class QueryStatistics() extends ControlCommand[WorkerStatistics]
-  final case class QueryWorkerResult() extends ControlCommand[Option[WorkerResult]]
 }
 
 trait QueryStatisticsHandler {
@@ -33,7 +29,7 @@ trait QueryStatisticsHandler {
     // sink operator doesn't output to downstream so internal count is 0
     // but for user-friendliness we show its input count as output count
     val displayOut = operator match {
-      case sink: ITupleSinkOperatorExecutor =>
+      case sink: ISinkOperatorExecutor =>
         in
       case _ =>
         out
@@ -43,14 +39,5 @@ trait QueryStatisticsHandler {
 
     WorkerStatistics(state, in, displayOut)
   }
-
-  registerHandler((msg: QueryWorkerResult, sender) => {
-    operator match {
-      case sink: ITupleSinkOperatorExecutor =>
-        Option(WorkerResult(sink.getOutputMode(), sink.getResultTuples()))
-      case _ =>
-        Option.empty
-    }
-  })
 
 }

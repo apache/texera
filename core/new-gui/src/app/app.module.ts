@@ -32,6 +32,7 @@ import { NzSelectModule } from "ng-zorro-antd/select";
 import { NzSliderModule } from "ng-zorro-antd/slider";
 import { NzSpaceModule } from "ng-zorro-antd/space";
 import { NzBadgeModule } from "ng-zorro-antd/badge";
+import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { FileUploadModule } from "ng2-file-upload";
 import { NgxJsonViewerModule } from "ngx-json-viewer";
 import { LoggerModule, NgxLoggerLevel } from "ngx-logger";
@@ -106,6 +107,7 @@ import { VersionsListDisplayComponent } from "./workspace/component/property-edi
 import { NzPaginationModule } from "ng-zorro-antd/pagination";
 import { JwtModule } from "@auth0/angular-jwt";
 import { AuthService } from "./common/service/user/auth.service";
+import { PresetWrapperComponent } from "./common/formly/preset-wrapper/preset-wrapper.component";
 
 registerLocaleData(en);
 
@@ -145,6 +147,7 @@ registerLocaleData(en);
     ResultPanelToggleComponent,
     ArrayTypeComponent,
     ObjectTypeComponent,
+    PresetWrapperComponent,
     MultiSchemaTypeComponent,
     NullTypeComponent,
     VisualizationFrameComponent,
@@ -244,7 +247,6 @@ registerLocaleData(en);
     UserService,
     UserFileService,
     UserFileUploadService,
-    UserDictionaryService,
     UserDictionaryUploadService,
     { provide: NZ_I18N, useValue: en_US },
     {
