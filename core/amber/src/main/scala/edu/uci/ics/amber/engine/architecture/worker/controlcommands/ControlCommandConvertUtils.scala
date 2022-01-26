@@ -43,6 +43,7 @@ object ControlCommandConvertUtils {
       case QueryCurrentInputTuple() =>
         QueryCurrentInputTupleV2()
       case InitializeOperatorLogic(code, isSource, schema) =>
+        // TODO: will add attribute types in future PRs, for now only pass attribute names
         InitializeOperatorLogicV2(code, isSource, schema.getAttributeNames.asScala)
       case ReplayCurrentTuple() =>
         ReplayCurrentTupleV2()

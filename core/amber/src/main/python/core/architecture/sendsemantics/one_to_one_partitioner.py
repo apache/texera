@@ -4,7 +4,7 @@ from typing import Iterator
 from overrides import overrides
 
 from core.architecture.sendsemantics.partitioner import Partitioner
-from core.models import ImmutableTuple
+from core.models import OutputTuple
 from core.models.payload import OutputDataFrame, DataPayload, EndOfUpstream
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import OneToOnePartitioning, Partitioning
@@ -15,11 +15,11 @@ class OneToOnePartitioner(Partitioner):
     def __init__(self, partitioning: OneToOnePartitioning):
         super().__init__(set_one_of(Partitioning, partitioning))
         self.batch_size = partitioning.batch_size
-        self.batch: list[ImmutableTuple] = list()
+        self.batch: list[OutputTuple] = list()
         self.receiver = partitioning.receivers[0]  # one to one will have only one receiver.
 
     @overrides
-    def add_tuple_to_batch(self, tuple_: ImmutableTuple) -> Iterator[typing.Tuple[ActorVirtualIdentity, OutputDataFrame]]:
+    def add_tuple_to_batch(self, tuple_: OutputTuple) -> Iterator[typing.Tuple[ActorVirtualIdentity, OutputDataFrame]]:
         self.batch.append(tuple_)
         if len(self.batch) == self.batch_size:
             yield self.receiver, OutputDataFrame(frame=self.batch)

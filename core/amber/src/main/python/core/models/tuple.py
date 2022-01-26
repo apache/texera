@@ -26,9 +26,9 @@ class ArrowTableTupleProvider:
         Construct a provider from an arrow table.
         Keep the current chunk and tuple idx as its state.
         """
-        self.__table = table
-        self.__current_idx = 0
-        self.__current_chunk = 0
+        self._table = table
+        self._current_idx = 0
+        self._current_chunk = 0
 
     def __iter__(self):
         """
@@ -42,14 +42,14 @@ class ArrowTableTupleProvider:
         If current chunk is exhausted, move to the first
         tuple of the next chunk.
         """
-        if self.__current_idx >= len(self.__table.column(0).chunks[self.__current_chunk]):
-            self.__current_idx = 0
-            self.__current_chunk += 1
-            if self.__current_chunk >= self.__table.column(0).num_chunks:
+        if self._current_idx >= len(self._table.column(0).chunks[self._current_chunk]):
+            self._current_idx = 0
+            self._current_chunk += 1
+            if self._current_chunk >= self._table.column(0).num_chunks:
                 raise StopIteration
 
-        chunk_idx = self.__current_chunk
-        tuple_idx = self.__current_idx
+        chunk_idx = self._current_chunk
+        tuple_idx = self._current_idx
 
         def field_accessor(field_name):
             """
@@ -57,9 +57,9 @@ class ArrowTableTupleProvider:
             This abstracts and hides the underlying implementation
             of the tuple data storage from the user.
             """
-            return self.__table.column(field_name).chunks[chunk_idx][tuple_idx]
+            return self._table.column(field_name).chunks[chunk_idx][tuple_idx]
 
-        self.__current_idx += 1
+        self._current_idx += 1
         return field_accessor
 
 
@@ -171,15 +171,15 @@ class Tuple:
         self.__field_accessor = field_accessor
 
 
-class ImmutableTuple:
+class OutputTuple:
     """
     Container of pure data values. Only used after user returns
     a modified tuple or tuple-like.
     """
 
-    def __init__(self, tuple_like, output_field_names):
+    def __init__(self, tuple_like: typing.Union[Tuple, TupleLike], output_field_names):
         """
-        Create a ImmutableTuple from tuple-like objects or tuple.
+        Create an OutputTuple from tuple-like objects or tuple.
         :param tuple_like: data object
         :param output_field_names: output schema
         """
@@ -194,12 +194,10 @@ class ImmutableTuple:
 
     def get_fields(self, indices) -> typing.Tuple[Any, ...]:
         """
-        Get values from immutable tuple for selected indices.
+        Get values from output tuple for selected indices.
         """
         return tuple(self.data[i] for i in indices)
 
     def __iter__(self):
         return iter(self.data)
 
-    def __setitem__(self, key, value):
-        raise NotImplementedError("immutable tuple cannot be modified")

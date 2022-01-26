@@ -10,7 +10,7 @@ from core.architecture.managers.context import Context
 from core.architecture.packaging.batch_to_tuple_converter import EndOfAllMarker
 from core.architecture.rpc.async_rpc_client import AsyncRPCClient
 from core.architecture.rpc.async_rpc_server import AsyncRPCServer
-from core.models import ControlElement, DataElement, InputExhausted, InternalQueue, Operator, SenderChangeMarker, Tuple, ImmutableTuple
+from core.models import ControlElement, DataElement, InputExhausted, InternalQueue, Operator, SenderChangeMarker, Tuple, OutputTuple
 from core.util import IQueue, StoppableQueueBlockingRunnable, get_one_of, set_one_of
 from core.util.print_writer.print_log_handler import PrintLogHandler
 from proto.edu.uci.ics.amber.engine.architecture.worker import ControlCommandV2, LocalOperatorExceptionV2, \
@@ -148,7 +148,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
             index = len(self._input_links) - 1
             self._input_link_map[link] = index
         input_ = self._input_link_map[link]
-        return map(lambda t: ImmutableTuple(t, self._operator.output_attribute_names) if t is not None else None, self._operator.process_tuple(tuple_, input_))
+        return map(lambda t: OutputTuple(t, self._operator.output_attribute_names) if t is not None else None, self._operator.process_tuple(tuple_, input_))
 
     def report_exception(self) -> None:
         """
