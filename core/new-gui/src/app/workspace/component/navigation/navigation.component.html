@@ -220,7 +220,7 @@
         </button>
         <button
           (click)="onClickRunHandler()"
-          [disabled]="runDisable || !workflowWebsocketService.isConnected"
+          [disabled]="runDisable || !workflowWebsocketService.isConnected || displayParticularWorkflowVersion"
           class="texera-navigation-run-button animate-to-reveal-stop-button"
           nz-button
           nzType="primary"
