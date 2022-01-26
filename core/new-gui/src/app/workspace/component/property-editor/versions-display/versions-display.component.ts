@@ -38,7 +38,7 @@ export class VersionsListDisplayComponent implements OnInit {
     this.retrieveWorkflowByVersion(<number>this.workflowActionService.getWorkflowMetadata()?.wid, vid)
       .pipe(untilDestroyed(this))
       .subscribe(workflow => {
-        this.workflowActionService.reloadWorkflow(workflow);
+        this.workflowVersionService.displayParticularVersion(workflow);
       });
   }
 
