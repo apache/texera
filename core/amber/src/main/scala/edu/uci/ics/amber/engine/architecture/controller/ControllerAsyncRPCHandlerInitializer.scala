@@ -1,14 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import akka.actor.{ActorContext, Cancellable}
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  WorkflowResultUpdate,
-  WorkflowStatusUpdate
-}
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.{
-  ControllerInitiateQueryResults,
-  ControllerInitiateQueryStatistics
-}
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.ControllerInitiateQueryStatistics
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers._
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputPort
 import edu.uci.ics.amber.engine.common.AmberLogging
@@ -51,7 +44,6 @@ class ControllerAsyncRPCHandlerInitializer(
     with EvaluatePythonExpressionHandler {
 
   var statusUpdateAskHandle: Option[Cancellable] = None
-  var resultUpdateAskHandle: Option[Cancellable] = None
 
   def enableStatusUpdate(): Unit = {
     if (controllerConfig.statusUpdateIntervalMs.nonEmpty && statusUpdateAskHandle.isEmpty) {
@@ -67,29 +59,12 @@ class ControllerAsyncRPCHandlerInitializer(
         )(actorContext.dispatcher)
       )
     }
-    if (controllerConfig.resultUpdateIntervalMs.nonEmpty && resultUpdateAskHandle.isEmpty) {
-      resultUpdateAskHandle = Option(
-        actorContext.system.scheduler.scheduleAtFixedRate(
-          0.milliseconds,
-          FiniteDuration.apply(controllerConfig.resultUpdateIntervalMs.get, MILLISECONDS),
-          actorContext.self,
-          ControlInvocation(
-            AsyncRPCClient.IgnoreReplyAndDoNotLog,
-            ControllerInitiateQueryResults(Option.empty)
-          )
-        )(actorContext.dispatcher)
-      )
-    }
   }
 
   def disableStatusUpdate(): Unit = {
     if (statusUpdateAskHandle.nonEmpty) {
       statusUpdateAskHandle.get.cancel()
       statusUpdateAskHandle = Option.empty
-    }
-    if (resultUpdateAskHandle.nonEmpty) {
-      resultUpdateAskHandle.get.cancel()
-      resultUpdateAskHandle = Option.empty
     }
   }
 
