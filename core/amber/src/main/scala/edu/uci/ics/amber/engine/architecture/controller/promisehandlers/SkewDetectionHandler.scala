@@ -452,7 +452,7 @@ trait SkewDetectionHandler {
               )
             }
           })
-          
+
           // 3: Start second phase for pairs where helpers that have caught up with skewed
           secondPhaseRequestsFinished = false
           val skewedAndHelperPairsForSecondPhase =
@@ -526,6 +526,7 @@ trait SkewDetectionHandler {
         }
       })
       previousSkewDetectionCallFinished = true
+      detectionCallCount += 1
       Future.Done
     }
   })
