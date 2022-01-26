@@ -82,9 +82,10 @@ class OpResultStorage(mode: String = "memory") extends Serializable with LazyLog
   }
 
   /**
-    * Close this storage. Used for system termination.
+    * Close this storage. Used for workflow cleanup.
     */
   def close(): Unit = {
+    cache.forEach((_, sinkStorageReader) => sinkStorageReader.clear())
     cache.clear()
   }
 
