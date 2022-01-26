@@ -361,8 +361,6 @@ trait SkewDetectionHandler {
       Future.Done
     } else {
       previousSkewDetectionCallFinished = false
-      logger.info(s"Skew Detection handler call #${detectionCallCount}")
-      detectionCallCount += 1
 
       workflow.getAllOperators.foreach(opConfig => {
         if (opConfig.isInstanceOf[HashJoinOpExecConfig[Any]]) {
@@ -372,7 +370,8 @@ trait SkewDetectionHandler {
             getSkewedAndHelperWorkersEligibleForFirstPhase(opConfig.workerToWorkloadInfo)
           skewedAndHelperPairsForFirstPhase.foreach(skewedAndHelper =>
             logger.info(
-              s"Reshape:First phase - Skewed ${skewedAndHelper._1.toString()} :: Helper ${skewedAndHelper._2
+              s"Reshape #${detectionCallCount}: First phase request begins - Skewed ${skewedAndHelper._1
+                .toString()} :: Helper ${skewedAndHelper._2
                 .toString()} - Replication required: ${skewedAndHelper._3.toString()}"
             )
           )
@@ -400,8 +399,9 @@ trait SkewDetectionHandler {
             stateMigrateFutures(i).map(stateTransferDone => {
               if (stateTransferDone) {
                 skewedToStateTransferDone(currSkewedWorker) = true
-                println(
-                  s"\tSTATE TRANSFER DONE ${currSkewedWorker.toString()} to ${currHelperWorker.toString()}"
+                logger.info(
+                  s"Reshape #${detectionCallCount}: State transfer completed - ${currSkewedWorker
+                    .toString()} to ${currHelperWorker.toString()}"
                 )
 
                 allPairsFirstPhaseFutures.append(
@@ -424,7 +424,12 @@ trait SkewDetectionHandler {
           }
           Future
             .collect(allPairsFirstPhaseFutures)
-            .onSuccess(_ => firstPhaseRequestsFinished = true)
+            .onSuccess(_ => {
+              firstPhaseRequestsFinished = true
+              logger.info(
+                s"Reshape #${detectionCallCount}: First phase requests completed"
+              )
+            })
 
           // Step 4: Start second phase for pairs where helpers that have caught up with skewed
           secondPhaseRequestsFinished = false
@@ -432,7 +437,8 @@ trait SkewDetectionHandler {
             getSkewedAndFreeWorkersEligibleForSecondPhase(opConfig.workerToWorkloadInfo)
           skewedAndHelperPairsForSecondPhase.foreach(skewedAndHelper =>
             logger.info(
-              s"Reshape: Second phase - Skewed ${skewedAndHelper._1.toString()} :: Helper ${skewedAndHelper._2
+              s"Reshape #${detectionCallCount}: Second phase request begins - Skewed ${skewedAndHelper._1
+                .toString()} :: Helper ${skewedAndHelper._2
                 .toString()}"
             )
           )
@@ -453,7 +459,12 @@ trait SkewDetectionHandler {
           })
           Future
             .collect(allPairsSecondPhaseFutures)
-            .onSuccess(_ => secondPhaseRequestsFinished = true)
+            .onSuccess(_ => {
+              secondPhaseRequestsFinished = true
+              logger.info(
+                s"Reshape #${detectionCallCount}: Second phase requests completed"
+              )
+            })
 
           // Step 5: Pause mitigation for pairs where helpers have become overloaded
           pauseMitigationRequestsFinished = false
@@ -461,7 +472,8 @@ trait SkewDetectionHandler {
             getSkewedAndFreeWorkersEligibleForPauseMitigationPhase(opConfig.workerToWorkloadInfo)
           skewedAndHelperPairsForPauseMitigationPhase.foreach(skewedAndHelper =>
             logger.info(
-              s"Reshape: Pause Mitigation phase - Skewed ${skewedAndHelper._1.toString()} :: Helper ${skewedAndHelper._2
+              s"Reshape #${detectionCallCount}: Pause Mitigation phase request begins - Skewed ${skewedAndHelper._1
+                .toString()} :: Helper ${skewedAndHelper._2
                 .toString()}"
             )
           )
@@ -482,11 +494,17 @@ trait SkewDetectionHandler {
           })
           Future
             .collect(allPairsPauseMitigationFutures)
-            .onSuccess(_ => pauseMitigationRequestsFinished = true)
+            .onSuccess(_ => {
+              pauseMitigationRequestsFinished = true
+              logger.info(
+                s"Reshape #${detectionCallCount}: Pause Mitigation phase requests completed"
+              )
+            })
 
         }
       })
       previousSkewDetectionCallFinished = true
+      detectionCallCount += 1
       Future.Done
     }
   })
