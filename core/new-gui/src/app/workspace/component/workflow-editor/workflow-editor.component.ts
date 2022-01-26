@@ -565,23 +565,15 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private handleHighlightMouseDBClickInput(): void {
     fromEvent<JointPaperEvent>(this.getJointPaper(), "cell:pointerdblclick")
       .pipe(untilDestroyed(this))
-      .subscribe((event) => {
+      .subscribe(event => {
         if (
           event[0].model.isElement() &&
-          this.workflowActionService
-            .getTexeraGraph()
-            .hasCommentBox(event[0].model.id.toString())
+          this.workflowActionService.getTexeraGraph().hasCommentBox(event[0].model.id.toString())
         ) {
-          this.workflowActionService
-            .getJointGraphWrapper()
-            .setMultiSelectMode(<boolean>event[1].shiftKey);
+          this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(<boolean>event[1].shiftKey);
           const elementID = event[0].model.id.toString();
-          if (
-            this.workflowActionService.getTexeraGraph().hasCommentBox(elementID)
-          ) {
-            this.workflowActionService
-              .getJointGraphWrapper()
-              .highlightCommentBoxes(elementID);
+          if (this.workflowActionService.getTexeraGraph().hasCommentBox(elementID)) {
+            this.workflowActionService.getJointGraphWrapper().highlightCommentBoxes(elementID);
           }
         }
       });
@@ -693,15 +685,13 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .getJointGraphWrapper()
       .getJointCommentBoxHighlightStream()
       .pipe(untilDestroyed(this))
-      .subscribe((commentBoxIDs) => {
+      .subscribe(commentBoxIDs => {
         this.openCommentBox(commentBoxIDs[0]);
       });
   }
 
   private openCommentBox(commentBoxID: string): void {
-    const commentBox = this.workflowActionService
-      .getTexeraGraph()
-      .getCommentBox(commentBoxID);
+    const commentBox = this.workflowActionService.getTexeraGraph().getCommentBox(commentBoxID);
     const modalRef: NzModalRef = this.nzModalService.create({
       // modal title
       nzTitle: "Comments",
@@ -709,7 +699,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       // set component @Input attributes
       nzComponentParams: {
         // set the index value and page size to the modal for navigation
-        commentBox: commentBox
+        commentBox: commentBox,
       },
       // prevent browser focusing close button (ugly square highlight)
       nzAutofocus: null,
@@ -720,9 +710,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
           onClick: () => {
             modalRef.destroy();
           },
-          type: "primary"
-        }
-      ]
+          type: "primary",
+        },
+      ],
     });
   }
 
@@ -794,26 +784,24 @@ export class WorkflowEditorComponent implements AfterViewInit {
         map(value => value[0])
       )
       .pipe(untilDestroyed(this))
-      .subscribe((elementView) => {
-        if (
-          this.workflowActionService
-            .getTexeraGraph()
-            .hasOperator(elementView.model.id.toString())
-        ) {
-          this.workflowActionService.deleteOperator(
-            elementView.model.id.toString()
-          );
+      .subscribe(elementView => {
+        if (this.workflowActionService.getTexeraGraph().hasOperator(elementView.model.id.toString())) {
+          this.workflowActionService.deleteOperator(elementView.model.id.toString());
         }
-        if (
-          this.workflowActionService
-            .getTexeraGraph()
-            .hasCommentBox(elementView.model.id.toString())
-        ) {
-          this.workflowActionService.deleteCommentBox(
-            elementView.model.id.toString()
-          );
+        if (this.workflowActionService.getTexeraGraph().hasCommentBox(elementView.model.id.toString())) {
+          this.workflowActionService.deleteCommentBox(elementView.model.id.toString());
         }
+      });
+  }
 
+  private handleViewMouseoverOperator(): void {
+    fromEvent<JointPaperEvent>(this.getJointPaper(), "element:mouseover")
+      .pipe(map(value => value[0]))
+      .pipe(untilDestroyed(this))
+      .subscribe(elementView => {
+        this.jointUIService.unfoldOperatorDetails(this.getJointPaper(), elementView.model.id.toString());
+      });
+  }
 
   private handleViewMouseoutOperator(): void {
     fromEvent<JointPaperEvent>(this.getJointPaper(), "element:mouseout")

@@ -2,7 +2,6 @@ import { Injectable } from "@angular/core";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { OperatorSchema } from "../../types/operator-schema.interface";
 
-import * as joint from "jointjs";
 import { OperatorResultCacheStatus } from "../../types/workflow-websocket.interface";
 import { abbreviateNumber } from "js-abbreviation-number";
 import {
