@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.workflow.common.storage
 
 import java.util.concurrent.ConcurrentHashMap
-
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.operators.sink.storage.{
@@ -9,6 +8,8 @@ import edu.uci.ics.texera.workflow.operators.sink.storage.{
   MongoDBStorage,
   SinkStorageReader
 }
+
+import java.util.function.BiConsumer
 
 /**
   * Public class of operator result storage.
@@ -66,9 +67,14 @@ class OpResultStorage(mode: String = "memory") extends Serializable with LazyLog
   }
 
   /**
-    * Close this storage. Used for system termination.
+    * Close this storage. Used for workflow cleanup.
     */
   def close(): Unit = {
+    cache.forEach(new BiConsumer[String, SinkStorageReader] {
+      override def accept(t: String, u: SinkStorageReader): Unit = {
+        u.clear()
+      }
+    })
     cache.clear()
   }
 
