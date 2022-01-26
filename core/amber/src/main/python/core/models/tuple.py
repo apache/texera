@@ -1,5 +1,6 @@
 import datetime
 import typing
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, List, Mapping, TypeVar
 
@@ -25,9 +26,9 @@ class ArrowTableTupleProvider:
         Construct a provider from an arrow table.
         Keep the current chunk and tuple idx as its state.
         """
-        self.table = table
-        self.current_idx = 0
-        self.current_chunk = 0
+        self.__table = table
+        self.__current_idx = 0
+        self.__current_chunk = 0
 
     def __iter__(self):
         """
@@ -41,14 +42,14 @@ class ArrowTableTupleProvider:
         If current chunk is exhausted, move to the first
         tuple of the next chunk.
         """
-        if self.current_idx >= len(self.table.column(0).chunks[self.current_chunk]):
-            self.current_idx = 0
-            self.current_chunk += 1
-            if self.current_chunk >= self.table.column(0).num_chunks:
+        if self.__current_idx >= len(self.__table.column(0).chunks[self.__current_chunk]):
+            self.__current_idx = 0
+            self.__current_chunk += 1
+            if self.__current_chunk >= self.__table.column(0).num_chunks:
                 raise StopIteration
 
-        chunk_idx = self.current_chunk
-        tuple_idx = self.current_idx
+        chunk_idx = self.__current_chunk
+        tuple_idx = self.__current_idx
 
         def field_accessor(field_name):
             """
@@ -56,9 +57,9 @@ class ArrowTableTupleProvider:
             This abstracts and hides the underlying implementation
             of the tuple data storage from the user.
             """
-            return self.table.column(field_name).chunks[chunk_idx][tuple_idx]
+            return self.__table.column(field_name).chunks[chunk_idx][tuple_idx]
 
-        self.current_idx += 1
+        self.__current_idx += 1
         return field_accessor
 
 
@@ -80,9 +81,12 @@ class Tuple:
             self.__field_data = {}
         else:
             self.__field_data = dict(field_data)
-            if self.__field_names is None:
-                # try to infer field names if not provided
-                self.__field_names = self.__field_data.keys()
+
+    def get_field_names(self):
+        if self.__field_names is None:
+            return tuple(self.__field_data.keys())
+        else:
+            return self.__field_names
 
     def __getitem__(self, item) -> Any:
         """
@@ -93,14 +97,14 @@ class Tuple:
         assert isinstance(item, (str, int)), "field can only be retrieved by index or name"
 
         if isinstance(item, int):
-            item = self.__field_names[item]
+            item = self.get_field_names()[item]
 
         if item not in self.__field_data:
             # evaluate the field now
             self.__field_data[item] = self.__field_accessor(item).as_py()
         return self.__field_data[item]
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key, value: AttributeType):
         """
         Set a field with given value.
         :param key: field name
@@ -120,13 +124,9 @@ class Tuple:
         :return: dict with all the fields
         """
         # evaluate all the fields now
-        result = {}
-        if self.__field_names is not None:
-            for field in self.__field_names:
-                if field not in self.__field_data:
-                    self.__field_data[field] = self.__field_accessor(field).as_py()
-                result[field] = self.__field_data[field]
-        return result
+        for i in self.get_field_names():
+            self.__getitem__(i)
+        return deepcopy(self.__field_data)
 
     def as_key_value_pairs(self) -> List[typing.Tuple[str, Any]]:
         return [(k, v) for k, v in self.as_dict().items()]
@@ -200,3 +200,6 @@ class ImmutableTuple:
 
     def __iter__(self):
         return iter(self.data)
+
+    def __setitem__(self, key, value):
+        raise NotImplementedError("immutable tuple cannot be modified")
