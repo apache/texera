@@ -1128,6 +1128,7 @@ export class WorkflowActionService {
 
   public addComment(comment: Comment, commentBoxID: string): void {
     this.texeraGraph.addCommentToCommentBox(comment, commentBoxID);
+  }
 
   public setTempWorkflow(workflow: Workflow): void {
     this.tempWorkflow = workflow;
