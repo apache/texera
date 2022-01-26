@@ -77,6 +77,7 @@ class WorkflowService(wid: String, cleanUpTimeout: Int) extends LazyLogging {
         // do nothing
         logger.info(s"[$wid] workflow state clean up failed. current user count = $refCount")
       } else {
+        opResultStorage.close()
         cleanUpJob.cancel()
         statusUpdateSubscription.unsubscribe()
         WorkflowService.wIdToWorkflowState.remove(wid)

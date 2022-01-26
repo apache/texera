@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.workflow.common.storage
 
 import java.util.concurrent.ConcurrentHashMap
-
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.operators.sink.storage.{
@@ -66,9 +65,10 @@ class OpResultStorage(mode: String = "memory") extends Serializable with LazyLog
   }
 
   /**
-    * Close this storage. Used for system termination.
+    * Close this storage. Used for workflow cleanup.
     */
   def close(): Unit = {
+    cache.forEach((_, sinkStorageReader) => sinkStorageReader.clear())
     cache.clear()
   }
 
