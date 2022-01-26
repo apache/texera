@@ -9,8 +9,6 @@ import edu.uci.ics.texera.workflow.operators.sink.storage.{
   SinkStorageReader
 }
 
-import java.util.function.BiConsumer
-
 /**
   * Public class of operator result storage.
   */
@@ -70,11 +68,7 @@ class OpResultStorage(mode: String = "memory") extends Serializable with LazyLog
     * Close this storage. Used for workflow cleanup.
     */
   def close(): Unit = {
-    cache.forEach(new BiConsumer[String, SinkStorageReader] {
-      override def accept(t: String, u: SinkStorageReader): Unit = {
-        u.clear()
-      }
-    })
+    cache.forEach((_, sinkStorageReader) => sinkStorageReader.clear())
     cache.clear()
   }
 
