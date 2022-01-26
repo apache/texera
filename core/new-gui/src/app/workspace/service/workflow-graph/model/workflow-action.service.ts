@@ -123,7 +123,8 @@ export class WorkflowActionService {
   private readonly operatorGroup: OperatorGroup;
   private readonly syncTexeraModel: SyncTexeraModel;
   private readonly syncOperatorGroup: SyncOperatorGroup;
-
+  // variable to temporarily hold the current workflow to switch view to a particular version
+  private tempWorkflow?: Workflow;
   private workflowModificationEnabled = true;
   private enableModificationStream = new BehaviorSubject<boolean>(true);
 
@@ -1083,6 +1084,18 @@ export class WorkflowActionService {
       ...this.workflowMetadata,
       ...{ content: this.getWorkflowContent() },
     };
+  }
+
+  public setTempWorkflow(workflow: Workflow): void {
+    this.tempWorkflow = workflow;
+  }
+
+  public resetTempWorkflow(): void {
+    this.tempWorkflow = undefined;
+  }
+
+  public getTempWorkflow(): Workflow | undefined {
+    return this.tempWorkflow;
   }
 
   public setWorkflowName(name: string): void {

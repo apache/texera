@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.sink;
+package edu.uci.ics.texera.workflow.operators.sink.managed;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Preconditions;
@@ -8,9 +8,10 @@ import edu.uci.ics.texera.workflow.common.ProgressiveUtils;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
-import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
+import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc;
+import edu.uci.ics.texera.workflow.operators.sink.storage.SinkStorageReader;
 import scala.Option;
 import scala.collection.immutable.List;
 
@@ -18,7 +19,7 @@ import static edu.uci.ics.texera.workflow.common.IncrementalOutputMode.SET_SNAPS
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
 
-public class SimpleSinkOpDesc extends OperatorDescriptor {
+public class ProgressiveSinkOpDesc extends SinkOpDesc {
 
     // use SET_SNAPSHOT as the default output mode
     // this will be set internally by the workflow compiler
@@ -29,9 +30,15 @@ public class SimpleSinkOpDesc extends OperatorDescriptor {
     @JsonIgnore
     private Option<String> chartType = Option.empty();
 
+    @JsonIgnore
+    private SinkStorageReader storage = null;
+
+    @JsonIgnore
+    private Option<String> cachedUpstreamId = Option.empty();
+
     @Override
     public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
-        return new SimpleSinkOpExecConfig(operatorIdentifier(), operatorSchemaInfo, outputMode, this.chartType);
+        return new ProgressiveSinkOpExecConfig(operatorIdentifier(), operatorSchemaInfo, outputMode, storage);
     }
 
     @Override
@@ -84,5 +91,20 @@ public class SimpleSinkOpDesc extends OperatorDescriptor {
     public void setChartType(String chartType) {
         this.chartType = Option.apply(chartType);
     }
+
+    @JsonIgnore
+    public void setStorage(SinkStorageReader storage){ this.storage = storage; }
+
+    @JsonIgnore
+    public SinkStorageReader getStorage(){ return this.storage; }
+
+    @JsonIgnore
+    public Option<String> getCachedUpstreamId(){ return this.cachedUpstreamId;}
+
+    @JsonIgnore
+    public void setCachedUpstreamId(String id){
+        this.cachedUpstreamId = Option.apply(id);
+    }
+
 
 }
