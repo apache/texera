@@ -112,7 +112,7 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
     // environment.jersey().register(classOf[MockKillWorkerResource])
     environment.jersey.register(classOf[SchemaPropagationResource])
 
-    if (AmberUtils.amberConfig.getBoolean("web-server.user-system-enabled")) {
+    if (AmberUtils.amberConfig.getBoolean("user-sys.enabled")) {
       // register JWT Auth layer
       environment.jersey.register(
         new AuthDynamicFeature(
