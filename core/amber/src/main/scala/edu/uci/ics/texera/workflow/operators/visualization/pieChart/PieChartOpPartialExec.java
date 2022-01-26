@@ -20,11 +20,13 @@ import java.util.*;
 public class PieChartOpPartialExec implements OperatorExecutor {
     private final String nameColumn;
     private final String dataColumn;
+    private boolean noDataCol;
     private List<Tuple> result;
 
     public PieChartOpPartialExec(String nameColumn, String dataColumn) {
         this.nameColumn = nameColumn;
-        this.dataColumn = dataColumn;
+        this.dataColumn = dataColumn.equals("")? "count": dataColumn;
+        this.noDataCol = dataColumn.equals("");
     }
 
     @Override
@@ -49,19 +51,32 @@ public class PieChartOpPartialExec implements OperatorExecutor {
             Double data;
             if (inputTuple.getSchema().getAttribute(dataColumn).getType() == AttributeType.STRING) {
                 data = Double.parseDouble(inputTuple.getField(dataColumn));
+            } else if (inputTuple.getSchema().getAttribute(dataColumn).getType() == AttributeType.INTEGER) {
+                data = Double.parseDouble(Integer.toString(inputTuple.getField(dataColumn)));
             } else {
                 data = inputTuple.getField(dataColumn);
             }
             Schema oldSchema = tuple.left().get().getSchema();
-            Attribute dataAttribute = new Attribute(oldSchema.getAttribute(dataColumn).getName(), AttributeType.DOUBLE);
+            Attribute dataAttribute = new Attribute(oldSchema.getAttribute(dataColumn).getName(), oldSchema.getAttribute(dataColumn).getType());
             Schema newSchema = new Schema(Arrays.asList(oldSchema.getAttribute(nameColumn), dataAttribute));
-            result.add(Tuple.newBuilder(newSchema).addSequentially(new Object[]{name, data}).build());
+            if (noDataCol) {
+                result.add(Tuple.newBuilder(newSchema).addSequentially(new Object[]{name, data.intValue()}).build());
+            } else {
+                result.add(Tuple.newBuilder(newSchema).addSequentially(new Object[]{name, data}).build());
+            }
             return JavaConverters.asScalaIterator(Collections.emptyIterator());
         }
         else {
             result.sort((left, right) -> {
-                double leftValue = left.getDouble(1);
-                double rightValue = right.getDouble(1);
+                double leftValue;
+                double rightValue;
+                if (noDataCol) {
+                    leftValue = left.getInt(1);
+                    rightValue = right.getInt(1);
+                } else {
+                    leftValue = left.getDouble(1);
+                    rightValue = right.getDouble(1);
+                }
                 return Double.compare(rightValue, leftValue);
             });
             return JavaConverters.asScalaIterator(result.iterator());
