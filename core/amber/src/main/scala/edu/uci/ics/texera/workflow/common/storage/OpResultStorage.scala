@@ -1,21 +1,16 @@
 package edu.uci.ics.texera.workflow.common.storage
 
 import java.util.concurrent.ConcurrentHashMap
-
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
-import edu.uci.ics.texera.workflow.operators.sink.storage.{
-  MemoryStorage,
-  MongoDBStorage,
-  SinkStorage
-}
+import edu.uci.ics.texera.workflow.operators.sink.storage.{MemoryStorage, MongoDBStorage, SinkStorageReader}
 
 /**
   * Public class of operator result storage.
   */
 class OpResultStorage(mode: String = "memory") extends Serializable with LazyLogging {
 
-  val cache: ConcurrentHashMap[String, SinkStorage] = new ConcurrentHashMap[String, SinkStorage]()
+  val cache: ConcurrentHashMap[String, SinkStorageReader] = new ConcurrentHashMap[String, SinkStorageReader]()
 
 //  /**
 //    * Put the result of an operator to OpResultStorage.
@@ -31,12 +26,12 @@ class OpResultStorage(mode: String = "memory") extends Serializable with LazyLog
     *            Currently it is the uuid inside the cache source or cache sink operator.
     * @return The storage of this operator.
     */
-  def get(key: String): SinkStorage = {
+  def get(key: String): SinkStorageReader = {
     cache.get(key)
   }
 
-  def create(key: String, schema: Schema): SinkStorage = {
-    val storage: SinkStorage =
+  def create(key: String, schema: Schema): SinkStorageReader = {
+    val storage: SinkStorageReader =
       if (mode == "memory") {
         new MemoryStorage(schema)
       } else {

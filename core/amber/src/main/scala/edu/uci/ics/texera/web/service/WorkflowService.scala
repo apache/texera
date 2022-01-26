@@ -74,6 +74,7 @@ class WorkflowService(
     wid,
     cleanUpTimeout,
     () => {
+      opResultStorage.close()
       WorkflowService.wIdToWorkflowState.remove(wid)
       wsInput.onNext(WorkflowKillRequest(), None)
       unsubscribeAll()
