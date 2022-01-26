@@ -3,14 +3,19 @@ package edu.uci.ics.texera.workflow.common.storage
 import java.util.concurrent.ConcurrentHashMap
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
-import edu.uci.ics.texera.workflow.operators.sink.storage.{MemoryStorage, MongoDBStorage, SinkStorageReader}
+import edu.uci.ics.texera.workflow.operators.sink.storage.{
+  MemoryStorage,
+  MongoDBStorage,
+  SinkStorageReader
+}
 
 /**
   * Public class of operator result storage.
   */
 class OpResultStorage(mode: String = "memory") extends Serializable with LazyLogging {
 
-  val cache: ConcurrentHashMap[String, SinkStorageReader] = new ConcurrentHashMap[String, SinkStorageReader]()
+  val cache: ConcurrentHashMap[String, SinkStorageReader] =
+    new ConcurrentHashMap[String, SinkStorageReader]()
 
 //  /**
 //    * Put the result of an operator to OpResultStorage.

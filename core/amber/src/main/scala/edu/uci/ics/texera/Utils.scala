@@ -96,21 +96,22 @@ object Utils {
 
   def aggregatedStateToString(state: WorkflowAggregatedState): String = {
     state match {
-      case WorkflowAggregatedState.UNINITIALIZED                   => "Uninitialized"
-      case WorkflowAggregatedState.READY                           => "Initializing"
-      case WorkflowAggregatedState.RUNNING                         => "Running"
-      case WorkflowAggregatedState.PAUSING                         => "Pausing"
-      case WorkflowAggregatedState.PAUSED                          => "Paused"
-      case WorkflowAggregatedState.RESUMING                        => "Resuming"
-      case WorkflowAggregatedState.RECOVERING                      => "Recovering"
-      case WorkflowAggregatedState.COMPLETED                       => "Completed"
-      case WorkflowAggregatedState.ABORTED                         => "Aborted"
-      case WorkflowAggregatedState.UNKNOWN                         => "Unknown"
-      case WorkflowAggregatedState.Unrecognized(unrecognizedValue) => s"Unrecognized($unrecognizedValue)"
+      case WorkflowAggregatedState.UNINITIALIZED => "Uninitialized"
+      case WorkflowAggregatedState.READY         => "Initializing"
+      case WorkflowAggregatedState.RUNNING       => "Running"
+      case WorkflowAggregatedState.PAUSING       => "Pausing"
+      case WorkflowAggregatedState.PAUSED        => "Paused"
+      case WorkflowAggregatedState.RESUMING      => "Resuming"
+      case WorkflowAggregatedState.RECOVERING    => "Recovering"
+      case WorkflowAggregatedState.COMPLETED     => "Completed"
+      case WorkflowAggregatedState.ABORTED       => "Aborted"
+      case WorkflowAggregatedState.UNKNOWN       => "Unknown"
+      case WorkflowAggregatedState.Unrecognized(unrecognizedValue) =>
+        s"Unrecognized($unrecognizedValue)"
     }
   }
 
-  def withLock[X](instructions: => X)(implicit lock:Lock): X = {
+  def withLock[X](instructions: => X)(implicit lock: Lock): X = {
     lock.lock()
     val result = instructions
     lock.unlock()
