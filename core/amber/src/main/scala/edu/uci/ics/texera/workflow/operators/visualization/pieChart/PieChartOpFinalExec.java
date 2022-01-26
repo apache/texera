@@ -25,9 +25,11 @@ public class PieChartOpFinalExec implements OperatorExecutor {
     private List<Tuple> resultList;
     private double sum = 0.0;
     private Schema resultSchema = null;
+    private boolean noDataCol;
 
-    public PieChartOpFinalExec(Double pruneRatio) {
+    public PieChartOpFinalExec(Double pruneRatio, String dataColumn) {
         this.pruneRatio = pruneRatio;
+        this.noDataCol = dataColumn.equals("");
     }
 
     @Override
@@ -49,15 +51,26 @@ public class PieChartOpFinalExec implements OperatorExecutor {
     @Override
     public scala.collection.Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, LinkIdentity input) {
         if (tuple.isLeft()) {
-            sum += tuple.left().get().getDouble(1);
+            if (noDataCol) {
+                sum += tuple.left().get().getInt(1);
+            } else {
+                sum += tuple.left().get().getDouble(1);
+            }
             tempList.add(tuple.left().get());
             if (resultSchema == null) resultSchema = tuple.left().get().getSchema();
             return JavaConverters.asScalaIterator(Collections.emptyIterator());
         } else {
             // sort all tuples in descending order
             tempList.sort((left, right) -> {
-                double leftValue = left.getDouble(1);
-                double rightValue = right.getDouble(1);
+                double leftValue;
+                double rightValue;
+                if (noDataCol) {
+                    leftValue = left.getInt(1);
+                    rightValue = right.getInt(1);
+                } else {
+                    leftValue = left.getDouble(1);
+                    rightValue = right.getDouble(1);
+                }
                 return Double.compare(rightValue, leftValue);
             });
 
@@ -65,11 +78,20 @@ public class PieChartOpFinalExec implements OperatorExecutor {
             // stop adding tuples, add new row called "Other" instead.
             double total = 0.0;
             for (Tuple t : tempList) {
-                total += t.getDouble(1);
+                if (noDataCol) {
+                    total += t.getInt(1);
+                } else {
+                    total += t.getDouble(1);
+                }
                 resultList.add(t);
                 if (total / sum > pruneRatio) {
-                    double otherDataField = sum - total;
-                    resultList.add(Tuple.newBuilder(resultSchema).addSequentially(new Object[]{"Other", otherDataField}).build());
+                    if (noDataCol) {
+                        int otherDataField = (int)(sum - total);
+                        resultList.add(Tuple.newBuilder(resultSchema).addSequentially(new Object[]{"Other", otherDataField}).build());
+                    } else {
+                        double otherDataField = sum - total;
+                        resultList.add(Tuple.newBuilder(resultSchema).addSequentially(new Object[]{"Other", otherDataField}).build());
+                    }
                     break;
                 }
             }

@@ -51,6 +51,7 @@ export class NavigationComponent {
 
   @Input() public autoSaveState: string = "";
   @Input() public currentWorkflowName: string = ""; // reset workflowName
+  @Input() public particularVersionDate: string = ""; // placeholder for the metadata information of a particular workflow version
   @ViewChild("nameInput") nameInputBox: ElementRef<HTMLElement> | undefined;
 
   // variable bound with HTML to decide if the running spinner should show
@@ -60,6 +61,8 @@ export class NavigationComponent {
 
   // whether user dashboard is enabled and accessible from the workspace
   public userSystemEnabled: boolean = environment.userSystemEnabled;
+  // flag to display a particular version in the current canvas
+  public displayParticularWorkflowVersion: boolean = false;
   public onClickRunHandler: () => void;
 
   // whether the disable operator button should be enabled
@@ -115,7 +118,7 @@ export class NavigationComponent {
       });
 
     this.registerWorkflowMetadataDisplayRefresh();
-
+    this.handleWorkflowVersionDisplay();
     this.handleDisableOperatorStatusChange();
     this.handleCacheOperatorStatusChange();
   }
@@ -443,6 +446,36 @@ export class NavigationComponent {
   onClickGetAllVersions() {
     this.workflowVersionService.clickDisplayWorkflowVersions();
   }
+
+  private handleWorkflowVersionDisplay(): void {
+    this.workflowVersionService
+      .getDisplayParticularVersionStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(displayVersionFlag => {
+        this.particularVersionDate =
+          this.workflowActionService.getWorkflowMetadata().creationTime === undefined
+            ? ""
+            : "" +
+              this.datePipe.transform(
+                this.workflowActionService.getWorkflowMetadata().creationTime,
+                "MM/dd/yyyy HH:mm:ss zzz",
+                Intl.DateTimeFormat().resolvedOptions().timeZone,
+                "en"
+              );
+        this.displayParticularWorkflowVersion = displayVersionFlag;
+      });
+  }
+
+  closeParticularVersionDisplay() {
+    this.workflowVersionService.closeParticularVersionDisplay();
+  }
+
+  revertToVersion() {
+    this.workflowVersionService.revertToVersion();
+    // after swapping the workflows to point to the particular version, persist it in DB
+    this.persistWorkflow();
+  }
+
   /**
    * Updates the status of the disable operator icon:
    * If all selected operators are disabled, then click it will re-enable the operators

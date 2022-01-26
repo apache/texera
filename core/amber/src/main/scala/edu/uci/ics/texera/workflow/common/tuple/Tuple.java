@@ -14,6 +14,7 @@ import edu.uci.ics.texera.workflow.common.tuple.exception.TupleBuildingException
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
+import org.bson.Document;
 
 import java.io.Serializable;
 import java.util.*;
@@ -141,6 +142,17 @@ public class Tuple implements ITuple, Serializable {
             objectNode.set(attrName, valueNode);
         }
         return objectNode;
+    }
+
+    /*
+     * convert the tuple to a bson document for mongoDB storage
+     */
+    public Document asDocument(){
+        Document doc = new Document();
+        for (String attrName : this.schema.getAttributeNames()) {
+            doc.put(attrName, this.getField(attrName));
+        }
+        return doc;
     }
 
     /*

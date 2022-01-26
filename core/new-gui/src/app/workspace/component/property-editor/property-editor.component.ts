@@ -5,8 +5,16 @@ import { OperatorPropertyEditFrameComponent } from "./operator-property-edit-fra
 import { BreakpointPropertyEditFrameComponent } from "./breakpoint-property-edit-frame/breakpoint-property-edit-frame.component";
 import { DynamicComponentConfig } from "../../../common/type/dynamic-component-config";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import {
+  DISPLAY_WORKFLOW_VERIONS_EVENT,
+  WorkflowVersionService,
+} from "src/app/dashboard/service/workflow-version/workflow-version.service";
+import { VersionsListDisplayComponent } from "./versions-display/versions-display.component";
 
-export type PropertyEditFrameComponent = OperatorPropertyEditFrameComponent | BreakpointPropertyEditFrameComponent;
+export type PropertyEditFrameComponent =
+  | OperatorPropertyEditFrameComponent
+  | BreakpointPropertyEditFrameComponent
+  | VersionsListDisplayComponent;
 
 export type PropertyEditFrameConfig = DynamicComponentConfig<PropertyEditFrameComponent>;
 
@@ -25,7 +33,10 @@ export type PropertyEditFrameConfig = DynamicComponentConfig<PropertyEditFrameCo
 export class PropertyEditorComponent implements OnInit {
   frameComponentConfig?: PropertyEditFrameConfig;
 
-  constructor(public workflowActionService: WorkflowActionService) {}
+  constructor(
+    public workflowActionService: WorkflowActionService,
+    public workflowVersionService: WorkflowVersionService
+  ) {}
 
   ngOnInit(): void {
     this.registerHighlightEventsHandler();
@@ -77,7 +88,9 @@ export class PropertyEditorComponent implements OnInit {
         .getJointCommentBoxUnhighlightStream()
     )
       .pipe(untilDestroyed(this))
-      .subscribe(() => {
+      .subscribe(event => {
+        const isDisplayWorkflowVersions = event.length === 1 && event[0] === DISPLAY_WORKFLOW_VERIONS_EVENT;
+
         const highlightedOperators = this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs();
@@ -91,7 +104,11 @@ export class PropertyEditorComponent implements OnInit {
           .getJointGraphWrapper()
           .getCurrentHighlightedCommentBoxIDs();
 
-        if (highlightedOperators.length === 1 && highlightedGroups.length === 0 && highlightLinks.length === 0) {
+        if (isDisplayWorkflowVersions) {
+          this.switchFrameComponent({
+            component: VersionsListDisplayComponent,
+          });
+        } else if (highlightedOperators.length === 1 && highlightedGroups.length === 0 && highlightLinks.length === 0) {
           this.switchFrameComponent({
             component: OperatorPropertyEditFrameComponent,
             componentInputs: { currentOperatorId: highlightedOperators[0] },

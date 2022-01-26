@@ -2,10 +2,11 @@ package edu.uci.ics.texera.web.service
 
 import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowResultUpdate
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowCompleted
+import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.texera.web.SnapshotMulticast
+import edu.uci.ics.texera.web.{SnapshotMulticast, TexeraWebApplication}
 import edu.uci.ics.texera.web.model.websocket.event.WorkflowAvailableResultEvent.OperatorAvailableResult
 import edu.uci.ics.texera.web.model.websocket.event.{
   PaginatedResultEvent,
@@ -14,20 +15,15 @@ import edu.uci.ics.texera.web.model.websocket.event.{
   WorkflowAvailableResultEvent
 }
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
-import edu.uci.ics.texera.web.service.JobResultService.{
-  PaginationMode,
-  WebPaginationUpdate,
-  defaultPageSize
-}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo}
-import edu.uci.ics.texera.workflow.operators.sink.CacheSinkOpDesc
-import javax.websocket.Session
+import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import rx.lang.scala.Observer
 
 import scala.collection.mutable
+import scala.concurrent.duration.DurationInt
 
 object JobResultService {
 
@@ -101,7 +97,7 @@ object JobResultService {
 
   case class WebPaginationUpdate(
       mode: PaginationMode,
-      totalNumTuples: Int,
+      totalNumTuples: Long,
       dirtyPageIndices: List[Int]
   ) extends WebResultUpdate
 
@@ -118,117 +114,79 @@ object JobResultService {
   */
 class JobResultService(
     workflowInfo: WorkflowInfo,
-    opResultStorage: OpResultStorage,
-    client: AmberClient
+    client: AmberClient,
+    opResultStorage: OpResultStorage
 ) extends SnapshotMulticast[TexeraWebSocketEvent] {
-  var operatorResults: mutable.HashMap[String, OperatorResultService] =
-    mutable.HashMap[String, OperatorResultService]()
-  val updatedSet: mutable.Set[String] = mutable.HashSet[String]()
+
+  var progressiveResults: mutable.HashMap[String, ProgressiveResultService] =
+    mutable.HashMap[String, ProgressiveResultService]()
   var availableResultMap: Map[String, OperatorAvailableResult] = Map.empty
+  private val resultPullingFrequency =
+    AmberUtils.amberConfig.getInt("web-server.workflow-result-pulling-in-seconds")
+
+  private val resultUpdateCancellable = TexeraWebApplication
+    .scheduleRecurringCallThroughActorSystem(2.seconds, resultPullingFrequency.seconds) {
+      onResultUpdate()
+    }
 
   client
-    .getObservable[WorkflowResultUpdate]
-    .subscribe((evt: WorkflowResultUpdate) => onResultUpdate(evt))
+    .getObservable[WorkflowCompleted]
+    .onTerminateDetach
+    .subscribe(evt => {
+      if (resultUpdateCancellable.cancel() || resultUpdateCancellable.isCancelled) {
+        // immediately perform final update
+        onResultUpdate()
+      }
+    })
 
   workflowInfo.toDAG.getSinkOperators.map(sink => {
     workflowInfo.toDAG.getOperator(sink) match {
-      case desc: CacheSinkOpDesc =>
-        val upstreamID = workflowInfo.toDAG.getUpstream(sink).head.operatorID
-        val service = new OperatorResultService(upstreamID, workflowInfo, opResultStorage)
-        service.uuid = desc.uuid
-        operatorResults += ((sink, service))
-      case _ =>
-        val service = new OperatorResultService(sink, workflowInfo, opResultStorage)
-        operatorResults += ((sink, service))
+      case sinkOp: ProgressiveSinkOpDesc =>
+        val service = new ProgressiveResultService(sinkOp)
+        sinkOp.getCachedUpstreamId match {
+          case Some(upstreamId) => progressiveResults += ((upstreamId, service))
+          case None             => progressiveResults += ((sink, service))
+        }
+      case other => // skip other non-texera-managed sinks, if any
     }
   })
 
   def handleResultPagination(request: ResultPaginationRequest): Unit = {
-    var operatorID = request.operatorID
-    if (!operatorResults.contains(operatorID)) {
-      val downstreamIDs = workflowInfo.toDAG
-        .getDownstream(operatorID)
-      // Get the first CacheSinkOpDesc, if exists
-      downstreamIDs.find(_.isInstanceOf[CacheSinkOpDesc]).foreach { op =>
-        operatorID = op.operatorID
-      }
-    }
-    val opResultService = operatorResults(operatorID)
     // calculate from index (pageIndex starts from 1 instead of 0)
     val from = request.pageSize * (request.pageIndex - 1)
-    val paginationResults = opResultService.getResult
-      .slice(from, from + request.pageSize)
-      .map(tuple => tuple.asInstanceOf[Tuple].asKeyValuePairJson())
-    send(PaginatedResultEvent.apply(request, paginationResults))
+    val opId = request.operatorID
+    val paginationIterable =
+      if (opResultStorage.contains(opId)) {
+        opResultStorage.get(opId).getRange(from, from + request.pageSize)
+      } else {
+        Iterable.empty
+      }
+    val mappedResults = paginationIterable
+      .map(tuple => tuple.asKeyValuePairJson())
+      .toList
+    send(PaginatedResultEvent.apply(request, mappedResults))
   }
 
-  def onResultUpdate(
-      resultUpdate: WorkflowResultUpdate
-  ): Unit = {
-    val tmpUpdatedSet = updatedSet.clone()
-    for (id <- tmpUpdatedSet) {
-      if (!operatorResults.contains(id)) {
-        updatedSet.remove(id)
-      }
-    }
-
-    val webUpdateEvent = operatorResults
-      .filter(e => resultUpdate.operatorResults.contains(e._1) || !updatedSet.contains(e._1))
-      .map(e => {
-        if (resultUpdate.operatorResults.contains(e._1)) {
-          val e1 = resultUpdate.operatorResults(e._1)
-          val opResultService = operatorResults(e._1)
-          val webUpdateEvent = opResultService.convertWebResultUpdate(e1)
-          if (workflowInfo.toDAG.getOperator(e._1).isInstanceOf[CacheSinkOpDesc]) {
-            val upID = opResultService.operatorID
-            (upID, webUpdateEvent)
-          } else {
-            (e._1, webUpdateEvent)
-          }
-        } else {
-          updatedSet += e._1
-          val size = operatorResults(e._1).getResult.size
-          (e._1, WebPaginationUpdate(PaginationMode(), size, List.empty))
-        }
-      })
-      .toMap
-
-    // update the result snapshot of each operator
-    resultUpdate.operatorResults.foreach(e => operatorResults(e._1).updateResult(e._2))
+  def onResultUpdate(): Unit = {
+    val webUpdateEvent = progressiveResults.map {
+      case (id, service) =>
+        (id, service.convertWebResultUpdate())
+    }.toMap
 
     // return update event
     send(WebResultUpdateEvent(webUpdateEvent))
   }
 
-  def updateResultFromPreviousRun(
-      previousResults: mutable.HashMap[String, OperatorResultService],
-      cachedOps: mutable.HashMap[String, OperatorDescriptor]
-  ): Unit = {
-    operatorResults.foreach(e => {
-      if (previousResults.contains(e._2.operatorID)) {
-        previousResults(e._2.operatorID) = e._2
-      }
-    })
-    previousResults.foreach(e => {
-      if (cachedOps.contains(e._2.operatorID) && !operatorResults.contains(e._2.operatorID)) {
-        operatorResults += ((e._2.operatorID, e._2))
-      }
-    })
-  }
-
   def updateAvailableResult(operators: Iterable[OperatorDescriptor]): Unit = {
-    val cachedIDs = mutable.HashSet[String]()
-    val cachedIDMap = mutable.HashMap[String, String]()
-    operatorResults.foreach(e => cachedIDMap += ((e._2.operatorID, e._1)))
     availableResultMap = operators
-      .filter(op => cachedIDMap.contains(op.operatorID))
+      .filter(op => progressiveResults.contains(op.operatorID))
       .map(op => op.operatorID)
       .map(id => {
         (
           id,
           OperatorAvailableResult(
-            cachedIDs.contains(id),
-            operatorResults(cachedIDMap(id)).webOutputMode
+            opResultStorage.contains(id),
+            progressiveResults(id).webOutputMode
           )
         )
       })
@@ -237,7 +195,9 @@ class JobResultService(
 
   override def sendSnapshotTo(observer: Observer[TexeraWebSocketEvent]): Unit = {
     observer.onNext(WorkflowAvailableResultEvent(availableResultMap))
-    observer.onNext(WebResultUpdateEvent(operatorResults.map(e => (e._1, e._2.getSnapshot)).toMap))
+    observer.onNext(
+      WebResultUpdateEvent(progressiveResults.map(e => (e._1, e._2.getSnapshot)).toMap)
+    )
   }
 
 }
