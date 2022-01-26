@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.web
 
+import edu.uci.ics.texera.Utils.withLock
 import rx.lang.scala.Subscription
 
 import java.util.concurrent.locks.ReentrantLock
@@ -10,8 +11,8 @@ class SyncableState[T](defaultStateGen: => T) {
   private var state: T = defaultStateGen
   private var isModifying = false
   private var callbackId = 0
-  private var onChangedCallbacks = mutable.HashMap[Int, (T, T) => Unit]()
-  private val lock = new ReentrantLock()
+  private val onChangedCallbacks = mutable.HashMap[Int, (T, T) => Unit]()
+  private implicit val lock: ReentrantLock = new ReentrantLock()
 
   def getStateThenConsume[X](next: T => X): X = {
     withLock {
@@ -21,13 +22,6 @@ class SyncableState[T](defaultStateGen: => T) {
 
   def acquireLock(): Unit = lock.lock()
   def releaseLock(): Unit = lock.unlock()
-
-  private def withLock[X](code: => X): X = {
-    acquireLock()
-    val result = code
-    releaseLock()
-    result
-  }
 
   def updateState(func: T => T): Unit = {
     withLock {

@@ -8,6 +8,7 @@ import org.apache.lucene.analysis.CharArraySet
 
 import java.nio.file.{Files, Path, Paths}
 import java.text.SimpleDateFormat
+import java.util.concurrent.locks.{Lock, ReentrantLock}
 import scala.annotation.tailrec
 
 object Utils {
@@ -105,7 +106,14 @@ object Utils {
       case WorkflowAggregatedState.COMPLETED                       => "Completed"
       case WorkflowAggregatedState.ABORTED                         => "Aborted"
       case WorkflowAggregatedState.UNKNOWN                         => "Unknown"
-      case WorkflowAggregatedState.Unrecognized(unrecognizedValue) => "???"
+      case WorkflowAggregatedState.Unrecognized(unrecognizedValue) => s"Unrecognized($unrecognizedValue)"
     }
+  }
+
+  def withLock[X](instructions: => X)(implicit lock:Lock): X = {
+    lock.lock()
+    val result = instructions
+    lock.unlock()
+    result
   }
 }
