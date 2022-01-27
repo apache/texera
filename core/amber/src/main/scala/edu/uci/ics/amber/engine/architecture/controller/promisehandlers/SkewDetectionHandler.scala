@@ -78,7 +78,11 @@ object SkewDetectionHandler {
   }
 
   /**
+<<<<<<< HEAD
     * worker is eligible for being a helper if it is being used in neither of the phases.
+=======
+    * worker is eligible for free if it is being used in none of the phases.
+>>>>>>> 9aee398bb28b1333a6e013713b10302546d19987
     */
   def isEligibleForHelper(worker: ActorVirtualIdentity): Boolean = {
     !skewedToHelperMappingHistory.keySet.contains(
