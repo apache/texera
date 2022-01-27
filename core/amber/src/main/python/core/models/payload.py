@@ -1,7 +1,8 @@
 from dataclasses import dataclass
-from typing import Generator, List, Dict
 from pyarrow.lib import Table
-from core.models.tuple import OutputTuple
+from typing import List
+
+from core.models.tuple import Tuple
 
 
 @dataclass
@@ -16,7 +17,7 @@ class InputDataFrame(DataPayload):
 
 @dataclass
 class OutputDataFrame(DataPayload):
-    frame: List[OutputTuple]
+    frame: List[Tuple]
     schema: List[str] = None
 
 

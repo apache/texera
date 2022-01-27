@@ -155,7 +155,7 @@ class TestDataProcessor:
         assert isinstance(output_data_element.payload, OutputDataFrame)
         data_frame: OutputDataFrame = output_data_element.payload
         assert len(data_frame.frame) == 1
-        assert (data_frame.frame[0].data == mock_tuple.to_values())
+        assert (data_frame.frame[0] == mock_tuple)
 
         # can process QueryStatistics
         input_queue.put(mock_query_statistics)
