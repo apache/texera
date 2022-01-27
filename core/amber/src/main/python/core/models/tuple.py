@@ -154,7 +154,8 @@ class Tuple:
         if not isinstance(other, Tuple):
             return False
         else:
-            return all(self[i] == other[i] for i in self.get_field_names())
+            return self.get_field_names() == other.get_field_names() and all(
+                self[i] == other[i] for i in self.get_field_names())
 
     def __ne__(self, other) -> bool:
         return not self.__eq__(other)
