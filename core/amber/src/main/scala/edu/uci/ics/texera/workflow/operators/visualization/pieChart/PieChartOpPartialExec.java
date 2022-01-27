@@ -25,8 +25,8 @@ public class PieChartOpPartialExec implements OperatorExecutor {
 
     public PieChartOpPartialExec(String nameColumn, String dataColumn) {
         this.nameColumn = nameColumn;
-        this.dataColumn = dataColumn.equals("")? "count": dataColumn;
-        this.noDataCol = dataColumn.equals("");
+        this.noDataCol = dataColumn == null || dataColumn.equals("");
+        this.dataColumn = noDataCol? "count": dataColumn;
     }
 
     @Override
