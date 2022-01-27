@@ -81,15 +81,8 @@ class TestTuple:
             Tuple([None])
 
     def test_tuple_lazy_get_from_arrow(self):
-        class MockArrow:
-            def __init__(self, name):
-                self.name = name
-
-            def as_py(self):
-                return chr(96 + int(self.name))
-
         def field_accessor(field_name):
-            return MockArrow(field_name)
+            return chr(96 + int(field_name))
 
         chr_tuple = Tuple({'1': 'a', '3': 'c'})
         tuple_ = Tuple({'1': field_accessor, "3": field_accessor})

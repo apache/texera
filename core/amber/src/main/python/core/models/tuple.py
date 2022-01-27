@@ -1,4 +1,5 @@
 import datetime
+import pyarrow
 import typing
 from copy import deepcopy
 from dataclasses import dataclass
@@ -30,12 +31,12 @@ class InputExhausted:
 
 class ArrowTableTupleProvider:
     """
-    This class provides "view"s for tuple from an arrow table
+    This class provides "view"s for tuple from a pyarrow.Table.
     """
 
-    def __init__(self, table):
+    def __init__(self, table: pyarrow.Table):
         """
-        Construct a provider from an arrow table.
+        Construct a provider from a pyarrow.Table.
         Keep the current chunk and tuple idx as its state.
         """
         self._table = table
@@ -44,13 +45,13 @@ class ArrowTableTupleProvider:
 
     def __iter__(self) -> Iterator[Callable]:
         """
-        return itself as it is iterable.
+        Return itself as it is iterable.
         """
         return self
 
     def __next__(self) -> Callable:
         """
-        provide the field accessor of the next tuple.
+        Provide the field accessor of the next tuple.
         If current chunk is exhausted, move to the first
         tuple of the next chunk.
         """
@@ -63,13 +64,13 @@ class ArrowTableTupleProvider:
         chunk_idx = self._current_chunk
         tuple_idx = self._current_idx
 
-        def field_accessor(field_name: str):
+        def field_accessor(field_name: str) -> AttributeType:
             """
-            retrieve the field value by a given field name.
+            Retrieve the field value by a given field name.
             This abstracts and hides the underlying implementation
             of the tuple data storage from the user.
             """
-            return self._table.column(field_name).chunks[chunk_idx][tuple_idx]
+            return self._table.column(field_name).chunks[chunk_idx][tuple_idx].as_py()
 
         self._current_idx += 1
         return field_accessor
@@ -89,7 +90,9 @@ class Tuple:
             callable accessor.
         """
         assert len(tuple_like) != 0
-        if isinstance(tuple_like, pandas.Series):
+        if isinstance(tuple_like, Tuple):
+            self._field_data = tuple_like._field_data
+        elif isinstance(tuple_like, pandas.Series):
             self._field_data = tuple_like.to_dict()
         else:
             self._field_data = dict(tuple_like) if tuple_like else dict()
@@ -107,7 +110,8 @@ class Tuple:
 
         if callable(self._field_data[item]):
             # evaluate the field now
-            self._field_data[item] = self._field_data[item](item).as_py()
+            field_accessor = self._field_data[item]
+            self._field_data[item] = field_accessor(field_name=item)
         return self._field_data[item]
 
     def __setitem__(self, field_name: str, field_value: AttributeType) -> None:
@@ -150,7 +154,7 @@ class Tuple:
         return tuple(self[i] for i in output_field_names)
 
     def __iter__(self) -> Iterator[AttributeType]:
-        return iter(self.values())
+        return iter(self.get_fields())
 
     def __str__(self) -> str:
         return f"Tuple[{str(self.as_dict()).strip('{').strip('}')}]"
@@ -165,8 +169,5 @@ class Tuple:
     def __ne__(self, other) -> bool:
         return not self.__eq__(other)
 
-
-def to_tuple(tuple_like: typing.Union[Tuple, TupleLike]) -> Tuple:
-    if isinstance(tuple_like, Tuple):
-        return tuple_like
-    return Tuple(tuple_like)
+    def __len__(self) -> int:
+        return len(self._field_data)

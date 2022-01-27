@@ -3,7 +3,6 @@ from time import sleep
 
 import pandas
 import pytest
-import pyarrow
 
 from core.models import Tuple
 from core.models.internal_queue import ControlElement, DataElement, InternalQueue
