@@ -93,7 +93,8 @@ class Controller(
           asyncRPCClient.send(
             InitializeOperatorLogic(
               pythonOperatorExec.getCode,
-              pythonOperatorExec.isInstanceOf[ISourceOperatorExecutor]
+              pythonOperatorExec.isInstanceOf[ISourceOperatorExecutor],
+              pythonOperatorExec.getOutputSchema
             ),
             workerId
           )

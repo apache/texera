@@ -118,11 +118,12 @@ class DataProcessor(StoppableQueueBlockingRunnable):
             self.context.statistics_manager.increase_input_tuple_count()
 
         try:
-            for tuple_ in self.process_tuple_with_udf(self._current_input_tuple, self._current_input_link):
+            for output_tuple in self.process_tuple_with_udf(self._current_input_tuple, self._current_input_link):
                 self.check_and_process_control()
-                if tuple_ is not None:
+                if output_tuple is not None:
                     self.context.statistics_manager.increase_output_tuple_count()
-                    for to, batch in self.context.tuple_to_batch_converter.tuple_to_batch(tuple_):
+                    for to, batch in self.context.tuple_to_batch_converter.tuple_to_batch(output_tuple):
+                        batch.schema = self._operator.output_attribute_names
                         self._output_queue.put(DataElement(tag=to, payload=batch))
         except Exception as err:
             logger.exception(err)
@@ -147,6 +148,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
             index = len(self._input_links) - 1
             self._input_link_map[link] = index
         input_ = self._input_link_map[link]
+
         return map(lambda t: Tuple(t) if t is not None else None, self._operator.process_tuple(tuple_, input_))
 
     def report_exception(self) -> None:
@@ -189,6 +191,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         :param _: EndOfAllMarker
         """
         for to, batch in self.context.tuple_to_batch_converter.emit_end_of_upstream():
+            batch.schema = self._operator.output_attribute_names
             self._output_queue.put(DataElement(tag=to, payload=batch))
             self.check_and_process_control()
         self.complete()
@@ -200,7 +203,6 @@ class DataProcessor(StoppableQueueBlockingRunnable):
 
         :param data_element: DataElement, a batch of data.
         """
-
         # Update state to RUNNING
         if self.context.state_manager.confirm_state(WorkerState.READY):
             self.context.state_manager.transit_to(WorkerState.RUNNING)
