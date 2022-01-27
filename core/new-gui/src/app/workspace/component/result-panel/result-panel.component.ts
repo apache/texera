@@ -116,6 +116,11 @@ export class ResultPanelComponent implements OnInit {
   }
 
   rerenderResultPanel(): void {
+    // if the workflow on the paper is a version preview then this is a temporary workaround until a future PR
+    // TODO: let the results be tied with an execution ID instead of a workflow ID
+    if (this.previewWorkflowVersion) {
+      return;
+    }
     // update highlighted operator
     const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
     const currentHighlightedOperator = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
@@ -167,11 +172,6 @@ export class ResultPanelComponent implements OnInit {
   }
 
   displayResult(operatorId: string) {
-    // if the workflow on the paper is a version preview then this is a temporary workaround until a future PR
-    // TODO: let the results be tied with an execution ID instead of a workflow ID
-    if (this.previewWorkflowVersion) {
-      return;
-    }
     const resultService = this.workflowResultService.getResultService(operatorId);
     const paginatedResultService = this.workflowResultService.getPaginatedResultService(operatorId);
     if (paginatedResultService) {
