@@ -21,6 +21,8 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, Wor
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 
+import scala.collection.JavaConverters._
+
 object ControlCommandConvertUtils {
   def controlCommandToV2(
       controlCommand: ControlCommand[_]
@@ -40,8 +42,9 @@ object ControlCommandConvertUtils {
         QueryStatisticsV2()
       case QueryCurrentInputTuple() =>
         QueryCurrentInputTupleV2()
-      case InitializeOperatorLogic(code, isSource) =>
-        InitializeOperatorLogicV2(code, isSource)
+      case InitializeOperatorLogic(code, isSource, schema) =>
+        // TODO: will add attribute types in future PRs, for now only pass attribute names
+        InitializeOperatorLogicV2(code, isSource, schema.getAttributeNames.asScala)
       case ReplayCurrentTuple() =>
         ReplayCurrentTupleV2()
       case ModifyOperatorLogic(code, isSource) =>

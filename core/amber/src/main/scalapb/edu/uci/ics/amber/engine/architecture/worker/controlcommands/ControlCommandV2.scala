@@ -1191,7 +1191,8 @@ object LocalOperatorExceptionV2 extends scalapb.GeneratedMessageCompanion[edu.uc
 @SerialVersionUID(0L)
 final case class InitializeOperatorLogicV2(
     code: _root_.scala.Predef.String,
-    isSource: _root_.scala.Boolean
+    isSource: _root_.scala.Boolean,
+    outputSchemaFields: _root_.scala.Seq[_root_.scala.Predef.String]
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[InitializeOperatorLogicV2] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
@@ -1211,6 +1212,10 @@ final case class InitializeOperatorLogicV2(
           __size += _root_.com.google.protobuf.CodedOutputStream.computeBoolSize(2, __value)
         }
       };
+      outputSchemaFields.foreach { __item =>
+        val __value = __item
+        __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(3, __value)
+      }
       __size
     }
     override def serializedSize: _root_.scala.Int = {
@@ -1234,9 +1239,17 @@ final case class InitializeOperatorLogicV2(
           _output__.writeBool(2, __v)
         }
       };
+      outputSchemaFields.foreach { __v =>
+        val __m = __v
+        _output__.writeString(3, __m)
+      };
     }
     def withCode(__v: _root_.scala.Predef.String): InitializeOperatorLogicV2 = copy(code = __v)
     def withIsSource(__v: _root_.scala.Boolean): InitializeOperatorLogicV2 = copy(isSource = __v)
+    def clearOutputSchemaFields = copy(outputSchemaFields = _root_.scala.Seq.empty)
+    def addOutputSchemaFields(__vs: _root_.scala.Predef.String*): InitializeOperatorLogicV2 = addAllOutputSchemaFields(__vs)
+    def addAllOutputSchemaFields(__vs: Iterable[_root_.scala.Predef.String]): InitializeOperatorLogicV2 = copy(outputSchemaFields = outputSchemaFields ++ __vs)
+    def withOutputSchemaFields(__v: _root_.scala.Seq[_root_.scala.Predef.String]): InitializeOperatorLogicV2 = copy(outputSchemaFields = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
@@ -1247,6 +1260,7 @@ final case class InitializeOperatorLogicV2(
           val __t = isSource
           if (__t != false) __t else null
         }
+        case 3 => outputSchemaFields
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
@@ -1254,6 +1268,7 @@ final case class InitializeOperatorLogicV2(
       (__field.number: @_root_.scala.unchecked) match {
         case 1 => _root_.scalapb.descriptors.PString(code)
         case 2 => _root_.scalapb.descriptors.PBoolean(isSource)
+        case 3 => _root_.scalapb.descriptors.PRepeated(outputSchemaFields.iterator.map(_root_.scalapb.descriptors.PString(_)).toVector)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -1266,6 +1281,7 @@ object InitializeOperatorLogicV2 extends scalapb.GeneratedMessageCompanion[edu.u
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2 = {
     var __code: _root_.scala.Predef.String = ""
     var __isSource: _root_.scala.Boolean = false
+    val __outputSchemaFields: _root_.scala.collection.immutable.VectorBuilder[_root_.scala.Predef.String] = new _root_.scala.collection.immutable.VectorBuilder[_root_.scala.Predef.String]
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
@@ -1275,12 +1291,15 @@ object InitializeOperatorLogicV2 extends scalapb.GeneratedMessageCompanion[edu.u
           __code = _input__.readStringRequireUtf8()
         case 16 =>
           __isSource = _input__.readBool()
+        case 26 =>
+          __outputSchemaFields += _input__.readStringRequireUtf8()
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2(
         code = __code,
-        isSource = __isSource
+        isSource = __isSource,
+        outputSchemaFields = __outputSchemaFields.result()
     )
   }
   implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2] = _root_.scalapb.descriptors.Reads{
@@ -1288,7 +1307,8 @@ object InitializeOperatorLogicV2 extends scalapb.GeneratedMessageCompanion[edu.u
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2(
         code = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
-        isSource = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Boolean]).getOrElse(false)
+        isSource = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Boolean]).getOrElse(false),
+        outputSchemaFields = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Seq[_root_.scala.Predef.String]]).getOrElse(_root_.scala.Seq.empty)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -1299,20 +1319,25 @@ object InitializeOperatorLogicV2 extends scalapb.GeneratedMessageCompanion[edu.u
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2(
     code = "",
-    isSource = false
+    isSource = false,
+    outputSchemaFields = _root_.scala.Seq.empty
   )
   implicit class InitializeOperatorLogicV2Lens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2](_l) {
     def code: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.code)((c_, f_) => c_.copy(code = f_))
     def isSource: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Boolean] = field(_.isSource)((c_, f_) => c_.copy(isSource = f_))
+    def outputSchemaFields: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[_root_.scala.Predef.String]] = field(_.outputSchemaFields)((c_, f_) => c_.copy(outputSchemaFields = f_))
   }
   final val CODE_FIELD_NUMBER = 1
   final val IS_SOURCE_FIELD_NUMBER = 2
+  final val OUTPUT_SCHEMA_FIELDS_FIELD_NUMBER = 3
   def of(
     code: _root_.scala.Predef.String,
-    isSource: _root_.scala.Boolean
+    isSource: _root_.scala.Boolean,
+    outputSchemaFields: _root_.scala.Seq[_root_.scala.Predef.String]
   ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2 = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2(
     code,
-    isSource
+    isSource,
+    outputSchemaFields
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.InitializeOperatorLogicV2])
 }

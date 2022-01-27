@@ -1,9 +1,9 @@
 from collections import defaultdict
-from typing import Iterator, Optional, Set, Union
+from typing import Iterator, Optional, Set, Union, Dict
 
-from core.models import Tuple
+from core.models import Tuple, ArrowTableTupleProvider
 from core.models.marker import EndOfAllMarker, Marker, SenderChangeMarker
-from core.models.payload import DataFrame, DataPayload, EndOfUpstream
+from core.models.payload import InputDataFrame, DataPayload, EndOfUpstream
 from core.models.tuple import InputExhausted
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, LinkIdentity
 
@@ -12,7 +12,7 @@ class BatchToTupleConverter:
     SOURCE_STARTER = ActorVirtualIdentity("SOURCE_STARTER")
 
     def __init__(self):
-        self._input_map: dict[ActorVirtualIdentity, LinkIdentity] = dict()
+        self._input_map: Dict[ActorVirtualIdentity, LinkIdentity] = dict()
         self._upstream_map: defaultdict[LinkIdentity, Set[ActorVirtualIdentity]] = defaultdict(set)
         self._current_link: Optional[LinkIdentity] = None
 
@@ -34,9 +34,9 @@ class BatchToTupleConverter:
             self._current_link = link
             yield SenderChangeMarker(link)
 
-        if isinstance(payload, DataFrame):
-            for tuple_ in payload.frame:
-                yield tuple_
+        if isinstance(payload, InputDataFrame):
+            for field_accessor in ArrowTableTupleProvider(payload.frame):
+                yield Tuple({name: field_accessor for name in payload.frame.column_names})
 
         elif isinstance(payload, EndOfUpstream):
             self._upstream_map[link].remove(from_)

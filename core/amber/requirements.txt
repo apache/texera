@@ -23,3 +23,4 @@ pampy==0.3.0
 overrides==6.1.0
 typing_extensions
 pytest-reraise
+dataclasses

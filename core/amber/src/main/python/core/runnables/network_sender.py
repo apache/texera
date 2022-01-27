@@ -6,7 +6,7 @@ from overrides import overrides
 from pyarrow import Table
 from pyarrow.lib import Schema, schema
 
-from core.models import ControlElement, DataElement, DataFrame, DataPayload, EndOfUpstream, InternalQueue, \
+from core.models import ControlElement, DataElement, OutputDataFrame, DataPayload, EndOfUpstream, InternalQueue, \
     InternalQueueElement
 from core.proxy import ProxyClient
 from core.util import StoppableQueueBlockingRunnable
@@ -41,8 +41,8 @@ class NetworkSender(StoppableQueueBlockingRunnable):
         :param to: The target actor's ActorVirtualIdentity
         :param data_payload: The data payload to be sent, can be either DataFrame or EndOfUpstream
         """
-        if isinstance(data_payload, DataFrame):
-            df = pandas.DataFrame.from_records(map(lambda tuple_: tuple_.as_series(), data_payload.frame))
+        if isinstance(data_payload, OutputDataFrame):
+            df = pandas.DataFrame.from_records(data=[i.get_fields(data_payload.schema) for i in data_payload.frame], columns=data_payload.schema)
             inferred_schema: Schema = Schema.from_pandas(df)
             # create a output schema, use the original input schema if possible,
             # otherwise use the inferred schema

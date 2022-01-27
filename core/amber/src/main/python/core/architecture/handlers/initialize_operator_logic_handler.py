@@ -12,5 +12,6 @@ class InitializeOperatorLogicHandler(Handler):
         operator: type(Operator) = load_operator(command.code)
         context.dp._operator = operator()
         context.dp._operator.is_source = command.is_source
+        context.dp._operator.output_attribute_names = command.output_schema_fields
         context.dp._operator.open()
         return None

@@ -67,7 +67,7 @@ public class PythonUDFOpDescV2 extends OperatorDescriptor {
     @Override
     public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         Function1<Object, IOperatorExecutor> exec = (i) ->
-                new PythonUDFOpExecV2(code);
+                new PythonUDFOpExecV2(code, operatorSchemaInfo.outputSchema());
         if (parallel) {
             return new OneToOneOpExecConfig(operatorIdentifier(), exec);
         } else {

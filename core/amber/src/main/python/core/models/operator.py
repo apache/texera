@@ -15,6 +15,7 @@ class Operator(ABC):
 
     def __init__(self):
         self.__internal_is_source: bool = False
+        self.__internal_output_attribute_names = []
 
     @property
     @overrides.final
@@ -30,6 +31,16 @@ class Operator(ABC):
     @overrides.final
     def is_source(self, value: bool) -> None:
         self.__internal_is_source = value
+
+    @property
+    @overrides.final
+    def output_attribute_names(self) -> List[str]:
+        return self.__internal_output_attribute_names
+
+    @output_attribute_names.setter
+    @overrides.final
+    def output_attribute_names(self, value: List[str]) -> None:
+        self.__internal_output_attribute_names = value
 
     def open(self) -> None:
         """
@@ -90,7 +101,7 @@ class TableOperator(TupleOperator):
         if isinstance(tuple_, Tuple):
             self.__table_data[input_].append(tuple_)
         else:
-            table = Table(pandas.DataFrame(self.__table_data[input_]))
+            table = Table(pandas.DataFrame([i.as_series() for i in self.__table_data[input_]]))
             for output_table in self.process_table(table, input_):
                 if output_table is not None:
                     for _, output_tuple in output_table.iterrows():
