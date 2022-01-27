@@ -16,8 +16,12 @@ object Constants {
   var masterNodeAddr: Option[String] = None
   var defaultTau: FiniteDuration = 10.milliseconds
 
+  var monitoringIntervalInMs: Int =
+    AmberUtils.amberConfig.getInt("monitoring.monitoring-interval-ms")
   var reshapeSkewHandlingEnabled: Boolean =
     AmberUtils.amberConfig.getBoolean("reshape.skew-handling-enabled")
+  var skewDetectionIntervalInMs: Int =
+    AmberUtils.amberConfig.getInt("reshape.skew-detection-interval-ms")
   var reshapeEtaThreshold: Int =
     AmberUtils.amberConfig.getInt("reshape.eta-threshold")
   var reshapeTauThreshold: Int =
