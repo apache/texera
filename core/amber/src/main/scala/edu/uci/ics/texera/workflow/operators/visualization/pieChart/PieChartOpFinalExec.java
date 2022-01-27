@@ -29,7 +29,7 @@ public class PieChartOpFinalExec implements OperatorExecutor {
 
     public PieChartOpFinalExec(Double pruneRatio, String dataColumn) {
         this.pruneRatio = pruneRatio;
-        this.noDataCol = dataColumn.equals("");
+        this.noDataCol = dataColumn == null || dataColumn.equals("");
     }
 
     @Override

@@ -45,7 +45,7 @@ class PieChartOpDesc extends VisualizationOperator {
   private var finalAggValueSchema: Schema = _
 
   override def chartType: String = pieChartEnum.getChartStyle
-  def noDataCol: Boolean = dataColumn == ""
+  def noDataCol: Boolean = dataColumn == null || dataColumn.equals("")
   def resultAttributeNames: List[String] = if (noDataCol) List("count") else List(dataColumn)
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
