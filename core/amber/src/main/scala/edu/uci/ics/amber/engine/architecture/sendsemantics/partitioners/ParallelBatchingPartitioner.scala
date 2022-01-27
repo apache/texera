@@ -30,12 +30,12 @@ abstract class ParallelBatchingPartitioner(batchSize: Int, receivers: Seq[ActorV
   // have been redirected.
 
   val samplingSize =
-    2000 // For every `samplingSize` tuples, record the tuple count to each receiver.
+    Constants.reshapeWorkloadSampleSize // For every `samplingSize` tuples, record the tuple count to each receiver.
   var tupleIndexForSampling = 0 // goes from 0 to `samplingSize` and then resets to 0
   var receiverToWorkloadSamples = new mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]()
   @volatile var currentSampleCollectionIndex =
     0 // the index in `receiverToWorkloadSamples` array where sample is being recorded for a receiver
-  var maxSamples = 500
+  var maxSamples = Constants.reshapeMaxWorkloadSamplesInWorker
   initializeInternalState(receivers)
 
   def selectBatchingIndex(tuple: ITuple): Int

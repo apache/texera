@@ -43,7 +43,7 @@ trait MonitoringHandler {
       existingSamplesForWorker.appendAll(samples)
 
       // clean up to save memory
-      val maxSamplesPerWorker = 500
+      val maxSamplesPerWorker = Constants.reshapeMaxWorkloadSamplesInController
       if (existingSamplesForWorker.size >= maxSamplesPerWorker) {
         existingSamplesForWorker = existingSamplesForWorker.slice(
           existingSamplesForWorker.size - maxSamplesPerWorker,
