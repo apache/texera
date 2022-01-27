@@ -1,6 +1,6 @@
 import { Injectable } from "@angular/core";
 import { Observable, Subject } from "rxjs";
-import { assertType, nonNull } from "../../../common/util/assert";
+import { nonNull } from "../../../common/util/assert";
 import { Command, CommandMessage } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowCollabService } from "./../workflow-collab/workflow-collab.service";
 
@@ -84,6 +84,10 @@ export class UndoRedoService {
   }
 
   public addCommand(command: Command): void {
+    // if undo and redo modifications are disabled, then don't add to the stack
+    if (!this.workFlowModificationEnabled) {
+      return;
+    }
     this.undoStack.push(command);
     this.redoStack = [];
   }
