@@ -2,7 +2,7 @@ import datetime
 import typing
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, List, Mapping, Iterator, TypeVar
+from typing import Any, List, Mapping, Iterator, TypeVar, Dict, Callable
 
 import pandas
 
@@ -42,13 +42,13 @@ class ArrowTableTupleProvider:
         self._current_idx = 0
         self._current_chunk = 0
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Callable]:
         """
         return itself as it is iterable.
         """
         return self
 
-    def __next__(self):
+    def __next__(self) -> Callable:
         """
         provide the field accessor of the next tuple.
         If current chunk is exhausted, move to the first
@@ -63,7 +63,7 @@ class ArrowTableTupleProvider:
         chunk_idx = self._current_chunk
         tuple_idx = self._current_idx
 
-        def field_accessor(field_name):
+        def field_accessor(field_name: str):
             """
             retrieve the field value by a given field name.
             This abstracts and hides the underlying implementation
@@ -80,22 +80,25 @@ class Tuple:
     Lazy-Tuple implementation.
     """
 
-    def __init__(self, field_data: typing.Optional[TupleLike] = None):
+    def __init__(self, tuple_like: typing.Optional[TupleLike] = None):
         """
-        Construct a lazy-tuple with given data
-        :param field_data: tuple-like data that is already in memory
+        Construct a lazy-tuple with given TupleLike object. If the field value is a callable
+        accessor callable, the actual value is fetched upon first reference.
+
+        :param tuple_like: in which the field value could be the actual value in memory, or a
+            callable accessor.
         """
-        if field_data is not None:
-            self._field_data = dict(field_data)
+        if isinstance(tuple_like, pandas.Series):
+            self._field_data = tuple_like.to_dict()
         else:
-            self._field_data = dict()
+            self._field_data = dict(tuple_like) if tuple_like else dict()
 
     def get_field_names(self) -> typing.Tuple[str]:
         return tuple(map(str, self._field_data.keys()))
 
-    def __getitem__(self, item: typing.Union[int, str]) -> Any:
+    def __getitem__(self, item: typing.Union[int, str]) -> AttributeType:
         """
-        Get a field with given name. If it's not present, fetch it from accessor.
+        Get a field value with given item. If the value is an accessor, fetch it from the accessor.
         :param item: field name or field index
         :return: field value
         """
@@ -104,14 +107,14 @@ class Tuple:
         if isinstance(item, int):
             item: str = self.get_field_names()[item]
 
-        if item not in self._field_data or callable(self._field_data[item]):
+        if callable(self._field_data[item]):
             # evaluate the field now
             self._field_data[item] = self._field_data[item](item).as_py()
         return self._field_data[item]
 
-    def __setitem__(self, field_name: str, field_value: AttributeType):
+    def __setitem__(self, field_name: str, field_value: AttributeType) -> None:
         """
-        Set a field with given value.
+        Set a field with the given value.
         :param field_name
         :param field_value
         """
@@ -120,10 +123,10 @@ class Tuple:
         self._field_data[field_name] = field_value
 
     def as_series(self) -> pandas.Series:
-        """convert the tuple to Pandas series format"""
+        """Convert the tuple to Pandas series format"""
         return pandas.Series(self.as_dict())
 
-    def as_dict(self) -> Mapping[str, Any]:
+    def as_dict(self) -> Dict[str, AttributeType]:
         """
         Return a dictionary copy of this tuple.
         Fields will be fetched from accessor if absent.
@@ -134,10 +137,10 @@ class Tuple:
             self.__getitem__(i)
         return deepcopy(self._field_data)
 
-    def as_key_value_pairs(self) -> List[typing.Tuple[str, Any]]:
+    def as_key_value_pairs(self) -> List[typing.Tuple[str, AttributeType]]:
         return [(k, v) for k, v in self.as_dict().items()]
 
-    def values(self, output_field_names=None) -> typing.Tuple[Any, ...]:
+    def values(self, output_field_names=None) -> typing.Tuple[AttributeType]:
         """
         Get values from tuple for selected fields.
         """
@@ -145,23 +148,21 @@ class Tuple:
             output_field_names = self.get_field_names()
         return tuple(self[i] for i in output_field_names)
 
+    def __iter__(self) -> Iterator[AttributeType]:
+        return iter(self.values())
+
     def __str__(self) -> str:
         return f"Tuple[{str(self.as_dict()).strip('{').strip('}')}]"
 
     __repr__ = __str__
 
     def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, Tuple):
-            return False
-        else:
-            return self.get_field_names() == other.get_field_names() and all(
-                self[i] == other[i] for i in self.get_field_names())
+        return isinstance(other, Tuple) and \
+               self.get_field_names() == other.get_field_names() and \
+               all(self[i] == other[i] for i in self.get_field_names())
 
     def __ne__(self, other) -> bool:
         return not self.__eq__(other)
-
-    def __iter__(self):
-        return (self[i] for i in self.get_field_names())
 
 
 def to_tuple(tuple_like: typing.Union[Tuple, TupleLike]) -> Tuple:
