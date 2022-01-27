@@ -54,16 +54,14 @@ object SkewDetectionHandler {
   def passSkewTest(
       skewedWorkerCand: ActorVirtualIdentity,
       helperWorkerCand: ActorVirtualIdentity,
-      loads: mutable.HashMap[ActorVirtualIdentity, WorkerWorkloadInfo],
-      etaThreshold: Int,
-      tauThreshold: Int
+      loads: mutable.HashMap[ActorVirtualIdentity, WorkerWorkloadInfo]
   ): Boolean = {
     if (
       loads(
         skewedWorkerCand
-      ).dataInputWorkload / Constants.defaultBatchSize > etaThreshold && (loads(
+      ).dataInputWorkload / Constants.defaultBatchSize > Constants.reshapeEtaThreshold && (loads(
         skewedWorkerCand
-      ).dataInputWorkload / Constants.defaultBatchSize > tauThreshold + loads(
+      ).dataInputWorkload / Constants.defaultBatchSize > Constants.reshapeTauThreshold + loads(
         helperWorkerCand
       ).dataInputWorkload / Constants.defaultBatchSize)
     ) {
@@ -90,9 +88,7 @@ object SkewDetectionHandler {
             passSkewTest(
               sortedWorkers(i),
               skewedToHelperWorkerHistory(sortedWorkers(i)),
-              loads,
-              Constants.reshapeEtaThreshold,
-              Constants.reshapeTauThreshold
+              loads
             )
           ) {
             // build table has already been replicated
@@ -107,9 +103,7 @@ object SkewDetectionHandler {
                 isEligibleForHelper(sortedWorkers(j)) && passSkewTest(
                   sortedWorkers(i),
                   sortedWorkers(j),
-                  loads,
-                  Constants.reshapeEtaThreshold,
-                  Constants.reshapeTauThreshold
+                  loads
                 )
               ) {
                 retPairs.append((sortedWorkers(i), sortedWorkers(j), true))
