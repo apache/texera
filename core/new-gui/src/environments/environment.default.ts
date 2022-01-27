@@ -73,6 +73,11 @@ export const defaultEnvironment = {
   google: {
     clientID: "",
   },
+
+  /**
+   * Whether workflow collab should be active
+   */
+  workflowCollabEnabled: false,
 };
 
 export type AppEnv = typeof defaultEnvironment;
