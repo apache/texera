@@ -67,6 +67,7 @@ class LocalOperatorExceptionV2(betterproto.Message):
 class InitializeOperatorLogicV2(betterproto.Message):
     code: str = betterproto.string_field(1)
     is_source: bool = betterproto.bool_field(2)
+    output_schema_fields: List[str] = betterproto.string_field(3)
 
 
 @dataclass(eq=False, repr=False)

@@ -6,7 +6,7 @@ from overrides import overrides
 
 from core.architecture.sendsemantics.partitioner import Partitioner
 from core.models import Tuple
-from core.models.payload import DataFrame, DataPayload, EndOfUpstream
+from core.models.payload import OutputDataFrame, DataPayload, EndOfUpstream
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import Partitioning, \
     RoundRobinPartitioning
@@ -22,11 +22,11 @@ class RoundRobinPartitioner(Partitioner):
         self.round_robin_index = 0
 
     @overrides
-    def add_tuple_to_batch(self, tuple_: Tuple) -> Iterator[typing.Tuple[ActorVirtualIdentity, DataFrame]]:
+    def add_tuple_to_batch(self, tuple_: Tuple) -> Iterator[typing.Tuple[ActorVirtualIdentity, OutputDataFrame]]:
         receiver, batch = self.receivers[self.round_robin_index]
         batch.append(tuple_)
         if len(batch) == self.batch_size:
-            yield receiver, DataFrame(frame=batch)
+            yield receiver, OutputDataFrame(frame=batch)
             self.receivers[self.round_robin_index] = (receiver, list())
         self.round_robin_index = (self.round_robin_index + 1) % len(self.receivers)
 
@@ -34,5 +34,5 @@ class RoundRobinPartitioner(Partitioner):
     def no_more(self) -> Iterator[typing.Tuple[ActorVirtualIdentity, DataPayload]]:
         for receiver, batch in self.receivers:
             if len(batch) > 0:
-                yield receiver, DataFrame(frame=batch)
+                yield receiver, OutputDataFrame(frame=batch)
             yield receiver, EndOfUpstream()
