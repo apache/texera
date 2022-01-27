@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.Monitori
   ControllerInitiateMonitoring,
   previousCallFinished
 }
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QueryWorkloadMetrics
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QuerySelfWorkloadMetrics
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
@@ -66,7 +66,7 @@ trait MonitoringHandler {
 
       // send Monitoring message
       val requests = workers.map(worker =>
-        send(QueryWorkloadMetrics(), worker).map(value => {
+        send(QuerySelfWorkloadMetrics(), worker).map(value => {
           workflow.getOperator(worker).getWorkerWorkloadInfo(worker).dataInputWorkload =
             value._1.unprocessedDataInputQueueSize + value._1.stashedDataInputQueueSize
           workflow.getOperator(worker).getWorkerWorkloadInfo(worker).controlInputWorkload =
