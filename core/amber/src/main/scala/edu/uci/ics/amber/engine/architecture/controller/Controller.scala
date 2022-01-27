@@ -36,7 +36,7 @@ object ControllerConfig {
       statusUpdateIntervalMs = Option(100),
       resultUpdateIntervalMs = Option(1000),
       monitoringIntervalMs = Option(Constants.monitoringIntervalInMs),
-      skewDetectionIntervalMs = Option(Constants.skewDetectionIntervalInMs)
+      skewDetectionIntervalMs = Option(Constants.reshapeSkewDetectionIntervalInMs)
     )
 }
 final case class ControllerConfig(

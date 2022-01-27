@@ -117,7 +117,7 @@ class ControllerAsyncRPCHandlerInitializer(
     ) {
       skewDetectionHandle = Option(
         actorContext.system.scheduler.scheduleAtFixedRate(
-          5000.milliseconds,
+          Constants.reshapeSkewDetectionInitialDelayInMs.milliseconds,
           FiniteDuration.apply(controllerConfig.skewDetectionIntervalMs.get, MILLISECONDS),
           actorContext.self,
           ControlInvocation(

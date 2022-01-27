@@ -20,7 +20,9 @@ object Constants {
     AmberUtils.amberConfig.getInt("monitoring.monitoring-interval-ms")
   var reshapeSkewHandlingEnabled: Boolean =
     AmberUtils.amberConfig.getBoolean("reshape.skew-handling-enabled")
-  var skewDetectionIntervalInMs: Int =
+  var reshapeSkewDetectionInitialDelayInMs: Int =
+    AmberUtils.amberConfig.getInt("reshape.skew-detection-initial-delay-ms")
+  var reshapeSkewDetectionIntervalInMs: Int =
     AmberUtils.amberConfig.getInt("reshape.skew-detection-interval-ms")
   var reshapeEtaThreshold: Int =
     AmberUtils.amberConfig.getInt("reshape.eta-threshold")
