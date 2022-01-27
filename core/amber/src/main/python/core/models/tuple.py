@@ -88,6 +88,7 @@ class Tuple:
         :param tuple_like: in which the field value could be the actual value in memory, or a
             callable accessor.
         """
+        assert len(tuple_like) != 0
         if isinstance(tuple_like, pandas.Series):
             self._field_data = tuple_like.to_dict()
         else:

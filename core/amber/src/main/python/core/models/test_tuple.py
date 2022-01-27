@@ -41,11 +41,18 @@ class TestTuple:
         assert not target_tuple != target_tuple
         assert Tuple({"x": 1, "y": "b"}) != target_tuple
 
-    def test_reject_invalid_field_data(self):
-        with pytest.raises(TypeError):
-            Tuple(field_data=1)
-        with pytest.raises(TypeError):
-            Tuple(field_data=[1])
-        with pytest.raises(TypeError):
-            Tuple(field_data=[None])
+    def test_reject_empty_tuplelike(self):
+        with pytest.raises(AssertionError):
+            Tuple([])
+        with pytest.raises(AssertionError):
+            Tuple({})
+        with pytest.raises(AssertionError):
+            Tuple(pandas.Series(dtype=pandas.StringDtype()))
 
+    def test_reject_invalid_tuplelike(self):
+        with pytest.raises(TypeError):
+            Tuple(1)
+        with pytest.raises(TypeError):
+            Tuple([1])
+        with pytest.raises(TypeError):
+            Tuple([None])
