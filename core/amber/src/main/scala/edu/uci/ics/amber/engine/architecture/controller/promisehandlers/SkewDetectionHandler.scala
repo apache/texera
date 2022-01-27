@@ -40,7 +40,7 @@ object SkewDetectionHandler {
   }
 
   /**
-    * worker is eligible for free if it is being used in neither of the phases.
+    * worker is eligible for being a helper if it is being used in neither of the phases.
     *
     * @param worker
     * @return
