@@ -93,9 +93,6 @@ class Tuple:
         else:
             self._field_data = dict(tuple_like) if tuple_like else dict()
 
-    def get_field_names(self) -> typing.Tuple[str]:
-        return tuple(map(str, self._field_data.keys()))
-
     def __getitem__(self, item: typing.Union[int, str]) -> AttributeType:
         """
         Get a field value with given item. If the value is an accessor, fetch it from the accessor.
@@ -140,7 +137,10 @@ class Tuple:
     def as_key_value_pairs(self) -> List[typing.Tuple[str, AttributeType]]:
         return [(k, v) for k, v in self.as_dict().items()]
 
-    def values(self, output_field_names=None) -> typing.Tuple[AttributeType]:
+    def get_field_names(self) -> typing.Tuple[str]:
+        return tuple(map(str, self._field_data.keys()))
+
+    def get_fields(self, output_field_names=None) -> typing.Tuple[AttributeType]:
         """
         Get values from tuple for selected fields.
         """

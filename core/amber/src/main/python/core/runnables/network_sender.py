@@ -42,7 +42,7 @@ class NetworkSender(StoppableQueueBlockingRunnable):
         :param data_payload: The data payload to be sent, can be either DataFrame or EndOfUpstream
         """
         if isinstance(data_payload, OutputDataFrame):
-            df = pandas.DataFrame.from_records(data=data_payload.frame, columns=data_payload.schema)
+            df = pandas.DataFrame.from_records(data=[i.get_fields(data_payload.schema) for i in data_payload.frame], columns=data_payload.schema)
             inferred_schema: Schema = Schema.from_pandas(df)
             # create a output schema, use the original input schema if possible,
             # otherwise use the inferred schema
