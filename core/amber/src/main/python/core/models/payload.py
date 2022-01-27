@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from pyarrow.lib import Table
 from typing import List
 
 from core.models.tuple import Tuple
@@ -10,8 +11,14 @@ class DataPayload:
 
 
 @dataclass
-class DataFrame(DataPayload):
+class InputDataFrame(DataPayload):
+    frame: Table
+
+
+@dataclass
+class OutputDataFrame(DataPayload):
     frame: List[Tuple]
+    schema: List[str] = None
 
 
 @dataclass

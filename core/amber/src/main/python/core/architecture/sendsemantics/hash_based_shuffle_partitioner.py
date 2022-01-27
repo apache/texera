@@ -6,7 +6,7 @@ from overrides import overrides
 
 from core.architecture.sendsemantics.partitioner import Partitioner
 from core.models import Tuple
-from core.models.payload import DataFrame, DataPayload, EndOfUpstream
+from core.models.payload import OutputDataFrame, DataPayload, EndOfUpstream
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import HashBasedShufflePartitioning, Partitioning
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity
@@ -22,18 +22,18 @@ class HashBasedShufflePartitioner(Partitioner):
         self.hash_column_indices = partitioning.hash_column_indices
 
     @overrides
-    def add_tuple_to_batch(self, tuple_: Tuple) -> Iterator[typing.Tuple[ActorVirtualIdentity, DataFrame]]:
-        partial_tuple = tuple_[self.hash_column_indices]
-        hash_code = hash(tuple(partial_tuple)) % len(self.receivers)
+    def add_tuple_to_batch(self, tuple_: Tuple) -> Iterator[typing.Tuple[ActorVirtualIdentity, OutputDataFrame]]:
+        partial_tuple = tuple_.get_fields(self.hash_column_indices)
+        hash_code = hash(partial_tuple) % len(self.receivers)
         receiver, batch = self.receivers[hash_code]
         batch.append(tuple_)
         if len(batch) == self.batch_size:
-            yield receiver, DataFrame(frame=batch)
+            yield receiver, OutputDataFrame(frame=batch)
             self.receivers[hash_code] = (receiver, list())
 
     @overrides
     def no_more(self) -> Iterator[typing.Tuple[ActorVirtualIdentity, DataPayload]]:
         for receiver, batch in self.receivers:
             if len(batch) > 0:
-                yield receiver, DataFrame(frame=batch)
+                yield receiver, OutputDataFrame(frame=batch)
             yield receiver, EndOfUpstream()

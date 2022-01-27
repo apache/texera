@@ -9,6 +9,7 @@ import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.texera.web.TexeraWebApplication
 import edu.uci.ics.texera.web.model.websocket.event.{ExecutionStatusEnum, Running}
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
+import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import org.jooq.types.UInteger
 import rx.lang.scala.subjects.BehaviorSubject
 import rx.lang.scala.{Observable, Subscription}
@@ -36,7 +37,10 @@ object WorkflowService {
 
 class WorkflowService(wid: String, cleanUpTimeout: Int) extends LazyLogging {
   // state across execution:
-  val operatorCache: WorkflowCacheService = new WorkflowCacheService()
+  var opResultStorage: OpResultStorage = new OpResultStorage(
+    AmberUtils.amberConfig.getString("storage.mode").toLowerCase
+  )
+  val operatorCache: WorkflowCacheService = new WorkflowCacheService(opResultStorage)
   var jobService: Option[WorkflowJobService] = None
   private var refCount = 0
   private var cleanUpJob: Cancellable = Cancellable.alreadyCancelled
@@ -73,6 +77,9 @@ class WorkflowService(wid: String, cleanUpTimeout: Int) extends LazyLogging {
         // do nothing
         logger.info(s"[$wid] workflow state clean up failed. current user count = $refCount")
       } else {
+        opResultStorage.close()
+        cleanUpJob.cancel()
+        statusUpdateSubscription.unsubscribe()
         WorkflowService.wIdToWorkflowState.remove(wid)
         jobService.foreach(_.workflowRuntimeService.killWorkflow())
         logger.info(s"[$wid] workflow state clean up completed.")
@@ -100,15 +107,11 @@ class WorkflowService(wid: String, cleanUpTimeout: Int) extends LazyLogging {
   }
 
   def initExecutionState(req: WorkflowExecuteRequest, uidOpt: Option[UInteger]): Unit = {
-    val prevResults = jobService match {
-      case Some(value) => value.workflowResultService.operatorResults
-      case None        => mutable.HashMap[String, OperatorResultService]()
-    }
     val state = new WorkflowJobService(
       operatorCache,
       uidOpt,
       req,
-      prevResults
+      opResultStorage
     )
     statusUpdateSubscription.unsubscribe()
     cleanUpJob.cancel()
