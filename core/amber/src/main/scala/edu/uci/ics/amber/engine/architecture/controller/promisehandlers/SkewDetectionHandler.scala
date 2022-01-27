@@ -526,7 +526,6 @@ trait SkewDetectionHandler {
         }
       })
       previousSkewDetectionCallFinished = true
-      detectionCallCount += 1
       Future.Done
     }
   })
