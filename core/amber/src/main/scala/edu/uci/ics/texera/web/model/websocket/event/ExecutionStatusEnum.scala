@@ -11,13 +11,13 @@ import com.fasterxml.jackson.databind.ser.std.StdSerializer
 sealed abstract class ExecutionStatusEnum(
     val name: String,
     val code: Byte
-) // code indicates the status of the execution in the DB and is optional
+) // code indicates the status of the execution in the DB
 case object Uninitialized extends ExecutionStatusEnum("Uninitialized", 0)
 case object Initializing
     extends ExecutionStatusEnum(
       "Initializing",
       0
-    ) // those two would not cause a trigger to insert an entry to the DB so no need for a code
+    )
 case object Running extends ExecutionStatusEnum("Running", 1)
 case object Pausing extends ExecutionStatusEnum("Pausing", 1)
 case object Paused extends ExecutionStatusEnum("Paused", 2)

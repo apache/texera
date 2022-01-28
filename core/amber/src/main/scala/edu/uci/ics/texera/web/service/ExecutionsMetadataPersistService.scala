@@ -22,10 +22,10 @@ class ExecutionsMetadataPersistService() extends LazyLogging {
   )
 
   /**
-    * This method inserts a new entry of a workflow execution in the database
+    * This method inserts a new entry of a workflow execution in the database and returns the generated eId
     *
     * @param wid     the given workflow
-    * @return Success Message
+    * @return generated execution ID
     */
 
   private def getLatestVersion(wid: UInteger): UInteger = {
