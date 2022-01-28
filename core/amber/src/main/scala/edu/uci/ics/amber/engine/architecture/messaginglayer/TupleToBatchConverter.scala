@@ -30,18 +30,19 @@ class TupleToBatchConverter(
   /**
     * Used to return the workload samples of the next operator's workers to the controller.
     */
-  def getWorkloadHistory(): mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]] = {
-    var samples: mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]] = null
+  def getWorkloadHistory()
+      : ArrayBuffer[mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]] = {
+    val allDownstreamSamples =
+      new ArrayBuffer[mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]]()
     partitioners.values.foreach(partitioner => {
       if (partitioner.isInstanceOf[ParallelBatchingPartitioner]) {
         // Reshape only needs samples from workers that shuffle data across nodes
-        samples = partitioner.asInstanceOf[ParallelBatchingPartitioner].getWorkloadHistory()
+        allDownstreamSamples.append(
+          partitioner.asInstanceOf[ParallelBatchingPartitioner].getWorkloadHistory()
+        )
       }
     })
-    if (samples == null) {
-      samples = new mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]
-    }
-    samples
+    allDownstreamSamples
   }
 
   /**

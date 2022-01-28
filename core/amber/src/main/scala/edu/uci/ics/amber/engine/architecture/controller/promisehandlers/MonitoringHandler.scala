@@ -27,31 +27,35 @@ trait MonitoringHandler {
 
   def updateWorkloadSamples(
       collectedAt: ActorVirtualIdentity,
-      workerToNewSamples: mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]
+      allDownstreamWorkerToNewSamples: ArrayBuffer[
+        mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]
+      ]
   ): Unit = {
-    if (workerToNewSamples.isEmpty) {
+    if (allDownstreamWorkerToNewSamples.isEmpty) {
       return
     }
     val existingSamples = workloadSamples.getOrElse(
       collectedAt,
       new mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]()
     )
-    for ((wid, samples) <- workerToNewSamples) {
-      var existingSamplesForWorker = existingSamples.getOrElse(wid, new ArrayBuffer[Long]())
-      // Remove the lowest sample as it may be incomplete
-      samples.remove(samples.indexOf(samples.min))
-      existingSamplesForWorker.appendAll(samples)
+    for (workerToNewSamples <- allDownstreamWorkerToNewSamples) {
+      for ((wid, samples) <- workerToNewSamples) {
+        var existingSamplesForWorker = existingSamples.getOrElse(wid, new ArrayBuffer[Long]())
+        // Remove the lowest sample as it may be incomplete
+        samples.remove(samples.indexOf(samples.min))
+        existingSamplesForWorker.appendAll(samples)
 
-      // clean up to save memory
-      val maxSamplesPerWorker = 500
-      if (existingSamplesForWorker.size >= maxSamplesPerWorker) {
-        existingSamplesForWorker = existingSamplesForWorker.slice(
-          existingSamplesForWorker.size - maxSamplesPerWorker,
-          existingSamplesForWorker.size
-        )
+        // clean up to save memory
+        val maxSamplesPerWorker = 500
+        if (existingSamplesForWorker.size >= maxSamplesPerWorker) {
+          existingSamplesForWorker = existingSamplesForWorker.slice(
+            existingSamplesForWorker.size - maxSamplesPerWorker,
+            existingSamplesForWorker.size
+          )
+        }
+
+        existingSamples(wid) = existingSamplesForWorker
       }
-
-      existingSamples(wid) = existingSamplesForWorker
     }
     workloadSamples(collectedAt) = existingSamples
   }
@@ -66,12 +70,12 @@ trait MonitoringHandler {
 
       // send Monitoring message
       val requests = workers.map(worker =>
-        send(QuerySelfWorkloadMetrics(), worker).map(value => {
+        send(QuerySelfWorkloadMetrics(), worker).map(metricsAndSamples => {
           workflow.getOperator(worker).getWorkerWorkloadInfo(worker).dataInputWorkload =
-            value._1.unprocessedDataInputQueueSize + value._1.stashedDataInputQueueSize
+            metricsAndSamples._1.unprocessedDataInputQueueSize + metricsAndSamples._1.stashedDataInputQueueSize
           workflow.getOperator(worker).getWorkerWorkloadInfo(worker).controlInputWorkload =
-            value._1.unprocessedControlInputQueueSize + value._1.stashedControlInputQueueSize
-          updateWorkloadSamples(worker, value._2)
+            metricsAndSamples._1.unprocessedControlInputQueueSize + metricsAndSamples._1.stashedControlInputQueueSize
+          updateWorkloadSamples(worker, metricsAndSamples._2)
         })
       )
 
