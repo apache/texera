@@ -7,6 +7,22 @@
       src="assets/logos/full_logo_small.png?v=1"
     />
 
+    <div *ngIf="userSystemEnabled && workflowCollabEnabled" class="texera-navigation-lockholder-status">
+      <button
+        (click)="onClickAcquireLock()"
+        nz-button
+        [disabled]="lockGranted"
+        title="acquire lock"
+        class = "lockholder-status"
+        [ngClass]="{ 'read-only': !lockGranted }"
+      >
+      <i *ngIf="lockGranted" nz-icon nzTheme="outline" nzType="lock"></i>
+      <i *ngIf="!lockGranted" nz-icon nzTheme="outline" nzType="unlock"></i>
+      <span *ngIf="lockGranted"> {{ "You have write access" }} </span>
+      <span *ngIf="!lockGranted"> {{ "Readonly Mode - click to request write access" }} </span>
+      </button>
+    </div>
+
     <!-- workflow metadata display -->
     <div *ngIf="userSystemEnabled" class="texera-navigation-workflow-metadata">
       <button
