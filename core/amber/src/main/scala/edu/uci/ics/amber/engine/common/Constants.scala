@@ -30,6 +30,12 @@ object Constants {
     AmberUtils.amberConfig.getInt("reshape.tau-threshold")
   var reshapeHelperOverloadThreshold: Int =
     AmberUtils.amberConfig.getInt("reshape.helper-overload-threshold")
+  var reshapeMaxWorkloadSamplesInController: Int =
+    AmberUtils.amberConfig.getInt("reshape.max-workload-samples-controller")
+  var reshapeMaxWorkloadSamplesInWorker: Int =
+    AmberUtils.amberConfig.getInt("reshape.max-workload-samples-worker")
+  var reshapeWorkloadSampleSize: Int =
+    AmberUtils.amberConfig.getInt("reshape.workload-sample-size")
   var reshapeFirstPhaseSharingNumerator: Int =
     AmberUtils.amberConfig.getInt("reshape.first-phase-sharing-numerator")
   var reshapeFirstPhaseSharingDenominator: Int =

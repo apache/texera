@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.Monitori
   previousCallFinished
 }
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QuerySelfWorkloadMetrics
-import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.amber.engine.common.{AmberUtils, Constants}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
@@ -18,19 +18,19 @@ object MonitoringHandler {
   var previousCallFinished = true
 
   final case class ControllerInitiateMonitoring(
-      filterByWorkers: List[ActorVirtualIdentity] = List()
-  ) extends ControlCommand[Unit]
+                                                 filterByWorkers: List[ActorVirtualIdentity] = List()
+                                               ) extends ControlCommand[Unit]
 }
 
 trait MonitoringHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
   def updateWorkloadSamples(
-      collectedAt: ActorVirtualIdentity,
-      allDownstreamWorkerToNewSamples: ArrayBuffer[
-        mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]
-      ]
-  ): Unit = {
+                             collectedAt: ActorVirtualIdentity,
+                             allDownstreamWorkerToNewSamples: ArrayBuffer[
+                               mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]
+                             ]
+                           ): Unit = {
     if (allDownstreamWorkerToNewSamples.isEmpty) {
       return
     }
@@ -46,7 +46,7 @@ trait MonitoringHandler {
         existingSamplesForWorker.appendAll(samples)
 
         // clean up to save memory
-        val maxSamplesPerWorker = 500
+        val maxSamplesPerWorker = Constants.reshapeMaxWorkloadSamplesInController
         if (existingSamplesForWorker.size >= maxSamplesPerWorker) {
           existingSamplesForWorker = existingSamplesForWorker.slice(
             existingSamplesForWorker.size - maxSamplesPerWorker,
