@@ -2,10 +2,7 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.MonitoringHandler.{
-  ControllerInitiateMonitoring,
-  previousCallFinished
-}
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.MonitoringHandler.{ControllerInitiateMonitoring, previousCallFinished}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QuerySelfWorkloadMetrics
 import edu.uci.ics.amber.engine.common.{AmberUtils, Constants}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
