@@ -14,8 +14,7 @@ import org.jooq.types.UInteger
 import rx.lang.scala.subjects.BehaviorSubject
 import rx.lang.scala.{Observable, Subscription}
 
-import scala.collection.mutable
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.duration.{DurationInt}
 
 object WorkflowService {
   private val wIdToWorkflowState = new ConcurrentHashMap[String, WorkflowService]()
@@ -120,7 +119,7 @@ class WorkflowService(wid: String, cleanUpTimeout: Int) extends LazyLogging {
     )
     jobService = Some(state)
     jobStateSubject.onNext(state)
-    state.startWorkflow()
+    state.startWorkflow(wid.split('-')(1).toInt)
   }
 
   def getJobServiceObservable: Observable[WorkflowJobService] = jobStateSubject.onTerminateDetach

@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
 
-    private static final long serialVersionUID = 1820752582;
+    private static final long serialVersionUID = 248636837;
 
     /**
      * The reference instance of <code>texera_db.workflow_executions</code>
@@ -68,7 +68,7 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
     /**
      * The column <code>texera_db.workflow_executions.status</code>.
      */
-    public final TableField<WorkflowExecutionsRecord, Boolean> STATUS = createField(DSL.name("status"), org.jooq.impl.SQLDataType.BIT, this, "");
+    public final TableField<WorkflowExecutionsRecord, Byte> STATUS = createField(DSL.name("status"), org.jooq.impl.SQLDataType.TINYINT.nullable(false).defaultValue(org.jooq.impl.DSL.inline("1", org.jooq.impl.SQLDataType.TINYINT)), this, "");
 
     /**
      * The column <code>texera_db.workflow_executions.result</code>.
@@ -83,7 +83,7 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
     /**
      * The column <code>texera_db.workflow_executions.completion_time</code>.
      */
-    public final TableField<WorkflowExecutionsRecord, Timestamp> COMPLETION_TIME = createField(DSL.name("completion_time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false).defaultValue(org.jooq.impl.DSL.field("CURRENT_TIMESTAMP", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
+    public final TableField<WorkflowExecutionsRecord, Timestamp> COMPLETION_TIME = createField(DSL.name("completion_time"), org.jooq.impl.SQLDataType.TIMESTAMP, this, "");
 
     /**
      * Create a <code>texera_db.workflow_executions</code> table reference
@@ -187,7 +187,7 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row7<UInteger, UInteger, UInteger, Boolean, String, Timestamp, Timestamp> fieldsRow() {
+    public Row7<UInteger, UInteger, UInteger, Byte, String, Timestamp, Timestamp> fieldsRow() {
         return (Row7) super.fieldsRow();
     }
 }

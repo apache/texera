@@ -4,6 +4,6 @@ export interface WorkflowExecutionsEntry
     vId: number;
     startingTime: number;
     completionTime: number;
-    status: boolean;
+    status: number;
     result: string;
   }> {}

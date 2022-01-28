@@ -10,6 +10,7 @@ DROP TABLE IF EXISTS `user_config`;
 DROP TABLE IF EXISTS `user`;
 DROP TABLE IF EXISTS `workflow`;
 DROP TABLE IF EXISTS `workflow_version`;
+DROP TABLE IF EXISTS `workflow_executions`;
 
 SET GLOBAL time_zone = '+00:00'; # this line is mandatory
 
@@ -119,10 +120,10 @@ CREATE TABLE IF NOT EXISTS workflow_executions
     `eid`             INT UNSIGNED AUTO_INCREMENT NOT NULL,
     `wid`             INT UNSIGNED NOT NULL,
     `vid`             INT UNSIGNED NOT NULL,
-    `status`          Bit(1), #0 failed and 1 succeeded empty is running
+    `status`          TINYINT NOT NULL DEFAULT 1,
     `result`          TEXT, #pointer to volume
     `starting_time`   TIMESTAMP                   NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `completion_time`   TIMESTAMP                   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `completion_time`   TIMESTAMP,
     PRIMARY KEY (`eid`),
     FOREIGN KEY (`wid`) REFERENCES `workflow` (`wid`) ON DELETE CASCADE,
     FOREIGN KEY (`vid`) REFERENCES `workflow_version` (`vid`) ON DELETE CASCADE

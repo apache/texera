@@ -20,7 +20,7 @@ import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.web.SnapshotMulticast
 import edu.uci.ics.texera.web.model.common.FaultedTupleFrontend
-import edu.uci.ics.texera.web.model.websocket.event._
+import edu.uci.ics.texera.web.model.websocket.event.{ExecutionStatusEnum, _}
 import edu.uci.ics.texera.web.model.websocket.event.python.PythonPrintTriggeredEvent
 import edu.uci.ics.texera.web.model.websocket.request.python.PythonExpressionEvaluateRequest
 import edu.uci.ics.texera.web.model.websocket.request.{RemoveBreakpointRequest, SkipTupleRequest}
@@ -32,6 +32,7 @@ import edu.uci.ics.texera.workflow.common.workflow.{
   ConditionBreakpoint,
   CountBreakpoint
 }
+import org.jooq.types.UInteger
 import rx.lang.scala.subjects.BehaviorSubject
 import rx.lang.scala.{Observable, Observer}
 
@@ -53,10 +54,12 @@ class JobRuntimeService(workflowStatus: BehaviorSubject[ExecutionStatusEnum], cl
     val faults: mutable.ArrayBuffer[BreakpointFault] = new ArrayBuffer[BreakpointFault]()
   }
 
+  var executionID: UInteger = _
   val operatorRuntimeStateMap: mutable.HashMap[String, OperatorRuntimeState] =
     new mutable.HashMap[String, OperatorRuntimeState]()
   var workflowError: Throwable = _
-
+  val executionsMetadataPersistService: ExecutionsMetadataPersistService =
+    new ExecutionsMetadataPersistService()
   registerCallbacks()
 
   private[this] def registerCallbacks(): Unit = {
@@ -107,6 +110,7 @@ class JobRuntimeService(workflowStatus: BehaviorSubject[ExecutionStatusEnum], cl
       .getObservable[WorkflowCompleted]
       .subscribe((evt: WorkflowCompleted) => {
         client.shutdown()
+        executionsMetadataPersistService.updateExistingExecution(executionID, Completed.code)
         workflowStatus.onNext(Completed)
       })
   }
@@ -126,6 +130,7 @@ class JobRuntimeService(workflowStatus: BehaviorSubject[ExecutionStatusEnum], cl
       .subscribe((evt: FatalError) => {
         client.shutdown()
         workflowError = evt.e
+        executionsMetadataPersistService.updateExistingExecution(executionID, Aborted.code)
         workflowStatus.onNext(Aborted)
         send(WorkflowExecutionErrorEvent(evt.e.getLocalizedMessage))
       })
@@ -135,10 +140,11 @@ class JobRuntimeService(workflowStatus: BehaviorSubject[ExecutionStatusEnum], cl
     *  Utility Functions
     */
 
-  def startWorkflow(): Unit = {
+  def startWorkflow(wid: Int): Unit = {
     val f = client.sendAsync(StartWorkflow())
     workflowStatus.onNext(Initializing)
     f.onSuccess { _ =>
+      executionID = executionsMetadataPersistService.insertNewExecution(UInteger.valueOf(wid))
       workflowStatus.onNext(Running)
     }
   }
@@ -231,6 +237,7 @@ class JobRuntimeService(workflowStatus: BehaviorSubject[ExecutionStatusEnum], cl
     val f = client.sendAsync(RetryWorkflow())
     workflowStatus.onNext(Resuming)
     f.onSuccess { _ =>
+      executionsMetadataPersistService.updateExistingExecution(executionID, Running.code)
       workflowStatus.onNext(Running)
     }
   }
@@ -239,6 +246,7 @@ class JobRuntimeService(workflowStatus: BehaviorSubject[ExecutionStatusEnum], cl
     val f = client.sendAsync(PauseWorkflow())
     workflowStatus.onNext(Pausing)
     f.onSuccess { _ =>
+      executionsMetadataPersistService.updateExistingExecution(executionID, Paused.code)
       workflowStatus.onNext(Paused)
     }
   }
@@ -248,12 +256,14 @@ class JobRuntimeService(workflowStatus: BehaviorSubject[ExecutionStatusEnum], cl
     val f = client.sendAsync(ResumeWorkflow())
     workflowStatus.onNext(Resuming)
     f.onSuccess { _ =>
+      executionsMetadataPersistService.updateExistingExecution(executionID, Running.code)
       workflowStatus.onNext(Running)
     }
   }
 
   def killWorkflow(): Unit = {
     client.shutdown()
+    executionsMetadataPersistService.updateExistingExecution(executionID, Completed.code)
     workflowStatus.onNext(Completed)
   }
 

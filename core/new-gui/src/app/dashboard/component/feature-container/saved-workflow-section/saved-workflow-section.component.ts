@@ -11,7 +11,7 @@ import { UserService } from "../../../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import Fuse from "fuse.js";
-import {NgbdModalWorkflowExecutionsComponent} from "./ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
+import { NgbdModalWorkflowExecutionsComponent } from "./ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 
 export const ROUTER_WORKFLOW_BASE_URL = "/workflow";
 export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
@@ -68,7 +68,10 @@ export class SavedWorkflowSectionComponent implements OnInit {
    * open the workflow executions page
    */
   public onClickGetWorkflowExecutions({ workflow }: DashboardWorkflowEntry): void {
-    const modalRef = this.modalService.open(NgbdModalWorkflowExecutionsComponent);
+    const modalRef = this.modalService.open(NgbdModalWorkflowExecutionsComponent, {
+      size: "lg",
+      windowClass: "modal-xl",
+    });
     modalRef.componentInstance.workflow = workflow;
   }
 

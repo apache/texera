@@ -18,7 +18,12 @@ import edu.uci.ics.texera.web.auth.{
 import edu.uci.ics.texera.web.resource.auth.{AuthResource, GoogleAuthResource}
 import edu.uci.ics.texera.web.resource.dashboard.file.{UserFileAccessResource, UserFileResource}
 import edu.uci.ics.texera.web.resource.{UserConfigResource, _}
-import edu.uci.ics.texera.web.resource.dashboard.workflow.{WorkflowAccessResource, WorkflowResource, WorkflowExecutionsResource, WorkflowVersionResource}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.{
+  WorkflowAccessResource,
+  WorkflowResource,
+  WorkflowExecutionsResource,
+  WorkflowVersionResource
+}
 import io.dropwizard.auth.{AuthDynamicFeature, AuthValueFactoryProvider}
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
@@ -27,6 +32,7 @@ import org.eclipse.jetty.servlet.ErrorPageErrorHandler
 import org.eclipse.jetty.websocket.server.WebSocketUpgradeFilter
 import org.glassfish.jersey.media.multipart.MultiPartFeature
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 
 import java.time.Duration
 import scala.concurrent.ExecutionContext.Implicits.global

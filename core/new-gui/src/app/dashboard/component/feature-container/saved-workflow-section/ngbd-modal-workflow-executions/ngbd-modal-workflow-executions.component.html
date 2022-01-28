@@ -7,17 +7,17 @@
 <div class="modal-body">
   <nz-table [nzData]="workflowExecutionsList">
     <thead>
-    <tr>
-      <th *ngFor="let column of executionsTableHeaders">{{column}}</th>
-    </tr>
+      <tr>
+        <th *ngFor="let column of executionsTableHeaders">{{column}}</th>
+      </tr>
     </thead>
     <tbody>
-    <tr *ngFor="let row of workflowExecutionsList; let i=index;">
-      <td nzEllipsis (click)="getExecution(row.eId)">{{(i + 1)}}</td>
-      <td nzEllipsis (click)="getExecution(row.eId)">{{row.startingTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
-      <td nzEllipsis (click)="getExecution(row.eId)">{{row.completionTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
-      <td nzEllipsis (click)="getExecution(row.eId)">{{row.status}}</td>
-    </tr>
+      <tr *ngFor="let row of workflowExecutionsList; let i=index;">
+        <td nzEllipsis>{{(i + 1)}}</td>
+        <td nzEllipsis>{{row.startingTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
+        <td nzEllipsis>{{row.completionTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
+        <td nzEllipsis>{{getExecutionStatus(row.status)}}</td>
+      </tr>
     </tbody>
   </nz-table>
 </div>

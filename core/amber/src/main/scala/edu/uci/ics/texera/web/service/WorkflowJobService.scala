@@ -33,8 +33,6 @@ import rx.lang.scala.subjects.BehaviorSubject
 import rx.lang.scala.subscriptions.CompositeSubscription
 import rx.lang.scala.{Observer, Subscription}
 
-import scala.collection.mutable
-
 class WorkflowJobService(
     operatorCache: WorkflowCacheService,
     uidOpt: Option[UInteger],
@@ -65,12 +63,12 @@ class WorkflowJobService(
     new JobResultService(workflowInfo, client, opResultStorage)
   val resultExportService: ResultExportService = new ResultExportService()
 
-  def startWorkflow(): Unit = {
+  def startWorkflow(wid: Int): Unit = {
     workflowResultService.updateAvailableResult(request.operators)
     for (pair <- workflowInfo.breakpoints) {
       workflowRuntimeService.addBreakpoint(pair.operatorID, pair.breakpoint)
     }
-    workflowRuntimeService.startWorkflow()
+    workflowRuntimeService.startWorkflow(wid)
   }
 
   private[this] def createWorkflowStatus(): BehaviorSubject[ExecutionStatusEnum] = {

@@ -1,10 +1,11 @@
-import {Component, Input, OnInit} from "@angular/core";
+import { Component, Input, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { Workflow } from "../../../../../common/type/workflow";
-import {WorkflowExecutionsEntry} from "../../../../type/workflow-executions-entry";
-import {WorkflowExecutionsService} from "../../../../service/workflow-executions/workflow-executions.service";
-
+import { WorkflowExecutionsEntry } from "../../../../type/workflow-executions-entry";
+import { WorkflowExecutionsService } from "../../../../service/workflow-executions/workflow-executions.service";
+import { ChartType } from "../../../../../workspace/types/visualization.interface";
+import { ExecutionState } from "../../../../../workspace/types/execute-workflow.interface";
 
 @UntilDestroy()
 @Component({
@@ -19,22 +20,11 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
 
   public executionsTableHeaders: string[] = ["Execution#", "Starting Time", "Completion Time", "Status"];
 
-  constructor(
-    public activeModal: NgbActiveModal,
-    private workflowExecutionsService: WorkflowExecutionsService
-  ) {}
+  constructor(public activeModal: NgbActiveModal, private workflowExecutionsService: WorkflowExecutionsService) {}
 
   ngOnInit(): void {
     // gets the workflow executions and display the runs in the table on the form
     this.displayWorkflowExecutions();
-  }
-
-  getExecution(eid: number) {
-    // this.retrieveWorkflowByExecution(<number>this.workflow.wid, eid)
-    //   .pipe(untilDestroyed(this))
-    //   .subscribe(result => {
-    //     console.log(result);
-    //   });
   }
 
   /**
@@ -44,20 +34,33 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     if (this.workflow.wid === undefined) {
       return;
     }
-    this.workflowExecutionsService.retrieveWorkflowExecutions(this.workflow.wid)
+    this.workflowExecutionsService
+      .retrieveWorkflowExecutions(this.workflow.wid)
       .pipe(untilDestroyed(this))
       .subscribe(workflowExecutions => {
         this.workflowExecutionsList = workflowExecutions;
       });
   }
 
-  // /**
-  //  * retrieves details of a particular execution of the workflow from backend database
-  //  */
-  // retrieveWorkflowByExecution(wid: number, eid: number): Observable<WorkflowExecutionsEntry> {
-  //   return this.http
-  //     .get<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_EXECUTIONS_API_BASE_URL}/${wid}/${eid}`)
-  //     .pipe(
-  //     );
-  // }
+  getExecutionStatus(statusCode: number): String {
+    console.log("test");
+    switch (statusCode) {
+      case 0:
+        return ExecutionState.Initializing.toString();
+        break;
+      case 1:
+        return ExecutionState.Running.toString();
+        break;
+      case 2:
+        return ExecutionState.Paused.toString();
+        break;
+      case 3:
+        return ExecutionState.Completed.toString();
+        break;
+      case 4:
+        return ExecutionState.Aborted.toString();
+        break;
+    }
+    return "";
+  }
 }
