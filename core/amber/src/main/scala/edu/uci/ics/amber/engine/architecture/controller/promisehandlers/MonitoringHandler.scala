@@ -70,12 +70,14 @@ trait MonitoringHandler {
 
       // send Monitoring message
       val requests = workers.map(worker =>
-        send(QuerySelfWorkloadMetrics(), worker).map(metricsAndSamples => {
-          workflow.getOperator(worker).getWorkerWorkloadInfo(worker).dataInputWorkload =
-            metricsAndSamples._1.unprocessedDataInputQueueSize + metricsAndSamples._1.stashedDataInputQueueSize
-          workflow.getOperator(worker).getWorkerWorkloadInfo(worker).controlInputWorkload =
-            metricsAndSamples._1.unprocessedControlInputQueueSize + metricsAndSamples._1.stashedControlInputQueueSize
-          updateWorkloadSamples(worker, metricsAndSamples._2)
+        send(QuerySelfWorkloadMetrics(), worker).map({
+          case (metrics, samples) => {
+            workflow.getOperator(worker).getWorkerWorkloadInfo(worker).dataInputWorkload =
+              metrics.unprocessedDataInputQueueSize + metrics.stashedDataInputQueueSize
+            workflow.getOperator(worker).getWorkerWorkloadInfo(worker).controlInputWorkload =
+              metrics.unprocessedControlInputQueueSize + metrics.stashedControlInputQueueSize
+            updateWorkloadSamples(worker, samples)
+          }
         })
       )
 
