@@ -92,14 +92,14 @@ public class WorkflowExecutionsDao extends DAOImpl<WorkflowExecutionsRecord, edu
     /**
      * Fetch records that have <code>status BETWEEN lowerInclusive AND upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfStatus(Boolean lowerInclusive, Boolean upperInclusive) {
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfStatus(Byte lowerInclusive, Byte upperInclusive) {
         return fetchRange(WorkflowExecutions.WORKFLOW_EXECUTIONS.STATUS, lowerInclusive, upperInclusive);
     }
 
     /**
      * Fetch records that have <code>status IN (values)</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchByStatus(Boolean... values) {
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchByStatus(Byte... values) {
         return fetch(WorkflowExecutions.WORKFLOW_EXECUTIONS.STATUS, values);
     }
 

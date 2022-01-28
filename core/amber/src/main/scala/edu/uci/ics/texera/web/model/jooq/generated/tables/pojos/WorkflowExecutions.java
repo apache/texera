@@ -17,12 +17,12 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowExecutions implements IWorkflowExecutions {
 
-    private static final long serialVersionUID = 809294461;
+    private static final long serialVersionUID = -1890677241;
 
     private UInteger  eid;
     private UInteger  wid;
     private UInteger  vid;
-    private Boolean   status;
+    private Byte      status;
     private String    result;
     private Timestamp startingTime;
     private Timestamp completionTime;
@@ -43,7 +43,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         UInteger  eid,
         UInteger  wid,
         UInteger  vid,
-        Boolean   status,
+        Byte      status,
         String    result,
         Timestamp startingTime,
         Timestamp completionTime
@@ -88,12 +88,12 @@ public class WorkflowExecutions implements IWorkflowExecutions {
     }
 
     @Override
-    public Boolean getStatus() {
+    public Byte getStatus() {
         return this.status;
     }
 
     @Override
-    public void setStatus(Boolean status) {
+    public void setStatus(Byte status) {
         this.status = status;
     }
 

@@ -19,7 +19,7 @@ import { debounceTime } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { VIEW_RESULT_OP_TYPE } from "../../service/workflow-graph/model/workflow-graph";
 import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
-import {WorkflowExecutionsService} from "../../../dashboard/service/workflow-executions/workflow-executions.service";
+import { WorkflowExecutionsService } from "../../../dashboard/service/workflow-executions/workflow-executions.service";
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -154,7 +154,7 @@ export class NavigationComponent {
           text: "Run",
           icon: "play-circle",
           disable: false,
-          onClick: () => this.executeWorkflow(),
+          onClick: () => this.executeWorkflowService.executeWorkflow(),
         };
       case ExecutionState.Initializing:
         return {
@@ -200,18 +200,6 @@ export class NavigationComponent {
           onClick: () => {},
         };
     }
-  }
-
-  private executeWorkflow(): void {
-    // start a new execution, let the executions service handle metadata information
-    let wid = this.workflowActionService.getWorkflowMetadata().wid;
-    if (wid !== undefined) {
-      this.workflowExecutionsService.persistNewExecution(wid).pipe(untilDestroyed(this))
-        .subscribe(
-          msg => console.log(msg)
-        );
-    }
-    this.executeWorkflowService.executeWorkflow();
   }
 
   public handleKill(): void {

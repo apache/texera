@@ -49,12 +49,12 @@ public interface IWorkflowExecutions extends Serializable {
     /**
      * Setter for <code>texera_db.workflow_executions.status</code>.
      */
-    public void setStatus(Boolean value);
+    public void setStatus(Byte value);
 
     /**
      * Getter for <code>texera_db.workflow_executions.status</code>.
      */
-    public Boolean getStatus();
+    public Byte getStatus();
 
     /**
      * Setter for <code>texera_db.workflow_executions.result</code>.

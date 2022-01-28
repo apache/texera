@@ -18,7 +18,12 @@ import edu.uci.ics.texera.web.auth.{
 import edu.uci.ics.texera.web.resource.auth.{AuthResource, GoogleAuthResource}
 import edu.uci.ics.texera.web.resource.dashboard.file.{UserFileAccessResource, UserFileResource}
 import edu.uci.ics.texera.web.resource.{UserConfigResource, _}
-import edu.uci.ics.texera.web.resource.dashboard.workflow.{WorkflowAccessResource, WorkflowResource, WorkflowExecutionsResource, WorkflowVersionResource}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.{
+  WorkflowAccessResource,
+  WorkflowResource,
+  WorkflowExecutionsResource,
+  WorkflowVersionResource
+}
 import io.dropwizard.auth.{AuthDynamicFeature, AuthValueFactoryProvider}
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
