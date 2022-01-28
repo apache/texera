@@ -46,7 +46,7 @@ object ControlCommandConvertUtils {
       case QueryCurrentInputTuple() =>
         QueryCurrentInputTupleV2()
       case InitializeOperatorLogic(code, isSource, schema) =>
-       InitializeOperatorLogicV2(
+        InitializeOperatorLogicV2(
           code,
           isSource,
           schema.getAttributes.asScala.map(attr => attr.getName -> attr.getType.toString).toMap
