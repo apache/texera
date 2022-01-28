@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
-import akka.actor.{ActorRef, Address, Cancellable, PoisonPill, Props}
+import akka.actor.{ActorRef, Address, Cancellable, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import com.softwaremill.macwire.wire
@@ -11,19 +11,17 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.Workflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
-  NetworkMessage,
-  RegisterActorRef
-}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{NetworkMessage, RegisterActorRef}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputPort
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
 import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowControlMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER}
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.error.ErrorUtils.safely
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
 
@@ -89,14 +87,14 @@ class Controller(
     // initialize python operator code
     val initializeOperatorLogicRequests: Seq[Future[Unit]] =
       workflow.getPythonWorkerToOperatorExec.map {
-        case (workerId: ActorVirtualIdentity, pythonOperatorExec: PythonUDFOpExecV2) =>
+        case (workerID: ActorVirtualIdentity, pythonOperatorExec: PythonUDFOpExecV2) =>
           asyncRPCClient.send(
             InitializeOperatorLogic(
               pythonOperatorExec.getCode,
               pythonOperatorExec.isInstanceOf[ISourceOperatorExecutor],
               pythonOperatorExec.getOutputSchema
             ),
-            workerId
+            workerID
           )
       }.toSeq
 
@@ -109,21 +107,32 @@ class Controller(
         )
       }.toSeq
 
+    // open all operators
+    val openOperatorRequests: Seq[Future[Unit]] =
+      workflow.getAllWorkers.map { workerID: ActorVirtualIdentity =>
+        asyncRPCClient.send(
+          OpenOperator(),
+          workerID
+        )
+      }.toSeq
+
     Future
       .collect(
-        initializeOperatorLogicRequests ++ activateLinkRequests
-      )
-      .onSuccess({ _ =>
-        workflow.getAllOperators.foreach(_.setAllWorkerState(READY))
-        asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus))
-        context.become(running)
-        unstashAll()
+        initializeOperatorLogicRequests
+      ).onFailure((err: Throwable) => {
+      logger.error("Failure when sending Python UDF code", err)
+      // report error to frontend
+      asyncRPCClient.sendToClient(FatalError(err))
+    })
+      .flatMap({ _ =>
+        Future {
+          workflow.getAllOperators.foreach(_.setAllWorkerState(READY))
+          asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus))
+          context.become(running)
+          unstashAll()
+        }
       })
-      .onFailure((err: Throwable) => {
-        logger.error("Failure when sending Python UDF code", err)
-        // report error to frontend
-        asyncRPCClient.sendToClient(FatalError(err))
-      })
+      .flatMap(_ => Future.collect(activateLinkRequests ++ openOperatorRequests))
   }
 
   def running: Receive = {
