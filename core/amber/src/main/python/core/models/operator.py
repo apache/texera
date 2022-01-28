@@ -15,7 +15,7 @@ class Operator(ABC):
     Abstract base class for all operators.
     """
 
-    def __init__(self, ):
+    def __init__(self):
         self.__internal_is_source: bool = False
         self.__internal_output_schema: Optional[Schema] = None
 
