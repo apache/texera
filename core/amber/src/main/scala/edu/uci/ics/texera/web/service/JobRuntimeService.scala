@@ -263,7 +263,7 @@ class JobRuntimeService(workflowStatus: BehaviorSubject[ExecutionStatusEnum], cl
 
   def killWorkflow(): Unit = {
     client.shutdown()
-    executionsMetadataPersistService.updateExistingExecution(executionID, Completed.code)
+    executionsMetadataPersistService.updateExistingExecution(executionID, Aborted.code)
     workflowStatus.onNext(Completed)
   }
 
