@@ -11,7 +11,10 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.Workflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{NetworkMessage, RegisterActorRef}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
+  NetworkMessage,
+  RegisterActorRef
+}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputPort
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
@@ -119,11 +122,12 @@ class Controller(
     Future
       .collect(
         initializeOperatorLogicRequests
-      ).onFailure((err: Throwable) => {
-      logger.error("Failure when sending Python UDF code", err)
-      // report error to frontend
-      asyncRPCClient.sendToClient(FatalError(err))
-    })
+      )
+      .onFailure((err: Throwable) => {
+        logger.error("Failure when sending Python UDF code", err)
+        // report error to frontend
+        asyncRPCClient.sendToClient(FatalError(err))
+      })
       .flatMap({ _ =>
         Future {
           workflow.getAllOperators.foreach(_.setAllWorkerState(READY))
