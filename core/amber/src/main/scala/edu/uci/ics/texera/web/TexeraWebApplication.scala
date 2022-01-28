@@ -4,6 +4,7 @@ import akka.actor.{ActorSystem, Cancellable}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
 import com.github.toastshaman.dropwizard.auth.jwt.JwtAuthFilter
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.Utils
@@ -16,13 +17,13 @@ import edu.uci.ics.texera.web.auth.{
 }
 import edu.uci.ics.texera.web.resource.auth.{AuthResource, GoogleAuthResource}
 import edu.uci.ics.texera.web.resource.dashboard.file.{UserFileAccessResource, UserFileResource}
-import edu.uci.ics.texera.web.resource.{UserConfigResource, _}
 import edu.uci.ics.texera.web.resource.dashboard.workflow.{
   WorkflowAccessResource,
-  WorkflowResource,
   WorkflowExecutionsResource,
+  WorkflowResource,
   WorkflowVersionResource
 }
+import edu.uci.ics.texera.web.resource._
 import io.dropwizard.auth.{AuthDynamicFeature, AuthValueFactoryProvider}
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
@@ -31,7 +32,6 @@ import org.eclipse.jetty.servlet.ErrorPageErrorHandler
 import org.eclipse.jetty.websocket.server.WebSocketUpgradeFilter
 import org.glassfish.jersey.media.multipart.MultiPartFeature
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 
 import java.time.Duration
 import scala.concurrent.ExecutionContext.Implicits.global

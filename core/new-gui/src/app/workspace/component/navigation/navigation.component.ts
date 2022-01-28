@@ -19,7 +19,6 @@ import { debounceTime } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { VIEW_RESULT_OP_TYPE } from "../../service/workflow-graph/model/workflow-graph";
 import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
-import { WorkflowExecutionsService } from "../../../dashboard/service/workflow-executions/workflow-executions.service";
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -85,8 +84,7 @@ export class NavigationComponent {
     public userService: UserService,
     private workflowCacheService: WorkflowCacheService,
     private datePipe: DatePipe,
-    public workflowResultExportService: WorkflowResultExportService,
-    private workflowExecutionsService: WorkflowExecutionsService
+    public workflowResultExportService: WorkflowResultExportService
   ) {
     this.executionState = executeWorkflowService.getExecutionState().state;
     // return the run button after the execution is finished, either
