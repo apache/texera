@@ -123,7 +123,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
                 if output_tuple is not None:
                     self.context.statistics_manager.increase_output_tuple_count()
                     for to, batch in self.context.tuple_to_batch_converter.tuple_to_batch(output_tuple):
-                        batch.schema = self._operator.output_attribute_names
+                        batch.schema = self._operator.output_schema
                         self._output_queue.put(DataElement(tag=to, payload=batch))
         except Exception as err:
             logger.exception(err)
@@ -191,7 +191,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         :param _: EndOfAllMarker
         """
         for to, batch in self.context.tuple_to_batch_converter.emit_end_of_upstream():
-            batch.schema = self._operator.output_attribute_names
+            batch.schema = self._operator.output_schema
             self._output_queue.put(DataElement(tag=to, payload=batch))
             self.check_and_process_control()
         self.complete()

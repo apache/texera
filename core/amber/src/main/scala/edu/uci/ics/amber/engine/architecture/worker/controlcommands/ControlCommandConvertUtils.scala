@@ -26,8 +26,8 @@ import scala.collection.JavaConverters._
 
 object ControlCommandConvertUtils {
   def controlCommandToV2(
-      controlCommand: ControlCommand[_]
-  ): ControlCommandV2 = {
+                          controlCommand: ControlCommand[_]
+                        ): ControlCommandV2 = {
     controlCommand match {
       case StartWorker() =>
         StartWorkerV2()
@@ -47,7 +47,8 @@ object ControlCommandConvertUtils {
         QueryCurrentInputTupleV2()
       case InitializeOperatorLogic(code, isSource, schema) =>
         // TODO: will add attribute types in future PRs, for now only pass attribute names
-        InitializeOperatorLogicV2(code, isSource, schema.getAttributeNames.asScala)
+        InitializeOperatorLogicV2(code, isSource,
+          schema.getAttributes.asScala.map(attr => attr.getName -> attr.getType.toString).toMap)
       case ReplayCurrentTuple() =>
         ReplayCurrentTupleV2()
       case ModifyOperatorLogic(code, isSource) =>
@@ -63,8 +64,8 @@ object ControlCommandConvertUtils {
   }
 
   def controlCommandToV1(
-      controlCommand: ControlCommandV2
-  ): ControlCommand[_] = {
+                          controlCommand: ControlCommandV2
+                        ): ControlCommand[_] = {
     controlCommand match {
       case WorkerExecutionCompletedV2() =>
         WorkerExecutionCompleted()
@@ -80,12 +81,12 @@ object ControlCommandConvertUtils {
   }
 
   def controlReturnToV1(
-      controlReturnV2: ControlReturnV2
-  ): Any = {
+                         controlReturnV2: ControlReturnV2
+                       ): Any = {
     controlReturnV2.value match {
-      case Empty                                          => Unit
+      case Empty => Unit
       case _: ControlReturnV2.Value.CurrentInputTupleInfo => null
-      case _                                              => controlReturnV2.value.value
+      case _ => controlReturnV2.value.value
     }
   }
 

@@ -99,7 +99,7 @@ class TestDataProcessor:
         data_processor = DataProcessor(input_queue, output_queue)
         # mock the operator binding
         data_processor._operator = mock_udf
-        data_processor._operator.output_attribute_names = ["test-1", "test-2"]
+        data_processor._operator.output_schema = ["test-1", "test-2"]
         yield data_processor
         data_processor.stop()
 
