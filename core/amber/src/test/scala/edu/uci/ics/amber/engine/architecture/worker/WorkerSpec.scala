@@ -16,7 +16,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
 }
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QueryWorkloadMetrics
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QuerySelfWorkloadMetrics
 import edu.uci.ics.amber.engine.architecture.worker.workloadmetrics.SelfWorkloadMetrics
 import edu.uci.ics.amber.engine.common.ambermessage.{
   ControlPayload,
@@ -117,7 +117,7 @@ class WorkerSpec
         WorkflowControlMessage(
           CONTROLLER,
           0,
-          ControlInvocation(0, QueryWorkloadMetrics())
+          ControlInvocation(0, QuerySelfWorkloadMetrics())
         )
       )
     )
