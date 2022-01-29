@@ -12,6 +12,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import Fuse from "fuse.js";
 import { NgbdModalWorkflowExecutionsComponent } from "./ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
+import { environment } from "../../../../../environments/environment";
 
 export const ROUTER_WORKFLOW_BASE_URL = "/workflow";
 export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
@@ -43,6 +44,8 @@ export class SavedWorkflowSectionComponent implements OnInit {
   public workflowSearchValue: string = "";
   private defaultWorkflowName: string = "Untitled Workflow";
   public searchCriteria: string[] = ["owner", "id"];
+  // whether tracking metadata information about executions is enabled
+  public workflowExecutionsTrackingEnabled: boolean = environment.workflowExecutionsTrackingEnabled;
 
   constructor(
     private userService: UserService,
