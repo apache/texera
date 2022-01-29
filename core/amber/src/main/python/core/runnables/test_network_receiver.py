@@ -9,6 +9,7 @@ from core.models.internal_queue import ControlElement, DataElement, InternalQueu
 from core.models.payload import OutputDataFrame, EndOfUpstream
 from core.runnables.network_receiver import NetworkReceiver
 from core.runnables.network_sender import NetworkSender
+from core.util.arrow_util import to_arrow_schema
 from core.util.proto import set_one_of
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlInvocationV2, ControlPayloadV2
 
@@ -46,7 +47,8 @@ class TestNetworkReceiver:
             'Brand': ['Honda Civic', 'Toyota Corolla', 'Ford Focus', 'Audi A4'],
             'Price': [22000, 25000, 27000, 35000]
         }, columns=['Brand', 'Price'])
-        return OutputDataFrame(frame=[Tuple(r) for _, r in df_to_sent.iterrows()], schema=['Brand', 'Price'])
+        return OutputDataFrame(frame=[Tuple(r) for _, r in df_to_sent.iterrows()],
+                               schema=to_arrow_schema({'Brand': 'string', 'Price': 'integer'}))
 
     @pytest.mark.timeout(0.5)
     def test_network_receiver_can_stop(self, schema_map):

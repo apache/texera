@@ -42,8 +42,9 @@ class Operator(ABC):
 
     @output_schema.setter
     @overrides.final
-    def output_schema(self, raw_output_schema: Mapping[str, str]) -> None:
-        self.__internal_output_schema = to_arrow_schema(raw_output_schema)
+    def output_schema(self, raw_output_schema: Union[Schema, Mapping[str, str]]) -> None:
+        self.__internal_output_schema = raw_output_schema if isinstance(raw_output_schema, Schema) else \
+            to_arrow_schema(raw_output_schema)
 
     def open(self) -> None:
         """
