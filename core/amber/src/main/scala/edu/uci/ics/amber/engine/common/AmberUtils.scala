@@ -7,7 +7,6 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.DeadLetterMonitorAct
 
 import java.io.{BufferedReader, InputStreamReader}
 import java.net.URL
-import scala.collection.mutable.ArrayBuffer
 
 object AmberUtils {
 
