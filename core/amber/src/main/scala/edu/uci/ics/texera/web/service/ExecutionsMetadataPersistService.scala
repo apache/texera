@@ -54,9 +54,11 @@ class ExecutionsMetadataPersistService() extends LazyLogging {
   }
 
   def updateExistingExecution(eid: UInteger, code: Byte): Unit = {
-    val execution = workflowExecutionsDao.fetchOneByEid(eid)
-    execution.setStatus(code)
-    execution.setCompletionTime(new Timestamp(System.currentTimeMillis()))
-    workflowExecutionsDao.update(execution)
+    if (eid != null) {
+      val execution = workflowExecutionsDao.fetchOneByEid(eid)
+      execution.setStatus(code)
+      execution.setCompletionTime(new Timestamp(System.currentTimeMillis()))
+      workflowExecutionsDao.update(execution)
+    }
   }
 }
