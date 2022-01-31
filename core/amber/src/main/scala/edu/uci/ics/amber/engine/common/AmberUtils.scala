@@ -11,17 +11,6 @@ import scala.collection.mutable.ArrayBuffer
 
 object AmberUtils {
 
-  /**
-    * Used by Reshape for predicting load on a worker. This is
-    * the estimated load using the mean model.
-    */
-  def predictedWorkload(workloads: ArrayBuffer[Long]): Double = {
-    var mean: Double = 0
-    workloads.foreach(load => { mean = mean + load })
-    mean = mean / workloads.size
-    mean
-  }
-
   def reverseMultimap[T1, T2](map: Map[T1, Set[T2]]): Map[T2, Set[T1]] =
     map.toSeq
       .flatMap { case (k, vs) => vs.map((_, k)) }

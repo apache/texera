@@ -54,9 +54,14 @@ class ControllerAsyncRPCHandlerInitializer(
 
   var statusUpdateAskHandle: Option[Cancellable] = None
   var resultUpdateAskHandle: Option[Cancellable] = None
+
   var monitoringHandle: Option[Cancellable] = None
   var skewDetectionHandle: Option[Cancellable] = None
-
+  var detectionCallCount = 0
+  var previousSkewDetectionCallFinished = true
+  var firstPhaseRequestsFinished = true
+  var secondPhaseRequestsFinished = true
+  var pauseMitigationRequestsFinished = true
   // Let `A -> B` be a workflow of two operators. Every worker of `A` records workload samples
   // for every worker of `B`. In `workloadSamples`, the key in the outer map is the worker of `A`.
   // The value is a map that has the workload samples for every worker of `B` as recorded in the
@@ -65,6 +70,23 @@ class ControllerAsyncRPCHandlerInitializer(
     new mutable.HashMap[ActorVirtualIdentity, mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[
       Long
     ]]]()
+  // contains skewed and helper mappings. A mapping does not mean that state
+  // has been transferred. For that we need to check `skewedToStateTransferDone`.
+  var skewedToHelperMappingHistory =
+    new mutable.HashMap[ActorVirtualIdentity, ActorVirtualIdentity]()
+  // contains skewed worker and whether state has been successfully transferred
+  var skewedToStateTransferDone =
+    new mutable.HashMap[ActorVirtualIdentity, Boolean]()
+  // contains pairs which are in first phase of mitigation
+  var skewedAndHelperInFirstPhase =
+    new mutable.HashMap[ActorVirtualIdentity, ActorVirtualIdentity]()
+  // contains pairs which are in second phase of mitigation
+  var skewedAndHelperInSecondPhase =
+    new mutable.HashMap[ActorVirtualIdentity, ActorVirtualIdentity]()
+  // During mitigation it may happen that the helper receives too much data. If that happens,
+  // we pause the mitigation and revert to the original partitioning logic.
+  var skewedAndHelperInPauseMitigationPhase =
+    new mutable.HashMap[ActorVirtualIdentity, ActorVirtualIdentity]()
 
   def enableStatusUpdate(): Unit = {
     if (controllerConfig.statusUpdateIntervalMs.nonEmpty && statusUpdateAskHandle.isEmpty) {

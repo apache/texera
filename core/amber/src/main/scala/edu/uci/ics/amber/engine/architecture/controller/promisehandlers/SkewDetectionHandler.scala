@@ -7,26 +7,17 @@ import edu.uci.ics.amber.engine.architecture.controller.{
 }
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.SkewDetectionHandler.{
   ControllerInitiateSkewDetection,
-  detectionCallCount,
-  firstPhaseRequestsFinished,
   getPreviousWorkerLayer,
   getSkewedAndFreeWorkersEligibleForPauseMitigationPhase,
   getSkewedAndFreeWorkersEligibleForSecondPhase,
   getSkewedAndHelperWorkersEligibleForFirstPhase,
-  pauseMitigationRequestsFinished,
-  previousSkewDetectionCallFinished,
-  secondPhaseRequestsFinished,
-  skewedAndHelperInFirstPhase,
-  skewedAndHelperInPauseMitigationPhase,
-  skewedAndHelperInSecondPhase,
-  skewedToHelperMappingHistory,
-  skewedToStateTransferDone
+  predictedWorkload
 }
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{WorkerLayer, WorkerWorkloadInfo}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseSkewMitigationHandler.PauseSkewMitigation
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.SendImmutableStateHandler.SendImmutableState
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.SharePartitionHandler.SharePartition
-import edu.uci.ics.amber.engine.common.{AmberUtils, Constants}
+import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, OperatorIdentity}
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpExecConfig
@@ -36,29 +27,6 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.control.Breaks.{break, breakable}
 
 object SkewDetectionHandler {
-  var detectionCallCount = 0
-  var previousSkewDetectionCallFinished = true
-  var firstPhaseRequestsFinished = true
-  var secondPhaseRequestsFinished = true
-  var pauseMitigationRequestsFinished = true
-
-  // contains skewed and helper mappings. A mapping does not mean that state
-  // has been transferred. For that we need to check `skewedToStateTransferDone`.
-  var skewedToHelperMappingHistory =
-    new mutable.HashMap[ActorVirtualIdentity, ActorVirtualIdentity]()
-  // contains skewed worker and whether state has been successfully transferred
-  var skewedToStateTransferDone =
-    new mutable.HashMap[ActorVirtualIdentity, Boolean]()
-  // contains pairs which are in first phase of mitigation
-  var skewedAndHelperInFirstPhase =
-    new mutable.HashMap[ActorVirtualIdentity, ActorVirtualIdentity]()
-  // contains pairs which are in second phase of mitigation
-  var skewedAndHelperInSecondPhase =
-    new mutable.HashMap[ActorVirtualIdentity, ActorVirtualIdentity]()
-  // During mitigation it may happen that the helper receives too much data. If that happens,
-  // we pause the mitigation and revert to the original partitioning logic.
-  var skewedAndHelperInPauseMitigationPhase =
-    new mutable.HashMap[ActorVirtualIdentity, ActorVirtualIdentity]()
 
   final case class ControllerInitiateSkewDetection(
       filterByWorkers: List[ActorVirtualIdentity] = List()
@@ -68,7 +36,11 @@ object SkewDetectionHandler {
     * worker is eligible for first phase if no mitigation has happened till now or
     * it is in second phase right now.
     */
-  def isEligibleForSkewedAndFirstPhase(worker: ActorVirtualIdentity): Boolean = {
+  def isEligibleForSkewedAndFirstPhase(
+      worker: ActorVirtualIdentity,
+      skewedToHelperMappingHistory: mutable.HashMap[ActorVirtualIdentity, ActorVirtualIdentity],
+      skewedAndHelperInFirstPhase: mutable.HashMap[ActorVirtualIdentity, ActorVirtualIdentity]
+  ): Boolean = {
     !skewedToHelperMappingHistory.values.toList.contains(
       worker
     ) &&
@@ -80,7 +52,10 @@ object SkewDetectionHandler {
   /**
     * worker is eligible for being a helper if it is being used in neither of the phases.
     */
-  def isEligibleForHelper(worker: ActorVirtualIdentity): Boolean = {
+  def isEligibleForHelper(
+      worker: ActorVirtualIdentity,
+      skewedToHelperMappingHistory: mutable.HashMap[ActorVirtualIdentity, ActorVirtualIdentity]
+  ): Boolean = {
     !skewedToHelperMappingHistory.keySet.contains(
       worker
     ) && !skewedToHelperMappingHistory.values.toList.contains(
@@ -115,7 +90,13 @@ object SkewDetectionHandler {
     * @return array of skewed and helper workers where the helper is getting overloaded
     */
   def getSkewedAndFreeWorkersEligibleForPauseMitigationPhase(
-      loads: mutable.HashMap[ActorVirtualIdentity, WorkerWorkloadInfo]
+      loads: mutable.HashMap[ActorVirtualIdentity, WorkerWorkloadInfo],
+      skewedAndHelperInFirstPhase: mutable.HashMap[ActorVirtualIdentity, ActorVirtualIdentity],
+      skewedAndHelperInSecondPhase: mutable.HashMap[ActorVirtualIdentity, ActorVirtualIdentity],
+      skewedAndHelperInPauseMitigationPhase: mutable.HashMap[
+        ActorVirtualIdentity,
+        ActorVirtualIdentity
+      ]
   ): ArrayBuffer[(ActorVirtualIdentity, ActorVirtualIdentity)] = {
     val retPairs = new ArrayBuffer[(ActorVirtualIdentity, ActorVirtualIdentity)]()
     // Get workers in increasing load
@@ -162,7 +143,8 @@ object SkewDetectionHandler {
     * returns an array of (skewedWorker, helperWorker) that are ready to go into second phase
     */
   def getSkewedAndFreeWorkersEligibleForSecondPhase(
-      loads: mutable.HashMap[ActorVirtualIdentity, WorkerWorkloadInfo]
+      loads: mutable.HashMap[ActorVirtualIdentity, WorkerWorkloadInfo],
+      skewedAndHelperInFirstPhase: mutable.HashMap[ActorVirtualIdentity, ActorVirtualIdentity]
   ): ArrayBuffer[(ActorVirtualIdentity, ActorVirtualIdentity)] = {
     val retPairs = new ArrayBuffer[(ActorVirtualIdentity, ActorVirtualIdentity)]()
     skewedAndHelperInFirstPhase.keys.foreach(skewedWorker => {
@@ -186,7 +168,10 @@ object SkewDetectionHandler {
     * returns an array of (skewedWorker, freeWorker, whether state replication needs to be done)
     */
   def getSkewedAndHelperWorkersEligibleForFirstPhase(
-      loads: mutable.HashMap[ActorVirtualIdentity, WorkerWorkloadInfo]
+      loads: mutable.HashMap[ActorVirtualIdentity, WorkerWorkloadInfo],
+      skewedToHelperMappingHistory: mutable.HashMap[ActorVirtualIdentity, ActorVirtualIdentity],
+      skewedToStateTransferDone: mutable.HashMap[ActorVirtualIdentity, Boolean],
+      skewedAndHelperInFirstPhase: mutable.HashMap[ActorVirtualIdentity, ActorVirtualIdentity]
   ): ArrayBuffer[(ActorVirtualIdentity, ActorVirtualIdentity, Boolean)] = {
     val retPairs = new ArrayBuffer[(ActorVirtualIdentity, ActorVirtualIdentity, Boolean)]()
     // Get workers in increasing load
@@ -197,7 +182,13 @@ object SkewDetectionHandler {
     )
 
     for (i <- sortedWorkers.size - 1 to 0 by -1) {
-      if (isEligibleForSkewedAndFirstPhase(sortedWorkers(i))) {
+      if (
+        isEligibleForSkewedAndFirstPhase(
+          sortedWorkers(i),
+          skewedToHelperMappingHistory,
+          skewedAndHelperInFirstPhase
+        )
+      ) {
         if (skewedToHelperMappingHistory.keySet.contains(sortedWorkers(i))) {
           // worker has been previously paired with some helper.
           // So, that helper will be used again.
@@ -208,23 +199,19 @@ object SkewDetectionHandler {
               loads
             )
           ) {
-            if (skewedToStateTransferDone(sortedWorkers(i))) {
-              // state transfer is already done
-              retPairs.append(
-                (sortedWorkers(i), skewedToHelperMappingHistory(sortedWorkers(i)), false)
+            retPairs.append(
+              (
+                sortedWorkers(i),
+                skewedToHelperMappingHistory(sortedWorkers(i)),
+                !skewedToStateTransferDone(sortedWorkers(i))
               )
-            } else {
-              // state transfer has to be done
-              retPairs.append(
-                (sortedWorkers(i), skewedToHelperMappingHistory(sortedWorkers(i)), true)
-              )
-            }
+            )
           }
         } else if (i > 0) {
           breakable {
             for (j <- 0 to i - 1) {
               if (
-                isEligibleForHelper(sortedWorkers(j)) && passSkewTest(
+                isEligibleForHelper(sortedWorkers(j), skewedToHelperMappingHistory) && passSkewTest(
                   sortedWorkers(i),
                   sortedWorkers(j),
                   loads
@@ -250,19 +237,28 @@ object SkewDetectionHandler {
     * by Reshape.
     */
   def getPreviousWorkerLayer(opId: OperatorIdentity, workflow: Workflow): WorkerLayer = {
-    val upstreamOps = workflow.getDirectUpstreamOperators(opId)
-    // Below implementation finds the probe input operator for the join operator
-    val probeOpId = upstreamOps
-      .find(uOpId =>
-        workflow.getOperator(uOpId).topology.layers.last.id != workflow
+    workflow
+      .getUpStreamConnectedWorkerLayers(opId)
+      .values
+      .find(layer =>
+        layer.id != workflow
           .getOperator(opId)
           .asInstanceOf[HashJoinOpExecConfig[Any]]
           .buildTable
           .from
       )
       .get
+  }
 
-    workflow.getOperator(probeOpId).topology.layers.last
+  /**
+    * Used by Reshape for predicting load on a worker. This is
+    * the estimated load using the mean model.
+    */
+  def predictedWorkload(workloads: ArrayBuffer[Long]): Double = {
+    var mean: Double = 0
+    workloads.foreach(load => { mean = mean + load })
+    mean = mean / workloads.size
+    mean
   }
 
 }
@@ -314,8 +310,8 @@ trait SkewDetectionHandler {
         // Second phase requires that the samples for both skewed and helper workers
         // are recorded at the previous worker `id`. This will be used to partition the
         // incoming data for the skewed worker.
-        var skewedLoad = AmberUtils.predictedWorkload(workloadSamples(id)(skewedWorker))
-        var helperLoad = AmberUtils.predictedWorkload(workloadSamples(id)(helperWorker))
+        var skewedLoad = predictedWorkload(workloadSamples(id)(skewedWorker))
+        var helperLoad = predictedWorkload(workloadSamples(id)(helperWorker))
         var redirectNumerator = ((skewedLoad - helperLoad) / 2).toLong
         workloadSamples(id)(skewedWorker) = new ArrayBuffer[Long]()
         workloadSamples(id)(helperWorker) = new ArrayBuffer[Long]()
@@ -368,7 +364,12 @@ trait SkewDetectionHandler {
           // Skew handling is only for hash-join operator for now.
           // 1: Find the skewed and helper worker that need first phase.
           val skewedAndHelperPairsForFirstPhase =
-            getSkewedAndHelperWorkersEligibleForFirstPhase(opConfig.workerToWorkloadInfo)
+            getSkewedAndHelperWorkersEligibleForFirstPhase(
+              opConfig.workerToWorkloadInfo,
+              skewedToHelperMappingHistory,
+              skewedToStateTransferDone,
+              skewedAndHelperInFirstPhase
+            )
           skewedAndHelperPairsForFirstPhase.foreach(skewedAndHelper =>
             logger.info(
               s"Reshape #${detectionCallCount}: First phase process begins - Skewed ${skewedAndHelper._1
@@ -380,7 +381,7 @@ trait SkewDetectionHandler {
           // 2: Do state transfer if needed and first phase
           firstPhaseRequestsFinished = false
           var firstPhaseFinishedCount = 0
-          val prevWorkerLayer = getPreviousWorkerLayer(opConfig.getOperatorIdentity, workflow)
+          val prevWorkerLayer = getPreviousWorkerLayer(opConfig.id, workflow)
           skewedAndHelperPairsForFirstPhase.foreach(skewedAndHelper => {
             val currSkewedWorker = skewedAndHelper._1
             val currHelperWorker = skewedAndHelper._2
@@ -456,7 +457,10 @@ trait SkewDetectionHandler {
           // 3: Start second phase for pairs where helpers that have caught up with skewed
           secondPhaseRequestsFinished = false
           val skewedAndHelperPairsForSecondPhase =
-            getSkewedAndFreeWorkersEligibleForSecondPhase(opConfig.workerToWorkloadInfo)
+            getSkewedAndFreeWorkersEligibleForSecondPhase(
+              opConfig.workerToWorkloadInfo,
+              skewedAndHelperInFirstPhase
+            )
           skewedAndHelperPairsForSecondPhase.foreach(skewedAndHelper =>
             logger.info(
               s"Reshape #${detectionCallCount}: Second phase request begins - Skewed ${skewedAndHelper._1
@@ -491,7 +495,12 @@ trait SkewDetectionHandler {
           // 4: Pause mitigation for pairs where helpers have become overloaded
           pauseMitigationRequestsFinished = false
           val skewedAndHelperPairsForPauseMitigationPhase =
-            getSkewedAndFreeWorkersEligibleForPauseMitigationPhase(opConfig.workerToWorkloadInfo)
+            getSkewedAndFreeWorkersEligibleForPauseMitigationPhase(
+              opConfig.workerToWorkloadInfo,
+              skewedAndHelperInFirstPhase,
+              skewedAndHelperInSecondPhase,
+              skewedAndHelperInPauseMitigationPhase
+            )
           skewedAndHelperPairsForPauseMitigationPhase.foreach(skewedAndHelper =>
             logger.info(
               s"Reshape #${detectionCallCount}: Pause Mitigation phase request begins - Skewed ${skewedAndHelper._1

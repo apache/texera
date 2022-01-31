@@ -28,10 +28,6 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
   var caughtLocalExceptions = new mutable.HashMap[ActorVirtualIdentity, Throwable]()
   var workerToWorkloadInfo = new mutable.HashMap[ActorVirtualIdentity, WorkerWorkloadInfo]()
 
-  def getOperatorIdentity: OperatorIdentity = {
-    id
-  }
-
   def getAllWorkers: Iterable[ActorVirtualIdentity] = topology.layers.flatMap(l => l.identifiers)
 
   def getWorker(id: ActorVirtualIdentity): WorkerInfo = {
