@@ -41,6 +41,9 @@ trait MonitoringHandler {
             metric.unprocessedDataInputQueueSize + metric.stashedDataInputQueueSize
           workflow.getOperator(worker).getWorkerWorkloadInfo(worker).controlInputWorkload =
             metric.unprocessedControlInputQueueSize + metric.stashedControlInputQueueSize
+          println(
+            s"\tMONITORING ${worker}:${metric.unprocessedDataInputQueueSize},${metric.stashedDataInputQueueSize}"
+          )
         })
       )
 

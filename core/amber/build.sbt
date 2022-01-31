@@ -131,6 +131,11 @@ val mongoDbDependencies = Seq(
   "org.apache.commons" % "commons-jcs3-core" % "3.0"
 )
 
+val deeplearningDependencies = Seq(
+  "org.deeplearning4j" % "deeplearning4j-core" % "1.0.0-M1.1",
+  "org.nd4j" % "nd4j-native-platform" % "1.0.0-M1.1"
+)
+
 libraryDependencies ++= akkaDependencies
 libraryDependencies ++= luceneDependencies
 libraryDependencies ++= dropwizardDependencies
@@ -138,6 +143,7 @@ libraryDependencies ++= mbknorJacksonJsonSchemaDependencies
 libraryDependencies ++= arrowDependencies
 libraryDependencies ++= googleServiceDependencies
 libraryDependencies ++= mongoDbDependencies
+libraryDependencies ++= deeplearningDependencies
 
 /////////////////////////////////////////////////////////////////////////////
 // protobuf related
