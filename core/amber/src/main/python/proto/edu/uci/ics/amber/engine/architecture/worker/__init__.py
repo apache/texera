@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from typing import List
 
 import betterproto
-from betterproto.grpc.grpclib_server import ServiceBase
 
 
 class WorkerState(betterproto.Enum):
@@ -144,11 +143,28 @@ class WorkerStatistics(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class Loads(betterproto.Message):
+    worker: "__common__.ActorVirtualIdentity" = betterproto.message_field(1)
+    load: List[int] = betterproto.int64_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class SelfWorkloadSample(betterproto.Message):
+    loads: List["Loads"] = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
 class SelfWorkloadMetrics(betterproto.Message):
     unprocessed_data_input_queue_size: int = betterproto.int64_field(1)
     unprocessed_control_input_queue_size: int = betterproto.int64_field(2)
     stashed_data_input_queue_size: int = betterproto.int64_field(3)
     stashed_control_input_queue_size: int = betterproto.int64_field(4)
+
+
+@dataclass(eq=False, repr=False)
+class SelfWorkloadReturn(betterproto.Message):
+    metrics: "SelfWorkloadMetrics" = betterproto.message_field(1)
+    samples: List["SelfWorkloadSample"] = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -185,7 +201,7 @@ class ControlReturnV2(betterproto.Message):
         4, group="value"
     )
     evaluated_value: "EvaluatedValue" = betterproto.message_field(5, group="value")
-    self_workload_metrics: "SelfWorkloadMetrics" = betterproto.message_field(
+    self_workload_return: "SelfWorkloadReturn" = betterproto.message_field(
         6, group="value"
     )
 

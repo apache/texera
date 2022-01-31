@@ -40,7 +40,7 @@ message ControlReturnV2 {
         WorkerState worker_state = 3;
         CurrentInputTupleInfo current_input_tuple_info = 4;
         EvaluatedValue evaluated_value = 5;
-        SelfWorkloadMetrics self_workload_metrics = 6;
+        SelfWorkloadReturn self_workload_return = 6;
     }
 }
 
