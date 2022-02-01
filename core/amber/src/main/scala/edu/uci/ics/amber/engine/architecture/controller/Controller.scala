@@ -128,10 +128,12 @@ class Controller(
             asyncRPCClient.send(OpenOperator(), workerID)
           }.toSeq)
       )
-      .flatMap(_ => Future {
-        workflow.getAllOperators.foreach(_.setAllWorkerState(READY))
-        asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus))
-      })
+      .flatMap(_ =>
+        Future {
+          workflow.getAllOperators.foreach(_.setAllWorkerState(READY))
+          asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus))
+        }
+      )
   }
 
   def running: Receive = {
