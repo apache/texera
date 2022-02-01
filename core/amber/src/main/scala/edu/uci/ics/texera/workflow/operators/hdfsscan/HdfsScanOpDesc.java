@@ -73,7 +73,7 @@ public class HdfsScanOpDesc extends SourceOperatorDescriptor {
             InputStream stream = url.openStream();
             BufferedBlockReaderOld reader = new BufferedBlockReaderOld(stream, 10000, delimiter.charAt(0), idxToKeep);
             String[] headerLine = reader.readLine();
-            return new HdfsScanOpExecConfig(this.operatorIdentifier(), Constants.currentWorkerNum(), host, hdfsPort, hdfsRestApiPort,
+            return new HdfsScanOpExecConfig(this.operatorIdentifier(), Constants.currentWorkerNum() - 3, host, hdfsPort, hdfsRestApiPort,
                     filePath, delimiter.charAt(0), idxToKeep, this.inferSchema(headerLine), header != null && header);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
