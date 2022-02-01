@@ -53,7 +53,7 @@ class WorkflowService(
   var opResultStorage: OpResultStorage = new OpResultStorage(
     AmberUtils.amberConfig.getString("storage.mode").toLowerCase
   )
-  val errorSubject = Subject[WorkflowExecutionErrorEvent]
+  private val errorSubject = Subject[WorkflowExecutionErrorEvent].toSerialized
   val errorHandler: Throwable => Unit = { t =>
     {
       t.printStackTrace()

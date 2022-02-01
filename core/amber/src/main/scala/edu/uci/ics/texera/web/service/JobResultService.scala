@@ -140,7 +140,8 @@ class JobResultService(
       resultUpdateCancellable.cancel()
     }
 
-    addSubscription(stateStore.jobStateStore.onStateChanged((oldState, newState) => {
+    addSubscription(stateStore.jobStateStore.getObservable.subscribe(pair => {
+      val (_, newState) = pair
       if (newState.state == RUNNING) {
         if (resultUpdateCancellable == null || resultUpdateCancellable.isCancelled) {
           resultUpdateCancellable = TexeraWebApplication

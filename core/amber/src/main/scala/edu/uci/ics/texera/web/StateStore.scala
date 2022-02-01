@@ -13,7 +13,7 @@ class StateStore[T](defaultState: T) {
   private implicit val lock: ReentrantLock = new ReentrantLock()
 
   private var currentState: T = defaultState
-  private val stateChangedSubject = Subject[(T, T)]
+  private val stateChangedSubject = Subject[(T, T)].toSerialized
   private val syncableState = new SyncableState()
 
   def getStateThenConsume[X](next: T => X): X = {
@@ -33,12 +33,7 @@ class StateStore[T](defaultState: T) {
     }
   }
 
-  def onStateChanged(callback: (T, T) => Unit): Subscription = {
-    // I don't want to expose the subject to the user due to thread-safety
-    withLock {
-      stateChangedSubject.subscribe(diff => callback(diff._1, diff._2))
-    }
-  }
+  def getObservable: Observable[(T, T)] = stateChangedSubject
 
   class SyncableState {
     stateChangedSubject.subscribe(diff => {
@@ -50,15 +45,15 @@ class StateStore[T](defaultState: T) {
 
     private var handlerId = 0
     private val onChangedHandlers = mutable.HashMap[Int, (T, T) => Iterable[TexeraWebSocketEvent]]()
-    private val callbackSubject = Subject[Iterable[TexeraWebSocketEvent]]
+    private val callbackSubject = Subject[Iterable[TexeraWebSocketEvent]].toSerialized
 
     def subscribe(callback: Iterable[TexeraWebSocketEvent] => Unit): Subscription = {
       withLock {
         val events =
           onChangedHandlers.values.flatMap(handler => handler(defaultState, currentState))
         callback(events)
-        callbackSubject.subscribe(callback)
       }
+      callbackSubject.subscribe(callback)
     }
 
     def registerStateChangeHandler(
