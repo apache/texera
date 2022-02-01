@@ -6,7 +6,7 @@ import edu.uci.ics.amber.clustering.ClusterListener
 import edu.uci.ics.amber.engine.architecture.messaginglayer.DeadLetterMonitorActor
 
 import java.io.{BufferedReader, InputStreamReader}
-import java.net.URL
+import java.net.{InetAddress, URL}
 
 object AmberUtils {
 
@@ -19,12 +19,17 @@ object AmberUtils {
   def startActorMaster(localhost: Boolean): ActorSystem = {
     var localIpAddress = "localhost"
     if (!localhost) {
-      try {
-        val query = new URL("http://checkip.amazonaws.com")
-        val in = new BufferedReader(new InputStreamReader(query.openStream()))
-        localIpAddress = in.readLine()
-      } catch {
-        case e: Exception => throw e
+      if (!Constants.gcpExp) {
+        try {
+          val query = new URL("http://checkip.amazonaws.com")
+          val in = new BufferedReader(new InputStreamReader(query.openStream()))
+          localIpAddress = in.readLine()
+        } catch {
+          case e: Exception => throw e
+        }
+      } else {
+        val localhost: InetAddress = InetAddress.getLocalHost
+        localIpAddress = localhost.getHostAddress
       }
     }
 
