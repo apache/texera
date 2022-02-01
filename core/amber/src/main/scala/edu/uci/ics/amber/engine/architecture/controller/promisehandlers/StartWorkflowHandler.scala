@@ -37,8 +37,11 @@ trait StartWorkflowHandler {
               startedLayers.add(layer)
               layer.workers.keys.map { worker =>
                 send(StartWorker(), worker).map { ret =>
-                  // update worker state
-                  workflow.getWorkerInfo(worker).state = ret
+                  {
+                    // update worker state
+                    workflow.getWorkerInfo(worker).state = ret
+                    operatorStartTime(workflow.getOperator(worker).id) = System.nanoTime()
+                  }
                 }
               }
             }
