@@ -61,6 +61,10 @@ trait WorkerExecutionCompletedHandler {
           println(
             s"\tTOTAL EXECUTION TIME FOR WORKFLOW ${(workflowEndTime - workflowStartTime) / 1e9d}s"
           )
+
+          println(s"\tSTART FOR OP: ${operatorStartTime.keys.mkString(":::")}")
+          println(s"\tEND FOR OP: ${operatorEndTime.keys.mkString(":::")}")
+
           operatorStartTime.keys.foreach(opID => {
             if (operatorEndTime.contains(opID)) {
               println(s"\tTOTAL EXECUTION FOR OPERATOR ${opID
