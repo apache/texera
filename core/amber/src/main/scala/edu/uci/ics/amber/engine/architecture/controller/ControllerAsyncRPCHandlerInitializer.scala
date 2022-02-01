@@ -16,8 +16,9 @@ import edu.uci.ics.amber.engine.common.rpc.{
   AsyncRPCHandlerInitializer,
   AsyncRPCServer
 }
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, OperatorIdentity}
 
+import scala.collection.mutable
 import scala.concurrent.duration.{DurationInt, FiniteDuration, MILLISECONDS}
 
 class ControllerAsyncRPCHandlerInitializer(
@@ -51,6 +52,12 @@ class ControllerAsyncRPCHandlerInitializer(
   var statusUpdateAskHandle: Option[Cancellable] = None
   var resultUpdateAskHandle: Option[Cancellable] = None
   var monitoringHandle: Option[Cancellable] = None
+  var workflowStartTime: Long = _
+  var workflowEndTime: Long = _
+  var operatorStartTime: mutable.HashMap[OperatorIdentity, Long] =
+    new mutable.HashMap[OperatorIdentity, Long]()
+  var operatorEndTime: mutable.HashMap[OperatorIdentity, Long] =
+    new mutable.HashMap[OperatorIdentity, Long]()
 
   def enableStatusUpdate(): Unit = {
     if (controllerConfig.statusUpdateIntervalMs.nonEmpty && statusUpdateAskHandle.isEmpty) {

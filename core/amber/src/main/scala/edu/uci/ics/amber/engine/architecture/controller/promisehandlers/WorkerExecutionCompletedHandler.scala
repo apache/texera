@@ -38,6 +38,7 @@ trait WorkerExecutionCompletedHandler {
       assert(sender.isInstanceOf[ActorVirtualIdentity])
       // get the corresponding operator of this worker
       val operator = workflow.getOperator(sender)
+      operatorEndTime(workflow.getOperator(sender).id) = System.nanoTime()
 
       // after worker execution is completed, query statistics immediately one last time
       // because the worker might be killed before the next query statistics interval
@@ -56,6 +57,16 @@ trait WorkerExecutionCompletedHandler {
       allRequests.flatMap(_ => {
         // if entire workflow is completed, clean up
         if (workflow.isCompleted) {
+          workflowEndTime = System.nanoTime()
+          println(
+            s"\tTOTAL EXECUTION TIME FOR WORKFLOW ${(workflowEndTime - workflowStartTime) / 1e9d}s"
+          )
+          operatorStartTime.keys.foreach(opID => {
+            if (operatorEndTime.contains(opID)) {
+              println(s"\tTOTAL EXECUTION FOR OPERATOR ${opID
+                .toString()} = ${(operatorEndTime(opID) - operatorStartTime(opID)) / 1e9d}s")
+            }
+          })
           // send query result again to collect final execution result
           val finalResult = execute(ControllerInitiateQueryResults(), CONTROLLER)
           // after query result come back: send completed event, cleanup ,and kill workflow

@@ -17,5 +17,5 @@ object Constants {
   var defaultTau: FiniteDuration = 10.milliseconds
 
   val gcpExp = true
-  val sortExperiment = false
+  val sortExperiment = true
 }

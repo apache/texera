@@ -19,6 +19,7 @@ trait WorkerExecutionStartedHandler {
 
   registerHandler { (msg: WorkerStateUpdated, sender) =>
     {
+      operatorStartTime(workflow.getOperator(sender).id) = System.nanoTime()
       // set the state
       workflow.getOperator(sender).getWorker(sender).state = msg.state
       sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus))
