@@ -56,7 +56,21 @@ object AmberUtils {
 
   def startActorWorker(mainNodeAddress: Option[String]): ActorSystem = {
     val addr = mainNodeAddress.getOrElse("localhost")
-    val localIpAddress = "localhost"
+    var localIpAddress = "localhost"
+    if (!mainNodeAddress.isEmpty) {
+      if (!Constants.gcpExp) {
+        try {
+          val query = new URL("http://checkip.amazonaws.com")
+          val in = new BufferedReader(new InputStreamReader(query.openStream()))
+          localIpAddress = in.readLine()
+        } catch {
+          case e: Exception => throw e
+        }
+      } else {
+        val localhost: InetAddress = InetAddress.getLocalHost
+        localIpAddress = localhost.getHostAddress
+      }
+    }
     val workerConfig = ConfigFactory
       .parseString(s"""
         akka.remote.artery.canonical.hostname = $localIpAddress
