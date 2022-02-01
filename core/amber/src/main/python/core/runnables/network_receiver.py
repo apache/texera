@@ -1,10 +1,8 @@
-from typing import Dict
-
 from loguru import logger
 from overrides import overrides
 from pyarrow.lib import Table
 
-from core.models import ControlElement, DataElement, InputDataFrame, EndOfUpstream, InternalQueue, Tuple
+from core.models import ControlElement, DataElement, InputDataFrame, EndOfUpstream, InternalQueue
 from core.proxy import ProxyServer
 from core.util import Stoppable
 from core.util.runnable.runnable import Runnable
@@ -16,20 +14,14 @@ class NetworkReceiver(Runnable, Stoppable):
     Receive and deserialize messages.
     """
 
-    def __init__(self, shared_queue: InternalQueue, host: str, port: int, schema_map: Dict[str, type]):
+    def __init__(self, shared_queue: InternalQueue, host: str, port: int):
         self._proxy_server = ProxyServer(host=host, port=port)
 
         # register the data handler to deserialize data messages.
         @logger.catch(reraise=True)
         def data_handler(command: bytes, table: Table):
-            # TODO: OPTIMIZE:
-            #   change the API to use pandas.DataFrame instead of pyarrow.Table
             data_header = PythonDataHeader().parse(command)
             if not data_header.is_end:
-                input_schema = table.schema
-                # record input schema
-                for field in input_schema:
-                    schema_map[field.name] = field
                 shared_queue.put(DataElement(
                     tag=data_header.tag,
                     payload=InputDataFrame(table)
