@@ -2,31 +2,42 @@ package edu.uci.ics.texera.web.service
 
 import java.time.{LocalDateTime, Duration => JDuration}
 import java.util.concurrent.ConcurrentHashMap
-
 import akka.actor.Cancellable
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.texera.web.TexeraWebApplication
 import edu.uci.ics.texera.web.model.websocket.event.{ExecutionStatusEnum, Running}
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
+import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import org.jooq.types.UInteger
 import rx.lang.scala.subjects.BehaviorSubject
 import rx.lang.scala.{Observable, Subscription}
 
-import scala.collection.mutable
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.duration.DurationInt
 
 object WorkflowService {
   private val wIdToWorkflowState = new ConcurrentHashMap[String, WorkflowService]()
   val cleanUpDeadlineInSeconds: Int =
     AmberUtils.amberConfig.getInt("web-server.workflow-state-cleanup-in-seconds")
-  def getOrCreate(wId: String, cleanupTimeout: Int = cleanUpDeadlineInSeconds): WorkflowService = {
+  def getOrCreate(
+      wId: Int,
+      uidOpt: Option[UInteger],
+      cleanupTimeout: Int = cleanUpDeadlineInSeconds
+  ): WorkflowService = {
+    var workflowStateId: String = ""
+    uidOpt match {
+      case Some(user) =>
+        workflowStateId = user + "-" + wId
+      case None =>
+        // use a fixed wid for reconnection
+        workflowStateId = "dummy wid"
+    }
     wIdToWorkflowState.compute(
-      wId,
+      workflowStateId,
       (_, v) => {
         if (v == null) {
-          new WorkflowService(wId, cleanupTimeout)
+          new WorkflowService(uidOpt, wId, workflowStateId, cleanupTimeout)
         } else {
           v
         }
@@ -35,7 +46,12 @@ object WorkflowService {
   }
 }
 
-class WorkflowService(wid: String, cleanUpTimeout: Int) extends LazyLogging {
+class WorkflowService(
+    uidOpt: Option[UInteger],
+    wId: Int,
+    workflowStateId: String,
+    cleanUpTimeout: Int
+) extends LazyLogging {
   // state across execution:
   var opResultStorage: OpResultStorage = new OpResultStorage(
     AmberUtils.amberConfig.getString("storage.mode").toLowerCase
@@ -46,13 +62,15 @@ class WorkflowService(wid: String, cleanUpTimeout: Int) extends LazyLogging {
   private var cleanUpJob: Cancellable = Cancellable.alreadyCancelled
   private var statusUpdateSubscription: Subscription = Subscription()
   private val jobStateSubject = BehaviorSubject[WorkflowJobService]()
-
+  private val workflowContext = new WorkflowContext
+  workflowContext.userId = uidOpt
+  workflowContext.wId = wId
   private[this] def setCleanUpDeadline(status: ExecutionStatusEnum): Unit = {
     synchronized {
       if (refCount > 0 || status == Running) {
         cleanUpJob.cancel()
         logger.info(
-          s"[$wid] workflow state clean up postponed. current user count = $refCount, workflow status = $status"
+          s"[$workflowStateId] workflow state clean up postponed. current user count = $refCount, workflow status = $status"
         )
       } else {
         refreshDeadline()
@@ -63,7 +81,7 @@ class WorkflowService(wid: String, cleanUpTimeout: Int) extends LazyLogging {
   private[this] def refreshDeadline(): Unit = {
     if (cleanUpJob.isCancelled || cleanUpJob.cancel()) {
       logger.info(
-        s"[$wid] workflow state clean up will start at ${LocalDateTime.now().plus(JDuration.ofSeconds(cleanUpTimeout))}"
+        s"[$workflowStateId] workflow state clean up will start at ${LocalDateTime.now().plus(JDuration.ofSeconds(cleanUpTimeout))}"
       )
       cleanUpJob = TexeraWebApplication.scheduleCallThroughActorSystem(cleanUpTimeout.seconds) {
         cleanUp()
@@ -75,14 +93,16 @@ class WorkflowService(wid: String, cleanUpTimeout: Int) extends LazyLogging {
     synchronized {
       if (refCount > 0) {
         // do nothing
-        logger.info(s"[$wid] workflow state clean up failed. current user count = $refCount")
+        logger.info(
+          s"[$workflowStateId] workflow state clean up failed. current user count = $refCount"
+        )
       } else {
         opResultStorage.close()
         cleanUpJob.cancel()
         statusUpdateSubscription.unsubscribe()
-        WorkflowService.wIdToWorkflowState.remove(wid)
+        WorkflowService.wIdToWorkflowState.remove(workflowStateId)
         jobService.foreach(_.workflowRuntimeService.killWorkflow())
-        logger.info(s"[$wid] workflow state clean up completed.")
+        logger.info(s"[$workflowStateId] workflow state clean up completed.")
       }
     }
   }
@@ -91,7 +111,9 @@ class WorkflowService(wid: String, cleanUpTimeout: Int) extends LazyLogging {
     synchronized {
       refCount += 1
       cleanUpJob.cancel()
-      logger.info(s"[$wid] workflow state clean up postponed. current user count = $refCount")
+      logger.info(
+        s"[$workflowStateId] workflow state clean up postponed. current user count = $refCount"
+      )
     }
   }
 
@@ -101,18 +123,15 @@ class WorkflowService(wid: String, cleanUpTimeout: Int) extends LazyLogging {
       if (refCount == 0 && !jobService.map(_.workflowRuntimeService.getStatus).contains(Running)) {
         refreshDeadline()
       } else {
-        logger.info(s"[$wid] workflow state clean up postponed. current user count = $refCount")
+        logger.info(
+          s"[$workflowStateId] workflow state clean up postponed. current user count = $refCount"
+        )
       }
     }
   }
 
-  def initExecutionState(req: WorkflowExecuteRequest, uidOpt: Option[UInteger]): Unit = {
-    val state = new WorkflowJobService(
-      operatorCache,
-      uidOpt,
-      req,
-      opResultStorage
-    )
+  def initExecutionState(req: WorkflowExecuteRequest): Unit = {
+    val state = new WorkflowJobService(workflowContext, operatorCache, req, opResultStorage)
     statusUpdateSubscription.unsubscribe()
     cleanUpJob.cancel()
     statusUpdateSubscription = state.workflowRuntimeService.getStatusObservable.subscribe(status =>

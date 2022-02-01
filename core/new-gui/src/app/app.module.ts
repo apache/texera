@@ -107,6 +107,7 @@ import { NzPaginationModule } from "ng-zorro-antd/pagination";
 import { JwtModule } from "@auth0/angular-jwt";
 import { AuthService } from "./common/service/user/auth.service";
 import { PresetWrapperComponent } from "./common/formly/preset-wrapper/preset-wrapper.component";
+import { NgbdModalWorkflowExecutionsComponent } from "./dashboard/component/feature-container/saved-workflow-section/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 
 registerLocaleData(en);
 
@@ -154,6 +155,7 @@ registerLocaleData(en);
     CodeEditorDialogComponent,
     TypeCastingDisplayComponent,
     NgbdModalWorkflowShareAccessComponent,
+    NgbdModalWorkflowExecutionsComponent,
     NgbdModalUserFileShareAccessComponent,
     ConsoleFrameComponent,
     ResultTableFrameComponent,
@@ -240,6 +242,7 @@ registerLocaleData(en);
     RowModalComponent,
     NgbdModalFileAddComponent,
     NgbdModalWorkflowShareAccessComponent,
+    NgbdModalWorkflowExecutionsComponent,
   ],
   providers: [
     UserService,

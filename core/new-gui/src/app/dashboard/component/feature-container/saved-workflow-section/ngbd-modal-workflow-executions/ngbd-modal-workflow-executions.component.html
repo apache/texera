@@ -1,0 +1,23 @@
+<div class="modal-header">
+  <h4 class="modal-title">Execution results of this workflow</h4>
+  <button (click)="activeModal.dismiss('Cross click')" aria-label="Close" class="close" type="button">
+    <span aria-hidden="true"> × </span>
+  </button>
+</div>
+<div class="modal-body">
+  <nz-table [nzData]="workflowExecutionsList">
+    <thead>
+      <tr>
+        <th *ngFor="let column of executionsTableHeaders">{{column}}</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let row of workflowExecutionsList; let i=index;">
+        <td nzEllipsis>{{(i + 1)}}</td>
+        <td nzEllipsis>{{row.startingTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
+        <td nzEllipsis>{{row.completionTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
+        <td nzEllipsis>{{getExecutionStatus(row.status)}}</td>
+      </tr>
+    </tbody>
+  </nz-table>
+</div>
