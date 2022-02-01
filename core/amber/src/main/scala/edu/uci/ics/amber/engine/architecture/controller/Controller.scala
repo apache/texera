@@ -117,12 +117,10 @@ class Controller(
       )
       .flatMap(_ =>
         Future {
-          workflow.getAllOperators.foreach(_.setAllWorkerState(READY))
-          asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus))
+          context.become(running)
           unstashAll()
         }
       )
-      .flatMap(_ => Future(context.become(running)))
       .flatMap(
         // open all operators
         _ =>
@@ -130,6 +128,10 @@ class Controller(
             asyncRPCClient.send(OpenOperator(), workerID)
           }.toSeq)
       )
+      .flatMap(_ => Future {
+        workflow.getAllOperators.foreach(_.setAllWorkerState(READY))
+        asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus))
+      })
       .flatMap(_ =>
         Future(asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus)))
       )
