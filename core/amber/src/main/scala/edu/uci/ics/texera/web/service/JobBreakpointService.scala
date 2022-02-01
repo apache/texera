@@ -1,49 +1,35 @@
 package edu.uci.ics.texera.web.service
 
-import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{
-  ConditionalGlobalBreakpoint,
-  CountGlobalBreakpoint
-}
+import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{ConditionalGlobalBreakpoint, CountGlobalBreakpoint}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.BreakpointTriggered
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.AssignBreakpointHandler.AssignGlobalBreakpoint
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketOutput, WorkflowStateStore}
-import edu.uci.ics.texera.web.model.websocket.event.BreakpointTriggeredEvent
+import edu.uci.ics.texera.web.{SubscriptionManager, WorkflowStateStore}
+import edu.uci.ics.texera.web.model.websocket.event.{BreakpointTriggeredEvent, TexeraWebSocketEvent}
 import edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.BreakpointTuple
-import edu.uci.ics.texera.web.workflowruntimestate.{
-  BreakpointFault,
-  OperatorBreakpoints,
-  OperatorRuntimeStats,
-  PythonOperatorInfo
-}
+import edu.uci.ics.texera.web.workflowruntimestate.{BreakpointFault, OperatorBreakpoints, OperatorRuntimeStats, PythonOperatorInfo}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.PAUSED
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.workflow.{
-  Breakpoint,
-  BreakpointCondition,
-  ConditionBreakpoint,
-  CountBreakpoint
-}
+import edu.uci.ics.texera.workflow.common.workflow.{Breakpoint, BreakpointCondition, ConditionBreakpoint, CountBreakpoint}
 import rx.lang.scala.Subject
 
 class JobBreakpointService(
     client: AmberClient,
-    stateStore: WorkflowStateStore,
-    wsOutput: WebsocketOutput
+    stateStore: WorkflowStateStore
 ) extends SubscriptionManager {
 
   registerCallbackOnBreakpoint()
 
-  addSubscription(stateStore.breakpointStore.onChanged((oldState, newState) => {
-    newState.operatorInfo.foreach {
+  addSubscription(stateStore.breakpointStore.getSyncableState.registerStateChangeHandler((oldState, newState) => {
+    newState.operatorInfo.collect {
       case (opId, info) =>
         val oldInfo = oldState.operatorInfo.getOrElse(opId, new OperatorBreakpoints())
         if (
           info.unresolvedBreakpoints.nonEmpty && info.unresolvedBreakpoints != oldInfo.unresolvedBreakpoints
         ) {
-          wsOutput.onNext(BreakpointTriggeredEvent(info.unresolvedBreakpoints, opId))
+          BreakpointTriggeredEvent(info.unresolvedBreakpoints, opId)
         }
-    }
+    }.asInstanceOf[Iterable[TexeraWebSocketEvent]]
   }))
 
   /** *

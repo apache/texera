@@ -10,7 +10,6 @@ import edu.uci.ics.texera.web.{
   SubscriptionManager,
   TexeraWebApplication,
   WebsocketInput,
-  WebsocketOutput,
   WorkflowStateStore
 }
 import edu.uci.ics.texera.web.model.websocket.event.{TexeraWebSocketEvent, WorkflowErrorEvent}
@@ -38,7 +37,6 @@ import rx.lang.scala.Subject
 class WorkflowJobService(
     stateStore: WorkflowStateStore,
     wsInput: WebsocketInput,
-    wsOutput: WebsocketOutput,
     operatorCache: WorkflowCacheService,
     resultService: JobResultService,
     uidOpt: Option[UInteger],
@@ -63,12 +61,12 @@ class WorkflowJobService(
       ControllerConfig.default,
       errorHandler
     )
-  val jobBreakpointService = new JobBreakpointService(client, stateStore, wsOutput)
-  val jobStatsService = new JobStatsService(client, stateStore, wsOutput)
+  val jobBreakpointService = new JobBreakpointService(client, stateStore)
+  val jobStatsService = new JobStatsService(client, stateStore)
   val jobRuntimeService =
-    new JobRuntimeService(client, stateStore, wsInput, wsOutput, jobBreakpointService)
+    new JobRuntimeService(client, stateStore, wsInput, jobBreakpointService)
   val jobPythonService =
-    new JobPythonService(client, stateStore, wsInput, wsOutput, jobBreakpointService)
+    new JobPythonService(client, stateStore, wsInput, jobBreakpointService)
 
   addSubscription(wsInput.subscribe((req: ModifyLogicRequest, uidOpt) => {
     workflowCompiler.initOperator(req.operator)

@@ -7,7 +7,6 @@ import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.web.{
   SubscriptionManager,
   WebsocketInput,
-  WebsocketOutput,
   WorkflowStateStore
 }
 import edu.uci.ics.texera.web.model.websocket.event.{BreakpointTriggeredEvent, TexeraWebSocketEvent}
@@ -27,22 +26,21 @@ class JobPythonService(
     client: AmberClient,
     stateStore: WorkflowStateStore,
     wsInput: WebsocketInput,
-    wsOutput: WebsocketOutput,
     breakpointService: JobBreakpointService
 ) extends SubscriptionManager {
   registerCallbackOnPythonPrint()
 
-  addSubscription(stateStore.pythonStore.onChanged((oldState, newState) => {
+  addSubscription(stateStore.pythonStore.getSyncableState.registerStateChangeHandler((oldState, newState) => {
     // For each operator, check if it has new python console message or breakpoint events
-    newState.operatorInfo.foreach {
+    newState.operatorInfo.collect {
       case (opId, info) =>
         val oldInfo = oldState.operatorInfo.getOrElse(opId, new PythonOperatorInfo())
         if (info.consoleMessages.nonEmpty && info.consoleMessages != oldInfo.consoleMessages) {
           val stringBuilder = new StringBuilder()
           info.consoleMessages.foreach(s => stringBuilder.append(s))
-          wsOutput.onNext(PythonPrintTriggeredEvent(stringBuilder.toString(), opId))
+          PythonPrintTriggeredEvent(stringBuilder.toString(), opId)
         }
-    }
+    }.asInstanceOf[Iterable[TexeraWebSocketEvent]]
   }))
 
   private[this] def registerCallbackOnPythonPrint(): Unit = {

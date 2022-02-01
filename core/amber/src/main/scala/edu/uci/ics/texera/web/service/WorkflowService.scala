@@ -3,27 +3,13 @@ package edu.uci.ics.texera.web.service
 import java.util.concurrent.ConcurrentHashMap
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.AmberUtils
-import edu.uci.ics.texera.web.model.websocket.event.{
-  TexeraWebSocketEvent,
-  WorkflowErrorEvent,
-  WorkflowExecutionErrorEvent
-}
-import edu.uci.ics.texera.web.{
-  SubscriptionManager,
-  TexeraWebApplication,
-  WebsocketInput,
-  WebsocketOutput,
-  WorkflowLifecycleManager,
-  WorkflowStateStore
-}
-import edu.uci.ics.texera.web.model.websocket.request.{
-  TexeraWebSocketRequest,
-  WorkflowExecuteRequest,
-  WorkflowKillRequest
-}
+import edu.uci.ics.texera.web.model.websocket.event.{TexeraWebSocketEvent, WorkflowErrorEvent, WorkflowExecutionErrorEvent}
+import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication, WebsocketInput, WorkflowLifecycleManager, WorkflowStateStore}
+import edu.uci.ics.texera.web.model.websocket.request.{TexeraWebSocketRequest, WorkflowExecuteRequest, WorkflowKillRequest}
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import org.jooq.types.UInteger
 import rx.lang.scala.subjects.BehaviorSubject
+import rx.lang.scala.subscriptions.CompositeSubscription
 import rx.lang.scala.{Observable, Observer, Subject, Subscription}
 
 object WorkflowService {
@@ -53,22 +39,22 @@ class WorkflowService(
   var opResultStorage: OpResultStorage = new OpResultStorage(
     AmberUtils.amberConfig.getString("storage.mode").toLowerCase
   )
+  val errorSubject = Subject[WorkflowExecutionErrorEvent]
   val errorHandler: Throwable => Unit = { t =>
     {
       t.printStackTrace()
-      wsOutput.onNext(
+      errorSubject.onNext(
         WorkflowExecutionErrorEvent(t.getStackTrace.mkString("\n"))
       )
     }
   }
-  val wsOutput = new WebsocketOutput()
   val wsInput = new WebsocketInput(errorHandler)
-  val stateStore = new WorkflowStateStore(wsOutput)
+  val stateStore = new WorkflowStateStore()
   val resultService: JobResultService =
-    new JobResultService(opResultStorage, stateStore, wsOutput)
+    new JobResultService(opResultStorage, stateStore)
   val exportService: ResultExportService = new ResultExportService(opResultStorage)
   val operatorCache: WorkflowCacheService =
-    new WorkflowCacheService(opResultStorage, stateStore, wsInput, wsOutput)
+    new WorkflowCacheService(opResultStorage, stateStore, wsInput)
   var jobService: Option[WorkflowJobService] = None
   val lifeCycleManager: WorkflowLifecycleManager = new WorkflowLifecycleManager(
     wid,
@@ -88,7 +74,9 @@ class WorkflowService(
 
   def connect(observer: Observer[TexeraWebSocketEvent]): Subscription = {
     lifeCycleManager.increaseUserCount()
-    stateStore.fetchSnapshotThenSendTo(observer)
+    val subscriptions = stateStore.getAllStores.map(_.getSyncableState).map(evtPub=> evtPub.subscribe(evts => evts.foreach(observer.onNext))).toSeq
+    val errorSubscription = errorSubject.subscribe(evt => observer.onNext(evt))
+    CompositeSubscription(subscriptions :+ errorSubscription:_*)
   }
 
   def disconnect(): Unit = {
@@ -105,7 +93,6 @@ class WorkflowService(
     val job = new WorkflowJobService(
       stateStore,
       wsInput,
-      wsOutput,
       operatorCache,
       resultService,
       uidOpt,

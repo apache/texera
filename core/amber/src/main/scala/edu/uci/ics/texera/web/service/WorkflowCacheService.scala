@@ -6,7 +6,6 @@ import edu.uci.ics.texera.web.model.websocket.event.{CacheStatusUpdateEvent, Tex
 import edu.uci.ics.texera.web.{
   SubscriptionManager,
   WebsocketInput,
-  WebsocketOutput,
   WorkflowStateStore
 }
 import edu.uci.ics.texera.web.model.websocket.request.CacheStatusUpdateRequest
@@ -27,8 +26,7 @@ object WorkflowCacheService extends LazyLogging {
 class WorkflowCacheService(
     opResultStorage: OpResultStorage,
     stateStore: WorkflowStateStore,
-    wsInput: WebsocketInput,
-    wsOutput: WebsocketOutput
+    wsInput: WebsocketInput
 ) extends SubscriptionManager
     with LazyLogging {
 
@@ -41,8 +39,8 @@ class WorkflowCacheService(
   val operatorRecord: mutable.HashMap[String, WorkflowVertex] =
     mutable.HashMap[String, WorkflowVertex]()
 
-  addSubscription(stateStore.cacheStore.onChanged((oldState, newState) => {
-    wsOutput.onNext(CacheStatusUpdateEvent(newState.operatorInfo.map {
+  addSubscription(stateStore.cacheStore.getSyncableState.registerStateChangeHandler((oldState, newState) => {
+    Iterable(CacheStatusUpdateEvent(newState.operatorInfo.map {
       case (k, v) => (k, if (v.isInvalid) "cache invalid" else "cache valid")
     }))
   }))

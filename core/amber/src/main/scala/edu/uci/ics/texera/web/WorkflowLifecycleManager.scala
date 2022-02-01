@@ -71,7 +71,7 @@ class WorkflowLifecycleManager(wid: String, cleanUpTimeout: Int, cleanUpCallback
 
   def registerCleanUpOnStateChange(stateStore: WorkflowStateStore): Unit = {
     cleanUpJob.cancel()
-    stateStore.jobStateStore.onChanged((_, newState) => setCleanUpDeadline(newState.state))
+    stateStore.jobStateStore.onStateChanged((_, newState) => setCleanUpDeadline(newState.state))
   }
 
 }

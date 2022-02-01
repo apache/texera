@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.Utils
-import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketOutput, WorkflowStateStore}
+import edu.uci.ics.texera.web.{SubscriptionManager, WorkflowStateStore}
 import edu.uci.ics.texera.web.model.websocket.event.{
   OperatorStatistics,
   OperatorStatisticsUpdateEvent,
@@ -18,16 +18,15 @@ import rx.lang.scala.{Subject, Subscription}
 
 class JobStatsService(
     client: AmberClient,
-    stateStore: WorkflowStateStore,
-    wsOutput: WebsocketOutput
+    stateStore: WorkflowStateStore
 ) extends SubscriptionManager {
 
   registerCallbacks()
 
-  addSubscription(stateStore.statsStore.onChanged((oldState, newState) => {
+  addSubscription(stateStore.statsStore.getSyncableState.registerStateChangeHandler((oldState, newState) => {
     // Update operator stats if any operator updates its stat
     if (newState.operatorInfo.toSet != oldState.operatorInfo.toSet) {
-      wsOutput.onNext(
+      Iterable(
         OperatorStatisticsUpdateEvent(newState.operatorInfo.collect {
           case x =>
             val stats = x._2
@@ -39,6 +38,8 @@ class JobStatsService(
             (x._1, res)
         })
       )
+    }else{
+      Iterable.empty
     }
   }))
 

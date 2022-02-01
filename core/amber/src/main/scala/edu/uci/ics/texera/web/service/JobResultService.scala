@@ -13,9 +13,8 @@ import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.texera.web.{
   SubscriptionManager,
-  SyncableState,
+  StateStore,
   TexeraWebApplication,
-  WebsocketOutput,
   WorkflowStateStore
 }
 import edu.uci.ics.texera.web.model.websocket.event.{
@@ -126,8 +125,7 @@ object JobResultService {
   */
 class JobResultService(
     val opResultStorage: OpResultStorage,
-    stateStore: WorkflowStateStore,
-    wsOutput: WebsocketOutput
+    stateStore: WorkflowStateStore
 ) extends SubscriptionManager {
 
   var progressiveResults: mutable.HashMap[String, ProgressiveResultService] =
@@ -142,7 +140,7 @@ class JobResultService(
       resultUpdateCancellable.cancel()
     }
 
-    addSubscription(stateStore.jobStateStore.onChanged((oldState, newState) => {
+    addSubscription(stateStore.jobStateStore.onStateChanged((oldState, newState) => {
       if (newState.state == RUNNING) {
         if (resultUpdateCancellable == null || resultUpdateCancellable.isCancelled) {
           resultUpdateCancellable = TexeraWebApplication
@@ -207,7 +205,7 @@ class JobResultService(
     }
   }
 
-  addSubscription(stateStore.resultStore.onChanged((oldState, newState) => {
+  addSubscription(stateStore.resultStore.getSyncableState.registerStateChangeHandler((oldState, newState) => {
     val buf = mutable.HashMap[String, WebResultUpdate]()
     newState.operatorInfo.foreach {
       case (opId, info) =>
@@ -218,7 +216,7 @@ class JobResultService(
           progressiveResults(opId).convertWebResultUpdate(oldInfo.tupleCount, info.tupleCount)
       //}
     }
-    wsOutput.onNext(WebResultUpdateEvent(buf.toMap))
+    Iterable(WebResultUpdateEvent(buf.toMap))
   }))
 
 }
