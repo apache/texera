@@ -88,7 +88,7 @@ public class HdfsScanSourceOpExec implements SourceOperatorExecutor {
                         Verify.verify(schema != null);
                         for (int i = 0; i < res.length; i++) {
                             try {
-                                float temp = Float.parseFloat((String) res[i]);
+                                Double temp = Double.parseDouble((String) res[i]);
                                 res[i] = temp;
                             } catch (NumberFormatException e) {/** do nothing **/}
                         }
