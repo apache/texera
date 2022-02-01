@@ -145,6 +145,17 @@ libraryDependencies ++= googleServiceDependencies
 libraryDependencies ++= mongoDbDependencies
 libraryDependencies ++= deeplearningDependencies
 
+val hadoopVersion = "3.2.0"
+val excludeHadoopJersey = ExclusionRule(organization = "com.sun.jersey")
+val excludeHadoopSlf4j = ExclusionRule(organization = "org.slf4j")
+val excludeHadoopJsp = ExclusionRule(organization = "javax.servlet.jsp")
+
+libraryDependencies ++= Seq(
+  "org.apache.hadoop" % "hadoop-common" % hadoopVersion excludeAll (excludeHadoopJersey, excludeHadoopSlf4j, excludeHadoopJsp),
+  "org.apache.hadoop" % "hadoop-hdfs" % hadoopVersion excludeAll (excludeHadoopJersey, excludeHadoopSlf4j, excludeHadoopJsp),
+  "org.apache.hadoop" % "hadoop-client" % hadoopVersion excludeAll (excludeHadoopJersey, excludeHadoopSlf4j, excludeHadoopJsp)
+)
+
 /////////////////////////////////////////////////////////////////////////////
 // protobuf related
 // run the following with sbt to have protobuf codegen
