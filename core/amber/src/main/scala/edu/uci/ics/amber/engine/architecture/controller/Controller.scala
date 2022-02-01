@@ -11,10 +11,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.Workflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
-  NetworkMessage,
-  RegisterActorRef
-}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{NetworkMessage, RegisterActorRef}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputPort
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
@@ -39,16 +36,16 @@ object ControllerConfig {
 }
 
 final case class ControllerConfig(
-    statusUpdateIntervalMs: Option[Long]
-)
+                                   statusUpdateIntervalMs: Option[Long]
+                                 )
 
 object Controller {
 
   def props(
-      workflow: Workflow,
-      controllerConfig: ControllerConfig = ControllerConfig.default,
-      parentNetworkCommunicationActorRef: ActorRef = null
-  ): Props =
+             workflow: Workflow,
+             controllerConfig: ControllerConfig = ControllerConfig.default,
+             parentNetworkCommunicationActorRef: ActorRef = null
+           ): Props =
     Props(
       new Controller(
         workflow,
@@ -59,10 +56,10 @@ object Controller {
 }
 
 class Controller(
-    val workflow: Workflow,
-    val controllerConfig: ControllerConfig,
-    parentNetworkCommunicationActorRef: ActorRef
-) extends WorkflowActor(CONTROLLER, parentNetworkCommunicationActorRef) {
+                  val workflow: Workflow,
+                  val controllerConfig: ControllerConfig,
+                  parentNetworkCommunicationActorRef: ActorRef
+                ) extends WorkflowActor(CONTROLLER, parentNetworkCommunicationActorRef) {
   lazy val controlInputPort: NetworkInputPort[ControlPayload] =
     new NetworkInputPort[ControlPayload](this.actorId, this.handleControlPayloadWithTryCatch)
   implicit val ec: ExecutionContext = context.dispatcher
@@ -86,59 +83,52 @@ class Controller(
   // bring all workers into a ready state
   prepareWorkers()
 
-  def prepareWorkers(): Future[Seq[Unit]] = {
+  def prepareWorkers(): Future[Unit] = {
 
-    // initialize python operator code
-    val initializeOperatorLogicRequests: Seq[Future[Unit]] =
-      workflow.getPythonWorkerToOperatorExec.map {
-        case (workerID: ActorVirtualIdentity, pythonOperatorExec: PythonUDFOpExecV2) =>
-          asyncRPCClient.send(
-            InitializeOperatorLogic(
-              pythonOperatorExec.getCode,
-              pythonOperatorExec.isInstanceOf[ISourceOperatorExecutor],
-              pythonOperatorExec.getOutputSchema
-            ),
-            workerID
-          )
-      }.toSeq
-
-    // activate all links
-    val activateLinkRequests: Seq[Future[Unit]] =
-      workflow.getAllLinks.map { link: LinkStrategy =>
-        asyncRPCClient.send(
-          LinkWorkers(link),
-          CONTROLLER
-        )
-      }.toSeq
-
-    // open all operators
-    val openOperatorRequests: Seq[Future[Unit]] =
-      workflow.getAllWorkers.map { workerID: ActorVirtualIdentity =>
-        asyncRPCClient.send(
-          OpenOperator(),
-          workerID
-        )
-      }.toSeq
-
-    Future
-      .collect(
-        initializeOperatorLogicRequests
-      )
-      .onFailure((err: Throwable) => {
+    for {
+      _ <- Future(asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus))).onFailure((err: Throwable) => {
         logger.error("Failure when sending Python UDF code", err)
         // report error to frontend
         asyncRPCClient.sendToClient(FatalError(err))
       })
-      .flatMap(_ => Future.collect(activateLinkRequests))
-      .flatMap({ _ =>
-        Future {
-          workflow.getAllOperators.foreach(_.setAllWorkerState(READY))
-          asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus))
-          context.become(running)
-          unstashAll()
-        }
-      })
-      .flatMap(_ => Future.collect(openOperatorRequests))
+      _ <- Future.collect(
+        // initialize python operator code
+        workflow.getPythonWorkerToOperatorExec.map {
+          case (workerID: ActorVirtualIdentity, pythonOperatorExec: PythonUDFOpExecV2) =>
+            asyncRPCClient.send(
+              InitializeOperatorLogic(
+                pythonOperatorExec.getCode,
+                pythonOperatorExec.isInstanceOf[ISourceOperatorExecutor],
+                pythonOperatorExec.getOutputSchema
+              ),
+              workerID
+            )
+        }.toSeq)
+      _ <- Future.collect(
+        // activate all links
+        workflow.getAllLinks.map { link: LinkStrategy =>
+          asyncRPCClient.send(
+            LinkWorkers(link),
+            CONTROLLER
+          )
+        }.toSeq)
+      _ <- Future {
+        workflow.getAllOperators.foreach(_.setAllWorkerState(READY))
+        asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus))
+        unstashAll()
+      }
+      _ <- Future {
+        // open all operators
+        workflow.getAllWorkers.map { workerID: ActorVirtualIdentity =>
+          asyncRPCClient.send(
+            OpenOperator(),
+            workerID
+          )
+        }.toSeq
+      }
+      _ <- Future(context.become(running))
+      _ <- Future(asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus)))
+    } yield {}
   }
 
   def running: Receive = {
@@ -156,9 +146,9 @@ class Controller(
   }
 
   def handleControlPayloadWithTryCatch(
-      from: ActorVirtualIdentity,
-      controlPayload: ControlPayload
-  ): Unit = {
+                                        from: ActorVirtualIdentity,
+                                        controlPayload: ControlPayload
+                                      ): Unit = {
     try {
       controlPayload match {
         // use control input port to pass control messages
@@ -188,9 +178,9 @@ class Controller(
       //process reply messages
       controlInputPort.handleMessage(this.sender(), id, from, seqNum, payload)
     case NetworkMessage(
-          id,
-          WorkflowControlMessage(CONTROLLER, seqNum, payload)
-        ) =>
+    id,
+    WorkflowControlMessage(CONTROLLER, seqNum, payload)
+    ) =>
       //process control messages from self
       controlInputPort.handleMessage(
         this.sender(),
