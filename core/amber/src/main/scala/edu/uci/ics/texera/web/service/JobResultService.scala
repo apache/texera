@@ -205,18 +205,20 @@ class JobResultService(
     }
   }
 
-  addSubscription(stateStore.resultStore.getSyncableState.registerStateChangeHandler((oldState, newState) => {
-    val buf = mutable.HashMap[String, WebResultUpdate]()
-    newState.operatorInfo.foreach {
-      case (opId, info) =>
-        val oldInfo = oldState.operatorInfo.getOrElse(opId, new OperatorResultMetadata())
-        // TODO: frontend now receives snapshots instead of deltas, we can optimize this
-        // if (oldInfo.tupleCount != info.tupleCount) {
-        buf(opId) =
-          progressiveResults(opId).convertWebResultUpdate(oldInfo.tupleCount, info.tupleCount)
-      //}
-    }
-    Iterable(WebResultUpdateEvent(buf.toMap))
-  }))
+  addSubscription(
+    stateStore.resultStore.getSyncableState.registerStateChangeHandler((oldState, newState) => {
+      val buf = mutable.HashMap[String, WebResultUpdate]()
+      newState.operatorInfo.foreach {
+        case (opId, info) =>
+          val oldInfo = oldState.operatorInfo.getOrElse(opId, new OperatorResultMetadata())
+          // TODO: frontend now receives snapshots instead of deltas, we can optimize this
+          // if (oldInfo.tupleCount != info.tupleCount) {
+          buf(opId) =
+            progressiveResults(opId).convertWebResultUpdate(oldInfo.tupleCount, info.tupleCount)
+        //}
+      }
+      Iterable(WebResultUpdateEvent(buf.toMap))
+    })
+  )
 
 }

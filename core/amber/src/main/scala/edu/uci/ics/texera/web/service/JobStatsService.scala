@@ -23,25 +23,27 @@ class JobStatsService(
 
   registerCallbacks()
 
-  addSubscription(stateStore.statsStore.getSyncableState.registerStateChangeHandler((oldState, newState) => {
-    // Update operator stats if any operator updates its stat
-    if (newState.operatorInfo.toSet != oldState.operatorInfo.toSet) {
-      Iterable(
-        OperatorStatisticsUpdateEvent(newState.operatorInfo.collect {
-          case x =>
-            val stats = x._2
-            val res = OperatorStatistics(
-              Utils.aggregatedStateToString(stats.state),
-              stats.inputCount,
-              stats.outputCount
-            )
-            (x._1, res)
-        })
-      )
-    }else{
-      Iterable.empty
-    }
-  }))
+  addSubscription(
+    stateStore.statsStore.getSyncableState.registerStateChangeHandler((oldState, newState) => {
+      // Update operator stats if any operator updates its stat
+      if (newState.operatorInfo.toSet != oldState.operatorInfo.toSet) {
+        Iterable(
+          OperatorStatisticsUpdateEvent(newState.operatorInfo.collect {
+            case x =>
+              val stats = x._2
+              val res = OperatorStatistics(
+                Utils.aggregatedStateToString(stats.state),
+                stats.inputCount,
+                stats.outputCount
+              )
+              (x._1, res)
+          })
+        )
+      } else {
+        Iterable.empty
+      }
+    })
+  )
 
   private[this] def registerCallbacks(): Unit = {
     registerCallbackOnWorkflowStatusUpdate()

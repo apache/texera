@@ -3,11 +3,7 @@ package edu.uci.ics.texera.web.service
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.texera.web.model.websocket.event.{CacheStatusUpdateEvent, TexeraWebSocketEvent}
-import edu.uci.ics.texera.web.{
-  SubscriptionManager,
-  WebsocketInput,
-  WorkflowStateStore
-}
+import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput, WorkflowStateStore}
 import edu.uci.ics.texera.web.model.websocket.request.CacheStatusUpdateRequest
 import edu.uci.ics.texera.web.workflowcachestate.CacheState.{INVALID, VALID}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
@@ -39,11 +35,13 @@ class WorkflowCacheService(
   val operatorRecord: mutable.HashMap[String, WorkflowVertex] =
     mutable.HashMap[String, WorkflowVertex]()
 
-  addSubscription(stateStore.cacheStore.getSyncableState.registerStateChangeHandler((oldState, newState) => {
-    Iterable(CacheStatusUpdateEvent(newState.operatorInfo.map {
-      case (k, v) => (k, if (v.isInvalid) "cache invalid" else "cache valid")
-    }))
-  }))
+  addSubscription(
+    stateStore.cacheStore.getSyncableState.registerStateChangeHandler((oldState, newState) => {
+      Iterable(CacheStatusUpdateEvent(newState.operatorInfo.map {
+        case (k, v) => (k, if (v.isInvalid) "cache invalid" else "cache valid")
+      }))
+    })
+  )
 
   addSubscription(wsInput.subscribe((req: CacheStatusUpdateRequest, uidOpt) => {
     updateCacheStatus(req)

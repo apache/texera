@@ -4,11 +4,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.PythonPr
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.RetryWorkflowHandler.RetryWorkflow
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.texera.web.{
-  SubscriptionManager,
-  WebsocketInput,
-  WorkflowStateStore
-}
+import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput, WorkflowStateStore}
 import edu.uci.ics.texera.web.model.websocket.event.{BreakpointTriggeredEvent, TexeraWebSocketEvent}
 import edu.uci.ics.texera.web.model.websocket.event.python.PythonPrintTriggeredEvent
 import edu.uci.ics.texera.web.model.websocket.request.{RetryRequest, SkipTupleRequest}
@@ -30,18 +26,22 @@ class JobPythonService(
 ) extends SubscriptionManager {
   registerCallbackOnPythonPrint()
 
-  addSubscription(stateStore.pythonStore.getSyncableState.registerStateChangeHandler((oldState, newState) => {
-    // For each operator, check if it has new python console message or breakpoint events
-    newState.operatorInfo.collect {
-      case (opId, info) =>
-        val oldInfo = oldState.operatorInfo.getOrElse(opId, new PythonOperatorInfo())
-        if (info.consoleMessages.nonEmpty && info.consoleMessages != oldInfo.consoleMessages) {
-          val stringBuilder = new StringBuilder()
-          info.consoleMessages.foreach(s => stringBuilder.append(s))
-          PythonPrintTriggeredEvent(stringBuilder.toString(), opId)
+  addSubscription(
+    stateStore.pythonStore.getSyncableState.registerStateChangeHandler((oldState, newState) => {
+      // For each operator, check if it has new python console message or breakpoint events
+      newState.operatorInfo
+        .collect {
+          case (opId, info) =>
+            val oldInfo = oldState.operatorInfo.getOrElse(opId, new PythonOperatorInfo())
+            if (info.consoleMessages.nonEmpty && info.consoleMessages != oldInfo.consoleMessages) {
+              val stringBuilder = new StringBuilder()
+              info.consoleMessages.foreach(s => stringBuilder.append(s))
+              PythonPrintTriggeredEvent(stringBuilder.toString(), opId)
+            }
         }
-    }.asInstanceOf[Iterable[TexeraWebSocketEvent]]
-  }))
+        .asInstanceOf[Iterable[TexeraWebSocketEvent]]
+    })
+  )
 
   private[this] def registerCallbackOnPythonPrint(): Unit = {
     addSubscription(

@@ -3,9 +3,23 @@ package edu.uci.ics.texera.web.service
 import java.util.concurrent.ConcurrentHashMap
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.AmberUtils
-import edu.uci.ics.texera.web.model.websocket.event.{TexeraWebSocketEvent, WorkflowErrorEvent, WorkflowExecutionErrorEvent}
-import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication, WebsocketInput, WorkflowLifecycleManager, WorkflowStateStore}
-import edu.uci.ics.texera.web.model.websocket.request.{TexeraWebSocketRequest, WorkflowExecuteRequest, WorkflowKillRequest}
+import edu.uci.ics.texera.web.model.websocket.event.{
+  TexeraWebSocketEvent,
+  WorkflowErrorEvent,
+  WorkflowExecutionErrorEvent
+}
+import edu.uci.ics.texera.web.{
+  SubscriptionManager,
+  TexeraWebApplication,
+  WebsocketInput,
+  WorkflowLifecycleManager,
+  WorkflowStateStore
+}
+import edu.uci.ics.texera.web.model.websocket.request.{
+  TexeraWebSocketRequest,
+  WorkflowExecuteRequest,
+  WorkflowKillRequest
+}
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import org.jooq.types.UInteger
 import rx.lang.scala.subjects.BehaviorSubject
@@ -74,9 +88,12 @@ class WorkflowService(
 
   def connect(observer: Observer[TexeraWebSocketEvent]): Subscription = {
     lifeCycleManager.increaseUserCount()
-    val subscriptions = stateStore.getAllStores.map(_.getSyncableState).map(evtPub=> evtPub.subscribe(evts => evts.foreach(observer.onNext))).toSeq
+    val subscriptions = stateStore.getAllStores
+      .map(_.getSyncableState)
+      .map(evtPub => evtPub.subscribe(evts => evts.foreach(observer.onNext)))
+      .toSeq
     val errorSubscription = errorSubject.subscribe(evt => observer.onNext(evt))
-    CompositeSubscription(subscriptions :+ errorSubscription:_*)
+    CompositeSubscription(subscriptions :+ errorSubscription: _*)
   }
 
   def disconnect(): Unit = {

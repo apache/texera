@@ -7,9 +7,19 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHa
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput, WorkflowStateStore}
-import edu.uci.ics.texera.web.model.websocket.event.{TexeraWebSocketEvent, WorkflowExecutionErrorEvent, WorkflowStateEvent}
+import edu.uci.ics.texera.web.model.websocket.event.{
+  TexeraWebSocketEvent,
+  WorkflowExecutionErrorEvent,
+  WorkflowStateEvent
+}
 import edu.uci.ics.texera.web.model.websocket.request.python.PythonExpressionEvaluateRequest
-import edu.uci.ics.texera.web.model.websocket.request.{RemoveBreakpointRequest, SkipTupleRequest, WorkflowKillRequest, WorkflowPauseRequest, WorkflowResumeRequest}
+import edu.uci.ics.texera.web.model.websocket.request.{
+  RemoveBreakpointRequest,
+  SkipTupleRequest,
+  WorkflowKillRequest,
+  WorkflowPauseRequest,
+  WorkflowResumeRequest
+}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
 
 import scala.collection.mutable
@@ -22,18 +32,20 @@ class JobRuntimeService(
 ) extends SubscriptionManager
     with LazyLogging {
 
-  addSubscription(stateStore.jobStateStore.getSyncableState.registerStateChangeHandler((oldState, newState) => {
-    val outputEvts = new mutable.ArrayBuffer[TexeraWebSocketEvent]()
-    // Update workflow state
-    if (newState.state != oldState.state) {
-      outputEvts.append(WorkflowStateEvent(Utils.aggregatedStateToString(newState.state)))
-    }
-    // Check if new error occurred
-    if (newState.error != oldState.error) {
-      outputEvts.append(WorkflowExecutionErrorEvent(newState.error))
-    }
-    outputEvts
-  }))
+  addSubscription(
+    stateStore.jobStateStore.getSyncableState.registerStateChangeHandler((oldState, newState) => {
+      val outputEvts = new mutable.ArrayBuffer[TexeraWebSocketEvent]()
+      // Update workflow state
+      if (newState.state != oldState.state) {
+        outputEvts.append(WorkflowStateEvent(Utils.aggregatedStateToString(newState.state)))
+      }
+      // Check if new error occurred
+      if (newState.error != oldState.error) {
+        outputEvts.append(WorkflowExecutionErrorEvent(newState.error))
+      }
+      outputEvts
+    })
+  )
 
   //Receive skip tuple
   addSubscription(wsInput.subscribe((req: SkipTupleRequest, uidOpt) => {
