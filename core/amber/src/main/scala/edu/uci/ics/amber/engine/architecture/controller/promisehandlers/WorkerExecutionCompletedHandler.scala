@@ -63,6 +63,7 @@ trait WorkerExecutionCompletedHandler {
             sendToClient(WorkflowCompleted(ret))
             disableStatusUpdate()
             disableMonitoring()
+            disableSkewHandling()
             Future.Done
           })
         } else {

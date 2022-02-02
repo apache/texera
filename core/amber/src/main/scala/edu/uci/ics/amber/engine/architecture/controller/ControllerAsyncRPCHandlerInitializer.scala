@@ -6,9 +6,10 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWor
   ControllerInitiateQueryResults,
   ControllerInitiateQueryStatistics
 }
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.SkewDetectionHandler.ControllerInitiateSkewDetection
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers._
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputPort
-import edu.uci.ics.amber.engine.common.AmberLogging
+import edu.uci.ics.amber.engine.common.{AmberLogging, Constants}
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.{
@@ -46,11 +47,13 @@ class ControllerAsyncRPCHandlerInitializer(
     with RetryWorkflowHandler
     with ModifyLogicHandler
     with EvaluatePythonExpressionHandler
-    with MonitoringHandler {
+    with MonitoringHandler
+    with SkewDetectionHandler {
 
   var statusUpdateAskHandle: Option[Cancellable] = None
   var resultUpdateAskHandle: Option[Cancellable] = None
   var monitoringHandle: Option[Cancellable] = None
+  var skewDetectionHandle: Option[Cancellable] = None
 
   def enableStatusUpdate(): Unit = {
     if (controllerConfig.statusUpdateIntervalMs.nonEmpty && statusUpdateAskHandle.isEmpty) {
@@ -97,6 +100,24 @@ class ControllerAsyncRPCHandlerInitializer(
     }
   }
 
+  def enableSkewHandling(): Unit = {
+    if (
+      Constants.reshapeSkewHandlingEnabled && controllerConfig.skewDetectionIntervalMs.nonEmpty && skewDetectionHandle.isEmpty
+    ) {
+      skewDetectionHandle = Option(
+        actorContext.system.scheduler.scheduleAtFixedRate(
+          5000.milliseconds,
+          FiniteDuration.apply(controllerConfig.skewDetectionIntervalMs.get, MILLISECONDS),
+          actorContext.self,
+          ControlInvocation(
+            AsyncRPCClient.IgnoreReplyAndDoNotLog,
+            ControllerInitiateSkewDetection()
+          )
+        )(actorContext.dispatcher)
+      )
+    }
+  }
+
   def disableStatusUpdate(): Unit = {
     if (statusUpdateAskHandle.nonEmpty) {
       statusUpdateAskHandle.get.cancel()
@@ -112,6 +133,13 @@ class ControllerAsyncRPCHandlerInitializer(
     if (monitoringHandle.nonEmpty) {
       monitoringHandle.get.cancel()
       monitoringHandle = Option.empty
+    }
+  }
+
+  def disableSkewHandling(): Unit = {
+    if (skewDetectionHandle.nonEmpty) {
+      skewDetectionHandle.get.cancel()
+      skewDetectionHandle = Option.empty
     }
   }
 

@@ -46,6 +46,7 @@ trait StartWorkflowHandler {
         .map { _ =>
           enableStatusUpdate()
           enableMonitoring()
+          enableSkewHandling()
         }
     }
   }

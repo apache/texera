@@ -15,8 +15,6 @@ import scala.collection.mutable
 
 object MonitoringHandler {
   var previousCallFinished = true
-  var startTimeForMetricColl: Long = _
-  var endTimeForMetricColl: Long = _
 
   final case class ControllerInitiateMonitoring(
       filterByWorkers: List[ActorVirtualIdentity] = List()

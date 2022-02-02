@@ -35,13 +35,15 @@ object ControllerConfig {
     ControllerConfig(
       statusUpdateIntervalMs = Option(100),
       resultUpdateIntervalMs = Option(1000),
-      monitoringIntervalMs = Option(3000)
+      monitoringIntervalMs = Option(3000),
+      skewDetectionIntervalMs = Option(3000)
     )
 }
 final case class ControllerConfig(
     statusUpdateIntervalMs: Option[Long],
     resultUpdateIntervalMs: Option[Long],
-    monitoringIntervalMs: Option[Long]
+    monitoringIntervalMs: Option[Long],
+    skewDetectionIntervalMs: Option[Long]
 )
 
 object Controller {

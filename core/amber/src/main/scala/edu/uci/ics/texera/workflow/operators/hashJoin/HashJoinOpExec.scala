@@ -28,6 +28,30 @@ class HashJoinOpExec[K](
   var currentEntry: Iterator[Tuple] = _
   var currentTuple: Tuple = _
 
+  def getBuildHashTable(): ArrayBuffer[mutable.HashMap[K, ArrayBuffer[Tuple]]] = {
+    val sendingMap = new ArrayBuffer[mutable.HashMap[K, ArrayBuffer[Tuple]]]
+    var count = 1
+    var curr = new mutable.HashMap[K, ArrayBuffer[Tuple]]
+    for ((key, tuples) <- buildTableHashMap) {
+      curr.put(key, tuples._1)
+      if (count % 4000 == 0) {
+        sendingMap.append(curr)
+        curr = new mutable.HashMap[K, ArrayBuffer[Tuple]]
+      }
+      count += 1
+    }
+    if (!curr.isEmpty) sendingMap.append(curr)
+    sendingMap
+  }
+
+  def mergeIntoHashTable(additionalTable: mutable.HashMap[Any, ArrayBuffer[Tuple]]): Unit = {
+    for ((key, tuples) <- additionalTable) {
+      val (storedTuples, _) =
+        buildTableHashMap.getOrElseUpdate(key.asInstanceOf[K], (new ArrayBuffer[Tuple](), false))
+      storedTuples.appendAll(tuples)
+    }
+  }
+
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
       input: LinkIdentity
