@@ -109,6 +109,7 @@ import { AuthService } from "./common/service/user/auth.service";
 import { PresetWrapperComponent } from "./common/formly/preset-wrapper/preset-wrapper.component";
 import { NzModalCommentBoxComponent } from "./workspace/component/workflow-editor/comment-box-modal/nz-modal-comment-box.component";
 import { NzCommentModule } from "ng-zorro-antd/comment";
+import { NgbdModalWorkflowExecutionsComponent } from "./dashboard/component/feature-container/saved-workflow-section/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 
 registerLocaleData(en);
 
@@ -156,6 +157,7 @@ registerLocaleData(en);
     CodeEditorDialogComponent,
     TypeCastingDisplayComponent,
     NgbdModalWorkflowShareAccessComponent,
+    NgbdModalWorkflowExecutionsComponent,
     NgbdModalUserFileShareAccessComponent,
     ConsoleFrameComponent,
     ResultTableFrameComponent,
@@ -166,8 +168,6 @@ registerLocaleData(en);
     OperatorPropertyEditFrameComponent,
     BreakpointPropertyEditFrameComponent,
     DebuggerFrameComponent,
-    NotificationComponent,
-    NgbdModalUserFileShareAccessComponent,
     NzModalCommentBoxComponent,
   ],
   imports: [
@@ -234,8 +234,6 @@ registerLocaleData(en);
     NzTabsModule,
     NzTreeViewModule,
     NzPaginationModule,
-    MonacoEditorModule.forRoot(),
-    NzAvatarModule,
     NzCommentModule
   ],
   entryComponents: [
@@ -248,8 +246,8 @@ registerLocaleData(en);
     RowModalComponent,
     NgbdModalFileAddComponent,
     NgbdModalWorkflowShareAccessComponent,
-    NgbdModalWorkflowShareAccessComponent,
     NzModalCommentBoxComponent
+    NgbdModalWorkflowExecutionsComponent,
   ],
   providers: [
     UserService,

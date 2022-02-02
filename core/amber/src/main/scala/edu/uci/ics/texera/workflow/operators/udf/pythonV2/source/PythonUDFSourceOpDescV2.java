@@ -59,7 +59,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
     @Override
     public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         Function1<Object, IOperatorExecutor> exec = (i) ->
-                new PythonUDFSourceOpExecV2(code);
+                new PythonUDFSourceOpExecV2(code, operatorSchemaInfo.outputSchema());
         if (parallel) {
             return new OneToOneOpExecConfig(operatorIdentifier(), exec);
         } else {

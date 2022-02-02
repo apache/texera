@@ -43,6 +43,11 @@ export const defaultEnvironment = {
    */
   userPresetEnabled: false,
 
+  /**
+   * whether workflow executions tracking feature is enabled
+   */
+  workflowExecutionsTrackingEnabled: false,
+
   amberEngineEnabled: true,
 
   /**

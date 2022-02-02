@@ -11,6 +11,7 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partiti
 import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2
 import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value.Empty
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryCurrentInputTupleHandler.QueryCurrentInputTuple
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
@@ -20,6 +21,8 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputL
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
+
+import scala.collection.JavaConverters._
 
 object ControlCommandConvertUtils {
   def controlCommandToV2(
@@ -32,6 +35,8 @@ object ControlCommandConvertUtils {
         PauseWorkerV2()
       case ResumeWorker() =>
         ResumeWorkerV2()
+      case OpenOperator() =>
+        OpenOperatorV2()
       case AddPartitioning(tag: LinkIdentity, partitioning: Partitioning) =>
         AddPartitioningV2(tag, partitioning)
       case UpdateInputLinking(identifier, inputLink) =>
@@ -40,8 +45,12 @@ object ControlCommandConvertUtils {
         QueryStatisticsV2()
       case QueryCurrentInputTuple() =>
         QueryCurrentInputTupleV2()
-      case InitializeOperatorLogic(code, isSource) =>
-        InitializeOperatorLogicV2(code, isSource)
+      case InitializeOperatorLogic(code, isSource, schema) =>
+        InitializeOperatorLogicV2(
+          code,
+          isSource,
+          schema.getAttributes.asScala.map(attr => attr.getName -> attr.getType.toString).toMap
+        )
       case ReplayCurrentTuple() =>
         ReplayCurrentTupleV2()
       case ModifyOperatorLogic(code, isSource) =>
