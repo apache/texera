@@ -36,8 +36,10 @@ class NetworkSender(StoppableQueueBlockingRunnable):
         :param to: The target actor's ActorVirtualIdentity
         :param data_payload: The data payload to be sent, can be either DataFrame or EndOfUpstream
         """
+
         if isinstance(data_payload, OutputDataFrame):
-            # TODO: change to iter of pa.RecordBatch
+            # converting from a column-based dictionary is the fastest known method
+            # https://stackoverflow.com/questions/57939092/fastest-way-to-construct-pyarrow-table-row-by-row
             field_names = data_payload.schema.names
             table = Table.from_pydict(
                 {name: [t[name] for t in data_payload.frame] for name in field_names},
