@@ -19,10 +19,10 @@ import edu.uci.ics.texera.web.resource.auth.{AuthResource, GoogleAuthResource}
 import edu.uci.ics.texera.web.resource.dashboard.file.{UserFileAccessResource, UserFileResource}
 import edu.uci.ics.texera.web.resource.dashboard.workflow.{
   WorkflowAccessResource,
+  WorkflowExecutionsResource,
   WorkflowResource,
   WorkflowVersionResource
 }
-
 import edu.uci.ics.texera.web.resource._
 import io.dropwizard.auth.{AuthDynamicFeature, AuthValueFactoryProvider}
 import io.dropwizard.setup.{Bootstrap, Environment}
@@ -147,7 +147,7 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
     environment.jersey.register(classOf[WorkflowAccessResource])
     environment.jersey.register(classOf[WorkflowResource])
     environment.jersey.register(classOf[WorkflowVersionResource])
-
+    environment.jersey.register(classOf[WorkflowExecutionsResource])
   }
 
 }
