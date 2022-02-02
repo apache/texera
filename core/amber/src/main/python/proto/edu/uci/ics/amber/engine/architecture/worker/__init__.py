@@ -17,6 +17,24 @@ class WorkerState(betterproto.Enum):
 
 
 @dataclass(eq=False, repr=False)
+class SelfWorkloadMetrics(betterproto.Message):
+    """TODO: change the names to remove "self"""
+
+    # TODO: change the names to remove "queue_size" which is implicit
+    unprocessed_data_input_queue_size: int = betterproto.int64_field(1)
+    unprocessed_control_input_queue_size: int = betterproto.int64_field(2)
+    stashed_data_input_queue_size: int = betterproto.int64_field(3)
+    stashed_control_input_queue_size: int = betterproto.int64_field(4)
+
+
+@dataclass(eq=False, repr=False)
+class WorkerStatistics(betterproto.Message):
+    worker_state: "WorkerState" = betterproto.enum_field(1)
+    input_tuple_count: int = betterproto.int64_field(2)
+    output_tuple_count: int = betterproto.int64_field(3)
+
+
+@dataclass(eq=False, repr=False)
 class StartWorkerV2(betterproto.Message):
     pass
 
@@ -143,21 +161,6 @@ class ControlCommandV2(betterproto.Message):
     worker_execution_completed: "WorkerExecutionCompletedV2" = (
         betterproto.message_field(101, group="sealed_value")
     )
-
-
-@dataclass(eq=False, repr=False)
-class WorkerStatistics(betterproto.Message):
-    worker_state: "WorkerState" = betterproto.enum_field(1)
-    input_tuple_count: int = betterproto.int64_field(2)
-    output_tuple_count: int = betterproto.int64_field(3)
-
-
-@dataclass(eq=False, repr=False)
-class SelfWorkloadMetrics(betterproto.Message):
-    unprocessed_data_input_queue_size: int = betterproto.int64_field(1)
-    unprocessed_control_input_queue_size: int = betterproto.int64_field(2)
-    stashed_data_input_queue_size: int = betterproto.int64_field(3)
-    stashed_control_input_queue_size: int = betterproto.int64_field(4)
 
 
 @dataclass(eq=False, repr=False)

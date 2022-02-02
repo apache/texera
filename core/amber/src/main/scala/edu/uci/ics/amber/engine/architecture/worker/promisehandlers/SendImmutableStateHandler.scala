@@ -10,6 +10,14 @@ import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpExec
 
 import scala.collection.mutable.ArrayBuffer
 
+/**
+  * This handler is used to do state migrated during Reshape.
+  * e.g., The controller will send a `SendImmutableState` message to
+  * a skewed worker of HashJoin operator to send its build hash map
+  * to `helperReceiverId` worker.
+  *
+  * Possible sender: Controller (SkewDetectionHandler).
+  */
 object SendImmutableStateHandler {
   final case class SendImmutableState(
       helperReceiverId: ActorVirtualIdentity

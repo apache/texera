@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import akka.actor.{ActorContext, Cancellable}
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.ControllerInitiateQueryStatistics
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.MonitoringHandler.ControllerInitiateMonitoring
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.SkewDetectionHandler.ControllerInitiateSkewDetection
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers._
@@ -67,7 +68,9 @@ class ControllerAsyncRPCHandlerInitializer(
   }
 
   def enableMonitoring(): Unit = {
-    if (controllerConfig.monitoringIntervalMs.nonEmpty && monitoringHandle.isEmpty) {
+    if (
+      Constants.monitoringEnabled && controllerConfig.monitoringIntervalMs.nonEmpty && monitoringHandle.isEmpty
+    ) {
       monitoringHandle = Option(
         actorContext.system.scheduler.scheduleAtFixedRate(
           0.milliseconds,

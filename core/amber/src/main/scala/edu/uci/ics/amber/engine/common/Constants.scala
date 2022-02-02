@@ -19,6 +19,8 @@ object Constants {
   var masterNodeAddr: Option[String] = None
   var defaultTau: FiniteDuration = 10.milliseconds
 
+  var monitoringEnabled: Boolean =
+    AmberUtils.amberConfig.getBoolean("constants.monitoring-enabled")
   var reshapeSkewHandlingEnabled: Boolean =
     AmberUtils.amberConfig.getBoolean("constants.reshape-skew-handling-enabled")
   var reshapeEtaThreshold: Int =
