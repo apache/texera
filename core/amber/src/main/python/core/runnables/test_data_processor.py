@@ -1,13 +1,12 @@
 from threading import Thread
 
 import pandas
+import pyarrow
 import pytest
 from loguru import logger
-import pyarrow
 
 from core.models import ControlElement, DataElement, InputDataFrame, OutputDataFrame, EndOfUpstream, InternalQueue, \
     Tuple
-from pytexera.udf.examples.echo_operator import EchoOperator
 from core.runnables import DataProcessor
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import OneToOnePartitioning, Partitioning
@@ -15,6 +14,7 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import AddPartitioningV2
     QueryStatisticsV2, UpdateInputLinkingV2, WorkerExecutionCompletedV2, WorkerState, WorkerStatistics
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlInvocationV2, ControlPayloadV2, \
     LayerIdentity, LinkIdentity, ReturnInvocationV2
+from pytexera.udf.examples.echo_operator import EchoOperator
 
 logger.level("PRINT", no=38)
 
@@ -99,7 +99,7 @@ class TestDataProcessor:
         data_processor = DataProcessor(input_queue, output_queue)
         # mock the operator binding
         data_processor._operator = mock_udf
-        data_processor._operator.output_attribute_names = ["test-1", "test-2"]
+        data_processor._operator.output_schema = {"test-1": 'string', "test-2": "integer"}
         yield data_processor
         data_processor.stop()
 
