@@ -58,7 +58,7 @@ class WorkflowService(
     {
       t.printStackTrace()
       errorSubject.onNext(
-        WorkflowExecutionErrorEvent(t.getStackTrace.mkString("\n"))
+        WorkflowExecutionErrorEvent(t.getMessage+"\n"+t.getStackTrace.mkString("\n"))
       )
     }
   }

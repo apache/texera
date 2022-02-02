@@ -114,9 +114,7 @@ object Utils {
   def withLock[X](instructions: => X)(implicit lock: Lock): X = {
     lock.lock()
     try {
-      val result = instructions
-      lock.unlock()
-      result
+      instructions
     } catch {
       case e: Throwable =>
         throw e

@@ -21,8 +21,7 @@ class WebsocketInput(errorHandler: Throwable => Unit) {
               errorHandler(throwable)
           }
         case other =>
-          // For other classes that is not a subclass of TexeraWebSocketRequest
-          errorHandler(new RuntimeException(s"$other is not a valid input for websocket"))
+          // skip this one because it doesn't match the type we want
       }
     })
   }

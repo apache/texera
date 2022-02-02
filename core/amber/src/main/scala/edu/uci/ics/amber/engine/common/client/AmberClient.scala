@@ -52,7 +52,11 @@ class AmberClient(
     if (!isActive) {
       throw new RuntimeException("amber runtime environment is not active")
     } else {
-      Await.result(clientActor ? controlCommand, deadline).asInstanceOf[T]
+      val result = Await.result(clientActor ? controlCommand, deadline)
+      result match{
+        case t:Throwable => throw t
+        case other => other.asInstanceOf[T]
+      }
     }
   }
 
