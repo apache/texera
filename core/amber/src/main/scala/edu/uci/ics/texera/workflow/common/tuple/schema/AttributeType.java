@@ -9,22 +9,36 @@ public enum AttributeType implements Serializable {
 
     /**
      * To add a new AttributeType, update the following files to handle the new type:
-     * 1. SourceOp:
+     * 1. AttributeTypeUtils
+     * <code>src/main/scala/edu/uci/ics/texera/workflow/common/tuple/schema/AttributeTypeUtils.scala</code>
+     * Provide parsing, inferring, and casting logic between other AttributeTypes.
+     * <p>
+     * 2. SQLSourceOpDesc
+     * <code>src/main/scala/edu/uci/ics/texera/workflow/operators/source/sql/SQLSourceOpDesc</code>
      * Especially SQLSources will need to map the input schema to Texera.Schema. AttributeType
      * needs to be converted from original source types accordingly.
      * <p>
-     * 2. FilterPredicate:
+     * 3. FilterPredicate
+     * <code>src/main/scala/edu/uci/ics/texera/workflow/operators/filter/FilterPredicate.java</code>
      * FilterPredicate takes in AttributeTypes and converts them into a comparable type, then do
      * the comparison. New AttributeTypes needs to be mapped to a comparable type there.
      * <p>
-     * 3. SpecializedAverageOpDesc.getNumericalValue:
+     * 4. SpecializedAverageOpDesc.getNumericalValue
+     * <code>src/main/scala/edu/uci/ics/texera/workflow/operators/aggregate/SpecializedAverageOpDesc.scala</code>
      * New AttributeTypes might need to be converted into a numerical value in order to perform
      * aggregations.
      * <p>
-     * 4. SchemaPropagationService.SchemaAttribute (frontend).
+     * 5. SchemaPropagationService.SchemaAttribute
+     * <code>src/app/workspace/service/dynamic-schema/schema-propagation/schema-propagation.service.ts</code>
+     * Declare the frontend SchemaAttribute for the new AttributeType.
      * <p>
-     * 5. TypeCastingOpExec (optional as this stage):
-     * Typical type casting among internal types, if added also to TypeCastingAttributeType.
+     * 6. ArrowUtils (Java)
+     * <code>src/main/scala/edu/uci/ics/amber/engine/architecture/pythonworker/ArrowUtils.scala</code>
+     * Provide java-side conversion between ArrowType and AttributeType.
+     * <p>
+     * 7. ArrowUtils (Python)
+     * <code>src/main/python/core/util/arrow_utils.py</code>
+     * Provide python-side conversion between ArrowType and AttributeType.
      */
 
 

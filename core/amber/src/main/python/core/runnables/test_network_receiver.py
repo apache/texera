@@ -9,6 +9,7 @@ from core.models.internal_queue import ControlElement, DataElement, InternalQueu
 from core.models.payload import OutputDataFrame, EndOfUpstream
 from core.runnables.network_receiver import NetworkReceiver
 from core.runnables.network_sender import NetworkSender
+from core.util.arrow_utils import to_arrow_schema
 from core.util.proto import set_one_of
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlInvocationV2, ControlPayloadV2
 
@@ -23,19 +24,15 @@ class TestNetworkReceiver:
         return InternalQueue()
 
     @pytest.fixture
-    def schema_map(self):
-        return dict()
-
-    @pytest.fixture
-    def network_receiver_thread(self, schema_map, output_queue):
-        network_receiver = NetworkReceiver(output_queue, host="localhost", port=5555, schema_map=schema_map)
+    def network_receiver_thread(self, output_queue):
+        network_receiver = NetworkReceiver(output_queue, host="localhost", port=5555)
         network_receiver_thread = threading.Thread(target=network_receiver.run)
         yield network_receiver_thread
         network_receiver.stop()
 
     @pytest.fixture
-    def network_sender_thread(self, schema_map, input_queue):
-        network_sender = NetworkSender(input_queue, host="localhost", port=5555, schema_map=schema_map)
+    def network_sender_thread(self, input_queue):
+        network_sender = NetworkSender(input_queue, host="localhost", port=5555)
         network_sender_thread = threading.Thread(target=network_sender.run)
         yield network_sender_thread
         network_sender.stop()
@@ -46,11 +43,12 @@ class TestNetworkReceiver:
             'Brand': ['Honda Civic', 'Toyota Corolla', 'Ford Focus', 'Audi A4'],
             'Price': [22000, 25000, 27000, 35000]
         }, columns=['Brand', 'Price'])
-        return OutputDataFrame(frame=[Tuple(r) for _, r in df_to_sent.iterrows()], schema=['Brand', 'Price'])
+        return OutputDataFrame(frame=[Tuple(r) for _, r in df_to_sent.iterrows()],
+                               schema=to_arrow_schema({'Brand': 'string', 'Price': 'integer'}))
 
     @pytest.mark.timeout(0.5)
-    def test_network_receiver_can_stop(self, schema_map):
-        network_receiver = NetworkReceiver(InternalQueue(), host="localhost", port=5555, schema_map=schema_map)
+    def test_network_receiver_can_stop(self):
+        network_receiver = NetworkReceiver(InternalQueue(), host="localhost", port=5555)
         network_receiver_thread = threading.Thread(target=network_receiver.run)
         network_receiver_thread.start()
         sleep(0.1)
@@ -61,7 +59,7 @@ class TestNetworkReceiver:
         network_receiver_thread.join()
 
     @pytest.mark.timeout(1)
-    def test_network_receiver_can_receive_data_messages(self, schema_map, data_payload, output_queue, input_queue,
+    def test_network_receiver_can_receive_data_messages(self, data_payload, output_queue, input_queue,
                                                         network_receiver_thread, network_sender_thread):
         network_receiver_thread.start()
         network_sender_thread.start()
@@ -72,7 +70,7 @@ class TestNetworkReceiver:
         assert element.tag == worker_id
 
     @pytest.mark.timeout(1)
-    def test_network_receiver_can_receive_data_messages_end_of_upstream(self, schema_map, data_payload,
+    def test_network_receiver_can_receive_data_messages_end_of_upstream(self, data_payload,
                                                                         output_queue, input_queue,
                                                                         network_receiver_thread, network_sender_thread):
         network_receiver_thread.start()
@@ -84,7 +82,7 @@ class TestNetworkReceiver:
         assert element.tag == worker_id
 
     @pytest.mark.timeout(1)
-    def test_network_receiver_can_receive_control_messages(self, schema_map, data_payload, output_queue, input_queue,
+    def test_network_receiver_can_receive_control_messages(self, data_payload, output_queue, input_queue,
                                                            network_receiver_thread, network_sender_thread):
         network_receiver_thread.start()
         network_sender_thread.start()
