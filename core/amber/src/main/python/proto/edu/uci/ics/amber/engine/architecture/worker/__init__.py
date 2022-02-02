@@ -32,6 +32,11 @@ class ResumeWorkerV2(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class OpenOperatorV2(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
 class UpdateInputLinkingV2(betterproto.Message):
     identifier: "__common__.ActorVirtualIdentity" = betterproto.message_field(1)
     input_link: "__common__.LinkIdentity" = betterproto.message_field(2)
@@ -111,6 +116,7 @@ class ControlCommandV2(betterproto.Message):
     local_operator_exception: "LocalOperatorExceptionV2" = betterproto.message_field(
         8, group="sealed_value"
     )
+    open_operator: "OpenOperatorV2" = betterproto.message_field(9, group="sealed_value")
     initialize_operator_logic: "InitializeOperatorLogicV2" = betterproto.message_field(
         21, group="sealed_value"
     )

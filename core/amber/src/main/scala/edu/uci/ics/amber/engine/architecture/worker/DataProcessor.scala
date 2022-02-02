@@ -38,8 +38,6 @@ class DataProcessor( // dependencies:
   private val dpThread: Future[_] = dpThreadExecutor.submit(new Runnable() {
     def run(): Unit = {
       try {
-        // initialize operator
-        operator.open()
         runDPThreadMainLogic()
       } catch safely {
         case _: InterruptedException =>
