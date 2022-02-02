@@ -5,6 +5,11 @@
 
 package edu.uci.ics.amber.engine.architecture.worker.workloadmetrics
 
+/** TODO: change the names to remove "self"
+  *
+  * @param unprocessedDataInputQueueSize
+  *   TODO: change the names to remove "queue_size" which is implicit
+  */
 @SerialVersionUID(0L)
 final case class SelfWorkloadMetrics(
     unprocessedDataInputQueueSize: _root_.scala.Long,

@@ -2,7 +2,7 @@
 # sources: edu/uci/ics/amber/engine/architecture/worker/controlcommands.proto, edu/uci/ics/amber/engine/architecture/worker/controlreturns.proto, edu/uci/ics/amber/engine/architecture/worker/statistics.proto, edu/uci/ics/amber/engine/architecture/worker/workloadmetrics.proto
 # plugin: python-betterproto
 from dataclasses import dataclass
-from typing import List
+from typing import Dict, List
 
 import betterproto
 from betterproto.grpc.grpclib_server import ServiceBase
@@ -28,6 +28,11 @@ class PauseWorkerV2(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class ResumeWorkerV2(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
+class OpenOperatorV2(betterproto.Message):
     pass
 
 
@@ -67,6 +72,9 @@ class LocalOperatorExceptionV2(betterproto.Message):
 class InitializeOperatorLogicV2(betterproto.Message):
     code: str = betterproto.string_field(1)
     is_source: bool = betterproto.bool_field(2)
+    output_schema: Dict[str, str] = betterproto.map_field(
+        3, betterproto.TYPE_STRING, betterproto.TYPE_STRING
+    )
 
 
 @dataclass(eq=False, repr=False)
@@ -115,6 +123,7 @@ class ControlCommandV2(betterproto.Message):
     local_operator_exception: "LocalOperatorExceptionV2" = betterproto.message_field(
         8, group="sealed_value"
     )
+    open_operator: "OpenOperatorV2" = betterproto.message_field(9, group="sealed_value")
     initialize_operator_logic: "InitializeOperatorLogicV2" = betterproto.message_field(
         21, group="sealed_value"
     )

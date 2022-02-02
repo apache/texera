@@ -6,6 +6,7 @@ from core.architecture.handlers.handler_base import Handler
 from core.architecture.handlers.initialize_operator_logic_handler import InitializeOperatorLogicHandler
 from core.architecture.handlers.modify_operator_logic_handler import ModifyOperatorLogicHandler
 from core.architecture.handlers.monitoring_handler import MonitoringHandler
+from core.architecture.handlers.open_operator_handler import OpenOperatorHandler
 from core.architecture.handlers.pause_worker_handler import PauseWorkerHandler
 from core.architecture.handlers.query_current_input_tuple_handler import QueryCurrentInputTupleHandler
 from core.architecture.handlers.query_statistics_handler import QueryStatisticsHandler
@@ -29,6 +30,7 @@ class AsyncRPCServer:
         self.register(StartWorkerHandler())
         self.register(PauseWorkerHandler())
         self.register(ResumeWorkerHandler())
+        self.register(OpenOperatorHandler())
         self.register(AddPartitioningHandler())
         self.register(UpdateInputLinkingHandler())
         self.register(QueryStatisticsHandler())

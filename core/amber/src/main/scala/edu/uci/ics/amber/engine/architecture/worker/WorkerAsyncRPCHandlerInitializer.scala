@@ -36,6 +36,7 @@ class WorkerAsyncRPCHandlerInitializer(
     receiver: AsyncRPCServer
 ) extends AsyncRPCHandlerInitializer(source, receiver)
     with AmberLogging
+    with OpenOperatorHandler
     with PauseHandler
     with AddPartitioningHandler
     with QueryAndRemoveBreakpointsHandler
