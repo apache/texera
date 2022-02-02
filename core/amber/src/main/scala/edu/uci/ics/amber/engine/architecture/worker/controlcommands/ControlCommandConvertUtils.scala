@@ -11,6 +11,7 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partiti
 import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2
 import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value.Empty
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryCurrentInputTupleHandler.QueryCurrentInputTuple
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
@@ -34,6 +35,8 @@ object ControlCommandConvertUtils {
         PauseWorkerV2()
       case ResumeWorker() =>
         ResumeWorkerV2()
+      case OpenOperator() =>
+        OpenOperatorV2()
       case AddPartitioning(tag: LinkIdentity, partitioning: Partitioning) =>
         AddPartitioningV2(tag, partitioning)
       case UpdateInputLinking(identifier, inputLink) =>
