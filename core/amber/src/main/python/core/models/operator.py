@@ -7,7 +7,7 @@ import pandas
 from pyarrow.lib import Schema
 
 from . import InputExhausted, Table, TableLike, Tuple, TupleLike
-from ..util.arrow_util import to_arrow_schema
+from ..util.arrow_utils import to_arrow_schema
 
 
 class Operator(ABC):
