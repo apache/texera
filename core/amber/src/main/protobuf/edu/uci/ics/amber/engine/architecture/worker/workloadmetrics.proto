@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package edu.uci.ics.amber.engine.architecture.worker;
+
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+  scope: FILE,
+  preserve_unknown_fields: false
+  no_default_values_in_constructor: true
+
+};
+
+// TODO: change the names to remove "self"
+message SelfWorkloadMetrics {
+  // TODO: change the names to remove "queue_size" which is implicit
+  int64 unprocessed_data_input_queue_size = 1;
+  int64 unprocessed_control_input_queue_size = 2;
+  int64 stashed_data_input_queue_size = 3;
+  int64 stashed_control_input_queue_size = 4;
+}

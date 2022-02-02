@@ -18,4 +18,13 @@ object Constants {
   var currentDataSetNum = 0
   var masterNodeAddr: Option[String] = None
   var defaultTau: FiniteDuration = 10.milliseconds
+
+  var monitoringEnabled: Boolean =
+    AmberUtils.amberConfig.getBoolean("constants.monitoring-enabled")
+  var reshapeSkewHandlingEnabled: Boolean =
+    AmberUtils.amberConfig.getBoolean("constants.reshape-skew-handling-enabled")
+  var reshapeEtaThreshold: Int =
+    AmberUtils.amberConfig.getInt("constants.reshape-eta-threshold")
+  var reshapeTauThreshold: Int =
+    AmberUtils.amberConfig.getInt("constants.reshape-tau-threshold")
 }

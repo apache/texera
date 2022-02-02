@@ -11,6 +11,7 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partiti
 import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2
 import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value.Empty
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QuerySelfWorkloadMetrics
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryCurrentInputTupleHandler.QueryCurrentInputTuple
@@ -57,6 +58,8 @@ object ControlCommandConvertUtils {
         ModifyOperatorLogicV2(code, isSource)
       case EvaluateExpression(expression) =>
         EvaluateExpressionV2(expression)
+      case QuerySelfWorkloadMetrics() =>
+        QuerySelfWorkloadMetricsV2()
       case _ =>
         throw new UnsupportedOperationException(
           s"V1 controlCommand $controlCommand cannot be converted to V2"
