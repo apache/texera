@@ -10,7 +10,6 @@ import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpExec
 
 import scala.collection.mutable.ArrayBuffer
 
-// join-skew research related.
 object SendImmutableStateHandler {
   final case class SendImmutableState(
       helperReceiverId: ActorVirtualIdentity

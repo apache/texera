@@ -9,7 +9,6 @@ import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpExec
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-// join-skew research related.
 object AcceptImmutableStateHandler {
   final case class AcceptImmutableState(
       buildHashMap: mutable.HashMap[Any, ArrayBuffer[Tuple]]

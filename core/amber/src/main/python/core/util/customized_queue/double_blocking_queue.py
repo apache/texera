@@ -75,32 +75,18 @@ class DoubleBlockingQueue(IQueue):
         Invoked by the consumer only, checks if the main queue is empty.
         :return: True if the main queue is empty.
         """
-        return self.main_size() == 0
+        self._enforce_single_consumer()
+        self._distribute_all()
+        return self._main_queue.qsize() == 0
 
     def sub_empty(self) -> bool:
         """
         Invoked by the consumer only, checks if the sub queue is empty.
         :return: True if the sub queue is empty.
         """
-        return self.sub_size() == 0
-
-    def main_size(self):
-        """
-        Invoked by the consumer only, returns the main queue's size.
-        :return: size, int
-        """
         self._enforce_single_consumer()
         self._distribute_all()
-        return self._main_queue.qsize()
-
-    def sub_size(self):
-        """
-        Invoked by the consumer only, returns the sub queue's size.
-        :return: size, int
-        """
-        self._enforce_single_consumer()
-        self._distribute_all()
-        return self._sub_queue.qsize()
+        return self._sub_queue.qsize() == 0
 
     def _distribute_all(self) -> None:
         """
@@ -120,7 +106,7 @@ class DoubleBlockingQueue(IQueue):
         else:
             self._main_queue.put(ele)
 
-    def _enforce_single_consumer(self) -> None:
+    def _enforce_single_consumer(self):
         """
         Raises an AssertionError if multiple consumers are detected.
         :return:
