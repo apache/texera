@@ -19,7 +19,10 @@ trait WorkerExecutionStartedHandler {
 
   registerHandler { (msg: WorkerStateUpdated, sender) =>
     {
-      operatorStartTime(workflow.getOperator(sender).id) = System.nanoTime()
+      val opID = workflow.getOperator(sender).id
+      if (!operatorStartTime.contains(opID)) {
+        operatorStartTime(opID) = System.nanoTime()
+      }
       // set the state
       workflow.getOperator(sender).getWorker(sender).state = msg.state
       sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus))
