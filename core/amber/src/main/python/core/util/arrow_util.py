@@ -7,7 +7,8 @@ ARROW_TYPE_MAPPING = {
     'long': pa.int64(),
     'double': pa.float64(),
     'boolean': pa.bool_(),
-    'any': pa.string()
+    'timestamp': pa.timestamp('ms', tz="UTC"),
+    'ANY': pa.string()
 }
 
 
