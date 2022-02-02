@@ -878,7 +878,7 @@ export class WorkflowActionService {
    * set a given link's breakpoint properties to specific values
    */
   public setLinkBreakpoint(linkID: string, newBreakpoint: Breakpoint | undefined): void {
-    if (newBreakpoint == null) newBreakpoint = undefined
+    if (newBreakpoint == null) newBreakpoint = undefined;
     const prevBreakpoint = this.getTexeraGraph().getLinkBreakpoint(linkID);
     const command: Command = {
       modifiesWorkflow: true,
@@ -890,7 +890,11 @@ export class WorkflowActionService {
       },
     };
 
-    const commandMessage: CommandMessage = { action: "setLinkBreakpoint", parameters: [linkID, newBreakpoint], type: "execute" };
+    const commandMessage: CommandMessage = {
+      action: "setLinkBreakpoint",
+      parameters: [linkID, newBreakpoint],
+      type: "execute",
+    };
     this.executeStoreAndPropagateCommand(command, commandMessage);
   }
 

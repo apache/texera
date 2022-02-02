@@ -475,7 +475,9 @@ export class NavigationComponent {
     this.workflowVersionService.revertToVersion();
     // after swapping the workflows to point to the particular version, persist it in DB
     this.persistWorkflow();
-    setTimeout(()=>{this.workflowCollabService.requestOthersToReload();}, 100);
+    setTimeout(() => {
+      this.workflowCollabService.requestOthersToReload();
+    }, 100);
   }
 
   /**
@@ -528,10 +530,13 @@ export class NavigationComponent {
   }
 
   private listenToLockChange(): void {
-    this.workflowCollabService.getLockStatusStream().subscribe((isLockGranted: boolean) => {
-      if (isLockGranted) this.lockGranted = true;
-      else this.lockGranted = false;
-    });
+    this.workflowCollabService
+      .getLockStatusStream()
+      .pipe(untilDestroyed(this))
+      .subscribe((isLockGranted: boolean) => {
+        if (isLockGranted) this.lockGranted = true;
+        else this.lockGranted = false;
+      });
   }
 
   /**

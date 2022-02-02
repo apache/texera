@@ -40,8 +40,8 @@ export class WorkflowCollabService {
 
   private readonly webSocketEventSubject: Subject<CollabWebsocketEvent> = new Subject();
   private readonly commandMessageSubject: Subject<CommandMessage> = new Subject<CommandMessage>();
-  private readonly lockGrantedSubject: ReplaySubject<boolean> = new ReplaySubject();
-  private readonly reloadSubject: ReplaySubject<boolean> = new ReplaySubject();
+  private readonly lockGrantedSubject: ReplaySubject<boolean> = new ReplaySubject(1);
+  private readonly reloadSubject: ReplaySubject<boolean> = new ReplaySubject(1);
 
   constructor() {
     // In case collab is not enabled, lock should always be granted.
