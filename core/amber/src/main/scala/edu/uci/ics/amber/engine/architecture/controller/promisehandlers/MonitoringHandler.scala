@@ -7,7 +7,6 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.Monitori
   previousCallFinished
 }
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QuerySelfWorkloadMetrics
-import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
@@ -77,6 +76,7 @@ trait MonitoringHandler {
             workflow.getOperator(worker).getWorkerWorkloadInfo(worker).controlInputWorkload =
               metrics.unprocessedControlInputQueueSize + metrics.stashedControlInputQueueSize
             updateWorkloadSamples(worker, samples)
+            println(s"\tWORKER ${worker.toString()}: ${metrics}: ${samples.size}")
           }
         })
       )

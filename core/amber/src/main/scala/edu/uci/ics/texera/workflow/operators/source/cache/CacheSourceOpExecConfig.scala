@@ -21,7 +21,7 @@ class CacheSourceOpExecConfig(
     Array(
       new WorkerLayer(
         makeLayer(tag, "main"),
-        _ => new CacheSourceOpExec(uuid, opResultStorage),
+        _ => new CacheSourceOpExec(opResultStorage.get(uuid)),
         1,
         ForceLocal(),
         RandomDeployment()

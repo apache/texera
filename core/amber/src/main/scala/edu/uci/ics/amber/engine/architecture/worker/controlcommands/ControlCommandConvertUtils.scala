@@ -12,6 +12,7 @@ import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturn
 import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value.Empty
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QuerySelfWorkloadMetrics
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryCurrentInputTupleHandler.QueryCurrentInputTuple
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
@@ -25,10 +26,12 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, Li
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
+import scala.collection.JavaConverters._
+
 object ControlCommandConvertUtils {
   def controlCommandToV2(
-                          controlCommand: ControlCommand[_]
-                        ): ControlCommandV2 = {
+      controlCommand: ControlCommand[_]
+  ): ControlCommandV2 = {
     controlCommand match {
       case StartWorker() =>
         StartWorkerV2()
@@ -36,6 +39,8 @@ object ControlCommandConvertUtils {
         PauseWorkerV2()
       case ResumeWorker() =>
         ResumeWorkerV2()
+      case OpenOperator() =>
+        OpenOperatorV2()
       case AddPartitioning(tag: LinkIdentity, partitioning: Partitioning) =>
         AddPartitioningV2(tag, partitioning)
       case UpdateInputLinking(identifier, inputLink) =>
@@ -44,8 +49,12 @@ object ControlCommandConvertUtils {
         QueryStatisticsV2()
       case QueryCurrentInputTuple() =>
         QueryCurrentInputTupleV2()
-      case InitializeOperatorLogic(code, isSource) =>
-        InitializeOperatorLogicV2(code, isSource)
+      case InitializeOperatorLogic(code, isSource, schema) =>
+        InitializeOperatorLogicV2(
+          code,
+          isSource,
+          schema.getAttributes.asScala.map(attr => attr.getName -> attr.getType.toString).toMap
+        )
       case ReplayCurrentTuple() =>
         ReplayCurrentTupleV2()
       case ModifyOperatorLogic(code, isSource) =>
@@ -83,8 +92,8 @@ object ControlCommandConvertUtils {
       controlReturnV2: ControlReturnV2
   ): Any = {
     controlReturnV2.value match {
-      case Empty => Unit
-      case _: ControlReturnV2.Value.CurrentInputTupleInfo => null
+      case Empty                                                        => Unit
+      case _: ControlReturnV2.Value.CurrentInputTupleInfo               => null
       case selfWorkloadReturn: ControlReturnV2.Value.SelfWorkloadReturn =>
         // TODO: convert real samples back from PythonUDF.
         //  this is left hardcoded now since sampling is not currently enabled for PythonUDF.

@@ -1,11 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import akka.actor.{ActorContext, Cancellable}
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.ControllerInitiateQueryStatistics
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.MonitoringHandler.ControllerInitiateMonitoring
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.{
-  ControllerInitiateQueryResults,
-  ControllerInitiateQueryStatistics
-}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.SkewDetectionHandler.ControllerInitiateSkewDetection
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers._
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputPort
@@ -53,9 +50,6 @@ class ControllerAsyncRPCHandlerInitializer(
     with SkewDetectionHandler {
 
   var statusUpdateAskHandle: Option[Cancellable] = None
-  var resultUpdateAskHandle: Option[Cancellable] = None
-  var monitoringHandle: Option[Cancellable] = None
-  var skewDetectionHandle: Option[Cancellable] = None
 
   // Let `A -> B` be a workflow of two operators. Every worker of `A` records workload samples
   // for every worker of `B`. In `workloadSamples`, the key in the outer map is the worker of `A`.
@@ -65,6 +59,8 @@ class ControllerAsyncRPCHandlerInitializer(
     new mutable.HashMap[ActorVirtualIdentity, mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[
       Long
     ]]]()
+  var monitoringHandle: Option[Cancellable] = None
+  var skewDetectionHandle: Option[Cancellable] = None
 
   def enableStatusUpdate(): Unit = {
     if (controllerConfig.statusUpdateIntervalMs.nonEmpty && statusUpdateAskHandle.isEmpty) {
@@ -80,23 +76,12 @@ class ControllerAsyncRPCHandlerInitializer(
         )(actorContext.dispatcher)
       )
     }
-    if (controllerConfig.resultUpdateIntervalMs.nonEmpty && resultUpdateAskHandle.isEmpty) {
-      resultUpdateAskHandle = Option(
-        actorContext.system.scheduler.scheduleAtFixedRate(
-          0.milliseconds,
-          FiniteDuration.apply(controllerConfig.resultUpdateIntervalMs.get, MILLISECONDS),
-          actorContext.self,
-          ControlInvocation(
-            AsyncRPCClient.IgnoreReplyAndDoNotLog,
-            ControllerInitiateQueryResults(Option.empty)
-          )
-        )(actorContext.dispatcher)
-      )
-    }
   }
 
   def enableMonitoring(): Unit = {
-    if (controllerConfig.monitoringIntervalMs.nonEmpty && monitoringHandle.isEmpty) {
+    if (
+      Constants.monitoringEnabled && controllerConfig.monitoringIntervalMs.nonEmpty && monitoringHandle.isEmpty
+    ) {
       monitoringHandle = Option(
         actorContext.system.scheduler.scheduleAtFixedRate(
           0.milliseconds,
@@ -133,10 +118,6 @@ class ControllerAsyncRPCHandlerInitializer(
     if (statusUpdateAskHandle.nonEmpty) {
       statusUpdateAskHandle.get.cancel()
       statusUpdateAskHandle = Option.empty
-    }
-    if (resultUpdateAskHandle.nonEmpty) {
-      resultUpdateAskHandle.get.cancel()
-      resultUpdateAskHandle = Option.empty
     }
   }
 

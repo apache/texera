@@ -6,10 +6,11 @@ DROP TABLE IF EXISTS `workflow_user_access`;
 DROP TABLE IF EXISTS `user_file_access`;
 DROP TABLE IF EXISTS `file`;
 DROP TABLE IF EXISTS `workflow_of_user`;
-DROP TABLE IF EXISTS `user_dictionary`;
+DROP TABLE IF EXISTS `user_config`;
 DROP TABLE IF EXISTS `user`;
 DROP TABLE IF EXISTS `workflow`;
 DROP TABLE IF EXISTS `workflow_version`;
+DROP TABLE IF EXISTS `workflow_executions`;
 
 SET GLOBAL time_zone = '+00:00'; # this line is mandatory
 
@@ -26,7 +27,7 @@ CREATE TABLE IF NOT EXISTS user
 -- start auto increment userID from 1 because userID 0 means user not exists
   AUTO_INCREMENT = 1;
 
-CREATE TABLE IF NOT EXISTS user_dictionary
+CREATE TABLE IF NOT EXISTS user_config
 (
     `uid`   INT UNSIGNED NOT NULL,
     `key`   varchar(256) NOT NULL,
@@ -113,3 +114,17 @@ CREATE TABLE IF NOT EXISTS workflow_version
     PRIMARY KEY (`vid`),
     FOREIGN KEY (`wid`) REFERENCES `workflow` (`wid`) ON DELETE CASCADE
 ) ENGINE = INNODB;
+
+CREATE TABLE IF NOT EXISTS workflow_executions
+(
+    `eid`             INT UNSIGNED AUTO_INCREMENT NOT NULL,
+    `wid`             INT UNSIGNED NOT NULL,
+    `vid`             INT UNSIGNED NOT NULL,
+    `status`          TINYINT NOT NULL DEFAULT 1,
+    `result`          TEXT, #pointer to volume
+    `starting_time`   TIMESTAMP                   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `completion_time`   TIMESTAMP,
+    PRIMARY KEY (`eid`),
+    FOREIGN KEY (`wid`) REFERENCES `workflow` (`wid`) ON DELETE CASCADE,
+    FOREIGN KEY (`vid`) REFERENCES `workflow_version` (`vid`) ON DELETE CASCADE
+    ) ENGINE = INNODB;
