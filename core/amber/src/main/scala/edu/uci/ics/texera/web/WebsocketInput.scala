@@ -21,7 +21,7 @@ class WebsocketInput(errorHandler: Throwable => Unit) {
               errorHandler(throwable)
           }
         case other =>
-          // skip this one because it doesn't match the type we want
+        // skip this one because it doesn't match the type we want
       }
     })
   }
