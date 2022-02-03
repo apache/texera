@@ -40,6 +40,8 @@ object WorkflowVersionResource {
           .apply(mapper.readTree(patch.content), mapper.readTree(workflow.getContent))
           .toString
       )
+      workflow.setCreationTime(patch.creationTime)
+      workflow.setLastModifiedTime(patch.creationTime)
     }
     // the checked out version is persisted to disk
     workflow
@@ -84,6 +86,7 @@ class WorkflowVersionResource {
         .where(WORKFLOW_VERSION.WID.eq(wid))
         .fetchInto(classOf[VersionEntry])
         .toList
+        .reverse
     }
   }
 

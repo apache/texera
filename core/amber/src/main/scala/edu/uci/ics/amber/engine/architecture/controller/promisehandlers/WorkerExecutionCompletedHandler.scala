@@ -2,16 +2,12 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowCompleted
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.{
-  ControllerInitiateQueryResults,
-  ControllerInitiateQueryStatistics
-}
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.ControllerInitiateQueryStatistics
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.controller.{
   ControllerAsyncRPCHandlerInitializer,
   ControllerState
 }
-import edu.uci.ics.amber.engine.architecture.principal.OperatorResult
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
@@ -33,59 +29,63 @@ object WorkerExecutionCompletedHandler {
 trait WorkerExecutionCompletedHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  registerHandler { (msg: WorkerExecutionCompleted, sender) => {
-    assert(sender.isInstanceOf[ActorVirtualIdentity])
-    // get the corresponding operator of this worker
-    val operator = workflow.getOperator(sender)
-    operatorEndTime(workflow.getOperator(sender).id) = System.nanoTime()
+  registerHandler { (msg: WorkerExecutionCompleted, sender) =>
+    {
+      assert(sender.isInstanceOf[ActorVirtualIdentity])
+      // get the corresponding operator of this worker
+      val operator = workflow.getOperator(sender)
+      operatorEndTime(workflow.getOperator(sender).id) = System.nanoTime()
 
-    // after worker execution is completed, query statistics immediately one last time
-    // because the worker might be killed before the next query statistics interval
-    // and the user sees the last update before completion
-    val statsRequests = new mutable.MutableList[Future[Unit]]()
-    statsRequests += execute(ControllerInitiateQueryStatistics(Option(List(sender))), CONTROLLER)
+      // after worker execution is completed, query statistics immediately one last time
+      // because the worker might be killed before the next query statistics interval
+      // and the user sees the last update before completion
+      val statsRequests = new mutable.MutableList[Future[Unit]]()
+      statsRequests += execute(ControllerInitiateQueryStatistics(Option(List(sender))), CONTROLLER)
 
-    // if operator is sink, additionally query result immediately one last time
-    val resultRequests = new mutable.MutableList[Future[Map[String, OperatorResult]]]()
-    if (operator.isInstanceOf[SinkOpExecConfig]) {
-      resultRequests += execute(ControllerInitiateQueryResults(Option(List(sender))), CONTROLLER)
-    }
-
-    val allRequests = Future.collect(statsRequests ++ resultRequests)
-
-    allRequests.flatMap(_ => {
-      // if entire workflow is completed, clean up
-      if (workflow.isCompleted) {
-        workflowEndTime = System.nanoTime()
-        println(
-          s"\tTOTAL EXECUTION TIME FOR WORKFLOW ${(workflowEndTime - workflowStartTime) / 1e9d}s"
-        )
-
-        operatorStartTime.keys.foreach(opID => {
-          if (operatorEndTime.contains(opID)) {
-            println(s"\tTOTAL EXECUTION FOR OPERATOR ${
-              opID
-                .toString()
-            } = ${(operatorEndTime(opID) - operatorStartTime(opID)) / 1e9d}s")
-          }
-          workflow.getOperator(opID).getAllWorkers.foreach(worker => {
-            println(s"\t\tI/O count FOR ${worker.toString()}: ${workflow.getWorkerInfo(worker).stats.inputTupleCount}:${workflow.getWorkerInfo(worker).stats.outputTupleCount}")
-          })
-        })
-
-        // send query result again to collect final execution result
-        val finalResult = execute(ControllerInitiateQueryResults(), CONTROLLER)
-        // after query result come back: send completed event, cleanup ,and kill workflow
-        finalResult.flatMap(ret => {
-          sendToClient(WorkflowCompleted(ret))
-          disableStatusUpdate()
-          disableMonitoring()
-          Future.Done
-        })
-      } else {
-        Future.Done
+      // if operator is sink, additionally query result immediately one last time
+      val resultRequests = new mutable.MutableList[Future[Map[String, OperatorResult]]]()
+      if (operator.isInstanceOf[SinkOpExecConfig]) {
+        resultRequests += execute(ControllerInitiateQueryResults(Option(List(sender))), CONTROLLER)
       }
-    })
-  }
+
+      val allRequests = Future.collect(statsRequests ++ resultRequests)
+
+      allRequests.flatMap(_ => {
+        // if entire workflow is completed, clean up
+        if (workflow.isCompleted) {
+          workflowEndTime = System.nanoTime()
+          println(
+            s"\tTOTAL EXECUTION TIME FOR WORKFLOW ${(workflowEndTime - workflowStartTime) / 1e9d}s"
+          )
+
+          operatorStartTime.keys.foreach(opID => {
+            if (operatorEndTime.contains(opID)) {
+              println(s"\tTOTAL EXECUTION FOR OPERATOR ${opID
+                .toString()} = ${(operatorEndTime(opID) - operatorStartTime(opID)) / 1e9d}s")
+            }
+            workflow
+              .getOperator(opID)
+              .getAllWorkers
+              .foreach(worker => {
+                println(
+                  s"\t\tI/O count FOR ${worker.toString()}: ${workflow.getWorkerInfo(worker).stats.inputTupleCount}:${workflow.getWorkerInfo(worker).stats.outputTupleCount}"
+                )
+              })
+          })
+
+          // send query result again to collect final execution result
+          val finalResult = execute(ControllerInitiateQueryResults(), CONTROLLER)
+          // after query result come back: send completed event, cleanup ,and kill workflow
+          finalResult.flatMap(ret => {
+            sendToClient(WorkflowCompleted(ret))
+            disableStatusUpdate()
+            disableMonitoring()
+            Future.Done
+          })
+        } else {
+          Future.Done
+        }
+      })
+    }
   }
 }

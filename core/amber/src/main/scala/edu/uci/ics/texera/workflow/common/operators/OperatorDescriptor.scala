@@ -25,7 +25,6 @@ import edu.uci.ics.texera.workflow.operators.randomksampling.RandomKSamplingOpDe
 import edu.uci.ics.texera.workflow.operators.regex.RegexOpDesc
 import edu.uci.ics.texera.workflow.operators.reservoirsampling.ReservoirSamplingOpDesc
 import edu.uci.ics.texera.workflow.operators.sentiment.SentimentAnalysisOpDesc
-import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2.TwitterFullArchiveSearchSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.csv.CSVScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONLScanSourceOpDesc
@@ -46,8 +45,9 @@ import edu.uci.ics.texera.workflow.operators.visualization.pieChart.PieChartOpDe
 import edu.uci.ics.texera.workflow.operators.visualization.scatterplot.ScatterplotOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.WordCloudOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
-
 import java.util.UUID
+
+import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 
 @JsonTypeInfo(
   use = JsonTypeInfo.Id.NAME,
@@ -64,7 +64,7 @@ import java.util.UUID
       value = classOf[TwitterFullArchiveSearchSourceOpDesc],
       name = "TwitterFullArchiveSearch"
     ),
-    new Type(value = classOf[SimpleSinkOpDesc], name = "SimpleSink"),
+    new Type(value = classOf[ProgressiveSinkOpDesc], name = "SimpleSink"),
     new Type(value = classOf[RegexOpDesc], name = "Regex"),
     new Type(value = classOf[SpecializedFilterOpDesc], name = "Filter"),
     new Type(value = classOf[SentimentAnalysisOpDesc], name = "SentimentAnalysis"),

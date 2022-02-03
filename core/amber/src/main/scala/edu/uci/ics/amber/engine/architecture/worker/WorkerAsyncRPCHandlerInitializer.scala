@@ -36,6 +36,7 @@ class WorkerAsyncRPCHandlerInitializer(
     receiver: AsyncRPCServer
 ) extends AsyncRPCHandlerInitializer(source, receiver)
     with AmberLogging
+    with OpenOperatorHandler
     with PauseHandler
     with AddPartitioningHandler
     with QueryAndRemoveBreakpointsHandler
@@ -46,6 +47,8 @@ class WorkerAsyncRPCHandlerInitializer(
     with UpdateInputLinkingHandler
     with AssignLocalBreakpointHandler
     with ShutdownDPThreadHandler
-    with MonitoringHandler {
+    with MonitoringHandler
+    with SendImmutableStateHandler
+    with AcceptImmutableStateHandler {
   var lastReportTime = 0L
 }

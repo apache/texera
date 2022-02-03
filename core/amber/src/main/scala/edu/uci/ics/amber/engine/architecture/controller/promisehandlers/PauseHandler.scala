@@ -71,6 +71,7 @@ trait PauseHandler {
           sendToClient(WorkflowPaused())
           disableStatusUpdate() // to be enabled in resume
           disableMonitoring()
+          disableSkewHandling()
         }
     }
   }

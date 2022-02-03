@@ -1,14 +1,12 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import akka.actor.{ActorContext, Cancellable}
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.ControllerInitiateQueryStatistics
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.MonitoringHandler.ControllerInitiateMonitoring
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.{
-  ControllerInitiateQueryResults,
-  ControllerInitiateQueryStatistics
-}
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.SkewDetectionHandler.ControllerInitiateSkewDetection
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers._
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputPort
-import edu.uci.ics.amber.engine.common.AmberLogging
+import edu.uci.ics.amber.engine.common.{AmberLogging, Constants}
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.{
@@ -50,8 +48,8 @@ class ControllerAsyncRPCHandlerInitializer(
     with MonitoringHandler {
 
   var statusUpdateAskHandle: Option[Cancellable] = None
-  var resultUpdateAskHandle: Option[Cancellable] = None
   var monitoringHandle: Option[Cancellable] = None
+  var skewDetectionHandle: Option[Cancellable] = None
   var workflowStartTime: Long = _
   var workflowEndTime: Long = _
   var operatorStartTime: mutable.HashMap[OperatorIdentity, Long] =
@@ -73,23 +71,12 @@ class ControllerAsyncRPCHandlerInitializer(
         )(actorContext.dispatcher)
       )
     }
-    if (controllerConfig.resultUpdateIntervalMs.nonEmpty && resultUpdateAskHandle.isEmpty) {
-      resultUpdateAskHandle = Option(
-        actorContext.system.scheduler.scheduleAtFixedRate(
-          0.milliseconds,
-          FiniteDuration.apply(controllerConfig.resultUpdateIntervalMs.get, MILLISECONDS),
-          actorContext.self,
-          ControlInvocation(
-            AsyncRPCClient.IgnoreReplyAndDoNotLog,
-            ControllerInitiateQueryResults(Option.empty)
-          )
-        )(actorContext.dispatcher)
-      )
-    }
   }
 
   def enableMonitoring(): Unit = {
-    if (controllerConfig.monitoringIntervalMs.nonEmpty && monitoringHandle.isEmpty) {
+    if (
+      Constants.monitoringEnabled && controllerConfig.monitoringIntervalMs.nonEmpty && monitoringHandle.isEmpty
+    ) {
       monitoringHandle = Option(
         actorContext.system.scheduler.scheduleAtFixedRate(
           0.milliseconds,
@@ -104,14 +91,28 @@ class ControllerAsyncRPCHandlerInitializer(
     }
   }
 
+  def enableSkewHandling(): Unit = {
+    if (
+      Constants.reshapeSkewHandlingEnabled && controllerConfig.skewDetectionIntervalMs.nonEmpty && skewDetectionHandle.isEmpty
+    ) {
+      skewDetectionHandle = Option(
+        actorContext.system.scheduler.scheduleAtFixedRate(
+          5000.milliseconds,
+          FiniteDuration.apply(controllerConfig.skewDetectionIntervalMs.get, MILLISECONDS),
+          actorContext.self,
+          ControlInvocation(
+            AsyncRPCClient.IgnoreReplyAndDoNotLog,
+            ControllerInitiateSkewDetection()
+          )
+        )(actorContext.dispatcher)
+      )
+    }
+  }
+
   def disableStatusUpdate(): Unit = {
     if (statusUpdateAskHandle.nonEmpty) {
       statusUpdateAskHandle.get.cancel()
       statusUpdateAskHandle = Option.empty
-    }
-    if (resultUpdateAskHandle.nonEmpty) {
-      resultUpdateAskHandle.get.cancel()
-      resultUpdateAskHandle = Option.empty
     }
   }
 
@@ -120,6 +121,14 @@ class ControllerAsyncRPCHandlerInitializer(
       monitoringHandle.get.cancel()
       monitoringHandle = Option.empty
     }
+  }
+
+  def disableSkewHandling(): Unit = {
+    if (skewDetectionHandle.nonEmpty) {
+      skewDetectionHandle.get.cancel()
+      skewDetectionHandle = Option.empty
+    }
+  
   }
 
 }
