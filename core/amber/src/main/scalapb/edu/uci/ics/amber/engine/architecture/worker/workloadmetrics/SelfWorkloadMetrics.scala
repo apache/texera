@@ -5,11 +5,6 @@
 
 package edu.uci.ics.amber.engine.architecture.worker.workloadmetrics
 
-/** TODO: change the names to remove "self"
-  *
-  * @param unprocessedDataInputQueueSize
-  *   TODO: change the names to remove "queue_size" which is implicit
-  */
 @SerialVersionUID(0L)
 final case class SelfWorkloadMetrics(
     unprocessedDataInputQueueSize: _root_.scala.Long,
@@ -164,8 +159,8 @@ object SelfWorkloadMetrics extends scalapb.GeneratedMessageCompanion[edu.uci.ics
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = WorkloadmetricsProto.javaDescriptor.getMessageTypes().get(0)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = WorkloadmetricsProto.scalaDescriptor.messages(0)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = WorkloadmetricsProto.javaDescriptor.getMessageTypes().get(2)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = WorkloadmetricsProto.scalaDescriptor.messages(2)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)

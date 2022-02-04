@@ -6,12 +6,12 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.Monitori
   ControllerInitiateMonitoring,
   previousCallFinished
 }
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerWorkloadInfo
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QuerySelfWorkloadMetrics
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 object MonitoringHandler {
   var previousCallFinished = true
@@ -24,6 +24,41 @@ object MonitoringHandler {
 trait MonitoringHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
+  def updateWorkloadSamples(
+      collectedAt: ActorVirtualIdentity,
+      allDownstreamWorkerToNewSamples: ArrayBuffer[
+        mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]
+      ]
+  ): Unit = {
+    if (allDownstreamWorkerToNewSamples.isEmpty) {
+      return
+    }
+    val existingSamples = workloadSamples.getOrElse(
+      collectedAt,
+      new mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]()
+    )
+    for (workerToNewSamples <- allDownstreamWorkerToNewSamples) {
+      for ((wid, samples) <- workerToNewSamples) {
+        var existingSamplesForWorker = existingSamples.getOrElse(wid, new ArrayBuffer[Long]())
+        // Remove the lowest sample as it may be incomplete
+        samples.remove(samples.indexOf(samples.min))
+        existingSamplesForWorker.appendAll(samples)
+
+        // clean up to save memory
+        val maxSamplesPerWorker = 500
+        if (existingSamplesForWorker.size >= maxSamplesPerWorker) {
+          existingSamplesForWorker = existingSamplesForWorker.slice(
+            existingSamplesForWorker.size - maxSamplesPerWorker,
+            existingSamplesForWorker.size
+          )
+        }
+
+        existingSamples(wid) = existingSamplesForWorker
+      }
+    }
+    workloadSamples(collectedAt) = existingSamples
+  }
+
   registerHandler((msg: ControllerInitiateMonitoring, sender) => {
     if (!previousCallFinished) {
       Future.Done
@@ -34,11 +69,14 @@ trait MonitoringHandler {
 
       // send Monitoring message
       val requests = workers.map(worker =>
-        send(QuerySelfWorkloadMetrics(), worker).map(metric => {
-          workflow.getOperator(worker).getWorkerWorkloadInfo(worker).dataInputWorkload =
-            metric.unprocessedDataInputQueueSize + metric.stashedDataInputQueueSize
-          workflow.getOperator(worker).getWorkerWorkloadInfo(worker).controlInputWorkload =
-            metric.unprocessedControlInputQueueSize + metric.stashedControlInputQueueSize
+        send(QuerySelfWorkloadMetrics(), worker).map({
+          case (metrics, samples) => {
+            workflow.getOperator(worker).getWorkerWorkloadInfo(worker).dataInputWorkload =
+              metrics.unprocessedDataInputQueueSize + metrics.stashedDataInputQueueSize
+            workflow.getOperator(worker).getWorkerWorkloadInfo(worker).controlInputWorkload =
+              metrics.unprocessedControlInputQueueSize + metrics.stashedControlInputQueueSize
+            updateWorkloadSamples(worker, samples)
+          }
         })
       )
 

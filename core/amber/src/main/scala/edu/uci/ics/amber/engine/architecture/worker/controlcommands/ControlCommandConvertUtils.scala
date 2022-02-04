@@ -21,7 +21,10 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
+
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 import scala.collection.JavaConverters._
 
@@ -89,9 +92,16 @@ object ControlCommandConvertUtils {
       controlReturnV2: ControlReturnV2
   ): Any = {
     controlReturnV2.value match {
-      case Empty                                          => Unit
-      case _: ControlReturnV2.Value.CurrentInputTupleInfo => null
-      case _                                              => controlReturnV2.value.value
+      case Empty                                                        => Unit
+      case _: ControlReturnV2.Value.CurrentInputTupleInfo               => null
+      case selfWorkloadReturn: ControlReturnV2.Value.SelfWorkloadReturn =>
+        // TODO: convert real samples back from PythonUDF.
+        //  this is left hardcoded now since sampling is not currently enabled for PythonUDF.
+        (
+          selfWorkloadReturn.value.metrics,
+          new ArrayBuffer[mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]]()
+        )
+      case _ => controlReturnV2.value.value
     }
   }
 

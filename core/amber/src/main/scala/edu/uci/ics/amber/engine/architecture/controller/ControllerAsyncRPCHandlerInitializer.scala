@@ -16,6 +16,8 @@ import edu.uci.ics.amber.engine.common.rpc.{
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.{DurationInt, FiniteDuration, MILLISECONDS}
 
 class ControllerAsyncRPCHandlerInitializer(
@@ -48,6 +50,15 @@ class ControllerAsyncRPCHandlerInitializer(
     with SkewDetectionHandler {
 
   var statusUpdateAskHandle: Option[Cancellable] = None
+
+  // Let `A -> B` be a workflow of two operators. Every worker of `A` records workload samples
+  // for every worker of `B`. In `workloadSamples`, the key in the outer map is the worker of `A`.
+  // The value is a map that has the workload samples for every worker of `B` as recorded in the
+  // worker of `A`. Example: {A1 -> {B1->[100,200], B2->[300,200]}, A2 -> {B1->[500,300], B2->[700,800]}}
+  var workloadSamples =
+    new mutable.HashMap[ActorVirtualIdentity, mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[
+      Long
+    ]]]()
   var monitoringHandle: Option[Cancellable] = None
   var skewDetectionHandle: Option[Cancellable] = None
 
