@@ -197,7 +197,7 @@ export class WorkflowActionService {
           modifiesWorkflow: true,
           execute: () => {},
           undo: () => this.deleteLinkWithIDInternal(link.linkID),
-          redo: () => this.addLinkInternal(link),
+          redo: () => this.addLinksInternal([link]),
         };
         const commandMessage: CommandMessage = { action: "addLink", parameters: [link], type: "execute" };
         this.workflowCollabService.sendCommand(commandMessage);
@@ -394,7 +394,7 @@ export class WorkflowActionService {
         // turn off multiselect since there's only one operator added
         this.jointGraphWrapper.setMultiSelectMode(false);
         // add operator
-        this.addOperatorInternal(operator, point);
+        this.addOperatorsInternal([{operator, point}]);
         // highlight the newly added operator
         this.jointGraphWrapper.highlightOperators(operator.operatorID);
       },
@@ -421,7 +421,7 @@ export class WorkflowActionService {
    */
   public deleteOperator(operatorID: string): void {
     const operator = this.getTexeraGraph().getOperator(operatorID);
-    const position = this.getOperatorGroup().getOperatorPositionByGroup(operatorID);
+    const point = this.getOperatorGroup().getOperatorPositionByGroup(operatorID);
     const layer = this.getOperatorGroup().getOperatorLayerByGroup(operatorID);
 
     const linksToDelete = new Map<OperatorLink, number>();
@@ -443,10 +443,10 @@ export class WorkflowActionService {
         }
       },
       undo: () => {
-        this.addOperatorInternal(operator, position);
+        this.addOperatorsInternal([{operator, point}]);
         this.getJointGraphWrapper().setCellLayer(operatorID, layer);
         linksToDelete.forEach((linkLayer, link) => {
-          this.addLinkInternal(link);
+          this.addLinksInternal([link]);
           this.getJointGraphWrapper().setCellLayer(link.linkID, linkLayer);
         });
         if (group && this.getOperatorGroup().hasGroup(group.groupID)) {
@@ -488,7 +488,7 @@ export class WorkflowActionService {
         // unhighlight previous highlights
         this.jointGraphWrapper.unhighlightElements(currentHighlights);
         this.jointGraphWrapper.setMultiSelectMode(operatorsAndPositions.length > 1);
-        this.addOperatorsInternal(operatorsAndPositions);
+        this.addOperatorsInternal(operatorsAndPositions.map(o => ({operator:o.op, point: o.pos})));
         operatorsAndPositions.forEach(o => {
           this.jointGraphWrapper.highlightOperators(o.op.operatorID);
         });
@@ -630,7 +630,7 @@ export class WorkflowActionService {
       },
       undo: () => {
         operatorsAndPositions.forEach((pos, operator) => {
-          this.addOperatorInternal(operator, pos.position);
+          this.addOperatorsInternal([{operator: operator, point: pos.position}]);
           this.getJointGraphWrapper().setCellLayer(operator.operatorID, pos.layer);
           // if the group still exists, add the operator back to the group
           const groupInfo = groups.get(operator.operatorID);
@@ -639,7 +639,7 @@ export class WorkflowActionService {
           }
         });
         linksToDelete.forEach((layer, link) => {
-          this.addLinkInternal(link);
+          this.addLinksInternal([link]);
           // if the link is added to a collapsed group, change its saved layer in the group
           const group = this.getOperatorGroup().getGroupByLink(link.linkID);
           if (group && group.collapsed) {
@@ -714,7 +714,7 @@ export class WorkflowActionService {
   public addLink(link: OperatorLink): void {
     const command: Command = {
       modifiesWorkflow: true,
-      execute: () => this.addLinkInternal(link),
+      execute: () => this.addLinksInternal([link]),
       undo: () => this.deleteLinkWithIDInternal(link.linkID),
     };
     const commandMessage: CommandMessage = { action: "addLink", parameters: [link], type: "execute" };
@@ -734,7 +734,7 @@ export class WorkflowActionService {
       modifiesWorkflow: true,
       execute: () => this.deleteLinkWithIDInternal(linkID),
       undo: () => {
-        this.addLinkInternal(link);
+        this.addLinksInternal([link]);
         const group = this.getOperatorGroup().getGroupByLink(linkID);
         if (group && group.collapsed) {
           const linkInfo = group.links.get(linkID);
@@ -851,10 +851,11 @@ export class WorkflowActionService {
       undo: () => {
         for (let i = 0; i < groupIDs.length; i++) {
           // add back operators and links of deleted groups
-          operators[i].forEach(operatorInfo => this.addOperatorInternal(operatorInfo.operator, operatorInfo.position));
-          links[i].forEach(linkInfo => this.addLinkInternal(linkInfo.link));
-          inLinks[i].forEach(operatorLink => this.addLinkInternal(operatorLink));
-          outLinks[i].forEach(operatorLink => this.addLinkInternal(operatorLink));
+          operators[i].forEach(operatorInfo => this.addOperatorsInternal(
+            [{operator: operatorInfo.operator, point: operatorInfo.position}]));
+          links[i].forEach(linkInfo => this.addLinksInternal([linkInfo.link]));
+          inLinks[i].forEach(operatorLink => this.addLinksInternal([operatorLink]));
+          outLinks[i].forEach(operatorLink => this.addLinksInternal([operatorLink]));
 
           // re-create group with same operators and ID
           const recreatedGroup = this.operatorGroup.getNewGroup(
@@ -962,6 +963,7 @@ export class WorkflowActionService {
       () => {
         this.setWorkflowMetadata(workflow);
         // remove the existing operators on the paper currently
+        
         this.deleteOperatorsAndLinks(
           this.getTexeraGraph()
             .getAllOperators()
@@ -1119,32 +1121,13 @@ export class WorkflowActionService {
     this.workflowCollabService.sendCommand(commandMessage);
   }
 
-  private addOperatorInternal(operator: OperatorPredicate, point: Point): void {
-    // check that the operator doesn't exist
-    this.texeraGraph.assertOperatorNotExists(operator.operatorID);
-    // check that the operator type exists
-    if (!this.operatorMetadataService.operatorTypeExists(operator.operatorType)) {
-      throw new Error(`operator type ${operator.operatorType} is invalid`);
-    }
-    // get the JointJS UI element for operator
-    const operatorJointElement = this.jointUIService.getJointOperatorElement(operator, point);
-
-    // add operator to joint graph first
-    // if jointJS throws an error, it won't cause the inconsistency in texera graph
-    this.jointGraph.addCell(operatorJointElement);
-    this.jointGraphWrapper.setCellLayer(operator.operatorID, this.operatorGroup.getHighestLayer() + 1);
-
-    // add operator to texera graph
-    this.texeraGraph.addOperator(operator);
-  }
-
-  private addOperatorsInternal(operatorsAndPositions: readonly { op: OperatorPredicate; pos: Point }[]): void {
+  private addOperatorsInternal(operatorsAndPositions: readonly { operator: OperatorPredicate; point: Point }[]): void {
 
     const operatorJointElements: joint.dia.Element[] = new Array(operatorsAndPositions.length);
 
     for (let i = 0; i < operatorsAndPositions.length; i++){
-      let operator = operatorsAndPositions[i].op;
-      let point = operatorsAndPositions[i].pos;
+      let operator = operatorsAndPositions[i].operator;
+      let point = operatorsAndPositions[i].point;
 
       // check that the operator doesn't exist
       this.texeraGraph.assertOperatorNotExists(operator.operatorID);
@@ -1162,8 +1145,8 @@ export class WorkflowActionService {
     this.jointGraph.addCells(operatorJointElements);
 
     for (let i = 0; i < operatorsAndPositions.length; i++){
-      let operator = operatorsAndPositions[i].op;
-      let point = operatorsAndPositions[i].pos;
+      let operator = operatorsAndPositions[i].operator;
+      let point = operatorsAndPositions[i].point;
       this.jointGraphWrapper.setCellLayer(operator.operatorID, this.operatorGroup.getHighestLayer() + 1);
       // add operator to texera graph
       this.texeraGraph.addOperator(operator);
@@ -1179,35 +1162,6 @@ export class WorkflowActionService {
       // remove the operator from JointJS
       this.jointGraph.getCell(operatorID).remove();
       // JointJS operator delete event will propagate and trigger Texera operator delete
-    }
-  }
-
-  private addLinkInternal(link: OperatorLink): void {
-    this.texeraGraph.assertLinkNotExists(link);
-    this.texeraGraph.assertLinkIsValid(link);
-
-    const sourceGroup = this.operatorGroup.getGroupByOperator(link.source.operatorID);
-    const targetGroup = this.operatorGroup.getGroupByOperator(link.target.operatorID);
-
-    if (sourceGroup && targetGroup && sourceGroup.groupID === targetGroup.groupID && sourceGroup.collapsed) {
-      this.texeraGraph.addLink(link);
-    } else {
-      // if a group is collapsed, jointjs target is the group not the operator
-      const jointLinkCell = JointUIService.getJointLinkCell(link);
-      if (sourceGroup && sourceGroup.collapsed) {
-        jointLinkCell.set("source", { id: sourceGroup.groupID });
-      }
-      if (targetGroup && targetGroup.collapsed) {
-        jointLinkCell.set("target", { id: targetGroup.groupID });
-      }
-
-      // manually add a link element (normally automatic when syncTexeraGraph = true)
-      this.operatorGroup.setSyncTexeraGraph(false);
-      this.jointGraph.addCell(jointLinkCell);
-      this.jointGraphWrapper.setCellLayer(link.linkID, this.operatorGroup.getHighestLayer() + 1);
-      this.operatorGroup.setSyncTexeraGraph(true);
-
-      this.texeraGraph.addLink(link);
     }
   }
 
