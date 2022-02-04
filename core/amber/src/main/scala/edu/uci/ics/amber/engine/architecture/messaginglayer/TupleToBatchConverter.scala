@@ -17,8 +17,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 /** This class is a container of all the transfer partitioners.
-  *
-  * @param selfID         ActorVirtualIdentity of self.
+  * @param selfID ActorVirtualIdentity of self.
   * @param dataOutputPort DataOutputPort
   */
 class TupleToBatchConverter(
@@ -47,7 +46,6 @@ class TupleToBatchConverter(
 
   /**
     * Add down stream operator and its corresponding Partitioner.
-    *
     * @param partitioning Partitioning, describes how and whom to send to.
     */
   def addPartitionerWithPartitioning(tag: LinkIdentity, partitioning: Partitioning): Unit = {

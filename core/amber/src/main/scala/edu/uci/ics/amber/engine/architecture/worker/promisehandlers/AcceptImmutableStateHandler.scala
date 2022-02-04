@@ -21,7 +21,7 @@ import scala.collection.mutable.ArrayBuffer
 object AcceptImmutableStateHandler {
   final case class AcceptImmutableState(
       buildHashMap: mutable.HashMap[Any, ArrayBuffer[Tuple]]
-  ) extends ControlCommand[Unit]
+  ) extends ControlCommand[Boolean]
 }
 
 trait AcceptImmutableStateHandler {
@@ -39,6 +39,7 @@ trait AcceptImmutableStateHandler {
           "Reshape: AcceptImmutableStateHandler exception" + exception
             .getMessage() + " stacktrace " + exception.getStackTrace()
         )
+        false
     }
   }
 }
