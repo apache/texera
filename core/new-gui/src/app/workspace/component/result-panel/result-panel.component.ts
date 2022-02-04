@@ -14,6 +14,7 @@ import { DynamicComponentConfig } from "../../../common/type/dynamic-component-c
 import { DebuggerFrameComponent } from "./debugger-frame/debugger-frame.component";
 import { isPythonUdf, isSink } from "../../service/workflow-graph/model/workflow-graph";
 import { environment } from "../../../../environments/environment";
+import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
 
 export type ResultFrameComponent =
   | ResultTableFrameComponent
@@ -40,17 +41,29 @@ export class ResultPanelComponent implements OnInit {
   currentOperatorId?: string;
 
   showResultPanel: boolean = false;
+  previewWorkflowVersion: boolean = false;
 
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
     private resultPanelToggleService: ResultPanelToggleService,
     private workflowActionService: WorkflowActionService,
-    private workflowResultService: WorkflowResultService
+    private workflowResultService: WorkflowResultService,
+    private workflowVersionService: WorkflowVersionService
   ) {}
 
   ngOnInit(): void {
     this.registerAutoRerenderResultPanel();
     this.registerAutoOpenResultPanel();
+    this.handleResultPanelForVersionPreview();
+  }
+
+  handleResultPanelForVersionPreview() {
+    this.workflowVersionService
+      .getDisplayParticularVersionStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(displayVersionFlag => {
+        this.previewWorkflowVersion = displayVersionFlag;
+      });
   }
 
   registerAutoOpenResultPanel() {
@@ -124,6 +137,11 @@ export class ResultPanelComponent implements OnInit {
   }
 
   rerenderResultPanel(): void {
+    // if the workflow on the paper is a version preview then this is a temporary workaround until a future PR
+    // TODO: let the results be tied with an execution ID instead of a workflow ID
+    if (this.previewWorkflowVersion) {
+      return;
+    }
     // update highlighted operator
     const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
     const currentHighlightedOperator = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;

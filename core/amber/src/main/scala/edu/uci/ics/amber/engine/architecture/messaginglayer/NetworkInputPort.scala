@@ -39,4 +39,9 @@ class NetworkInputPort[T](
     }
   }
 
+  def getStashedMessageCount(): Long = {
+    if (idToOrderingEnforcers.size == 0) { return 0 }
+    idToOrderingEnforcers.values.map(ordEnforcer => ordEnforcer.ofoMap.size).sum
+  }
+
 }

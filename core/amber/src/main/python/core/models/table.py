@@ -1,8 +1,6 @@
-from typing import List, TypeVar
+from typing import TypeVar
 
 import pandas
-
-from . import TupleLike
 
 TableLike = TypeVar('TableLike', pandas.DataFrame, pandas.DataFrame)
 

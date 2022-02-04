@@ -9,7 +9,7 @@ from core.architecture.sendsemantics.one_to_one_partitioner import OneToOneParti
 from core.architecture.sendsemantics.partitioner import Partitioner
 from core.architecture.sendsemantics.round_robin_partitioner import RoundRobinPartitioner
 from core.models import Tuple
-from core.models.payload import DataFrame, DataPayload
+from core.models.payload import OutputDataFrame, DataPayload
 from core.util import get_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import HashBasedShufflePartitioning, \
     OneToOnePartitioning, Partitioning, \
@@ -39,7 +39,7 @@ class TupleToBatchConverter:
         partitioner: type = self._partitioning_to_partitioner[type(the_partitioning)]
         self._partitioners.update({tag: partitioner(the_partitioning)})
 
-    def tuple_to_batch(self, tuple_: Tuple) -> Iterator[typing.Tuple[ActorVirtualIdentity, DataFrame]]:
+    def tuple_to_batch(self, tuple_: Tuple) -> Iterator[typing.Tuple[ActorVirtualIdentity, OutputDataFrame]]:
         return chain(*(partitioner.add_tuple_to_batch(tuple_) for partitioner in self._partitioners.values()))
 
     def emit_end_of_upstream(self) -> Iterable[typing.Tuple[ActorVirtualIdentity, DataPayload]]:
