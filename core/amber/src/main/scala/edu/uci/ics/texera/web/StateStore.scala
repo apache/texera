@@ -2,41 +2,32 @@ package edu.uci.ics.texera.web
 
 import edu.uci.ics.texera.Utils.withLock
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
-import rx.lang.scala.{Observable, Subject, Subscription}
+import io.reactivex.rxjava3.core.{ObservableSource, Single, SingleSource}
+import io.reactivex.rxjava3.subjects.BehaviorSubject
 
 import java.util.concurrent.locks.ReentrantLock
 import scala.collection.mutable
 
 class StateStore[T](defaultState: T) {
 
-  private var isModifying = false
-  private implicit val lock: ReentrantLock = new ReentrantLock()
-
-  private var currentState: T = defaultState
-  private val stateChangedSubject = Subject[(T, T)].toSerialized
+  private val stateSubject = new BehaviorSubject[T]
+  private val serializedSubject = stateSubject.toSerialized
+  private val diffSubject = serializedSubject.startWith(Single.just(defaultState)).buffer(2)
   private val syncableState = new SyncableState()
 
   def getStateThenConsume[X](next: T => X): X = {
-    withLock {
-      next(currentState)
-    }
+      next(stateSubject.getValue)
   }
 
   def updateState(func: T => T): Unit = {
-    withLock {
-      assert(!isModifying, "Cannot recursively update state or update state inside onChanged")
-      isModifying = true
-      val newState = func(currentState)
-      stateChangedSubject.onNext((currentState, newState))
-      isModifying = false
-      currentState = newState
-    }
+      val newState = func(stateSubject.getValue)
+      serializedSubject.onNext(newState)
   }
 
-  def getObservable: Observable[(T, T)] = stateChangedSubject
+  def getObservable: Observable[(T, T)] = stateSubject
 
   class SyncableState {
-    stateChangedSubject.subscribe(diff => {
+    stateSubject.subscribe(diff => {
       val oldState = diff._1
       val newState = diff._2
       val events = onChangedHandlers.values.flatMap(handler => handler(oldState, newState))

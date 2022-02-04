@@ -1,17 +1,19 @@
 package edu.uci.ics.texera.web
 
 import edu.uci.ics.texera.web.model.websocket.request.TexeraWebSocketRequest
+import io.reactivex.rxjava3.disposables.Disposable
+import io.reactivex.rxjava3.subjects.PublishSubject
 import org.jooq.types.UInteger
-import rx.lang.scala.{Subject, Subscription}
+import scala.compat.java8.FunctionConverters._
 
 import scala.reflect.{ClassTag, classTag}
 
 class WebsocketInput(errorHandler: Throwable => Unit) {
-  private val wsInput = Subject[(TexeraWebSocketRequest, Option[UInteger])]
+  private val wsInput = new PublishSubject[(TexeraWebSocketRequest, Option[UInteger])]
   def subscribe[T <: TexeraWebSocketRequest: ClassTag](
       callback: (T, Option[UInteger]) => Unit
-  ): Subscription = {
-    wsInput.subscribe(evt => {
+  ): Disposable = {
+    wsInput.subscribe((evt:(TexeraWebSocketRequest, Option[UInteger])) => {
       evt._1 match {
         case req: T if classTag[T].runtimeClass.isInstance(req) =>
           try {

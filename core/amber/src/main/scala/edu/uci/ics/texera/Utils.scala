@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
+import io.reactivex.rxjava3.functions.Consumer
 import org.apache.lucene.analysis.CharArraySet
 
 import java.nio.file.{Files, Path, Paths}
@@ -122,4 +123,6 @@ object Utils {
       lock.unlock()
     }
   }
+
+
 }

@@ -3,28 +3,14 @@ package edu.uci.ics.texera.web.service
 import java.util.concurrent.ConcurrentHashMap
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.AmberUtils
-import edu.uci.ics.texera.web.model.websocket.event.{
-  TexeraWebSocketEvent,
-  WorkflowErrorEvent,
-  WorkflowExecutionErrorEvent
-}
-import edu.uci.ics.texera.web.{
-  SubscriptionManager,
-  TexeraWebApplication,
-  WebsocketInput,
-  WorkflowLifecycleManager,
-  WorkflowStateStore
-}
-import edu.uci.ics.texera.web.model.websocket.request.{
-  TexeraWebSocketRequest,
-  WorkflowExecuteRequest,
-  WorkflowKillRequest
-}
+import edu.uci.ics.texera.web.model.websocket.event.{TexeraWebSocketEvent, WorkflowErrorEvent, WorkflowExecutionErrorEvent}
+import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication, WebsocketInput, WorkflowLifecycleManager, WorkflowStateStore}
+import edu.uci.ics.texera.web.model.websocket.request.{TexeraWebSocketRequest, WorkflowExecuteRequest, WorkflowKillRequest}
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
+import io.reactivex.rxjava3.core.Observer
+import io.reactivex.rxjava3.disposables.{CompositeDisposable, Disposable}
+import io.reactivex.rxjava3.subjects.{BehaviorSubject, Subject}
 import org.jooq.types.UInteger
-import rx.lang.scala.subjects.BehaviorSubject
-import rx.lang.scala.subscriptions.CompositeSubscription
-import rx.lang.scala.{Observable, Observer, Subject, Subscription}
 
 object WorkflowService {
   private val wIdToWorkflowState = new ConcurrentHashMap[String, WorkflowService]()
@@ -53,7 +39,7 @@ class WorkflowService(
   var opResultStorage: OpResultStorage = new OpResultStorage(
     AmberUtils.amberConfig.getString("storage.mode").toLowerCase
   )
-  private val errorSubject = Subject[WorkflowExecutionErrorEvent].toSerialized
+  private val errorSubject = new BehaviorSubject[WorkflowExecutionErrorEvent].toSerialized
   val errorHandler: Throwable => Unit = { t =>
     {
       t.printStackTrace()
@@ -80,20 +66,19 @@ class WorkflowService(
       unsubscribeAll()
     }
   )
-  private val jobStateSubject = BehaviorSubject[WorkflowJobService]()
 
   addSubscription(
     wsInput.subscribe((evt: WorkflowExecuteRequest, uidOpt) => initJobService(evt, uidOpt))
   )
 
-  def connect(observer: Observer[TexeraWebSocketEvent]): Subscription = {
+  def connect(observer: Observer[TexeraWebSocketEvent]): Disposable = {
     lifeCycleManager.increaseUserCount()
     val subscriptions = stateStore.getAllStores
       .map(_.getSyncableState)
       .map(evtPub => evtPub.subscribe(evts => evts.foreach(observer.onNext)))
       .toSeq
     val errorSubscription = errorSubject.subscribe(evt => observer.onNext(evt))
-    CompositeSubscription(subscriptions :+ errorSubscription: _*)
+    new CompositeDisposable(subscriptions :+ errorSubscription)
   }
 
   def disconnect(): Unit = {
@@ -118,11 +103,8 @@ class WorkflowService(
     )
     lifeCycleManager.registerCleanUpOnStateChange(stateStore)
     jobService = Some(job)
-    jobStateSubject.onNext(job)
     job.startWorkflow()
   }
-
-  def getJobServiceObservable: Observable[WorkflowJobService] = jobStateSubject.onTerminateDetach
 
   override def unsubscribeAll(): Unit = {
     super.unsubscribeAll()
