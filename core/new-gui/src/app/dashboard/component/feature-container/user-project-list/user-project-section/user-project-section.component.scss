@@ -1,0 +1,78 @@
+/* for file items*/
+.file-name {
+    color: rgb(62, 202, 253);
+    font-size: 20px;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    display: flex;
+    align-items: center;
+}
+
+.file-title {
+    color: rgb(62, 202, 253);
+}
+
+/* for workflow items */
+
+/* .saved-workflow-container {
+    display: grid;
+    grid-template-rows: 120px calc((100% - 120px));
+} */
+
+.ant-btn-icon-only {
+    margin-right: 10px;
+}
+
+.subsection-grid-container {
+    min-width: 100%;
+    width: 100%;
+    min-height: 100%;
+    height: 100%;
+  }
+
+.workflow-list-container {
+    grid-row-start: 2;
+    grid-row-end: 3;
+    overflow: auto;
+  }
+
+.workflow-list-item {
+    margin-bottom: 1.5%;
+    height: 70px;
+    padding: 5px 0 5px 0;
+  }
+
+.time-space {
+    margin-left: 3%;
+}
+
+.workflow-name {
+    font-size: 20px;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    text-align: center;
+}
+
+.workflow-dashboard-entry {
+    display: flex;
+    align-items: center;
+}
+
+.workflow-dashboard-entry > i {
+    position: relative;
+    font-size: 17px;
+    margin-bottom: 6px;
+}
+
+.workflow-name:hover {
+    cursor: pointer;
+}
+
+.workflow-time {
+    font-size: 12px;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    color: gray;
+}
+
+button {
+    border-radius: 5px;
+    border: none;
+}

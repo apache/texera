@@ -902,7 +902,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
         args: { color: "black", scaleFactor: 8, thickness: 1.2 },
       },
       // set grid size
-      gridSize: 2,
+      gridSize: 2
     };
 
     return jointPaperOptions;
