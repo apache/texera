@@ -46,6 +46,11 @@ class HashJoinOpExec[K](
     sendingMap
   }
 
+  /**
+    * This function does not handle duplicates. It merges whatever it is given. It will treat
+    * duplicate tuples of the key as new tuples and will append it. The responsibility to not send
+    * duplicates is with the senders.
+    */
   def mergeIntoHashTable(additionalTable: mutable.HashMap[Any, ArrayBuffer[Tuple]]): Boolean = {
     try {
       for ((key, tuples) <- additionalTable) {
