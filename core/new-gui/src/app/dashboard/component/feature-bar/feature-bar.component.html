@@ -2,6 +2,19 @@
 <nz-list nzBordered>
   <nz-list-item>
     <button
+      [routerLink]="['/dashboard/user-project']"
+      class="feature-bar-btn"
+      nz-button
+      nz-tooltip="Look up the user projects"
+      nzTooltipPlacement="right"
+      nzType="text"
+    >
+      <i class="feature-bar-btn-icon" nz-icon nzTheme="outline" nzType="container"></i>
+      User Projects
+    </button>
+  </nz-list-item>
+  <nz-list-item>
+    <button
       [routerLink]="['/dashboard/workflow']"
       class="feature-bar-btn"
       nz-button
