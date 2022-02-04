@@ -68,7 +68,6 @@ class TupleToBatchConverter(
   /**
     * Push one tuple to the downstream, will be batched by each transfer partitioning.
     * Should ONLY be called by DataProcessor.
-    *
     * @param tuple ITuple to be passed.
     */
   def passTupleToDownstream(tuple: ITuple): Unit = {
