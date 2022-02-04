@@ -28,6 +28,43 @@ class HashJoinOpExec[K](
   var currentEntry: Iterator[Tuple] = _
   var currentTuple: Tuple = _
 
+  val buildTableTransferBatchSize = 4000
+
+  def getBuildHashTableBatches(): ArrayBuffer[mutable.HashMap[K, ArrayBuffer[Tuple]]] = {
+    val sendingMap = new ArrayBuffer[mutable.HashMap[K, ArrayBuffer[Tuple]]]
+    var count = 1
+    var curr = new mutable.HashMap[K, ArrayBuffer[Tuple]]
+    for ((key, tuples) <- buildTableHashMap) {
+      curr.put(key, tuples._1)
+      if (count % buildTableTransferBatchSize == 0) {
+        sendingMap.append(curr)
+        curr = new mutable.HashMap[K, ArrayBuffer[Tuple]]
+      }
+      count += 1
+    }
+    if (!curr.isEmpty) sendingMap.append(curr)
+    sendingMap
+  }
+
+  /**
+    * This function does not handle duplicates. It merges whatever it is given. It will treat
+    * duplicate tuples of the key as new tuples and will append it. The responsibility to not send
+    * duplicates is with the senders.
+    */
+  def mergeIntoHashTable(additionalTable: mutable.HashMap[Any, ArrayBuffer[Tuple]]): Boolean = {
+    try {
+      for ((key, tuples) <- additionalTable) {
+        val (storedTuples, _) =
+          buildTableHashMap.getOrElseUpdate(key.asInstanceOf[K], (new ArrayBuffer[Tuple](), false))
+        storedTuples.appendAll(tuples)
+      }
+      true
+    } catch {
+      case exception: Exception =>
+        false
+    }
+  }
+
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
       input: LinkIdentity

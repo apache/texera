@@ -11,6 +11,8 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partiti
 import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2
 import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value.Empty
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QuerySelfWorkloadMetrics
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryCurrentInputTupleHandler.QueryCurrentInputTuple
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
@@ -19,7 +21,12 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
+
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
+
+import scala.collection.JavaConverters._
 
 object ControlCommandConvertUtils {
   def controlCommandToV2(
@@ -32,6 +39,8 @@ object ControlCommandConvertUtils {
         PauseWorkerV2()
       case ResumeWorker() =>
         ResumeWorkerV2()
+      case OpenOperator() =>
+        OpenOperatorV2()
       case AddPartitioning(tag: LinkIdentity, partitioning: Partitioning) =>
         AddPartitioningV2(tag, partitioning)
       case UpdateInputLinking(identifier, inputLink) =>
@@ -40,14 +49,20 @@ object ControlCommandConvertUtils {
         QueryStatisticsV2()
       case QueryCurrentInputTuple() =>
         QueryCurrentInputTupleV2()
-      case InitializeOperatorLogic(code, isSource) =>
-        InitializeOperatorLogicV2(code, isSource)
+      case InitializeOperatorLogic(code, isSource, schema) =>
+        InitializeOperatorLogicV2(
+          code,
+          isSource,
+          schema.getAttributes.asScala.map(attr => attr.getName -> attr.getType.toString).toMap
+        )
       case ReplayCurrentTuple() =>
         ReplayCurrentTupleV2()
       case ModifyOperatorLogic(code, isSource) =>
         ModifyOperatorLogicV2(code, isSource)
       case EvaluateExpression(expression) =>
         EvaluateExpressionV2(expression)
+      case QuerySelfWorkloadMetrics() =>
+        QuerySelfWorkloadMetricsV2()
       case _ =>
         throw new UnsupportedOperationException(
           s"V1 controlCommand $controlCommand cannot be converted to V2"
@@ -77,9 +92,16 @@ object ControlCommandConvertUtils {
       controlReturnV2: ControlReturnV2
   ): Any = {
     controlReturnV2.value match {
-      case Empty                                          => Unit
-      case _: ControlReturnV2.Value.CurrentInputTupleInfo => null
-      case _                                              => controlReturnV2.value.value
+      case Empty                                                        => Unit
+      case _: ControlReturnV2.Value.CurrentInputTupleInfo               => null
+      case selfWorkloadReturn: ControlReturnV2.Value.SelfWorkloadReturn =>
+        // TODO: convert real samples back from PythonUDF.
+        //  this is left hardcoded now since sampling is not currently enabled for PythonUDF.
+        (
+          selfWorkloadReturn.value.metrics,
+          new ArrayBuffer[mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]]()
+        )
+      case _ => controlReturnV2.value.value
     }
   }
 
