@@ -4,6 +4,7 @@ import akka.actor.ActorContext
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   BatchToTupleConverter,
+  NetworkInputPort,
   NetworkOutputPort,
   TupleToBatchConverter
 }
@@ -36,16 +37,24 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfterEach {
   lazy val pauseManager: PauseManager = wire[PauseManager]
   lazy val identifier: ActorVirtualIdentity = ActorVirtualIdentity("DP mock")
-  lazy val mockDataHandler
+  lazy val mockDataInputHandler: (ActorVirtualIdentity, DataPayload) => Unit =
+    mock[(ActorVirtualIdentity, DataPayload) => Unit]
+  lazy val mockControlInputHandler: (ActorVirtualIdentity, ControlPayload) => Unit =
+    mock[(ActorVirtualIdentity, ControlPayload) => Unit]
+  lazy val mockDataOutputHandler
       : (ActorVirtualIdentity, ActorVirtualIdentity, Long, DataPayload) => Unit =
     mock[(ActorVirtualIdentity, ActorVirtualIdentity, Long, DataPayload) => Unit]
-  lazy val mockControlHandler
+  lazy val mockControlOutputHandler
       : (ActorVirtualIdentity, ActorVirtualIdentity, Long, ControlPayload) => Unit =
     mock[(ActorVirtualIdentity, ActorVirtualIdentity, Long, ControlPayload) => Unit]
+  lazy val mockDataInputPort: NetworkInputPort[DataPayload] =
+    new NetworkInputPort[DataPayload](identifier, mockDataInputHandler)
+  lazy val controlInputPort: NetworkInputPort[ControlPayload] =
+    new NetworkInputPort[ControlPayload](identifier, mockControlInputHandler)
   lazy val mockDataOutputPort: NetworkOutputPort[DataPayload] =
-    new NetworkOutputPort[DataPayload](identifier, mockDataHandler)
+    new NetworkOutputPort[DataPayload](identifier, mockDataOutputHandler)
   lazy val controlOutputPort: NetworkOutputPort[ControlPayload] =
-    new NetworkOutputPort[ControlPayload](identifier, mockControlHandler)
+    new NetworkOutputPort[ControlPayload](identifier, mockControlOutputHandler)
   lazy val batchProducer: TupleToBatchConverter = mock[TupleToBatchConverter]
   lazy val breakpointManager: BreakpointManager = mock[BreakpointManager]
   val linkID: LinkIdentity =
@@ -204,7 +213,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val handlerInitializer = wire[WorkerAsyncRPCHandlerInitializer]
     inSequence {
       (operator.processTuple _).expects(*, *).once()
-      (mockControlHandler.apply _).expects(*, *, *, *).repeat(4)
+      (mockControlOutputHandler.apply _).expects(*, *, *, *).repeat(4)
       (operator.processTuple _).expects(*, *).repeat(4)
       (batchProducer.emitEndOfUpstream _).expects().once()
       (operator.close _).expects().once()

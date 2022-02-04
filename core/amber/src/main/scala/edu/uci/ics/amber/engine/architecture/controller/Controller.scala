@@ -34,11 +34,15 @@ import scala.concurrent.{Await, ExecutionContext}
 object ControllerConfig {
   def default: ControllerConfig =
     ControllerConfig(
+      monitoringIntervalMs = Option(3000),
+      skewDetectionIntervalMs = Option(3000),
       statusUpdateIntervalMs = Option(500)
     )
 }
 
 final case class ControllerConfig(
+    monitoringIntervalMs: Option[Long],
+    skewDetectionIntervalMs: Option[Long],
     statusUpdateIntervalMs: Option[Long]
 )
 

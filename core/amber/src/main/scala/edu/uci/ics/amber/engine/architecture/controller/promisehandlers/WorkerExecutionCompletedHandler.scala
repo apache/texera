@@ -47,6 +47,8 @@ trait WorkerExecutionCompletedHandler {
             // after query result come back: send completed event, cleanup ,and kill workflow
             sendToClient(WorkflowCompleted())
             disableStatusUpdate()
+            disableMonitoring()
+            disableSkewHandling()
             Future.Done
           } else {
             Future.Done

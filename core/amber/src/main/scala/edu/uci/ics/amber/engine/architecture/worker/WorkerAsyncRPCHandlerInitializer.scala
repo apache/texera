@@ -3,6 +3,7 @@ package edu.uci.ics.amber.engine.architecture.worker
 import akka.actor.ActorContext
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   BatchToTupleConverter,
+  NetworkInputPort,
   NetworkOutputPort,
   TupleToBatchConverter
 }
@@ -19,6 +20,8 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 class WorkerAsyncRPCHandlerInitializer(
     val actorId: ActorVirtualIdentity,
+    val controlInputPort: NetworkInputPort[ControlPayload],
+    val dataInputPort: NetworkInputPort[DataPayload],
     val controlOutputPort: NetworkOutputPort[ControlPayload],
     val dataOutputPort: NetworkOutputPort[DataPayload],
     val tupleToBatchConverter: TupleToBatchConverter,
@@ -43,6 +46,9 @@ class WorkerAsyncRPCHandlerInitializer(
     with StartHandler
     with UpdateInputLinkingHandler
     with AssignLocalBreakpointHandler
-    with ShutdownDPThreadHandler {
+    with ShutdownDPThreadHandler
+    with MonitoringHandler
+    with SendImmutableStateHandler
+    with AcceptImmutableStateHandler {
   var lastReportTime = 0L
 }
