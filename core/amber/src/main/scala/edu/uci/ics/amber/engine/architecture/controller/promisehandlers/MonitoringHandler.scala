@@ -76,7 +76,6 @@ trait MonitoringHandler {
             workflow.getOperator(worker).getWorkerWorkloadInfo(worker).controlInputWorkload =
               metrics.unprocessedControlInputQueueSize + metrics.stashedControlInputQueueSize
             updateWorkloadSamples(worker, samples)
-            println(s"\tWORKER ${worker.toString()}: ${metrics}: ${samples.size}")
           }
         })
       )
