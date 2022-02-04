@@ -575,8 +575,8 @@ describe("WorkflowEditorComponent", () => {
 
       // dispatch a keydown event on the backspace key
       const event = new KeyboardEvent("keydown", { key: "Backspace" });
-      // @ts-ignore
-      document.activeElement?.blur();
+      
+      (document.activeElement as HTMLElement)?.blur();
       document.dispatchEvent(event);
 
       fixture.detectChanges();
@@ -594,8 +594,8 @@ describe("WorkflowEditorComponent", () => {
 
       // dispatch a keydown event on the backspace key
       const event = new KeyboardEvent("keydown", { key: "Delete" });
-      // @ts-ignore
-      document.activeElement?.blur();
+
+      (document.activeElement as HTMLElement)?.blur();
       document.dispatchEvent(event);
 
       fixture.detectChanges();
@@ -623,8 +623,8 @@ describe("WorkflowEditorComponent", () => {
 
       // dispatch a keydown event on the backspace key
       const event = new KeyboardEvent("keydown", { key: "Backspace" });
-      // @ts-ignore
-      document.activeElement?.blur();
+
+      (document.activeElement as HTMLElement)?.blur();
       document.dispatchEvent(event);
 
       fixture.detectChanges();
@@ -644,12 +644,12 @@ describe("WorkflowEditorComponent", () => {
 
       // dispatch clipboard events for copy and paste
       const copyEvent = new ClipboardEvent("copy");
-      // @ts-ignore
-      document.activeElement?.blur();
+
+      (document.activeElement as HTMLElement)?.blur();
       document.dispatchEvent(copyEvent);
       const pasteEvent = new ClipboardEvent("paste");
-      // @ts-ignore
-      document.activeElement?.blur();
+
+      (document.activeElement as HTMLElement)?.blur();
       document.dispatchEvent(pasteEvent);
 
       // the pasted operator should be highlighted
@@ -684,12 +684,12 @@ describe("WorkflowEditorComponent", () => {
 
       // dispatch clipboard events for cut and paste
       const cutEvent = new ClipboardEvent("cut");
-      // @ts-ignore
-      document.activeElement?.blur();
+
+      (document.activeElement as HTMLElement)?.blur();
       document.dispatchEvent(cutEvent);
       const pasteEvent = new ClipboardEvent("paste");
-      // @ts-ignore
-      document.activeElement?.blur();
+
+      (document.activeElement as HTMLElement)?.blur();
       document.dispatchEvent(pasteEvent);
 
       // the copied operator should be deleted
@@ -728,12 +728,12 @@ describe("WorkflowEditorComponent", () => {
 
       // dispatch clipboard events for copy and paste
       const copyEvent = new ClipboardEvent("copy");
-      // @ts-ignore
-      document.activeElement?.blur();
+
+      (document.activeElement as HTMLElement)?.blur();
       document.dispatchEvent(copyEvent);
       const pasteEvent = new ClipboardEvent("paste");
-      // @ts-ignore
-      document.activeElement?.blur();
+
+      (document.activeElement as HTMLElement)?.blur();
       document.dispatchEvent(pasteEvent);
       fixture.detectChanges();
       // get the pasted operator
@@ -802,8 +802,8 @@ describe("WorkflowEditorComponent", () => {
 
       // dispatch a keydown event on the command + A key comb
       const event = new KeyboardEvent("keydown", { key: "a", metaKey: true });
-      // @ts-ignore
-      document.activeElement?.blur();
+
+      (document.activeElement as HTMLElement)?.blur();
       document.dispatchEvent(event);
 
       fixture.detectChanges();
