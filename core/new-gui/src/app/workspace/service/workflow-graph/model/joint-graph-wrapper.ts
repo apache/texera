@@ -898,16 +898,16 @@ export class JointGraphWrapper {
     
     const BufferOnOffStream = this.jointGraphContext.getChangeContextStream().pipe(
       map(([_, context]) => context.async)
-    )
+    );
 
     const startBuffer = BufferOnOffStream.pipe(
       filter(async => async == true)
-    )
+    );
 
     const stopBuffer = BufferOnOffStream.pipe(
       filter(async => async == false),
       map(x => true)
-    )
+    );
 
     return merge(
         source.pipe(bufferToggle(startBuffer, () => stopBuffer)),

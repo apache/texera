@@ -10,7 +10,7 @@ export function ContextManager<Context>(defaultContext: Context) {
 
         public static prevContext() {
             if (this.contextStack.length < 2 ) {
-                throw new Error('No previous context to get (you are in the default context already)')
+                throw new Error("No previous context to get (you are in the default context already)");
             }
             return this.contextStack[this.contextStack.length-2];
         }
@@ -74,6 +74,6 @@ export function ObservableContextManager<Context>(defaultContext: Context) {
         }
 
     }
-    return ObservableContextManager
+    return ObservableContextManager;
 }
 
