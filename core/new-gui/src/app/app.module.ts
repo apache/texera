@@ -106,6 +106,12 @@ import { VersionsListDisplayComponent } from "./workspace/component/property-edi
 import { NzPaginationModule } from "ng-zorro-antd/pagination";
 import { JwtModule } from "@auth0/angular-jwt";
 import { AuthService } from "./common/service/user/auth.service";
+import { UserProjectListComponent } from "./dashboard/component/feature-container/user-project-list/user-project-list.component";
+import { UserProjectSectionComponent } from "./dashboard/component/feature-container/user-project-list/user-project-section/user-project-section.component";
+import { NgbdModalAddProjectWorkflowComponent } from "./dashboard/component/feature-container/user-project-list/user-project-section/ngbd-modal-add-project-workflow/ngbd-modal-add-project-workflow.component";
+import { NgbdModalRemoveProjectWorkflowComponent } from "./dashboard/component/feature-container/user-project-list/user-project-section/ngbd-modal-remove-project-workflow/ngbd-modal-remove-project-workflow.component";
+import { NgbdModalAddProjectFileComponent } from "./dashboard/component/feature-container/user-project-list/user-project-section/ngbd-modal-add-project-file/ngbd-modal-add-project-file.component";
+import { NgbdModalRemoveProjectFileComponent } from "./dashboard/component/feature-container/user-project-list/user-project-section/ngbd-modal-remove-project-file/ngbd-modal-remove-project-file.component";
 import { PresetWrapperComponent } from "./common/formly/preset-wrapper/preset-wrapper.component";
 import { NgbdModalWorkflowExecutionsComponent } from "./dashboard/component/feature-container/saved-workflow-section/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 
@@ -166,6 +172,12 @@ registerLocaleData(en);
     OperatorPropertyEditFrameComponent,
     BreakpointPropertyEditFrameComponent,
     DebuggerFrameComponent,
+    UserProjectListComponent,
+    UserProjectSectionComponent,
+    NgbdModalAddProjectWorkflowComponent,
+    NgbdModalRemoveProjectWorkflowComponent,
+    NgbdModalAddProjectFileComponent,
+    NgbdModalRemoveProjectFileComponent,
   ],
   imports: [
     BrowserModule,
@@ -233,6 +245,10 @@ registerLocaleData(en);
     NzPaginationModule,
   ],
   entryComponents: [
+    NgbdModalAddProjectWorkflowComponent,
+    NgbdModalRemoveProjectWorkflowComponent,
+    NgbdModalAddProjectFileComponent,
+    NgbdModalRemoveProjectFileComponent,
     NgbdModalAddWorkflowComponent,
     NgbdModalDeleteWorkflowComponent,
     NgbdModalResourceViewComponent,
