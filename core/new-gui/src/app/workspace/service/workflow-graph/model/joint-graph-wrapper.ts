@@ -134,9 +134,7 @@ export class JointGraphWrapper {
    * This will capture all events in JointJS
    *  involving the 'add' operation
    */
-  private jointCellAddStream = this.createContextAwareStream(
-    fromEvent<JointModelEvent>(this.jointGraph, "add").pipe(map(value => value[0]))
-  );
+  private jointCellAddStream = fromEvent<JointModelEvent>(this.jointGraph, "add").pipe(map(value => value[0]))
 
   /**
    * This will capture all events in JointJS
@@ -892,7 +890,7 @@ export class JointGraphWrapper {
 
   // Modifies an observable to buffer output while the jointgraph 
   // is in an async context
-  private createContextAwareStream<T>(source: Observable<T>) {
+  public createContextAwareStream<T>(source: Observable<T>) {
     // Code adapted from https://kddsky.medium.com/pauseable-observables-in-rxjs-58ce2b8c7dfd
     // Retrieved on 02/06/2022
     

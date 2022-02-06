@@ -1489,9 +1489,10 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   // when a link is added, append a breakpoint link-tool to its LinkView
   private handleLinkBreakpointToolAttachment(): void {
-    this.workflowActionService
-      .getJointGraphWrapper()
-      .getJointLinkCellAddStream()
+    this.workflowActionService.getJointGraphWrapper().createContextAwareStream(
+      this.workflowActionService
+        .getJointGraphWrapper()
+        .getJointLinkCellAddStream())
       .pipe(untilDestroyed(this))
       .subscribe(link => {
         const linkView = link.findView(this.getJointPaper());
