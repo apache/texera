@@ -98,7 +98,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       timeout: FiniteDuration = 5.seconds
   ): Unit = {
     val deadline = timeout.fromNow
-    while (deadline.hasTimeLeft() && workerStateManager.getCurrentState != COMPLETED) {
+    while (deadline.hasTimeLeft()) {
       //wait
     }
     assert(workerStateManager.getCurrentState == COMPLETED)
@@ -106,7 +106,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
 
   def waitForControlProcessing(dp: DataProcessor, timeout: FiniteDuration = 5.seconds): Unit = {
     val deadline = timeout.fromNow
-    while (deadline.hasTimeLeft() && !dp.isControlQueueEmpty) {
+    while (deadline.hasTimeLeft()) {
       //wait
     }
     assert(dp.isControlQueueEmpty)
