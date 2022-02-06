@@ -1,11 +1,9 @@
 package edu.uci.ics.texera.web.service
 
 import com.google.common.collect.EvictingQueue
+import com.twitter.util.Await
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{
-  ConditionalGlobalBreakpoint,
-  CountGlobalBreakpoint
-}
+import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{ConditionalGlobalBreakpoint, CountGlobalBreakpoint}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent._
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.AssignBreakpointHandler.AssignGlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.EvaluatePythonExpressionHandler.EvaluatePythonExpression
@@ -27,12 +25,7 @@ import edu.uci.ics.texera.web.model.websocket.request.{RemoveBreakpointRequest, 
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.workflow.{
-  Breakpoint,
-  BreakpointCondition,
-  ConditionBreakpoint,
-  CountBreakpoint
-}
+import edu.uci.ics.texera.workflow.common.workflow.{Breakpoint, BreakpointCondition, ConditionBreakpoint, CountBreakpoint}
 import org.jooq.types.UInteger
 import rx.lang.scala.subjects.BehaviorSubject
 import rx.lang.scala.{Observable, Observer}
@@ -196,7 +189,7 @@ class JobRuntimeService(
             tuple => !tuple.getField(column).toString.trim.contains(conditionBp.value)
         }
 
-        client.sendSync(
+        Await.result(client.sendAsync(
           AssignGlobalBreakpoint(
             new ConditionalGlobalBreakpoint(
               breakpointID,
@@ -207,10 +200,10 @@ class JobRuntimeService(
             ),
             operatorID
           )
-        )
+        ))
       case countBp: CountBreakpoint =>
-        client.sendSync(
-          AssignGlobalBreakpoint(new CountGlobalBreakpoint(breakpointID, countBp.count), operatorID)
+        Await.result(client.sendAsync(
+          AssignGlobalBreakpoint(new CountGlobalBreakpoint(breakpointID, countBp.count), operatorID))
         )
     }
   }
@@ -291,7 +284,7 @@ class JobRuntimeService(
   }
 
   def evaluatePythonExpression(request: PythonExpressionEvaluateRequest): Unit = {
-    send(client.sendSync(EvaluatePythonExpression(request.expression, request.operatorId)))
+    send(Await.result(client.sendAsync(EvaluatePythonExpression(request.expression, request.operatorId))))
   }
 
 }

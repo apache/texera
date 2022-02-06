@@ -84,7 +84,6 @@ class DataProcessor( // dependencies:
   }
 
   def shutdown(): Unit = {
-    operator.close() // close operator
     dpThread.cancel(true) // interrupt
     dpThreadExecutor.shutdownNow() // destroy thread
   }
@@ -169,6 +168,7 @@ class DataProcessor( // dependencies:
     asyncRPCClient.send(WorkerExecutionCompleted(), CONTROLLER)
     stateManager.transitTo(COMPLETED)
     disableDataQueue()
+    operator.close() // close operator
     processControlCommandsAfterCompletion()
   }
 

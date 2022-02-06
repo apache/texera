@@ -3,14 +3,10 @@ package edu.uci.ics.amber.engine.common.client
 import akka.actor.{ActorSystem, PoisonPill, Props}
 import akka.pattern._
 import akka.util.Timeout
-import com.twitter.util.Future
+import com.twitter.util.{Future, Promise}
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.common.FutureBijection._
-import edu.uci.ics.amber.engine.common.client.ClientActor.{
-  ClosureRequest,
-  InitializeRequest,
-  ObservableRequest
-}
+import edu.uci.ics.amber.engine.common.client.ClientActor.{ClosureRequest, CommandRequest, InitializeRequest, ObservableRequest}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import rx.lang.scala.{Observable, Subject}
 
@@ -35,19 +31,14 @@ class AmberClient(system: ActorSystem, workflow: Workflow, controllerConfig: Con
     }
   }
 
+
   def sendAsync[T](controlCommand: ControlCommand[T]): Future[T] = {
     if (!isActive) {
       Future.exception(new RuntimeException("amber runtime environment is not active"))
     } else {
-      (clientActor ? controlCommand).asTwitter().asInstanceOf[Future[T]]
-    }
-  }
-
-  def sendSync[T](controlCommand: ControlCommand[T], deadline: Duration = timeout.duration): T = {
-    if (!isActive) {
-      throw new RuntimeException("amber runtime environment is not active")
-    } else {
-      Await.result(clientActor ? controlCommand, deadline).asInstanceOf[T]
+      val promise = Promise[Any]
+      clientActor ! CommandRequest(controlCommand, promise)
+      promise.map(ret => ret.asInstanceOf[T])
     }
   }
 

@@ -2,39 +2,12 @@ package edu.uci.ics.texera.web.resource.dashboard.project
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
-  FILE,
-  FILE_OF_PROJECT,
-  USER,
-  USER_FILE_ACCESS,
-  WORKFLOW,
-  WORKFLOW_OF_PROJECT,
-  WORKFLOW_OF_USER,
-  WORKFLOW_USER_ACCESS
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  FileOfProjectDao,
-  UserProjectDao,
-  WorkflowOfProjectDao
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
-  FileOfProject,
-  UserProject,
-  Workflow,
-  WorkflowOfProject,
-  WorkflowUserAccess,
-  UserFileAccess,
-  File
-}
-import edu.uci.ics.texera.web.resource.dashboard.project.ProjectResource.{
-  context,
-  fileOfProjectDao,
-  userProjectDao,
-  workflowOfProjectDao
-}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, FILE_OF_PROJECT, USER, USER_FILE_ACCESS, WORKFLOW, WORKFLOW_OF_PROJECT, WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileOfProjectDao, UserProjectDao, WorkflowOfProjectDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, FileOfProject, UserFileAccess, UserProject, Workflow, WorkflowOfProject, WorkflowUserAccess}
+import edu.uci.ics.texera.web.resource.dashboard.project.ProjectResource.{context, fileOfProjectDao, userProjectDao, workflowOfProjectDao}
 import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.DashboardFileEntry
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.toAccessLevel
-
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.DashboardWorkflowEntry
 import org.jooq.types.UInteger
 
@@ -43,6 +16,7 @@ import javax.ws.rs.core.MediaType
 import java.util
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import io.dropwizard.auth.Auth
+import org.apache.commons.lang3.StringUtils
 
 import javax.annotation.security.PermitAll
 
@@ -267,7 +241,7 @@ class ProjectResource {
   @POST
   @Path("/{pid}/rename/{name}")
   def updateProjectName(@PathParam("pid") pid: UInteger, @PathParam("name") name: String): Unit = {
-    if (name.isBlank) {
+    if (StringUtils.isBlank(name)) {
       throw new BadRequestException("Cannot rename project to empty or blank name.")
     }
 
