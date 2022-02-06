@@ -1,3 +1,4 @@
+import { merge, Subject } from "rxjs";
 
 export function ContextManager<Context>(defaultContext: Context) {
     abstract class ContextManager {
@@ -23,3 +24,47 @@ export function ContextManager<Context>(defaultContext: Context) {
 
     return ContextManager;
 }
+
+export function ObservableContextManager<Context>(defaultContext: Context) {
+    abstract class ObservableContextManager extends ContextManager(defaultContext) {
+        private static enterStream = new Subject<[exiting: Context, entering: Context]>();
+        private static exitStream = new Subject<[exiting: Context, entering: Context]>();
+        private static changeContextStream = ObservableContextManager.createChangeContextStream();
+
+        public static getEnterStream() {
+            return ObservableContextManager.enterStream.asObservable();
+        }
+
+        public static getExitStream() {
+            return ObservableContextManager.exitStream.asObservable();
+        }
+
+        public static getChangeContextStream() {
+            return ObservableContextManager.changeContextStream;
+        }
+
+        public static enter(context: Context): void {
+            const oldContext = this.getContext();
+            const newContext = context;
+            super.enter(context);
+            this.enterStream.next([oldContext, newContext]);
+        }
+
+        public static exit(): void {
+            const oldContext = this.getContext();
+            super.exit();
+            const newContext = this.getContext();
+            this.exitStream.next([oldContext, newContext]);
+        }
+
+        private static createChangeContextStream() {
+            return merge(
+                ObservableContextManager.getEnterStream(),
+                ObservableContextManager.getExitStream(),
+            );
+        }
+
+    }
+    return ObservableContextManager
+}
+
