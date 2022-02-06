@@ -165,10 +165,10 @@ class DataProcessor( // dependencies:
     }
     // Send Completed signal to worker actor.
     logger.info(s"$operator completed")
-    asyncRPCClient.send(WorkerExecutionCompleted(), CONTROLLER)
-    stateManager.transitTo(COMPLETED)
     disableDataQueue()
     operator.close() // close operator
+    asyncRPCClient.send(WorkerExecutionCompleted(), CONTROLLER)
+    stateManager.transitTo(COMPLETED)
     processControlCommandsAfterCompletion()
   }
 
