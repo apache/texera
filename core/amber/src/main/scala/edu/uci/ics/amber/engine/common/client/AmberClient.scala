@@ -6,7 +6,12 @@ import akka.util.Timeout
 import com.twitter.util.{Future, Promise}
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.common.FutureBijection._
-import edu.uci.ics.amber.engine.common.client.ClientActor.{ClosureRequest, CommandRequest, InitializeRequest, ObservableRequest}
+import edu.uci.ics.amber.engine.common.client.ClientActor.{
+  ClosureRequest,
+  CommandRequest,
+  InitializeRequest,
+  ObservableRequest
+}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import rx.lang.scala.{Observable, Subject}
 
@@ -30,7 +35,6 @@ class AmberClient(system: ActorSystem, workflow: Workflow, controllerConfig: Con
       clientActor ! PoisonPill
     }
   }
-
 
   def sendAsync[T](controlCommand: ControlCommand[T]): Future[T] = {
     if (!isActive) {

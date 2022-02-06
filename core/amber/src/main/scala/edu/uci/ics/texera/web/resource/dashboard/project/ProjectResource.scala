@@ -2,10 +2,36 @@ package edu.uci.ics.texera.web.resource.dashboard.project
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, FILE_OF_PROJECT, USER, USER_FILE_ACCESS, WORKFLOW, WORKFLOW_OF_PROJECT, WORKFLOW_OF_USER, WORKFLOW_USER_ACCESS}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileOfProjectDao, UserProjectDao, WorkflowOfProjectDao}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{File, FileOfProject, UserFileAccess, UserProject, Workflow, WorkflowOfProject, WorkflowUserAccess}
-import edu.uci.ics.texera.web.resource.dashboard.project.ProjectResource.{context, fileOfProjectDao, userProjectDao, workflowOfProjectDao}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
+  FILE,
+  FILE_OF_PROJECT,
+  USER,
+  USER_FILE_ACCESS,
+  WORKFLOW,
+  WORKFLOW_OF_PROJECT,
+  WORKFLOW_OF_USER,
+  WORKFLOW_USER_ACCESS
+}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+  FileOfProjectDao,
+  UserProjectDao,
+  WorkflowOfProjectDao
+}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
+  File,
+  FileOfProject,
+  UserFileAccess,
+  UserProject,
+  Workflow,
+  WorkflowOfProject,
+  WorkflowUserAccess
+}
+import edu.uci.ics.texera.web.resource.dashboard.project.ProjectResource.{
+  context,
+  fileOfProjectDao,
+  userProjectDao,
+  workflowOfProjectDao
+}
 import edu.uci.ics.texera.web.resource.dashboard.file.UserFileResource.DashboardFileEntry
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.toAccessLevel
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.DashboardWorkflowEntry
