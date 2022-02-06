@@ -189,13 +189,14 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       (asyncRPCServer.receive _).expects(*, *).repeat(3)
       (operator.close _).expects().once()
     }
-    val dp = wire[DataProcessor]
+    val dp:DataProcessor = wire[DataProcessor]
     operator.open()
     Await.result(
       sendControlToDP(dp, (0 until 3).map(_ => ControlInvocation(0, DummyControl()))),
       1.second
     )
     waitForControlProcessing(dp)
+    operator.close()
     dp.shutdown()
   }
 
