@@ -3,9 +3,18 @@ import { merge, Subject } from "rxjs";
 export function ContextManager<Context>(defaultContext: Context) {
     abstract class ContextManager {
         private static contextStack: Context[] = [defaultContext];
+
         public static getContext() {
             return this.contextStack[this.contextStack.length-1];
         }
+
+        public static prevContext() {
+            if (this.contextStack.length < 2 ) {
+                throw new Error('No previous context to get (you are in the default context already)')
+            }
+            return this.contextStack[this.contextStack.length-2];
+        }
+
         public static enter(context: Context) {
             this.contextStack.push(context);
         }
