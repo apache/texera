@@ -61,7 +61,12 @@ private[client] class ClientActor extends Actor {
         handlers(controlReturn)
       }
       if (promiseMap.contains(originalCommandID)) {
-        promiseMap(originalCommandID).setValue(controlReturn)
+        controlReturn match {
+          case t: Throwable =>
+            promiseMap(originalCommandID).setException(t)
+          case other =>
+            promiseMap(originalCommandID).setValue(other)
+        }
         promiseMap.remove(originalCommandID)
       }
     case NetworkMessage(mId, _ @WorkflowControlMessage(_, _, _ @ControlInvocation(_, command))) =>
