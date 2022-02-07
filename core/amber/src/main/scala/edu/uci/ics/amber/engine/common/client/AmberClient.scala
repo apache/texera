@@ -6,7 +6,11 @@ import akka.util.Timeout
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.common.FutureBijection._
-import edu.uci.ics.amber.engine.common.client.ClientActor.{ClosureRequest, InitializeRequest, ObservableRequest}
+import edu.uci.ics.amber.engine.common.client.ClientActor.{
+  ClosureRequest,
+  InitializeRequest,
+  ObservableRequest
+}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.Disposable
@@ -89,13 +93,15 @@ class AmberClient(
         registeredObservables(clazz) = ob
         ob
       }
-    observable.subscribe{evt:T => {
-      try {
-        callback(evt)
-      } catch {
-        case t: Throwable => errorHandler(t)
+    observable.subscribe { evt: T =>
+      {
+        try {
+          callback(evt)
+        } catch {
+          case t: Throwable => errorHandler(t)
+        }
       }
-    }}
+    }
   }
 
   def executeClosureSync[T](closure: => T): T = {

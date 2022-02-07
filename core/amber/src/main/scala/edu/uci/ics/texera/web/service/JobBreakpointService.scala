@@ -33,19 +33,21 @@ class JobBreakpointService(
   registerCallbackOnBreakpoint()
 
   addSubscription(
-    stateStore.breakpointStore.registerDiffHandler{ (oldState, newState) => {
-      newState.operatorInfo
-        .collect {
-          case (opId, info) =>
-            val oldInfo = oldState.operatorInfo.getOrElse(opId, new OperatorBreakpoints())
-            if (
-              info.unresolvedBreakpoints.nonEmpty && info.unresolvedBreakpoints != oldInfo.unresolvedBreakpoints
-            ) {
-              BreakpointTriggeredEvent(info.unresolvedBreakpoints, opId)
-            }
-        }
-        .asInstanceOf[Iterable[TexeraWebSocketEvent]]
-    }}
+    stateStore.breakpointStore.registerDiffHandler { (oldState, newState) =>
+      {
+        newState.operatorInfo
+          .collect {
+            case (opId, info) =>
+              val oldInfo = oldState.operatorInfo.getOrElse(opId, new OperatorBreakpoints())
+              if (
+                info.unresolvedBreakpoints.nonEmpty && info.unresolvedBreakpoints != oldInfo.unresolvedBreakpoints
+              ) {
+                BreakpointTriggeredEvent(info.unresolvedBreakpoints, opId)
+              }
+          }
+          .asInstanceOf[Iterable[TexeraWebSocketEvent]]
+      }
+    }
   )
 
   /** *

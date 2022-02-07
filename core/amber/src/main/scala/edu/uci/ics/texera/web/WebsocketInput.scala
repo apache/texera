@@ -13,7 +13,7 @@ class WebsocketInput(errorHandler: Throwable => Unit) {
   def subscribe[T <: TexeraWebSocketRequest: ClassTag](
       callback: (T, Option[UInteger]) => Unit
   ): Disposable = {
-    wsInput.subscribe((evt:(TexeraWebSocketRequest, Option[UInteger])) => {
+    wsInput.subscribe((evt: (TexeraWebSocketRequest, Option[UInteger])) => {
       evt._1 match {
         case req: T if classTag[T].runtimeClass.isInstance(req) =>
           try {

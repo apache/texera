@@ -3,13 +3,26 @@ package edu.uci.ics.texera.web.service
 import akka.actor.Cancellable
 import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{WorkflowCompleted, WorkflowPaused}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
+  WorkflowCompleted,
+  WorkflowPaused
+}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.texera.web.{StateStore, SubscriptionManager, TexeraWebApplication, WorkflowStateStore}
-import edu.uci.ics.texera.web.model.websocket.event.{PaginatedResultEvent, TexeraWebSocketEvent, WebResultUpdateEvent, WorkflowAvailableResultEvent}
+import edu.uci.ics.texera.web.{
+  StateStore,
+  SubscriptionManager,
+  TexeraWebApplication,
+  WorkflowStateStore
+}
+import edu.uci.ics.texera.web.model.websocket.event.{
+  PaginatedResultEvent,
+  TexeraWebSocketEvent,
+  WebResultUpdateEvent,
+  WorkflowAvailableResultEvent
+}
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
 import edu.uci.ics.texera.web.service.JobResultService.WebResultUpdate
 import edu.uci.ics.texera.web.workflowresultstate.OperatorResultMetadata
@@ -127,18 +140,24 @@ class JobResultService(
       resultUpdateCancellable.cancel()
     }
 
-    addSubscription(stateStore.jobStateStore.getStateObservable.subscribe{newState:JobStateStore => {
-      if (newState.state == RUNNING) {
-        if (resultUpdateCancellable == null || resultUpdateCancellable.isCancelled) {
-          resultUpdateCancellable = TexeraWebApplication
-            .scheduleRecurringCallThroughActorSystem(2.seconds, resultPullingFrequency.seconds) {
-              onResultUpdate()
+    addSubscription(stateStore.jobStateStore.getStateObservable.subscribe {
+      newState: JobStateStore =>
+        {
+          if (newState.state == RUNNING) {
+            if (resultUpdateCancellable == null || resultUpdateCancellable.isCancelled) {
+              resultUpdateCancellable = TexeraWebApplication
+                .scheduleRecurringCallThroughActorSystem(
+                  2.seconds,
+                  resultPullingFrequency.seconds
+                ) {
+                  onResultUpdate()
+                }
             }
+          } else {
+            if (resultUpdateCancellable != null) resultUpdateCancellable.cancel()
+          }
         }
-      } else {
-        if (resultUpdateCancellable != null) resultUpdateCancellable.cancel()
-      }
-    }})
+    })
 
     addSubscription(
       client
