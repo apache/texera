@@ -48,7 +48,9 @@ export class WorkflowVersionService {
     // disable the undoredo service because reloading the workflow is considered an action
     this.undoRedoService.disableWorkFlowModification();
     // reload the read only workflow version on the paper
-    this.workflowActionService.reloadWorkflow(workflow);
+    // temporarily set JointJS asyncRendering to false to avoid errors, 
+    // TODO: fix the error and set asyncRendering to true to improve performance
+    this.workflowActionService.reloadWorkflow(workflow, false);
     this.setDisplayParticularVersion(true);
     // disable modifications because it is read only
     this.workflowActionService.disableWorkflowModification();

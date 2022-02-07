@@ -1489,9 +1489,10 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   // when a link is added, append a breakpoint link-tool to its LinkView
   private handleLinkBreakpointToolAttachment(): void {
-    this.workflowActionService
-      .getJointGraphWrapper()
-      .getJointLinkCellAddStream()
+    this.workflowActionService.getJointGraphWrapper().createContextAwareStream(
+      this.workflowActionService
+        .getJointGraphWrapper()
+        .getJointLinkCellAddStream())
       .pipe(untilDestroyed(this))
       .subscribe(link => {
         const linkView = link.findView(this.getJointPaper());
@@ -1567,17 +1568,19 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * show/hide the breakpoint button according to the observable value received
    */
   private handleLinkBreakpointToggleEvents(): void {
+    this.workflowActionService.getJointGraphWrapper().createContextAwareStream(
     this.workflowActionService
       .getJointGraphWrapper()
-      .getLinkBreakpointShowStream()
+      .getLinkBreakpointShowStream())
       .pipe(untilDestroyed(this))
       .subscribe(linkID => {
         this.getJointPaper().getModelById(linkID.linkID).findView(this.getJointPaper()).showTools();
       });
 
+    this.workflowActionService.getJointGraphWrapper().createContextAwareStream(
     this.workflowActionService
       .getJointGraphWrapper()
-      .getLinkBreakpointHideStream()
+      .getLinkBreakpointHideStream())
       .pipe(untilDestroyed(this))
       .subscribe(linkID => {
         this.getJointPaper().getModelById(linkID.linkID).findView(this.getJointPaper()).hideTools();
