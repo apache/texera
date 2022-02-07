@@ -11,7 +11,6 @@ import edu.uci.ics.texera.web.model.websocket.request.{RetryRequest, SkipTupleRe
 import edu.uci.ics.texera.web.service.JobPythonService.bufferSize
 import edu.uci.ics.texera.web.workflowruntimestate.PythonOperatorInfo
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{RESUMING, RUNNING}
-import rx.lang.scala.Subject
 
 object JobPythonService {
   val bufferSize: Int = AmberUtils.amberConfig.getInt("web-server.python-console-buffer-size")
@@ -27,7 +26,7 @@ class JobPythonService(
   registerCallbackOnPythonPrint()
 
   addSubscription(
-    stateStore.pythonStore.getSyncableState.registerStateChangeHandler((oldState, newState) => {
+    stateStore.pythonStore.registerDiffHandler((oldState, newState) => {
       // For each operator, check if it has new python console message or breakpoint events
       newState.operatorInfo
         .collect {

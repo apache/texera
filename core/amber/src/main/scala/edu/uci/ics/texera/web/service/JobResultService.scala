@@ -3,35 +3,22 @@ package edu.uci.ics.texera.web.service
 import akka.actor.Cancellable
 import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  WorkflowCompleted,
-  WorkflowPaused
-}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{WorkflowCompleted, WorkflowPaused}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.texera.web.{
-  SubscriptionManager,
-  StateStore,
-  TexeraWebApplication,
-  WorkflowStateStore
-}
-import edu.uci.ics.texera.web.model.websocket.event.{
-  PaginatedResultEvent,
-  TexeraWebSocketEvent,
-  WebResultUpdateEvent,
-  WorkflowAvailableResultEvent
-}
+import edu.uci.ics.texera.web.{StateStore, SubscriptionManager, TexeraWebApplication, WorkflowStateStore}
+import edu.uci.ics.texera.web.model.websocket.event.{PaginatedResultEvent, TexeraWebSocketEvent, WebResultUpdateEvent, WorkflowAvailableResultEvent}
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
 import edu.uci.ics.texera.web.service.JobResultService.WebResultUpdate
 import edu.uci.ics.texera.web.workflowresultstate.OperatorResultMetadata
+import edu.uci.ics.texera.web.workflowruntimestate.JobStateStore
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.RUNNING
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo}
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
-import rx.lang.scala.{Observer, Subject}
 
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
@@ -140,8 +127,7 @@ class JobResultService(
       resultUpdateCancellable.cancel()
     }
 
-    addSubscription(stateStore.jobStateStore.getObservable.subscribe(pair => {
-      val (_, newState) = pair
+    addSubscription(stateStore.jobStateStore.getStateObservable.subscribe{newState:JobStateStore => {
       if (newState.state == RUNNING) {
         if (resultUpdateCancellable == null || resultUpdateCancellable.isCancelled) {
           resultUpdateCancellable = TexeraWebApplication
@@ -152,7 +138,7 @@ class JobResultService(
       } else {
         if (resultUpdateCancellable != null) resultUpdateCancellable.cancel()
       }
-    }))
+    }})
 
     addSubscription(
       client
@@ -207,7 +193,7 @@ class JobResultService(
   }
 
   addSubscription(
-    stateStore.resultStore.getSyncableState.registerStateChangeHandler((oldState, newState) => {
+    stateStore.resultStore.registerDiffHandler((oldState, newState) => {
       val buf = mutable.HashMap[String, WebResultUpdate]()
       newState.operatorInfo.foreach {
         case (opId, info) =>

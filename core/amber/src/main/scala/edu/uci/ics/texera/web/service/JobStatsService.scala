@@ -14,7 +14,6 @@ import edu.uci.ics.texera.web.model.websocket.event.{
   TexeraWebSocketEvent
 }
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{ABORTED, COMPLETED}
-import rx.lang.scala.{Subject, Subscription}
 
 class JobStatsService(
     client: AmberClient,
@@ -24,7 +23,7 @@ class JobStatsService(
   registerCallbacks()
 
   addSubscription(
-    stateStore.statsStore.getSyncableState.registerStateChangeHandler((oldState, newState) => {
+    stateStore.statsStore.registerDiffHandler((oldState, newState) => {
       // Update operator stats if any operator updates its stat
       if (newState.operatorInfo.toSet != oldState.operatorInfo.toSet) {
         Iterable(

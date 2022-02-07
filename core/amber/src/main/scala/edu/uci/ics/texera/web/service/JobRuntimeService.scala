@@ -33,7 +33,7 @@ class JobRuntimeService(
     with LazyLogging {
 
   addSubscription(
-    stateStore.jobStateStore.getSyncableState.registerStateChangeHandler((oldState, newState) => {
+    stateStore.jobStateStore.registerDiffHandler((oldState, newState) => {
       val outputEvts = new mutable.ArrayBuffer[TexeraWebSocketEvent]()
       // Update workflow state
       if (newState.state != oldState.state) {

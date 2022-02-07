@@ -39,7 +39,7 @@ class WorkflowService(
   var opResultStorage: OpResultStorage = new OpResultStorage(
     AmberUtils.amberConfig.getString("storage.mode").toLowerCase
   )
-  private val errorSubject = new BehaviorSubject[WorkflowExecutionErrorEvent].toSerialized
+  private val errorSubject = BehaviorSubject.create[WorkflowExecutionErrorEvent]().toSerialized
   val errorHandler: Throwable => Unit = { t =>
     {
       t.printStackTrace()
@@ -74,11 +74,11 @@ class WorkflowService(
   def connect(observer: Observer[TexeraWebSocketEvent]): Disposable = {
     lifeCycleManager.increaseUserCount()
     val subscriptions = stateStore.getAllStores
-      .map(_.getSyncableState)
-      .map(evtPub => evtPub.subscribe(evts => evts.foreach(observer.onNext)))
+      .map(_.getWebsocketEventObservable)
+      .map(evtPub => evtPub.subscribe{evts:Iterable[TexeraWebSocketEvent] => evts.foreach(observer.onNext)})
       .toSeq
     val errorSubscription = errorSubject.subscribe(evt => observer.onNext(evt))
-    new CompositeDisposable(subscriptions :+ errorSubscription)
+    new CompositeDisposable(subscriptions :+ errorSubscription:_*)
   }
 
   def disconnect(): Unit = {

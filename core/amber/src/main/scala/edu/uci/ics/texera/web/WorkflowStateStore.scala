@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.web
 
-import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.workflowcachestate.WorkflowCacheStore
 import edu.uci.ics.texera.web.workflowresultstate.WorkflowResultStore
 import edu.uci.ics.texera.web.workflowruntimestate.{
@@ -9,7 +8,6 @@ import edu.uci.ics.texera.web.workflowruntimestate.{
   JobStateStore,
   JobStatsStore
 }
-import rx.lang.scala.{Observable, Observer, Subject, Subscription}
 
 class WorkflowStateStore {
   val cacheStore = new StateStore(WorkflowCacheStore())

@@ -11,7 +11,6 @@ import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.{WorkflowInfo, WorkflowRewriter, WorkflowVertex}
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
-import rx.lang.scala.Subject
 
 import scala.collection.mutable
 
@@ -36,7 +35,7 @@ class WorkflowCacheService(
     mutable.HashMap[String, WorkflowVertex]()
 
   addSubscription(
-    stateStore.cacheStore.getSyncableState.registerStateChangeHandler((oldState, newState) => {
+    stateStore.cacheStore.registerDiffHandler((oldState, newState) => {
       Iterable(CacheStatusUpdateEvent(newState.operatorInfo.map {
         case (k, v) => (k, if (v.isInvalid) "cache invalid" else "cache valid")
       }))

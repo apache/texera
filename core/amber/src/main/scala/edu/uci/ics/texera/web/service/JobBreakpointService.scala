@@ -24,7 +24,6 @@ import edu.uci.ics.texera.workflow.common.workflow.{
   ConditionBreakpoint,
   CountBreakpoint
 }
-import rx.lang.scala.Subject
 
 class JobBreakpointService(
     client: AmberClient,
@@ -34,7 +33,7 @@ class JobBreakpointService(
   registerCallbackOnBreakpoint()
 
   addSubscription(
-    stateStore.breakpointStore.getSyncableState.registerStateChangeHandler((oldState, newState) => {
+    stateStore.breakpointStore.registerDiffHandler{ (oldState, newState) => {
       newState.operatorInfo
         .collect {
           case (opId, info) =>
@@ -46,7 +45,7 @@ class JobBreakpointService(
             }
         }
         .asInstanceOf[Iterable[TexeraWebSocketEvent]]
-    })
+    }}
   )
 
   /** *

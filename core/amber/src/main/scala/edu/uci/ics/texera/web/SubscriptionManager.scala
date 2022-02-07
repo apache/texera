@@ -1,19 +1,19 @@
 package edu.uci.ics.texera.web
 
-import rx.lang.scala.Subscription
+import io.reactivex.rxjava3.disposables.Disposable
 
 import scala.collection.mutable
 
 trait SubscriptionManager {
 
-  private val subscriptions = mutable.ArrayBuffer[Subscription]()
+  private val subscriptions = mutable.ArrayBuffer[Disposable]()
 
-  def addSubscription(sub: Subscription): Unit = {
+  def addSubscription(sub: Disposable): Unit = {
     subscriptions.append(sub)
   }
 
   def unsubscribeAll(): Unit = {
-    subscriptions.foreach(_.unsubscribe())
+    subscriptions.foreach(_.dispose())
     subscriptions.clear()
   }
 

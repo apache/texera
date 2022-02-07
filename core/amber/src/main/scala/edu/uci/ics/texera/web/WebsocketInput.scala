@@ -9,7 +9,7 @@ import scala.compat.java8.FunctionConverters._
 import scala.reflect.{ClassTag, classTag}
 
 class WebsocketInput(errorHandler: Throwable => Unit) {
-  private val wsInput = new PublishSubject[(TexeraWebSocketRequest, Option[UInteger])]
+  private val wsInput = PublishSubject.create[(TexeraWebSocketRequest, Option[UInteger])]()
   def subscribe[T <: TexeraWebSocketRequest: ClassTag](
       callback: (T, Option[UInteger]) => Unit
   ): Disposable = {

@@ -11,12 +11,10 @@ import edu.uci.ics.texera.web.model.websocket.event.{
   WorkflowStateEvent
 }
 import edu.uci.ics.texera.web.model.websocket.request._
-import edu.uci.ics.texera.web.model.websocket.request.python.PythonExpressionEvaluateRequest
 import edu.uci.ics.texera.web.model.websocket.response._
 import edu.uci.ics.texera.web.service.{WorkflowCacheService, WorkflowService}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler.ConstraintViolationException
-import rx.lang.scala.{Observable, Subject}
 
 import javax.websocket._
 import javax.websocket.server.ServerEndpoint

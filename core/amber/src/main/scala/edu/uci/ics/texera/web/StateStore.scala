@@ -2,18 +2,26 @@ package edu.uci.ics.texera.web
 
 import edu.uci.ics.texera.Utils.withLock
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
-import io.reactivex.rxjava3.core.{ObservableSource, Single, SingleSource}
-import io.reactivex.rxjava3.subjects.BehaviorSubject
+import io.reactivex.rxjava3.core.{Observable, Observer, Single}
+import io.reactivex.rxjava3.disposables.Disposable
+import io.reactivex.rxjava3.subjects.{BehaviorSubject, PublishSubject}
 
 import java.util.concurrent.locks.ReentrantLock
 import scala.collection.mutable
+import java.util
 
 class StateStore[T](defaultState: T) {
 
-  private val stateSubject = new BehaviorSubject[T]
+  private val stateSubject = BehaviorSubject.create[T]()
   private val serializedSubject = stateSubject.toSerialized
-  private val diffSubject = serializedSubject.startWith(Single.just(defaultState)).buffer(2)
-  private val syncableState = new SyncableState()
+  private implicit val lock: ReentrantLock = new ReentrantLock()
+  private val diffHandlers = new mutable.ArrayBuffer[(T,T) => Iterable[TexeraWebSocketEvent]]
+  private val diffSubject = serializedSubject.startWith(Single.just(defaultState)).buffer(2).map[Iterable[TexeraWebSocketEvent]]{
+    states:util.List[T] =>
+      withLock{
+        diffHandlers.flatMap(f => f(states.get(0),states.get(1)))
+      }
+  }
 
   def getStateThenConsume[X](next: T => X): X = {
       next(stateSubject.getValue)
@@ -24,42 +32,20 @@ class StateStore[T](defaultState: T) {
       serializedSubject.onNext(newState)
   }
 
-  def getObservable: Observable[(T, T)] = stateSubject
-
-  class SyncableState {
-    stateSubject.subscribe(diff => {
-      val oldState = diff._1
-      val newState = diff._2
-      val events = onChangedHandlers.values.flatMap(handler => handler(oldState, newState))
-      callbackSubject.onNext(events)
-    })
-
-    private var handlerId = 0
-    private val onChangedHandlers = mutable.HashMap[Int, (T, T) => Iterable[TexeraWebSocketEvent]]()
-    private val callbackSubject = Subject[Iterable[TexeraWebSocketEvent]].toSerialized
-
-    def subscribe(callback: Iterable[TexeraWebSocketEvent] => Unit): Subscription = {
-      withLock {
-        val events =
-          onChangedHandlers.values.flatMap(handler => handler(defaultState, currentState))
-        callback(events)
-      }
-      callbackSubject.subscribe(callback)
+  def registerDiffHandler(handler:(T,T) => Iterable[TexeraWebSocketEvent]):Disposable ={
+    withLock{
+      diffHandlers.append(handler)
     }
-
-    def registerStateChangeHandler(
-        handler: (T, T) => Iterable[TexeraWebSocketEvent]
-    ): Subscription = {
-      onChangedHandlers(handlerId) = handler
-      val id = handlerId
-      val sub = Subscription {
-        onChangedHandlers.remove(id)
-      }
-      handlerId += 1
-      sub
+    Disposable.fromAction{
+      () =>
+        withLock{
+          diffHandlers -= handler
+        }
     }
   }
 
-  def getSyncableState: SyncableState = syncableState
+  def getWebsocketEventObservable: Observable[Iterable[TexeraWebSocketEvent]] = diffSubject
+
+  def getStateObservable:Observable[T] = serializedSubject
 
 }

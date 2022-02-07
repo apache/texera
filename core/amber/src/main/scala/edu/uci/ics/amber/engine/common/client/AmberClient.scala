@@ -6,13 +6,11 @@ import akka.util.Timeout
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.common.FutureBijection._
-import edu.uci.ics.amber.engine.common.client.ClientActor.{
-  ClosureRequest,
-  InitializeRequest,
-  ObservableRequest
-}
+import edu.uci.ics.amber.engine.common.client.ClientActor.{ClosureRequest, InitializeRequest, ObservableRequest}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import rx.lang.scala.{Observable, Subject, Subscription}
+import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.disposables.Disposable
+import io.reactivex.rxjava3.subjects.{PublishSubject, Subject}
 
 import scala.collection.mutable
 import scala.concurrent.Await
@@ -68,7 +66,7 @@ class AmberClient(
     }
   }
 
-  def registerCallback[T](callback: T => Unit)(implicit ct: ClassTag[T]): Subscription = {
+  def registerCallback[T](callback: T => Unit)(implicit ct: ClassTag[T]): Disposable = {
     if (!isActive) {
       throw new RuntimeException("amber runtime environment is not active")
     }
@@ -81,7 +79,7 @@ class AmberClient(
       if (registeredObservables.contains(clazz)) {
         registeredObservables(clazz).asInstanceOf[Observable[T]]
       } else {
-        val sub = Subject[T]
+        val sub = PublishSubject.create[T]()
         val req = ObservableRequest({
           case x: T =>
             sub.onNext(x)
@@ -91,13 +89,13 @@ class AmberClient(
         registeredObservables(clazz) = ob
         ob
       }
-    observable.subscribe(evt => {
+    observable.subscribe{evt:T => {
       try {
         callback(evt)
       } catch {
         case t: Throwable => errorHandler(t)
       }
-    })
+    }}
   }
 
   def executeClosureSync[T](closure: => T): T = {
