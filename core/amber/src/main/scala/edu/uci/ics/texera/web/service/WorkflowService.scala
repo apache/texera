@@ -53,12 +53,12 @@ class WorkflowService(
   var opResultStorage: OpResultStorage = new OpResultStorage(
     AmberUtils.amberConfig.getString("storage.mode").toLowerCase
   )
-  private val errorSubject = BehaviorSubject.create[WorkflowExecutionErrorEvent]().toSerialized
+  private val errorSubject = BehaviorSubject.create[TexeraWebSocketEvent]().toSerialized
   val errorHandler: Throwable => Unit = { t =>
     {
       t.printStackTrace()
       errorSubject.onNext(
-        WorkflowExecutionErrorEvent(t.getMessage + "\n" + t.getStackTrace.mkString("\n"))
+        WorkflowErrorEvent(generalErrors = Map("error" -> (t.getMessage + "\n" + t.getStackTrace.mkString("\n"))))
       )
     }
   }
