@@ -12,13 +12,13 @@ import java.util
 
 class StateStore[T](defaultState: T) {
 
-  private val stateSubject = BehaviorSubject.create[T]()
+  private val stateSubject = BehaviorSubject.createDefault(defaultState)
   private val serializedSubject = stateSubject.toSerialized
   private implicit val lock: ReentrantLock = new ReentrantLock()
   private val diffHandlers = new mutable.ArrayBuffer[(T, T) => Iterable[TexeraWebSocketEvent]]
   private val diffSubject = serializedSubject
     .startWith(Single.just(defaultState))
-    .buffer(2)
+    .buffer(2,1)
     .map[Iterable[TexeraWebSocketEvent]] { states: util.List[T] =>
       withLock {
         diffHandlers.flatMap(f => f(states.get(0), states.get(1)))
