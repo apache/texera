@@ -1,10 +1,10 @@
-import { fromEvent, Observable, ReplaySubject, Subject } from "rxjs";
+import { fromEvent, Observable, ReplaySubject, Subject, merge } from "rxjs";
+import { bufferToggle, filter, flatMap, map, mergeMap, windowToggle } from "rxjs/operators";
 import { Point } from "../../../types/workflow-common.interface";
 import * as joint from "jointjs";
 import * as dagre from "dagre";
 import * as graphlib from "graphlib";
-import { filter, map } from "rxjs/operators";
-import { ContextManager } from "src/app/common/util/context";
+import { ObservableContextManager } from "src/app/common/util/context";
 
 type operatorIDsType = { operatorIDs: string[] };
 type linkIDType = { linkID: string };
@@ -134,7 +134,7 @@ export class JointGraphWrapper {
    * This will capture all events in JointJS
    *  involving the 'add' operation
    */
-  private jointCellAddStream = fromEvent<JointModelEvent>(this.jointGraph, "add").pipe(map(value => value[0]));
+  private jointCellAddStream = fromEvent<JointModelEvent>(this.jointGraph, "add").pipe(map(value => value[0]))
 
   /**
    * This will capture all events in JointJS
@@ -888,13 +888,38 @@ export class JointGraphWrapper {
     });
   }
 
+  // Modifies an observable to buffer output while the jointgraph 
+  // is in an async context
+  public createContextAwareStream<T>(source: Observable<T>) {
+    // Code adapted from https://kddsky.medium.com/pauseable-observables-in-rxjs-58ce2b8c7dfd
+    // Retrieved on 02/06/2022
+    
+    const BufferOnOffStream = this.jointGraphContext.getChangeContextStream().pipe(
+      map(([_, context]) => context.async)
+    );
+
+    const startBuffer = BufferOnOffStream.pipe(
+      filter(async => async == true)
+    );
+
+    const stopBuffer = BufferOnOffStream.pipe(
+      filter(async => async == false),
+      map(x => true)
+    );
+
+    return merge(
+        source.pipe(bufferToggle(startBuffer, () => stopBuffer)),
+        source.pipe(windowToggle(stopBuffer, () => startBuffer))
+    ).pipe(mergeMap(x => x));
+  }
+
   public static jointGraphContextFactory(){
-    class JointGraphContext extends ContextManager<JointGraphContextType>(DefaultContext) {
+    class JointGraphContext extends ObservableContextManager<JointGraphContextType>(DefaultContext) {
 
       private static jointPaper: joint.dia.Paper | undefined;
-    
+
       public static async(){
-        return this.getContext().async;
+        return this._async(this.getContext());
       }
     
       public static attachPaper(jointPaper: joint.dia.Paper){
@@ -908,14 +933,16 @@ export class JointGraphWrapper {
           this.jointPaper.options.async = this.async();
         }
       }
+      
       public static exit(): void {
-        super.exit();
         if (this.jointPaper !== undefined) {
-          if (this.jointPaper.options.async == true) {
-            this.jointPaper.updateViews();
-          }
-          this.jointPaper.options.async = this.async();
+          this.jointPaper.options.async = this._async(this.prevContext());
         }
+        super.exit();
+      }
+
+      private static _async(context: JointGraphContextType) {
+        return context.async;
       }
     }
 
