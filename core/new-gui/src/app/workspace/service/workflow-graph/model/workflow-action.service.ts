@@ -957,7 +957,7 @@ export class WorkflowActionService {
   /**
    * Reload the given workflow, update workflowMetadata and workflowContent.
    */
-  public reloadWorkflow(workflow: Workflow | undefined, asyncRendering = true): void {
+  public reloadWorkflow(workflow: Workflow | undefined, asyncRendering = false): void {
     this.jointGraphWrapper.jointGraphContext.withContext(
       {async: asyncRendering},
       () => {
