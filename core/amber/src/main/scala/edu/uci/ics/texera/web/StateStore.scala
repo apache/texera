@@ -18,7 +18,7 @@ class StateStore[T](defaultState: T) {
   private val diffHandlers = new mutable.ArrayBuffer[(T, T) => Iterable[TexeraWebSocketEvent]]
   private val diffSubject = serializedSubject
     .startWith(Single.just(defaultState))
-    .buffer(2,1)
+    .buffer(2, 1)
     .map[Iterable[TexeraWebSocketEvent]] { states: util.List[T] =>
       withLock {
         diffHandlers.flatMap(f => f(states.get(0), states.get(1)))
