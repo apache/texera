@@ -74,6 +74,7 @@ export class ResultPanelComponent implements OnInit {
         const currentlyHighlighted = this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs();
+        // display panel on breakpoint hits and highlight breakpoint operator
         if (event.current.state === ExecutionState.BreakpointTriggered) {
           const breakpointOperator = this.executeWorkflowService.getBreakpointTriggerInfo()?.operatorID;
           if (breakpointOperator) {
@@ -82,9 +83,13 @@ export class ResultPanelComponent implements OnInit {
           }
           this.resultPanelToggleService.openResultPanel();
         }
+        // display panel on abort (to show possible error messages)
         if (event.current.state === ExecutionState.Aborted) {
           this.resultPanelToggleService.openResultPanel();
         }
+        // display panel when execution is completed and highlight sink to show results
+        // condition must be (Running -> Completed) to prevent cases like
+        //   (Uninitialized -> Completed) (a completed workflow is reloaded)
         if (event.previous.state === ExecutionState.Running && event.current.state === ExecutionState.Completed) {
           const activeSinkOperators = this.workflowActionService
             .getTexeraGraph()
@@ -101,6 +106,8 @@ export class ResultPanelComponent implements OnInit {
             this.resultPanelToggleService.openResultPanel();
           }
         }
+
+        // display panel and highlight a python UDF operator when workflow starts running
         if (event.current.state === ExecutionState.Running) {
           const activePythonUDFOperators = this.workflowActionService
             .getTexeraGraph()
