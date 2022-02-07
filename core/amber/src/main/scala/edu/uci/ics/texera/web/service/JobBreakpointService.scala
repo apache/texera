@@ -1,29 +1,18 @@
 package edu.uci.ics.texera.web.service
 
-import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{
-  ConditionalGlobalBreakpoint,
-  CountGlobalBreakpoint
-}
+import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{ConditionalGlobalBreakpoint, CountGlobalBreakpoint}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.BreakpointTriggered
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.AssignBreakpointHandler.AssignGlobalBreakpoint
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.web.{SubscriptionManager, WorkflowStateStore}
 import edu.uci.ics.texera.web.model.websocket.event.{BreakpointTriggeredEvent, TexeraWebSocketEvent}
 import edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.BreakpointTuple
-import edu.uci.ics.texera.web.workflowruntimestate.{
-  BreakpointFault,
-  OperatorBreakpoints,
-  OperatorRuntimeStats,
-  PythonOperatorInfo
-}
+import edu.uci.ics.texera.web.workflowruntimestate.{BreakpointFault, OperatorBreakpoints, OperatorRuntimeStats, PythonOperatorInfo}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.PAUSED
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.workflow.{
-  Breakpoint,
-  BreakpointCondition,
-  ConditionBreakpoint,
-  CountBreakpoint
-}
+import edu.uci.ics.texera.workflow.common.workflow.{Breakpoint, BreakpointCondition, ConditionBreakpoint, CountBreakpoint}
+
+import scala.collection.mutable
 
 class JobBreakpointService(
     client: AmberClient,
@@ -35,17 +24,18 @@ class JobBreakpointService(
   addSubscription(
     stateStore.breakpointStore.registerDiffHandler { (oldState, newState) =>
       {
+        val output = new mutable.ArrayBuffer[TexeraWebSocketEvent]()
         newState.operatorInfo
-          .collect {
+          .foreach {
             case (opId, info) =>
               val oldInfo = oldState.operatorInfo.getOrElse(opId, new OperatorBreakpoints())
               if (
                 info.unresolvedBreakpoints.nonEmpty && info.unresolvedBreakpoints != oldInfo.unresolvedBreakpoints
               ) {
-                BreakpointTriggeredEvent(info.unresolvedBreakpoints, opId)
+                output.append(BreakpointTriggeredEvent(info.unresolvedBreakpoints, opId))
               }
           }
-          .asInstanceOf[Iterable[TexeraWebSocketEvent]]
+        output
       }
     }
   )

@@ -26,8 +26,6 @@ class JobRuntimeService(
     with LazyLogging {
 
   var executionID: UInteger = _
-  val executionsMetadataPersistService: ExecutionsMetadataPersistService =
-    new ExecutionsMetadataPersistService()
 
   addSubscription(
     stateStore.jobStateStore.registerDiffHandler((oldState, newState) => {

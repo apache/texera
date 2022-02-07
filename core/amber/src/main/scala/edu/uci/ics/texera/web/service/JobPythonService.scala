@@ -12,6 +12,8 @@ import edu.uci.ics.texera.web.service.JobPythonService.bufferSize
 import edu.uci.ics.texera.web.workflowruntimestate.PythonOperatorInfo
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{RESUMING, RUNNING}
 
+import scala.collection.mutable
+
 object JobPythonService {
   val bufferSize: Int = AmberUtils.amberConfig.getInt("web-server.python-console-buffer-size")
 
@@ -27,18 +29,19 @@ class JobPythonService(
 
   addSubscription(
     stateStore.pythonStore.registerDiffHandler((oldState, newState) => {
+      val output = new mutable.ArrayBuffer[TexeraWebSocketEvent]()
       // For each operator, check if it has new python console message or breakpoint events
       newState.operatorInfo
-        .collect {
+        .foreach {
           case (opId, info) =>
             val oldInfo = oldState.operatorInfo.getOrElse(opId, new PythonOperatorInfo())
             if (info.consoleMessages.nonEmpty && info.consoleMessages != oldInfo.consoleMessages) {
               val stringBuilder = new StringBuilder()
               info.consoleMessages.foreach(s => stringBuilder.append(s))
-              PythonPrintTriggeredEvent(stringBuilder.toString(), opId)
+              output.append(PythonPrintTriggeredEvent(stringBuilder.toString(), opId))
             }
         }
-        .asInstanceOf[Iterable[TexeraWebSocketEvent]]
+       output
     })
   )
 
