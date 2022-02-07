@@ -957,9 +957,9 @@ export class WorkflowActionService {
   /**
    * Reload the given workflow, update workflowMetadata and workflowContent.
    */
-  public reloadWorkflow(workflow: Workflow | undefined): void {
+  public reloadWorkflow(workflow: Workflow | undefined, asyncRendering = false): void {
     this.jointGraphWrapper.jointGraphContext.withContext(
-      {async: true},
+      {async: asyncRendering},
       () => {
         this.setWorkflowMetadata(workflow);
         // remove the existing operators on the paper currently
