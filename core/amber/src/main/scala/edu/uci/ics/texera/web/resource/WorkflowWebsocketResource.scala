@@ -13,7 +13,6 @@ import edu.uci.ics.texera.web.model.websocket.event.{
 import edu.uci.ics.texera.web.model.websocket.request._
 import edu.uci.ics.texera.web.model.websocket.response._
 import edu.uci.ics.texera.web.service.{WorkflowCacheService, WorkflowService}
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler.ConstraintViolationException
 
 import javax.websocket._
@@ -89,18 +88,6 @@ class WorkflowWebsocketResource extends LazyLogging {
             case Some(workflow) => workflow.wsInput.onNext(other, uidOpt)
             case None           => throw new IllegalStateException("workflow is not initialized")
           }
-
-//        case req: AddBreakpointRequest =>
-//          workflowStateOpt.foreach(
-//            _.jobService.foreach(
-//              _.jobRuntimeService.addBreakpoint(req.operatorID, req.breakpoint)
-//            )
-//          )
-//
-//        case cacheStatusUpdateRequest: CacheStatusUpdateRequest =>
-//          if (WorkflowCacheService.isAvailable) {
-//            workflowStateOpt.foreach(_.operatorCache.updateCacheStatus(cacheStatusUpdateRequest))
-//          }
       }
     } catch {
       case x: ConstraintViolationException =>
