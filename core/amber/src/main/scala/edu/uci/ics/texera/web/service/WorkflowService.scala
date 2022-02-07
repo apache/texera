@@ -3,23 +3,10 @@ package edu.uci.ics.texera.web.service
 import java.util.concurrent.ConcurrentHashMap
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.AmberUtils
-import edu.uci.ics.texera.web.model.websocket.event.{
-  TexeraWebSocketEvent,
-  WorkflowErrorEvent,
-  WorkflowExecutionErrorEvent
-}
-import edu.uci.ics.texera.web.{
-  SubscriptionManager,
-  TexeraWebApplication,
-  WebsocketInput,
-  WorkflowLifecycleManager,
-  WorkflowStateStore
-}
-import edu.uci.ics.texera.web.model.websocket.request.{
-  TexeraWebSocketRequest,
-  WorkflowExecuteRequest,
-  WorkflowKillRequest
-}
+import edu.uci.ics.texera.web.model.websocket.event.{TexeraWebSocketEvent, WorkflowErrorEvent, WorkflowExecutionErrorEvent}
+import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication, WebsocketInput, WorkflowLifecycleManager, WorkflowStateStore}
+import edu.uci.ics.texera.web.model.websocket.request.{TexeraWebSocketRequest, WorkflowExecuteRequest, WorkflowKillRequest}
+import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import io.reactivex.rxjava3.core.Observer
 import io.reactivex.rxjava3.disposables.{CompositeDisposable, Disposable}
@@ -30,12 +17,24 @@ object WorkflowService {
   private val wIdToWorkflowState = new ConcurrentHashMap[String, WorkflowService]()
   val cleanUpDeadlineInSeconds: Int =
     AmberUtils.amberConfig.getInt("web-server.workflow-state-cleanup-in-seconds")
-  def getOrCreate(wId: String, cleanupTimeout: Int = cleanUpDeadlineInSeconds): WorkflowService = {
+  def getOrCreate(
+      wId: Int,
+      uidOpt: Option[UInteger],
+      cleanupTimeout: Int = cleanUpDeadlineInSeconds
+  ): WorkflowService = {
+    var workflowStateId: String = ""
+    uidOpt match {
+      case Some(user) =>
+        workflowStateId = user + "-" + wId
+      case None =>
+        // use a fixed wid for reconnection
+        workflowStateId = "dummy wid"
+    }
     wIdToWorkflowState.compute(
-      wId,
+      workflowStateId,
       (_, v) => {
         if (v == null) {
-          new WorkflowService(wId, cleanupTimeout)
+          new WorkflowService(uidOpt, wId, workflowStateId, cleanupTimeout)
         } else {
           v
         }
@@ -45,7 +44,9 @@ object WorkflowService {
 }
 
 class WorkflowService(
-    wid: String,
+    uidOpt: Option[UInteger],
+    wId: Int,
+    workflowStateId: String,
     cleanUpTimeout: Int
 ) extends SubscriptionManager
     with LazyLogging {
@@ -70,6 +71,9 @@ class WorkflowService(
   val operatorCache: WorkflowCacheService =
     new WorkflowCacheService(opResultStorage, stateStore, wsInput)
   var jobService: Option[WorkflowJobService] = None
+  private val workflowContext = new WorkflowContext
+  workflowContext.userId = uidOpt
+  workflowContext.wId = wId
   val lifeCycleManager: WorkflowLifecycleManager = new WorkflowLifecycleManager(
     wid,
     cleanUpTimeout,

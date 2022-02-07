@@ -7,30 +7,27 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHa
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput, WorkflowStateStore}
-import edu.uci.ics.texera.web.model.websocket.event.{
-  TexeraWebSocketEvent,
-  WorkflowExecutionErrorEvent,
-  WorkflowStateEvent
-}
+import edu.uci.ics.texera.web.model.websocket.event.{TexeraWebSocketEvent, WorkflowExecutionErrorEvent, WorkflowStateEvent}
 import edu.uci.ics.texera.web.model.websocket.request.python.PythonExpressionEvaluateRequest
-import edu.uci.ics.texera.web.model.websocket.request.{
-  RemoveBreakpointRequest,
-  SkipTupleRequest,
-  WorkflowKillRequest,
-  WorkflowPauseRequest,
-  WorkflowResumeRequest
-}
+import edu.uci.ics.texera.web.model.websocket.request.{RemoveBreakpointRequest, SkipTupleRequest, WorkflowKillRequest, WorkflowPauseRequest, WorkflowResumeRequest}
+import org.jooq.types.UInteger
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
+import edu.uci.ics.texera.workflow.common.WorkflowContext
 
 import scala.collection.mutable
 
 class JobRuntimeService(
+                         workflowContext: WorkflowContext,
     client: AmberClient,
     stateStore: WorkflowStateStore,
     wsInput: WebsocketInput,
     breakpointService: JobBreakpointService
 ) extends SubscriptionManager
     with LazyLogging {
+
+  var executionID: UInteger = _
+  val executionsMetadataPersistService: ExecutionsMetadataPersistService =
+    new ExecutionsMetadataPersistService()
 
   addSubscription(
     stateStore.jobStateStore.registerDiffHandler((oldState, newState) => {

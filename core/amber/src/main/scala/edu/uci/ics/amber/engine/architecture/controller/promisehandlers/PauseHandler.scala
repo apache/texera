@@ -67,7 +67,8 @@ trait PauseHandler {
           // send paused to frontend
           sendToClient(WorkflowPaused())
           disableStatusUpdate() // to be enabled in resume
-
+          disableMonitoring()
+          disableSkewHandling()
         }
     }
   }

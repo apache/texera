@@ -30,6 +30,7 @@ import edu.uci.ics.texera.workflow.common.workflow.{
 import org.jooq.types.UInteger
 
 class WorkflowJobService(
+    workflowContext: WorkflowContext,
     stateStore: WorkflowStateStore,
     wsInput: WebsocketInput,
     operatorCache: WorkflowCacheService,
@@ -41,10 +42,10 @@ class WorkflowJobService(
     with LazyLogging {
 
   // Compilation starts from here:
-  var workflowContext: WorkflowContext = createWorkflowContext()
-  var workflowInfo: WorkflowInfo = createWorkflowInfo(workflowContext)
-  var workflowCompiler: WorkflowCompiler = createWorkflowCompiler(workflowInfo, workflowContext)
-  var workflow: Workflow = workflowCompiler.amberWorkflow(
+  workflowContext.jobId = createWorkflowContext()
+  val workflowInfo: WorkflowInfo = createWorkflowInfo()
+  val workflowCompiler: WorkflowCompiler = createWorkflowCompiler(workflowInfo)
+  val workflow: Workflow = workflowCompiler.amberWorkflow(
     WorkflowIdentity(workflowContext.jobId),
     resultService.opResultStorage
   )
@@ -80,7 +81,7 @@ class WorkflowJobService(
     }
   }
 
-  private[this] def createWorkflowContext(): WorkflowContext = {
+  private[this] def createWorkflowContext(): String = {
     val jobID: String = Integer.toString(WorkflowWebsocketResource.nextExecutionID.incrementAndGet)
     if (WorkflowCacheService.isAvailable) {
       operatorCache.updateCacheStatus(
@@ -92,13 +93,10 @@ class WorkflowJobService(
         )
       )
     }
-    val context = new WorkflowContext
-    context.jobId = jobID
-    context.userId = uidOpt
-    context
+    jobID
   }
 
-  private[this] def createWorkflowInfo(context: WorkflowContext): WorkflowInfo = {
+  private[this] def createWorkflowInfo(): WorkflowInfo = {
     var workflowInfo = WorkflowInfo(request.operators, request.links, request.breakpoints)
     if (WorkflowCacheService.isAvailable) {
       workflowInfo.cachedOperatorIds = request.cachedOperatorIds
@@ -125,10 +123,9 @@ class WorkflowJobService(
   }
 
   private[this] def createWorkflowCompiler(
-      workflowInfo: WorkflowInfo,
-      context: WorkflowContext
+      workflowInfo: WorkflowInfo
   ): WorkflowCompiler = {
-    val compiler = new WorkflowCompiler(workflowInfo, context)
+    val compiler = new WorkflowCompiler(workflowInfo, workflowContext)
     val violations = compiler.validate
     if (violations.nonEmpty) {
       throw new ConstraintViolationException(violations)
