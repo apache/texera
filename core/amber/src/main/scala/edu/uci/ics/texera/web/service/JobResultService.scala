@@ -3,21 +3,13 @@ package edu.uci.ics.texera.web.service
 import akka.actor.Cancellable
 import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  WorkflowCompleted,
-  WorkflowPaused
-}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{WorkflowCompleted, WorkflowPaused}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication}
-import edu.uci.ics.texera.web.model.websocket.event.{
-  PaginatedResultEvent,
-  TexeraWebSocketEvent,
-  WebResultUpdateEvent,
-  WorkflowAvailableResultEvent
-}
+import edu.uci.ics.texera.web.model.websocket.event.{PaginatedResultEvent, TexeraWebSocketEvent, WebResultUpdateEvent, WorkflowAvailableResultEvent}
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
 import edu.uci.ics.texera.web.service.JobResultService.WebResultUpdate
 import edu.uci.ics.texera.web.storage.WorkflowStateStore
@@ -28,6 +20,7 @@ import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo}
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
+import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
@@ -136,6 +129,8 @@ class JobResultService(
       resultUpdateCancellable.cancel()
     }
 
+    unsubscribeAll()
+
     addSubscription(stateStore.jobStateStore.getStateObservable.subscribe {
       newState: JobStateStore =>
         {
@@ -167,8 +162,37 @@ class JobResultService(
 
     addSubscription(client.registerCallback[FatalError](_ => resultUpdateCancellable.cancel()))
 
+    addSubscription(
+      stateStore.resultStore.registerDiffHandler((oldState, newState) => {
+        val buf = mutable.HashMap[String, WebResultUpdate]()
+        newState.operatorInfo.foreach {
+          case (opId, info) =>
+            val oldInfo = oldState.operatorInfo.getOrElse(opId, new OperatorResultMetadata())
+            // TODO: frontend now receives snapshots instead of deltas, we can optimize this
+            // if (oldInfo.tupleCount != info.tupleCount) {
+            buf(opId) =
+              progressiveResults(opId).convertWebResultUpdate(oldInfo.tupleCount, info.tupleCount)
+          //}
+        }
+        Iterable(WebResultUpdateEvent(buf.toMap))
+      })
+    )
+
+    // first clear all the results
     progressiveResults.clear()
 
+    // If we have cache sources, make dummy sink operators for displaying results on the frontend.
+    workflowInfo.toDAG.getSourceOperators.map(source =>{
+      workflowInfo.toDAG.getOperator(source) match {
+        case cacheSourceOpDesc: CacheSourceOpDesc =>
+          val dummySink = new ProgressiveSinkOpDesc()
+          dummySink.setStorage(opResultStorage.get(cacheSourceOpDesc.targetSinkStorageId))
+          progressiveResults += ((cacheSourceOpDesc.targetSinkStorageId, new ProgressiveResultService(dummySink)))
+        case other => //skip
+      }
+    })
+
+    // For cached operators and sinks, create result service so that the results can be displayed.
     workflowInfo.toDAG.getSinkOperators.map(sink => {
       workflowInfo.toDAG.getOperator(sink) match {
         case sinkOp: ProgressiveSinkOpDesc =>
@@ -206,21 +230,5 @@ class JobResultService(
       }.toMap)
     }
   }
-
-  addSubscription(
-    stateStore.resultStore.registerDiffHandler((oldState, newState) => {
-      val buf = mutable.HashMap[String, WebResultUpdate]()
-      newState.operatorInfo.foreach {
-        case (opId, info) =>
-          val oldInfo = oldState.operatorInfo.getOrElse(opId, new OperatorResultMetadata())
-          // TODO: frontend now receives snapshots instead of deltas, we can optimize this
-          // if (oldInfo.tupleCount != info.tupleCount) {
-          buf(opId) =
-            progressiveResults(opId).convertWebResultUpdate(oldInfo.tupleCount, info.tupleCount)
-        //}
-      }
-      Iterable(WebResultUpdateEvent(buf.toMap))
-    })
-  )
 
 }

@@ -71,12 +71,9 @@ class WorkflowJobService(
       )
     }
     resultService.attachToJob(workflowInfo, client)
-    val f = client.sendAsync(StartWorkflow())
     val eid = ExecutionsMetadataPersistService.insertNewExecution(workflowContext.wId)
-    stateStore.jobStateStore.updateState(jobInfo => jobInfo.withState(READY).withEid(eid))
-    f.onSuccess { _ =>
-      stateStore.jobStateStore.updateState(jobInfo => jobInfo.withState(RUNNING))
-    }
+    stateStore.jobStateStore.updateState(jobInfo => jobInfo.withState(READY).withEid(eid).withError(null))
+    client.sendAsyncWithCallback[Unit](StartWorkflow(), _ => stateStore.jobStateStore.updateState(jobInfo => jobInfo.withState(RUNNING)))
   }
 
   private[this] def createWorkflowInfo(): WorkflowInfo = {

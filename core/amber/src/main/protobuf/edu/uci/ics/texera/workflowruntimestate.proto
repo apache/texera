@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package edu.uci.ics.texera.web;
 
+import "edu/uci/ics/amber/engine/architecture/worker/controlreturns.proto";
 import "scalapb/scalapb.proto";
 
 option (scalapb.options) = {
@@ -23,6 +24,7 @@ enum WorkflowAggregatedState {
   UNKNOWN = 9;
 }
 
+
 message BreakpointFault{
   message BreakpointTuple{
     int64 id = 1;
@@ -43,9 +45,13 @@ message JobBreakpointStore{
   map<string,OperatorBreakpoints> operator_info = 1;
 }
 
+message EvaluatedValueList{
+  repeated amber.engine.architecture.worker.EvaluatedValue values = 1;
+}
 
 message PythonOperatorInfo{
   repeated string console_messages = 1;
+  map<string,EvaluatedValueList> evaluate_expr_results = 2;
 }
 
 message JobPythonStore{

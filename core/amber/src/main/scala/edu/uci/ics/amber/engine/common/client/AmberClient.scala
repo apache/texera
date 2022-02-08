@@ -53,6 +53,19 @@ class AmberClient(
     }
   }
 
+  def sendAsyncWithCallback[T](controlCommand: ControlCommand[T], callback:T => Unit):Unit = {
+    if (!isActive) {
+      Future.exception(new RuntimeException("amber runtime environment is not active"))
+    } else {
+      val promise = Promise[Any]
+      promise.onSuccess{
+        value => callback(value.asInstanceOf[T])
+      }
+      promise.onFailure(t => errorHandler(t))
+      clientActor ! CommandRequest(controlCommand, promise)
+    }
+  }
+
   def fireAndForget[T](controlCommand: ControlCommand[T]): Unit = {
     if (!isActive) {
       throw new RuntimeException("amber runtime environment is not active")

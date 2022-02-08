@@ -8,23 +8,12 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHa
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
-import edu.uci.ics.texera.web.model.websocket.event.{
-  TexeraWebSocketEvent,
-  WorkflowExecutionErrorEvent,
-  WorkflowStateEvent
-}
+import edu.uci.ics.texera.web.model.websocket.event.{TexeraWebSocketEvent, WorkflowExecutionErrorEvent, WorkflowStateEvent}
 import edu.uci.ics.texera.web.model.websocket.request.python.PythonExpressionEvaluateRequest
-import edu.uci.ics.texera.web.model.websocket.request.{
-  RemoveBreakpointRequest,
-  SkipTupleRequest,
-  WorkflowKillRequest,
-  WorkflowPauseRequest,
-  WorkflowResumeRequest
-}
+import edu.uci.ics.texera.web.model.websocket.request.{RemoveBreakpointRequest, SkipTupleRequest, WorkflowKillRequest, WorkflowPauseRequest, WorkflowResumeRequest}
 import edu.uci.ics.texera.web.storage.WorkflowStateStore
-import org.jooq.types.UInteger
+import edu.uci.ics.texera.web.workflowruntimestate.{EvaluatedValueList, PythonOperatorInfo}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
-import edu.uci.ics.texera.workflow.common.WorkflowContext
 
 import scala.collection.mutable
 
@@ -45,7 +34,7 @@ class JobRuntimeService(
         outputEvts.append(WorkflowStateEvent(Utils.aggregatedStateToString(newState.state)))
       }
       // Check if new error occurred
-      if (newState.error != oldState.error) {
+      if (newState.error != oldState.error && newState.error != null) {
         outputEvts.append(WorkflowExecutionErrorEvent(newState.error))
       }
       outputEvts
@@ -59,35 +48,21 @@ class JobRuntimeService(
 
   // Receive Pause
   addSubscription(wsInput.subscribe((req: WorkflowPauseRequest, uidOpt) => {
-    val f = client.sendAsync(PauseWorkflow())
     stateStore.jobStateStore.updateState(jobInfo => jobInfo.withState(PAUSING))
-    f.onSuccess { _ =>
-      stateStore.jobStateStore.updateState(jobInfo => jobInfo.withState(PAUSED))
-    }
+    client.sendAsyncWithCallback[Unit](PauseWorkflow(), _ => stateStore.jobStateStore.updateState(jobInfo => jobInfo.withState(PAUSED)))
   }))
 
   // Receive Resume
   addSubscription(wsInput.subscribe((req: WorkflowResumeRequest, uidOpt) => {
     breakpointService.clearTriggeredBreakpoints()
-    val f = client.sendAsync(ResumeWorkflow())
     stateStore.jobStateStore.updateState(jobInfo => jobInfo.withState(RESUMING))
-    f.onSuccess { _ =>
-      stateStore.jobStateStore.updateState(jobInfo => jobInfo.withState(RUNNING))
-    }
+    client.sendAsyncWithCallback[Unit](ResumeWorkflow(),_ => stateStore.jobStateStore.updateState(jobInfo => jobInfo.withState(RUNNING)))
   }))
 
   // Receive Kill
   addSubscription(wsInput.subscribe((req: WorkflowKillRequest, uidOpt) => {
     client.shutdown()
     stateStore.jobStateStore.updateState(jobInfo => jobInfo.withState(COMPLETED))
-  }))
-
-  // Receive evaluate python expression
-  addSubscription(wsInput.subscribe((req: PythonExpressionEvaluateRequest, uidOpt) => {
-    Await.result(
-      client.sendAsync(EvaluatePythonExpression(req.expression, req.operatorId)),
-      Duration.fromSeconds(30)
-    )
   }))
 
 }
