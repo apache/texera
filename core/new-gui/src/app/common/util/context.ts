@@ -43,21 +43,21 @@ export function ObservableContextManager<Context>(defaultContext: Context) {
         private static changeContextStream = ObservableContextManager.createChangeContextStream();
 
         public static getEnterStream() {
-            return ObservableContextManager.enterStream.asObservable();
+            return this.enterStream.asObservable();
         }
 
         public static getExitStream() {
-            return ObservableContextManager.exitStream.asObservable();
+            return this.exitStream.asObservable();
         }
 
         public static getChangeContextStream() {
-            return ObservableContextManager.changeContextStream;
+            return this.changeContextStream;
         }
 
         private static createChangeContextStream() {
             return merge(
-                ObservableContextManager.getEnterStream(),
-                ObservableContextManager.getExitStream(),
+                this.getEnterStream(),
+                this.getExitStream(),
             );
         }
 
