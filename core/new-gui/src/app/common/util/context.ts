@@ -15,12 +15,6 @@ export function ContextManager<Context>(defaultContext: Context) {
             return this.contextStack[this.contextStack.length-2];
         }
 
-        public static enter(context: Context) {
-            this.contextStack.push(context);
-        }
-        public static exit() {
-            this.contextStack.pop();
-        }
         public static withContext<T>(context: Context, callable: () => T): T{
             try {
                 this.enter(context);
@@ -28,6 +22,14 @@ export function ContextManager<Context>(defaultContext: Context) {
             } finally {
                 this.exit();
             }
+        }
+
+        protected static enter(context: Context) {
+            this.contextStack.push(context);
+        }
+
+        protected static exit() {
+            this.contextStack.pop();
         }
     }
 
@@ -52,20 +54,6 @@ export function ObservableContextManager<Context>(defaultContext: Context) {
             return ObservableContextManager.changeContextStream;
         }
 
-        public static enter(context: Context): void {
-            const oldContext = this.getContext();
-            const newContext = context;
-            super.enter(context);
-            this.enterStream.next([oldContext, newContext]);
-        }
-
-        public static exit(): void {
-            const oldContext = this.getContext();
-            super.exit();
-            const newContext = this.getContext();
-            this.exitStream.next([oldContext, newContext]);
-        }
-
         private static createChangeContextStream() {
             return merge(
                 ObservableContextManager.getEnterStream(),
@@ -73,6 +61,19 @@ export function ObservableContextManager<Context>(defaultContext: Context) {
             );
         }
 
+        protected static enter(context: Context): void {
+            const oldContext = this.getContext();
+            const newContext = context;
+            super.enter(context);
+            this.enterStream.next([oldContext, newContext]);
+        }
+
+        protected static exit(): void {
+            const oldContext = this.getContext();
+            super.exit();
+            const newContext = this.getContext();
+            this.exitStream.next([oldContext, newContext]);
+        }
     }
     return ObservableContextManager;
 }

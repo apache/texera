@@ -927,14 +927,14 @@ export class JointGraphWrapper {
         this.jointPaper.options.async = this.async();
       }
     
-      public static enter(context: JointGraphContextType): void {
+      protected static enter(context: JointGraphContextType): void {
         super.enter(context);
         if (this.jointPaper !== undefined) {
           this.jointPaper.options.async = this.async();
         }
       }
       
-      public static exit(): void {
+      protected static exit(): void {
         if (this.jointPaper !== undefined) {
           const CURRENT_ASYNC_MODE = this._async(this.getContext());
           const NEW_ASYNC_MODE = this._async(this.prevContext());
