@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.web.service
 
+import com.twitter.util.{Await, Duration}
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.EvaluatePythonExpressionHandler.EvaluatePythonExpression
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
@@ -83,7 +84,10 @@ class JobRuntimeService(
 
   // Receive evaluate python expression
   addSubscription(wsInput.subscribe((req: PythonExpressionEvaluateRequest, uidOpt) => {
-    client.sendSync(EvaluatePythonExpression(req.expression, req.operatorId))
+    Await.result(
+      client.sendAsync(EvaluatePythonExpression(req.expression, req.operatorId)),
+      Duration.fromSeconds(30)
+    )
   }))
 
 }

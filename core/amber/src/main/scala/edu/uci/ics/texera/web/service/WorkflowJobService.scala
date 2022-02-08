@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.web.service
 
+import com.twitter.util.{Await, Duration}
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ModifyLogicHandler.ModifyLogic
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
@@ -64,7 +65,10 @@ class WorkflowJobService(
 
   def startWorkflow(): Unit = {
     for (pair <- workflowInfo.breakpoints) {
-      jobBreakpointService.addBreakpoint(pair.operatorID, pair.breakpoint)
+      Await.result(
+        jobBreakpointService.addBreakpoint(pair.operatorID, pair.breakpoint),
+        Duration.fromSeconds(10)
+      )
     }
     resultService.attachToJob(workflowInfo, client)
     val f = client.sendAsync(StartWorkflow())

@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.web.service
 
+import com.twitter.util.{Duration, Future}
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{
   ConditionalGlobalBreakpoint,
   CountGlobalBreakpoint
@@ -100,7 +101,7 @@ class JobBreakpointService(
     }
   }
 
-  def addBreakpoint(operatorID: String, breakpoint: Breakpoint): Unit = {
+  def addBreakpoint(operatorID: String, breakpoint: Breakpoint): Future[_] = {
     val breakpointID = "breakpoint-" + operatorID + "-" + System.currentTimeMillis()
     breakpoint match {
       case conditionBp: ConditionBreakpoint =>
@@ -126,7 +127,7 @@ class JobBreakpointService(
             tuple => !tuple.getField(column).toString.trim.contains(conditionBp.value)
         }
 
-        client.sendSync(
+        client.sendAsync(
           AssignGlobalBreakpoint(
             new ConditionalGlobalBreakpoint(
               breakpointID,
@@ -139,7 +140,7 @@ class JobBreakpointService(
           )
         )
       case countBp: CountBreakpoint =>
-        client.sendSync(
+        client.sendAsync(
           AssignGlobalBreakpoint(new CountGlobalBreakpoint(breakpointID, countBp.count), operatorID)
         )
     }
