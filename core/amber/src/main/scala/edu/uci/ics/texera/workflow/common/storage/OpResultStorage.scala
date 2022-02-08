@@ -17,14 +17,6 @@ class OpResultStorage(mode: String = "memory") extends Serializable with LazyLog
   val cache: ConcurrentHashMap[String, SinkStorageReader] =
     new ConcurrentHashMap[String, SinkStorageReader]()
 
-//  /**
-//    * Put the result of an operator to OpResultStorage.
-//    * @param key The key used for storage and retrieval.
-//    *            Currently it is the uuid inside the cache source or cache sink operator.
-//    * @param records The results.
-//    */
-//  def put(key: String, records: List[Tuple]): Unit
-
   /**
     * Retrieve the result of an operator from OpResultStorage
     * @param key The key used for storage and retrieval.
@@ -70,20 +62,6 @@ class OpResultStorage(mode: String = "memory") extends Serializable with LazyLog
     }
     cache.remove(key)
     logger.debug(s"remove $key end")
-  }
-
-  /**
-    * Dump everything in result storage. Called when the system exits.
-    */
-  def dump(): Unit = {
-    throw new NotImplementedError()
-  }
-
-  /**
-    * Load and initialize result storage. Called when the system init.
-    */
-  def load(): Unit = {
-    throw new NotImplementedError()
   }
 
   /**

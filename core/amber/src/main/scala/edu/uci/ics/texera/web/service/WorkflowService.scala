@@ -3,9 +3,12 @@ package edu.uci.ics.texera.web.service
 import java.util.concurrent.ConcurrentHashMap
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.web.model.websocket.event.{TexeraWebSocketEvent, WorkflowErrorEvent, WorkflowExecutionErrorEvent}
-import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication, WebsocketInput, WorkflowLifecycleManager, WorkflowStateStore}
-import edu.uci.ics.texera.web.model.websocket.request.{TexeraWebSocketRequest, WorkflowExecuteRequest, WorkflowKillRequest}
+import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication, WebsocketInput, WorkflowLifecycleManager}
+import edu.uci.ics.texera.web.model.websocket.request.{CacheStatusUpdateRequest, TexeraWebSocketRequest, WorkflowExecuteRequest, WorkflowKillRequest}
+import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource
+import edu.uci.ics.texera.web.storage.WorkflowStateStore
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import io.reactivex.rxjava3.core.Observer
@@ -34,7 +37,7 @@ object WorkflowService {
       workflowStateId,
       (_, v) => {
         if (v == null) {
-          new WorkflowService(uidOpt, wId, workflowStateId, cleanupTimeout)
+          new WorkflowService(uidOpt, wId, cleanupTimeout)
         } else {
           v
         }
@@ -46,7 +49,6 @@ object WorkflowService {
 class WorkflowService(
     uidOpt: Option[UInteger],
     wId: Int,
-    workflowStateId: String,
     cleanUpTimeout: Int
 ) extends SubscriptionManager
     with LazyLogging {
@@ -71,15 +73,12 @@ class WorkflowService(
   val operatorCache: WorkflowCacheService =
     new WorkflowCacheService(opResultStorage, stateStore, wsInput)
   var jobService: Option[WorkflowJobService] = None
-  private val workflowContext = new WorkflowContext
-  workflowContext.userId = uidOpt
-  workflowContext.wId = wId
   val lifeCycleManager: WorkflowLifecycleManager = new WorkflowLifecycleManager(
-    wid,
+    s"uid=$uidOpt wid=$wId",
     cleanUpTimeout,
     () => {
       opResultStorage.close()
-      WorkflowService.wIdToWorkflowState.remove(wid)
+      WorkflowService.wIdToWorkflowState.remove(wId)
       wsInput.onNext(WorkflowKillRequest(), None)
       unsubscribeAll()
     }
@@ -89,22 +88,37 @@ class WorkflowService(
     wsInput.subscribe((evt: WorkflowExecuteRequest, uidOpt) => initJobService(evt, uidOpt))
   )
 
-  def connect(observer: Observer[TexeraWebSocketEvent]): Disposable = {
+  def connect(onNext: TexeraWebSocketEvent => Unit): Disposable = {
     lifeCycleManager.increaseUserCount()
     val subscriptions = stateStore.getAllStores
       .map(_.getWebsocketEventObservable)
       .map(evtPub =>
-        evtPub.subscribe { evts: Iterable[TexeraWebSocketEvent] => evts.foreach(observer.onNext) }
+        evtPub.subscribe { evts: Iterable[TexeraWebSocketEvent] => evts.foreach(onNext) }
       )
       .toSeq
-    val errorSubscription = errorSubject.subscribe(evt => observer.onNext(evt))
+    val errorSubscription = errorSubject.subscribe{evt:TexeraWebSocketEvent => onNext}
     new CompositeDisposable(subscriptions :+ errorSubscription: _*)
   }
 
   def disconnect(): Unit = {
     lifeCycleManager.decreaseUserCount(
-      stateStore.jobStateStore.getStateThenConsume(_.state)
+      stateStore.jobStateStore.getState.state
     )
+  }
+
+  private[this] def createWorkflowContext(request: WorkflowExecuteRequest): WorkflowContext = {
+    val jobID: String = String.valueOf(WorkflowWebsocketResource.nextExecutionID.incrementAndGet)
+    if (WorkflowCacheService.isAvailable) {
+      operatorCache.updateCacheStatus(
+        CacheStatusUpdateRequest(
+          request.operators,
+          request.links,
+          request.breakpoints,
+          request.cachedOperatorIds
+        )
+      )
+    }
+    new WorkflowContext(jobID,uidOpt,wId)
   }
 
   def initJobService(req: WorkflowExecuteRequest, uidOpt: Option[UInteger]): Unit = {
@@ -113,6 +127,7 @@ class WorkflowService(
       jobService.get.unsubscribeAll()
     }
     val job = new WorkflowJobService(
+      createWorkflowContext(req),
       stateStore,
       wsInput,
       operatorCache,

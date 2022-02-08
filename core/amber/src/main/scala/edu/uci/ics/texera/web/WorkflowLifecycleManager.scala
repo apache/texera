@@ -3,13 +3,13 @@ package edu.uci.ics.texera.web
 import java.time.{LocalDateTime, Duration => JDuration}
 import akka.actor.Cancellable
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.texera.web.storage.WorkflowStateStore
 import edu.uci.ics.texera.web.workflowruntimestate.{JobStateStore, WorkflowAggregatedState}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.RUNNING
 
-import javax.print.attribute.standard.JobState
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
-class WorkflowLifecycleManager(wid: String, cleanUpTimeout: Int, cleanUpCallback: () => Unit)
+class WorkflowLifecycleManager(id:String, cleanUpTimeout: Int, cleanUpCallback: () => Unit)
     extends LazyLogging {
   private var userCount = 0
   private var cleanUpJob: Cancellable = Cancellable.alreadyCancelled
@@ -19,7 +19,7 @@ class WorkflowLifecycleManager(wid: String, cleanUpTimeout: Int, cleanUpCallback
       if (userCount > 0 || status == RUNNING) {
         cleanUpJob.cancel()
         logger.info(
-          s"[$wid] workflow state clean up postponed. current user count = $userCount, workflow status = $status"
+          s"[$id] workflow state clean up postponed. current user count = $userCount, workflow status = $status"
         )
       } else {
         refreshDeadline()
@@ -30,7 +30,7 @@ class WorkflowLifecycleManager(wid: String, cleanUpTimeout: Int, cleanUpCallback
   private[this] def refreshDeadline(): Unit = {
     if (cleanUpJob.isCancelled || cleanUpJob.cancel()) {
       logger.info(
-        s"[$wid] workflow state clean up will start at ${LocalDateTime.now().plus(JDuration.ofSeconds(cleanUpTimeout))}"
+        s"[$id] workflow state clean up will start at ${LocalDateTime.now().plus(JDuration.ofSeconds(cleanUpTimeout))}"
       )
       cleanUpJob = TexeraWebApplication.scheduleCallThroughActorSystem(cleanUpTimeout.seconds) {
         cleanUp()
@@ -42,11 +42,11 @@ class WorkflowLifecycleManager(wid: String, cleanUpTimeout: Int, cleanUpCallback
     synchronized {
       if (userCount > 0) {
         // do nothing
-        logger.info(s"[$wid] workflow state clean up failed. current user count = $userCount")
+        logger.info(s"[$id] workflow state clean up failed. current user count = $userCount")
       } else {
         cleanUpJob.cancel()
         cleanUpCallback()
-        logger.info(s"[$wid] workflow state clean up completed.")
+        logger.info(s"[$id] workflow state clean up completed.")
       }
     }
   }
@@ -55,7 +55,7 @@ class WorkflowLifecycleManager(wid: String, cleanUpTimeout: Int, cleanUpCallback
     synchronized {
       userCount += 1
       cleanUpJob.cancel()
-      logger.info(s"[$wid] workflow state clean up postponed. current user count = $userCount")
+      logger.info(s"[$id] workflow state clean up postponed. current user count = $userCount")
     }
   }
 
@@ -65,7 +65,7 @@ class WorkflowLifecycleManager(wid: String, cleanUpTimeout: Int, cleanUpCallback
       if (userCount == 0 && currentWorkflowState != RUNNING) {
         refreshDeadline()
       } else {
-        logger.info(s"[$wid] workflow state clean up postponed. current user count = $userCount")
+        logger.info(s"[$id] workflow state clean up postponed. current user count = $userCount")
       }
     }
   }

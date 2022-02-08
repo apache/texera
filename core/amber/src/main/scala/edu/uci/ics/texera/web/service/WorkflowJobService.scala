@@ -6,27 +6,15 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWor
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
-import edu.uci.ics.texera.web.model.websocket.request.{
-  CacheStatusUpdateRequest,
-  ModifyLogicRequest,
-  WorkflowExecuteRequest
-}
+import edu.uci.ics.texera.web.model.websocket.request.{CacheStatusUpdateRequest, ModifyLogicRequest, WorkflowExecuteRequest}
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource
+import edu.uci.ics.texera.web.storage.WorkflowStateStore
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{READY, RUNNING}
-import edu.uci.ics.texera.web.{
-  SubscriptionManager,
-  TexeraWebApplication,
-  WebsocketInput,
-  WorkflowStateStore
-}
+import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication, WebsocketInput}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler.ConstraintViolationException
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowInfo.toJgraphtDAG
-import edu.uci.ics.texera.workflow.common.workflow.{
-  WorkflowCompiler,
-  WorkflowInfo,
-  WorkflowRewriter
-}
+import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo, WorkflowRewriter}
 import org.jooq.types.UInteger
 
 class WorkflowJobService(
@@ -41,8 +29,6 @@ class WorkflowJobService(
 ) extends SubscriptionManager
     with LazyLogging {
 
-  // Compilation starts from here:
-  workflowContext.jobId = createWorkflowContext()
   val workflowInfo: WorkflowInfo = createWorkflowInfo()
   val workflowCompiler: WorkflowCompiler = createWorkflowCompiler(workflowInfo)
   val workflow: Workflow = workflowCompiler.amberWorkflow(
@@ -79,21 +65,6 @@ class WorkflowJobService(
     f.onSuccess { _ =>
       stateStore.jobStateStore.updateState(jobInfo => jobInfo.withState(RUNNING))
     }
-  }
-
-  private[this] def createWorkflowContext(): String = {
-    val jobID: String = Integer.toString(WorkflowWebsocketResource.nextExecutionID.incrementAndGet)
-    if (WorkflowCacheService.isAvailable) {
-      operatorCache.updateCacheStatus(
-        CacheStatusUpdateRequest(
-          request.operators,
-          request.links,
-          request.breakpoints,
-          request.cachedOperatorIds
-        )
-      )
-    }
-    jobID
   }
 
   private[this] def createWorkflowInfo(): WorkflowInfo = {

@@ -6,10 +6,11 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHan
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.Utils
-import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput, WorkflowStateStore}
+import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
 import edu.uci.ics.texera.web.model.websocket.event.{TexeraWebSocketEvent, WorkflowExecutionErrorEvent, WorkflowStateEvent}
 import edu.uci.ics.texera.web.model.websocket.request.python.PythonExpressionEvaluateRequest
 import edu.uci.ics.texera.web.model.websocket.request.{RemoveBreakpointRequest, SkipTupleRequest, WorkflowKillRequest, WorkflowPauseRequest, WorkflowResumeRequest}
+import edu.uci.ics.texera.web.storage.WorkflowStateStore
 import org.jooq.types.UInteger
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -24,8 +25,6 @@ class JobRuntimeService(
     breakpointService: JobBreakpointService
 ) extends SubscriptionManager
     with LazyLogging {
-
-  var executionID: UInteger = _
 
   addSubscription(
     stateStore.jobStateStore.registerDiffHandler((oldState, newState) => {
