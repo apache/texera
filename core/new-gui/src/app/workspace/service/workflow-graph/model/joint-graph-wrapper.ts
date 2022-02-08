@@ -888,31 +888,6 @@ export class JointGraphWrapper {
     });
   }
 
-  // Modifies an observable to buffer output while the jointgraph 
-  // is in an async context
-  public createContextAwareStream<T>(source: Observable<T>) {
-    // Code adapted from https://kddsky.medium.com/pauseable-observables-in-rxjs-58ce2b8c7dfd
-    // Retrieved on 02/06/2022
-    
-    const BufferOnOffStream = this.jointGraphContext.getChangeContextStream().pipe(
-      map(([_, context]) => context.async)
-    );
-
-    const startBuffer = BufferOnOffStream.pipe(
-      filter(async => async == true)
-    );
-
-    const stopBuffer = BufferOnOffStream.pipe(
-      filter(async => async == false),
-      map(x => true)
-    );
-
-    return merge(
-        source.pipe(bufferToggle(startBuffer, () => stopBuffer)),
-        source.pipe(windowToggle(stopBuffer, () => startBuffer))
-    ).pipe(mergeMap(x => x));
-  }
-
   public static jointGraphContextFactory(){
     class JointGraphContext extends ObservableContextManager<JointGraphContextType>(DefaultContext) {
 
@@ -920,6 +895,31 @@ export class JointGraphWrapper {
 
       public static async(){
         return this._async(this.getContext());
+      }
+
+      // Custom RXJS operator to buffer output while the jointgraph 
+      // is in an async context
+      public static bufferWhileAsync<T>(source: Observable<T>): Observable<T> {
+        // Code adapted from https://kddsky.medium.com/pauseable-observables-in-rxjs-58ce2b8c7dfd
+        // Retrieved on 02/06/2022
+        
+        const BufferOnOffStream = JointGraphContext.getChangeContextStream().pipe(
+          map(([_, context]) => context.async)
+        );
+
+        const startBuffer = BufferOnOffStream.pipe(
+          filter(async => async == true)
+        );
+
+        const stopBuffer = BufferOnOffStream.pipe(
+          filter(async => async == false),
+          map(x => true)
+        );
+
+        return merge(
+            source.pipe(bufferToggle(startBuffer, () => stopBuffer)),
+            source.pipe(windowToggle(stopBuffer, () => startBuffer))
+        ).pipe(mergeMap(x => x));
       }
     
       public static attachPaper(jointPaper: joint.dia.Paper){
