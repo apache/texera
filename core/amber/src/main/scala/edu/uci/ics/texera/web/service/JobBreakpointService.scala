@@ -62,6 +62,9 @@ class JobBreakpointService(
     addSubscription(
       client
         .registerCallback[BreakpointTriggered]((evt: BreakpointTriggered) => {
+          stateStore.jobStateStore.updateState { oldState =>
+            oldState.withState(PAUSED)
+          }
           stateStore.breakpointStore.updateState { jobInfo =>
             val breakpointEvts = evt.report
               .filter(_._1._2 != null)
@@ -85,9 +88,6 @@ class JobBreakpointService(
               .getOrElse(evt.operatorID, OperatorBreakpoints())
               .withUnresolvedBreakpoints(breakpointEvts)
             jobInfo.addOperatorInfo((evt.operatorID, newInfo))
-          }
-          stateStore.jobStateStore.updateState { oldState =>
-            oldState.withState(PAUSED)
           }
         })
     )
