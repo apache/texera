@@ -8,11 +8,20 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHa
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
-import edu.uci.ics.texera.web.model.websocket.event.{TexeraWebSocketEvent, WorkflowExecutionErrorEvent, WorkflowStateEvent}
+import edu.uci.ics.texera.web.model.websocket.event.{
+  TexeraWebSocketEvent,
+  WorkflowExecutionErrorEvent,
+  WorkflowStateEvent
+}
 import edu.uci.ics.texera.web.model.websocket.request.python.PythonExpressionEvaluateRequest
-import edu.uci.ics.texera.web.model.websocket.request.{RemoveBreakpointRequest, SkipTupleRequest, WorkflowKillRequest, WorkflowPauseRequest, WorkflowResumeRequest}
+import edu.uci.ics.texera.web.model.websocket.request.{
+  RemoveBreakpointRequest,
+  SkipTupleRequest,
+  WorkflowKillRequest,
+  WorkflowPauseRequest,
+  WorkflowResumeRequest
+}
 import edu.uci.ics.texera.web.storage.WorkflowStateStore
-import edu.uci.ics.texera.web.workflowruntimestate.{EvaluatedValueList, PythonOperatorInfo}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
 
 import scala.collection.mutable
@@ -49,14 +58,20 @@ class JobRuntimeService(
   // Receive Pause
   addSubscription(wsInput.subscribe((req: WorkflowPauseRequest, uidOpt) => {
     stateStore.jobStateStore.updateState(jobInfo => jobInfo.withState(PAUSING))
-    client.sendAsyncWithCallback[Unit](PauseWorkflow(), _ => stateStore.jobStateStore.updateState(jobInfo => jobInfo.withState(PAUSED)))
+    client.sendAsyncWithCallback[Unit](
+      PauseWorkflow(),
+      _ => stateStore.jobStateStore.updateState(jobInfo => jobInfo.withState(PAUSED))
+    )
   }))
 
   // Receive Resume
   addSubscription(wsInput.subscribe((req: WorkflowResumeRequest, uidOpt) => {
     breakpointService.clearTriggeredBreakpoints()
     stateStore.jobStateStore.updateState(jobInfo => jobInfo.withState(RESUMING))
-    client.sendAsyncWithCallback[Unit](ResumeWorkflow(),_ => stateStore.jobStateStore.updateState(jobInfo => jobInfo.withState(RUNNING)))
+    client.sendAsyncWithCallback[Unit](
+      ResumeWorkflow(),
+      _ => stateStore.jobStateStore.updateState(jobInfo => jobInfo.withState(RUNNING))
+    )
   }))
 
   // Receive Kill

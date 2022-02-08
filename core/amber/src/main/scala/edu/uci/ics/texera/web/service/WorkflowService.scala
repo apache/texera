@@ -112,7 +112,7 @@ class WorkflowService(
         evtPub.subscribe { evts: Iterable[TexeraWebSocketEvent] => evts.foreach(onNext) }
       )
       .toSeq
-    val errorSubscription = errorSubject.subscribe { evt: TexeraWebSocketEvent => onNext }
+    val errorSubscription = errorSubject.subscribe { evt: TexeraWebSocketEvent => onNext(evt) }
     new CompositeDisposable(subscriptions :+ errorSubscription: _*)
   }
 

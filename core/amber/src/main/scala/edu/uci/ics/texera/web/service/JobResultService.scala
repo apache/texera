@@ -3,13 +3,21 @@ package edu.uci.ics.texera.web.service
 import akka.actor.Cancellable
 import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{WorkflowCompleted, WorkflowPaused}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
+  WorkflowCompleted,
+  WorkflowPaused
+}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication}
-import edu.uci.ics.texera.web.model.websocket.event.{PaginatedResultEvent, TexeraWebSocketEvent, WebResultUpdateEvent, WorkflowAvailableResultEvent}
+import edu.uci.ics.texera.web.model.websocket.event.{
+  PaginatedResultEvent,
+  TexeraWebSocketEvent,
+  WebResultUpdateEvent,
+  WorkflowAvailableResultEvent
+}
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
 import edu.uci.ics.texera.web.service.JobResultService.WebResultUpdate
 import edu.uci.ics.texera.web.storage.WorkflowStateStore
@@ -182,12 +190,17 @@ class JobResultService(
     progressiveResults.clear()
 
     // If we have cache sources, make dummy sink operators for displaying results on the frontend.
-    workflowInfo.toDAG.getSourceOperators.map(source =>{
+    workflowInfo.toDAG.getSourceOperators.map(source => {
       workflowInfo.toDAG.getOperator(source) match {
         case cacheSourceOpDesc: CacheSourceOpDesc =>
           val dummySink = new ProgressiveSinkOpDesc()
           dummySink.setStorage(opResultStorage.get(cacheSourceOpDesc.targetSinkStorageId))
-          progressiveResults += ((cacheSourceOpDesc.targetSinkStorageId, new ProgressiveResultService(dummySink)))
+          progressiveResults += (
+            (
+              cacheSourceOpDesc.targetSinkStorageId,
+              new ProgressiveResultService(dummySink)
+            )
+          )
         case other => //skip
       }
     })

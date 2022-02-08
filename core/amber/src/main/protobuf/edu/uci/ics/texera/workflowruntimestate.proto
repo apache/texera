@@ -29,12 +29,12 @@ message BreakpointFault{
   message BreakpointTuple{
     int64 id = 1;
     bool is_input = 2;
-    repeated string fields = 3;
+    repeated string tuple = 3;
   }
 
   string actor_path = 1;
-  BreakpointTuple tuple = 2;
-  repeated string breakpoint_info = 3;
+  BreakpointTuple faulted_tuple = 2;
+  repeated string messages = 3;
 }
 
 message OperatorBreakpoints{

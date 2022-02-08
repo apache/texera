@@ -53,13 +53,13 @@ class AmberClient(
     }
   }
 
-  def sendAsyncWithCallback[T](controlCommand: ControlCommand[T], callback:T => Unit):Unit = {
+  def sendAsyncWithCallback[T](controlCommand: ControlCommand[T], callback: T => Unit): Unit = {
     if (!isActive) {
       Future.exception(new RuntimeException("amber runtime environment is not active"))
     } else {
       val promise = Promise[Any]
-      promise.onSuccess{
-        value => callback(value.asInstanceOf[T])
+      promise.onSuccess { value =>
+        callback(value.asInstanceOf[T])
       }
       promise.onFailure(t => errorHandler(t))
       clientActor ! CommandRequest(controlCommand, promise)

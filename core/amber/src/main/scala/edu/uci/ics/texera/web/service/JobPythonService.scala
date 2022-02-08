@@ -42,15 +42,19 @@ class JobPythonService(
             val oldInfo = oldState.operatorInfo.getOrElse(opId, new PythonOperatorInfo())
             if (info.consoleMessages.nonEmpty) {
               val stringBuilder = new StringBuilder()
-              val diff = info.consoleMessages.reverseIterator.takeWhile(s => oldInfo.consoleMessages.isEmpty || s != oldInfo.consoleMessages.last)
-              if(diff.nonEmpty){
+              val diff = info.consoleMessages.reverseIterator.takeWhile(s =>
+                oldInfo.consoleMessages.isEmpty || s != oldInfo.consoleMessages.last
+              )
+              if (diff.nonEmpty) {
                 diff.toSeq.reverse.foreach(s => stringBuilder.append(s))
                 output.append(PythonPrintTriggeredEvent(stringBuilder.toString(), opId))
               }
             }
-            info.evaluateExprResults.keys.filterNot(oldInfo.evaluateExprResults.contains).foreach{
+            info.evaluateExprResults.keys.filterNot(oldInfo.evaluateExprResults.contains).foreach {
               key =>
-                output.append(PythonExpressionEvaluateResponse(key, info.evaluateExprResults(key).values))
+                output.append(
+                  PythonExpressionEvaluateResponse(key, info.evaluateExprResults(key).values)
+                )
             }
         }
       output
@@ -84,7 +88,10 @@ class JobPythonService(
   addSubscription(wsInput.subscribe((req: RetryRequest, uidOpt) => {
     breakpointService.clearTriggeredBreakpoints()
     stateStore.jobStateStore.updateState(jobInfo => jobInfo.withState(RESUMING))
-    client.sendAsyncWithCallback[Unit](RetryWorkflow(),_ => stateStore.jobStateStore.updateState(jobInfo => jobInfo.withState(RUNNING)))
+    client.sendAsyncWithCallback[Unit](
+      RetryWorkflow(),
+      _ => stateStore.jobStateStore.updateState(jobInfo => jobInfo.withState(RUNNING))
+    )
   }))
 
   //Receive evaluate python expression
@@ -93,14 +100,19 @@ class JobPythonService(
       client.sendAsync(EvaluatePythonExpression(req.expression, req.operatorId)),
       Duration.fromSeconds(10)
     )
-    stateStore.pythonStore.updateState(pythonStore =>{
+    stateStore.pythonStore.updateState(pythonStore => {
       val opInfo = pythonStore.operatorInfo.getOrElse(req.operatorId, PythonOperatorInfo())
-      pythonStore.addOperatorInfo((req.operatorId, opInfo.addEvaluateExprResults((req.expression,EvaluatedValueList(result)))))
+      pythonStore.addOperatorInfo(
+        (
+          req.operatorId,
+          opInfo.addEvaluateExprResults((req.expression, EvaluatedValueList(result)))
+        )
+      )
     })
     // TODO: remove the following hack after fixing the frontend
     // currently frontend is not prepared for re-receiving the eval-expr messages
     // so we add it to the state and remove it from the state immediately
-    stateStore.pythonStore.updateState(pythonStore =>{
+    stateStore.pythonStore.updateState(pythonStore => {
       val opInfo = pythonStore.operatorInfo.getOrElse(req.operatorId, PythonOperatorInfo())
       pythonStore.addOperatorInfo((req.operatorId, opInfo.clearEvaluateExprResults))
     })
