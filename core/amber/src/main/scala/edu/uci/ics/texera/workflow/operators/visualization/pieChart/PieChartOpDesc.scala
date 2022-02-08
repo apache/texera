@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.visualization.pieChart
 
-import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty}
+import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.InputPort
@@ -28,12 +28,15 @@ import scala.collection.JavaConverters.asScalaBuffer
   */
 class PieChartOpDesc extends VisualizationOperator {
   @JsonProperty(value = "name column", required = true)
+  @JsonPropertyDescription("column of name (for chart label)")
   @AutofillAttributeName var nameColumn: String = _
 
   @JsonProperty(value = "data column")
+  @JsonPropertyDescription("column of data")
   @AutofillAttributeName var dataColumn: String = _
 
   @JsonProperty(value = "prune ratio", required = true)
+  @JsonPropertyDescription("names below this ratio will be grouped into one \"Other\" category")
   var pruneRatio = .0
 
   @JsonProperty(value = "chart style", required = true)
