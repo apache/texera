@@ -936,7 +936,11 @@ export class JointGraphWrapper {
       
       public static exit(): void {
         if (this.jointPaper !== undefined) {
-          this.jointPaper.options.async = this._async(this.prevContext());
+          const CURRENT_ASYNC_MODE = this._async(this.getContext());
+          const NEW_ASYNC_MODE = this._async(this.prevContext());
+
+          this.jointPaper.options.async = NEW_ASYNC_MODE;
+          if (CURRENT_ASYNC_MODE == true && NEW_ASYNC_MODE == false) this.jointPaper.updateViews();
         }
         super.exit();
       }
