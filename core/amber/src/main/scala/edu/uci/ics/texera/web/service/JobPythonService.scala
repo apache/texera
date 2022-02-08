@@ -42,7 +42,7 @@ class JobPythonService(
               output.append(PythonPrintTriggeredEvent(stringBuilder.toString(), opId))
             }
         }
-       output
+      output
     })
   )
 

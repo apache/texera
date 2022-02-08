@@ -7,9 +7,19 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHa
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
-import edu.uci.ics.texera.web.model.websocket.event.{TexeraWebSocketEvent, WorkflowExecutionErrorEvent, WorkflowStateEvent}
+import edu.uci.ics.texera.web.model.websocket.event.{
+  TexeraWebSocketEvent,
+  WorkflowExecutionErrorEvent,
+  WorkflowStateEvent
+}
 import edu.uci.ics.texera.web.model.websocket.request.python.PythonExpressionEvaluateRequest
-import edu.uci.ics.texera.web.model.websocket.request.{RemoveBreakpointRequest, SkipTupleRequest, WorkflowKillRequest, WorkflowPauseRequest, WorkflowResumeRequest}
+import edu.uci.ics.texera.web.model.websocket.request.{
+  RemoveBreakpointRequest,
+  SkipTupleRequest,
+  WorkflowKillRequest,
+  WorkflowPauseRequest,
+  WorkflowResumeRequest
+}
 import edu.uci.ics.texera.web.storage.WorkflowStateStore
 import org.jooq.types.UInteger
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
@@ -18,7 +28,6 @@ import edu.uci.ics.texera.workflow.common.WorkflowContext
 import scala.collection.mutable
 
 class JobRuntimeService(
-                         workflowContext: WorkflowContext,
     client: AmberClient,
     stateStore: WorkflowStateStore,
     wsInput: WebsocketInput,
@@ -31,6 +40,7 @@ class JobRuntimeService(
       val outputEvts = new mutable.ArrayBuffer[TexeraWebSocketEvent]()
       // Update workflow state
       if (newState.state != oldState.state) {
+        ExecutionsMetadataPersistService.tryUpdateExistingExecution(newState.eid, newState.state)
         outputEvts.append(WorkflowStateEvent(Utils.aggregatedStateToString(newState.state)))
       }
       // Check if new error occurred

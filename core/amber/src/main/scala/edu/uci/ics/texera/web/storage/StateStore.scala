@@ -26,7 +26,7 @@ class StateStore[T](defaultState: T) {
       }
     }
 
-  def getState:T = stateSubject.getValue
+  def getState: T = stateSubject.getValue
 
   def updateState(func: T => T): Unit = {
     val newState = func(stateSubject.getValue)

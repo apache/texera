@@ -4,9 +4,23 @@ import java.util.concurrent.ConcurrentHashMap
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.texera.Utils.objectMapper
-import edu.uci.ics.texera.web.model.websocket.event.{TexeraWebSocketEvent, WorkflowErrorEvent, WorkflowExecutionErrorEvent}
-import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication, WebsocketInput, WorkflowLifecycleManager}
-import edu.uci.ics.texera.web.model.websocket.request.{CacheStatusUpdateRequest, TexeraWebSocketRequest, WorkflowExecuteRequest, WorkflowKillRequest}
+import edu.uci.ics.texera.web.model.websocket.event.{
+  TexeraWebSocketEvent,
+  WorkflowErrorEvent,
+  WorkflowExecutionErrorEvent
+}
+import edu.uci.ics.texera.web.{
+  SubscriptionManager,
+  TexeraWebApplication,
+  WebsocketInput,
+  WorkflowLifecycleManager
+}
+import edu.uci.ics.texera.web.model.websocket.request.{
+  CacheStatusUpdateRequest,
+  TexeraWebSocketRequest,
+  WorkflowExecuteRequest,
+  WorkflowKillRequest
+}
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource
 import edu.uci.ics.texera.web.storage.WorkflowStateStore
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -61,7 +75,9 @@ class WorkflowService(
     {
       t.printStackTrace()
       errorSubject.onNext(
-        WorkflowErrorEvent(generalErrors = Map("error" -> (t.getMessage + "\n" + t.getStackTrace.mkString("\n"))))
+        WorkflowErrorEvent(generalErrors =
+          Map("error" -> (t.getMessage + "\n" + t.getStackTrace.mkString("\n")))
+        )
       )
     }
   }
@@ -96,7 +112,7 @@ class WorkflowService(
         evtPub.subscribe { evts: Iterable[TexeraWebSocketEvent] => evts.foreach(onNext) }
       )
       .toSeq
-    val errorSubscription = errorSubject.subscribe{evt:TexeraWebSocketEvent => onNext}
+    val errorSubscription = errorSubject.subscribe { evt: TexeraWebSocketEvent => onNext }
     new CompositeDisposable(subscriptions :+ errorSubscription: _*)
   }
 
@@ -118,7 +134,7 @@ class WorkflowService(
         )
       )
     }
-    new WorkflowContext(jobID,uidOpt,wId)
+    new WorkflowContext(jobID, uidOpt, wId)
   }
 
   def initJobService(req: WorkflowExecuteRequest, uidOpt: Option[UInteger]): Unit = {
@@ -132,7 +148,6 @@ class WorkflowService(
       wsInput,
       operatorCache,
       resultService,
-      uidOpt,
       req,
       errorHandler
     )

@@ -1,6 +1,9 @@
 package edu.uci.ics.texera.web.service
 
-import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{ConditionalGlobalBreakpoint, CountGlobalBreakpoint}
+import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{
+  ConditionalGlobalBreakpoint,
+  CountGlobalBreakpoint
+}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.BreakpointTriggered
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.AssignBreakpointHandler.AssignGlobalBreakpoint
 import edu.uci.ics.amber.engine.common.client.AmberClient
@@ -8,10 +11,20 @@ import edu.uci.ics.texera.web.SubscriptionManager
 import edu.uci.ics.texera.web.model.websocket.event.{BreakpointTriggeredEvent, TexeraWebSocketEvent}
 import edu.uci.ics.texera.web.storage.WorkflowStateStore
 import edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.BreakpointTuple
-import edu.uci.ics.texera.web.workflowruntimestate.{BreakpointFault, OperatorBreakpoints, OperatorRuntimeStats, PythonOperatorInfo}
+import edu.uci.ics.texera.web.workflowruntimestate.{
+  BreakpointFault,
+  OperatorBreakpoints,
+  OperatorRuntimeStats,
+  PythonOperatorInfo
+}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.PAUSED
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.workflow.{Breakpoint, BreakpointCondition, ConditionBreakpoint, CountBreakpoint}
+import edu.uci.ics.texera.workflow.common.workflow.{
+  Breakpoint,
+  BreakpointCondition,
+  ConditionBreakpoint,
+  CountBreakpoint
+}
 
 import scala.collection.mutable
 

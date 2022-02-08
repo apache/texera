@@ -37,13 +37,13 @@ class WorkflowWebsocketResource extends LazyLogging {
 
   @OnOpen
   def myOnOpen(session: Session, config: EndpointConfig): Unit = {
-    SessionStateManager.setState(session.getId, new SessionState(session))
+    SessionState.setState(session.getId, new SessionState(session))
     logger.info("connection open")
   }
 
   @OnClose
   def myOnClose(session: Session, cr: CloseReason): Unit = {
-    SessionStateManager.removeState(session.getId)
+    SessionState.removeState(session.getId)
   }
 
   @OnMessage
@@ -52,7 +52,7 @@ class WorkflowWebsocketResource extends LazyLogging {
     val uidOpt = session.getUserProperties.asScala
       .get(classOf[User].getName)
       .map(_.asInstanceOf[User].getUid)
-    val sessionState = SessionStateManager.getState(session.getId)
+    val sessionState = SessionState.getState(session.getId)
     val workflowStateOpt = sessionState.getCurrentWorkflowState
     try {
       request match {

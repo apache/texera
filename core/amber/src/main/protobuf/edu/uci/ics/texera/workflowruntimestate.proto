@@ -66,4 +66,5 @@ message JobStatsStore {
 message JobStateStore{
   WorkflowAggregatedState state = 1;
   string error = 2;
+  int64 eid = 3;
 }

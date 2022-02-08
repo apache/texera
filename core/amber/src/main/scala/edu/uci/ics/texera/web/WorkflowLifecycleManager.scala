@@ -9,7 +9,7 @@ import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.RUNNI
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
-class WorkflowLifecycleManager(id:String, cleanUpTimeout: Int, cleanUpCallback: () => Unit)
+class WorkflowLifecycleManager(id: String, cleanUpTimeout: Int, cleanUpCallback: () => Unit)
     extends LazyLogging {
   private var userCount = 0
   private var cleanUpJob: Cancellable = Cancellable.alreadyCancelled

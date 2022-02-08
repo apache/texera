@@ -41,18 +41,18 @@ object ExecutionsMetadataPersistService extends LazyLogging {
       .max
   }
 
-  private def maptoStatusCode(state:WorkflowAggregatedState):Byte = {
+  private def maptoStatusCode(state: WorkflowAggregatedState): Byte = {
     state match {
-      case WorkflowAggregatedState.UNINITIALIZED => 0
-      case WorkflowAggregatedState.READY => 0
-      case WorkflowAggregatedState.RUNNING => 1
-      case WorkflowAggregatedState.PAUSING => ???
-      case WorkflowAggregatedState.PAUSED => 2
-      case WorkflowAggregatedState.RESUMING => ???
-      case WorkflowAggregatedState.RECOVERING => ???
-      case WorkflowAggregatedState.COMPLETED => 3
-      case WorkflowAggregatedState.ABORTED => 4
-      case WorkflowAggregatedState.UNKNOWN => ???
+      case WorkflowAggregatedState.UNINITIALIZED                   => 0
+      case WorkflowAggregatedState.READY                           => 0
+      case WorkflowAggregatedState.RUNNING                         => 1
+      case WorkflowAggregatedState.PAUSING                         => ???
+      case WorkflowAggregatedState.PAUSED                          => 2
+      case WorkflowAggregatedState.RESUMING                        => ???
+      case WorkflowAggregatedState.RECOVERING                      => ???
+      case WorkflowAggregatedState.COMPLETED                       => 3
+      case WorkflowAggregatedState.ABORTED                         => 4
+      case WorkflowAggregatedState.UNKNOWN                         => ???
       case WorkflowAggregatedState.Unrecognized(unrecognizedValue) => ???
     }
   }
@@ -72,15 +72,15 @@ object ExecutionsMetadataPersistService extends LazyLogging {
   }
 
   def tryUpdateExistingExecution(eid: Long, state: WorkflowAggregatedState): Unit = {
-    try{
+    try {
       val code = maptoStatusCode(state)
       val execution = workflowExecutionsDao.fetchOneByEid(UInteger.valueOf(eid))
       execution.setStatus(code)
       execution.setCompletionTime(new Timestamp(System.currentTimeMillis()))
       workflowExecutionsDao.update(execution)
-    }catch{
-      case t:Throwable =>
-        logger.info("Unable to update execution. Error = "+t.getMessage)
+    } catch {
+      case t: Throwable =>
+        logger.info("Unable to update execution. Error = " + t.getMessage)
     }
   }
 }
