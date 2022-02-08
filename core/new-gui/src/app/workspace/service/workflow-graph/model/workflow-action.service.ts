@@ -1194,21 +1194,15 @@ export class WorkflowActionService {
     }
 
     this.operatorGroup.setSyncTexeraGraph(false);
-    this.jointGraph.addCells(jointLinkCells.filter(x => x !== undefined));
+    // TODO: figure out how to add a batch of links to JointJS without the breakpoint error
+    // this.jointGraph.addCells(jointLinkCells.filter(x => x !== undefined));
+    for (let i = 0; i < links.length; i++){
+      this.jointGraph.addCell(jointLinkCells[i]);
+      this.texeraGraph.addLink(links[i]);
+      this.jointGraphWrapper.setCellLayer(links[i].linkID, this.operatorGroup.getHighestLayer() + 1);
+    }
     this.operatorGroup.setSyncTexeraGraph(true);
 
-    for (let i = 0; i < links.length; i++){
-      let link = links[i];
-      let jointLinkCell = jointLinkCells[i];
-
-      if (jointLinkCell != undefined){
-        // manually add a link element (normally automatic when syncTexeraGraph = true)
-        this.operatorGroup.setSyncTexeraGraph(false);
-        this.jointGraphWrapper.setCellLayer(link.linkID, this.operatorGroup.getHighestLayer() + 1);
-        this.operatorGroup.setSyncTexeraGraph(true);
-        this.texeraGraph.addLink(link);
-      }
-    }
   }
 
   private deleteLinkWithIDInternal(linkID: string): void {
