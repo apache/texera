@@ -652,9 +652,12 @@ export class WorkflowEditorComponent implements AfterViewInit {
     )
       .pipe(untilDestroyed(this))
       .subscribe(elementIDs =>
-        elementIDs.forEach(elementID =>
-          this.getJointPaper().findViewByModel(elementID).unhighlight("rect.body", { highlighter: highlightOptions })
-        )
+        elementIDs.forEach(elementID => {
+          const elem = this.getJointPaper().findViewByModel(elementID);
+          if (elem !== undefined) {
+            elem.unhighlight("rect.body", { highlighter: highlightOptions });
+          }
+        })
       );
   }
 
