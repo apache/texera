@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.web.service
 
 import com.google.common.collect.EvictingQueue
+import com.twitter.util.{Await, Duration}
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{
   ConditionalGlobalBreakpoint,
@@ -171,47 +172,61 @@ class JobRuntimeService(
   }
 
   def addBreakpoint(operatorID: String, breakpoint: Breakpoint): Unit = {
-    val breakpointID = "breakpoint-" + operatorID + "-" + System.currentTimeMillis()
-    breakpoint match {
-      case conditionBp: ConditionBreakpoint =>
-        val column = conditionBp.column
-        val predicate: Tuple => Boolean = conditionBp.condition match {
-          case BreakpointCondition.EQ =>
-            tuple => {
-              tuple.getField(column).toString.trim == conditionBp.value
-            }
-          case BreakpointCondition.LT =>
-            tuple => tuple.getField(column).toString.trim < conditionBp.value
-          case BreakpointCondition.LE =>
-            tuple => tuple.getField(column).toString.trim <= conditionBp.value
-          case BreakpointCondition.GT =>
-            tuple => tuple.getField(column).toString.trim > conditionBp.value
-          case BreakpointCondition.GE =>
-            tuple => tuple.getField(column).toString.trim >= conditionBp.value
-          case BreakpointCondition.NE =>
-            tuple => tuple.getField(column).toString.trim != conditionBp.value
-          case BreakpointCondition.CONTAINS =>
-            tuple => tuple.getField(column).toString.trim.contains(conditionBp.value)
-          case BreakpointCondition.NOT_CONTAINS =>
-            tuple => !tuple.getField(column).toString.trim.contains(conditionBp.value)
-        }
-
-        client.sendSync(
-          AssignGlobalBreakpoint(
-            new ConditionalGlobalBreakpoint(
-              breakpointID,
+    try {
+      val breakpointID = "breakpoint-" + operatorID + "-" + System.currentTimeMillis()
+      breakpoint match {
+        case conditionBp: ConditionBreakpoint =>
+          val column = conditionBp.column
+          val predicate: Tuple => Boolean = conditionBp.condition match {
+            case BreakpointCondition.EQ =>
               tuple => {
-                val texeraTuple = tuple.asInstanceOf[Tuple]
-                predicate.apply(texeraTuple)
+                tuple.getField(column).toString.trim == conditionBp.value
               }
+            case BreakpointCondition.LT =>
+              tuple => tuple.getField(column).toString.trim < conditionBp.value
+            case BreakpointCondition.LE =>
+              tuple => tuple.getField(column).toString.trim <= conditionBp.value
+            case BreakpointCondition.GT =>
+              tuple => tuple.getField(column).toString.trim > conditionBp.value
+            case BreakpointCondition.GE =>
+              tuple => tuple.getField(column).toString.trim >= conditionBp.value
+            case BreakpointCondition.NE =>
+              tuple => tuple.getField(column).toString.trim != conditionBp.value
+            case BreakpointCondition.CONTAINS =>
+              tuple => tuple.getField(column).toString.trim.contains(conditionBp.value)
+            case BreakpointCondition.NOT_CONTAINS =>
+              tuple => !tuple.getField(column).toString.trim.contains(conditionBp.value)
+          }
+
+          Await.result(
+            client.sendAsync(
+              AssignGlobalBreakpoint(
+                new ConditionalGlobalBreakpoint(
+                  breakpointID,
+                  tuple => {
+                    val texeraTuple = tuple.asInstanceOf[Tuple]
+                    predicate.apply(texeraTuple)
+                  }
+                ),
+                operatorID
+              )
             ),
-            operatorID
+            Duration.fromSeconds(10)
           )
-        )
-      case countBp: CountBreakpoint =>
-        client.sendSync(
-          AssignGlobalBreakpoint(new CountGlobalBreakpoint(breakpointID, countBp.count), operatorID)
-        )
+        case countBp: CountBreakpoint =>
+          Await.result(
+            client.sendAsync(
+              AssignGlobalBreakpoint(
+                new CountGlobalBreakpoint(breakpointID, countBp.count),
+                operatorID
+              )
+            ),
+            Duration.fromSeconds(10)
+          )
+      }
+    } catch {
+      case t: Throwable =>
+        send(WorkflowExecutionErrorEvent(t.getMessage))
     }
   }
 
@@ -291,7 +306,16 @@ class JobRuntimeService(
   }
 
   def evaluatePythonExpression(request: PythonExpressionEvaluateRequest): Unit = {
-    send(client.sendSync(EvaluatePythonExpression(request.expression, request.operatorId)))
+    try {
+      val result = Await.result(
+        client.sendAsync(EvaluatePythonExpression(request.expression, request.operatorId)),
+        Duration.fromSeconds(10)
+      )
+      send(result)
+    } catch {
+      case t: Throwable =>
+        send(WorkflowExecutionErrorEvent(t.getMessage))
+    }
   }
 
 }

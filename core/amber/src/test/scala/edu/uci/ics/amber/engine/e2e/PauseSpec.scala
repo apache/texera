@@ -56,14 +56,14 @@ class PauseSpec
       .subscribe(evt => {
         completion.setDone()
       })
-    client.sendSync(StartWorkflow(), 1.second)
-    client.sendSync(PauseWorkflow(), 1.second)
+    Await.result(client.sendAsync(StartWorkflow()))
+    Await.result(client.sendAsync(PauseWorkflow()))
     Thread.sleep(4000)
-    client.sendSync(ResumeWorkflow(), 1.second)
+    Await.result(client.sendAsync(ResumeWorkflow()))
     Thread.sleep(400)
-    client.sendSync(PauseWorkflow(), 1.second)
+    Await.result(client.sendAsync(PauseWorkflow()))
     Thread.sleep(4000)
-    client.sendSync(ResumeWorkflow(), 1.second)
+    Await.result(client.sendAsync(ResumeWorkflow()))
     Await.result(completion)
   }
 

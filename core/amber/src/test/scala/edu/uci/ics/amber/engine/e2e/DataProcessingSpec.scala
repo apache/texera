@@ -75,7 +75,7 @@ class DataProcessingSpec
           .toMap
         completion.setDone()
       })
-    client.sendSync(StartWorkflow(), 1.second)
+    Await.result(client.sendAsync(StartWorkflow()))
     Await.result(completion)
     results
   }
