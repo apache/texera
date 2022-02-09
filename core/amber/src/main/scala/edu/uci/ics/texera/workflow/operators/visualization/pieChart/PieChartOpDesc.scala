@@ -12,10 +12,14 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
-import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator
+import edu.uci.ics.texera.workflow.operators.visualization.{
+  VisualizationConstants,
+  VisualizationOperator
+}
 import edu.uci.ics.texera.workflow.common.operators.aggregate.DistributedAggregation
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseTimestamp
+
 import java.util.Collections.singletonList
 import scala.collection.JavaConverters.asScalaBuffer
 
@@ -35,11 +39,11 @@ class PieChartOpDesc extends VisualizationOperator {
   @JsonPropertyDescription("column of data")
   @AutofillAttributeName var dataColumn: String = _
 
-  @JsonProperty(value = "prune ratio", required = true)
+  @JsonProperty(value = "prune ratio", required = true, defaultValue = "1")
   @JsonPropertyDescription("names below this ratio will be grouped into one \"Other\" category")
   var pruneRatio = .0
 
-  @JsonProperty(value = "chart style", required = true)
+  @JsonProperty(value = "chart style", required = true, defaultValue = VisualizationConstants.PIE)
   var pieChartEnum: PieChartEnum = _
 
   @JsonIgnore
