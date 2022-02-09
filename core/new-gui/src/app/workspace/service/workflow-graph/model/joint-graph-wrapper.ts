@@ -1,9 +1,10 @@
-import { fromEvent, Observable, ReplaySubject, Subject } from "rxjs";
+import { fromEvent, Observable, ReplaySubject, Subject, merge } from "rxjs";
+import { bufferToggle, filter, flatMap, map, mergeMap, windowToggle } from "rxjs/operators";
 import { Point } from "../../../types/workflow-common.interface";
 import * as joint from "jointjs";
 import * as dagre from "dagre";
 import * as graphlib from "graphlib";
-import { filter, map } from "rxjs/operators";
+import { ObservableContextManager } from "src/app/common/util/context";
 
 type operatorIDsType = { operatorIDs: string[] };
 type linkIDType = { linkID: string };
@@ -42,6 +43,13 @@ export type JointHighlights = Readonly<{
   links: readonly string[];
 }>;
 
+export type JointGraphContextType = Readonly<{
+  async: boolean;
+}>;
+const DefaultContext: JointGraphContextType = {
+  async: false
+};
+
 /**
  * JointGraphWrapper wraps jointGraph to provide:
  *  - getters of the properties (to hide the methods that could alther the jointGraph directly)
@@ -69,6 +77,7 @@ export class JointGraphWrapper {
   public static readonly ZOOM_MINIMUM: number = 0.7;
   public static readonly ZOOM_MAXIMUM: number = 1.3;
 
+  public jointGraphContext = JointGraphWrapper.jointGraphContextFactory()
   public navigatorMoveDelta: Subject<{ deltaX: number; deltaY: number }> = new Subject();
 
   private mainJointPaper: joint.dia.Paper | undefined;
@@ -125,7 +134,7 @@ export class JointGraphWrapper {
    * This will capture all events in JointJS
    *  involving the 'add' operation
    */
-  private jointCellAddStream = fromEvent<JointModelEvent>(this.jointGraph, "add").pipe(map(value => value[0]));
+  private jointCellAddStream = fromEvent<JointModelEvent>(this.jointGraph, "add").pipe(map(value => value[0]))
 
   /**
    * This will capture all events in JointJS
@@ -171,6 +180,7 @@ export class JointGraphWrapper {
     const paper = new joint.dia.Paper(paperOptions);
     this.mainJointPaper = paper;
     this.mainJointPaperAttachedStream.next(this.mainJointPaper);
+    this.jointGraphContext.attachPaper(paper);
     return paper;
   }
 
@@ -798,6 +808,18 @@ export class JointGraphWrapper {
     this.listenPositionChange = listenPositionChange;
   }
 
+  public freeze(): void {
+    this.mainJointPaper?.freeze();
+  }
+
+  public unfreeze(): void {
+    this.mainJointPaper?.unfreeze();
+  }
+
+  public updateViews(): void {
+    this.mainJointPaper?.updateViews();
+  }
+
   /**
    * Highlights the element with given elementID.
    *
@@ -864,5 +886,66 @@ export class JointGraphWrapper {
         this.unhighlightLinks(deletedCellID);
       }
     });
+  }
+
+  // Modifies an observable to buffer output while the jointgraph 
+  // is in an async context
+  public createContextAwareStream<T>(source: Observable<T>) {
+    // Code adapted from https://kddsky.medium.com/pauseable-observables-in-rxjs-58ce2b8c7dfd
+    // Retrieved on 02/06/2022
+    
+    const BufferOnOffStream = this.jointGraphContext.getChangeContextStream().pipe(
+      map(([_, context]) => context.async)
+    );
+
+    const startBuffer = BufferOnOffStream.pipe(
+      filter(async => async == true)
+    );
+
+    const stopBuffer = BufferOnOffStream.pipe(
+      filter(async => async == false),
+      map(x => true)
+    );
+
+    return merge(
+        source.pipe(bufferToggle(startBuffer, () => stopBuffer)),
+        source.pipe(windowToggle(stopBuffer, () => startBuffer))
+    ).pipe(mergeMap(x => x));
+  }
+
+  public static jointGraphContextFactory(){
+    class JointGraphContext extends ObservableContextManager<JointGraphContextType>(DefaultContext) {
+
+      private static jointPaper: joint.dia.Paper | undefined;
+
+      public static async(){
+        return this._async(this.getContext());
+      }
+    
+      public static attachPaper(jointPaper: joint.dia.Paper){
+        this.jointPaper = jointPaper;
+        this.jointPaper.options.async = this.async();
+      }
+    
+      public static enter(context: JointGraphContextType): void {
+        super.enter(context);
+        if (this.jointPaper !== undefined) {
+          this.jointPaper.options.async = this.async();
+        }
+      }
+      
+      public static exit(): void {
+        if (this.jointPaper !== undefined) {
+          this.jointPaper.options.async = this._async(this.prevContext());
+        }
+        super.exit();
+      }
+
+      private static _async(context: JointGraphContextType) {
+        return context.async;
+      }
+    }
+
+    return JointGraphContext;
   }
 }

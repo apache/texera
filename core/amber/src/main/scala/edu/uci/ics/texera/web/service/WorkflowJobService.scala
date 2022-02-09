@@ -20,6 +20,7 @@ import edu.uci.ics.texera.web.model.websocket.request.{
 import edu.uci.ics.texera.web.model.websocket.response.ResultExportResponse
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource
 import edu.uci.ics.texera.workflow.common.WorkflowContext
+import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler.ConstraintViolationException
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowInfo.toJgraphtDAG
 import edu.uci.ics.texera.workflow.common.workflow.{
@@ -32,13 +33,11 @@ import rx.lang.scala.subjects.BehaviorSubject
 import rx.lang.scala.subscriptions.CompositeSubscription
 import rx.lang.scala.{Observer, Subscription}
 
-import scala.collection.mutable
-
 class WorkflowJobService(
+    workflowContext: WorkflowContext,
     operatorCache: WorkflowCacheService,
-    uidOpt: Option[UInteger],
     request: WorkflowExecuteRequest,
-    prevResults: mutable.HashMap[String, OperatorResultService]
+    opResultStorage: OpResultStorage
 ) extends SnapshotMulticast[TexeraWebSocketEvent]
     with LazyLogging {
 
@@ -46,25 +45,26 @@ class WorkflowJobService(
   private val workflowStatus: BehaviorSubject[ExecutionStatusEnum] = createWorkflowStatus()
 
   // Compilation starts from here:
-  val workflowContext: WorkflowContext = createWorkflowContext()
-  val workflowInfo: WorkflowInfo = createWorkflowInfo(workflowContext)
-  val workflowCompiler: WorkflowCompiler = createWorkflowCompiler(workflowInfo, workflowContext)
-  val workflow: Workflow = workflowCompiler.amberWorkflow(WorkflowIdentity(workflowContext.jobId))
+  workflowContext.jobId = createWorkflowContext()
+  val workflowInfo: WorkflowInfo = createWorkflowInfo()
+  val workflowCompiler: WorkflowCompiler = createWorkflowCompiler(workflowInfo)
+  val workflow: Workflow = workflowCompiler.amberWorkflow(
+    WorkflowIdentity(workflowContext.jobId),
+    opResultStorage
+  )
 
   // Runtime starts from here:
   val client: AmberClient =
     TexeraWebApplication.createAmberRuntime(workflow, ControllerConfig.default)
-  val workflowRuntimeService: JobRuntimeService = new JobRuntimeService(workflowStatus, client)
+  val workflowRuntimeService: JobRuntimeService =
+    new JobRuntimeService(workflowContext, workflowStatus, client)
 
   // Result-related services start from here:
   val workflowResultService: JobResultService =
-    new JobResultService(workflowInfo, WorkflowCacheService.opResultStorage, client)
+    new JobResultService(workflowInfo, client, opResultStorage)
   val resultExportService: ResultExportService = new ResultExportService()
 
   def startWorkflow(): Unit = {
-    if (WorkflowCacheService.isAvailable) {
-      workflowResultService.updateResultFromPreviousRun(prevResults, operatorCache.cachedOperators)
-    }
     workflowResultService.updateAvailableResult(request.operators)
     for (pair <- workflowInfo.breakpoints) {
       workflowRuntimeService.addBreakpoint(pair.operatorID, pair.breakpoint)
@@ -78,7 +78,7 @@ class WorkflowJobService(
     status
   }
 
-  private[this] def createWorkflowContext(): WorkflowContext = {
+  private[this] def createWorkflowContext(): String = {
     val jobID: String = Integer.toString(WorkflowWebsocketResource.nextExecutionID.incrementAndGet)
     if (WorkflowCacheService.isAvailable) {
       operatorCache.updateCacheStatus(
@@ -90,13 +90,10 @@ class WorkflowJobService(
         )
       )
     }
-    val context = new WorkflowContext
-    context.jobId = jobID
-    context.userId = uidOpt
-    context
+    jobID
   }
 
-  private[this] def createWorkflowInfo(context: WorkflowContext): WorkflowInfo = {
+  private[this] def createWorkflowInfo(): WorkflowInfo = {
     var workflowInfo = WorkflowInfo(request.operators, request.links, request.breakpoints)
     if (WorkflowCacheService.isAvailable) {
       workflowInfo.cachedOperatorIds = request.cachedOperatorIds
@@ -109,7 +106,7 @@ class WorkflowJobService(
         operatorCache.cacheSourceOperators,
         operatorCache.cacheSinkOperators,
         operatorCache.operatorRecord,
-        WorkflowCacheService.opResultStorage
+        opResultStorage
       )
       val newWorkflowInfo = workflowRewriter.rewrite
       val oldWorkflowInfo = workflowInfo
@@ -123,10 +120,9 @@ class WorkflowJobService(
   }
 
   private[this] def createWorkflowCompiler(
-      workflowInfo: WorkflowInfo,
-      context: WorkflowContext
+      workflowInfo: WorkflowInfo
   ): WorkflowCompiler = {
-    val compiler = new WorkflowCompiler(workflowInfo, context)
+    val compiler = new WorkflowCompiler(workflowInfo, workflowContext)
     val violations = compiler.validate
     if (violations.nonEmpty) {
       throw new ConstraintViolationException(violations)
@@ -147,7 +143,7 @@ class WorkflowJobService(
   }
 
   def exportResult(uid: UInteger, request: ResultExportRequest): ResultExportResponse = {
-    resultExportService.exportResult(uid, workflowResultService, request)
+    resultExportService.exportResult(uid, opResultStorage, request)
   }
 
   override def sendSnapshotTo(observer: Observer[TexeraWebSocketEvent]): Unit = {

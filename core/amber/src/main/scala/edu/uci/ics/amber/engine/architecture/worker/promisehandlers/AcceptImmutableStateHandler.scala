@@ -9,11 +9,19 @@ import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpExec
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-// join-skew research related.
+/**
+  * This handler is used to receive the state migrated during Reshape.
+  * e.g., A skewed worker of HashJoin will send an `AcceptImmutableState`
+  * message to helper worker and the build hash table will be in the
+  * message.
+  *
+  * Possible sender: Skewed worker of the same operator as this worker.
+  * (SendImmutableStateHandler)
+  */
 object AcceptImmutableStateHandler {
   final case class AcceptImmutableState(
       buildHashMap: mutable.HashMap[Any, ArrayBuffer[Tuple]]
-  ) extends ControlCommand[Unit]
+  ) extends ControlCommand[Boolean]
 }
 
 trait AcceptImmutableStateHandler {
@@ -31,6 +39,8 @@ trait AcceptImmutableStateHandler {
           "Reshape: AcceptImmutableStateHandler exception" + exception
             .getMessage() + " stacktrace " + exception.getStackTrace()
         )
+        false
+
     }
   }
 }

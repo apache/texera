@@ -98,7 +98,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       timeout: FiniteDuration = 5.seconds
   ): Unit = {
     val deadline = timeout.fromNow
-    while (deadline.hasTimeLeft() && workerStateManager.getCurrentState != COMPLETED) {
+    while (deadline.hasTimeLeft()) {
       //wait
     }
     assert(workerStateManager.getCurrentState == COMPLETED)
@@ -106,7 +106,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
 
   def waitForControlProcessing(dp: DataProcessor, timeout: FiniteDuration = 5.seconds): Unit = {
     val deadline = timeout.fromNow
-    while (deadline.hasTimeLeft() && !dp.isControlQueueEmpty) {
+    while (deadline.hasTimeLeft()) {
       //wait
     }
     assert(dp.isControlQueueEmpty)
@@ -133,6 +133,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     }
 
     val dp = wire[DataProcessor]
+    operator.open()
     Await.result(sendDataToDP(dp, tuples), 3.seconds)
     waitForDataProcessing(workerStateManager)
     dp.shutdown()
@@ -167,6 +168,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       }
     }
     val dp: DataProcessor = wire[DataProcessor]
+    operator.open()
     val f1 = sendDataToDP(dp, tuples, 2)
     val f2 = sendControlToDP(dp, (0 until 100).map(_ => ControlInvocation(0, DummyControl())), 3)
     Await.result(f1.zip(f2), 5.seconds)
@@ -187,12 +189,14 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       (asyncRPCServer.receive _).expects(*, *).repeat(3)
       (operator.close _).expects().once()
     }
-    val dp = wire[DataProcessor]
+    val dp: DataProcessor = wire[DataProcessor]
+    operator.open()
     Await.result(
       sendControlToDP(dp, (0 until 3).map(_ => ControlInvocation(0, DummyControl()))),
       1.second
     )
     waitForControlProcessing(dp)
+    operator.close()
     dp.shutdown()
   }
 
@@ -215,6 +219,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       (batchProducer.emitEndOfUpstream _).expects().once()
       (operator.close _).expects().once()
     }
+    operator.open()
     dp.appendElement(InputTuple(ITuple(1)))
     Thread.sleep(500)
     dp.enqueueCommand(ControlInvocation(0, PauseWorker()), CONTROLLER)

@@ -8,7 +8,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import {
   DISPLAY_WORKFLOW_VERIONS_EVENT,
   WorkflowVersionService,
-} from "../../../dashboard/service/workflow-version/workflow-version.service";
+} from "src/app/dashboard/service/workflow-version/workflow-version.service";
 import { VersionsListDisplayComponent } from "./versions-display/versions-display.component";
 
 export type PropertyEditFrameComponent =

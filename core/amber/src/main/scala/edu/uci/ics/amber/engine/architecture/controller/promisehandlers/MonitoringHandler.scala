@@ -2,9 +2,12 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.MonitoringHandler.{ControllerInitiateMonitoring, previousCallFinished}
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.MonitoringHandler.{
+  ControllerInitiateMonitoring,
+  previousCallFinished
+}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QuerySelfWorkloadMetrics
-import edu.uci.ics.amber.engine.common.{AmberUtils, Constants}
+import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
@@ -15,19 +18,19 @@ object MonitoringHandler {
   var previousCallFinished = true
 
   final case class ControllerInitiateMonitoring(
-                                                 filterByWorkers: List[ActorVirtualIdentity] = List()
-                                               ) extends ControlCommand[Unit]
+      filterByWorkers: List[ActorVirtualIdentity] = List()
+  ) extends ControlCommand[Unit]
 }
 
 trait MonitoringHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
   def updateWorkloadSamples(
-                             collectedAt: ActorVirtualIdentity,
-                             allDownstreamWorkerToNewSamples: ArrayBuffer[
-                               mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]
-                             ]
-                           ): Unit = {
+      collectedAt: ActorVirtualIdentity,
+      allDownstreamWorkerToNewSamples: ArrayBuffer[
+        mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]
+      ]
+  ): Unit = {
     if (allDownstreamWorkerToNewSamples.isEmpty) {
       return
     }

@@ -2,7 +2,7 @@
 # sources: edu/uci/ics/amber/engine/architecture/worker/controlcommands.proto, edu/uci/ics/amber/engine/architecture/worker/controlreturns.proto, edu/uci/ics/amber/engine/architecture/worker/statistics.proto, edu/uci/ics/amber/engine/architecture/worker/workloadmetrics.proto
 # plugin: python-betterproto
 from dataclasses import dataclass
-from typing import List
+from typing import Dict, List
 
 import betterproto
 from betterproto.grpc.grpclib_server import ServiceBase
@@ -17,6 +17,38 @@ class WorkerState(betterproto.Enum):
 
 
 @dataclass(eq=False, repr=False)
+class Loads(betterproto.Message):
+    worker: "__common__.ActorVirtualIdentity" = betterproto.message_field(1)
+    load: List[int] = betterproto.int64_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class SelfWorkloadSample(betterproto.Message):
+    loads: List["Loads"] = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class SelfWorkloadMetrics(betterproto.Message):
+    unprocessed_data_input_queue_size: int = betterproto.int64_field(1)
+    unprocessed_control_input_queue_size: int = betterproto.int64_field(2)
+    stashed_data_input_queue_size: int = betterproto.int64_field(3)
+    stashed_control_input_queue_size: int = betterproto.int64_field(4)
+
+
+@dataclass(eq=False, repr=False)
+class SelfWorkloadReturn(betterproto.Message):
+    metrics: "SelfWorkloadMetrics" = betterproto.message_field(1)
+    samples: List["SelfWorkloadSample"] = betterproto.message_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class WorkerStatistics(betterproto.Message):
+    worker_state: "WorkerState" = betterproto.enum_field(1)
+    input_tuple_count: int = betterproto.int64_field(2)
+    output_tuple_count: int = betterproto.int64_field(3)
+
+
+@dataclass(eq=False, repr=False)
 class StartWorkerV2(betterproto.Message):
     pass
 
@@ -28,6 +60,11 @@ class PauseWorkerV2(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class ResumeWorkerV2(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
+class OpenOperatorV2(betterproto.Message):
     pass
 
 
@@ -67,6 +104,9 @@ class LocalOperatorExceptionV2(betterproto.Message):
 class InitializeOperatorLogicV2(betterproto.Message):
     code: str = betterproto.string_field(1)
     is_source: bool = betterproto.bool_field(2)
+    output_schema: Dict[str, str] = betterproto.map_field(
+        3, betterproto.TYPE_STRING, betterproto.TYPE_STRING
+    )
 
 
 @dataclass(eq=False, repr=False)
@@ -115,6 +155,7 @@ class ControlCommandV2(betterproto.Message):
     local_operator_exception: "LocalOperatorExceptionV2" = betterproto.message_field(
         8, group="sealed_value"
     )
+    open_operator: "OpenOperatorV2" = betterproto.message_field(9, group="sealed_value")
     initialize_operator_logic: "InitializeOperatorLogicV2" = betterproto.message_field(
         21, group="sealed_value"
     )
@@ -137,6 +178,7 @@ class ControlCommandV2(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+<<<<<<< HEAD
 class WorkerStatistics(betterproto.Message):
     worker_state: "WorkerState" = betterproto.enum_field(1)
     input_tuple_count: int = betterproto.int64_field(2)
@@ -152,6 +194,8 @@ class SelfWorkloadMetrics(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+=======
+>>>>>>> master
 class CurrentInputTupleInfo(betterproto.Message):
     pass
 
@@ -185,7 +229,11 @@ class ControlReturnV2(betterproto.Message):
         4, group="value"
     )
     evaluated_value: "EvaluatedValue" = betterproto.message_field(5, group="value")
+<<<<<<< HEAD
     self_workload_metrics: "SelfWorkloadMetrics" = betterproto.message_field(
+=======
+    self_workload_return: "SelfWorkloadReturn" = betterproto.message_field(
+>>>>>>> master
         6, group="value"
     )
 

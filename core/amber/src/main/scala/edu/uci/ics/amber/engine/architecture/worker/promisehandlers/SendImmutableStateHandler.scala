@@ -10,7 +10,14 @@ import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpExec
 
 import scala.collection.mutable.ArrayBuffer
 
-// join-skew research related.
+/**
+  * This handler is used to do state migrated during Reshape.
+  * e.g., The controller will send a `SendImmutableState` message to
+  * a skewed worker of HashJoin operator to send its build hash map
+  * to `helperReceiverId` worker.
+  *
+  * Possible sender: Controller (SkewDetectionHandler).
+  */
 object SendImmutableStateHandler {
   final case class SendImmutableState(
       helperReceiverId: ActorVirtualIdentity
@@ -25,8 +32,8 @@ trait SendImmutableStateHandler {
     try {
       val joinOpExec = dataProcessor.getOperatorExecutor().asInstanceOf[HashJoinOpExec[Any]]
       if (joinOpExec.isBuildTableFinished) {
-        val immutableStates = joinOpExec.getBuildHashTable()
-        val immutableStatesSendingFutures = new ArrayBuffer[Future[Unit]]()
+        val immutableStates = joinOpExec.getBuildHashTableBatches()
+        val immutableStatesSendingFutures = new ArrayBuffer[Future[Boolean]]()
         immutableStates.foreach(map => {
           immutableStatesSendingFutures.append(
             send(AcceptImmutableState(map), cmd.helperReceiverId)
@@ -35,10 +42,14 @@ trait SendImmutableStateHandler {
         Future
           .collect(immutableStatesSendingFutures)
           .flatMap(seq => {
-            logger.info(
-              s"Reshape: Replication of all parts of build table done to ${cmd.helperReceiverId}"
-            )
-            Future.True
+            if (!seq.contains(false)) {
+              logger.info(
+                s"Reshape: Replication of all parts of build table done to ${cmd.helperReceiverId}"
+              )
+              Future.True
+            } else {
+              Future.False
+            }
           })
       } else {
         Future.False

@@ -5,7 +5,7 @@ from typing import Iterator
 from betterproto import Message
 
 from core.models import Tuple
-from core.models.payload import DataFrame, DataPayload
+from core.models.payload import OutputDataFrame, DataPayload
 from core.util import get_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import Partitioning
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity
@@ -16,7 +16,7 @@ class Partitioner(ABC):
     def __init__(self, partitioning: Message):
         self.partitioning: Partitioning = get_one_of(partitioning)
 
-    def add_tuple_to_batch(self, tuple_: Tuple) -> Iterator[typing.Tuple[ActorVirtualIdentity, DataFrame]]:
+    def add_tuple_to_batch(self, tuple_: Tuple) -> Iterator[typing.Tuple[ActorVirtualIdentity, OutputDataFrame]]:
         pass
 
     def no_more(self) -> Iterator[typing.Tuple[ActorVirtualIdentity, DataPayload]]:

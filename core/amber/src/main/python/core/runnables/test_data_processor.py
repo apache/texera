@@ -1,10 +1,12 @@
 from threading import Thread
 
+import pandas
+import pyarrow
 import pytest
 from loguru import logger
 
-from core.models import ControlElement, DataElement, DataFrame, EndOfUpstream, InternalQueue, Tuple
-from pytexera.udf.examples.echo_operator import EchoOperator
+from core.models import ControlElement, DataElement, InputDataFrame, OutputDataFrame, EndOfUpstream, InternalQueue, \
+    Tuple
 from core.runnables import DataProcessor
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import OneToOnePartitioning, Partitioning
@@ -12,6 +14,7 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import AddPartitioningV2
     QueryStatisticsV2, UpdateInputLinkingV2, WorkerExecutionCompletedV2, WorkerState, WorkerStatistics
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlInvocationV2, ControlPayloadV2, \
     LayerIdentity, LinkIdentity, ReturnInvocationV2
+from pytexera.udf.examples.echo_operator import EchoOperator
 
 logger.level("PRINT", no=38)
 
@@ -47,7 +50,8 @@ class TestDataProcessor:
 
     @pytest.fixture
     def mock_data_element(self, mock_tuple, mock_sender_actor):
-        return DataElement(tag=mock_sender_actor, payload=DataFrame(frame=[mock_tuple]))
+        return DataElement(tag=mock_sender_actor, payload=InputDataFrame(
+            frame=pyarrow.Table.from_pandas(pandas.DataFrame([mock_tuple.as_dict()]))))
 
     @pytest.fixture
     def mock_end_of_upstream(self, mock_tuple, mock_sender_actor):
@@ -95,6 +99,7 @@ class TestDataProcessor:
         data_processor = DataProcessor(input_queue, output_queue)
         # mock the operator binding
         data_processor._operator = mock_udf
+        data_processor._operator.output_schema = {"test-1": 'string', "test-2": "integer"}
         yield data_processor
         data_processor.stop()
 
@@ -121,6 +126,7 @@ class TestDataProcessor:
 
         # can process UpdateInputLinking
         input_queue.put(mock_update_input_linking)
+
         assert output_queue.get() == ControlElement(
             tag=mock_controller,
             payload=ControlPayloadV2(
@@ -141,16 +147,15 @@ class TestDataProcessor:
             )
         )
 
-        # can process a DataFrame
+        # can process a InputDataFrame
         input_queue.put(mock_data_element)
 
-        expected_data_frame: DataFrame = DataFrame(frame=[mock_tuple])
         output_data_element: DataElement = output_queue.get()
         assert output_data_element.tag == mock_receiver_actor
-        assert isinstance(output_data_element.payload, DataFrame)
-        data_frame: DataFrame = output_data_element.payload
+        assert isinstance(output_data_element.payload, OutputDataFrame)
+        data_frame: OutputDataFrame = output_data_element.payload
         assert len(data_frame.frame) == 1
-        assert (data_frame.frame[0] == expected_data_frame.frame[0]).all()
+        assert (data_frame.frame[0] == mock_tuple)
 
         # can process QueryStatistics
         input_queue.put(mock_query_statistics)
