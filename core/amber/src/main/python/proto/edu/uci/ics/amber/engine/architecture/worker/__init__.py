@@ -178,24 +178,6 @@ class ControlCommandV2(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-<<<<<<< HEAD
-class WorkerStatistics(betterproto.Message):
-    worker_state: "WorkerState" = betterproto.enum_field(1)
-    input_tuple_count: int = betterproto.int64_field(2)
-    output_tuple_count: int = betterproto.int64_field(3)
-
-
-@dataclass(eq=False, repr=False)
-class SelfWorkloadMetrics(betterproto.Message):
-    unprocessed_data_input_queue_size: int = betterproto.int64_field(1)
-    unprocessed_control_input_queue_size: int = betterproto.int64_field(2)
-    stashed_data_input_queue_size: int = betterproto.int64_field(3)
-    stashed_control_input_queue_size: int = betterproto.int64_field(4)
-
-
-@dataclass(eq=False, repr=False)
-=======
->>>>>>> master
 class CurrentInputTupleInfo(betterproto.Message):
     pass
 
@@ -229,11 +211,7 @@ class ControlReturnV2(betterproto.Message):
         4, group="value"
     )
     evaluated_value: "EvaluatedValue" = betterproto.message_field(5, group="value")
-<<<<<<< HEAD
-    self_workload_metrics: "SelfWorkloadMetrics" = betterproto.message_field(
-=======
     self_workload_return: "SelfWorkloadReturn" = betterproto.message_field(
->>>>>>> master
         6, group="value"
     )
 
