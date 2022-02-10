@@ -40,8 +40,12 @@ import scala.concurrent.duration.FiniteDuration
 
 object TexeraWebApplication {
 
-  def createAmberRuntime(workflow: Workflow, conf: ControllerConfig): AmberClient = {
-    new AmberClient(actorSystem, workflow, conf)
+  def createAmberRuntime(
+      workflow: Workflow,
+      conf: ControllerConfig,
+      errorHandler: Throwable => Unit
+  ): AmberClient = {
+    new AmberClient(actorSystem, workflow, conf, errorHandler)
   }
 
   def scheduleCallThroughActorSystem(delay: FiniteDuration)(call: => Unit): Cancellable = {

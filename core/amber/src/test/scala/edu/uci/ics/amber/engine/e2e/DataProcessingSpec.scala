@@ -64,11 +64,10 @@ class DataProcessingSpec
 
   def executeWorkflow(workflow: Workflow): Map[String, List[ITuple]] = {
     var results: Map[String, List[ITuple]] = null
-    val client = new AmberClient(system, workflow, ControllerConfig.default)
+    val client = new AmberClient(system, workflow, ControllerConfig.default, error => {})
     val completion = Promise[Unit]
     client
-      .getObservable[WorkflowCompleted]
-      .subscribe(evt => {
+      .registerCallback[WorkflowCompleted](evt => {
         results = workflow.getEndOperators
           .filter(op => resultStorage.contains(op.id.operator))
           .map { op => (op.id.operator, resultStorage.get(op.id.operator).getAll.toList) }

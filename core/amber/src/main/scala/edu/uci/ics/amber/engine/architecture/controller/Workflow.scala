@@ -4,8 +4,6 @@ import akka.actor.{ActorContext, Address}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{WorkerInfo, WorkerLayer}
 import edu.uci.ics.amber.engine.architecture.linksemantics._
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef
-import edu.uci.ics.amber.engine.architecture.principal.OperatorState.Completed
-import edu.uci.ics.amber.engine.architecture.principal.OperatorStatistics
 import edu.uci.ics.amber.engine.common.{AmberUtils, Constants}
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
@@ -16,6 +14,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 }
 import edu.uci.ics.amber.engine.common.{AmberUtils, Constants, IOperatorExecutor}
 import edu.uci.ics.amber.engine.operators.{OpExecConfig, SinkOpExecConfig}
+import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
 
 import scala.collection.mutable
@@ -59,7 +58,7 @@ class Workflow(
     result
   }
 
-  def getWorkflowStatus: Map[String, OperatorStatistics] = {
+  def getWorkflowStatus: Map[String, OperatorRuntimeStats] = {
     operatorToOpExecConfig.map { op =>
       (op._1.operator, op._2.getOperatorStatistics)
     }.toMap
@@ -119,7 +118,8 @@ class Workflow(
       })
       .asInstanceOf[Iterable[(ActorVirtualIdentity, PythonUDFOpExecV2)]]
 
-  def isCompleted: Boolean = operatorToOpExecConfig.values.forall(op => op.getState == Completed)
+  def isCompleted: Boolean =
+    operatorToOpExecConfig.values.forall(op => op.getState == WorkflowAggregatedState.COMPLETED)
 
   def build(
       allNodes: Array[Address],

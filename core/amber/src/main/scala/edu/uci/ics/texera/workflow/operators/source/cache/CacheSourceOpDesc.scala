@@ -14,9 +14,9 @@ import java.util.Collections.singletonList
 import scala.collection.JavaConverters.asScalaBuffer
 import scala.collection.immutable.List
 
-class CacheSourceOpDesc(uuid: String, opResultStorage: OpResultStorage)
+class CacheSourceOpDesc(val targetSinkStorageId: String, opResultStorage: OpResultStorage)
     extends SourceOperatorDescriptor {
-  assert(null != uuid)
+  assert(null != targetSinkStorageId)
   assert(null != opResultStorage)
 
   var schema: Schema = _
@@ -24,7 +24,7 @@ class CacheSourceOpDesc(uuid: String, opResultStorage: OpResultStorage)
   override def sourceSchema(): Schema = schema
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-    new CacheSourceOpExecConfig(operatorIdentifier, uuid, opResultStorage)
+    new CacheSourceOpExecConfig(operatorIdentifier, targetSinkStorageId, opResultStorage)
   }
 
   override def operatorInfo: OperatorInfo =
