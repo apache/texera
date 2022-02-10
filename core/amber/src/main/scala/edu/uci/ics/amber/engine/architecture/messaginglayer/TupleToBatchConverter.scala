@@ -106,7 +106,6 @@ class TupleToBatchConverter(
 
   /**
     * Add down stream operator and its corresponding Partitioner.
-    *
     * @param partitioning Partitioning, describes how and whom to send to.
     */
   def addPartitionerWithPartitioning(tag: LinkIdentity, partitioning: Partitioning): Unit = {
@@ -129,7 +128,6 @@ class TupleToBatchConverter(
   /**
     * Push one tuple to the downstream, will be batched by each transfer partitioning.
     * Should ONLY be called by DataProcessor.
-    *
     * @param tuple ITuple to be passed.
     */
   def passTupleToDownstream(tuple: ITuple): Unit = {

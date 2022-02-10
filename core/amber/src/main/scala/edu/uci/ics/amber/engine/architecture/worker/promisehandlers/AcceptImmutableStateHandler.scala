@@ -40,7 +40,6 @@ trait AcceptImmutableStateHandler {
             .getMessage() + " stacktrace " + exception.getStackTrace()
         )
         false
-
     }
   }
 }
