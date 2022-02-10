@@ -4,12 +4,13 @@ import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.EvaluatePythonExpressionHandler.EvaluatePythonExpression
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.EvaluateExpressionHandler.EvaluateExpression
+import edu.uci.ics.amber.engine.architecture.worker.controlreturns.EvaluatedValue
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.texera.web.model.websocket.response.python.PythonExpressionEvaluateResponse
 
 object EvaluatePythonExpressionHandler {
   final case class EvaluatePythonExpression(expression: String, operatorId: String)
-      extends ControlCommand[PythonExpressionEvaluateResponse]
+      extends ControlCommand[List[EvaluatedValue]]
 }
 
 trait EvaluatePythonExpressionHandler {
@@ -26,7 +27,7 @@ trait EvaluatePythonExpressionHandler {
             .toList
         )
         .map(evaluatedValues => {
-          PythonExpressionEvaluateResponse(msg.expression, evaluatedValues.toList)
+          evaluatedValues.toList
         })
     }
   }

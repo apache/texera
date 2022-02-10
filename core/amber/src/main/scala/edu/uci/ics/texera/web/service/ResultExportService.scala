@@ -36,14 +36,13 @@ object ResultExportService {
     Executors.newFixedThreadPool(3).asInstanceOf[ThreadPoolExecutor]
 }
 
-class ResultExportService {
+class ResultExportService(opResultStorage: OpResultStorage) {
   import ResultExportService._
 
   private val cache = new mutable.HashMap[String, String]
 
   def exportResult(
       uid: UInteger,
-      opResultStorage: OpResultStorage,
       request: ResultExportRequest
   ): ResultExportResponse = {
     // retrieve the file link saved in the session if exists
@@ -76,7 +75,7 @@ class ResultExportService {
     }
   }
 
-  def handleCSVRequest(
+  private def handleCSVRequest(
       uid: UInteger,
       request: ResultExportRequest,
       results: Iterable[Tuple],

@@ -19,7 +19,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputPort
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
-import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
+import edu.uci.ics.amber.engine.common.{AmberUtils, ISourceOperatorExecutor}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowControlMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
@@ -36,7 +36,8 @@ object ControllerConfig {
     ControllerConfig(
       monitoringIntervalMs = Option(3000),
       skewDetectionIntervalMs = Option(3000),
-      statusUpdateIntervalMs = Option(500)
+      statusUpdateIntervalMs =
+        Option(AmberUtils.amberConfig.getLong("constants.status-update-interval"))
     )
 }
 
