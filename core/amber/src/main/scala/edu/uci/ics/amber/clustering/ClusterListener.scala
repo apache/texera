@@ -33,15 +33,15 @@ class ClusterListener extends Actor with ActorLogging {
     case ClusterListener.GetAvailableNodeAddresses => sender ! getAllAddressExcludingMaster.toArray
   }
 
-
-  private def getAllAddressExcludingMaster:Iterable[Address] = {
-    cluster.state.members.filter {
-      member =>
-      member.address != Constants.masterNodeAddr
-    }.map(_.address)
+  private def getAllAddressExcludingMaster: Iterable[Address] = {
+    cluster.state.members
+      .filter { member =>
+        member.address != Constants.masterNodeAddr
+      }
+      .map(_.address)
   }
 
-  private def updateClusterStatus():Unit = {
+  private def updateClusterStatus(): Unit = {
     val addr = getAllAddressExcludingMaster
     Constants.currentWorkerNum = addr.size * Constants.numWorkerPerNode
     log.info(

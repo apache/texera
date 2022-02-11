@@ -16,7 +16,7 @@ object Constants {
   // Non constants: TODO: move out from Constants
   var numWorkerPerNode: Int = AmberUtils.amberConfig.getInt("constants.num-worker-per-node")
   var currentWorkerNum = 0
-  var masterNodeAddr: Address =  Address("akka","Amber","localhost",2552)
+  var masterNodeAddr: Address = Address("akka", "Amber", "localhost", 2552)
   var defaultTau: FiniteDuration = 10.milliseconds
 
   var monitoringEnabled: Boolean =

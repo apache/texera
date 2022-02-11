@@ -43,7 +43,7 @@ object AmberUtils {
 
   def amberConfig: Config = ConfigFactory.load()
 
-  def createMasterAddress(addr:String):Address = Address("akka","Amber",addr,2552)
+  def createMasterAddress(addr: String): Address = Address("akka", "Amber", addr, 2552)
 
   def startActorWorker(mainNodeAddress: Option[String]): ActorSystem = {
     val addr = mainNodeAddress.getOrElse("localhost")
@@ -59,8 +59,7 @@ object AmberUtils {
     createAmberSystem(workerConfig)
   }
 
-
-  def createAmberSystem(actorSystemConf:Config): ActorSystem ={
+  def createAmberSystem(actorSystemConf: Config): ActorSystem = {
     val system = ActorSystem("Amber", actorSystemConf)
     system.actorOf(Props[ClusterListener], "cluster-info")
     val deadLetterMonitorActor =
