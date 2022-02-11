@@ -82,10 +82,11 @@ class CollaborationResource extends LazyLogging {
 
       case tryLock: TryLockRequest =>
         val wId = sessionIdWIdMap(senderSessId)
-        val uId = sessionIdUIdMap(senderSessId)
-        if (wId == DUMMY_WID)
+        if (wId == DUMMY_WID) {
+          send(senderSession, WorkflowAccessEvent(false))
           send(senderSession, LockGrantedEvent())
-        else {
+        } else {
+          val uId = sessionIdUIdMap(senderSessId)
           if (checkIsReadOnly(wId, uId)) {
             send(senderSession, LockRejectedEvent())
             send(senderSession, WorkflowAccessEvent(true))
@@ -136,20 +137,6 @@ class CollaborationResource extends LazyLogging {
     }
   }
 
-  private def grantLock(session: Session, sessionId: String, wId: Int): Unit = {
-    wIdLockHolderSessionIdMap(wId) = sessionId
-    logger.info("Session " + sessionId + " has lock on " + wId + " now")
-    send(session, LockGrantedEvent())
-  }
-
-  private def send(session: Session, msg: CollabWebSocketEvent): Unit = {
-    session.getAsyncRemote.sendText(objectMapper.writeValueAsString(msg))
-  }
-
-  private def checkIsReadOnly(wId: Int, uId: Int): Boolean = {
-    !WorkflowAccessResource.hasWriteAccess(UInteger.valueOf(wId), UInteger.valueOf(uId))
-  }
-
   @OnOpen
   def myOnOpen(session: Session): Unit = {
     sessionIdSessionMap += (session.getId -> session)
@@ -161,7 +148,7 @@ class CollaborationResource extends LazyLogging {
     sessionIdSessionMap -= senderSessId
     val wId = sessionIdWIdMap(senderSessId)
     wIdSessionIdsMap(wId) -= senderSessId
-    if (wIdLockHolderSessionIdMap(wId) == senderSessId) {
+    if (wIdLockHolderSessionIdMap.contains(wId) && wIdLockHolderSessionIdMap(wId) == senderSessId) {
       wIdLockHolderSessionIdMap(wId) = null
       val set = wIdSessionIdsMap(wId)
       if (set.nonEmpty) {
@@ -175,5 +162,19 @@ class CollaborationResource extends LazyLogging {
     }
     sessionIdWIdMap -= senderSessId
     logger.info("Session " + senderSessId + " disconnected")
+  }
+
+  private def grantLock(session: Session, sessionId: String, wId: Int): Unit = {
+    wIdLockHolderSessionIdMap(wId) = sessionId
+    logger.info("Session " + sessionId + " has lock on " + wId + " now")
+    send(session, LockGrantedEvent())
+  }
+
+  private def send(session: Session, msg: CollabWebSocketEvent): Unit = {
+    session.getAsyncRemote.sendText(objectMapper.writeValueAsString(msg))
+  }
+
+  private def checkIsReadOnly(wId: Int, uId: Int): Boolean = {
+    !WorkflowAccessResource.hasWriteAccess(UInteger.valueOf(wId), UInteger.valueOf(uId))
   }
 }
