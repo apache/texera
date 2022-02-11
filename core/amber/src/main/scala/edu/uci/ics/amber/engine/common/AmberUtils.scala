@@ -35,15 +35,15 @@ object AmberUtils {
         akka.cluster.seed-nodes = [ "akka://Amber@$localIpAddress:2552" ]
         """)
       .withFallback(akkaConfig)
-    Constants.masterNodeAddr = mkMasterAddress(localIpAddress)
-    initAmberSystem(masterConfig)
+    Constants.masterNodeAddr = createMasterAddress(localIpAddress)
+    createAmberSystem(masterConfig)
   }
 
   def akkaConfig: Config = ConfigFactory.load("cluster").withFallback(amberConfig)
 
   def amberConfig: Config = ConfigFactory.load()
 
-  def mkMasterAddress(addr:String):Address = Address("akka","Amber",addr,2552)
+  def createMasterAddress(addr:String):Address = Address("akka","Amber",addr,2552)
 
   def startActorWorker(mainNodeAddress: Option[String]): ActorSystem = {
     val addr = mainNodeAddress.getOrElse("localhost")
@@ -55,12 +55,12 @@ object AmberUtils {
         akka.cluster.seed-nodes = [ "akka://Amber@$addr:2552" ]
         """)
       .withFallback(akkaConfig)
-    Constants.masterNodeAddr = mkMasterAddress(addr)
-    initAmberSystem(workerConfig)
+    Constants.masterNodeAddr = createMasterAddress(addr)
+    createAmberSystem(workerConfig)
   }
 
 
-  def initAmberSystem(actorSystemConf:Config): ActorSystem ={
+  def createAmberSystem(actorSystemConf:Config): ActorSystem ={
     val system = ActorSystem("Amber", actorSystemConf)
     system.actorOf(Props[ClusterListener], "cluster-info")
     val deadLetterMonitorActor =
