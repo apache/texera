@@ -8,7 +8,6 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
   WorkerWorkloadInfo
 }
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
-import edu.uci.ics.amber.engine.architecture.principal.{OperatorState, OperatorStatistics}
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState._
 import edu.uci.ics.amber.engine.common.virtualidentity.{
@@ -17,6 +16,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   LinkIdentity,
   OperatorIdentity
 }
+import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 
 import scala.collection.mutable
 
@@ -51,26 +51,26 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
   def getLayerFromWorkerID(id: ActorVirtualIdentity): WorkerLayer =
     topology.layers.find(_.identifiers.contains(id)).get
 
-  def getOperatorStatistics: OperatorStatistics =
-    OperatorStatistics(getState, getInputRowCount, getOutputRowCount)
+  def getOperatorStatistics: OperatorRuntimeStats =
+    OperatorRuntimeStats(getState, getInputRowCount, getOutputRowCount)
 
-  def getState: OperatorState = {
+  def getState: WorkflowAggregatedState = {
     val workerStates = getAllWorkerStates
     if (workerStates.forall(_ == COMPLETED)) {
-      return OperatorState.Completed
+      return WorkflowAggregatedState.COMPLETED
     }
     if (workerStates.exists(_ == RUNNING)) {
-      return OperatorState.Running
+      return WorkflowAggregatedState.RUNNING
     }
     val unCompletedWorkerStates = workerStates.filter(_ != COMPLETED)
     if (unCompletedWorkerStates.forall(_ == UNINITIALIZED)) {
-      OperatorState.Uninitialized
+      WorkflowAggregatedState.UNINITIALIZED
     } else if (unCompletedWorkerStates.forall(_ == PAUSED)) {
-      OperatorState.Paused
+      WorkflowAggregatedState.PAUSED
     } else if (unCompletedWorkerStates.forall(_ == READY)) {
-      OperatorState.Ready
+      WorkflowAggregatedState.READY
     } else {
-      OperatorState.Unknown
+      WorkflowAggregatedState.UNKNOWN
     }
   }
 
