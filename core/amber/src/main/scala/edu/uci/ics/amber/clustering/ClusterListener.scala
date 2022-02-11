@@ -28,8 +28,8 @@ class ClusterListener extends Actor with ActorLogging {
 
   def receive: Receive = {
     case evt: MemberEvent =>
-      updateClusterStatus()
       log.info(s"received member event = $evt")
+      updateClusterStatus()
     case ClusterListener.GetAvailableNodeAddresses => sender ! getAllAddressExcludingMaster.toArray
   }
 
