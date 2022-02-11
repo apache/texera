@@ -2,10 +2,7 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
-import edu.uci.ics.amber.engine.architecture.controller.{
-  ControllerAsyncRPCHandlerInitializer,
-  ControllerState
-}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand

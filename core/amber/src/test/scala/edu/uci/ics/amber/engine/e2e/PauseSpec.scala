@@ -5,7 +5,7 @@ import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import akka.util.Timeout
 import com.twitter.util.{Await, Promise}
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ControllerState}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.workflow.{
   BreakpointInfo,
@@ -49,11 +49,15 @@ class PauseSpec
       links: mutable.MutableList[OperatorLink]
   ): Unit = {
     val client =
-      new AmberClient(system, Utils.getWorkflow(operators, links), ControllerConfig.default)
+      new AmberClient(
+        system,
+        Utils.getWorkflow(operators, links),
+        ControllerConfig.default,
+        error => {}
+      )
     val completion = Promise[Unit]
     client
-      .getObservable[WorkflowCompleted]
-      .subscribe(evt => {
+      .registerCallback[WorkflowCompleted](evt => {
         completion.setDone()
       })
     Await.result(client.sendAsync(StartWorkflow()))
