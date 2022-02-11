@@ -124,7 +124,7 @@ export class NavigationComponent {
     this.handleDisableOperatorStatusChange();
     this.handleCacheOperatorStatusChange();
     this.listenToLockChange();
-    this.listenToWorkflowReadonly();
+    this.listenToWorkflowAccess();
   }
 
   // apply a behavior to the run button via bound variables
@@ -541,13 +541,12 @@ export class NavigationComponent {
       });
   }
 
-  private listenToWorkflowReadonly(): void {
+  private listenToWorkflowAccess(): void {
     this.workflowCollabService
-      .getWorkflowReadonlyStream()
+      .getWorkflowAccessStream()
       .pipe(untilDestroyed(this))
-      .subscribe((isReadonlyAccess: boolean) => {
-        if (isReadonlyAccess) this.isWorkflowReadonly = true;
-        else this.isWorkflowReadonly = false;
+      .subscribe((isWorkflowReadonly: boolean) => {
+        this.isWorkflowReadonly = isWorkflowReadonly;
       });
   }
 

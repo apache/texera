@@ -42,7 +42,7 @@ class CollaborationResource extends LazyLogging {
       .map(_.asInstanceOf[User].getUid)
     val senderSessId = senderSession.getId
     request match {
-      case wIdRequest: InformWIdRequest =>
+      case wIdRequest: WIdRequest =>
         val wId: Int = uidOpt match {
           case Some(uId) =>
             sessionIdUIdMap(senderSessId) = uId.intValue()
@@ -85,17 +85,25 @@ class CollaborationResource extends LazyLogging {
         val uId = sessionIdUIdMap(senderSessId)
         if (wId == DUMMY_WID)
           send(senderSession, LockGrantedEvent())
-        else if (checkIsReadOnly(wId, uId)) {
-          send(senderSession, LockRejectedEvent())
-          send(senderSession, ReadOnlyAccessEvent())
-        } else if (
-          !wIdLockHolderSessionIdMap.keySet.contains(wId) || wIdLockHolderSessionIdMap(
-            wId
-          ) == null || wIdLockHolderSessionIdMap(wId) == senderSessId
-        ) {
-          grantLock(senderSession, senderSessId, wId)
-        } else if (wIdLockHolderSessionIdMap(wId) != senderSessId) {
-          send(senderSession, LockRejectedEvent())
+        else {
+          if (checkIsReadOnly(wId, uId)) {
+            send(senderSession, LockRejectedEvent())
+            send(senderSession, WorkflowAccessEvent(true))
+            if (!wIdLockHolderSessionIdMap.keySet.contains(wId)) {
+              wIdLockHolderSessionIdMap(wId) = null
+            }
+          } else {
+            send(senderSession, WorkflowAccessEvent(false))
+            if (
+              !wIdLockHolderSessionIdMap.keySet.contains(wId) || wIdLockHolderSessionIdMap(
+                wId
+              ) == null || wIdLockHolderSessionIdMap(wId) == senderSessId
+            ) {
+              grantLock(senderSession, senderSessId, wId)
+            } else {
+              send(senderSession, LockRejectedEvent())
+            }
+          }
         }
 
       case acquireLock: AcquireLockRequest =>

@@ -12,7 +12,7 @@ import edu.uci.ics.texera.web.model.collab.response.HeartBeatResponse
     new Type(value = classOf[LockRejectedEvent]),
     new Type(value = classOf[RestoreVersionEvent]),
     new Type(value = classOf[HeartBeatResponse]),
-    new Type(value = classOf[ReadOnlyAccessEvent])
+    new Type(value = classOf[WorkflowAccessEvent])
   )
 )
 trait CollabWebSocketEvent {}

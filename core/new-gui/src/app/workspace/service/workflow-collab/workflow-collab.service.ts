@@ -43,7 +43,7 @@ export class WorkflowCollabService {
   private readonly commandMessageSubject: Subject<CommandMessage> = new Subject<CommandMessage>();
   private readonly lockGrantedSubject: ReplaySubject<boolean> = new ReplaySubject(1);
   private readonly restoreVersionSubject: ReplaySubject<boolean> = new ReplaySubject(1);
-  private readonly workflowReadonlySubject: ReplaySubject<boolean> = new ReplaySubject(1);
+  private readonly workflowAccessSubject: ReplaySubject<boolean> = new ReplaySubject(1);
 
   constructor() {
     // In case collab is not enabled, lock should always be granted.
@@ -74,8 +74,8 @@ export class WorkflowCollabService {
         this.restoreVersionSubject.next(true);
       });
 
-      this.subscribeToEvent("ReadOnlyAccessEvent").subscribe(_ => {
-        this.setWorkflowReadonly();
+      this.subscribeToEvent("WorkflowAccessEvent").subscribe(WorkflowAccessEvent => {
+        this.setWorkflowAccess(WorkflowAccessEvent.isWorkflowReadonly);
       });
     }
   }
@@ -110,7 +110,7 @@ export class WorkflowCollabService {
             ),
             delayWhen(_ => timer(WS_RECONNECT_INTERVAL_MS)), // reconnect after delay
             tap(_ => {
-              this.send("InformWIdRequest", { wId }); // Informs the websocket server of this client's wid
+              this.send("WIdRequest", { wId }); // Informs the websocket server of this client's wid
               this.send("HeartBeatRequest", {}); // try to send heartbeat immediately after reconnect
               this.send("TryLockRequest", {}); // Asks server about lock status
             })
@@ -124,7 +124,7 @@ export class WorkflowCollabService {
       );
 
       // inform wId and try to see if lock can be granted
-      this.send("InformWIdRequest", { wId });
+      this.send("WIdRequest", { wId });
       this.send("TryLockRequest", {});
 
       // refresh connection status
@@ -216,10 +216,10 @@ export class WorkflowCollabService {
   /**
    * Sets the workflowReadOnly status to true. Should not be further modified.
    */
-  public setWorkflowReadonly(): void {
-    this.isWorkflowReadonly = true;
-    this.workflowReadonlySubject.next(true);
-    this.setLockStatus(false);
+  public setWorkflowAccess(isReadonly: boolean): void {
+    this.isWorkflowReadonly = isReadonly;
+    this.workflowAccessSubject.next(isReadonly);
+    if (isReadonly) this.setLockStatus(false);
   }
 
   /**
@@ -239,7 +239,12 @@ export class WorkflowCollabService {
    * Propagates a specific change to other active clients of the same wid.
    */
   public propagateChange(change: CommandMessage): void {
-    if (this.checkCollabEnabled() && this.getPropagationEnabled() && this.checkLockGranted() && !this.isWorkflowReadonly) {
+    if (
+      this.checkCollabEnabled() &&
+      this.getPropagationEnabled() &&
+      this.checkLockGranted() &&
+      !this.isWorkflowReadonly
+    ) {
       const commandMessage = JSON.stringify(change);
       this.send("CommandRequest", { commandMessage });
     }
@@ -286,7 +291,7 @@ export class WorkflowCollabService {
   /**
    * Gets an observable for whether the workflow is readonly.
    */
-  public getWorkflowReadonlyStream(): Observable<boolean> {
-    return this.workflowReadonlySubject.asObservable();
+  public getWorkflowAccessStream(): Observable<boolean> {
+    return this.workflowAccessSubject.asObservable();
   }
 }

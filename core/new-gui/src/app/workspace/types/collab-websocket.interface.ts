@@ -1,4 +1,4 @@
-export interface InformWIdRequest
+export interface WIdRequest
   extends Readonly<{
     wId: number;
   }> {}
@@ -15,8 +15,13 @@ export interface CommandEvent
     commandMessage: string;
   }> {}
 
+export interface WorkflowAccessEvent
+  extends Readonly<{
+    isWorkflowReadonly: boolean;
+  }> {}
+
 export type CollabWebsocketRequestTypeMap = {
-  InformWIdRequest: InformWIdRequest;
+  WIdRequest: WIdRequest;
   HeartBeatRequest: {};
   CommandRequest: CommandRequest;
   AcquireLockRequest: {};
@@ -32,7 +37,7 @@ export type CollabWebsocketEventTypeMap = {
   LockGrantedEvent: {};
   LockRejectedEvent: {};
   RestoreVersionEvent: {};
-  ReadOnlyAccessEvent: {};
+  WorkflowAccessEvent: WorkflowAccessEvent;
 };
 
 // helper type definitions to generate the request and event types
