@@ -25,6 +25,14 @@ export const PYTHON_UDF_SOURCE_V2_OP_TYPE = "PythonUDFSourceV2";
 export const VIEW_RESULT_OP_TYPE = "SimpleSink";
 export const VIEW_RESULT_OP_NAME = "View Results";
 
+export function isSink(operator: OperatorPredicate): boolean {
+  return operator.operatorType.toLocaleLowerCase().includes("sink");
+}
+
+export function isPythonUdf(operator: OperatorPredicate): boolean {
+  return operator.operatorType === PYTHON_UDF_V2_OP_TYPE || operator.operatorType === PYTHON_UDF_SOURCE_V2_OP_TYPE;
+}
+
 /**
  * WorkflowGraph represents the Texera's logical WorkflowGraph,
  *  it's a graph consisted of operators <OperatorPredicate> and links <OpreatorLink>,
@@ -155,7 +163,7 @@ export class WorkflowGraph {
     if (!operator) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
-    if (operator.operatorType === VIEW_RESULT_OP_TYPE) {
+    if (isSink(operator)) {
       return;
     }
     if (this.isOperatorCached(operatorID)) {

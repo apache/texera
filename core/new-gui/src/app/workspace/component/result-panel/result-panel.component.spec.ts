@@ -13,6 +13,7 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { DynamicModule } from "ng-dynamic-component";
+import { mockPoint, mockResultPredicate } from "../../service/workflow-graph/model/mock-workflow-data";
 
 describe("ResultPanelComponent", () => {
   let component: ResultPanelComponent;
@@ -181,10 +182,12 @@ describe("ResultPanelComponent", () => {
   });
 
   it("should show the result panel if a workflow finishes execution", () => {
-    (executeWorkflowService as any).updateExecutionState({
+    workflowActionService.addOperator(mockResultPredicate, mockPoint);
+    executeWorkflowService["updateExecutionState"]({
+      state: ExecutionState.Running,
+    });
+    executeWorkflowService["updateExecutionState"]({
       state: ExecutionState.Completed,
-      resultID: "resultID",
-      resultMap: new Map([]),
     });
     fixture.detectChanges();
     const resultPanelDiv = fixture.debugElement.query(By.css(".texera-workspace-result-panel-body"));
@@ -209,10 +212,12 @@ describe("ResultPanelComponent", () => {
     const resultPanelDiv = fixture.debugElement.query(By.css(".texera-workspace-result-panel-body"));
     const resultPanelHtmlElement: HTMLElement = resultPanelDiv.nativeElement;
 
-    (executeWorkflowService as any).updateExecutionState({
+    workflowActionService.addOperator(mockResultPredicate, mockPoint);
+    executeWorkflowService["updateExecutionState"]({
+      state: ExecutionState.Running,
+    });
+    executeWorkflowService["updateExecutionState"]({
       state: ExecutionState.Completed,
-      resultID: "resultID",
-      resultMap: new Map([]),
     });
     fixture.detectChanges();
     expect(resultPanelHtmlElement.hasAttribute("hidden")).toBeFalsy();
