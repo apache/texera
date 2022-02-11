@@ -21,7 +21,7 @@ export type CollabWebsocketRequestTypeMap = {
   CommandRequest: CommandRequest;
   AcquireLockRequest: {};
   TryLockRequest: {};
-  ReloadWorkflowRequest: {};
+  RestoreVersionRequest: {};
 };
 
 export type CollabWebsocketEventTypeMap = {
@@ -31,7 +31,8 @@ export type CollabWebsocketEventTypeMap = {
   ReleaseLockEvent: {};
   LockGrantedEvent: {};
   LockRejectedEvent: {};
-  ReloadWorkflowEvent: {};
+  RestoreVersionEvent: {};
+  ReadOnlyAccessEvent: {};
 };
 
 // helper type definitions to generate the request and event types

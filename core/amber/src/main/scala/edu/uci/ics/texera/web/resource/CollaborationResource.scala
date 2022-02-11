@@ -7,23 +7,23 @@ import edu.uci.ics.texera.web.model.collab.event._
 import edu.uci.ics.texera.web.model.collab.request._
 import edu.uci.ics.texera.web.model.collab.response.HeartBeatResponse
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
-import edu.uci.ics.texera.web.resource.CollaborationResource.{
-  sessionIdwIdMap,
-  wIdLockHolderIdMap,
-  wIdSessionIdMap,
-  websocketSessionMap
-}
+import edu.uci.ics.texera.web.resource.CollaborationResource._
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource
+import org.jooq.types.UInteger
 
 import javax.websocket.server.ServerEndpoint
 import javax.websocket.{OnClose, OnMessage, OnOpen, Session}
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.mapAsScalaMapConverter
+import scala.util.control.Breaks.break
 
 object CollaborationResource {
-  final val websocketSessionMap = new mutable.HashMap[String, Session]()
-  final val sessionIdwIdMap = new mutable.HashMap[String, String]()
-  final val wIdSessionIdMap = new mutable.HashMap[String, mutable.Set[String]]()
-  final val wIdLockHolderIdMap = new mutable.HashMap[String, String]()
+  final val sessionIdSessionMap = new mutable.HashMap[String, Session]()
+  final val sessionIdWIdMap = new mutable.HashMap[String, Int]()
+  final val sessionIdUIdMap = new mutable.HashMap[String, Int]()
+  final val wIdSessionIdsMap = new mutable.HashMap[Int, mutable.Set[String]]()
+  final val wIdLockHolderSessionIdMap = new mutable.HashMap[Int, String]()
+  final val DUMMY_WID = -1
 }
 
 @ServerEndpoint(
@@ -40,92 +40,96 @@ class CollaborationResource extends LazyLogging {
     val uidOpt = senderSession.getUserProperties.asScala
       .get(classOf[User].getName)
       .map(_.asInstanceOf[User].getUid)
+    val senderSessId = senderSession.getId
     request match {
       case wIdRequest: InformWIdRequest =>
-        val workflowStateId: String = uidOpt match {
-          case Some(user) =>
-            val workflowStateId = user + "-" + wIdRequest.wId
-            logger.info("New session on workflow with wid: " + workflowStateId)
-            workflowStateId
+        val wId: Int = uidOpt match {
+          case Some(uId) =>
+            sessionIdUIdMap(senderSessId) = uId.intValue()
+            val wId = wIdRequest.wId
+            logger.info("New session from " + uId + " on workflow with wid: " + wId)
+            wId
           case None =>
             // use a fixed wid for reconnection
-            val workflowStateId = "dummy wid"
-            workflowStateId
+            DUMMY_WID
         }
-        sessionIdwIdMap(senderSession.getId) = workflowStateId
+        sessionIdWIdMap(senderSessId) = wId
         val sessionIdSet: mutable.Set[String] =
-          wIdSessionIdMap.get(workflowStateId) match {
+          wIdSessionIdsMap.get(wId) match {
             case Some(set) =>
-              set.+(senderSession.getId)
+              set.+(senderSessId)
             case None =>
-              mutable.Set(senderSession.getId)
+              mutable.Set(senderSessId)
           }
-        wIdSessionIdMap(workflowStateId) = sessionIdSet
+        wIdSessionIdsMap(wId) = sessionIdSet
 
       case commandRequest: CommandRequest =>
         logger.info("Received command message: " + commandRequest.commandMessage)
-        for (sessionId <- websocketSessionMap.keySet) {
+        for (sessionId <- sessionIdSessionMap.keySet) {
           // only send to other sessions, not the session that sent the message
-          val session = websocketSessionMap(sessionId)
-          val sessionStateId = sessionIdwIdMap.get(sessionId)
-          val senderStateId = sessionIdwIdMap.get(senderSession.getId)
+          val session = sessionIdSessionMap(sessionId)
+          val sessionWId = sessionIdWIdMap.get(sessionId)
+          val senderWId = sessionIdWIdMap.get(senderSessId)
           if (
-            session != senderSession && sessionStateId.isDefined && senderStateId.isDefined && senderStateId == sessionStateId
+            session != senderSession && sessionWId.isDefined && senderWId.isDefined && senderWId == sessionWId
           ) {
             send(session, CommandEvent(commandRequest.commandMessage))
-            logger.info("Message propagated to workflow " + sessionStateId.toString)
+            logger.info("Message propagated to workflow " + sessionWId.toString)
           }
         }
       case heartbeat: HeartBeatRequest =>
         send(senderSession, HeartBeatResponse())
 
       case tryLock: TryLockRequest =>
-        val sessionId = senderSession.getId
-        val wId = sessionIdwIdMap(sessionId)
-        if (wId == "dummy wid")
+        val wId = sessionIdWIdMap(senderSessId)
+        val uId = sessionIdUIdMap(senderSessId)
+        if (wId == DUMMY_WID)
           send(senderSession, LockGrantedEvent())
-        else if (
-          !wIdLockHolderIdMap.keySet.contains(wId) || wIdLockHolderIdMap(
+        else if (checkIsReadOnly(wId, uId)) {
+          send(senderSession, LockRejectedEvent())
+          send(senderSession, ReadOnlyAccessEvent())
+        } else if (
+          !wIdLockHolderSessionIdMap.keySet.contains(wId) || wIdLockHolderSessionIdMap(
             wId
-          ) == null || wIdLockHolderIdMap(wId) == sessionId
+          ) == null || wIdLockHolderSessionIdMap(wId) == senderSessId
         ) {
-          grantLock(senderSession, sessionId, wId)
-        } else if (wIdLockHolderIdMap(wId) != sessionId) {
+          grantLock(senderSession, senderSessId, wId)
+        } else if (wIdLockHolderSessionIdMap(wId) != senderSessId) {
           send(senderSession, LockRejectedEvent())
         }
 
       case acquireLock: AcquireLockRequest =>
         val senderSessId = senderSession.getId
-        val senderWid = sessionIdwIdMap(senderSessId)
-        if (wIdLockHolderIdMap(senderWid) != senderSessId) {
-          val holderSessId = wIdLockHolderIdMap(senderWid)
-          val holderSession = websocketSessionMap(holderSessId)
+        val senderWid = sessionIdWIdMap(senderSessId)
+        if (wIdLockHolderSessionIdMap(senderWid) != senderSessId) {
+          val holderSessId = wIdLockHolderSessionIdMap(senderWid)
+          val holderSession = sessionIdSessionMap(holderSessId)
           send(holderSession, ReleaseLockEvent())
           send(senderSession, LockGrantedEvent())
-          wIdLockHolderIdMap(senderWid) = senderSessId
+          wIdLockHolderSessionIdMap(senderWid) = senderSessId
           logger.info("Session " + senderSessId + " has lock on " + senderWid)
         } else {
           send(senderSession, LockGrantedEvent())
         }
 
-      case reloadWorkflow: ReloadWorkflowRequest =>
-        for (sessionId <- websocketSessionMap.keySet) {
+      case restoreVersion: RestoreVersionRequest =>
+        for (sessionId <- sessionIdSessionMap.keySet) {
           // only send to other sessions, not the session that sent the message
-          val session = websocketSessionMap(sessionId)
-          val sessionStateId = sessionIdwIdMap.get(sessionId)
-          val senderStateId = sessionIdwIdMap.get(senderSession.getId)
+          val session = sessionIdSessionMap(sessionId)
+          val sessionStateId = sessionIdWIdMap.get(sessionId)
+          val senderStateId = sessionIdWIdMap.get(senderSession.getId)
           if (
             session != senderSession && sessionStateId.isDefined && senderStateId.isDefined && senderStateId == sessionStateId
           ) {
-            send(session, ReloadWorkflowEvent())
+            send(session, RestoreVersionEvent())
             logger.info("Reload propagated to workflow " + sessionStateId.toString)
           }
         }
     }
   }
 
-  private def grantLock(session: Session, sessionId: String, wId: String): Unit = {
-    wIdLockHolderIdMap(wId) = sessionId
+  private def grantLock(session: Session, sessionId: String, wId: Int): Unit = {
+    wIdLockHolderSessionIdMap(wId) = sessionId
     logger.info("Session " + sessionId + " has lock on " + wId + " now")
     send(session, LockGrantedEvent())
   }
@@ -134,27 +138,34 @@ class CollaborationResource extends LazyLogging {
     session.getAsyncRemote.sendText(objectMapper.writeValueAsString(msg))
   }
 
+  private def checkIsReadOnly(wId: Int, uId: Int): Boolean = {
+    !WorkflowAccessResource.hasWriteAccess(UInteger.valueOf(wId), UInteger.valueOf(uId))
+  }
+
   @OnOpen
   def myOnOpen(session: Session): Unit = {
-    websocketSessionMap += (session.getId -> session)
+    sessionIdSessionMap += (session.getId -> session)
   }
 
   @OnClose
   def myOnClose(senderSession: Session): Unit = {
     val senderSessId = senderSession.getId
-    websocketSessionMap -= senderSessId
-    val senderWid = sessionIdwIdMap(senderSessId)
-    wIdSessionIdMap(senderWid) -= senderSessId
-    if (wIdLockHolderIdMap(senderWid) == senderSessId) {
-      wIdLockHolderIdMap(senderWid) = null
-      val set = wIdSessionIdMap(senderWid)
+    sessionIdSessionMap -= senderSessId
+    val wId = sessionIdWIdMap(senderSessId)
+    wIdSessionIdsMap(wId) -= senderSessId
+    if (wIdLockHolderSessionIdMap(wId) == senderSessId) {
+      wIdLockHolderSessionIdMap(wId) = null
+      val set = wIdSessionIdsMap(wId)
       if (set.nonEmpty) {
-        val otherSessId = set.head
-        val otherSession = websocketSessionMap(otherSessId)
-        grantLock(otherSession, otherSessId, senderWid)
+        set.foreach(sessId => {
+          if (!checkIsReadOnly(wId, sessionIdUIdMap(sessId))) {
+            grantLock(sessionIdSessionMap(sessId), sessId, wId)
+            break
+          }
+        })
       }
     }
-    sessionIdwIdMap -= senderSessId
+    sessionIdWIdMap -= senderSessId
     logger.info("Session " + senderSessId + " disconnected")
   }
 }

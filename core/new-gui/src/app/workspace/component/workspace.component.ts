@@ -184,7 +184,7 @@ export class WorkspaceComponent implements AfterViewInit, OnDestroy {
               .userChanged()
               .pipe(untilDestroyed(this))
               .subscribe(() => this.loadWorkflowWithId(wid));
-            this.workflowCollabService.getReloadStream().pipe(untilDestroyed(this))
+            this.workflowCollabService.getRestoreVersionStream().pipe(untilDestroyed(this))
               .subscribe(() => this.loadWorkflowWithId(wid));
           } else {
             // no workflow to load, pending to create a new workflow

@@ -63,6 +63,7 @@ export class NavigationComponent {
   public userSystemEnabled: boolean = environment.userSystemEnabled;
   public workflowCollabEnabled: boolean = environment.workflowCollabEnabled;
   public lockGranted: boolean = true;
+  public isWorkflowReadonly: boolean = false;
   // flag to display a particular version in the current canvas
   public displayParticularWorkflowVersion: boolean = false;
   public onClickRunHandler: () => void;
@@ -123,6 +124,7 @@ export class NavigationComponent {
     this.handleDisableOperatorStatusChange();
     this.handleCacheOperatorStatusChange();
     this.listenToLockChange();
+    this.listenToWorkflowReadonly();
   }
 
   // apply a behavior to the run button via bound variables
@@ -477,7 +479,7 @@ export class NavigationComponent {
     this.persistWorkflow();
     setTimeout(() => {
       this.workflowCollabService.requestOthersToReload();
-    }, 100);
+    }, 300);
   }
 
   /**
@@ -536,6 +538,16 @@ export class NavigationComponent {
       .subscribe((isLockGranted: boolean) => {
         if (isLockGranted) this.lockGranted = true;
         else this.lockGranted = false;
+      });
+  }
+
+  private listenToWorkflowReadonly(): void {
+    this.workflowCollabService
+      .getWorkflowReadonlyStream()
+      .pipe(untilDestroyed(this))
+      .subscribe((isReadonlyAccess: boolean) => {
+        if (isReadonlyAccess) this.isWorkflowReadonly = true;
+        else this.isWorkflowReadonly = false;
       });
   }
 

@@ -34,6 +34,7 @@ export class WorkflowCollabService {
   private isPropagationEnabled: boolean = false; // Only pertains to commandMessage propagation
   private isLockGranted: boolean = true;
   private isConnected: boolean = false; // Might be used in the future
+  private isWorkflowReadonly: boolean = false; // Whether this workflow is shared from other users and is read only.
 
   private websocket?: WebSocketSubject<CollabWebsocketEvent | CollabWebsocketRequest>;
   private wsWithReconnectSubscription?: Subscription;
@@ -41,7 +42,8 @@ export class WorkflowCollabService {
   private readonly webSocketEventSubject: Subject<CollabWebsocketEvent> = new Subject();
   private readonly commandMessageSubject: Subject<CommandMessage> = new Subject<CommandMessage>();
   private readonly lockGrantedSubject: ReplaySubject<boolean> = new ReplaySubject(1);
-  private readonly reloadSubject: ReplaySubject<boolean> = new ReplaySubject(1);
+  private readonly restoreVersionSubject: ReplaySubject<boolean> = new ReplaySubject(1);
+  private readonly workflowReadonlySubject: ReplaySubject<boolean> = new ReplaySubject(1);
 
   constructor() {
     // In case collab is not enabled, lock should always be granted.
@@ -68,8 +70,12 @@ export class WorkflowCollabService {
         this.setLockStatus(false);
       });
 
-      this.subscribeToEvent("ReloadWorkflowEvent").subscribe(_ => {
-        this.reloadSubject.next(true);
+      this.subscribeToEvent("RestoreVersionEvent").subscribe(_ => {
+        this.restoreVersionSubject.next(true);
+      });
+
+      this.subscribeToEvent("ReadOnlyAccessEvent").subscribe(_ => {
+        this.setWorkflowReadonly();
       });
     }
   }
@@ -208,6 +214,15 @@ export class WorkflowCollabService {
   }
 
   /**
+   * Sets the workflowReadOnly status to true. Should not be further modified.
+   */
+  public setWorkflowReadonly(): void {
+    this.isWorkflowReadonly = true;
+    this.workflowReadonlySubject.next(true);
+    this.setLockStatus(false);
+  }
+
+  /**
    * Executes changes received from other clients and preventing further propagation.
    * Whenever a remote change needs to be executed, the executor must use call collabService to use this method
    * instead of directly executing, and should provide the executed action as the callback function.
@@ -224,7 +239,7 @@ export class WorkflowCollabService {
    * Propagates a specific change to other active clients of the same wid.
    */
   public propagateChange(change: CommandMessage): void {
-    if (this.checkCollabEnabled() && this.getPropagationEnabled() && this.checkLockGranted()) {
+    if (this.checkCollabEnabled() && this.getPropagationEnabled() && this.checkLockGranted() && !this.isWorkflowReadonly) {
       const commandMessage = JSON.stringify(change);
       this.send("CommandRequest", { commandMessage });
     }
@@ -238,10 +253,10 @@ export class WorkflowCollabService {
   }
 
   /**
-   * Whenever whole workflow needs reloading, should also tell other clients to reload.
+   * Whenever whole workflow needs to restore a version, should also tell other clients to reload.
    */
   public requestOthersToReload(): void {
-    this.send("ReloadWorkflowRequest", {});
+    this.send("RestoreVersionRequest", {});
   }
 
   // Below are the events that need to be observed by relevant services/components.
@@ -264,7 +279,14 @@ export class WorkflowCollabService {
   /**
    * Gets an observable for reloading requests.
    */
-  public getReloadStream(): Observable<boolean> {
-    return this.reloadSubject.asObservable();
+  public getRestoreVersionStream(): Observable<boolean> {
+    return this.restoreVersionSubject.asObservable();
+  }
+
+  /**
+   * Gets an observable for whether the workflow is readonly.
+   */
+  public getWorkflowReadonlyStream(): Observable<boolean> {
+    return this.workflowReadonlySubject.asObservable();
   }
 }

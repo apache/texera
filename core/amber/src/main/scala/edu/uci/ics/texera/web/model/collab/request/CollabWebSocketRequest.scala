@@ -8,7 +8,7 @@ import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
     new Type(value = classOf[CommandRequest]),
     new Type(value = classOf[AcquireLockRequest]),
     new Type(value = classOf[TryLockRequest]),
-    new Type(value = classOf[ReloadWorkflowRequest]),
+    new Type(value = classOf[RestoreVersionRequest]),
     new Type(value = classOf[InformWIdRequest]),
     new Type(value = classOf[HeartBeatRequest])
   )
