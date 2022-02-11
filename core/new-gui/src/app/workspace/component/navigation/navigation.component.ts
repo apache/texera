@@ -17,7 +17,7 @@ import { merge } from "rxjs";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
 import { debounceTime } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { VIEW_RESULT_OP_TYPE } from "../../service/workflow-graph/model/workflow-graph";
+import { isSink } from "../../service/workflow-graph/model/workflow-graph";
 import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
 import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
 import { delay } from "lodash";
@@ -366,7 +366,7 @@ export class NavigationComponent {
   public onClickCacheOperators(): void {
     const effectiveHighlightedOperators = this.effectivelyHighlightedOperators();
     const effectiveHighlightedOperatorsExcludeSink = effectiveHighlightedOperators.filter(
-      op => this.workflowActionService.getTexeraGraph().getOperator(op).operatorType !== VIEW_RESULT_OP_TYPE
+      op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
     );
 
     if (this.isCacheOperator) {
@@ -519,7 +519,7 @@ export class NavigationComponent {
       .subscribe(event => {
         const effectiveHighlightedOperators = this.effectivelyHighlightedOperators();
         const effectiveHighlightedOperatorsExcludeSink = effectiveHighlightedOperators.filter(
-          op => this.workflowActionService.getTexeraGraph().getOperator(op).operatorType !== VIEW_RESULT_OP_TYPE
+          op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
         );
 
         const allCached = effectiveHighlightedOperatorsExcludeSink.every(op =>
