@@ -22,7 +22,7 @@ import { Group, OperatorGroup, OperatorGroupReadonly } from "./operator-group";
 import { SyncOperatorGroup } from "./sync-operator-group";
 import { SyncTexeraModel } from "./sync-texera-model";
 import { WorkflowGraph, WorkflowGraphReadonly } from "./workflow-graph";
-import { debounceTime, filter } from "rxjs/operators";
+import { auditTime, debounceTime, filter } from "rxjs/operators";
 import { WorkflowCollabService } from "../../workflow-collab/workflow-collab.service";
 import { Command, commandFuncs, CommandMessage } from "src/app/workspace/types/command.interface";
 
@@ -100,6 +100,7 @@ export class WorkflowActionService {
 
     this.handleJointLinkAdd();
     this.handleJointOperatorDrag();
+    this.handleJointOperatorDragPropagation();
     this.handleHighlightedElementPositionChange();
     this.listenToRemoteChange();
     this.listenToLockChange();
@@ -239,6 +240,43 @@ export class WorkflowActionService {
             });
           },
         };
+        this.executeStoreAndPropagateCommand(command);
+      });
+  }
+
+  /**
+   * Propagates dragging event (no execution locally). Separate from undo-redo to achieve higher FPS.
+   */
+  public handleJointOperatorDragPropagation(): void {
+    let oldPosition: Point = { x: 0, y: 0 };
+    let gotOldPosition = false;
+    let dragRoot: string; // element that was clicked to start the drag
+
+    // save starting position
+    this.jointGraphWrapper
+      .getElementPositionChangeEvent()
+      .pipe(
+        filter(() => !gotOldPosition),
+        filter(() => this.undoRedoService.listenJointCommand)
+      )
+      .subscribe(event => {
+        oldPosition = event.oldPosition;
+        gotOldPosition = true;
+        dragRoot = event.elementID;
+      });
+
+    this.jointGraphWrapper
+      .getElementPositionChangeEvent()
+      .pipe(
+        filter(value => value.elementID === dragRoot),
+        auditTime(30) // emit frequently to achieve "30fps"
+      )
+      .subscribe(event => {
+        gotOldPosition = false;
+        const offsetX = event.newPosition.x - oldPosition.x;
+        const offsetY = event.newPosition.y - oldPosition.y;
+        // remember currently highlighted operators and groups
+        const currentHighlightedOperators = new Set(this.jointGraphWrapper.getCurrentHighlightedOperatorIDs().slice());
         // Send command message here since this is where change first gets detected
         const currentHighlighted = Array.from(currentHighlightedOperators);
         const commandMessage: CommandMessage = {
@@ -246,7 +284,7 @@ export class WorkflowActionService {
           parameters: [currentHighlighted, offsetX, offsetY],
           type: "execute",
         };
-        this.executeStoreAndPropagateCommand(command, commandMessage);
+        this.workflowCollabService.propagateChange(commandMessage);
       });
   }
 
