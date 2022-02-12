@@ -333,6 +333,9 @@ export class JointUIService {
   public changeOperatorState(jointPaper: joint.dia.Paper, operatorID: string, operatorState: OperatorState): void {
     let fillColor: string;
     switch (operatorState) {
+      case OperatorState.Ready:
+        fillColor = "#a6bd37";
+        break;
       case OperatorState.Completed:
         fillColor = "green";
         break;
@@ -340,8 +343,11 @@ export class JointUIService {
       case OperatorState.Paused:
         fillColor = "magenta";
         break;
-      default:
+      case OperatorState.Running:
         fillColor = "orange";
+        break;
+      default:
+        fillColor = "gray";
         break;
     }
     jointPaper.getModelById(operatorID).attr({

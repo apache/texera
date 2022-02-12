@@ -3,6 +3,7 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners.{
   HashBasedShufflePartitioner,
   OneToOnePartitioner,
+  ParallelBatchingPartitioner,
   Partitioner,
   RoundRobinPartitioner
 }
@@ -13,6 +14,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, Li
 
 import scala.Function.tupled
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 /** This class is a container of all the transfer partitioners.
   * @param selfID ActorVirtualIdentity of self.
@@ -23,6 +25,24 @@ class TupleToBatchConverter(
     dataOutputPort: NetworkOutputPort[DataPayload]
 ) {
   private val partitioners = mutable.HashMap[LinkIdentity, Partitioner]()
+
+  /**
+    * Used to return the workload samples of the next operator's workers to the controller.
+    */
+  def getWorkloadHistory()
+      : ArrayBuffer[mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]] = {
+    val allDownstreamSamples =
+      new ArrayBuffer[mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]]()
+    partitioners.values.foreach(partitioner => {
+      if (partitioner.isInstanceOf[ParallelBatchingPartitioner]) {
+        // Reshape only needs samples from workers that shuffle data across nodes
+        allDownstreamSamples.append(
+          partitioner.asInstanceOf[ParallelBatchingPartitioner].getWorkloadHistory()
+        )
+      }
+    })
+    allDownstreamSamples
+  }
 
   /**
     * Add down stream operator and its corresponding Partitioner.
