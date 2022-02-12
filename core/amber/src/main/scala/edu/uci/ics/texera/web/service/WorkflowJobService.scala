@@ -57,6 +57,8 @@ class WorkflowJobService(
     client.sendAsync(ModifyLogic(req.operator))
   }))
 
+  workflowContext.executionID = -1 // for every new execution,
+  // reset it so that the value doesn't carry over across executions
   def startWorkflow(): Unit = {
     for (pair <- workflowInfo.breakpoints) {
       Await.result(
@@ -65,9 +67,12 @@ class WorkflowJobService(
       )
     }
     resultService.attachToJob(workflowInfo, client)
-    val eid = ExecutionsMetadataPersistService.insertNewExecution(workflowContext.wId)
+    if (WorkflowService.userSystemEnabled) {
+      workflowContext.executionID =
+        ExecutionsMetadataPersistService.insertNewExecution(workflowContext.wId)
+    }
     stateStore.jobStateStore.updateState(jobInfo =>
-      jobInfo.withState(READY).withEid(eid).withError(null)
+      jobInfo.withState(READY).withEid(workflowContext.executionID).withError(null)
     )
     client.sendAsyncWithCallback[Unit](
       StartWorkflow(),
