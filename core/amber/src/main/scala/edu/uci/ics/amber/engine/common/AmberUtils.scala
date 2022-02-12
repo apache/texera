@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.common
 
-import akka.actor.{ActorSystem, DeadLetter, Props}
+import akka.actor.{ActorSystem, Address, DeadLetter, Props}
 import com.typesafe.config.{Config, ConfigFactory}
 import edu.uci.ics.amber.clustering.ClusterListener
 import edu.uci.ics.amber.engine.architecture.messaginglayer.DeadLetterMonitorActor
@@ -35,19 +35,15 @@ object AmberUtils {
         akka.cluster.seed-nodes = [ "akka://Amber@$localIpAddress:2552" ]
         """)
       .withFallback(akkaConfig)
-
-    val system = ActorSystem("Amber", masterConfig)
-    system.actorOf(Props[ClusterListener], "cluster-info")
-    val deadLetterMonitorActor =
-      system.actorOf(Props[DeadLetterMonitorActor], name = "dead-letter-monitor-actor")
-    system.eventStream.subscribe(deadLetterMonitorActor, classOf[DeadLetter])
-
-    system
+    Constants.masterNodeAddr = createMasterAddress(localIpAddress)
+    createAmberSystem(masterConfig)
   }
 
   def akkaConfig: Config = ConfigFactory.load("cluster").withFallback(amberConfig)
 
   def amberConfig: Config = ConfigFactory.load()
+
+  def createMasterAddress(addr: String): Address = Address("akka", "Amber", addr, 2552)
 
   def startActorWorker(mainNodeAddress: Option[String]): ActorSystem = {
     val addr = mainNodeAddress.getOrElse("localhost")
@@ -59,12 +55,16 @@ object AmberUtils {
         akka.cluster.seed-nodes = [ "akka://Amber@$addr:2552" ]
         """)
       .withFallback(akkaConfig)
-    val system = ActorSystem("Amber", workerConfig)
+    Constants.masterNodeAddr = createMasterAddress(addr)
+    createAmberSystem(workerConfig)
+  }
+
+  def createAmberSystem(actorSystemConf: Config): ActorSystem = {
+    val system = ActorSystem("Amber", actorSystemConf)
     system.actorOf(Props[ClusterListener], "cluster-info")
     val deadLetterMonitorActor =
       system.actorOf(Props[DeadLetterMonitorActor], name = "dead-letter-monitor-actor")
     system.eventStream.subscribe(deadLetterMonitorActor, classOf[DeadLetter])
-    Constants.masterNodeAddr = Option(addr)
     system
   }
 }
