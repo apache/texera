@@ -35,8 +35,9 @@ object WorkflowVersionResource {
   final private val workflowDao = new WorkflowDao(context.configuration)
   // constant to indicate versions should be aggregated if they are within the specified time limit
   private final val AGGREGATE_TIME_LIMIT_MILLSEC =
-    AmberUtils.amberConfig.getInt("user-sys.version-time-limit") * 3600000
-  private final val VERSION_SIGNIFICANCE_RULES = List("/operatorPositions/")
+    AmberUtils.amberConfig.getInt("user-sys.version-time-limit") * 60000
+  // list of Json keys in the diff patch that are considered UNimportant
+  private final val VERSION_UNIMPORTANCE_RULES = List("/operatorPositions/")
 
   /**
     * This function gives a label to each version whether it is significant or not based on a few rules
@@ -70,7 +71,7 @@ object WorkflowVersionResource {
       // because parsing the Json string is expensive
       else {
         lastVersionTime = version.creationTime
-        versionImportance = !isVersionInsignificant(version.content)
+        versionImportance = isVersionImportant(version.content)
       }
       impEncodedVersions = impEncodedVersions :+ ImpEncodedVersionEntry(
         version.vId,
@@ -100,19 +101,19 @@ object WorkflowVersionResource {
     * @param versionContent
     * @return
     */
-  private def isVersionInsignificant(versionContent: String): Boolean = {
+  private def isVersionImportant(versionContent: String): Boolean = {
     val mapper = new ObjectMapper()
     val jsonTreeIterator = mapper.readTree(versionContent).iterator()
     while (jsonTreeIterator.hasNext) {
       // if the change(which is marked by the key `path` using the Json patch library
       // doesn't contain any of the specified keywords then it shall be deemed important
       if (
-        !VERSION_SIGNIFICANCE_RULES.exists(jsonTreeIterator.next().path("path").asText().contains)
+        !VERSION_UNIMPORTANCE_RULES.exists(jsonTreeIterator.next().path("path").asText().contains)
       ) {
-        return false
+        return true
       }
     }
-    true
+    false
   }
 
   /**
