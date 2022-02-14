@@ -22,6 +22,7 @@ import edu.uci.ics.texera.web.model.websocket.request.{
   WorkflowKillRequest
 }
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource
+import edu.uci.ics.texera.web.service.WorkflowService.mkWorkflowStateId
 import edu.uci.ics.texera.web.storage.WorkflowStateStore
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
@@ -35,21 +36,23 @@ object WorkflowService {
   final val userSystemEnabled: Boolean = AmberUtils.amberConfig.getBoolean("user-sys.enabled")
   val cleanUpDeadlineInSeconds: Int =
     AmberUtils.amberConfig.getInt("web-server.workflow-state-cleanup-in-seconds")
+
+  def mkWorkflowStateId(wId: Int, uidOpt: Option[UInteger]): String = {
+    uidOpt match {
+      case Some(user) =>
+        user + "-" + wId
+      case None =>
+        // use a fixed wid for reconnection
+        "dummy wid"
+    }
+  }
   def getOrCreate(
       wId: Int,
       uidOpt: Option[UInteger],
       cleanupTimeout: Int = cleanUpDeadlineInSeconds
   ): WorkflowService = {
-    var workflowStateId: String = ""
-    uidOpt match {
-      case Some(user) =>
-        workflowStateId = user + "-" + wId
-      case None =>
-        // use a fixed wid for reconnection
-        workflowStateId = "dummy wid"
-    }
     wIdToWorkflowState.compute(
-      workflowStateId,
+      mkWorkflowStateId(wId, uidOpt),
       (_, v) => {
         if (v == null) {
           new WorkflowService(uidOpt, wId, cleanupTimeout)
@@ -95,7 +98,7 @@ class WorkflowService(
     cleanUpTimeout,
     () => {
       opResultStorage.close()
-      WorkflowService.wIdToWorkflowState.remove(wId)
+      WorkflowService.wIdToWorkflowState.remove(mkWorkflowStateId(wId, uidOpt))
       wsInput.onNext(WorkflowKillRequest(), None)
       unsubscribeAll()
     }
