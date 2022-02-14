@@ -31,19 +31,18 @@ export class VersionsListDisplayComponent implements OnInit {
     private workflowActionService: WorkflowActionService,
     private workflowVersionService: WorkflowVersionService
   ) {}
+
   collapse(index: number, $event: boolean): void {
     if (this.versionsList == undefined) {
       return;
     }
     if (!$event) {
-      if (this.versionsList[index].importance) {
-        while (++index < this.versionsList.length && !this.versionsList[index].importance) {
-          const target = this.versionsList[index]!;
-          target.expand = false;
-          this.collapse(index, false);
-        }
-      } else {
-        return;
+      while (++index < this.versionsList.length && !this.versionsList[index].importance) {
+        this.versionsList[index].expand = false;
+      }
+    } else {
+      while (++index < this.versionsList.length && !this.versionsList[index].importance) {
+        this.versionsList[index].expand = true;
       }
     }
   }

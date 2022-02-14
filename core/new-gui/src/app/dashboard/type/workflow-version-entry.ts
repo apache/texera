@@ -7,5 +7,5 @@ export interface WorkflowVersionEntry
   }> {}
 
 export interface WorkflowVersionCollapsableEntry extends WorkflowVersionEntry {
-  expand: boolean;
+  expand: boolean; // for double binding with nzExpand
 }
