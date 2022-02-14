@@ -1,6 +1,9 @@
 import { Component, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { WorkflowVersionEntry } from "../../../../dashboard/type/workflow-version-entry";
+import {
+  WorkflowVersionCollapsableEntry,
+  WorkflowVersionEntry,
+} from "../../../../dashboard/type/workflow-version-entry";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowVersionService } from "../../../../dashboard/service/workflow-version/workflow-version.service";
 import { Observable } from "rxjs";
@@ -19,7 +22,7 @@ export const WORKFLOW_VERSIONS_API_BASE_URL = "version";
   styleUrls: ["./versions-display.component.scss"],
 })
 export class VersionsListDisplayComponent implements OnInit {
-  public versionsList: WorkflowVersionEntry[] | undefined;
+  public versionsList: WorkflowVersionCollapsableEntry[] | undefined;
 
   public versionTableHeaders: string[] = ["Version#", "Timestamp"];
 
@@ -28,7 +31,22 @@ export class VersionsListDisplayComponent implements OnInit {
     private workflowActionService: WorkflowActionService,
     private workflowVersionService: WorkflowVersionService
   ) {}
-
+  collapse(index: number, $event: boolean): void {
+    if (this.versionsList == undefined) {
+      return;
+    }
+    if (!$event) {
+      if (this.versionsList[index].importance) {
+        while (++index < this.versionsList.length && !this.versionsList[index].importance) {
+          const target = this.versionsList[index]!;
+          target.expand = false;
+          this.collapse(index, false);
+        }
+      } else {
+        return;
+      }
+    }
+  }
   ngOnInit(): void {
     // gets the versions result and updates the workflow versions table displayed on the form
     this.displayWorkflowVersions();
@@ -53,7 +71,13 @@ export class VersionsListDisplayComponent implements OnInit {
     this.retrieveVersionsOfWorkflow(wid)
       .pipe(untilDestroyed(this))
       .subscribe(versionsList => {
-        this.versionsList = versionsList;
+        this.versionsList = versionsList.map(version => ({
+          vId: version.vId,
+          creationTime: version.creationTime,
+          content: version.content,
+          importance: version.importance,
+          expand: false,
+        }));
       });
   }
 
