@@ -54,6 +54,9 @@ object WorkflowVersionResource {
       versions: List[VersionEntry]
   ): List[ImpEncodedVersionEntry] = {
     var impEncodedVersions: List[ImpEncodedVersionEntry] = List()
+    if (versions.isEmpty) {
+      return impEncodedVersions
+    }
     val lastVersion = versions.head
     var lastVersionTime = lastVersion.creationTime
     impEncodedVersions = impEncodedVersions :+ ImpEncodedVersionEntry(
