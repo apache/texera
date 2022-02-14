@@ -39,7 +39,9 @@ class JobRuntimeService(
       val outputEvts = new mutable.ArrayBuffer[TexeraWebSocketEvent]()
       // Update workflow state
       if (newState.state != oldState.state) {
-        ExecutionsMetadataPersistService.tryUpdateExistingExecution(newState.eid, newState.state)
+        if (WorkflowService.userSystemEnabled) {
+          ExecutionsMetadataPersistService.tryUpdateExistingExecution(newState.eid, newState.state)
+        }
         outputEvts.append(WorkflowStateEvent(Utils.aggregatedStateToString(newState.state)))
       }
       // Check if new error occurred

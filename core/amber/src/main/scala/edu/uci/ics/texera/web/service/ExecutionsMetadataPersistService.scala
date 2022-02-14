@@ -22,13 +22,6 @@ object ExecutionsMetadataPersistService extends LazyLogging {
     context.configuration
   )
 
-  /**
-    * This method inserts a new entry of a workflow execution in the database and returns the generated eId
-    *
-    * @param wid     the given workflow
-    * @return generated execution ID
-    */
-
   private def getLatestVersion(wid: UInteger): UInteger = {
     context
       .select(WORKFLOW_VERSION.VID)
@@ -41,6 +34,12 @@ object ExecutionsMetadataPersistService extends LazyLogging {
       .max
   }
 
+  /**
+    * @param state indicates the workflow state
+    * @return code indicates the status of the execution in the DB it is 0 by default for any unused states.
+    *         This code is stored in the DB and read in the frontend.
+    *             If these codes are changed, they also have to be changed in the frontend `ngbd-modal-workflow-executions.component.ts`
+    */
   private def maptoStatusCode(state: WorkflowAggregatedState): Byte = {
     state match {
       case WorkflowAggregatedState.UNINITIALIZED                   => 0
@@ -56,6 +55,13 @@ object ExecutionsMetadataPersistService extends LazyLogging {
       case WorkflowAggregatedState.Unrecognized(unrecognizedValue) => ???
     }
   }
+
+  /**
+    * This method inserts a new entry of a workflow execution in the database and returns the generated eId
+    *
+    * @param wid     the given workflow
+    * @return generated execution ID
+    */
 
   def insertNewExecution(
       wid: Long

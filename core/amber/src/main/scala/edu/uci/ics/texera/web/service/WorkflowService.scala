@@ -32,6 +32,7 @@ import org.jooq.types.UInteger
 
 object WorkflowService {
   private val wIdToWorkflowState = new ConcurrentHashMap[String, WorkflowService]()
+  final val userSystemEnabled: Boolean = AmberUtils.amberConfig.getBoolean("user-sys.enabled")
   val cleanUpDeadlineInSeconds: Int =
     AmberUtils.amberConfig.getInt("web-server.workflow-state-cleanup-in-seconds")
   def getOrCreate(
