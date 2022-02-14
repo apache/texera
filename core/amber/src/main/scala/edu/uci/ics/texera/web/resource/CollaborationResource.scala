@@ -146,21 +146,25 @@ class CollaborationResource extends LazyLogging {
   def myOnClose(senderSession: Session): Unit = {
     val senderSessId = senderSession.getId
     sessionIdSessionMap -= senderSessId
-    val wId = sessionIdWIdMap(senderSessId)
-    wIdSessionIdsMap(wId) -= senderSessId
-    if (wIdLockHolderSessionIdMap.contains(wId) && wIdLockHolderSessionIdMap(wId) == senderSessId) {
-      wIdLockHolderSessionIdMap(wId) = null
-      val set = wIdSessionIdsMap(wId)
-      if (set.nonEmpty) {
-        set.foreach(sessId => {
-          if (!checkIsReadOnly(wId, sessionIdUIdMap(sessId))) {
-            grantLock(sessionIdSessionMap(sessId), sessId, wId)
-            break
-          }
-        })
+    if (sessionIdWIdMap.contains(senderSessId)) {
+      val wId = sessionIdWIdMap(senderSessId)
+      wIdSessionIdsMap(wId) -= senderSessId
+      if (
+        wIdLockHolderSessionIdMap.contains(wId) && wIdLockHolderSessionIdMap(wId) == senderSessId
+      ) {
+        wIdLockHolderSessionIdMap(wId) = null
+        val set = wIdSessionIdsMap(wId)
+        if (set.nonEmpty) {
+          set.foreach(sessId => {
+            if (!checkIsReadOnly(wId, sessionIdUIdMap(sessId))) {
+              grantLock(sessionIdSessionMap(sessId), sessId, wId)
+              break
+            }
+          })
+        }
       }
+      sessionIdWIdMap -= senderSessId
     }
-    sessionIdWIdMap -= senderSessId
     logger.info("Session " + senderSessId + " disconnected")
   }
 
