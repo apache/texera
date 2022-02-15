@@ -902,7 +902,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
         args: { color: "black", scaleFactor: 8, thickness: 1.2 },
       },
       // set grid size
-      gridSize: 2
+      gridSize: 2,
     };
 
     return jointPaperOptions;
@@ -1490,10 +1490,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   // when a link is added, append a breakpoint link-tool to its LinkView
   private handleLinkBreakpointToolAttachment(): void {
-    this.workflowActionService.getJointGraphWrapper().createContextAwareStream(
-      this.workflowActionService
-        .getJointGraphWrapper()
-        .getJointLinkCellAddStream())
+    this.workflowActionService
+      .getJointGraphWrapper()
+      .createContextAwareStream(this.workflowActionService.getJointGraphWrapper().getJointLinkCellAddStream())
       .pipe(untilDestroyed(this))
       .subscribe(link => {
         const linkView = link.findView(this.getJointPaper());
@@ -1569,19 +1568,17 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * show/hide the breakpoint button according to the observable value received
    */
   private handleLinkBreakpointToggleEvents(): void {
-    this.workflowActionService.getJointGraphWrapper().createContextAwareStream(
     this.workflowActionService
       .getJointGraphWrapper()
-      .getLinkBreakpointShowStream())
+      .createContextAwareStream(this.workflowActionService.getJointGraphWrapper().getLinkBreakpointShowStream())
       .pipe(untilDestroyed(this))
       .subscribe(linkID => {
         this.getJointPaper().getModelById(linkID.linkID).findView(this.getJointPaper()).showTools();
       });
 
-    this.workflowActionService.getJointGraphWrapper().createContextAwareStream(
     this.workflowActionService
       .getJointGraphWrapper()
-      .getLinkBreakpointHideStream())
+      .createContextAwareStream(this.workflowActionService.getJointGraphWrapper().getLinkBreakpointHideStream())
       .pipe(untilDestroyed(this))
       .subscribe(linkID => {
         this.getJointPaper().getModelById(linkID.linkID).findView(this.getJointPaper()).hideTools();
