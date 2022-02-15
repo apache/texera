@@ -55,9 +55,7 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-        java-version:
-          - 8
-          - 11
+        java-version: [ 8, 11 ]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Cancel Previous Runs
@@ -85,6 +83,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os:
+          - ubuntu-latest
         python-version: [ 3.6, 3.7, 3.8, 3.9 ]
 
     steps:
