@@ -358,7 +358,7 @@ export class ExecuteWorkflowService {
       case ExecutionState.Aborted:
       case ExecutionState.Uninitialized:
       case ExecutionState.BreakpointTriggered:
-        if (this.workflowCollabService.checkLockGranted()) {
+        if (this.workflowCollabService.isLockGranted()) {
           this.workflowActionService.enableWorkflowModification();
         }
         return;

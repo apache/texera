@@ -31,10 +31,10 @@ export const WS_RECONNECT_INTERVAL_MS = 3000;
 export class WorkflowCollabService {
   private static readonly TEXERA_COLLAB_ENDPOINT = "wsapi/collab";
 
-  private isPropagationEnabled: boolean = false; // Only pertains to commandMessage propagation
-  private isLockGranted: boolean = true;
-  private isConnected: boolean = false; // Might be used in the future
-  private isWorkflowReadonly: boolean = false; // Whether this workflow is shared from other users and is read only.
+  private propagationEnabled: boolean = false; // Only pertains to commandMessage propagation
+  private lockGranted: boolean = true;
+  private connected: boolean = false; // Might be used in the future
+  private workflowReadonly: boolean = false; // Whether this workflow is shared from other users and is read only.
 
   private websocket?: WebSocketSubject<CollabWebsocketEvent | CollabWebsocketRequest>;
   private wsWithReconnectSubscription?: Subscription;
@@ -49,7 +49,7 @@ export class WorkflowCollabService {
     // In case collab is not enabled, lock should always be granted.
     this.setLockStatus(true);
 
-    if (this.checkCollabEnabled()) {
+    if (this.isCollabEnabled()) {
       this.setPropagationEnabled(true);
       interval(WS_HEARTBEAT_INTERVAL_MS).subscribe(_ => this.send("HeartBeatRequest", {}));
 
@@ -83,7 +83,7 @@ export class WorkflowCollabService {
   /**
    * Gets whether to use service and connect to the endpoint.
    */
-  public checkCollabEnabled(): boolean {
+  public isCollabEnabled(): boolean {
     return environment.workflowCollabEnabled;
   }
 
@@ -91,7 +91,7 @@ export class WorkflowCollabService {
    * Opens the websocket and connects to the server ws endpoint. Must be used with a wId.
    */
   public openWebsocket(wId: number) {
-    if (this.checkCollabEnabled()) {
+    if (this.isCollabEnabled()) {
       this.setLockStatus(true);
       const websocketUrl =
         getWebsocketUrl(WorkflowCollabService.TEXERA_COLLAB_ENDPOINT) +
@@ -104,7 +104,7 @@ export class WorkflowCollabService {
       const wsWithReconnect = this.websocket.pipe(
         retryWhen(errors =>
           errors.pipe(
-            tap(_ => (this.isConnected = false)), // update connection status
+            tap(_ => (this.connected = false)), // update connection status
             tap(_ =>
               console.log(`websocket connection lost, reconnecting in ${WS_RECONNECT_INTERVAL_MS / 1000} seconds`)
             ),
@@ -128,7 +128,7 @@ export class WorkflowCollabService {
       this.send("TryLockRequest", {});
 
       // refresh connection status
-      this.websocketEvent().subscribe(_ => (this.isConnected = true));
+      this.websocketEvent().subscribe(_ => (this.connected = true));
     }
   }
 
@@ -136,7 +136,7 @@ export class WorkflowCollabService {
    * On wid change, reopen the websocket so that server can get the new wid.
    */
   public reopenWebsocket(wId: number) {
-    if (this.checkCollabEnabled()) {
+    if (this.isCollabEnabled()) {
       this.closeWebsocket();
       this.openWebsocket(wId);
     }
@@ -146,7 +146,7 @@ export class WorkflowCollabService {
    * Closes the websocket.
    */
   public closeWebsocket() {
-    if (this.checkCollabEnabled()) {
+    if (this.isCollabEnabled()) {
       this.wsWithReconnectSubscription?.unsubscribe();
       this.websocket?.complete();
     }
@@ -187,21 +187,21 @@ export class WorkflowCollabService {
    * If set to false, no command will be sent.
    */
   public setPropagationEnabled(enabled: boolean): void {
-    this.isPropagationEnabled = enabled;
+    this.propagationEnabled = enabled;
   }
 
   /**
    * Gets whether command propagation is enabled.
    */
-  public getPropagationEnabled(): boolean {
-    return this.isPropagationEnabled;
+  public isPropagationEnabled(): boolean {
+    return this.propagationEnabled;
   }
 
   /**
    * Gets current lock status.
    */
-  public checkLockGranted(): boolean {
-    if (this.checkCollabEnabled()) return this.isLockGranted;
+  public isLockGranted(): boolean {
+    if (this.isCollabEnabled()) return this.lockGranted;
     else return true;
   }
 
@@ -209,15 +209,15 @@ export class WorkflowCollabService {
    * Sets lock and the lock subject so that it can be observed.
    */
   public setLockStatus(granted: boolean): void {
-    this.isLockGranted = granted;
-    this.lockGrantedSubject.next(this.isLockGranted);
+    this.lockGranted = granted;
+    this.lockGrantedSubject.next(this.lockGranted);
   }
 
   /**
    * Sets the workflowReadOnly status to true. Should not be further modified.
    */
   public setWorkflowAccess(isReadonly: boolean): void {
-    this.isWorkflowReadonly = isReadonly;
+    this.workflowReadonly = isReadonly;
     this.workflowAccessSubject.next(isReadonly);
     if (isReadonly) this.setLockStatus(false);
   }
@@ -240,10 +240,10 @@ export class WorkflowCollabService {
    */
   public propagateChange(change: CommandMessage): void {
     if (
-      this.checkCollabEnabled() &&
-      this.getPropagationEnabled() &&
-      this.checkLockGranted() &&
-      !this.isWorkflowReadonly
+      this.isCollabEnabled() &&
+      this.isPropagationEnabled() &&
+      this.isLockGranted() &&
+      !this.workflowReadonly
     ) {
       const commandMessage = JSON.stringify(change);
       this.send("CommandRequest", { commandMessage });

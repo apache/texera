@@ -15,7 +15,6 @@ import javax.websocket.server.ServerEndpoint
 import javax.websocket.{OnClose, OnMessage, OnOpen, Session}
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.mapAsScalaMapConverter
-import scala.util.control.Breaks.break
 
 object CollaborationResource {
   final val sessionIdSessionMap = new mutable.HashMap[String, Session]()
@@ -24,6 +23,10 @@ object CollaborationResource {
   final val wIdSessionIdsMap = new mutable.HashMap[Int, mutable.Set[String]]()
   final val wIdLockHolderSessionIdMap = new mutable.HashMap[Int, String]()
   final val DUMMY_WID = -1
+
+  private def checkIsReadOnly(wId: Int, uId: Int): Boolean = {
+    !WorkflowAccessResource.hasWriteAccess(UInteger.valueOf(wId), UInteger.valueOf(uId))
+  }
 }
 
 @ServerEndpoint(
@@ -64,7 +67,7 @@ class CollaborationResource extends LazyLogging {
         wIdSessionIdsMap(wId) = sessionIdSet
 
       case commandRequest: CommandRequest =>
-        logger.info("Received command message: " + commandRequest.commandMessage)
+        logger.debug("Received command message: " + commandRequest.commandMessage)
         for (sessionId <- sessionIdSessionMap.keySet) {
           // only send to other sessions, not the session that sent the message
           val session = sessionIdSessionMap(sessionId)
@@ -74,7 +77,7 @@ class CollaborationResource extends LazyLogging {
             session != senderSession && sessionWId.isDefined && senderWId.isDefined && senderWId == sessionWId
           ) {
             send(session, CommandEvent(commandRequest.commandMessage))
-            logger.info("Message propagated to workflow " + sessionWId.toString)
+            logger.debug("Message propagated to workflow " + sessionWId.toString)
           }
         }
       case heartbeat: HeartBeatRequest =>
@@ -83,18 +86,18 @@ class CollaborationResource extends LazyLogging {
       case tryLock: TryLockRequest =>
         val wId = sessionIdWIdMap(senderSessId)
         if (wId == DUMMY_WID) {
-          send(senderSession, WorkflowAccessEvent(false))
+          send(senderSession, WorkflowAccessEvent(isWorkflowReadonly = false))
           send(senderSession, LockGrantedEvent())
         } else {
           val uId = sessionIdUIdMap(senderSessId)
           if (checkIsReadOnly(wId, uId)) {
             send(senderSession, LockRejectedEvent())
-            send(senderSession, WorkflowAccessEvent(true))
+            send(senderSession, WorkflowAccessEvent(isWorkflowReadonly = true))
             if (!wIdLockHolderSessionIdMap.keySet.contains(wId)) {
               wIdLockHolderSessionIdMap(wId) = null
             }
           } else {
-            send(senderSession, WorkflowAccessEvent(false))
+            send(senderSession, WorkflowAccessEvent(isWorkflowReadonly = false))
             if (
               !wIdLockHolderSessionIdMap.keySet.contains(wId) || wIdLockHolderSessionIdMap(
                 wId
@@ -108,17 +111,23 @@ class CollaborationResource extends LazyLogging {
         }
 
       case acquireLock: AcquireLockRequest =>
-        val senderSessId = senderSession.getId
-        val senderWid = sessionIdWIdMap(senderSessId)
-        if (wIdLockHolderSessionIdMap(senderWid) != senderSessId) {
-          val holderSessId = wIdLockHolderSessionIdMap(senderWid)
-          val holderSession = sessionIdSessionMap(holderSessId)
-          send(holderSession, ReleaseLockEvent())
-          send(senderSession, LockGrantedEvent())
-          wIdLockHolderSessionIdMap(senderWid) = senderSessId
-          logger.info("Session " + senderSessId + " has lock on " + senderWid)
-        } else {
-          send(senderSession, LockGrantedEvent())
+        try {
+          val senderSessId = senderSession.getId
+          val senderWid = sessionIdWIdMap(senderSessId)
+          if (wIdLockHolderSessionIdMap(senderWid) != senderSessId) {
+            val holderSessId = wIdLockHolderSessionIdMap(senderWid)
+            val holderSession = sessionIdSessionMap(holderSessId)
+            send(holderSession, ReleaseLockEvent())
+            send(senderSession, LockGrantedEvent())
+            wIdLockHolderSessionIdMap(senderWid) = senderSessId
+            logger.info("Session " + senderSessId + " has lock on " + senderWid)
+          } else {
+            send(senderSession, LockGrantedEvent())
+          }
+        } catch {
+          case exception: Exception =>
+            logger.error("Session " + senderSessId + " acquire lock failed.")
+            throw exception
         }
 
       case restoreVersion: RestoreVersionRequest =>
@@ -148,19 +157,22 @@ class CollaborationResource extends LazyLogging {
     sessionIdSessionMap -= senderSessId
     if (sessionIdWIdMap.contains(senderSessId)) {
       val wId = sessionIdWIdMap(senderSessId)
-      wIdSessionIdsMap(wId) -= senderSessId
-      if (
-        wIdLockHolderSessionIdMap.contains(wId) && wIdLockHolderSessionIdMap(wId) == senderSessId
-      ) {
-        wIdLockHolderSessionIdMap(wId) = null
-        val set = wIdSessionIdsMap(wId)
-        if (set.nonEmpty) {
-          set.foreach(sessId => {
-            if (!checkIsReadOnly(wId, sessionIdUIdMap(sessId))) {
-              grantLock(sessionIdSessionMap(sessId), sessId, wId)
-              break
+      if (wIdSessionIdsMap.contains(wId)) {
+        wIdSessionIdsMap(wId) -= senderSessId
+        if (
+          wIdLockHolderSessionIdMap.contains(wId) && wIdLockHolderSessionIdMap(wId) == senderSessId
+        ) {
+          wIdLockHolderSessionIdMap(wId) = null
+          val set = wIdSessionIdsMap(wId)
+          if (set.nonEmpty) {
+            var granted = false
+            for (sessId <- set) {
+              if (!checkIsReadOnly(wId, sessionIdUIdMap(sessId)) && !granted) {
+                grantLock(sessionIdSessionMap(sessId), sessId, wId)
+                granted = true
+              }
             }
-          })
+          }
         }
       }
       sessionIdWIdMap -= senderSessId
@@ -176,9 +188,5 @@ class CollaborationResource extends LazyLogging {
 
   private def send(session: Session, msg: CollabWebSocketEvent): Unit = {
     session.getAsyncRemote.sendText(objectMapper.writeValueAsString(msg))
-  }
-
-  private def checkIsReadOnly(wId: Int, uId: Int): Boolean = {
-    !WorkflowAccessResource.hasWriteAccess(UInteger.valueOf(wId), UInteger.valueOf(uId))
   }
 }

@@ -1353,7 +1353,7 @@ export class WorkflowActionService {
    */
   public syncLock(): void {
     if (this.lockListenEnabled) {
-      if (this.workflowCollabService.checkLockGranted()) {
+      if (this.workflowCollabService.isLockGranted()) {
         this.enableWorkflowModification();
       } else {
         this.disableWorkflowModification();

@@ -63,7 +63,7 @@ export class NavigationComponent {
   public userSystemEnabled: boolean = environment.userSystemEnabled;
   public workflowCollabEnabled: boolean = environment.workflowCollabEnabled;
   public lockGranted: boolean = true;
-  public isWorkflowReadonly: boolean = false;
+  public workflowReadonly: boolean = false;
   // flag to display a particular version in the current canvas
   public displayParticularWorkflowVersion: boolean = false;
   public onClickRunHandler: () => void;
@@ -123,8 +123,8 @@ export class NavigationComponent {
     this.handleWorkflowVersionDisplay();
     this.handleDisableOperatorStatusChange();
     this.handleCacheOperatorStatusChange();
-    this.listenToLockChange();
-    this.listenToWorkflowAccess();
+    this.handleLockChange();
+    this.handleWorkflowAccessChange();
   }
 
   // apply a behavior to the run button via bound variables
@@ -531,22 +531,21 @@ export class NavigationComponent {
       });
   }
 
-  private listenToLockChange(): void {
+  private handleLockChange(): void {
     this.workflowCollabService
       .getLockStatusStream()
       .pipe(untilDestroyed(this))
-      .subscribe((isLockGranted: boolean) => {
-        if (isLockGranted) this.lockGranted = true;
-        else this.lockGranted = false;
+      .subscribe((lockGranted: boolean) => {
+        this.lockGranted = lockGranted;
       });
   }
 
-  private listenToWorkflowAccess(): void {
+  private handleWorkflowAccessChange(): void {
     this.workflowCollabService
       .getWorkflowAccessStream()
       .pipe(untilDestroyed(this))
-      .subscribe((isWorkflowReadonly: boolean) => {
-        this.isWorkflowReadonly = isWorkflowReadonly;
+      .subscribe((workflowReadonly: boolean) => {
+        this.workflowReadonly = workflowReadonly;
       });
   }
 

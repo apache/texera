@@ -123,7 +123,7 @@ export class WorkspaceComponent implements AfterViewInit, OnDestroy {
       .pipe(debounceTime(100))
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        if (this.userService.isLogin() && this.workflowPersistService.isWorkflowPersistEnabled() && this.workflowCollabService.checkLockGranted()) {
+        if (this.userService.isLogin() && this.workflowPersistService.isWorkflowPersistEnabled() && this.workflowCollabService.isLockGranted()) {
           this.workflowPersistService
             .persistWorkflow(this.workflowActionService.getWorkflow())
             .pipe(untilDestroyed(this))
