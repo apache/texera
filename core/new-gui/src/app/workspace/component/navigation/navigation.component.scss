@@ -48,6 +48,22 @@
     overflow: visible;
   }
 
+  .texera-navigation-lockholder-status {
+    grid-column: 4/5;
+    grid-row: 1/2;
+    text-align: right;
+    z-index: 2;
+    overflow: visible;
+
+    .lockholder-status{
+      width: 260px;
+
+      &.clickable {
+        background-color:blanchedalmond;
+      }
+    }
+  }
+
   .texera-navigation-dashboard {
     grid-column: 2/3;
     grid-row: 2/2;
