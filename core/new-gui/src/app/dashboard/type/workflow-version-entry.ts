@@ -3,4 +3,9 @@ export interface WorkflowVersionEntry
     vId: number;
     creationTime: number;
     content: string;
+    importance: boolean;
   }> {}
+
+export interface WorkflowVersionCollapsableEntry extends WorkflowVersionEntry {
+  expand: boolean; // for double binding with nzExpand
+}

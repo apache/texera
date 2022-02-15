@@ -1,86 +1,89 @@
-<div> 
-    <nz-card> 
-        <h2>Projects</h2> 
-        <a nz-dropdown [nzDropdownMenu]="menu">
-            <button nz-button>
-                <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
+<div>
+  <nz-card>
+    <h2>Projects</h2>
+    <a nz-dropdown [nzDropdownMenu]="menu">
+      <button nz-button>
+        <i nz-icon nzTheme="outline" nzType="sort-ascending"></i>
+      </button>
+    </a>
+    <nz-dropdown-menu #menu="nzDropdownMenu">
+      <ul nz-menu nzSelectable>
+        <li (click)="sortByCreationTime()" nz-menu-item>By Time Created</li>
+        <li (click)="sortByNameAsc()" nz-menu-item>A -> Z</li>
+        <li (click)="sortByNameDesc()" nz-menu-item>Z -> A</li>
+      </ul>
+    </nz-dropdown-menu>
+    <button
+      (click)="clickCreateButton()"
+      nz-button
+      nz-tooltip="Create a new project"
+      nzTooltipPlacement="bottom"
+      type="button"
+    >
+      <i nz-icon nzTheme="outline" nzType="file-add"></i>
+    </button>
+    <input
+      *ngIf="createButtonIsClicked"
+      nz-input
+      (focusout)="unclickCreateButton()"
+      (keyup.enter)="createNewProject()"
+      placeholder="Enter project name"
+      [(ngModel)]="createProjectName"
+    />
+  </nz-card>
+
+  <nz-card>
+    <nz-list>
+      <nz-list-item *ngFor="let dashboardUserProjectEntry of userProjectEntries; let i = index">
+        <nz-list-item-meta>
+          <nz-list-item-meta-title>
+            <ng-container
+              *ngIf="userProjectEntriesIsEditingName.indexOf(dashboardUserProjectEntry.pid) === -1;else editingProject"
+            >
+              <span class="project-name" (click)="jumpToProject(dashboardUserProjectEntry)"
+                >{{dashboardUserProjectEntry.name}}</span
+              >
+              <button
+                (click)="userProjectEntriesIsEditingName.push(dashboardUserProjectEntry.pid)"
+                nz-button
+                nz-tooltip="Edit Project Name"
+                nzTooltipPlacement="top"
+                nzSize="small"
+                nzType="text"
+              >
+                <i nz-icon nzTheme="outline" nzType="edit"></i>
+              </button>
+            </ng-container>
+
+            <ng-template #editingProject>
+              <input
+                #editedName
+                (focusout)="removeEditStatus(dashboardUserProjectEntry.pid)"
+                (keyup.enter)="saveProjectName(dashboardUserProjectEntry, editedName.value)"
+                placeholder="{{ dashboardUserProjectEntry.name }}"
+                value="{{ dashboardUserProjectEntry.name }}"
+              />
+            </ng-template>
+          </nz-list-item-meta-title>
+
+          <nz-list-item-meta-description>
+            <p>Created: {{dashboardUserProjectEntry.creationTime | date: "yyyy-MM-dd HH:mm"}}</p>
+          </nz-list-item-meta-description>
+        </nz-list-item-meta>
+
+        <ul nz-list-item-actions>
+          <nz-list-item-action>
+            <button
+              (click)="deleteProject(dashboardUserProjectEntry.pid, i)"
+              nz-button
+              nz-tooltip="Delete the project {{dashboardUserProjectEntry.name}}"
+              nzTooltipPlacement="bottom"
+            >
+              <i nz-icon nzTheme="outline" nzType="delete"></i>
             </button>
-        </a>
-        <nz-dropdown-menu #menu="nzDropdownMenu">
-        <ul nz-menu nzSelectable>
-            <li (click)="sortByCreationTime()" nz-menu-item>By Time Created</li>
-            <li (click)="sortByNameAsc()" nz-menu-item>A -> Z</li>
-            <li (click)="sortByNameDesc()" nz-menu-item>Z -> A</li>
+          </nz-list-item-action>
         </ul>
-        </nz-dropdown-menu>
-        <button
-            (click)="clickCreateButton()"
-            nz-button
-            nz-tooltip="Create a new project"
-            nzTooltipPlacement="bottom"
-            type="button"
-        >
-            <i nz-icon nzTheme="outline" nzType="file-add"></i>
-        </button>
-        <input
-            *ngIf="createButtonIsClicked"
-            nz-input
-            (focusout)="unclickCreateButton()"
-            (keyup.enter)="createNewProject()"
-            placeholder="Enter project name"
-            [(ngModel)]="createProjectName"
-        />
-    </nz-card>
-
-    <nz-card>
-        <nz-list>
-            <nz-list-item *ngFor="let dashboardUserProjectEntry of userProjectEntries; let i = index">
-                <nz-list-item-meta>
-                    <nz-list-item-meta-title>
-                        <ng-container *ngIf="userProjectEntriesIsEditingName.indexOf(dashboardUserProjectEntry.pid) === -1;else editingProject">
-                            <span class="project-name" (click)="jumpToProject(dashboardUserProjectEntry)">{{dashboardUserProjectEntry.name}}</span>
-                            <button
-                                (click)="userProjectEntriesIsEditingName.push(dashboardUserProjectEntry.pid)"
-                                nz-button
-                                nz-tooltip="Edit Project Name"
-                                nzTooltipPlacement="top"
-                                nzSize="small"
-                                nzType="text"
-                            >
-                                <i nz-icon nzTheme="outline" nzType="edit"></i>
-                            </button>
-                        </ng-container>
-
-                        <ng-template #editingProject>
-                            <input
-                              #editedName
-                              (focusout)="removeEditStatus(dashboardUserProjectEntry.pid)"
-                              (keyup.enter)="saveProjectName(dashboardUserProjectEntry, editedName.value)"
-                              placeholder="{{ dashboardUserProjectEntry.name }}"
-                              value="{{ dashboardUserProjectEntry.name }}"
-                            />
-                        </ng-template>
-
-                    </nz-list-item-meta-title>
-
-                    <nz-list-item-meta-description>
-                        <p>Created: {{dashboardUserProjectEntry.creationTime | date: "yyyy-MM-dd HH:mm"}}</p>
-                    </nz-list-item-meta-description>
-                </nz-list-item-meta>
-
-                <ul nz-list-item-actions>
-                    <nz-list-item-action>
-                        <button
-                            (click) = "deleteProject(dashboardUserProjectEntry.pid, i)"
-                            nz-button
-                            nz-tooltip="Delete the project {{dashboardUserProjectEntry.name}}"
-                            nzTooltipPlacement="bottom"
-                        >
-                            <i nz-icon nzTheme="outline" nzType="delete"></i>
-                        </button>
-                    </nz-list-item-action>
-                </ul>
-            </nz-list-item>
-        </nz-list>
-    </nz-card>
+      </nz-list-item>
+    </nz-list>
+  </nz-card>
 </div>

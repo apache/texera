@@ -239,12 +239,7 @@ export class WorkflowCollabService {
    * Propagates a specific change to other active clients of the same wid.
    */
   public propagateChange(change: CommandMessage): void {
-    if (
-      this.isCollabEnabled() &&
-      this.isPropagationEnabled() &&
-      this.isLockGranted() &&
-      !this.workflowReadonly
-    ) {
+    if (this.isCollabEnabled() && this.isPropagationEnabled() && this.isLockGranted() && !this.workflowReadonly) {
       const commandMessage = JSON.stringify(change);
       this.send("CommandRequest", { commandMessage });
     }

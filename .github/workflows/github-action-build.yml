@@ -43,8 +43,8 @@ jobs:
             ${{ runner.os }}-yarn-cache-v4-
       - name: Install dependency
         run: yarn --cwd core/new-gui install --frozen-lockfile --progress=false
-      - name: Lint with ESLint
-        run: yarn --cwd core/new-gui eslint ./src
+      - name: Lint with Prettier & ESLint
+        run: yarn --cwd core/new-gui format:ci
       - name: Run frontend unit tests
         run: yarn --cwd core/new-gui run test:ci
       - name: Prod build
