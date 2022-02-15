@@ -10,7 +10,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 @Component({
   selector: "texera-add-project-file-modal",
   templateUrl: "./ngbd-modal-add-project-file.component.html",
-  styleUrls: ["./ngbd-modal-add-project-file.component.scss"]
+  styleUrls: ["./ngbd-modal-add-project-file.component.scss"],
 })
 export class NgbdModalAddProjectFileComponent implements OnInit {
   @Input() addedFiles!: ReadonlyArray<DashboardUserFileEntry>;
@@ -20,12 +20,12 @@ export class NgbdModalAddProjectFileComponent implements OnInit {
   public checkedFiles: boolean[] = [];
   private filesRetrieved: boolean = false;
   private addedFileKeys: Set<number> = new Set<number>();
-  
+
   constructor(
     public activeModal: NgbActiveModal,
     private userFileService: UserFileService,
     private userProjectService: UserProjectService
-  ) { }
+  ) {}
 
   ngOnInit(): void {
     /* determine which files are already part of this project. 
@@ -44,10 +44,12 @@ export class NgbdModalAddProjectFileComponent implements OnInit {
 
     if (!fileArray) {
       return [];
-    } else {  
+    } else {
       // list of files have been updated by service
-      this.unaddedFiles = fileArray.filter(fileEntry => fileEntry.file.fid !== undefined && !this.addedFileKeys.has(fileEntry.file.fid!));
-      
+      this.unaddedFiles = fileArray.filter(
+        fileEntry => fileEntry.file.fid !== undefined && !this.addedFileKeys.has(fileEntry.file.fid!)
+      );
+
       // initialize check box tracking & stop callling backend once files have been receieved
       // prevent continual resetting of checkboxes
       if (this.unaddedFiles.length > 0) {
@@ -81,11 +83,11 @@ export class NgbdModalAddProjectFileComponent implements OnInit {
     }
 
     forkJoin(observables)
-       .pipe(untilDestroyed(this))
-       .subscribe(() => {
-         this.userProjectService.refreshFilesOfProject(this.projectId);
-         this.activeModal.close();
-        });
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.userProjectService.refreshFilesOfProject(this.projectId);
+        this.activeModal.close();
+      });
   }
 
   public addFileSizeUnit(fileSize: number): string {

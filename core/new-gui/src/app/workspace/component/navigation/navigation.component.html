@@ -13,14 +13,14 @@
         nz-button
         [disabled]="lockGranted || workflowReadonly"
         title="acquire lock"
-        class = "lockholder-status"
+        class="lockholder-status"
         [ngClass]="{ 'clickable': !lockGranted && !workflowReadonly }"
       >
-      <i *ngIf="lockGranted && !workflowReadonly" nz-icon nzTheme="outline" nzType="lock"></i>
-      <i *ngIf="!lockGranted || workflowReadonly" nz-icon nzTheme="outline" nzType="unlock"></i>
-      <span *ngIf="lockGranted && !workflowReadonly"> {{ "You have write access" }} </span>
-      <span *ngIf="!lockGranted && !workflowReadonly"> {{ "Readonly - click for write access" }} </span>
-      <span *ngIf="workflowReadonly"> {{ "Readonly - no write access" }} </span>
+        <i *ngIf="lockGranted && !workflowReadonly" nz-icon nzTheme="outline" nzType="lock"></i>
+        <i *ngIf="!lockGranted || workflowReadonly" nz-icon nzTheme="outline" nzType="unlock"></i>
+        <span *ngIf="lockGranted && !workflowReadonly"> {{ "You have write access" }} </span>
+        <span *ngIf="!lockGranted && !workflowReadonly"> {{ "Readonly - click for write access" }} </span>
+        <span *ngIf="workflowReadonly"> {{ "Readonly - no write access" }} </span>
       </button>
     </div>
 

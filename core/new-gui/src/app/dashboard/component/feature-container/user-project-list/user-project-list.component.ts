@@ -11,7 +11,7 @@ export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
 @Component({
   selector: "texera-user-project-list",
   templateUrl: "./user-project-list.component.html",
-  styleUrls: ["./user-project-list.component.scss"]
+  styleUrls: ["./user-project-list.component.scss"],
 })
 export class UserProjectListComponent implements OnInit {
   public userProjectEntries: UserProject[] = [];
@@ -23,15 +23,13 @@ export class UserProjectListComponent implements OnInit {
     private userProjectService: UserProjectService,
     private router: Router,
     private notificationService: NotificationService
-  ) { 
-  }
+  ) {}
 
   ngOnInit(): void {
     this.getUserProjectArray();
   }
 
   private getUserProjectArray() {
-    
     this.userProjectService
       .retrieveProjectList()
       .pipe(untilDestroyed(this))
@@ -47,7 +45,7 @@ export class UserProjectListComponent implements OnInit {
     this.router.navigate([`${ROUTER_USER_PROJECT_BASE_URL}/${pid}`]).then(null);
   }
 
-  public removeEditStatus(pid : number): void {
+  public removeEditStatus(pid: number): void {
     this.userProjectEntriesIsEditingName = this.userProjectEntriesIsEditingName.filter(index => index != pid);
   }
 
@@ -57,60 +55,62 @@ export class UserProjectListComponent implements OnInit {
       this.removeEditStatus(project.pid);
     } else if (this.isValidNewProjectName(newName, project)) {
       this.userProjectService
-      .updateProjectName(project.pid, newName)
-      .pipe(untilDestroyed(this))
-      .subscribe(
-        () => {
-          this.removeEditStatus(project.pid);
-          this.getUserProjectArray(); // refresh list of projects, name is read only property so cannot edit
-        },
-        (err: unknown) => {
-          // @ts-ignore
-          this.notificationService.error(err.error.message);
-        }
-      );
+        .updateProjectName(project.pid, newName)
+        .pipe(untilDestroyed(this))
+        .subscribe(
+          () => {
+            this.removeEditStatus(project.pid);
+            this.getUserProjectArray(); // refresh list of projects, name is read only property so cannot edit
+          },
+          (err: unknown) => {
+            // @ts-ignore
+            this.notificationService.error(err.error.message);
+          }
+        );
     } else {
       // show error message and do not call backend
       this.notificationService.error(`Cannot create project named: "${newName}".  It must be a non-empty, unique name`);
     }
   }
 
-  public deleteProject(pid: number, index: number): void{
+  public deleteProject(pid: number, index: number): void {
     this.userProjectService
       .deleteProject(pid)
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         this.userProjectEntries.splice(index, 1); // update local list of projects
-    });
+      });
   }
 
-  public clickCreateButton(): void{
+  public clickCreateButton(): void {
     this.createButtonIsClicked = true;
   }
 
-  public unclickCreateButton(): void{
+  public unclickCreateButton(): void {
     this.createButtonIsClicked = false;
     this.createProjectName = "";
   }
 
-  public createNewProject(): void{
+  public createNewProject(): void {
     if (this.isValidNewProjectName(this.createProjectName)) {
       this.userProjectService
-       .createProject(this.createProjectName)
-       .pipe(untilDestroyed(this))
-       .subscribe(
-         (createdProject) => {
-           this.userProjectEntries.push(createdProject); // update local list of projects
-           this.unclickCreateButton();
+        .createProject(this.createProjectName)
+        .pipe(untilDestroyed(this))
+        .subscribe(
+          createdProject => {
+            this.userProjectEntries.push(createdProject); // update local list of projects
+            this.unclickCreateButton();
           },
           (err: unknown) => {
             // @ts-ignore
             this.notificationService.error(err.error.message);
           }
-      );
+        );
     } else {
       // show error message and don't call backend
-      this.notificationService.error(`Cannot create project named: "${this.createProjectName}".  It must be a non-empty, unique name`);
+      this.notificationService.error(
+        `Cannot create project named: "${this.createProjectName}".  It must be a non-empty, unique name`
+      );
     }
   }
 
@@ -118,27 +118,25 @@ export class UserProjectListComponent implements OnInit {
     if (typeof oldProject === "undefined") {
       return newName.length != 0 && this.userProjectEntries.filter(project => project.name === newName).length === 0;
     } else {
-      return newName.length != 0 && this.userProjectEntries.filter(project => project.pid !== oldProject.pid && project.name === newName).length === 0; 
+      return (
+        newName.length != 0 &&
+        this.userProjectEntries.filter(project => project.pid !== oldProject.pid && project.name === newName).length ===
+          0
+      );
     }
   }
 
   public sortByCreationTime(): void {
-    this.userProjectEntries.sort((p1, p2) => 
-      p1.creationTime !== undefined && p2.creationTime !== undefined
-      ? p1.creationTime - p2.creationTime
-      : 0
+    this.userProjectEntries.sort((p1, p2) =>
+      p1.creationTime !== undefined && p2.creationTime !== undefined ? p1.creationTime - p2.creationTime : 0
     );
   }
 
   public sortByNameAsc(): void {
-    this.userProjectEntries.sort((p1, p2) => 
-      p1.name.toLowerCase().localeCompare(p2.name.toLowerCase())
-    );
+    this.userProjectEntries.sort((p1, p2) => p1.name.toLowerCase().localeCompare(p2.name.toLowerCase()));
   }
 
   public sortByNameDesc(): void {
-    this.userProjectEntries.sort((p1, p2) => 
-      p2.name.toLowerCase().localeCompare(p1.name.toLowerCase())
-    );
+    this.userProjectEntries.sort((p1, p2) => p2.name.toLowerCase().localeCompare(p1.name.toLowerCase()));
   }
 }

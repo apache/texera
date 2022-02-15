@@ -1,33 +1,33 @@
 <div class="modal-header">
-    <h4 class="modal-title" id="modal-basic-title">Add Workflows To Project</h4>
-    <button (click)="activeModal.close()" aria-label="Close" class="close" type="button">
-        <span aria-hidden="true"> × </span>
-    </button>
+  <h4 class="modal-title" id="modal-basic-title">Add Workflows To Project</h4>
+  <button (click)="activeModal.close()" aria-label="Close" class="close" type="button">
+    <span aria-hidden="true"> × </span>
+  </button>
 </div>
 
 <div class="modal-body">
-    <table class="table">
-        <thead>
-            <tr>
-                <th><input type="checkbox" [checked]="isAllChecked()" (change)="changeAll()"></th>
-                <th scope="col">ID #</th>
-                <th scope="col">Name</th>
-                <th scope="col">Creation Time</th>
-                <th scope="col">Last Modified Time</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr *ngFor="let workflowEntry of unaddedWorkflows; let i = index">
-                <td><input type="checkbox" [(ngModel)]="checkedWorkflows[i]"></td>
-                <td>{{workflowEntry.workflow.wid}}</td>
-                <td>{{workflowEntry.workflow.name}}</td>
-                <td>{{workflowEntry.workflow.creationTime | date: "yyyy-MM-dd HH:mm"}}</td>
-                <td>{{workflowEntry.workflow.lastModifiedTime | date: "yyyy-MM-dd HH:mm"}}</td>
-            </tr>
-        </tbody>
-    </table>
+  <table class="table">
+    <thead>
+      <tr>
+        <th><input type="checkbox" [checked]="isAllChecked()" (change)="changeAll()" /></th>
+        <th scope="col">ID #</th>
+        <th scope="col">Name</th>
+        <th scope="col">Creation Time</th>
+        <th scope="col">Last Modified Time</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let workflowEntry of unaddedWorkflows; let i = index">
+        <td><input type="checkbox" [(ngModel)]="checkedWorkflows[i]" /></td>
+        <td>{{workflowEntry.workflow.wid}}</td>
+        <td>{{workflowEntry.workflow.name}}</td>
+        <td>{{workflowEntry.workflow.creationTime | date: "yyyy-MM-dd HH:mm"}}</td>
+        <td>{{workflowEntry.workflow.lastModifiedTime | date: "yyyy-MM-dd HH:mm"}}</td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 
 <div class="modal-footer">
-    <button (click)="submitForm()" aria-label="Confirm" class="btn btn-primary" type="button">Confirm</button>
+  <button (click)="submitForm()" aria-label="Confirm" class="btn btn-primary" type="button">Confirm</button>
 </div>

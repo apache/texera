@@ -575,7 +575,7 @@ describe("WorkflowEditorComponent", () => {
 
       // dispatch a keydown event on the backspace key
       const event = new KeyboardEvent("keydown", { key: "Backspace" });
-      
+
       (document.activeElement as HTMLElement)?.blur();
       document.dispatchEvent(event);
 
