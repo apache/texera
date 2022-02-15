@@ -6,10 +6,14 @@
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let row of versionsList; let i=index; let l=count;">
-        <td nzEllipsis (click)="getVersion(row.vId)">{{(l-i)}}</td>
-        <td nzEllipsis (click)="getVersion(row.vId)">{{row.creationTime | date:'MM/dd/yyyy HH:mm:ss zzz'}}</td>
-      </tr>
+      <ng-container *ngFor="let row of versionsList; let i=index; let l=count;">
+        <tr *ngIf="(!row.importance && row.expand) || row.importance">
+          <td [nzShowExpand]="row.importance" [(nzExpand)]="row.expand" (nzExpandChange)="collapse(i, $event)">
+            {{(l-i)}}
+          </td>
+          <td nzEllipsis (click)="getVersion(row.vId)">{{row.creationTime | date:'MM/dd/yyyy HH:mm:ss zzz'}}</td>
+        </tr>
+      </ng-container>
     </tbody>
   </nz-table>
 </div>
