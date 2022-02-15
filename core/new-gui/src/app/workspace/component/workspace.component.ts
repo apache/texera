@@ -123,7 +123,11 @@ export class WorkspaceComponent implements AfterViewInit, OnDestroy {
       .pipe(debounceTime(100))
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        if (this.userService.isLogin() && this.workflowPersistService.isWorkflowPersistEnabled() && this.workflowCollabService.isLockGranted()) {
+        if (
+          this.userService.isLogin() &&
+          this.workflowPersistService.isWorkflowPersistEnabled() &&
+          this.workflowCollabService.isLockGranted()
+        ) {
           this.workflowPersistService
             .persistWorkflow(this.workflowActionService.getWorkflow())
             .pipe(untilDestroyed(this))
@@ -187,7 +191,9 @@ export class WorkspaceComponent implements AfterViewInit, OnDestroy {
                 this.loadWorkflowWithId(wid);
                 this.workflowCollabService.reopenWebsocket(wid);
               });
-            this.workflowCollabService.getRestoreVersionStream().pipe(untilDestroyed(this))
+            this.workflowCollabService
+              .getRestoreVersionStream()
+              .pipe(untilDestroyed(this))
               .subscribe(() => this.loadWorkflowWithId(wid));
           } else {
             // no workflow to load, pending to create a new workflow

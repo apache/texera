@@ -387,7 +387,7 @@ export class WorkflowActionService {
         // turn off multiselect since there's only one operator added
         this.jointGraphWrapper.setMultiSelectMode(false);
         // add operator
-        this.addOperatorsInternal([{operator, point}]);
+        this.addOperatorsInternal([{ operator, point }]);
         // highlight the newly added operator
         this.jointGraphWrapper.highlightOperators(operator.operatorID);
       },
@@ -435,7 +435,7 @@ export class WorkflowActionService {
         }
       },
       undo: () => {
-        this.addOperatorsInternal([{operator, point}]);
+        this.addOperatorsInternal([{ operator, point }]);
         this.getJointGraphWrapper().setCellLayer(operatorID, layer);
         linksToDelete.forEach((linkLayer, link) => {
           this.addLinksInternal([link]);
@@ -479,7 +479,7 @@ export class WorkflowActionService {
         // unhighlight previous highlights
         this.jointGraphWrapper.unhighlightElements(currentHighlights);
         this.jointGraphWrapper.setMultiSelectMode(operatorsAndPositions.length > 1);
-        this.addOperatorsInternal(operatorsAndPositions.map(o => ({operator:o.op, point: o.pos})));
+        this.addOperatorsInternal(operatorsAndPositions.map(o => ({ operator: o.op, point: o.pos })));
         operatorsAndPositions.forEach(o => {
           this.jointGraphWrapper.highlightOperators(o.op.operatorID);
         });
@@ -620,7 +620,7 @@ export class WorkflowActionService {
       },
       undo: () => {
         operatorsAndPositions.forEach((pos, operator) => {
-          this.addOperatorsInternal([{operator: operator, point: pos.position}]);
+          this.addOperatorsInternal([{ operator: operator, point: pos.position }]);
           this.getJointGraphWrapper().setCellLayer(operator.operatorID, pos.layer);
           // if the group still exists, add the operator back to the group
           const groupInfo = groups.get(operator.operatorID);
@@ -837,8 +837,9 @@ export class WorkflowActionService {
       undo: () => {
         for (let i = 0; i < groupIDs.length; i++) {
           // add back operators and links of deleted groups
-          operators[i].forEach(operatorInfo => this.addOperatorsInternal(
-            [{operator: operatorInfo.operator, point: operatorInfo.position}]));
+          operators[i].forEach(operatorInfo =>
+            this.addOperatorsInternal([{ operator: operatorInfo.operator, point: operatorInfo.position }])
+          );
           links[i].forEach(linkInfo => this.addLinksInternal([linkInfo.link]));
           inLinks[i].forEach(operatorLink => this.addLinksInternal([operatorLink]));
           outLinks[i].forEach(operatorLink => this.addLinksInternal([operatorLink]));
@@ -951,57 +952,54 @@ export class WorkflowActionService {
    */
   public reloadWorkflow(workflow: Workflow | undefined, asyncRendering = false): void {
     this.toggleSendData(false);
-    this.jointGraphWrapper.jointGraphContext.withContext(
-      {async: asyncRendering},
-      () => {
-        this.setWorkflowMetadata(workflow);
-        // remove the existing operators on the paper currently
+    this.jointGraphWrapper.jointGraphContext.withContext({ async: asyncRendering }, () => {
+      this.setWorkflowMetadata(workflow);
+      // remove the existing operators on the paper currently
 
-        this.deleteOperatorsAndLinks(
-          this.getTexeraGraph()
-            .getAllOperators()
-            .map(op => op.operatorID),
-          []
-        );
+      this.deleteOperatorsAndLinks(
+        this.getTexeraGraph()
+          .getAllOperators()
+          .map(op => op.operatorID),
+        []
+      );
 
-        if (workflow === undefined) {
-          return;
-        }
-
-        const workflowContent: WorkflowContent = workflow.content;
-
-        const operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
-        workflowContent.operators.forEach(op => {
-          const opPosition = workflowContent.operatorPositions[op.operatorID];
-          if (!opPosition) {
-            throw new Error("position error");
-          }
-          operatorsAndPositions.push({ op: op, pos: opPosition });
-        });
-
-        const links: OperatorLink[] = workflowContent.links;
-
-        const groups: readonly Group[] = workflowContent.groups.map(group => {
-          return {
-            groupID: group.groupID,
-            operators: recordToMap(group.operators),
-            links: recordToMap(group.links),
-            inLinks: group.inLinks,
-            outLinks: group.outLinks,
-            collapsed: group.collapsed,
-          };
-        });
-
-        const breakpoints = new Map(Object.entries(workflowContent.breakpoints));
-        this.addOperatorsAndLinks(operatorsAndPositions, links, groups, breakpoints);
-
-        // operators shouldn't be highlighted during page reload
-        const jointGraphWrapper = this.getJointGraphWrapper();
-        jointGraphWrapper.unhighlightOperators(...jointGraphWrapper.getCurrentHighlightedOperatorIDs());
-        // restore the view point
-        this.getJointGraphWrapper().restoreDefaultZoomAndOffset();
+      if (workflow === undefined) {
+        return;
       }
-    );
+
+      const workflowContent: WorkflowContent = workflow.content;
+
+      const operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
+      workflowContent.operators.forEach(op => {
+        const opPosition = workflowContent.operatorPositions[op.operatorID];
+        if (!opPosition) {
+          throw new Error("position error");
+        }
+        operatorsAndPositions.push({ op: op, pos: opPosition });
+      });
+
+      const links: OperatorLink[] = workflowContent.links;
+
+      const groups: readonly Group[] = workflowContent.groups.map(group => {
+        return {
+          groupID: group.groupID,
+          operators: recordToMap(group.operators),
+          links: recordToMap(group.links),
+          inLinks: group.inLinks,
+          outLinks: group.outLinks,
+          collapsed: group.collapsed,
+        };
+      });
+
+      const breakpoints = new Map(Object.entries(workflowContent.breakpoints));
+      this.addOperatorsAndLinks(operatorsAndPositions, links, groups, breakpoints);
+
+      // operators shouldn't be highlighted during page reload
+      const jointGraphWrapper = this.getJointGraphWrapper();
+      jointGraphWrapper.unhighlightOperators(...jointGraphWrapper.getCurrentHighlightedOperatorIDs());
+      // restore the view point
+      this.getJointGraphWrapper().restoreDefaultZoomAndOffset();
+    });
     this.toggleSendData(true);
   }
 
@@ -1116,10 +1114,9 @@ export class WorkflowActionService {
   }
 
   private addOperatorsInternal(operatorsAndPositions: readonly { operator: OperatorPredicate; point: Point }[]): void {
-
     const operatorJointElements: joint.dia.Element[] = new Array(operatorsAndPositions.length);
 
-    for (let i = 0; i < operatorsAndPositions.length; i++){
+    for (let i = 0; i < operatorsAndPositions.length; i++) {
       let operator = operatorsAndPositions[i].operator;
       let point = operatorsAndPositions[i].point;
 
@@ -1138,7 +1135,7 @@ export class WorkflowActionService {
     // if jointJS throws an error, it won't cause the inconsistency in texera graph
     this.jointGraph.addCells(operatorJointElements);
 
-    for (let i = 0; i < operatorsAndPositions.length; i++){
+    for (let i = 0; i < operatorsAndPositions.length; i++) {
       let operator = operatorsAndPositions[i].operator;
       let point = operatorsAndPositions[i].point;
       this.jointGraphWrapper.setCellLayer(operator.operatorID, this.operatorGroup.getHighestLayer() + 1);
@@ -1162,7 +1159,7 @@ export class WorkflowActionService {
   private addLinksInternal(links: readonly OperatorLink[]): void {
     const jointLinkCells: joint.dia.Link[] = new Array(links.length);
 
-    for (let i = 0; i < links.length; i++){
+    for (let i = 0; i < links.length; i++) {
       let link = links[i];
 
       this.texeraGraph.assertLinkNotExists(link);
@@ -1190,13 +1187,12 @@ export class WorkflowActionService {
     this.operatorGroup.setSyncTexeraGraph(false);
     // TODO: figure out how to add a batch of links to JointJS without the breakpoint error
     // this.jointGraph.addCells(jointLinkCells.filter(x => x !== undefined));
-    for (let i = 0; i < links.length; i++){
+    for (let i = 0; i < links.length; i++) {
       this.jointGraph.addCell(jointLinkCells[i]);
       this.texeraGraph.addLink(links[i]);
       this.jointGraphWrapper.setCellLayer(links[i].linkID, this.operatorGroup.getHighestLayer() + 1);
     }
     this.operatorGroup.setSyncTexeraGraph(true);
-
   }
 
   private deleteLinkWithIDInternal(linkID: string): void {
