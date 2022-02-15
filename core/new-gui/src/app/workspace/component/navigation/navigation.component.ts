@@ -19,6 +19,8 @@ import { debounceTime } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { isSink } from "../../service/workflow-graph/model/workflow-graph";
 import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
+import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
+import { delay } from "lodash";
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -59,6 +61,9 @@ export class NavigationComponent {
 
   // whether user dashboard is enabled and accessible from the workspace
   public userSystemEnabled: boolean = environment.userSystemEnabled;
+  public workflowCollabEnabled: boolean = environment.workflowCollabEnabled;
+  public lockGranted: boolean = true;
+  public workflowReadonly: boolean = false;
   // flag to display a particular version in the current canvas
   public displayParticularWorkflowVersion: boolean = false;
   public onClickRunHandler: () => void;
@@ -84,7 +89,8 @@ export class NavigationComponent {
     public userService: UserService,
     private workflowCacheService: WorkflowCacheService,
     private datePipe: DatePipe,
-    public workflowResultExportService: WorkflowResultExportService
+    public workflowResultExportService: WorkflowResultExportService,
+    public workflowCollabService: WorkflowCollabService
   ) {
     this.executionState = executeWorkflowService.getExecutionState().state;
     // return the run button after the execution is finished, either
@@ -117,6 +123,8 @@ export class NavigationComponent {
     this.handleWorkflowVersionDisplay();
     this.handleDisableOperatorStatusChange();
     this.handleCacheOperatorStatusChange();
+    this.handleLockChange();
+    this.handleWorkflowAccessChange();
   }
 
   // apply a behavior to the run button via bound variables
@@ -414,6 +422,10 @@ export class NavigationComponent {
     this.location.go("/");
   }
 
+  onClickAcquireLock() {
+    this.workflowCollabService.acquireLock();
+  }
+
   registerWorkflowMetadataDisplayRefresh() {
     this.workflowActionService
       .workflowMetaDataChanged()
@@ -465,6 +477,9 @@ export class NavigationComponent {
     this.workflowVersionService.revertToVersion();
     // after swapping the workflows to point to the particular version, persist it in DB
     this.persistWorkflow();
+    setTimeout(() => {
+      this.workflowCollabService.requestOthersToReload();
+    }, 300);
   }
 
   /**
@@ -513,6 +528,24 @@ export class NavigationComponent {
 
         this.isCacheOperator = !allCached;
         this.isCacheOperatorClickable = effectiveHighlightedOperatorsExcludeSink.length !== 0;
+      });
+  }
+
+  private handleLockChange(): void {
+    this.workflowCollabService
+      .getLockStatusStream()
+      .pipe(untilDestroyed(this))
+      .subscribe((lockGranted: boolean) => {
+        this.lockGranted = lockGranted;
+      });
+  }
+
+  private handleWorkflowAccessChange(): void {
+    this.workflowCollabService
+      .getWorkflowAccessStream()
+      .pipe(untilDestroyed(this))
+      .subscribe((workflowReadonly: boolean) => {
+        this.workflowReadonly = workflowReadonly;
       });
   }
 

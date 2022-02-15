@@ -1,7 +1,7 @@
 import { Injectable } from "@angular/core";
 import { Observable, Subject } from "rxjs";
 import { nonNull } from "../../../common/util/assert";
-import { Command, CommandMessage } from "../workflow-graph/model/workflow-action.service";
+import { Command, CommandMessage } from "../../types/command.interface";
 import { WorkflowCollabService } from "./../workflow-collab/workflow-collab.service";
 
 /* TODO LIST FOR BUGS
@@ -55,7 +55,7 @@ export class UndoRedoService {
       this.setListenJointCommand(true);
       this.canUndoStream.next(this.canUndo());
       const commandMessage: CommandMessage = { action: "undoredo", parameters: [], type: "undo" };
-      this.workflowCollabService.sendCommand(commandMessage);
+      this.workflowCollabService.propagateChange(commandMessage);
       console.log("service can undo", this.canUndo());
     }
   }
@@ -78,7 +78,7 @@ export class UndoRedoService {
       this.setListenJointCommand(true);
       this.canRedoStream.next(this.canRedo());
       const commandMessage: CommandMessage = { action: "undoredo", parameters: [], type: "redo" };
-      this.workflowCollabService.sendCommand(commandMessage);
+      this.workflowCollabService.propagateChange(commandMessage);
       console.log("service can redo", this.canRedo());
     }
   }
@@ -135,7 +135,9 @@ export class UndoRedoService {
   }
 
   private listenToRemoteChange(): void {
-    this.workflowCollabService.getCommandMessageStream().subscribe(message => {
+    this.workflowCollabService.getChangeStream().subscribe(message => {
+      const previousModificationEnabledStatus = this.workFlowModificationEnabled;
+      this.enableWorkFlowModification();
       if (message.type === "undo") {
         this.workflowCollabService.handleRemoteChange(() => {
           this.undoAction();
@@ -145,6 +147,7 @@ export class UndoRedoService {
           this.redoAction();
         });
       }
+      if (!previousModificationEnabledStatus) this.disableWorkFlowModification();
     });
   }
 }
