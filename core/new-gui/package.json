@@ -61,6 +61,7 @@
     "jointjs": "^3.1.1",
     "jquery": "~3.5.0",
     "jquery-ui-dist": "^1.12.1",
+    "js-abbreviation-number": "^1.3.0",
     "lodash-es": "~4.17.14",
     "mapbox-gl": "^2.2.0",
     "monaco-editor": "^0.27.0",
@@ -82,8 +83,7 @@
     "rxjs-compat": "^6.5.5",
     "tinyqueue": "^2.0.3",
     "tslib": "^2.0.0",
-    "zone.js": "~0.10.2",
-    "js-abbreviation-number": "^1.3.0"
+    "zone.js": "~0.10.2"
   },
   "devDependencies": {
     "@angular-devkit/build-angular": "~0.1102.14",
@@ -136,6 +136,7 @@
     "multi-target": "file:multi-target",
     "nz-tslint-rules": "^0.901.2",
     "prettier": "2.3.2",
+    "prettier-eslint-cli": "^5.0.1",
     "protractor": "~7.0.0",
     "rxjs-marbles": "^5.0.6",
     "sass": "^1.34.1",
