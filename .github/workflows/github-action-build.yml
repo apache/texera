@@ -6,12 +6,6 @@ on:
       - 'ci-enable/**'
       - 'master'
   pull_request:
-    paths-ignore:
-      - 'core/scripts/**'
-      - '**/.gitignore'
-      - '**.md'
-      - '**.csv'
-      - '**.txt'
   workflow_dispatch:
 
 jobs:
