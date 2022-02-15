@@ -6,12 +6,6 @@ on:
       - 'ci-enable/**'
       - 'master'
   pull_request:
-    paths-ignore:
-      - 'core/scripts/**'
-      - '**/.gitignore'
-      - '**.md'
-      - '**.csv'
-      - '**.txt'
   workflow_dispatch:
 
 jobs:
@@ -21,7 +15,7 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-        node_version:
+        node-version:
           - 14
         architecture:
           - x64
@@ -37,7 +31,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v2
         with:
-          node-version: ${{ matrix.node_version }}
+          node-version: ${{ matrix.node-version }}
           architecture: ${{ matrix.architecture }}
       - uses: actions/cache@v2
         with:
@@ -57,7 +51,12 @@ jobs:
         run: yarn --cwd core/new-gui run build
 
   amber:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+        java-version: [ 8, 11 ]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.9.1
@@ -67,6 +66,11 @@ jobs:
           access_token: ${{ github.token }}
       - name: Checkout Texera
         uses: actions/checkout@v2
+      - name: Setup Java
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'temurin'
+          java-version: ${{ matrix.java-version }}
       - uses: coursier/cache-action@v6
       - name: Lint with scalafmt
         run: cd core/amber && sbt scalafmtCheckAll
@@ -76,9 +80,11 @@ jobs:
         run: cd core/amber && sbt -v -J-Xmx2G test
 
   python_udf:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os:
+          - ubuntu-latest
         python-version: [ 3.6, 3.7, 3.8, 3.9 ]
 
     steps:
