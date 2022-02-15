@@ -17,7 +17,7 @@ export interface CommandEvent
 
 export interface WorkflowAccessEvent
   extends Readonly<{
-    isWorkflowReadonly: boolean;
+    workflowReadonly: boolean;
   }> {}
 
 export type CollabWebsocketRequestTypeMap = {

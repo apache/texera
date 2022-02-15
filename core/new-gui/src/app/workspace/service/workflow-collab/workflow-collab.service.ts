@@ -75,7 +75,7 @@ export class WorkflowCollabService {
       });
 
       this.subscribeToEvent("WorkflowAccessEvent").subscribe(WorkflowAccessEvent => {
-        this.setWorkflowAccess(WorkflowAccessEvent.isWorkflowReadonly);
+        this.setWorkflowAccess(WorkflowAccessEvent.workflowReadonly);
       });
     }
   }

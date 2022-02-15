@@ -86,18 +86,18 @@ class CollaborationResource extends LazyLogging {
       case tryLock: TryLockRequest =>
         val wId = sessionIdWIdMap(senderSessId)
         if (wId == DUMMY_WID) {
-          send(senderSession, WorkflowAccessEvent(isWorkflowReadonly = false))
+          send(senderSession, WorkflowAccessEvent(workflowReadonly = false))
           send(senderSession, LockGrantedEvent())
         } else {
           val uId = sessionIdUIdMap(senderSessId)
           if (checkIsReadOnly(wId, uId)) {
             send(senderSession, LockRejectedEvent())
-            send(senderSession, WorkflowAccessEvent(isWorkflowReadonly = true))
+            send(senderSession, WorkflowAccessEvent(workflowReadonly = true))
             if (!wIdLockHolderSessionIdMap.keySet.contains(wId)) {
               wIdLockHolderSessionIdMap(wId) = null
             }
           } else {
-            send(senderSession, WorkflowAccessEvent(isWorkflowReadonly = false))
+            send(senderSession, WorkflowAccessEvent(workflowReadonly = false))
             if (
               !wIdLockHolderSessionIdMap.keySet.contains(wId) || wIdLockHolderSessionIdMap(
                 wId
