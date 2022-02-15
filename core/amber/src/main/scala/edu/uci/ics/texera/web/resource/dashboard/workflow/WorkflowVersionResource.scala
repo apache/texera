@@ -7,9 +7,8 @@ import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{WORKFLOW, WORKFLOW_VERSION}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowDao
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Workflow
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Workflow, WorkflowVersion}
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowVersionResource.{
-  ImpEncodedVersionEntry,
   VersionEntry,
   applyPatch,
   context,
@@ -51,35 +50,35 @@ object WorkflowVersionResource {
     * @return
     */
   private def encodeVersionImportance(
-      versions: List[VersionEntry]
-  ): List[ImpEncodedVersionEntry] = {
-    var impEncodedVersions: List[ImpEncodedVersionEntry] = List()
+      versions: List[WorkflowVersion]
+  ): List[VersionEntry] = {
+    var impEncodedVersions: List[VersionEntry] = List()
     if (versions.isEmpty) {
       return impEncodedVersions
     }
     val lastVersion = versions.head
-    var lastVersionTime = lastVersion.creationTime
-    impEncodedVersions = impEncodedVersions :+ ImpEncodedVersionEntry(
-      lastVersion.vId,
-      lastVersion.creationTime,
-      lastVersion.content,
+    var lastVersionTime = lastVersion.getCreationTime
+    impEncodedVersions = impEncodedVersions :+ VersionEntry(
+      lastVersion.getVid,
+      lastVersion.getCreationTime,
+      lastVersion.getContent,
       true
     ) // the first (latest)
     // version is important even if it is positional
     var versionImportance: Boolean = true
     for (version <- versions.init) {
-      if (isWithinTimeLimit(lastVersionTime, version.creationTime)) {
+      if (isWithinTimeLimit(lastVersionTime, version.getCreationTime)) {
         versionImportance = false
       } // try reducing unnecessary check of positional versions
       // because parsing the Json string is expensive
       else {
-        lastVersionTime = version.creationTime
-        versionImportance = isVersionImportant(version.content)
+        lastVersionTime = version.getCreationTime
+        versionImportance = isVersionImportant(version.getContent)
       }
-      impEncodedVersions = impEncodedVersions :+ ImpEncodedVersionEntry(
-        version.vId,
-        version.creationTime,
-        version.content,
+      impEncodedVersions = impEncodedVersions :+ VersionEntry(
+        version.getVid,
+        version.getCreationTime,
+        version.getContent,
         versionImportance
       )
     }
@@ -125,30 +124,21 @@ object WorkflowVersionResource {
     * @param workflow beginning workflow ( more recent)
     * @return the (old) workflow is computed after applying all the patches
     */
-  private def applyPatch(versions: List[VersionEntry], workflow: Workflow): Workflow = {
+  private def applyPatch(versions: List[WorkflowVersion], workflow: Workflow): Workflow = {
     // loop all versions and apply the patch
     val mapper = new ObjectMapper()
     for (patch <- versions) {
       workflow.setContent(
         JsonPatch
-          .apply(mapper.readTree(patch.content), mapper.readTree(workflow.getContent))
+          .apply(mapper.readTree(patch.getContent), mapper.readTree(workflow.getContent))
           .toString
       )
-      workflow.setCreationTime(patch.creationTime)
-      workflow.setLastModifiedTime(patch.creationTime)
+      workflow.setCreationTime(patch.getCreationTime)
+      workflow.setLastModifiedTime(patch.getCreationTime)
     }
     // the checked out version is returned
     workflow
   }
-
-  trait VersionEntryDefinition {
-    def vId: UInteger
-    def creationTime: Timestamp
-    def content: String
-  }
-
-  case class VersionEntry(vId: UInteger, creationTime: Timestamp, content: String)
-      extends VersionEntryDefinition
 
   /**
     * This class is to add version importance encoding to the existing `VersionEntry` from DB
@@ -157,12 +147,13 @@ object WorkflowVersionResource {
     * @param content
     * @param importance false is not an important version and true is an important version
     */
-  case class ImpEncodedVersionEntry(
+  case class VersionEntry(
       vId: UInteger,
       creationTime: Timestamp,
       content: String,
       importance: Boolean
-  ) extends VersionEntryDefinition
+  )
+
 }
 
 @PermitAll
@@ -181,7 +172,7 @@ class WorkflowVersionResource {
   def retrieveVersionsOfWorkflow(
       @PathParam("wid") wid: UInteger,
       @Auth sessionUser: SessionUser
-  ): List[ImpEncodedVersionEntry] = {
+  ): List[VersionEntry] = {
     val user = sessionUser.getUser
     if (
       WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid) ||
@@ -196,7 +187,7 @@ class WorkflowVersionResource {
           .leftJoin(WORKFLOW)
           .on(WORKFLOW_VERSION.WID.eq(WORKFLOW.WID))
           .where(WORKFLOW_VERSION.WID.eq(wid))
-          .fetchInto(classOf[VersionEntry])
+          .fetchInto(classOf[WorkflowVersion])
           .toList
           .reverse
       )
@@ -234,7 +225,7 @@ class WorkflowVersionResource {
         .leftJoin(WORKFLOW)
         .on(WORKFLOW_VERSION.WID.eq(WORKFLOW.WID))
         .where(WORKFLOW.WID.eq(wid).and(WORKFLOW_VERSION.VID.ge(vid)))
-        .fetchInto(classOf[VersionEntry])
+        .fetchInto(classOf[WorkflowVersion])
         .toList
       // apply patch
       val currentWorkflow = workflowDao.fetchOneByWid(wid)
