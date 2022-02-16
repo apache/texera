@@ -112,12 +112,12 @@ class TestDataProcessor:
         dp_thread = Thread(target=wrapper, name="dp_thread")
         yield dp_thread
 
-    @pytest.mark.timeout(1)
+    @pytest.mark.timeout(2)
     def test_dp_thread_can_start(self, dp_thread):
         dp_thread.start()
         assert dp_thread.is_alive()
 
-    @pytest.mark.timeout(1)
+    @pytest.mark.timeout(2)
     def test_dp_thread_can_process_messages(self, mock_link, mock_receiver_actor, mock_controller, input_queue,
                                             output_queue, mock_data_element, dp_thread, mock_update_input_linking,
                                             mock_add_partitioning, mock_end_of_upstream, mock_query_statistics,
