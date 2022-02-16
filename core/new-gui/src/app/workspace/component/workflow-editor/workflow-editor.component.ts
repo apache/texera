@@ -61,6 +61,7 @@ const disableInteractiveOption = {
   vertexMove: false,
   vertexAdd: false,
   vertexRemove: false,
+  elementMove: false, // TODO: This is only a temporary change, will introduce another level of disable option.
 };
 
 export const WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID = "texera-workflow-editor-jointjs-wrapper-id";
