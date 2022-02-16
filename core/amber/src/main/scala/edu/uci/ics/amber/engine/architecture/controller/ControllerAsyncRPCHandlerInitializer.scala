@@ -51,16 +51,8 @@ class ControllerAsyncRPCHandlerInitializer(
 
   var statusUpdateAskHandle: Option[Cancellable] = None
 
-  // Let `A -> B` be a workflow of two operators. Every worker of `A` records workload samples
-  // for every worker of `B`. In `workloadSamples`, the key in the outer map is the worker of `A`.
-  // The value is a map that has the workload samples for every worker of `B` as recorded in the
-  // worker of `A`. Example: {A1 -> {B1->[100,200], B2->[300,200]}, A2 -> {B1->[500,300], B2->[700,800]}}
-  var workloadSamples =
-    new mutable.HashMap[ActorVirtualIdentity, mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[
-      Long
-    ]]]()
   var monitoringHandle: Option[Cancellable] = None
-  var skewDetectionHandle: Option[Cancellable] = None
+  var workflowReshapeState: WorkflowReshapeState = new WorkflowReshapeState()
 
   def enableStatusUpdate(): Unit = {
     if (controllerConfig.statusUpdateIntervalMs.nonEmpty && statusUpdateAskHandle.isEmpty) {
@@ -98,11 +90,11 @@ class ControllerAsyncRPCHandlerInitializer(
 
   def enableSkewHandling(): Unit = {
     if (
-      Constants.reshapeSkewHandlingEnabled && controllerConfig.skewDetectionIntervalMs.nonEmpty && skewDetectionHandle.isEmpty
+      Constants.reshapeSkewHandlingEnabled && controllerConfig.skewDetectionIntervalMs.nonEmpty && workflowReshapeState.skewDetectionHandle.isEmpty
     ) {
-      skewDetectionHandle = Option(
+      workflowReshapeState.skewDetectionHandle = Option(
         actorContext.system.scheduler.scheduleAtFixedRate(
-          5000.milliseconds,
+          Constants.reshapeSkewDetectionInitialDelayInMs.milliseconds,
           FiniteDuration.apply(controllerConfig.skewDetectionIntervalMs.get, MILLISECONDS),
           actorContext.self,
           ControlInvocation(
@@ -129,9 +121,9 @@ class ControllerAsyncRPCHandlerInitializer(
   }
 
   def disableSkewHandling(): Unit = {
-    if (skewDetectionHandle.nonEmpty) {
-      skewDetectionHandle.get.cancel()
-      skewDetectionHandle = Option.empty
+    if (workflowReshapeState.skewDetectionHandle.nonEmpty) {
+      workflowReshapeState.skewDetectionHandle.get.cancel()
+      workflowReshapeState.skewDetectionHandle = Option.empty
     }
   }
 

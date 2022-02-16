@@ -49,6 +49,8 @@ class WorkerAsyncRPCHandlerInitializer(
     with ShutdownDPThreadHandler
     with MonitoringHandler
     with SendImmutableStateHandler
-    with AcceptImmutableStateHandler {
+    with AcceptImmutableStateHandler
+    with SharePartitionHandler
+    with PauseSkewMitigationHandler {
   var lastReportTime = 0L
 }

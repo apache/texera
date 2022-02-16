@@ -7,6 +7,7 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.Monitori
   previousCallFinished
 }
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QuerySelfWorkloadMetrics
+import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
@@ -33,7 +34,7 @@ trait MonitoringHandler {
     if (allDownstreamWorkerToNewSamples.isEmpty) {
       return
     }
-    val existingSamples = workloadSamples.getOrElse(
+    val existingSamples = workflowReshapeState.workloadSamples.getOrElse(
       collectedAt,
       new mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]()
     )
@@ -45,7 +46,7 @@ trait MonitoringHandler {
         existingSamplesForWorker.appendAll(samples)
 
         // clean up to save memory
-        val maxSamplesPerWorker = 500
+        val maxSamplesPerWorker = Constants.reshapeMaxWorkloadSamplesInController
         if (existingSamplesForWorker.size >= maxSamplesPerWorker) {
           existingSamplesForWorker = existingSamplesForWorker.slice(
             existingSamplesForWorker.size - maxSamplesPerWorker,
@@ -56,7 +57,7 @@ trait MonitoringHandler {
         existingSamples(wid) = existingSamplesForWorker
       }
     }
-    workloadSamples(collectedAt) = existingSamples
+    workflowReshapeState.workloadSamples(collectedAt) = existingSamples
   }
 
   registerHandler((msg: ControllerInitiateMonitoring, sender) => {
