@@ -34,7 +34,7 @@ trait MonitoringHandler {
     if (allDownstreamWorkerToNewSamples.isEmpty) {
       return
     }
-    val existingSamples = workloadSamples.getOrElse(
+    val existingSamples = workflowReshapeState.workloadSamples.getOrElse(
       collectedAt,
       new mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]()
     )
@@ -57,7 +57,7 @@ trait MonitoringHandler {
         existingSamples(wid) = existingSamplesForWorker
       }
     }
-    workloadSamples(collectedAt) = existingSamples
+    workflowReshapeState.workloadSamples(collectedAt) = existingSamples
   }
 
   registerHandler((msg: ControllerInitiateMonitoring, sender) => {
