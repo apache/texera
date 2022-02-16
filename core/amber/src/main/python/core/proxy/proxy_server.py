@@ -11,8 +11,6 @@ from pyarrow.flight import Action, FlightDescriptor, FlightServerBase, MetadataR
     ServerCallContext
 from pyarrow.ipc import RecordBatchStreamWriter
 
-from core.proxy import ProxyClient
-
 
 class ProxyServer(FlightServerBase):
     """
