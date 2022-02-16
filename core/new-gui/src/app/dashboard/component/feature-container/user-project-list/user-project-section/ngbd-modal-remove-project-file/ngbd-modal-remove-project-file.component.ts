@@ -10,7 +10,7 @@ import { UserFileService } from "../../../../../service/user-file/user-file.serv
 @Component({
   selector: "texera-remove-project-file-modal",
   templateUrl: "./ngbd-modal-remove-project-file.component.html",
-  styleUrls: ["./ngbd-modal-remove-project-file.component.scss"]
+  styleUrls: ["./ngbd-modal-remove-project-file.component.scss"],
 })
 export class NgbdModalRemoveProjectFileComponent implements OnInit {
   @Input() addedFiles!: ReadonlyArray<DashboardUserFileEntry>;
@@ -22,7 +22,7 @@ export class NgbdModalRemoveProjectFileComponent implements OnInit {
     public activeModal: NgbActiveModal,
     private userProjectService: UserProjectService,
     private userFileService: UserFileService
-  ) { }
+  ) {}
 
   ngOnInit(): void {
     this.checkedFiles = new Array(this.addedFiles.length).fill(false);
@@ -33,16 +33,18 @@ export class NgbdModalRemoveProjectFileComponent implements OnInit {
 
     for (let index = this.checkedFiles.length - 1; index >= 0; --index) {
       if (this.checkedFiles[index]) {
-        observables.push(this.userProjectService.removeFileFromProject(this.projectId, this.addedFiles[index].file.fid!));
+        observables.push(
+          this.userProjectService.removeFileFromProject(this.projectId, this.addedFiles[index].file.fid!)
+        );
       }
     }
 
     forkJoin(observables)
-       .pipe(untilDestroyed(this))
-       .subscribe(() => {
-         this.userProjectService.refreshFilesOfProject(this.projectId);
-         this.activeModal.close();
-        });
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.userProjectService.refreshFilesOfProject(this.projectId);
+        this.activeModal.close();
+      });
   }
 
   public isAllChecked() {
@@ -60,5 +62,4 @@ export class NgbdModalRemoveProjectFileComponent implements OnInit {
   public addFileSizeUnit(fileSize: number): string {
     return this.userFileService.addFileSizeUnit(fileSize);
   }
-
 }
