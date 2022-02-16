@@ -18,6 +18,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
 
+import scala.collection.immutable.ListMap
 import scala.collection.mutable
 
 class WorkerLayer(
@@ -29,7 +30,7 @@ class WorkerLayer(
 ) extends Serializable {
 
   private val startDependencies = mutable.HashSet[LinkIdentity]()
-  var workers: Map[ActorVirtualIdentity, WorkerInfo] = _
+  var workers: ListMap[ActorVirtualIdentity, WorkerInfo] = _
 
   def startAfter(link: LinkIdentity): Unit = {
     startDependencies.add(link)
@@ -60,7 +61,7 @@ class WorkerLayer(
       workerToOperatorExec: mutable.HashMap[ActorVirtualIdentity, IOperatorExecutor]
   ): Unit = {
     deployStrategy.initialize(deploymentFilter.filter(prev, all, context.self.path.address))
-    workers = (0 until numWorkers).map { i =>
+    workers = ListMap((0 until numWorkers).map { i =>
       val operatorExecutor: IOperatorExecutor = initIOperatorExecutor(i)
       val workerId: ActorVirtualIdentity =
         ActorVirtualIdentity(s"Worker:WF${id.workflow}-${id.operator}-${id.layerID}-$i")
@@ -84,7 +85,7 @@ class WorkerLayer(
         UNINITIALIZED,
         WorkerStatistics(UNINITIALIZED, 0, 0)
       )
-    }.toMap
+    }: _*)
   }
 
 }

@@ -22,18 +22,9 @@ import { Group, OperatorGroup, OperatorGroupReadonly } from "./operator-group";
 import { SyncOperatorGroup } from "./sync-operator-group";
 import { SyncTexeraModel } from "./sync-texera-model";
 import { WorkflowGraph, WorkflowGraphReadonly } from "./workflow-graph";
-import { debounceTime, filter } from "rxjs/operators";
+import { auditTime, debounceTime, filter } from "rxjs/operators";
 import { WorkflowCollabService } from "../../workflow-collab/workflow-collab.service";
-
-export interface Command {
-  modifiesWorkflow: boolean;
-
-  execute(): void;
-
-  undo(): void;
-
-  redo?(): void;
-}
+import { Command, commandFuncs, CommandMessage } from "src/app/workspace/types/command.interface";
 
 type OperatorPosition = {
   position: Point;
@@ -44,52 +35,6 @@ type GroupInfo = {
   group: Group;
   layer: number;
 };
-
-// Caveat: These operations must be performed in order, and the ability to sync up multiple clients relies
-// on the fact that different clients rest at the same state.
-
-// At least for some of them, have to do a bit more thinking.
-
-// TODO: refactor into a separate file.
-export type commandFuncs =
-  | "undoredo"
-  | "addOperator"
-  | "deleteOperator"
-  | "addOperatorsAndLinks"
-  | "deleteOperatorsAndLinks"
-  | "changeOperatorPosition"
-  | "autoLayoutWorkflow"
-  | "setOperatorProperty"
-  | "addLink"
-  | "deleteLink"
-  | "deleteLinkWithID"
-  | "resetAsNewWorkflow";
-
-// keyof yields permitted property names for T. When we pass function, it'll return value of that function?
-// For this type, we index T with the property names for T, which results in us getting the values.
-/**
- * type Foo = { a: string, b: number };
- * type ValueOfFoo = ValueOf<Foo>; // string | number
- * ValueOf<Foo> = Foo[a | b] = string | number
- */
-type ValueOf<T> = T[keyof T];
-
-// Pick<WorkflowActionService, commandFuncs>: from WorkflowActionService, pick a set of properties whose keys
-// are in commandFuncs. commandFuncs are names of functions, so this pick will only allow existing func names.
-// So when we make CommandMessage, the function will get inferred from action. Then, it'll require that
-// parameters are the parameters for WorkflowActionService[P], or that function.
-
-// P in keyof Pick: P will be one of the properties that exists in there(set of properties from service).
-// If we have a name in commandFuncs that doesn't match a property in service, we get error. P picks one of them
-export type CommandMessage = ValueOf<
-  {
-    [P in keyof Pick<WorkflowActionService, commandFuncs>]: {
-      action: P;
-      parameters: Parameters<WorkflowActionService[P]>;
-      type: string;
-    };
-  }
->;
 
 /**
  *
@@ -127,6 +72,7 @@ export class WorkflowActionService {
   private tempWorkflow?: Workflow;
   private workflowModificationEnabled = true;
   private enableModificationStream = new BehaviorSubject<boolean>(true);
+  private lockListenEnabled = true;
 
   private workflowMetadata: WorkflowMetadata;
   private workflowMetadataChangeSubject: Subject<void> = new Subject<void>();
@@ -154,8 +100,10 @@ export class WorkflowActionService {
 
     this.handleJointLinkAdd();
     this.handleJointOperatorDrag();
+    this.handleJointOperatorDragPropagation();
     this.handleHighlightedElementPositionChange();
     this.listenToRemoteChange();
+    this.listenToLockChange();
   }
 
   /**
@@ -163,8 +111,18 @@ export class WorkflowActionService {
    */
   public undoredo(): void {}
 
+  /**
+   * Used for temporarily enabling or disabling propagation of changes so that reload won't affect other clients.
+   */
   public toggleSendData(toggle: boolean): void {
-    this.workflowCollabService.toggleCollabEnabled(toggle);
+    this.workflowCollabService.setPropagationEnabled(toggle);
+  }
+
+  /**
+   * Used for temporarily blocking any changes to the lock so that reload can be successfully executed.
+   */
+  public toggleLockListen(toggle: boolean): void {
+    this.lockListenEnabled = toggle;
   }
 
   // workflow modification lock interface (allows or prevents commands that would modify the workflow graph)
@@ -200,8 +158,7 @@ export class WorkflowActionService {
           redo: () => this.addLinksInternal([link]),
         };
         const commandMessage: CommandMessage = { action: "addLink", parameters: [link], type: "execute" };
-        this.workflowCollabService.sendCommand(commandMessage);
-        this.executeAndStoreCommand(command);
+        this.executeStoreAndPropagateCommand(command, commandMessage);
       });
   }
 
@@ -250,7 +207,7 @@ export class WorkflowActionService {
         });
 
         const command: Command = {
-          modifiesWorkflow: false,
+          modifiesWorkflow: true,
           execute: () => {},
           undo: () => {
             this.jointGraphWrapper.unhighlightOperators(...this.jointGraphWrapper.getCurrentHighlightedOperatorIDs());
@@ -283,6 +240,43 @@ export class WorkflowActionService {
             });
           },
         };
+        this.executeStoreAndPropagateCommand(command);
+      });
+  }
+
+  /**
+   * Propagates dragging event (no execution locally). Separate from undo-redo to achieve higher FPS.
+   */
+  public handleJointOperatorDragPropagation(): void {
+    let oldPosition: Point = { x: 0, y: 0 };
+    let gotOldPosition = false;
+    let dragRoot: string; // element that was clicked to start the drag
+
+    // save starting position
+    this.jointGraphWrapper
+      .getElementPositionChangeEvent()
+      .pipe(
+        filter(() => !gotOldPosition),
+        filter(() => this.undoRedoService.listenJointCommand)
+      )
+      .subscribe(event => {
+        oldPosition = event.oldPosition;
+        gotOldPosition = true;
+        dragRoot = event.elementID;
+      });
+
+    this.jointGraphWrapper
+      .getElementPositionChangeEvent()
+      .pipe(
+        filter(value => value.elementID === dragRoot),
+        auditTime(30) // emit frequently to achieve "30fps"
+      )
+      .subscribe(event => {
+        gotOldPosition = false;
+        const offsetX = event.newPosition.x - oldPosition.x;
+        const offsetY = event.newPosition.y - oldPosition.y;
+        // remember currently highlighted operators and groups
+        const currentHighlightedOperators = new Set(this.jointGraphWrapper.getCurrentHighlightedOperatorIDs().slice());
         // Send command message here since this is where change first gets detected
         const currentHighlighted = Array.from(currentHighlightedOperators);
         const commandMessage: CommandMessage = {
@@ -290,8 +284,7 @@ export class WorkflowActionService {
           parameters: [currentHighlighted, offsetX, offsetY],
           type: "execute",
         };
-        this.workflowCollabService.sendCommand(commandMessage);
-        this.executeAndStoreCommand(command);
+        this.workflowCollabService.propagateChange(commandMessage);
       });
   }
 
@@ -394,7 +387,7 @@ export class WorkflowActionService {
         // turn off multiselect since there's only one operator added
         this.jointGraphWrapper.setMultiSelectMode(false);
         // add operator
-        this.addOperatorsInternal([{operator, point}]);
+        this.addOperatorsInternal([{ operator, point }]);
         // highlight the newly added operator
         this.jointGraphWrapper.highlightOperators(operator.operatorID);
       },
@@ -410,8 +403,7 @@ export class WorkflowActionService {
       },
     };
     const commandMessage: CommandMessage = { action: "addOperator", parameters: [operator, point], type: "execute" };
-    this.workflowCollabService.sendCommand(commandMessage);
-    this.executeAndStoreCommand(command);
+    this.executeStoreAndPropagateCommand(command, commandMessage);
   }
 
   /**
@@ -443,7 +435,7 @@ export class WorkflowActionService {
         }
       },
       undo: () => {
-        this.addOperatorsInternal([{operator, point}]);
+        this.addOperatorsInternal([{ operator, point }]);
         this.getJointGraphWrapper().setCellLayer(operatorID, layer);
         linksToDelete.forEach((linkLayer, link) => {
           this.addLinksInternal([link]);
@@ -464,8 +456,7 @@ export class WorkflowActionService {
     };
 
     const commandMessage: CommandMessage = { action: "deleteOperator", parameters: [operatorID], type: "execute" };
-    this.workflowCollabService.sendCommand(commandMessage);
-    this.executeAndStoreCommand(command);
+    this.executeStoreAndPropagateCommand(command, commandMessage);
   }
 
   /**
@@ -488,7 +479,7 @@ export class WorkflowActionService {
         // unhighlight previous highlights
         this.jointGraphWrapper.unhighlightElements(currentHighlights);
         this.jointGraphWrapper.setMultiSelectMode(operatorsAndPositions.length > 1);
-        this.addOperatorsInternal(operatorsAndPositions.map(o => ({operator:o.op, point: o.pos})));
+        this.addOperatorsInternal(operatorsAndPositions.map(o => ({ operator: o.op, point: o.pos })));
         operatorsAndPositions.forEach(o => {
           this.jointGraphWrapper.highlightOperators(o.op.operatorID);
         });
@@ -542,8 +533,7 @@ export class WorkflowActionService {
       parameters: [operatorsAndPositions, links],
       type: "execute",
     };
-    this.workflowCollabService.sendCommand(commandMessage);
-    this.executeAndStoreCommand(command);
+    this.executeStoreAndPropagateCommand(command, commandMessage);
   }
 
   /**
@@ -630,7 +620,7 @@ export class WorkflowActionService {
       },
       undo: () => {
         operatorsAndPositions.forEach((pos, operator) => {
-          this.addOperatorsInternal([{operator: operator, point: pos.position}]);
+          this.addOperatorsInternal([{ operator: operator, point: pos.position }]);
           this.getJointGraphWrapper().setCellLayer(operator.operatorID, pos.layer);
           // if the group still exists, add the operator back to the group
           const groupInfo = groups.get(operator.operatorID);
@@ -672,8 +662,7 @@ export class WorkflowActionService {
       parameters: [operatorIDs, linkIDs],
       type: "execute",
     };
-    this.workflowCollabService.sendCommand(commandMessage);
-    this.executeAndStoreCommand(command);
+    this.executeStoreAndPropagateCommand(command, commandMessage);
   }
 
   /**
@@ -691,7 +680,7 @@ export class WorkflowActionService {
         op => (operatorPositions[op.operatorID] = this.getJointGraphWrapper().getElementPosition(op.operatorID))
       );
     const command: Command = {
-      modifiesWorkflow: false,
+      modifiesWorkflow: true,
       execute: () => {
         this.jointGraphWrapper.autoLayoutJoint();
       },
@@ -702,8 +691,7 @@ export class WorkflowActionService {
       },
     };
     const commandMessage: CommandMessage = { action: "autoLayoutWorkflow", parameters: [], type: "execute" };
-    this.workflowCollabService.sendCommand(commandMessage);
-    this.executeAndStoreCommand(command);
+    this.executeStoreAndPropagateCommand(command, commandMessage);
   }
 
   /**
@@ -718,8 +706,7 @@ export class WorkflowActionService {
       undo: () => this.deleteLinkWithIDInternal(link.linkID),
     };
     const commandMessage: CommandMessage = { action: "addLink", parameters: [link], type: "execute" };
-    this.workflowCollabService.sendCommand(commandMessage);
-    this.executeAndStoreCommand(command);
+    this.executeStoreAndPropagateCommand(command, commandMessage);
   }
 
   /**
@@ -747,8 +734,7 @@ export class WorkflowActionService {
       },
     };
     const commandMessage: CommandMessage = { action: "deleteLinkWithID", parameters: [linkID], type: "execute" };
-    this.workflowCollabService.sendCommand(commandMessage);
-    this.executeAndStoreCommand(command);
+    this.executeStoreAndPropagateCommand(command, commandMessage);
   }
 
   public deleteLink(source: OperatorPort, target: OperatorPort): void {
@@ -777,7 +763,7 @@ export class WorkflowActionService {
         });
       },
     };
-    this.executeAndStoreCommand(command);
+    this.executeStoreAndPropagateCommand(command);
   }
 
   /**
@@ -799,7 +785,7 @@ export class WorkflowActionService {
         });
       },
     };
-    this.executeAndStoreCommand(command);
+    this.executeStoreAndPropagateCommand(command);
   }
 
   /**
@@ -812,7 +798,7 @@ export class WorkflowActionService {
       execute: () => groupIDs.forEach(groupID => this.collapseGroupInternal(groupID)),
       undo: () => groupIDs.forEach(groupID => this.expandGroupInternal(groupID)),
     };
-    this.executeAndStoreCommand(command);
+    this.executeStoreAndPropagateCommand(command);
   }
 
   /**
@@ -825,7 +811,7 @@ export class WorkflowActionService {
       execute: () => groupIDs.forEach(groupID => this.expandGroupInternal(groupID)),
       undo: () => groupIDs.forEach(groupID => this.collapseGroupInternal(groupID)),
     };
-    this.executeAndStoreCommand(command);
+    this.executeStoreAndPropagateCommand(command);
   }
 
   /**
@@ -851,8 +837,9 @@ export class WorkflowActionService {
       undo: () => {
         for (let i = 0; i < groupIDs.length; i++) {
           // add back operators and links of deleted groups
-          operators[i].forEach(operatorInfo => this.addOperatorsInternal(
-            [{operator: operatorInfo.operator, point: operatorInfo.position}]));
+          operators[i].forEach(operatorInfo =>
+            this.addOperatorsInternal([{ operator: operatorInfo.operator, point: operatorInfo.position }])
+          );
           links[i].forEach(linkInfo => this.addLinksInternal([linkInfo.link]));
           inLinks[i].forEach(operatorLink => this.addLinksInternal([operatorLink]));
           outLinks[i].forEach(operatorLink => this.addLinksInternal([operatorLink]));
@@ -869,7 +856,7 @@ export class WorkflowActionService {
         }
       },
     };
-    this.executeAndStoreCommand(command);
+    this.executeStoreAndPropagateCommand(command);
   }
 
   public setOperatorProperty(operatorID: string, newProperty: object): void {
@@ -911,13 +898,12 @@ export class WorkflowActionService {
       parameters: [operatorID, newProperty],
       type: "execute",
     };
-    this.workflowCollabService.sendCommand(commandMessage);
-    this.executeAndStoreCommand(command);
+    this.executeStoreAndPropagateCommand(command, commandMessage);
   }
 
   public changeOperatorPosition(currentHighlighted: string[], offsetX: number, offsetY: number) {
     const command: Command = {
-      modifiesWorkflow: false,
+      modifiesWorkflow: true,
       execute: () => {
         this.changeOperatorPositionInternal(currentHighlighted, offsetX, offsetY);
       },
@@ -925,13 +911,14 @@ export class WorkflowActionService {
         this.changeOperatorPositionInternal(currentHighlighted, -offsetX, -offsetY);
       },
     };
-    this.executeAndStoreCommand(command);
+    this.executeStoreAndPropagateCommand(command);
   }
 
   /**
    * set a given link's breakpoint properties to specific values
    */
   public setLinkBreakpoint(linkID: string, newBreakpoint: Breakpoint | undefined): void {
+    if (newBreakpoint == null) newBreakpoint = undefined;
     const prevBreakpoint = this.getTexeraGraph().getLinkBreakpoint(linkID);
     const command: Command = {
       modifiesWorkflow: true,
@@ -942,7 +929,13 @@ export class WorkflowActionService {
         this.setLinkBreakpointInternal(linkID, prevBreakpoint);
       },
     };
-    this.executeAndStoreCommand(command);
+
+    const commandMessage: CommandMessage = {
+      action: "setLinkBreakpoint",
+      parameters: [linkID, newBreakpoint],
+      type: "execute",
+    };
+    this.executeStoreAndPropagateCommand(command, commandMessage);
   }
 
   /**
@@ -958,57 +951,56 @@ export class WorkflowActionService {
    * Reload the given workflow, update workflowMetadata and workflowContent.
    */
   public reloadWorkflow(workflow: Workflow | undefined, asyncRendering = false): void {
-    this.jointGraphWrapper.jointGraphContext.withContext(
-      {async: asyncRendering},
-      () => {
-        this.setWorkflowMetadata(workflow);
-        // remove the existing operators on the paper currently
-        
-        this.deleteOperatorsAndLinks(
-          this.getTexeraGraph()
-            .getAllOperators()
-            .map(op => op.operatorID),
-          []
-        );
+    this.toggleSendData(false);
+    this.jointGraphWrapper.jointGraphContext.withContext({ async: asyncRendering }, () => {
+      this.setWorkflowMetadata(workflow);
+      // remove the existing operators on the paper currently
 
-        if (workflow === undefined) {
-          return;
+      this.deleteOperatorsAndLinks(
+        this.getTexeraGraph()
+          .getAllOperators()
+          .map(op => op.operatorID),
+        []
+      );
+
+      if (workflow === undefined) {
+        return;
+      }
+
+      const workflowContent: WorkflowContent = workflow.content;
+
+      const operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
+      workflowContent.operators.forEach(op => {
+        const opPosition = workflowContent.operatorPositions[op.operatorID];
+        if (!opPosition) {
+          throw new Error("position error");
         }
+        operatorsAndPositions.push({ op: op, pos: opPosition });
+      });
 
-        const workflowContent: WorkflowContent = workflow.content;
+      const links: OperatorLink[] = workflowContent.links;
 
-        const operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
-        workflowContent.operators.forEach(op => {
-          const opPosition = workflowContent.operatorPositions[op.operatorID];
-          if (!opPosition) {
-            throw new Error("position error");
-          }
-          operatorsAndPositions.push({ op: op, pos: opPosition });
-        });
+      const groups: readonly Group[] = workflowContent.groups.map(group => {
+        return {
+          groupID: group.groupID,
+          operators: recordToMap(group.operators),
+          links: recordToMap(group.links),
+          inLinks: group.inLinks,
+          outLinks: group.outLinks,
+          collapsed: group.collapsed,
+        };
+      });
 
-        const links: OperatorLink[] = workflowContent.links;
+      const breakpoints = new Map(Object.entries(workflowContent.breakpoints));
+      this.addOperatorsAndLinks(operatorsAndPositions, links, groups, breakpoints);
 
-        const groups: readonly Group[] = workflowContent.groups.map(group => {
-          return {
-            groupID: group.groupID,
-            operators: recordToMap(group.operators),
-            links: recordToMap(group.links),
-            inLinks: group.inLinks,
-            outLinks: group.outLinks,
-            collapsed: group.collapsed,
-          };
-        });
-
-        const breakpoints = new Map(Object.entries(workflowContent.breakpoints));
-        this.addOperatorsAndLinks(operatorsAndPositions, links, groups, breakpoints);
-
-        // operators shouldn't be highlighted during page reload
-        const jointGraphWrapper = this.getJointGraphWrapper();
-        jointGraphWrapper.unhighlightOperators(...jointGraphWrapper.getCurrentHighlightedOperatorIDs());
-        // restore the view point
-        this.getJointGraphWrapper().restoreDefaultZoomAndOffset();
-      }  
-    );
+      // operators shouldn't be highlighted during page reload
+      const jointGraphWrapper = this.getJointGraphWrapper();
+      jointGraphWrapper.unhighlightOperators(...jointGraphWrapper.getCurrentHighlightedOperatorIDs());
+      // restore the view point
+      this.getJointGraphWrapper().restoreDefaultZoomAndOffset();
+    });
+    this.toggleSendData(true);
   }
 
   public workflowChanged(): Observable<void> {
@@ -1118,14 +1110,13 @@ export class WorkflowActionService {
       parameters: [],
       type: "execute",
     };
-    this.workflowCollabService.sendCommand(commandMessage);
+    this.workflowCollabService.propagateChange(commandMessage);
   }
 
   private addOperatorsInternal(operatorsAndPositions: readonly { operator: OperatorPredicate; point: Point }[]): void {
-
     const operatorJointElements: joint.dia.Element[] = new Array(operatorsAndPositions.length);
 
-    for (let i = 0; i < operatorsAndPositions.length; i++){
+    for (let i = 0; i < operatorsAndPositions.length; i++) {
       let operator = operatorsAndPositions[i].operator;
       let point = operatorsAndPositions[i].point;
 
@@ -1144,7 +1135,7 @@ export class WorkflowActionService {
     // if jointJS throws an error, it won't cause the inconsistency in texera graph
     this.jointGraph.addCells(operatorJointElements);
 
-    for (let i = 0; i < operatorsAndPositions.length; i++){
+    for (let i = 0; i < operatorsAndPositions.length; i++) {
       let operator = operatorsAndPositions[i].operator;
       let point = operatorsAndPositions[i].point;
       this.jointGraphWrapper.setCellLayer(operator.operatorID, this.operatorGroup.getHighestLayer() + 1);
@@ -1166,9 +1157,9 @@ export class WorkflowActionService {
   }
 
   private addLinksInternal(links: readonly OperatorLink[]): void {
-    const jointLinkCells: joint.dia.Link[] = new Array(links.length); 
+    const jointLinkCells: joint.dia.Link[] = new Array(links.length);
 
-    for (let i = 0; i < links.length; i++){
+    for (let i = 0; i < links.length; i++) {
       let link = links[i];
 
       this.texeraGraph.assertLinkNotExists(link);
@@ -1196,13 +1187,12 @@ export class WorkflowActionService {
     this.operatorGroup.setSyncTexeraGraph(false);
     // TODO: figure out how to add a batch of links to JointJS without the breakpoint error
     // this.jointGraph.addCells(jointLinkCells.filter(x => x !== undefined));
-    for (let i = 0; i < links.length; i++){
+    for (let i = 0; i < links.length; i++) {
       this.jointGraph.addCell(jointLinkCells[i]);
       this.texeraGraph.addLink(links[i]);
       this.jointGraphWrapper.setCellLayer(links[i].linkID, this.operatorGroup.getHighestLayer() + 1);
     }
     this.operatorGroup.setSyncTexeraGraph(true);
-
   }
 
   private deleteLinkWithIDInternal(linkID: string): void {
@@ -1303,8 +1293,7 @@ export class WorkflowActionService {
     });
   }
 
-  // TODO: Might need to merge with sendCommand
-  private executeAndStoreCommand(command: Command): void {
+  private executeStoreAndPropagateCommand(command: Command, message?: CommandMessage | undefined): void {
     // if command would modify workflow (adding link, operator, changing operator properties), throw an error
     // non-modifying commands include dragging an operator.
     if (command.modifiesWorkflow && !this.workflowModificationEnabled) {
@@ -1316,6 +1305,8 @@ export class WorkflowActionService {
     command.execute();
     this.undoRedoService.addCommand(command);
     this.undoRedoService.setListenJointCommand(true);
+
+    if (message) this.workflowCollabService.propagateChange(message);
   }
 
   private setLinkBreakpointInternal(linkID: string, newBreakpoint: Breakpoint | undefined): void {
@@ -1328,13 +1319,41 @@ export class WorkflowActionService {
   }
 
   private listenToRemoteChange(): void {
-    this.workflowCollabService.getCommandMessageStream().subscribe(message => {
+    this.workflowCollabService.getChangeStream().subscribe(message => {
       if (message.type === "execute") {
         this.workflowCollabService.handleRemoteChange(() => {
-          const func = message.action;
+          const func: commandFuncs = message.action;
+          const previousModificationEnabledStatus = this.workflowModificationEnabled;
+          this.enableWorkflowModification();
           (this[func] as any).apply(this, message.parameters);
+          if (!previousModificationEnabledStatus) this.disableWorkflowModification();
         });
       }
     });
+  }
+
+  /**
+   * Handles lock status change.
+   */
+  private listenToLockChange(): void {
+    this.workflowCollabService.getLockStatusStream().subscribe(isLockGranted => {
+      if (this.lockListenEnabled) {
+        if (isLockGranted) this.enableWorkflowModification();
+        else this.disableWorkflowModification();
+      }
+    });
+  }
+
+  /**
+   * Used after temporarily blocking lock changes.
+   */
+  public syncLock(): void {
+    if (this.lockListenEnabled) {
+      if (this.workflowCollabService.isLockGranted()) {
+        this.enableWorkflowModification();
+      } else {
+        this.disableWorkflowModification();
+      }
+    }
   }
 }
