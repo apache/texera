@@ -1,9 +1,10 @@
 import { Component, Input, OnInit } from "@angular/core";
 import { FormBuilder, Validators } from "@angular/forms";
 import { NzModalRef } from "ng-zorro-antd/modal";
-import { CommentBox, Comment } from "src/app/workspace/types/workflow-common.interface";
+import { CommentBox } from "src/app/workspace/types/workflow-common.interface";
 import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
 import { UserService } from "src/app/common/service/user/user.service";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { User } from "src/app/common/type/user";
 import { untilDestroyed } from "@ngneat/until-destroy";
 import { UntilDestroy } from "@ngneat/until-destroy";
@@ -26,7 +27,8 @@ export class NzModalCommentBoxComponent {
     public workflowActionService: WorkflowActionService,
     private formBuilder: FormBuilder,
     public userService: UserService,
-    public modal: NzModalRef<any, number>
+    public modal: NzModalRef<any, number>,
+    public notificationService: NotificationService
   ) {
     this.userService
       .userChanged()
@@ -36,21 +38,21 @@ export class NzModalCommentBoxComponent {
 
   public onClickAddComment(): void {
     if (this.commentForm.get("comment")?.invalid) {
-      alert("Cannot Submit Empty Comment!!");
+      this.notificationService.error("Cannot Submit Empty Comment!!");
       return;
     }
     const newComment = this.commentForm.get("comment")?.value;
-    this.updateComments(newComment);
+    this.addComment(newComment);
     this.commentForm.get("comment")?.setValue("");
   }
 
-  public updateComments(newComment: string): void {
+  public addComment(newComment: string): void {
     const currentTime: string = new Date().toISOString();
     const creator = this.user?.name;
+    const creatorID = this.user?.uid;
     this.workflowActionService.addComment(
-      { content: newComment, creationTime: currentTime, creator: creator },
+      { content: newComment, creationTime: currentTime, creator: creator, creatorID:creatorID },
       this.commentBox.commentBoxID
     );
-    console.log(this.commentBox);
   }
 }

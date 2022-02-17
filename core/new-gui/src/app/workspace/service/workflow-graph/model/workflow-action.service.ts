@@ -480,7 +480,7 @@ export class WorkflowActionService {
         this.addCommentBoxInternal(commentBox);
       },
       undo: () => {
-        console.log("haha, just kidding");
+        this.deleteCommentBoxInternal(commentBox.commentBoxID);
       }
     };
     this.executeAndStoreCommand(command);
@@ -526,8 +526,6 @@ export class WorkflowActionService {
         }
       },
       undo: () => {
-        console.log("somehow it is undoing");
-
         if (groups) {
           groups.forEach(group => {
             this.unGroupInternal(group.groupID);

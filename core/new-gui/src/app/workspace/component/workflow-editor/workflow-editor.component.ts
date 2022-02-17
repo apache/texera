@@ -4,11 +4,8 @@ import * as joint from "jointjs";
 // 2) always add this import statement even if TypeScript doesn't show an error https://github.com/Microsoft/TypeScript/issues/22016
 import * as jQuery from "jquery";
 import { fromEvent, merge } from "rxjs";
-import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
-// import { Subscription } from "rxjs";
-// import { Observable } from "rxjs/Observable";
 import { assertType } from "src/app/common/util/assert";
 import { environment } from "../../../../environments/environment";
 import { DragDropService } from "../../service/drag-drop/drag-drop.service";
@@ -119,7 +116,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     private workflowStatusService: WorkflowStatusService,
     private workflowUtilService: WorkflowUtilService,
     private executeWorkflowService: ExecuteWorkflowService,
-    private modalService: NgbModal,
     private nzModalService: NzModalService
   ) {}
 
@@ -566,9 +562,10 @@ export class WorkflowEditorComponent implements AfterViewInit {
     fromEvent<JointPaperEvent>(this.getJointPaper(), "cell:pointerdblclick")
       .pipe(untilDestroyed(this))
       .subscribe(event => {
+        const clickedCommentBox= event[0].model;
         if (
-          event[0].model.isElement() &&
-          this.workflowActionService.getTexeraGraph().hasCommentBox(event[0].model.id.toString())
+          clickedCommentBox.isElement() &&
+          this.workflowActionService.getTexeraGraph().hasCommentBox(clickedCommentBox.id.toString())
         ) {
           this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(<boolean>event[1].shiftKey);
           const elementID = event[0].model.id.toString();

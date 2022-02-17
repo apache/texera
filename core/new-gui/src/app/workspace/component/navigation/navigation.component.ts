@@ -14,7 +14,6 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { merge } from "rxjs";
-import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
 import { debounceTime } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -87,7 +86,6 @@ export class NavigationComponent {
     private workflowCacheService: WorkflowCacheService,
     private datePipe: DatePipe,
     public workflowResultExportService: WorkflowResultExportService,
-    private modalService: NgbModal,
     public workflowUtilService: WorkflowUtilService
   ) {
     this.executionState = executeWorkflowService.getExecutionState().state;

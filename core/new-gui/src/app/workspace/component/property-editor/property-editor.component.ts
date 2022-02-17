@@ -85,7 +85,9 @@ export class PropertyEditorComponent implements OnInit {
         .getJointCommentBoxHighlightStream(),
       this.workflowActionService
         .getJointGraphWrapper()
-        .getJointCommentBoxUnhighlightStream()
+        .getJointCommentBoxUnhighlightStream(),
+      this.workflowVersionService.workflowVersionsDisplayObservable()
+
     )
       .pipe(untilDestroyed(this))
       .subscribe(event => {

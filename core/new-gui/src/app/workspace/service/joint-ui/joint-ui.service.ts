@@ -147,7 +147,6 @@ class TexeraCustomCommentElement extends joint.shapes.devs.Model {
   markup = `<g class = "element-node">
   <rect class = "body"></rect>
   ${deleteButtonSVG}
-  <image></image>
   </g>`;
 }
 /**

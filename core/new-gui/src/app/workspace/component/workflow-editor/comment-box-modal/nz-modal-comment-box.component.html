@@ -10,6 +10,6 @@
     </nz-list>
   <form (ngSubmit) = "onClickAddComment()" [formGroup]="commentForm">
     <input type="text" formControlName = "comment">
-    <button class="btn btn-primary" type="submit">Share</button>
+    <button nz-button nzType = "primary" type="submit">Share</button>
   </form>
 </div>
