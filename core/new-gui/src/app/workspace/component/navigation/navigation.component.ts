@@ -202,7 +202,6 @@ export class NavigationComponent {
     }
   }
 
-
   public onClickAddCommentBox(): void {
     this.workflowActionService.addCommentBox(this.workflowUtilService.getNewCommentBox());
   }

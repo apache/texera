@@ -1,15 +1,15 @@
 <div class="modal-body">
   <nz-list [nzItemLayout]="'horizontal'">
     <nz-list-item *ngFor="let item of commentBox.comments">
-        <nz-comment [nzAuthor]="item.creator" [nzDatetime]="item.creationTime">
-          <nz-comment-content>
-            <p>{{ item.content }}</p>
-          </nz-comment-content>
-        </nz-comment>
-      </nz-list-item>
-    </nz-list>
-  <form (ngSubmit) = "onClickAddComment()" [formGroup]="commentForm">
-    <input type="text" formControlName = "comment">
-    <button nz-button nzType = "primary" type="submit">Share</button>
+      <nz-comment [nzAuthor]="item.creator" [nzDatetime]="item.creationTime">
+        <nz-comment-content>
+          <p>{{ item.content }}</p>
+        </nz-comment-content>
+      </nz-comment>
+    </nz-list-item>
+  </nz-list>
+  <form (ngSubmit)="onClickAddComment()" [formGroup]="commentForm">
+    <input type="text" formControlName="comment" />
+    <button nz-button nzType="primary" type="submit">Share</button>
   </form>
 </div>

@@ -1,9 +1,4 @@
-import {
-  OperatorPredicate,
-  CommentBox,
-  Comment,
-  Point
-} from "../../../types/workflow-common.interface";
+import { OperatorPredicate, CommentBox, Comment, Point } from "../../../types/workflow-common.interface";
 import { OperatorMetadataService } from "../../operator-metadata/operator-metadata.service";
 import { OperatorSchema } from "../../../types/operator-schema.interface";
 import { Injectable } from "@angular/core";

@@ -86,7 +86,7 @@ export class JointGraphWrapper {
     operators: [],
     groups: [],
     links: [],
-    commentBoxes: []
+    commentBoxes: [],
   };
 
   // the currently highlighted operators' IDs
@@ -111,7 +111,6 @@ export class JointGraphWrapper {
   private jointCommentBoxUnhighlightStream = new Subject<readonly string[]>();
 
   private currentHighlightedCommentBoxes: string[] = [];
-
 
   // event stream of zooming the jointJS paper
   private workflowEditorZoomSubject: Subject<number> = new Subject<number>();
@@ -259,7 +258,7 @@ export class JointGraphWrapper {
       operators: this.currentHighlightedOperators,
       groups: this.currentHighlightedGroups,
       links: this.currentHighlightedLinks,
-      commentBoxes: this.currentHighlightedCommentBoxes
+      commentBoxes: this.currentHighlightedCommentBoxes,
     };
   }
 
@@ -437,10 +436,10 @@ export class JointGraphWrapper {
     const highlightedCommentBoxesIDs: string[] = [];
     this.unhighlightCommentBoxes(...this.currentHighlightedCommentBoxes);
     commentBoxIDs.forEach(commentBoxID =>
-      this.highlightElement(commentBoxID, this.currentHighlightedCommentBoxes, highlightedCommentBoxesIDs));
+      this.highlightElement(commentBoxID, this.currentHighlightedCommentBoxes, highlightedCommentBoxesIDs)
+    );
 
     if (highlightedCommentBoxesIDs.length > 0) {
-
       this.jointCommentBoxHighlightStream.next(highlightedCommentBoxesIDs);
     }
   }
@@ -448,8 +447,9 @@ export class JointGraphWrapper {
   public unhighlightCommentBoxes(...commentBoxIDs: string[]): void {
     const unhighlightedCommentBoxesIDs: string[] = [];
     commentBoxIDs.forEach(commentBoxID =>
-      this.unhighlightElement(commentBoxID, this.currentHighlightedCommentBoxes, unhighlightedCommentBoxesIDs));
-    if(unhighlightedCommentBoxesIDs.length > 0){
+      this.unhighlightElement(commentBoxID, this.currentHighlightedCommentBoxes, unhighlightedCommentBoxesIDs)
+    );
+    if (unhighlightedCommentBoxesIDs.length > 0) {
       this.jointCommentBoxUnhighlightStream.next(unhighlightedCommentBoxesIDs);
     }
   }

@@ -4,20 +4,9 @@ import { OperatorSchema } from "../../types/operator-schema.interface";
 
 import { OperatorResultCacheStatus } from "../../types/workflow-websocket.interface";
 import { abbreviateNumber } from "js-abbreviation-number";
-import {
-  Point,
-  OperatorPredicate,
-  OperatorLink,
-  CommentBox
-} from "../../types/workflow-common.interface";
-import {
-  Group,
-  GroupBoundingBox
-} from "../workflow-graph/model/operator-group";
-import {
-  OperatorState,
-  OperatorStatistics
-} from "../../types/execute-workflow.interface";
+import { Point, OperatorPredicate, OperatorLink, CommentBox } from "../../types/workflow-common.interface";
+import { Group, GroupBoundingBox } from "../workflow-graph/model/operator-group";
+import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
 import * as joint from "jointjs";
 import { jitOnlyGuardedExpression } from "@angular/compiler/src/render3/util";
 
@@ -181,7 +170,6 @@ export class JointUIService {
   public static readonly DEFAULT_COMMENT_WIDTH = 32;
   public static readonly DEFAULT_COMMENT_HEIGHT = 32;
 
-
   constructor(private operatorMetadataService: OperatorMetadataService) {
     // initialize the operator information
     // subscribe to operator metadata observable
@@ -208,27 +196,21 @@ export class JointUIService {
 
   public getCommentElement(commentBox: CommentBox): joint.dia.Element {
     const basic = new joint.shapes.standard.Rectangle();
-    basic.position(
-      commentBox.commentBoxPosition.x,
-      commentBox.commentBoxPosition.y
-    );
+    basic.position(commentBox.commentBoxPosition.x, commentBox.commentBoxPosition.y);
     basic.resize(120, 50);
     const commentElement = new TexeraCustomCommentElement({
       position: commentBox.commentBoxPosition,
       size: {
         width: JointUIService.DEFAULT_COMMENT_WIDTH,
-        height: JointUIService.DEFAULT_COMMENT_HEIGHT
+        height: JointUIService.DEFAULT_COMMENT_HEIGHT,
       },
-      attrs: JointUIService.getCustomCommentStyleAttrs()
+      attrs: JointUIService.getCustomCommentStyleAttrs(),
     });
     commentElement.set("id", commentBox.commentBoxID);
     return commentElement;
   }
 
-  public getJointOperatorElement(
-    operator: OperatorPredicate,
-    point: Point
-  ): joint.dia.Element {
+  public getJointOperatorElement(operator: OperatorPredicate, point: Point): joint.dia.Element {
     // check if the operatorType exists in the operator metadata
     const operatorSchema = this.operatorSchemas.find(op => op.operatorType === operator.operatorType);
     if (operatorSchema === undefined) {
@@ -948,7 +930,7 @@ export class JointUIService {
         stroke: "#CED4D9",
         "stroke-width": "0",
         rx: "5px",
-        ry: "5px"
+        ry: "5px",
       },
       image: {
         "xlink:href": "assets/operator_images/icons8-chat_bubble.png",
@@ -958,15 +940,15 @@ export class JointUIService {
         "ref-y": 0.5,
         ref: "rect",
         "x-alignment": "middle",
-        "y-alignment": "middle"
+        "y-alignment": "middle",
       },
       ".delete-button": {
         x: 22,
         y: -16,
         cursor: "pointer",
         fill: "#D8656A",
-        event: "element:delete"
-      }
+        event: "element:delete",
+      },
     };
     return commentStyleAttrs;
   }

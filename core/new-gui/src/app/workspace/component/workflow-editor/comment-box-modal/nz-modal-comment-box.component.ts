@@ -51,7 +51,7 @@ export class NzModalCommentBoxComponent {
     const creator = this.user?.name;
     const creatorID = this.user?.uid;
     this.workflowActionService.addComment(
-      { content: newComment, creationTime: currentTime, creator: creator, creatorID:creatorID },
+      { content: newComment, creationTime: currentTime, creator: creator, creatorID: creatorID },
       this.commentBox.commentBoxID
     );
   }

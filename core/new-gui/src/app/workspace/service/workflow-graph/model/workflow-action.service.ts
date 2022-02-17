@@ -13,7 +13,7 @@ import {
   OperatorPredicate,
   Point,
   CommentBox,
-  Comment
+  Comment,
 } from "../../../types/workflow-common.interface";
 import { JointUIService } from "../../joint-ui/joint-ui.service";
 import { OperatorMetadataService } from "../../operator-metadata/operator-metadata.service";
@@ -481,7 +481,7 @@ export class WorkflowActionService {
       },
       undo: () => {
         this.deleteCommentBoxInternal(commentBox.commentBoxID);
-      }
+      },
     };
     this.executeAndStoreCommand(command);
   }
@@ -988,7 +988,7 @@ export class WorkflowActionService {
     );
     this.getTexeraGraph()
       .getAllCommentBoxes()
-      .forEach((commentBox) => this.deleteCommentBox(commentBox.commentBoxID));
+      .forEach(commentBox => this.deleteCommentBox(commentBox.commentBoxID));
     if (workflow === undefined) {
       return;
     }
@@ -1017,9 +1017,7 @@ export class WorkflowActionService {
       };
     });
 
-    workflowContent.commentBoxes.forEach((commentBox) =>
-      this.addCommentBox(commentBox)
-    );
+    workflowContent.commentBoxes.forEach(commentBox => this.addCommentBox(commentBox));
 
     const breakpoints = new Map(Object.entries(workflowContent.breakpoints));
 
@@ -1100,11 +1098,8 @@ export class WorkflowActionService {
         op => (operatorPositions[op.operatorID] = this.getJointGraphWrapper().getElementPosition(op.operatorID))
       );
     commentBoxes.forEach(
-      (commentBox) =>
-        (commentBox.commentBoxPosition =
-          this.getJointGraphWrapper().getElementPosition(
-            commentBox.commentBoxID
-          ))
+      commentBox =>
+        (commentBox.commentBoxPosition = this.getJointGraphWrapper().getElementPosition(commentBox.commentBoxID))
     );
     const workflowContent: WorkflowContent = {
       operators,
@@ -1112,7 +1107,7 @@ export class WorkflowActionService {
       links,
       groups,
       breakpoints,
-      commentBoxes
+      commentBoxes,
     };
     return workflowContent;
   }
@@ -1138,7 +1133,6 @@ export class WorkflowActionService {
 
   public getTempWorkflow(): Workflow | undefined {
     return this.tempWorkflow;
-
   }
 
   public setWorkflowName(name: string): void {

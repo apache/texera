@@ -5,7 +5,7 @@ import {
   OperatorLink,
   OperatorPredicate,
   Point,
-  CommentBox
+  CommentBox,
 } from "../../workspace/types/workflow-common.interface";
 
 /**
@@ -20,13 +20,14 @@ import {
  *  will then be used to reload the entire workflow.
  *
  */
-export interface WorkflowContent extends Readonly<{
-  operators: OperatorPredicate[];
-  operatorPositions: { [key: string]: Point };
-  links: OperatorLink[];
-  groups: PlainGroup[];
-  breakpoints: Record<string, Breakpoint>;
-  commentBoxes: CommentBox[];
-}> { }
+export interface WorkflowContent
+  extends Readonly<{
+    operators: OperatorPredicate[];
+    operatorPositions: { [key: string]: Point };
+    links: OperatorLink[];
+    groups: PlainGroup[];
+    breakpoints: Record<string, Breakpoint>;
+    commentBoxes: CommentBox[];
+  }> {}
 
 export type Workflow = { content: WorkflowContent } & WorkflowMetadata;

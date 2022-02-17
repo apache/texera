@@ -234,7 +234,7 @@ registerLocaleData(en);
     NzTabsModule,
     NzTreeViewModule,
     NzPaginationModule,
-    NzCommentModule
+    NzCommentModule,
   ],
   entryComponents: [
     NgbdModalAddWorkflowComponent,
@@ -246,7 +246,7 @@ registerLocaleData(en);
     RowModalComponent,
     NgbdModalFileAddComponent,
     NgbdModalWorkflowShareAccessComponent,
-    NzModalCommentBoxComponent
+    NzModalCommentBoxComponent,
     NgbdModalWorkflowExecutionsComponent,
   ],
   providers: [

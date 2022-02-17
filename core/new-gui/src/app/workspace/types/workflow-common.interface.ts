@@ -29,19 +29,19 @@ export interface OperatorPredicate
     isCached?: boolean;
     customDisplayName?: string;
   }> {}
-export interface Comment extends Readonly<{
-  content: string;
-  creationTime: string;
-  creator: string | undefined;
-  creatorID: number | undefined;
-}> { }
+export interface Comment
+  extends Readonly<{
+    content: string;
+    creationTime: string;
+    creator: string | undefined;
+    creatorID: number | undefined;
+  }> {}
 
 export interface CommentBox {
   commentBoxID: string;
   comments: Comment[];
   commentBoxPosition: Point;
 }
-
 
 export interface OperatorLink
   extends Readonly<{

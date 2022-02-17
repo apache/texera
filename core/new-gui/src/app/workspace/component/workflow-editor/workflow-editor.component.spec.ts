@@ -9,7 +9,7 @@ import { OperatorMetadataService } from "../../service/operator-metadata/operato
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
 import { JointUIService } from "../../service/joint-ui/joint-ui.service";
 import { NzModalModule } from "ng-zorro-antd/modal";
-import {Overlay} from "@angular/cdk/overlay";
+import { Overlay } from "@angular/cdk/overlay";
 import * as jQuery from "jquery";
 import * as joint from "jointjs";
 import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";

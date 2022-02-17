@@ -562,7 +562,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     fromEvent<JointPaperEvent>(this.getJointPaper(), "cell:pointerdblclick")
       .pipe(untilDestroyed(this))
       .subscribe(event => {
-        const clickedCommentBox= event[0].model;
+        const clickedCommentBox = event[0].model;
         if (
           clickedCommentBox.isElement() &&
           this.workflowActionService.getTexeraGraph().hasCommentBox(clickedCommentBox.id.toString())

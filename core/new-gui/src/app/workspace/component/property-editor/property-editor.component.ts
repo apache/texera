@@ -62,32 +62,15 @@ export class PropertyEditorComponent implements OnInit {
    */
   registerHighlightEventsHandler() {
     merge(
-      this.workflowActionService
-        .getJointGraphWrapper()
-        .getJointOperatorHighlightStream(),
-      this.workflowActionService
-        .getJointGraphWrapper()
-        .getJointOperatorUnhighlightStream(),
-      this.workflowActionService
-        .getJointGraphWrapper()
-        .getJointGroupHighlightStream(),
-      this.workflowActionService
-        .getJointGraphWrapper()
-        .getJointGroupUnhighlightStream(),
-      this.workflowActionService
-        .getJointGraphWrapper()
-        .getLinkHighlightStream(),
-      this.workflowActionService
-        .getJointGraphWrapper()
-        .getLinkUnhighlightStream(),
-      this.workflowActionService
-        .getJointGraphWrapper()
-        .getJointCommentBoxHighlightStream(),
-      this.workflowActionService
-        .getJointGraphWrapper()
-        .getJointCommentBoxUnhighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointGroupHighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getLinkHighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getLinkUnhighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointCommentBoxHighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointCommentBoxUnhighlightStream(),
       this.workflowVersionService.workflowVersionsDisplayObservable()
-
     )
       .pipe(untilDestroyed(this))
       .subscribe(event => {
@@ -96,12 +79,8 @@ export class PropertyEditorComponent implements OnInit {
         const highlightedOperators = this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs();
-        const highlightedGroups = this.workflowActionService
-          .getJointGraphWrapper()
-          .getCurrentHighlightedGroupIDs();
-        const highlightLinks = this.workflowActionService
-          .getJointGraphWrapper()
-          .getCurrentHighlightedLinkIDs();
+        const highlightedGroups = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
+        const highlightLinks = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
         const highlightCommentBoxes = this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedCommentBoxIDs();
