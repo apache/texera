@@ -1,9 +1,10 @@
-import { Component } from "@angular/core";
-import { FieldType } from "@ngx-formly/core";
-import { MatDialog } from "@angular/material/dialog";
-import { CodeEditorDialogComponent } from "../code-editor-dialog/code-editor-dialog.component";
-import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
-import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import {Component} from "@angular/core";
+import {FieldType} from "@ngx-formly/core";
+import {MatDialog, MatDialogRef} from "@angular/material/dialog";
+import {CodeEditorDialogComponent} from "../code-editor-dialog/code-editor-dialog.component";
+import {WorkflowCollabService} from "../../service/workflow-collab/workflow-collab.service";
+import {UntilDestroy, untilDestroyed} from "@ngneat/until-destroy";
+import {WorkflowActionService} from "../../service/workflow-graph/model/workflow-action.service";
 
 /**
  * CodeareaCustomTemplateComponent is the custom template for 'codearea' type of formly field.
@@ -22,9 +23,22 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 })
 export class CodeareaCustomTemplateComponent extends FieldType {
   lockGranted: boolean = false;
-  constructor(public dialog: MatDialog, public workflowCollabService: WorkflowCollabService) {
+  dialogRef: MatDialogRef<CodeEditorDialogComponent> | undefined;
+
+  constructor(
+    public dialog: MatDialog,
+    public workflowCollabService: WorkflowCollabService,
+    public workflowActionService: WorkflowActionService
+  ) {
     super();
     this.handleLockChange();
+    this.handleCodeChange();
+  }
+
+  onClickEditor(): void {
+    this.dialogRef = this.dialog.open(CodeEditorDialogComponent, {
+      data: this.formControl?.value || "",
+    });
   }
 
   private handleLockChange(): void {
@@ -35,9 +49,22 @@ export class CodeareaCustomTemplateComponent extends FieldType {
         this.lockGranted = lockGranted;
       });
   }
-  onClickEditor(): void {
-    this.dialog.open(CodeEditorDialogComponent, {
-      data: this.formControl?.value || "",
-    });
+
+  private handleCodeChange(): void {
+    this.workflowActionService
+      .getTexeraGraph()
+      .getOperatorPropertyChangeStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(({operator}) => {
+        if (this.dialogRef != undefined && !this.lockGranted) {
+          // here the assumption is the operator being edited must be highlighted
+          const currentOperatorId: string = this.workflowActionService
+            .getJointGraphWrapper()
+            .getCurrentHighlightedOperatorIDs()[0];
+          if (currentOperatorId === operator.operatorID) {
+            this.dialogRef.componentInstance.code = operator.operatorProperties["code"];
+          }
+        }
+      });
   }
 }
