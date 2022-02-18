@@ -17,7 +17,8 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 /** This class is a container of all the transfer partitioners.
-  * @param selfID ActorVirtualIdentity of self.
+  *
+  * @param selfID         ActorVirtualIdentity of self.
   * @param dataOutputPort DataOutputPort
   */
 class TupleToBatchConverter(
@@ -42,6 +43,65 @@ class TupleToBatchConverter(
       }
     })
     allDownstreamSamples
+  }
+
+  /**
+    * Used by Reshape to share the input of skewed worker with the helper worker.
+    * For every `tuplesToRedirectDenominator` tuples in the partition of the skewed
+    * worker, `tuplesToRedirectNumerator` tuples will be redirected to the helper.
+    */
+  def sharePartition(
+      skewedReceiverId: ActorVirtualIdentity,
+      helperReceiverId: ActorVirtualIdentity,
+      tuplesToRedirectNumerator: Long,
+      tuplesToRedirectDenominator: Long
+  ): Boolean = {
+    var success = false
+    // There can be many downstream operators that this worker sends data
+    // to. The `skewedReceiverId` and `helperReceiverId` correspond to just
+    // one of the operators. So, as long as the workers are found and the partition
+    // is shared in one of the `partiotioners`, we return success.
+    partitioners.values.foreach(partitioner => {
+      if (partitioner.isInstanceOf[ParallelBatchingPartitioner]) {
+        val receiversFound = partitioner
+          .asInstanceOf[ParallelBatchingPartitioner]
+          .addReceiverToBucket(
+            skewedReceiverId,
+            helperReceiverId,
+            tuplesToRedirectNumerator,
+            tuplesToRedirectDenominator
+          )
+        success = success | receiversFound
+      }
+    })
+    success
+  }
+
+  /**
+    * Used by Reshape to temporarily pause the mitigation if the helper worker gets
+    * too overloaded.
+    */
+  def pauseSkewMitigation(
+      skewedReceiverId: ActorVirtualIdentity,
+      helperReceiverId: ActorVirtualIdentity
+  ): Boolean = {
+    var success = false
+    // There can be many downstream operators that this worker sends data
+    // to. The `skewedReceiverId` and `helperReceiverId` correspond to just
+    // one of the operators. So, as long as the workers are found and the partition
+    // is shared in one of the `partiotioners`, we return success.
+    partitioners.values.foreach(partitioner => {
+      if (partitioner.isInstanceOf[ParallelBatchingPartitioner]) {
+        val receiversFound = partitioner
+          .asInstanceOf[ParallelBatchingPartitioner]
+          .removeReceiverFromBucket(
+            skewedReceiverId,
+            helperReceiverId
+          )
+        success = success | receiversFound
+      }
+    })
+    success
   }
 
   /**

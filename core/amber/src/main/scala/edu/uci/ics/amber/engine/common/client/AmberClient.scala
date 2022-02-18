@@ -13,14 +13,21 @@ import edu.uci.ics.amber.engine.common.client.ClientActor.{
   ObservableRequest
 }
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import rx.lang.scala.{Observable, Subject}
+import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.disposables.Disposable
+import io.reactivex.rxjava3.subjects.{PublishSubject, Subject}
 
 import scala.collection.mutable
 import scala.concurrent.Await
 import scala.concurrent.duration.{Duration, DurationInt}
 import scala.reflect.ClassTag
 
-class AmberClient(system: ActorSystem, workflow: Workflow, controllerConfig: ControllerConfig) {
+class AmberClient(
+    system: ActorSystem,
+    workflow: Workflow,
+    controllerConfig: ControllerConfig,
+    errorHandler: Throwable => Unit
+) {
 
   private val clientActor = system.actorOf(Props(new ClientActor))
   private implicit val timeout: Timeout = Timeout(1.minute)
@@ -46,6 +53,19 @@ class AmberClient(system: ActorSystem, workflow: Workflow, controllerConfig: Con
     }
   }
 
+  def sendAsyncWithCallback[T](controlCommand: ControlCommand[T], callback: T => Unit): Unit = {
+    if (!isActive) {
+      Future.exception(new RuntimeException("amber runtime environment is not active"))
+    } else {
+      val promise = Promise[Any]
+      promise.onSuccess { value =>
+        callback(value.asInstanceOf[T])
+      }
+      promise.onFailure(t => errorHandler(t))
+      clientActor ! CommandRequest(controlCommand, promise)
+    }
+  }
+
   def fireAndForget[T](controlCommand: ControlCommand[T]): Unit = {
     if (!isActive) {
       throw new RuntimeException("amber runtime environment is not active")
@@ -54,7 +74,7 @@ class AmberClient(system: ActorSystem, workflow: Workflow, controllerConfig: Con
     }
   }
 
-  def getObservable[T](implicit ct: ClassTag[T]): Observable[T] = {
+  def registerCallback[T](callback: T => Unit)(implicit ct: ClassTag[T]): Disposable = {
     if (!isActive) {
       throw new RuntimeException("amber runtime environment is not active")
     }
@@ -63,18 +83,29 @@ class AmberClient(system: ActorSystem, workflow: Workflow, controllerConfig: Con
       "get observable with a remote client actor is not supported"
     )
     val clazz = ct.runtimeClass
-    if (registeredObservables.contains(clazz)) {
-      return registeredObservables(clazz).asInstanceOf[Observable[T]]
+    val observable =
+      if (registeredObservables.contains(clazz)) {
+        registeredObservables(clazz).asInstanceOf[Observable[T]]
+      } else {
+        val sub = PublishSubject.create[T]()
+        val req = ObservableRequest({
+          case x: T =>
+            sub.onNext(x)
+        })
+        Await.result(clientActor ? req, atMost = 2.seconds)
+        val ob = sub.onTerminateDetach
+        registeredObservables(clazz) = ob
+        ob
+      }
+    observable.subscribe { evt: T =>
+      {
+        try {
+          callback(evt)
+        } catch {
+          case t: Throwable => errorHandler(t)
+        }
+      }
     }
-    val sub = Subject[T]
-    val req = ObservableRequest({
-      case x: T =>
-        sub.onNext(x)
-    })
-    Await.result(clientActor ? req, 2.seconds)
-    val ob = sub.onTerminateDetach
-    registeredObservables(clazz) = ob
-    ob
   }
 
   def executeClosureSync[T](closure: => T): T = {

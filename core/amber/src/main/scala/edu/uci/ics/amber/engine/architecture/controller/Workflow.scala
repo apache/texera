@@ -4,8 +4,6 @@ import akka.actor.{ActorContext, Address}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{WorkerInfo, WorkerLayer}
 import edu.uci.ics.amber.engine.architecture.linksemantics._
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef
-import edu.uci.ics.amber.engine.architecture.principal.OperatorState.Completed
-import edu.uci.ics.amber.engine.architecture.principal.OperatorStatistics
 import edu.uci.ics.amber.engine.common.{AmberUtils, Constants}
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
@@ -16,6 +14,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 }
 import edu.uci.ics.amber.engine.common.{AmberUtils, Constants, IOperatorExecutor}
 import edu.uci.ics.amber.engine.operators.{OpExecConfig, SinkOpExecConfig}
+import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
 
 import scala.collection.mutable
@@ -42,6 +41,8 @@ class Workflow(
 
   private val workerToOperatorExec = new mutable.HashMap[ActorVirtualIdentity, IOperatorExecutor]()
 
+  def getWorkflowId(): WorkflowIdentity = workflowId
+
   def getSources(operator: OperatorIdentity): Set[OperatorIdentity] = {
     var result = Set[OperatorIdentity]()
     var current = Set[OperatorIdentity](operator)
@@ -59,7 +60,7 @@ class Workflow(
     result
   }
 
-  def getWorkflowStatus: Map[String, OperatorStatistics] = {
+  def getWorkflowStatus: Map[String, OperatorRuntimeStats] = {
     operatorToOpExecConfig.map { op =>
       (op._1.operator, op._2.getOperatorStatistics)
     }.toMap
@@ -83,6 +84,20 @@ class Workflow(
 
   def getWorkerInfo(id: ActorVirtualIdentity): WorkerInfo = workerToLayer(id).workers(id)
 
+  /**
+    * Returns the worker layer of the upstream operators that links to the `opId` operator's
+    * worker layer.
+    */
+  def getUpStreamConnectedWorkerLayers(
+      opID: OperatorIdentity
+  ): mutable.HashMap[OperatorIdentity, WorkerLayer] = {
+    val upstreamOperatorToLayers = new mutable.HashMap[OperatorIdentity, WorkerLayer]()
+    getDirectUpstreamOperators(opID).map(uOpID =>
+      upstreamOperatorToLayers(uOpID) = getOperator(uOpID).topology.layers.last
+    )
+    upstreamOperatorToLayers
+  }
+
   def getSourceLayers: Iterable[WorkerLayer] = {
     val tos = getAllLinks.map(_.to).toSet
     getAllLayers.filter(layer => !tos.contains(layer))
@@ -105,12 +120,14 @@ class Workflow(
     layerToOperatorExecConfig(workerToLayer(workerId).id)
 
   def getLink(linkID: LinkIdentity): LinkStrategy = idToLink(linkID)
+
   def getPythonWorkers: Iterable[ActorVirtualIdentity] =
     workerToOperatorExec
       .filter({
         case (_: ActorVirtualIdentity, operatorExecutor: IOperatorExecutor) =>
           operatorExecutor.isInstanceOf[PythonUDFOpExecV2]
       }) map { case (workerId: ActorVirtualIdentity, _: IOperatorExecutor) => workerId }
+
   def getPythonWorkerToOperatorExec: Iterable[(ActorVirtualIdentity, PythonUDFOpExecV2)] =
     workerToOperatorExec
       .filter({
@@ -119,7 +136,8 @@ class Workflow(
       })
       .asInstanceOf[Iterable[(ActorVirtualIdentity, PythonUDFOpExecV2)]]
 
-  def isCompleted: Boolean = operatorToOpExecConfig.values.forall(op => op.getState == Completed)
+  def isCompleted: Boolean =
+    operatorToOpExecConfig.values.forall(op => op.getState == WorkflowAggregatedState.COMPLETED)
 
   def build(
       allNodes: Array[Address],
