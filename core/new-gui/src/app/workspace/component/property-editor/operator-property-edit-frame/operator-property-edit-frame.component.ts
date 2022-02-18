@@ -1,16 +1,16 @@
-import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from "@angular/core";
-import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
-import { Subject } from "rxjs";
-import { FormGroup } from "@angular/forms";
-import { FormlyFieldConfig, FormlyFormOptions } from "@ngx-formly/core";
+import {Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges} from "@angular/core";
+import {ExecuteWorkflowService} from "../../../service/execute-workflow/execute-workflow.service";
+import {Subject} from "rxjs";
+import {FormGroup} from "@angular/forms";
+import {FormlyFieldConfig, FormlyFormOptions} from "@ngx-formly/core";
 import * as Ajv from "ajv";
-import { FormlyJsonschema } from "@ngx-formly/core/json-schema";
-import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import { cloneDeep, isEqual, every, findIndex } from "lodash-es";
-import { CustomJSONSchema7 } from "../../../types/custom-json-schema.interface";
-import { isDefined } from "../../../../common/util/predicate";
-import { ExecutionState } from "src/app/workspace/types/execute-workflow.interface";
-import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
+import {FormlyJsonschema} from "@ngx-formly/core/json-schema";
+import {WorkflowActionService} from "../../../service/workflow-graph/model/workflow-action.service";
+import {cloneDeep, isEqual} from "lodash-es";
+import {CustomJSONSchema7} from "../../../types/custom-json-schema.interface";
+import {isDefined} from "../../../../common/util/predicate";
+import {ExecutionState} from "src/app/workspace/types/execute-workflow.interface";
+import {DynamicSchemaService} from "../../../service/dynamic-schema/dynamic-schema.service";
 import {
   SchemaAttribute,
   SchemaPropagationService,
@@ -24,12 +24,13 @@ import {
   TYPE_CASTING_OPERATOR_TYPE,
   TypeCastingDisplayComponent,
 } from "../typecasting-display/type-casting-display.component";
-import { DynamicComponentConfig } from "../../../../common/type/dynamic-component-config";
-import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { filter, first, map, takeUntil } from "rxjs/operators";
-import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
-import { environment } from "src/environments/environment";
+import {DynamicComponentConfig} from "../../../../common/type/dynamic-component-config";
+import {UntilDestroy, untilDestroyed} from "@ngneat/until-destroy";
+import {filter} from "rxjs/operators";
+import {NotificationService} from "../../../../common/service/notification/notification.service";
+import {PresetWrapperComponent} from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
+import {environment} from "src/environments/environment";
+import {WorkflowCollabService} from "../../../service/workflow-collab/workflow-collab.service";
 
 export type PropertyDisplayComponent = TypeCastingDisplayComponent;
 
@@ -91,6 +92,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
   // used to tear down subscriptions that takeUntil(teardownObservable)
   private teardownObservable: Subject<void> = new Subject();
+  public lockGranted: boolean = true;
 
   constructor(
     private formlyJsonschema: FormlyJsonschema,
@@ -98,7 +100,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     public executeWorkflowService: ExecuteWorkflowService,
     private dynamicSchemaService: DynamicSchemaService,
     private schemaPropagationService: SchemaPropagationService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private workflowCollabService: WorkflowCollabService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -134,6 +137,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     this.registerDisableEditorInteractivityHandler();
 
     this.registerOperatorDisplayNameChangeHandler();
+
+    this.registerLockChangeHandler();
   }
 
   async ngOnDestroy() {
@@ -300,8 +305,17 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       .getTexeraGraph()
       .getOperatorDisplayNameChangedStream()
       .pipe(untilDestroyed(this))
-      .subscribe(({ operatorID, newDisplayName }) => {
+      .subscribe(({operatorID, newDisplayName}) => {
         if (operatorID === this.currentOperatorId) this.formTitle = newDisplayName;
+      });
+  }
+
+  private registerLockChangeHandler(): void {
+    this.workflowCollabService
+      .getLockStatusStream()
+      .pipe(untilDestroyed(this))
+      .subscribe((lockGranted: boolean) => {
+        this.lockGranted = lockGranted;
       });
   }
 
