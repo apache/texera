@@ -353,13 +353,9 @@ export class NavigationComponent {
    */
   public onClickDisableOperators(): void {
     if (this.isDisableOperator) {
-      this.effectivelyHighlightedOperators().forEach(op => {
-        this.workflowActionService.getTexeraGraph().disableOperator(op);
-      });
+      this.workflowActionService.disableOperators(this.effectivelyHighlightedOperators());
     } else {
-      this.effectivelyHighlightedOperators().forEach(op => {
-        this.workflowActionService.getTexeraGraph().enableOperator(op);
-      });
+      this.workflowActionService.enableOperators(this.effectivelyHighlightedOperators());
     }
   }
 
@@ -370,13 +366,9 @@ export class NavigationComponent {
     );
 
     if (this.isCacheOperator) {
-      effectiveHighlightedOperatorsExcludeSink.forEach(op => {
-        this.workflowActionService.getTexeraGraph().cacheOperator(op);
-      });
+      this.workflowActionService.cacheOperators(effectiveHighlightedOperatorsExcludeSink);
     } else {
-      effectiveHighlightedOperatorsExcludeSink.forEach(op => {
-        this.workflowActionService.getTexeraGraph().unCacheOperator(op);
-      });
+      this.workflowActionService.unCacheOperators(effectiveHighlightedOperatorsExcludeSink);
     }
   }
 
@@ -391,20 +383,22 @@ export class NavigationComponent {
   }
 
   public persistWorkflow(): void {
-    this.isSaving = true;
-    this.workflowPersistService
-      .persistWorkflow(this.workflowActionService.getWorkflow())
-      .pipe(untilDestroyed(this))
-      .subscribe(
-        (updatedWorkflow: Workflow) => {
-          this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
-          this.isSaving = false;
-        },
-        (error: unknown) => {
-          alert(error);
-          this.isSaving = false;
-        }
-      );
+    if (this.workflowCollabService.isLockGranted()) {
+      this.isSaving = true;
+      this.workflowPersistService
+        .persistWorkflow(this.workflowActionService.getWorkflow())
+        .pipe(untilDestroyed(this))
+        .subscribe(
+          (updatedWorkflow: Workflow) => {
+            this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
+            this.isSaving = false;
+          },
+          (error: unknown) => {
+            alert(error);
+            this.isSaving = false;
+          }
+        );
+    }
   }
 
   /**

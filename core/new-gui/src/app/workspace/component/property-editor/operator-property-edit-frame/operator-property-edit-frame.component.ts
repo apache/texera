@@ -132,6 +132,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     this.registerOnFormChangeHandler();
 
     this.registerDisableEditorInteractivityHandler();
+
+    this.registerOperatorDisplayNameChangeHandler();
   }
 
   async ngOnDestroy() {
@@ -293,6 +295,16 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       });
   }
 
+  private registerOperatorDisplayNameChangeHandler(): void {
+    this.workflowActionService
+      .getTexeraGraph()
+      .getOperatorDisplayNameChangedStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(({ operatorID, newDisplayName }) => {
+        if (operatorID === this.currentOperatorId) this.formTitle = newDisplayName;
+      });
+  }
+
   setFormlyFormBinding(schema: CustomJSONSchema7) {
     // intercept JsonSchema -> FormlySchema process, adding custom options
     // this requires a one-to-one mapping.
@@ -382,13 +394,13 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   confirmChangeOperatorCustomName(customDisplayName: string) {
     if (this.currentOperatorId) {
       const currentOperatorSchema = this.dynamicSchemaService.getDynamicSchema(this.currentOperatorId);
-
+      const userFriendlyName = currentOperatorSchema.additionalMetadata.userFriendlyName;
       // fall back to the original userFriendlyName if no valid name is provided
       const newDisplayName =
         customDisplayName === "" || customDisplayName === undefined
           ? currentOperatorSchema.additionalMetadata.userFriendlyName
           : customDisplayName;
-      this.workflowActionService.getTexeraGraph().changeOperatorDisplayName(this.currentOperatorId, newDisplayName);
+      this.workflowActionService.setOperatorCustomName(this.currentOperatorId, newDisplayName, userFriendlyName);
       this.formTitle = newDisplayName;
     }
 

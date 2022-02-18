@@ -13,7 +13,17 @@ export type commandFuncs =
   | "deleteLink"
   | "deleteLinkWithID"
   | "resetAsNewWorkflow"
-  | "setLinkBreakpoint";
+  | "setLinkBreakpoint"
+  | "disableOperators"
+  | "enableOperators"
+  | "cacheOperators"
+  | "unCacheOperators"
+  | "setWorkflowName"
+  | "setOperatorCustomName"
+  | "highlightOperators"
+  | "unhighlightOperators"
+  | "highlightLinks"
+  | "unhighlightLinks";
 
 // keyof yields permitted property names for T. When we pass function, it'll return value of that function?
 // For this type, we index T with the property names for T, which results in us getting the values.
@@ -56,7 +66,7 @@ export interface Command {
 
   execute(): void;
 
-  undo(): void;
+  undo?(): void;
 
   redo?(): void;
 }
