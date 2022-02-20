@@ -35,6 +35,7 @@ object ControlCommandV2 {
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PythonPrint => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ReplayCurrentTuple => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.EvaluateExpression => __v.value
+      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QuerySelfWorkloadMetrics => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerExecutionCompleted => __v.value
       case edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.Empty => Empty
     }
@@ -53,6 +54,7 @@ object ControlCommandV2 {
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PythonPrint(__v)
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ReplayCurrentTupleV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ReplayCurrentTuple(__v)
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.EvaluateExpressionV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.EvaluateExpression(__v)
+      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QuerySelfWorkloadMetrics(__v)
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerExecutionCompleted(__v)
       case Empty => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.Empty
     })
@@ -120,6 +122,10 @@ final case class ControlCommandV2Message(
       };
       if (sealedValue.evaluateExpression.isDefined) {
         val __value = sealedValue.evaluateExpression.get
+        __size += 2 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+      };
+      if (sealedValue.querySelfWorkloadMetrics.isDefined) {
+        val __value = sealedValue.querySelfWorkloadMetrics.get
         __size += 2 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       };
       if (sealedValue.workerExecutionCompleted.isDefined) {
@@ -221,6 +227,12 @@ final case class ControlCommandV2Message(
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
+      sealedValue.querySelfWorkloadMetrics.foreach { __v =>
+        val __m = __v
+        _output__.writeTag(41, 2)
+        _output__.writeUInt32NoTag(__m.serializedSize)
+        __m.writeTo(_output__)
+      };
       sealedValue.workerExecutionCompleted.foreach { __v =>
         val __m = __v
         _output__.writeTag(101, 2)
@@ -256,6 +268,8 @@ final case class ControlCommandV2Message(
     def withReplayCurrentTuple(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ReplayCurrentTupleV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ReplayCurrentTuple(__v))
     def getEvaluateExpression: edu.uci.ics.amber.engine.architecture.worker.controlcommands.EvaluateExpressionV2 = sealedValue.evaluateExpression.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.EvaluateExpressionV2.defaultInstance)
     def withEvaluateExpression(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.EvaluateExpressionV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.EvaluateExpression(__v))
+    def getQuerySelfWorkloadMetrics: edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2 = sealedValue.querySelfWorkloadMetrics.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2.defaultInstance)
+    def withQuerySelfWorkloadMetrics(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QuerySelfWorkloadMetrics(__v))
     def getWorkerExecutionCompleted: edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2 = sealedValue.workerExecutionCompleted.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2.defaultInstance)
     def withWorkerExecutionCompleted(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerExecutionCompleted(__v))
     def clearSealedValue: ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.Empty)
@@ -276,6 +290,7 @@ final case class ControlCommandV2Message(
         case 23 => sealedValue.pythonPrint.orNull
         case 24 => sealedValue.replayCurrentTuple.orNull
         case 25 => sealedValue.evaluateExpression.orNull
+        case 41 => sealedValue.querySelfWorkloadMetrics.orNull
         case 101 => sealedValue.workerExecutionCompleted.orNull
       }
     }
@@ -296,6 +311,7 @@ final case class ControlCommandV2Message(
         case 23 => sealedValue.pythonPrint.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 24 => sealedValue.replayCurrentTuple.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 25 => sealedValue.evaluateExpression.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 41 => sealedValue.querySelfWorkloadMetrics.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 101 => sealedValue.workerExecutionCompleted.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
       }
     }
@@ -342,6 +358,8 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
           __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ReplayCurrentTuple(__sealedValue.replayCurrentTuple.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ReplayCurrentTupleV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 202 =>
           __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.EvaluateExpression(__sealedValue.evaluateExpression.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.EvaluateExpressionV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+        case 330 =>
+          __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QuerySelfWorkloadMetrics(__sealedValue.querySelfWorkloadMetrics.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 810 =>
           __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerExecutionCompleted(__sealedValue.workerExecutionCompleted.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case tag => _input__.skipField(tag)
@@ -369,13 +387,14 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(23).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PythonPrint(_)))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(24).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ReplayCurrentTupleV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ReplayCurrentTuple(_)))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(25).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.EvaluateExpressionV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.EvaluateExpression(_)))
+            .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(41).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QuerySelfWorkloadMetrics(_)))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(101).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerExecutionCompleted(_)))
             .getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.Empty)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(15)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(15)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(16)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(16)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
@@ -393,6 +412,7 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
       case 23 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2
       case 24 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ReplayCurrentTupleV2
       case 25 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.EvaluateExpressionV2
+      case 41 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2
       case 101 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2
     }
     __out
@@ -419,6 +439,7 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
     def isPythonPrint: _root_.scala.Boolean = false
     def isReplayCurrentTuple: _root_.scala.Boolean = false
     def isEvaluateExpression: _root_.scala.Boolean = false
+    def isQuerySelfWorkloadMetrics: _root_.scala.Boolean = false
     def isWorkerExecutionCompleted: _root_.scala.Boolean = false
     def startWorker: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.StartWorkerV2] = _root_.scala.None
     def pauseWorker: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.PauseWorkerV2] = _root_.scala.None
@@ -434,6 +455,7 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
     def pythonPrint: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2] = _root_.scala.None
     def replayCurrentTuple: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ReplayCurrentTupleV2] = _root_.scala.None
     def evaluateExpression: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.EvaluateExpressionV2] = _root_.scala.None
+    def querySelfWorkloadMetrics: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2] = _root_.scala.None
     def workerExecutionCompleted: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2] = _root_.scala.None
   }
   object SealedValue {
@@ -545,6 +567,13 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
       override def number: _root_.scala.Int = 25
     }
     @SerialVersionUID(0L)
+    final case class QuerySelfWorkloadMetrics(value: edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2) extends edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue {
+      type ValueType = edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2
+      override def isQuerySelfWorkloadMetrics: _root_.scala.Boolean = true
+      override def querySelfWorkloadMetrics: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2] = Some(value)
+      override def number: _root_.scala.Int = 41
+    }
+    @SerialVersionUID(0L)
     final case class WorkerExecutionCompleted(value: edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2) extends edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue {
       type ValueType = edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2
       override def isWorkerExecutionCompleted: _root_.scala.Boolean = true
@@ -567,6 +596,7 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
     def pythonPrint: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonPrintV2] = field(_.getPythonPrint)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PythonPrint(f_)))
     def replayCurrentTuple: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.ReplayCurrentTupleV2] = field(_.getReplayCurrentTuple)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ReplayCurrentTuple(f_)))
     def evaluateExpression: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.EvaluateExpressionV2] = field(_.getEvaluateExpression)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.EvaluateExpression(f_)))
+    def querySelfWorkloadMetrics: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2] = field(_.getQuerySelfWorkloadMetrics)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QuerySelfWorkloadMetrics(f_)))
     def workerExecutionCompleted: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2] = field(_.getWorkerExecutionCompleted)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerExecutionCompleted(f_)))
     def sealedValue: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue] = field(_.sealedValue)((c_, f_) => c_.copy(sealedValue = f_))
   }
@@ -584,6 +614,7 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
   final val PYTHON_PRINT_FIELD_NUMBER = 23
   final val REPLAY_CURRENT_TUPLE_FIELD_NUMBER = 24
   final val EVALUATE_EXPRESSION_FIELD_NUMBER = 25
+  final val QUERY_SELF_WORKLOAD_METRICS_FIELD_NUMBER = 41
   final val WORKER_EXECUTION_COMPLETED_FIELD_NUMBER = 101
   def of(
     sealedValue: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue
@@ -1941,6 +1972,55 @@ object EvaluateExpressionV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ic
     expression
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.EvaluateExpressionV2])
+}
+
+@SerialVersionUID(0L)
+final case class QuerySelfWorkloadMetricsV2(
+    ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[QuerySelfWorkloadMetricsV2] {
+    final override def serializedSize: _root_.scala.Int = 0
+    def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
+    }
+    def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = throw new MatchError(__fieldNumber)
+    def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = throw new MatchError(__field)
+    def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2
+    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.QuerySelfWorkloadMetricsV2])
+}
+
+object QuerySelfWorkloadMetricsV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2 = {
+    var _done__ = false
+    while (!_done__) {
+      val _tag__ = _input__.readTag()
+      _tag__ match {
+        case 0 => _done__ = true
+        case tag => _input__.skipField(tag)
+      }
+    }
+    edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2(
+    )
+  }
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2] = _root_.scalapb.descriptors.Reads{
+    case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
+      _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
+      edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2(
+      )
+    case _ => throw new RuntimeException("Expected PMessage")
+  }
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(15)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(15)
+  def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
+  lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
+  def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
+  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2(
+  )
+  implicit class QuerySelfWorkloadMetricsV2Lens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2](_l) {
+  }
+  def of(
+  ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2 = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2(
+  )
+  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.QuerySelfWorkloadMetricsV2])
 }
 
 @SerialVersionUID(0L)

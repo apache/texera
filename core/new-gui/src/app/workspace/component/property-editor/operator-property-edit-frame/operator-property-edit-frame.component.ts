@@ -202,9 +202,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   }
 
   evaluateInteractivity(): boolean {
-    return [ExecutionState.Uninitialized, ExecutionState.Completed].includes(
-      this.executeWorkflowService.getExecutionState().state
-    );
+    return this.workflowActionService.checkWorkflowModificationEnabled();
   }
 
   setInteractivity(interactive: boolean) {
@@ -284,10 +282,10 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   }
 
   registerDisableEditorInteractivityHandler(): void {
-    this.executeWorkflowService
-      .getExecutionStateStream()
+    this.workflowActionService
+      .getWorkflowModificationEnabledStream()
       .pipe(untilDestroyed(this))
-      .subscribe(event => {
+      .subscribe(canModify => {
         if (this.currentOperatorId) {
           const interactive = this.evaluateInteractivity();
           this.setInteractivity(interactive);

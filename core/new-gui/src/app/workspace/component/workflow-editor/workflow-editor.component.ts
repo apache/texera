@@ -63,6 +63,7 @@ const disableInteractiveOption = {
   vertexMove: false,
   vertexAdd: false,
   vertexRemove: false,
+  elementMove: false, // TODO: This is only a temporary change, will introduce another level of disable option.
 };
 
 export const WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID = "texera-workflow-editor-jointjs-wrapper-id";
@@ -1551,7 +1552,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private handleLinkBreakpointToolAttachment(): void {
     this.workflowActionService
       .getJointGraphWrapper()
-      .getJointLinkCellAddStream()
+      .createContextAwareStream(this.workflowActionService.getJointGraphWrapper().getJointLinkCellAddStream())
       .pipe(untilDestroyed(this))
       .subscribe(link => {
         const linkView = link.findView(this.getJointPaper());
@@ -1629,7 +1630,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private handleLinkBreakpointToggleEvents(): void {
     this.workflowActionService
       .getJointGraphWrapper()
-      .getLinkBreakpointShowStream()
+      .createContextAwareStream(this.workflowActionService.getJointGraphWrapper().getLinkBreakpointShowStream())
       .pipe(untilDestroyed(this))
       .subscribe(linkID => {
         this.getJointPaper().getModelById(linkID.linkID).findView(this.getJointPaper()).showTools();
@@ -1637,7 +1638,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
     this.workflowActionService
       .getJointGraphWrapper()
-      .getLinkBreakpointHideStream()
+      .createContextAwareStream(this.workflowActionService.getJointGraphWrapper().getLinkBreakpointHideStream())
       .pipe(untilDestroyed(this))
       .subscribe(linkID => {
         this.getJointPaper().getModelById(linkID.linkID).findView(this.getJointPaper()).hideTools();

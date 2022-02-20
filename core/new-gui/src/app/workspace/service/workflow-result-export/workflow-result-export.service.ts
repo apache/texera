@@ -8,6 +8,7 @@ import { NotificationService } from "../../../common/service/notification/notifi
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { filter } from "rxjs/operators";
+import { isSink } from "../workflow-graph/model/workflow-graph";
 
 @Injectable({
   providedIn: "root",
@@ -51,13 +52,7 @@ export class WorkflowResultExportService {
         this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs()
-          .filter(operatorId =>
-            this.workflowActionService
-              .getTexeraGraph()
-              .getOperator(operatorId)
-              .operatorType.toLowerCase()
-              .includes("sink")
-          ).length > 0;
+          .filter(operatorId => isSink(this.workflowActionService.getTexeraGraph().getOperator(operatorId))).length > 0;
     });
   }
 
@@ -73,9 +68,7 @@ export class WorkflowResultExportService {
     this.workflowActionService
       .getJointGraphWrapper()
       .getCurrentHighlightedOperatorIDs()
-      .filter(operatorId =>
-        this.workflowActionService.getTexeraGraph().getOperator(operatorId).operatorType.toLowerCase().includes("sink")
-      )
+      .filter(operatorId => isSink(this.workflowActionService.getTexeraGraph().getOperator(operatorId)))
       .forEach(operatorId => {
         this.workflowWebsocketService.send("ResultExportRequest", {
           exportType,

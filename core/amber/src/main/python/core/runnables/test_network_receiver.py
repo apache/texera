@@ -46,7 +46,7 @@ class TestNetworkReceiver:
         return OutputDataFrame(frame=[Tuple(r) for _, r in df_to_sent.iterrows()],
                                schema=to_arrow_schema({'Brand': 'string', 'Price': 'integer'}))
 
-    @pytest.mark.timeout(0.5)
+    @pytest.mark.timeout(2)
     def test_network_receiver_can_stop(self):
         network_receiver = NetworkReceiver(InternalQueue(), host="localhost", port=5555)
         network_receiver_thread = threading.Thread(target=network_receiver.run)
@@ -58,7 +58,7 @@ class TestNetworkReceiver:
         assert not network_receiver_thread.is_alive()
         network_receiver_thread.join()
 
-    @pytest.mark.timeout(1)
+    @pytest.mark.timeout(2)
     def test_network_receiver_can_receive_data_messages(self, data_payload, output_queue, input_queue,
                                                         network_receiver_thread, network_sender_thread):
         network_receiver_thread.start()
@@ -69,7 +69,7 @@ class TestNetworkReceiver:
         assert len(element.payload.frame) == len(data_payload.frame)
         assert element.tag == worker_id
 
-    @pytest.mark.timeout(1)
+    @pytest.mark.timeout(2)
     def test_network_receiver_can_receive_data_messages_end_of_upstream(self, data_payload,
                                                                         output_queue, input_queue,
                                                                         network_receiver_thread, network_sender_thread):
@@ -81,7 +81,7 @@ class TestNetworkReceiver:
         assert element.payload == EndOfUpstream()
         assert element.tag == worker_id
 
-    @pytest.mark.timeout(1)
+    @pytest.mark.timeout(2)
     def test_network_receiver_can_receive_control_messages(self, data_payload, output_queue, input_queue,
                                                            network_receiver_thread, network_sender_thread):
         network_receiver_thread.start()

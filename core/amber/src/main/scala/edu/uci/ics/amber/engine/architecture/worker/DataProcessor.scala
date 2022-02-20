@@ -61,6 +61,8 @@ class DataProcessor( // dependencies:
   private var currentOutputIterator: Iterator[ITuple] = _
   private var isCompleted = false
 
+  def getOperatorExecutor(): IOperatorExecutor = operator
+
   /** provide API for actor to get stats of this operator
     * @return (input tuple count, output tuple count)
     */
@@ -82,7 +84,6 @@ class DataProcessor( // dependencies:
   }
 
   def shutdown(): Unit = {
-    operator.close() // close operator
     dpThread.cancel(true) // interrupt
     dpThreadExecutor.shutdownNow() // destroy thread
   }
@@ -164,9 +165,10 @@ class DataProcessor( // dependencies:
     }
     // Send Completed signal to worker actor.
     logger.info(s"$operator completed")
+    disableDataQueue()
+    operator.close() // close operator
     asyncRPCClient.send(WorkerExecutionCompleted(), CONTROLLER)
     stateManager.transitTo(COMPLETED)
-    disableDataQueue()
     processControlCommandsAfterCompletion()
   }
 

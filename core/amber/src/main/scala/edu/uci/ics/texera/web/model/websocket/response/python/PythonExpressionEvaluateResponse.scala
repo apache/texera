@@ -6,6 +6,5 @@ import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 
 case class PythonExpressionEvaluateResponse(
     expression: String,
-    values: List[EvaluatedValue]
+    values: Seq[EvaluatedValue]
 ) extends TexeraWebSocketEvent
-    with ControlCommand[Unit]

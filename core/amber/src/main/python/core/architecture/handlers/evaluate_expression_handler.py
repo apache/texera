@@ -9,9 +9,9 @@ class EvaluateExpressionHandler(Handler):
 
     def __call__(self, context: Context, command: cmd, *args, **kwargs):
         runtime_context = {
-            r"self":   context.dp._udf_operator,
+            r"self":   context.dp._operator,
             r"tuple_": context.dp._current_input_tuple,
-            r"link":   context.dp._current_input_link,
+            r"input_":   context.dp._current_input_link,
         }
 
         evaluated_value: EvaluatedValue = ExpressionEvaluator.evaluate(command.expression, runtime_context)
