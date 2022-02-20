@@ -31,5 +31,4 @@ Texera UI showing a completed workflow, summarized metrics and results
 
 ## Acknowledgements ##
 
-This project is supported by the National Science Foundation under the grant [III 1745673](https://www.nsf.gov/awardsearch/showAward?AWD_ID=1745673).
-
+This project is supported by the National Science Foundation under the awards [III 1745673](https://www.nsf.gov/awardsearch/showAward?AWD_ID=1745673) and [III 2107150](https://www.nsf.gov/awardsearch/showAward?AWD_ID=2107150).
