@@ -120,12 +120,15 @@ object WorkflowVersionResource {
     * @return
     */
   private def encodeVersionImportance(
-      versions: List[WorkflowVersion]
+      currentVersions: List[WorkflowVersion]
   ): List[VersionEntry] = {
     var impEncodedVersions: List[VersionEntry] = List()
-    if (versions.isEmpty) {
+    if (currentVersions.size <= 2) {
       return impEncodedVersions
     }
+    val versions =
+      currentVersions.init.reverse.init // remove the last empty patch and remove the first version because current
+    // frontend can't display an empty workflow on paper TODO fix reload in `workflow-action-service.ts`
     val lastVersion = versions.head
     var lastVersionTime = lastVersion.getCreationTime
     impEncodedVersions = impEncodedVersions :+ VersionEntry(
@@ -260,9 +263,6 @@ class WorkflowVersionResource {
           .where(WORKFLOW_VERSION.WID.eq(wid))
           .fetchInto(classOf[WorkflowVersion])
           .toList
-          .init // remove the last empty patch
-          .reverse
-          .init // remove the first version because current frontend can't display an empty workflow on paper TODO fix reload in `workflow-action-service.ts`
       )
     }
   }
