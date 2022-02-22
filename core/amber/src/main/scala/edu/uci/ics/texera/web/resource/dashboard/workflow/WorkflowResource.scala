@@ -239,6 +239,7 @@ class WorkflowResource {
       throw new BadRequestException("Cannot create a new workflow with a provided id.")
     } else {
       insertWorkflow(workflow, user)
+      WorkflowVersionResource.insertVersion(workflow, true)
       DashboardWorkflowEntry(
         isOwner = true,
         WorkflowAccess.WRITE.toString,
