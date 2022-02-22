@@ -1,7 +1,5 @@
 package edu.uci.ics.texera.web.resource.dashboard.workflow
 
-import com.flipkart.zjsonpatch.JsonDiff
-import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
@@ -170,30 +168,16 @@ class WorkflowResource {
   @Consumes(Array(MediaType.APPLICATION_JSON))
   def persistWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): Workflow = {
     val user = sessionUser.getUser
-    // retrieve current workflow from DB
-    val currentWorkflow = workflowDao.fetchOneByWid(workflow.getWid)
-    val content = if (currentWorkflow == null) "{}" else currentWorkflow.getContent
-    // compute diff
-    val patch = JsonDiff.asJson(
-      objectMapper.readTree(workflow.getContent),
-      objectMapper.readTree(content)
-    )
-    if (workflowOfUserExists(workflow.getWid, user.getUid)) {
 
-      // if there is difference then write delta in DB
-      if (!patch.isEmpty) {
-        WorkflowVersionResource.insertAndUpdateVersion(patch.toString, workflow.getWid)
-      }
+    if (workflowOfUserExists(workflow.getWid, user.getUid)) {
+      WorkflowVersionResource.insertVersion(workflow, false)
       // current user reading
       workflowDao.update(workflow)
     } else {
       if (WorkflowAccessResource.hasNoWorkflowAccessRecord(workflow.getWid, user.getUid)) {
         // not owner and not access record --> new record
         insertWorkflow(workflow, user)
-        // if it is a new workflow creation, previous version shall be entire workflow
-        WorkflowVersionResource.insertVersion(patch.toString, workflow.getWid)
-        // also insert current version
-        WorkflowVersionResource.insertVersion("[]", workflow.getWid)
+        WorkflowVersionResource.insertVersion(workflow, true)
       } else if (WorkflowAccessResource.hasWriteAccess(workflow.getWid, user.getUid)) {
         // not owner but has write access
         workflowDao.update(workflow)

@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.web.resource.dashboard.workflow
 
-import com.flipkart.zjsonpatch.JsonPatch
+import com.flipkart.zjsonpatch.{JsonDiff, JsonPatch}
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.web.SqlServer
@@ -57,14 +57,40 @@ object WorkflowVersionResource {
   }
 
   /**
-    * This function inserts a new version for the current workflow
-    * @param patch
+    * This function does the check of the difference between the current workflow and its previous version if it exists and inserts a new version
+    * @param workflow
+    * @param insertNewFlag indicates if the workflow didn't exist before
+    */
+  def insertVersion(workflow: Workflow, insertNewFlag: Boolean): Unit = {
+    val wid = workflow.getWid
+    // retrieve current workflow from DB
+    val currentWorkflow = workflowDao.fetchOneByWid(wid)
+    // if the workflow is new then previous workflow is empty
+    val content = if (currentWorkflow == null) "{}" else currentWorkflow.getContent
+    // compute diff
+    val patch = JsonDiff.asJson(
+      objectMapper.readTree(workflow.getContent),
+      objectMapper.readTree(content)
+    )
+    if (insertNewFlag) {
+      insertNewVersion(wid)
+    }
+    // if there is difference then write delta in DB
+    if (!patch.isEmpty) {
+      updateLatestVersion(patch.toString, wid)
+      // write current version as an empty diff
+      insertNewVersion(wid)
+    }
+  }
+
+  /**
+    * This function inserts a new version for a new workflow
     * @param wid
     */
-  def insertVersion(patch: String, wid: UInteger): Unit = {
+  def insertNewVersion(wid: UInteger): Unit = {
     // write the new version with empty diff
     val workflowVersion = new WorkflowVersion()
-    workflowVersion.setContent(patch)
+    workflowVersion.setContent("[]")
     workflowVersion.setWid(wid)
     workflowVersionDao.insert(workflowVersion)
   }
@@ -74,17 +100,12 @@ object WorkflowVersionResource {
     * @param patch to update latest version
     * @param wid
     */
-  def insertAndUpdateVersion(patch: String, wid: UInteger): Unit = {
+  def updateLatestVersion(patch: String, wid: UInteger): Unit = {
     // get the latest version to update its content
     val vid = getLatestVersion(wid)
-    var workflowVersion = workflowVersionDao.fetchOneByVid(vid)
+    val workflowVersion = workflowVersionDao.fetchOneByVid(vid)
     workflowVersion.setContent(patch)
     workflowVersionDao.update(workflowVersion)
-    // write the new version with empty diff
-    workflowVersion = new WorkflowVersion()
-    workflowVersion.setContent("[]")
-    workflowVersion.setWid(wid)
-    workflowVersionDao.insert(workflowVersion)
   }
 
   /**
