@@ -1,12 +1,12 @@
 package edu.uci.ics.texera.web.resource.dashboard.workflow
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.flipkart.zjsonpatch.JsonPatch
 import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{WORKFLOW, WORKFLOW_VERSION}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowDao
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowVersionDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Workflow, WorkflowVersion}
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowVersionResource.{
   VersionEntry,
@@ -31,12 +31,61 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 object WorkflowVersionResource {
   final private lazy val context = SqlServer.createDSLContext()
+  final private val workflowVersionDao = new WorkflowVersionDao(context.configuration)
   final private val workflowDao = new WorkflowDao(context.configuration)
   // constant to indicate versions should be aggregated if they are within the specified time limit
   private final val AGGREGATE_TIME_LIMIT_MILLSEC =
     AmberUtils.amberConfig.getInt("user-sys.version-time-limit-in-minutes") * 60000
   // list of Json keys in the diff patch that are considered UNimportant
   private final val VERSION_UNIMPORTANCE_RULES = List("/operatorPositions/")
+
+  /**
+    * This function retrieves the latest version of a workflow
+    * @param wid
+    * @return vid
+    */
+  def getLatestVersion(wid: UInteger): UInteger = {
+    context
+      .select(WORKFLOW_VERSION.VID)
+      .from(WORKFLOW_VERSION)
+      .leftJoin(WORKFLOW)
+      .on(WORKFLOW_VERSION.WID.eq(WORKFLOW.WID))
+      .where(WORKFLOW_VERSION.WID.eq(wid))
+      .fetchInto(classOf[UInteger])
+      .toList
+      .max
+  }
+
+  /**
+    * This function inserts a new version for the current workflow
+    * @param patch
+    * @param wid
+    */
+  def insertVersion(patch: String, wid: UInteger): Unit = {
+    // write the new version with empty diff
+    val workflowVersion = new WorkflowVersion()
+    workflowVersion.setContent(patch)
+    workflowVersion.setWid(wid)
+    workflowVersionDao.insert(workflowVersion)
+  }
+
+  /**
+    * This function updates the content of the latest version and inserts a new empty version for the current workflow
+    * @param patch to update latest version
+    * @param wid
+    */
+  def insertAndUpdateVersion(patch: String, wid: UInteger): Unit = {
+    // get the latest version to update its content
+    val vid = getLatestVersion(wid)
+    var workflowVersion = workflowVersionDao.fetchOneByVid(vid)
+    workflowVersion.setContent(patch)
+    workflowVersionDao.update(workflowVersion)
+    // write the new version with empty diff
+    workflowVersion = new WorkflowVersion()
+    workflowVersion.setContent("[]")
+    workflowVersion.setWid(wid)
+    workflowVersionDao.insert(workflowVersion)
+  }
 
   /**
     * This function gives a label to each version whether it is significant or not based on a few rules
@@ -66,7 +115,7 @@ object WorkflowVersionResource {
     ) // the first (latest)
     // version is important even if it is positional
     var versionImportance: Boolean = true
-    for (version <- versions.init) {
+    for (version <- versions.tail) {
       if (isWithinTimeLimit(lastVersionTime, version.getCreationTime)) {
         versionImportance = false
       } // try reducing unnecessary check of positional versions
@@ -104,8 +153,7 @@ object WorkflowVersionResource {
     * @return
     */
   private def isVersionImportant(versionContent: String): Boolean = {
-    val mapper = new ObjectMapper()
-    val jsonTreeIterator = mapper.readTree(versionContent).iterator()
+    val jsonTreeIterator = objectMapper.readTree(versionContent).iterator()
     while (jsonTreeIterator.hasNext) {
       // if the change(which is marked by the key `path` using the Json patch library
       // doesn't contain any of the specified keywords then it shall be deemed important
@@ -126,11 +174,13 @@ object WorkflowVersionResource {
     */
   private def applyPatch(versions: List[WorkflowVersion], workflow: Workflow): Workflow = {
     // loop all versions and apply the patch
-    val mapper = new ObjectMapper()
     for (patch <- versions) {
       workflow.setContent(
         JsonPatch
-          .apply(mapper.readTree(patch.getContent), mapper.readTree(workflow.getContent))
+          .apply(
+            objectMapper.readTree(patch.getContent),
+            objectMapper.readTree(workflow.getContent)
+          )
           .toString
       )
       workflow.setCreationTime(patch.getCreationTime)
@@ -189,7 +239,9 @@ class WorkflowVersionResource {
           .where(WORKFLOW_VERSION.WID.eq(wid))
           .fetchInto(classOf[WorkflowVersion])
           .toList
+          .init // remove the last empty patch
           .reverse
+          .init // remove the first version because current frontend can't display an empty workflow on paper TODO fix reload in `workflow-action-service.ts`
       )
     }
   }

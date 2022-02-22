@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.resource.dashboard.workflow
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.flipkart.zjsonpatch.JsonDiff
+import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
@@ -13,8 +13,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   WorkflowDao,
   WorkflowOfUserDao,
-  WorkflowUserAccessDao,
-  WorkflowVersionDao
+  WorkflowUserAccessDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{
@@ -26,8 +25,7 @@ import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{
   context,
   insertWorkflow,
   workflowDao,
-  workflowOfUserExists,
-  workflowVersionDao
+  workflowOfUserExists
 }
 import io.dropwizard.auth.Auth
 import org.jooq.types.UInteger
@@ -46,7 +44,6 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 object WorkflowResource {
   final private lazy val context = SqlServer.createDSLContext()
   final private val workflowDao = new WorkflowDao(context.configuration)
-  final private val workflowVersionDao = new WorkflowVersionDao(context.configuration)
   final private val workflowOfUserDao = new WorkflowOfUserDao(
     context.configuration
   )
@@ -173,23 +170,19 @@ class WorkflowResource {
   @Consumes(Array(MediaType.APPLICATION_JSON))
   def persistWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): Workflow = {
     val user = sessionUser.getUser
+    // retrieve current workflow from DB
+    val currentWorkflow = workflowDao.fetchOneByWid(workflow.getWid)
+    val content = if (currentWorkflow == null) "{}" else currentWorkflow.getContent
+    // compute diff
+    val patch = JsonDiff.asJson(
+      objectMapper.readTree(workflow.getContent),
+      objectMapper.readTree(content)
+    )
     if (workflowOfUserExists(workflow.getWid, user.getUid)) {
 
-      // retrieve current workflow from DB
-      val currentWorkflow = workflowDao.fetchOneByWid(workflow.getWid)
-      // compute diff
-      val mapper = new ObjectMapper()
-      val patch = JsonDiff.asJson(
-        mapper.readTree(workflow.getContent),
-        mapper.readTree(currentWorkflow.getContent)
-      )
-      // if they are different
+      // if there is difference then write delta in DB
       if (!patch.isEmpty) {
-        // write into DB both diff and updated version
-        val workflowVersion = new WorkflowVersion()
-        workflowVersion.setContent(patch.toString)
-        workflowVersion.setWid(workflow.getWid)
-        workflowVersionDao.insert(workflowVersion)
+        WorkflowVersionResource.insertAndUpdateVersion(patch.toString, workflow.getWid)
       }
       // current user reading
       workflowDao.update(workflow)
@@ -197,7 +190,10 @@ class WorkflowResource {
       if (WorkflowAccessResource.hasNoWorkflowAccessRecord(workflow.getWid, user.getUid)) {
         // not owner and not access record --> new record
         insertWorkflow(workflow, user)
-
+        // if it is a new workflow creation, previous version shall be entire workflow
+        WorkflowVersionResource.insertVersion(patch.toString, workflow.getWid)
+        // also insert current version
+        WorkflowVersionResource.insertVersion("[]", workflow.getWid)
       } else if (WorkflowAccessResource.hasWriteAccess(workflow.getWid, user.getUid)) {
         // not owner but has write access
         workflowDao.update(workflow)
