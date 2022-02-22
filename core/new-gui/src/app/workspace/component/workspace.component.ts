@@ -1,27 +1,29 @@
-import {Location} from "@angular/common";
-import {AfterViewInit, Component, OnDestroy} from "@angular/core";
-import {ActivatedRoute} from "@angular/router";
-import {environment} from "../../../environments/environment";
-import {Version} from "../../../environments/version";
-import {UserService} from "../../common/service/user/user.service";
-import {WorkflowPersistService} from "../../common/service/workflow-persist/workflow-persist.service";
-import {Workflow} from "../../common/type/workflow";
-import {SchemaPropagationService} from "../service/dynamic-schema/schema-propagation/schema-propagation.service";
-import {SourceTablesService} from "../service/dynamic-schema/source-tables/source-tables.service";
-import {OperatorMetadataService} from "../service/operator-metadata/operator-metadata.service";
-import {ResultPanelToggleService} from "../service/result-panel-toggle/result-panel-toggle.service";
-import {UndoRedoService} from "../service/undo-redo/undo-redo.service";
-import {WorkflowCacheService} from "../service/workflow-cache/workflow-cache.service";
-import {WorkflowActionService} from "../service/workflow-graph/model/workflow-action.service";
-import {WorkflowWebsocketService} from "../service/workflow-websocket/workflow-websocket.service";
-import {NzMessageService} from "ng-zorro-antd/message";
-import {WorkflowConsoleService} from "../service/workflow-console/workflow-console.service";
-import {debounceTime, distinctUntilChanged, filter, switchMap} from "rxjs/operators";
-import {UntilDestroy, untilDestroyed} from "@ngneat/until-destroy";
-import {OperatorCacheStatusService} from "../service/workflow-status/operator-cache-status.service";
-import {of} from "rxjs";
-import {isDefined} from "../../common/util/predicate";
-import {WorkflowCollabService} from "../service/workflow-collab/workflow-collab.service";
+import { Location } from "@angular/common";
+import { AfterViewInit, Component, OnDestroy } from "@angular/core";
+import { ActivatedRoute } from "@angular/router";
+import { environment } from "../../../environments/environment";
+import { Version } from "../../../environments/version";
+import { UserService } from "../../common/service/user/user.service";
+import { WorkflowPersistService } from "../../common/service/workflow-persist/workflow-persist.service";
+import { Workflow } from "../../common/type/workflow";
+import { SchemaPropagationService } from "../service/dynamic-schema/schema-propagation/schema-propagation.service";
+import { SourceTablesService } from "../service/dynamic-schema/source-tables/source-tables.service";
+import { OperatorMetadataService } from "../service/operator-metadata/operator-metadata.service";
+import { ResultPanelToggleService } from "../service/result-panel-toggle/result-panel-toggle.service";
+import { UndoRedoService } from "../service/undo-redo/undo-redo.service";
+import { WorkflowCacheService } from "../service/workflow-cache/workflow-cache.service";
+import { WorkflowActionService } from "../service/workflow-graph/model/workflow-action.service";
+import { WorkflowWebsocketService } from "../service/workflow-websocket/workflow-websocket.service";
+import { NzMessageService } from "ng-zorro-antd/message";
+import { WorkflowConsoleService } from "../service/workflow-console/workflow-console.service";
+import { debounceTime, distinctUntilChanged, filter, switchMap } from "rxjs/operators";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { OperatorCacheStatusService } from "../service/workflow-status/operator-cache-status.service";
+import { of } from "rxjs";
+import { isDefined } from "../../common/util/predicate";
+import { WorkflowCollabService } from "../service/workflow-collab/workflow-collab.service";
+
+export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
 
 @UntilDestroy()
 @Component({
@@ -56,8 +58,7 @@ export class WorkspaceComponent implements AfterViewInit, OnDestroy {
     private route: ActivatedRoute,
     private operatorMetadataService: OperatorMetadataService,
     private message: NzMessageService
-  ) {
-  }
+  ) {}
 
   ngAfterViewInit(): void {
     /**
@@ -111,7 +112,7 @@ export class WorkspaceComponent implements AfterViewInit, OnDestroy {
   registerAutoCacheWorkFlow(): void {
     this.workflowActionService
       .workflowChanged()
-      .pipe(debounceTime(100))
+      .pipe(debounceTime(SAVE_DEBOUNCE_TIME_IN_MS))
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         this.workflowCacheService.setCacheWorkflow(this.workflowActionService.getWorkflow());
@@ -121,7 +122,7 @@ export class WorkspaceComponent implements AfterViewInit, OnDestroy {
   registerAutoPersistWorkflow(): void {
     this.workflowActionService
       .workflowChanged()
-      .pipe(debounceTime(300))
+      .pipe(debounceTime(SAVE_DEBOUNCE_TIME_IN_MS))
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         if (
