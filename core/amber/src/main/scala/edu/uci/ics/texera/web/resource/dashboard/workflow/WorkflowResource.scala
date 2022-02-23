@@ -162,6 +162,8 @@ class WorkflowResource {
     * @param workflow , a workflow
     * @return Workflow, which contains the generated wid if not provided//
     *         TODO: divide into two endpoints -> one for new-workflow and one for updating existing workflow
+    *         TODO: if the persist is triggered in parallel, the none atomic actions currently might cause an issue.
+    *             Should consider making the operations atomic
     */
   @POST
   @Path("/persist")
