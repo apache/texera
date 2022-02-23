@@ -179,6 +179,7 @@ class WorkflowResource {
         insertWorkflow(workflow, user)
         WorkflowVersionResource.insertVersion(workflow, true)
       } else if (WorkflowAccessResource.hasWriteAccess(workflow.getWid, user.getUid)) {
+        WorkflowVersionResource.insertVersion(workflow, false)
         // not owner but has write access
         workflowDao.update(workflow)
       } else {
