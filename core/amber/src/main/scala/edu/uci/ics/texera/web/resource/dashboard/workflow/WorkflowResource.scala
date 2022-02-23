@@ -1,7 +1,5 @@
 package edu.uci.ics.texera.web.resource.dashboard.workflow
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.flipkart.zjsonpatch.JsonDiff
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
@@ -13,8 +11,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   WorkflowDao,
   WorkflowOfUserDao,
-  WorkflowUserAccessDao,
-  WorkflowVersionDao
+  WorkflowUserAccessDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowAccessResource.{
@@ -26,8 +23,7 @@ import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowResource.{
   context,
   insertWorkflow,
   workflowDao,
-  workflowOfUserExists,
-  workflowVersionDao
+  workflowOfUserExists
 }
 import io.dropwizard.auth.Auth
 import org.jooq.types.UInteger
@@ -46,7 +42,6 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 object WorkflowResource {
   final private lazy val context = SqlServer.createDSLContext()
   final private val workflowDao = new WorkflowDao(context.configuration)
-  final private val workflowVersionDao = new WorkflowVersionDao(context.configuration)
   final private val workflowOfUserDao = new WorkflowOfUserDao(
     context.configuration
   )
@@ -167,38 +162,26 @@ class WorkflowResource {
     * @param workflow , a workflow
     * @return Workflow, which contains the generated wid if not provided//
     *         TODO: divide into two endpoints -> one for new-workflow and one for updating existing workflow
+    *         TODO: if the persist is triggered in parallel, the none atomic actions currently might cause an issue.
+    *             Should consider making the operations atomic
     */
   @POST
   @Path("/persist")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   def persistWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): Workflow = {
     val user = sessionUser.getUser
-    if (workflowOfUserExists(workflow.getWid, user.getUid)) {
 
-      // retrieve current workflow from DB
-      val currentWorkflow = workflowDao.fetchOneByWid(workflow.getWid)
-      // compute diff
-      val mapper = new ObjectMapper()
-      val patch = JsonDiff.asJson(
-        mapper.readTree(workflow.getContent),
-        mapper.readTree(currentWorkflow.getContent)
-      )
-      // if they are different
-      if (!patch.isEmpty) {
-        // write into DB both diff and updated version
-        val workflowVersion = new WorkflowVersion()
-        workflowVersion.setContent(patch.toString)
-        workflowVersion.setWid(workflow.getWid)
-        workflowVersionDao.insert(workflowVersion)
-      }
+    if (workflowOfUserExists(workflow.getWid, user.getUid)) {
+      WorkflowVersionResource.insertVersion(workflow, false)
       // current user reading
       workflowDao.update(workflow)
     } else {
       if (WorkflowAccessResource.hasNoWorkflowAccessRecord(workflow.getWid, user.getUid)) {
         // not owner and not access record --> new record
         insertWorkflow(workflow, user)
-
+        WorkflowVersionResource.insertVersion(workflow, true)
       } else if (WorkflowAccessResource.hasWriteAccess(workflow.getWid, user.getUid)) {
+        WorkflowVersionResource.insertVersion(workflow, false)
         // not owner but has write access
         workflowDao.update(workflow)
       } else {
@@ -259,6 +242,7 @@ class WorkflowResource {
       throw new BadRequestException("Cannot create a new workflow with a provided id.")
     } else {
       insertWorkflow(workflow, user)
+      WorkflowVersionResource.insertVersion(workflow, true)
       DashboardWorkflowEntry(
         isOwner = true,
         WorkflowAccess.WRITE.toString,
