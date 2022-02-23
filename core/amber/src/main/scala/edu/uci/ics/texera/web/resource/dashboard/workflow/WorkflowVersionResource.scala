@@ -45,7 +45,7 @@ object WorkflowVersionResource {
     * @return vid
     */
   def getLatestVersion(wid: UInteger): UInteger = {
-    context
+    val versions = context
       .select(WORKFLOW_VERSION.VID)
       .from(WORKFLOW_VERSION)
       .leftJoin(WORKFLOW)
@@ -53,7 +53,13 @@ object WorkflowVersionResource {
       .where(WORKFLOW_VERSION.WID.eq(wid))
       .fetchInto(classOf[UInteger])
       .toList
-      .max
+    // for backwards compatibility check, old constructed versions would follow the old design by not saving the current
+    // version as an empty delta, so should do the check and create one once
+    // TODO should remove the check when all versions in the DB follow latest design
+    if (versions.isEmpty) {
+      return insertNewVersion(wid).getVid
+    }
+    versions.max
   }
 
   /**
@@ -87,12 +93,13 @@ object WorkflowVersionResource {
     * This function inserts a new version for a new workflow
     * @param wid
     */
-  def insertNewVersion(wid: UInteger): Unit = {
+  def insertNewVersion(wid: UInteger): WorkflowVersion = {
     // write the new version with empty diff
     val workflowVersion = new WorkflowVersion()
     workflowVersion.setContent("[]")
     workflowVersion.setWid(wid)
     workflowVersionDao.insert(workflowVersion)
+    workflowVersion
   }
 
   /**
@@ -103,9 +110,26 @@ object WorkflowVersionResource {
   def updateLatestVersion(patch: String, wid: UInteger): Unit = {
     // get the latest version to update its content
     val vid = getLatestVersion(wid)
-    val workflowVersion = workflowVersionDao.fetchOneByVid(vid)
+    var workflowVersion = workflowVersionDao.fetchOneByVid(vid)
+    // for backwards compatibility, old constructed versions would follow the old design by not saving the current
+    // version as an empty delta, so should do the check and create one once
+    if (!isPatchEmpty(workflowVersion.getContent)) {
+      workflowVersion = insertNewVersion(wid)
+    }
     workflowVersion.setContent(patch)
     workflowVersionDao.update(workflowVersion)
+  }
+
+  /**
+    * This function is for testing if the version is following the current design of keeping an empty delta for the
+    * last version for migrating versions that followed the old design to the new design.
+    * This function should be removed after some time (when all versions in the DB follow the new design)
+    * @param patch
+    * @return
+    */
+  @deprecated
+  private def isPatchEmpty(patch: String): Boolean = {
+    patch == "[]"
   }
 
   /**
