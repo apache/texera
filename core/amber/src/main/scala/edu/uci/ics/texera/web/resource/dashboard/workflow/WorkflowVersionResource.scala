@@ -72,7 +72,7 @@ object WorkflowVersionResource {
     // retrieve current workflow from DB
     val currentWorkflow = workflowDao.fetchOneByWid(wid)
     // if the workflow is new then previous workflow is empty
-    val content = if (currentWorkflow == null) "{}" else currentWorkflow.getContent
+    val content = if (insertNewFlag) "{}" else currentWorkflow.getContent
     // compute diff
     val patch = JsonDiff.asJson(
       objectMapper.readTree(workflow.getContent),
