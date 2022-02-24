@@ -18,8 +18,6 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "take in attribute names" in {
-
-    //projectionOpDesc.attributes ++= List("field1", "field2")
     projectionOpDesc.attributes ++= List(
       new AttributeUnit("field1", "f1"),
       new AttributeUnit("fields2", "f2")
