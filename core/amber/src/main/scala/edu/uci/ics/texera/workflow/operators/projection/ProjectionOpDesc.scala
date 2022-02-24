@@ -4,20 +4,18 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.texera.workflow.common.metadata._
-import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeNameList
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameList}
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Schema, OperatorSchemaInfo}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 
+import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters.asJavaIterableConverter
 
 class ProjectionOpDesc extends MapOpDesc {
 
-  @JsonProperty(required = true)
-  @JsonSchemaTitle("Attributes")
-  @JsonPropertyDescription("a subset of column to keeps")
-  @AutofillAttributeNameList
-  var attributes: List[String] = List()
+
+  var attributes: List[AttributeUnit] = List()
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OneToOneOpExecConfig = {
     new OneToOneOpExecConfig(
@@ -36,11 +34,33 @@ class ProjectionOpDesc extends MapOpDesc {
     )
   }
 
+  def checkDuplicate: Boolean = {
+    var alias = new ListBuffer[String]()
+    attributes.foreach(attrName => {
+      alias += attrName.getAliasAsString()
+
+    })
+    val uniqueList = alias.distinct
+    val result = uniqueList.size
+    result == attributes.size
+
+  }
+
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Preconditions.checkArgument(schemas.length == 1)
     Preconditions.checkArgument(attributes.nonEmpty)
+    Preconditions.checkArgument(checkDuplicate)
+
     Schema.newBuilder
-      .add(attributes.map(attribute => schemas(0).getAttribute(attribute)).asJava)
+      .add(
+        attributes
+          .map(attribute =>
+            attribute.getAliasFromAttribute(
+              schemas(0).getAttribute(attribute.getOriginalAttributeAsString()).getName()
+            )
+          )
+          .asJava
+      )
       .build()
   }
 }
