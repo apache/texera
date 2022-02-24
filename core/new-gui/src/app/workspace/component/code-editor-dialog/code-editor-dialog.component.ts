@@ -1,4 +1,4 @@
-import { Component, Inject} from "@angular/core";
+import { Component, Inject } from "@angular/core";
 import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
