@@ -20,7 +20,6 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { isSink } from "../../service/workflow-graph/model/workflow-graph";
 import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
 import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
-import { delay } from "lodash";
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -68,7 +67,7 @@ export class NavigationComponent {
   public displayParticularWorkflowVersion: boolean = false;
   public onClickRunHandler: () => void;
 
-  // whether the disable operator button should be enabled
+  // whether the disable-operator-button should be enabled
   public isDisableOperatorClickable: boolean = false;
   public isDisableOperator: boolean = true;
 

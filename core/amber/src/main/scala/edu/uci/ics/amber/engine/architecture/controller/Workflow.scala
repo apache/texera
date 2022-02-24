@@ -41,6 +41,8 @@ class Workflow(
 
   private val workerToOperatorExec = new mutable.HashMap[ActorVirtualIdentity, IOperatorExecutor]()
 
+  def getWorkflowId(): WorkflowIdentity = workflowId
+
   def getSources(operator: OperatorIdentity): Set[OperatorIdentity] = {
     var result = Set[OperatorIdentity]()
     var current = Set[OperatorIdentity](operator)
@@ -82,6 +84,20 @@ class Workflow(
 
   def getWorkerInfo(id: ActorVirtualIdentity): WorkerInfo = workerToLayer(id).workers(id)
 
+  /**
+    * Returns the worker layer of the upstream operators that links to the `opId` operator's
+    * worker layer.
+    */
+  def getUpStreamConnectedWorkerLayers(
+      opID: OperatorIdentity
+  ): mutable.HashMap[OperatorIdentity, WorkerLayer] = {
+    val upstreamOperatorToLayers = new mutable.HashMap[OperatorIdentity, WorkerLayer]()
+    getDirectUpstreamOperators(opID).map(uOpID =>
+      upstreamOperatorToLayers(uOpID) = getOperator(uOpID).topology.layers.last
+    )
+    upstreamOperatorToLayers
+  }
+
   def getSourceLayers: Iterable[WorkerLayer] = {
     val tos = getAllLinks.map(_.to).toSet
     getAllLayers.filter(layer => !tos.contains(layer))
@@ -104,12 +120,14 @@ class Workflow(
     layerToOperatorExecConfig(workerToLayer(workerId).id)
 
   def getLink(linkID: LinkIdentity): LinkStrategy = idToLink(linkID)
+
   def getPythonWorkers: Iterable[ActorVirtualIdentity] =
     workerToOperatorExec
       .filter({
         case (_: ActorVirtualIdentity, operatorExecutor: IOperatorExecutor) =>
           operatorExecutor.isInstanceOf[PythonUDFOpExecV2]
       }) map { case (workerId: ActorVirtualIdentity, _: IOperatorExecutor) => workerId }
+
   def getPythonWorkerToOperatorExec: Iterable[(ActorVirtualIdentity, PythonUDFOpExecV2)] =
     workerToOperatorExec
       .filter({

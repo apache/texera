@@ -23,6 +23,8 @@ import { of } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
 import { WorkflowCollabService } from "../service/workflow-collab/workflow-collab.service";
 
+export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
+
 @UntilDestroy()
 @Component({
   selector: "texera-workspace",
@@ -110,7 +112,7 @@ export class WorkspaceComponent implements AfterViewInit, OnDestroy {
   registerAutoCacheWorkFlow(): void {
     this.workflowActionService
       .workflowChanged()
-      .pipe(debounceTime(100))
+      .pipe(debounceTime(SAVE_DEBOUNCE_TIME_IN_MS))
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         this.workflowCacheService.setCacheWorkflow(this.workflowActionService.getWorkflow());
@@ -120,10 +122,14 @@ export class WorkspaceComponent implements AfterViewInit, OnDestroy {
   registerAutoPersistWorkflow(): void {
     this.workflowActionService
       .workflowChanged()
-      .pipe(debounceTime(100))
+      .pipe(debounceTime(SAVE_DEBOUNCE_TIME_IN_MS))
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        if (this.userService.isLogin() && this.workflowPersistService.isWorkflowPersistEnabled() && this.workflowCollabService.isLockGranted()) {
+        if (
+          this.userService.isLogin() &&
+          this.workflowPersistService.isWorkflowPersistEnabled() &&
+          this.workflowCollabService.isLockGranted()
+        ) {
           this.workflowPersistService
             .persistWorkflow(this.workflowActionService.getWorkflow())
             .pipe(untilDestroyed(this))
@@ -187,7 +193,9 @@ export class WorkspaceComponent implements AfterViewInit, OnDestroy {
                 this.loadWorkflowWithId(wid);
                 this.workflowCollabService.reopenWebsocket(wid);
               });
-            this.workflowCollabService.getRestoreVersionStream().pipe(untilDestroyed(this))
+            this.workflowCollabService
+              .getRestoreVersionStream()
+              .pipe(untilDestroyed(this))
               .subscribe(() => this.loadWorkflowWithId(wid));
           } else {
             // no workflow to load, pending to create a new workflow

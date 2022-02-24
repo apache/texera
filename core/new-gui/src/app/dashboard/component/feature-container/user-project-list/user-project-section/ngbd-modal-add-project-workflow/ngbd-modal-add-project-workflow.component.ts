@@ -10,7 +10,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 @Component({
   selector: "texera-add-project-workflow-modal",
   templateUrl: "./ngbd-modal-add-project-workflow.component.html",
-  styleUrls: ["./ngbd-modal-add-project-workflow.component.scss"]
+  styleUrls: ["./ngbd-modal-add-project-workflow.component.scss"],
 })
 export class NgbdModalAddProjectWorkflowComponent implements OnInit {
   @Input() addedWorkflows!: DashboardWorkflowEntry[];
@@ -37,18 +37,21 @@ export class NgbdModalAddProjectWorkflowComponent implements OnInit {
 
     // process any selected workflows, updating backend then frontend cache
     for (let index = 0; index < this.checkedWorkflows.length; ++index) {
-      if (this.checkedWorkflows[index]) { // if workflow is checked
-        observables.push(this.userProjectService.addWorkflowToProject(this.projectId, this.unaddedWorkflows[index].workflow.wid!));
+      if (this.checkedWorkflows[index]) {
+        // if workflow is checked
+        observables.push(
+          this.userProjectService.addWorkflowToProject(this.projectId, this.unaddedWorkflows[index].workflow.wid!)
+        );
         this.addedWorkflows.push(this.unaddedWorkflows[index]); // for updating frontend cache
       }
     }
-    
+
     // pass back data to update local cache after all changes propagated to backend
     forkJoin(observables)
-       .pipe(untilDestroyed(this))
-       .subscribe(response => {
-         this.activeModal.close(this.addedWorkflows);
-        });
+      .pipe(untilDestroyed(this))
+      .subscribe(response => {
+        this.activeModal.close(this.addedWorkflows);
+      });
   }
 
   public changeAll() {
@@ -68,10 +71,11 @@ export class NgbdModalAddProjectWorkflowComponent implements OnInit {
       .retrieveWorkflowsBySessionUser()
       .pipe(untilDestroyed(this))
       .subscribe(dashboardWorkflowEntries => {
-        this.unaddedWorkflows = dashboardWorkflowEntries.filter(workflowEntry => workflowEntry.workflow.wid !== undefined && !this.addedWorkflowKeys.has(workflowEntry.workflow.wid!));
+        this.unaddedWorkflows = dashboardWorkflowEntries.filter(
+          workflowEntry =>
+            workflowEntry.workflow.wid !== undefined && !this.addedWorkflowKeys.has(workflowEntry.workflow.wid!)
+        );
         this.checkedWorkflows = new Array(this.unaddedWorkflows.length).fill(false);
       });
   }
-
 }
- 
