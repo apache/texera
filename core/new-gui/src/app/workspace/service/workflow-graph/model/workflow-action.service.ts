@@ -474,7 +474,7 @@ export class WorkflowActionService {
         this.deleteCommentBoxInternal(commentBox.commentBoxID);
       },
     };
-    this.executeAndStoreCommand(command);
+    this.executeStoreAndPropagateCommand(command);
   }
   /**
    * Adds given operators and links to the workflow graph.
