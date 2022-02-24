@@ -472,7 +472,7 @@ export class NavigationComponent {
     this.persistWorkflow();
     setTimeout(() => {
       this.workflowCollabService.requestOthersToReload();
-    }, 300);
+    }, 500);
   }
 
   /**
