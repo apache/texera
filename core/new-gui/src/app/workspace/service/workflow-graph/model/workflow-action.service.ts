@@ -983,9 +983,9 @@ export class WorkflowActionService {
           .map(op => op.operatorID),
         []
       );
-    this.getTexeraGraph()
-      .getAllCommentBoxes()
-      .forEach(commentBox => this.deleteCommentBox(commentBox.commentBoxID));
+      this.getTexeraGraph()
+        .getAllCommentBoxes()
+        .forEach(commentBox => this.deleteCommentBox(commentBox.commentBoxID));
       if (workflow === undefined) {
         return;
       }
@@ -1016,9 +1016,9 @@ export class WorkflowActionService {
 
       workflowContent.commentBoxes.forEach(commentBox => this.addCommentBox(commentBox));
 
-    const breakpoints = new Map(Object.entries(workflowContent.breakpoints));
+      const breakpoints = new Map(Object.entries(workflowContent.breakpoints));
 
-    this.addOperatorsAndLinks(operatorsAndPositions, links, groups, breakpoints);
+      this.addOperatorsAndLinks(operatorsAndPositions, links, groups, breakpoints);
 
       // operators shouldn't be highlighted during page reload
       const jointGraphWrapper = this.getJointGraphWrapper();
