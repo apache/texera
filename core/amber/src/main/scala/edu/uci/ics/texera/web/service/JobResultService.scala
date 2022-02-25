@@ -188,6 +188,9 @@ class JobResultService(
 
     // first clear all the results
     progressiveResults.clear()
+    stateStore.resultStore.updateState{
+      state => state.withOperatorInfo(Map.empty)
+    }
 
     // If we have cache sources, make dummy sink operators for displaying results on the frontend.
     workflowInfo.toDAG.getSourceOperators.map(source => {
