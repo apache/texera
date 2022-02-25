@@ -75,6 +75,8 @@ export class NavigationComponent {
   public isCacheOperatorClickable: boolean = false;
   public isCacheOperator: boolean = true;
 
+  public static readonly COLLAB_RELOAD_WAIT_TIME = 500;
+
   constructor(
     public executeWorkflowService: ExecuteWorkflowService,
     public tourService: TourService,
@@ -472,7 +474,7 @@ export class NavigationComponent {
     this.persistWorkflow();
     setTimeout(() => {
       this.workflowCollabService.requestOthersToReload();
-    }, 500);
+    }, NavigationComponent.COLLAB_RELOAD_WAIT_TIME);
   }
 
   /**
