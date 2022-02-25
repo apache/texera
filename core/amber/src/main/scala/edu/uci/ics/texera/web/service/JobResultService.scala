@@ -168,7 +168,10 @@ class JobResultService(
         })
     )
 
-    addSubscription(client.registerCallback[FatalError](_ => resultUpdateCancellable.cancel()))
+    addSubscription(client.registerCallback[FatalError](_ =>
+      if(resultUpdateCancellable != null){
+        resultUpdateCancellable.cancel()
+      }))
 
     addSubscription(
       stateStore.resultStore.registerDiffHandler((oldState, newState) => {
