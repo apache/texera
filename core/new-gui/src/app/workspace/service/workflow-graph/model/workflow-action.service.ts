@@ -1141,6 +1141,7 @@ export class WorkflowActionService {
 
     // add operator to joint graph first
     // if jointJS throws an error, it won't cause the inconsistency in texera graph
+    // addCells emits jointjs events asynchronously, async context ensures safety for event listeners which expect synchrony
     this.jointGraphWrapper.jointGraphContext.withContext({async: true}, () => {
       this.jointGraph.addCells(operatorJointElements);
     });

@@ -944,6 +944,9 @@ export class JointGraphWrapper {
           map(x => true)
         );
 
+        // Either buffertoggle or windowtoggle must be signalled to start first.
+        // Afterwards, they will start when the other stops.
+        // see Code adapted citation for more info.
         let startBuffer_BT, stopBuffer_WT: Observable<boolean>;
         if (JointGraphContext.async() == true) {
           startBuffer_BT = startBuffer.pipe(startWith(true));
