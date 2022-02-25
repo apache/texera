@@ -950,7 +950,7 @@ export class WorkflowActionService {
   /**
    * Reload the given workflow, update workflowMetadata and workflowContent.
    */
-  public reloadWorkflow(workflow: Workflow | undefined, asyncRendering = true): void {
+  public reloadWorkflow(workflow: Workflow | undefined, asyncRendering = false): void {
     this.jointGraphWrapper.jointGraphContext.withContext(
       {async: asyncRendering},
       () => {
@@ -1141,7 +1141,9 @@ export class WorkflowActionService {
 
     // add operator to joint graph first
     // if jointJS throws an error, it won't cause the inconsistency in texera graph
-    this.jointGraph.addCells(operatorJointElements);
+    this.jointGraphWrapper.jointGraphContext.withContext({async: true}, () => {
+      this.jointGraph.addCells(operatorJointElements);
+    });
 
     for (let i = 0; i < operatorsAndPositions.length; i++) {
       let operator = operatorsAndPositions[i].operator;
@@ -1193,10 +1195,14 @@ export class WorkflowActionService {
     }
 
     this.operatorGroup.setSyncTexeraGraph(false);
-    // TODO: figure out how to add a batch of links to JointJS without the breakpoint error
-    // this.jointGraph.addCells(jointLinkCells.filter(x => x !== undefined));
+
+    // addCells emits events jointjs events asynchronously, and must be wrapped in an async context to function safely
+    this.jointGraphWrapper.jointGraphContext.withContext({async: true}, () => {
+      this.jointGraph.addCells(jointLinkCells.filter(x => x !== undefined));
+    });
+
     for (let i = 0; i < links.length; i++) {
-      this.jointGraph.addCell(jointLinkCells[i]);
+      // this.jointGraph.addCell(jointLinkCells[i]);
       this.texeraGraph.addLink(links[i]);
       this.jointGraphWrapper.setCellLayer(links[i].linkID, this.operatorGroup.getHighestLayer() + 1);
     }
