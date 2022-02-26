@@ -47,7 +47,7 @@ export class NzModalCommentBoxComponent {
   }
 
   public addComment(newComment: string): void {
-    const currentTime: string = new Date().toISOString();
+    const currentTime: string = new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }) + "(PST)";
     const creator = this.user?.name;
     const creatorID = this.user?.uid;
     this.workflowActionService.addComment(

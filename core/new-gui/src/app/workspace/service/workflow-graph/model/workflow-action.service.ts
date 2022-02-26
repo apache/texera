@@ -474,7 +474,8 @@ export class WorkflowActionService {
         this.deleteCommentBoxInternal(commentBox.commentBoxID);
       },
     };
-    this.executeStoreAndPropagateCommand(command);
+    const commandMessage: CommandMessage = { action: "addCommentBox", parameters: [commentBox], type: "execute",};
+    this.executeStoreAndPropagateCommand(command, commandMessage);
   }
   /**
    * Adds given operators and links to the workflow graph.
@@ -554,7 +555,18 @@ export class WorkflowActionService {
   }
 
   public deleteCommentBox(commentBoxID: string): void {
-    this.deleteCommentBoxInternal(commentBoxID);
+    const commentBox = this.getTexeraGraph().getCommentBox(commentBoxID);
+    const command : Command = {
+      modifiesWorkflow: true,
+      execute: () => {
+        this.deleteCommentBoxInternal(commentBoxID);
+      },
+      undo: ()=> {
+        this.addCommentBoxInternal(commentBox);
+      }
+    }
+    const commandMessage : CommandMessage = {action : "deleteCommentBox", parameters: [commentBoxID], type:"execute"};
+    this.executeStoreAndPropagateCommand(command, commandMessage);
   }
 
   /**
@@ -1154,7 +1166,6 @@ export class WorkflowActionService {
   private addCommentBoxInternal(commentBox: CommentBox): void {
     const commentElement = this.jointUIService.getCommentElement(commentBox);
     this.jointGraph.addCell(commentElement);
-    console.log(this.jointGraph.getCells());
     this.texeraGraph.addCommentBox(commentBox);
   }
 

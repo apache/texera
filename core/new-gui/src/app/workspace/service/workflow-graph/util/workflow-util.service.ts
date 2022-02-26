@@ -69,7 +69,7 @@ export class WorkflowUtilService {
   public getNewCommentBox(): CommentBox {
     const commentBoxID = this.getCommentBoxRandomUUID();
     const comments: Comment[] = [];
-    const commentBoxPosition: Point = { x: 800, y: 400 };
+    const commentBoxPosition: Point = { x: 500, y: 20 };
     return { commentBoxID, comments, commentBoxPosition };
   }
   /**

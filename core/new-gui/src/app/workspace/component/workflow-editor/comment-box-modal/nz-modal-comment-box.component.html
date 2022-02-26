@@ -8,8 +8,10 @@
       </nz-comment>
     </nz-list-item>
   </nz-list>
+  <br>
   <form (ngSubmit)="onClickAddComment()" [formGroup]="commentForm">
-    <input type="text" formControlName="comment" />
+    <textarea placeholder="Comment Here" cols="30" formControlName="comment"></textarea>
+    <br>
     <button nz-button nzType="primary" type="submit">Share</button>
   </form>
 </div>
