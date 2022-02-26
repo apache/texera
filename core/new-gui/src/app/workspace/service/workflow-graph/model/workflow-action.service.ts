@@ -474,7 +474,7 @@ export class WorkflowActionService {
         this.deleteCommentBoxInternal(commentBox.commentBoxID);
       },
     };
-    const commandMessage: CommandMessage = { action: "addCommentBox", parameters: [commentBox], type: "execute",};
+    const commandMessage: CommandMessage = { action: "addCommentBox", parameters: [commentBox], type: "execute" };
     this.executeStoreAndPropagateCommand(command, commandMessage);
   }
   /**
@@ -556,16 +556,16 @@ export class WorkflowActionService {
 
   public deleteCommentBox(commentBoxID: string): void {
     const commentBox = this.getTexeraGraph().getCommentBox(commentBoxID);
-    const command : Command = {
+    const command: Command = {
       modifiesWorkflow: true,
       execute: () => {
         this.deleteCommentBoxInternal(commentBoxID);
       },
-      undo: ()=> {
+      undo: () => {
         this.addCommentBoxInternal(commentBox);
-      }
-    }
-    const commandMessage : CommandMessage = {action : "deleteCommentBox", parameters: [commentBoxID], type:"execute"};
+      },
+    };
+    const commandMessage: CommandMessage = { action: "deleteCommentBox", parameters: [commentBoxID], type: "execute" };
     this.executeStoreAndPropagateCommand(command, commandMessage);
   }
 
