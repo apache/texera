@@ -217,7 +217,7 @@ describe("WorkflowEditorComponent", () => {
       expect(jointGraphWrapper.getCurrentHighlightedCommentBoxIDs()).toEqual([mockCommentBox.commentBoxID]);
     });
 
-    it("should open commentBox as NzModal",  () => {
+    it("should open commentBox as NzModal", () => {
       // const modalRef:NzModalRef = nzModalService.create({
       //   nzTitle: "CommentBox",
       //   nzContent: NzModalCommentBoxComponent,
@@ -235,14 +235,14 @@ describe("WorkflowEditorComponent", () => {
       //     },
       //   ],
       // });
-      spyOn(nzModalService, "create")
+      spyOn(nzModalService, "create");
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
       workflowActionService.addCommentBox(mockCommentBox);
       jointGraphWrapper.highlightCommentBoxes(mockCommentBox.commentBoxID);
       expect(nzModalService.create).toHaveBeenCalled();
       fixture.detectChanges();
       // modalRef.destroy();
-    })
+    });
 
     it("should unhighlight all highlighted operators when user mouse clicks on the blank space", () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
