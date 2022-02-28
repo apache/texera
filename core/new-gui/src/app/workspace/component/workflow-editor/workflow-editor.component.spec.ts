@@ -131,7 +131,7 @@ describe("WorkflowEditorComponent", () => {
    * This sub test suites test the Integration of WorkflowEditorComponent with external modules,
    *  such as drag and drop module, and highlight operator module.
    */
-  describe("External Module Integration", () => {
+  fdescribe("External Module Integration", () => {
     let component: WorkflowEditorComponent;
     let fixture: ComponentFixture<WorkflowEditorComponent>;
     let workflowActionService: WorkflowActionService;
@@ -217,32 +217,32 @@ describe("WorkflowEditorComponent", () => {
       expect(jointGraphWrapper.getCurrentHighlightedCommentBoxIDs()).toEqual([mockCommentBox.commentBoxID]);
     });
 
-    // it("should open commentBox as NzModal",  () => {
-    //   const modalRef:NzModalRef = nzModalService.create({
-    //     nzTitle: "CommentBox",
-    //     nzContent: NzModalCommentBoxComponent,
-    //     nzComponentParams: {
-    //     commentBox: mockCommentBox,
-    //     },
-    //     // nzAutofocus: null,
-    //     // nzFooter: [
-    //     //   {
-    //     //     label: "OK",
-    //     //     onClick: () => {
-    //     //       modalRef.destroy();
-    //     //     },
-    //     //     type: "primary",
-    //     //   },
-    //     // ],
-    //   });
-    //   spyOn(nzModalService, "create").and.returnValue(modalRef);
-    //   const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-    //   workflowActionService.addCommentBox(mockCommentBox);
-    //   jointGraphWrapper.highlightCommentBoxes(mockCommentBox.commentBoxID);
-    //   expect(nzModalService.create).toHaveBeenCalled();
-    //   fixture.detectChanges();
-    //   modalRef.destroy();
-    // })
+    it("should open commentBox as NzModal",  () => {
+      // const modalRef:NzModalRef = nzModalService.create({
+      //   nzTitle: "CommentBox",
+      //   nzContent: NzModalCommentBoxComponent,
+      //   nzComponentParams: {
+      //   commentBox: mockCommentBox,
+      //   },
+      //   nzAutofocus: null,
+      //   nzFooter: [
+      //     {
+      //       label: "OK",
+      //       onClick: () => {
+      //         modalRef.destroy();
+      //       },
+      //       type: "primary",
+      //     },
+      //   ],
+      // });
+      spyOn(nzModalService, "create")
+      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+      workflowActionService.addCommentBox(mockCommentBox);
+      jointGraphWrapper.highlightCommentBoxes(mockCommentBox.commentBoxID);
+      expect(nzModalService.create).toHaveBeenCalled();
+      fixture.detectChanges();
+      // modalRef.destroy();
+    })
 
     it("should unhighlight all highlighted operators when user mouse clicks on the blank space", () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
