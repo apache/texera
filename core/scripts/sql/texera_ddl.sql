@@ -9,7 +9,6 @@ DROP TABLE IF EXISTS `workflow_of_user`;
 DROP TABLE IF EXISTS `user_config`;
 DROP TABLE IF EXISTS `user`;
 DROP TABLE IF EXISTS `workflow`;
-DROP TABLE IF EXISTS `commentbox`;
 DROP TABLE IF EXISTS `workflow_version`;
 DROP TABLE IF EXISTS `user_project`;
 DROP TABLE IF EXISTS `workflow_of_project`;
