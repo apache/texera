@@ -192,24 +192,7 @@ export class JointUIService {
    * @param point Point, the top-left-originated position of the operator element (relative to JointJS paper, not absolute position)
    *
    * @returns JointJS Element
-   * @param commentBox
    */
-
-  public getCommentElement(commentBox: CommentBox): joint.dia.Element {
-    const basic = new joint.shapes.standard.Rectangle();
-    basic.position(commentBox.commentBoxPosition.x, commentBox.commentBoxPosition.y);
-    basic.resize(120, 50);
-    const commentElement = new TexeraCustomCommentElement({
-      position: commentBox.commentBoxPosition,
-      size: {
-        width: JointUIService.DEFAULT_COMMENT_WIDTH,
-        height: JointUIService.DEFAULT_COMMENT_HEIGHT,
-      },
-      attrs: JointUIService.getCustomCommentStyleAttrs(),
-    });
-    commentElement.set("id", commentBox.commentBoxID);
-    return commentElement;
-  }
 
   public getJointOperatorElement(operator: OperatorPredicate, point: Point): joint.dia.Element {
     // check if the operatorType exists in the operator metadata
@@ -507,6 +490,21 @@ export class JointUIService {
     });
   }
 
+  public getCommentElement(commentBox: CommentBox): joint.dia.Element {
+    const basic = new joint.shapes.standard.Rectangle();
+    basic.position(commentBox.commentBoxPosition.x, commentBox.commentBoxPosition.y);
+    basic.resize(120, 50);
+    const commentElement = new TexeraCustomCommentElement({
+      position: commentBox.commentBoxPosition,
+      size: {
+        width: JointUIService.DEFAULT_COMMENT_WIDTH,
+        height: JointUIService.DEFAULT_COMMENT_HEIGHT,
+      },
+      attrs: JointUIService.getCustomCommentStyleAttrs(),
+    });
+    commentElement.set("id", commentBox.commentBoxID);
+    return commentElement;
+  }
   /**
    * This function converts a Texera source and target OperatorPort to
    *   a JointJS link cell <joint.dia.Link> that could be added to the JointJS.

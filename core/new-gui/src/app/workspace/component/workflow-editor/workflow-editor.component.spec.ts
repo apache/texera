@@ -5,16 +5,18 @@ import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { WorkflowEditorComponent } from "./workflow-editor.component";
+import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
 import { JointUIService } from "../../service/joint-ui/joint-ui.service";
-import { NzModalModule } from "ng-zorro-antd/modal";
+import { NzModalModule, NzModalService, NzModalRef } from "ng-zorro-antd/modal";
 import { Overlay } from "@angular/cdk/overlay";
 import * as jQuery from "jquery";
 import * as joint from "jointjs";
 import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
 import { marbles } from "rxjs-marbles";
 import {
+  mockCommentBox,
   mockPoint,
   mockResultPredicate,
   mockScanPredicate,
@@ -26,6 +28,7 @@ import { WorkflowStatusService } from "../../service/workflow-status/workflow-st
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
+import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { tap } from "rxjs/operators";
 
 describe("WorkflowEditorComponent", () => {
@@ -135,12 +138,13 @@ describe("WorkflowEditorComponent", () => {
     let validationWorkflowService: ValidationWorkflowService;
     let dragDropService: DragDropService;
     let jointUIService: JointUIService;
+    let nzModalService: NzModalService;
 
     beforeEach(
       waitForAsync(() => {
         TestBed.configureTestingModule({
-          declarations: [WorkflowEditorComponent],
-          imports: [HttpClientTestingModule, NzModalModule],
+          declarations: [WorkflowEditorComponent, NzModalCommentBoxComponent],
+          imports: [HttpClientTestingModule, NzModalModule, NoopAnimationsModule],
           providers: [
             JointUIService,
             WorkflowUtilService,
@@ -149,6 +153,7 @@ describe("WorkflowEditorComponent", () => {
             ResultPanelToggleService,
             ValidationWorkflowService,
             DragDropService,
+            NzModalService,
             {
               provide: OperatorMetadataService,
               useClass: StubOperatorMetadataService,
@@ -168,6 +173,7 @@ describe("WorkflowEditorComponent", () => {
       dragDropService = TestBed.inject(DragDropService);
       // detect changes to run ngAfterViewInit and bind Model
       jointUIService = TestBed.inject(JointUIService);
+      nzModalService = TestBed.inject(NzModalService);
       fixture.detectChanges();
     });
 
@@ -199,6 +205,44 @@ describe("WorkflowEditorComponent", () => {
       // assert the highlighted operator is correct
       expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toEqual([mockScanPredicate.operatorID]);
     });
+
+    it("should highlight the commentBox when user double clicks on a commentBox", () => {
+      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+      const highlightCommentBoxFunctionSpy = spyOn(jointGraphWrapper, "highlightCommentBoxes").and.callThrough();
+      workflowActionService.addCommentBox(mockCommentBox);
+      jointGraphWrapper.unhighlightCommentBoxes(mockCommentBox.commentBoxID);
+      const jointCellView = component.getJointPaper().findViewByModel(mockCommentBox.commentBoxID);
+      jointCellView.$el.trigger("dblclick");
+      fixture.detectChanges();
+      expect(jointGraphWrapper.getCurrentHighlightedCommentBoxIDs()).toEqual([mockCommentBox.commentBoxID]);
+    });
+
+    // it("should open commentBox as NzModal",  () => {
+    //   const modalRef:NzModalRef = nzModalService.create({
+    //     nzTitle: "CommentBox",
+    //     nzContent: NzModalCommentBoxComponent,
+    //     nzComponentParams: {
+    //     commentBox: mockCommentBox,
+    //     },
+    //     // nzAutofocus: null,
+    //     // nzFooter: [
+    //     //   {
+    //     //     label: "OK",
+    //     //     onClick: () => {
+    //     //       modalRef.destroy();
+    //     //     },
+    //     //     type: "primary",
+    //     //   },
+    //     // ],
+    //   });
+    //   spyOn(nzModalService, "create").and.returnValue(modalRef);
+    //   const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+    //   workflowActionService.addCommentBox(mockCommentBox);
+    //   jointGraphWrapper.highlightCommentBoxes(mockCommentBox.commentBoxID);
+    //   expect(nzModalService.create).toHaveBeenCalled();
+    //   fixture.detectChanges();
+    //   modalRef.destroy();
+    // })
 
     it("should unhighlight all highlighted operators when user mouse clicks on the blank space", () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
