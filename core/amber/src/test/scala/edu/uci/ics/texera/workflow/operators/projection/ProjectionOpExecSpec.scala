@@ -100,4 +100,42 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     }
 
   }
+
+  it should "raise RuntimeException on duplicate alias" in {
+    val projectionOpExec = new ProjectionOpExec(List(), null)
+    projectionOpExec.attributes ++= List(
+      new AttributeUnit("field1", "f"),
+      new AttributeUnit("field2", "f")
+    )
+    assertThrows[RuntimeException] {
+      projectionOpExec.processTexeraTuple(Left(tuple), null).next()
+    }
+
+  }
+
+  it should "allow empty alias" in {
+    val outputSchema = Schema
+      .newBuilder()
+      .add(new Attribute("field1", AttributeType.STRING))
+      .add(new Attribute("f2", AttributeType.INTEGER))
+      .build()
+    val projectionOpExec = new ProjectionOpExec(List(), OperatorSchemaInfo(null, outputSchema))
+    projectionOpExec.attributes ++= List(
+      new AttributeUnit("field2", "f2"),
+      new AttributeUnit("field1", null)
+    )
+
+    projectionOpExec.open()
+
+    val processedTuple = projectionOpExec.processTexeraTuple(Left(tuple), null).next()
+    assert(processedTuple.length() == 2)
+    assert(processedTuple.getField("field1").asInstanceOf[String] == "hello")
+    assert(processedTuple.getField("f2").asInstanceOf[Int] == 1)
+    assert(processedTuple.get(0) == "hello")
+    assert(processedTuple.get(1) == 1)
+  }
+
+
+
+
 }

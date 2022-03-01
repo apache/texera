@@ -18,13 +18,12 @@ public class AttributeUnit{
     @JsonSchemaTitle("Attribute")
     @JsonPropertyDescription("Attribute name in the schema")
     @AutofillAttributeName
-    public String originalAttribute;
+    private String originalAttribute;
 
     @JsonProperty
     @JsonSchemaTitle("Alias")
     @JsonPropertyDescription("Renamed attribute name")
-
-    public String alias;
+    private String alias;
 
 
     public AttributeUnit()
@@ -32,6 +31,7 @@ public class AttributeUnit{
 
     }
 
+    @JsonIgnore
     public AttributeUnit(String attributeName,String alias)
     {
         checkNotNull(attributeName);
@@ -44,6 +44,7 @@ public class AttributeUnit{
     public String getOriginalAttributeAsString(){
         return originalAttribute;
     }
+
     @JsonIgnore
     public String getAliasAsString(){
 
@@ -52,6 +53,7 @@ public class AttributeUnit{
         }
         return alias;
     }
+
     @JsonIgnore
     public Attribute getAlias(){
         if(alias == null){
@@ -59,11 +61,9 @@ public class AttributeUnit{
         }
         return new Attribute(alias, AttributeType.STRING);
     }
+
     @JsonIgnore
-    public Attribute getAliasFromAttribute(String attribute) throws Exception {
-        if(! attribute.equalsIgnoreCase(originalAttribute)){
-            throw new Exception("original attribute is: " + originalAttribute + "and parameter attribute is" + attribute);
-        }
+    public Attribute getAliasFromAttribute(String attribute){
         if(alias == null){
             return new Attribute(originalAttribute, AttributeType.STRING);
         }

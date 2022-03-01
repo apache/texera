@@ -36,22 +36,9 @@ class ProjectionOpDesc extends MapOpDesc {
     )
   }
 
-  def checkDuplicate: Boolean = {
-    var alias = new ListBuffer[String]()
-    attributes.foreach(attrName => {
-      alias += attrName.getAliasAsString()
-
-    })
-    val uniqueList = alias.distinct
-    val result = uniqueList.size
-    result == attributes.size
-
-  }
-
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Preconditions.checkArgument(schemas.length == 1)
     Preconditions.checkArgument(attributes.nonEmpty)
-    Preconditions.checkArgument(checkDuplicate)
 
     Schema.newBuilder
       .add(

@@ -81,4 +81,26 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   }
 
+  it should "raise RuntimeException on duplicate alias" in {
+
+    projectionOpDesc.attributes ++= List(
+      new AttributeUnit("field2", "f"),
+      new AttributeUnit("field1", "f")
+    )
+    assertThrows[RuntimeException] {
+      projectionOpDesc.getOutputSchema(Array(schema))
+    }
+  }
+
+  it should "allow alias to be optional" in {
+    projectionOpDesc.attributes ++= List(
+      new AttributeUnit("field1", "f1"),
+      new AttributeUnit("field2", null)
+    )
+    val outputSchema = projectionOpDesc.getOutputSchema(Array(schema))
+    assert(outputSchema.getAttributes.length == 2)
+
+  }
+
+
 }
