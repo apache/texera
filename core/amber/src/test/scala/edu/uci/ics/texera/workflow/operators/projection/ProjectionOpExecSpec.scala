@@ -135,7 +135,4 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(processedTuple.get(1) == 1)
   }
 
-
-
-
 }

@@ -102,5 +102,4 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   }
 
-
 }

@@ -48,7 +48,7 @@ public class AttributeUnit{
     @JsonIgnore
     public String getAliasAsString(){
 
-        if(alias == null){
+        if(alias == null || alias.length() == 0){
             return originalAttribute;
         }
         return alias;
@@ -56,7 +56,7 @@ public class AttributeUnit{
 
     @JsonIgnore
     public Attribute getAlias(){
-        if(alias == null){
+        if(alias == null || alias.length() == 0){
             return new Attribute(originalAttribute, AttributeType.STRING);
         }
         return new Attribute(alias, AttributeType.STRING);
@@ -64,7 +64,7 @@ public class AttributeUnit{
 
     @JsonIgnore
     public Attribute getAliasFromAttribute(String attribute){
-        if(alias == null){
+        if(alias == null || alias.length() == 0){
             return new Attribute(originalAttribute, AttributeType.STRING);
         }
         return new Attribute(alias,AttributeType.STRING);
