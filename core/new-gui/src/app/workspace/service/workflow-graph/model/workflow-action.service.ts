@@ -951,18 +951,16 @@ export class WorkflowActionService {
    * Reload the given workflow, update workflowMetadata and workflowContent.
    */
   public reloadWorkflow(workflow: Workflow | undefined, asyncRendering = false): void {
-    this.jointGraphWrapper.jointGraphContext.withContext(
-      {async: asyncRendering},
-      () => {
-        this.setWorkflowMetadata(workflow);
-        // remove the existing operators on the paper currently
-        
-        this.deleteOperatorsAndLinks(
-          this.getTexeraGraph()
-            .getAllOperators()
-            .map(op => op.operatorID),
-          []
-        );
+    this.jointGraphWrapper.jointGraphContext.withContext({ async: asyncRendering }, () => {
+      this.setWorkflowMetadata(workflow);
+      // remove the existing operators on the paper currently
+
+      this.deleteOperatorsAndLinks(
+        this.getTexeraGraph()
+          .getAllOperators()
+          .map(op => op.operatorID),
+        []
+      );
 
       this.deleteOperatorsAndLinks(
         this.getTexeraGraph()
@@ -1142,7 +1140,7 @@ export class WorkflowActionService {
     // add operator to joint graph first
     // if jointJS throws an error, it won't cause the inconsistency in texera graph
     // addCells emits jointjs events asynchronously, async context ensures safety for event listeners which expect synchrony
-    this.jointGraphWrapper.jointGraphContext.withContext({async: true}, () => {
+    this.jointGraphWrapper.jointGraphContext.withContext({ async: true }, () => {
       this.jointGraph.addCells(operatorJointElements);
     });
 
@@ -1198,7 +1196,7 @@ export class WorkflowActionService {
     this.operatorGroup.setSyncTexeraGraph(false);
 
     // addCells emits events jointjs events asynchronously, and must be wrapped in an async context to function safely
-    this.jointGraphWrapper.jointGraphContext.withContext({async: true}, () => {
+    this.jointGraphWrapper.jointGraphContext.withContext({ async: true }, () => {
       this.jointGraph.addCells(jointLinkCells.filter(x => x !== undefined));
     });
 

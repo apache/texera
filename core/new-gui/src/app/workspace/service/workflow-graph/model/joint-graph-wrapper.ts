@@ -1,4 +1,4 @@
-import { fromEvent, Observable, ReplaySubject, Subject, merge} from "rxjs";
+import { fromEvent, Observable, ReplaySubject, Subject, merge } from "rxjs";
 import { bufferToggle, filter, map, mergeMap, startWith, windowToggle } from "rxjs/operators";
 import { Point } from "../../../types/workflow-common.interface";
 import * as joint from "jointjs";
@@ -431,8 +431,7 @@ export class JointGraphWrapper {
    * Gets the event stream of an operator being highlighted.
    */
   public getJointOperatorHighlightStream(): Observable<readonly string[]> {
-    return this.jointOperatorHighlightStream  
-      .pipe(this.jointGraphContext.bufferWhileAsync);
+    return this.jointOperatorHighlightStream.pipe(this.jointGraphContext.bufferWhileAsync);
   }
 
   /**
@@ -440,8 +439,7 @@ export class JointGraphWrapper {
    * The operator could be unhighlighted because it's deleted.
    */
   public getJointOperatorUnhighlightStream(): Observable<readonly string[]> {
-    return this.jointOperatorUnhighlightStream  
-      .pipe(this.jointGraphContext.bufferWhileAsync);
+    return this.jointOperatorUnhighlightStream.pipe(this.jointGraphContext.bufferWhileAsync);
   }
 
   /**
@@ -455,16 +453,14 @@ export class JointGraphWrapper {
    * get the event stream of a link being highlighted.
    */
   public getLinkHighlightStream(): Observable<readonly string[]> {
-    return this.jointLinkHighlightStream  
-      .pipe(this.jointGraphContext.bufferWhileAsync);
+    return this.jointLinkHighlightStream.pipe(this.jointGraphContext.bufferWhileAsync);
   }
 
   /**
    * get the event stream of a link being unhighlighted.
    */
   public getLinkUnhighlightStream(): Observable<readonly string[]> {
-    return this.jointLinkUnhighlightStream  
-      .pipe(this.jointGraphContext.bufferWhileAsync);
+    return this.jointLinkUnhighlightStream.pipe(this.jointGraphContext.bufferWhileAsync);
   }
 
   /**
@@ -485,8 +481,7 @@ export class JointGraphWrapper {
    * Gets the event stream of an operator being dragged.
    */
   public getJointGroupHighlightStream(): Observable<readonly string[]> {
-    return this.jointGroupHighlightStream  
-      .pipe(this.jointGraphContext.bufferWhileAsync);
+    return this.jointGroupHighlightStream.pipe(this.jointGraphContext.bufferWhileAsync);
   }
 
   /**
@@ -494,8 +489,7 @@ export class JointGraphWrapper {
    * The group could be unhighlighted because it's deleted.
    */
   public getJointGroupUnhighlightStream(): Observable<readonly string[]> {
-    return this.jointGroupUnhighlightStream.asObservable()
-      .pipe(this.jointGraphContext.bufferWhileAsync);
+    return this.jointGroupUnhighlightStream.asObservable().pipe(this.jointGraphContext.bufferWhileAsync);
   }
 
   /**
@@ -925,19 +919,15 @@ export class JointGraphWrapper {
         return this._async(this.getContext());
       }
 
-      // Custom RXJS operator to buffer output while the jointgraph 
+      // Custom RXJS operator to buffer output while the jointgraph
       // is in an async context
       public static bufferWhileAsync<T>(source: Observable<T>): Observable<T> {
         // Code adapted from https://kddsky.medium.com/pauseable-observables-in-rxjs-58ce2b8c7dfd
         // Retrieved on 02/06/2022
-        
-        const BufferOnOffStream = JointGraphContext.getChangeContextStream().pipe(
-          map(([_, context]) => context.async)
-        );
 
-        const startBuffer = BufferOnOffStream.pipe(
-          filter(async => async == true)
-        );
+        const BufferOnOffStream = JointGraphContext.getChangeContextStream().pipe(map(([_, context]) => context.async));
+
+        const startBuffer = BufferOnOffStream.pipe(filter(async => async == true));
 
         const stopBuffer = BufferOnOffStream.pipe(
           filter(async => async == false),
@@ -956,25 +946,24 @@ export class JointGraphWrapper {
           stopBuffer_WT = stopBuffer.pipe(startWith(true));
         }
 
-
         return merge(
           source.pipe(bufferToggle(startBuffer_BT, () => stopBuffer)),
           source.pipe(windowToggle(stopBuffer_WT, () => startBuffer))
         ).pipe(mergeMap(x => x));
       }
-    
-      public static attachPaper(jointPaper: joint.dia.Paper){
+
+      public static attachPaper(jointPaper: joint.dia.Paper) {
         this.jointPaper = jointPaper;
         this.jointPaper.options.async = this.async();
       }
-    
+
       protected static enter(context: JointGraphContextType): void {
         super.enter(context);
         if (this.jointPaper !== undefined) {
           this.jointPaper.options.async = this.async();
         }
       }
-      
+
       protected static exit(): void {
         if (this.jointPaper !== undefined) {
           const CURRENT_ASYNC_MODE = this._async(this.getContext());

@@ -1496,10 +1496,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.workflowActionService
       .getJointGraphWrapper()
       .getJointLinkCellAddStream()
-      .pipe(
-        this.workflowActionService.getJointGraphWrapper().jointGraphContext.bufferWhileAsync,
-        untilDestroyed(this),
-      )
+      .pipe(this.workflowActionService.getJointGraphWrapper().jointGraphContext.bufferWhileAsync, untilDestroyed(this))
       .subscribe(link => {
         const linkView = link.findView(this.getJointPaper());
         const breakpointButtonTool = this.jointUIService.getBreakpointButton();
@@ -1577,20 +1574,15 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.workflowActionService
       .getJointGraphWrapper()
       .getLinkBreakpointShowStream()
-      .pipe(
-        this.workflowActionService.getJointGraphWrapper().jointGraphContext.bufferWhileAsync,
-        untilDestroyed(this))
+      .pipe(this.workflowActionService.getJointGraphWrapper().jointGraphContext.bufferWhileAsync, untilDestroyed(this))
       .subscribe(linkID => {
         this.getJointPaper().getModelById(linkID.linkID).findView(this.getJointPaper()).showTools();
       });
 
-    
     this.workflowActionService
       .getJointGraphWrapper()
       .getLinkBreakpointHideStream()
-      .pipe(
-        this.workflowActionService.getJointGraphWrapper().jointGraphContext.bufferWhileAsync,
-        untilDestroyed(this))
+      .pipe(this.workflowActionService.getJointGraphWrapper().jointGraphContext.bufferWhileAsync, untilDestroyed(this))
       .subscribe(linkID => {
         this.getJointPaper().getModelById(linkID.linkID).findView(this.getJointPaper()).hideTools();
       });
