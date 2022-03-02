@@ -2,14 +2,13 @@ package edu.uci.ics.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{WORKFLOW, WORKFLOW_VERSION}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowVersionResource
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 import org.jooq.types.UInteger
 
 import java.sql.Timestamp
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 /**
   * This global object handles inserting a new entry to the DB to store metadata information about every workflow execution
@@ -21,18 +20,6 @@ object ExecutionsMetadataPersistService extends LazyLogging {
   private val workflowExecutionsDao = new WorkflowExecutionsDao(
     context.configuration
   )
-
-  private def getLatestVersion(wid: UInteger): UInteger = {
-    context
-      .select(WORKFLOW_VERSION.VID)
-      .from(WORKFLOW_VERSION)
-      .leftJoin(WORKFLOW)
-      .on(WORKFLOW_VERSION.WID.eq(WORKFLOW.WID))
-      .where(WORKFLOW_VERSION.WID.eq(wid))
-      .fetchInto(classOf[UInteger])
-      .toList
-      .max
-  }
 
   /**
     * @param state indicates the workflow state
@@ -68,7 +55,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
   ): Long = {
     // first retrieve the latest version of this workflow
     val uint = UInteger.valueOf(wid)
-    val vid = getLatestVersion(uint)
+    val vid = WorkflowVersionResource.getLatestVersion(uint)
     val newExecution = new WorkflowExecutions()
     newExecution.setWid(uint)
     newExecution.setVid(vid)

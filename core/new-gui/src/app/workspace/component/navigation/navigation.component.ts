@@ -17,10 +17,10 @@ import { merge } from "rxjs";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
 import { debounceTime } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { isSink } from "../../service/workflow-graph/model/workflow-graph";
 import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
 import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
-import { delay } from "lodash";
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -68,7 +68,7 @@ export class NavigationComponent {
   public displayParticularWorkflowVersion: boolean = false;
   public onClickRunHandler: () => void;
 
-  // whether the disable operator button should be enabled
+  // whether the disable-operator-button should be enabled
   public isDisableOperatorClickable: boolean = false;
   public isDisableOperator: boolean = true;
 
@@ -90,7 +90,8 @@ export class NavigationComponent {
     private workflowCacheService: WorkflowCacheService,
     private datePipe: DatePipe,
     public workflowResultExportService: WorkflowResultExportService,
-    public workflowCollabService: WorkflowCollabService
+    public workflowCollabService: WorkflowCollabService,
+    public workflowUtilService: WorkflowUtilService
   ) {
     this.executionState = executeWorkflowService.getExecutionState().state;
     // return the run button after the execution is finished, either
@@ -206,6 +207,10 @@ export class NavigationComponent {
           onClick: () => {},
         };
     }
+  }
+
+  public onClickAddCommentBox(): void {
+    this.workflowActionService.addCommentBox(this.workflowUtilService.getNewCommentBox());
   }
 
   public handleKill(): void {
