@@ -1,20 +1,20 @@
-import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
-import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
-import { DragDropService } from "../../service/drag-drop/drag-drop.service";
-import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
-import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
-import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
-import { WorkflowEditorComponent } from "./workflow-editor.component";
-import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
-import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
-import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
-import { JointUIService } from "../../service/joint-ui/joint-ui.service";
-import { NzModalModule, NzModalService, NzModalRef } from "ng-zorro-antd/modal";
-import { Overlay } from "@angular/cdk/overlay";
+import {WorkflowActionService} from "../../service/workflow-graph/model/workflow-action.service";
+import {UndoRedoService} from "../../service/undo-redo/undo-redo.service";
+import {DragDropService} from "../../service/drag-drop/drag-drop.service";
+import {WorkflowUtilService} from "../../service/workflow-graph/util/workflow-util.service";
+import {ComponentFixture, TestBed, waitForAsync} from "@angular/core/testing";
+import {ValidationWorkflowService} from "../../service/validation/validation-workflow.service";
+import {WorkflowEditorComponent} from "./workflow-editor.component";
+import {NzModalCommentBoxComponent} from "./comment-box-modal/nz-modal-comment-box.component";
+import {OperatorMetadataService} from "../../service/operator-metadata/operator-metadata.service";
+import {StubOperatorMetadataService} from "../../service/operator-metadata/stub-operator-metadata.service";
+import {JointUIService} from "../../service/joint-ui/joint-ui.service";
+import {NzModalModule, NzModalService} from "ng-zorro-antd/modal";
+import {Overlay} from "@angular/cdk/overlay";
 import * as jQuery from "jquery";
 import * as joint from "jointjs";
-import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
-import { marbles } from "rxjs-marbles";
+import {ResultPanelToggleService} from "../../service/result-panel-toggle/result-panel-toggle.service";
+import {marbles} from "rxjs-marbles";
 import {
   mockCommentBox,
   mockPoint,
@@ -24,12 +24,12 @@ import {
   mockScanSentimentLink,
   mockSentimentPredicate,
 } from "../../service/workflow-graph/model/mock-workflow-data";
-import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
-import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
-import { HttpClientTestingModule } from "@angular/common/http/testing";
-import { OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
-import { NoopAnimationsModule } from "@angular/platform-browser/animations";
-import { tap } from "rxjs/operators";
+import {WorkflowStatusService} from "../../service/workflow-status/workflow-status.service";
+import {ExecuteWorkflowService} from "../../service/execute-workflow/execute-workflow.service";
+import {HttpClientTestingModule} from "@angular/common/http/testing";
+import {OperatorLink, OperatorPredicate} from "../../types/workflow-common.interface";
+import {NoopAnimationsModule} from "@angular/platform-browser/animations";
+import {tap} from "rxjs/operators";
 
 describe("WorkflowEditorComponent", () => {
   /**
@@ -95,20 +95,20 @@ describe("WorkflowEditorComponent", () => {
       const operator2 = "test_multiple_1_op_2";
 
       const element1 = new joint.shapes.basic.Rect({
-        size: { width: 100, height: 50 },
-        position: { x: 100, y: 400 },
+        size: {width: 100, height: 50},
+        position: {x: 100, y: 400},
       });
       element1.set("id", operator1);
 
       const element2 = new joint.shapes.basic.Rect({
-        size: { width: 100, height: 50 },
-        position: { x: 100, y: 400 },
+        size: {width: 100, height: 50},
+        position: {x: 100, y: 400},
       });
       element2.set("id", operator2);
 
       const link1 = new joint.dia.Link({
-        source: { id: operator1 },
-        target: { id: operator2 },
+        source: {id: operator1},
+        target: {id: operator2},
       });
 
       jointGraph.addCell(element1);
@@ -250,8 +250,8 @@ describe("WorkflowEditorComponent", () => {
       // add and highlight two operators
       workflowActionService.addOperatorsAndLinks(
         [
-          { op: mockScanPredicate, pos: mockPoint },
-          { op: mockResultPredicate, pos: mockPoint },
+          {op: mockScanPredicate, pos: mockPoint},
+          {op: mockResultPredicate, pos: mockPoint},
         ],
         []
       );
@@ -262,7 +262,7 @@ describe("WorkflowEditorComponent", () => {
       expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockResultPredicate.operatorID);
 
       // find a blank area on the JointJS paper
-      const blankPoint = { x: mockPoint.x + 100, y: mockPoint.y + 100 };
+      const blankPoint = {x: mockPoint.x + 100, y: mockPoint.y + 100};
       expect(component.getJointPaper().findViewsFromPoint(blankPoint)).toEqual([]);
 
       // trigger a click on the blank area using JointJS paper's jQuery element
@@ -325,7 +325,7 @@ describe("WorkflowEditorComponent", () => {
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
       workflowActionService.addOperator(mockResultPredicate, mockPoint);
       workflowActionService.addLink(mockScanResultLink);
-      const newProperty = { tableName: "test-table" };
+      const newProperty = {tableName: "test-table"};
       workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, newProperty);
       const operator1 = component.getJointPaper().getModelById(mockScanPredicate.operatorID);
       const operator2 = component.getJointPaper().getModelById(mockResultPredicate.operatorID);
@@ -417,8 +417,8 @@ describe("WorkflowEditorComponent", () => {
         operatorID: "union-1",
         operatorType: "Union",
         operatorProperties: {},
-        inputPorts: [{ portID: "input-0" }],
-        outputPorts: [{ portID: "output-0" }],
+        inputPorts: [{portID: "input-0"}],
+        outputPorts: [{portID: "output-0"}],
         showAdvanced: false,
         isDisabled: false,
       };
@@ -621,7 +621,7 @@ describe("WorkflowEditorComponent", () => {
       jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
 
       // dispatch a keydown event on the backspace key
-      const event = new KeyboardEvent("keydown", { key: "Backspace" });
+      const event = new KeyboardEvent("keydown", {key: "Backspace"});
 
       (document.activeElement as HTMLElement)?.blur();
       document.dispatchEvent(event);
@@ -640,7 +640,7 @@ describe("WorkflowEditorComponent", () => {
       jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
 
       // dispatch a keydown event on the backspace key
-      const event = new KeyboardEvent("keydown", { key: "Delete" });
+      const event = new KeyboardEvent("keydown", {key: "Delete"});
 
       (document.activeElement as HTMLElement)?.blur();
       document.dispatchEvent(event);
@@ -657,8 +657,8 @@ describe("WorkflowEditorComponent", () => {
 
       workflowActionService.addOperatorsAndLinks(
         [
-          { op: mockScanPredicate, pos: mockPoint },
-          { op: mockResultPredicate, pos: mockPoint },
+          {op: mockScanPredicate, pos: mockPoint},
+          {op: mockResultPredicate, pos: mockPoint},
         ],
         []
       );
@@ -669,7 +669,7 @@ describe("WorkflowEditorComponent", () => {
       expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockResultPredicate.operatorID);
 
       // dispatch a keydown event on the backspace key
-      const event = new KeyboardEvent("keydown", { key: "Backspace" });
+      const event = new KeyboardEvent("keydown", {key: "Backspace"});
 
       (document.activeElement as HTMLElement)?.blur();
       document.dispatchEvent(event);
@@ -806,7 +806,7 @@ describe("WorkflowEditorComponent", () => {
       const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicate.operatorID);
 
       // trigger a shift click on the cell view using its jQuery element
-      const event = jQuery.Event("mousedown", { shiftKey: true });
+      const event = jQuery.Event("mousedown", {shiftKey: true});
       jointCellView.$el.trigger(event);
 
       fixture.detectChanges();
@@ -829,7 +829,7 @@ describe("WorkflowEditorComponent", () => {
       const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicate.operatorID);
 
       // trigger a shift click on the cell view using its jQuery element
-      const event = jQuery.Event("mousedown", { shiftKey: true });
+      const event = jQuery.Event("mousedown", {shiftKey: true});
       jointCellView.$el.trigger(event);
 
       fixture.detectChanges();
@@ -848,7 +848,7 @@ describe("WorkflowEditorComponent", () => {
       jointGraphWrapper.unhighlightOperators(mockScanPredicate.operatorID, mockResultPredicate.operatorID);
 
       // dispatch a keydown event on the command + A key comb
-      const event = new KeyboardEvent("keydown", { key: "a", metaKey: true });
+      const event = new KeyboardEvent("keydown", {key: "a", metaKey: true});
 
       (document.activeElement as HTMLElement)?.blur();
       document.dispatchEvent(event);
