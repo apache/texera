@@ -1,19 +1,13 @@
-import {
-  Component,
-  HostListener,
-  Inject,
-  Input,
-  LOCALE_ID
-} from "@angular/core";
-import {NzModalRef} from "ng-zorro-antd/modal";
-import {CommentBox} from "src/app/workspace/types/workflow-common.interface";
-import {WorkflowActionService} from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
-import {UserService} from "src/app/common/service/user/user.service";
-import {NotificationService} from "../../../../common/service/notification/notification.service";
-import {User} from "src/app/common/type/user";
-import {untilDestroyed} from "@ngneat/until-destroy";
-import {UntilDestroy} from "@ngneat/until-destroy";
-import {formatDate} from "@angular/common";
+import { Component, HostListener, Inject, Input, LOCALE_ID } from "@angular/core";
+import { NzModalRef } from "ng-zorro-antd/modal";
+import { CommentBox } from "src/app/workspace/types/workflow-common.interface";
+import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
+import { UserService } from "src/app/common/service/user/user.service";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { User } from "src/app/common/type/user";
+import { untilDestroyed } from "@ngneat/until-destroy";
+import { UntilDestroy } from "@ngneat/until-destroy";
+import { formatDate } from "@angular/common";
 
 @UntilDestroy()
 @Component({
@@ -38,7 +32,6 @@ export class NzModalCommentBoxComponent {
       .subscribe(user => (this.user = user));
   }
 
-
   inputValue = "";
   submitting = false;
 
@@ -50,7 +43,6 @@ export class NzModalCommentBoxComponent {
   }
 
   public addComment(content: string): void {
-
     if (!this.user) {
       return;
     }
@@ -59,7 +51,7 @@ export class NzModalCommentBoxComponent {
     const creatorName = this.user.name;
     const creatorID = this.user.uid;
     this.workflowActionService.addComment(
-      {content, creatorName, creatorID, creationTime},
+      { content, creatorName, creatorID, creationTime },
       this.commentBox.commentBoxID
     );
   }
