@@ -106,6 +106,9 @@
         <button (click)="onClickRestoreZoomOffsetDefault()" nz-button title="reset zoom">
           <i nz-icon nzTheme="outline" nzType="fullscreen"></i>
         </button>
+        <button (click)="onClickAddCommentBox()" nz-button title="add a comment">
+          <i nz-icon nzType="comment" nzTheme="outline"></i>
+        </button>
         <button
           [disabled]="
 						!workflowResultExportService.exportExecutionResultEnabled ||

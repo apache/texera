@@ -30,6 +30,20 @@ export interface OperatorPredicate
     customDisplayName?: string;
   }> {}
 
+export interface Comment
+  extends Readonly<{
+    content: string;
+    creationTime: string;
+    creatorName: string;
+    creatorID: number;
+  }> {}
+
+export interface CommentBox {
+  commentBoxID: string;
+  comments: Comment[];
+  commentBoxPosition: Point;
+}
+
 export interface OperatorLink
   extends Readonly<{
     linkID: string;

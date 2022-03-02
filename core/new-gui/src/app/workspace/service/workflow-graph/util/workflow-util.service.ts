@@ -1,4 +1,4 @@
-import { OperatorPredicate } from "../../../types/workflow-common.interface";
+import { OperatorPredicate, CommentBox, Comment, Point } from "../../../types/workflow-common.interface";
 import { OperatorMetadataService } from "../../operator-metadata/operator-metadata.service";
 import { OperatorSchema } from "../../../types/operator-schema.interface";
 import { Injectable } from "@angular/core";
@@ -60,6 +60,18 @@ export class WorkflowUtilService {
    */
   public getBreakpointRandomUUID(): string {
     return "breakpoint-" + uuid();
+  }
+
+  public getCommentBoxRandomUUID(): string {
+    return "commentBox-" + uuid();
+  }
+
+  // TODO: change this to drag-and-drop
+  public getNewCommentBox(): CommentBox {
+    const commentBoxID = this.getCommentBoxRandomUUID();
+    const comments: Comment[] = [];
+    const commentBoxPosition: Point = { x: 500, y: 20 };
+    return { commentBoxID, comments, commentBoxPosition };
   }
 
   /**

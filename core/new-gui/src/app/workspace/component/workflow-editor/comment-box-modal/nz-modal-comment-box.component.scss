@@ -1,0 +1,15 @@
+.modal-body {
+  min-height: 20vh;
+  max-height: 60vh;
+  overflow-y: auto;
+  width: 100%;
+
+  p {
+    word-break: break-all;
+    white-space: normal;
+  }
+}
+
+.modal-dialog {
+  overflow-y: initial !important;
+}
