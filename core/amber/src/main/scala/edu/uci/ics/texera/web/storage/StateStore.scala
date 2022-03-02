@@ -44,8 +44,9 @@ class StateStore[T](defaultState: T) {
     }
   }
 
-  def getWebsocketEventObservable: Observable[Iterable[TexeraWebSocketEvent]] = diffSubject
+  def getWebsocketEventObservable: Observable[Iterable[TexeraWebSocketEvent]] =
+    diffSubject.onTerminateDetach()
 
-  def getStateObservable: Observable[T] = serializedSubject
+  def getStateObservable: Observable[T] = serializedSubject.onTerminateDetach()
 
 }

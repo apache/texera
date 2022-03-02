@@ -13,7 +13,6 @@ import edu.uci.ics.texera.web.model.websocket.event.{
   WorkflowExecutionErrorEvent,
   WorkflowStateEvent
 }
-import edu.uci.ics.texera.web.model.websocket.request.python.PythonExpressionEvaluateRequest
 import edu.uci.ics.texera.web.model.websocket.request.{
   RemoveBreakpointRequest,
   SkipTupleRequest,
@@ -21,21 +20,21 @@ import edu.uci.ics.texera.web.model.websocket.request.{
   WorkflowPauseRequest,
   WorkflowResumeRequest
 }
-import edu.uci.ics.texera.web.storage.WorkflowStateStore
+import edu.uci.ics.texera.web.storage.{JobStateStore, WorkflowStateStore}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
 
 import scala.collection.mutable
 
 class JobRuntimeService(
     client: AmberClient,
-    stateStore: WorkflowStateStore,
+    stateStore: JobStateStore,
     wsInput: WebsocketInput,
     breakpointService: JobBreakpointService
 ) extends SubscriptionManager
     with LazyLogging {
 
   addSubscription(
-    stateStore.jobStateStore.registerDiffHandler((oldState, newState) => {
+    stateStore.jobMetadataStore.registerDiffHandler((oldState, newState) => {
       val outputEvts = new mutable.ArrayBuffer[TexeraWebSocketEvent]()
       // Update workflow state
       if (newState.state != oldState.state) {
@@ -59,27 +58,27 @@ class JobRuntimeService(
 
   // Receive Pause
   addSubscription(wsInput.subscribe((req: WorkflowPauseRequest, uidOpt) => {
-    stateStore.jobStateStore.updateState(jobInfo => jobInfo.withState(PAUSING))
+    stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(PAUSING))
     client.sendAsyncWithCallback[Unit](
       PauseWorkflow(),
-      _ => stateStore.jobStateStore.updateState(jobInfo => jobInfo.withState(PAUSED))
+      _ => stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(PAUSED))
     )
   }))
 
   // Receive Resume
   addSubscription(wsInput.subscribe((req: WorkflowResumeRequest, uidOpt) => {
     breakpointService.clearTriggeredBreakpoints()
-    stateStore.jobStateStore.updateState(jobInfo => jobInfo.withState(RESUMING))
+    stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(RESUMING))
     client.sendAsyncWithCallback[Unit](
       ResumeWorkflow(),
-      _ => stateStore.jobStateStore.updateState(jobInfo => jobInfo.withState(RUNNING))
+      _ => stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(RUNNING))
     )
   }))
 
   // Receive Kill
   addSubscription(wsInput.subscribe((req: WorkflowKillRequest, uidOpt) => {
     client.shutdown()
-    stateStore.jobStateStore.updateState(jobInfo => jobInfo.withState(COMPLETED))
+    stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(COMPLETED))
   }))
 
 }

@@ -13,12 +13,12 @@ import edu.uci.ics.texera.web.model.websocket.event.{
   OperatorStatisticsUpdateEvent,
   TexeraWebSocketEvent
 }
-import edu.uci.ics.texera.web.storage.WorkflowStateStore
+import edu.uci.ics.texera.web.storage.{JobStateStore, WorkflowStateStore}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{ABORTED, COMPLETED}
 
 class JobStatsService(
     client: AmberClient,
-    stateStore: WorkflowStateStore
+    stateStore: JobStateStore
 ) extends SubscriptionManager {
 
   registerCallbacks()
@@ -67,7 +67,7 @@ class JobStatsService(
       client
         .registerCallback[WorkflowCompleted]((evt: WorkflowCompleted) => {
           client.shutdown()
-          stateStore.jobStateStore.updateState(jobInfo => jobInfo.withState(COMPLETED))
+          stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(COMPLETED))
         })
     )
   }
@@ -77,7 +77,7 @@ class JobStatsService(
       client
         .registerCallback[FatalError]((evt: FatalError) => {
           client.shutdown()
-          stateStore.jobStateStore.updateState { jobInfo =>
+          stateStore.jobMetadataStore.updateState { jobInfo =>
             jobInfo.withState(ABORTED).withError(evt.e.getLocalizedMessage)
           }
         })

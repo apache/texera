@@ -13,7 +13,7 @@ import edu.uci.ics.texera.web.model.websocket.request.python.PythonExpressionEva
 import edu.uci.ics.texera.web.model.websocket.request.{RetryRequest, SkipTupleRequest}
 import edu.uci.ics.texera.web.model.websocket.response.python.PythonExpressionEvaluateResponse
 import edu.uci.ics.texera.web.service.JobPythonService.bufferSize
-import edu.uci.ics.texera.web.storage.WorkflowStateStore
+import edu.uci.ics.texera.web.storage.{JobStateStore, WorkflowStateStore}
 import edu.uci.ics.texera.web.workflowruntimestate.{EvaluatedValueList, PythonOperatorInfo}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{RESUMING, RUNNING}
 
@@ -26,7 +26,7 @@ object JobPythonService {
 
 class JobPythonService(
     client: AmberClient,
-    stateStore: WorkflowStateStore,
+    stateStore: JobStateStore,
     wsInput: WebsocketInput,
     breakpointService: JobBreakpointService
 ) extends SubscriptionManager {
@@ -87,10 +87,10 @@ class JobPythonService(
   //Receive retry request
   addSubscription(wsInput.subscribe((req: RetryRequest, uidOpt) => {
     breakpointService.clearTriggeredBreakpoints()
-    stateStore.jobStateStore.updateState(jobInfo => jobInfo.withState(RESUMING))
+    stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(RESUMING))
     client.sendAsyncWithCallback[Unit](
       RetryWorkflow(),
-      _ => stateStore.jobStateStore.updateState(jobInfo => jobInfo.withState(RUNNING))
+      _ => stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(RUNNING))
     )
   }))
 
