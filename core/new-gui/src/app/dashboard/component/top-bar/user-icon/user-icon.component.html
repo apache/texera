@@ -1,5 +1,16 @@
 <div ngbDropdown class="d-inline-block user-icon">
-  <button class="btn btn-outline-primary" id="dropdownBasic1" ngbDropdownToggle>{{ user?.name || "Sign In" }}</button>
+  <button *ngIf="!user?.name;else user_avatar" class="btn btn-outline-primary" id="dropdownBasic1" ngbDropdownToggle>
+    Sign In
+  </button>
+  <ng-template #user_avatar>
+    <texera-user-avatar
+      class="user-avatar caret-off"
+      ngbDropdownToggle
+      [googleId]="user?.googleId || '' "
+      [userName]="user?.name || ''"
+    >
+    </texera-user-avatar>
+  </ng-template>
   <div aria-labelledby="dropdownBasic1" class="user-dropdown" ngbDropdownMenu>
     <button (click)="onClickLogin()" *ngIf="!user" class="dropdown-item">Sign In</button>
     <button (click)="onClickRegister()" *ngIf="!user" class="dropdown-item">Sign up</button>
