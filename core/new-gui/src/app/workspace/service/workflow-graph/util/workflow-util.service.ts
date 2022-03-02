@@ -66,12 +66,14 @@ export class WorkflowUtilService {
     return "commentBox-" + uuid();
   }
 
+  // TODO: change this to drag-and-drop
   public getNewCommentBox(): CommentBox {
     const commentBoxID = this.getCommentBoxRandomUUID();
     const comments: Comment[] = [];
     const commentBoxPosition: Point = { x: 500, y: 20 };
     return { commentBoxID, comments, commentBoxPosition };
   }
+
   /**
    * This method will use a unique ID and a operatorType to create and return a
    * new OperatorPredicate with default initial properties.
