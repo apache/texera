@@ -92,7 +92,7 @@ class WorkflowService(
   val exportService: ResultExportService = new ResultExportService(opResultStorage)
   val operatorCache: WorkflowCacheService =
     new WorkflowCacheService(opResultStorage, stateStore, wsInput)
-  var jobService: Option[WorkflowJobService] = None
+  var jobService: BehaviorSubject[WorkflowJobService] = BehaviorSubject.create()
   val lifeCycleManager: WorkflowLifecycleManager = new WorkflowLifecycleManager(
     s"uid=$uidOpt wid=$wId",
     cleanUpTimeout,
@@ -120,9 +120,23 @@ class WorkflowService(
     new CompositeDisposable(subscriptions :+ errorSubscription: _*)
   }
 
+  def connectToJob(onNext: TexeraWebSocketEvent => Unit): Disposable = {
+    var localDisposable = Disposable.empty()
+    jobService.subscribe { job: WorkflowJobService =>
+      localDisposable.dispose()
+      val subscriptions = job.stateStore.getAllStores
+        .map(_.getWebsocketEventObservable)
+        .map(evtPub =>
+          evtPub.subscribe { evts: Iterable[TexeraWebSocketEvent] => evts.foreach(onNext) }
+        )
+        .toSeq
+      localDisposable = new CompositeDisposable(subscriptions: _*)
+    }
+  }
+
   def disconnect(): Unit = {
     lifeCycleManager.decreaseUserCount(
-      stateStore.jobStateStore.getState.state
+      Option(jobService.getValue).map(_.stateStore.jobMetadataStore.getState.state)
     )
   }
 
@@ -142,27 +156,26 @@ class WorkflowService(
   }
 
   def initJobService(req: WorkflowExecuteRequest, uidOpt: Option[UInteger]): Unit = {
-    if (jobService.isDefined) {
+    if (jobService.getValue != null) {
       //unsubscribe all
-      jobService.get.unsubscribeAll()
+      jobService.getValue.unsubscribeAll()
     }
     val job = new WorkflowJobService(
       createWorkflowContext(req),
-      stateStore,
       wsInput,
       operatorCache,
       resultService,
       req,
       errorHandler
     )
-    lifeCycleManager.registerCleanUpOnStateChange(stateStore)
-    jobService = Some(job)
+    lifeCycleManager.registerCleanUpOnStateChange(job.stateStore)
+    jobService.onNext(job)
     job.startWorkflow()
   }
 
   override def unsubscribeAll(): Unit = {
     super.unsubscribeAll()
-    jobService.foreach(_.unsubscribeAll())
+    Option(jobService.getValue).foreach(_.unsubscribeAll())
     operatorCache.unsubscribeAll()
     resultService.unsubscribeAll()
   }
