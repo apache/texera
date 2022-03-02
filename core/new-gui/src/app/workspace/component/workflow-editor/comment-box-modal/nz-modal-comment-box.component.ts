@@ -1,4 +1,10 @@
-import {AfterViewInit, Component, Inject, Input, LOCALE_ID} from "@angular/core";
+import {
+  Component,
+  HostListener,
+  Inject,
+  Input,
+  LOCALE_ID
+} from "@angular/core";
 import {NzModalRef} from "ng-zorro-antd/modal";
 import {CommentBox} from "src/app/workspace/types/workflow-common.interface";
 import {WorkflowActionService} from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
@@ -15,7 +21,7 @@ import {formatDate} from "@angular/common";
   templateUrl: "./nz-modal-comment-box.component.html",
   styleUrls: ["./nz-modal-comment-box.component.scss"],
 })
-export class NzModalCommentBoxComponent implements AfterViewInit {
+export class NzModalCommentBoxComponent {
   @Input() commentBox!: CommentBox;
   public user?: User;
 
@@ -26,14 +32,12 @@ export class NzModalCommentBoxComponent implements AfterViewInit {
     public modal: NzModalRef<any, number>,
     public notificationService: NotificationService
   ) {
-  }
-
-  ngAfterViewInit(): void {
     this.userService
       .userChanged()
       .pipe(untilDestroyed(this))
       .subscribe(user => (this.user = user));
   }
+
 
   inputValue = "";
   submitting = false;
@@ -62,5 +66,14 @@ export class NzModalCommentBoxComponent implements AfterViewInit {
 
   toRelative(datetime: string): string {
     return formatDate(new Date(datetime), "MM/dd/yyyy, hh:mm:ss a z", this.locale);
+  }
+
+  @HostListener("window:keydown", ["$event"])
+  onKeyDown(event: KeyboardEvent) {
+    console.log(event);
+    if ((event.metaKey || event.ctrlKey) && event.key == "Enter") {
+      this.onClickAddComment();
+      event.preventDefault();
+    }
   }
 }
