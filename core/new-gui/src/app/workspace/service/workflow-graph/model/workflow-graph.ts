@@ -114,13 +114,12 @@ export class WorkflowGraph {
     this.commentBoxAddSubject.next(commentBox);
   }
 
-  public addCommentToCommentBox(addedComment: Comment, commentBoxID: string): void {
+  public addCommentToCommentBox(comment: Comment, commentBoxID: string): void {
     this.assertCommentBoxExists(commentBoxID);
     const commentBox = this.commentBoxMap.get(commentBoxID);
     if (commentBox != null) {
-      commentBox.comments.push(addedComment);
-      this.commentBoxMap.set(commentBoxID, commentBox);
-      this.commentBoxAddCommentSubject.next({ addedComment: addedComment, commentBox: commentBox });
+      commentBox.comments.push(comment);
+      this.commentBoxAddCommentSubject.next({ addedComment: comment, commentBox: commentBox });
     }
   }
   /**
