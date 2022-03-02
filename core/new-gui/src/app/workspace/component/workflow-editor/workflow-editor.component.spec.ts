@@ -131,7 +131,7 @@ describe("WorkflowEditorComponent", () => {
    * This sub test suites test the Integration of WorkflowEditorComponent with external modules,
    *  such as drag and drop module, and highlight operator module.
    */
-  fdescribe("External Module Integration", () => {
+  describe("External Module Integration", () => {
     let component: WorkflowEditorComponent;
     let fixture: ComponentFixture<WorkflowEditorComponent>;
     let workflowActionService: WorkflowActionService;
