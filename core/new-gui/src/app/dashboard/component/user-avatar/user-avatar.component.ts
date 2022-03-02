@@ -1,4 +1,4 @@
-import { GooglePeopleApiResponse } from "./../../type/google-api-response";
+import { GooglePeopleApiResponse } from "../../type/google-api-response";
 import { Component, OnInit, Input } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { HttpClient } from "@angular/common/http";
@@ -54,10 +54,19 @@ export class UserAvatarComponent implements OnInit {
     }
   }
 
+  /**
+   * abbreviates the name under 5 chars
+   * @param userName
+   */
+  public abbreviate(userName: string): string {
+    if (userName.length <= 5) {
+      return userName;
+    } else {
+      return this.getUserInitial(userName).slice(0, 5);
+    }
+  }
+
   public getUserInitial(userName: string): string {
-    return userName
-      .split(" ")
-      .map(n => n[0])
-      .join("");
+    return userName + "he";
   }
 }

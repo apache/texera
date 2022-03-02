@@ -4,7 +4,7 @@
     class="texera-user-avatar"
     [nzSrc]="googleUserAvatarSrc || ''"
     [nzAlt]=""
-    [nzText]="getUserInitial(userName || '')"
+    [nzText]="abbreviate(userName || '')"
   >
   </nz-avatar>
 </div>
