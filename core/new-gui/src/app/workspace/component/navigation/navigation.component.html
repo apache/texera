@@ -113,6 +113,9 @@
         <button nz-button (click)="onClickAutoLayout()" [disabled]="!lockGranted" title="auto layout">
           <i nz-icon nzType="partition" nzTheme="outline"></i>
         </button>
+        <button (click)="onClickAddCommentBox()" nz-button title="add a comment">
+          <i nz-icon nzType="comment" nzTheme="outline"></i>
+        </button>
         <button
           [disabled]="
 						!workflowResultExportService.exportExecutionResultEnabled ||

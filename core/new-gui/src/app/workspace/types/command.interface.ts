@@ -23,7 +23,9 @@ export type commandFuncs =
   | "highlightOperators"
   | "unhighlightOperators"
   | "highlightLinks"
-  | "unhighlightLinks";
+  | "unhighlightLinks"
+  | "addCommentBox"
+  | "deleteCommentBox";
 
 // keyof yields permitted property names for T. When we pass function, it'll return value of that function?
 // For this type, we index T with the property names for T, which results in us getting the values.
