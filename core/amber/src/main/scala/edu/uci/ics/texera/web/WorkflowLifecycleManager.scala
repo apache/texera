@@ -3,8 +3,8 @@ package edu.uci.ics.texera.web
 import java.time.{LocalDateTime, Duration => JDuration}
 import akka.actor.Cancellable
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.texera.web.storage.WorkflowStateStore
-import edu.uci.ics.texera.web.workflowruntimestate.{JobStateStore, WorkflowAggregatedState}
+import edu.uci.ics.texera.web.storage.{JobStateStore, WorkflowStateStore}
+import edu.uci.ics.texera.web.workflowruntimestate.{JobMetadataStore, WorkflowAggregatedState}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.RUNNING
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
@@ -59,10 +59,10 @@ class WorkflowLifecycleManager(id: String, cleanUpTimeout: Int, cleanUpCallback:
     }
   }
 
-  def decreaseUserCount(currentWorkflowState: WorkflowAggregatedState): Unit = {
+  def decreaseUserCount(currentWorkflowState: Option[WorkflowAggregatedState]): Unit = {
     synchronized {
       userCount -= 1
-      if (userCount == 0 && currentWorkflowState != RUNNING) {
+      if (userCount == 0 && (currentWorkflowState.isEmpty || currentWorkflowState.get != RUNNING)) {
         refreshDeadline()
       } else {
         logger.info(s"[$id] workflow state clean up postponed. current user count = $userCount")
@@ -70,9 +70,9 @@ class WorkflowLifecycleManager(id: String, cleanUpTimeout: Int, cleanUpCallback:
     }
   }
 
-  def registerCleanUpOnStateChange(stateStore: WorkflowStateStore): Unit = {
+  def registerCleanUpOnStateChange(stateStore: JobStateStore): Unit = {
     cleanUpJob.cancel()
-    stateStore.jobStateStore.getStateObservable.subscribe { newState: JobStateStore =>
+    stateStore.jobMetadataStore.getStateObservable.subscribe { newState: JobMetadataStore =>
       setCleanUpDeadline(newState.state)
     }
   }

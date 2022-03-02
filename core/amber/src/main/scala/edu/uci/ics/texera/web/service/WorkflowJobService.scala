@@ -8,7 +8,7 @@ import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workf
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.web.model.websocket.request.{ModifyLogicRequest, WorkflowExecuteRequest}
-import edu.uci.ics.texera.web.storage.WorkflowStateStore
+import edu.uci.ics.texera.web.storage.{JobStateStore, WorkflowStateStore}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{READY, RUNNING}
 import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication, WebsocketInput}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -22,7 +22,6 @@ import edu.uci.ics.texera.workflow.common.workflow.{
 
 class WorkflowJobService(
     workflowContext: WorkflowContext,
-    stateStore: WorkflowStateStore,
     wsInput: WebsocketInput,
     operatorCache: WorkflowCacheService,
     resultService: JobResultService,
@@ -31,6 +30,7 @@ class WorkflowJobService(
 ) extends SubscriptionManager
     with LazyLogging {
 
+  val stateStore = new JobStateStore()
   val workflowInfo: WorkflowInfo = createWorkflowInfo()
   val workflowCompiler: WorkflowCompiler = createWorkflowCompiler(workflowInfo)
   val workflow: Workflow = workflowCompiler.amberWorkflow(
@@ -66,17 +66,17 @@ class WorkflowJobService(
         Duration.fromSeconds(10)
       )
     }
-    resultService.attachToJob(workflowInfo, client)
+    resultService.attachToJob(stateStore, workflowInfo, client)
     if (WorkflowService.userSystemEnabled) {
       workflowContext.executionID =
         ExecutionsMetadataPersistService.insertNewExecution(workflowContext.wId)
     }
-    stateStore.jobStateStore.updateState(jobInfo =>
+    stateStore.jobMetadataStore.updateState(jobInfo =>
       jobInfo.withState(READY).withEid(workflowContext.executionID).withError(null)
     )
     client.sendAsyncWithCallback[Unit](
       StartWorkflow(),
-      _ => stateStore.jobStateStore.updateState(jobInfo => jobInfo.withState(RUNNING))
+      _ => stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(RUNNING))
     )
   }
 
