@@ -32,9 +32,9 @@ export interface OperatorPredicate
 export interface Comment
   extends Readonly<{
     content: string;
-    creationTime: string;
-    creator: string | undefined;
-    creatorID: number | undefined;
+    creationTime?: string;
+    creator: string;
+    creatorID: number;
   }> {}
 
 export interface CommentBox {
