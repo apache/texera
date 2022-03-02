@@ -43,14 +43,16 @@ export class NzModalCommentBoxComponent {
   }
 
   public addComment(content: string): void {
-    const creationTime: string = new Date().toISOString();
+
     if (!this.user) {
       return;
     }
-    const creator = this.user.name;
+    // A compromise: we create the timestamp in the frontend since the entire comment is managed together, in JSON format
+    const creationTime: string = new Date().toISOString();
+    const creatorName = this.user.name;
     const creatorID = this.user.uid;
     this.workflowActionService.addComment(
-      {content, creator, creatorID, creationTime},
+      {content, creatorName: creatorName, creatorID, creationTime},
       this.commentBox.commentBoxID
     );
   }
