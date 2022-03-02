@@ -10,18 +10,19 @@
       </nz-comment>
     </nz-list-item>
   </nz-list>
-  <nz-comment>
-    <!-- TODO: add user avatar-->
-    <!--    <nz-avatar nz-comment-avatar nzIcon="user" [nzSrc]="user.avatar"></nz-avatar>-->
-    <nz-input-group [nzAddOnAfter]="suffixButton">
-           <textarea placeholder="Comment Here" [(ngModel)]="inputValue"
-                     nz-input [nzAutosize]="{ minRows: 1, maxRows: 6}"></textarea>
-    </nz-input-group>
-    <ng-template #suffixButton>
-      <button nz-button nzType="primary" [nzLoading]="submitting" [disabled]="!user || !inputValue"
-              (click)="onClickAddComment()">
-        Add Comment
-      </button>
-    </ng-template>
-  </nz-comment>
+
+</div>
+
+<div class="modal-footer">
+  <!-- TODO: add user avatar-->
+  <!--    <nz-avatar nz-comment-avatar nzIcon="user" [nzSrc]="user.avatar"></nz-avatar>-->
+  <nz-input-group [nzSuffix]="suffixIconSubmit">
+
+    <textarea type="text" placeholder="add new comment" [(ngModel)]="inputValue"
+              nz-input [nzAutosize]="{ minRows: 1, maxRows: 6}"></textarea>
+  </nz-input-group>
+  <ng-template #suffixIconSubmit>
+    <button nz-button nzType="primary" [nzLoading]="submitting" [disabled]="!user || !inputValue"
+            (click)="onClickAddComment()"><i nz-icon nzType="send"></i></button>
+  </ng-template>
 </div>

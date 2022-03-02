@@ -1,4 +1,4 @@
-import {Component, Inject, Input, LOCALE_ID} from "@angular/core";
+import {AfterViewInit, Component, Inject, Input, LOCALE_ID} from "@angular/core";
 import {NzModalRef} from "ng-zorro-antd/modal";
 import {CommentBox} from "src/app/workspace/types/workflow-common.interface";
 import {WorkflowActionService} from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
@@ -15,7 +15,7 @@ import {formatDate} from "@angular/common";
   templateUrl: "./nz-modal-comment-box.component.html",
   styleUrls: ["./nz-modal-comment-box.component.scss"],
 })
-export class NzModalCommentBoxComponent {
+export class NzModalCommentBoxComponent implements AfterViewInit {
   @Input() commentBox!: CommentBox;
   public user?: User;
 
@@ -26,6 +26,9 @@ export class NzModalCommentBoxComponent {
     public modal: NzModalRef<any, number>,
     public notificationService: NotificationService
   ) {
+  }
+
+  ngAfterViewInit(): void {
     this.userService
       .userChanged()
       .pipe(untilDestroyed(this))
