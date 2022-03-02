@@ -70,7 +70,6 @@ export class NzModalCommentBoxComponent {
 
   @HostListener("window:keydown", ["$event"])
   onKeyDown(event: KeyboardEvent) {
-    console.log(event);
     if ((event.metaKey || event.ctrlKey) && event.key == "Enter") {
       this.onClickAddComment();
       event.preventDefault();
