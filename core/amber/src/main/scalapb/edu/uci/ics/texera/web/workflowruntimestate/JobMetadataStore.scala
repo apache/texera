@@ -6,11 +6,11 @@
 package edu.uci.ics.texera.web.workflowruntimestate
 
 @SerialVersionUID(0L)
-final case class JobStateStore(
+final case class JobMetadataStore(
     state: edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.UNINITIALIZED,
     error: _root_.scala.Predef.String = "",
     eid: _root_.scala.Long = 0L
-    ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[JobStateStore] {
+    ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[JobMetadataStore] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
     private[this] def __computeSerializedValue(): _root_.scala.Int = {
@@ -66,9 +66,9 @@ final case class JobStateStore(
         }
       };
     }
-    def withState(__v: edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState): JobStateStore = copy(state = __v)
-    def withError(__v: _root_.scala.Predef.String): JobStateStore = copy(error = __v)
-    def withEid(__v: _root_.scala.Long): JobStateStore = copy(eid = __v)
+    def withState(__v: edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState): JobMetadataStore = copy(state = __v)
+    def withError(__v: _root_.scala.Predef.String): JobMetadataStore = copy(error = __v)
+    def withEid(__v: _root_.scala.Long): JobMetadataStore = copy(eid = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
@@ -94,13 +94,13 @@ final case class JobStateStore(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.texera.web.workflowruntimestate.JobStateStore
-    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.texera.web.JobStateStore])
+    def companion = edu.uci.ics.texera.web.workflowruntimestate.JobMetadataStore
+    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.texera.web.JobMetadataStore])
 }
 
-object JobStateStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.JobStateStore] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.JobStateStore] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.texera.web.workflowruntimestate.JobStateStore = {
+object JobMetadataStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.JobMetadataStore] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.JobMetadataStore] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.texera.web.workflowruntimestate.JobMetadataStore = {
     var __state: edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.UNINITIALIZED
     var __error: _root_.scala.Predef.String = ""
     var __eid: _root_.scala.Long = 0L
@@ -118,16 +118,16 @@ object JobStateStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics.texer
         case tag => _input__.skipField(tag)
       }
     }
-    edu.uci.ics.texera.web.workflowruntimestate.JobStateStore(
+    edu.uci.ics.texera.web.workflowruntimestate.JobMetadataStore(
         state = __state,
         error = __error,
         eid = __eid
     )
   }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.texera.web.workflowruntimestate.JobStateStore] = _root_.scalapb.descriptors.Reads{
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.texera.web.workflowruntimestate.JobMetadataStore] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.texera.web.workflowruntimestate.JobStateStore(
+      edu.uci.ics.texera.web.workflowruntimestate.JobMetadataStore(
         state = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.fromValue(__fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scalapb.descriptors.EnumValueDescriptor]).getOrElse(edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.UNINITIALIZED.scalaValueDescriptor).number),
         error = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
         eid = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Long]).getOrElse(0L)
@@ -143,12 +143,12 @@ object JobStateStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics.texer
       case 1 => edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
     }
   }
-  lazy val defaultInstance = edu.uci.ics.texera.web.workflowruntimestate.JobStateStore(
+  lazy val defaultInstance = edu.uci.ics.texera.web.workflowruntimestate.JobMetadataStore(
     state = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.UNINITIALIZED,
     error = "",
     eid = 0L
   )
-  implicit class JobStateStoreLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.JobStateStore]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.JobStateStore](_l) {
+  implicit class JobMetadataStoreLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.JobMetadataStore]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.JobMetadataStore](_l) {
     def state: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState] = field(_.state)((c_, f_) => c_.copy(state = f_))
     def error: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.error)((c_, f_) => c_.copy(error = f_))
     def eid: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Long] = field(_.eid)((c_, f_) => c_.copy(eid = f_))
@@ -160,10 +160,10 @@ object JobStateStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics.texer
     state: edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState,
     error: _root_.scala.Predef.String,
     eid: _root_.scala.Long
-  ): _root_.edu.uci.ics.texera.web.workflowruntimestate.JobStateStore = _root_.edu.uci.ics.texera.web.workflowruntimestate.JobStateStore(
+  ): _root_.edu.uci.ics.texera.web.workflowruntimestate.JobMetadataStore = _root_.edu.uci.ics.texera.web.workflowruntimestate.JobMetadataStore(
     state,
     error,
     eid
   )
-  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.texera.web.JobStateStore])
+  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.texera.web.JobMetadataStore])
 }

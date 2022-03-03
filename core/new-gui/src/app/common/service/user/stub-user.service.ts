@@ -10,6 +10,7 @@ export const MOCK_USER_NAME = "testUser";
 export const MOCK_USER = {
   name: MOCK_USER_NAME,
   uid: MOCK_USER_ID,
+  googleId: undefined,
 };
 
 /**
