@@ -194,7 +194,7 @@ class JobResultService(
 
     // first clear all the results
     progressiveResults.clear()
-    stateStore.statsStore.updateState { state =>
+    workflowStateStore.resultStore.updateState { state =>
       state.withOperatorInfo(Map.empty)
     }
 
