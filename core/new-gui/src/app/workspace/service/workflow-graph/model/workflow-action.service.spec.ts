@@ -13,6 +13,7 @@ import {
   mockFalseResultSentimentLink,
   mockFalseSentimentScanLink,
   mockPoint,
+  mockCommentBox,
 } from "./mock-workflow-data";
 import { TestBed, inject } from "@angular/core/testing";
 
@@ -21,6 +22,7 @@ import { OperatorPredicate, Point } from "../../../types/workflow-common.interfa
 import { g } from "jointjs";
 import { environment } from "./../../../../../environments/environment";
 import { WorkflowUtilService } from "../util/workflow-util.service";
+import { join } from "lodash";
 
 describe("WorkflowActionService", () => {
   let service: WorkflowActionService;
@@ -57,6 +59,12 @@ describe("WorkflowActionService", () => {
 
     expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeTruthy();
     expect(jointGraph.getCell(mockScanPredicate.operatorID)).toBeTruthy();
+  });
+
+  it("should add commentBox to both jointjs and texera graph correctly", () => {
+    service.addCommentBox(mockCommentBox);
+    expect(texeraGraph.hasCommentBox(mockCommentBox.commentBoxID)).toBeTruthy();
+    expect(jointGraph.getCell(mockCommentBox.commentBoxID)).toBeTruthy();
   });
 
   it("should throw an error when adding an existed operator", () => {

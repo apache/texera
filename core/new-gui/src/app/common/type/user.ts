@@ -7,4 +7,5 @@ export interface User
   extends Readonly<{
     name: string;
     uid: number;
+    googleId?: string;
   }> {}
