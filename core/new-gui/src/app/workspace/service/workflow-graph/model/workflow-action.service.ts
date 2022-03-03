@@ -27,6 +27,7 @@ import { WorkflowGraph, WorkflowGraphReadonly } from "./workflow-graph";
 import { auditTime, debounceTime, filter } from "rxjs/operators";
 import { WorkflowCollabService } from "../../workflow-collab/workflow-collab.service";
 import { Command, commandFuncs, CommandMessage } from "src/app/workspace/types/command.interface";
+import { isDefined } from "../../../../common/util/predicate";
 
 type OperatorPosition = {
   position: Point;
@@ -477,16 +478,21 @@ export class WorkflowActionService {
     const commandMessage: CommandMessage = { action: "addCommentBox", parameters: [commentBox], type: "execute" };
     this.executeStoreAndPropagateCommand(command, commandMessage);
   }
+
   /**
    * Adds given operators and links to the workflow graph.
    * @param operatorsAndPositions
    * @param links
+   * @param groups
+   * @param breakpoints
+   * @param commentBoxes
    */
   public addOperatorsAndLinks(
     operatorsAndPositions: readonly { op: OperatorPredicate; pos: Point }[],
     links?: readonly OperatorLink[],
     groups?: readonly Group[],
-    breakpoints?: ReadonlyMap<string, Breakpoint>
+    breakpoints?: ReadonlyMap<string, Breakpoint>,
+    commentBoxes?: ReadonlyArray<CommentBox>
   ): void {
     // remember currently highlighted operators and groups
     const currentHighlights = this.jointGraphWrapper.getCurrentHighlights();
@@ -552,6 +558,10 @@ export class WorkflowActionService {
       type: "execute",
     };
     this.executeStoreAndPropagateCommand(command, commandMessage);
+
+    if (isDefined(commentBoxes)) {
+      commentBoxes.forEach(commentBox => this.addCommentBox(commentBox));
+    }
   }
 
   public deleteCommentBox(commentBoxID: string): void {
@@ -1026,11 +1036,11 @@ export class WorkflowActionService {
         };
       });
 
-      workflowContent.commentBoxes.forEach(commentBox => this.addCommentBox(commentBox));
-
       const breakpoints = new Map(Object.entries(workflowContent.breakpoints));
 
-      this.addOperatorsAndLinks(operatorsAndPositions, links, groups, breakpoints);
+      const commentBoxes = workflowContent.commentBoxes;
+
+      this.addOperatorsAndLinks(operatorsAndPositions, links, groups, breakpoints, commentBoxes);
 
       // operators shouldn't be highlighted during page reload
       const jointGraphWrapper = this.getJointGraphWrapper();
