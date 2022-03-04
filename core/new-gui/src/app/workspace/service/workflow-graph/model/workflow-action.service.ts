@@ -280,13 +280,24 @@ export class WorkflowActionService {
         // remember currently highlighted operators and groups
         const currentHighlightedOperators = new Set(this.jointGraphWrapper.getCurrentHighlightedOperatorIDs().slice());
         // Send command message here since this is where change first gets detected
-        const currentHighlighted = Array.from(currentHighlightedOperators);
-        const commandMessage: CommandMessage = {
-          action: "changeOperatorPosition",
-          parameters: [currentHighlighted, offsetX, offsetY],
-          type: "execute",
-        };
-        this.workflowCollabService.propagateChange(commandMessage);
+        const currentHighlightedOpIDs = Array.from(currentHighlightedOperators);
+        if (currentHighlightedOpIDs.includes(dragRoot)) {
+          const commandMessage: CommandMessage = {
+            action: "changeOperatorPosition",
+            parameters: [currentHighlightedOpIDs, offsetX, offsetY],
+            type: "execute",
+          };
+          this.workflowCollabService.propagateChange(commandMessage);
+        } else {
+          // Assume for now if not dragging an operator then it is a comment box.
+          // TODO: unify with operator position change and handle highlighting issues.
+          const commandMessage: CommandMessage = {
+            action: "changeCommentBoxPosition",
+            parameters: [dragRoot, offsetX, offsetY],
+            type: "execute",
+          };
+          this.workflowCollabService.propagateChange(commandMessage);
+        }
       });
   }
 
@@ -947,6 +958,19 @@ export class WorkflowActionService {
     this.executeStoreAndPropagateCommand(command);
   }
 
+  public changeCommentBoxPosition(commentBoxID: string, offsetX: number, offsetY: number) {
+    const command: Command = {
+      modifiesWorkflow: true,
+      execute: () => {
+        this.changeCommentBoxPositionInternal(commentBoxID, offsetX, offsetY);
+      },
+      undo: () => {
+        this.changeCommentBoxPositionInternal(commentBoxID, -offsetX, -offsetY);
+      },
+    };
+    this.executeStoreAndPropagateCommand(command);
+  }
+
   /**
    * set a given link's breakpoint properties to specific values
    */
@@ -1132,6 +1156,8 @@ export class WorkflowActionService {
 
   public addComment(comment: Comment, commentBoxID: string): void {
     this.texeraGraph.addCommentToCommentBox(comment, commentBoxID);
+    const commandMessage: CommandMessage = { action: "addComment", parameters: [comment, commentBoxID], type: "execute" };
+    this.workflowCollabService.propagateChange(commandMessage);
   }
 
   public setTempWorkflow(workflow: Workflow): void {
@@ -1499,6 +1525,10 @@ export class WorkflowActionService {
       this.jointGraphWrapper.highlightOperators(operatorID);
       this.jointGraphWrapper.setElementPosition(operatorID, offsetX, offsetY);
     });
+  }
+
+  private changeCommentBoxPositionInternal(commentBoxID: string, offsetX: number, offsetY: number) {
+    this.jointGraphWrapper.setElementPosition(commentBoxID, offsetX, offsetY);
   }
 
   private executeStoreAndPropagateCommand(command: Command, message?: CommandMessage | undefined): void {
