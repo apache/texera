@@ -7,9 +7,10 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
-
+import scala.Option;
 import java.io.Serializable;
 import java.util.Locale;
+import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -23,12 +24,13 @@ public class AttributeUnit{
     @JsonProperty
     @JsonSchemaTitle("Alias")
     @JsonPropertyDescription("Renamed attribute name")
-    private String alias;
+    private scala.Option<String> alias;
+
 
 
     public AttributeUnit()
     {
-
+        ;
     }
 
     @JsonIgnore
@@ -36,7 +38,7 @@ public class AttributeUnit{
     {
         checkNotNull(attributeName);
         this.originalAttribute = attributeName;
-        this.alias = alias;
+        this.alias = scala.Some.apply(alias);
     }
 
 
@@ -47,27 +49,20 @@ public class AttributeUnit{
 
     @JsonIgnore
     public String getAliasAsString(){
-
-        if(alias == null || alias.length() == 0){
+        if(alias.get().length() == 0){
             return originalAttribute;
         }
-        return alias;
+        return alias.get();
     }
 
-    @JsonIgnore
-    public Attribute getAlias(){
-        if(alias == null || alias.length() == 0){
-            return new Attribute(originalAttribute, AttributeType.STRING);
-        }
-        return new Attribute(alias, AttributeType.STRING);
-    }
+
 
     @JsonIgnore
     public Attribute getAliasFromAttribute(String attribute){
-        if(alias == null || alias.length() == 0){
+        if(alias.get().length() == 0){
             return new Attribute(originalAttribute, AttributeType.STRING);
         }
-        return new Attribute(alias,AttributeType.STRING);
+        return new Attribute(alias.get(),AttributeType.STRING);
 
     }
 
