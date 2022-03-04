@@ -1156,7 +1156,11 @@ export class WorkflowActionService {
 
   public addComment(comment: Comment, commentBoxID: string): void {
     this.texeraGraph.addCommentToCommentBox(comment, commentBoxID);
-    const commandMessage: CommandMessage = { action: "addComment", parameters: [comment, commentBoxID], type: "execute" };
+    const commandMessage: CommandMessage = {
+      action: "addComment",
+      parameters: [comment, commentBoxID],
+      type: "execute",
+    };
     this.workflowCollabService.propagateChange(commandMessage);
   }
 
