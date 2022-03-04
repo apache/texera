@@ -1005,13 +1005,6 @@ export class WorkflowActionService {
         []
       );
 
-      this.deleteOperatorsAndLinks(
-        this.getTexeraGraph()
-          .getAllOperators()
-          .map(op => op.operatorID),
-        []
-      );
-
       this.getTexeraGraph()
         .getAllCommentBoxes()
         .forEach(commentBox => this.deleteCommentBox(commentBox.commentBoxID));
