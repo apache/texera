@@ -40,7 +40,7 @@ class ProgressiveResultService(
     val webUpdate = (webOutputMode, sink.getOutputMode) match {
       case (PaginationMode(), SET_SNAPSHOT) =>
         val numTuples = storage.getCount
-        val maxPageIndex = Math.ceil( numTuples / JobResultService.defaultPageSize.toDouble).toInt
+        val maxPageIndex = Math.ceil(numTuples / JobResultService.defaultPageSize.toDouble).toInt
         WebPaginationUpdate(
           PaginationMode(),
           newTupleCount,
