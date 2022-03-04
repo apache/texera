@@ -5,3 +5,15 @@
 .user-dropdown {
   width: 100%;
 }
+
+.user-avatar {
+  margin-right: 40px;
+}
+
+.caret-off::before {
+  display: none;
+}
+
+.caret-off::after {
+  display: none;
+}

@@ -17,6 +17,7 @@ import { merge } from "rxjs";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
 import { debounceTime } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { isSink } from "../../service/workflow-graph/model/workflow-graph";
 import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
 import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
@@ -89,7 +90,8 @@ export class NavigationComponent {
     private workflowCacheService: WorkflowCacheService,
     private datePipe: DatePipe,
     public workflowResultExportService: WorkflowResultExportService,
-    public workflowCollabService: WorkflowCollabService
+    public workflowCollabService: WorkflowCollabService,
+    public workflowUtilService: WorkflowUtilService
   ) {
     this.executionState = executeWorkflowService.getExecutionState().state;
     // return the run button after the execution is finished, either
@@ -205,6 +207,10 @@ export class NavigationComponent {
           onClick: () => {},
         };
     }
+  }
+
+  public onClickAddCommentBox(): void {
+    this.workflowActionService.addCommentBox(this.workflowUtilService.getNewCommentBox());
   }
 
   public handleKill(): void {
