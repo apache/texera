@@ -68,6 +68,8 @@ export class PropertyEditorComponent implements OnInit {
       this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getLinkHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getLinkUnhighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointCommentBoxHighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointCommentBoxUnhighlightStream(),
       this.workflowVersionService.workflowVersionsDisplayObservable()
     )
       .pipe(untilDestroyed(this))
@@ -79,6 +81,9 @@ export class PropertyEditorComponent implements OnInit {
           .getCurrentHighlightedOperatorIDs();
         const highlightedGroups = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
         const highlightLinks = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
+        const highlightCommentBoxes = this.workflowActionService
+          .getJointGraphWrapper()
+          .getCurrentHighlightedCommentBoxIDs();
 
         if (isDisplayWorkflowVersions) {
           this.switchFrameComponent({

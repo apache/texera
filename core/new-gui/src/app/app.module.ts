@@ -67,6 +67,7 @@ import { NgbdModalFileAddComponent } from "./dashboard/component/feature-contain
 import { UserFileSectionComponent } from "./dashboard/component/feature-container/user-file-section/user-file-section.component";
 import { TopBarComponent } from "./dashboard/component/top-bar/top-bar.component";
 import { UserIconComponent } from "./dashboard/component/top-bar/user-icon/user-icon.component";
+import { UserAvatarComponent } from "./dashboard/component/user-avatar/user-avatar.component";
 import { NgbdModalUserLoginComponent } from "./dashboard/component/top-bar/user-icon/user-login/ngbdmodal-user-login.component";
 import { CodeEditorDialogComponent } from "./workspace/component/code-editor-dialog/code-editor-dialog.component";
 import { CodeareaCustomTemplateComponent } from "./workspace/component/codearea-custom-template/codearea-custom-template.component";
@@ -113,6 +114,8 @@ import { NgbdModalRemoveProjectWorkflowComponent } from "./dashboard/component/f
 import { NgbdModalAddProjectFileComponent } from "./dashboard/component/feature-container/user-project-list/user-project-section/ngbd-modal-add-project-file/ngbd-modal-add-project-file.component";
 import { NgbdModalRemoveProjectFileComponent } from "./dashboard/component/feature-container/user-project-list/user-project-section/ngbd-modal-remove-project-file/ngbd-modal-remove-project-file.component";
 import { PresetWrapperComponent } from "./common/formly/preset-wrapper/preset-wrapper.component";
+import { NzModalCommentBoxComponent } from "./workspace/component/workflow-editor/comment-box-modal/nz-modal-comment-box.component";
+import { NzCommentModule } from "ng-zorro-antd/comment";
 import { NgbdModalWorkflowExecutionsComponent } from "./dashboard/component/feature-container/saved-workflow-section/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 
 registerLocaleData(en);
@@ -131,6 +134,7 @@ registerLocaleData(en);
     DashboardComponent,
     TopBarComponent,
     UserIconComponent,
+    UserAvatarComponent,
     FeatureBarComponent,
     FeatureContainerComponent,
     SavedWorkflowSectionComponent,
@@ -178,6 +182,7 @@ registerLocaleData(en);
     NgbdModalRemoveProjectWorkflowComponent,
     NgbdModalAddProjectFileComponent,
     NgbdModalRemoveProjectFileComponent,
+    NzModalCommentBoxComponent,
   ],
   imports: [
     BrowserModule,
@@ -243,6 +248,7 @@ registerLocaleData(en);
     NzTabsModule,
     NzTreeViewModule,
     NzPaginationModule,
+    NzCommentModule,
   ],
   entryComponents: [
     NgbdModalAddProjectWorkflowComponent,
@@ -258,6 +264,7 @@ registerLocaleData(en);
     RowModalComponent,
     NgbdModalFileAddComponent,
     NgbdModalWorkflowShareAccessComponent,
+    NzModalCommentBoxComponent,
     NgbdModalWorkflowExecutionsComponent,
   ],
   providers: [

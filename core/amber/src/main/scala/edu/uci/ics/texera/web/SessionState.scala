@@ -26,12 +26,14 @@ object SessionState {
 
 class SessionState(session: Session) {
   private var currentWorkflowState: Option[WorkflowService] = None
-  private var subscription = Disposable.empty()
+  private var workflowSubscription = Disposable.empty()
+  private var jobSubscription = Disposable.empty()
 
   def getCurrentWorkflowState: Option[WorkflowService] = currentWorkflowState
 
   def unsubscribe(): Unit = {
-    subscription.dispose()
+    workflowSubscription.dispose()
+    jobSubscription.dispose()
     if (currentWorkflowState.isDefined) {
       currentWorkflowState.get.disconnect()
       currentWorkflowState = None
@@ -41,8 +43,12 @@ class SessionState(session: Session) {
   def subscribe(workflowService: WorkflowService): Unit = {
     unsubscribe()
     currentWorkflowState = Some(workflowService)
-    subscription = workflowService.connect(evt =>
+    workflowSubscription = workflowService.connect(evt =>
       session.getAsyncRemote.sendText(objectMapper.writeValueAsString(evt))
     )
+    jobSubscription = workflowService.connectToJob(evt =>
+      session.getAsyncRemote.sendText(objectMapper.writeValueAsString(evt))
+    )
+
   }
 }
