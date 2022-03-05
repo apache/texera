@@ -67,7 +67,7 @@
     "monaco-editor": "^0.27.0",
     "ng-dynamic-component": "^8.0.1",
     "ng-gapi": "0.0.94",
-    "ng-zorro-antd": "^11.4.2",
+    "ng-zorro-antd": "^13.1.1",
     "ng2-file-upload": "^1.4.0",
     "ngx-ace-icy": "^1.0.0",
     "ngx-bootstrap": "^5.5.0",
