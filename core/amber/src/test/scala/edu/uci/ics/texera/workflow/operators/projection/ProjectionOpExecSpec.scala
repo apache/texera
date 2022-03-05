@@ -122,7 +122,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val projectionOpExec = new ProjectionOpExec(List(), OperatorSchemaInfo(null, outputSchema))
     projectionOpExec.attributes ++= List(
       new AttributeUnit("field2", "f2"),
-      new AttributeUnit("field1", null)
+      new AttributeUnit("field1", "")
     )
 
     projectionOpExec.open()

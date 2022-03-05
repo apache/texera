@@ -16,9 +16,9 @@ class ProjectionOpExec(
 
     attributes.foreach(attrName => {
       builder.add(
-        attrName.getAliasAsString(),
-        tuple.getSchema.getAttribute(attrName.getOriginalAttributeAsString()).getType,
-        tuple.getField(attrName.getOriginalAttributeAsString())
+        attrName.getAlias,
+        tuple.getSchema.getAttribute(attrName.getOriginalAttribute).getType,
+        tuple.getField(attrName.getOriginalAttribute)
       )
     })
     builder.build()

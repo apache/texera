@@ -95,7 +95,7 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "allow alias to be optional" in {
     projectionOpDesc.attributes ++= List(
       new AttributeUnit("field1", "f1"),
-      new AttributeUnit("field2", null)
+      new AttributeUnit("field2", "")
     )
     val outputSchema = projectionOpDesc.getOutputSchema(Array(schema))
     assert(outputSchema.getAttributes.length == 2)
