@@ -5,6 +5,7 @@ import * as joint from "jointjs";
 import * as dagre from "dagre";
 import * as graphlib from "graphlib";
 import { ObservableContextManager } from "src/app/common/util/context";
+import { JQueryStyleEventEmitter } from "rxjs/internal/observable/fromEvent";
 
 type operatorIDsType = { operatorIDs: string[] };
 type linkIDType = { linkID: string };
@@ -142,13 +143,13 @@ export class JointGraphWrapper {
    * This will capture all events in JointJS
    *  involving the 'add' operation
    */
-  private jointCellAddStream = fromEvent<JointModelEvent>(this.jointGraph, "add").pipe(map(value => value[0]));
+  private jointCellAddStream = fromEvent<JointModelEvent>((this.jointGraph as any as JQueryStyleEventEmitter), "add").pipe(map(value => value[0]));
 
   /**
    * This will capture all events in JointJS
    *  involving the 'change position' operation
    */
-  private jointCellDragStream = fromEvent<JointModelEvent>(this.jointGraph, "change:position").pipe(
+  private jointCellDragStream = fromEvent<JointModelEvent>((this.jointGraph as any as JQueryStyleEventEmitter), "change:position").pipe(
     map(value => value[0])
   );
 
@@ -156,7 +157,7 @@ export class JointGraphWrapper {
    * This will capture all events in JointJS
    *  involving the 'remove' operation
    */
-  private jointCellDeleteStream = fromEvent<JointModelEvent>(this.jointGraph, "remove").pipe(map(value => value[0]));
+  private jointCellDeleteStream = fromEvent<JointModelEvent>((this.jointGraph as any as JQueryStyleEventEmitter), "remove").pipe(map(value => value[0]));
 
   constructor(public jointGraph: joint.dia.Graph) {
     // handle if the currently highlighted operator/group/link is deleted, it should be unhighlighted
@@ -285,7 +286,7 @@ export class JointGraphWrapper {
     oldPosition: Point;
     newPosition: Point;
   }> {
-    return fromEvent<JointPositionChangeEvent>(this.jointGraph, "change:position").pipe(
+    return fromEvent<JointPositionChangeEvent>((this.jointGraph as any as JQueryStyleEventEmitter), "change:position").pipe(
       map(e => {
         const elementID = e[0].id.toString();
         const oldPosition = this.elementPositions.get(elementID);
@@ -324,7 +325,7 @@ export class JointGraphWrapper {
     cellID: string;
     newLayer: number;
   }> {
-    return fromEvent<JointLayerChangeEvent>(this.jointGraph, "change:z").pipe(
+    return fromEvent<JointLayerChangeEvent>((this.jointGraph as any as JQueryStyleEventEmitter), "change:z").pipe(
       map(e => {
         return {
           cellID: e[0].id.toString(),
@@ -671,7 +672,7 @@ export class JointGraphWrapper {
    *  - one end of the link is moved from one point to another point in the paper
    */
   public getJointLinkCellChangeStream(): Observable<joint.dia.Link> {
-    const jointLinkChangeStream = fromEvent<JointLinkChangeEvent>(this.jointGraph, "change:source change:target").pipe(
+    const jointLinkChangeStream = fromEvent<JointLinkChangeEvent>((this.jointGraph as any as JQueryStyleEventEmitter), "change:source change:target").pipe(
       map(value => value[0])
     );
 
@@ -820,7 +821,7 @@ export class JointGraphWrapper {
     if (!cell) {
       throw new Error(`cell with ID ${cellID} doesn't exist`);
     }
-    return cell.attributes.z;
+    return cell.attributes.z || 0;
   }
 
   /**

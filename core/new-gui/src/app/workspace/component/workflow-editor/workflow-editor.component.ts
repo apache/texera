@@ -24,6 +24,7 @@ import { ExecutionState, OperatorState } from "../../types/execute-workflow.inte
 import { OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
 import { auditTime, filter, map } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { JQueryStyleEventEmitter } from "rxjs/internal/observable/fromEvent";
 
 // argument type of callback event on a JointJS Paper
 // which is a 4-element tuple:
@@ -413,7 +414,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handlePaperPan(): void {
     // pointer down event to start the panning, this will record the original paper offset
-    fromEvent<JointPointerDownEvent>(this.getJointPaper(), "blank:pointerdown")
+    fromEvent<JointPointerDownEvent>((this.getJointPaper() as any as JQueryStyleEventEmitter), "blank:pointerdown")
       .pipe(untilDestroyed(this))
       .subscribe(event => {
         const x = event[0].screenX;
@@ -560,7 +561,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   private handleHighlightMouseDBClickInput(): void {
-    fromEvent<JointPaperEvent>(this.getJointPaper(), "cell:pointerdblclick")
+    fromEvent<JointPaperEvent>((this.getJointPaper() as any as JQueryStyleEventEmitter), "cell:pointerdblclick")
       .pipe(untilDestroyed(this))
       .subscribe(event => {
         const clickedCommentBox = event[0].model;
@@ -585,7 +586,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private handleHighlightMouseInput(): void {
     // on user mouse clicks an operator/group cell, highlight that operator/group
     // operator status tooltips should never be highlighted
-    fromEvent<JointPaperEvent>(this.getJointPaper(), "cell:pointerdown")
+    fromEvent<JointPaperEvent>((this.getJointPaper() as any as JQueryStyleEventEmitter), "cell:pointerdown")
       // event[0] is the JointJS CellView; event[1] is the original JQuery Event
       .pipe(
         filter(event => event[0].model.isElement()),
@@ -628,7 +629,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       });
 
     // on user mouse clicks on blank area, unhighlight all operators and groups
-    fromEvent<JointPaperEvent>(this.getJointPaper(), "blank:pointerdown")
+    fromEvent<JointPaperEvent>((this.getJointPaper() as any as JQueryStyleEventEmitter), "blank:pointerdown")
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         const highlightedOperatorIDs = this.workflowActionService
@@ -776,7 +777,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handleViewDeleteOperator(): void {
     // bind the delete button event to call the delete operator function in joint model action
-    fromEvent<JointPaperEvent>(this.getJointPaper(), "element:delete")
+    fromEvent<JointPaperEvent>((this.getJointPaper() as any as JQueryStyleEventEmitter), "element:delete")
       .pipe(
         filter(value => this.interactive),
         map(value => value[0])
@@ -793,7 +794,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   private handleViewMouseoverOperator(): void {
-    fromEvent<JointPaperEvent>(this.getJointPaper(), "element:mouseover")
+    fromEvent<JointPaperEvent>((this.getJointPaper() as any as JQueryStyleEventEmitter), "element:mouseover")
       .pipe(map(value => value[0]))
       .pipe(untilDestroyed(this))
       .subscribe(elementView => {
@@ -802,7 +803,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   private handleViewMouseoutOperator(): void {
-    fromEvent<JointPaperEvent>(this.getJointPaper(), "element:mouseout")
+    fromEvent<JointPaperEvent>((this.getJointPaper() as any as JQueryStyleEventEmitter), "element:mouseout")
       .pipe(map(value => value[0]))
       .pipe(untilDestroyed(this))
       .subscribe(elementView => {
@@ -819,7 +820,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    *  we need to handle the callback event `tool:remove`.
    */
   private handleViewDeleteLink(): void {
-    fromEvent<JointPaperEvent>(this.getJointPaper(), "tool:remove")
+    fromEvent<JointPaperEvent>((this.getJointPaper() as any as JQueryStyleEventEmitter), "tool:remove")
       .pipe(
         filter(value => this.interactive),
         map(value => value[0])
@@ -841,7 +842,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * The name of this callback event is registered in `JointUIService.getCustomGroupStyleAttrs`
    */
   private handleViewCollapseGroup(): void {
-    fromEvent<JointPaperEvent>(this.getJointPaper(), "element:collapse")
+    fromEvent<JointPaperEvent>((this.getJointPaper() as any as JQueryStyleEventEmitter), "element:collapse")
       .pipe(map(value => value[0]))
       .pipe(untilDestroyed(this))
       .subscribe(elementView => {
@@ -861,7 +862,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * The name of this callback event is registered in `JointUIService.getCustomGroupStyleAttrs`
    */
   private handleViewExpandGroup(): void {
-    fromEvent<JointPaperEvent>(this.getJointPaper(), "element:expand")
+    fromEvent<JointPaperEvent>((this.getJointPaper() as any as JQueryStyleEventEmitter), "element:expand")
       .pipe(map(value => value[0]))
       .pipe(untilDestroyed(this))
       .subscribe(elementView => {
@@ -1493,7 +1494,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handleLinkCursorHover(): void {
     // When the cursor hovers over a link, the delete button and the breakpoint button appear
-    fromEvent<JointPaperEvent>(this.getJointPaper(), "link:mouseenter")
+    fromEvent<JointPaperEvent>((this.getJointPaper() as any as JQueryStyleEventEmitter), "link:mouseenter")
       .pipe(map(value => value[0]))
       .pipe(untilDestroyed(this))
       .subscribe(elementView => {
@@ -1519,7 +1520,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
      * If there is no breakpoint present on that link, the breakpoint button also disappears,
      * otherwise, the breakpoint button is not changed.
      */
-    fromEvent<JointPaperEvent>(this.getJointPaper(), "link:mouseleave")
+    fromEvent<JointPaperEvent>((this.getJointPaper() as any as JQueryStyleEventEmitter), "link:mouseleave")
       .pipe(map(value => value[0]))
       .pipe(untilDestroyed(this))
       .subscribe(elementView => {
@@ -1573,7 +1574,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * and converts that event to a workflow action
    */
   private handleLinkBreakpointButtonClick(): void {
-    fromEvent<JointPaperEvent>(this.getJointPaper(), "tool:breakpoint", {
+    fromEvent<JointPaperEvent>((this.getJointPaper() as any as JQueryStyleEventEmitter), "tool:breakpoint", {
       passive: true,
     })
       .pipe(untilDestroyed(this))
