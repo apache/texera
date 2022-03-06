@@ -43,22 +43,15 @@ import { TEXERA_FORMLY_CONFIG } from "./common/formly/formly-config";
 import { MultiSchemaTypeComponent } from "./common/formly/multischema.type";
 import { NullTypeComponent } from "./common/formly/null.type";
 import { ObjectTypeComponent } from "./common/formly/object.type";
-import { UserDictionaryUploadService } from "./dashboard/service/user-dictionary/user-dictionary-upload.service";
 import { UserFileUploadService } from "./dashboard/service/user-file/user-file-upload.service";
 import { UserFileService } from "./dashboard/service/user-file/user-file.service";
 import { UserService } from "./common/service/user/user.service";
 import { DashboardComponent } from "./dashboard/component/dashboard.component";
 import { FeatureBarComponent } from "./dashboard/component/feature-bar/feature-bar.component";
 import { FeatureContainerComponent } from "./dashboard/component/feature-container/feature-container.component";
-import { ResourceSectionComponent } from "./dashboard/component/feature-container/resource-section/resource-section.component";
-import { RunningJobSectionComponent } from "./dashboard/component/feature-container/running-job-section/running-job-section.component";
 import { NgbdModalAddWorkflowComponent } from "./dashboard/component/feature-container/saved-workflow-section/ngbd-modal-add-workflow/ngbd-modal-add-workflow.component";
 import { NgbdModalDeleteWorkflowComponent } from "./dashboard/component/feature-container/saved-workflow-section/ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component";
 import { SavedWorkflowSectionComponent } from "./dashboard/component/feature-container/saved-workflow-section/saved-workflow-section.component";
-import { NgbdModalResourceAddComponent } from "./dashboard/component/feature-container/user-dictionary-section/ngbd-modal-resource-add/ngbd-modal-resource-add.component";
-import { NgbdModalResourceDeleteComponent } from "./dashboard/component/feature-container/user-dictionary-section/ngbd-modal-resource-delete/ngbd-modal-resource-delete.component";
-import { NgbdModalResourceViewComponent } from "./dashboard/component/feature-container/user-dictionary-section/ngbd-modal-resource-view/ngbd-modal-resource-view.component";
-import { UserDictionarySectionComponent } from "./dashboard/component/feature-container/user-dictionary-section/user-dictionary-section.component";
 import { NgbdModalFileAddComponent } from "./dashboard/component/feature-container/user-file-section/ngbd-modal-file-add/ngbd-modal-file-add.component";
 import { UserFileSectionComponent } from "./dashboard/component/feature-container/user-file-section/user-file-section.component";
 import { TopBarComponent } from "./dashboard/component/top-bar/top-bar.component";
@@ -135,15 +128,9 @@ registerLocaleData(en);
     SavedWorkflowSectionComponent,
     NgbdModalAddWorkflowComponent,
     NgbdModalDeleteWorkflowComponent,
-    RunningJobSectionComponent,
-    UserDictionarySectionComponent,
-    NgbdModalResourceViewComponent,
-    NgbdModalResourceAddComponent,
-    NgbdModalResourceDeleteComponent,
     NgbdModalUserLoginComponent,
     UserFileSectionComponent,
     NgbdModalFileAddComponent,
-    ResourceSectionComponent,
     RowModalComponent,
     OperatorLabelComponent,
     MiniMapComponent,
@@ -244,7 +231,6 @@ registerLocaleData(en);
     UserService,
     UserFileService,
     UserFileUploadService,
-    UserDictionaryUploadService,
     { provide: NZ_I18N, useValue: en_US },
     {
       provide: HTTP_INTERCEPTORS,
