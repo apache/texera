@@ -1,13 +1,13 @@
 {
   "/api": {
-    "target": "https://texera.ics.uci.edu",
+    "target": "http://localhost:8080",
     "secure": true,
     "changeOrigin": true
   },
   "/wsapi": {
-    "target": "https://texera.ics.uci.edu",
+    "target": "http://localhost:8080",
     "secure": true,
-    "ws": true,
-    "changeOrigin": true
+    "changeOrigin": true,
+    "ws": true
   }
 }
