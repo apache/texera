@@ -605,22 +605,21 @@ export class WorkflowEditorComponent implements AfterViewInit {
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs();
         const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
-
         if (event[1].shiftKey) {
           // if in multiselect toggle highlights on click
           if (highlightedOperatorIDs.includes(elementID)) {
-            this.workflowActionService.getJointGraphWrapper().unhighlightOperators(elementID);
+            this.workflowActionService.unhighlightOperators(elementID);
           } else if (highlightedGroupIDs.includes(elementID)) {
             this.workflowActionService.getJointGraphWrapper().unhighlightGroups(elementID);
           } else if (this.workflowActionService.getTexeraGraph().hasOperator(elementID)) {
-            this.workflowActionService.getJointGraphWrapper().highlightOperators(elementID);
+            this.workflowActionService.highlightOperators(<boolean>event[1].shiftKey, elementID);
           } else if (this.workflowActionService.getOperatorGroup().hasGroup(elementID)) {
             this.workflowActionService.getJointGraphWrapper().highlightGroups(elementID);
           }
         } else {
           // else only highlight a single operator or group
           if (this.workflowActionService.getTexeraGraph().hasOperator(elementID)) {
-            this.workflowActionService.getJointGraphWrapper().highlightOperators(elementID);
+            this.workflowActionService.highlightOperators(<boolean>event[1].shiftKey, elementID);
           } else if (this.workflowActionService.getOperatorGroup().hasGroup(elementID)) {
             this.workflowActionService.getJointGraphWrapper().highlightGroups(elementID);
           }
@@ -636,9 +635,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
           .getCurrentHighlightedOperatorIDs();
         const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
         const highlightedLinkIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
-        this.workflowActionService.getJointGraphWrapper().unhighlightOperators(...highlightedOperatorIDs);
+        this.workflowActionService.unhighlightOperators(...highlightedOperatorIDs);
         this.workflowActionService.getJointGraphWrapper().unhighlightGroups(...highlightedGroupIDs);
-        this.workflowActionService.getJointGraphWrapper().unhighlightLinks(...highlightedLinkIDs);
+        this.workflowActionService.unhighlightLinks(...highlightedLinkIDs);
       });
   }
 
@@ -1106,7 +1105,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
         this.workflowActionService
           .getJointGraphWrapper()
           .setMultiSelectMode(allOperators.length + allGroups.length > 1);
-        this.workflowActionService.getJointGraphWrapper().highlightOperators(...allOperators);
+        this.workflowActionService.highlightOperators(allOperators.length + allGroups.length > 1, ...allOperators);
         this.workflowActionService.getJointGraphWrapper().highlightGroups(...allGroups);
       });
   }
@@ -1578,8 +1577,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     })
       .pipe(untilDestroyed(this))
       .subscribe(event => {
-        this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(<boolean>event[1].shiftKey);
-        this.workflowActionService.getJointGraphWrapper().highlightLinks(event[0].model.id.toString());
+        this.workflowActionService.highlightLinks(<boolean>event[1].shiftKey, event[0].model.id.toString());
       });
   }
 

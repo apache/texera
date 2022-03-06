@@ -50,7 +50,7 @@ export class UndoRedoService {
 
       const command = nonNull(this.undoStack.pop());
       this.setListenJointCommand(false);
-      command.undo();
+      if (command.undo) command.undo();
       this.redoStack.push(command);
       this.setListenJointCommand(true);
       this.canUndoStream.next(this.canUndo());

@@ -1,11 +1,12 @@
 /* eslint-disable no-unused-vars, @typescript-eslint/no-unused-vars */
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
-import { By } from "@angular/platform-browser";
-import { DebugElement } from "@angular/core";
 
 import { CodeareaCustomTemplateComponent } from "./codearea-custom-template.component";
-import { MatDialog, MatDialogModule } from "@angular/material/dialog";
-import { Overlay } from "@angular/cdk/overlay";
+import { MatDialogModule } from "@angular/material/dialog";
+import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
+import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
 
 describe("CodeareaCustomTemplateComponent", () => {
   let component: CodeareaCustomTemplateComponent;
@@ -15,7 +16,14 @@ describe("CodeareaCustomTemplateComponent", () => {
     waitForAsync(() => {
       TestBed.configureTestingModule({
         declarations: [CodeareaCustomTemplateComponent],
-        imports: [MatDialogModule],
+        imports: [MatDialogModule, HttpClientTestingModule],
+        providers: [
+          WorkflowActionService,
+          {
+            provide: OperatorMetadataService,
+            useClass: StubOperatorMetadataService,
+          },
+        ],
       }).compileComponents();
     })
   );
