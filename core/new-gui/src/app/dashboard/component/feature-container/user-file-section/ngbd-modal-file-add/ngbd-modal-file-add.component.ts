@@ -44,7 +44,6 @@ export class NgbdModalFileAddComponent {
   }
 
   public getFileDropped(fileDropEvent: File[]): void {
-    console.log(fileDropEvent);
     for (let i = 0; i < fileDropEvent.length; i++) {
       const file: File | null = fileDropEvent[i];
       if (file !== null) {
@@ -56,7 +55,6 @@ export class NgbdModalFileAddComponent {
   }
 
   public handleClickUploadFile(clickUploadEvent: Event): void {
-    console.log(clickUploadEvent);
     const fileList: FileList | null = (clickUploadEvent as any).target.files;
     if (fileList === null) {
       throw new Error("browser upload does not work as intended");

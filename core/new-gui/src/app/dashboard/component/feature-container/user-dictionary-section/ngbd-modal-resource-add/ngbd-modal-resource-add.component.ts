@@ -142,7 +142,6 @@ export class NgbdModalResourceAddComponent {
    * @param fileDropEvent
    */
   public getFileDropped(fileDropEvent: File[]): void {
-    console.log(fileDropEvent);
     for (let i = 0; i < fileDropEvent.length; i++) {
       const fileOrNull: File | null = fileDropEvent[i];
       if (this.isFile(fileOrNull)) {

@@ -423,7 +423,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
           this.mouseDown = { x, y };
         }
         event[0].preventDefault();
-        console.log('blank:pointerdown: ' + this.mouseDown);
       });
 
     // This observable captures the drop event to stop the panning
@@ -431,7 +430,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         this.mouseDown = undefined;
-        console.log('mouseup: ' + this.mouseDown);
       });
 
     /* mousemove event to move paper, this will calculate the new coordinate based on the
