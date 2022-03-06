@@ -37,7 +37,7 @@ export class SchemaPropagationService {
   constructor(
     private httpClient: HttpClient,
     private workflowActionService: WorkflowActionService,
-    private dynamicSchemaService: DynamicSchemaService,
+    private dynamicSchemaService: DynamicSchemaService
   ) {
     // do nothing if schema propagation is not enabled
     if (!environment.schemaPropagationEnabled) {

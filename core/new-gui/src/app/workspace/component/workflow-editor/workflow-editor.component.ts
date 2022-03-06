@@ -473,36 +473,38 @@ export class WorkflowEditorComponent implements AfterViewInit {
           };
         })
       )
-    ).pipe(untilDestroyed(this)).subscribe(event => {
-      const oldOrigin = this.getJointPaper().translate();
-      const newOrigin = {
-        x: oldOrigin.tx + event.deltaX,
-        y: oldOrigin.ty + event.deltaY,
-      };
+    )
+      .pipe(untilDestroyed(this))
+      .subscribe(event => {
+        const oldOrigin = this.getJointPaper().translate();
+        const newOrigin = {
+          x: oldOrigin.tx + event.deltaX,
+          y: oldOrigin.ty + event.deltaY,
+        };
 
-      const scale = this.getJointPaper().scale();
+        const scale = this.getJointPaper().scale();
 
-      const translateLimit = this.getTranslateLimit();
-      const elementSize = this.getWrapperElementSize();
+        const translateLimit = this.getTranslateLimit();
+        const elementSize = this.getWrapperElementSize();
 
-      // Check canvas limit
-      if (-newOrigin.x <= translateLimit.xMin) {
-        newOrigin.x = -translateLimit.xMin;
-      }
-      if (-newOrigin.y <= translateLimit.yMin) {
-        newOrigin.y = -translateLimit.yMin;
-      }
-      if (-newOrigin.x >= translateLimit.xMax - elementSize.width / scale.sx) {
-        newOrigin.x = -(translateLimit.xMax - elementSize.width / scale.sx);
-      }
-      if (-newOrigin.y >= translateLimit.yMax - elementSize.height / scale.sy) {
-        newOrigin.y = -(translateLimit.yMax - elementSize.height / scale.sy);
-      }
+        // Check canvas limit
+        if (-newOrigin.x <= translateLimit.xMin) {
+          newOrigin.x = -translateLimit.xMin;
+        }
+        if (-newOrigin.y <= translateLimit.yMin) {
+          newOrigin.y = -translateLimit.yMin;
+        }
+        if (-newOrigin.x >= translateLimit.xMax - elementSize.width / scale.sx) {
+          newOrigin.x = -(translateLimit.xMax - elementSize.width / scale.sx);
+        }
+        if (-newOrigin.y >= translateLimit.yMax - elementSize.height / scale.sy) {
+          newOrigin.y = -(translateLimit.yMax - elementSize.height / scale.sy);
+        }
 
-      if (newOrigin.x !== oldOrigin.tx || newOrigin.y !== oldOrigin.ty) {
-        this.getJointPaper().translate(newOrigin.x, newOrigin.y);
-      }
-    });
+        if (newOrigin.x !== oldOrigin.tx || newOrigin.y !== oldOrigin.ty) {
+          this.getJointPaper().translate(newOrigin.x, newOrigin.y);
+        }
+      });
   }
 
   /**
