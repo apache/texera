@@ -12,7 +12,11 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { OperatorLabelComponent } from "./operator-label/operator-label.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { NzAutocompleteComponent, NzAutocompleteOptionComponent, NzOptionSelectionChange } from "ng-zorro-antd/auto-complete";
+import {
+  NzAutocompleteComponent,
+  NzAutocompleteOptionComponent,
+  NzOptionSelectionChange,
+} from "ng-zorro-antd/auto-complete";
 
 /**
  * OperatorPanelComponent is the left-side panel that shows the operators.
@@ -118,8 +122,11 @@ export class OperatorPanelComponent implements OnInit {
     const selectSchema = e.nzValue as OperatorSchema;
     // add the operator to the graph on select (position relative to the current viewpoint)
     const origin = this.workflowActionService.getJointGraphWrapper().getMainJointPaper()?.translate();
-    const point = { x: 400 - (origin?.tx ?? 0), y: 200 - (origin?.ty ?? 0)}
-    this.workflowActionService.addOperator(this.workflowUtilService.getNewOperatorPredicate(selectSchema.operatorType), point);
+    const point = { x: 400 - (origin?.tx ?? 0), y: 200 - (origin?.ty ?? 0) };
+    this.workflowActionService.addOperator(
+      this.workflowUtilService.getNewOperatorPredicate(selectSchema.operatorType),
+      point
+    );
 
     // asynchrnously immediately clear the search input and suggestions
     // because ng-zorro shows the selected value if it's synchrnously

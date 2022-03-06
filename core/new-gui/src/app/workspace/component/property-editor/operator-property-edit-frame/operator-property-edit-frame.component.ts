@@ -3,7 +3,7 @@ import { ExecuteWorkflowService } from "../../../service/execute-workflow/execut
 import { Subject } from "rxjs";
 import { FormGroup } from "@angular/forms";
 import { FormlyFieldConfig, FormlyFormOptions } from "@ngx-formly/core";
-import Ajv from "ajv"
+import Ajv from "ajv";
 import { FormlyJsonschema } from "@ngx-formly/core/json-schema";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { cloneDeep, isEqual } from "lodash-es";

@@ -2,7 +2,7 @@
 * Generated theme by Material Theme Generator
 * https://materialtheme.arcsine.dev
 */
-@use '@angular/material' as mat;
+@use "@angular/material" as mat;
 
 // Include the common styles for Angular Material. We include this here so that you only
 // have to load a single css file for Angular Material in your app.
@@ -52,7 +52,7 @@ mat.$light-theme-foreground-palette: (
   text: rgba(black, 0.87),
   slider-min: rgba(black, 0.87),
   slider-off: rgba($dark-text, 0.26),
-  slider-off-active: rgba(black, 0.38),
+  slider-off-active: rgba(black, 0.38)
 );
 
 // Dark Theme text
@@ -79,7 +79,7 @@ mat.$dark-theme-foreground-palette: (
   text: $light-text,
   slider-min: $light-text,
   slider-off: rgba($light-text, 0.3),
-  slider-off-active: rgba($light-text, 0.3),
+  slider-off-active: rgba($light-text, 0.3)
 );
 
 // Background config
@@ -107,7 +107,7 @@ mat.$light-theme-background-palette: (
   selected-disabled-button: $light-bg-darker-30,
   disabled-button-toggle: $light-bg-darker-10,
   unselected-chip: $light-bg-darker-10,
-  disabled-list-option: $light-bg-darker-10,
+  disabled-list-option: $light-bg-darker-10
 );
 
 // Dark bg
@@ -134,7 +134,7 @@ mat.$dark-theme-background-palette: (
   selected-disabled-button: $dark-bg-lighter-30,
   disabled-button-toggle: $dark-bg-lighter-10,
   unselected-chip: $dark-bg-lighter-20,
-  disabled-list-option: $dark-bg-lighter-10,
+  disabled-list-option: $dark-bg-lighter-10
 );
 
 // Compute font config

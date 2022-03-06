@@ -24,7 +24,11 @@
   value="{{formTitle}}"
 />
 
-<form *ngIf="formlyFields && formlyFormGroup" [formGroup]="formlyFormGroup" class="texera-workspace-property-editor-form">
+<form
+  *ngIf="formlyFields && formlyFormGroup"
+  [formGroup]="formlyFormGroup"
+  class="texera-workspace-property-editor-form"
+>
   <formly-form
     (modelChange)="onFormChanges($event)"
     [fields]="formlyFields"

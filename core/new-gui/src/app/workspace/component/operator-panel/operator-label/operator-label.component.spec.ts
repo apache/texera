@@ -26,11 +26,7 @@ describe("OperatorLabelComponent", () => {
     waitForAsync(() => {
       TestBed.configureTestingModule({
         declarations: [OperatorLabelComponent],
-        imports: [
-          CustomNgMaterialModule,
-          RouterTestingModule.withRoutes([]),
-          NgbModule,
-        ],
+        imports: [CustomNgMaterialModule, RouterTestingModule.withRoutes([]), NgbModule],
         providers: [
           DragDropService,
           JointUIService,

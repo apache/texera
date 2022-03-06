@@ -149,8 +149,7 @@ export class AuthService {
     if (token !== null && !this.jwtHelperService.isTokenExpired(token) && expirationTime !== undefined) {
       // use timer with ignoreElements to avoid event being immediately triggered (in RxJS 7)
       // see https://stackoverflow.com/questions/70013573/how-to-replicate-delay-from-rxjs-6-x
-      this.tokenExpirationSubscription =
-        timer(expirationTime - new Date().getTime())
+      this.tokenExpirationSubscription = timer(expirationTime - new Date().getTime())
         .pipe(ignoreElements())
         .subscribe(() => this.logout());
     }

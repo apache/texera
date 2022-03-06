@@ -3,7 +3,7 @@ import { OperatorMetadataService } from "../../operator-metadata/operator-metada
 import { OperatorSchema } from "../../../types/operator-schema.interface";
 import { Injectable } from "@angular/core";
 import { v4 as uuid } from "uuid";
-import Ajv from "ajv"
+import Ajv from "ajv";
 
 import { Observable, Subject } from "rxjs";
 import { Workflow, WorkflowContent } from "../../../../common/type/workflow";

@@ -28,7 +28,7 @@ import { configure } from "rxjs-marbles";
 import { SimpleChange } from "@angular/core";
 import { cloneDeep } from "lodash-es";
 
-import Ajv from "ajv"
+import Ajv from "ajv";
 
 const { marbles } = configure({ run: false });
 describe("OperatorPropertyEditFrameComponent", () => {

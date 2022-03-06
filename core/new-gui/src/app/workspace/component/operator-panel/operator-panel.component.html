@@ -1,29 +1,26 @@
 <div class="texera-workspace-operator-panel-body">
   <div class="texera-workspace-operator-panel-search-box">
     <input
-    placeholder="input here"
-    nz-input
-    [(ngModel)]="searchInputValue"
-    (input)="onInput($event)"
-    [nzAutocomplete]="autocomplete"
-  />
-  <nz-autocomplete #autocomplete
-    [nzBackfill]="false"
-    (selectionChange)="onSelectionChange($event)"
-  >
-    <nz-auto-option 
-      *ngFor="let option of autocompleteOptions" 
-      [nzValue]="option"
-      [nzLabel]="option.additionalMetadata.userFriendlyName"
-      [nzDisabled]="! canModify"
-    >
-      <texera-operator-label
-      [fromSearchBox]="true"
-      [operator]="option"
-      class="texera-workspace-operator-panel-search-box-dropdown-menu-name-wrapper"
-      ></texera-operator-label>
-    </nz-auto-option>
-  </nz-autocomplete>
+      placeholder="input here"
+      nz-input
+      [(ngModel)]="searchInputValue"
+      (input)="onInput($event)"
+      [nzAutocomplete]="autocomplete"
+    />
+    <nz-autocomplete #autocomplete [nzBackfill]="false" (selectionChange)="onSelectionChange($event)">
+      <nz-auto-option
+        *ngFor="let option of autocompleteOptions"
+        [nzValue]="option"
+        [nzLabel]="option.additionalMetadata.userFriendlyName"
+        [nzDisabled]="! canModify"
+      >
+        <texera-operator-label
+          [fromSearchBox]="true"
+          [operator]="option"
+          class="texera-workspace-operator-panel-search-box-dropdown-menu-name-wrapper"
+        ></texera-operator-label>
+      </nz-auto-option>
+    </nz-autocomplete>
   </div>
   <nz-collapse [nzBordered]="false" class="texera-workspace-operator-panel-menu" nzAccordion>
     <nz-collapse-panel

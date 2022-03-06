@@ -5,7 +5,7 @@ import * as joint from "jointjs";
 import * as dagre from "dagre";
 import * as graphlib from "graphlib";
 import { ObservableContextManager } from "src/app/common/util/context";
-import { JQueryStyleEventEmitter } from "rxjs/internal/observable/fromEvent";
+import { JQueryStyleEventEmitter } from "rxjs";
 
 type operatorIDsType = { operatorIDs: string[] };
 type linkIDType = { linkID: string };

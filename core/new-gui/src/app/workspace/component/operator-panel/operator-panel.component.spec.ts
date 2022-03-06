@@ -45,12 +45,7 @@ describe("OperatorPanelComponent", () => {
           WorkflowUtilService,
           JointUIService,
         ],
-        imports: [
-          NzDropDownModule,
-          NzCollapseModule,
-          BrowserAnimationsModule,
-          RouterTestingModule.withRoutes([]),
-        ],
+        imports: [NzDropDownModule, NzCollapseModule, BrowserAnimationsModule, RouterTestingModule.withRoutes([])],
       }).compileComponents();
     })
   );

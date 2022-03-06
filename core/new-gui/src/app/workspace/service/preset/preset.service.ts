@@ -1,5 +1,5 @@
 import { Injectable } from "@angular/core";
-import Ajv from "ajv"
+import Ajv from "ajv";
 import { cloneDeep, has, indexOf, isEqual, merge, pickBy } from "lodash";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { Observable, of, Subject } from "rxjs";

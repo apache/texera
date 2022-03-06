@@ -46,24 +46,20 @@ type ValueOf<T> = T[keyof T];
 // P in keyof Pick: P will be one of the properties that exists in there(set of properties from service).
 // If we have a name in commandFuncs that doesn't match a property in service, we get error. P picks one of them
 export type CommandMessage =
-  | ValueOf<
-      {
-        [P in keyof Pick<WorkflowActionService, commandFuncs>]: {
-          action: P;
-          parameters: Parameters<WorkflowActionService[P]>;
-          type: string;
-        };
-      }
-    >
-  | ValueOf<
-      {
-        [P in keyof Pick<WorkflowActionService, commandFuncs>]: {
-          action: P;
-          parameters: Parameters<WorkflowActionService[P]>;
-          type: string;
-        };
-      }
-    >;
+  | ValueOf<{
+      [P in keyof Pick<WorkflowActionService, commandFuncs>]: {
+        action: P;
+        parameters: Parameters<WorkflowActionService[P]>;
+        type: string;
+      };
+    }>
+  | ValueOf<{
+      [P in keyof Pick<WorkflowActionService, commandFuncs>]: {
+        action: P;
+        parameters: Parameters<WorkflowActionService[P]>;
+        type: string;
+      };
+    }>;
 
 export interface Command {
   modifiesWorkflow: boolean;

@@ -24,7 +24,7 @@ import { ExecutionState, OperatorState } from "../../types/execute-workflow.inte
 import { OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
 import { auditTime, filter, map } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { JQueryStyleEventEmitter } from "rxjs/internal/observable/fromEvent";
+import { JQueryStyleEventEmitter } from "rxjs";
 
 // argument type of callback event on a JointJS Paper
 // which is a 4-element tuple:
@@ -477,37 +477,36 @@ export class WorkflowEditorComponent implements AfterViewInit {
           };
         })
       )
-    )
-      .subscribe(event => {
-        const oldOrigin = this.getJointPaper().translate();
-        const newOrigin = {
-          x: oldOrigin.tx + event.deltaX,
-          y: oldOrigin.ty + event.deltaY,
-        };
+    ).subscribe(event => {
+      const oldOrigin = this.getJointPaper().translate();
+      const newOrigin = {
+        x: oldOrigin.tx + event.deltaX,
+        y: oldOrigin.ty + event.deltaY,
+      };
 
-        const scale = this.getJointPaper().scale();
+      const scale = this.getJointPaper().scale();
 
-        const translateLimit = this.getTranslateLimit();
-        const elementSize = this.getWrapperElementSize();
+      const translateLimit = this.getTranslateLimit();
+      const elementSize = this.getWrapperElementSize();
 
-        // Check canvas limit
-        if (-newOrigin.x <= translateLimit.xMin) {
-          newOrigin.x = -translateLimit.xMin;
-        }
-        if (-newOrigin.y <= translateLimit.yMin) {
-          newOrigin.y = -translateLimit.yMin;
-        }
-        if (-newOrigin.x >= translateLimit.xMax - elementSize.width / scale.sx) {
-          newOrigin.x = -(translateLimit.xMax - elementSize.width / scale.sx);
-        }
-        if (-newOrigin.y >= translateLimit.yMax - elementSize.height / scale.sy) {
-          newOrigin.y = -(translateLimit.yMax - elementSize.height / scale.sy);
-        }
+      // Check canvas limit
+      if (-newOrigin.x <= translateLimit.xMin) {
+        newOrigin.x = -translateLimit.xMin;
+      }
+      if (-newOrigin.y <= translateLimit.yMin) {
+        newOrigin.y = -translateLimit.yMin;
+      }
+      if (-newOrigin.x >= translateLimit.xMax - elementSize.width / scale.sx) {
+        newOrigin.x = -(translateLimit.xMax - elementSize.width / scale.sx);
+      }
+      if (-newOrigin.y >= translateLimit.yMax - elementSize.height / scale.sy) {
+        newOrigin.y = -(translateLimit.yMax - elementSize.height / scale.sy);
+      }
 
-        if (newOrigin.x !== oldOrigin.tx || newOrigin.y !== oldOrigin.ty) {
-          this.getJointPaper().translate(newOrigin.x, newOrigin.y);
-        }
-      });
+      if (newOrigin.x !== oldOrigin.tx || newOrigin.y !== oldOrigin.ty) {
+        this.getJointPaper().translate(newOrigin.x, newOrigin.y);
+      }
+    });
   }
 
   /**
@@ -1575,10 +1574,12 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * and converts that event to a workflow action
    */
   private handleLinkBreakpointButtonClick(): void {
-    fromEvent<JointPaperEvent>(this.getJointPaper(), "tool:breakpoint"
-    // , {
-    //   passive: true,
-    // }
+    fromEvent<JointPaperEvent>(
+      this.getJointPaper(),
+      "tool:breakpoint"
+      // , {
+      //   passive: true,
+      // }
     )
       .pipe(untilDestroyed(this))
       .subscribe(event => {

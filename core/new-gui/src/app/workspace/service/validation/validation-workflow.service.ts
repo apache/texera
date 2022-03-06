@@ -3,7 +3,7 @@ import { Injectable } from "@angular/core";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { OperatorSchema } from "../../types/operator-schema.interface";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
-import Ajv from "ajv"
+import Ajv from "ajv";
 import { filter, map } from "rxjs/operators";
 
 export type ValidationError = {
