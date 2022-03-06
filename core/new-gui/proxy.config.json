@@ -1,13 +1,13 @@
 {
   "/api": {
     "target": "http://localhost:8080",
-    "secure": true,
-    "changeOrigin": true
+    "secure": false,
+    "changeOrigin": false
   },
   "/wsapi": {
     "target": "http://localhost:8080",
-    "secure": true,
-    "changeOrigin": true,
+    "secure": false,
+    "changeOrigin": false,
     "ws": true
   }
 }
