@@ -19,7 +19,7 @@ export class WorkflowUtilService {
   private operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
 
   // used to fetch default values in json schema to initialize new operator
-  private ajv = new Ajv({ useDefaults: true });
+  private ajv = new Ajv({ useDefaults: true, strict: false });
 
   private operatorSchemaListCreatedSubject: Subject<boolean> = new Subject<boolean>();
 
