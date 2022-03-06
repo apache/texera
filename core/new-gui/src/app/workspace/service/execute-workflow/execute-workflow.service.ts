@@ -358,6 +358,7 @@ export class ExecuteWorkflowService {
       case ExecutionState.Aborted:
       case ExecutionState.Uninitialized:
       case ExecutionState.BreakpointTriggered:
+        this.workflowActionService.toggleLockListen(true);
         if (this.workflowCollabService.isLockGranted()) {
           this.workflowActionService.enableWorkflowModification();
         }
@@ -368,6 +369,7 @@ export class ExecuteWorkflowService {
       case ExecutionState.Resuming:
       case ExecutionState.Running:
       case ExecutionState.Initializing:
+        this.workflowActionService.toggleLockListen(false);
         this.workflowActionService.disableWorkflowModification();
         return;
       default:
