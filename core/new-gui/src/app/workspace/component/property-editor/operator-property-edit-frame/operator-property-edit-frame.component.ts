@@ -1,12 +1,12 @@
-import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from "@angular/core";
+import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { Subject } from "rxjs";
 import { FormGroup } from "@angular/forms";
 import { FormlyFieldConfig, FormlyFormOptions } from "@ngx-formly/core";
-import * as Ajv from "ajv";
+import Ajv from "ajv"
 import { FormlyJsonschema } from "@ngx-formly/core/json-schema";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import { cloneDeep, isEqual, every, findIndex } from "lodash-es";
+import { cloneDeep, isEqual } from "lodash-es";
 import { CustomJSONSchema7 } from "../../../types/custom-json-schema.interface";
 import { isDefined } from "../../../../common/util/predicate";
 import { ExecutionState } from "src/app/workspace/types/execute-workflow.interface";
@@ -77,14 +77,14 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   // inputs and two-way bindings to formly component
   formlyFormGroup: FormGroup | undefined;
   formData: any;
-  formlyOptions: FormlyFormOptions | undefined;
+  formlyOptions: FormlyFormOptions = {};
   formlyFields: FormlyFieldConfig[] | undefined;
   formTitle: string | undefined;
 
   editingTitle: boolean = false;
 
   // used to fill in default values in json schema to initialize new operator
-  ajv = new Ajv({ useDefaults: true });
+  ajv = new Ajv({ useDefaults: true, strict: false });
 
   // for display component of some extra information
   extraDisplayComponentConfig?: PropertyDisplayComponentConfig;

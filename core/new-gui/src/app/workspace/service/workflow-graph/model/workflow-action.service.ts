@@ -1051,7 +1051,7 @@ export class WorkflowActionService {
     this.toggleSendData(true);
   }
 
-  public workflowChanged(): Observable<void> {
+  public workflowChanged(): Observable<unknown> {
     return merge(
       this.getTexeraGraph().getOperatorAddStream(),
       this.getTexeraGraph().getOperatorDeleteStream(),

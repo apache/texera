@@ -1,4 +1,4 @@
-import { registerLocaleData } from "@angular/common";
+import { registerLocaleData, DatePipe } from "@angular/common";
 import { HTTP_INTERCEPTORS, HttpClientModule } from "@angular/common/http";
 import en from "@angular/common/locales/en";
 import { NgModule } from "@angular/core";
@@ -245,6 +245,7 @@ registerLocaleData(en);
         NzCommentModule,
     ],
     providers: [
+        DatePipe,
         UserService,
         UserFileService,
         UserFileUploadService,

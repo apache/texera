@@ -160,7 +160,7 @@ class PythonExpressionSource implements DataSource<FlatTreeNode> {
       this.treeControl.expansionModel.changed.pipe(tap(change => this.handleExpansionChange(change))),
       this.flattenedDataSubject,
     ];
-    return merge(...changes).pipe(map(() => this.expandFlattenedNodes(this.flattenedDataSubject.getValue())));
+    return merge(changes).pipe(map(() => this.expandFlattenedNodes(this.flattenedDataSubject.getValue())));
   }
 
   expandFlattenedNodes(nodes: FlatTreeNode[]): FlatTreeNode[] {
