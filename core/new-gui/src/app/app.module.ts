@@ -34,7 +34,6 @@ import { NzSpaceModule } from "ng-zorro-antd/space";
 import { NzBadgeModule } from "ng-zorro-antd/badge";
 import { FileUploadModule } from "ng2-file-upload";
 import { NgxJsonViewerModule } from "ngx-json-viewer";
-import { LoggerModule, NgxLoggerLevel } from "ngx-logger";
 import { environment } from "../environments/environment";
 import { AppRoutingModule } from "./app-routing.module";
 import { AppComponent } from "./app.component";
@@ -199,10 +198,6 @@ registerLocaleData(en);
     FileUploadModule,
     FormsModule,
     ReactiveFormsModule,
-    LoggerModule.forRoot({
-      level: environment.production ? NgxLoggerLevel.ERROR : NgxLoggerLevel.DEBUG,
-      serverLogLevel: NgxLoggerLevel.OFF,
-    }),
     FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
     FormlyMaterialModule,
     FormlyMatDatepickerModule,

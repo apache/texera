@@ -24,7 +24,6 @@ import { ExecutionState, OperatorState } from "../../types/execute-workflow.inte
 import { OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
 import { auditTime, filter, map } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { JQueryStyleEventEmitter } from "rxjs";
 
 // argument type of callback event on a JointJS Paper
 // which is a 4-element tuple:

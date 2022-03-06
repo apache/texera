@@ -137,29 +137,25 @@ describe("OperatorPanelComponent", () => {
   });
 
   it("should search an operator by its user friendly name", () => {
-    let searchResults: OperatorSchema[] = [];
-    component.operatorSearchResults.subscribe(res => (searchResults = res));
+    component.searchInputValue = "Source: Scan";
 
-    component.operatorSearchFormControl.setValue("Source: Scan");
-
-    expect(searchResults.length === 1);
-    expect(searchResults[0] === mockScanSourceSchema);
     fixture.detectChanges();
+
+    expect(component.autocompleteOptions.length === 1);
+    expect(component.autocompleteOptions[0] === mockScanSourceSchema);
   });
 
   it("should support fuzzy search on operator user friendly name", () => {
-    let searchResults: OperatorSchema[] = [];
-    component.operatorSearchResults.subscribe(res => (searchResults = res));
+    component.searchInputValue = "scan";
+    fixture.detectChanges();
 
-    component.operatorSearchFormControl.setValue("scan");
-
-    expect(searchResults.length === 1);
-    expect(searchResults[0] === mockScanSourceSchema);
+    expect(component.autocompleteOptions.length === 1);
+    expect(component.autocompleteOptions[0] === mockScanSourceSchema);
   });
 
   it("should clear the search box when an operator from search box is dropped", () => {
-    component.operatorSearchFormControl.setValue("scan");
-    expect(component.operatorSearchFormControl.value).toEqual("scan");
+    component.searchInputValue = "scan";
+    fixture.detectChanges();
 
     const dragDropService = TestBed.get(DragDropService);
     dragDropService.operatorDroppedSubject.next({
@@ -168,6 +164,8 @@ describe("OperatorPanelComponent", () => {
       dragElementID: OperatorLabelComponent.operatorLabelSearchBoxPrefix + "ScanSource",
     });
 
-    expect(component.operatorSearchFormControl.value).toBeFalsy();
+    fixture.detectChanges();
+
+    expect(component.searchInputValue).toBeFalsy();
   });
 });

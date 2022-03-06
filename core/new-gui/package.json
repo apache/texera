@@ -71,7 +71,6 @@
     "ng2-file-upload": "^1.4.0",
     "ngx-bootstrap": "^5.5.0",
     "ngx-json-viewer": "^3.0.2",
-    "ngx-logger": "^5.0.9",
     "ngx-monaco-editor": "9.0.0",
     "ngx-popper": "^7.0.0",
     "popper.js": "^1.16.1",
