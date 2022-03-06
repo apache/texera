@@ -9,7 +9,7 @@
     (mouseleave)="mouseLeave()"
     (mouseup)="mouseUp()"
     [attr.id]="operatorLabelID"
-    [ngClass]="{ 'shake-animation': animate == 'reject' }"
+    [ngClass]="{ 'shake-animation': animate === 'reject' }"
     class="texera-operator-label-body"
     title="{{ operator?.additionalMetadata?.operatorDescription }}"
   >

@@ -438,7 +438,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
      *  the JointJS method .translate() to move paper's offset.
      */
     const mousePanEvent = fromEvent<MouseEvent>(document, "mousemove").pipe(
-      untilDestroyed(this),
       filter(() => this.mouseDown !== undefined),
       map(event => {
         event.preventDefault();
@@ -456,7 +455,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     );
 
     const mouseWheelEvent = fromEvent<WheelEvent>(document, "mousewheel").pipe(
-      untilDestroyed(this),
       filter(event => this.elementRef.nativeElement.contains(event.target)),
       filter(event => !(event.metaKey || event.ctrlKey)),
       map(event => {
@@ -468,7 +466,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
       mousePanEvent,
       mouseWheelEvent,
       this.workflowActionService.getJointGraphWrapper().navigatorMoveDelta.pipe(
-        untilDestroyed(this),
         map(event => {
           const scale = this.getJointPaper().scale();
           return {
@@ -477,7 +474,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
           };
         })
       )
-    ).subscribe(event => {
+    ).pipe(untilDestroyed(this)).subscribe(event => {
       const oldOrigin = this.getJointPaper().translate();
       const newOrigin = {
         x: oldOrigin.tx + event.deltaX,

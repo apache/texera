@@ -202,9 +202,9 @@
       [ngClass]="{
 				'texera-navigation-execute': true,
 				'reveal-stop-button':
-					executionState != ExecutionState.Uninitialized &&
-					executionState != ExecutionState.Completed &&
-					executionState != ExecutionState.Aborted
+					executionState !== ExecutionState.Uninitialized &&
+					executionState !== ExecutionState.Completed &&
+					executionState !== ExecutionState.Aborted
 			}"
     >
       <nz-button-group nzSize="large">
@@ -230,9 +230,9 @@
           #runStopButton
           (click)="handleKill()"
           [disabled]="
-						executionState == ExecutionState.Uninitialized ||
-						executionState == ExecutionState.Completed ||
-						executionState == ExecutionState.Aborted ||
+						executionState === ExecutionState.Uninitialized ||
+						executionState === ExecutionState.Completed ||
+						executionState === ExecutionState.Aborted ||
             !lockGranted
 					"
           class="texera-navigation-stop-button"
