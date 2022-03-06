@@ -32,11 +32,9 @@ import { NzSelectModule } from "ng-zorro-antd/select";
 import { NzSliderModule } from "ng-zorro-antd/slider";
 import { NzSpaceModule } from "ng-zorro-antd/space";
 import { NzBadgeModule } from "ng-zorro-antd/badge";
-import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { FileUploadModule } from "ng2-file-upload";
 import { NgxJsonViewerModule } from "ngx-json-viewer";
 import { LoggerModule, NgxLoggerLevel } from "ngx-logger";
-import { TourNgBootstrapModule } from "ngx-tour-ng-bootstrap";
 import { environment } from "../environments/environment";
 import { AppRoutingModule } from "./app-routing.module";
 import { AppComponent } from "./app.component";
@@ -47,7 +45,6 @@ import { MultiSchemaTypeComponent } from "./common/formly/multischema.type";
 import { NullTypeComponent } from "./common/formly/null.type";
 import { ObjectTypeComponent } from "./common/formly/object.type";
 import { UserDictionaryUploadService } from "./dashboard/service/user-dictionary/user-dictionary-upload.service";
-import { UserDictionaryService } from "./dashboard/service/user-dictionary/user-dictionary.service";
 import { UserFileUploadService } from "./dashboard/service/user-file/user-file-upload.service";
 import { UserFileService } from "./dashboard/service/user-file/user-file.service";
 import { UserService } from "./common/service/user/user.service";
@@ -75,7 +72,6 @@ import { MiniMapComponent } from "./workspace/component/workflow-editor/mini-map
 import { NavigationComponent } from "./workspace/component/navigation/navigation.component";
 import { OperatorLabelComponent } from "./workspace/component/operator-panel/operator-label/operator-label.component";
 import { OperatorPanelComponent } from "./workspace/component/operator-panel/operator-panel.component";
-import { ProductTourComponent } from "./workspace/component/product-tour/product-tour.component";
 import { PropertyEditorComponent } from "./workspace/component/property-editor/property-editor.component";
 import { TypeCastingDisplayComponent } from "./workspace/component/property-editor/typecasting-display/type-casting-display.component";
 import { ResultPanelToggleComponent } from "./workspace/component/result-panel-toggle/result-panel-toggle.component";
@@ -151,7 +147,6 @@ registerLocaleData(en);
         ResourceSectionComponent,
         RowModalComponent,
         OperatorLabelComponent,
-        ProductTourComponent,
         MiniMapComponent,
         ResultPanelToggleComponent,
         ArrayTypeComponent,
@@ -201,7 +196,6 @@ registerLocaleData(en);
         NgbModule,
         NgbPopoverModule,
         RouterModule.forRoot([]),
-        TourNgBootstrapModule.forRoot(),
         FileUploadModule,
         FormsModule,
         ReactiveFormsModule,

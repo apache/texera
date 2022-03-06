@@ -10,7 +10,6 @@
     (mouseup)="mouseUp()"
     [attr.id]="operatorLabelID"
     [ngClass]="{ 'shake-animation': animate == 'reject' }"
-    [tourAnchor]="operatorLabelID"
     class="texera-operator-label-body"
     title="{{ operator?.additionalMetadata.operatorDescription }}"
   >

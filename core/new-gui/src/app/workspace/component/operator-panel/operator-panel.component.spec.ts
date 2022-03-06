@@ -12,7 +12,6 @@ import {
   OperatorMetadataService,
 } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
-import { TourNgBootstrapModule, TourService } from "ngx-tour-ng-bootstrap";
 import { GroupInfo, OperatorSchema } from "../../types/operator-schema.interface";
 import { RouterTestingModule } from "@angular/router/testing";
 
@@ -45,14 +44,12 @@ describe("OperatorPanelComponent", () => {
           UndoRedoService,
           WorkflowUtilService,
           JointUIService,
-          TourService,
         ],
         imports: [
           NzDropDownModule,
           NzCollapseModule,
           BrowserAnimationsModule,
           RouterTestingModule.withRoutes([]),
-          TourNgBootstrapModule.forRoot(),
         ],
       }).compileComponents();
     })
