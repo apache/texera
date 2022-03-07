@@ -36,17 +36,17 @@ export const defaultEnvironment = {
   /**
    * whether user system is enabled
    */
-  userSystemEnabled: true,
+  userSystemEnabled: false,
 
   /**
    * whether user preset feature is enabled, requires user system to be enabled
    */
-  userPresetEnabled: true,
+  userPresetEnabled: false,
 
   /**
    * whether workflow executions tracking feature is enabled
    */
-  workflowExecutionsTrackingEnabled: true,
+  workflowExecutionsTrackingEnabled: false,
 
   amberEngineEnabled: true,
 
@@ -58,12 +58,12 @@ export const defaultEnvironment = {
   /**
    * whether operator caching is enabled
    */
-  operatorCacheEnabled: true,
+  operatorCacheEnabled: false,
 
   /**
    * whether debugger is enabled
    */
-  debuggerEnabled: true,
+  debuggerEnabled: false,
 
   /**
    * the access code for mapbox
@@ -83,7 +83,7 @@ export const defaultEnvironment = {
   /**
    * Whether workflow collab should be active
    */
-  workflowCollabEnabled: true,
+  workflowCollabEnabled: false,
 };
 
 export type AppEnv = typeof defaultEnvironment;
