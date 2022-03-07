@@ -1,10 +1,10 @@
 import { Component, OnInit } from "@angular/core";
-import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { UserService } from "../../../../../common/service/user/user.service";
 import { FormBuilder, FormControl, FormGroup, Validators } from "@angular/forms";
 import { isDefined } from "../../../../../common/util/predicate";
 import { filter } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { NzModalRef } from "ng-zorro-antd/modal";
 
 /**
  * UserLoginModalComponent is the pop up for user login/registration
@@ -20,7 +20,7 @@ export class UserLoginModalComponent implements OnInit {
   public registerErrorMessage: string | undefined;
   public allForms: FormGroup;
 
-  constructor(private formBuilder: FormBuilder, public activeModal: NgbActiveModal, private userService: UserService) {
+  constructor(private formBuilder: FormBuilder, public modal: NzModalRef, private userService: UserService) {
     this.allForms = this.formBuilder.group({
       loginUsername: new FormControl("", [Validators.required]),
       registerUsername: new FormControl("", [Validators.required]),
@@ -67,7 +67,7 @@ export class UserLoginModalComponent implements OnInit {
       .login(username, password)
       .pipe(untilDestroyed(this))
       .subscribe(
-        () => this.activeModal.close(),
+        () => this.modal.close(),
         () => (this.loginErrorMessage = "Incorrect credentials")
       );
   }
@@ -100,7 +100,7 @@ export class UserLoginModalComponent implements OnInit {
       .register(registerUsername, registerPassword)
       .pipe(untilDestroyed(this))
       .subscribe(
-        () => this.activeModal.close(),
+        () => this.modal.close(),
         () => (this.registerErrorMessage = "Registration failed. Could due to duplicate username.")
       );
   }
@@ -115,7 +115,7 @@ export class UserLoginModalComponent implements OnInit {
       .googleLogin()
       .pipe(untilDestroyed(this))
       .subscribe(
-        () => this.activeModal.close(),
+        () => this.modal.close(),
         () => (this.loginErrorMessage = "Incorrect credentials")
       );
   }
@@ -130,7 +130,7 @@ export class UserLoginModalComponent implements OnInit {
       .pipe(filter(isDefined))
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        this.activeModal.close();
+        this.modal.close();
       });
   }
 }
