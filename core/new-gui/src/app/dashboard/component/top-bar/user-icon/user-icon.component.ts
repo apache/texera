@@ -2,7 +2,7 @@ import { Component } from "@angular/core";
 import { NgbModal, NgbModalRef } from "@ng-bootstrap/ng-bootstrap";
 import { UserService } from "../../../../common/service/user/user.service";
 import { User } from "../../../../common/type/user";
-import { NgbdModalUserLoginComponent } from "./user-login/ngbdmodal-user-login.component";
+import { UserLoginModalComponent } from "./user-login/user-login-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 /**
@@ -55,7 +55,7 @@ export class UserIconComponent {
    * @param mode 0 indicates login and 1 indicates registration
    */
   private openLoginComponent(mode: 0 | 1): void {
-    const modalRef: NgbModalRef = this.modalService.open(NgbdModalUserLoginComponent);
+    const modalRef: NgbModalRef = this.modalService.open(UserLoginModalComponent);
     modalRef.componentInstance.selectedTab = mode;
   }
 }

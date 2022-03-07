@@ -7,18 +7,15 @@ import { filter } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 /**
- * NgbdModalUserLoginComponent is the pop up for user login/registration
- *
- * @author Adam
+ * UserLoginModalComponent is the pop up for user login/registration
  */
 @UntilDestroy()
 @Component({
-  selector: "texera-ngbdmodal-user-login",
-  templateUrl: "./ngbdmodal-user-login.component.html",
-  styleUrls: ["./ngbdmodal-user-login.component.scss"],
+  selector: "texera-user-login-modal",
+  templateUrl: "./user-login-modal.component.html",
+  styleUrls: ["./user-login-modal.component.scss"],
 })
-export class NgbdModalUserLoginComponent implements OnInit {
-  public selectedTab = 0;
+export class UserLoginModalComponent implements OnInit {
   public loginErrorMessage: string | undefined;
   public registerErrorMessage: string | undefined;
   public allForms: FormGroup;
@@ -27,9 +24,9 @@ export class NgbdModalUserLoginComponent implements OnInit {
     this.allForms = this.formBuilder.group({
       loginUsername: new FormControl("", [Validators.required]),
       registerUsername: new FormControl("", [Validators.required]),
-      loginPassword: new FormControl("", [Validators.required]),
-      registerPassword: new FormControl("", [Validators.required]),
-      registerConfirmationPassword: new FormControl("", [Validators.required]),
+      loginPassword: new FormControl("", [Validators.required, Validators.minLength(6)]),
+      registerPassword: new FormControl("", [Validators.required, Validators.minLength(6)]),
+      registerConfirmationPassword: new FormControl("", [Validators.required, this.confirmationValidator]),
     });
   }
 
@@ -37,19 +34,18 @@ export class NgbdModalUserLoginComponent implements OnInit {
     this.detectUserChange();
   }
 
-  public errorMessageUsernameNull(): string {
-    return "Username required";
+  public updateConfirmValidator(): void {
+    // immediately update validator (asynchronously to wait for value to refresh)
+    Promise.resolve().then(() => this.allForms.controls.registerConfirmationPassword.updateValueAndValidity());
   }
 
-  public errorMessagePasswordNull(): string {
-    return this.allForms.controls["registerPassword"].hasError("required")
-      ? "Password required"
-      : this.allForms.controls["registerConfirmationPassword"].hasError("required")
-      ? "Confirmation required"
-      : this.allForms.controls["loginPassword"].hasError("required")
-      ? "Password required"
-      : "";
-  }
+  // validator for confirm password in sign up page
+  public confirmationValidator = (control: FormControl): { [s: string]: boolean } => {
+    if (this.allForms && control.value !== this.allForms.controls.registerPassword.value) {
+      return { confirm: true };
+    }
+    return {};
+  };
 
   /**
    * This method is respond for the sign in button in the pop up

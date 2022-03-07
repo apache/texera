@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 
-import { NgbdModalUserLoginComponent } from "./ngbdmodal-user-login.component";
+import { UserLoginModalComponent } from "./user-login-modal.component";
 import { UserService } from "../../../../../common/service/user/user.service";
 import { NgbActiveModal, NgbModule } from "@ng-bootstrap/ng-bootstrap";
 import { MatDialogModule } from "@angular/material/dialog";
@@ -13,13 +13,13 @@ import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { StubUserService } from "../../../../../common/service/user/stub-user.service";
 
 describe("UserLoginComponent", () => {
-  let component: NgbdModalUserLoginComponent;
-  let fixture: ComponentFixture<NgbdModalUserLoginComponent>;
+  let component: UserLoginModalComponent;
+  let fixture: ComponentFixture<UserLoginModalComponent>;
 
   beforeEach(
     waitForAsync(() => {
       TestBed.configureTestingModule({
-        declarations: [NgbdModalUserLoginComponent],
+        declarations: [UserLoginModalComponent],
         providers: [NgbActiveModal, { provide: UserService, useClass: StubUserService }, FormBuilder],
         imports: [
           BrowserAnimationsModule,
@@ -37,7 +37,7 @@ describe("UserLoginComponent", () => {
   );
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(NgbdModalUserLoginComponent);
+    fixture = TestBed.createComponent(UserLoginModalComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });
