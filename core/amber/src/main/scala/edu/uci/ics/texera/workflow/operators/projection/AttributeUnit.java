@@ -36,7 +36,7 @@ public class AttributeUnit{
 
 
     String getAlias(){
-        if(alias.get().length() == 0 || alias == null){
+        if(alias.get().length() == 0){
             return originalAttribute;
         }
         return alias.get();
