@@ -4,7 +4,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
-import static com.google.common.base.Preconditions.checkNotNull;
+import org.jooq.tools.StringUtils;
+import java.util.Objects;
 
 public class AttributeUnit{
     @JsonProperty(required = true)
@@ -16,17 +17,11 @@ public class AttributeUnit{
     @JsonProperty
     @JsonSchemaTitle("Alias")
     @JsonPropertyDescription("Renamed attribute name")
-    private scala.Option<String> alias;
-
-    public AttributeUnit()
-    {
-        ;
-    }
+    private String alias;
 
     AttributeUnit(String attributeName, String alias) {
-        checkNotNull(attributeName);
         this.originalAttribute = attributeName;
-        this.alias = scala.Some.apply(alias);
+        this.alias = alias;
     }
 
 
@@ -36,11 +31,22 @@ public class AttributeUnit{
 
 
     String getAlias(){
-        if(alias.get().length() == 0){
+        if(StringUtils.isBlank(alias)){
             return originalAttribute;
         }
-        return alias.get();
+        return alias;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        AttributeUnit that = (AttributeUnit) o;
+        return Objects.equals(originalAttribute, that.originalAttribute) && Objects.equals(alias, that.alias);
+    }
 
+    @Override
+    public int hashCode() {
+        return Objects.hash(originalAttribute, alias);
+    }
 }
