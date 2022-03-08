@@ -141,7 +141,7 @@ describe("DragDropService", () => {
     expect(outputOps).toEqual([output1, output2, output3]);
   });
 
-  it("should publish operatorPredicates to highlight streams when calling \"updateHighlighting(prevHighlights,newHighlights)\"", async () => {
+  it('should publish operatorPredicates to highlight streams when calling "updateHighlighting(prevHighlights,newHighlights)"', async () => {
     const workflowUtilService: WorkflowActionService = TestBed.get(WorkflowActionService);
     const highlights: string[] = [];
     const unhighlights: string[] = [];
