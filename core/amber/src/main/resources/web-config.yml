@@ -31,7 +31,7 @@ logging:
     - type: console
       logFormat: "[%date{ISO8601}] [%level] [%logger] [%thread] - %msg %n"
     - type: file
-      currentLogFilename: ../log/amber.log
+      currentLogFilename: ../log/amber-server.log
       threshold: ALL
       queueSize: 512
       discardingThreshold: 0
