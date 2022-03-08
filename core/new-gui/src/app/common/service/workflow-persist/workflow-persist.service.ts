@@ -19,6 +19,9 @@ export const WORKFLOW_UPDATENAME_URL = WORKFLOW_BASE_URL + "/update/name";
   providedIn: "root",
 })
 export class WorkflowPersistService {
+  // flag to disable workflow persist when displaying the read only particular version
+  private workflowPersistFlag = true;
+
   constructor(private http: HttpClient, private notificationService: NotificationService) {}
 
   /**
@@ -112,5 +115,13 @@ export class WorkflowPersistService {
           return throwError(error);
         })
       );
+  }
+
+  public setWorkflowPersistFlag(flag: boolean): void {
+    this.workflowPersistFlag = flag;
+  }
+
+  public isWorkflowPersistEnabled(): boolean {
+    return this.workflowPersistFlag;
   }
 }

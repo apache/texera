@@ -4,8 +4,10 @@ from typing import Iterator, List, Mapping, Optional, Union
 
 import overrides
 import pandas
+from pyarrow.lib import Schema
 
 from . import InputExhausted, Table, TableLike, Tuple, TupleLike
+from ..util.arrow_utils import to_arrow_schema
 
 
 class Operator(ABC):
@@ -15,6 +17,7 @@ class Operator(ABC):
 
     def __init__(self):
         self.__internal_is_source: bool = False
+        self.__internal_output_schema: Optional[Schema] = None
 
     @property
     @overrides.final
@@ -30,6 +33,18 @@ class Operator(ABC):
     @overrides.final
     def is_source(self, value: bool) -> None:
         self.__internal_is_source = value
+
+    @property
+    @overrides.final
+    def output_schema(self) -> Schema:
+        assert self.__internal_output_schema is not None
+        return self.__internal_output_schema
+
+    @output_schema.setter
+    @overrides.final
+    def output_schema(self, raw_output_schema: Union[Schema, Mapping[str, str]]) -> None:
+        self.__internal_output_schema = raw_output_schema if isinstance(raw_output_schema, Schema) else \
+            to_arrow_schema(raw_output_schema)
 
     def open(self) -> None:
         """
@@ -90,7 +105,7 @@ class TableOperator(TupleOperator):
         if isinstance(tuple_, Tuple):
             self.__table_data[input_].append(tuple_)
         else:
-            table = Table(pandas.DataFrame(self.__table_data[input_]))
+            table = Table(pandas.DataFrame([i.as_series() for i in self.__table_data[input_]]))
             for output_table in self.process_table(table, input_):
                 if output_table is not None:
                     for _, output_tuple in output_table.iterrows():

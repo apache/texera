@@ -14,7 +14,6 @@ object ClusterListener {
 class ClusterListener extends Actor with ActorLogging {
 
   val cluster: Cluster = Cluster(context.system)
-  val availableNodeAddresses = new mutable.HashSet[Address]()
 
   // subscribe to cluster changes, re-subscribe when restart
   override def preStart(): Unit = {
@@ -28,59 +27,26 @@ class ClusterListener extends Actor with ActorLogging {
   override def postStop(): Unit = cluster.unsubscribe(self)
 
   def receive: Receive = {
-    case MemberUp(member) =>
-      if (
-        context.system
-          .asInstanceOf[ExtendedActorSystem]
-          .provider
-          .getDefaultAddress == member.address
-      ) {
-        if (Constants.masterNodeAddr.isDefined) {
-          availableNodeAddresses.add(self.path.address)
-          Constants.currentDataSetNum += Constants.dataVolumePerNode
-          Constants.currentWorkerNum += Constants.numWorkerPerNode
-        }
-      } else {
-        if (Constants.masterNodeAddr != member.address.host) {
-          availableNodeAddresses.add(member.address)
-          Constants.currentDataSetNum += Constants.dataVolumePerNode
-          Constants.currentWorkerNum += Constants.numWorkerPerNode
-        }
-      }
-      log.info(
-        "---------Now we have " + availableNodeAddresses.size + " nodes in the cluster---------"
-      )
-      log.info(
-        "currentDataSetNum: " + Constants.currentDataSetNum + " numWorkers: " + Constants.currentWorkerNum
-      )
-    case UnreachableMember(member) =>
-      removeMember(member)
-      log.info("Member detected as unreachable: {}", member)
-    case MemberRemoved(member, previousStatus) =>
-      removeMember(member)
-      log.info("Member is Removed: {} after {}", member.address, previousStatus)
-    case _: MemberEvent                            => // ignore
-    case ClusterListener.GetAvailableNodeAddresses => sender ! availableNodeAddresses.toArray
+    case evt: MemberEvent =>
+      log.info(s"received member event = $evt")
+      updateClusterStatus()
+    case ClusterListener.GetAvailableNodeAddresses => sender ! getAllAddressExcludingMaster.toArray
   }
 
-  private def removeMember(member: Member): Unit = {
-    if (
-      context.system
-        .asInstanceOf[ExtendedActorSystem]
-        .provider
-        .getDefaultAddress == member.address
-    ) {
-      if (Constants.masterNodeAddr.isDefined) {
-        availableNodeAddresses.remove(self.path.address)
-        Constants.currentDataSetNum -= Constants.dataVolumePerNode
-        Constants.currentWorkerNum -= Constants.numWorkerPerNode
+  private def getAllAddressExcludingMaster: Iterable[Address] = {
+    cluster.state.members
+      .filter { member =>
+        member.address != Constants.masterNodeAddr
       }
-    } else {
-      if (Constants.masterNodeAddr != member.address.host) {
-        availableNodeAddresses.remove(member.address)
-        Constants.currentDataSetNum -= Constants.dataVolumePerNode
-        Constants.currentWorkerNum -= Constants.numWorkerPerNode
-      }
-    }
+      .map(_.address)
   }
+
+  private def updateClusterStatus(): Unit = {
+    val addr = getAllAddressExcludingMaster
+    Constants.currentWorkerNum = addr.size * Constants.numWorkerPerNode
+    log.info(
+      "---------Now we have " + addr.size + s" nodes in the cluster [current default #worker per operator=${Constants.currentWorkerNum}]---------"
+    )
+  }
+
 }

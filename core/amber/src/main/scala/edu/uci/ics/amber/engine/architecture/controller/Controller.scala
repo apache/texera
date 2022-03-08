@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
-import akka.actor.{ActorRef, Address, Cancellable, PoisonPill, Props}
+import akka.actor.{ActorRef, Address, Cancellable, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import com.softwaremill.macwire.wire
@@ -17,13 +17,15 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputPort
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
-import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
+import edu.uci.ics.amber.engine.common.{Constants, ISourceOperatorExecutor}
+import edu.uci.ics.amber.engine.common.{AmberUtils, Constants, ISourceOperatorExecutor}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowControlMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER}
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.error.ErrorUtils.safely
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2
 
@@ -33,13 +35,17 @@ import scala.concurrent.{Await, ExecutionContext}
 object ControllerConfig {
   def default: ControllerConfig =
     ControllerConfig(
-      statusUpdateIntervalMs = Option(100),
-      resultUpdateIntervalMs = Option(1000)
+      monitoringIntervalMs = Option(Constants.monitoringIntervalInMs),
+      skewDetectionIntervalMs = Option(Constants.reshapeSkewDetectionIntervalInMs),
+      statusUpdateIntervalMs =
+        Option(AmberUtils.amberConfig.getLong("constants.status-update-interval"))
     )
 }
+
 final case class ControllerConfig(
-    statusUpdateIntervalMs: Option[Long],
-    resultUpdateIntervalMs: Option[Long]
+    monitoringIntervalMs: Option[Long],
+    skewDetectionIntervalMs: Option[Long],
+    statusUpdateIntervalMs: Option[Long]
 )
 
 object Controller {
@@ -86,45 +92,57 @@ class Controller(
   // bring all workers into a ready state
   prepareWorkers()
 
-  def prepareWorkers(): Future[Seq[Unit]] = {
-
-    // initialize python operator code
-    val initializeOperatorLogicRequests: Seq[Future[Unit]] =
-      workflow.getPythonWorkerToOperatorExec.map {
-        case (workerId: ActorVirtualIdentity, pythonOperatorExec: PythonUDFOpExecV2) =>
-          asyncRPCClient.send(
-            InitializeOperatorLogic(
-              pythonOperatorExec.getCode,
-              pythonOperatorExec.isInstanceOf[ISourceOperatorExecutor]
-            ),
-            workerId
+  def prepareWorkers(): Future[Unit] = {
+    Future(asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus)))
+      .flatMap(_ =>
+        Future
+          .collect(
+            // initialize python operator code
+            workflow.getPythonWorkerToOperatorExec.map {
+              case (workerID: ActorVirtualIdentity, pythonOperatorExec: PythonUDFOpExecV2) =>
+                asyncRPCClient.send(
+                  InitializeOperatorLogic(
+                    pythonOperatorExec.getCode,
+                    pythonOperatorExec.isInstanceOf[ISourceOperatorExecutor],
+                    pythonOperatorExec.getOutputSchema
+                  ),
+                  workerID
+                )
+            }.toSeq
           )
-      }.toSeq
-
-    // activate all links
-    val activateLinkRequests: Seq[Future[Unit]] =
-      workflow.getAllLinks.map { link: LinkStrategy =>
-        asyncRPCClient.send(
-          LinkWorkers(link),
-          CONTROLLER
-        )
-      }.toSeq
-
-    Future
-      .collect(
-        initializeOperatorLogicRequests ++ activateLinkRequests
+          .onFailure((err: Throwable) => {
+            logger.error("Failure when sending Python UDF code", err)
+            // report error to frontend
+            asyncRPCClient.sendToClient(FatalError(err))
+          })
       )
-      .onSuccess({ _ =>
-        workflow.getAllOperators.foreach(_.setAllWorkerState(READY))
-        asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus))
-        context.become(running)
-        unstashAll()
-      })
-      .onFailure((err: Throwable) => {
-        logger.error("Failure when sending Python UDF code", err)
-        // report error to frontend
-        asyncRPCClient.sendToClient(FatalError(err))
-      })
+      .flatMap(_ =>
+        Future.collect(
+          // activate all links
+          workflow.getAllLinks.map { link: LinkStrategy =>
+            asyncRPCClient.send(LinkWorkers(link), CONTROLLER)
+          }.toSeq
+        )
+      )
+      .flatMap(_ =>
+        Future {
+          context.become(running)
+          unstashAll()
+        }
+      )
+      .flatMap(
+        // open all operators
+        _ =>
+          Future.collect(workflow.getAllWorkers.map { workerID =>
+            asyncRPCClient.send(OpenOperator(), workerID)
+          }.toSeq)
+      )
+      .flatMap(_ =>
+        Future {
+          workflow.getAllOperators.foreach(_.setAllWorkerState(READY))
+          asyncRPCClient.sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus))
+        }
+      )
   }
 
   def running: Receive = {

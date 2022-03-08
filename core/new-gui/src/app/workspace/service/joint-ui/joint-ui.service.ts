@@ -2,12 +2,13 @@ import { Injectable } from "@angular/core";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { OperatorSchema } from "../../types/operator-schema.interface";
 
-import * as joint from "jointjs";
-import { OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
-import { Group, GroupBoundingBox } from "../workflow-graph/model/operator-group";
-import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
 import { OperatorResultCacheStatus } from "../../types/workflow-websocket.interface";
 import { abbreviateNumber } from "js-abbreviation-number";
+import { Point, OperatorPredicate, OperatorLink, CommentBox } from "../../types/workflow-common.interface";
+import { Group, GroupBoundingBox } from "../workflow-graph/model/operator-group";
+import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
+import * as joint from "jointjs";
+import { jitOnlyGuardedExpression } from "@angular/compiler/src/render3/util";
 
 /**
  * Defines the SVG element for the breakpoint button
@@ -131,6 +132,13 @@ class TexeraCustomGroupElement extends joint.shapes.devs.Model {
     </g>`;
 }
 
+class TexeraCustomCommentElement extends joint.shapes.devs.Model {
+  markup = `<g class = "element-node">
+  <rect class = "body"></rect>
+  ${deleteButtonSVG}
+  <image></image>
+  </g>`;
+}
 /**
  * JointUIService controls the shape of an operator and a link
  *  when they are displayed by JointJS.
@@ -160,6 +168,8 @@ export class JointUIService {
   public static readonly DEFAULT_GROUP_MARGIN_BOTTOM = 40;
 
   private operatorSchemas: ReadonlyArray<OperatorSchema> = [];
+  public static readonly DEFAULT_COMMENT_WIDTH = 32;
+  public static readonly DEFAULT_COMMENT_HEIGHT = 32;
 
   constructor(private operatorMetadataService: OperatorMetadataService) {
     // initialize the operator information
@@ -183,6 +193,7 @@ export class JointUIService {
    *
    * @returns JointJS Element
    */
+
   public getJointOperatorElement(operator: OperatorPredicate, point: Point): joint.dia.Element {
     // check if the operatorType exists in the operator metadata
     const operatorSchema = this.operatorSchemas.find(op => op.operatorType === operator.operatorType);
@@ -252,43 +263,45 @@ export class JointUIService {
 
     const processedText = isSource ? "" : "Processed: " + statistics.aggregatedInputRowCount.toLocaleString();
     const outputText = isSink ? "" : "Output: " + statistics.aggregatedOutputRowCount.toLocaleString();
-    jointPaper.getModelById(operatorID).attr(`.${operatorProcessedCountClass}/text`, processedText);
-    jointPaper.getModelById(operatorID).attr(`.${operatorProcessedCountBGClass}/text`, processedText);
-    if (isSink) {
-      jointPaper.getModelById(operatorID).attr(`.${operatorProcessedCountClass}/ref-y`, -30);
-      jointPaper.getModelById(operatorID).attr(`.${operatorProcessedCountBGClass}/ref-y`, -30);
-    }
-    jointPaper.getModelById(operatorID).attr(`.${operatorOutputCountClass}/text`, outputText);
-    jointPaper.getModelById(operatorID).attr(`.${operatorOutputCountBGClass}/text`, outputText);
     const processedCountText = isSource ? "" : abbreviateNumber(statistics.aggregatedInputRowCount);
     const outputCountText = isSink ? "" : abbreviateNumber(statistics.aggregatedOutputRowCount);
     const abbreviatedText = processedCountText + (isSource || isSink ? "" : " → ") + outputCountText;
-    jointPaper.getModelById(operatorID).attr(`.${operatorAbbreviatedCountClass}/text`, abbreviatedText);
-    jointPaper.getModelById(operatorID).attr(`.${operatorAbbreviatedCountBGClass}/text`, abbreviatedText);
+    jointPaper.getModelById(operatorID).attr({
+      [`.${operatorProcessedCountBGClass}`]: isSink ? { text: processedText, "ref-y": -30 } : { text: processedText },
+      [`.${operatorProcessedCountClass}`]: isSink ? { text: processedText, "ref-y": -30 } : { text: processedText },
+      [`.${operatorOutputCountClass}`]: { text: outputText },
+      [`.${operatorOutputCountBGClass}`]: { text: outputText },
+      [`.${operatorAbbreviatedCountClass}`]: { text: abbreviatedText },
+      [`.${operatorAbbreviatedCountBGClass}`]: { text: abbreviatedText },
+    });
   }
 
   public foldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
-    jointPaper.getModelById(operatorID).attr(`.${operatorAbbreviatedCountBGClass}/visibility`, "visible");
-    jointPaper.getModelById(operatorID).attr(`.${operatorAbbreviatedCountClass}/visibility`, "visible");
-    jointPaper.getModelById(operatorID).attr(`.${operatorProcessedCountBGClass}/visibility`, "hidden");
-    jointPaper.getModelById(operatorID).attr(`.${operatorProcessedCountClass}/visibility`, "hidden");
-    jointPaper.getModelById(operatorID).attr(`.${operatorOutputCountBGClass}/visibility`, "hidden");
-    jointPaper.getModelById(operatorID).attr(`.${operatorOutputCountClass}/visibility`, "hidden");
-    jointPaper.getModelById(operatorID).attr(`.${operatorStateBGClass}/visibility`, "hidden");
-    jointPaper.getModelById(operatorID).attr(`.${operatorStateClass}/visibility`, "hidden");
-    jointPaper.getModelById(operatorID).attr(".delete-button/visibility", "hidden");
+    jointPaper.getModelById(operatorID).attr({
+      [`.${operatorAbbreviatedCountBGClass}`]: { visibility: "visible" },
+      [`.${operatorAbbreviatedCountClass}`]: { visibility: "visible" },
+      [`.${operatorProcessedCountClass}`]: { visibility: "hidden" },
+      [`.${operatorProcessedCountBGClass}`]: { visibility: "hidden" },
+      [`.${operatorOutputCountBGClass}`]: { visibility: "hidden" },
+      [`.${operatorOutputCountClass}`]: { visibility: "hidden" },
+      [`.${operatorStateBGClass}`]: { visibility: "hidden" },
+      [`.${operatorStateClass}`]: { visibility: "hidden" },
+      ".delete-button": { visibility: "hidden" },
+    });
   }
 
   public unfoldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
-    jointPaper.getModelById(operatorID).attr(`.${operatorAbbreviatedCountBGClass}/visibility`, "hidden");
-    jointPaper.getModelById(operatorID).attr(`.${operatorAbbreviatedCountClass}/visibility`, "hidden");
-    jointPaper.getModelById(operatorID).attr(`.${operatorProcessedCountBGClass}/visibility`, "visible");
-    jointPaper.getModelById(operatorID).attr(`.${operatorProcessedCountClass}/visibility`, "visible");
-    jointPaper.getModelById(operatorID).attr(`.${operatorOutputCountBGClass}/visibility`, "visible");
-    jointPaper.getModelById(operatorID).attr(`.${operatorOutputCountClass}/visibility`, "visible");
-    jointPaper.getModelById(operatorID).attr(`.${operatorStateBGClass}/visibility`, "visible");
-    jointPaper.getModelById(operatorID).attr(`.${operatorStateClass}/visibility`, "visible");
-    jointPaper.getModelById(operatorID).attr(".delete-button/visibility", "visible");
+    jointPaper.getModelById(operatorID).attr({
+      [`.${operatorAbbreviatedCountBGClass}`]: { visibility: "hidden" },
+      [`.${operatorAbbreviatedCountClass}`]: { visibility: "hidden" },
+      [`.${operatorProcessedCountClass}`]: { visibility: "visible" },
+      [`.${operatorProcessedCountBGClass}`]: { visibility: "visible" },
+      [`.${operatorOutputCountBGClass}`]: { visibility: "visible" },
+      [`.${operatorOutputCountClass}`]: { visibility: "visible" },
+      [`.${operatorStateBGClass}`]: { visibility: "visible" },
+      [`.${operatorStateClass}`]: { visibility: "visible" },
+      ".delete-button": { visibility: "visible" },
+    });
   }
 
   /**
@@ -331,6 +344,9 @@ export class JointUIService {
   public changeOperatorState(jointPaper: joint.dia.Paper, operatorID: string, operatorState: OperatorState): void {
     let fillColor: string;
     switch (operatorState) {
+      case OperatorState.Ready:
+        fillColor = "#a6bd37";
+        break;
       case OperatorState.Completed:
         fillColor = "green";
         break;
@@ -338,18 +354,22 @@ export class JointUIService {
       case OperatorState.Paused:
         fillColor = "magenta";
         break;
-      default:
+      case OperatorState.Running:
         fillColor = "orange";
         break;
+      default:
+        fillColor = "gray";
+        break;
     }
-
-    jointPaper.getModelById(operatorID).attr(`.${operatorStateClass}/text`, operatorState.toString());
-    jointPaper.getModelById(operatorID).attr(`.${operatorStateBGClass}/text`, operatorState.toString());
-    jointPaper.getModelById(operatorID).attr(`.${operatorStateClass}/fill`, fillColor);
-    jointPaper.getModelById(operatorID).attr("rect.body/stroke", fillColor);
-    jointPaper.getModelById(operatorID).attr(`.${operatorAbbreviatedCountClass}/fill`, fillColor);
-    jointPaper.getModelById(operatorID).attr(`.${operatorProcessedCountClass}/fill`, fillColor);
-    jointPaper.getModelById(operatorID).attr(`.${operatorOutputCountClass}/fill`, fillColor);
+    jointPaper.getModelById(operatorID).attr({
+      [`.${operatorStateClass}`]: { text: operatorState.toString() },
+      [`.${operatorStateBGClass}`]: { text: operatorState.toString() },
+      [`.${operatorStateClass}`]: { fill: fillColor },
+      "rect.body": { stroke: fillColor },
+      [`.${operatorAbbreviatedCountClass}`]: { fill: fillColor },
+      [`.${operatorProcessedCountClass}`]: { fill: fillColor },
+      [`.${operatorOutputCountClass}`]: { fill: fillColor },
+    });
   }
 
   /**
@@ -470,6 +490,21 @@ export class JointUIService {
     });
   }
 
+  public getCommentElement(commentBox: CommentBox): joint.dia.Element {
+    const basic = new joint.shapes.standard.Rectangle();
+    basic.position(commentBox.commentBoxPosition.x, commentBox.commentBoxPosition.y);
+    basic.resize(120, 50);
+    const commentElement = new TexeraCustomCommentElement({
+      position: commentBox.commentBoxPosition,
+      size: {
+        width: JointUIService.DEFAULT_COMMENT_WIDTH,
+        height: JointUIService.DEFAULT_COMMENT_HEIGHT,
+      },
+      attrs: JointUIService.getCustomCommentStyleAttrs(),
+    });
+    commentElement.set("id", commentBox.commentBoxID);
+    return commentElement;
+  }
   /**
    * This function converts a Texera source and target OperatorPort to
    *   a JointJS link cell <joint.dia.Link> that could be added to the JointJS.
@@ -884,5 +919,36 @@ export class JointUIService {
       },
     };
     return groupStyleAttrs;
+  }
+
+  public static getCustomCommentStyleAttrs(): joint.shapes.devs.ModelSelectors {
+    const commentStyleAttrs = {
+      rect: {
+        fill: "#F2F4F5",
+        "follow-scale": true,
+        stroke: "#CED4D9",
+        "stroke-width": "0",
+        rx: "5px",
+        ry: "5px",
+      },
+      image: {
+        "xlink:href": "assets/operator_images/icons8-chat_bubble.png",
+        width: 32,
+        height: 32,
+        "ref-x": 0.5,
+        "ref-y": 0.5,
+        ref: "rect",
+        "x-alignment": "middle",
+        "y-alignment": "middle",
+      },
+      ".delete-button": {
+        x: 22,
+        y: -16,
+        cursor: "pointer",
+        fill: "#D8656A",
+        event: "element:delete",
+      },
+    };
+    return commentStyleAttrs;
   }
 }

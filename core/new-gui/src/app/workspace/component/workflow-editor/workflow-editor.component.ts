@@ -4,6 +4,8 @@ import * as joint from "jointjs";
 // 2) always add this import statement even if TypeScript doesn't show an error https://github.com/Microsoft/TypeScript/issues/22016
 import * as jQuery from "jquery";
 import { fromEvent, merge } from "rxjs";
+import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
+import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { assertType } from "src/app/common/util/assert";
 import { environment } from "../../../../environments/environment";
 import { DragDropService } from "../../service/drag-drop/drag-drop.service";
@@ -61,6 +63,7 @@ const disableInteractiveOption = {
   vertexMove: false,
   vertexAdd: false,
   vertexRemove: false,
+  elementMove: false, // TODO: This is only a temporary change, will introduce another level of disable option.
 };
 
 export const WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID = "texera-workflow-editor-jointjs-wrapper-id";
@@ -113,7 +116,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
     private jointUIService: JointUIService,
     private workflowStatusService: WorkflowStatusService,
     private workflowUtilService: WorkflowUtilService,
-    private executeWorkflowService: ExecuteWorkflowService
+    private executeWorkflowService: ExecuteWorkflowService,
+    private nzModalService: NzModalService
   ) {}
 
   public getJointPaper(): joint.dia.Paper {
@@ -526,6 +530,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   private handleCellHighlight(): void {
+    this.handleHighlightMouseDBClickInput();
     this.handleHighlightMouseInput();
     this.handleElementHightlightEvent();
   }
@@ -554,6 +559,23 @@ export class WorkflowEditorComponent implements AfterViewInit {
       });
   }
 
+  private handleHighlightMouseDBClickInput(): void {
+    fromEvent<JointPaperEvent>(this.getJointPaper(), "cell:pointerdblclick")
+      .pipe(untilDestroyed(this))
+      .subscribe(event => {
+        const clickedCommentBox = event[0].model;
+        if (
+          clickedCommentBox.isElement() &&
+          this.workflowActionService.getTexeraGraph().hasCommentBox(clickedCommentBox.id.toString())
+        ) {
+          this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(<boolean>event[1].shiftKey);
+          const elementID = event[0].model.id.toString();
+          if (this.workflowActionService.getTexeraGraph().hasCommentBox(elementID)) {
+            this.workflowActionService.getJointGraphWrapper().highlightCommentBoxes(elementID);
+          }
+        }
+      });
+  }
   /**
    * Handles user mouse down events to trigger logically highlight and unhighlight an operator or group.
    * If user clicks the operator/group while pressing the shift key, multiselect mode is turned on.
@@ -583,22 +605,21 @@ export class WorkflowEditorComponent implements AfterViewInit {
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs();
         const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
-
         if (event[1].shiftKey) {
           // if in multiselect toggle highlights on click
           if (highlightedOperatorIDs.includes(elementID)) {
-            this.workflowActionService.getJointGraphWrapper().unhighlightOperators(elementID);
+            this.workflowActionService.unhighlightOperators(elementID);
           } else if (highlightedGroupIDs.includes(elementID)) {
             this.workflowActionService.getJointGraphWrapper().unhighlightGroups(elementID);
           } else if (this.workflowActionService.getTexeraGraph().hasOperator(elementID)) {
-            this.workflowActionService.getJointGraphWrapper().highlightOperators(elementID);
+            this.workflowActionService.highlightOperators(<boolean>event[1].shiftKey, elementID);
           } else if (this.workflowActionService.getOperatorGroup().hasGroup(elementID)) {
             this.workflowActionService.getJointGraphWrapper().highlightGroups(elementID);
           }
         } else {
           // else only highlight a single operator or group
           if (this.workflowActionService.getTexeraGraph().hasOperator(elementID)) {
-            this.workflowActionService.getJointGraphWrapper().highlightOperators(elementID);
+            this.workflowActionService.highlightOperators(<boolean>event[1].shiftKey, elementID);
           } else if (this.workflowActionService.getOperatorGroup().hasGroup(elementID)) {
             this.workflowActionService.getJointGraphWrapper().highlightGroups(elementID);
           }
@@ -614,9 +635,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
           .getCurrentHighlightedOperatorIDs();
         const highlightedGroupIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
         const highlightedLinkIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
-        this.workflowActionService.getJointGraphWrapper().unhighlightOperators(...highlightedOperatorIDs);
+        this.workflowActionService.unhighlightOperators(...highlightedOperatorIDs);
         this.workflowActionService.getJointGraphWrapper().unhighlightGroups(...highlightedGroupIDs);
-        this.workflowActionService.getJointGraphWrapper().unhighlightLinks(...highlightedLinkIDs);
+        this.workflowActionService.unhighlightLinks(...highlightedLinkIDs);
       });
   }
 
@@ -656,6 +677,40 @@ export class WorkflowEditorComponent implements AfterViewInit {
           this.getJointPaper().findViewByModel(elementID).unhighlight("rect.body", { highlighter: highlightOptions })
         )
       );
+
+    this.workflowActionService
+      .getJointGraphWrapper()
+      .getJointCommentBoxHighlightStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(commentBoxIDs => {
+        this.openCommentBox(commentBoxIDs[0]);
+      });
+  }
+
+  private openCommentBox(commentBoxID: string): void {
+    const commentBox = this.workflowActionService.getTexeraGraph().getCommentBox(commentBoxID);
+    const modalRef: NzModalRef = this.nzModalService.create({
+      // modal title
+      nzTitle: "Comments",
+      nzContent: NzModalCommentBoxComponent,
+      // set component @Input attributes
+      nzComponentParams: {
+        // set the index value and page size to the modal for navigation
+        commentBox: commentBox,
+      },
+      // prevent browser focusing close button (ugly square highlight)
+      nzAutofocus: null,
+      // modal footer buttons
+      nzFooter: [
+        {
+          label: "OK",
+          onClick: () => {
+            modalRef.destroy();
+          },
+          type: "primary",
+        },
+      ],
+    });
   }
 
   private handleOperatorSuggestionHighlightEvent(): void {
@@ -727,7 +782,12 @@ export class WorkflowEditorComponent implements AfterViewInit {
       )
       .pipe(untilDestroyed(this))
       .subscribe(elementView => {
-        this.workflowActionService.deleteOperator(elementView.model.id.toString());
+        if (this.workflowActionService.getTexeraGraph().hasOperator(elementView.model.id.toString())) {
+          this.workflowActionService.deleteOperator(elementView.model.id.toString());
+        }
+        if (this.workflowActionService.getTexeraGraph().hasCommentBox(elementView.model.id.toString())) {
+          this.workflowActionService.deleteCommentBox(elementView.model.id.toString());
+        }
       });
   }
 
@@ -1045,7 +1105,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
         this.workflowActionService
           .getJointGraphWrapper()
           .setMultiSelectMode(allOperators.length + allGroups.length > 1);
-        this.workflowActionService.getJointGraphWrapper().highlightOperators(...allOperators);
+        this.workflowActionService.highlightOperators(allOperators.length + allGroups.length > 1, ...allOperators);
         this.workflowActionService.getJointGraphWrapper().highlightGroups(...allGroups);
       });
   }
@@ -1491,7 +1551,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private handleLinkBreakpointToolAttachment(): void {
     this.workflowActionService
       .getJointGraphWrapper()
-      .getJointLinkCellAddStream()
+      .createContextAwareStream(this.workflowActionService.getJointGraphWrapper().getJointLinkCellAddStream())
       .pipe(untilDestroyed(this))
       .subscribe(link => {
         const linkView = link.findView(this.getJointPaper());
@@ -1517,8 +1577,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     })
       .pipe(untilDestroyed(this))
       .subscribe(event => {
-        this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(<boolean>event[1].shiftKey);
-        this.workflowActionService.getJointGraphWrapper().highlightLinks(event[0].model.id.toString());
+        this.workflowActionService.highlightLinks(<boolean>event[1].shiftKey, event[0].model.id.toString());
       });
   }
 
@@ -1569,7 +1628,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private handleLinkBreakpointToggleEvents(): void {
     this.workflowActionService
       .getJointGraphWrapper()
-      .getLinkBreakpointShowStream()
+      .createContextAwareStream(this.workflowActionService.getJointGraphWrapper().getLinkBreakpointShowStream())
       .pipe(untilDestroyed(this))
       .subscribe(linkID => {
         this.getJointPaper().getModelById(linkID.linkID).findView(this.getJointPaper()).showTools();
@@ -1577,7 +1636,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
     this.workflowActionService
       .getJointGraphWrapper()
-      .getLinkBreakpointHideStream()
+      .createContextAwareStream(this.workflowActionService.getJointGraphWrapper().getLinkBreakpointHideStream())
       .pipe(untilDestroyed(this))
       .subscribe(linkID => {
         this.getJointPaper().getModelById(linkID.linkID).findView(this.getJointPaper()).hideTools();

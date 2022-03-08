@@ -32,6 +32,7 @@ import { NzSelectModule } from "ng-zorro-antd/select";
 import { NzSliderModule } from "ng-zorro-antd/slider";
 import { NzSpaceModule } from "ng-zorro-antd/space";
 import { NzBadgeModule } from "ng-zorro-antd/badge";
+import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { FileUploadModule } from "ng2-file-upload";
 import { NgxJsonViewerModule } from "ngx-json-viewer";
 import { LoggerModule, NgxLoggerLevel } from "ngx-logger";
@@ -66,6 +67,7 @@ import { NgbdModalFileAddComponent } from "./dashboard/component/feature-contain
 import { UserFileSectionComponent } from "./dashboard/component/feature-container/user-file-section/user-file-section.component";
 import { TopBarComponent } from "./dashboard/component/top-bar/top-bar.component";
 import { UserIconComponent } from "./dashboard/component/top-bar/user-icon/user-icon.component";
+import { UserAvatarComponent } from "./dashboard/component/user-avatar/user-avatar.component";
 import { NgbdModalUserLoginComponent } from "./dashboard/component/top-bar/user-icon/user-login/ngbdmodal-user-login.component";
 import { CodeEditorDialogComponent } from "./workspace/component/code-editor-dialog/code-editor-dialog.component";
 import { CodeareaCustomTemplateComponent } from "./workspace/component/codearea-custom-template/codearea-custom-template.component";
@@ -105,6 +107,16 @@ import { VersionsListDisplayComponent } from "./workspace/component/property-edi
 import { NzPaginationModule } from "ng-zorro-antd/pagination";
 import { JwtModule } from "@auth0/angular-jwt";
 import { AuthService } from "./common/service/user/auth.service";
+import { UserProjectListComponent } from "./dashboard/component/feature-container/user-project-list/user-project-list.component";
+import { UserProjectSectionComponent } from "./dashboard/component/feature-container/user-project-list/user-project-section/user-project-section.component";
+import { NgbdModalAddProjectWorkflowComponent } from "./dashboard/component/feature-container/user-project-list/user-project-section/ngbd-modal-add-project-workflow/ngbd-modal-add-project-workflow.component";
+import { NgbdModalRemoveProjectWorkflowComponent } from "./dashboard/component/feature-container/user-project-list/user-project-section/ngbd-modal-remove-project-workflow/ngbd-modal-remove-project-workflow.component";
+import { NgbdModalAddProjectFileComponent } from "./dashboard/component/feature-container/user-project-list/user-project-section/ngbd-modal-add-project-file/ngbd-modal-add-project-file.component";
+import { NgbdModalRemoveProjectFileComponent } from "./dashboard/component/feature-container/user-project-list/user-project-section/ngbd-modal-remove-project-file/ngbd-modal-remove-project-file.component";
+import { PresetWrapperComponent } from "./common/formly/preset-wrapper/preset-wrapper.component";
+import { NzModalCommentBoxComponent } from "./workspace/component/workflow-editor/comment-box-modal/nz-modal-comment-box.component";
+import { NzCommentModule } from "ng-zorro-antd/comment";
+import { NgbdModalWorkflowExecutionsComponent } from "./dashboard/component/feature-container/saved-workflow-section/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 
 registerLocaleData(en);
 
@@ -122,6 +134,7 @@ registerLocaleData(en);
     DashboardComponent,
     TopBarComponent,
     UserIconComponent,
+    UserAvatarComponent,
     FeatureBarComponent,
     FeatureContainerComponent,
     SavedWorkflowSectionComponent,
@@ -143,6 +156,7 @@ registerLocaleData(en);
     ResultPanelToggleComponent,
     ArrayTypeComponent,
     ObjectTypeComponent,
+    PresetWrapperComponent,
     MultiSchemaTypeComponent,
     NullTypeComponent,
     VisualizationFrameComponent,
@@ -151,6 +165,7 @@ registerLocaleData(en);
     CodeEditorDialogComponent,
     TypeCastingDisplayComponent,
     NgbdModalWorkflowShareAccessComponent,
+    NgbdModalWorkflowExecutionsComponent,
     NgbdModalUserFileShareAccessComponent,
     ConsoleFrameComponent,
     ResultTableFrameComponent,
@@ -161,6 +176,13 @@ registerLocaleData(en);
     OperatorPropertyEditFrameComponent,
     BreakpointPropertyEditFrameComponent,
     DebuggerFrameComponent,
+    UserProjectListComponent,
+    UserProjectSectionComponent,
+    NgbdModalAddProjectWorkflowComponent,
+    NgbdModalRemoveProjectWorkflowComponent,
+    NgbdModalAddProjectFileComponent,
+    NgbdModalRemoveProjectFileComponent,
+    NzModalCommentBoxComponent,
   ],
   imports: [
     BrowserModule,
@@ -226,8 +248,13 @@ registerLocaleData(en);
     NzTabsModule,
     NzTreeViewModule,
     NzPaginationModule,
+    NzCommentModule,
   ],
   entryComponents: [
+    NgbdModalAddProjectWorkflowComponent,
+    NgbdModalRemoveProjectWorkflowComponent,
+    NgbdModalAddProjectFileComponent,
+    NgbdModalRemoveProjectFileComponent,
     NgbdModalAddWorkflowComponent,
     NgbdModalDeleteWorkflowComponent,
     NgbdModalResourceViewComponent,
@@ -237,12 +264,13 @@ registerLocaleData(en);
     RowModalComponent,
     NgbdModalFileAddComponent,
     NgbdModalWorkflowShareAccessComponent,
+    NzModalCommentBoxComponent,
+    NgbdModalWorkflowExecutionsComponent,
   ],
   providers: [
     UserService,
     UserFileService,
     UserFileUploadService,
-    UserDictionaryService,
     UserDictionaryUploadService,
     { provide: NZ_I18N, useValue: en_US },
     {

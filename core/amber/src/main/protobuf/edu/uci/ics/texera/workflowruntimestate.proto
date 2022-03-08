@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package edu.uci.ics.texera.web;
+
+import "edu/uci/ics/amber/engine/architecture/worker/controlreturns.proto";
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+  scope: FILE,
+  preserve_unknown_fields: false
+  no_default_values_in_constructor: false
+};
+
+enum WorkflowAggregatedState {
+  UNINITIALIZED = 0;
+  READY = 1;
+  RUNNING = 2;
+  PAUSING = 3;
+  PAUSED = 4;
+  RESUMING = 5;
+  RECOVERING = 6;
+  COMPLETED = 7;
+  ABORTED = 8;
+  UNKNOWN = 9;
+}
+
+
+message BreakpointFault{
+  message BreakpointTuple{
+    int64 id = 1;
+    bool is_input = 2;
+    repeated string tuple = 3;
+  }
+
+  string actor_path = 1;
+  BreakpointTuple faulted_tuple = 2;
+  repeated string messages = 3;
+}
+
+message OperatorBreakpoints{
+  repeated BreakpointFault unresolved_breakpoints = 1;
+}
+
+message JobBreakpointStore{
+  map<string,OperatorBreakpoints> operator_info = 1;
+}
+
+message EvaluatedValueList{
+  repeated amber.engine.architecture.worker.EvaluatedValue values = 1;
+}
+
+message PythonOperatorInfo{
+  repeated string console_messages = 1;
+  map<string,EvaluatedValueList> evaluate_expr_results = 2;
+}
+
+message JobPythonStore{
+  map<string, PythonOperatorInfo> operator_info = 1;
+}
+
+
+message OperatorRuntimeStats{
+  WorkflowAggregatedState state = 1;
+  int64 input_count = 2;
+  int64 output_count = 3;
+}
+
+message JobStatsStore {
+  map<string,OperatorRuntimeStats> operator_info = 3;
+}
+
+message JobMetadataStore{
+  WorkflowAggregatedState state = 1;
+  string error = 2;
+  int64 eid = 3;
+}

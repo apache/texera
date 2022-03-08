@@ -12,8 +12,9 @@ import { filter } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DynamicComponentConfig } from "../../../common/type/dynamic-component-config";
 import { DebuggerFrameComponent } from "./debugger-frame/debugger-frame.component";
-import { PYTHON_UDF_SOURCE_V2_OP_TYPE, PYTHON_UDF_V2_OP_TYPE } from "../../service/workflow-graph/model/workflow-graph";
+import { isPythonUdf, isSink } from "../../service/workflow-graph/model/workflow-graph";
 import { environment } from "../../../../environments/environment";
+import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
 
 export type ResultFrameComponent =
   | ResultTableFrameComponent
@@ -40,17 +41,29 @@ export class ResultPanelComponent implements OnInit {
   currentOperatorId?: string;
 
   showResultPanel: boolean = false;
+  previewWorkflowVersion: boolean = false;
 
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
     private resultPanelToggleService: ResultPanelToggleService,
     private workflowActionService: WorkflowActionService,
-    private workflowResultService: WorkflowResultService
+    private workflowResultService: WorkflowResultService,
+    private workflowVersionService: WorkflowVersionService
   ) {}
 
   ngOnInit(): void {
     this.registerAutoRerenderResultPanel();
     this.registerAutoOpenResultPanel();
+    this.handleResultPanelForVersionPreview();
+  }
+
+  handleResultPanelForVersionPreview() {
+    this.workflowVersionService
+      .getDisplayParticularVersionStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(displayVersionFlag => {
+        this.previewWorkflowVersion = displayVersionFlag;
+      });
   }
 
   registerAutoOpenResultPanel() {
@@ -61,6 +74,7 @@ export class ResultPanelComponent implements OnInit {
         const currentlyHighlighted = this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs();
+        // display panel on breakpoint hits and highlight breakpoint operator
         if (event.current.state === ExecutionState.BreakpointTriggered) {
           const breakpointOperator = this.executeWorkflowService.getBreakpointTriggerInfo()?.operatorID;
           if (breakpointOperator) {
@@ -69,19 +83,46 @@ export class ResultPanelComponent implements OnInit {
           }
           this.resultPanelToggleService.openResultPanel();
         }
+        // display panel on abort (to show possible error messages)
         if (event.current.state === ExecutionState.Aborted) {
           this.resultPanelToggleService.openResultPanel();
         }
-        if (event.current.state === ExecutionState.Completed || event.current.state === ExecutionState.Running) {
-          const sinkOperators = this.workflowActionService
+        // display panel when execution is completed and highlight sink to show results
+        // condition must be (Running -> Completed) to prevent cases like
+        //   (Uninitialized -> Completed) (a completed workflow is reloaded)
+        if (event.previous.state === ExecutionState.Running && event.current.state === ExecutionState.Completed) {
+          const activeSinkOperators = this.workflowActionService
             .getTexeraGraph()
             .getAllOperators()
-            .filter(op => op.operatorType.toLowerCase().includes("sink"));
-          if (sinkOperators.length > 0 && !this.currentOperatorId) {
-            this.workflowActionService.getJointGraphWrapper().unhighlightOperators(...currentlyHighlighted);
-            this.workflowActionService.getJointGraphWrapper().highlightOperators(sinkOperators[0].operatorID);
+            .filter(op => isSink(op))
+            .filter(op => !op.isDisabled)
+            .map(op => op.operatorID);
+
+          if (activeSinkOperators.length > 0) {
+            if (!(currentlyHighlighted.length == 1 && activeSinkOperators.includes(currentlyHighlighted[0]))) {
+              this.workflowActionService.getJointGraphWrapper().unhighlightOperators(...currentlyHighlighted);
+              this.workflowActionService.getJointGraphWrapper().highlightOperators(activeSinkOperators[0]);
+            }
+            this.resultPanelToggleService.openResultPanel();
           }
-          this.resultPanelToggleService.openResultPanel();
+        }
+
+        // display panel and highlight a python UDF operator when workflow starts running
+        if (event.current.state === ExecutionState.Running) {
+          const activePythonUDFOperators = this.workflowActionService
+            .getTexeraGraph()
+            .getAllOperators()
+            .filter(op => isPythonUdf(op))
+            .filter(op => !op.isDisabled)
+            .map(op => op.operatorID);
+
+          if (activePythonUDFOperators.length > 0) {
+            if (!(currentlyHighlighted.length == 1 && activePythonUDFOperators.includes(activePythonUDFOperators[0]))) {
+              this.workflowActionService.getJointGraphWrapper().unhighlightOperators(...currentlyHighlighted);
+              this.workflowActionService.getJointGraphWrapper().highlightOperators(activePythonUDFOperators[0]);
+            }
+            this.resultPanelToggleService.openResultPanel();
+          }
         }
       });
   }
@@ -103,6 +144,11 @@ export class ResultPanelComponent implements OnInit {
   }
 
   rerenderResultPanel(): void {
+    // if the workflow on the paper is a version preview then this is a temporary workaround until a future PR
+    // TODO: let the results be tied with an execution ID instead of a workflow ID
+    if (this.previewWorkflowVersion) {
+      return;
+    }
     // update highlighted operator
     const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
     const currentHighlightedOperator = highlightedOperators.length === 1 ? highlightedOperators[0] : undefined;
@@ -120,7 +166,7 @@ export class ResultPanelComponent implements OnInit {
     if (this.currentOperatorId) {
       this.displayResult(this.currentOperatorId);
       const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
-      if ([PYTHON_UDF_V2_OP_TYPE, PYTHON_UDF_SOURCE_V2_OP_TYPE].includes(operator.operatorType)) {
+      if (isPythonUdf(operator)) {
         this.displayConsole(this.currentOperatorId);
 
         if (environment.debuggerEnabled && this.hasErrorOrBreakpoint()) {

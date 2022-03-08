@@ -38,6 +38,16 @@ export const defaultEnvironment = {
    */
   userSystemEnabled: false,
 
+  /**
+   * whether user preset feature is enabled, requires user system to be enabled
+   */
+  userPresetEnabled: false,
+
+  /**
+   * whether workflow executions tracking feature is enabled
+   */
+  workflowExecutionsTrackingEnabled: false,
+
   amberEngineEnabled: true,
 
   /**
@@ -67,7 +77,13 @@ export const defaultEnvironment = {
    */
   google: {
     clientID: "",
+    publicKey: "",
   },
+
+  /**
+   * Whether workflow collab should be active
+   */
+  workflowCollabEnabled: false,
 };
 
 export type AppEnv = typeof defaultEnvironment;

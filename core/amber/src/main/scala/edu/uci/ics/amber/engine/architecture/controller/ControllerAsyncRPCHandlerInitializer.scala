@@ -1,17 +1,12 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import akka.actor.{ActorContext, Cancellable}
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  WorkflowResultUpdate,
-  WorkflowStatusUpdate
-}
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.{
-  ControllerInitiateQueryResults,
-  ControllerInitiateQueryStatistics
-}
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.ControllerInitiateQueryStatistics
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.MonitoringHandler.ControllerInitiateMonitoring
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.SkewDetectionHandler.ControllerInitiateSkewDetection
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers._
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputPort
-import edu.uci.ics.amber.engine.common.AmberLogging
+import edu.uci.ics.amber.engine.common.{AmberLogging, Constants}
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.{
@@ -21,6 +16,8 @@ import edu.uci.ics.amber.engine.common.rpc.{
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.{DurationInt, FiniteDuration, MILLISECONDS}
 
 class ControllerAsyncRPCHandlerInitializer(
@@ -48,10 +45,14 @@ class ControllerAsyncRPCHandlerInitializer(
     with PythonPrintHandler
     with RetryWorkflowHandler
     with ModifyLogicHandler
-    with EvaluatePythonExpressionHandler {
+    with EvaluatePythonExpressionHandler
+    with MonitoringHandler
+    with SkewDetectionHandler {
 
   var statusUpdateAskHandle: Option[Cancellable] = None
-  var resultUpdateAskHandle: Option[Cancellable] = None
+
+  var monitoringHandle: Option[Cancellable] = None
+  var workflowReshapeState: WorkflowReshapeState = new WorkflowReshapeState()
 
   def enableStatusUpdate(): Unit = {
     if (controllerConfig.statusUpdateIntervalMs.nonEmpty && statusUpdateAskHandle.isEmpty) {
@@ -67,15 +68,38 @@ class ControllerAsyncRPCHandlerInitializer(
         )(actorContext.dispatcher)
       )
     }
-    if (controllerConfig.resultUpdateIntervalMs.nonEmpty && resultUpdateAskHandle.isEmpty) {
-      resultUpdateAskHandle = Option(
+  }
+
+  def enableMonitoring(): Unit = {
+    if (
+      Constants.monitoringEnabled && controllerConfig.monitoringIntervalMs.nonEmpty && monitoringHandle.isEmpty
+    ) {
+      monitoringHandle = Option(
         actorContext.system.scheduler.scheduleAtFixedRate(
           0.milliseconds,
-          FiniteDuration.apply(controllerConfig.resultUpdateIntervalMs.get, MILLISECONDS),
+          FiniteDuration.apply(controllerConfig.monitoringIntervalMs.get, MILLISECONDS),
           actorContext.self,
           ControlInvocation(
             AsyncRPCClient.IgnoreReplyAndDoNotLog,
-            ControllerInitiateQueryResults(Option.empty)
+            ControllerInitiateMonitoring()
+          )
+        )(actorContext.dispatcher)
+      )
+    }
+  }
+
+  def enableSkewHandling(): Unit = {
+    if (
+      Constants.reshapeSkewHandlingEnabled && controllerConfig.skewDetectionIntervalMs.nonEmpty && workflowReshapeState.skewDetectionHandle.isEmpty
+    ) {
+      workflowReshapeState.skewDetectionHandle = Option(
+        actorContext.system.scheduler.scheduleAtFixedRate(
+          Constants.reshapeSkewDetectionInitialDelayInMs.milliseconds,
+          FiniteDuration.apply(controllerConfig.skewDetectionIntervalMs.get, MILLISECONDS),
+          actorContext.self,
+          ControlInvocation(
+            AsyncRPCClient.IgnoreReplyAndDoNotLog,
+            ControllerInitiateSkewDetection()
           )
         )(actorContext.dispatcher)
       )
@@ -87,9 +111,19 @@ class ControllerAsyncRPCHandlerInitializer(
       statusUpdateAskHandle.get.cancel()
       statusUpdateAskHandle = Option.empty
     }
-    if (resultUpdateAskHandle.nonEmpty) {
-      resultUpdateAskHandle.get.cancel()
-      resultUpdateAskHandle = Option.empty
+  }
+
+  def disableMonitoring(): Unit = {
+    if (monitoringHandle.nonEmpty) {
+      monitoringHandle.get.cancel()
+      monitoringHandle = Option.empty
+    }
+  }
+
+  def disableSkewHandling(): Unit = {
+    if (workflowReshapeState.skewDetectionHandle.nonEmpty) {
+      workflowReshapeState.skewDetectionHandle.get.cancel()
+      workflowReshapeState.skewDetectionHandle = Option.empty
     }
   }
 

@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
+import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { Subject } from "rxjs";
 import { FormGroup } from "@angular/forms";
@@ -28,6 +28,9 @@ import { DynamicComponentConfig } from "../../../../common/type/dynamic-componen
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { filter } from "rxjs/operators";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
+import { environment } from "src/environments/environment";
+import { WorkflowCollabService } from "../../../service/workflow-collab/workflow-collab.service";
 
 export type PropertyDisplayComponent = TypeCastingDisplayComponent;
 
@@ -55,7 +58,7 @@ export type PropertyDisplayComponentConfig = DynamicComponentConfig<PropertyDisp
   templateUrl: "./operator-property-edit-frame.component.html",
   styleUrls: ["./operator-property-edit-frame.component.scss"],
 })
-export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
+export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, OnDestroy {
   @Input() currentOperatorId?: string;
 
   // re-declare enum for angular template to access it
@@ -87,13 +90,18 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
   // for display component of some extra information
   extraDisplayComponentConfig?: PropertyDisplayComponentConfig;
 
+  // used to tear down subscriptions that takeUntil(teardownObservable)
+  private teardownObservable: Subject<void> = new Subject();
+  public lockGranted: boolean = true;
+
   constructor(
     private formlyJsonschema: FormlyJsonschema,
     private workflowActionService: WorkflowActionService,
     public executeWorkflowService: ExecuteWorkflowService,
     private dynamicSchemaService: DynamicSchemaService,
     private schemaPropagationService: SchemaPropagationService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private workflowCollabService: WorkflowCollabService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -127,6 +135,15 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
     this.registerOnFormChangeHandler();
 
     this.registerDisableEditorInteractivityHandler();
+
+    this.registerOperatorDisplayNameChangeHandler();
+
+    this.registerLockChangeHandler();
+  }
+
+  async ngOnDestroy() {
+    // await this.checkAndSavePreset();
+    this.teardownObservable.complete();
   }
 
   /**
@@ -192,9 +209,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
   }
 
   evaluateInteractivity(): boolean {
-    return [ExecutionState.Uninitialized, ExecutionState.Completed].includes(
-      this.executeWorkflowService.getExecutionState().state
-    );
+    return this.workflowActionService.checkWorkflowModificationEnabled();
   }
 
   setInteractivity(interactive: boolean) {
@@ -274,14 +289,33 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
   }
 
   registerDisableEditorInteractivityHandler(): void {
-    this.executeWorkflowService
-      .getExecutionStateStream()
+    this.workflowActionService
+      .getWorkflowModificationEnabledStream()
       .pipe(untilDestroyed(this))
-      .subscribe(event => {
+      .subscribe(canModify => {
         if (this.currentOperatorId) {
           const interactive = this.evaluateInteractivity();
           this.setInteractivity(interactive);
         }
+      });
+  }
+
+  private registerOperatorDisplayNameChangeHandler(): void {
+    this.workflowActionService
+      .getTexeraGraph()
+      .getOperatorDisplayNameChangedStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(({ operatorID, newDisplayName }) => {
+        if (operatorID === this.currentOperatorId) this.formTitle = newDisplayName;
+      });
+  }
+
+  private registerLockChangeHandler(): void {
+    this.workflowCollabService
+      .getLockStatusStream()
+      .pipe(untilDestroyed(this))
+      .subscribe((lockGranted: boolean) => {
+        this.lockGranted = lockGranted;
       });
   }
 
@@ -298,6 +332,20 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
         if (mappedField.type) {
           mappedField.type = "codearea";
         }
+      }
+      // if presetService is ready and operator property allows presets, setup formly field to display presets
+      if (
+        environment.userSystemEnabled &&
+        environment.userPresetEnabled &&
+        mapSource["enable-presets"] !== undefined &&
+        this.currentOperatorId !== undefined
+      ) {
+        PresetWrapperComponent.setupFieldConfig(
+          mappedField,
+          "operator",
+          this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType,
+          this.currentOperatorId
+        );
       }
       return mappedField;
     };
@@ -360,13 +408,13 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges {
   confirmChangeOperatorCustomName(customDisplayName: string) {
     if (this.currentOperatorId) {
       const currentOperatorSchema = this.dynamicSchemaService.getDynamicSchema(this.currentOperatorId);
-
+      const userFriendlyName = currentOperatorSchema.additionalMetadata.userFriendlyName;
       // fall back to the original userFriendlyName if no valid name is provided
       const newDisplayName =
         customDisplayName === "" || customDisplayName === undefined
           ? currentOperatorSchema.additionalMetadata.userFriendlyName
           : customDisplayName;
-      this.workflowActionService.getTexeraGraph().changeOperatorDisplayName(this.currentOperatorId, newDisplayName);
+      this.workflowActionService.setOperatorCustomName(this.currentOperatorId, newDisplayName, userFriendlyName);
       this.formTitle = newDisplayName;
     }
 
