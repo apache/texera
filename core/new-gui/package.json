@@ -56,7 +56,7 @@
     "deep-map": "^2.0.0",
     "es6-weak-map": "^2.0.3",
     "font-awesome": "^4.7.0",
-    "fuse.js": "^3.6.1",
+    "fuse.js": "^6.4.6",
     "jointjs": "^3.1.1",
     "jquery": "~3.5.0",
     "jquery-ui-dist": "^1.12.1",

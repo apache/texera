@@ -43,6 +43,10 @@ $header-height: 120px;
   grid-row-start: 2;
   grid-row-end: 3;
   overflow: auto;
+
+  .texera-dashboard-user-file-search-box-input {
+    margin-bottom: 30px;
+  }
 }
 
 .user-file-list-item {
