@@ -32,10 +32,10 @@ export class NotificationService {
     this.sendNotification({ type: "info", message });
   }
 
-  error(cause: Error | string) {
+  error(cause: Error | any) {
     this.sendNotification({
       type: "error",
-      message: cause instanceof Error ? cause.message : cause,
+      message: cause instanceof Error ? cause.message : cause.toString(),
     });
   }
 
