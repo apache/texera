@@ -234,7 +234,7 @@ export class DragDropService {
     this.currentOperatorType = operatorType;
 
     // create a temporary ghost element
-    jQuery("body").append('<div id="flyingJointPaper" style="position:fixed;z-index:1001;pointer-event:none;"></div>');
+    jQuery("body").append("<div id=\"flyingJointPaper\" style=\"position:fixed;z-index:1001;pointer-event:none;\"></div>");
 
     // create an operator and get the UI element from the operator type
     const operator = this.workflowUtilService.getNewOperatorPredicate(operatorType);

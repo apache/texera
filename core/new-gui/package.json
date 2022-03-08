@@ -113,7 +113,7 @@
     "@typescript-eslint/eslint-plugin": "~5.14.0",
     "@typescript-eslint/parser": "~5.14.0",
     "cypress": "~9.5.1",
-    "eslint": "~5.16.0",
+    "eslint": "~7.32.0",
     "eslint-plugin-import": "latest",
     "eslint-plugin-jsdoc": "latest",
     "eslint-plugin-prefer-arrow": "latest",

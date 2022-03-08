@@ -10,7 +10,7 @@ export const MOCK_WORKFLOW: Workflow = {
   wid: 1,
   name: "project 1",
   content: jsonCast<WorkflowContent>(
-    ' {"operators":[],"operatorPositions":{},"links":[],"groups":[],"breakpoints":{}}'
+    " {\"operators\":[],\"operatorPositions\":{},\"links\":[],\"groups\":[],\"breakpoints\":{}}"
   ),
   creationTime: 1,
   lastModifiedTime: 2,
