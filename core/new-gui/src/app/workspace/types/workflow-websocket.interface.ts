@@ -7,6 +7,7 @@ import {
   WorkflowResultUpdateEvent,
   OperatorStatsUpdate,
 } from "./execute-workflow.interface";
+import { IndexableObject } from "./result-table.interface";
 import { BreakpointFaultedTuple, BreakpointTriggerInfo, PythonPrintTriggerInfo } from "./workflow-common.interface";
 
 /**
@@ -76,7 +77,7 @@ export type PaginatedResultEvent = Readonly<{
   requestID: string;
   operatorID: string;
   pageIndex: number;
-  table: ReadonlyArray<Record<string, unknown>>;
+  table: ReadonlyArray<IndexableObject>;
 }>;
 
 export type ResultExportRequest = Readonly<{
@@ -172,13 +173,11 @@ export type TexeraWebsocketEventTypeMap = {
 
 // helper type definitions to generate the request and event types
 type ValueOf<T> = T[keyof T];
-type CustomUnionType<T> = ValueOf<
-  {
-    [P in keyof T]: {
-      type: P;
-    } & T[P];
-  }
->;
+type CustomUnionType<T> = ValueOf<{
+  [P in keyof T]: {
+    type: P;
+  } & T[P];
+}>;
 
 export type TexeraWebsocketRequestTypes = keyof TexeraWebsocketRequestTypeMap;
 export type TexeraWebsocketRequest = CustomUnionType<TexeraWebsocketRequestTypeMap>;

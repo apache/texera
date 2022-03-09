@@ -14,5 +14,8 @@
     "lib": ["es2019", "es2015", "dom"],
     "module": "esnext",
     "baseUrl": "./"
+  },
+  "angularCompilerOptions": {
+    "strictTemplates": true
   }
 }

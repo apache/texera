@@ -1,6 +1,5 @@
 import { DatePipe, Location } from "@angular/common";
 import { Component, ElementRef, Input, ViewChild } from "@angular/core";
-import { TourService } from "ngx-tour-ng-bootstrap";
 import { environment } from "../../../../environments/environment";
 import { UserService } from "../../../common/service/user/user.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
@@ -80,7 +79,6 @@ export class NavigationComponent {
 
   constructor(
     public executeWorkflowService: ExecuteWorkflowService,
-    public tourService: TourService,
     public workflowActionService: WorkflowActionService,
     public workflowWebsocketService: WorkflowWebsocketService,
     private location: Location,

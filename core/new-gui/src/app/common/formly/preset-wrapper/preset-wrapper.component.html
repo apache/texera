@@ -4,7 +4,7 @@
   [nzDropdownMenu]="menu"
   nzTrigger="click"
   nzBackdrop="false"
-  [nzOverlayClassName]="searchResults.length == 0 ? 'preset-dropdown no-results' : 'preset-dropdown'"
+  [nzOverlayClassName]="searchResults.length === 0 ? 'preset-dropdown no-results' : 'preset-dropdown'"
   (nzVisibleChange)="onDropdownVisibilityEvent($event)"
   [nzVisible]="presetMenuVisible"
   nzClickHide="true"

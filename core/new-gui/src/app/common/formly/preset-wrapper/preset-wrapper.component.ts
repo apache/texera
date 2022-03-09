@@ -69,7 +69,6 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
     this.handleSavePresets(); // handles when presets for this saveTarget change
     this.handleApplyPreset(); // handles when presets for this saveTarget change
     this.handleFieldValueChanges(); // handles updating search results as the user types
-    console.log(this);
   }
 
   /**
@@ -152,7 +151,6 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
 
   public savePreset() {
     const preset = this.filterPresetFromForm();
-    console.log(preset, this.presetService.isValidPreset(preset));
     if (this.presetService.isValidPreset(preset)) {
       this.presetService.createPreset(
         this.presetType,

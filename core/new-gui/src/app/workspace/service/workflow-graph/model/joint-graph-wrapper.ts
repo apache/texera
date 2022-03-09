@@ -820,7 +820,7 @@ export class JointGraphWrapper {
     if (!cell) {
       throw new Error(`cell with ID ${cellID} doesn't exist`);
     }
-    return cell.attributes.z;
+    return cell.attributes.z || 0;
   }
 
   /**

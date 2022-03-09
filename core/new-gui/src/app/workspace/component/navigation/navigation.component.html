@@ -202,9 +202,9 @@
       [ngClass]="{
 				'texera-navigation-execute': true,
 				'reveal-stop-button':
-					executionState != ExecutionState.Uninitialized &&
-					executionState != ExecutionState.Completed &&
-					executionState != ExecutionState.Aborted
+					executionState !== ExecutionState.Uninitialized &&
+					executionState !== ExecutionState.Completed &&
+					executionState !== ExecutionState.Aborted
 			}"
     >
       <nz-button-group nzSize="large">
@@ -226,16 +226,13 @@
         >
           <i nz-icon nzTheme="outline" nzType="redo"></i>
         </button>
-        <button (click)="tourService.toggle()" class="animate-to-reveal-stop-button" nz-button nzType="default">
-          <i nz-icon nzTheme="outline" nzType="question-circle"></i>
-        </button>
         <button
           #runStopButton
           (click)="handleKill()"
           [disabled]="
-						executionState == ExecutionState.Uninitialized ||
-						executionState == ExecutionState.Completed ||
-						executionState == ExecutionState.Aborted ||
+						executionState === ExecutionState.Uninitialized ||
+						executionState === ExecutionState.Completed ||
+						executionState === ExecutionState.Aborted ||
             !lockGranted
 					"
           class="texera-navigation-stop-button"

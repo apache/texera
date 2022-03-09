@@ -24,7 +24,11 @@
   value="{{formTitle}}"
 />
 
-<form *ngIf="formlyFields" [formGroup]="formlyFormGroup" class="texera-workspace-property-editor-form">
+<form
+  *ngIf="formlyFields && formlyFormGroup"
+  [formGroup]="formlyFormGroup"
+  class="texera-workspace-property-editor-form"
+>
   <formly-form
     (modelChange)="onFormChanges($event)"
     [fields]="formlyFields"
@@ -35,7 +39,7 @@
   </formly-form>
   <ndc-dynamic
     [ndcDynamicComponent]="extraDisplayComponentConfig?.component"
-    [ndcDynamicInputs]="extraDisplayComponentConfig?.componentInputs"
+    [ndcDynamicInputs]="extraDisplayComponentConfig?.componentInputs ?? {}"
   ></ndc-dynamic>
 </form>
 

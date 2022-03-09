@@ -100,8 +100,8 @@ export class NgbdModalResourceAddComponent {
    * this method handles the event when user click on the file dropping area.
    * @param clickUploadEvent
    */
-  public handleClickUploadFile(clickUploadEvent: { target: HTMLInputElement }): void {
-    const fileList: FileList | null = clickUploadEvent.target.files;
+  public handleClickUploadFile(clickUploadEvent: Event): void {
+    const fileList: FileList | null = (clickUploadEvent as any as { target: HTMLInputElement }).target.files;
     if (fileList === null) {
       throw new Error("browser upload does not work as intended");
     }
@@ -141,9 +141,9 @@ export class NgbdModalResourceAddComponent {
    *
    * @param fileDropEvent
    */
-  public getFileDropped(fileDropEvent: FileList): void {
+  public getFileDropped(fileDropEvent: File[]): void {
     for (let i = 0; i < fileDropEvent.length; i++) {
-      const fileOrNull: File | null = fileDropEvent.item(i);
+      const fileOrNull: File | null = fileDropEvent[i];
       if (this.isFile(fileOrNull)) {
         this.userDictionaryUploadService.addDictionaryToUploadArray(fileOrNull);
       }

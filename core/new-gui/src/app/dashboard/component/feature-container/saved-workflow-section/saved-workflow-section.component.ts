@@ -27,7 +27,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
   public dashboardWorkflowEntries: DashboardWorkflowEntry[] = [];
   public dashboardWorkflowEntriesIsEditingName: number[] = [];
   public allDashboardWorkflowEntries: DashboardWorkflowEntry[] = [];
-  public filteredDashboardWorkflowNames: Set<string> = new Set();
+  public filteredDashboardWorkflowNames: Array<string> = [];
   public fuse = new Fuse([] as ReadonlyArray<DashboardWorkflowEntry>, {
     shouldSort: true,
     threshold: 0.2,
@@ -81,11 +81,11 @@ export class SavedWorkflowSectionComponent implements OnInit {
   public searchInputOnChange(value: string): void {
     // enable autocomplete only when searching for workflow name
     if (!value.includes(":")) {
-      this.filteredDashboardWorkflowNames = new Set();
+      this.filteredDashboardWorkflowNames = [];
       this.allDashboardWorkflowEntries.forEach(dashboardEntry => {
         const workflowName = dashboardEntry.workflow.name;
         if (workflowName.toLowerCase().indexOf(value.toLowerCase()) !== -1) {
-          this.filteredDashboardWorkflowNames.add(workflowName);
+          this.filteredDashboardWorkflowNames.push(workflowName);
         }
       });
     }
@@ -285,7 +285,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
         this.fuse.setCollection(this.allDashboardWorkflowEntries);
         dashboardWorkflowEntries.forEach(dashboardWorkflowEntry => {
           const workflow = dashboardWorkflowEntry.workflow;
-          this.filteredDashboardWorkflowNames.add(workflow.name);
+          this.filteredDashboardWorkflowNames.push(workflow.name);
         });
       });
   }

@@ -1,5 +1,5 @@
 <div>
-  <nz-table [nzData]="versionsList">
+  <nz-table *ngIf="versionsList" [nzData]="versionsList">
     <thead>
       <tr>
         <th *ngFor="let column of versionTableHeaders">{{column}}</th>

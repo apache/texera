@@ -9,7 +9,6 @@ import { StubOperatorMetadataService } from "../../../service/operator-metadata/
 import { JointUIService } from "../../../service/joint-ui/joint-ui.service";
 import { UndoRedoService } from "../../../service/undo-redo/undo-redo.service";
 import { WorkflowUtilService } from "../../../service/workflow-graph/util/workflow-util.service";
-import { LoggerModule } from "ngx-logger";
 
 describe("TypecastingDisplayComponent", () => {
   let component: TypeCastingDisplayComponent;
@@ -18,7 +17,7 @@ describe("TypecastingDisplayComponent", () => {
   beforeEach(
     waitForAsync(() => {
       TestBed.configureTestingModule({
-        imports: [HttpClientTestingModule, LoggerModule.forRoot(undefined)],
+        imports: [HttpClientTestingModule],
         providers: [
           {
             provide: OperatorMetadataService,

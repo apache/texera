@@ -1,7 +1,6 @@
 import { HttpClient } from "@angular/common/http";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { fakeAsync, inject, TestBed, tick } from "@angular/core/testing";
-import { LoggerModule } from "ngx-logger";
 import { environment } from "../../../../../environments/environment";
 import { AppSettings } from "../../../../common/app-setting";
 import { OperatorPredicate } from "../../../types/workflow-common.interface";
@@ -42,7 +41,7 @@ describe("SchemaPropagationService", () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule, LoggerModule.forRoot(undefined)],
+      imports: [HttpClientTestingModule],
       providers: [
         {
           provide: OperatorMetadataService,

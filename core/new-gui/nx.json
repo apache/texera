@@ -8,18 +8,35 @@
     ".eslintrc.json": "*",
     "nx.json": "*"
   },
-  "projects": {
-    "texera-gui": {
-      "tags": []
-    }
-  },
   "tasksRunnerOptions": {
     "default": {
       "runner": "@nrwl/nx-cloud",
       "options": {
-        "cacheableOperations": ["build", "lint", "e2e"],
-        "accessToken": "MWY5NjA0ZDAtNTdjOS00NDY3LWIzNjYtNTYyMWU5OGFkYjgzfHJlYWQtd3JpdGU="
+        "cacheableOperations": [
+          "build",
+          "lint",
+          "e2e"
+        ],
+        "accessToken": "MWY5NjA0ZDAtNTdjOS00NDY3LWIzNjYtNTYyMWU5OGFkYjgzfHJlYWQtd3JpdGU=",
+        "parallel": 1
       }
+    }
+  },
+  "affected": {
+    "defaultBase": "master"
+  },
+  "cli": {
+    "analytics": false,
+    "defaultCollection": "@angular-eslint/schematics"
+  },
+  "defaultProject": "texera-gui",
+  "generators": {
+    "@schematics/angular:component": {
+      "prefix": "texera",
+      "style": "scss"
+    },
+    "@schematics/angular:directive": {
+      "prefix": "texera"
     }
   }
 }

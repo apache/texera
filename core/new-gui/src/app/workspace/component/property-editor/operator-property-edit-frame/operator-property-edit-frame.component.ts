@@ -3,7 +3,7 @@ import { ExecuteWorkflowService } from "../../../service/execute-workflow/execut
 import { Subject } from "rxjs";
 import { FormGroup } from "@angular/forms";
 import { FormlyFieldConfig, FormlyFormOptions } from "@ngx-formly/core";
-import * as Ajv from "ajv";
+import Ajv from "ajv";
 import { FormlyJsonschema } from "@ngx-formly/core/json-schema";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { cloneDeep, isEqual } from "lodash-es";
@@ -78,14 +78,14 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   // inputs and two-way bindings to formly component
   formlyFormGroup: FormGroup | undefined;
   formData: any;
-  formlyOptions: FormlyFormOptions | undefined;
+  formlyOptions: FormlyFormOptions = {};
   formlyFields: FormlyFieldConfig[] | undefined;
   formTitle: string | undefined;
 
   editingTitle: boolean = false;
 
   // used to fill in default values in json schema to initialize new operator
-  ajv = new Ajv({ useDefaults: true });
+  ajv = new Ajv({ useDefaults: true, strict: false });
 
   // for display component of some extra information
   extraDisplayComponentConfig?: PropertyDisplayComponentConfig;
@@ -399,7 +399,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       try {
         this.executeWorkflowService.modifyOperatorLogic(this.currentOperatorId);
         this.setInteractivity(false);
-      } catch (e: any) {
+      } catch (e) {
         this.notificationService.error(e);
       }
     }

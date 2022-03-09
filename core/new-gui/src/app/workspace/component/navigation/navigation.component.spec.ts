@@ -5,7 +5,6 @@
 // import { NavigationComponent } from './navigation.component';
 // import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
 // import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
-// import { TourService } from 'ngx-tour-ng-bootstrap';
 // import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
 // import { ValidationWorkflowService } from '../../service/validation/validation-workflow.service';
 
@@ -56,7 +55,6 @@
 //         ValidationWorkflowService,
 //         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
 //         { provide: HttpClient, useClass: StubHttpClient },
-//         TourService,
 //         WorkflowStatusService
 //       ]
 //     }).compileComponents();
@@ -184,7 +182,7 @@
 //   //     m.hot(endMarbleString, endMarblevalues)
 //   //   );
 
-//   //   const mockComponent = new NavigationComponent(executeWorkFlowService, TestBed.get(TourService),
+//   //   const mockComponent = new NavigationComponent(executeWorkFlowService,
 //   //     workflowActionService, workflowStatusService, undoRedoService, validationWorkflowService);
 
 //   //   executeWorkFlowService.getExecutionPauseResumeStream()
@@ -205,7 +203,7 @@
 //   //     m.hot(endMarbleString, endMarblevalues)
 //   //   );
 
-//   //   const mockComponent = new NavigationComponent(executeWorkFlowService, TestBed.get(TourService),
+//   //   const mockComponent = new NavigationComponent(executeWorkFlowService,
 //   //     workflowActionService, workflowStatusService, undoRedoService, validationWorkflowService);
 
 //   //   executeWorkFlowService.getExecutionPauseResumeStream()

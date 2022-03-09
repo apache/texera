@@ -425,7 +425,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       });
 
     // This observable captures the drop event to stop the panning
-    fromEvent(document, "mouseup")
+    merge(fromEvent(document, "mouseup"), fromEvent<JointPointerDownEvent>(this.getJointPaper(), "blank:pointerup"))
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         this.mouseDown = undefined;
@@ -1572,9 +1572,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * and converts that event to a workflow action
    */
   private handleLinkBreakpointButtonClick(): void {
-    fromEvent<JointPaperEvent>(this.getJointPaper(), "tool:breakpoint", {
-      passive: true,
-    })
+    fromEvent<JointPaperEvent>(this.getJointPaper(), "tool:breakpoint")
       .pipe(untilDestroyed(this))
       .subscribe(event => {
         this.workflowActionService.highlightLinks(<boolean>event[1].shiftKey, event[0].model.id.toString());

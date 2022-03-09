@@ -1,7 +1,6 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { isEqual } from "lodash-es";
-import { NGXLogger } from "ngx-logger";
 import { EMPTY, merge, Observable } from "rxjs";
 import { CustomJSONSchema7 } from "src/app/workspace/types/custom-json-schema.interface";
 import { environment } from "../../../../../environments/environment";
@@ -38,8 +37,7 @@ export class SchemaPropagationService {
   constructor(
     private httpClient: HttpClient,
     private workflowActionService: WorkflowActionService,
-    private dynamicSchemaService: DynamicSchemaService,
-    private logger: NGXLogger
+    private dynamicSchemaService: DynamicSchemaService
   ) {
     // do nothing if schema propagation is not enabled
     if (!environment.schemaPropagationEnabled) {
@@ -129,7 +127,7 @@ export class SchemaPropagationService {
       )
       .pipe(
         catchError((err: unknown) => {
-          this.logger.error("schema propagation API returns error", err);
+          console.log("schema propagation API returns error", err);
           return EMPTY;
         })
       );

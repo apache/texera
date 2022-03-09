@@ -19,7 +19,11 @@
   Retry current Tuple
 </button>
 
-<nz-tree-view [nzDataSource]="pythonExpressionSource" [nzTreeControl]="expressionTreeControl">
+<nz-tree-view
+  *ngIf="pythonExpressionSource"
+  [nzDataSource]="pythonExpressionSource"
+  [nzTreeControl]="expressionTreeControl"
+>
   <nz-tree-node *nzTreeNodeDef="let node; when: hasNoContent" nzTreeNodeIndentLine>
     <input
       #inputElement

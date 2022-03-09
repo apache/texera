@@ -12,6 +12,11 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { OperatorLabelComponent } from "./operator-label/operator-label.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import {
+  NzAutocompleteComponent,
+  NzAutocompleteOptionComponent,
+  NzOptionSelectionChange,
+} from "ng-zorro-antd/auto-complete";
 
 /**
  * OperatorPanelComponent is the left-side panel that shows the operators.
@@ -45,11 +50,14 @@ export class OperatorPanelComponent implements OnInit {
   public groupNamesOrdered: ReadonlyArray<string> = [];
   // a map of group name to a list of operator schema of this group
   public operatorGroupMap = new Map<string, ReadonlyArray<OperatorSchema>>();
-  // form control of the operator search box
-  public operatorSearchFormControl = new FormControl();
-  // observable emitting the operator search results to MatAutocomplete
-  public operatorSearchResults: Observable<OperatorSchema[]>;
-  public operatorSearchHasResults = false;
+
+  // input value of the search input box
+  public searchInputValue: string = "";
+  // search autocomplete suggestion list
+  public autocompleteOptions: OperatorSchema[] = [];
+
+  public canModify = true;
+
   // fuzzy search using fuse.js. See parameters in options at https://fusejs.io/
   public fuse = new Fuse([] as ReadonlyArray<OperatorSchema>, {
     shouldSort: true,
@@ -66,29 +74,21 @@ export class OperatorPanelComponent implements OnInit {
     private workflowUtilService: WorkflowUtilService,
     private dragDropService: DragDropService
   ) {
-    // create the search results observable
-    // whenever the search box text is changed, perform the search using fuse.js
-    this.operatorSearchResults = (this.operatorSearchFormControl.valueChanges as Observable<string>).pipe(
-      map(v => {
-        if (v === null || v.trim().length === 0) {
-          this.operatorSearchHasResults = false;
-          return [];
-        }
-        const results = this.fuse.search(v).map(item => {
-          return item.item;
-        });
-        this.operatorSearchHasResults = true;
-        return results;
-      })
-    );
     // clear the search box if an operator is dropped from operator search box
     this.dragDropService
       .getOperatorDropStream()
       .pipe(untilDestroyed(this))
       .subscribe(event => {
         if (OperatorLabelComponent.isOperatorLabelElementFromSearchBox(event.dragElementID)) {
-          this.operatorSearchFormControl.setValue("");
+          this.searchInputValue = "";
+          this.autocompleteOptions = [];
         }
+      });
+    this.workflowActionService
+      .getWorkflowModificationEnabledStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(canModify => {
+        this.canModify = canModify;
       });
   }
 
@@ -102,20 +102,38 @@ export class OperatorPanelComponent implements OnInit {
       .subscribe(value => this.processOperatorMetadata(value));
   }
 
+  // create the search results observable
+  // whenever the search box text is changed, perform the search using fuse.js
+  onInput(e: Event): void {
+    const v = (e.target as HTMLInputElement).value;
+    if (v === null || v.trim().length === 0) {
+      this.autocompleteOptions = [];
+    }
+    this.autocompleteOptions = this.fuse.search(v).map(item => {
+      return item.item;
+    });
+  }
+
   /**
    * handles the event when an operator search option is selected.
    * adds the operator to the canvas and clears the text in the search box
    */
-  onSearchOperatorSelected(event: MatAutocompleteSelectedEvent): void {
-    const userFriendlyName = event.option.value as string;
-    const operator = this.operatorSchemaList.filter(
-      op => op.additionalMetadata.userFriendlyName === userFriendlyName
-    )[0];
-    this.workflowActionService.addOperator(this.workflowUtilService.getNewOperatorPredicate(operator.operatorType), {
-      x: 800,
-      y: 400,
-    });
-    this.operatorSearchFormControl.setValue("");
+  onSelectionChange(e: NzAutocompleteOptionComponent): void {
+    const selectSchema = e.nzValue as OperatorSchema;
+    // add the operator to the graph on select (position relative to the current viewpoint)
+    const origin = this.workflowActionService.getJointGraphWrapper().getMainJointPaper()?.translate();
+    const point = { x: 400 - (origin?.tx ?? 0), y: 200 - (origin?.ty ?? 0) };
+    this.workflowActionService.addOperator(
+      this.workflowUtilService.getNewOperatorPredicate(selectSchema.operatorType),
+      point
+    );
+
+    // asynchrnously immediately clear the search input and suggestions
+    // because ng-zorro shows the selected value if it's synchrnously
+    setTimeout(() => {
+      this.searchInputValue = "";
+      this.autocompleteOptions = [];
+    }, 0);
   }
 
   /**
