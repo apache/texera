@@ -48,11 +48,11 @@ class TestDoubleBlockingQueue:
         queue.put("s3")
         queue.put(3)
         queue.put("s4")
-        l = list()
+        res = list()
         while not queue.empty():
-            l.append(queue.get())
+            res.append(queue.get())
 
-        assert l == ["s1", "s2", "s3", "s4", 1, 99, 3]
+        assert res == ["s1", "s2", "s3", "s4", 1, 99, 3]
 
     def test_can_disable_sub(self, queue):
         queue.disable_sub()
@@ -63,19 +63,19 @@ class TestDoubleBlockingQueue:
         queue.put("s3")
         queue.put(3)
         queue.put("s4")
-        l = list()
+        res = list()
         while not queue.empty():
-            l.append(queue.get())
+            res.append(queue.get())
 
-        assert l == ["s1", "s2", "s3", "s4"]
+        assert res == ["s1", "s2", "s3", "s4"]
         assert queue.empty()
         queue.enable_sub()
         assert not queue.empty()
-        l = list()
+        res = list()
         while not queue.empty():
-            l.append(queue.get())
+            res.append(queue.get())
 
-        assert l == [1, 99, 3]
+        assert res == [1, 99, 3]
         assert queue.empty()
 
     @pytest.mark.timeout(2)
@@ -152,13 +152,13 @@ class TestDoubleBlockingQueue:
             producer_thread = Thread(target=producer, args=(i,))
             producer_thread.start()
             threads.append(producer_thread)
-        l = set()
+        res = set()
 
         def consumer():
             with reraise:
                 queue.disable_sub()
-                while len(l) < len(target):
-                    l.add(queue.get())
+                while len(res) < len(target):
+                    res.add(queue.get())
 
         consumer_thread = Thread(target=consumer)
         consumer_thread.start()
@@ -166,7 +166,7 @@ class TestDoubleBlockingQueue:
             thread.join()
 
         consumer_thread.join()
-        assert l == target
+        assert res == target
 
         reraise()
 

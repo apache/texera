@@ -124,12 +124,12 @@ class TestExpressionEvaluator:
         i = 10
         f = 1.1
 
-        l = [i, f, (i, f)]
-        assert ExpressionEvaluator.evaluate("l", runtime_context={"l": l}) == \
+        a_list = [i, f, (i, f)]
+        assert ExpressionEvaluator.evaluate("l", runtime_context={"a_list": a_list}) == \
                EvaluatedValue(
                    value=TypedValue(
-                       expression='l',
-                       value_ref='l',
+                       expression='a_list',
+                       value_ref='a_list',
                        value_str='[10, 1.1, (10, 1.1)]',
                        value_type='list',
                        expandable=True
@@ -205,7 +205,8 @@ class TestExpressionEvaluator:
                    value=TypedValue(
                        expression='g',
                        value_ref='g',
-                       value_str=f'<generator object TestExpressionEvaluator.test_evaluate_container_expressions.<locals>.<genexpr> at {hex(id(g))}>',
+                       value_str=f'<generator object TestExpressionEvaluator.test_evaluate_container_expressions'
+                                 f'.<locals>.<genexpr> at {hex(id(g))}>',
                        value_type='generator',
                        expandable=True
                    ), attributes=[]
@@ -222,7 +223,8 @@ class TestExpressionEvaluator:
                    value=TypedValue(
                        expression='g',
                        value_ref='g',
-                       value_str=f'<generator object TestExpressionEvaluator.test_evaluate_container_expressions.<locals>.gen at {hex(id(g))}>',
+                       value_str=f'<generator object TestExpressionEvaluator.test_evaluate_container_expressions'
+                                 f'.<locals>.gen at {hex(id(g))}>',
                        value_type='generator',
                        expandable=True
                    ), attributes=[

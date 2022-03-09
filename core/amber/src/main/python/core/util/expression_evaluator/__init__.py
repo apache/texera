@@ -79,7 +79,7 @@ class ExpressionEvaluator:
         # for set and set-like subclasses, the internal values cannot be expanded easily, disable for now
         return not isinstance(parent, set) and \
                not (ExpressionEvaluator._is_iterator(obj) and not ExpressionEvaluator._is_generator(obj)) and \
-               (ExpressionEvaluator._contains_attributes(obj) or \
+               (ExpressionEvaluator._contains_attributes(obj) or
                 (ExpressionEvaluator._is_iterable(obj) and not ExpressionEvaluator._is_empty_container(obj)))
 
     @staticmethod

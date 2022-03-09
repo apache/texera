@@ -128,7 +128,7 @@ class DoubleBlockingQueue(IQueue):
         try:
             # new unique identifier in python 3.8.
             get_id = threading.get_native_id
-        except:
+        except Exception:
             # fall back to old ident method for python prior to 3.8.
             get_id = threading.get_ident
         if self._consumer_id is None:
