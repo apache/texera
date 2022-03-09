@@ -32,7 +32,7 @@ class SymmetricDifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       .build()
     Tuple
       .newBuilder(schema)
-      .addSequentially(Array("hello", counter, true))
+      .addSequentially(Array("hello", Int.box(counter), Boolean.box(true)))
       .build()
   }
 

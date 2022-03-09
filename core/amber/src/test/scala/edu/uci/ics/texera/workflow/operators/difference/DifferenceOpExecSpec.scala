@@ -27,14 +27,14 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val schema = Schema
       .newBuilder()
       .add(
-        new Attribute("field2", AttributeType.INTEGER),
         new Attribute("field1", AttributeType.STRING),
+        new Attribute("field2", AttributeType.INTEGER),
         new Attribute("field3", AttributeType.BOOLEAN)
       )
       .build()
     Tuple
       .newBuilder(schema)
-      .addSequentially(Array("hello", counter, true))
+      .addSequentially(Array("hello", Int.box(counter), Boolean.box(true)))
       .build()
   }
 
