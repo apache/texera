@@ -399,7 +399,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       try {
         this.executeWorkflowService.modifyOperatorLogic(this.currentOperatorId);
         this.setInteractivity(false);
-      } catch (e: any) {
+      } catch (e) {
         this.notificationService.error(e);
       }
     }

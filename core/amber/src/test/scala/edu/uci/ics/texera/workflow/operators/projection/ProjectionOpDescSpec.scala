@@ -18,31 +18,42 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "take in attribute names" in {
-
-    projectionOpDesc.attributes ++= List("field1", "field2")
+    projectionOpDesc.attributes ++= List(
+      new AttributeUnit("field1", "f1"),
+      new AttributeUnit("fields2", "f2")
+    )
 
     assert(projectionOpDesc.attributes.length == 2)
 
   }
 
   it should "filter schema correctly" in {
-    projectionOpDesc.attributes ++= List("field1", "field2")
+    projectionOpDesc.attributes ++= List(
+      new AttributeUnit("field1", "f1"),
+      new AttributeUnit("field2", "f2")
+    )
     val outputSchema = projectionOpDesc.getOutputSchema(Array(schema))
     assert(outputSchema.getAttributes.length == 2)
 
   }
 
   it should "reorder schema" in {
-    projectionOpDesc.attributes ++= List("field2", "field1")
+    projectionOpDesc.attributes ++= List(
+      new AttributeUnit("field2", "f2"),
+      new AttributeUnit("field1", "f1")
+    )
     val outputSchema = projectionOpDesc.getOutputSchema(Array(schema))
     assert(outputSchema.getAttributes.length == 2)
-    assert(outputSchema.getIndex("field2") == 0)
-    assert(outputSchema.getIndex("field1") == 1)
+    assert(outputSchema.getIndex("f2") == 0)
+    assert(outputSchema.getIndex("f1") == 1)
 
   }
 
   it should "raise RuntimeException on non-existing fields" in {
-    projectionOpDesc.attributes ++= List("field---5", "field---6")
+    projectionOpDesc.attributes ++= List(
+      new AttributeUnit("field---5", "f5"),
+      new AttributeUnit("field---6", "f6")
+    )
     assertThrows[RuntimeException] {
       projectionOpDesc.getOutputSchema(Array(schema))
     }
@@ -58,10 +69,36 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "raise IllegalArgumentException with multiple input source Schema" in {
-    projectionOpDesc.attributes ++= List("field1", "field2")
+
+    projectionOpDesc.attributes ++= List(
+      new AttributeUnit("field2", "f2"),
+      new AttributeUnit("field1", "f1")
+    )
+
     assertThrows[IllegalArgumentException] {
       projectionOpDesc.getOutputSchema(Array(schema, schema))
     }
+
+  }
+
+  it should "raise RuntimeException on duplicate alias" in {
+
+    projectionOpDesc.attributes ++= List(
+      new AttributeUnit("field2", "f"),
+      new AttributeUnit("field1", "f")
+    )
+    assertThrows[RuntimeException] {
+      projectionOpDesc.getOutputSchema(Array(schema))
+    }
+  }
+
+  it should "allow alias to be optional" in {
+    projectionOpDesc.attributes ++= List(
+      new AttributeUnit("field1", "f1"),
+      new AttributeUnit("field2", "")
+    )
+    val outputSchema = projectionOpDesc.getOutputSchema(Array(schema))
+    assert(outputSchema.getAttributes.length == 2)
 
   }
 
