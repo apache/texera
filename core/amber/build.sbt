@@ -143,7 +143,7 @@ libraryDependencies ++= mongoDbDependencies
 // protobuf related
 // run the following with sbt to have protobuf codegen
 
-PB.protocVersion := "3.17.3"
+PB.protocVersion := "3.19.4"
 
 Compile / PB.targets := Seq(
   scalapb.gen(
