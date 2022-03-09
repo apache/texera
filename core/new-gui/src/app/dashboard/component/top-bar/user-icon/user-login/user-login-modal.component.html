@@ -1,5 +1,4 @@
 <nz-tabset nzCentered nzSize="large">
-
   <!-- template for validation error messages (shared by sign in and sign out validation) -->
   <ng-template #passwordErrorTip let-control>
     <ng-container *ngIf="control.hasError('required')">Please input your password. </ng-container>
@@ -51,16 +50,25 @@
       <nz-form-item>
         <nz-form-control [nzErrorTip]="passwordErrorTip">
           <nz-input-group nzPrefixIcon="lock">
-            <input type="password" nz-input formControlName="registerPassword" placeholder="Password"
-              (ngModelChange)="updateConfirmValidator()" />
+            <input
+              type="password"
+              nz-input
+              formControlName="registerPassword"
+              placeholder="Password"
+              (ngModelChange)="updateConfirmValidator()"
+            />
           </nz-input-group>
         </nz-form-control>
       </nz-form-item>
       <nz-form-item>
         <nz-form-control [nzErrorTip]="confirmErrorTip">
           <nz-input-group nzPrefixIcon="lock">
-            <input type="password" nz-input formControlName="registerConfirmationPassword"
-              placeholder="Confirm password" />
+            <input
+              type="password"
+              nz-input
+              formControlName="registerConfirmationPassword"
+              placeholder="Confirm password"
+            />
           </nz-input-group>
         </nz-form-control>
       </nz-form-item>

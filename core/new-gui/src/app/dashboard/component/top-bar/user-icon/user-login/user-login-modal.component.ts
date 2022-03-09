@@ -36,7 +36,7 @@ export class UserLoginModalComponent implements OnInit {
 
   public updateConfirmValidator(): void {
     // immediately update validator (asynchronously to wait for value to refresh)
-    Promise.resolve().then(() => this.allForms.controls.registerConfirmationPassword.updateValueAndValidity());
+    setTimeout(() => this.allForms.controls.registerConfirmationPassword.updateValueAndValidity(), 0);
   }
 
   // validator for confirm password in sign up page

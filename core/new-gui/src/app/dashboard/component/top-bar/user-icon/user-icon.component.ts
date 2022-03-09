@@ -46,6 +46,6 @@ export class UserIconComponent {
    * @param mode 0 indicates login and 1 indicates registration
    */
   private openLoginComponent(): void {
-    this.modalService.create({nzContent: UserLoginModalComponent, nzOkText: null});
+    this.modalService.create({ nzContent: UserLoginModalComponent, nzOkText: null });
   }
 }
