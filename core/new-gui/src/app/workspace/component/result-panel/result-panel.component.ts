@@ -38,7 +38,7 @@ export class ResultPanelComponent implements OnInit {
   frameComponentConfigs: Map<string, ResultFrameComponentConfig> = new Map();
 
   // the highlighted operator ID for display result table / visualization / breakpoint
-  currentOperatorId?: string | undefined;
+  currentOperatorId?: string;
 
   showResultPanel: boolean = false;
   previewWorkflowVersion: boolean = false;

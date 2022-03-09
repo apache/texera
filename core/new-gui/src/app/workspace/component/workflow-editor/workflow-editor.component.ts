@@ -1575,9 +1575,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     fromEvent<JointPaperEvent>(
       this.getJointPaper(),
       "tool:breakpoint"
-      // , {
-      //   passive: true,
-      // }
     )
       .pipe(untilDestroyed(this))
       .subscribe(event => {
