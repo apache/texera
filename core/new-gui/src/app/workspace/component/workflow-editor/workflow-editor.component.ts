@@ -1572,10 +1572,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * and converts that event to a workflow action
    */
   private handleLinkBreakpointButtonClick(): void {
-    fromEvent<JointPaperEvent>(
-      this.getJointPaper(),
-      "tool:breakpoint"
-    )
+    fromEvent<JointPaperEvent>(this.getJointPaper(), "tool:breakpoint")
       .pipe(untilDestroyed(this))
       .subscribe(event => {
         this.workflowActionService.highlightLinks(<boolean>event[1].shiftKey, event[0].model.id.toString());
