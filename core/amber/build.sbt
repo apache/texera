@@ -2,7 +2,7 @@ name := "texera"
 organization := "edu.uci.ics"
 version := "0.1-SNAPSHOT"
 
-scalaVersion := "2.12.14"
+scalaVersion := "2.12.15"
 
 // to turn on, use: INFO
 // to turn off, use: WARNING
