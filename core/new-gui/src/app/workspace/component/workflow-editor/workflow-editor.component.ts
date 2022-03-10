@@ -22,7 +22,7 @@ import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
 import { OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
-import { auditTime, filter, map, tap } from "rxjs/operators";
+import { auditTime, filter, map } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 // This type represents the copied operator and its information:
