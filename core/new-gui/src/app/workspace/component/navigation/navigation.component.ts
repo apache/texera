@@ -1,6 +1,5 @@
 import { DatePipe, Location } from "@angular/common";
 import { Component, ElementRef, Input, ViewChild } from "@angular/core";
-import { TourService } from "ngx-tour-ng-bootstrap";
 import { environment } from "../../../../environments/environment";
 import { UserService } from "../../../common/service/user/user.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
@@ -76,9 +75,10 @@ export class NavigationComponent {
   public isCacheOperatorClickable: boolean = false;
   public isCacheOperator: boolean = true;
 
+  public static readonly COLLAB_RELOAD_WAIT_TIME = 500;
+
   constructor(
     public executeWorkflowService: ExecuteWorkflowService,
-    public tourService: TourService,
     public workflowActionService: WorkflowActionService,
     public workflowWebsocketService: WorkflowWebsocketService,
     private location: Location,
@@ -358,13 +358,9 @@ export class NavigationComponent {
    */
   public onClickDisableOperators(): void {
     if (this.isDisableOperator) {
-      this.effectivelyHighlightedOperators().forEach(op => {
-        this.workflowActionService.getTexeraGraph().disableOperator(op);
-      });
+      this.workflowActionService.disableOperators(this.effectivelyHighlightedOperators());
     } else {
-      this.effectivelyHighlightedOperators().forEach(op => {
-        this.workflowActionService.getTexeraGraph().enableOperator(op);
-      });
+      this.workflowActionService.enableOperators(this.effectivelyHighlightedOperators());
     }
   }
 
@@ -375,13 +371,9 @@ export class NavigationComponent {
     );
 
     if (this.isCacheOperator) {
-      effectiveHighlightedOperatorsExcludeSink.forEach(op => {
-        this.workflowActionService.getTexeraGraph().cacheOperator(op);
-      });
+      this.workflowActionService.cacheOperators(effectiveHighlightedOperatorsExcludeSink);
     } else {
-      effectiveHighlightedOperatorsExcludeSink.forEach(op => {
-        this.workflowActionService.getTexeraGraph().unCacheOperator(op);
-      });
+      this.workflowActionService.unCacheOperators(effectiveHighlightedOperatorsExcludeSink);
     }
   }
 
@@ -396,20 +388,22 @@ export class NavigationComponent {
   }
 
   public persistWorkflow(): void {
-    this.isSaving = true;
-    this.workflowPersistService
-      .persistWorkflow(this.workflowActionService.getWorkflow())
-      .pipe(untilDestroyed(this))
-      .subscribe(
-        (updatedWorkflow: Workflow) => {
-          this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
-          this.isSaving = false;
-        },
-        (error: unknown) => {
-          alert(error);
-          this.isSaving = false;
-        }
-      );
+    if (this.workflowCollabService.isLockGranted()) {
+      this.isSaving = true;
+      this.workflowPersistService
+        .persistWorkflow(this.workflowActionService.getWorkflow())
+        .pipe(untilDestroyed(this))
+        .subscribe(
+          (updatedWorkflow: Workflow) => {
+            this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
+            this.isSaving = false;
+          },
+          (error: unknown) => {
+            alert(error);
+            this.isSaving = false;
+          }
+        );
+    }
   }
 
   /**
@@ -484,7 +478,7 @@ export class NavigationComponent {
     this.persistWorkflow();
     setTimeout(() => {
       this.workflowCollabService.requestOthersToReload();
-    }, 300);
+    }, NavigationComponent.COLLAB_RELOAD_WAIT_TIME);
   }
 
   /**

@@ -52,7 +52,7 @@ export class UserFileService {
 
     this.retrieveDashboardUserFileEntryList().subscribe(dashboardUserFileEntries => {
       this.dashboardUserFileEntries = dashboardUserFileEntries;
-      this.dashboardUserFileEntryChanged.next();
+      this.dashboardUserFileEntryChanged.next(null);
     });
   }
 
@@ -157,7 +157,7 @@ export class UserFileService {
 
   private clearDashboardUserFileEntries(): void {
     this.dashboardUserFileEntries = [];
-    this.dashboardUserFileEntryChanged.next();
+    this.dashboardUserFileEntryChanged.next(null);
   }
 
   /**

@@ -1,12 +1,12 @@
-import { Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from "@angular/core";
+import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { Subject } from "rxjs";
 import { FormGroup } from "@angular/forms";
 import { FormlyFieldConfig, FormlyFormOptions } from "@ngx-formly/core";
-import * as Ajv from "ajv";
+import Ajv from "ajv";
 import { FormlyJsonschema } from "@ngx-formly/core/json-schema";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import { cloneDeep, isEqual, every, findIndex } from "lodash-es";
+import { cloneDeep, isEqual } from "lodash-es";
 import { CustomJSONSchema7 } from "../../../types/custom-json-schema.interface";
 import { isDefined } from "../../../../common/util/predicate";
 import { ExecutionState } from "src/app/workspace/types/execute-workflow.interface";
@@ -26,10 +26,11 @@ import {
 } from "../typecasting-display/type-casting-display.component";
 import { DynamicComponentConfig } from "../../../../common/type/dynamic-component-config";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { filter, first, map, takeUntil } from "rxjs/operators";
+import { filter } from "rxjs/operators";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
 import { environment } from "src/environments/environment";
+import { WorkflowCollabService } from "../../../service/workflow-collab/workflow-collab.service";
 
 export type PropertyDisplayComponent = TypeCastingDisplayComponent;
 
@@ -77,20 +78,21 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   // inputs and two-way bindings to formly component
   formlyFormGroup: FormGroup | undefined;
   formData: any;
-  formlyOptions: FormlyFormOptions | undefined;
+  formlyOptions: FormlyFormOptions = {};
   formlyFields: FormlyFieldConfig[] | undefined;
   formTitle: string | undefined;
 
   editingTitle: boolean = false;
 
   // used to fill in default values in json schema to initialize new operator
-  ajv = new Ajv({ useDefaults: true });
+  ajv = new Ajv({ useDefaults: true, strict: false });
 
   // for display component of some extra information
   extraDisplayComponentConfig?: PropertyDisplayComponentConfig;
 
   // used to tear down subscriptions that takeUntil(teardownObservable)
   private teardownObservable: Subject<void> = new Subject();
+  public lockGranted: boolean = true;
 
   constructor(
     private formlyJsonschema: FormlyJsonschema,
@@ -98,7 +100,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     public executeWorkflowService: ExecuteWorkflowService,
     private dynamicSchemaService: DynamicSchemaService,
     private schemaPropagationService: SchemaPropagationService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private workflowCollabService: WorkflowCollabService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -132,6 +135,10 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     this.registerOnFormChangeHandler();
 
     this.registerDisableEditorInteractivityHandler();
+
+    this.registerOperatorDisplayNameChangeHandler();
+
+    this.registerLockChangeHandler();
   }
 
   async ngOnDestroy() {
@@ -293,6 +300,25 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       });
   }
 
+  private registerOperatorDisplayNameChangeHandler(): void {
+    this.workflowActionService
+      .getTexeraGraph()
+      .getOperatorDisplayNameChangedStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(({ operatorID, newDisplayName }) => {
+        if (operatorID === this.currentOperatorId) this.formTitle = newDisplayName;
+      });
+  }
+
+  private registerLockChangeHandler(): void {
+    this.workflowCollabService
+      .getLockStatusStream()
+      .pipe(untilDestroyed(this))
+      .subscribe((lockGranted: boolean) => {
+        this.lockGranted = lockGranted;
+      });
+  }
+
   setFormlyFormBinding(schema: CustomJSONSchema7) {
     // intercept JsonSchema -> FormlySchema process, adding custom options
     // this requires a one-to-one mapping.
@@ -373,7 +399,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       try {
         this.executeWorkflowService.modifyOperatorLogic(this.currentOperatorId);
         this.setInteractivity(false);
-      } catch (e: any) {
+      } catch (e) {
         this.notificationService.error(e);
       }
     }
@@ -382,13 +408,13 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   confirmChangeOperatorCustomName(customDisplayName: string) {
     if (this.currentOperatorId) {
       const currentOperatorSchema = this.dynamicSchemaService.getDynamicSchema(this.currentOperatorId);
-
+      const userFriendlyName = currentOperatorSchema.additionalMetadata.userFriendlyName;
       // fall back to the original userFriendlyName if no valid name is provided
       const newDisplayName =
         customDisplayName === "" || customDisplayName === undefined
           ? currentOperatorSchema.additionalMetadata.userFriendlyName
           : customDisplayName;
-      this.workflowActionService.getTexeraGraph().changeOperatorDisplayName(this.currentOperatorId, newDisplayName);
+      this.workflowActionService.setOperatorCustomName(this.currentOperatorId, newDisplayName, userFriendlyName);
       this.formTitle = newDisplayName;
     }
 

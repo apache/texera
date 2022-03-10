@@ -1,6 +1,10 @@
 <h3 *ngIf="formTitle" class="texera-workspace-property-editor-title" mat-subheader>{{ formTitle }}</h3>
 
-<form *ngIf="formlyFields" [formGroup]="formlyFormGroup" class="texera-workspace-property-editor-form">
+<form
+  *ngIf="formlyFields && formlyFormGroup"
+  [formGroup]="formlyFormGroup"
+  class="texera-workspace-property-editor-form"
+>
   <formly-form
     (modelChange)="onFormChanges($event)"
     [fields]="formlyFields"

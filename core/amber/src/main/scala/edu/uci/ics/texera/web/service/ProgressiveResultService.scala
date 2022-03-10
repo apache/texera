@@ -39,7 +39,13 @@ class ProgressiveResultService(
     val storage = sink.getStorage
     val webUpdate = (webOutputMode, sink.getOutputMode) match {
       case (PaginationMode(), SET_SNAPSHOT) =>
-        WebPaginationUpdate(PaginationMode(), newTupleCount, List.empty)
+        val numTuples = storage.getCount
+        val maxPageIndex = Math.ceil(numTuples / JobResultService.defaultPageSize.toDouble).toInt
+        WebPaginationUpdate(
+          PaginationMode(),
+          newTupleCount,
+          (1 to maxPageIndex).toList
+        )
       case (SetSnapshotMode(), SET_SNAPSHOT) =>
         webDataFromTuple(webOutputMode, storage.getAll.toList, sink.getChartType)
       case (SetDeltaMode(), SET_DELTA) =>

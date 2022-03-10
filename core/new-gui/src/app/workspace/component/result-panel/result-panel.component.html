@@ -3,8 +3,8 @@
     <div *ngFor="let config of frameComponentConfigs | keyvalue">
       <nz-tab nzTitle="{{config.key}}">
         <ndc-dynamic
-          [ndcDynamicComponent]="config.value?.component"
-          [ndcDynamicInputs]="config.value?.componentInputs"
+          [ndcDynamicComponent]="config.value.component"
+          [ndcDynamicInputs]="config.value.componentInputs ?? {}"
         ></ndc-dynamic>
       </nz-tab>
     </div>

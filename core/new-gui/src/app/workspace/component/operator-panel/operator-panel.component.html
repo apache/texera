@@ -1,40 +1,31 @@
 <div class="texera-workspace-operator-panel-body">
   <div class="texera-workspace-operator-panel-search-box">
     <input
-      [formControl]="operatorSearchFormControl"
-      [nzDropdownMenu]="autocomplete_menu"
-      appearance="outline"
-      aria-label="Operator-Search"
-      autocomplete="off"
-      class="texera-workspace-operator-panel-search-box-input"
-      nz-dropdown
+      placeholder="input here"
       nz-input
-      nzBackdrop="false"
-      nzTrigger="click"
-      placeholder="Search Operators..."
-      type="text"
+      [(ngModel)]="searchInputValue"
+      (input)="onInput($event)"
+      [nzAutocomplete]="autocomplete"
     />
-    <nz-dropdown-menu
-      #autocomplete_menu="nzDropdownMenu"
-      (optionSelected)="onSearchOperatorSelected($event)"
-      class="texera-workspace-operator-panel-search-box-dropdown"
-    >
-      <ul class="texera-workspace-operator-panel-search-box-dropdown-menu" nz-menu nzBordered nzSelectable="false">
-        <li *ngFor="let operatorSchema of operatorSearchResults | async" class="dropdown-menu-items" nz-menu-item>
-          <texera-operator-label
-            [fromSearchBox]="true"
-            [operator]="operatorSchema"
-            class="texera-workspace-operator-panel-search-box-dropdown-menu-name-wrapper"
-          ></texera-operator-label>
-        </li>
-      </ul>
-    </nz-dropdown-menu>
+    <nz-autocomplete #autocomplete [nzBackfill]="false" (selectionChange)="onSelectionChange($event)">
+      <nz-auto-option
+        *ngFor="let option of autocompleteOptions"
+        [nzValue]="option"
+        [nzLabel]="option.additionalMetadata.userFriendlyName"
+        [nzDisabled]="! canModify"
+      >
+        <texera-operator-label
+          [fromSearchBox]="true"
+          [operator]="option"
+          class="texera-workspace-operator-panel-search-box-dropdown-menu-name-wrapper"
+        ></texera-operator-label>
+      </nz-auto-option>
+    </nz-autocomplete>
   </div>
   <nz-collapse [nzBordered]="false" class="texera-workspace-operator-panel-menu" nzAccordion>
     <nz-collapse-panel
       *ngFor="let groupName of groupNamesOrdered"
       [nzHeader]="groupName"
-      [tourAnchor]="groupName"
       class="texera-workspace-operator-panel-subgroup"
     >
       <ul class="texera-workspace-operator-panel-subgroup-menu" nz-menu nzSelectable="false">
