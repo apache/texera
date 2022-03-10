@@ -963,10 +963,10 @@ class JsonSchemaGenerator
       // Must parse json
       val injectJsonNode = objectMapper.readTree(a.json())
       Option(a.jsonSupplier())
-        .flatMap(cls => Option(cls.newInstance().get()))
+        .flatMap(cls => Option(cls.getDeclaredConstructor().newInstance().get()))
         .foreach(json => merge(injectJsonNode, json))
       if (a.jsonSupplierViaLookup().nonEmpty) {
-        val json = config.jsonSuppliers.get(a.jsonSupplierViaLookup()).getOrElse(throw new Exception(s"@JsonSchemaInject(jsonSupplierLookup='${a.jsonSupplierViaLookup()}') does not exist in config.jsonSupplierLookup-map")).get()
+        val json = config.jsonSuppliers.getOrElse(a.jsonSupplierViaLookup(), throw new Exception(s"@JsonSchemaInject(jsonSupplierLookup='${a.jsonSupplierViaLookup()}') does not exist in config.jsonSupplierLookup-map")).get()
         merge(injectJsonNode, json)
       }
       a.strings().foreach(v => injectJsonNode.visit(v.path(), (o, n) => o.put(n, v.value())))

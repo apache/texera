@@ -3,7 +3,6 @@ package edu.uci.ics.texera.workflow.operators.visualization.lineChart
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
-import edu.uci.ics.texera.workflow.operators.visualization.lineChart.LineChartOpDesc
 
 class LineChartOpExec(
     opDesc: LineChartOpDesc,

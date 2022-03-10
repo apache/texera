@@ -38,13 +38,15 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       .add(new Attribute(name + "_" + 1, attributeType), i)
       .build()
   }
-  def intergerTuple(name: String, n: Int = 1, i: Int): Tuple = {
+
+  def integerTuple(name: String, n: Int = 1, i: Int): Tuple = {
     Tuple
       .newBuilder(schema(name, AttributeType.INTEGER, n))
       .add(new Attribute(name, AttributeType.INTEGER), i)
       .add(new Attribute(name + "_" + 1, AttributeType.INTEGER), i)
       .build()
   }
+
   def doubleTuple(name: String, n: Int = 1, i: Double): Tuple = {
     Tuple
       .newBuilder(schema(name, AttributeType.DOUBLE, n))
@@ -92,7 +94,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     for (k <- leftInput.indices) {
       for (i <- rightInput.indices) {
         dataType match {
-          case AttributeType.INTEGER => {
+          case AttributeType.INTEGER =>
             if (
               compare(
                 leftInput(k).asInstanceOf[Int].toLong,
@@ -104,8 +106,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
             ) {
               resultSize += 1
             }
-          }
-          case AttributeType.LONG => {
+          case AttributeType.LONG =>
             if (
               compare(
                 leftInput(k).asInstanceOf[Long],
@@ -117,8 +118,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
             ) {
               resultSize += 1
             }
-          }
-          case AttributeType.TIMESTAMP => {
+          case AttributeType.TIMESTAMP =>
             val leftBoundValue: Long = rightInput(i).asInstanceOf[Timestamp].getTime
             val rightBoundValue: Long =
               timeIntervalType match {
@@ -170,8 +170,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
             ) {
               resultSize += 1
             }
-
-          }
+          case _ => throw new RuntimeException(s"unexpected type $dataType")
         }
       }
     }
@@ -228,9 +227,9 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     counter = 0
     var leftIndex: Int = 0
     var rightIndex: Int = 0
-    var leftOrder = Stream.continually(nextInt(10)).take(leftInput.size).toList
-    var rightOrder = Stream.continually(nextInt(10)).take(rightInput.size).toList
-    var outputTuples: ArrayBuffer[Tuple] = new ArrayBuffer[Tuple]
+    val leftOrder = Stream.continually(nextInt(10)).take(leftInput.length).toList
+    val rightOrder = Stream.continually(nextInt(10)).take(rightInput.length).toList
+    val outputTuples: ArrayBuffer[Tuple] = new ArrayBuffer[Tuple]
 
     while (leftIndex < leftOrder.size || rightIndex < rightOrder.size) {
       if (
@@ -238,7 +237,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
           leftIndex
         ) < rightOrder(rightIndex))
       ) {
-        var result = opExec
+        val result = opExec
           .processTexeraTuple(Left(newTuple[T](leftKey, 1, leftInput(leftIndex), dataType)), left)
           .toBuffer
         outputTuples.appendAll(
@@ -246,7 +245,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
         )
         leftIndex += 1
       } else if (rightIndex < rightOrder.size) {
-        var result = opExec
+        val result = opExec
           .processTexeraTuple(Left(newTuple(rightKey, 1, rightInput(rightIndex), dataType)), right)
           .toBuffer
         outputTuples.appendAll(
@@ -270,15 +269,16 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       assert(outputTuples.head.getSchema.getAttributeNames.size() == 4)
     opExec.close()
   }
+
   it should "random order test" in {
 
-    var pointList: Array[Long] = (1L to 10L).toArray[Long]
-    var rangeList: Array[Long] = Array(1L, 5L, 8L)
+    val pointList: Array[Long] = (1L to 10L).toArray[Long]
+    val rangeList: Array[Long] = Array(1L, 5L, 8L)
     testJoin[Long](
       "point",
       "range",
-      true,
-      true,
+      includeLeftBound = true,
+      includeRightBound = true,
       AttributeType.LONG,
       TimeIntervalType.DAY,
       3,
@@ -287,13 +287,13 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     )
   }
   it should "work with Integer value int [] interval, simple test" in {
-    var pointList: Array[Int] = (1 to 10).toArray[Int]
-    var rangeList: Array[Int] = Array(1, 5, 8)
+    val pointList: Array[Int] = (1 to 10).toArray[Int]
+    val rangeList: Array[Int] = Array(1, 5, 8)
     testJoin[Int](
       "point",
       "range",
-      true,
-      true,
+      includeLeftBound = true,
+      includeRightBound = true,
       AttributeType.INTEGER,
       TimeIntervalType.DAY,
       3,
@@ -304,13 +304,13 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "work with Integer value int [] interval, same key" in {
 
-    var pointList: Array[Int] = (1 to 10).toArray[Int]
-    var rangeList: Array[Int] = Array(1, 5, 8)
+    val pointList: Array[Int] = (1 to 10).toArray[Int]
+    val rangeList: Array[Int] = Array(1, 5, 8)
     testJoin[Int](
       "same",
       "same",
-      true,
-      true,
+      includeLeftBound = true,
+      includeRightBound = true,
       AttributeType.INTEGER,
       TimeIntervalType.DAY,
       3,
@@ -321,13 +321,13 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "work with Integer value int [) interval" in {
 
-    var pointList: Array[Int] = (1 to 10).toArray[Int]
-    var rangeList: Array[Int] = Array(1, 5, 8)
+    val pointList: Array[Int] = (1 to 10).toArray[Int]
+    val rangeList: Array[Int] = Array(1, 5, 8)
     testJoin[Int](
       "point",
       "range",
-      true,
-      false,
+      includeLeftBound = true,
+      includeRightBound = false,
       AttributeType.INTEGER,
       TimeIntervalType.DAY,
       3,
@@ -338,13 +338,13 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "work with Integer value int (] interval" in {
 
-    var pointList: Array[Int] = (1 to 10).toArray[Int]
-    var rangeList: Array[Int] = Array(1, 5, 8)
+    val pointList: Array[Int] = (1 to 10).toArray[Int]
+    val rangeList: Array[Int] = Array(1, 5, 8)
     testJoin[Int](
       "point",
       "range",
-      false,
-      true,
+      includeLeftBound = false,
+      includeRightBound = true,
       AttributeType.INTEGER,
       TimeIntervalType.DAY,
       3,
@@ -354,13 +354,13 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
   it should "work with Integer value int () interval" in {
 
-    var pointList: Array[Int] = (1 to 10).toArray[Int]
-    var rangeList: Array[Int] = Array(1, 5, 8)
+    val pointList: Array[Int] = (1 to 10).toArray[Int]
+    val rangeList: Array[Int] = Array(1, 5, 8)
     testJoin[Int](
       "point",
       "range",
-      false,
-      false,
+      includeLeftBound = false,
+      includeRightBound = false,
       AttributeType.INTEGER,
       TimeIntervalType.DAY,
       3,
@@ -369,15 +369,19 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     )
   }
   it should "work with Timestamp value int [] interval" in {
-    var pointList: Array[Timestamp] = (1L to 10L).map(i => { new Timestamp(i) }).toArray[Timestamp]
-    var rangeList: Array[Timestamp] = Array(1, 5, 8).map(i => {
+    val pointList: Array[Timestamp] = (1L to 10L)
+      .map(i => {
+        new Timestamp(i)
+      })
+      .toArray[Timestamp]
+    val rangeList: Array[Timestamp] = Array(1, 5, 8).map(i => {
       new Timestamp(i)
     })
     testJoin[Timestamp](
       "point",
       "range",
-      false,
-      true,
+      includeLeftBound = false,
+      includeRightBound = true,
       AttributeType.TIMESTAMP,
       TimeIntervalType.DAY,
       3,
@@ -390,32 +394,32 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val inputSchemas =
       Array(schema("point", AttributeType.DOUBLE), schema("range", AttributeType.DOUBLE))
 
-    var opDesc = new IntervalJoinOpDesc(
+    val opDesc = new IntervalJoinOpDesc(
       left,
       "point_1",
       "range_1",
       inputSchemas,
       3,
-      true,
-      true,
-      TimeIntervalType.DAY
+      includeLeftBound = true,
+      includeRightBound = true,
+      timeIntervalType = TimeIntervalType.DAY
     )
     val outputSchema = opDesc.getOutputSchema(inputSchemas)
-    var opExec = new IntervalJoinOpExec(
+    val opExec = new IntervalJoinOpExec(
       OperatorSchemaInfo(inputSchemas, outputSchema),
       opDesc
     )
 
     opExec.open()
     counter = 0
-    var pointList: Array[Double] = Array(1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, 10.1)
+    val pointList: Array[Double] = Array(1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, 10.1)
     pointList.foreach(i => {
       assert(
         opExec.processTexeraTuple(Left(doubleTuple("point", 1, i)), left).isEmpty
       )
     })
     assert(opExec.processTexeraTuple(Right(InputExhausted()), left).isEmpty)
-    var rangeList: Array[Double] = Array(1.1, 5.1, 8.1)
+    val rangeList: Array[Double] = Array(1.1, 5.1, 8.1)
     val outputTuples = rangeList
       .map(i => opExec.processTexeraTuple(Left(doubleTuple("range", 1, i)), right))
       .foldLeft(Iterator[Tuple]())(_ ++ _)
@@ -427,13 +431,13 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "work with Long value int [] interval" in {
 
-    var pointList: Array[Long] = (1L to 10L).toArray
-    var rangeList: Array[Long] = Array(1L, 5L, 8L).toArray
+    val pointList: Array[Long] = (1L to 10L).toArray
+    val rangeList: Array[Long] = Array(1L, 5L, 8L)
     testJoin[Long](
       "point",
       "range",
-      true,
-      true,
+      includeLeftBound = true,
+      includeRightBound = true,
       AttributeType.LONG,
       TimeIntervalType.DAY,
       3,
@@ -444,13 +448,13 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "work with basic two input streams with left empty table" in {
 
-    var pointList: Array[Long] = Array()
-    var rangeList: Array[Long] = Array(1L, 5L, 8L).toArray
+    val pointList: Array[Long] = Array()
+    val rangeList: Array[Long] = Array(1L, 5L, 8L)
     testJoin[Long](
       "point",
       "range",
-      true,
-      true,
+      includeLeftBound = true,
+      includeRightBound = true,
       AttributeType.LONG,
       TimeIntervalType.DAY,
       3,
@@ -460,13 +464,13 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "work with basic two input streams with right empty table" in {
-    var pointList: Array[Long] = (1L to 10L).toArray
-    var rangeList: Array[Long] = Array().toArray
+    val pointList: Array[Long] = (1L to 10L).toArray
+    val rangeList: Array[Long] = Array()
     testJoin[Long](
       "point",
       "range",
-      true,
-      true,
+      includeLeftBound = true,
+      includeRightBound = true,
       AttributeType.LONG,
       TimeIntervalType.DAY,
       3,
@@ -476,13 +480,13 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "test larger dataset(1k)" in {
-    var pointList: Array[Long] = Stream.continually(nextLong()).take(1000).toArray
-    var rangeList: Array[Long] = Stream.continually(nextLong()).take(1000).toArray
+    val pointList: Array[Long] = Stream.continually(nextLong()).take(1000).toArray
+    val rangeList: Array[Long] = Stream.continually(nextLong()).take(1000).toArray
     testJoin[Long](
       "point",
       "range",
-      true,
-      true,
+      includeLeftBound = true,
+      includeRightBound = true,
       AttributeType.LONG,
       TimeIntervalType.DAY,
       nextInt(1000).toLong,

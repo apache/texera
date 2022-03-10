@@ -65,15 +65,15 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
   val queriedActorVirtualIdentities = new mutable.HashSet[ActorVirtualIdentity]()
   val messageStash = new mutable.HashMap[ActorVirtualIdentity, mutable.Queue[WorkflowMessage]]
   val messageIDToIdentity = new mutable.LongMap[ActorVirtualIdentity]
-  //register timer for resending messages
-  val resendHandle: Cancellable = context.system.scheduler.schedule(
+  // register timer for resending messages
+  val resendHandle: Cancellable = context.system.scheduler.scheduleWithFixedDelay(
     30.seconds,
     30.seconds,
     self,
     ResendMessages
   )(context.dispatcher)
 
-  //add parent actor into idMap
+  // add parent actor into idMap
   idToActorRefs(SELF) = context.parent
 
   /** keeps track of every outgoing message.
