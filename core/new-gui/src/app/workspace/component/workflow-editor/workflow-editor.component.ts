@@ -11,7 +11,7 @@ import { environment } from "../../../../environments/environment";
 import { DragDropService } from "../../service/drag-drop/drag-drop.service";
 import { DynamicSchemaService } from "../../service/dynamic-schema/dynamic-schema.service";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
-import { JointUIService, linkPathStrokeColor } from "../../service/joint-ui/joint-ui.service";
+import { fromJointPaperEvent, JointUIService, linkPathStrokeColor } from "../../service/joint-ui/joint-ui.service";
 import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { JointGraphWrapper } from "../../service/workflow-graph/model/joint-graph-wrapper";
@@ -22,18 +22,8 @@ import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
 import { OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
-import { auditTime, filter, map } from "rxjs/operators";
+import { auditTime, filter, map, tap } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-
-// argument type of callback event on a JointJS Paper
-// which is a 4-element tuple:
-// 1. the JointJS View (CellView) of the event
-// 2. the corresponding original JQuery Event
-// 3. x coordinate, 4. y coordinate
-type JointPaperEvent = [joint.dia.CellView, JQuery.Event, number, number];
-
-// argument type of callback event on a JointJS Paper only for blank:pointerdown event
-type JointPointerDownEvent = [JQuery.Event, number, number];
 
 // This type represents the copied operator and its information:
 // - operator: the copied operator itself, and its properties, etc.
@@ -119,6 +109,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
     private executeWorkflowService: ExecuteWorkflowService,
     private nzModalService: NzModalService
   ) {}
+
+  public static test(): void {}
 
   public getJointPaper(): joint.dia.Paper {
     if (this.paper === undefined) {
@@ -413,7 +405,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handlePaperPan(): void {
     // pointer down event to start the panning, this will record the original paper offset
-    fromEvent<JointPointerDownEvent>(this.getJointPaper(), "blank:pointerdown")
+    fromJointPaperEvent(this.getJointPaper(), "blank:pointerdown")
       .pipe(untilDestroyed(this))
       .subscribe(event => {
         const x = event[0].screenX;
@@ -425,7 +417,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       });
 
     // This observable captures the drop event to stop the panning
-    merge(fromEvent(document, "mouseup"), fromEvent<JointPointerDownEvent>(this.getJointPaper(), "blank:pointerup"))
+    merge(fromEvent(document, "mouseup"), fromJointPaperEvent(this.getJointPaper(), "blank:pointerup"))
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         this.mouseDown = undefined;
@@ -560,7 +552,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   private handleHighlightMouseDBClickInput(): void {
-    fromEvent<JointPaperEvent>(this.getJointPaper(), "cell:pointerdblclick")
+    fromJointPaperEvent(this.getJointPaper(), "cell:pointerdblclick")
       .pipe(untilDestroyed(this))
       .subscribe(event => {
         const clickedCommentBox = event[0].model;
@@ -585,7 +577,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private handleHighlightMouseInput(): void {
     // on user mouse clicks an operator/group cell, highlight that operator/group
     // operator status tooltips should never be highlighted
-    fromEvent<JointPaperEvent>(this.getJointPaper(), "cell:pointerdown")
+    fromJointPaperEvent(this.getJointPaper(), "cell:pointerdown")
       // event[0] is the JointJS CellView; event[1] is the original JQuery Event
       .pipe(
         filter(event => event[0].model.isElement()),
@@ -627,7 +619,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       });
 
     // on user mouse clicks on blank area, unhighlight all operators and groups
-    fromEvent<JointPaperEvent>(this.getJointPaper(), "blank:pointerdown")
+    fromJointPaperEvent(this.getJointPaper(), "blank:pointerdown")
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         const highlightedOperatorIDs = this.workflowActionService
@@ -775,7 +767,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handleViewDeleteOperator(): void {
     // bind the delete button event to call the delete operator function in joint model action
-    fromEvent<JointPaperEvent>(this.getJointPaper(), "element:delete")
+    fromJointPaperEvent(this.getJointPaper(), "element:delete")
       .pipe(
         filter(value => this.interactive),
         map(value => value[0])
@@ -792,20 +784,18 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   private handleViewMouseoverOperator(): void {
-    fromEvent<JointPaperEvent>(this.getJointPaper(), "element:mouseover")
-      .pipe(map(value => value[0]))
+    fromJointPaperEvent(this.getJointPaper(), "element:mouseenter")
       .pipe(untilDestroyed(this))
-      .subscribe(elementView => {
-        this.jointUIService.unfoldOperatorDetails(this.getJointPaper(), elementView.model.id.toString());
+      .subscribe(event => {
+        this.jointUIService.unfoldOperatorDetails(this.getJointPaper(), event[0].model.id.toString());
       });
   }
 
   private handleViewMouseoutOperator(): void {
-    fromEvent<JointPaperEvent>(this.getJointPaper(), "element:mouseout")
-      .pipe(map(value => value[0]))
+    fromJointPaperEvent(this.getJointPaper(), "element:mouseleave")
       .pipe(untilDestroyed(this))
-      .subscribe(elementView => {
-        this.jointUIService.foldOperatorDetails(this.getJointPaper(), elementView.model.id.toString());
+      .subscribe(event => {
+        this.jointUIService.foldOperatorDetails(this.getJointPaper(), event[0].model.id.toString());
       });
   }
 
@@ -818,7 +808,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    *  we need to handle the callback event `tool:remove`.
    */
   private handleViewDeleteLink(): void {
-    fromEvent<JointPaperEvent>(this.getJointPaper(), "tool:remove")
+    fromJointPaperEvent(this.getJointPaper(), "tool:remove")
       .pipe(
         filter(value => this.interactive),
         map(value => value[0])
@@ -840,7 +830,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * The name of this callback event is registered in `JointUIService.getCustomGroupStyleAttrs`
    */
   private handleViewCollapseGroup(): void {
-    fromEvent<JointPaperEvent>(this.getJointPaper(), "element:collapse")
+    fromJointPaperEvent(this.getJointPaper(), "element:collapse")
       .pipe(map(value => value[0]))
       .pipe(untilDestroyed(this))
       .subscribe(elementView => {
@@ -860,7 +850,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * The name of this callback event is registered in `JointUIService.getCustomGroupStyleAttrs`
    */
   private handleViewExpandGroup(): void {
-    fromEvent<JointPaperEvent>(this.getJointPaper(), "element:expand")
+    fromJointPaperEvent(this.getJointPaper(), "element:expand")
       .pipe(map(value => value[0]))
       .pipe(untilDestroyed(this))
       .subscribe(elementView => {
@@ -1492,7 +1482,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handleLinkCursorHover(): void {
     // When the cursor hovers over a link, the delete button and the breakpoint button appear
-    fromEvent<JointPaperEvent>(this.getJointPaper(), "link:mouseenter")
+    fromJointPaperEvent(this.getJointPaper(), "link:mouseenter")
       .pipe(map(value => value[0]))
       .pipe(untilDestroyed(this))
       .subscribe(elementView => {
@@ -1518,7 +1508,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
      * If there is no breakpoint present on that link, the breakpoint button also disappears,
      * otherwise, the breakpoint button is not changed.
      */
-    fromEvent<JointPaperEvent>(this.getJointPaper(), "link:mouseleave")
+    fromJointPaperEvent(this.getJointPaper(), "link:mouseleave")
       .pipe(map(value => value[0]))
       .pipe(untilDestroyed(this))
       .subscribe(elementView => {
@@ -1572,7 +1562,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * and converts that event to a workflow action
    */
   private handleLinkBreakpointButtonClick(): void {
-    fromEvent<JointPaperEvent>(this.getJointPaper(), "tool:breakpoint")
+    fromJointPaperEvent(this.getJointPaper(), "tool:breakpoint")
       .pipe(untilDestroyed(this))
       .subscribe(event => {
         this.workflowActionService.highlightLinks(<boolean>event[1].shiftKey, event[0].model.id.toString());
