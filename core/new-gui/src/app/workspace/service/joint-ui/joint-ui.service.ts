@@ -956,7 +956,11 @@ export class JointUIService {
 
 export function fromJointPaperEvent<T extends keyof joint.dia.Paper.EventMap = keyof joint.dia.Paper.EventMap>(
   paper: joint.dia.Paper,
-  eventName: T
+  eventName: T,
+  context?: any
 ): Observable<Parameters<joint.dia.Paper.EventMap[T]>> {
-  return fromEvent<Parameters<joint.dia.Paper.EventMap[T]>>(paper, eventName as any as string);
+  return fromEventPattern(
+    handler => paper.on(eventName, handler, context), // addHandler
+    (handler, signal) => paper.off(eventName as string, handler, context) // removeHandler
+  );
 }

@@ -405,6 +405,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handlePaperPan(): void {
     // pointer down event to start the panning, this will record the original paper offset
+    this.getJointPaper().on("blank:pointerdown", () => {}, {});
     fromJointPaperEvent(this.getJointPaper(), "blank:pointerdown")
       .pipe(untilDestroyed(this))
       .subscribe(event => {
