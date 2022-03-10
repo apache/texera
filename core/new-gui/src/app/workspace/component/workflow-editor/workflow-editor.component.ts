@@ -110,8 +110,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     private nzModalService: NzModalService
   ) {}
 
-  public static test(): void {}
-
   public getJointPaper(): joint.dia.Paper {
     if (this.paper === undefined) {
       throw new Error("JointJS paper is undefined");
@@ -405,7 +403,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handlePaperPan(): void {
     // pointer down event to start the panning, this will record the original paper offset
-    this.getJointPaper().on("blank:pointerdown", () => {}, {});
     fromJointPaperEvent(this.getJointPaper(), "blank:pointerdown")
       .pipe(untilDestroyed(this))
       .subscribe(event => {
