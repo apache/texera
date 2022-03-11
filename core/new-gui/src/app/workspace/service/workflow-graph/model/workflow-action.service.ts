@@ -28,6 +28,7 @@ import { auditTime, debounceTime, filter } from "rxjs/operators";
 import { WorkflowCollabService } from "../../workflow-collab/workflow-collab.service";
 import { Command, commandFuncs, CommandMessage } from "src/app/workspace/types/command.interface";
 import { isDefined } from "../../../../common/util/predicate";
+import { environment } from "../../../../../environments/environment";
 
 type OperatorPosition = {
   position: Point;
@@ -1017,8 +1018,7 @@ export class WorkflowActionService {
   /**
    * Reload the given workflow, update workflowMetadata and workflowContent.
    */
-  public reloadWorkflow(workflow: Workflow | undefined, asyncRendering = false): void {
-    this.toggleSendData(false);
+  public reloadWorkflow(workflow: Workflow | undefined, asyncRendering = environment.asyncRenderingEnabled): void {
     this.jointGraphWrapper.jointGraphContext.withContext({ async: asyncRendering }, () => {
       this.setWorkflowMetadata(workflow);
       // remove the existing operators on the paper currently
@@ -1029,9 +1029,11 @@ export class WorkflowActionService {
           .map(op => op.operatorID),
         []
       );
+
       this.getTexeraGraph()
         .getAllCommentBoxes()
         .forEach(commentBox => this.deleteCommentBox(commentBox.commentBoxID));
+
       if (workflow === undefined) {
         return;
       }
@@ -1375,11 +1377,20 @@ export class WorkflowActionService {
 
     // add operator to joint graph first
     // if jointJS throws an error, it won't cause the inconsistency in texera graph
-    this.jointGraph.addCells(operatorJointElements);
+
+    if (environment.asyncRenderingEnabled) {
+      // addCells emits jointjs events asynchronously, async context ensures safety for event listeners which expect synchrony
+      this.jointGraphWrapper.jointGraphContext.withContext({ async: true }, () => {
+        this.jointGraph.addCells(operatorJointElements);
+      });
+    } else {
+      for (let i = 0; i < operatorsAndPositions.length; i++) {
+        this.jointGraph.addCell(operatorJointElements[i]);
+      }
+    }
 
     for (let i = 0; i < operatorsAndPositions.length; i++) {
       let operator = operatorsAndPositions[i].operator;
-      let point = operatorsAndPositions[i].point;
       this.jointGraphWrapper.setCellLayer(operator.operatorID, this.operatorGroup.getHighestLayer() + 1);
       // add operator to texera graph
       this.texeraGraph.addOperator(operator);
@@ -1427,10 +1438,20 @@ export class WorkflowActionService {
     }
 
     this.operatorGroup.setSyncTexeraGraph(false);
-    // TODO: figure out how to add a batch of links to JointJS without the breakpoint error
-    // this.jointGraph.addCells(jointLinkCells.filter(x => x !== undefined));
+
+    if (environment.asyncRenderingEnabled) {
+      // addCells emits jointjs events asynchronously, async context ensures safety for event listeners which expect synchrony
+      this.jointGraphWrapper.jointGraphContext.withContext({ async: true }, () => {
+        this.jointGraph.addCells(jointLinkCells.filter(x => x !== undefined));
+      });
+    } else {
+      for (let i = 0; i < links.length; i++) {
+        this.jointGraph.addCell(jointLinkCells[i]);
+      }
+    }
+
     for (let i = 0; i < links.length; i++) {
-      this.jointGraph.addCell(jointLinkCells[i]);
+      // this.jointGraph.addCell(jointLinkCells[i]);
       this.texeraGraph.addLink(links[i]);
       this.jointGraphWrapper.setCellLayer(links[i].linkID, this.operatorGroup.getHighestLayer() + 1);
     }

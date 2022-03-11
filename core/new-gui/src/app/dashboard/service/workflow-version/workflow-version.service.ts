@@ -69,12 +69,13 @@ export class WorkflowVersionService {
   }
 
   public closeParticularVersionDisplay() {
+    console.log("close particular version display called");
     // should enable modifications first to be able to make action of reloading old version on paper
     this.workflowActionService.enableWorkflowModification();
     // but still disable redo and undo service to not capture swapping the workflows, because enabling modifictions automatically enables undo and redo
     this.undoRedoService.disableWorkFlowModification();
     // reload the old workflow don't persist anything
-    this.workflowActionService.reloadWorkflow(this.workflowActionService.getTempWorkflow());
+    this.workflowActionService.reloadWorkflow(this.workflowActionService.getTempWorkflow(), false);
     // clear the temp workflow
     this.workflowActionService.resetTempWorkflow();
     // after reloading the workflow, we can enable the undoredo service
