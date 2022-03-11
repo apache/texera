@@ -663,9 +663,12 @@ export class WorkflowEditorComponent implements AfterViewInit {
     )
       .pipe(untilDestroyed(this))
       .subscribe(elementIDs =>
-        elementIDs.forEach(elementID =>
-          this.getJointPaper().findViewByModel(elementID).unhighlight("rect.body", { highlighter: highlightOptions })
-        )
+        elementIDs.forEach(elementID => {
+          const elem = this.getJointPaper().findViewByModel(elementID);
+          if (elem !== undefined) {
+            elem.unhighlight("rect.body", { highlighter: highlightOptions });
+          }
+        })
       );
 
     this.workflowActionService
@@ -1539,8 +1542,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private handleLinkBreakpointToolAttachment(): void {
     this.workflowActionService
       .getJointGraphWrapper()
-      .createContextAwareStream(this.workflowActionService.getJointGraphWrapper().getJointLinkCellAddStream())
-      .pipe(untilDestroyed(this))
+      .getJointLinkCellAddStream()
+      .pipe(this.workflowActionService.getJointGraphWrapper().jointGraphContext.bufferWhileAsync, untilDestroyed(this))
       .subscribe(link => {
         const linkView = link.findView(this.getJointPaper());
         const breakpointButtonTool = this.jointUIService.getBreakpointButton();
@@ -1614,16 +1617,16 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private handleLinkBreakpointToggleEvents(): void {
     this.workflowActionService
       .getJointGraphWrapper()
-      .createContextAwareStream(this.workflowActionService.getJointGraphWrapper().getLinkBreakpointShowStream())
-      .pipe(untilDestroyed(this))
+      .getLinkBreakpointShowStream()
+      .pipe(this.workflowActionService.getJointGraphWrapper().jointGraphContext.bufferWhileAsync, untilDestroyed(this))
       .subscribe(linkID => {
         this.getJointPaper().getModelById(linkID.linkID).findView(this.getJointPaper()).showTools();
       });
 
     this.workflowActionService
       .getJointGraphWrapper()
-      .createContextAwareStream(this.workflowActionService.getJointGraphWrapper().getLinkBreakpointHideStream())
-      .pipe(untilDestroyed(this))
+      .getLinkBreakpointHideStream()
+      .pipe(this.workflowActionService.getJointGraphWrapper().jointGraphContext.bufferWhileAsync, untilDestroyed(this))
       .subscribe(linkID => {
         this.getJointPaper().getModelById(linkID.linkID).findView(this.getJointPaper()).hideTools();
       });
