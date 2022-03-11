@@ -19,7 +19,7 @@ describe("UserLoginComponent", () => {
 
   beforeEach(
     waitForAsync(() => {
-      const nzModalRefSpyObj = jasmine.createSpyObj("NzModalRef", "close");
+      const nzModalRefSpyObj = jasmine.createSpyObj("NzModalRef", ["close"]);
       TestBed.configureTestingModule({
         declarations: [UserLoginModalComponent],
         providers: [
