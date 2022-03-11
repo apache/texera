@@ -9,6 +9,7 @@ import { Group, GroupBoundingBox } from "../workflow-graph/model/operator-group"
 import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
 import * as joint from "jointjs";
 import { jitOnlyGuardedExpression } from "@angular/compiler/src/render3/util";
+import { fromEvent, fromEventPattern, Observable } from "rxjs";
 
 /**
  * Defines the SVG element for the breakpoint button
@@ -951,4 +952,15 @@ export class JointUIService {
     };
     return commentStyleAttrs;
   }
+}
+
+export function fromJointPaperEvent<T extends keyof joint.dia.Paper.EventMap = keyof joint.dia.Paper.EventMap>(
+  paper: joint.dia.Paper,
+  eventName: T,
+  context?: any
+): Observable<Parameters<joint.dia.Paper.EventMap[T]>> {
+  return fromEventPattern(
+    handler => paper.on(eventName, handler, context), // addHandler
+    (handler, signal) => paper.off(eventName as string, handler, context) // removeHandler
+  );
 }
