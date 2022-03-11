@@ -15,13 +15,15 @@ import { NzModalModule, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 describe("UserLoginComponent", () => {
   let component: UserLoginModalComponent;
   let fixture: ComponentFixture<UserLoginModalComponent>;
+  let nzModalRefSpy: jasmine.SpyObj<NzModalRef>;
 
   beforeEach(
     waitForAsync(() => {
+      const nzModalRefSpyObj = jasmine.createSpyObj("NzModalRef", "close");
       TestBed.configureTestingModule({
         declarations: [UserLoginModalComponent],
         providers: [
-          { provide: NzModalRef, useValue: {} },
+          { provide: NzModalRef, useValue: nzModalRefSpyObj },
           { provide: UserService, useClass: StubUserService },
           FormBuilder,
         ],
@@ -37,6 +39,7 @@ describe("UserLoginComponent", () => {
           MatDialogModule,
         ],
       }).compileComponents();
+      nzModalRefSpy = TestBed.inject(NzModalRef) as jasmine.SpyObj<NzModalRef>;
     })
   );
 
