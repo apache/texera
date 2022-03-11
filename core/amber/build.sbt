@@ -2,7 +2,7 @@ name := "texera"
 organization := "edu.uci.ics"
 version := "0.1-SNAPSHOT"
 
-scalaVersion := "2.12.14"
+scalaVersion := "2.12.15"
 
 // to turn on, use: INFO
 // to turn off, use: WARNING
@@ -143,7 +143,7 @@ libraryDependencies ++= mongoDbDependencies
 // protobuf related
 // run the following with sbt to have protobuf codegen
 
-PB.protocVersion := "3.17.3"
+PB.protocVersion := "3.19.4"
 
 Compile / PB.targets := Seq(
   scalapb.gen(
