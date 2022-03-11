@@ -27,7 +27,8 @@ class TupleSpec extends AnyFlatSpec {
   }
 
   it should "create a tuple using new builder, based on another tuple using old builder" in {
-    val inputTuple = Tuple.newBuilder().add(stringAttribute, "string-value").build()
+    val schema = Schema.newBuilder().add(stringAttribute).build()
+    val inputTuple = Tuple.newBuilder(schema).addSequentially(Array("string-value")).build()
     val newTuple = Tuple.newBuilder(inputTuple.getSchema).add(inputTuple).build()
 
     assert(newTuple.size == inputTuple.size)
