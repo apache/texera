@@ -1,5 +1,13 @@
 <div class="attribute-container">
-  <button (click)="onClickEditor()" class="edit-code-button" nz-button nzShape="round" nzType="primary">
-    Edit code content
+  <button
+    (click)="onClickEditor()"
+    class="code-button"
+    nz-button
+    nzShape="round"
+    nzType="primary"
+    [ngClass]="{ 'readonly': !lockGranted }"
+  >
+    <div *ngIf="lockGranted">Edit code content</div>
+    <div *ngIf="!lockGranted">View code content</div>
   </button>
 </div>

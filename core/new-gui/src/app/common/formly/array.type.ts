@@ -14,7 +14,7 @@ import { FieldArrayType } from "@ngx-formly/core";
 
       <div *ngFor="let field of field.fieldGroup; let i = index" class="row">
         <formly-field class="col-10" [field]="field"></formly-field>
-        <div *ngIf="field.templateOptions.removable !== false" class="col-2 text-right">
+        <div *ngIf="field.templateOptions?.removable !== false" class="col-2 text-right">
           <button class="btn btn-danger" type="button" (click)="remove(i)" [disabled]="formControl.disabled">-</button>
         </div>
       </div>

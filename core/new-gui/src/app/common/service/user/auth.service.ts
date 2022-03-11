@@ -3,7 +3,8 @@ import { Injectable } from "@angular/core";
 import { from, interval, Observable, of, Subscription } from "rxjs";
 import { AppSettings } from "../../app-setting";
 import { User } from "../../type/user";
-import { delay, mergeMap, startWith } from "rxjs/operators";
+import { timer } from "rxjs";
+import { mergeMap, startWith, ignoreElements } from "rxjs/operators";
 import { JwtHelperService } from "@auth0/angular-jwt";
 import { GoogleAuthService } from "ng-gapi";
 import GoogleAuth = gapi.auth2.GoogleAuth;
@@ -102,7 +103,10 @@ export class AuthService {
     if (token !== null && !this.jwtHelperService.isTokenExpired(token)) {
       this.registerAutoLogout();
       this.registerAutoRefreshToken();
-      return of(<User>{ name: this.jwtHelperService.decodeToken(token).sub });
+      return of(<User>{
+        name: this.jwtHelperService.decodeToken(token).sub,
+        googleId: this.jwtHelperService.decodeToken(token).googleId,
+      });
     } else {
       // access token is expired, logout instantly
       return this.logout();
@@ -143,8 +147,10 @@ export class AuthService {
     const expirationTime = this.jwtHelperService.getTokenExpirationDate()?.getTime();
     const token = AuthService.getAccessToken();
     if (token !== null && !this.jwtHelperService.isTokenExpired(token) && expirationTime !== undefined) {
-      this.tokenExpirationSubscription = of(null)
-        .pipe(delay(expirationTime - new Date().getTime()))
+      // use timer with ignoreElements to avoid event being immediately triggered (in RxJS 7)
+      // see https://stackoverflow.com/questions/70013573/how-to-replicate-delay-from-rxjs-6-x
+      this.tokenExpirationSubscription = timer(expirationTime - new Date().getTime())
+        .pipe(ignoreElements())
         .subscribe(() => this.logout());
     }
   }

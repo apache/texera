@@ -14,11 +14,8 @@ import { mockScanSourceSchema } from "../../../service/operator-metadata/mock-op
 import { By } from "@angular/platform-browser";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { UndoRedoService } from "../../../service/undo-redo/undo-redo.service";
-import { TourService } from "ngx-tour-ng-bootstrap";
 import { RouterTestingModule } from "@angular/router/testing";
-import { TourNgBootstrapModule } from "ngx-tour-ng-bootstrap";
 import { NgbModule } from "@ng-bootstrap/ng-bootstrap";
-import { marbles } from "../../../../../../node_modules/rxjs-marbles";
 
 describe("OperatorLabelComponent", () => {
   const mockOperatorData = mockScanSourceSchema;
@@ -29,12 +26,7 @@ describe("OperatorLabelComponent", () => {
     waitForAsync(() => {
       TestBed.configureTestingModule({
         declarations: [OperatorLabelComponent],
-        imports: [
-          CustomNgMaterialModule,
-          RouterTestingModule.withRoutes([]),
-          TourNgBootstrapModule.forRoot(),
-          NgbModule,
-        ],
+        imports: [CustomNgMaterialModule, RouterTestingModule.withRoutes([]), NgbModule],
         providers: [
           DragDropService,
           JointUIService,
@@ -45,7 +37,6 @@ describe("OperatorLabelComponent", () => {
             provide: OperatorMetadataService,
             useClass: StubOperatorMetadataService,
           },
-          TourService,
         ],
       }).compileComponents();
     })

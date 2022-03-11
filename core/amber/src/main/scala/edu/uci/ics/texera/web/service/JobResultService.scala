@@ -3,30 +3,26 @@ package edu.uci.ics.texera.web.service
 import akka.actor.Cancellable
 import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  WorkflowCompleted,
-  WorkflowPaused
-}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication}
 import edu.uci.ics.texera.web.model.websocket.event.{
   PaginatedResultEvent,
   TexeraWebSocketEvent,
-  WebResultUpdateEvent,
-  WorkflowAvailableResultEvent
+  WebResultUpdateEvent
 }
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
 import edu.uci.ics.texera.web.service.JobResultService.WebResultUpdate
-import edu.uci.ics.texera.web.storage.WorkflowStateStore
+import edu.uci.ics.texera.web.storage.{JobStateStore, WorkflowStateStore}
 import edu.uci.ics.texera.web.workflowresultstate.OperatorResultMetadata
-import edu.uci.ics.texera.web.workflowruntimestate.JobStateStore
+import edu.uci.ics.texera.web.workflowruntimestate.JobMetadataStore
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.RUNNING
+import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication}
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo}
+import edu.uci.ics.texera.workflow.common.workflow.WorkflowInfo
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 
@@ -122,7 +118,7 @@ object JobResultService {
   */
 class JobResultService(
     val opResultStorage: OpResultStorage,
-    stateStore: WorkflowStateStore
+    val workflowStateStore: WorkflowStateStore
 ) extends SubscriptionManager {
 
   var progressiveResults: mutable.HashMap[String, ProgressiveResultService] =
@@ -131,7 +127,11 @@ class JobResultService(
     AmberUtils.amberConfig.getInt("web-server.workflow-result-pulling-in-seconds")
   private var resultUpdateCancellable: Cancellable = _
 
-  def attachToJob(workflowInfo: WorkflowInfo, client: AmberClient): Unit = {
+  def attachToJob(
+      stateStore: JobStateStore,
+      workflowInfo: WorkflowInfo,
+      client: AmberClient
+  ): Unit = {
 
     if (resultUpdateCancellable != null && !resultUpdateCancellable.isCancelled) {
       resultUpdateCancellable.cancel()
@@ -139,8 +139,8 @@ class JobResultService(
 
     unsubscribeAll()
 
-    addSubscription(stateStore.jobStateStore.getStateObservable.subscribe {
-      newState: JobStateStore =>
+    addSubscription(stateStore.jobMetadataStore.getStateObservable.subscribe {
+      newState: JobMetadataStore =>
         {
           if (newState.state == RUNNING) {
             if (resultUpdateCancellable == null || resultUpdateCancellable.isCancelled) {
@@ -168,10 +168,16 @@ class JobResultService(
         })
     )
 
-    addSubscription(client.registerCallback[FatalError](_ => resultUpdateCancellable.cancel()))
+    addSubscription(
+      client.registerCallback[FatalError](_ =>
+        if (resultUpdateCancellable != null) {
+          resultUpdateCancellable.cancel()
+        }
+      )
+    )
 
     addSubscription(
-      stateStore.resultStore.registerDiffHandler((oldState, newState) => {
+      workflowStateStore.resultStore.registerDiffHandler((oldState, newState) => {
         val buf = mutable.HashMap[String, WebResultUpdate]()
         newState.operatorInfo.foreach {
           case (opId, info) =>
@@ -188,6 +194,9 @@ class JobResultService(
 
     // first clear all the results
     progressiveResults.clear()
+    workflowStateStore.resultStore.updateState { state =>
+      state.withOperatorInfo(Map.empty)
+    }
 
     // If we have cache sources, make dummy sink operators for displaying results on the frontend.
     workflowInfo.toDAG.getSourceOperators.map(source => {
@@ -236,7 +245,7 @@ class JobResultService(
   }
 
   def onResultUpdate(): Unit = {
-    stateStore.resultStore.updateState { oldState =>
+    workflowStateStore.resultStore.updateState { oldState =>
       oldState.withOperatorInfo(progressiveResults.map {
         case (id, service) =>
           (id, OperatorResultMetadata(service.sink.getStorage.getCount.toInt))

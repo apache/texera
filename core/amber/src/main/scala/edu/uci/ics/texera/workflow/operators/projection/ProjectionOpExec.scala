@@ -5,8 +5,10 @@ import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
-class ProjectionOpExec(var attributes: List[String], val operatorSchemaInfo: OperatorSchemaInfo)
-    extends MapOpExec {
+class ProjectionOpExec(
+    var attributes: List[AttributeUnit],
+    val operatorSchemaInfo: OperatorSchemaInfo
+) extends MapOpExec {
 
   def project(tuple: Tuple): Tuple = {
     Preconditions.checkArgument(attributes.nonEmpty)
@@ -14,9 +16,9 @@ class ProjectionOpExec(var attributes: List[String], val operatorSchemaInfo: Ope
 
     attributes.foreach(attrName => {
       builder.add(
-        attrName,
-        tuple.getSchema.getAttribute(attrName).getType,
-        tuple.getField(attrName)
+        attrName.getAlias,
+        tuple.getSchema.getAttribute(attrName.getOriginalAttribute).getType,
+        tuple.getField(attrName.getOriginalAttribute)
       )
     })
     builder.build()

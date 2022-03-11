@@ -1,9 +1,9 @@
-import { OperatorPredicate } from "../../../types/workflow-common.interface";
+import { OperatorPredicate, CommentBox, Comment, Point } from "../../../types/workflow-common.interface";
 import { OperatorMetadataService } from "../../operator-metadata/operator-metadata.service";
 import { OperatorSchema } from "../../../types/operator-schema.interface";
 import { Injectable } from "@angular/core";
 import { v4 as uuid } from "uuid";
-import * as Ajv from "ajv";
+import Ajv from "ajv";
 
 import { Observable, Subject } from "rxjs";
 import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
@@ -19,7 +19,7 @@ export class WorkflowUtilService {
   private operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
 
   // used to fetch default values in json schema to initialize new operator
-  private ajv = new Ajv({ useDefaults: true });
+  private ajv = new Ajv({ useDefaults: true, strict: false });
 
   private operatorSchemaListCreatedSubject: Subject<boolean> = new Subject<boolean>();
 
@@ -60,6 +60,18 @@ export class WorkflowUtilService {
    */
   public getBreakpointRandomUUID(): string {
     return "breakpoint-" + uuid();
+  }
+
+  public getCommentBoxRandomUUID(): string {
+    return "commentBox-" + uuid();
+  }
+
+  // TODO: change this to drag-and-drop
+  public getNewCommentBox(): CommentBox {
+    const commentBoxID = this.getCommentBoxRandomUUID();
+    const comments: Comment[] = [];
+    const commentBoxPosition: Point = { x: 500, y: 20 };
+    return { commentBoxID, comments, commentBoxPosition };
   }
 
   /**

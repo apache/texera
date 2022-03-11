@@ -1,5 +1,7 @@
 import { Component, Inject } from "@angular/core";
 import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { OperatorPredicate } from "../../types/workflow-common.interface";
 
@@ -11,6 +13,7 @@ import { OperatorPredicate } from "../../types/workflow-common.interface";
  * will be sent to the Monaco editor as its text. The dialogue can be closed with ESC key or by clicking on areas outside
  * the dialogue. Closing the dialogue will send the edited contend back to the custom template field.
  */
+@UntilDestroy()
 @Component({
   selector: "texera-code-editor-dialog",
   templateUrl: "./code-editor-dialog.component.html",
@@ -22,15 +25,30 @@ export class CodeEditorDialogComponent {
     language: "python",
     fontSize: "11",
     automaticLayout: true,
+    readOnly: true,
   };
   code: string;
+
+  public lockGranted: boolean = false;
 
   constructor(
     private dialogRef: MatDialogRef<CodeEditorDialogComponent>,
     @Inject(MAT_DIALOG_DATA) code: any,
-    private workflowActionService: WorkflowActionService
+    private workflowActionService: WorkflowActionService,
+    private workflowCollabService: WorkflowCollabService
   ) {
     this.code = code;
+    this.handleLockChange();
+  }
+
+  private handleLockChange(): void {
+    this.workflowCollabService
+      .getLockStatusStream()
+      .pipe(untilDestroyed(this))
+      .subscribe((lockGranted: boolean) => {
+        this.lockGranted = lockGranted;
+        this.editorOptions.readOnly = !this.lockGranted;
+      });
   }
 
   onCodeChange(code: string): void {

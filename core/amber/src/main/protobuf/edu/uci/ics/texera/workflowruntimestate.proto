@@ -69,7 +69,7 @@ message JobStatsStore {
   map<string,OperatorRuntimeStats> operator_info = 3;
 }
 
-message JobStateStore{
+message JobMetadataStore{
   WorkflowAggregatedState state = 1;
   string error = 2;
   int64 eid = 3;

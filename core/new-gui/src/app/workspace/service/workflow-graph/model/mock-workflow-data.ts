@@ -1,4 +1,4 @@
-import { OperatorLink, OperatorPredicate, Point } from "../../../types/workflow-common.interface";
+import { CommentBox, OperatorLink, OperatorPredicate, Point } from "../../../types/workflow-common.interface";
 import { VIEW_RESULT_OP_TYPE } from "./workflow-graph";
 
 /**
@@ -134,4 +134,10 @@ export const mockFalseSentimentScanLink: OperatorLink = {
     operatorID: mockScanPredicate.operatorID,
     portID: undefined as any,
   },
+};
+
+export const mockCommentBox: CommentBox = {
+  commentBoxID: "1",
+  comments: [],
+  commentBoxPosition: mockPoint,
 };

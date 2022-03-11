@@ -61,7 +61,7 @@ export class DebuggerFrameComponent implements OnInit, OnChanges {
   onClickSkipTuples(): void {
     try {
       this.executeWorkflowService.skipTuples();
-    } catch (e: any) {
+    } catch (e) {
       this.notificationService.error(e);
     }
     this.breakpointAction = false;
@@ -70,7 +70,7 @@ export class DebuggerFrameComponent implements OnInit, OnChanges {
   onClickRetry() {
     try {
       this.executeWorkflowService.retryExecution();
-    } catch (e: any) {
+    } catch (e) {
       this.notificationService.error(e);
     }
     this.breakpointAction = false;
@@ -160,7 +160,7 @@ class PythonExpressionSource implements DataSource<FlatTreeNode> {
       this.treeControl.expansionModel.changed.pipe(tap(change => this.handleExpansionChange(change))),
       this.flattenedDataSubject,
     ];
-    return merge(...changes).pipe(map(() => this.expandFlattenedNodes(this.flattenedDataSubject.getValue())));
+    return merge(changes).pipe(map(() => this.expandFlattenedNodes(this.flattenedDataSubject.getValue())));
   }
 
   expandFlattenedNodes(nodes: FlatTreeNode[]): FlatTreeNode[] {

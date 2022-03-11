@@ -5,7 +5,7 @@
   </button>
 </div>
 <div class="modal-body">
-  <nz-table [nzData]="workflowExecutionsList">
+  <nz-table *ngIf="workflowExecutionsList" [nzData]="workflowExecutionsList">
     <thead>
       <tr>
         <th *ngFor="let column of executionsTableHeaders">{{column}}</th>

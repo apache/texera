@@ -1,5 +1,5 @@
 import { Injectable } from "@angular/core";
-import * as Ajv from "ajv";
+import Ajv from "ajv";
 import { cloneDeep, has, indexOf, isEqual, merge, pickBy } from "lodash";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { Observable, of, Subject } from "rxjs";
@@ -55,7 +55,7 @@ export type PresetDictionary = {
 export class PresetService {
   private static DICT_PREFIX = "Preset"; // key prefix when storing data in dictionary service
   private static ajv = new Ajv();
-  private static ajvStrip = new Ajv({ useDefaults: true, removeAdditional: true }); // removes extra properties from an object that aren't described by schema
+  private static ajvStrip = new Ajv({ useDefaults: true, removeAdditional: true, strict: false }); // removes extra properties from an object that aren't described by schema
   private static isPreset = PresetService.ajv.compile(PresetSchema);
   private static isPresetArray = PresetService.ajv.compile(PresetArraySchema);
 

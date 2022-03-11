@@ -41,6 +41,7 @@ export type JointHighlights = Readonly<{
   operators: readonly string[];
   groups: readonly string[];
   links: readonly string[];
+  commentBoxes: readonly string[];
 }>;
 
 export type JointGraphContextType = Readonly<{
@@ -94,6 +95,7 @@ export class JointGraphWrapper {
     operators: [],
     groups: [],
     links: [],
+    commentBoxes: [],
   };
 
   // the currently highlighted operators' IDs
@@ -112,6 +114,12 @@ export class JointGraphWrapper {
   private jointLinkHighlightStream = new Subject<readonly string[]>();
   // event stream of unhighlighing a link
   private jointLinkUnhighlightStream = new Subject<readonly string[]>();
+
+  private jointCommentBoxHighlightStream = new Subject<readonly string[]>();
+
+  private jointCommentBoxUnhighlightStream = new Subject<readonly string[]>();
+
+  private currentHighlightedCommentBoxes: string[] = [];
 
   // event stream of zooming the jointJS paper
   private workflowEditorZoomSubject: Subject<number> = new Subject<number>();
@@ -251,11 +259,16 @@ export class JointGraphWrapper {
     return this.currentHighlightedLinks;
   }
 
+  public getCurrentHighlightedCommentBoxIDs(): readonly string[] {
+    return this.currentHighlightedCommentBoxes;
+  }
+
   public getCurrentHighlights(): JointHighlights {
     return {
       operators: this.currentHighlightedOperators,
       groups: this.currentHighlightedGroups,
       links: this.currentHighlightedLinks,
+      commentBoxes: this.currentHighlightedCommentBoxes,
     };
   }
 
@@ -325,12 +338,14 @@ export class JointGraphWrapper {
     this.highlightOperators(...elements.operators);
     this.highlightGroups(...elements.groups);
     this.highlightLinks(...elements.links);
+    this.highlightCommentBoxes(...elements.commentBoxes);
   }
 
   public unhighlightElements(elements: JointHighlights): void {
     this.unhighlightOperators(...elements.operators);
     this.unhighlightGroups(...elements.groups);
     this.unhighlightLinks(...elements.links);
+    this.unhighlightCommentBoxes(...elements.commentBoxes);
   }
 
   /**
@@ -427,6 +442,27 @@ export class JointGraphWrapper {
     }
   }
 
+  public highlightCommentBoxes(...commentBoxIDs: string[]): void {
+    const highlightedCommentBoxesIDs: string[] = [];
+    this.unhighlightCommentBoxes(...this.currentHighlightedCommentBoxes);
+    commentBoxIDs.forEach(commentBoxID =>
+      this.highlightElement(commentBoxID, this.currentHighlightedCommentBoxes, highlightedCommentBoxesIDs)
+    );
+
+    if (highlightedCommentBoxesIDs.length > 0) {
+      this.jointCommentBoxHighlightStream.next(highlightedCommentBoxesIDs);
+    }
+  }
+
+  public unhighlightCommentBoxes(...commentBoxIDs: string[]): void {
+    const unhighlightedCommentBoxesIDs: string[] = [];
+    commentBoxIDs.forEach(commentBoxID =>
+      this.unhighlightElement(commentBoxID, this.currentHighlightedCommentBoxes, unhighlightedCommentBoxesIDs)
+    );
+    if (unhighlightedCommentBoxesIDs.length > 0) {
+      this.jointCommentBoxUnhighlightStream.next(unhighlightedCommentBoxesIDs);
+    }
+  }
   /**
    * Gets the event stream of an operator being highlighted.
    */
@@ -492,6 +528,13 @@ export class JointGraphWrapper {
     return this.jointGroupUnhighlightStream.asObservable();
   }
 
+  public getJointCommentBoxHighlightStream(): Observable<readonly string[]> {
+    return this.jointCommentBoxHighlightStream.asObservable();
+  }
+
+  public getJointCommentBoxUnhighlightStream(): Observable<readonly string[]> {
+    return this.jointCommentBoxUnhighlightStream.asObservable();
+  }
   /**
    * Gets the event stream of an element being dragged.
    */
@@ -777,7 +820,7 @@ export class JointGraphWrapper {
     if (!cell) {
       throw new Error(`cell with ID ${cellID} doesn't exist`);
     }
-    return cell.attributes.z;
+    return cell.attributes.z || 0;
   }
 
   /**
@@ -848,6 +891,7 @@ export class JointGraphWrapper {
       this.unhighlightOperators(...this.getCurrentHighlightedOperatorIDs());
       this.unhighlightGroups(...this.getCurrentHighlightedGroupIDs());
       this.unhighlightLinks(...this.getCurrentHighlightedLinkIDs());
+      this.unhighlightCommentBoxes(...this.getCurrentHighlightedCommentBoxIDs());
     }
     // highlight the element and add it to the list of highlighted elements
     currentHighlightedElements.push(elementID);
