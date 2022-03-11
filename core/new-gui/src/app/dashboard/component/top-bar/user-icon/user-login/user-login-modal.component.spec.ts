@@ -2,7 +2,6 @@ import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 
 import { UserLoginModalComponent } from "./user-login-modal.component";
 import { UserService } from "../../../../../common/service/user/user.service";
-import { NgbActiveModal, NgbModule } from "@ng-bootstrap/ng-bootstrap";
 import { MatDialogModule } from "@angular/material/dialog";
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatInputModule } from "@angular/material/input";
@@ -11,6 +10,7 @@ import { FormBuilder, FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { StubUserService } from "../../../../../common/service/user/stub-user.service";
+import { NzModalModule, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 
 describe("UserLoginComponent", () => {
   let component: UserLoginModalComponent;
@@ -20,14 +20,18 @@ describe("UserLoginComponent", () => {
     waitForAsync(() => {
       TestBed.configureTestingModule({
         declarations: [UserLoginModalComponent],
-        providers: [NgbActiveModal, { provide: UserService, useClass: StubUserService }, FormBuilder],
+        providers: [
+          { provide: NzModalRef, useValue: {} },
+          { provide: UserService, useClass: StubUserService },
+          FormBuilder,
+        ],
         imports: [
           BrowserAnimationsModule,
           HttpClientTestingModule,
           MatTabsModule,
           MatFormFieldModule,
           MatInputModule,
-          NgbModule,
+          NzModalModule,
           FormsModule,
           ReactiveFormsModule,
           MatDialogModule,
