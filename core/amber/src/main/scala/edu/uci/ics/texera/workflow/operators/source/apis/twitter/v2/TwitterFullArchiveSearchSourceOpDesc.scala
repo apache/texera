@@ -44,7 +44,7 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
   var limit: Int = _
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig =
-  // TODO: use multiple workers
+    // TODO: use multiple workers
     new ManyToOneOpExecConfig(
       operatorIdentifier,
       _ => new TwitterFullArchiveSearchSourceOpExec(this, operatorSchemaInfo)
@@ -90,7 +90,7 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
         new Attribute("user_profile_image_url", AttributeType.STRING),
         new Attribute("user_pinned_tweet_id", AttributeType.STRING),
         new Attribute("user_protected", AttributeType.BOOLEAN),
-        new Attribute("user_verified", AttributeType.BOOLEAN),
+        new Attribute("user_verified", AttributeType.BOOLEAN)
       )
       .build()
   }

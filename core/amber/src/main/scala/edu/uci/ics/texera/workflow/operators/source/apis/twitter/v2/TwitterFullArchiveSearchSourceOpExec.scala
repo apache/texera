@@ -21,9 +21,9 @@ import scala.collection.{Iterator, mutable}
 import scala.jdk.CollectionConverters.asScalaBufferConverter
 
 class TwitterFullArchiveSearchSourceOpExec(
-                                            desc: TwitterFullArchiveSearchSourceOpDesc,
-                                            operatorSchemaInfo: OperatorSchemaInfo
-                                          ) extends TwitterSourceOpExec(desc.apiKey, desc.apiSecretKey, desc.stopWhenRateLimited) {
+    desc: TwitterFullArchiveSearchSourceOpDesc,
+    operatorSchemaInfo: OperatorSchemaInfo
+) extends TwitterSourceOpExec(desc.apiKey, desc.apiSecretKey, desc.stopWhenRateLimited) {
   val outputSchemaAttributes: Array[AttributeType] = operatorSchemaInfo.outputSchema.getAttributes
     .map((attribute: Attribute) => {
       attribute.getType
@@ -135,11 +135,11 @@ class TwitterFullArchiveSearchSourceOpExec(
     }
 
   private def queryForNextBatch(
-                                 query: String,
-                                 startDateTime: LocalDateTime,
-                                 endDateTime: LocalDateTime,
-                                 maxResults: Int
-                               ): Unit = {
+      query: String,
+      startDateTime: LocalDateTime,
+      endDateTime: LocalDateTime,
+      maxResults: Int
+  ): Unit = {
     def enforceRateLimit(): Unit = {
       // Twitter limit 1 request per second and 300 calls in 15 minutes for V2 FullArchiveSearch
       // If request too frequently, twitter will force the client wait for 5 minutes.
