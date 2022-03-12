@@ -320,6 +320,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   }
 
   setFormlyFormBinding(schema: CustomJSONSchema7) {
+    const fieldNamesToHighlight: Set<String> = new Set(["condition", "value"]);
+
     // intercept JsonSchema -> FormlySchema process, adding custom options
     // this requires a one-to-one mapping.
     // for relational custom options, have to do it after FormlySchema is generated.
@@ -327,6 +329,20 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       mappedField: FormlyFieldConfig,
       mapSource: CustomJSONSchema7
     ): FormlyFieldConfig => {
+      mappedField.expressionProperties = {
+        className: _ => {
+          if (
+            mappedField !== null &&
+            typeof mappedField.key === "string" &&
+            fieldNamesToHighlight.has(mappedField.key)
+          ) {
+            return "highlighted";
+          } else {
+            return "";
+          }
+        },
+      };
+
       // if the title is python script (for Python UDF), then make this field a custom template 'codearea'
       if (mapSource?.description?.toLowerCase() === "input your code here") {
         if (mappedField.type) {
