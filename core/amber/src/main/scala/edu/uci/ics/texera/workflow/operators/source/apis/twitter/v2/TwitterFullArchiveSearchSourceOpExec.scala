@@ -19,12 +19,15 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable.ListBuffer
 import scala.collection.{Iterator, mutable}
 import scala.jdk.CollectionConverters.asScalaBufferConverter
+
 class TwitterFullArchiveSearchSourceOpExec(
-    desc: TwitterFullArchiveSearchSourceOpDesc,
-    operatorSchemaInfo: OperatorSchemaInfo
-) extends TwitterSourceOpExec(desc.apiKey, desc.apiSecretKey, desc.stopWhenRateLimited) {
+                                            desc: TwitterFullArchiveSearchSourceOpDesc,
+                                            operatorSchemaInfo: OperatorSchemaInfo
+                                          ) extends TwitterSourceOpExec(desc.apiKey, desc.apiSecretKey, desc.stopWhenRateLimited) {
   val outputSchemaAttributes: Array[AttributeType] = operatorSchemaInfo.outputSchema.getAttributes
-    .map((attribute: Attribute) => { attribute.getType })
+    .map((attribute: Attribute) => {
+      attribute.getType
+    })
     .toArray
   var curLimit: Int = desc.limit
   // nextToken is used to retrieve next page of results, if exists.
@@ -103,21 +106,27 @@ class TwitterFullArchiveSearchSourceOpExec(
             user.get.getId,
             user.get.getCreatedAt,
             user.get.getName,
-            user.get.getDisplayedName
-            // The following works but currently all get null returned. Will need to wait for
-            // redouane59/twittered to update
-            // user.get.getLang,
-            // user.get.getDescription,
-            // Option(user.get.getPublicMetrics)
-            //   .map(u => java.lang.Long.valueOf(u.getFollowersCount))
-            //   .orNull,
-            // Option(user.get.getPublicMetrics)
-            //   .map(u => java.lang.Long.valueOf(u.getFollowingCount))
-            //   .orNull,
-            // Option(user.get.getPublicMetrics)
-            //   .map(u => java.lang.Long.valueOf(u.getTweetCount))
-            //   .orNull,
-            // user.get.getLocation
+            user.get.getDisplayedName,
+            user.get.getLang,
+            user.get.getDescription,
+            Option(user.get.getPublicMetrics)
+              .map(u => java.lang.Long.valueOf(u.getFollowersCount))
+              .orNull,
+            Option(user.get.getPublicMetrics)
+              .map(u => java.lang.Long.valueOf(u.getFollowingCount))
+              .orNull,
+            Option(user.get.getPublicMetrics)
+              .map(u => java.lang.Long.valueOf(u.getTweetCount))
+              .orNull,
+            Option(user.get.getPublicMetrics)
+              .map(u => java.lang.Long.valueOf(u.getListedCount))
+              .orNull,
+            user.get.getLocation,
+            user.get.getUrl,
+            user.get.getProfileImageUrl,
+            user.get.getPinnedTweetId,
+            Boolean.box(user.get.isProtectedAccount),
+            Boolean.box(user.get.isVerified)
           ),
           outputSchemaAttributes
         )
@@ -126,11 +135,11 @@ class TwitterFullArchiveSearchSourceOpExec(
     }
 
   private def queryForNextBatch(
-      query: String,
-      startDateTime: LocalDateTime,
-      endDateTime: LocalDateTime,
-      maxResults: Int
-  ): Unit = {
+                                 query: String,
+                                 startDateTime: LocalDateTime,
+                                 endDateTime: LocalDateTime,
+                                 maxResults: Int
+                               ): Unit = {
     def enforceRateLimit(): Unit = {
       // Twitter limit 1 request per second and 300 calls in 15 minutes for V2 FullArchiveSearch
       // If request too frequently, twitter will force the client wait for 5 minutes.
