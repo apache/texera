@@ -1,17 +1,7 @@
-/*::ng-deep .highlighted .mat-form-field-wrapper:first-child:first-child {
-  outline: 3px solid green;
-  transition: 0.3s ease-in-out outline;
-}*/
-
 ::ng-deep .highlighted .mat-form-field-flex {
   outline: 3px solid green;
   transition: 0.3s ease-in-out outline;
 }
-
-// ::ng-deep .highlighted {
-// outline: 4px solid red;
-// background-color: green;
-// }
 
 #formly-title {
   position: relative;

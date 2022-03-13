@@ -82,6 +82,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   formlyFields: FormlyFieldConfig[] | undefined;
   formTitle: string | undefined;
 
+  // The field name keys within this set will be highlighted, e.g. for showing the diff between two workflows.
+  fieldNamesToHighlight: Set<String> = new Set();
+
   editingTitle: boolean = false;
 
   // used to fill in default values in json schema to initialize new operator
@@ -320,8 +323,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   }
 
   setFormlyFormBinding(schema: CustomJSONSchema7) {
-    const fieldNamesToHighlight: Set<String> = new Set(["condition", "value"]);
-
     // intercept JsonSchema -> FormlySchema process, adding custom options
     // this requires a one-to-one mapping.
     // for relational custom options, have to do it after FormlySchema is generated.
@@ -330,11 +331,12 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       mapSource: CustomJSONSchema7
     ): FormlyFieldConfig => {
       mappedField.expressionProperties = {
+        // Highlight the field names with keys specified in property fieldNamesToHighlight.
         className: _ => {
           if (
             mappedField !== null &&
             typeof mappedField.key === "string" &&
-            fieldNamesToHighlight.has(mappedField.key)
+            this.fieldNamesToHighlight.has(mappedField.key)
           ) {
             return "highlighted";
           } else {
