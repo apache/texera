@@ -15,4 +15,8 @@ export interface CustomJSONSchema7 extends JSONSchema7 {
 
   dependOn?: string;
   toggleHidden?: string[]; // the field names which will be toggle hidden or not by this field.
+
+  hideExpectedValue?: string;
+  hideTarget?: string;
+  hideType?: string;
 }

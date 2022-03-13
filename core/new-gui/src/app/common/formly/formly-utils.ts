@@ -18,6 +18,40 @@ export function setHideExpression(toggleHidden: string[], fields: FormlyFieldCon
   });
 }
 
+/* Factory function to make functions that hide expressions for a particular field */
+export function createShouldHideFieldFunc(
+  hideTarget: string,
+  hideType: "regex" | "equals" | string,
+  hideExpectedValue: string
+) {
+  let shared_regex: RegExp | null = null;
+
+  const hideFunc = (model: any, formState: any, field?: FormlyFieldConfig | undefined) => {
+    if (model === null || model === undefined) {
+      console.debug("Formly main model not detected. Hiding will fail.");
+      return false;
+    }
+
+    let targetFieldValue: string = model[hideTarget];
+    if (targetFieldValue === null || targetFieldValue === undefined) {
+      console.debug("Formly model does not contain hide target. Formly does not know what to hide.");
+      return false;
+    }
+
+    switch (hideType) {
+      case "equals":
+        return targetFieldValue == hideExpectedValue;
+      case "regex":
+        if (shared_regex == null) shared_regex = new RegExp(`^(${hideExpectedValue})$`);
+        return shared_regex.test(targetFieldValue);
+      default:
+        return false;
+    }
+  };
+
+  return hideFunc;
+}
+
 export function setChildTypeDependency(
   attributes: ReadonlyArray<ReadonlyArray<SchemaAttribute> | null> | undefined,
   parentName: string,

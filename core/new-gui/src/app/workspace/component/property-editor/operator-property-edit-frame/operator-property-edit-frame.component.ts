@@ -17,6 +17,7 @@ import {
 } from "../../../service/dynamic-schema/schema-propagation/schema-propagation.service";
 import {
   createOutputFormChangeEventStream,
+  createShouldHideFieldFunc,
   setChildTypeDependency,
   setHideExpression,
 } from "src/app/common/formly/formly-utils";
@@ -327,6 +328,19 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       mappedField: FormlyFieldConfig,
       mapSource: CustomJSONSchema7
     ): FormlyFieldConfig => {
+      // conditionally hide the field according to the schema
+      if (
+        mapSource.hideExpectedValue !== undefined &&
+        mapSource.hideTarget !== undefined &&
+        mapSource.hideType !== undefined
+      ) {
+        mappedField.hideExpression = createShouldHideFieldFunc(
+          mapSource.hideTarget,
+          mapSource.hideType,
+          mapSource.hideExpectedValue
+        );
+      }
+
       // if the title is python script (for Python UDF), then make this field a custom template 'codearea'
       if (mapSource?.description?.toLowerCase() === "input your code here") {
         if (mappedField.type) {
