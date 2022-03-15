@@ -318,6 +318,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       .pipe(untilDestroyed(this))
       .subscribe((lockGranted: boolean) => {
         this.lockGranted = lockGranted;
+        this.changeDetectorRef.detectChanges();
       });
   }
 
