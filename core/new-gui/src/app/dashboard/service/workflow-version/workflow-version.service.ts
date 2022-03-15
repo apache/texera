@@ -4,6 +4,7 @@ import { WorkflowActionService } from "../../../workspace/service/workflow-graph
 import { Workflow } from "../../../common/type/workflow";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { UndoRedoService } from "../../../workspace/service/undo-redo/undo-redo.service";
+import { environment } from "src/environments/environment";
 
 export const DISPLAY_WORKFLOW_VERIONS_EVENT = "display_workflow_versions_event";
 
@@ -48,9 +49,7 @@ export class WorkflowVersionService {
     // disable the undoredo service because reloading the workflow is considered an action
     this.undoRedoService.disableWorkFlowModification();
     // reload the read only workflow version on the paper
-    // temporarily set JointJS asyncRendering to false to avoid errors,
-    // TODO: fix the error and set asyncRendering to true to improve performance
-    this.workflowActionService.reloadWorkflow(workflow, false);
+    this.workflowActionService.reloadWorkflow(workflow, environment.asyncRenderingEnabled);
     this.setDisplayParticularVersion(true);
     // disable modifications because it is read only
     this.workflowActionService.disableWorkflowModification();
@@ -75,7 +74,7 @@ export class WorkflowVersionService {
     // but still disable redo and undo service to not capture swapping the workflows, because enabling modifictions automatically enables undo and redo
     this.undoRedoService.disableWorkFlowModification();
     // reload the old workflow don't persist anything
-    this.workflowActionService.reloadWorkflow(this.workflowActionService.getTempWorkflow(), false);
+    this.workflowActionService.reloadWorkflow(this.workflowActionService.getTempWorkflow(), environment.asyncRenderingEnabled);
     // clear the temp workflow
     this.workflowActionService.resetTempWorkflow();
     // after reloading the workflow, we can enable the undoredo service

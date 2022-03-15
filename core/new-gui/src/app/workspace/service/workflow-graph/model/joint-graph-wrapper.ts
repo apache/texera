@@ -1002,9 +1002,18 @@ export class JointGraphWrapper {
       }
 
       protected static enter(context: JointGraphContextType): void {
+        const CURRENT_ASYNC_MODE = this.async();
         super.enter(context);
+        const NEW_ASYNC_MODE = this.async();
+
         if (this.jointPaper !== undefined) {
-          this.jointPaper.options.async = this.async();
+          if (CURRENT_ASYNC_MODE == false && NEW_ASYNC_MODE == true) {
+            // turn sorting off
+            // sorting during async mode can cause issues for jointjs
+            this.jointPaper.options.sorting = joint.dia.Paper.sorting.NONE;
+          }
+
+          this.jointPaper.options.async = NEW_ASYNC_MODE;
         }
       }
 
@@ -1014,7 +1023,15 @@ export class JointGraphWrapper {
           const NEW_ASYNC_MODE = this._async(this.prevContext());
 
           this.jointPaper.options.async = NEW_ASYNC_MODE;
-          if (CURRENT_ASYNC_MODE == true && NEW_ASYNC_MODE == false) this.jointPaper.updateViews();
+
+          if (CURRENT_ASYNC_MODE == true && NEW_ASYNC_MODE == false){
+            // turn sorting back on
+            // sorting during async mode can cause issues for jointjs
+            this.jointPaper.options.sorting = joint.dia.Paper.sorting.EXACT;
+
+            // force jointjs to update the DOM with all the changes generated during async
+            this.jointPaper.updateViews();
+          }
         }
         super.exit();
       }

@@ -154,7 +154,7 @@ export class WorkspaceComponent implements AfterViewInit, OnDestroy {
           this.workflowActionService.toggleLockListen(false);
           this.workflowActionService.enableWorkflowModification();
           // load the fetched workflow
-          this.workflowActionService.reloadWorkflow(workflow);
+          this.workflowActionService.reloadWorkflow(workflow, environment.asyncRenderingEnabled);
           // clear stack
           this.undoRedoService.clearUndoStack();
           this.undoRedoService.clearRedoStack();
@@ -204,7 +204,7 @@ export class WorkspaceComponent implements AfterViewInit, OnDestroy {
           this.registerAutoPersistWorkflow();
         } else {
           // load the cached workflow
-          this.workflowActionService.reloadWorkflow(this.workflowCacheService.getCachedWorkflow());
+          this.workflowActionService.reloadWorkflow(this.workflowCacheService.getCachedWorkflow(), environment.asyncRenderingEnabled);
           // clear stack
           this.undoRedoService.clearUndoStack();
           this.undoRedoService.clearRedoStack();
