@@ -36,11 +36,10 @@ export class OperatorLabelComponent implements OnInit, AfterViewInit, AfterConte
   constructor(
     private dragDropService: DragDropService,
     private workflowActionService: WorkflowActionService,
-    private changeDetectorRef: ChangeDetectorRef) {}
+    private changeDetectorRef: ChangeDetectorRef
+  ) {}
 
-  ngOnInit() {
-
-  }
+  ngOnInit() {}
 
   ngAfterContentInit(): void {
     this.handleWorkFlowModificationEnabled();

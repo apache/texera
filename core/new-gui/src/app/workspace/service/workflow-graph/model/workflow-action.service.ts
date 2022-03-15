@@ -140,7 +140,7 @@ export class WorkflowActionService {
   }
 
   public disableWorkflowModification() {
-    if (! this.workflowModificationEnabled) {
+    if (!this.workflowModificationEnabled) {
       return;
     }
     this.workflowModificationEnabled = false;

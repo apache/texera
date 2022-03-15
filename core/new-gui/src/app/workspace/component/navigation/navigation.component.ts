@@ -105,28 +105,28 @@ export class NavigationComponent implements OnInit {
 
   public ngOnInit(): void {
     this.executeWorkflowService
-    .getExecutionStateStream()
-    .pipe(untilDestroyed(this))
-    .subscribe(event => {
-      this.executionState = event.current.state;
-      this.applyRunButtonBehavior(this.getRunButtonBehavior(this.executionState, this.isWorkflowValid));
-    });
+      .getExecutionStateStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(event => {
+        this.executionState = event.current.state;
+        this.applyRunButtonBehavior(this.getRunButtonBehavior(this.executionState, this.isWorkflowValid));
+      });
 
-  // set the map of operatorStatusMap
-  this.validationWorkflowService
-    .getWorkflowValidationErrorStream()
-    .pipe(untilDestroyed(this))
-    .subscribe(value => {
-      this.isWorkflowValid = Object.keys(value.errors).length === 0;
-      this.applyRunButtonBehavior(this.getRunButtonBehavior(this.executionState, this.isWorkflowValid));
-    });
+    // set the map of operatorStatusMap
+    this.validationWorkflowService
+      .getWorkflowValidationErrorStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(value => {
+        this.isWorkflowValid = Object.keys(value.errors).length === 0;
+        this.applyRunButtonBehavior(this.getRunButtonBehavior(this.executionState, this.isWorkflowValid));
+      });
 
-  this.registerWorkflowMetadataDisplayRefresh();
-  this.handleWorkflowVersionDisplay();
-  this.handleDisableOperatorStatusChange();
-  this.handleCacheOperatorStatusChange();
-  this.handleLockChange();
-  this.handleWorkflowAccessChange();
+    this.registerWorkflowMetadataDisplayRefresh();
+    this.handleWorkflowVersionDisplay();
+    this.handleDisableOperatorStatusChange();
+    this.handleCacheOperatorStatusChange();
+    this.handleLockChange();
+    this.handleWorkflowAccessChange();
   }
 
   // apply a behavior to the run button via bound variables
