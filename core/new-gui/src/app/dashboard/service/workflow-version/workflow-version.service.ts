@@ -50,7 +50,7 @@ export class WorkflowVersionService {
     // reload the read only workflow version on the paper
     // temporarily set JointJS asyncRendering to false to avoid errors,
     // TODO: fix the error and set asyncRendering to true to improve performance
-    this.workflowActionService.reloadWorkflow(workflow, false);
+    this.workflowActionService.reloadWorkflow(workflow);
     this.setDisplayParticularVersion(true);
     // disable modifications because it is read only
     this.workflowActionService.disableWorkflowModification();
@@ -69,13 +69,12 @@ export class WorkflowVersionService {
   }
 
   public closeParticularVersionDisplay() {
-    console.log("close particular version display called");
     // should enable modifications first to be able to make action of reloading old version on paper
     this.workflowActionService.enableWorkflowModification();
     // but still disable redo and undo service to not capture swapping the workflows, because enabling modifictions automatically enables undo and redo
     this.undoRedoService.disableWorkFlowModification();
     // reload the old workflow don't persist anything
-    this.workflowActionService.reloadWorkflow(this.workflowActionService.getTempWorkflow(), false);
+    this.workflowActionService.reloadWorkflow(this.workflowActionService.getTempWorkflow());
     // clear the temp workflow
     this.workflowActionService.resetTempWorkflow();
     // after reloading the workflow, we can enable the undoredo service

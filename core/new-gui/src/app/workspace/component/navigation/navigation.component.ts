@@ -1,5 +1,5 @@
 import { DatePipe, Location } from "@angular/common";
-import { Component, ElementRef, Input, ViewChild } from "@angular/core";
+import { Component, ElementRef, Input, OnInit, ViewChild } from "@angular/core";
 import { environment } from "../../../../environments/environment";
 import { UserService } from "../../../common/service/user/user.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
@@ -42,7 +42,7 @@ import { WorkflowCollabService } from "../../service/workflow-collab/workflow-co
   templateUrl: "./navigation.component.html",
   styleUrls: ["./navigation.component.scss"],
 })
-export class NavigationComponent {
+export class NavigationComponent implements OnInit {
   public executionState: ExecutionState; // set this to true when the workflow is started
   public ExecutionState = ExecutionState; // make Angular HTML access enum definition
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
@@ -102,30 +102,32 @@ export class NavigationComponent {
     this.runDisable = initBehavior.disable;
     this.onClickRunHandler = initBehavior.onClick;
     // this.currentWorkflowName = this.workflowCacheService.getCachedWorkflow();
+  }
 
-    executeWorkflowService
-      .getExecutionStateStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(event => {
-        this.executionState = event.current.state;
-        this.applyRunButtonBehavior(this.getRunButtonBehavior(this.executionState, this.isWorkflowValid));
-      });
+  public ngOnInit(): void {
+    this.executeWorkflowService
+    .getExecutionStateStream()
+    .pipe(untilDestroyed(this))
+    .subscribe(event => {
+      this.executionState = event.current.state;
+      this.applyRunButtonBehavior(this.getRunButtonBehavior(this.executionState, this.isWorkflowValid));
+    });
 
-    // set the map of operatorStatusMap
-    validationWorkflowService
-      .getWorkflowValidationErrorStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(value => {
-        this.isWorkflowValid = Object.keys(value.errors).length === 0;
-        this.applyRunButtonBehavior(this.getRunButtonBehavior(this.executionState, this.isWorkflowValid));
-      });
+  // set the map of operatorStatusMap
+  this.validationWorkflowService
+    .getWorkflowValidationErrorStream()
+    .pipe(untilDestroyed(this))
+    .subscribe(value => {
+      this.isWorkflowValid = Object.keys(value.errors).length === 0;
+      this.applyRunButtonBehavior(this.getRunButtonBehavior(this.executionState, this.isWorkflowValid));
+    });
 
-    this.registerWorkflowMetadataDisplayRefresh();
-    this.handleWorkflowVersionDisplay();
-    this.handleDisableOperatorStatusChange();
-    this.handleCacheOperatorStatusChange();
-    this.handleLockChange();
-    this.handleWorkflowAccessChange();
+  this.registerWorkflowMetadataDisplayRefresh();
+  this.handleWorkflowVersionDisplay();
+  this.handleDisableOperatorStatusChange();
+  this.handleCacheOperatorStatusChange();
+  this.handleLockChange();
+  this.handleWorkflowAccessChange();
   }
 
   // apply a behavior to the run button via bound variables
