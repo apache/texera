@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.google.common.base.Preconditions;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
+import edu.uci.ics.amber.engine.common.Constants;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
@@ -30,17 +31,12 @@ public class TypeCastingOpDesc extends MapOpDesc {
     @Override
     public OneToOneOpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         Preconditions.checkArgument(!typeCastingUnits.isEmpty());
-        return new OneToOneOpExecConfig(operatorIdentifier(), worker -> new TypeCastingOpExec(operatorSchemaInfo.outputSchema()));
+        return new OneToOneOpExecConfig(operatorIdentifier(), worker -> new TypeCastingOpExec(operatorSchemaInfo.outputSchema()), Constants.currentWorkerNum());
     }
 
     @Override
     public OperatorInfo operatorInfo() {
-        return new OperatorInfo(
-                "Type Casting",
-                "Cast between types",
-                OperatorGroupConstants.UTILITY_GROUP(),
-                asScalaBuffer(singletonList(new InputPort("", false))).toList(),
-                asScalaBuffer(singletonList(new OutputPort(""))).toList());
+        return new OperatorInfo("Type Casting", "Cast between types", OperatorGroupConstants.UTILITY_GROUP(), asScalaBuffer(singletonList(new InputPort("", false))).toList(), asScalaBuffer(singletonList(new OutputPort(""))).toList());
     }
 
     @Override
