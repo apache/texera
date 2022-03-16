@@ -361,7 +361,7 @@ trait SkewDetectionHandler {
       workflowReshapeState.detectionCallCount += 1
 
       workflow.getAllOperators.foreach(opConfig => {
-        if (opConfig.isInstanceOf[HashJoinOpExecConfig[Any]]) {
+        if (opConfig.isInstanceOf[HashJoinOpExecConfig[_]]) {
           // Skew handling is only for hash-join operator for now.
           // 1: Find the skewed and helper worker that need first phase.
           val skewedAndHelperPairsForFirstPhase =

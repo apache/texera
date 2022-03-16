@@ -18,6 +18,7 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, Re
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 
 import scala.collection.mutable
+import scala.util.Success
 
 // TODO: Rename or refactor it since it has mixed duties (send/receive messages, execute callbacks)
 private[client] object ClientActor {
@@ -37,7 +38,7 @@ private[client] class ClientActor extends Actor {
     case InitializeRequest(workflow, controllerConfig) =>
       assert(controller == null)
       controller = context.actorOf(Controller.props(workflow, controllerConfig))
-      sender ! ()
+      sender ! Unit
     case ClosureRequest(closure) =>
       try {
         sender ! closure()
