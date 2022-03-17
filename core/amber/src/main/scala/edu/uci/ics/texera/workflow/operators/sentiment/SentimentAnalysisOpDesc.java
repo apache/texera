@@ -4,6 +4,7 @@ package edu.uci.ics.texera.workflow.operators.sentiment;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.google.common.base.Preconditions;
+import edu.uci.ics.amber.engine.common.Constants;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
@@ -34,7 +35,7 @@ public class SentimentAnalysisOpDesc extends MapOpDesc {
         if (attribute == null) {
             throw new RuntimeException("sentiment analysis: attribute is null");
         }
-        return new OneToOneOpExecConfig(operatorIdentifier(), worker -> new SentimentAnalysisOpExec(this, operatorSchemaInfo));
+        return new OneToOneOpExecConfig(operatorIdentifier(), worker -> new SentimentAnalysisOpExec(this, operatorSchemaInfo), Constants.currentWorkerNum());
     }
 
     @Override

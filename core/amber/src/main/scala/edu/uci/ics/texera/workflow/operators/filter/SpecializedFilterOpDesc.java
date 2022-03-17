@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.operators.filter;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
+import edu.uci.ics.amber.engine.common.Constants;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
@@ -25,7 +26,8 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
     public OneToOneOpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         return new OneToOneOpExecConfig(
                 operatorIdentifier(),
-                worker -> new SpecializedFilterOpExec(this)
+                worker -> new SpecializedFilterOpExec(this),
+                Constants.currentWorkerNum()
         );
     }
 
