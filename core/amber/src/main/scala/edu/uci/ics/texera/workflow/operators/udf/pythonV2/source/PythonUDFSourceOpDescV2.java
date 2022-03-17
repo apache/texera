@@ -2,7 +2,9 @@ package edu.uci.ics.texera.workflow.operators.udf.pythonV2.source;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
+import com.google.common.base.Preconditions;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
+import edu.uci.ics.amber.engine.common.Constants;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.amber.engine.operators.OpExecConfig;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
@@ -47,9 +49,9 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
     public String code;
 
     @JsonProperty(required = true)
-    @JsonSchemaTitle("Parallel")
-    @JsonPropertyDescription("Run with multiple workers?")
-    public Boolean parallel;
+    @JsonSchemaTitle("Worker count")
+    @JsonPropertyDescription("Specify how many parallel workers to lunch")
+    public Integer workers = 1;
 
     @JsonProperty()
     @JsonSchemaTitle("Columns")
@@ -60,8 +62,9 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
     public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         Function1<Object, IOperatorExecutor> exec = (i) ->
                 new PythonUDFSourceOpExecV2(code, operatorSchemaInfo.outputSchema());
-        if (parallel) {
-            return new OneToOneOpExecConfig(operatorIdentifier(), exec);
+        Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.");
+        if (workers > 1) {
+            return new OneToOneOpExecConfig(operatorIdentifier(), exec, workers);
         } else {
             return new ManyToOneOpExecConfig(operatorIdentifier(), exec);
         }
