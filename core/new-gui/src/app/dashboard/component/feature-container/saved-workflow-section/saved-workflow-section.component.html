@@ -87,9 +87,10 @@
         #auto
       ></nz-autocomplete>
     </nz-input-group>
+    <cdk-virtual-scroll-viewport itemSize="73" class="virtual-scroll-infinite-container">
     <nz-list>
       <nz-list-item
-        *ngFor="let dashboardWorkflowEntry of dashboardWorkflowEntries;let indexOfElement=index"
+        *cdkVirtualFor="let dashboardWorkflowEntry of dashboardWorkflowEntries;let indexOfElement=index"
         class="workflow-list-item"
       >
         <nz-list-item-meta>
@@ -216,5 +217,6 @@
         </ul>
       </nz-list-item>
     </nz-list>
+  </cdk-virtual-scroll-viewport>
   </nz-card>
 </div>
