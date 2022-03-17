@@ -71,7 +71,7 @@ public class PythonUDFOpDescV2 extends OperatorDescriptor {
                 new PythonUDFOpExecV2(code, operatorSchemaInfo.outputSchema());
         Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.");
         if (workers > 1) {
-            return new OneToOneOpExecConfig(operatorIdentifier(), exec, Constants.currentWorkerNum());
+            return new OneToOneOpExecConfig(operatorIdentifier(), exec, workers);
         } else {
             return new ManyToOneOpExecConfig(operatorIdentifier(), exec);
         }
