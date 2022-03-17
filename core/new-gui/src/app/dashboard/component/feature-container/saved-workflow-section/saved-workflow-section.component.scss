@@ -42,7 +42,7 @@ $header-height: 120px;
   grid-template-rows: $header-height calc((100% - #{$header-height}));
 }
 
-.demo-infinite-container {
+.virtual-scroll-infinite-container {
   height: 600px;
   border: 1px solid #e8e8e8;
   border-radius: 4px;
