@@ -131,12 +131,18 @@ export class WorkflowActionService {
 
   // workflow modification lock interface (allows or prevents commands that would modify the workflow graph)
   public enableWorkflowModification() {
+    if (this.workflowModificationEnabled) {
+      return;
+    }
     this.workflowModificationEnabled = true;
     this.enableModificationStream.next(true);
     this.undoRedoService.enableWorkFlowModification();
   }
 
   public disableWorkflowModification() {
+    if (!this.workflowModificationEnabled) {
+      return;
+    }
     this.workflowModificationEnabled = false;
     this.enableModificationStream.next(false);
     this.undoRedoService.disableWorkFlowModification();
