@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef } from "@angular/core";
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef } from "@angular/core";
 import * as joint from "jointjs";
 // if jQuery needs to be used: 1) use jQuery instead of `$`, and
 // 2) always add this import statement even if TypeScript doesn't show an error https://github.com/Microsoft/TypeScript/issues/22016
@@ -107,7 +107,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
     private workflowStatusService: WorkflowStatusService,
     private workflowUtilService: WorkflowUtilService,
     private executeWorkflowService: ExecuteWorkflowService,
-    private nzModalService: NzModalService
+    private nzModalService: NzModalService,
+    private changeDetectorRef: ChangeDetectorRef
   ) {}
 
   public getJointPaper(): joint.dia.Paper {
@@ -181,6 +182,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
           this.interactive = false;
           this.getJointPaper().setInteractivity(disableInteractiveOption);
         }
+        this.changeDetectorRef.detectChanges();
       });
   }
 
@@ -953,6 +955,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
       },
       // set grid size
       gridSize: 2,
+      // use approximate z-index sorting, this is a workaround of a bug in async rendering mode
+      // see https://github.com/clientIO/joint/issues/1320
+      sorting: joint.dia.Paper.sorting.APPROX,
     };
 
     return jointPaperOptions;
