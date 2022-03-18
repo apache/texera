@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef } from "@angular/core";
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef } from "@angular/core";
 import * as joint from "jointjs";
 // if jQuery needs to be used: 1) use jQuery instead of `$`, and
 // 2) always add this import statement even if TypeScript doesn't show an error https://github.com/Microsoft/TypeScript/issues/22016
@@ -107,7 +107,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
     private workflowStatusService: WorkflowStatusService,
     private workflowUtilService: WorkflowUtilService,
     private executeWorkflowService: ExecuteWorkflowService,
-    private nzModalService: NzModalService
+    private nzModalService: NzModalService,
+    private changeDetectorRef: ChangeDetectorRef
   ) {}
 
   public getJointPaper(): joint.dia.Paper {
@@ -181,6 +182,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
           this.interactive = false;
           this.getJointPaper().setInteractivity(disableInteractiveOption);
         }
+        this.changeDetectorRef.detectChanges();
       });
   }
 
@@ -663,9 +665,12 @@ export class WorkflowEditorComponent implements AfterViewInit {
     )
       .pipe(untilDestroyed(this))
       .subscribe(elementIDs =>
-        elementIDs.forEach(elementID =>
-          this.getJointPaper().findViewByModel(elementID).unhighlight("rect.body", { highlighter: highlightOptions })
-        )
+        elementIDs.forEach(elementID => {
+          const elem = this.getJointPaper().findViewByModel(elementID);
+          if (elem !== undefined) {
+            elem.unhighlight("rect.body", { highlighter: highlightOptions });
+          }
+        })
       );
 
     this.workflowActionService
@@ -950,6 +955,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
       },
       // set grid size
       gridSize: 2,
+      // use approximate z-index sorting, this is a workaround of a bug in async rendering mode
+      // see https://github.com/clientIO/joint/issues/1320
+      sorting: joint.dia.Paper.sorting.APPROX,
     };
 
     return jointPaperOptions;
@@ -1539,8 +1547,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private handleLinkBreakpointToolAttachment(): void {
     this.workflowActionService
       .getJointGraphWrapper()
-      .createContextAwareStream(this.workflowActionService.getJointGraphWrapper().getJointLinkCellAddStream())
-      .pipe(untilDestroyed(this))
+      .getJointLinkCellAddStream()
+      .pipe(this.workflowActionService.getJointGraphWrapper().jointGraphContext.bufferWhileAsync, untilDestroyed(this))
       .subscribe(link => {
         const linkView = link.findView(this.getJointPaper());
         const breakpointButtonTool = this.jointUIService.getBreakpointButton();
@@ -1614,16 +1622,16 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private handleLinkBreakpointToggleEvents(): void {
     this.workflowActionService
       .getJointGraphWrapper()
-      .createContextAwareStream(this.workflowActionService.getJointGraphWrapper().getLinkBreakpointShowStream())
-      .pipe(untilDestroyed(this))
+      .getLinkBreakpointShowStream()
+      .pipe(this.workflowActionService.getJointGraphWrapper().jointGraphContext.bufferWhileAsync, untilDestroyed(this))
       .subscribe(linkID => {
         this.getJointPaper().getModelById(linkID.linkID).findView(this.getJointPaper()).showTools();
       });
 
     this.workflowActionService
       .getJointGraphWrapper()
-      .createContextAwareStream(this.workflowActionService.getJointGraphWrapper().getLinkBreakpointHideStream())
-      .pipe(untilDestroyed(this))
+      .getLinkBreakpointHideStream()
+      .pipe(this.workflowActionService.getJointGraphWrapper().jointGraphContext.bufferWhileAsync, untilDestroyed(this))
       .subscribe(linkID => {
         this.getJointPaper().getModelById(linkID.linkID).findView(this.getJointPaper()).hideTools();
       });
