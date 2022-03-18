@@ -86,6 +86,7 @@ export class WorkflowGraph {
   private readonly commentBoxAddSubject = new Subject<CommentBox>();
   private readonly commentBoxDeleteSubject = new Subject<{ deletedCommentBox: CommentBox }>();
   private readonly commentBoxAddCommentSubject = new Subject<{ addedComment: Comment; commentBox: CommentBox }>();
+  private readonly commentBoxDeleteCommentSubject = new Subject<{ commentBox: CommentBox }>();
 
   constructor(
     operatorPredicates: OperatorPredicate[] = [],
@@ -120,6 +121,19 @@ export class WorkflowGraph {
     if (commentBox != null) {
       commentBox.comments.push(comment);
       this.commentBoxAddCommentSubject.next({ addedComment: comment, commentBox: commentBox });
+    }
+  }
+
+  public deleteCommentFromCommentBox(creatorID: number, creationTime: string, commentBoxID: string): void {
+    this.assertCommentBoxExists(commentBoxID);
+    const commentBox = this.commentBoxMap.get(commentBoxID);
+    if (commentBox != null) {
+      commentBox.comments.forEach((comment, index) => {
+        if (comment.creatorID === creatorID && comment.creationTime === creationTime) {
+          commentBox.comments.splice(index, 1);
+        }
+      });
+      this.commentBoxDeleteCommentSubject.next({ commentBox: commentBox });
     }
   }
   /**
@@ -525,6 +539,10 @@ export class WorkflowGraph {
   public getCommentBoxAddCommentStream(): Observable<{ addedComment: Comment; commentBox: CommentBox }> {
     return this.commentBoxAddCommentSubject.asObservable();
   }
+
+  public getCommentBoxDeleteCommentStream(): Observable<{ commentBox: CommentBox }> {
+    return this.commentBoxDeleteCommentSubject.asObservable();
+  }
   public getCachedOperatorsChangedStream(): Observable<{
     newCached: ReadonlyArray<string>;
     newUnCached: ReadonlyArray<string>;
@@ -592,6 +610,7 @@ export class WorkflowGraph {
       throw new Error(`commentBox with ID ${commentBoxID} does not exist`);
     }
   }
+
   /**
    * Checks if an operator
    * Throws an Error if there's a duplicate operator ID

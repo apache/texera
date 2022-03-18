@@ -56,6 +56,13 @@ export class NzModalCommentBoxComponent {
     );
   }
 
+  public deleteComment(creatorID: number, creationTime: string): void {
+    if (!this.user) {
+      return;
+    }
+    this.workflowActionService.deleteComment(creatorID, creationTime, this.commentBox.commentBoxID);
+  }
+
   toRelative(datetime: string): string {
     return formatDate(new Date(datetime), "MM/dd/yyyy, hh:mm:ss a z", this.locale);
   }

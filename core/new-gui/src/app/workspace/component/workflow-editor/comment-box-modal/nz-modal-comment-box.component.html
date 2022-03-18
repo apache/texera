@@ -8,6 +8,11 @@
           <p>{{ item.content }}</p>
         </nz-comment-content>
       </nz-comment>
+      <ul nz-list-item-actions>
+        <nz-list-item-action
+          ><a (click)="deleteComment(item.creatorID, item.creationTime)">delete</a></nz-list-item-action
+        >
+      </ul>
     </nz-list-item>
   </nz-list>
 </div>
