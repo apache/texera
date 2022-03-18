@@ -242,7 +242,7 @@ export class UserProjectSectionComponent implements OnInit {
           this.userProjectService.refreshFilesOfProject(this.pid); // -- perform appropriate call for project page
         },
         (err: unknown) => {
-          // @ts-ignore
+          // @ts-ignore // TODO: fix this with notification component
           this.notificationService.error(err.error.message);
           this.userProjectService.refreshFilesOfProject(this.pid); // -- perform appropriate call for project page
         }
@@ -275,8 +275,8 @@ export class UserProjectSectionComponent implements OnInit {
           URL.revokeObjectURL(downloadLink.href);
         },
         (err: unknown) => {
-          // @ts-ignore
-          this.notificationService.error(err.error.message);
+          // @ts-ignore // TODO: fix this with notification component
+          this.message.error(err.error.message);
         }
       );
   }

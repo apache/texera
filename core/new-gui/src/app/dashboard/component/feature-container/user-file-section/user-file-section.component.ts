@@ -79,13 +79,13 @@ export class UserFileSectionComponent {
   }
 
   public deleteUserFileEntry(userFileEntry: DashboardUserFileEntry): void {
-    this.userFileService.deleteDashboardUserFileEntry(userFileEntry).subscribe({
-      next: () => this.refreshDashboardFileEntries(),
-      error: (err: unknown) => {
-        // @ts-ignore
-        this.notificationService.error("Can't delete the file entry: " + err.error.message);
-      },
-    });
+    this.userFileService.deleteDashboardUserFileEntry(userFileEntry).subscribe(
+      () => this.refreshDashboardFileEntries(),
+      (err: unknown) => {
+        // @ts-ignore // TODO: fix this with notification component
+        (err: unknown) => alert("Can't delete the file entry: " + err.error);
+      }
+    );
   }
 
   public disableAddButton(): boolean {
@@ -100,8 +100,8 @@ export class UserFileSectionComponent {
     this.userFileService
       .downloadUserFile(userFileEntry.file)
       .pipe(untilDestroyed(this))
-      .subscribe({
-        next: (response: Blob) => {
+      .subscribe(
+        (response: Blob) => {
           // prepare the data to be downloaded.
           const dataType = response.type;
           const binaryData = [];
@@ -115,11 +115,11 @@ export class UserFileSectionComponent {
           downloadLink.click();
           URL.revokeObjectURL(downloadLink.href);
         },
-        error: (err: unknown) => {
-          // @ts-ignore
-          this.notificationService.error(err.error.message);
-        },
-      });
+        (err: unknown) => {
+          // @ts-ignore // TODO: fix this with notification component
+          this.message.error(err.error.message);
+        }
+      );
   }
 
   public confirmUpdateFileCustomName(
@@ -133,14 +133,14 @@ export class UserFileSectionComponent {
     this.userFileService
       .updateFileName(fid, name)
       .pipe(untilDestroyed(this))
-      .subscribe({
-        next: () => this.refreshDashboardFileEntries(),
-        error: (err: unknown) => {
-          // @ts-ignore
+      .subscribe(
+        () => this.refreshDashboardFileEntries(),
+        (err: unknown) => {
+          // @ts-ignore // TODO: fix this with notification component
           this.notificationService.error(err.error.message);
           this.refreshDashboardFileEntries();
-        },
-      })
+        }
+      )
       .add(() => (this.isEditingName = this.isEditingName.filter(fileIsEditing => fileIsEditing != index)));
   }
 

@@ -52,17 +52,17 @@ export class UserFileUploadService {
     this.filesToBeUploaded
       .filter(fileUploadItem => !fileUploadItem.isUploadingFlag)
       .forEach((fileUploadItem: FileUploadItem) =>
-        this.uploadFile(fileUploadItem).subscribe({
-          next: () => {
+        this.uploadFile(fileUploadItem).subscribe(
+          () => {
             this.removeFileFromUploadArray(fileUploadItem);
           },
-          error: (err: unknown) => {
+          (err: unknown) => {
             alert(
               // @ts-ignore // TODO: fix this with notification component
               `Uploading file ${fileUploadItem.name} failed\nMessage: ${err.error}`
             );
-          },
-        })
+          }
+        )
       );
   }
 
