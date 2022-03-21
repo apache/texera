@@ -57,6 +57,9 @@ jobs:
           - ubuntu-latest
         java-version: [ 8, 11 ]
     runs-on: ${{ matrix.os }}
+    env:
+      JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+      JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
     steps:
       - name: Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.9.1
@@ -72,6 +75,8 @@ jobs:
           distribution: 'temurin'
           java-version: ${{ matrix.java-version }}
       - uses: coursier/cache-action@v6
+        with:
+          extraSbtFiles: '["core/amber/*.sbt", "core/amber/project/**.{scala,sbt}", "core/amber/project/build.properties" ]'
       - name: Lint with scalafmt
         run: cd core/amber && sbt scalafmtCheckAll
       - name: Compile with sbt
@@ -85,7 +90,7 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-        python-version: [ 3.6, 3.7, 3.8, 3.9 ]
+        python-version: [ 3.7, 3.8, 3.9 ]
 
     steps:
       - name: Cancel Previous Runs

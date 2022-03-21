@@ -3,7 +3,7 @@ import { OperatorMetadataService } from "../../operator-metadata/operator-metada
 import { OperatorSchema } from "../../../types/operator-schema.interface";
 import { Injectable } from "@angular/core";
 import { v4 as uuid } from "uuid";
-import * as Ajv from "ajv";
+import Ajv from "ajv";
 
 import { Observable, Subject } from "rxjs";
 import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
@@ -19,7 +19,7 @@ export class WorkflowUtilService {
   private operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
 
   // used to fetch default values in json schema to initialize new operator
-  private ajv = new Ajv({ useDefaults: true });
+  private ajv = new Ajv({ useDefaults: true, strict: false });
 
   private operatorSchemaListCreatedSubject: Subject<boolean> = new Subject<boolean>();
 

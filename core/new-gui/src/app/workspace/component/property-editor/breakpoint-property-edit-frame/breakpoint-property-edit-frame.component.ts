@@ -51,7 +51,7 @@ export class BreakpointPropertyEditFrameComponent implements OnInit, OnChanges {
   // inputs and two-way bindings to formly component
   formlyFormGroup: FormGroup | undefined;
   formData: any;
-  formlyOptions: FormlyFormOptions | undefined;
+  formlyOptions: FormlyFormOptions = {};
   formlyFields: FormlyFieldConfig[] | undefined;
   formTitle: string | undefined;
 

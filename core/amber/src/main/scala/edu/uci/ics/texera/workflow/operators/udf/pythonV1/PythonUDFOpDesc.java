@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.operators.udf.pythonV1;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
+import edu.uci.ics.amber.engine.common.Constants;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.amber.engine.operators.OpExecConfig;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
@@ -81,7 +82,7 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
                         batchSize
                 );
         if (PythonUDFType.supportsParallel.contains(pythonUDFType)) {
-            return new OneToOneOpExecConfig(operatorIdentifier(), exec);
+            return new OneToOneOpExecConfig(operatorIdentifier(), exec, Constants.currentWorkerNum());
         } else {
             // changed it to 1 because training with python needs all data in one node.
             return new ManyToOneOpExecConfig(operatorIdentifier(), exec);
@@ -105,7 +106,8 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
         // check if inputColumns are presented in inputSchema.
         if (inputColumns != null) {
             for (String column : inputColumns) {
-                if (!inputSchema.containsAttribute(column)) throw new RuntimeException("No such column:" + column + ".");
+                if (!inputSchema.containsAttribute(column))
+                    throw new RuntimeException("No such column:" + column + ".");
             }
         }
 
@@ -126,8 +128,9 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
         // for any pythonUDFType, it can add custom output columns (attributes).
         if (outputColumns != null) {
             for (Attribute column : outputColumns) {
-                if (inputSchema.containsAttribute(column.getName())) throw new RuntimeException("Column name " + column.getName()
-                        + " already exists!");
+                if (inputSchema.containsAttribute(column.getName()))
+                    throw new RuntimeException("Column name " + column.getName()
+                            + " already exists!");
             }
             outputSchemaBuilder.add(outputColumns).build();
         }

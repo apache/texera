@@ -36,7 +36,7 @@ interface CmdTask {
   cmd: string;
 }
 
-type PromiseFunc = (value?: BuilderOutput | PromiseLike<BuilderOutput> | undefined) => void;
+type PromiseFunc = (value: BuilderOutput | PromiseLike<BuilderOutput>) => void;
 
 export default createBuilder<Options>(cmdBuilder);
 

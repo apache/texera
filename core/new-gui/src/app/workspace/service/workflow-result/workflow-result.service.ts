@@ -10,7 +10,7 @@ import {
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { PaginatedResultEvent, WorkflowAvailableResultEvent } from "../../types/workflow-websocket.interface";
 import { Observable, of, Subject } from "rxjs";
-import * as uuid from "uuid";
+import { v4 as uuid } from "uuid";
 import { ChartType } from "../../types/visualization.interface";
 
 export const DEFAULT_PAGE_SIZE = 10;

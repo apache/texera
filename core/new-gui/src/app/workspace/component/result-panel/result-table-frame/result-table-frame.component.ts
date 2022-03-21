@@ -32,7 +32,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
 
   // display result table
   currentColumns?: TableColumn[];
-  currentResult: Record<string, unknown>[] = [];
+  currentResult: IndexableObject[] = [];
   //   for more details
   //   see https://ng.ant.design/components/table/en#components-table-demo-ajax
   isFrontPagination: boolean = true;
@@ -206,7 +206,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
    * @param resultData rows of the result (may not be all rows if displaying result for workflow completed event)
    * @param totalRowCount
    */
-  setupResultTable(resultData: ReadonlyArray<Record<string, unknown>>, totalRowCount: number) {
+  setupResultTable(resultData: ReadonlyArray<IndexableObject>, totalRowCount: number) {
     if (!this.operatorId) {
       return;
     }

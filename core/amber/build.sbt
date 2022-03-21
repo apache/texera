@@ -2,7 +2,7 @@ name := "texera"
 organization := "edu.uci.ics"
 version := "0.1-SNAPSHOT"
 
-scalaVersion := "2.12.14"
+scalaVersion := "2.12.15"
 
 // to turn on, use: INFO
 // to turn off, use: WARNING
@@ -143,7 +143,7 @@ libraryDependencies ++= mongoDbDependencies
 // protobuf related
 // run the following with sbt to have protobuf codegen
 
-PB.protocVersion := "3.17.3"
+PB.protocVersion := "3.19.4"
 
 Compile / PB.targets := Seq(
   scalapb.gen(
@@ -199,7 +199,7 @@ libraryDependencies += "com.konghq" % "unirest-java" % "3.11.11"
 libraryDependencies += "com.github.marianobarrios" % "lbmq" % "0.5.0"
 
 // https://mvnrepository.com/artifact/io.github.redouane59.twitter/twittered
-libraryDependencies += "io.github.redouane59.twitter" % "twittered" % "2.7"
+libraryDependencies += "io.github.redouane59.twitter" % "twittered" % "2.16"
 
 // https://mvnrepository.com/artifact/org.jooq/jooq
 libraryDependencies += "org.jooq" % "jooq" % "3.14.4"
