@@ -92,10 +92,6 @@ class ArrowUtilsSpec extends AnyFlatSpec {
     }
 
     assertThrows[AttributeTypeException] {
-      ArrowUtils.toAttributeType(new ArrowType.Binary)
-    }
-
-    assertThrows[AttributeTypeException] {
       ArrowUtils.toAttributeType(new ArrowType.Date(DateUnit.DAY))
     }
 
