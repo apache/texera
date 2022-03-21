@@ -2,12 +2,27 @@ package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.AttributeTypeException
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, AttributeTypeUtils, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{
+  Attribute,
+  AttributeType,
+  AttributeTypeUtils,
+  Schema
+}
 import org.apache.arrow.vector.types.FloatingPointPrecision
 import org.apache.arrow.vector.types.TimeUnit.MILLISECOND
 import org.apache.arrow.vector.types.pojo.ArrowType.PrimitiveType
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field}
-import org.apache.arrow.vector.{BigIntVector, BitVector, FieldVector, Float8Vector, IntVector, TimeStampVector, VarBinaryVector, VarCharVector, VectorSchemaRoot}
+import org.apache.arrow.vector.{
+  BigIntVector,
+  BitVector,
+  FieldVector,
+  Float8Vector,
+  IntVector,
+  TimeStampVector,
+  VarBinaryVector,
+  VarCharVector,
+  VectorSchemaRoot
+}
 
 import java.nio.charset.StandardCharsets
 import java.util
@@ -32,9 +47,9 @@ object ArrowUtils {
     * @return
     */
   def getTexeraTuple(
-                      rowIndex: Int,
-                      vectorSchemaRoot: VectorSchemaRoot
-                    ): Tuple = {
+      rowIndex: Int,
+      vectorSchemaRoot: VectorSchemaRoot
+  ): Tuple = {
     val arrowSchema = vectorSchemaRoot.getSchema
     val schema = toTexeraSchema(arrowSchema)
 
@@ -182,11 +197,12 @@ object ArrowUtils {
             vector
               .asInstanceOf[VarCharVector]
               .setSafe(index, value.asInstanceOf[String].getBytes(StandardCharsets.UTF_8))
-        case _: ArrowType.Binary | _: ArrowType.LargeBinary=>
+        case _: ArrowType.Binary | _: ArrowType.LargeBinary =>
           if (isNull) vector.asInstanceOf[VarBinaryVector].setNull(index)
           else
-            vector.asInstanceOf[VarBinaryVector]
-            .setSafe(index, value.asInstanceOf[Array[Byte]])
+            vector
+              .asInstanceOf[VarBinaryVector]
+              .setSafe(index, value.asInstanceOf[Array[Byte]])
 
       }
     }
