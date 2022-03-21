@@ -64,16 +64,27 @@ class ArrowTableTupleProvider:
         chunk_idx = self._current_chunk
         tuple_idx = self._current_idx
 
-        def field_accessor(field_name: str) -> AttributeType:
-            """
-            Retrieve the field value by a given field name.
-            This abstracts and hides the underlying implementation
-            of the tuple data storage from the user.
-            """
-            return self._table.column(field_name).chunks[chunk_idx][tuple_idx].as_py()
+        that = self
+
+        class FieldAccessor:
+
+            def __call__(self, field_name: str) -> AttributeType:
+                """
+                Retrieve the field value by a given field name.
+                This abstracts and hides the underlying implementation
+                of the tuple data storage from the user.
+                """
+                value = that._table.column(field_name).chunks[chunk_idx][tuple_idx].as_py()
+                field_type = that._table.schema.field_by_name(field_name).type
+
+                # for binary types, convert pickled objects back.
+                if field_type == pyarrow.binary() and value[:6] == b'pickle':
+                    import pickle
+                    value = pickle.loads(value[10:])
+                return value
 
         self._current_idx += 1
-        return field_accessor
+        return FieldAccessor()
 
 
 class Tuple:
@@ -108,7 +119,7 @@ class Tuple:
         if isinstance(item, int):
             item: str = self.get_field_names()[item]
 
-        if callable(self._field_data[item]):
+        if self._field_data[item].__class__.__name__ == "FieldAccessor":
             # evaluate the field now
             field_accessor = self._field_data[item]
             self._field_data[item] = field_accessor(field_name=item)
