@@ -33,7 +33,7 @@ object AttributeTypeUtils extends Serializable {
     for (i <- attributes.indices) {
       if (attributes.apply(i).getName.equals(attribute)) {
         resultType match {
-          case STRING | INTEGER | DOUBLE | LONG | BOOLEAN | TIMESTAMP =>
+          case STRING | INTEGER | DOUBLE | LONG | BOOLEAN | TIMESTAMP | BINARY =>
             builder.add(attribute, resultType)
           case ANY | _ =>
             builder.add(attribute, attributes.apply(i).getType)
@@ -98,6 +98,7 @@ object AttributeTypeUtils extends Serializable {
       case BOOLEAN   => parseBoolean(field)
       case TIMESTAMP => parseTimestamp(field)
       case STRING    => field.toString
+      case BINARY    => field
       case ANY | _   => field
     }
   }
@@ -110,7 +111,7 @@ object AttributeTypeUtils extends Serializable {
       case long: java.lang.Long       => long.toInt
       case double: java.lang.Double   => double.toInt
       case boolean: java.lang.Boolean => if (boolean) 1 else 0
-      // Timestamp is considered to be illegal here.
+      // Timestamp and Binary are considered to be illegal here.
       case _ =>
         throw new AttributeTypeException(
           s"not able to parse type ${fieldValue.getClass} to Integer: ${fieldValue.toString}"
@@ -127,6 +128,7 @@ object AttributeTypeUtils extends Serializable {
       case double: java.lang.Double   => double.toLong
       case boolean: java.lang.Boolean => if (boolean) 1L else 0L
       case timestamp: Timestamp       => timestamp.toInstant.toEpochMilli
+      // Binary is considered to be illegal here.
       case _ =>
         throw new AttributeTypeException(
           s"not able to parse type ${fieldValue.getClass} to Long: ${fieldValue.toString}"
@@ -160,7 +162,7 @@ object AttributeTypeUtils extends Serializable {
       case long: java.lang.Long => new Timestamp(long)
       case timestamp: Timestamp => timestamp
       case date: java.util.Date => new Timestamp(date.getTime)
-      // Integer, Double and Boolean are considered to be illegal here.
+      // Integer, Double, Boolean, Binary are considered to be illegal here.
       case _ =>
         throw parseError
     }
@@ -174,7 +176,7 @@ object AttributeTypeUtils extends Serializable {
       case long: java.lang.Long       => long.toDouble
       case double: java.lang.Double   => double
       case boolean: java.lang.Boolean => if (boolean) 1 else 0
-      // Timestamp is considered to be illegal here.
+      // Timestamp and Binary are considered to be illegal here.
       case _ =>
         throw new AttributeTypeException(
           s"not able to parse type ${fieldValue.getClass} to Double: ${fieldValue.toString}"
@@ -195,7 +197,7 @@ object AttributeTypeUtils extends Serializable {
       case long: java.lang.Long       => long != 0
       case double: java.lang.Double   => double != 0
       case boolean: java.lang.Boolean => boolean
-      // Timestamp is considered to be illegal here.
+      // Timestamp and Binary are considered to be illegal here.
       case _ =>
         throw parseError
     }
@@ -307,6 +309,7 @@ object AttributeTypeUtils extends Serializable {
       case LONG      => tryParseLong(fieldValue)
       case INTEGER   => tryParseInteger(fieldValue)
       case TIMESTAMP => tryParseTimestamp(fieldValue)
+      case BINARY    => tryParseString()
       case _         => tryParseString()
     }
   }
