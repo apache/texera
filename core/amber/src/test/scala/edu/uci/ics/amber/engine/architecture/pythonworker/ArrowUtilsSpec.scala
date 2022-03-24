@@ -92,10 +92,6 @@ class ArrowUtilsSpec extends AnyFlatSpec {
     }
 
     assertThrows[AttributeTypeException] {
-      ArrowUtils.toAttributeType(new ArrowType.Binary)
-    }
-
-    assertThrows[AttributeTypeException] {
       ArrowUtils.toAttributeType(new ArrowType.Date(DateUnit.DAY))
     }
 
@@ -130,10 +126,10 @@ class ArrowUtilsSpec extends AnyFlatSpec {
       .newBuilder(texeraSchema)
       .addSequentially(
         Array(
-          new Integer(2),
-          new java.lang.Long(1L),
-          new java.lang.Boolean(true),
-          new java.lang.Double(1.1),
+          Int.box(2),
+          Long.box(1L),
+          Boolean.box(true),
+          Double.box(1.1),
           new Timestamp(10000L),
           "hello world"
         )
@@ -180,10 +176,10 @@ class ArrowUtilsSpec extends AnyFlatSpec {
       .newBuilder(texeraSchema)
       .addSequentially(
         Array(
-          new Integer(2),
-          new java.lang.Long(1L),
-          new java.lang.Boolean(true),
-          new java.lang.Double(1.1),
+          Int.box(2),
+          Long.box(1L),
+          Boolean.box(true),
+          Double.box(1.1),
           new Timestamp(10000L),
           "hello world"
         )
@@ -207,10 +203,10 @@ class ArrowUtilsSpec extends AnyFlatSpec {
       .newBuilder(texeraSchema)
       .addSequentially(
         Array(
-          new Integer(2),
+          Int.box(2),
           null,
-          new java.lang.Boolean(true),
-          new java.lang.Double(1.1),
+          Boolean.box(true),
+          Double.box(1.1),
           null,
           null
         )

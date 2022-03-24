@@ -2,6 +2,7 @@ import traceback
 import typing
 from typing import Iterator, List, MutableMapping, Optional, Union
 
+import pyarrow
 from loguru import logger
 from overrides import overrides
 from pampy import match
@@ -121,6 +122,8 @@ class DataProcessor(StoppableQueueBlockingRunnable):
             for output_tuple in self.process_tuple_with_udf(self._current_input_tuple, self._current_input_link):
                 self.check_and_process_control()
                 if output_tuple is not None:
+                    schema = self._operator.output_schema
+                    self.cast_tuple_to_match_schema(output_tuple, schema)
                     self.context.statistics_manager.increase_output_tuple_count()
                     for to, batch in self.context.tuple_to_batch_converter.tuple_to_batch(output_tuple):
                         batch.schema = self._operator.output_schema
@@ -255,3 +258,16 @@ class DataProcessor(StoppableQueueBlockingRunnable):
                 self.context.pause_manager.resume()
                 self.context.input_queue.enable_sub()
             self.context.state_manager.transit_to(WorkerState.RUNNING)
+
+    @staticmethod
+    def cast_tuple_to_match_schema(output_tuple, schema):
+        # TODO: move this into Tuple, after making Tuple aware of Schema
+
+        # right now only support casting ANY to binary.
+        import pickle
+        for field_name in output_tuple.get_field_names():
+            field_value = output_tuple[field_name]
+            field = schema.field_by_name(field_name)
+            field_type = field.type if field is not None else None
+            if field_type == pyarrow.binary():
+                output_tuple[field_name] = b'pickle    ' + pickle.dumps(field_value)

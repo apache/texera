@@ -19,6 +19,7 @@ import org.apache.arrow.vector.{
   Float8Vector,
   IntVector,
   TimeStampVector,
+  VarBinaryVector,
   VarCharVector,
   VectorSchemaRoot
 }
@@ -123,6 +124,9 @@ object ArrowUtils {
       case _: ArrowType.Utf8 =>
         AttributeType.STRING
 
+      case _: ArrowType.Binary =>
+        AttributeType.BINARY
+
       case _ =>
         throw new AttributeTypeUtils.AttributeTypeException(
           "Unexpected value: " + srcType.getTypeID
@@ -193,6 +197,12 @@ object ArrowUtils {
             vector
               .asInstanceOf[VarCharVector]
               .setSafe(index, value.asInstanceOf[String].getBytes(StandardCharsets.UTF_8))
+        case _: ArrowType.Binary | _: ArrowType.LargeBinary =>
+          if (isNull) vector.asInstanceOf[VarBinaryVector].setNull(index)
+          else
+            vector
+              .asInstanceOf[VarBinaryVector]
+              .setSafe(index, value.asInstanceOf[Array[Byte]])
 
       }
     }
@@ -241,6 +251,9 @@ object ArrowUtils {
 
       case AttributeType.TIMESTAMP =>
         new ArrowType.Timestamp(MILLISECOND, "UTC")
+
+      case AttributeType.BINARY =>
+        new ArrowType.Binary
 
       case AttributeType.STRING | AttributeType.ANY =>
         ArrowType.Utf8.INSTANCE
