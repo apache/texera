@@ -49,7 +49,7 @@ export class ResultPanelComponent implements OnInit {
     private workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService,
     private workflowVersionService: WorkflowVersionService,
-    private changeDetectorRef: ChangeDetectorRef,
+    private changeDetectorRef: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
