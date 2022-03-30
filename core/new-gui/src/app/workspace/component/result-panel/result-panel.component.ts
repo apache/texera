@@ -1,4 +1,4 @@
-import { Component, OnInit } from "@angular/core";
+import { ChangeDetectorRef, Component, OnInit } from "@angular/core";
 import { merge } from "rxjs";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
@@ -48,7 +48,8 @@ export class ResultPanelComponent implements OnInit {
     private resultPanelToggleService: ResultPanelToggleService,
     private workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService,
-    private workflowVersionService: WorkflowVersionService
+    private workflowVersionService: WorkflowVersionService,
+    private changeDetectorRef: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -140,6 +141,7 @@ export class ResultPanelComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(_ => {
         this.rerenderResultPanel();
+        this.changeDetectorRef.detectChanges();
       });
   }
 
