@@ -62,7 +62,7 @@ object ProjectResource {
 
   /**
     * This method is used to insert any CSV files created from ResultExportService
-    * exportCSV function into all project(s) that the workflow belongs to.
+    * handleCSVRequest function into all project(s) that the workflow belongs to.
     *
     * No insertion occurs if the workflow does not belong to any projects.
     *
