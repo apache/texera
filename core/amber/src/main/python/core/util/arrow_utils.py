@@ -13,6 +13,7 @@ ARROW_TYPE_MAPPING = {
     'double': pa.float64(),
     'boolean': pa.bool_(),
     'timestamp': pa.timestamp('ms', tz="UTC"),
+    'binary': pa.binary(),
     'ANY': pa.string()
 }
 
