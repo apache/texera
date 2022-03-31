@@ -15,7 +15,7 @@ from core.models import ControlElement, DataElement, InputExhausted, InternalQue
 from core.util import IQueue, StoppableQueueBlockingRunnable, get_one_of, set_one_of
 from core.util.print_writer.print_log_handler import PrintLogHandler
 from proto.edu.uci.ics.amber.engine.architecture.worker import ControlCommandV2, LocalOperatorExceptionV2, \
-    PythonPrintV2, WorkerExecutionCompletedV2, WorkerState
+    PythonPrintV2, WorkerExecutionCompletedV2, WorkerState, LinkCompletedV2
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlInvocationV2, ControlPayloadV2, \
     LinkIdentity, ReturnInvocationV2
 
@@ -176,6 +176,12 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         self.process_input_tuple()
         self.check_and_process_control()
 
+    def _process_input_exhausted(self, input_exhausted: InputExhausted):
+        if self._current_input_link is not None:
+            control_command = set_one_of(ControlCommandV2, LinkCompletedV2(self._current_input_link))
+            self._async_rpc_client.send(ActorVirtualIdentity(name="CONTROLLER"), control_command)
+        self._process_tuple(input_exhausted)
+
     def _process_sender_change_marker(self, sender_change_marker: SenderChangeMarker) -> None:
         """
         Upon receipt of a SenderChangeMarker, change the current input link to the sender.
@@ -232,7 +238,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
                 match(
                     element,
                     Tuple, self._process_tuple,
-                    InputExhausted, self._process_tuple,
+                    InputExhausted, self._process_input_exhausted,
                     SenderChangeMarker, self._process_sender_change_marker,
                     EndOfAllMarker, self._process_end_of_all_marker
                 )
