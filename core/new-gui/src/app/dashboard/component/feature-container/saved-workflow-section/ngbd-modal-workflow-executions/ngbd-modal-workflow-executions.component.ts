@@ -17,7 +17,8 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
 
   public workflowExecutionsList: WorkflowExecutionsEntry[] | undefined;
 
-  public executionsTableHeaders: string[] = ["Execution#", "Starting Time", "Updated Time", "Status"];
+  public executionsTableHeaders: string[] = ["Execution#", "Starting Time", "Updated Time", "Status", "Bookmarked?"];
+  public currentlyHoveredExecution: WorkflowExecutionsEntry | null = null;
 
   constructor(public activeModal: NgbActiveModal, private workflowExecutionsService: WorkflowExecutionsService) {}
 
@@ -55,5 +56,17 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
         return ExecutionState.Aborted.toString();
     }
     return "";
+  }
+
+  onBookmarkToggle(row: WorkflowExecutionsEntry) {
+    const wasPreviouslyBookmarked = row.bookmarked;
+
+    // Update bookmark state locally.
+    row.bookmarked = !wasPreviouslyBookmarked;
+
+    // Update on the server.
+    this.workflowExecutionsService.setIsBookmarked(row.eId, !wasPreviouslyBookmarked)
+      .pipe(untilDestroyed(this))
+      .subscribe(); // TODO: If the server failed, reset the state.
   }
 }
