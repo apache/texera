@@ -142,9 +142,7 @@ export class OperatorPanelComponent implements OnInit {
     };
     this.operatorSchemaList = operatorMetadata.operators;
     this.groupNamesOrdered = getGroupNamesSorted(operatorMetadata.groups);
-
     this.operatorGroupMap = getOperatorGroupMap(operatorMetadata);
-
     this.fuse.setCollection(this.operatorSchemaList);
   }
 }
