@@ -37,7 +37,7 @@ class UDFOperator(TupleOperator):
 
         See .examples/ for more example operators.
         """
-        pass
+        yield
 
     def close(self) -> None:
         """
