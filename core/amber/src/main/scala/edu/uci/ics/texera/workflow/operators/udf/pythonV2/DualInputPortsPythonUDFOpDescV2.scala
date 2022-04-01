@@ -5,10 +5,11 @@ import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
-import edu.uci.ics.texera.workflow.common.operators.{DependentPortOpExecConfig, ManyToOneOpExecConfig, OneToOneOpExecConfig, OperatorDescriptor}
+import edu.uci.ics.texera.workflow.common.operators.{DependentPortOneToOneOpExecConfig, DependentPortOpExecConfig, ManyToOneOpExecConfig, OneToOneOpExecConfig, OperatorDescriptor}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 class DualInputPortsPythonUDFOpDescV2 extends OperatorDescriptor {
   @JsonProperty(
@@ -37,8 +38,8 @@ class DualInputPortsPythonUDFOpDescV2 extends OperatorDescriptor {
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
     val exec = (i: Any) => new PythonUDFOpExecV2(code, operatorSchemaInfo.outputSchema)
     Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.", Array())
-    if (workers > 1) new OneToOneOpExecConfig(operatorIdentifier, exec, workers)
-    else new DependentPortOpExecConfig(operatorIdentifier, exec)
+    if (workers > 1) new OneToOneOpExecConfig(operatorIdentifier, exec, workers, mutable.Map(1 -> 0))
+    else new ManyToOneOpExecConfig(operatorIdentifier, exec, mutable.Map(1 -> 0))
   }
 
   override def operatorInfo: OperatorInfo =
