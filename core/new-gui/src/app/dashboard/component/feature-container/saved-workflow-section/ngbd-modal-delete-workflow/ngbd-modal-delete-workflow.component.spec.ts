@@ -25,15 +25,13 @@ describe("NgbdModalDeleteProjectComponent", () => {
     lastModifiedTime: 2,
   };
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        declarations: [NgbdModalDeleteWorkflowComponent],
-        providers: [NgbActiveModal],
-        imports: [MatDialogModule, NgbModule, FormsModule, HttpClientModule],
-      }).compileComponents();
-    })
-  );
+  beforeEach(waitForAsync(() => {
+    TestBed.configureTestingModule({
+      declarations: [NgbdModalDeleteWorkflowComponent],
+      providers: [NgbActiveModal],
+      imports: [MatDialogModule, NgbModule, FormsModule, HttpClientModule],
+    }).compileComponents();
+  }));
 
   beforeEach(() => {
     fixture = TestBed.createComponent(NgbdModalDeleteWorkflowComponent);
