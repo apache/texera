@@ -31,7 +31,7 @@ export type WorkflowGraphReadonly = Omit<WorkflowGraph, restrictedMethods>;
 
 export const PYTHON_UDF_V2_OP_TYPE = "PythonUDFV2";
 export const PYTHON_UDF_SOURCE_V2_OP_TYPE = "PythonUDFSourceV2";
-export const PYTHON_UDF_DUAL_INPUT_PORTS_V2_OP_TYPE = "DualInputPortsPythonUDFV2";
+export const DUAL_INPUT_PORTS_PYTHON_UDF_V2_OP_TYPE = "DualInputPortsPythonUDFV2";
 export const VIEW_RESULT_OP_TYPE = "SimpleSink";
 export const VIEW_RESULT_OP_NAME = "View Results";
 
@@ -40,7 +40,7 @@ export function isSink(operator: OperatorPredicate): boolean {
 }
 
 export function isPythonUdf(operator: OperatorPredicate): boolean {
-  return operator.operatorType === PYTHON_UDF_V2_OP_TYPE || operator.operatorType === PYTHON_UDF_SOURCE_V2_OP_TYPE || operator.operatorType === PYTHON_UDF_DUAL_INPUT_PORTS_V2_OP_TYPE;
+  return [PYTHON_UDF_V2_OP_TYPE, PYTHON_UDF_SOURCE_V2_OP_TYPE, DUAL_INPUT_PORTS_PYTHON_UDF_V2_OP_TYPE].includes(operator.operatorType);
 }
 
 /**
