@@ -36,9 +36,9 @@ export function createShouldHideFieldFunc(hideTarget: string, hideType: "regex" 
 
     switch (hideType) {
       case "equals":
-        return targetFieldValue == hideExpectedValue;
+        return targetFieldValue === hideExpectedValue;
       case "regex":
-        if (shared_regex == null) shared_regex = new RegExp(`^(${hideExpectedValue})$`);
+        if (shared_regex === null) shared_regex = new RegExp(`^(${hideExpectedValue})$`);
         return shared_regex.test(targetFieldValue);
     }
   };

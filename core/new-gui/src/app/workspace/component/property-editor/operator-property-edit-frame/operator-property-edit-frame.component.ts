@@ -330,9 +330,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     ): FormlyFieldConfig => {
       // conditionally hide the field according to the schema
       if (
-        mapSource.hideExpectedValue !== undefined &&
-        mapSource.hideTarget !== undefined &&
-        mapSource.hideType !== undefined &&
+        isDefined(mapSource.hideExpectedValue) &&
+        isDefined(mapSource.hideTarget) &&
+        isDefined(mapSource.hideType) &&
         hideTypes.includes(mapSource.hideType)
       ) {
         mappedField.hideExpression = createShouldHideFieldFunc(
