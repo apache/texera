@@ -1,17 +1,14 @@
-import {Component, OnInit} from "@angular/core";
+import { Component, OnInit } from "@angular/core";
 import Fuse from "fuse.js";
-import {OperatorMetadataService} from "../../service/operator-metadata/operator-metadata.service";
+import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 
-import {GroupInfo, OperatorMetadata, OperatorSchema} from "../../types/operator-schema.interface";
-import {DragDropService} from "../../service/drag-drop/drag-drop.service";
-import {WorkflowActionService} from "../../service/workflow-graph/model/workflow-action.service";
-import {WorkflowUtilService} from "../../service/workflow-graph/util/workflow-util.service";
-import {OperatorLabelComponent} from "./operator-label/operator-label.component";
-import {UntilDestroy, untilDestroyed} from "@ngneat/until-destroy";
-import {
-  NzAutocompleteOptionComponent,
-
-} from "ng-zorro-antd/auto-complete";
+import { GroupInfo, OperatorMetadata, OperatorSchema } from "../../types/operator-schema.interface";
+import { DragDropService } from "../../service/drag-drop/drag-drop.service";
+import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
+import { OperatorLabelComponent } from "./operator-label/operator-label.component";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { NzAutocompleteOptionComponent } from "ng-zorro-antd/auto-complete";
 
 /**
  * OperatorPanelComponent is the left-side panel that shows the operators.
@@ -117,7 +114,7 @@ export class OperatorPanelComponent implements OnInit {
     const selectSchema = e.nzValue as OperatorSchema;
     // add the operator to the graph on select (position relative to the current viewpoint)
     const origin = this.workflowActionService.getJointGraphWrapper().getMainJointPaper()?.translate();
-    const point = {x: 400 - (origin?.tx ?? 0), y: 200 - (origin?.ty ?? 0)};
+    const point = { x: 400 - (origin?.tx ?? 0), y: 200 - (origin?.ty ?? 0) };
     this.workflowActionService.addOperator(
       this.workflowUtilService.getNewOperatorPredicate(selectSchema.operatorType),
       point
@@ -143,7 +140,9 @@ export class OperatorPanelComponent implements OnInit {
       ...operatorMetadata,
       operators: operatorMetadata.operators.filter(operatorSchema => operatorSchema.operatorType != "PythonUDFV1"),
     };
-    this.operatorSchemaList = operatorMetadata.operators.filter(operatorSchema => operatorSchema.operatorType != "PythonUDFV1");
+    this.operatorSchemaList = operatorMetadata.operators.filter(
+      operatorSchema => operatorSchema.operatorType != "PythonUDFV1"
+    );
     this.groupNamesOrdered = getGroupNamesSorted(operatorMetadata.groups);
 
     this.operatorGroupMap = getOperatorGroupMap(operatorMetadata);

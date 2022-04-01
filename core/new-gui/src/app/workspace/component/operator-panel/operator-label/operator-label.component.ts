@@ -16,7 +16,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
   templateUrl: "./operator-label.component.html",
   styleUrls: ["./operator-label.component.scss"],
 })
-export class OperatorLabelComponent implements  AfterViewInit, AfterContentInit {
+export class OperatorLabelComponent implements AfterViewInit, AfterContentInit {
   public static operatorLabelPrefix = "texera-operator-label-";
   public static operatorLabelSearchBoxPrefix = "texera-operator-label-search-result-";
 
