@@ -7,7 +7,7 @@ import Ajv from "ajv";
 import { FormlyJsonschema } from "@ngx-formly/core/json-schema";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { cloneDeep, isEqual } from "lodash-es";
-import { CustomJSONSchema7 } from "../../../types/custom-json-schema.interface";
+import { CustomJSONSchema7, HideType, hideTypes } from "../../../types/custom-json-schema.interface";
 import { isDefined } from "../../../../common/util/predicate";
 import { ExecutionState } from "src/app/workspace/types/execute-workflow.interface";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
@@ -332,7 +332,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       if (
         mapSource.hideExpectedValue !== undefined &&
         mapSource.hideTarget !== undefined &&
-        mapSource.hideType !== undefined
+        mapSource.hideType !== undefined &&
+        hideTypes.includes(mapSource.hideType)
       ) {
         mappedField.hideExpression = createShouldHideFieldFunc(
           mapSource.hideTarget,

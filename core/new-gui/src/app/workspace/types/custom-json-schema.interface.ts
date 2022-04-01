@@ -1,5 +1,8 @@
 import { JSONSchema7, JSONSchema7Definition } from "json-schema";
 
+export const hideTypes = ["regex", "equals"] as const;
+export type HideType = typeof hideTypes[number];
+
 export interface CustomJSONSchema7 extends JSONSchema7 {
   propertyOrder?: number;
   properties?: {
@@ -18,5 +21,5 @@ export interface CustomJSONSchema7 extends JSONSchema7 {
 
   hideExpectedValue?: string;
   hideTarget?: string;
-  hideType?: string;
+  hideType?: HideType;
 }

@@ -19,11 +19,7 @@ export function setHideExpression(toggleHidden: string[], fields: FormlyFieldCon
 }
 
 /* Factory function to make functions that hide expressions for a particular field */
-export function createShouldHideFieldFunc(
-  hideTarget: string,
-  hideType: "regex" | "equals" | string,
-  hideExpectedValue: string
-) {
+export function createShouldHideFieldFunc(hideTarget: string, hideType: "regex" | "equals", hideExpectedValue: string) {
   let shared_regex: RegExp | null = null;
 
   const hideFunc = (model: any, formState: any, field?: FormlyFieldConfig | undefined) => {
@@ -44,8 +40,6 @@ export function createShouldHideFieldFunc(
       case "regex":
         if (shared_regex == null) shared_regex = new RegExp(`^(${hideExpectedValue})$`);
         return shared_regex.test(targetFieldValue);
-      default:
-        return false;
     }
   };
 
