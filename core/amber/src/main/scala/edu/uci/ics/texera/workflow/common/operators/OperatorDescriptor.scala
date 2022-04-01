@@ -77,7 +77,7 @@ import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
     new Type(value = classOf[WordCloudOpDesc], name = "WordCloud"),
     new Type(value = classOf[HtmlVizOpDesc], name = "HTMLVisualizer"),
     new Type(value = classOf[ScatterplotOpDesc], name = "Scatterplot"),
-    new Type(value = classOf[PythonUDFOpDesc], name = "PythonUDF"),
+    new Type(value = classOf[PythonUDFOpDesc], name = "PythonUDFV1"),
     new Type(value = classOf[PythonUDFOpDescV2], name = "PythonUDFV2"),
     new Type(value = classOf[PythonUDFSourceOpDescV2], name = "PythonUDFSourceV2"),
     new Type(value = classOf[MySQLSourceOpDesc], name = "MySQLSource"),
