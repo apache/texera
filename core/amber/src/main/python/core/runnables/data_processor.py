@@ -152,7 +152,10 @@ class DataProcessor(StoppableQueueBlockingRunnable):
             self._input_link_map[link] = index
         input_ = self._input_link_map[link]
 
-        return map(lambda t: Tuple(t) if t is not None else None, self._operator.process_tuple(tuple_, input_))
+        return map(lambda t: Tuple(t) if t is not None else None,
+                   self._operator.process_tuple(tuple_, input_) if isinstance(tuple_,
+                                                                              Tuple) else self._operator.on_input_exhausted(
+                       input_))
 
     def report_exception(self) -> None:
         """
@@ -177,10 +180,10 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         self.check_and_process_control()
 
     def _process_input_exhausted(self, input_exhausted: InputExhausted):
+        self._process_tuple(input_exhausted)
         if self._current_input_link is not None:
             control_command = set_one_of(ControlCommandV2, LinkCompletedV2(self._current_input_link))
             self._async_rpc_client.send(ActorVirtualIdentity(name="CONTROLLER"), control_command)
-        self._process_tuple(input_exhausted)
 
     def _process_sender_change_marker(self, sender_change_marker: SenderChangeMarker) -> None:
         """

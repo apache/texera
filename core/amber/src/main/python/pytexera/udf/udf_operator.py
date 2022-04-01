@@ -18,17 +18,14 @@ class UDFOperator(TupleOperator):
         pass
 
     @abstractmethod
-    def process_tuple(self, tuple_: Union[Tuple, InputExhausted], input_: int) -> Iterator[Optional[TupleLike]]:
+    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
         """
         Process an input Tuple from the given link. The Tuple is represented as pandas.Series.
-        :param tuple_: Union[Tuple, InputExhausted], either
-                        1. a Tuple from a link to be processed;
-                        2. an InputExhausted indicating no more data from this link.
-
-        :param input_: int, input index of the current Tuple.
+        :param tuple_: Tuple, a Tuple from an input port to be processed.
+        :param port: int, input port index of the current Tuple.
         :return: Iterator[Optional[TupleLike]], producing one TupleLike object at a time, or None.
 
-        example:
+        Example:
             class EchoOperator(UDFOperator):
                 def process_tuple(
                     self,
