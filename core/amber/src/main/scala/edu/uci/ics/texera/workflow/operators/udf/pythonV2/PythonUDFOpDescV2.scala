@@ -24,7 +24,26 @@ class PythonUDFOpDescV2 extends OperatorDescriptor {
   @JsonProperty(
     required = true,
     defaultValue =
-      "# Choose from the following templates:\n" + "# \n" + "# from typing import Iterator, Optional, Union\n" + "# from pytexera import *\n" + "# \n" + "# class ProcessTupleOperator(UDFOperator):\n" + "#     \n" + "#     @overrides\n" + "#     def process_tuple(self, tuple_: Union[Tuple, InputExhausted], input_: int) -> Iterator[Optional[TupleLike]]:\n" + "#         if isinstance(tuple_, Tuple):\n" + "#             yield tuple_\n" + "# \n" + "# class ProcessTableOperator(UDFTableOperator):\n" + "# \n" + "#     @overrides\n" + "#     def process_table(self, table: Table, input_: int) -> Iterator[Optional[TableLike]]:\n" + "#         yield table\n"
+      "# Choose from the following templates:\n" +
+        "# \n" +
+        "# from typing import Iterator, Optional\n" +
+        "# from pytexera import *\n" +
+        "# \n" +
+        "# class ProcessTupleOperator(UDFOperator):\n" +
+        "#     \n" +
+        "#     @overrides\n" +
+        "#     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:\n" +
+        "#         yield tuple_\n" +
+        "# \n" +
+        "#     @overrides\n" +
+        "#     def on_input_exhausted(self, port: int) -> Iterator[Optional[TupleLike]]:\n" +
+        "#         yield\n" +
+        "# \n" +
+        "# class ProcessTableOperator(UDFTableOperator):\n" +
+        "# \n" +
+        "#     @overrides\n" +
+        "#     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:\n" +
+        "#         yield table\n"
   )
   @JsonSchemaTitle("Python script")
   @JsonPropertyDescription("Input your code here")
