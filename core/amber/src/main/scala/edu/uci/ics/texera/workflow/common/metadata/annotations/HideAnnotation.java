@@ -21,11 +21,12 @@ public class HideAnnotation {
     public final static String hideType = "hideType";
     public final static String hideExpectedValue = "hideExpectedValue";
 
-    public class Type {
-        /* Javascript defined equality operator is applied to assert hideTarget == hideExpectedValue */
+    /* The types of matching on which a hide occurs. Evaluated at runtime by javascript. */
+    public static class Type {
+        /* String equality operator is applied to assert hideTarget == hideExpectedValue. */
         public final static String equals = "equals";
 
-        /* Javascript defined regex matching is applied to assert regex for hideExpectedValue matches hideTarget */
+        /* Regex matching is applied to assert regex for hideExpectedValue matches hideTarget */
         public final static String regex = "regex";
     }
 }
