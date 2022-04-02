@@ -3,7 +3,7 @@ import { Observable } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
 import { HttpClient } from "@angular/common/http";
 import { WorkflowExecutionsEntry } from "../../type/workflow-executions-entry";
-import {NgbdModalWorkflowExecutionsComponent} from "../../component/feature-container/saved-workflow-section/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
+import { NgbdModalWorkflowExecutionsComponent } from "../../component/feature-container/saved-workflow-section/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 
 export const WORKFLOW_EXECUTIONS_API_BASE_URL = `${AppSettings.getApiEndpoint()}/executions`;
 
@@ -21,6 +21,6 @@ export class WorkflowExecutionsService {
   }
 
   setIsBookmarked(eId: number, isBookmarked: boolean): Observable<Boolean> {
-    return this.http.put<Boolean>(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/set_execution_bookmark`, {eId, isBookmarked});
+    return this.http.put<Boolean>(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/set_execution_bookmark`, { eId, isBookmarked });
   }
 }

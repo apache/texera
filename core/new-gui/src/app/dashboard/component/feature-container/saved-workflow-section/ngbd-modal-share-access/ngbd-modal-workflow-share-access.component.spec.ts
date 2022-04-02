@@ -17,27 +17,29 @@ describe("NgbdModalShareAccessComponent", () => {
     wid: 28,
     name: "project 1",
     content: jsonCast<WorkflowContent>(
-      ' {"operators":[],"operatorPositions":{},"links":[],"groups":[],"breakpoints":{}}'
+      " {\"operators\":[],\"operatorPositions\":{},\"links\":[],\"groups\":[],\"breakpoints\":{}}"
     ),
     creationTime: 1,
     lastModifiedTime: 2,
   };
 
-  beforeEach(waitForAsync(async () => {
-    TestBed.configureTestingModule({
-      imports: [ReactiveFormsModule, FormsModule],
-      declarations: [NgbdModalWorkflowShareAccessComponent],
-      providers: [
-        NgbActiveModal,
-        HttpClient,
-        HttpHandler,
-        {
-          provide: WorkflowAccessService,
-          useClass: StubWorkflowAccessService,
-        },
-      ],
-    });
-  }));
+  beforeEach(
+    waitForAsync(async () => {
+      TestBed.configureTestingModule({
+        imports: [ReactiveFormsModule, FormsModule],
+        declarations: [NgbdModalWorkflowShareAccessComponent],
+        providers: [
+          NgbActiveModal,
+          HttpClient,
+          HttpHandler,
+          {
+            provide: WorkflowAccessService,
+            useClass: StubWorkflowAccessService,
+          },
+        ],
+      });
+    })
+  );
 
   beforeEach(() => {
     fixture = TestBed.createComponent(NgbdModalWorkflowShareAccessComponent);

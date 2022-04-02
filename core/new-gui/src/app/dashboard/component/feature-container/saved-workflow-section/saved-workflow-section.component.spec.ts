@@ -96,31 +96,33 @@ describe("SavedWorkflowSectionComponent", () => {
     },
   ];
 
-  beforeEach(waitForAsync(() => {
-    TestBed.configureTestingModule({
-      declarations: [SavedWorkflowSectionComponent, NgbdModalWorkflowShareAccessComponent],
-      providers: [
-        WorkflowPersistService,
-        NgbActiveModal,
-        HttpClient,
-        NgbActiveModal,
-        WorkflowAccessService,
-        { provide: UserService, useClass: StubUserService },
-      ],
-      imports: [
-        MatDividerModule,
-        MatListModule,
-        MatCardModule,
-        MatDialogModule,
-        NgbModule,
-        FormsModule,
-        RouterTestingModule,
-        HttpClientTestingModule,
-        ReactiveFormsModule,
-        NzDropDownModule,
-      ],
-    }).compileComponents();
-  }));
+  beforeEach(
+    waitForAsync(() => {
+      TestBed.configureTestingModule({
+        declarations: [SavedWorkflowSectionComponent, NgbdModalWorkflowShareAccessComponent],
+        providers: [
+          WorkflowPersistService,
+          NgbActiveModal,
+          HttpClient,
+          NgbActiveModal,
+          WorkflowAccessService,
+          { provide: UserService, useClass: StubUserService },
+        ],
+        imports: [
+          MatDividerModule,
+          MatListModule,
+          MatCardModule,
+          MatDialogModule,
+          NgbModule,
+          FormsModule,
+          RouterTestingModule,
+          HttpClientTestingModule,
+          ReactiveFormsModule,
+          NzDropDownModule,
+        ],
+      }).compileComponents();
+    })
+  );
 
   beforeEach(() => {
     httpClient = TestBed.get(HttpClient);

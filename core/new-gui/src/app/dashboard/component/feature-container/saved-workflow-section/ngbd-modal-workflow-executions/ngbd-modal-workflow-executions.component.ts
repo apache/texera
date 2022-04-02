@@ -71,7 +71,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe({
         next: (succeeded: Boolean) => !succeeded && (row.bookmarked = wasPreviouslyBookmarked),
-        error: _ => (row.bookmarked = wasPreviouslyBookmarked),
+        error: (_: unknown) => (row.bookmarked = wasPreviouslyBookmarked),
       });
   }
 }
