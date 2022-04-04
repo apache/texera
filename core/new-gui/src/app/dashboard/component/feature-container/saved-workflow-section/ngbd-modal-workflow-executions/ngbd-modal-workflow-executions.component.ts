@@ -59,6 +59,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   }
 
   onBookmarkToggle(row: WorkflowExecutionsEntry) {
+    if (this.workflow.wid === undefined) return;
     const wasPreviouslyBookmarked = row.bookmarked;
 
     // Update bookmark state locally.
@@ -67,7 +68,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     // Update on the server.
     const observer = {};
     this.workflowExecutionsService
-      .setIsBookmarked(row.eId, !wasPreviouslyBookmarked)
+      .setIsBookmarked(this.workflow.wid, row.eId, !wasPreviouslyBookmarked)
       .pipe(untilDestroyed(this))
       .subscribe({
         next: (succeeded: Boolean) => !succeeded && (row.bookmarked = wasPreviouslyBookmarked),
