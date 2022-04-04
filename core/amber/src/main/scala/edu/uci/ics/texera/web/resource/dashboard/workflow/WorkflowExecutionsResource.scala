@@ -4,22 +4,24 @@ import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{WORKFLOW, WORKFLOW_EXECUTIONS}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
-
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowExecutionsResource.{
-  WorkflowExecutionEntry,
-  context
-}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowExecutionsResource._
 import io.dropwizard.auth.Auth
 import org.jooq.types.UInteger
 
 import java.sql.Timestamp
 import javax.annotation.security.PermitAll
 import javax.ws.rs._
-import javax.ws.rs.core.MediaType
+import javax.ws.rs.core.{MediaType, Response}
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 object WorkflowExecutionsResource {
   final private lazy val context = SqlServer.createDSLContext()
+  final private lazy val executionsDao = new WorkflowExecutionsDao(context.configuration)
+
+  def getExecutionById(eId: UInteger): Option[WorkflowExecutions] = {
+    executionsDao.fetchByEid(eId).lastOption
+  }
 
   case class WorkflowExecutionEntry(
                                      eId: UInteger,
@@ -78,31 +80,31 @@ class WorkflowExecutionsResource {
     }
   }
 
-  /* Sets a single execution's bookmark to the payload passed in the body.
-   Returns whether op succeeded. */
+  /* Sets a single execution's bookmark to the payload passed in the body. */
   @PUT
   @Path("/set_execution_bookmark")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   def setExecutionIsBookmarked(
                                 request: ExecutionBookmarkRequest,
                                 @Auth sessionUser: SessionUser
-                              ): Boolean = {
-    val wid = request.wid
-    val uid = sessionUser.getUser.getUid
+                              ): Unit = {
+    validateUserCanAccessWorkflow(request.wid, sessionUser.getUser.getUid)
+    getExecutionById(request.eId) match {
+      case Some(execution) => {
+        val isBookmarked: Byte = if (request.isBookmarked) 1 else 0
+        execution.setBookmarked(isBookmarked)
+        executionsDao.update(execution)
+      }
+      case None => throw new WebApplicationException(Response.Status.NOT_FOUND)
+    }
+  }
+
+  /* Determine if user is authorized to access the workflow, if not raise 401 */
+  def validateUserCanAccessWorkflow(uid: UInteger, wid: UInteger): Unit = {
     if (
       WorkflowAccessResource.hasNoWorkflowAccess(wid, uid) ||
         WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, uid)
     )
-      return false
-
-    val executionsDao = new WorkflowExecutionsDao(context.configuration)
-    val execution = executionsDao.fetchByEid(request.eId).lastOption
-    if (!execution.isDefined)
-      return false
-
-    val isBookmarked: Byte = if (request.isBookmarked) 1 else 0
-    execution.get.setBookmarked(isBookmarked)
-    executionsDao.update(execution.get)
-    return true
+      throw new WebApplicationException(Response.Status.UNAUTHORIZED);
   }
 }

@@ -66,12 +66,10 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
     row.bookmarked = !wasPreviouslyBookmarked;
 
     // Update on the server.
-    const observer = {};
     this.workflowExecutionsService
       .setIsBookmarked(this.workflow.wid, row.eId, !wasPreviouslyBookmarked)
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: (succeeded: Boolean) => !succeeded && (row.bookmarked = wasPreviouslyBookmarked),
         error: (_: unknown) => (row.bookmarked = wasPreviouslyBookmarked),
       });
   }

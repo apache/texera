@@ -20,8 +20,8 @@ export class WorkflowExecutionsService {
     return this.http.get<WorkflowExecutionsEntry[]>(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/${wid}`);
   }
 
-  setIsBookmarked(wid: number, eId: number, isBookmarked: boolean): Observable<Boolean> {
-    return this.http.put<Boolean>(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/set_execution_bookmark`, {
+  setIsBookmarked(wid: number, eId: number, isBookmarked: boolean): Observable<Object> {
+    return this.http.put(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/set_execution_bookmark`, {
       wid,
       eId,
       isBookmarked,
