@@ -2,13 +2,17 @@ package edu.uci.ics.texera.workflow.operators.source.sql
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaArrayWithUniqueItems, JsonSchemaInject, JsonSchemaString, JsonSchemaTitle}
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, BatchByColumn, EnablePresets, UIWidget}
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{
+  AutofillAttributeName,
+  BatchByColumn,
+  EnablePresets,
+  UIWidget
+}
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 
 import java.sql._
-
 
 abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
 
@@ -103,15 +107,15 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
   var interval = 0L
 
   /**
-   * Make sure all the required parameters are not empty,
-   * then query the remote PostgreSQL server for the table schema
-   *
-   * @return Texera.Tuple.Schema
-   */
+    * Make sure all the required parameters are not empty,
+    * then query the remote PostgreSQL server for the table schema
+    *
+    * @return Texera.Tuple.Schema
+    */
   override def sourceSchema(): Schema = {
     if (
       this.host == null || this.port == null || this.database == null
-        || this.table == null || this.username == null || this.password == null
+      || this.table == null || this.username == null || this.password == null
     )
       return null
     querySchema
@@ -121,12 +125,12 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
   def getKeywords: Option[String] = keywords
 
   /**
-   * Establish a connection with the database server base on the info provided by the user
-   * query the MetaData of the table and generate a Texera.tuple.schema accordingly
-   * the "switch" code block shows how SQL data types are mapped to Texera AttributeTypes
-   *
-   * @return Schema
-   */
+    * Establish a connection with the database server base on the info provided by the user
+    * query the MetaData of the table and generate a Texera.tuple.schema accordingly
+    * the "switch" code block shows how SQL data types are mapped to Texera AttributeTypes
+    *
+    * @return Schema
+    */
   protected def querySchema: Schema = {
     updatePort()
     val schemaBuilder = Schema.newBuilder
@@ -135,32 +139,32 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
       connection.setReadOnly(true)
       val databaseMetaData = connection.getMetaData
       val columns = databaseMetaData.getColumns(null, null, this.table, null)
-      while ( {
+      while ({
         columns.next
       }) {
         val columnName = columns.getString("COLUMN_NAME")
         val datatype = columns.getInt("DATA_TYPE")
         datatype match {
           case Types.TINYINT | // -6 Types.TINYINT
-               Types.SMALLINT | // 5 Types.SMALLINT
-               Types.INTEGER => // 4 Types.INTEGER
+              Types.SMALLINT | // 5 Types.SMALLINT
+              Types.INTEGER => // 4 Types.INTEGER
             schemaBuilder.add(new Attribute(columnName, AttributeType.INTEGER))
           case Types.FLOAT | // 6 Types.FLOAT
-               Types.REAL | // 7 Types.REAL
-               Types.DOUBLE | // 8 Types.DOUBLE
-               Types.NUMERIC => // 3 Types.NUMERIC
+              Types.REAL | // 7 Types.REAL
+              Types.DOUBLE | // 8 Types.DOUBLE
+              Types.NUMERIC => // 3 Types.NUMERIC
             schemaBuilder.add(new Attribute(columnName, AttributeType.DOUBLE))
           case Types.BIT | // -7 Types.BIT
-               Types.BOOLEAN => // 16 Types.BOOLEAN
+              Types.BOOLEAN => // 16 Types.BOOLEAN
             schemaBuilder.add(new Attribute(columnName, AttributeType.BOOLEAN))
           case Types.BINARY | //-2 Types.BINARY
-               Types.DATE | //91 Types.DATE
-               Types.TIME | //92 Types.TIME
-               Types.LONGVARCHAR | //-1 Types.LONGVARCHAR
-               Types.CHAR | //1 Types.CHAR
-               Types.VARCHAR | //12 Types.VARCHAR
-               Types.NULL | //0 Types.NULL
-               Types.OTHER => //1111 Types.OTHER
+              Types.DATE | //91 Types.DATE
+              Types.TIME | //92 Types.TIME
+              Types.LONGVARCHAR | //-1 Types.LONGVARCHAR
+              Types.CHAR | //1 Types.CHAR
+              Types.VARCHAR | //12 Types.VARCHAR
+              Types.NULL | //0 Types.NULL
+              Types.OTHER => //1111 Types.OTHER
             schemaBuilder.add(new Attribute(columnName, AttributeType.STRING))
           case Types.BIGINT => //-5 Types.BIGINT
             schemaBuilder.add(new Attribute(columnName, AttributeType.LONG))
@@ -175,7 +179,7 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
       connection.close()
       schemaBuilder.build
     } catch {
-      case e@(_: SQLException | _: ClassCastException) =>
+      case e @ (_: SQLException | _: ClassCastException) =>
         e.printStackTrace()
         throw new RuntimeException(
           this.getClass.getSimpleName + " failed to connect to the database. " + e.getMessage
