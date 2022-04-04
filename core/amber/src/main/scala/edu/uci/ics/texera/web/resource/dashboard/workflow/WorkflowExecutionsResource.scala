@@ -23,6 +23,8 @@ object WorkflowExecutionsResource {
     executionsDao.fetchByEid(eId).lastOption
   }
 
+  // TODO: determine if this is necessary in providing more information of the
+  //  execution than pre-existing jooq tables e.g. the underlying result rows.
   case class WorkflowExecutionEntry(
                                      eId: UInteger,
                                      vId: UInteger,
@@ -80,7 +82,7 @@ class WorkflowExecutionsResource {
     }
   }
 
-  /* Sets a single execution's bookmark to the payload passed in the body. */
+  /** Sets a single execution's bookmark to the payload passed in the body. */
   @PUT
   @Path("/set_execution_bookmark")
   @Consumes(Array(MediaType.APPLICATION_JSON))
@@ -99,7 +101,7 @@ class WorkflowExecutionsResource {
     }
   }
 
-  /* Determine if user is authorized to access the workflow, if not raise 401 */
+  /** Determine if user is authorized to access the workflow, if not raise 401 */
   def validateUserCanAccessWorkflow(uid: UInteger, wid: UInteger): Unit = {
     if (
       WorkflowAccessResource.hasNoWorkflowAccess(wid, uid) ||

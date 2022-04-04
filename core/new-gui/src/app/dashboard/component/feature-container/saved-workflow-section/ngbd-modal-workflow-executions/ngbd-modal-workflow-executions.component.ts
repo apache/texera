@@ -18,7 +18,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit {
   public workflowExecutionsList: WorkflowExecutionsEntry[] | undefined;
 
   public executionsTableHeaders: string[] = ["Execution#", "Starting Time", "Updated Time", "Status", "Bookmarked?"];
-  public currentlyHoveredExecution: WorkflowExecutionsEntry | null = null;
+  public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
 
   constructor(public activeModal: NgbActiveModal, private workflowExecutionsService: WorkflowExecutionsService) {}
 
