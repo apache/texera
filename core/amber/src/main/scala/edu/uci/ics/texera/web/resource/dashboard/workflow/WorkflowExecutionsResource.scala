@@ -5,7 +5,10 @@ import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{WORKFLOW, WORKFLOW_EXECUTIONS}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
 
-import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowExecutionsResource.{WorkflowExecutionEntry, context}
+import edu.uci.ics.texera.web.resource.dashboard.workflow.WorkflowExecutionsResource.{
+  WorkflowExecutionEntry,
+  context
+}
 import io.dropwizard.auth.Auth
 import org.jooq.types.UInteger
 
@@ -19,14 +22,14 @@ object WorkflowExecutionsResource {
   final private lazy val context = SqlServer.createDSLContext()
 
   case class WorkflowExecutionEntry(
-                                     eId: UInteger,
-                                     vId: UInteger,
-                                     startingTime: Timestamp,
-                                     completionTime: Timestamp,
-                                     status: Byte,
-                                     result: String,
-                                     bookmarked: Boolean // FIXME: how come we have this class at all, what's the point of jooq if we have this? it's redundant, no?
-                                   )
+      eId: UInteger,
+      vId: UInteger,
+      startingTime: Timestamp,
+      completionTime: Timestamp,
+      status: Byte,
+      result: String,
+      bookmarked: Boolean // FIXME: how come we have this class at all, what's the point of jooq if we have this? it's redundant, no?
+  )
 
 }
 
@@ -38,21 +41,21 @@ case class ExecutionBookmarkRequest(eId: UInteger, isBookmarked: Boolean)
 class WorkflowExecutionsResource {
 
   /**
-   * This method returns the executions of a workflow given by its ID
-   *
-   * @return executions[]
-   */
+    * This method returns the executions of a workflow given by its ID
+    *
+    * @return executions[]
+    */
   @GET
   @Path("/{wid}")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def retrieveExecutionsOfWorkflow(
-                                    @PathParam("wid") wid: UInteger,
-                                    @Auth sessionUser: SessionUser
-                                  ): List[WorkflowExecutionEntry] = {
+      @PathParam("wid") wid: UInteger,
+      @Auth sessionUser: SessionUser
+  ): List[WorkflowExecutionEntry] = {
     val user = sessionUser.getUser
     if (
       WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid) ||
-        WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, user.getUid)
+      WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, user.getUid)
     ) {
       List()
     } else {
@@ -80,7 +83,10 @@ class WorkflowExecutionsResource {
   @PUT
   @Path("/set_execution_bookmark")
   @Consumes(Array(MediaType.APPLICATION_JSON))
-  def setExecutionIsBookmarked(request: ExecutionBookmarkRequest, @Auth sessionUser: SessionUser): Boolean = {
+  def setExecutionIsBookmarked(
+      request: ExecutionBookmarkRequest,
+      @Auth sessionUser: SessionUser
+  ): Boolean = {
     val executionsDao = new WorkflowExecutionsDao(context.configuration)
     val execution = executionsDao.fetchByEid(request.eId).lastOption
     if (!execution.isDefined)
@@ -88,8 +94,10 @@ class WorkflowExecutionsResource {
 
     val wid = execution.get.getWid
     val uid = sessionUser.getUser.getUid
-    if (WorkflowAccessResource.hasNoWorkflowAccess(wid, uid) ||
-      WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, uid))
+    if (
+      WorkflowAccessResource.hasNoWorkflowAccess(wid, uid) ||
+      WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, uid)
+    )
       return false
 
     val isBookmarked: Byte = if (request.isBookmarked) 1 else 0
