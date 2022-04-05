@@ -1,6 +1,6 @@
 import { DragDropService } from "../../../service/drag-drop/drag-drop.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import { AfterContentInit, AfterViewInit, ChangeDetectorRef, Component, Input, OnInit } from "@angular/core";
+import { AfterContentInit, AfterViewInit, ChangeDetectorRef, Component, Input } from "@angular/core";
 
 import { OperatorSchema } from "../../../types/operator-schema.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -16,7 +16,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
   templateUrl: "./operator-label.component.html",
   styleUrls: ["./operator-label.component.scss"],
 })
-export class OperatorLabelComponent implements OnInit, AfterViewInit, AfterContentInit {
+export class OperatorLabelComponent implements AfterViewInit, AfterContentInit {
   public static operatorLabelPrefix = "texera-operator-label-";
   public static operatorLabelSearchBoxPrefix = "texera-operator-label-search-result-";
 
@@ -38,8 +38,6 @@ export class OperatorLabelComponent implements OnInit, AfterViewInit, AfterConte
     private workflowActionService: WorkflowActionService,
     private changeDetectorRef: ChangeDetectorRef
   ) {}
-
-  ngOnInit() {}
 
   ngAfterContentInit(): void {
     this.handleWorkFlowModificationEnabled();
