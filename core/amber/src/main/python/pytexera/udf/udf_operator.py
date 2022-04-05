@@ -93,7 +93,7 @@ class UDFTableOperator(TableOperator):
         :param input_: int, input index of the current Table.
         :return: Iterator[Optional[TableLike]], producing one TableLike object at a time, or None.
         """
-        pass
+        yield
 
     def close(self) -> None:
         """

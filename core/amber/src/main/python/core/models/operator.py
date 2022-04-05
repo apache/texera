@@ -119,7 +119,7 @@ class TableOperator(TupleOperatorV2):
         :param port: int, input port index of the current Tuple.
         :return: Iterator[Optional[TableLike]], producing one TableLike object at a time, or None.
         """
-        pass
+        yield
 
 
 @deprecated(reason="Use TupleOperatorV2 instead")
