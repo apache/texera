@@ -154,7 +154,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
 
         return map(lambda t: Tuple(t) if t is not None else None,
                    self._operator.process_tuple(tuple_, input_) if isinstance(tuple_, Tuple)
-                   else self._operator.on_input_exhausted(input_))
+                   else self._operator.on_finish(input_))
 
     def report_exception(self) -> None:
         """

@@ -5,6 +5,7 @@ from typing import Iterator, List, Mapping, Optional, Union
 import overrides
 import pandas
 from pyarrow.lib import Schema
+from deprecated import deprecated
 
 from . import InputExhausted, Table, TableLike, Tuple, TupleLike
 from ..util.arrow_utils import to_arrow_schema
@@ -59,7 +60,6 @@ class Operator(ABC):
         """
         pass
 
-
 class TupleOperatorV2(Operator):
     """
     Base class for tuple-oriented operators. A concrete implementation must
@@ -76,7 +76,7 @@ class TupleOperatorV2(Operator):
         """
         yield
 
-    def on_input_exhausted(self, port: int) -> Iterator[Optional[TupleLike]]:
+    def on_finish(self, port: int) -> Iterator[Optional[TupleLike]]:
         """
         Callback when one input port is exhausted.
         :param port: int, input port index of the current exhausted port.
@@ -101,7 +101,7 @@ class TableOperator(TupleOperatorV2):
         self.__table_data[port].append(tuple_)
         yield
 
-    def on_input_exhausted(self, port: int) -> Iterator[Optional[TableLike]]:
+    def on_finish(self, port: int) -> Iterator[Optional[TableLike]]:
         table = Table(pandas.DataFrame([i.as_series() for i in self.__table_data[port]]))
         for output_table in self.process_table(table, port):
             if output_table is not None:
@@ -112,16 +112,17 @@ class TableOperator(TupleOperatorV2):
                     yield output_table
 
     @abstractmethod
-    def process_table(self, table: Table, input_: int) -> Iterator[Optional[TableLike]]:
+    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
         """
         Process an input Table from the given link. The Table is represented as pandas.DataFrame.
         :param table: Table, a table to be processed.
-        :param input_: int, input index of the current Table.
+        :param port: int, input port index of the current Tuple.
         :return: Iterator[Optional[TableLike]], producing one TableLike object at a time, or None.
         """
         pass
 
 
+@deprecated(reason="Use TupleOperatorV2 instead")
 class TupleOperator(Operator):
     """
     Base class for tuple-oriented operators. A concrete implementation must
@@ -140,10 +141,8 @@ class TupleOperator(Operator):
         """
         yield
 
-    def on_input_exhausted(self, port: int) -> Iterator[Optional[TupleLike]]:
+    def on_finish(self, port: int) -> Iterator[Optional[TupleLike]]:
         """
-        Callback when one input port is exhausted.
-        :param port: int, input port index of the current exhausted port.
-         :return: Iterator[Optional[TupleLike]], producing one TupleLike object at a time, or None.
+        For backward compatibility.
         """
         yield from self.process_tuple(InputExhausted(), input_=port)

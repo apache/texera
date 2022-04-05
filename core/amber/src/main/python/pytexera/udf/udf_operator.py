@@ -1,9 +1,10 @@
 from abc import abstractmethod
 from typing import Iterator, Optional, Union
-
+from deprecated import deprecated
 from pyamber import *
 
 
+@deprecated(reason="Use UDFOperatorV2 instead")
 class UDFOperator(TupleOperator):
     def open(self) -> None:
         """
@@ -53,6 +54,14 @@ class UDFOperatorV2(TupleOperatorV2):
         :return: Iterator[Optional[TupleLike]], producing one TupleLike object at a time, or None.
 
         See .examples/ for example operators.
+        """
+        yield
+
+    def on_finish(self, port: int) -> Iterator[Optional[TupleLike]]:
+        """
+        Callback when one input port is exhausted.
+        :param port: int, input port index of the current exhausted port.
+        :return: Iterator[Optional[TupleLike]], producing one TupleLike object at a time, or None.
         """
         yield
 

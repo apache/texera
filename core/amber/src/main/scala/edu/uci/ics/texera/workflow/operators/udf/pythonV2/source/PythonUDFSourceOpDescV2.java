@@ -31,14 +31,13 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
     @JsonProperty(required = true, defaultValue =
             "# Choose from the following templates:\n" +
                     "# \n" +
-                    "# from typing import Iterator, Optional\n" +
                     "# from pytexera import *\n" +
                     "# \n" +
                     "# class ProcessTupleOperator(UDFOperator):\n" +
                     "# \n" +
                     "#     @overrides\n" +
-                    "#     def on_input_exhausted(self, port: int) -> Iterator[Optional[TupleLike]]:\n" +
-                    "#         yield\n" +
+                    "#     def process_tuple(self, tuple_: Union[Tuple, InputExhausted], input_: int) -> Iterator[Optional[TupleLike]]:\n" +
+                    "#         yield tuple_\n" +
                     "# \n" +
                     "# class ProcessTableOperator(UDFTableOperator):\n" +
                     "# \n" +
@@ -65,7 +64,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                 new PythonUDFSourceOpExecV2(code, operatorSchemaInfo.outputSchema());
         Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.");
         if (workers > 1) {
-            return new OneToOneOpExecConfig(operatorIdentifier(), exec, workers,  mapAsScalaMap(Collections.emptyMap()) );
+            return new OneToOneOpExecConfig(operatorIdentifier(), exec, workers, mapAsScalaMap(Collections.emptyMap()));
         } else {
             return new ManyToOneOpExecConfig(operatorIdentifier(), exec, mapAsScalaMap(Collections.emptyMap()));
         }

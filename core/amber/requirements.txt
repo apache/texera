@@ -24,3 +24,4 @@ overrides==6.1.0
 typing_extensions
 pytest-reraise
 dataclasses
+Deprecated~=1.2.13
