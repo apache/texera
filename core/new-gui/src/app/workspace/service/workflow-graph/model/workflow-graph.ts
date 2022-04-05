@@ -1,5 +1,5 @@
-import {Subject} from "rxjs";
-import {Observable} from "rxjs";
+import { Subject } from "rxjs";
+import { Observable } from "rxjs";
 import {
   OperatorPredicate,
   OperatorLink,
@@ -9,7 +9,7 @@ import {
   CommentBox,
   Comment,
 } from "../../../types/workflow-common.interface";
-import {isEqual} from "lodash-es";
+import { isEqual } from "lodash-es";
 
 // define the restricted methods that could change the graph
 type restrictedMethods =
@@ -40,7 +40,9 @@ export function isSink(operator: OperatorPredicate): boolean {
 }
 
 export function isPythonUdf(operator: OperatorPredicate): boolean {
-  return [PYTHON_UDF_V2_OP_TYPE, PYTHON_UDF_SOURCE_V2_OP_TYPE, DUAL_INPUT_PORTS_PYTHON_UDF_V2_OP_TYPE].includes(operator.operatorType);
+  return [PYTHON_UDF_V2_OP_TYPE, PYTHON_UDF_SOURCE_V2_OP_TYPE, DUAL_INPUT_PORTS_PYTHON_UDF_V2_OP_TYPE].includes(
+    operator.operatorType
+  );
 }
 
 /**
@@ -120,7 +122,7 @@ export class WorkflowGraph {
     const commentBox = this.commentBoxMap.get(commentBoxID);
     if (commentBox != null) {
       commentBox.comments.push(comment);
-      this.commentBoxAddCommentSubject.next({addedComment: comment, commentBox: commentBox});
+      this.commentBoxAddCommentSubject.next({ addedComment: comment, commentBox: commentBox });
     }
   }
 
@@ -135,7 +137,7 @@ export class WorkflowGraph {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
     this.operatorIDMap.delete(operatorID);
-    this.operatorDeleteSubject.next({deletedOperator: operator});
+    this.operatorDeleteSubject.next({ deletedOperator: operator });
   }
 
   public deleteCommentBox(commentBoxID: string): void {
@@ -144,7 +146,7 @@ export class WorkflowGraph {
       throw new Error(`CommentBox with ID ${commentBoxID} does not exist`);
     }
     this.commentBoxMap.delete(commentBoxID);
-    this.commentBoxDeleteSubject.next({deletedCommentBox: commentBox});
+    this.commentBoxDeleteSubject.next({ deletedCommentBox: commentBox });
   }
 
   public disableOperator(operatorID: string): void {
@@ -155,7 +157,7 @@ export class WorkflowGraph {
     if (this.isOperatorDisabled(operatorID)) {
       return;
     }
-    this.operatorIDMap.set(operatorID, {...operator, isDisabled: true});
+    this.operatorIDMap.set(operatorID, { ...operator, isDisabled: true });
     this.disabledOperatorChangedSubject.next({
       newDisabled: [operatorID],
       newEnabled: [],
@@ -170,7 +172,7 @@ export class WorkflowGraph {
     if (!this.isOperatorDisabled(operatorID)) {
       return;
     }
-    this.operatorIDMap.set(operatorID, {...operator, isDisabled: false});
+    this.operatorIDMap.set(operatorID, { ...operator, isDisabled: false });
     this.disabledOperatorChangedSubject.next({
       newDisabled: [],
       newEnabled: [operatorID],
@@ -186,7 +188,7 @@ export class WorkflowGraph {
       ...operator,
       customDisplayName: newDisplayName,
     });
-    this.operatorDisplayNameChangedSubject.next({operatorID, newDisplayName});
+    this.operatorDisplayNameChangedSubject.next({ operatorID, newDisplayName });
   }
 
   public isOperatorDisabled(operatorID: string): boolean {
@@ -212,7 +214,7 @@ export class WorkflowGraph {
     if (this.isOperatorCached(operatorID)) {
       return;
     }
-    this.operatorIDMap.set(operatorID, {...operator, isCached: true});
+    this.operatorIDMap.set(operatorID, { ...operator, isCached: true });
     this.cachedOperatorChangedSubject.next({
       newCached: [operatorID],
       newUnCached: [],
@@ -227,7 +229,7 @@ export class WorkflowGraph {
     if (!this.isOperatorCached(operatorID)) {
       return;
     }
-    this.operatorIDMap.set(operatorID, {...operator, isCached: false});
+    this.operatorIDMap.set(operatorID, { ...operator, isCached: false });
     this.cachedOperatorChangedSubject.next({
       newCached: [],
       newUnCached: [operatorID],
@@ -319,7 +321,7 @@ export class WorkflowGraph {
       throw new Error(`link with ID ${linkID} doesn't exist`);
     }
     this.operatorLinkMap.delete(linkID);
-    this.linkDeleteSubject.next({deletedLink: link});
+    this.linkDeleteSubject.next({ deletedLink: link });
     // delete its breakpoint
     this.linkBreakpointMap.delete(linkID);
   }
@@ -337,7 +339,7 @@ export class WorkflowGraph {
         to ${target.operatorID}.${target.portID} doesn't exist`);
     }
     this.operatorLinkMap.delete(link.linkID);
-    this.linkDeleteSubject.next({deletedLink: link});
+    this.linkDeleteSubject.next({ deletedLink: link });
     // delete its breakpoint
     this.linkBreakpointMap.delete(link.linkID);
   }
@@ -448,7 +450,7 @@ export class WorkflowGraph {
     // set the new copy back to the operator ID map
     this.operatorIDMap.set(operatorID, operator);
 
-    this.operatorPropertyChangeSubject.next({oldProperty, operator});
+    this.operatorPropertyChangeSubject.next({ oldProperty, operator });
   }
 
   /**
@@ -466,7 +468,7 @@ export class WorkflowGraph {
     } else {
       this.linkBreakpointMap.set(linkID, breakpoint);
     }
-    this.breakpointChangeStream.next({oldBreakpoint, linkID});
+    this.breakpointChangeStream.next({ oldBreakpoint, linkID });
   }
 
   /**
