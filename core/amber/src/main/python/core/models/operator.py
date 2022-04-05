@@ -60,6 +60,7 @@ class Operator(ABC):
         """
         pass
 
+
 class TupleOperatorV2(Operator):
     """
     Base class for tuple-oriented operators. A concrete implementation must
