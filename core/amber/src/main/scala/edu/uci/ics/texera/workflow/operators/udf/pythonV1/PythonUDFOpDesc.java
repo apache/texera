@@ -24,7 +24,7 @@ import java.util.List;
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
 
-
+@Deprecated
 public class PythonUDFOpDesc extends OperatorDescriptor {
 
     @JsonProperty()

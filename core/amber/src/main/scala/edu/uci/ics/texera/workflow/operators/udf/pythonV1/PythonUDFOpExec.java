@@ -31,6 +31,7 @@ import static edu.uci.ics.texera.workflow.operators.udf.pythonV1.PythonUDFOpExec
 import static edu.uci.ics.texera.workflow.operators.udf.pythonV1.PythonUDFOpExec.Channel.TO_PYTHON;
 import static edu.uci.ics.texera.workflow.operators.udf.pythonV1.PythonUDFOpExec.MSG.*;
 
+@Deprecated
 public class PythonUDFOpExec implements OperatorExecutor {
 
 
