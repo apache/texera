@@ -80,7 +80,7 @@ class TupleOperatorV2(Operator):
         """
         Callback when one input port is exhausted.
         :param port: int, input port index of the current exhausted port.
-         :return: Iterator[Optional[TupleLike]], producing one TupleLike object at a time, or None.
+        :return: Iterator[Optional[TupleLike]], producing one TupleLike object at a time, or None.
         """
         yield
 
