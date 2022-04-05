@@ -1,9 +1,5 @@
 import { Component, OnInit } from "@angular/core";
-import { FormControl } from "@angular/forms";
-import { MatAutocompleteSelectedEvent } from "@angular/material/autocomplete";
 import Fuse from "fuse.js";
-import { Observable } from "rxjs";
-import { map } from "rxjs/operators";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 
 import { GroupInfo, OperatorMetadata, OperatorSchema } from "../../types/operator-schema.interface";
@@ -12,11 +8,7 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { OperatorLabelComponent } from "./operator-label/operator-label.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import {
-  NzAutocompleteComponent,
-  NzAutocompleteOptionComponent,
-  NzOptionSelectionChange,
-} from "ng-zorro-antd/auto-complete";
+import { NzAutocompleteOptionComponent } from "ng-zorro-antd/auto-complete";
 
 /**
  * OperatorPanelComponent is the left-side panel that shows the operators.
@@ -128,8 +120,8 @@ export class OperatorPanelComponent implements OnInit {
       point
     );
 
-    // asynchrnously immediately clear the search input and suggestions
-    // because ng-zorro shows the selected value if it's synchrnously
+    // asynchronously immediately clear the search input and suggestions
+    // because ng-zorro shows the selected value if it's synchronously
     setTimeout(() => {
       this.searchInputValue = "";
       this.autocompleteOptions = [];
@@ -144,6 +136,10 @@ export class OperatorPanelComponent implements OnInit {
    * @param operatorMetadata metadata of all operators
    */
   private processOperatorMetadata(operatorMetadata: OperatorMetadata): void {
+    operatorMetadata = {
+      ...operatorMetadata,
+      operators: operatorMetadata.operators.filter(operatorSchema => operatorSchema.operatorType != "PythonUDF"),
+    };
     this.operatorSchemaList = operatorMetadata.operators;
     this.groupNamesOrdered = getGroupNamesSorted(operatorMetadata.groups);
     this.operatorGroupMap = getOperatorGroupMap(operatorMetadata);
@@ -151,8 +147,10 @@ export class OperatorPanelComponent implements OnInit {
   }
 }
 
-// generates a list of group names sorted by the order
-// slice() will make a copy of the list, because we don't want to sort the original list
+/**
+ * generates a list of group names sorted by the order
+ * slice() will make a copy of the list, because we don't want to sort the original list
+ */
 export function getGroupNamesSorted(groupInfoList: ReadonlyArray<GroupInfo>): string[] {
   return groupInfoList
     .slice()
@@ -160,7 +158,9 @@ export function getGroupNamesSorted(groupInfoList: ReadonlyArray<GroupInfo>): st
     .map(groupInfo => groupInfo.groupName);
 }
 
-// returns a new empty map from the group name to a list of OperatorSchema
+/**
+ * returns a new empty map from the group name to a list of OperatorSchema
+ */
 export function getOperatorGroupMap(operatorMetadata: OperatorMetadata): Map<string, OperatorSchema[]> {
   const groups = operatorMetadata.groups.map(groupInfo => groupInfo.groupName);
   const operatorGroupMap = new Map<string, OperatorSchema[]>();
