@@ -138,7 +138,7 @@ export class OperatorPanelComponent implements OnInit {
   private processOperatorMetadata(operatorMetadata: OperatorMetadata): void {
     operatorMetadata = {
       ...operatorMetadata,
-      operators: operatorMetadata.operators.filter(operatorSchema => operatorSchema.operatorType != "PythonUDFV1"),
+      operators: operatorMetadata.operators.filter(operatorSchema => operatorSchema.operatorType != "PythonUDF"),
     };
     this.operatorSchemaList = operatorMetadata.operators;
     this.groupNamesOrdered = getGroupNamesSorted(operatorMetadata.groups);
