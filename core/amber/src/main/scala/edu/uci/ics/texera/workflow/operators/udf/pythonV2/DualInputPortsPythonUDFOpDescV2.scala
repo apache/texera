@@ -26,15 +26,19 @@ class DualInputPortsPythonUDFOpDescV2 extends OperatorDescriptor {
     defaultValue =
       "# Choose from the following templates:\n" +
         "# \n" +
-        "# from typing import Iterator, Optional, Union\n" +
         "# from pytexera import *\n" +
         "# \n" +
-        "# class ProcessTupleOperator(UDFOperator):\n" +
+        "# class ProcessTupleOperator(UDFOperatorV2):\n" +
         "#     \n" +
         "#     @overrides\n" +
-        "#     def process_tuple(self, tuple_: Union[Tuple, InputExhausted], input_: int) -> Iterator[Optional[TupleLike]]:\n" +
-        "#         if isinstance(tuple_, Tuple):\n" +
-        "#             yield tuple_\n" + "# \n" + "# class ProcessTableOperator(UDFTableOperator):\n" + "# \n" + "#     @overrides\n" + "#     def process_table(self, table: Table, input_: int) -> Iterator[Optional[TableLike]]:\n" + "#         yield table\n"
+        "#     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:\n" +
+        "#         yield tuple_\n" +
+        "# \n" +
+        "# class ProcessTableOperator(UDFTableOperator):\n" +
+        "# \n" +
+        "#     @overrides\n" +
+        "#     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:\n" +
+        "#         yield table\n"
   )
   @JsonSchemaTitle("Python script")
   @JsonPropertyDescription("Input your code here")
@@ -64,7 +68,7 @@ class DualInputPortsPythonUDFOpDescV2 extends OperatorDescriptor {
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "Python UDF V2",
+      "2-in Python UDF",
       "User-defined function operator in Python script",
       OperatorGroupConstants.UDF_GROUP,
       List(

@@ -26,18 +26,13 @@ class PythonUDFOpDescV2 extends OperatorDescriptor {
     defaultValue =
       "# Choose from the following templates:\n" +
         "# \n" +
-        "# from typing import Iterator, Optional\n" +
         "# from pytexera import *\n" +
         "# \n" +
-        "# class ProcessTupleOperator(UDFOperator):\n" +
+        "# class ProcessTupleOperator(UDFOperatorV2):\n" +
         "#     \n" +
         "#     @overrides\n" +
         "#     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:\n" +
         "#         yield tuple_\n" +
-        "# \n" +
-        "#     @overrides\n" +
-        "#     def on_input_exhausted(self, port: int) -> Iterator[Optional[TupleLike]]:\n" +
-        "#         yield\n" +
         "# \n" +
         "# class ProcessTableOperator(UDFTableOperator):\n" +
         "# \n" +
@@ -72,7 +67,7 @@ class PythonUDFOpDescV2 extends OperatorDescriptor {
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "Python UDF V2",
+      "Python UDF",
       "User-defined function operator in Python script",
       OperatorGroupConstants.UDF_GROUP,
       asScalaBuffer(singletonList(new InputPort("", true))).toList,
