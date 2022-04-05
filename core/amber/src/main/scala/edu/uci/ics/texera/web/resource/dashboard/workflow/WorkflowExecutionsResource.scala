@@ -26,14 +26,14 @@ object WorkflowExecutionsResource {
   // TODO: determine if this is necessary in providing more information of the
   //  execution than pre-existing jooq tables e.g. the underlying result rows.
   case class WorkflowExecutionEntry(
-      eId: UInteger,
-      vId: UInteger,
-      startingTime: Timestamp,
-      completionTime: Timestamp,
-      status: Byte,
-      result: String,
-      bookmarked: Boolean
-  )
+                                     eId: UInteger,
+                                     vId: UInteger,
+                                     startingTime: Timestamp,
+                                     completionTime: Timestamp,
+                                     status: Byte,
+                                     result: String,
+                                     bookmarked: Boolean
+                                   )
 
 }
 
@@ -45,21 +45,21 @@ case class ExecutionBookmarkRequest(wid: UInteger, eId: UInteger, isBookmarked: 
 class WorkflowExecutionsResource {
 
   /**
-    * This method returns the executions of a workflow given by its ID
-    *
-    * @return executions[]
-    */
+   * This method returns the executions of a workflow given by its ID
+   *
+   * @return executions[]
+   */
   @GET
   @Path("/{wid}")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def retrieveExecutionsOfWorkflow(
-      @PathParam("wid") wid: UInteger,
-      @Auth sessionUser: SessionUser
-  ): List[WorkflowExecutionEntry] = {
+                                    @PathParam("wid") wid: UInteger,
+                                    @Auth sessionUser: SessionUser
+                                  ): List[WorkflowExecutionEntry] = {
     val user = sessionUser.getUser
     if (
       WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid) ||
-      WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, user.getUid)
+        WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, user.getUid)
     ) {
       List()
     } else {
@@ -87,14 +87,13 @@ class WorkflowExecutionsResource {
   @Path("/set_execution_bookmark")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   def setExecutionIsBookmarked(
-      request: ExecutionBookmarkRequest,
-      @Auth sessionUser: SessionUser
-  ): Unit = {
+                                request: ExecutionBookmarkRequest,
+                                @Auth sessionUser: SessionUser
+                              ): Unit = {
     validateUserCanAccessWorkflow(request.wid, sessionUser.getUser.getUid)
     getExecutionById(request.eId) match {
       case Some(execution) => {
-        val isBookmarked: Byte = if (request.isBookmarked) 1 else 0
-        execution.setBookmarked(isBookmarked)
+        execution.setBookmarked((if (request.isBookmarked) 1 else 0).toByte)
         executionsDao.update(execution)
       }
       case None => throw new WebApplicationException(Response.Status.NOT_FOUND)
@@ -105,7 +104,7 @@ class WorkflowExecutionsResource {
   def validateUserCanAccessWorkflow(uid: UInteger, wid: UInteger): Unit = {
     if (
       WorkflowAccessResource.hasNoWorkflowAccess(wid, uid) ||
-      WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, uid)
+        WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, uid)
     )
       throw new WebApplicationException(Response.Status.UNAUTHORIZED);
   }
