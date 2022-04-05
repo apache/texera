@@ -19,21 +19,21 @@ object WorkflowExecutionsResource {
   final private lazy val context = SqlServer.createDSLContext()
   final private lazy val executionsDao = new WorkflowExecutionsDao(context.configuration)
 
-  def getExecutionById(eId: UInteger): Option[WorkflowExecutions] = {
-    executionsDao.fetchByEid(eId).lastOption
+  def getExecutionById(eId: UInteger): WorkflowExecutions = {
+    executionsDao.fetchOneByEid(eId)
   }
 
   // TODO: determine if this is necessary in providing more information of the
   //  execution than pre-existing jooq tables e.g. the underlying result rows.
   case class WorkflowExecutionEntry(
-                                     eId: UInteger,
-                                     vId: UInteger,
-                                     startingTime: Timestamp,
-                                     completionTime: Timestamp,
-                                     status: Byte,
-                                     result: String,
-                                     bookmarked: Boolean
-                                   )
+      eId: UInteger,
+      vId: UInteger,
+      startingTime: Timestamp,
+      completionTime: Timestamp,
+      status: Byte,
+      result: String,
+      bookmarked: Boolean
+  )
 
 }
 
@@ -45,21 +45,21 @@ case class ExecutionBookmarkRequest(wid: UInteger, eId: UInteger, isBookmarked: 
 class WorkflowExecutionsResource {
 
   /**
-   * This method returns the executions of a workflow given by its ID
-   *
-   * @return executions[]
-   */
+    * This method returns the executions of a workflow given by its ID
+    *
+    * @return executions[]
+    */
   @GET
   @Path("/{wid}")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def retrieveExecutionsOfWorkflow(
-                                    @PathParam("wid") wid: UInteger,
-                                    @Auth sessionUser: SessionUser
-                                  ): List[WorkflowExecutionEntry] = {
+      @PathParam("wid") wid: UInteger,
+      @Auth sessionUser: SessionUser
+  ): List[WorkflowExecutionEntry] = {
     val user = sessionUser.getUser
     if (
       WorkflowAccessResource.hasNoWorkflowAccess(wid, user.getUid) ||
-        WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, user.getUid)
+      WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, user.getUid)
     ) {
       List()
     } else {
@@ -87,24 +87,20 @@ class WorkflowExecutionsResource {
   @Path("/set_execution_bookmark")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   def setExecutionIsBookmarked(
-                                request: ExecutionBookmarkRequest,
-                                @Auth sessionUser: SessionUser
-                              ): Unit = {
-    validateUserCanAccessWorkflow(request.wid, sessionUser.getUser.getUid)
-    getExecutionById(request.eId) match {
-      case Some(execution) => {
-        execution.setBookmarked((if (request.isBookmarked) 1 else 0).toByte)
-        executionsDao.update(execution)
-      }
-      case None => throw new WebApplicationException(Response.Status.NOT_FOUND)
-    }
+      request: ExecutionBookmarkRequest,
+      @Auth sessionUser: SessionUser
+  ): Unit = {
+    validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
+    val execution: WorkflowExecutions = getExecutionById(request.eId)
+    execution.setBookmarked((if (request.isBookmarked) 1 else 0).toByte)
+    executionsDao.update(execution)
   }
 
   /** Determine if user is authorized to access the workflow, if not raise 401 */
   def validateUserCanAccessWorkflow(uid: UInteger, wid: UInteger): Unit = {
     if (
       WorkflowAccessResource.hasNoWorkflowAccess(wid, uid) ||
-        WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, uid)
+      WorkflowAccessResource.hasNoWorkflowAccessRecord(wid, uid)
     )
       throw new WebApplicationException(Response.Status.UNAUTHORIZED);
   }

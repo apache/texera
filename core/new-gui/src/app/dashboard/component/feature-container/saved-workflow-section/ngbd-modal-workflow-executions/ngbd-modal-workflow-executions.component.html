@@ -13,10 +13,6 @@
     </thead>
     <tbody>
       <tr *ngFor="let row of workflowExecutionsList; let i=index;">
-        <td nzEllipsis>{{(i + 1)}}</td>
-        <td nzEllipsis>{{row.startingTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
-        <td nzEllipsis>{{row.completionTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
-        <td nzEllipsis>{{getExecutionStatus(row.status)}}</td>
         <td nzEllipsis>
           <i
             nz-icon
@@ -28,6 +24,10 @@
             (click)="onBookmarkToggle(row)"
           ></i>
         </td>
+        <td nzEllipsis>{{(i + 1)}}</td>
+        <td nzEllipsis>{{row.startingTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
+        <td nzEllipsis>{{row.completionTime | date:'MM/dd/yyyy HH:mm:ss'}}</td>
+        <td nzEllipsis>{{getExecutionStatus(row.status)}}</td>
       </tr>
     </tbody>
   </nz-table>
