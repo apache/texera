@@ -113,8 +113,11 @@ class TableOperator(TupleOperator):
             table = Table(pandas.DataFrame([i.as_series() for i in self.__table_data[input_]]))
             for output_table in self.process_table(table, input_):
                 if output_table is not None:
-                    for _, output_tuple in output_table.iterrows():
-                        yield output_tuple
+                    if isinstance(output_table, pandas.DataFrame):
+                        for _, output_tuple in output_table.iterrows():
+                            yield output_tuple
+                    else:
+                        yield output_table
 
     @abstractmethod
     def process_table(self, table: Table, input_: int) -> Iterator[Optional[TableLike]]:
