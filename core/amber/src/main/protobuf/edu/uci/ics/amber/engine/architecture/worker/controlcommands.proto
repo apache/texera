@@ -72,7 +72,6 @@ message LinkCompletedV2 {
     common.LinkIdentity link_id = 1 [(scalapb.field).no_box = true];
 }
 
-
 message ControlCommandV2 {
     oneof sealed_value {
         StartWorkerV2 start_worker = 1;
