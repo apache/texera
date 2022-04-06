@@ -17,7 +17,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowExecutions implements IWorkflowExecutions {
 
-    private static final long serialVersionUID = -1890677241;
+    private static final long serialVersionUID = 135387394;
 
     private UInteger  eid;
     private UInteger  wid;
@@ -26,6 +26,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
     private String    result;
     private Timestamp startingTime;
     private Timestamp completionTime;
+    private Byte      bookmarked;
 
     public WorkflowExecutions() {}
 
@@ -37,6 +38,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         this.result = value.getResult();
         this.startingTime = value.getStartingTime();
         this.completionTime = value.getCompletionTime();
+        this.bookmarked = value.getBookmarked();
     }
 
     public WorkflowExecutions(
@@ -46,7 +48,8 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         Byte      status,
         String    result,
         Timestamp startingTime,
-        Timestamp completionTime
+        Timestamp completionTime,
+        Byte      bookmarked
     ) {
         this.eid = eid;
         this.wid = wid;
@@ -55,6 +58,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         this.result = result;
         this.startingTime = startingTime;
         this.completionTime = completionTime;
+        this.bookmarked = bookmarked;
     }
 
     @Override
@@ -128,6 +132,16 @@ public class WorkflowExecutions implements IWorkflowExecutions {
     }
 
     @Override
+    public Byte getBookmarked() {
+        return this.bookmarked;
+    }
+
+    @Override
+    public void setBookmarked(Byte bookmarked) {
+        this.bookmarked = bookmarked;
+    }
+
+    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("WorkflowExecutions (");
 
@@ -138,6 +152,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         sb.append(", ").append(result);
         sb.append(", ").append(startingTime);
         sb.append(", ").append(completionTime);
+        sb.append(", ").append(bookmarked);
 
         sb.append(")");
         return sb.toString();
@@ -156,6 +171,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         setResult(from.getResult());
         setStartingTime(from.getStartingTime());
         setCompletionTime(from.getCompletionTime());
+        setBookmarked(from.getBookmarked());
     }
 
     @Override

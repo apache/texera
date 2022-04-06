@@ -11,7 +11,8 @@ import edu.uci.ics.amber.engine.operators.OpExecConfig
 
 class OneToOneOpExecConfig(
     override val id: OperatorIdentity,
-    val opExec: Int => IOperatorExecutor
+    val opExec: Int => IOperatorExecutor,
+    val numWorkers: Int = Constants.currentWorkerNum
 ) extends OpExecConfig(id) {
 
   override lazy val topology: Topology = {
@@ -20,7 +21,7 @@ class OneToOneOpExecConfig(
         new WorkerLayer(
           makeLayer(id, "main"),
           opExec,
-          Constants.currentWorkerNum,
+          numWorkers,
           FollowPrevious(),
           RoundRobinDeployment()
         )
