@@ -74,7 +74,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
     @Override
     public OperatorInfo operatorInfo() {
         return new OperatorInfo(
-                "Python UDF Source V2",
+                "1-out Python UDF",
                 "User-defined function operator in Python script",
                 OperatorGroupConstants.UDF_GROUP(),
                 scala.collection.immutable.List.<InputPort>empty(),
