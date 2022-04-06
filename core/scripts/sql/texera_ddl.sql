@@ -157,6 +157,7 @@ CREATE TABLE IF NOT EXISTS workflow_executions
     `result`          TEXT, #pointer to volume
     `starting_time`   TIMESTAMP                   NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `completion_time`   TIMESTAMP,
+    `bookmarked`      BOOLEAN DEFAULT FALSE,
     PRIMARY KEY (`eid`),
     FOREIGN KEY (`wid`) REFERENCES `workflow` (`wid`) ON DELETE CASCADE,
     FOREIGN KEY (`vid`) REFERENCES `workflow_version` (`vid`) ON DELETE CASCADE

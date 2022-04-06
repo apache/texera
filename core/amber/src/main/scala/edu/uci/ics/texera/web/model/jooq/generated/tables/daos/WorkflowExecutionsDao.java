@@ -144,4 +144,18 @@ public class WorkflowExecutionsDao extends DAOImpl<WorkflowExecutionsRecord, edu
     public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchByCompletionTime(Timestamp... values) {
         return fetch(WorkflowExecutions.WORKFLOW_EXECUTIONS.COMPLETION_TIME, values);
     }
+
+    /**
+     * Fetch records that have <code>bookmarked BETWEEN lowerInclusive AND upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfBookmarked(Byte lowerInclusive, Byte upperInclusive) {
+        return fetchRange(WorkflowExecutions.WORKFLOW_EXECUTIONS.BOOKMARKED, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>bookmarked IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchByBookmarked(Byte... values) {
+        return fetch(WorkflowExecutions.WORKFLOW_EXECUTIONS.BOOKMARKED, values);
+    }
 }

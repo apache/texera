@@ -86,6 +86,16 @@ public interface IWorkflowExecutions extends Serializable {
      */
     public Timestamp getCompletionTime();
 
+    /**
+     * Setter for <code>texera_db.workflow_executions.bookmarked</code>.
+     */
+    public void setBookmarked(Byte value);
+
+    /**
+     * Getter for <code>texera_db.workflow_executions.bookmarked</code>.
+     */
+    public Byte getBookmarked();
+
     // -------------------------------------------------------------------------
     // FROM and INTO
     // -------------------------------------------------------------------------
