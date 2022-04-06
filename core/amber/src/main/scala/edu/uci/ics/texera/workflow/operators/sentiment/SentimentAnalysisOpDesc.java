@@ -13,11 +13,14 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttribute
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig;
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
+
+import java.util.Collections;
 
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
+import static scala.collection.JavaConverters.mapAsScalaMap;
 
 public class SentimentAnalysisOpDesc extends MapOpDesc {
 
@@ -35,7 +38,8 @@ public class SentimentAnalysisOpDesc extends MapOpDesc {
         if (attribute == null) {
             throw new RuntimeException("sentiment analysis: attribute is null");
         }
-        return new OneToOneOpExecConfig(operatorIdentifier(), worker -> new SentimentAnalysisOpExec(this, operatorSchemaInfo), Constants.currentWorkerNum());
+        return new OneToOneOpExecConfig(operatorIdentifier(), worker -> new SentimentAnalysisOpExec(this, operatorSchemaInfo),
+                Constants.currentWorkerNum(),  mapAsScalaMap(Collections.emptyMap()));
     }
 
     @Override

@@ -1,11 +1,13 @@
-from typing import Iterator, Optional, Union
-
-from pytexera import InputExhausted, Tuple, TupleLike, UDFOperator, overrides
+from pytexera import *
 
 
-class EchoOperator(UDFOperator):
+class EchoOperator(UDFOperatorV2):
 
     @overrides
-    def process_tuple(self, tuple_: Union[Tuple, InputExhausted], input_: int) -> Iterator[Optional[TupleLike]]:
-        if isinstance(tuple_, Tuple):
-            yield tuple_
+    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        yield tuple_
+
+    @overrides
+    def on_finish(self, port: int) -> Iterator[Optional[TupleLike]]:
+        print(f"end of port {port}")
+        yield

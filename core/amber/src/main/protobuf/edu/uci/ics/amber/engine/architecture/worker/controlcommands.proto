@@ -68,6 +68,9 @@ message EvaluateExpressionV2 {
 message QuerySelfWorkloadMetricsV2{
 }
 
+message LinkCompletedV2 {
+    common.LinkIdentity link_id = 1 [(scalapb.field).no_box = true];
+}
 
 message ControlCommandV2 {
     oneof sealed_value {
@@ -84,6 +87,7 @@ message ControlCommandV2 {
         LocalOperatorExceptionV2 local_operator_exception = 8;
 
         OpenOperatorV2 open_operator= 9;
+        LinkCompletedV2 link_completed = 10;
 
         InitializeOperatorLogicV2 initialize_operator_logic = 21;
         ModifyOperatorLogicV2 modify_operator_logic = 22;

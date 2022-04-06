@@ -31,6 +31,7 @@ export type WorkflowGraphReadonly = Omit<WorkflowGraph, restrictedMethods>;
 
 export const PYTHON_UDF_V2_OP_TYPE = "PythonUDFV2";
 export const PYTHON_UDF_SOURCE_V2_OP_TYPE = "PythonUDFSourceV2";
+export const DUAL_INPUT_PORTS_PYTHON_UDF_V2_OP_TYPE = "DualInputPortsPythonUDFV2";
 export const VIEW_RESULT_OP_TYPE = "SimpleSink";
 export const VIEW_RESULT_OP_NAME = "View Results";
 
@@ -39,12 +40,14 @@ export function isSink(operator: OperatorPredicate): boolean {
 }
 
 export function isPythonUdf(operator: OperatorPredicate): boolean {
-  return operator.operatorType === PYTHON_UDF_V2_OP_TYPE || operator.operatorType === PYTHON_UDF_SOURCE_V2_OP_TYPE;
+  return [PYTHON_UDF_V2_OP_TYPE, PYTHON_UDF_SOURCE_V2_OP_TYPE, DUAL_INPUT_PORTS_PYTHON_UDF_V2_OP_TYPE].includes(
+    operator.operatorType
+  );
 }
 
 /**
  * WorkflowGraph represents the Texera's logical WorkflowGraph,
- *  it's a graph consisted of operators <OperatorPredicate> and links <OpreatorLink>,
+ *  it's a graph consisted of operators <OperatorPredicate> and links <OperatorLink>,
  *  each operator and link has its own unique ID.
  *
  */
@@ -122,6 +125,7 @@ export class WorkflowGraph {
       this.commentBoxAddCommentSubject.next({ addedComment: comment, commentBox: commentBox });
     }
   }
+
   /**
    * Deletes the operator from the graph by its ID.
    * Throws an Error if the operator doesn't exist.
@@ -276,6 +280,7 @@ export class WorkflowGraph {
     }
     return commentBox;
   }
+
   /**
    * Returns an array of all operators in the graph
    */
@@ -525,6 +530,7 @@ export class WorkflowGraph {
   public getCommentBoxAddCommentStream(): Observable<{ addedComment: Comment; commentBox: CommentBox }> {
     return this.commentBoxAddCommentSubject.asObservable();
   }
+
   public getCachedOperatorsChangedStream(): Observable<{
     newCached: ReadonlyArray<string>;
     newUnCached: ReadonlyArray<string>;
@@ -592,6 +598,7 @@ export class WorkflowGraph {
       throw new Error(`commentBox with ID ${commentBoxID} does not exist`);
     }
   }
+
   /**
    * Checks if an operator
    * Throws an Error if there's a duplicate operator ID

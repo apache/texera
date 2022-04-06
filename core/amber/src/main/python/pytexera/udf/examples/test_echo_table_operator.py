@@ -17,7 +17,7 @@ class TestEchoTableOperator:
         tuple_ = Tuple({"test-1": "hello", "test-2": 10})
         print(tuple_)
         deque(echo_table_operator.process_tuple(tuple_, 0))
-        outputs = echo_table_operator.process_tuple(InputExhausted(), 0)
+        outputs = echo_table_operator.on_finish(0)
         output_tuple = Tuple(next(outputs))
         assert (output_tuple == tuple_)
         with pytest.raises(StopIteration):
