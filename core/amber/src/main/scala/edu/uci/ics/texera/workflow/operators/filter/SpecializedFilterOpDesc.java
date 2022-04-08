@@ -11,11 +11,14 @@ import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig;
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 
+
+import java.util.Collections;
 import java.util.List;
 
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
 
+import static scala.collection.JavaConverters.mapAsScalaMap;
 public class SpecializedFilterOpDesc extends FilterOpDesc {
 
     @JsonProperty(value = "predicates", required = true)
@@ -27,7 +30,8 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
         return new OneToOneOpExecConfig(
                 operatorIdentifier(),
                 worker -> new SpecializedFilterOpExec(this),
-                Constants.currentWorkerNum()
+                Constants.currentWorkerNum(),
+                mapAsScalaMap(Collections.emptyMap())
         );
     }
 

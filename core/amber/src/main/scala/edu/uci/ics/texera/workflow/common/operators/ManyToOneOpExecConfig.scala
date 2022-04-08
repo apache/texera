@@ -1,18 +1,22 @@
 package edu.uci.ics.texera.workflow.common.operators
 
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
+import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.UseAll
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.RoundRobinDeployment
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
+import edu.uci.ics.amber.engine.common.virtualidentity.util.{makeLayer, toOperatorIdentity}
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 
+import scala.collection.mutable
+
 class ManyToOneOpExecConfig(
     override val id: OperatorIdentity,
-    val opExec: Int => IOperatorExecutor
+    val opExec: Int => IOperatorExecutor,
+    val dependency: mutable.Map[Int, Int] = mutable.Map()
 ) extends OpExecConfig(id) {
 
   override lazy val topology: Topology = {
@@ -28,6 +32,20 @@ class ManyToOneOpExecConfig(
       ),
       Array()
     )
+  }
+
+  override def checkStartDependencies(workflow: Workflow): Unit = {
+    // Map[depender -> dependee]
+    // example: 1 -> 0 means port 1 depends on port 0, so that it needs to wait until port 0 finishes.
+    for ((dependerIndex, dependeeIndex) <- dependency) {
+      val dependeeLink =
+        inputToOrdinalMapping.find({ case (_, index) => index == dependeeIndex }).get._1
+      val dependerLink =
+        inputToOrdinalMapping.find({ case (_, index) => index == dependerIndex }).get._1
+      workflow.getSources(toOperatorIdentity(dependerLink.from)).foreach { source =>
+        workflow.getOperator(source).topology.layers.head.startAfter(dependeeLink)
+      }
+    }
   }
 
   override def assignBreakpoint(
