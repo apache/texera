@@ -22,7 +22,7 @@ import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
 import { OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
-import { auditTime, filter, map } from "rxjs/operators";
+import { auditTime, filter, map, buffer, debounceTime } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 // This type represents the copied operator and its information:
@@ -131,6 +131,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleDisableOperator();
     this.registerOperatorDisplayNameChangeHandler();
     this.handleViewDeleteLink();
+    this.handleViewAddPort();
     this.handleViewCollapseGroup();
     this.handleViewExpandGroup();
     this.handlePaperPan();
@@ -567,6 +568,20 @@ export class WorkflowEditorComponent implements AfterViewInit {
           }
         }
       });
+      // fromJointPaperEvent(this.getJointPaper(), "cell:pointerdblclick")
+      // .pipe(untilDestroyed(this))
+      // .subscribe(event => console.log(event));
+      const clickStream = fromJointPaperEvent(this.getJointPaper(), "input-label:evt")
+
+
+      clickStream.pipe(
+        buffer(clickStream.pipe(debounceTime(250))),
+        filter(x => x.length === 2),
+        untilDestroyed(this)
+      ).subscribe(e => {
+        console.log('doubleclick');
+        console.log(e);
+      })
   }
   /**
    * Handles user mouse down events to trigger logically highlight and unhighlight an operator or group.
@@ -757,7 +772,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     const elementSize = this.getWrapperElementSize();
     this.getJointPaper().setDimensions(elementSize.width, elementSize.height);
   }
-
+  
   /**
    * Handles the event where the Delete button is clicked for an Operator,
    *  and call workflowAction to delete the corresponding operator.
@@ -784,6 +799,33 @@ export class WorkflowEditorComponent implements AfterViewInit {
           this.workflowActionService.deleteCommentBox(elementView.model.id.toString());
         }
       });
+  }
+
+  private handleViewAddPort(): void {
+    // bind the delete button event to call the delete operator function in joint model action
+    fromJointPaperEvent(this.getJointPaper(), "element:add-input-port")
+      .pipe(
+        filter(value => this.interactive),
+        map(value => value[0])
+      )
+      .pipe(untilDestroyed(this))
+      .subscribe(elementView => {
+        if (this.workflowActionService.getTexeraGraph().hasOperator(elementView.model.id.toString())) {
+          this.workflowActionService.addPort(elementView.model.id.toString(), true, true);
+        }
+      });
+    fromJointPaperEvent(this.getJointPaper(), "element:add-output-port")
+      .pipe(
+        filter(value => this.interactive),
+        map(value => value[0])
+      )
+      .pipe(untilDestroyed(this))
+      .subscribe(elementView => {
+        if (this.workflowActionService.getTexeraGraph().hasOperator(elementView.model.id.toString())) {
+          this.workflowActionService.addPort(elementView.model.id.toString(), false);
+        }
+      });
+
   }
 
   private handleViewMouseoverOperator(): void {

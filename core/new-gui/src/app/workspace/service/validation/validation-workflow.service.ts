@@ -150,7 +150,7 @@ export class ValidationWorkflowService {
       .getOperatorDeleteStream()
       .subscribe(operator => this.updateValidationStateOnDelete(operator.deletedOperator.operatorID));
 
-    // Capture the link add and delete event and validate the source and target operators for this link
+    // Capture the link add and delete event and validate the source and target operators of this link
     merge(
       this.workflowActionService.getTexeraGraph().getLinkAddStream(),
       this.workflowActionService
@@ -160,6 +160,12 @@ export class ValidationWorkflowService {
     ).subscribe(link => {
       this.updateValidationState(link.source.operatorID, this.validateOperator(link.source.operatorID));
       this.updateValidationState(link.target.operatorID, this.validateOperator(link.target.operatorID));
+    });
+
+    // capture the port change event and validate the operator of this port
+    this.workflowActionService.getTexeraGraph().getOperatorPortChangeStream().subscribe(portChange => {
+      this.updateValidationState(portChange.operatorID, this.validateOperator(portChange.operatorID));
+
     });
 
     // Capture the operator property change event and validate the current operator being changed
@@ -252,19 +258,19 @@ export class ValidationWorkflowService {
     let satisfyInput = true;
     let inputPortsViolationMessage = "";
     for (let i = 0; i < operator.inputPorts.length; i++) {
-      const portInfo = operatorSchema.additionalMetadata.inputPorts[i];
-      const portNumInputs = numInputLinksByPort.get(operator.inputPorts[i].portID) ?? 0;
-      if (portInfo.allowMultiInputs) {
+      const port = operator.inputPorts[i];
+      const portNumInputs = numInputLinksByPort.get(port.portID) ?? 0;
+      if (port.allowMultiInputs) {
         if (portNumInputs < 1) {
           satisfyInput = false;
           inputPortsViolationMessage += `${
-            portInfo.displayName ?? ""
+            port.displayName ?? ""
           } requires at least 1 inputs, has ${portNumInputs}`;
         }
       } else {
         if (portNumInputs !== 1) {
           satisfyInput = false;
-          inputPortsViolationMessage += `${portInfo.displayName ?? ""} requires 1 input, has ${portNumInputs}`;
+          inputPortsViolationMessage += `${port.displayName ?? ""} requires 1 input, has ${portNumInputs}`;
         }
       }
     }

@@ -14,6 +14,7 @@ import {
   Point,
   CommentBox,
   Comment,
+  PortDescription,
 } from "../../../types/workflow-common.interface";
 import { JointUIService } from "../../joint-ui/joint-ui.service";
 import { OperatorMetadataService } from "../../operator-metadata/operator-metadata.service";
@@ -29,6 +30,7 @@ import { WorkflowCollabService } from "../../workflow-collab/workflow-collab.ser
 import { Command, commandFuncs, CommandMessage } from "src/app/workspace/types/command.interface";
 import { isDefined } from "../../../../common/util/predicate";
 import { environment } from "../../../../../environments/environment";
+import { assert } from "src/app/common/util/assert";
 
 type OperatorPosition = {
   position: Point;
@@ -480,6 +482,95 @@ export class WorkflowActionService {
     this.executeStoreAndPropagateCommand(command, commandMessage);
   }
 
+  public addPort(operatorID: string, isInput: boolean, allowMultiInputs?: boolean): void {
+    const operator = this.texeraGraph.getOperator(operatorID);
+    const prefix = isInput ? "input-" : "output-";
+    let suffix = isInput ? (operator.inputPorts.length + 1) : (operator.outputPorts.length + 1);
+    let portID = prefix + suffix;
+    // make sure portID has no conflict
+    const existingPorts = isInput ? operator.inputPorts : operator.outputPorts;
+    while (operator.inputPorts.find(p => p.portID === portID) !== undefined) {
+      suffix += 1;
+      portID = prefix + suffix;
+    }
+
+    const port: PortDescription = {portID, displayName: portID, allowMultiInputs, isDynamicPort: true};
+
+    if (! operator.dynamicInputPorts && isInput) {
+      throw new Error(`operator ${operatorID} does not have dynamic input ports`);
+    }
+    if (! operator.dynamicOutputPorts && !isInput) {
+      throw new Error(`operator ${operatorID} does not have dynamic output ports`);
+    }
+    if ((!isInput) && allowMultiInputs !== undefined) {
+      throw new Error(`error: allowMultiInputs property of an output port should not be specified`);
+    }
+
+    const command: Command = {
+      modifiesWorkflow: true,
+      execute: () => {
+        this.addPortInternal(operatorID, port, isInput);
+      },
+      undo: () => {
+        this.removePortInternal(operatorID, port.portID, isInput);
+      }
+    }
+    const commandMessage: CommandMessage = { action: "addPort", parameters: [operatorID, isInput, allowMultiInputs], type: "execute" };
+    this.executeStoreAndPropagateCommand(command, commandMessage);
+  }
+
+  public removePort(operatorID: string, portID: string): void {
+    const operator = this.texeraGraph.getOperator(operatorID);
+    const inputPort = operator.inputPorts.find(p => p.portID === portID);
+    const outputPort = operator.outputPorts.find(p => p.portID === portID);
+    const port = inputPort !== undefined ? inputPort : outputPort;
+    if (port === undefined) {
+      throw new Error(`cannot find port ${portID} of operator ${operatorID}`);
+    }
+    if (port.isDynamicPort) {
+      throw new Error(`canno remove a static port ${portID} of operator ${operatorID}`);
+    }
+    const isInput = inputPort !== undefined;    
+
+    const command: Command = {
+      modifiesWorkflow: true,
+      execute: () => {
+        this.removePortInternal(operatorID, portID, isInput);
+      },
+      undo: () => {
+        this.addPortInternal(operatorID, port, isInput);
+      }
+    }
+    const commandMessage: CommandMessage = { action: "removePort", parameters: [operatorID, portID], type: "execute" };
+    this.executeStoreAndPropagateCommand(command, commandMessage);
+  }
+
+  private addPortInternal(operatorID: string, port: PortDescription, isInput: boolean): void {
+    this.texeraGraph.assertOperatorExists(operatorID);
+    const operatorJointElement = <joint.dia.Element>this.jointGraph.getCell(operatorID);
+    this.texeraGraph.addPort(operatorID, port, isInput);
+
+    const portGroup = isInput ? "in" : "out";
+    operatorJointElement.addPort({
+      group: portGroup,
+      id: port.portID,
+      attrs: {
+        ".port-label": {
+          text: port.displayName ?? "",
+        },
+      },
+    });
+  }
+
+  private removePortInternal(operatorID: string, portID: string, isInput: boolean): void {
+    this.texeraGraph.assertOperatorExists(operatorID);
+    const operatorJointElement = <joint.dia.Element>this.jointGraph.getCell(operatorID);
+    
+    this.texeraGraph.removePort(operatorID,  portID, isInput);
+    operatorJointElement.removePort(portID);
+  }
+
+  
   public addCommentBox(commentBox: CommentBox): void {
     const currentHighlights = this.jointGraphWrapper.getCurrentHighlights();
     const command: Command = {
@@ -1089,6 +1180,7 @@ export class WorkflowActionService {
       this.getTexeraGraph().getOperatorDeleteStream(),
       this.getTexeraGraph().getLinkAddStream(),
       this.getTexeraGraph().getLinkDeleteStream(),
+      this.getTexeraGraph().getOperatorPortChangeStream(),
       this.getOperatorGroup().getGroupAddStream(),
       this.getOperatorGroup().getGroupDeleteStream(),
       this.getOperatorGroup().getGroupCollapseStream(),

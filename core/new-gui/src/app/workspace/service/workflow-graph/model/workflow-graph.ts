@@ -8,6 +8,7 @@ import {
   Point,
   CommentBox,
   Comment,
+  PortDescription,
 } from "../../../types/workflow-common.interface";
 import { isEqual } from "lodash-es";
 
@@ -19,7 +20,9 @@ type restrictedMethods =
   | "deleteLink"
   | "deleteLinkWithID"
   | "setOperatorProperty"
-  | "setLinkBreakpoint";
+  | "setLinkBreakpoint"
+  | "addPort"
+  | "removePort";
 
 /**
  * WorkflowGraphReadonly is a type that only contains the readonly methods of WorkflowGraph.
@@ -85,6 +88,11 @@ export class WorkflowGraph {
   private readonly breakpointChangeStream = new Subject<{
     oldBreakpoint: object | undefined;
     linkID: string;
+  }>();
+  private readonly operatorPortChangedSubject = new Subject<{
+    operatorID: string;
+    oldOperator: OperatorPredicate;
+    newOperator: OperatorPredicate;
   }>();
   private readonly commentBoxAddSubject = new Subject<CommentBox>();
   private readonly commentBoxDeleteSubject = new Subject<{ deletedCommentBox: CommentBox }>();
@@ -294,6 +302,38 @@ export class WorkflowGraph {
 
   public getAllCommentBoxes(): CommentBox[] {
     return Array.from(this.commentBoxMap.values());
+  }
+
+  public addPort(operatorID: string, port: PortDescription, isInput: boolean): void {
+    this.assertOperatorExists(operatorID);
+    const oldOperator = this.getOperator(operatorID);
+    let newOperator: OperatorPredicate;
+    if (isInput) {
+      const newInputPorts: PortDescription[] = [...oldOperator.inputPorts, port];
+      newOperator = {...oldOperator, inputPorts: newInputPorts};
+    } else {
+      const newOutputPorts: PortDescription[] = [...oldOperator.outputPorts, port];
+      newOperator = {...oldOperator, outputPorts: newOutputPorts};
+    }
+
+    this.operatorIDMap.set(operatorID, newOperator);
+    this.operatorPortChangedSubject.next({operatorID, oldOperator, newOperator});
+  }
+
+  public removePort(operatorID: string, portID: string, isInput: boolean): void {
+    this.assertOperatorExists(operatorID);
+    const oldOperator = this.getOperator(operatorID);
+    let newOperator: OperatorPredicate;
+    if (isInput) {
+      const newInputPorts: PortDescription[] = oldOperator.inputPorts.filter(p => p.portID !== portID);
+      newOperator = {...oldOperator, inputPorts: newInputPorts};
+    } else {
+      const newOutputPorts: PortDescription[] = oldOperator.outputPorts.filter(p => p.portID !== portID);
+      newOperator = {...oldOperator, outputPorts: newOutputPorts};
+    }
+    this.operatorIDMap.set(operatorID, newOperator);
+    this.operatorPortChangedSubject.next({operatorID, oldOperator, newOperator});
+
   }
 
   /**
@@ -579,6 +619,14 @@ export class WorkflowGraph {
     linkID: string;
   }> {
     return this.breakpointChangeStream.asObservable();
+  }
+
+  public getOperatorPortChangeStream(): Observable<{
+    operatorID: string;
+    oldOperator: OperatorPredicate;
+    newOperator: OperatorPredicate;
+  }> {
+    return this.operatorPortChangedSubject.asObservable();
   }
 
   /**

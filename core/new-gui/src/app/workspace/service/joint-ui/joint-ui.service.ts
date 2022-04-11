@@ -14,11 +14,13 @@ import { fromEvent, fromEventPattern, Observable } from "rxjs";
 /**
  * Defines the SVG element for the breakpoint button
  */
-export const breakpointButtonSVG = `<svg class="breakpoint-button" height = "24" width = "24">
+export const breakpointButtonSVG = `
+  <svg class="breakpoint-button" height = "24" width = "24">
     <path d="M0 0h24v24H0z" fill="none" /> +
     <polygon points="8,2 16,2 22,8 22,16 16,22 8,22 2,16 2,8" fill="red" />
+    <title>add breakpoint</title>
   </svg>
-  <title>Add Breakpoint.</title>`;
+  `;
 /**
  * Defines the SVG path for the delete button
  */
@@ -30,10 +32,34 @@ export const deleteButtonPath =
 /**
  * Defines the HTML SVG element for the delete button and customizes the look
  */
-export const deleteButtonSVG = `<svg class="delete-button" height="24" width="24">
+export const deleteButtonSVG = `
+  <svg class="delete-button" height="24" width="24">
     <path d="M0 0h24v24H0z" fill="none" pointer-events="visible" />
     <path d="${deleteButtonPath}"/>
+    <title>delete operator</title>
   </svg>`;
+
+
+export const addPortButtonPath = `
+M 15.3 9.9 L 11.7 9.9 L 11.7 6.3 L 9.9 6.3 L 9.9 9.9 L 6.3 9.9 L 6.3 11.7 L 9.9 11.7 L 9.9 15.3 L 11.7 15.3 L 11.7 11.7 L 15.3 11.7 z M 10.8 1.8 C 5.823 1.8 1.8 5.823 1.8 10.8 s 4.023 9 9 9 s 9 -4.023 9 -9 S 15.777 1.8 10.8 1.8 z m 0 16.2 c -3.969 0 -7.2 -3.231 -7.2 -7.2 s 3.231 -7.2 7.2 -7.2 s 7.2 3.231 7.2 7.2 s -3.231 7.2 -7.2 7.2 z
+`;
+
+export const addInputPortButtonSVG = `
+  <svg class="add-input-port-button" height="20" width="20">
+    <path d="M0 0h20v20H0z" fill="none" pointer-events="visible" />
+    <path d="${addPortButtonPath}"/>
+    <title>add port</title>
+  </svg>
+`;
+
+
+export const addOutputPortButtonSVG = `
+  <svg class="add-output-port-button" height="20" width="20">
+    <path d="M0 0h20v20H0z" fill="none" pointer-events="visible" />
+    <path d="${addPortButtonPath}"/>
+    <title>add port</title>
+  </svg>
+`;
 
 /**
  * Defines the SVG path for the collapse button
@@ -101,7 +127,10 @@ export const linkPathStrokeColor = "#919191";
  *   which will show a red delete button on the top right corner
  */
 class TexeraCustomJointElement extends joint.shapes.devs.Model {
-  markup = `<g class="element-node">
+
+  static getMarkup(dynamicInputPorts: boolean, dynamicOutputPorts: boolean): string {
+    return `
+    <g class="element-node">
       <rect class="body"></rect>
       <rect class="boundary"></rect>
       <image class="${operatorIconClass}"></image>
@@ -118,7 +147,11 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
       <text class="${operatorCacheTextClass}"></text>
       <image class="${operatorCacheIconClass}"></image>
       ${deleteButtonSVG}
-    </g>`;
+      ${dynamicInputPorts ? addInputPortButtonSVG : ""}
+      ${dynamicOutputPorts ? addOutputPortButtonSVG : ""}
+    </g>
+    `
+  }
 }
 
 /**
@@ -221,6 +254,7 @@ export class JointUIService {
           out: { attrs: JointUIService.getCustomPortStyleAttrs() },
         },
       },
+      markup: TexeraCustomJointElement.getMarkup(operator.dynamicInputPorts ?? false, operator.dynamicOutputPorts ?? false)
     });
 
     // set operator element ID to be operator ID
@@ -231,9 +265,24 @@ export class JointUIService {
       operatorElement.addPort({
         group: "in",
         id: port.portID,
+        // label: {
+        //   markup: [{
+        //       tagName: 'text',
+        //       selector: 'label'
+        //   }]
+        // },
+        // attrs: {
+        //   label: { 
+        //     text: port.displayName ?? "",
+        //     event: "input-label:evt"
+        //   }
+        // }
         attrs: {
           ".port-label": {
             text: port.displayName ?? "",
+            event: "input-label:evt",
+            dblclick: "input-label:dbclick",
+            pointerdblclick: "input-label:pointerdblclick"
           },
         },
       })
@@ -288,6 +337,8 @@ export class JointUIService {
       [`.${operatorStateBGClass}`]: { visibility: "hidden" },
       [`.${operatorStateClass}`]: { visibility: "hidden" },
       ".delete-button": { visibility: "hidden" },
+      ".add-input-port-button": { visibility: "hidden" },
+      ".add-output-port-button": { visibility: "hidden" },
     });
   }
 
@@ -302,6 +353,8 @@ export class JointUIService {
       [`.${operatorStateBGClass}`]: { visibility: "visible" },
       [`.${operatorStateClass}`]: { visibility: "visible" },
       ".delete-button": { visibility: "visible" },
+      ".add-input-port-button": { visibility: "visible" },
+      ".add-output-port-button": { visibility: "visible" },
     });
   }
 
@@ -615,7 +668,12 @@ export class JointUIService {
         r: 5,
         stroke: "none",
       },
-      ".port-label": {},
+      ".port-label": {
+        event: "input-label:evt",
+        dblclick: "input-label:dbclick",
+        pointerdblclick: "input-label:pointerdblclick"
+
+      },
     };
     return portStyleAttrs;
   }
@@ -666,7 +724,7 @@ export class JointUIService {
   public static getCustomOperatorStyleAttrs(
     operator: OperatorPredicate,
     operatorDisplayName: string,
-    operatorType: string
+    operatorType: string,
   ): joint.shapes.devs.ModelSelectors {
     const operatorStyleAttrs = {
       ".texera-operator-state-background": {
@@ -803,6 +861,22 @@ export class JointUIService {
         cursor: "pointer",
         fill: "#D8656A",
         event: "element:delete",
+        visibility: "hidden",
+      },
+      ".add-input-port-button": {
+        x: -20,
+        y: 40,
+        cursor: "pointer",
+        fill: "#565656",
+        event: "element:add-input-port",
+        visibility: "hidden",
+      },
+      ".add-output-port-button": {
+        x: 60,
+        y: 40,
+        cursor: "pointer",
+        fill: "#565656",
+        event: "element:add-output-port",
         visibility: "hidden",
       },
       ".texera-operator-icon": {
