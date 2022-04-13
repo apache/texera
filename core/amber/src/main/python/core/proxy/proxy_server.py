@@ -213,8 +213,9 @@ class ProxyServer(FlightServerBase):
     @logger.catch(reraise=True)
     def register_control_handler(self, handler: Callable) -> None:
         """
-        Register the control handler function, which will be invoked after each `do_action` with `control` as the command.
-        :param handler: a callable with at least two arguments, for 1) the command and 2) the control payload..
+        Register a control handler function, which will be invoked after each `do_action` with `control` as the command.
+        :param handler: a callable with at least two arguments, for 1) the command
+            and 2) the control payload.
         :return:
         """
         # the handler should have at least 1 argument

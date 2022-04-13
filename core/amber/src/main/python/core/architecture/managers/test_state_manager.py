@@ -10,10 +10,10 @@ class TestStateManager:
     def state_manager(self):
         return StateManager({
             WorkerState.UNINITIALIZED: {WorkerState.READY},
-            WorkerState.READY:         {WorkerState.PAUSED, WorkerState.RUNNING},
-            WorkerState.RUNNING:       {WorkerState.PAUSED, WorkerState.COMPLETED},
-            WorkerState.PAUSED:        {WorkerState.RUNNING},
-            WorkerState.COMPLETED:     set(),
+            WorkerState.READY: {WorkerState.PAUSED, WorkerState.RUNNING},
+            WorkerState.RUNNING: {WorkerState.PAUSED, WorkerState.COMPLETED},
+            WorkerState.PAUSED: {WorkerState.RUNNING},
+            WorkerState.COMPLETED: set(),
         }, WorkerState.UNINITIALIZED)
 
     def test_it_can_init(self, state_manager):

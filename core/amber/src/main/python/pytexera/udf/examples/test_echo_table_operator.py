@@ -2,7 +2,7 @@ from collections import deque
 
 import pytest
 
-from pytexera import InputExhausted, Tuple
+from pytexera import Tuple
 from .echo_table_operator import EchoTableOperator
 
 

@@ -22,8 +22,8 @@ class TupleToBatchConverter:
     def __init__(self, ):
         self._partitioners: OrderedDict[LinkIdentity, Partitioning] = OrderedDict()
         self._partitioning_to_partitioner: dict[type(Partitioning), type(Partitioner)] = {
-            OneToOnePartitioning:         OneToOnePartitioner,
-            RoundRobinPartitioning:       RoundRobinPartitioner,
+            OneToOnePartitioning: OneToOnePartitioner,
+            RoundRobinPartitioning: RoundRobinPartitioner,
             HashBasedShufflePartitioning: HashBasedShufflePartitioner
         }
 

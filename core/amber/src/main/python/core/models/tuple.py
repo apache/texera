@@ -170,9 +170,9 @@ class Tuple:
     __repr__ = __str__
 
     def __eq__(self, other: Any) -> bool:
-        return isinstance(other, Tuple) and \
-               self.get_field_names() == other.get_field_names() and \
-               all(self[i] == other[i] for i in self.get_field_names())
+        return isinstance(other, Tuple) \
+               and self.get_field_names() == other.get_field_names() \
+               and all(self[i] == other[i] for i in self.get_field_names())
 
     def __ne__(self, other) -> bool:
         return not self.__eq__(other)

@@ -36,12 +36,12 @@ class TestProxyServer:
 
     def test_server_can_invoke_registered_control_actions(self, server):
         procedure_contents = {
-            "hello":       "hello world",
-            "get an int":  12,
+            "hello": "hello world",
+            "get an int": 12,
             "get a float": 1.23,
             "get a tuple": (5, None, 123.4),
-            "get a list":  [5, (None, 123.4)],
-            "get a dict":  {"entry": [5, (None, 123.4)]}
+            "get a list": [5, (None, 123.4)],
+            "get a dict": {"entry": [5, (None, 123.4)]}
         }
         with server:
             for name, result in procedure_contents.items():
