@@ -1,6 +1,6 @@
 import { DragDropService } from "../../../service/drag-drop/drag-drop.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import { AfterViewInit, Component, Input, OnInit } from "@angular/core";
+import { AfterContentInit, AfterViewInit, ChangeDetectorRef, Component, Input } from "@angular/core";
 
 import { OperatorSchema } from "../../../types/operator-schema.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -16,7 +16,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
   templateUrl: "./operator-label.component.html",
   styleUrls: ["./operator-label.component.scss"],
 })
-export class OperatorLabelComponent implements OnInit, AfterViewInit {
+export class OperatorLabelComponent implements AfterViewInit, AfterContentInit {
   public static operatorLabelPrefix = "texera-operator-label-";
   public static operatorLabelSearchBoxPrefix = "texera-operator-label-search-result-";
 
@@ -33,9 +33,13 @@ export class OperatorLabelComponent implements OnInit, AfterViewInit {
   // is mouse down over this label
   private isMouseDown = false;
 
-  constructor(private dragDropService: DragDropService, private workflowActionService: WorkflowActionService) {}
+  constructor(
+    private dragDropService: DragDropService,
+    private workflowActionService: WorkflowActionService,
+    private changeDetectorRef: ChangeDetectorRef
+  ) {}
 
-  ngOnInit() {
+  ngAfterContentInit(): void {
     this.handleWorkFlowModificationEnabled();
     if (!this.operator) {
       throw new Error("operator label component: operator is not specified");
@@ -90,6 +94,7 @@ export class OperatorLabelComponent implements OnInit, AfterViewInit {
       .pipe(untilDestroyed(this))
       .subscribe(canModify => {
         this.draggable = canModify;
+        this.changeDetectorRef.detectChanges();
       });
   }
 

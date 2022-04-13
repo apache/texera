@@ -5,6 +5,7 @@ from typing import Iterator, List, Mapping, Optional, Union
 import overrides
 import pandas
 from pyarrow.lib import Schema
+from deprecated import deprecated
 
 from . import InputExhausted, Table, TableLike, Tuple, TupleLike
 from ..util.arrow_utils import to_arrow_schema
@@ -60,27 +61,32 @@ class Operator(ABC):
         pass
 
 
-class TupleOperator(Operator):
+class TupleOperatorV2(Operator):
     """
     Base class for tuple-oriented operators. A concrete implementation must
     be provided upon using.
     """
 
     @abstractmethod
-    def process_tuple(self, tuple_: Union[Tuple, InputExhausted], input_: int) -> Iterator[Optional[TupleLike]]:
+    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
         """
-        Process an input Tuple from the given link. The Tuple is represented as pandas.Series.
-        :param tuple_: Union[Tuple, InputExhausted], either
-                        1. a Tuple from a link to be processed;
-                        2. an InputExhausted indicating no more data from this link.
-
-        :param input_: int, input index of the current Tuple.
+        Process an input Tuple from the given link.
+        :param tuple_: Tuple, a Tuple from an input port to be processed.
+        :param port: int, input port index of the current Tuple.
         :return: Iterator[Optional[TupleLike]], producing one TupleLike object at a time, or None.
         """
-        pass
+        yield
+
+    def on_finish(self, port: int) -> Iterator[Optional[TupleLike]]:
+        """
+        Callback when one input port is exhausted.
+        :param port: int, input port index of the current exhausted port.
+        :return: Iterator[Optional[TupleLike]], producing one TupleLike object at a time, or None.
+        """
+        yield
 
 
-class TableOperator(TupleOperator):
+class TableOperator(TupleOperatorV2):
     """
     Base class for table-oriented operators. A concrete implementation must
     be provided upon using.
@@ -92,31 +98,52 @@ class TableOperator(TupleOperator):
         self.__table_data: Mapping[int, List[Tuple]] = defaultdict(list)
 
     @overrides.final
-    def process_tuple(self, tuple_: Union[Tuple, InputExhausted], input_: int) -> Iterator[Optional[TupleLike]]:
-        """
-        Process an input Tuple from the given link. The Tuple is represented as pandas.Series.
-        :param tuple_: Union[Tuple, InputExhausted], either
-                        1. a Tuple from a link to be processed;
-                        2. an InputExhausted indicating no more data from this link.
+    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        self.__table_data[port].append(tuple_)
+        yield
 
-        :param input_: int, input index of the current Tuple.
-        :return: Iterator[Optional[TupleLike]], producing one TupleLike object at a time, or None.
-        """
-        if isinstance(tuple_, Tuple):
-            self.__table_data[input_].append(tuple_)
-        else:
-            table = Table(pandas.DataFrame([i.as_series() for i in self.__table_data[input_]]))
-            for output_table in self.process_table(table, input_):
-                if output_table is not None:
+    def on_finish(self, port: int) -> Iterator[Optional[TableLike]]:
+        table = Table(pandas.DataFrame([i.as_series() for i in self.__table_data[port]]))
+        for output_table in self.process_table(table, port):
+            if output_table is not None:
+                if isinstance(output_table, pandas.DataFrame):
                     for _, output_tuple in output_table.iterrows():
                         yield output_tuple
+                else:
+                    yield output_table
 
     @abstractmethod
-    def process_table(self, table: Table, input_: int) -> Iterator[Optional[TableLike]]:
+    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
         """
         Process an input Table from the given link. The Table is represented as pandas.DataFrame.
         :param table: Table, a table to be processed.
-        :param input_: int, input index of the current Table.
+        :param port: int, input port index of the current Tuple.
         :return: Iterator[Optional[TableLike]], producing one TableLike object at a time, or None.
         """
-        pass
+        yield
+
+
+@deprecated(reason="Use TupleOperatorV2 instead")
+class TupleOperator(Operator):
+    """
+    Base class for tuple-oriented operators. A concrete implementation must
+    be provided upon using.
+    """
+
+    @abstractmethod
+    def process_tuple(self, tuple_: Union[Tuple, InputExhausted], input_: int) -> Iterator[Optional[TupleLike]]:
+        """
+        Process an input Tuple from the given link.
+        :param tuple_: Union[Tuple, InputExhausted], either
+                        1. a Tuple from a link to be processed;
+                        2. an InputExhausted indicating no more data from this link.
+        :param input_: int, input index of the current Tuple.
+        :return: Iterator[Optional[TupleLike]], producing one TupleLike object at a time, or None.
+        """
+        yield
+
+    def on_finish(self, port: int) -> Iterator[Optional[TupleLike]]:
+        """
+        For backward compatibility.
+        """
+        yield from self.process_tuple(InputExhausted(), input_=port)

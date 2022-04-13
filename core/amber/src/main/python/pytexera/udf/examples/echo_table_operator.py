@@ -1,6 +1,4 @@
-from typing import Iterator, Optional
-
-from pytexera import Table, TableLike, UDFTableOperator, overrides
+from pytexera import *
 
 
 class EchoTableOperator(UDFTableOperator):

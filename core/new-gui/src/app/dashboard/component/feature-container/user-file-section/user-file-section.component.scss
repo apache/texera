@@ -29,6 +29,12 @@ $header-height: 120px;
   grid-template-rows: $header-height calc((100% - #{$header-height}));
 }
 
+.virtual-scroll-infinite-container {
+  height: 600px;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+}
+
 .button-area {
   grid-row-start: 1;
   grid-row-end: 2;

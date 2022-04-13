@@ -70,7 +70,14 @@ class ArrowTableTupleProvider:
             This abstracts and hides the underlying implementation
             of the tuple data storage from the user.
             """
-            return self._table.column(field_name).chunks[chunk_idx][tuple_idx].as_py()
+            value = self._table.column(field_name).chunks[chunk_idx][tuple_idx].as_py()
+            field_type = self._table.schema.field_by_name(field_name).type
+
+            # for binary types, convert pickled objects back.
+            if field_type == pyarrow.binary() and value[:6] == b'pickle':
+                import pickle
+                value = pickle.loads(value[10:])
+            return value
 
         self._current_idx += 1
         return field_accessor
@@ -108,7 +115,8 @@ class Tuple:
         if isinstance(item, int):
             item: str = self.get_field_names()[item]
 
-        if callable(self._field_data[item]):
+        if callable(self._field_data[item]) \
+                and getattr(self._field_data[item], '__name__', 'Unknown') == "field_accessor":
             # evaluate the field now
             field_accessor = self._field_data[item]
             self._field_data[item] = field_accessor(field_name=item)
