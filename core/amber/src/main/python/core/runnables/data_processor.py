@@ -115,14 +115,11 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         :param payload: ControlPayloadV2 to be handled.
         """
         # logger.debug(f"processing one CONTROL: {payload} from {tag}")
-        match((tag,
-               get_one_of(payload)),
-              typing.Tuple[ActorVirtualIdentity,
-                           ControlInvocationV2],
-              self._async_rpc_server.receive,
-              typing.Tuple[ActorVirtualIdentity,
-                           ReturnInvocationV2],
-              self._async_rpc_client.receive)
+        match(
+            (tag, get_one_of(payload)),
+            typing.Tuple[ActorVirtualIdentity, ControlInvocationV2], self._async_rpc_server.receive,
+            typing.Tuple[ActorVirtualIdentity, ReturnInvocationV2], self._async_rpc_client.receive
+        )
 
     @logger.catch
     def process_input_tuple(self) -> None:
@@ -293,8 +290,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         Pause the data processing.
         """
         self._print_log_handler.flush()
-        if self.context.state_manager.confirm_state(
-                WorkerState.RUNNING, WorkerState.READY):
+        if self.context.state_manager.confirm_state(WorkerState.RUNNING, WorkerState.READY):
             self.context.pause_manager.pause()
             self.context.state_manager.transit_to(WorkerState.PAUSED)
             self._input_queue.disable_sub()
@@ -321,4 +317,4 @@ class DataProcessor(StoppableQueueBlockingRunnable):
             field_type = field.type if field is not None else None
             if field_type == pyarrow.binary():
                 output_tuple[field_name] = b'pickle    ' + \
-                    pickle.dumps(field_value)
+                                           pickle.dumps(field_value)
