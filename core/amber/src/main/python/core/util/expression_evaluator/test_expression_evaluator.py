@@ -119,7 +119,7 @@ class TestExpressionEvaluator:
         f = 1.1
 
         a_list = [i, f, (i, f)]
-        assert ExpressionEvaluator.evaluate("l", runtime_context={"a_list": a_list}) == EvaluatedValue(
+        assert ExpressionEvaluator.evaluate("a_list", runtime_context={"a_list": a_list}) == EvaluatedValue(
             value=TypedValue(
                 expression='a_list',
                 value_ref='a_list',
