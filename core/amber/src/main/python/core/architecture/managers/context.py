@@ -12,6 +12,7 @@ class Context:
     they are managed here to show a clean interface what handlers can or should access.
     Context class can be viewed as a friend of DataProcessor.
     """
+
     def __init__(self, dp):
         self.dp = dp
         self.input_queue = dp._input_queue

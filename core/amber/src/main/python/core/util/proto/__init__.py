@@ -20,5 +20,6 @@ def set_one_of(base: T, value: Message) -> T:
     return ret
 
 
-# implicitly used when being imported, this is to make betterproto Messages hashable.
+# implicitly used when being imported, this is to make betterproto
+# Messages hashable.
 Message.__hash__ = lambda x: hash(x.__repr__())

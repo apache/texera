@@ -1,7 +1,6 @@
 import typing
 from typing import Iterator, List
 
-from loguru import logger
 from overrides import overrides
 
 from core.architecture.sendsemantics.partitioner import Partitioner

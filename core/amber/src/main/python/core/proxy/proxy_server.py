@@ -76,29 +76,38 @@ class ProxyServer(FlightServerBase):
         logger.debug(f"Serving on {location}")
         self.host = host
 
-        # action name to callable map, will contain registered actions, identified by action name.
+        # action name to callable map, will contain registered actions,
+        # identified by action name.
         self._procedures: Dict[str, Tuple[Callable, str]] = dict()
 
-        # register heartbeat, this is the default action for the client to check the aliveness of the server.
-        self.register("heartbeat", ProxyServer.ack()(lambda: None))
+        # register heartbeat, this is the default action for the client to
+        # check the aliveness of the server.
+        self.register(name="heartbeat", action=ProxyServer.ack()(lambda: None))
 
-        # register shutdown, this is the default action for the client to terminate the server.
-        self.register("shutdown",
-                      ProxyServer.ack(msg="Bye bye!")
-                      (lambda: threading.Thread(target=self._shutdown).start()),
-                      description="Shut down this server.")
+        # register shutdown, this is the default action for the client to
+        # terminate the server.
+        self.register(
+            name="shutdown",
+            action=ProxyServer.ack(
+                msg="Bye bye!")(
+                lambda: threading.Thread(
+                    target=self._shutdown).start()),
+            description="Shut down this server.")
 
-        # register control, this is the default action for the client to invoke after receiving control.
-        self.register("control",
-                      ProxyServer.ack()(
-                          lambda control_message: self.process_control(control_message)),
-                      description="Process the control message"
-                      )
+        # register control, this is the default action for the client to invoke
+        # after receiving control.
+        self.register(
+            name="control",
+            action=ProxyServer.ack()(
+                lambda control_message: self.process_control(control_message)),
+            description="Process the control message")
 
-        # the data message handler for each data message, needs to be implemented during runtime.
+        # the data message handler for each data message, needs to be
+        # implemented during runtime.
         self.process_data = lambda *args, **kwargs: (_ for _ in ()).throw(NotImplementedError)
 
-        # the control message handler for each control message, needs to be implemented during runtime.
+        # the control message handler for each control message, needs to be
+        # implemented during runtime.
         self.process_control = lambda *args, **kwargs: (_ for _ in ()).throw(NotImplementedError)
 
     ###########################

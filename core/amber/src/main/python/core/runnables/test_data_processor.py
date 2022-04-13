@@ -30,7 +30,10 @@ class TestDataProcessor:
 
     @pytest.fixture
     def mock_link(self):
-        return LinkIdentity(from_=LayerIdentity("from", "from", "from"), to=LayerIdentity("to", "to", "to"))
+        return LinkIdentity(
+            from_=LayerIdentity(
+                "from", "from", "from"), to=LayerIdentity(
+                "to", "to", "to"))
 
     @pytest.fixture
     def mock_tuple(self):
@@ -66,13 +69,30 @@ class TestDataProcessor:
         return InternalQueue()
 
     @pytest.fixture
-    def mock_update_input_linking(self, mock_controller, mock_sender_actor, mock_link, command_sequence):
-        command = set_one_of(ControlCommandV2, UpdateInputLinkingV2(identifier=mock_sender_actor, input_link=mock_link))
-        payload = set_one_of(ControlPayloadV2, ControlInvocationV2(command_id=command_sequence, command=command))
+    def mock_update_input_linking(
+            self,
+            mock_controller,
+            mock_sender_actor,
+            mock_link,
+            command_sequence):
+        command = set_one_of(
+            ControlCommandV2,
+            UpdateInputLinkingV2(
+                identifier=mock_sender_actor,
+                input_link=mock_link))
+        payload = set_one_of(
+            ControlPayloadV2,
+            ControlInvocationV2(
+                command_id=command_sequence,
+                command=command))
         return ControlElement(tag=mock_controller, payload=payload)
 
     @pytest.fixture
-    def mock_add_partitioning(self, mock_controller, mock_receiver_actor, command_sequence):
+    def mock_add_partitioning(
+            self,
+            mock_controller,
+            mock_receiver_actor,
+            command_sequence):
         command = set_one_of(
             ControlCommandV2,
             AddPartitioningV2(
@@ -85,13 +105,25 @@ class TestDataProcessor:
                 )
             )
         )
-        payload = set_one_of(ControlPayloadV2, ControlInvocationV2(command_id=command_sequence, command=command))
+        payload = set_one_of(
+            ControlPayloadV2,
+            ControlInvocationV2(
+                command_id=command_sequence,
+                command=command))
         return ControlElement(tag=mock_controller, payload=payload)
 
     @pytest.fixture
-    def mock_query_statistics(self, mock_controller, mock_sender_actor, command_sequence):
+    def mock_query_statistics(
+            self,
+            mock_controller,
+            mock_sender_actor,
+            command_sequence):
         command = set_one_of(ControlCommandV2, QueryStatisticsV2())
-        payload = set_one_of(ControlPayloadV2, ControlInvocationV2(command_id=command_sequence, command=command))
+        payload = set_one_of(
+            ControlPayloadV2,
+            ControlInvocationV2(
+                command_id=command_sequence,
+                command=command))
         return ControlElement(tag=mock_controller, payload=payload)
 
     @pytest.fixture
@@ -99,7 +131,8 @@ class TestDataProcessor:
         data_processor = DataProcessor(input_queue, output_queue)
         # mock the operator binding
         data_processor._operator = mock_udf
-        data_processor._operator.output_schema = {"test-1": 'string', "test-2": "integer"}
+        data_processor._operator.output_schema = {
+            "test-1": 'string', "test-2": "integer"}
         yield data_processor
         data_processor.stop()
 
@@ -118,10 +151,22 @@ class TestDataProcessor:
         assert dp_thread.is_alive()
 
     @pytest.mark.timeout(2)
-    def test_dp_thread_can_process_messages(self, mock_link, mock_receiver_actor, mock_controller, input_queue,
-                                            output_queue, mock_data_element, dp_thread, mock_update_input_linking,
-                                            mock_add_partitioning, mock_end_of_upstream, mock_query_statistics,
-                                            mock_tuple, command_sequence, reraise):
+    def test_dp_thread_can_process_messages(
+            self,
+            mock_link,
+            mock_receiver_actor,
+            mock_controller,
+            input_queue,
+            output_queue,
+            mock_data_element,
+            dp_thread,
+            mock_update_input_linking,
+            mock_add_partitioning,
+            mock_end_of_upstream,
+            mock_query_statistics,
+            mock_tuple,
+            command_sequence,
+            reraise):
         dp_thread.start()
 
         # can process UpdateInputLinking
@@ -189,7 +234,8 @@ class TestDataProcessor:
                 )
             )
         )
-        assert output_queue.get() == DataElement(tag=mock_receiver_actor, payload=EndOfUpstream())
+        assert output_queue.get() == DataElement(
+            tag=mock_receiver_actor, payload=EndOfUpstream())
 
         # WorkerExecutionCompletedV2 should be triggered when workflow finishes
         assert output_queue.get() == ControlElement(

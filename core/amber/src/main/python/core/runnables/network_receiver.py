@@ -27,7 +27,10 @@ class NetworkReceiver(Runnable, Stoppable):
                     payload=InputDataFrame(table)
                 ))
             else:
-                shared_queue.put(DataElement(tag=data_header.tag, payload=EndOfUpstream()))
+                shared_queue.put(
+                    DataElement(
+                        tag=data_header.tag,
+                        payload=EndOfUpstream()))
 
         self._proxy_server.register_data_handler(data_handler)
 
@@ -35,12 +38,17 @@ class NetworkReceiver(Runnable, Stoppable):
         @logger.catch(reraise=True)
         def control_handler(message: bytes):
             python_control_message = PythonControlMessage().parse(message)
-            shared_queue.put(ControlElement(tag=python_control_message.tag, payload=python_control_message.payload))
+            shared_queue.put(
+                ControlElement(
+                    tag=python_control_message.tag,
+                    payload=python_control_message.payload))
 
         self._proxy_server.register_control_handler(control_handler)
 
     def register_shutdown(self, shutdown: callable) -> None:
-        self._proxy_server.register("shutdown", ProxyServer.ack(msg="Bye bye!")(shutdown))
+        self._proxy_server.register(
+            "shutdown", ProxyServer.ack(
+                msg="Bye bye!")(shutdown))
 
     @logger.catch(reraise=True)
     @overrides

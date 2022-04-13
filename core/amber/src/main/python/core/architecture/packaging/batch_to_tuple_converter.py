@@ -20,8 +20,8 @@ class BatchToTupleConverter:
         self._upstream_map[input_].add(identifier)
         self._input_map[identifier] = input_
 
-    def process_data_payload(self, from_: ActorVirtualIdentity, payload: DataPayload) -> Iterator[
-        Union[Tuple, InputExhausted, Marker]]:
+    def process_data_payload(self, from_: ActorVirtualIdentity, payload: DataPayload) -> \
+            Iterator[Union[Tuple, InputExhausted, Marker]]:
         # special case used to yield for source op
         if from_ == BatchToTupleConverter.SOURCE_STARTER:
             yield InputExhausted()

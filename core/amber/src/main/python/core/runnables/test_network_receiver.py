@@ -25,14 +25,16 @@ class TestNetworkReceiver:
 
     @pytest.fixture
     def network_receiver_thread(self, output_queue):
-        network_receiver = NetworkReceiver(output_queue, host="localhost", port=5555)
+        network_receiver = NetworkReceiver(
+            output_queue, host="localhost", port=5555)
         network_receiver_thread = threading.Thread(target=network_receiver.run)
         yield network_receiver_thread
         network_receiver.stop()
 
     @pytest.fixture
     def network_sender_thread(self, input_queue):
-        network_sender = NetworkSender(input_queue, host="localhost", port=5555)
+        network_sender = NetworkSender(
+            input_queue, host="localhost", port=5555)
         network_sender_thread = threading.Thread(target=network_sender.run)
         yield network_sender_thread
         network_sender.stop()
@@ -43,12 +45,13 @@ class TestNetworkReceiver:
             'Brand': ['Honda Civic', 'Toyota Corolla', 'Ford Focus', 'Audi A4'],
             'Price': [22000, 25000, 27000, 35000]
         }, columns=['Brand', 'Price'])
-        return OutputDataFrame(frame=[Tuple(r) for _, r in df_to_sent.iterrows()],
-                               schema=to_arrow_schema({'Brand': 'string', 'Price': 'integer'}))
+        return OutputDataFrame(frame=[Tuple(r) for _, r in df_to_sent.iterrows(
+        )], schema=to_arrow_schema({'Brand': 'string', 'Price': 'integer'}))
 
     @pytest.mark.timeout(2)
     def test_network_receiver_can_stop(self):
-        network_receiver = NetworkReceiver(InternalQueue(), host="localhost", port=5555)
+        network_receiver = NetworkReceiver(
+            InternalQueue(), host="localhost", port=5555)
         network_receiver_thread = threading.Thread(target=network_receiver.run)
         network_receiver_thread.start()
         sleep(0.1)
@@ -59,8 +62,13 @@ class TestNetworkReceiver:
         network_receiver_thread.join()
 
     @pytest.mark.timeout(2)
-    def test_network_receiver_can_receive_data_messages(self, data_payload, output_queue, input_queue,
-                                                        network_receiver_thread, network_sender_thread):
+    def test_network_receiver_can_receive_data_messages(
+            self,
+            data_payload,
+            output_queue,
+            input_queue,
+            network_receiver_thread,
+            network_sender_thread):
         network_receiver_thread.start()
         network_sender_thread.start()
         worker_id = ActorVirtualIdentity(name="test")
@@ -70,9 +78,13 @@ class TestNetworkReceiver:
         assert element.tag == worker_id
 
     @pytest.mark.timeout(2)
-    def test_network_receiver_can_receive_data_messages_end_of_upstream(self, data_payload,
-                                                                        output_queue, input_queue,
-                                                                        network_receiver_thread, network_sender_thread):
+    def test_network_receiver_can_receive_data_messages_end_of_upstream(
+            self,
+            data_payload,
+            output_queue,
+            input_queue,
+            network_receiver_thread,
+            network_sender_thread):
         network_receiver_thread.start()
         network_sender_thread.start()
         worker_id = ActorVirtualIdentity(name="test")
@@ -82,8 +94,13 @@ class TestNetworkReceiver:
         assert element.tag == worker_id
 
     @pytest.mark.timeout(2)
-    def test_network_receiver_can_receive_control_messages(self, data_payload, output_queue, input_queue,
-                                                           network_receiver_thread, network_sender_thread):
+    def test_network_receiver_can_receive_control_messages(
+            self,
+            data_payload,
+            output_queue,
+            input_queue,
+            network_receiver_thread,
+            network_sender_thread):
         network_receiver_thread.start()
         network_sender_thread.start()
         worker_id = ActorVirtualIdentity(name="test")

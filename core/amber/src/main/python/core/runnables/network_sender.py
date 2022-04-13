@@ -29,7 +29,8 @@ class NetworkSender(StoppableQueueBlockingRunnable):
             raise TypeError(f"Unexpected entry {next_entry}")
 
     @logger.catch(reraise=True)
-    def _send_data(self, to: ActorVirtualIdentity, data_payload: DataPayload) -> None:
+    def _send_data(self, to: ActorVirtualIdentity,
+                   data_payload: DataPayload) -> None:
         """
         Send data payload to the given target actor. This method is to be used internally only.
 
@@ -56,7 +57,10 @@ class NetworkSender(StoppableQueueBlockingRunnable):
             raise TypeError(f"Unexpected payload {data_payload}")
 
     @logger.catch(reraise=True)
-    def _send_control(self, to: ActorVirtualIdentity, control_payload: ControlPayloadV2) -> None:
+    def _send_control(
+            self,
+            to: ActorVirtualIdentity,
+            control_payload: ControlPayloadV2) -> None:
         """
         Send the control payload to the given target actor. This method is to be used internally only.
 
@@ -64,5 +68,7 @@ class NetworkSender(StoppableQueueBlockingRunnable):
         :param control_payload: The control payload to be sent, can be either ControlInvocation or
             ReturnInvocation.
         """
-        python_control_message = PythonControlMessage(tag=to, payload=control_payload)
-        self._proxy_client.call_action("control", bytes(python_control_message))
+        python_control_message = PythonControlMessage(
+            tag=to, payload=control_payload)
+        self._proxy_client.call_action(
+            "control", bytes(python_control_message))

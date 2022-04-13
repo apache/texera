@@ -10,6 +10,6 @@ __all__ = [
     "EndOfAllMarker", "Marker", "SenderChangeMarker",
     "InputExhausted", "Tuple", "TupleLike", "ArrowTableTupleProvider",
     "Table", "TableLike",
-    "Operator", "TupleOperator", "TableOperator",
+    "Operator", "TupleOperator", "TupleOperatorV2", "TableOperator",
     "InputDataFrame", "OutputDataFrame", "DataPayload", "EndOfUpstream"
 ]
