@@ -1,4 +1,4 @@
-from core.models import InputExhausted, Table, TableLike, TableOperator, Tuple, TupleLike, TupleOperator
+from core.models import InputExhausted, Table, TableLike, TableOperator, Tuple, TupleLike, TupleOperator, TupleOperatorV2
 
 __all__ = [
     'InputExhausted',
@@ -7,5 +7,6 @@ __all__ = [
     'TupleOperator',
     'Table',
     'TableLike',
-    'TableOperator'
+    'TableOperator',
+    'TupleOperatorV2'
 ]

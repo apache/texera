@@ -11,7 +11,7 @@ from core.runnables import DataProcessor
 from core.util import set_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import OneToOnePartitioning, Partitioning
 from proto.edu.uci.ics.amber.engine.architecture.worker import AddPartitioningV2, ControlCommandV2, ControlReturnV2, \
-    QueryStatisticsV2, UpdateInputLinkingV2, WorkerExecutionCompletedV2, WorkerState, WorkerStatistics
+    QueryStatisticsV2, UpdateInputLinkingV2, WorkerExecutionCompletedV2, WorkerState, WorkerStatistics, LinkCompletedV2
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlInvocationV2, ControlPayloadV2, \
     LayerIdentity, LinkIdentity, ReturnInvocationV2
 from pytexera.udf.examples.echo_operator import EchoOperator
@@ -176,6 +176,19 @@ class TestDataProcessor:
 
         # can process EndOfUpstream
         input_queue.put(mock_end_of_upstream)
+        assert output_queue.get() == ControlElement(
+            tag=mock_controller,
+            payload=ControlPayloadV2(
+                control_invocation=ControlInvocationV2(
+                    command_id=0,
+                    command=ControlCommandV2(
+                        link_completed=LinkCompletedV2(
+                            link_id=mock_link
+                        )
+                    )
+                )
+            )
+        )
         assert output_queue.get() == DataElement(tag=mock_receiver_actor, payload=EndOfUpstream())
 
         # WorkerExecutionCompletedV2 should be triggered when workflow finishes
@@ -183,7 +196,7 @@ class TestDataProcessor:
             tag=mock_controller,
             payload=ControlPayloadV2(
                 control_invocation=ControlInvocationV2(
-                    command_id=0,
+                    command_id=1,
                     command=ControlCommandV2(
                         worker_execution_completed=WorkerExecutionCompletedV2()
                     )
