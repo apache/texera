@@ -34,6 +34,7 @@ export class NzModalCommentBoxComponent {
 
   inputValue = "";
   submitting = false;
+  editValue = "";
 
   public onClickAddComment(): void {
     this.submitting = true;
@@ -63,13 +64,36 @@ export class NzModalCommentBoxComponent {
     this.workflowActionService.deleteComment(creatorID, creationTime, this.commentBox.commentBoxID);
   }
 
-  public editComment(creatorID: number, creationTime: string): void {
+  public toggleEditInput(creatorName: string, creationTime: string):void{
+    const currTxArea = document.getElementById("txarea"+creatorName+creationTime);
+    const btn = document.getElementById("editbtn"+creatorName+creationTime);
+    if(currTxArea == null || btn == null){
+      return;
+    }
+    const hidden = currTxArea.getAttribute("hidden");
+    if(hidden){
+      currTxArea.removeAttribute("hidden");
+      btn.removeAttribute("hidden");
+    }else{
+      currTxArea.setAttribute("hidden", "hidden");
+      btn.setAttribute("hidden", "hidden");
+    }
+   
+  }
+  public editComment(creatorID: number, creatorName: string, creationTime: string): void {
     if (!this.user) {
       return;
     }
-    const newContent = this.inputValue;
-    this.inputValue = "";
+    const newContent = this.editValue;
+    this.editValue = "";
     this.workflowActionService.editComment(creatorID, creationTime, this.commentBox.commentBoxID, newContent);
+    const currTxArea = document.getElementById("txarea"+creatorName+creationTime);
+    const btn = document.getElementById("editbtn"+creatorName+creationTime);
+    if(currTxArea == null || btn == null){
+      return;
+    }
+    currTxArea.setAttribute("hidden", "hidden");
+    btn.setAttribute("hidden", "hidden");
   }
   public replyToComment(creatorName: string, content: string) {
     this.inputValue += "@" + creatorName + ":\"" + content + "\"\n";
