@@ -265,24 +265,10 @@ export class JointUIService {
       operatorElement.addPort({
         group: "in",
         id: port.portID,
-        // label: {
-        //   markup: [{
-        //       tagName: 'text',
-        //       selector: 'label'
-        //   }]
-        // },
-        // attrs: {
-        //   label: { 
-        //     text: port.displayName ?? "",
-        //     event: "input-label:evt"
-        //   }
-        // }
         attrs: {
           ".port-label": {
             text: port.displayName ?? "",
-            event: "input-label:evt",
-            dblclick: "input-label:dbclick",
-            pointerdblclick: "input-label:pointerdblclick"
+            event: "input-port-label:pointerdown",
           },
         },
       })
@@ -294,6 +280,7 @@ export class JointUIService {
         attrs: {
           ".port-label": {
             text: port.displayName ?? "",
+            event: "output-port-label:pointerdown",
           },
         },
       })

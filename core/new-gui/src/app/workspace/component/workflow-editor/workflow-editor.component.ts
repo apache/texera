@@ -571,11 +571,13 @@ export class WorkflowEditorComponent implements AfterViewInit {
       // fromJointPaperEvent(this.getJointPaper(), "cell:pointerdblclick")
       // .pipe(untilDestroyed(this))
       // .subscribe(event => console.log(event));
-      const clickStream = fromJointPaperEvent(this.getJointPaper(), "input-label:evt")
 
 
-      clickStream.pipe(
-        buffer(clickStream.pipe(debounceTime(250))),
+      const inputPortClickStream = fromJointPaperEvent(this.getJointPaper(), "input-port-label:pointerdown")
+
+
+      inputPortClickStream.pipe(
+        buffer(inputPortClickStream.pipe(debounceTime(250))),
         filter(x => x.length === 2),
         untilDestroyed(this)
       ).subscribe(e => {
