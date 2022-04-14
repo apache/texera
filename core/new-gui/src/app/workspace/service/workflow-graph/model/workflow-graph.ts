@@ -87,7 +87,7 @@ export class WorkflowGraph {
   private readonly commentBoxDeleteSubject = new Subject<{ deletedCommentBox: CommentBox }>();
   private readonly commentBoxAddCommentSubject = new Subject<{ addedComment: Comment; commentBox: CommentBox }>();
   private readonly commentBoxDeleteCommentSubject = new Subject<{ commentBox: CommentBox }>();
-  private readonly commentBoxEditCommentSubject = new Subject<{commentBox: CommentBox}>();
+  private readonly commentBoxEditCommentSubject = new Subject<{ commentBox: CommentBox }>();
 
   constructor(
     operatorPredicates: OperatorPredicate[] = [],
@@ -138,18 +138,18 @@ export class WorkflowGraph {
     }
   }
 
-  public editCommentInCommentBox(creatorID: number, creationTime: string, commentBoxID: string, content: string): void{
+  public editCommentInCommentBox(creatorID: number, creationTime: string, commentBoxID: string, content: string): void {
     this.assertCommentBoxExists(commentBoxID);
     const commentBox = this.commentBoxMap.get(commentBoxID);
-    if (commentBox!= null){
+    if (commentBox != null) {
       commentBox.comments.forEach((comment, index) => {
         if (comment.creatorID === creatorID && comment.creationTime === creationTime) {
           let creatorName = comment.creatorName;
-          let newComment: Comment = {content, creationTime, creatorName , creatorID};
+          let newComment: Comment = { content, creationTime, creatorName, creatorID };
           commentBox.comments[index] = newComment;
         }
       });
-      this.commentBoxEditCommentSubject.next({commentBox: commentBox});
+      this.commentBoxEditCommentSubject.next({ commentBox: commentBox });
     }
   }
   /**
@@ -560,7 +560,7 @@ export class WorkflowGraph {
     return this.commentBoxDeleteCommentSubject.asObservable();
   }
 
-  public getCommentBoxEditCommentStream(): Observable<{commentBox: CommentBox}> {
+  public getCommentBoxEditCommentStream(): Observable<{ commentBox: CommentBox }> {
     return this.commentBoxEditCommentSubject.asObservable();
   }
   public getCachedOperatorsChangedStream(): Observable<{

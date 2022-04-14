@@ -1198,10 +1198,10 @@ export class WorkflowActionService {
     this.texeraGraph.editCommentInCommentBox(creatorID, creationTime, commentBoxID, newContent);
     const commandMessage: CommandMessage = {
       action: "editComment",
-      parameters :[creatorID, creationTime, commentBoxID, newContent],
+      parameters: [creatorID, creationTime, commentBoxID, newContent],
       type: "execute",
     };
-    this.workflowCollabService.propagateChange(commandMessage)
+    this.workflowCollabService.propagateChange(commandMessage);
   }
 
   public setTempWorkflow(workflow: Workflow): void {

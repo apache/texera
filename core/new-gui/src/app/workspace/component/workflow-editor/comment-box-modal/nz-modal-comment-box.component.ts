@@ -64,7 +64,7 @@ export class NzModalCommentBoxComponent {
   }
 
   public editComment(creatorID: number, creationTime: string): void {
-    if (!this.user){
+    if (!this.user) {
       return;
     }
     const newContent = this.inputValue;
