@@ -1101,6 +1101,7 @@ export class WorkflowActionService {
       this.getTexeraGraph().getCommentBoxDeleteStream(),
       this.getTexeraGraph().getCommentBoxAddCommentStream(),
       this.getTexeraGraph().getCommentBoxDeleteCommentStream(),
+      this.getTexeraGraph().getCommentBoxEditCommentStream(),
       this.getTexeraGraph().getCachedOperatorsChangedStream(),
       this.getTexeraGraph().getOperatorDisplayNameChangedStream()
     );
@@ -1191,6 +1192,16 @@ export class WorkflowActionService {
       type: "execute",
     };
     this.workflowCollabService.propagateChange(commandMessage);
+  }
+
+  public editComment(creatorID: number, creationTime: string, commentBoxID: string, newContent: string): void {
+    this.texeraGraph.editCommentInCommentBox(creatorID, creationTime, commentBoxID, newContent);
+    const commandMessage: CommandMessage = {
+      action: "editComment",
+      parameters :[creatorID, creationTime, commentBoxID, newContent],
+      type: "execute",
+    };
+    this.workflowCollabService.propagateChange(commandMessage)
   }
 
   public setTempWorkflow(workflow: Workflow): void {

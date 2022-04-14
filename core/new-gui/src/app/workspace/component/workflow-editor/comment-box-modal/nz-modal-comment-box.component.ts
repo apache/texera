@@ -63,6 +63,14 @@ export class NzModalCommentBoxComponent {
     this.workflowActionService.deleteComment(creatorID, creationTime, this.commentBox.commentBoxID);
   }
 
+  public editComment(creatorID: number, creationTime: string): void {
+    if (!this.user){
+      return;
+    }
+    const newContent = this.inputValue;
+    this.inputValue = "";
+    this.workflowActionService.editComment(creatorID, creationTime, this.commentBox.commentBoxID, newContent);
+  }
   public replyToComment(creatorName: string, content: string) {
     this.inputValue += "@" + creatorName + ":\"" + content + "\"\n";
   }

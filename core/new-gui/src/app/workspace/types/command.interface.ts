@@ -28,6 +28,7 @@ export type commandFuncs =
   | "deleteCommentBox"
   | "changeCommentBoxPosition"
   | "addComment"
+  | "editComment"
   | "deleteComment";
 
 // keyof yields permitted property names for T. When we pass function, it'll return value of that function?

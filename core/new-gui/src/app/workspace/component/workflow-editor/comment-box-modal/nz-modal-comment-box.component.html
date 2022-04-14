@@ -12,6 +12,7 @@
         <nz-list-item-action
           ><a (click)="deleteComment(item.creatorID, item.creationTime)">delete</a></nz-list-item-action
         >
+        <nz-list-item-action><a (click)="editComment(item.creatorID, item.creationTime)">edit</a></nz-list-item-action>
         <nz-list-item-action><a (click)="replyToComment(item.creatorName, item.content)">reply</a></nz-list-item-action>
       </ul>
     </nz-list-item>
