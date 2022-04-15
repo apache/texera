@@ -59,7 +59,7 @@ class DualInputPortsPythonUDFOpDescV2 extends OperatorDescriptor {
   var outputColumns: List[Attribute] = List()
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-    val exec = (i: Any) => new PythonUDFOpExecV2(code, operatorSchemaInfo.outputSchema)
+    val exec = (i: Any) => new PythonUDFOpExecV2(code, operatorSchemaInfo.outputSchemas.head)
     Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.", Array())
     if (workers > 1)
       new OneToOneOpExecConfig(operatorIdentifier, exec, workers, mutable.Map(1 -> 0))

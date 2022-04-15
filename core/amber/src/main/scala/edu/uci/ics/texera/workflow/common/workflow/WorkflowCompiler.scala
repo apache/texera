@@ -1,15 +1,7 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
-import akka.actor.ActorRef
-import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{
-  ConditionalGlobalBreakpoint,
-  CountGlobalBreakpoint
-}
+import com.google.common.base.Verify
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.AssignBreakpointHandler.AssignGlobalBreakpoint
-import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   LinkIdentity,
   OperatorIdentity,
@@ -19,9 +11,9 @@ import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
+import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator
 
@@ -89,23 +81,23 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
     val inputSchemaMap = propagateWorkflowSchema()
     val amberOperators: mutable.Map[OperatorIdentity, OpExecConfig] = mutable.Map()
     workflowInfo.operators.foreach(o => {
-      val inputSchemas = inputSchemaMap(o).map(s => s.get).toArray
-      val outputSchema = {
-        if (o.isInstanceOf[SourceOperatorDescriptor]) o.getOutputSchema(Array())
-        else o.getOutputSchema(inputSchemas)
-      }
+      val inputSchemas: Array[Schema] =
+        if (!o.isInstanceOf[SourceOperatorDescriptor])
+          inputSchemaMap(o).map(s => s.get).toArray
+        else Array()
+      val outputSchemas = o.getOutputSchemas(inputSchemas)
       // assign storage to texera-managed sinks before generating exec config
       o match {
         case sink: ProgressiveSinkOpDesc =>
           sink.getCachedUpstreamId match {
             case Some(upstreamId) =>
-              sink.setStorage(opResultStorage.create(upstreamId, outputSchema))
-            case None => sink.setStorage(opResultStorage.create(o.operatorID, outputSchema))
+              sink.setStorage(opResultStorage.create(upstreamId, outputSchemas(0)))
+            case None => sink.setStorage(opResultStorage.create(o.operatorID, outputSchemas(0)))
           }
         case _ =>
       }
       val amberOperator: OpExecConfig =
-        o.operatorExecutor(OperatorSchemaInfo(inputSchemas, outputSchema))
+        o.operatorExecutor(OperatorSchemaInfo(inputSchemas, outputSchemas))
       amberOperators.put(amberOperator.id, amberOperator)
     })
 
@@ -119,7 +111,13 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
         amberOperators(origin).topology.layers.last.id,
         amberOperators(dest).topology.layers.head.id
       )
-      amberOperators(dest).setInputToOrdinalMapping(layerLink, link.destination.portOrdinal)
+      amberOperators(dest).setInputToOrdinalMapping(
+        layerLink,
+        link.destination.portOrdinal,
+        link.destination.portName
+      )
+      amberOperators(origin)
+        .setOutputToOrdinalMapping(layerLink, link.origin.portOrdinal, link.origin.portName)
     })
 
     val outLinksImmutable: Map[OperatorIdentity, Set[OperatorIdentity]] =
@@ -139,12 +137,12 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
     topologicalOrderIterator.forEachRemaining(opID => {
       val op = workflowInfo.toDAG.getOperator(opID)
       // infer output schema of this operator based on its input schema
-      val outputSchema: Option[Schema] = {
+      val outputSchemas: Option[Array[Schema]] = {
         // call to "getOutputSchema" might cause exceptions, wrap in try/catch and return empty schema
         try {
           if (op.isInstanceOf[SourceOperatorDescriptor]) {
             // op is a source operator, ask for it output schema
-            Option.apply(op.getOutputSchema(Array()))
+            Option.apply(op.getOutputSchemas(Array()))
           } else if (!inputSchemaMap.contains(op) || inputSchemaMap(op).exists(s => s.isEmpty)) {
             // op does not have input, or any of the op's input's output schema is null
             // then this op's output schema cannot be inferred as well
@@ -152,7 +150,7 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
           } else {
             // op's input schema is complete, try to infer its output schema
             // if inference failed, print an exception message, but still continue the process
-            Option.apply(op.getOutputSchema(inputSchemaMap(op).map(s => s.get).toArray))
+            Option.apply(op.getOutputSchemas(inputSchemaMap(op).map(s => s.get).toArray))
           }
         } catch {
           case e: Throwable =>
@@ -162,7 +160,11 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
       }
       // exception: if op is a source operator, use its output schema as input schema for autocomplete
       if (op.isInstanceOf[SourceOperatorDescriptor]) {
-        inputSchemaMap.update(op, mutable.MutableList(outputSchema))
+        inputSchemaMap.update(op, mutable.MutableList(outputSchemas.map(s => s(0))))
+      }
+
+      if (!op.isInstanceOf[SinkOpDesc] && outputSchemas.nonEmpty) {
+        Verify.verify(outputSchemas.get.length == op.operatorInfo.outputPorts.length)
       }
 
       // update input schema of all outgoing links
@@ -172,7 +174,9 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
         // get the input schema list, should be pre-populated with size equals to num of ports
         val destInputSchemas = inputSchemaMap(dest)
         // put the schema into the ordinal corresponding to the port
-        destInputSchemas(link.destination.portOrdinal) = outputSchema
+        val schemaOnPort =
+          outputSchemas.flatMap(schemas => schemas.toList.lift(link.origin.portOrdinal))
+        destInputSchemas(link.destination.portOrdinal) = schemaOnPort
         inputSchemaMap.update(dest, destInputSchemas)
       })
     })
