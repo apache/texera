@@ -140,20 +140,16 @@ class DataProcessor(StoppableQueueBlockingRunnable):
                     schema = self._operator.output_schema
                     self.cast_tuple_to_match_schema(output_tuple, schema)
                     self.context.statistics_manager.increase_output_tuple_count()
-                    for to, batch in self.context.tuple_to_batch_converter.tuple_to_batch(
-                            output_tuple):
+                    for to, batch in self.context.tuple_to_batch_converter.tuple_to_batch(output_tuple):
                         batch.schema = self._operator.output_schema
-                        self._output_queue.put(
-                            DataElement(tag=to, payload=batch))
+                        self._output_queue.put(DataElement(tag=to, payload=batch))
         except Exception as err:
             logger.exception(err)
             self.report_exception()
             self._pause()
 
-    def process_tuple_with_udf(self,
-                               tuple_: Union[Tuple,
-                                             InputExhausted],
-                               link: LinkIdentity) -> Iterator[Optional[Tuple]]:
+    def process_tuple_with_udf(self, tuple_: Union[Tuple, InputExhausted], link: LinkIdentity) \
+            -> Iterator[Optional[Tuple]]:
         """
         Process the Tuple/InputExhausted with the current link.
 
@@ -171,13 +167,9 @@ class DataProcessor(StoppableQueueBlockingRunnable):
             self._input_link_map[link] = index
         input_ = self._input_link_map[link]
 
-        return map(
-            lambda t: Tuple(t) if t is not None else None,
-            self._operator.process_tuple(
-                tuple_,
-                input_) if isinstance(
-                tuple_,
-                Tuple) else self._operator.on_finish(input_))
+        return map(lambda t: Tuple(t) if t is not None else None,
+                   self._operator.process_tuple(tuple_, input_) if isinstance(tuple_, Tuple)
+                   else self._operator.on_finish(input_))
 
     def report_exception(self) -> None:
         """
@@ -185,25 +177,16 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         """
         self._print_log_handler.flush()
         message: str = traceback.format_exc(limit=-1)
-        control_command = set_one_of(
-            ControlCommandV2,
-            LocalOperatorExceptionV2(
-                message=message))
-        self._async_rpc_client.send(
-            ActorVirtualIdentity(
-                name="CONTROLLER"),
-            control_command)
+        control_command = set_one_of(ControlCommandV2, LocalOperatorExceptionV2(message=message))
+        self._async_rpc_client.send(ActorVirtualIdentity(name="CONTROLLER"), control_command)
 
-    def _process_control_element(
-            self, control_element: ControlElement) -> None:
+    def _process_control_element(self, control_element: ControlElement) -> None:
         """
         Upon receipt of a ControlElement, unpack it into tag and payload to be handled.
 
         :param control_element: ControlElement to be handled.
         """
-        self.process_control_payload(
-            control_element.tag,
-            control_element.payload)
+        self.process_control_payload(control_element.tag, control_element.payload)
 
     def _process_tuple(self, tuple_: Union[Tuple, InputExhausted]) -> None:
         self._current_input_tuple = tuple_
@@ -213,13 +196,8 @@ class DataProcessor(StoppableQueueBlockingRunnable):
     def _process_input_exhausted(self, input_exhausted: InputExhausted):
         self._process_tuple(input_exhausted)
         if self._current_input_link is not None:
-            control_command = set_one_of(
-                ControlCommandV2, LinkCompletedV2(
-                    self._current_input_link))
-            self._async_rpc_client.send(
-                ActorVirtualIdentity(
-                    name="CONTROLLER"),
-                control_command)
+            control_command = set_one_of(ControlCommandV2, LinkCompletedV2(self._current_input_link))
+            self._async_rpc_client.send(ActorVirtualIdentity(name="CONTROLLER"), control_command)
 
     def _process_sender_change_marker(
             self, sender_change_marker: SenderChangeMarker) -> None:
@@ -316,5 +294,4 @@ class DataProcessor(StoppableQueueBlockingRunnable):
             field = schema.field_by_name(field_name)
             field_type = field.type if field is not None else None
             if field_type == pyarrow.binary():
-                output_tuple[field_name] = b'pickle    ' + \
-                                           pickle.dumps(field_value)
+                output_tuple[field_name] = b'pickle    ' + pickle.dumps(field_value)
