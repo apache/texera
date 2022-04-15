@@ -8,7 +8,6 @@ from core.util.customized_queue.double_blocking_queue import DoubleBlockingQueue
 
 
 class TestDoubleBlockingQueue:
-
     @pytest.fixture
     def queue(self):
         return DoubleBlockingQueue(int)
@@ -134,7 +133,6 @@ class TestDoubleBlockingQueue:
 
     @pytest.mark.timeout(5)
     def test_multiple_producer_race(self, queue, reraise):
-
         def producer(k):
             with reraise:
                 if isinstance(k, int):

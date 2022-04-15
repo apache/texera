@@ -11,8 +11,7 @@ from core.runnables.network_sender import NetworkSender
 class TestNetworkSender:
     @pytest.fixture
     def network_receiver(self):
-        network_receiver = NetworkReceiver(
-            InternalQueue(), host="localhost", port=5555)
+        network_receiver = NetworkReceiver(InternalQueue(), host="localhost", port=5555)
         yield network_receiver
         network_receiver.stop()
 
@@ -23,8 +22,7 @@ class TestNetworkSender:
 
     @pytest.fixture
     def network_sender(self):
-        network_sender = NetworkSender(
-            InternalQueue(), host="localhost", port=5555)
+        network_sender = NetworkSender(InternalQueue(), host="localhost", port=5555)
         yield network_sender
         network_sender.stop()
 
@@ -35,11 +33,12 @@ class TestNetworkSender:
 
     @pytest.mark.timeout(2)
     def test_network_sender_can_stop(
-            self,
-            network_receiver,
-            network_receiver_thread,
-            network_sender,
-            network_sender_thread):
+        self,
+        network_receiver,
+        network_receiver_thread,
+        network_sender,
+        network_sender_thread,
+    ):
         network_receiver_thread.start()
         network_sender_thread.start()
         assert network_receiver_thread.is_alive()

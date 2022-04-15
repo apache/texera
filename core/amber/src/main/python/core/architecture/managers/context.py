@@ -16,14 +16,16 @@ class Context:
     def __init__(self, dp):
         self.dp = dp
         self.input_queue = dp._input_queue
-        self.state_manager = StateManager({
-            WorkerState.UNINITIALIZED: {WorkerState.READY},
-            WorkerState.READY: {WorkerState.PAUSED, WorkerState.RUNNING},
-            WorkerState.RUNNING: {WorkerState.PAUSED, WorkerState.COMPLETED},
-            WorkerState.PAUSED: {WorkerState.RUNNING},
-            WorkerState.COMPLETED: set(),
-
-        }, WorkerState.UNINITIALIZED)
+        self.state_manager = StateManager(
+            {
+                WorkerState.UNINITIALIZED: {WorkerState.READY},
+                WorkerState.READY: {WorkerState.PAUSED, WorkerState.RUNNING},
+                WorkerState.RUNNING: {WorkerState.PAUSED, WorkerState.COMPLETED},
+                WorkerState.PAUSED: {WorkerState.RUNNING},
+                WorkerState.COMPLETED: set(),
+            },
+            WorkerState.UNINITIALIZED,
+        )
 
         self.statistics_manager = StatisticsManager()
         self.pause_manager = PauseManager()

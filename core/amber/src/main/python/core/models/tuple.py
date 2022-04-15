@@ -7,20 +7,14 @@ from typing import Any, List, Mapping, Iterator, TypeVar, Dict, Callable
 
 import pandas
 
-AttributeType = TypeVar(
-    'AttributeType',
-    int,
-    float,
-    str,
-    datetime.datetime
-)
+AttributeType = TypeVar("AttributeType", int, float, str, datetime.datetime)
 
 TupleLike = TypeVar(
-    'TupleLike',
+    "TupleLike",
     pandas.Series,
     Iterator[typing.Tuple[str, AttributeType]],
     Mapping[str, typing.Callable],
-    Mapping[str, AttributeType]
+    Mapping[str, AttributeType],
 )
 
 
@@ -74,8 +68,9 @@ class ArrowTableTupleProvider:
             field_type = self._table.schema.field_by_name(field_name).type
 
             # for binary types, convert pickled objects back.
-            if field_type == pyarrow.binary() and value[:6] == b'pickle':
+            if field_type == pyarrow.binary() and value[:6] == b"pickle":
                 import pickle
+
                 value = pickle.loads(value[10:])
             return value
 
@@ -110,13 +105,18 @@ class Tuple:
         :param item: field name or field index
         :return: field value
         """
-        assert isinstance(item, (int, str)), "field can only be retrieved by index or name"
+        assert isinstance(
+            item, (int, str)
+        ), "field can only be retrieved by index or name"
 
         if isinstance(item, int):
             item: str = self.get_field_names()[item]
 
-        if callable(self._field_data[item]) \
-                and getattr(self._field_data[item], '__name__', 'Unknown') == "field_accessor":
+        if (
+            callable(self._field_data[item])
+            and getattr(self._field_data[item], "__name__", "Unknown")
+            == "field_accessor"
+        ):
             # evaluate the field now
             field_accessor = self._field_data[item]
             self._field_data[item] = field_accessor(field_name=item)
@@ -170,9 +170,11 @@ class Tuple:
     __repr__ = __str__
 
     def __eq__(self, other: Any) -> bool:
-        return isinstance(other, Tuple) \
-               and self.get_field_names() == other.get_field_names() \
-               and all(self[i] == other[i] for i in self.get_field_names())
+        return (
+            isinstance(other, Tuple)
+            and self.get_field_names() == other.get_field_names()
+            and all(self[i] == other[i] for i in self.get_field_names())
+        )
 
     def __ne__(self, other) -> bool:
         return not self.__eq__(other)

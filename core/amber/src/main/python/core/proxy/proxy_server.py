@@ -7,8 +7,14 @@ from typing import Callable, Dict, Iterator, Optional, Tuple
 from loguru import logger
 from overrides import overrides
 from pyarrow import Table, py_buffer
-from pyarrow.flight import Action, FlightDescriptor, FlightServerBase, MetadataRecordBatchReader, Result, \
-    ServerCallContext
+from pyarrow.flight import (
+    Action,
+    FlightDescriptor,
+    FlightServerBase,
+    MetadataRecordBatchReader,
+    Result,
+    ServerCallContext,
+)
 from pyarrow.ipc import RecordBatchStreamWriter
 
 
@@ -70,7 +76,9 @@ class ProxyServer(FlightServerBase):
             return ack_decorator(original_func)
         return ack_decorator
 
-    def __init__(self, scheme: str = "grpc+tcp", host: str = "localhost", port: int = 5005):
+    def __init__(
+        self, scheme: str = "grpc+tcp", host: str = "localhost", port: int = 5005
+    ):
         location = f"{scheme}://{host}:{port}"
         super(ProxyServer, self).__init__(location)
         logger.debug(f"Serving on {location}")
@@ -88,34 +96,45 @@ class ProxyServer(FlightServerBase):
         # terminate the server.
         self.register(
             name="shutdown",
-            action=ProxyServer.ack(
-                msg="Bye bye!")(
-                lambda: threading.Thread(
-                    target=self._shutdown).start()),
-            description="Shut down this server.")
+            action=ProxyServer.ack(msg="Bye bye!")(
+                lambda: threading.Thread(target=self._shutdown).start()
+            ),
+            description="Shut down this server.",
+        )
 
         # register control, this is the default action for the client to invoke
         # after receiving control.
         self.register(
             name="control",
             action=ProxyServer.ack()(
-                lambda control_message: self.process_control(control_message)),
-            description="Process the control message")
+                lambda control_message: self.process_control(control_message)
+            ),
+            description="Process the control message",
+        )
 
         # the data message handler for each data message, needs to be
         # implemented during runtime.
-        self.process_data = lambda *args, **kwargs: (_ for _ in ()).throw(NotImplementedError)
+        self.process_data = lambda *args, **kwargs: (_ for _ in ()).throw(
+            NotImplementedError
+        )
 
         # the control message handler for each control message, needs to be
         # implemented during runtime.
-        self.process_control = lambda *args, **kwargs: (_ for _ in ()).throw(NotImplementedError)
+        self.process_control = lambda *args, **kwargs: (_ for _ in ()).throw(
+            NotImplementedError
+        )
 
     ###########################
     # Flights related methods #
     ###########################
     @overrides(check_signature=False)
-    def do_put(self, context: ServerCallContext, descriptor: FlightDescriptor, reader: MetadataRecordBatchReader,
-               writer: RecordBatchStreamWriter):
+    def do_put(
+        self,
+        context: ServerCallContext,
+        descriptor: FlightDescriptor,
+        reader: MetadataRecordBatchReader,
+        writer: RecordBatchStreamWriter,
+    ):
         """
         Put a data table into server, the data will be handled by the `self.process_data()` handler.
         :param context: server context, containing information of middlewares.
@@ -174,7 +193,7 @@ class ProxyServer(FlightServerBase):
             if isinstance(result, bytes):
                 encoded = result
             else:
-                encoded = str(result).encode('utf-8')
+                encoded = str(result).encode("utf-8")
         else:
             raise KeyError("Unknown action {!r}".format(action_name))
         yield Result(py_buffer(encoded))

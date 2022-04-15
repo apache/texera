@@ -28,7 +28,9 @@ class StateManager:
         :param state: the expected state.
         """
         if self._current_state != state:
-            raise InvalidStateException(f"Excepted state = {state} but current state = {self._current_state}")
+            raise InvalidStateException(
+                f"Excepted state = {state} but current state = {self._current_state}"
+            )
 
     def confirm_state(self, *states: Union[T, Tuple[T]]) -> bool:
         """
@@ -56,7 +58,9 @@ class StateManager:
         self._state_stack.append(state)
 
         if state not in self._state_transition_graph.get(self._current_state, set()):
-            raise InvalidTransitionException(f"Cannot transit from {self._current_state} to {state}")
+            raise InvalidTransitionException(
+                f"Cannot transit from {self._current_state} to {state}"
+            )
 
         self._current_state = state
 
@@ -65,7 +69,9 @@ class StateManager:
         Revert back to the previous state saved in stack.
         """
         if len(self._state_stack) == 0:
-            raise InvalidTransitionException(f"There is no previous state for {self._current_state}")
+            raise InvalidTransitionException(
+                f"There is no previous state for {self._current_state}"
+            )
         self._current_state = self._state_stack.pop(-1)
 
     def get_current_state(self) -> T:

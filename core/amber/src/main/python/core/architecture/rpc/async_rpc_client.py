@@ -7,9 +7,16 @@ from loguru import logger
 from core.architecture.managers.context import Context
 from core.models.internal_queue import ControlElement, InternalQueue
 from core.util import set_one_of
-from proto.edu.uci.ics.amber.engine.architecture.worker import ControlCommandV2, ControlReturnV2
-from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlInvocationV2, ControlPayloadV2, \
-    ReturnInvocationV2
+from proto.edu.uci.ics.amber.engine.architecture.worker import (
+    ControlCommandV2,
+    ControlReturnV2,
+)
+from proto.edu.uci.ics.amber.engine.common import (
+    ActorVirtualIdentity,
+    ControlInvocationV2,
+    ControlPayloadV2,
+    ReturnInvocationV2,
+)
 
 
 class AsyncRPCClient:
@@ -19,14 +26,19 @@ class AsyncRPCClient:
         self._send_sequences: Dict[ActorVirtualIdentity, int] = defaultdict(int)
         self._unfulfilled_promises: Dict[(ActorVirtualIdentity, int), Future] = dict()
 
-    def send(self, to: ActorVirtualIdentity, control_command: ControlCommandV2) -> Future:
+    def send(
+        self, to: ActorVirtualIdentity, control_command: ControlCommandV2
+    ) -> Future:
         """
         Send the ControlCommand to the target actor.
 
         :param to: ActorVirtualIdentity, the receiver.
         :param control_command: ControlCommandV2, the command to be sent.
         """
-        payload = set_one_of(ControlPayloadV2, ControlInvocationV2(self._send_sequences[to], command=control_command))
+        payload = set_one_of(
+            ControlPayloadV2,
+            ControlInvocationV2(self._send_sequences[to], command=control_command),
+        )
         self._output_queue.put(ControlElement(tag=to, payload=payload))
         return self._create_future(to)
 
@@ -43,7 +55,9 @@ class AsyncRPCClient:
         self._send_sequences[to] += 1
         return future
 
-    def receive(self, from_: ActorVirtualIdentity, return_invocation: ReturnInvocationV2) -> None:
+    def receive(
+        self, from_: ActorVirtualIdentity, return_invocation: ReturnInvocationV2
+    ) -> None:
         """
         Receive the ReturnInvocation from the given actor.
         :param from_: ActorVirtualIdentity, the sender.
@@ -52,8 +66,12 @@ class AsyncRPCClient:
         command_id = return_invocation.original_command_id
         self._fulfill_promise(from_, command_id, return_invocation.control_return)
 
-    def _fulfill_promise(self, from_: ActorVirtualIdentity, command_id: int,
-                         control_return: ControlReturnV2) -> None:
+    def _fulfill_promise(
+        self,
+        from_: ActorVirtualIdentity,
+        command_id: int,
+        control_return: ControlReturnV2,
+    ) -> None:
         """
         Fulfill the promise with the CommandInvocation, referenced by the sequence id with this sender of
         ReturnInvocation.
@@ -68,4 +86,6 @@ class AsyncRPCClient:
             future.set_result(control_return)
             del self._unfulfilled_promises[(from_, command_id)]
         else:
-            logger.warning(f"received unknown ControlReturn {control_return}, no corresponding ControlCommand found.")
+            logger.warning(
+                f"received unknown ControlReturn {control_return}, no corresponding ControlCommand found."
+            )

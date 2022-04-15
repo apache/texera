@@ -3,7 +3,10 @@ import re
 from collections.abc import Iterator, Mapping
 from typing import Any, Dict, List, Optional, Pattern, Tuple
 
-from proto.edu.uci.ics.amber.engine.architecture.worker import EvaluatedValue, TypedValue
+from proto.edu.uci.ics.amber.engine.architecture.worker import (
+    EvaluatedValue,
+    TypedValue,
+)
 
 
 class ExpressionEvaluator:
@@ -12,7 +15,9 @@ class ExpressionEvaluator:
     """
 
     @staticmethod
-    def evaluate(expression: str, runtime_context: Optional[Dict[str, Any]] = None) -> EvaluatedValue:
+    def evaluate(
+        expression: str, runtime_context: Optional[Dict[str, Any]] = None
+    ) -> EvaluatedValue:
         """
         Evaluates the given expression and return a EvaluatedValue.
 
@@ -65,9 +70,9 @@ class ExpressionEvaluator:
                 value_ref=expression,
                 value_str=value_str,
                 value_type=type_str,
-                expandable=ExpressionEvaluator._is_expandable(value)
+                expandable=ExpressionEvaluator._is_expandable(value),
             ),
-            attributes=to_be_expanded
+            attributes=to_be_expanded,
         )
 
     @staticmethod
@@ -77,10 +82,20 @@ class ExpressionEvaluator:
     @staticmethod
     def _is_expandable(obj, parent=None) -> bool:
         # for set and set-like subclasses, the internal values cannot be expanded easily, disable for now
-        return not isinstance(parent, set) \
-               and not (ExpressionEvaluator._is_iterator(obj) and not ExpressionEvaluator._is_generator(obj)) \
-               and (ExpressionEvaluator._contains_attributes(obj) or (
-                    ExpressionEvaluator._is_iterable(obj) and not ExpressionEvaluator._is_empty_container(obj)))
+        return (
+            not isinstance(parent, set)
+            and not (
+                ExpressionEvaluator._is_iterator(obj)
+                and not ExpressionEvaluator._is_generator(obj)
+            )
+            and (
+                ExpressionEvaluator._contains_attributes(obj)
+                or (
+                    ExpressionEvaluator._is_iterable(obj)
+                    and not ExpressionEvaluator._is_empty_container(obj)
+                )
+            )
+        )
 
     @staticmethod
     def _is_mapping(obj) -> bool:
@@ -112,20 +127,26 @@ class ExpressionEvaluator:
         return hasattr(obj, "__len__") and len(obj) == 0
 
     @staticmethod
-    def _contextualize_expression(expression: str, context_replacements: Dict[Pattern[str], str]) -> str:
+    def _contextualize_expression(
+        expression: str, context_replacements: Dict[Pattern[str], str]
+    ) -> str:
 
         contextualized_expression = expression
         for pattern, contextualized_pattern in context_replacements.items():
-            contextualized_expression = re.sub(pattern, contextualized_pattern, contextualized_expression)
+            contextualized_expression = re.sub(
+                pattern, contextualized_pattern, contextualized_expression
+            )
         return contextualized_expression
 
     @staticmethod
     def _extract_container_items(value: Any) -> List[TypedValue]:
         return ExpressionEvaluator._to_typed_values(
-            value.items() if ExpressionEvaluator._is_mapping(value) else enumerate(value),
+            value.items()
+            if ExpressionEvaluator._is_mapping(value)
+            else enumerate(value),
             parent=value,
             to_getitem=True,
-            ref_as_repr=True
+            ref_as_repr=True,
         )
 
     @staticmethod
@@ -135,18 +156,27 @@ class ExpressionEvaluator:
     @staticmethod
     def _extract_generator_locals(value: Any) -> List[TypedValue]:
         return ExpressionEvaluator._to_typed_values(
-            filter(lambda t: t[0] != '.0', inspect.getgeneratorlocals(value).items()), check_expandable=False)
+            filter(lambda t: t[0] != ".0", inspect.getgeneratorlocals(value).items()),
+            check_expandable=False,
+        )
 
     @staticmethod
-    def _to_typed_values(kv_iter: List[Tuple[str, Any]], parent=None, to_getitem=False, ref_as_repr=False,
-                         check_expandable=True):
+    def _to_typed_values(
+        kv_iter: List[Tuple[str, Any]],
+        parent=None,
+        to_getitem=False,
+        ref_as_repr=False,
+        check_expandable=True,
+    ):
         return [
             TypedValue(
                 expression=f"__getitem__({repr(k)})" if to_getitem else k,
                 value_ref=repr(k) if ref_as_repr else k,
                 value_str=repr(v),
                 value_type=type(v).__name__,
-                expandable=ExpressionEvaluator._is_expandable(v, parent=parent) if check_expandable else False
+                expandable=ExpressionEvaluator._is_expandable(v, parent=parent)
+                if check_expandable
+                else False,
             )
             for k, v in kv_iter
         ]

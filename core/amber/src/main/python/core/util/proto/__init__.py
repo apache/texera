@@ -3,7 +3,7 @@ from typing import T
 
 from betterproto import Message, which_one_of
 
-camel_case_pattern = re.compile(r'(?<!^)(?=[A-Z])')
+camel_case_pattern = re.compile(r"(?<!^)(?=[A-Z])")
 
 
 def get_one_of(base: T, sealed=True) -> T:
@@ -14,7 +14,7 @@ def get_one_of(base: T, sealed=True) -> T:
 def set_one_of(base: T, value: Message) -> T:
     name = value.__class__.__name__
     name = name.strip("V2")
-    snake_case_name = re.sub(camel_case_pattern, '_', name).lower()
+    snake_case_name = re.sub(camel_case_pattern, "_", name).lower()
     ret = base()
     ret.__setattr__(snake_case_name, value)
     return ret

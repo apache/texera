@@ -43,9 +43,14 @@ class Operator(ABC):
 
     @output_schema.setter
     @overrides.final
-    def output_schema(self, raw_output_schema: Union[Schema, Mapping[str, str]]) -> None:
-        self.__internal_output_schema = raw_output_schema if isinstance(raw_output_schema, Schema) else \
-            to_arrow_schema(raw_output_schema)
+    def output_schema(
+        self, raw_output_schema: Union[Schema, Mapping[str, str]]
+    ) -> None:
+        self.__internal_output_schema = (
+            raw_output_schema
+            if isinstance(raw_output_schema, Schema)
+            else to_arrow_schema(raw_output_schema)
+        )
 
     def open(self) -> None:
         """
@@ -103,7 +108,9 @@ class TableOperator(TupleOperatorV2):
         yield
 
     def on_finish(self, port: int) -> Iterator[Optional[TableLike]]:
-        table = Table(pandas.DataFrame([i.as_series() for i in self.__table_data[port]]))
+        table = Table(
+            pandas.DataFrame([i.as_series() for i in self.__table_data[port]])
+        )
         for output_table in self.process_table(table, port):
             if output_table is not None:
                 if isinstance(output_table, pandas.DataFrame):
@@ -131,7 +138,9 @@ class TupleOperator(Operator):
     """
 
     @abstractmethod
-    def process_tuple(self, tuple_: Union[Tuple, InputExhausted], input_: int) -> Iterator[Optional[TupleLike]]:
+    def process_tuple(
+        self, tuple_: Union[Tuple, InputExhausted], input_: int
+    ) -> Iterator[Optional[TupleLike]]:
         """
         Process an input Tuple from the given link.
         :param tuple_: Union[Tuple, InputExhausted], either

@@ -31,6 +31,7 @@ class StoppableQueueBlockingRunnable(Runnable, Stoppable):
     consumed, it should break the Runnable.run().
 
     """
+
     RUNNABLE_STOP = IQueue.QueueControl(msg="__RUNNABLE__STOP__MARKER__")
 
     def __init__(self, name: str, queue: IQueue):

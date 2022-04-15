@@ -134,5 +134,7 @@ class DoubleBlockingQueue(IQueue):
         if self._consumer_id is None:
             self._consumer_id = get_id()
         else:
-            assert self._consumer_id == get_id(), f"DoubleBlockingQueue can only have one consumer! " \
-                                                  f"{self._consumer_id} vs {get_id()}"
+            assert self._consumer_id == get_id(), (
+                f"DoubleBlockingQueue can only have one consumer! "
+                f"{self._consumer_id} vs {get_id()}"
+            )

@@ -8,5 +8,5 @@ __all__ = [
     "DoubleBlockingQueue",
     "IQueue",
     "StoppableQueueBlockingRunnable",
-    "Stoppable"
+    "Stoppable",
 ]

@@ -14,7 +14,9 @@ class UDFOperator(TupleOperator):
         pass
 
     @abstractmethod
-    def process_tuple(self, tuple_: Union[Tuple, InputExhausted], input_: int) -> Iterator[Optional[TupleLike]]:
+    def process_tuple(
+        self, tuple_: Union[Tuple, InputExhausted], input_: int
+    ) -> Iterator[Optional[TupleLike]]:
         """
         Process an input Tuple from the given link.
         :param tuple_: Union[Tuple, InputExhausted], either
@@ -34,9 +36,9 @@ class UDFOperator(TupleOperator):
 
 class UDFOperatorV2(TupleOperatorV2):
     """
-     Base class for tuple-oriented user-defined operators. A concrete implementation must
-     be provided upon using.
-     """
+    Base class for tuple-oriented user-defined operators. A concrete implementation must
+    be provided upon using.
+    """
 
     def open(self) -> None:
         """
