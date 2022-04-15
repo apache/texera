@@ -1,7 +1,5 @@
 [flake8]
 extend-ignore =
-    D203,
-    E126,
     F403,
     F405,
     E203,
