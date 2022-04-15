@@ -17,7 +17,7 @@ class BarChartOpExec(
   setMapFunc(this.processTuple)
 
   def processTuple(t: Tuple): Tuple = {
-    val builder = Tuple.newBuilder(operatorSchemaInfo.outputSchema)
+    val builder = Tuple.newBuilder(operatorSchemaInfo.outputSchemas(0))
     val inputSchema = t.getSchema
     builder.add(inputSchema.getAttribute(opDesc.nameColumn), t.getField(opDesc.nameColumn))
     for (i <- opDesc.resultAttributeNames.indices) {

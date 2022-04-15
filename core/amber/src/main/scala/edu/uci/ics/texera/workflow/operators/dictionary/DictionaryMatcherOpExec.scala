@@ -136,7 +136,7 @@ class DictionaryMatcherOpExec(
       matched = isTupleInDictionary(tuple)
     }
     Tuple
-      .newBuilder(operatorSchemaInfo.outputSchema)
+      .newBuilder(operatorSchemaInfo.outputSchemas(0))
       .add(tuple)
       .add(opDesc.resultAttribute, AttributeType.BOOLEAN, matched)
       .build()

@@ -197,9 +197,7 @@ class Workflow(
         opExecConfig.topology.links.groupBy(_.to).map(x => (x._1, x._2.map(_.from).toSet))
       var layers: Iterable[WorkerLayer] =
         opExecConfig.topology.links
-          .filter((linkStrategy: LinkStrategy) =>
-            opExecConfig.topology.links.forall(_.to != linkStrategy.from)
-          )
+          .filter(linkStrategy => opExecConfig.topology.links.forall(_.to != linkStrategy.from))
           .map(_.from)
       layers.foreach(workerLayer => {
         workerLayer.build(

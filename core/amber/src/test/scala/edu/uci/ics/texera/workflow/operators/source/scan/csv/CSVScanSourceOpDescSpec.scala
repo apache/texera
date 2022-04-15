@@ -97,7 +97,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     csvScanSourceOpDesc.setContext(workflowContext)
 
     val emptySchema = Schema.newBuilder().build()
-    val operatorSchemaInfo = OperatorSchemaInfo(Array(emptySchema), emptySchema)
+    val operatorSchemaInfo = OperatorSchemaInfo(Array(emptySchema), Array(emptySchema))
     assert(csvScanSourceOpDesc.operatorExecutor(operatorSchemaInfo).topology.layers.length == 1)
     assert(
       csvScanSourceOpDesc

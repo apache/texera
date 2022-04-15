@@ -44,7 +44,7 @@ class ScatterplotVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     desc.yColumn = "field2"
     val outputSchema: Schema = desc.getOutputSchema(Array(tupleSchema))
     val operatorSchemaInfo: OperatorSchemaInfo =
-      OperatorSchemaInfo(Array(tupleSchema), outputSchema)
+      OperatorSchemaInfo(Array(tupleSchema), Array(outputSchema))
     scatterplotOpExec = new ScatterplotOpExec(desc, operatorSchemaInfo)
     scatterplotOpExec.open()
   }
@@ -62,7 +62,7 @@ class ScatterplotVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     desc.isGeometric = false
     val outputSchema: Schema = desc.getOutputSchema(Array(tupleSchema))
     val operatorSchemaInfo: OperatorSchemaInfo =
-      OperatorSchemaInfo(Array(tupleSchema), outputSchema)
+      OperatorSchemaInfo(Array(tupleSchema), Array(outputSchema))
     scatterplotOpExec = new ScatterplotOpExec(desc, operatorSchemaInfo)
     scatterplotOpExec.open()
     val processedTuple: Tuple = scatterplotOpExec.processTexeraTuple(Left(tuple), null).next()

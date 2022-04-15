@@ -23,7 +23,7 @@ class HashJoinOpExec[K](
   val probeSchema: Schema = operatorSchemaInfo.inputSchemas(1)
   var isBuildTableFinished: Boolean = false
   var buildTableHashMap: mutable.HashMap[K, (ArrayBuffer[Tuple], Boolean)] = _
-  var outputProbeSchema: Schema = operatorSchemaInfo.outputSchema
+  var outputSchema: Schema = operatorSchemaInfo.outputSchemas(0)
 
   var currentEntry: Iterator[Tuple] = _
   var currentTuple: Tuple = _
@@ -125,7 +125,7 @@ class HashJoinOpExec[K](
           tuples
             .map((tuple: Tuple) => {
               // creates a builder
-              val builder = Tuple.newBuilder(operatorSchemaInfo.outputSchema)
+              val builder = Tuple.newBuilder(outputSchema)
 
               // fill the probe tuple attributes as null, since no match
               fillNonJoinFields(
@@ -157,7 +157,7 @@ class HashJoinOpExec[K](
       .map(buildTuple => {
         // creates a builder with the build tuple filled
         val builder = Tuple
-          .newBuilder(operatorSchemaInfo.outputSchema)
+          .newBuilder(outputSchema)
           .add(buildTuple)
 
         // append the probe tuple
@@ -204,7 +204,7 @@ class HashJoinOpExec[K](
 
   private def performRightAntiJoin(tuple: Tuple): Iterator[Tuple] = {
     // creates a builder
-    val builder = Tuple.newBuilder(operatorSchemaInfo.outputSchema)
+    val builder = Tuple.newBuilder(outputSchema)
 
     // fill the build tuple attributes as null, since no match
     fillNonJoinFields(

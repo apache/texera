@@ -8,11 +8,11 @@ trait ISourceOperatorExecutor extends IOperatorExecutor {
   override def processTuple(
       tuple: Either[ITuple, InputExhausted],
       input: LinkIdentity
-  ): Iterator[ITuple] = {
+  ): Iterator[(ITuple, Option[LinkIdentity])] = {
     // The input Tuple for source operator will always be InputExhausted.
     // Source and other operators can share the same processing logic.
     // produce() will be called only once.
-    produce()
+    produce().map(t => (t, Option.empty))
   }
 
   def produce(): Iterator[ITuple]

@@ -29,10 +29,15 @@ export const mockLogicalPlan_scan_result: LogicalPlan = {
   ],
   links: [
     {
-      origin: { operatorID: mockScanPredicate.operatorID, portOrdinal: 0 },
+      origin: {
+        operatorID: mockScanPredicate.operatorID,
+        portOrdinal: 0,
+        portName: "",
+      },
       destination: {
         operatorID: mockResultPredicate.operatorID,
         portOrdinal: 0,
+        portName: "",
       },
     },
   ],
@@ -65,17 +70,27 @@ export const mockLogicalPlan_scan_sentiment_result: LogicalPlan = {
   ],
   links: [
     {
-      origin: { operatorID: mockScanPredicate.operatorID, portOrdinal: 0 },
+      origin: {
+        operatorID: mockScanPredicate.operatorID,
+        portOrdinal: 0,
+        portName: "",
+      },
       destination: {
         operatorID: mockSentimentPredicate.operatorID,
         portOrdinal: 0,
+        portName: "",
       },
     },
     {
-      origin: { operatorID: mockSentimentPredicate.operatorID, portOrdinal: 0 },
+      origin: {
+        operatorID: mockSentimentPredicate.operatorID,
+        portOrdinal: 0,
+        portName: "",
+      },
       destination: {
         operatorID: mockResultPredicate.operatorID,
         portOrdinal: 0,
+        portName: "",
       },
     },
   ],

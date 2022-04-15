@@ -18,7 +18,8 @@ class HtmlVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val desc: HtmlVizOpDesc = new HtmlVizOpDesc()
 
   val outputSchema: Schema = desc.getOutputSchema(Array(schema))
-  val operatorSchemaInfo: OperatorSchemaInfo = OperatorSchemaInfo(Array(schema), outputSchema)
+  val operatorSchemaInfo: OperatorSchemaInfo =
+    OperatorSchemaInfo(Array(schema), Array(outputSchema))
 
   def tuple(): Tuple =
     Tuple

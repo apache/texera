@@ -125,7 +125,7 @@ class IntervalJoinOpExec(
 
   private def joinTuples(leftTuple: Tuple, rightTuple: Tuple): Tuple = {
     val builder = Tuple
-      .newBuilder(operatorSchemaInfo.outputSchema)
+      .newBuilder(operatorSchemaInfo.outputSchemas(0))
       .add(leftTuple)
     for (i <- 0 until rightTuple.getFields.size()) {
       val attributeName = rightTuple.getSchema.getAttributeNames.get(i)

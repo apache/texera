@@ -24,7 +24,9 @@ class TwitterFullArchiveSearchSourceOpExec(
     desc: TwitterFullArchiveSearchSourceOpDesc,
     operatorSchemaInfo: OperatorSchemaInfo
 ) extends TwitterSourceOpExec(desc.apiKey, desc.apiSecretKey, desc.stopWhenRateLimited) {
-  val outputSchemaAttributes: Array[AttributeType] = operatorSchemaInfo.outputSchema.getAttributes
+  val outputSchemaAttributes: Array[AttributeType] = operatorSchemaInfo
+    .outputSchemas(0)
+    .getAttributes
     .map((attribute: Attribute) => {
       attribute.getType
     })
@@ -130,7 +132,7 @@ class TwitterFullArchiveSearchSourceOpExec(
           ),
           outputSchemaAttributes
         )
-        Tuple.newBuilder(operatorSchemaInfo.outputSchema).addSequentially(fields).build
+        Tuple.newBuilder(operatorSchemaInfo.outputSchemas(0)).addSequentially(fields).build
       }
     }
 

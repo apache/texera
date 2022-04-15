@@ -41,7 +41,7 @@ public class ScatterplotOpExec implements OperatorExecutor {
         Object[] resultObjects = new Object[2];
         resultObjects[0] = t.getField(opDesc.xColumn);
         resultObjects[1] = t.getField(opDesc.yColumn);
-        result.add(Tuple.newBuilder(operatorSchemaInfo.outputSchema()).addSequentially(resultObjects).build());
+        result.add(Tuple.newBuilder(operatorSchemaInfo.outputSchemas()[0]).addSequentially(resultObjects).build());
         return result;
     }
 
