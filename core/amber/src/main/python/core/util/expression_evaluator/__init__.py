@@ -11,7 +11,8 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
 
 class ExpressionEvaluator:
     """
-    Provides a series of static evaluation methods of a given expression, with an optional context.
+    Provides a series of static evaluation methods of a given expression, with an
+    optional context.
     """
 
     @staticmethod
@@ -21,17 +22,23 @@ class ExpressionEvaluator:
         """
         Evaluates the given expression and return a EvaluatedValue.
 
-        Right now, there is no validation performed on the input expression. User takes full
+        Right now, there is no validation performed on the input expression. User
+        takes full
         responsibility of using this method.
         :param expression: a python statement string
-        :param runtime_context: a Mapping of expressions to values, to be used for evaluation
-        :return: EvaluatedValue which contains the current value and its children's value, all in the
-            format of TypedValue. A TypedValue contains
+        :param runtime_context: a Mapping of expressions to values, to be used for
+            evaluation
+        :return: EvaluatedValue which contains the current value and its children's
+            value, all in the format of TypedValue.
+
+            A TypedValue contains:
                 - expression: str, to match the request expression being evaluated;
-                - value_ref: str, the reference of this value, can be used to construct the
-                        next expression which expands the current value further;
+                - value_ref: str, the reference of this value, can be used to
+                    construct the next expression which expands the current value
+                    further;
                 - value_str: str, the value in string format, to be displayed;
-                - value_type: str, the type of this value, in string format, to be displayed;
+                - value_type: str, the type of this value, in string format,
+                    to be displayed;
                 - expandable: bool, whether this value can be expanded or not.
 
         The TypedValue could be expanded. For now it supports the following types:
@@ -81,7 +88,8 @@ class ExpressionEvaluator:
 
     @staticmethod
     def _is_expandable(obj, parent=None) -> bool:
-        # for set and set-like subclasses, the internal values cannot be expanded easily, disable for now
+        # for set and set-like subclasses, the internal values cannot be expanded
+        # easily, disable for now
         return (
             not isinstance(parent, set)
             and not (
@@ -112,9 +120,10 @@ class ExpressionEvaluator:
     @staticmethod
     def _is_iterable(obj) -> bool:
         """
-        According to https://www.pythonlikeyoumeanit.com/Module2_EssentialsOfPython/Iterables.html#Iterables,
-        an iterable is any Python object with an __iter__() method or with a __getitem__() method that
-        implements Sequence semantics.
+        According to
+        https://www.pythonlikeyoumeanit.com/Module2_EssentialsOfPython/Iterables.html#Iterables,
+        an iterable is any Python object with an __iter__() method or with a
+        __getitem__() method that implements Sequence semantics.
         """
         return hasattr(obj, "__iter__") or hasattr(obj, "__getitem__")
 

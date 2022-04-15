@@ -89,7 +89,8 @@ class AsyncRPCServer:
         # reply to the sender
         to = from_
         logger.debug(
-            f"PYTHON returns a ReturnInvocation {payload}, replying the command {command}"
+            f"PYTHON returns a ReturnInvocation {payload}, replying the command"
+            f" {command}"
         )
         self._output_queue.put(ControlElement(tag=to, payload=payload))
 

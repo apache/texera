@@ -26,6 +26,7 @@ class Operator(ABC):
         """
         Whether the operator is a source operator. Source operators generates output
         Tuples without having input Tuples.
+
         :return:
         """
         return self.__internal_is_source
@@ -76,17 +77,21 @@ class TupleOperatorV2(Operator):
     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
         """
         Process an input Tuple from the given link.
+
         :param tuple_: Tuple, a Tuple from an input port to be processed.
         :param port: int, input port index of the current Tuple.
-        :return: Iterator[Optional[TupleLike]], producing one TupleLike object at a time, or None.
+        :return: Iterator[Optional[TupleLike]], producing one TupleLike object at a
+            time, or None.
         """
         yield
 
     def on_finish(self, port: int) -> Iterator[Optional[TupleLike]]:
         """
         Callback when one input port is exhausted.
+
         :param port: int, input port index of the current exhausted port.
-        :return: Iterator[Optional[TupleLike]], producing one TupleLike object at a time, or None.
+        :return: Iterator[Optional[TupleLike]], producing one TupleLike object at a
+            time, or None.
         """
         yield
 
@@ -122,10 +127,13 @@ class TableOperator(TupleOperatorV2):
     @abstractmethod
     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
         """
-        Process an input Table from the given link. The Table is represented as pandas.DataFrame.
+        Process an input Table from the given link. The Table is represented as a
+        pandas.DataFrame.
+
         :param table: Table, a table to be processed.
         :param port: int, input port index of the current Tuple.
-        :return: Iterator[Optional[TableLike]], producing one TableLike object at a time, or None.
+        :return: Iterator[Optional[TableLike]], producing one TableLike object at a
+            time, or None.
         """
         yield
 
@@ -143,11 +151,13 @@ class TupleOperator(Operator):
     ) -> Iterator[Optional[TupleLike]]:
         """
         Process an input Tuple from the given link.
+
         :param tuple_: Union[Tuple, InputExhausted], either
                         1. a Tuple from a link to be processed;
                         2. an InputExhausted indicating no more data from this link.
         :param input_: int, input index of the current Tuple.
-        :return: Iterator[Optional[TupleLike]], producing one TupleLike object at a time, or None.
+        :return: Iterator[Optional[TupleLike]], producing one TupleLike object at a
+            time, or None.
         """
         yield
 

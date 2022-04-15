@@ -13,7 +13,8 @@ class InvalidTransitionException(Exception):
 
 class StateManager:
     """
-    A generalized StateManager that provides APIs for state transition, assertion, and confirmation.
+    A generalized StateManager that provides APIs for state transition, assertion,
+    and confirmation.
     """
 
     def __init__(self, state_transition_graph: Dict[T, Set[T]], initial_state: T):
@@ -35,6 +36,7 @@ class StateManager:
     def confirm_state(self, *states: Union[T, Tuple[T]]) -> bool:
         """
         Check if current state is in one of the states.
+
         :param states: Union[T, Tuple[T]], a series of states to be checked.
         :return: bool
         """
@@ -42,7 +44,9 @@ class StateManager:
 
     def transit_to(self, state: T, discard_old_states: bool = True) -> None:
         """
-        Transit the current state into the target state. If discard_old_states is True, remove states in the stack.
+        Transit the current state into the target state.
+        If discard_old_states is True, remove states in the stack.
+
         :param state: T, the target state to transit to.
         :param discard_old_states: bool, whether remove stacked states or not.
         :return:
@@ -66,7 +70,7 @@ class StateManager:
 
     def back_to_previous_state(self) -> None:
         """
-        Revert back to the previous state saved in stack.
+        Revert to the previous state saved in the stack.
         """
         if len(self._state_stack) == 0:
             raise InvalidTransitionException(

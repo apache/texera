@@ -183,8 +183,11 @@ class TestExpressionEvaluator:
             value=TypedValue(
                 expression="a",
                 value_ref="a",
-                value_str="<core.util.expression_evaluator.test_expression_evaluator.TestExpressionEvaluator."
-                f"test_evaluate_object_expression.<locals>.A object at {hex(id(a))}>",
+                value_str=(
+                    "<core.util.expression_evaluator.test_expression_evaluator."
+                    "TestExpressionEvaluator.test_evaluate_object_expression.<locals>.A"
+                    f" object at {hex(id(a))}>"
+                ),
                 value_type="A",
                 expandable=True,
             ),
@@ -359,8 +362,11 @@ class TestExpressionEvaluator:
             value=TypedValue(
                 expression="g",
                 value_ref="g",
-                value_str=f"<generator object TestExpressionEvaluator.test_evaluate_container_expressions"
-                f".<locals>.<genexpr> at {hex(id(g))}>",
+                value_str=(
+                    "<generator object"
+                    " TestExpressionEvaluator.test_evaluate_container_expressions."
+                    f"<locals>.<genexpr> at {hex(id(g))}>"
+                ),
                 value_type="generator",
                 expandable=True,
             ),
@@ -379,8 +385,11 @@ class TestExpressionEvaluator:
             value=TypedValue(
                 expression="g",
                 value_ref="g",
-                value_str=f"<generator object TestExpressionEvaluator.test_evaluate_container_expressions"
-                f".<locals>.gen at {hex(id(g))}>",
+                value_str=(
+                    "<generator object"
+                    " TestExpressionEvaluator.test_evaluate_container_expressions."
+                    f"<locals>.gen at {hex(id(g))}>"
+                ),
                 value_type="generator",
                 expandable=True,
             ),

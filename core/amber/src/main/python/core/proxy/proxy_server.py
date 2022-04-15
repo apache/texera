@@ -22,24 +22,27 @@ class ProxyServer(FlightServerBase):
     """
     There are three kinds of messages supported by the ProxyServer:
     1. Data Messages.
-        Data Messages are passed through the endpoint do_put. It will contain a command and a data batch
-        The user should provide deserializer for the command and a handler for the data batch.
+        Data Messages are passed through the endpoint do_put. It will contain a
+        command and a data batch.
+        The user should provide deserializer for the command and a handler for the
+        data batch.
     2. ProxyInternal Messages.
-        ProxyInternal Messages are passed through the endpoint do_action. It will be used to control the
-        life cycle of the ProxyServer. Some example messages:
+        ProxyInternal Messages are passed through the endpoint do_action. It will be
+        used to control the life cycle of the ProxyServer. Some example messages:
         - heartbeat: checks if the ProxyServer is alive.
         - shutdown: shutdown the ProxyServer.
         - control: passing a Control Message.
     3. Control Messages.
-        Control Messages are passed through the endpoint do_action. It will contain a command and a payload.
+        Control Messages are passed through the endpoint do_action. It will contain a
+        command and a payload.
         The user should provide deserializer for both the command and the payload.
     """
 
     @staticmethod
     def ack(original_func: Optional[Callable] = None, msg="ack"):
         """
-        Decorator for returning an ack message after the action. It is a Proxy level ack, only to be used
-        by ProxyServer actions.
+        Decorator for returning an ack message after the action. It is a Proxy level
+        ack, only to be used by ProxyServer actions.
 
         Example usage:
             ```
@@ -59,7 +62,8 @@ class ProxyServer(FlightServerBase):
             msg = client.call("hello") # msg will be "other msg"
             ```
 
-        :param original_func: decorated function, usually is a callable to be registered.
+        :param original_func: decorated function, usually is a callable to be
+            registered.
         :param msg: the return message from the decorator, "ack" by default.
         :return:
         """
@@ -136,7 +140,9 @@ class ProxyServer(FlightServerBase):
         writer: RecordBatchStreamWriter,
     ):
         """
-        Put a data table into server, the data will be handled by the `self.process_data()` handler.
+        Put a data table into the server, the data will be handled by the
+        `self.process_data()` handler.
+
         :param context: server context, containing information of middlewares.
         :param descriptor: the descriptor of this batch of data.
         :param reader: the input stream of batches of records.
@@ -157,6 +163,7 @@ class ProxyServer(FlightServerBase):
         """
         List all actions that are being registered with the server, it will
         return the action name and description for each registered action.
+
         :param context: server context, containing information of middlewares.
         :return: iterator of (action_name, action_description) pairs.
         """
@@ -167,6 +174,7 @@ class ProxyServer(FlightServerBase):
         """
         Perform an action that previously registered with a action,
         return a result in bytes.
+
         :param context: server context, containing information of middlewares.
         :param action: the action to perform, including
                         action.type: the action name to invoke
@@ -202,6 +210,7 @@ class ProxyServer(FlightServerBase):
     def register(self, name: str, action: Callable, description: str = "") -> None:
         """
         Register an action with the action name.
+
         :param name: the name of the action, it should be matching Action's type.
         :param action: a callable, could be class, function, or lambda.
         :param description: describes the action.
@@ -221,7 +230,9 @@ class ProxyServer(FlightServerBase):
     def register_data_handler(self, handler: Callable) -> None:
         """
         Register the data handler function, which will be invoked after each `do_put`.
-        :param handler: a callable with at least two arguments, for 1) the command and 2) the data batch.
+
+        :param handler: a callable with at least two arguments, for
+            1) the command and 2) the data batch.
         :return:
         """
 
@@ -232,7 +243,9 @@ class ProxyServer(FlightServerBase):
     @logger.catch(reraise=True)
     def register_control_handler(self, handler: Callable) -> None:
         """
-        Register a control handler function, which will be invoked after each `do_action` with `control` as the command.
+        Register a control handler function, which will be invoked after each
+        `do_action` with `control` as the command.
+
         :param handler: a callable with at least two arguments, for 1) the command
             and 2) the control payload.
         :return:

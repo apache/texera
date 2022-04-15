@@ -24,11 +24,12 @@ class StoppableQueueBlockingRunnable(Runnable, Stoppable):
     block is true and timeout is None, this operation goes into an uninterruptible
     wait on an underlying lock."
 
-    Currently, there is no other workaround for interrupting a waiting stoppable, safely.
+    Currently, there is no other workaround for interrupting a waiting stoppable,
+    safely.
 
     This implementation adds a special marker called
-    `StoppableQueueBlockingRunnable.RUNNABLE_STOP` into the queue, and when the marker is
-    consumed, it should break the Runnable.run().
+    `StoppableQueueBlockingRunnable.RUNNABLE_STOP` into the queue, and when the
+    marker is consumed, it should break the Runnable.run().
 
     """
 

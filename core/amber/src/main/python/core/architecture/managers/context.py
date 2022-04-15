@@ -8,8 +8,10 @@ from ..packaging.tuple_to_batch_converter import TupleToBatchConverter
 
 class Context:
     """
-    This class manages context of command handlers. Many of those attributes belongs to DP thread,
-    they are managed here to show a clean interface what handlers can or should access.
+    Manages context of command handlers. Many of those attributes belongs to the DP
+    thread, they are managed here to show a clean interface what handlers can or
+    should access.
+
     Context class can be viewed as a friend of DataProcessor.
     """
 

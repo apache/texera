@@ -42,10 +42,12 @@ class NetworkSender(StoppableQueueBlockingRunnable):
     @logger.catch(reraise=True)
     def _send_data(self, to: ActorVirtualIdentity, data_payload: DataPayload) -> None:
         """
-        Send data payload to the given target actor. This method is to be used internally only.
+        Send data payload to the given target actor. This method is to be used
+        internally only.
 
         :param to: The target actor's ActorVirtualIdentity
-        :param data_payload: The data payload to be sent, can be either DataFrame or EndOfUpstream
+        :param data_payload: The data payload to be sent, can be either DataFrame or
+            EndOfUpstream
         """
 
         if isinstance(data_payload, OutputDataFrame):
@@ -71,11 +73,12 @@ class NetworkSender(StoppableQueueBlockingRunnable):
         self, to: ActorVirtualIdentity, control_payload: ControlPayloadV2
     ) -> None:
         """
-        Send the control payload to the given target actor. This method is to be used internally only.
+        Send the control payload to the given target actor. This method is to be used
+        internally only.
 
         :param to: The target actor's ActorVirtualIdentity
-        :param control_payload: The control payload to be sent, can be either ControlInvocation or
-            ReturnInvocation.
+        :param control_payload: The control payload to be sent, can be either
+            ControlInvocation or ReturnInvocation.
         """
         python_control_message = PythonControlMessage(tag=to, payload=control_payload)
         self._proxy_client.call_action("control", bytes(python_control_message))

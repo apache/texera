@@ -1,10 +1,11 @@
 [flake8]
-ignore =
+extend-ignore =
     D203,
     E126,
     F403,
     F405,
+    E203,
 exclude =
     proto,
 max-complexity = 10
-max-line-length = 120
+max-line-length = 88

@@ -46,8 +46,7 @@ class ArrowTableTupleProvider:
     def __next__(self) -> Callable:
         """
         Provide the field accessor of the next tuple.
-        If current chunk is exhausted, move to the first
-        tuple of the next chunk.
+        If current chunk is exhausted, move to the first tuple of the next chunk.
         """
         if self._current_idx >= len(self._table.column(0).chunks[self._current_chunk]):
             self._current_idx = 0
@@ -61,8 +60,8 @@ class ArrowTableTupleProvider:
         def field_accessor(field_name: str) -> AttributeType:
             """
             Retrieve the field value by a given field name.
-            This abstracts and hides the underlying implementation
-            of the tuple data storage from the user.
+            This abstracts and hides the underlying implementation of the tuple data
+            storage from the user.
             """
             value = self._table.column(field_name).chunks[chunk_idx][tuple_idx].as_py()
             field_type = self._table.schema.field_by_name(field_name).type
@@ -85,11 +84,11 @@ class Tuple:
 
     def __init__(self, tuple_like: typing.Optional[TupleLike] = None):
         """
-        Construct a lazy-tuple with given TupleLike object. If the field value is a callable
+        Construct a lazy-tuple with given TupleLike object. If the field value is a
         accessor callable, the actual value is fetched upon first reference.
 
-        :param tuple_like: in which the field value could be the actual value in memory, or a
-            callable accessor.
+        :param tuple_like: in which the field value could be the actual value in
+            memory, or a callable accessor.
         """
         assert len(tuple_like) != 0
         if isinstance(tuple_like, Tuple):
@@ -101,7 +100,9 @@ class Tuple:
 
     def __getitem__(self, item: typing.Union[int, str]) -> AttributeType:
         """
-        Get a field value with given item. If the value is an accessor, fetch it from the accessor.
+        Get a field value with given item. If the value is an accessor, fetch it from
+        the accessor.
+
         :param item: field name or field index
         :return: field value
         """

@@ -44,9 +44,9 @@ class AsyncRPCClient:
 
     def _create_future(self, to: ActorVirtualIdentity) -> Future:
         """
-        Create a promise for the target actor, recording the CommandInvocations sent with a sequence,
-        so that the promise can be fulfilled once the ReturnInvocation is received for the
-        CommandInvocation.
+        Create a promise for the target actor, recording the CommandInvocations sent
+        with a sequence, so that the promise can be fulfilled once the
+        ReturnInvocation is received for the CommandInvocation.
 
         :param to: ActorVirtualIdentity, the receiver.
         """
@@ -73,11 +73,12 @@ class AsyncRPCClient:
         control_return: ControlReturnV2,
     ) -> None:
         """
-        Fulfill the promise with the CommandInvocation, referenced by the sequence id with this sender of
-        ReturnInvocation.
+        Fulfill the promise with the CommandInvocation, referenced by the sequence id
+        with this sender of ReturnInvocation.
 
         :param from_: ActorVirtualIdentity, the sender.
-        :param command_id: int, paired with from_ to uniquely identify an unfulfilled future.
+        :param command_id: int, paired with from_ to uniquely identify an unfulfilled
+            future.
         :param control_return: ControlReturnV2m, to be used to fulfill the promise.
         """
 
@@ -87,5 +88,6 @@ class AsyncRPCClient:
             del self._unfulfilled_promises[(from_, command_id)]
         else:
             logger.warning(
-                f"received unknown ControlReturn {control_return}, no corresponding ControlCommand found."
+                f"received unknown ControlReturn {control_return}, no corresponding"
+                " ControlCommand found."
             )

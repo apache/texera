@@ -67,7 +67,8 @@ class DataProcessor(StoppableQueueBlockingRunnable):
 
     def complete(self) -> None:
         """
-        Complete the DataProcessor, marking state to COMPLETED, and notify the controller.
+        Complete the DataProcessor, marking state to COMPLETED, and notify the
+        controller.
         """
         # flush the buffered console prints
         self._print_log_handler.flush()
@@ -80,12 +81,13 @@ class DataProcessor(StoppableQueueBlockingRunnable):
 
     def check_and_process_control(self) -> None:
         """
-        Check if there exists any ControlElement(s) in the input_queue, if so, take and process
-        them one by one.
+        Check if there exists any ControlElement(s) in the input_queue, if so, take and
+        process them one by one.
 
-        This is used very frequently as we want to prioritize the process of ControlElement ,
-        and will be invoked many times during a DataElement's processing lifecycle. Thus, this
-        method's invocation could appear in any stage while processing a DataElement.
+        This is used very frequently as we want to prioritize the process of
+        ControlElement, and will be invoked many times during a DataElement's processing
+        lifecycle. Thus, this method's invocation could appear in any stage while
+        processing a DataElement.
         """
 
         while (
@@ -102,7 +104,8 @@ class DataProcessor(StoppableQueueBlockingRunnable):
     @overrides
     def receive(self, next_entry: IQueue.QueueElement) -> None:
         """
-        Main entry point of the DataProcessor. Upon receipt of an next_entry, process it respectfully.
+        Main entry point of the DataProcessor. Upon receipt of an next_entry,
+        process it respectfully.
 
         :param next_entry: An entry from input_queue, could be one of the followings:
                     1. a ControlElement;
@@ -121,6 +124,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
     ) -> None:
         """
         Process the given ControlPayload with the tag.
+
         :param tag: ActorVirtualIdentity, the sender.
         :param payload: ControlPayloadV2 to be handled.
         """
@@ -136,10 +140,11 @@ class DataProcessor(StoppableQueueBlockingRunnable):
     @logger.catch
     def process_input_tuple(self) -> None:
         """
-        Process the current input tuple with the current input link. Send all result Tuples
-        to downstream operators.
+        Process the current input tuple with the current input link. Send all result
+        Tuples to downstream operators.
 
-        This is being invoked for each Tuple/Marker that are unpacked from the DataElement.
+        This is being invoked for each Tuple/Marker that are unpacked from the
+        DataElement.
         """
         if isinstance(self._current_input_tuple, Tuple):
             self.context.statistics_manager.increase_input_tuple_count()
@@ -233,7 +238,8 @@ class DataProcessor(StoppableQueueBlockingRunnable):
         self, sender_change_marker: SenderChangeMarker
     ) -> None:
         """
-        Upon receipt of a SenderChangeMarker, change the current input link to the sender.
+        Upon receipt of a SenderChangeMarker, change the current input link to the
+        sender.
 
         :param sender_change_marker: SenderChangeMarker which contains sender link.
         """
