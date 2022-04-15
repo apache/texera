@@ -7,8 +7,14 @@ from typing import Callable, Dict, Iterator, Optional, Tuple
 from loguru import logger
 from overrides import overrides
 from pyarrow import Table, py_buffer
-from pyarrow.flight import Action, FlightDescriptor, FlightServerBase, MetadataRecordBatchReader, Result, \
-    ServerCallContext
+from pyarrow.flight import (
+    Action,
+    FlightDescriptor,
+    FlightServerBase,
+    MetadataRecordBatchReader,
+    Result,
+    ServerCallContext,
+)
 from pyarrow.ipc import RecordBatchStreamWriter
 
 
@@ -16,24 +22,27 @@ class ProxyServer(FlightServerBase):
     """
     There are three kinds of messages supported by the ProxyServer:
     1. Data Messages.
-        Data Messages are passed through the endpoint do_put. It will contain a command and a data batch
-        The user should provide deserializer for the command and a handler for the data batch.
+        Data Messages are passed through the endpoint do_put. It will contain a
+        command and a data batch.
+        The user should provide deserializer for the command and a handler for the
+        data batch.
     2. ProxyInternal Messages.
-        ProxyInternal Messages are passed through the endpoint do_action. It will be used to control the
-        life cycle of the ProxyServer. Some example messages:
+        ProxyInternal Messages are passed through the endpoint do_action. It will be
+        used to control the life cycle of the ProxyServer. Some example messages:
         - heartbeat: checks if the ProxyServer is alive.
         - shutdown: shutdown the ProxyServer.
         - control: passing a Control Message.
     3. Control Messages.
-        Control Messages are passed through the endpoint do_action. It will contain a command and a payload.
+        Control Messages are passed through the endpoint do_action. It will contain a
+        command and a payload.
         The user should provide deserializer for both the command and the payload.
     """
 
     @staticmethod
     def ack(original_func: Optional[Callable] = None, msg="ack"):
         """
-        Decorator for returning an ack message after the action. It is a Proxy level ack, only to be used
-        by ProxyServer actions.
+        Decorator for returning an ack message after the action. It is a Proxy level
+        ack, only to be used by ProxyServer actions.
 
         Example usage:
             ```
@@ -53,7 +62,8 @@ class ProxyServer(FlightServerBase):
             msg = client.call("hello") # msg will be "other msg"
             ```
 
-        :param original_func: decorated function, usually is a callable to be registered.
+        :param original_func: decorated function, usually is a callable to be
+            registered.
         :param msg: the return message from the decorator, "ack" by default.
         :return:
         """
@@ -70,45 +80,69 @@ class ProxyServer(FlightServerBase):
             return ack_decorator(original_func)
         return ack_decorator
 
-    def __init__(self, scheme: str = "grpc+tcp", host: str = "localhost", port: int = 5005):
+    def __init__(
+        self, scheme: str = "grpc+tcp", host: str = "localhost", port: int = 5005
+    ):
         location = f"{scheme}://{host}:{port}"
         super(ProxyServer, self).__init__(location)
         logger.debug(f"Serving on {location}")
         self.host = host
 
-        # action name to callable map, will contain registered actions, identified by action name.
+        # action name to callable map, will contain registered actions,
+        # identified by action name.
         self._procedures: Dict[str, Tuple[Callable, str]] = dict()
 
-        # register heartbeat, this is the default action for the client to check the aliveness of the server.
-        self.register("heartbeat", ProxyServer.ack()(lambda: None))
+        # register heartbeat, this is the default action for the client to
+        # check the aliveness of the server.
+        self.register(name="heartbeat", action=ProxyServer.ack()(lambda: None))
 
-        # register shutdown, this is the default action for the client to terminate the server.
-        self.register("shutdown",
-                      ProxyServer.ack(msg="Bye bye!")
-                      (lambda: threading.Thread(target=self._shutdown).start()),
-                      description="Shut down this server.")
+        # register shutdown, this is the default action for the client to
+        # terminate the server.
+        self.register(
+            name="shutdown",
+            action=ProxyServer.ack(msg="Bye bye!")(
+                lambda: threading.Thread(target=self._shutdown).start()
+            ),
+            description="Shut down this server.",
+        )
 
-        # register control, this is the default action for the client to invoke after receiving control.
-        self.register("control",
-                      ProxyServer.ack()(
-                          lambda control_message: self.process_control(control_message)),
-                      description="Process the control message"
-                      )
+        # register control, this is the default action for the client to invoke
+        # after receiving control.
+        self.register(
+            name="control",
+            action=ProxyServer.ack()(
+                lambda control_message: self.process_control(control_message)
+            ),
+            description="Process the control message",
+        )
 
-        # the data message handler for each data message, needs to be implemented during runtime.
-        self.process_data = lambda *args, **kwargs: (_ for _ in ()).throw(NotImplementedError)
+        # the data message handler for each data message, needs to be
+        # implemented during runtime.
+        self.process_data = lambda *args, **kwargs: (_ for _ in ()).throw(
+            NotImplementedError
+        )
 
-        # the control message handler for each control message, needs to be implemented during runtime.
-        self.process_control = lambda *args, **kwargs: (_ for _ in ()).throw(NotImplementedError)
+        # the control message handler for each control message, needs to be
+        # implemented during runtime.
+        self.process_control = lambda *args, **kwargs: (_ for _ in ()).throw(
+            NotImplementedError
+        )
 
     ###########################
     # Flights related methods #
     ###########################
     @overrides(check_signature=False)
-    def do_put(self, context: ServerCallContext, descriptor: FlightDescriptor, reader: MetadataRecordBatchReader,
-               writer: RecordBatchStreamWriter):
+    def do_put(
+        self,
+        context: ServerCallContext,
+        descriptor: FlightDescriptor,
+        reader: MetadataRecordBatchReader,
+        writer: RecordBatchStreamWriter,
+    ):
         """
-        Put a data table into server, the data will be handled by the `self.process_data()` handler.
+        Put a data table into the server, the data will be handled by the
+        `self.process_data()` handler.
+
         :param context: server context, containing information of middlewares.
         :param descriptor: the descriptor of this batch of data.
         :param reader: the input stream of batches of records.
@@ -129,6 +163,7 @@ class ProxyServer(FlightServerBase):
         """
         List all actions that are being registered with the server, it will
         return the action name and description for each registered action.
+
         :param context: server context, containing information of middlewares.
         :return: iterator of (action_name, action_description) pairs.
         """
@@ -139,6 +174,7 @@ class ProxyServer(FlightServerBase):
         """
         Perform an action that previously registered with a action,
         return a result in bytes.
+
         :param context: server context, containing information of middlewares.
         :param action: the action to perform, including
                         action.type: the action name to invoke
@@ -165,7 +201,7 @@ class ProxyServer(FlightServerBase):
             if isinstance(result, bytes):
                 encoded = result
             else:
-                encoded = str(result).encode('utf-8')
+                encoded = str(result).encode("utf-8")
         else:
             raise KeyError("Unknown action {!r}".format(action_name))
         yield Result(py_buffer(encoded))
@@ -174,6 +210,7 @@ class ProxyServer(FlightServerBase):
     def register(self, name: str, action: Callable, description: str = "") -> None:
         """
         Register an action with the action name.
+
         :param name: the name of the action, it should be matching Action's type.
         :param action: a callable, could be class, function, or lambda.
         :param description: describes the action.
@@ -193,7 +230,9 @@ class ProxyServer(FlightServerBase):
     def register_data_handler(self, handler: Callable) -> None:
         """
         Register the data handler function, which will be invoked after each `do_put`.
-        :param handler: a callable with at least two arguments, for 1) the command and 2) the data batch.
+
+        :param handler: a callable with at least two arguments, for
+            1) the command and 2) the data batch.
         :return:
         """
 
@@ -204,8 +243,11 @@ class ProxyServer(FlightServerBase):
     @logger.catch(reraise=True)
     def register_control_handler(self, handler: Callable) -> None:
         """
-        Register the control handler function, which will be invoked after each `do_action` with `control` as the command.
-        :param handler: a callable with at least two arguments, for 1) the command and 2) the control payload..
+        Register a control handler function, which will be invoked after each
+        `do_action` with `control` as the command.
+
+        :param handler: a callable with at least two arguments, for 1) the command
+            and 2) the control payload.
         :return:
         """
         # the handler should have at least 1 argument

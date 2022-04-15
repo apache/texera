@@ -2,7 +2,10 @@ import itertools
 
 from core.architecture.handlers.handler_base import Handler
 from core.architecture.managers.context import Context
-from proto.edu.uci.ics.amber.engine.architecture.worker import ReplayCurrentTupleV2, WorkerState
+from proto.edu.uci.ics.amber.engine.architecture.worker import (
+    ReplayCurrentTupleV2,
+    WorkerState,
+)
 
 
 class ReplayCurrentTupleHandler(Handler):
@@ -13,7 +16,6 @@ class ReplayCurrentTupleHandler(Handler):
             # chain the current input tuple back on top of the current iterator to
             # be processed once more
             context.dp._current_input_tuple_iter = itertools.chain(
-                [context.dp._current_input_tuple],
-                context.dp._current_input_tuple_iter
+                [context.dp._current_input_tuple], context.dp._current_input_tuple_iter
             )
         return None

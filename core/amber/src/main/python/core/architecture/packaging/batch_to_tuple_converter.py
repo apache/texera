@@ -13,15 +13,20 @@ class BatchToTupleConverter:
 
     def __init__(self):
         self._input_map: Dict[ActorVirtualIdentity, LinkIdentity] = dict()
-        self._upstream_map: defaultdict[LinkIdentity, Set[ActorVirtualIdentity]] = defaultdict(set)
+        self._upstream_map: defaultdict[
+            LinkIdentity, Set[ActorVirtualIdentity]
+        ] = defaultdict(set)
         self._current_link: Optional[LinkIdentity] = None
 
-    def register_input(self, identifier: ActorVirtualIdentity, input_: LinkIdentity) -> None:
+    def register_input(
+        self, identifier: ActorVirtualIdentity, input_: LinkIdentity
+    ) -> None:
         self._upstream_map[input_].add(identifier)
         self._input_map[identifier] = input_
 
-    def process_data_payload(self, from_: ActorVirtualIdentity, payload: DataPayload) -> Iterator[
-        Union[Tuple, InputExhausted, Marker]]:
+    def process_data_payload(
+        self, from_: ActorVirtualIdentity, payload: DataPayload
+    ) -> Iterator[Union[Tuple, InputExhausted, Marker]]:
         # special case used to yield for source op
         if from_ == BatchToTupleConverter.SOURCE_STARTER:
             yield InputExhausted()
@@ -36,7 +41,9 @@ class BatchToTupleConverter:
 
         if isinstance(payload, InputDataFrame):
             for field_accessor in ArrowTableTupleProvider(payload.frame):
-                yield Tuple({name: field_accessor for name in payload.frame.column_names})
+                yield Tuple(
+                    {name: field_accessor for name in payload.frame.column_names}
+                )
 
         elif isinstance(payload, EndOfUpstream):
             self._upstream_map[link].remove(from_)

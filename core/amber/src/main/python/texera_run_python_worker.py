@@ -26,8 +26,10 @@ def init_loguru_logger(stream_log_level) -> None:
     logger.level("PRINT", no=38)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     init_loguru_logger(sys.argv[3])
     # redirect user's print into logger
     with contextlib.redirect_stdout(StreamToLoggerAdaptor()):
-        PythonWorker(host="localhost", input_port=int(sys.argv[1]), output_port=int(sys.argv[2])).run()
+        PythonWorker(
+            host="localhost", input_port=int(sys.argv[1]), output_port=int(sys.argv[2])
+        ).run()

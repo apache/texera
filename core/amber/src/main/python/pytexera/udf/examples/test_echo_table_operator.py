@@ -2,12 +2,11 @@ from collections import deque
 
 import pytest
 
-from pytexera import InputExhausted, Tuple
+from pytexera import Tuple
 from .echo_table_operator import EchoTableOperator
 
 
 class TestEchoTableOperator:
-
     @pytest.fixture
     def echo_table_operator(self):
         return EchoTableOperator()
@@ -19,7 +18,7 @@ class TestEchoTableOperator:
         deque(echo_table_operator.process_tuple(tuple_, 0))
         outputs = echo_table_operator.on_finish(0)
         output_tuple = Tuple(next(outputs))
-        assert (output_tuple == tuple_)
+        assert output_tuple == tuple_
         with pytest.raises(StopIteration):
             next(outputs)
         echo_table_operator.close()

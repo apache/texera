@@ -3,7 +3,7 @@ import inspect
 
 from core.models import Operator
 
-operators_module_spec = importlib.util.spec_from_loader('operators', loader=None)
+operators_module_spec = importlib.util.spec_from_loader("operators", loader=None)
 operators_module = importlib.util.module_from_spec(operators_module_spec)
 
 
@@ -26,4 +26,8 @@ def is_concrete_operator(cls: type) -> bool:
     :param cls: a target class to be evaluated
     :return: bool
     """
-    return inspect.isclass(cls) and issubclass(cls, Operator) and not inspect.isabstract(cls)
+    return (
+        inspect.isclass(cls)
+        and issubclass(cls, Operator)
+        and not inspect.isabstract(cls)
+    )

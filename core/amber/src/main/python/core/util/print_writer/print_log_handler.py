@@ -13,8 +13,12 @@ class SimpleBuffer:
         self._buffer.append(message)
 
     def output(self, flush=False) -> Iterator[str]:
-        if flush or len(self._buffer) >= self._max_message_num or (
-                datetime.now() - self._last_output_time).seconds >= self._max_flush_interval_in_ms / 1000:
+        if (
+            flush
+            or len(self._buffer) >= self._max_message_num
+            or (datetime.now() - self._last_output_time).seconds
+            >= self._max_flush_interval_in_ms / 1000
+        ):
             self._last_output_time = datetime.now()
             if self._buffer:
                 yield "\n".join(self._buffer)
