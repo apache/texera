@@ -49,6 +49,7 @@ import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStrin
 
 import java.util.UUID
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
+import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
 
 @JsonTypeInfo(
   use = JsonTypeInfo.Id.NAME,
@@ -66,6 +67,7 @@ import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
       name = "TwitterFullArchiveSearch"
     ),
     new Type(value = classOf[ProgressiveSinkOpDesc], name = "SimpleSink"),
+    new Type(value = classOf[SplitOpDesc], name = "Split"),
     new Type(value = classOf[RegexOpDesc], name = "Regex"),
     new Type(value = classOf[SpecializedFilterOpDesc], name = "Filter"),
     new Type(value = classOf[SentimentAnalysisOpDesc], name = "SentimentAnalysis"),
@@ -116,6 +118,11 @@ abstract class OperatorDescriptor extends Serializable {
   def operatorInfo: OperatorInfo
 
   def getOutputSchema(schemas: Array[Schema]): Schema
+
+  // override if the operator has multiple output ports, schema must be specified for each port
+  def getOutputSchemas(schemas: Array[Schema]): Array[Schema] = {
+    Array.fill(1)(getOutputSchema(schemas))
+  }
 
   def validate(): Array[ConstraintViolation] = {
     Array()

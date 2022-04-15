@@ -26,7 +26,7 @@ class HtmlVizOpExec(htmlContentAttrName: String, operatorSchemaInfo: OperatorSch
     tuple match {
       case Left(t) =>
         val result = Tuple
-          .newBuilder(operatorSchemaInfo.outputSchema)
+          .newBuilder(operatorSchemaInfo.outputSchemas(0))
           .add("html-content", AttributeType.STRING, t.getField(htmlContentAttrName))
           .build()
         Iterator(result)

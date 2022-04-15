@@ -67,7 +67,7 @@ class WorkerSpec
       override def processTuple(
           tuple: Either[ITuple, InputExhausted],
           input: LinkIdentity
-      ): Iterator[ITuple] = ???
+      ): Iterator[(ITuple, Option[LinkIdentity])] = ???
     }
 
     val mockTag = LinkIdentity(null, null)
@@ -102,7 +102,7 @@ class WorkerSpec
       override def processTuple(
           tuple: Either[ITuple, InputExhausted],
           input: LinkIdentity
-      ): Iterator[ITuple] = { return Iterator() }
+      ): Iterator[(ITuple, Option[LinkIdentity])] = { return Iterator() }
     }
 
     val worker = TestActorRef(new WorkflowWorker(identifier1, mockOpExecutor, probe.ref))

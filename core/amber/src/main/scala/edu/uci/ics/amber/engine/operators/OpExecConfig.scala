@@ -17,13 +17,16 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   OperatorIdentity
 }
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
+import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 
 import scala.collection.mutable
+import scala.jdk.CollectionConverters.asScalaSet
 
 abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
 
   lazy val topology: Topology = null
-  var inputToOrdinalMapping = new mutable.HashMap[LinkIdentity, Int]()
+  var inputToOrdinalMapping = new mutable.HashMap[LinkIdentity, (Int, String)]()
+  var outputToOrdinalMapping = new mutable.HashMap[LinkIdentity, (Int, String)]()
   var attachedBreakpoints = new mutable.HashMap[String, GlobalBreakpoint[_]]()
   var caughtLocalExceptions = new mutable.HashMap[ActorVirtualIdentity, Throwable]()
   var workerToWorkloadInfo = new mutable.HashMap[ActorVirtualIdentity, WorkerWorkloadInfo]()
@@ -86,8 +89,12 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
 
   def requiredShuffle: Boolean = false
 
-  def setInputToOrdinalMapping(input: LinkIdentity, ordinal: Integer): Unit = {
-    this.inputToOrdinalMapping.update(input, ordinal)
+  def setInputToOrdinalMapping(input: LinkIdentity, ordinal: Integer, name: String): Unit = {
+    this.inputToOrdinalMapping.update(input, (ordinal, name))
+  }
+
+  def setOutputToOrdinalMapping(output: LinkIdentity, ordinal: Integer, name: String): Unit = {
+    this.outputToOrdinalMapping.update(output, (ordinal, name))
   }
 
   def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = ???
@@ -97,6 +104,14 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
   class Topology(
       var layers: Array[WorkerLayer],
       var links: Array[LinkStrategy]
-  ) extends Serializable
+  ) extends Serializable {
+    // topology only supports a chain of layers,
+    // the link order must follow the layer order
+    assert(layers.length == links.length + 1)
+    (0 until links.length).foreach(i => {
+      assert(layers(i) == links(i).from)
+      assert(layers(i + 1) == links(i).to)
+    })
+  }
 
 }

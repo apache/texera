@@ -220,7 +220,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     )
     val outputSchema = opDesc.getOutputSchema(inputSchemas)
     val opExec = new IntervalJoinOpExec(
-      OperatorSchemaInfo(inputSchemas, outputSchema),
+      OperatorSchemaInfo(inputSchemas, Array(outputSchema)),
       opDesc
     )
     opExec.open()
@@ -406,7 +406,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     )
     val outputSchema = opDesc.getOutputSchema(inputSchemas)
     val opExec = new IntervalJoinOpExec(
-      OperatorSchemaInfo(inputSchemas, outputSchema),
+      OperatorSchemaInfo(inputSchemas, Array(outputSchema)),
       opDesc
     )
 
