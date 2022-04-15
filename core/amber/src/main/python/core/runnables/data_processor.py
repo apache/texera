@@ -338,7 +338,7 @@ class DataProcessor(StoppableQueueBlockingRunnable):
 
         for field_name in output_tuple.get_field_names():
             field_value = output_tuple[field_name]
-            field = schema.field_by_name(field_name)
+            field = schema.field(field_name)
             field_type = field.type if field is not None else None
             if field_type == pyarrow.binary():
                 output_tuple[field_name] = b"pickle    " + pickle.dumps(field_value)

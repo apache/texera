@@ -64,7 +64,7 @@ class ArrowTableTupleProvider:
             storage from the user.
             """
             value = self._table.column(field_name).chunks[chunk_idx][tuple_idx].as_py()
-            field_type = self._table.schema.field_by_name(field_name).type
+            field_type = self._table.schema.field(field_name).type
 
             # for binary types, convert pickled objects back.
             if field_type == pyarrow.binary() and value[:6] == b"pickle":
