@@ -24,7 +24,9 @@ export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
   styleUrls: ["./saved-workflow-section.component.scss", "../../dashboard.component.scss"],
 })
 export class SavedWorkflowSectionComponent implements OnInit {
-  public dashboardWorkflowEntries: DashboardWorkflowEntry[] = [];
+  // virtual scroll requires replacing the entire array reference in order to update view
+  // see https://github.com/angular/components/issues/14635
+  public dashboardWorkflowEntries: ReadonlyArray<DashboardWorkflowEntry> = [];
   public dashboardWorkflowEntriesIsEditingName: number[] = [];
   public allDashboardWorkflowEntries: DashboardWorkflowEntry[] = [];
   public filteredDashboardWorkflowNames: Array<string> = [];
@@ -81,13 +83,14 @@ export class SavedWorkflowSectionComponent implements OnInit {
   public searchInputOnChange(value: string): void {
     // enable autocomplete only when searching for workflow name
     if (!value.includes(":")) {
-      this.filteredDashboardWorkflowNames = [];
+      const filteredDashboardWorkflowNames: string[] = [];
       this.allDashboardWorkflowEntries.forEach(dashboardEntry => {
         const workflowName = dashboardEntry.workflow.name;
         if (workflowName.toLowerCase().indexOf(value.toLowerCase()) !== -1) {
-          this.filteredDashboardWorkflowNames.push(workflowName);
+          filteredDashboardWorkflowNames.push(workflowName);
         }
       });
+      this.filteredDashboardWorkflowNames = filteredDashboardWorkflowNames;
     }
   }
 
@@ -111,21 +114,14 @@ export class SavedWorkflowSectionComponent implements OnInit {
    */
   public searchWorkflow(): void {
     let andPathQuery: Object[] = [];
-    this.dashboardWorkflowEntries = [];
     // empty search value, return all workflow entries
     if (this.workflowSearchValue.trim() === "") {
-      this.dashboardWorkflowEntries = cloneDeep(this.allDashboardWorkflowEntries);
+      this.dashboardWorkflowEntries = [...this.allDashboardWorkflowEntries];
       return;
     } else if (!this.workflowSearchValue.includes(":")) {
       // search only by workflow name
       andPathQuery.push(this.buildAndPathQuery("workflowName", this.workflowSearchValue));
-      this.fuse
-        .search({
-          $and: andPathQuery,
-        })
-        .forEach(res => {
-          this.dashboardWorkflowEntries.push(res.item);
-        });
+      this.dashboardWorkflowEntries = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
       return;
     }
     const searchConsitionsSet = new Set(this.workflowSearchValue.trim().split(/ +(?=(?:(?:[^"]*"){2})*[^"]*$)/g));
@@ -149,53 +145,51 @@ export class SavedWorkflowSectionComponent implements OnInit {
         andPathQuery.push(this.buildAndPathQuery("workflowName", condition));
       }
     });
-    this.fuse
-      .search({
-        $and: andPathQuery,
-      })
-      .forEach(res => {
-        this.dashboardWorkflowEntries.push(res.item);
-      });
+    this.dashboardWorkflowEntries = this.fuse.search({ $and: andPathQuery }).map(res => res.item);
   }
 
   /**
    * sort the workflow by name in ascending order
    */
   public ascSort(): void {
-    this.dashboardWorkflowEntries.sort((t1, t2) =>
-      t1.workflow.name.toLowerCase().localeCompare(t2.workflow.name.toLowerCase())
-    );
+    this.dashboardWorkflowEntries = this.dashboardWorkflowEntries
+      .slice()
+      .sort((t1, t2) => t1.workflow.name.toLowerCase().localeCompare(t2.workflow.name.toLowerCase()));
   }
 
   /**
    * sort the project by name in descending order
    */
   public dscSort(): void {
-    this.dashboardWorkflowEntries.sort((t1, t2) =>
-      t2.workflow.name.toLowerCase().localeCompare(t1.workflow.name.toLowerCase())
-    );
+    this.dashboardWorkflowEntries = this.dashboardWorkflowEntries
+      .slice()
+      .sort((t1, t2) => t2.workflow.name.toLowerCase().localeCompare(t1.workflow.name.toLowerCase()));
   }
 
   /**
    * sort the project by creating time
    */
   public dateSort(): void {
-    this.dashboardWorkflowEntries.sort((left: DashboardWorkflowEntry, right: DashboardWorkflowEntry) =>
-      left.workflow.creationTime !== undefined && right.workflow.creationTime !== undefined
-        ? left.workflow.creationTime - right.workflow.creationTime
-        : 0
-    );
+    this.dashboardWorkflowEntries = this.dashboardWorkflowEntries
+      .slice()
+      .sort((left, right) =>
+        left.workflow.creationTime !== undefined && right.workflow.creationTime !== undefined
+          ? left.workflow.creationTime - right.workflow.creationTime
+          : 0
+      );
   }
 
   /**
    * sort the project by last modified time
    */
   public lastSort(): void {
-    this.dashboardWorkflowEntries.sort((left: DashboardWorkflowEntry, right: DashboardWorkflowEntry) =>
-      left.workflow.lastModifiedTime !== undefined && right.workflow.lastModifiedTime !== undefined
-        ? left.workflow.lastModifiedTime - right.workflow.lastModifiedTime
-        : 0
-    );
+    this.dashboardWorkflowEntries = this.dashboardWorkflowEntries
+      .slice()
+      .sort((left, right) =>
+        left.workflow.lastModifiedTime !== undefined && right.workflow.lastModifiedTime !== undefined
+          ? left.workflow.lastModifiedTime - right.workflow.lastModifiedTime
+          : 0
+      );
   }
 
   /**
@@ -214,13 +208,12 @@ export class SavedWorkflowSectionComponent implements OnInit {
       this.workflowPersistService
         .duplicateWorkflow(wid)
         .pipe(untilDestroyed(this))
-        .subscribe(
-          (duplicatedWorkflowInfo: DashboardWorkflowEntry) => {
-            this.dashboardWorkflowEntries.push(duplicatedWorkflowInfo);
+        .subscribe({
+          next: duplicatedWorkflowInfo => {
+            this.dashboardWorkflowEntries = [...this.dashboardWorkflowEntries, duplicatedWorkflowInfo];
           },
-          // @ts-ignore // TODO: fix this with notification component
-          (err: unknown) => alert(err.error)
-        );
+          error: (err: unknown) => alert(err),
+        });
     }
   }
 
@@ -283,10 +276,8 @@ export class SavedWorkflowSectionComponent implements OnInit {
         this.dashboardWorkflowEntries = dashboardWorkflowEntries;
         this.allDashboardWorkflowEntries = dashboardWorkflowEntries;
         this.fuse.setCollection(this.allDashboardWorkflowEntries);
-        dashboardWorkflowEntries.forEach(dashboardWorkflowEntry => {
-          const workflow = dashboardWorkflowEntry.workflow;
-          this.filteredDashboardWorkflowNames.push(workflow.name);
-        });
+        const newEntries = dashboardWorkflowEntries.map(e => e.workflow.name);
+        this.filteredDashboardWorkflowNames = [...this.filteredDashboardWorkflowNames, ...newEntries];
       });
   }
 
@@ -307,8 +298,9 @@ export class SavedWorkflowSectionComponent implements OnInit {
         let updatedDashboardWorkFlowEntry = { ...dashboardWorkflowEntry };
         updatedDashboardWorkFlowEntry.workflow = { ...workflow };
         updatedDashboardWorkFlowEntry.workflow.name = name || this.defaultWorkflowName;
-
-        this.dashboardWorkflowEntries[index] = updatedDashboardWorkFlowEntry;
+        const newEntries = this.dashboardWorkflowEntries.slice();
+        newEntries[index] = updatedDashboardWorkFlowEntry;
+        this.dashboardWorkflowEntries = newEntries;
       })
       .add(() => {
         this.dashboardWorkflowEntriesIsEditingName = this.dashboardWorkflowEntriesIsEditingName.filter(

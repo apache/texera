@@ -130,8 +130,23 @@ class TupleToBatchConverter(
     * Should ONLY be called by DataProcessor.
     * @param tuple ITuple to be passed.
     */
-  def passTupleToDownstream(tuple: ITuple): Unit = {
-    partitioners.valuesIterator.foreach(partitioner =>
+  def passTupleToDownstream(
+      tuple: ITuple,
+      outputPort: Option[LinkIdentity] = Option.empty
+  ): Unit = {
+    // find the corresponding partitioner based on output port
+    val outputPortPartitioners: Iterable[Partitioner] =
+      if (outputPort.isEmpty)
+        partitioners.values
+      else
+        List(
+          partitioners.getOrElse(
+            outputPort.get,
+            throw new RuntimeException("output port not found")
+          )
+        )
+
+    outputPortPartitioners.foreach(partitioner =>
       partitioner.addTupleToBatch(tuple) foreach tupled((to, batch) =>
         dataOutputPort.sendTo(to, batch)
       )
