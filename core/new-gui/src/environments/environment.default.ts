@@ -36,7 +36,7 @@ export const defaultEnvironment = {
   /**
    * whether user system is enabled
    */
-  userSystemEnabled: true,
+  userSystemEnabled: false,
 
   /**
    * whether user preset feature is enabled, requires user system to be enabled

@@ -5,7 +5,6 @@ import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { UndoRedoService } from "../../../workspace/service/undo-redo/undo-redo.service";
 import { isEqual, reduce } from "lodash";
-import { JointHighlights } from "src/app/workspace/service/workflow-graph/model/joint-graph-wrapper";
 import { Breakpoint, OperatorLink, OperatorPredicate, Point } from "src/app/workspace/types/workflow-common.interface";
 
 export const DISPLAY_WORKFLOW_VERIONS_EVENT = "display_workflow_versions_event";
@@ -19,6 +18,7 @@ type Elements = Breakpoint | OperatorLink | OperatorPredicate | Point;
 export class WorkflowVersionService {
   private workflowVersionsObservable = new Subject<readonly string[]>();
   private displayParticularWorkflowVersion = new BehaviorSubject<boolean>(false);
+  private highlightedIDs: string[] = [];
   constructor(
     private workflowActionService: WorkflowActionService,
     private workflowPersistService: WorkflowPersistService,
@@ -49,8 +49,8 @@ export class WorkflowVersionService {
   public displayParticularVersion(workflow: Workflow) {
     // we need to display the version on the paper but keep the original workflow in the background
     this.workflowActionService.setTempWorkflow(this.workflowActionService.getWorkflow());
-    var elementToHighlight = this.getDifference(this.workflowActionService.getWorkflow(), workflow);
-    this.getPositionDifference(this.workflowActionService.getWorkflow(), workflow);
+    // get the list of IDs of different elements when comparing displaying to the editing version
+    this.highlightedIDs = this.getDifference(this.workflowActionService.getWorkflow(), workflow);
     // disable persist to DB because it is read only
     this.workflowPersistService.setWorkflowPersistFlag(false);
     // disable the undoredo service because reloading the workflow is considered an action
@@ -60,7 +60,8 @@ export class WorkflowVersionService {
     this.setDisplayParticularVersion(true);
     // disable modifications because it is read only
     this.workflowActionService.disableWorkflowModification();
-    this.highlightDifference(elementToHighlight);
+    // highlight the different elements
+    this.highlightDifference(this.highlightedIDs);
   }
 
   public getPositionDifference(v1: Workflow, v2: Workflow) {
@@ -75,20 +76,22 @@ export class WorkflowVersionService {
       },
       []
     );
-    console.log("position difference:", difference);
+    return difference;
   }
 
-  public highlightDifference(difference: JointHighlights) {
-    this.workflowActionService.getJointGraphWrapper().highlightElements(difference);
+  public highlightDifference(differences: any[]) {
+    for (var diff of differences) {
+      this.workflowActionService
+        .getJointGraphWrapper()
+        .getMainJointPaper()
+        ?.getModelById(diff)
+        .attr("rect.boundary/fill", "rgba(255,118,20,0.5)");
+    }
   }
 
   public getDifference(v1: Workflow, v2: Workflow) {
-    var typeToInclude = ["operators", "links", "groups", "breakpoints"];
-    var difference = {
-      operators: [],
-      groups: [],
-      links: [],
-    };
+    var typeToInclude = ["operators", "links", "groups", "commentBoxes", "breakpoints"];
+    var diff: any[] = [];
     var c1 = v1.content;
     var c2 = v2.content;
     var differentTypes = reduce(
@@ -101,15 +104,19 @@ export class WorkflowVersionService {
     for (var i = 0; i < differentTypes.length; i++) {
       var type = differentTypes[i];
       if (typeToInclude.includes(type)) {
-        console.log(type);
         let getIDList = function (element: Elements, index: number) {
-          return { id: element[(type.substring(0, type.length - 1) + "ID") as keyof Elements], index: index };
+          var id = "";
+          if (type.substring(type.length - 2, type.length) === "es") {
+            id = type.substring(0, type.length - 2) + "ID";
+          } else {
+            id = type.substring(0, type.length - 1) + "ID";
+          }
+          return { id: element[id as keyof Elements], index: index };
         };
         var l1 = c1[type as keyof WorkflowContent] as Elements[];
         var IDList1 = l1.map(getIDList);
         var l2 = c2[type as keyof WorkflowContent] as Elements[];
         var IDList2 = l2.map(getIDList);
-
         var added = IDList2.filter(x => !IDList1.map(y => y.id).includes(x.id)).map(x => x.id);
         var modified = IDList2.filter(x => IDList1.map(y => y.id).includes(x.id))
           .filter(function (x) {
@@ -117,97 +124,16 @@ export class WorkflowVersionService {
             return !isEqual(l1[i1], l2[x.index]);
           })
           .map(x => x.id);
-
-        console.log("added:", added);
-        console.log("modified:", modified);
-        difference[type as keyof typeof difference] = added.concat(modified);
+        diff = diff.concat(modified);
+        diff = diff.concat(added);
       }
     }
-    console.log("difference:", difference);
-    return difference;
-    // console.log(d)
-    // var allDifference: object[] = [];
-    // var positionDifference: string[] = [];
-    // for (var i = 0; i < d.length; i++) {
-    //   var c = d[i];
-    //   // console.log(c);
-    //   // console.log(c1[c as keyof typeof c1])
-    //   // console.log(c2[c as keyof typeof c2])
-    //   var d1 = reduce(c2[c as keyof typeof c2], function(result: string[], value, key) {
-    //     var x = c1[c as keyof typeof c1];
-    //     // console.log(c.substring(0, c.length - 1) + "ID")
-    //     // console.log(value[c.substring(0, c.length - 1) + "ID" as keyof typeof values])
-    //     if (c === "operatorPositions" && !isEqual(value, x[key as keyof typeof x])) {
-    //       positionDifference.push(key)
-    //       return []
-    //     }
-    //     return isEqual(value, x[key as keyof typeof x]) ? result : result.concat(value[c.substring(0, c.length - 1) + "ID" as keyof typeof values]);
-    //   }, []);
-    //     allDifference = allDifference.concat(d1)
-    // }
-    // console.log("pos", positionDifference)
-    // console.log(allDifference);
-
-    // var diff = Object.entries(c2).reduce((diff, [category, valueList2]) => {
-    //   if (c1.hasOwnProperty(category)) {
-    //     const valueList1 = c1[category as keyof typeof c1];
-    //     if (!isEqual(valueList1, valueList2)) {
-    //       // var diff1 = Object.entries(valueList2).reduce((diff1, [key, v2]) => {
-    //       //   const v1 = valueList1[key as keyof typeof valueList1];
-    //       //   if (!isEqual())
-    //       //   return {...diff1, [key]: v2};
-    //       // })
-    //       // for (var v2 in valueList2 as Array<object>) {
-    //       //   if (!valueList1.includes(v2)) {
-
-    //       //   }
-    //       // }
-    //       console.log("!", difference(valueList1 as Array<unknown>, valueList2 as Array<unknown>));
-    //       var diff1 = difference(valueList1 as Array<unknown>, valueList2 as Array<unknown>);
-    //       if (diff1 != []) {
-    //         console.log(valueList1);
-    //         console.log(valueList2);
-    //       }
-    //       return {
-    //         ...diff,
-    //         [category]: valueList2,
-    //       };
-    //     }
-    //   }
-    //   return diff;
-    // }, {});
-    // console.log(diff);
-
-    // Object.entries(v2.content).forEach(([key, value])=>{
-    //   if (typeToInclude.includes(key)) {
-    //     console.log(value);
-    //   }
-    // });
-
-    // for (var elementType in v2.content) {
-    //   if (typeToInclude.includes(elementType)) {
-    //     var elements = v2.content[elementType as keyof typeof v2.content];
-    //     for (var i = 0; i < elements.length; i++) {
-    //       console.log(elements[i]);
-    //     }
-    //   }
-    // }
+    return diff;
   }
 
-  // public getDiff(origObj: Workflow, newObj: Workflow) {
-  //   function changes(newObj: object, origObj: object) {
-  //     let arrayIndexCounter = 0
-  //     return transform(newObj, function (result: Array<unknown> | Object, value, key) {
-  //       if (!isEqual(value, origObj[key])) {
-  //         let resultKey = isArray(origObj) ? arrayIndexCounter++ : key
-  //         result[resultKey] = (isObject(value) && isObject(origObj[key])) ? changes(value, origObj[key]) : value
-  //       }
-  //     })
-  //   }
-  //   return changes(newObj, origObj)
-  // }
-
   public revertToVersion() {
+    // set all elements to tranparent boudary
+    this.resetBoundary();
     // we need to clear the undo and redo stack because it is a new version from previous workflow on paper
     this.undoRedoService.clearRedoStack();
     this.undoRedoService.clearUndoStack();
@@ -220,6 +146,8 @@ export class WorkflowVersionService {
   }
 
   public closeParticularVersionDisplay() {
+    // set all elements to tranparent boudary
+    this.resetBoundary();
     // should enable modifications first to be able to make action of reloading old version on paper
     this.workflowActionService.enableWorkflowModification();
     // but still disable redo and undo service to not capture swapping the workflows, because enabling modifictions automatically enables undo and redo
@@ -232,5 +160,15 @@ export class WorkflowVersionService {
     this.undoRedoService.enableWorkFlowModification();
     this.workflowPersistService.setWorkflowPersistFlag(true);
     this.setDisplayParticularVersion(false);
+  }
+
+  public resetBoundary() {
+    for (var id of this.highlightedIDs) {
+      this.workflowActionService
+        .getJointGraphWrapper()
+        .getMainJointPaper()
+        ?.getModelById(id)
+        .attr("rect.boundary/fill", "rgba(0,0,0,0)");
+    }
   }
 }
