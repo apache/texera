@@ -7,20 +7,14 @@ from typing import Any, List, Mapping, Iterator, TypeVar, Dict, Callable
 
 import pandas
 
-AttributeType = TypeVar(
-    'AttributeType',
-    int,
-    float,
-    str,
-    datetime.datetime
-)
+AttributeType = TypeVar("AttributeType", int, float, str, datetime.datetime)
 
 TupleLike = TypeVar(
-    'TupleLike',
+    "TupleLike",
     pandas.Series,
     Iterator[typing.Tuple[str, AttributeType]],
     Mapping[str, typing.Callable],
-    Mapping[str, AttributeType]
+    Mapping[str, AttributeType],
 )
 
 
@@ -52,8 +46,7 @@ class ArrowTableTupleProvider:
     def __next__(self) -> Callable:
         """
         Provide the field accessor of the next tuple.
-        If current chunk is exhausted, move to the first
-        tuple of the next chunk.
+        If current chunk is exhausted, move to the first tuple of the next chunk.
         """
         if self._current_idx >= len(self._table.column(0).chunks[self._current_chunk]):
             self._current_idx = 0
@@ -67,15 +60,16 @@ class ArrowTableTupleProvider:
         def field_accessor(field_name: str) -> AttributeType:
             """
             Retrieve the field value by a given field name.
-            This abstracts and hides the underlying implementation
-            of the tuple data storage from the user.
+            This abstracts and hides the underlying implementation of the tuple data
+            storage from the user.
             """
             value = self._table.column(field_name).chunks[chunk_idx][tuple_idx].as_py()
-            field_type = self._table.schema.field_by_name(field_name).type
+            field_type = self._table.schema.field(field_name).type
 
             # for binary types, convert pickled objects back.
-            if field_type == pyarrow.binary() and value[:6] == b'pickle':
+            if field_type == pyarrow.binary() and value[:6] == b"pickle":
                 import pickle
+
                 value = pickle.loads(value[10:])
             return value
 
@@ -90,11 +84,11 @@ class Tuple:
 
     def __init__(self, tuple_like: typing.Optional[TupleLike] = None):
         """
-        Construct a lazy-tuple with given TupleLike object. If the field value is a callable
+        Construct a lazy-tuple with given TupleLike object. If the field value is a
         accessor callable, the actual value is fetched upon first reference.
 
-        :param tuple_like: in which the field value could be the actual value in memory, or a
-            callable accessor.
+        :param tuple_like: in which the field value could be the actual value in
+            memory, or a callable accessor.
         """
         assert len(tuple_like) != 0
         if isinstance(tuple_like, Tuple):
@@ -106,17 +100,24 @@ class Tuple:
 
     def __getitem__(self, item: typing.Union[int, str]) -> AttributeType:
         """
-        Get a field value with given item. If the value is an accessor, fetch it from the accessor.
+        Get a field value with given item. If the value is an accessor, fetch it from
+        the accessor.
+
         :param item: field name or field index
         :return: field value
         """
-        assert isinstance(item, (int, str)), "field can only be retrieved by index or name"
+        assert isinstance(
+            item, (int, str)
+        ), "field can only be retrieved by index or name"
 
         if isinstance(item, int):
             item: str = self.get_field_names()[item]
 
-        if callable(self._field_data[item]) \
-                and getattr(self._field_data[item], '__name__', 'Unknown') == "field_accessor":
+        if (
+            callable(self._field_data[item])
+            and getattr(self._field_data[item], "__name__", "Unknown")
+            == "field_accessor"
+        ):
             # evaluate the field now
             field_accessor = self._field_data[item]
             self._field_data[item] = field_accessor(field_name=item)
@@ -170,9 +171,11 @@ class Tuple:
     __repr__ = __str__
 
     def __eq__(self, other: Any) -> bool:
-        return isinstance(other, Tuple) and \
-               self.get_field_names() == other.get_field_names() and \
-               all(self[i] == other[i] for i in self.get_field_names())
+        return (
+            isinstance(other, Tuple)
+            and self.get_field_names() == other.get_field_names()
+            and all(self[i] == other[i] for i in self.get_field_names())
+        )
 
     def __ne__(self, other) -> bool:
         return not self.__eq__(other)

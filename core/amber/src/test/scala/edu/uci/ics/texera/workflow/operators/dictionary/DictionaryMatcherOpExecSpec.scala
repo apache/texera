@@ -42,7 +42,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.matchingType = MatchingType.SCANBASED
     val outputSchema: Schema = opDesc.getOutputSchema(Array(tupleSchema))
     val operatorSchemaInfo: OperatorSchemaInfo =
-      OperatorSchemaInfo(Array(tupleSchema), outputSchema)
+      OperatorSchemaInfo(Array(tupleSchema), Array(outputSchema))
     opExec = new DictionaryMatcherOpExec(opDesc, operatorSchemaInfo)
   }
 

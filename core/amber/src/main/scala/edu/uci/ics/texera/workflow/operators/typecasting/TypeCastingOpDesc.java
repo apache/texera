@@ -15,10 +15,12 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 
+import java.util.Collections;
 import java.util.List;
 
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
+import static scala.collection.JavaConverters.mapAsScalaMap;
 
 public class TypeCastingOpDesc extends MapOpDesc {
 
@@ -31,7 +33,7 @@ public class TypeCastingOpDesc extends MapOpDesc {
     @Override
     public OneToOneOpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         Preconditions.checkArgument(!typeCastingUnits.isEmpty());
-        return new OneToOneOpExecConfig(operatorIdentifier(), worker -> new TypeCastingOpExec(operatorSchemaInfo.outputSchema()), Constants.currentWorkerNum());
+        return new OneToOneOpExecConfig(operatorIdentifier(), worker -> new TypeCastingOpExec(operatorSchemaInfo.outputSchemas()[0]), Constants.currentWorkerNum(), mapAsScalaMap(Collections.emptyMap()));
     }
 
     @Override

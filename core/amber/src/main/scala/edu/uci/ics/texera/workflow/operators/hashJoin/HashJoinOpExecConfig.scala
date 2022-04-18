@@ -41,9 +41,9 @@ class HashJoinOpExecConfig[K](
   var buildTable: LinkIdentity = _
 
   override def checkStartDependencies(workflow: Workflow): Unit = {
-    val buildLink = inputToOrdinalMapping.find(pair => pair._2 == 0).get._1
+    val buildLink = inputToOrdinalMapping.find(pair => pair._2._1 == 0).get._1
     buildTable = buildLink
-    val probeLink = inputToOrdinalMapping.find(pair => pair._2 == 1).get._1
+    val probeLink = inputToOrdinalMapping.find(pair => pair._2._1 == 1).get._1
     workflow.getSources(toOperatorIdentity(probeLink.from)).foreach { source =>
       workflow.getOperator(source).topology.layers.head.startAfter(buildLink)
     }
