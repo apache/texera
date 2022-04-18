@@ -17,6 +17,10 @@
           "lint",
           "e2e"
         ],
+        "runtimeCacheInputs": [
+          "node -v",
+          "cat ./src/environments/environment.prod.ts | sha256sum"
+        ],
         "accessToken": "MWY5NjA0ZDAtNTdjOS00NDY3LWIzNjYtNTYyMWU5OGFkYjgzfHJlYWQtd3JpdGU=",
         "parallel": 1
       }
