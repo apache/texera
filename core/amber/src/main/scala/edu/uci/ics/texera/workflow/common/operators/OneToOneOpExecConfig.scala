@@ -44,12 +44,11 @@ class OneToOneOpExecConfig(
         inputToOrdinalMapping.find({ case (_, (ordinal, _)) => ordinal == dependerOrdinal }).get._1
       workflow.getSources(toOperatorIdentity(dependerLink.from)).foreach { dependerSource =>
         val opId = workflow.getOperator(dependeeLink.from.operator).id
-        workflow.getSources(opId).foreach{
-          dependeeSource =>
-            if (dependerSource != dependeeSource){
-              workflow.getOperator(dependerSource).topology.layers.head.startAfter(dependeeLink)
-              println(s"$dependerSource is waiting for $dependeeLink")
-            }
+        workflow.getSources(opId).foreach { dependeeSource =>
+          if (dependerSource != dependeeSource) {
+            workflow.getOperator(dependerSource).topology.layers.head.startAfter(dependeeLink)
+            println(s"$dependerSource is waiting for $dependeeLink")
+          }
         }
 
       }
