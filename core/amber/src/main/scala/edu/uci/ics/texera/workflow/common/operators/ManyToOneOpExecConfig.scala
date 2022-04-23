@@ -47,7 +47,6 @@ class ManyToOneOpExecConfig(
         workflow.getSources(opId).foreach { dependeeSource =>
           if (dependerSource != dependeeSource) {
             workflow.getOperator(dependerSource).topology.layers.head.startAfter(dependeeLink)
-            println(s"$dependerSource is waiting for $dependeeLink")
           }
         }
       }
