@@ -44,8 +44,15 @@ class HashJoinOpExecConfig[K](
     val buildLink = inputToOrdinalMapping.find(pair => pair._2._1 == 0).get._1
     buildTable = buildLink
     val probeLink = inputToOrdinalMapping.find(pair => pair._2._1 == 1).get._1
-    workflow.getSources(toOperatorIdentity(probeLink.from)).foreach { source =>
-      workflow.getOperator(source).topology.layers.head.startAfter(buildLink)
+    val dependerLink = probeLink
+    val dependeeLink = buildLink
+    workflow.getSources(toOperatorIdentity(dependerLink.from)).foreach { dependerSource =>
+      val opId = workflow.getOperator(dependeeLink.from.operator).id
+      workflow.getSources(opId).foreach { dependeeSource =>
+        if (dependerSource != dependeeSource) {
+          workflow.getOperator(dependerSource).topology.layers.head.startAfter(dependeeLink)
+        }
+      }
     }
     topology.layers.head.initIOperatorExecutor = _ =>
       new HashJoinOpExec[K](
