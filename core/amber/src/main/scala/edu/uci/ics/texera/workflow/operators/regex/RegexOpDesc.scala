@@ -26,7 +26,7 @@ class RegexOpDesc extends FilterOpDesc {
 
   @JsonProperty(required = false, defaultValue = "false")
   @JsonSchemaTitle("Case Insensitive")
-  @JsonPropertyDescription("Regex match is case sensitive")
+  @JsonPropertyDescription("regex match is case sensitive")
   var caseInsensitive: Boolean = _
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OneToOneOpExecConfig = {
