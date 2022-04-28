@@ -29,7 +29,7 @@ export class VersionsFrameComponent implements OnInit {
   constructor(
     private http: HttpClient,
     private workflowActionService: WorkflowActionService,
-    private workflowVersionService: WorkflowVersionService
+    public workflowVersionService: WorkflowVersionService
   ) {
   }
 

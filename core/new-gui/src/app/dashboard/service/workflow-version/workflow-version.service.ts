@@ -1,23 +1,26 @@
-import { Injectable } from "@angular/core";
-import { BehaviorSubject, Observable, Subject } from "rxjs";
-import { WorkflowActionService } from "../../../workspace/service/workflow-graph/model/workflow-action.service";
-import { Workflow } from "../../../common/type/workflow";
-import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
-import { UndoRedoService } from "../../../workspace/service/undo-redo/undo-redo.service";
+import {Injectable} from "@angular/core";
+import {BehaviorSubject, Observable, ReplaySubject, Subject} from "rxjs";
+import {WorkflowActionService} from "../../../workspace/service/workflow-graph/model/workflow-action.service";
+import {Workflow} from "../../../common/type/workflow";
+import {WorkflowPersistService} from "../../../common/service/workflow-persist/workflow-persist.service";
+import {UndoRedoService} from "../../../workspace/service/undo-redo/undo-redo.service";
 
-export const DISPLAY_WORKFLOW_VERIONS_EVENT = "display_workflow_versions_event";
+export const OPEN_VERSIONS_FRAME_EVENT = "open_versions_frame_event";
+export const CLOSE_VERSIONS_FRAME_EVENT = "close_versions_frame_event";
 
 @Injectable({
   providedIn: "root",
 })
 export class WorkflowVersionService {
-  private workflowVersionsObservable = new Subject<readonly string[]>();
+  private workflowVersionsSubject = new ReplaySubject<string>(1);
   private displayParticularWorkflowVersion = new BehaviorSubject<boolean>(false);
+
   constructor(
     private workflowActionService: WorkflowActionService,
     private workflowPersistService: WorkflowPersistService,
     private undoRedoService: UndoRedoService
-  ) {}
+  ) {
+  }
 
   public clickDisplayWorkflowVersions(): void {
     // unhighlight all the current highlighted operators/groups/links
@@ -25,11 +28,11 @@ export class WorkflowVersionService {
     this.workflowActionService.getJointGraphWrapper().unhighlightElements(elements);
 
     // emit event for display workflow versions event
-    this.workflowVersionsObservable.next([DISPLAY_WORKFLOW_VERIONS_EVENT]);
+    this.workflowVersionsSubject.next(OPEN_VERSIONS_FRAME_EVENT);
   }
 
-  public workflowVersionsDisplayObservable(): Observable<readonly string[]> {
-    return this.workflowVersionsObservable.asObservable();
+  public workflowVersionsDisplayObservable(): Observable<string> {
+    return this.workflowVersionsSubject.asObservable();
   }
 
   public setDisplayParticularVersion(flag: boolean): void {
@@ -64,6 +67,7 @@ export class WorkflowVersionService {
     this.workflowActionService.resetTempWorkflow();
     this.workflowPersistService.setWorkflowPersistFlag(true);
     this.setDisplayParticularVersion(false);
+    this.closeFrame();
   }
 
   public closeParticularVersionDisplay() {
@@ -79,5 +83,9 @@ export class WorkflowVersionService {
     this.undoRedoService.enableWorkFlowModification();
     this.workflowPersistService.setWorkflowPersistFlag(true);
     this.setDisplayParticularVersion(false);
+  }
+
+  closeFrame() {
+    this.workflowVersionsSubject.next(CLOSE_VERSIONS_FRAME_EVENT);
   }
 }

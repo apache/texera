@@ -6,7 +6,7 @@ import {OperatorMenuFrameComponent} from "./operator-menu-frame/operator-menu-fr
 import {VersionsFrameComponent} from "./versions-display/versions-frame.component";
 import {merge} from "rxjs";
 import {
-  DISPLAY_WORKFLOW_VERIONS_EVENT,
+  OPEN_VERSIONS_FRAME_EVENT,
   WorkflowVersionService
 } from "../../../dashboard/service/workflow-version/workflow-version.service";
 
@@ -58,8 +58,7 @@ export class LeftPanelComponent implements OnInit {
     )
       .pipe(untilDestroyed(this))
       .subscribe(event => {
-          const isDisplayWorkflowVersions = event.length === 1 && event[0] === DISPLAY_WORKFLOW_VERIONS_EVENT;
-          if (isDisplayWorkflowVersions) {
+          if (event === OPEN_VERSIONS_FRAME_EVENT) {
             this.switchFrameComponent({
               component: VersionsFrameComponent,
             });
@@ -69,7 +68,6 @@ export class LeftPanelComponent implements OnInit {
             });
           }
         }
-      )
-    ;
+      );
   }
 }
