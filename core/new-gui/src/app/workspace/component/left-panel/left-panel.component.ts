@@ -1,11 +1,25 @@
 import {ChangeDetectorRef, Component, OnInit} from "@angular/core";
 
-import {UntilDestroy} from "@ngneat/until-destroy";
+import {UntilDestroy, untilDestroyed} from "@ngneat/until-destroy";
 import {DynamicComponentConfig} from "../../../common/type/dynamic-component-config";
 import {OperatorMenuFrameComponent} from "./operator-menu-frame/operator-menu-frame.component";
+import {VersionsListFrameComponent} from "./versions-display/versions-display.component";
+import {merge} from "rxjs";
+import {
+  DISPLAY_WORKFLOW_VERIONS_EVENT,
+  WorkflowVersionService
+} from "../../../dashboard/service/workflow-version/workflow-version.service";
+import {
+  OperatorPropertyEditFrameComponent
+} from "../property-editor/operator-property-edit-frame/operator-property-edit-frame.component";
+import {
+  BreakpointPropertyEditFrameComponent
+} from "../property-editor/breakpoint-property-edit-frame/breakpoint-property-edit-frame.component";
+import {WorkflowActionService} from "../../service/workflow-graph/model/workflow-action.service";
 
 export type LeftFrameComponent =
-  | OperatorMenuFrameComponent;
+  | OperatorMenuFrameComponent
+  | VersionsListFrameComponent;
 
 export type LeftFrameComponentConfig = DynamicComponentConfig<LeftFrameComponent>;
 
@@ -22,11 +36,13 @@ export class LeftPanelComponent implements OnInit {
   currentOperatorId?: string;
 
   constructor(
+    private workflowVersionService: WorkflowVersionService,
     private changeDetectorRef: ChangeDetectorRef
   ) {
   }
 
   ngOnInit(): void {
+    this.registerHighlightEventsHandler();
     this.switchFrameComponent({
       component: OperatorMenuFrameComponent,
       componentInputs: {},
@@ -42,5 +58,27 @@ export class LeftPanelComponent implements OnInit {
     }
 
     this.frameComponentConfig = targetConfig;
+  }
+
+  registerHighlightEventsHandler() {
+    merge(
+      this.workflowVersionService.workflowVersionsDisplayObservable()
+    )
+      .pipe(untilDestroyed(this))
+      .subscribe(event => {
+          const isDisplayWorkflowVersions = event.length === 1 && event[0] === DISPLAY_WORKFLOW_VERIONS_EVENT;
+          if (isDisplayWorkflowVersions) {
+            this.switchFrameComponent({
+              component: VersionsListFrameComponent,
+            });
+          } else {
+            this.switchFrameComponent({
+              component: OperatorMenuFrameComponent,
+              componentInputs: {},
+            });
+          }
+        }
+      )
+    ;
   }
 }

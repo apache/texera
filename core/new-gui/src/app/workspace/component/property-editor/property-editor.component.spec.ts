@@ -17,7 +17,7 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
 import { WorkflowVersionService } from "src/app/dashboard/service/workflow-version/workflow-version.service";
-import { VersionsListDisplayComponent } from "./versions-display/versions-display.component";
+import { VersionsListFrameComponent } from "../left-panel/versions-display/versions-display.component";
 
 describe("PropertyEditorComponent", () => {
   let component: PropertyEditorComponent;
@@ -219,7 +219,7 @@ describe("PropertyEditorComponent", () => {
     expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs().length).toBe(0);
 
     // the component should switch to versions display
-    expect(component.frameComponentConfig?.component).toBe(VersionsListDisplayComponent);
+    expect(component.frameComponentConfig?.component).toBe(VersionsListFrameComponent);
 
     // add one more operator
     workflowActionService.addOperator(mockResultPredicate, mockPoint);

@@ -17,11 +17,11 @@ export const WORKFLOW_VERSIONS_API_BASE_URL = "version";
 
 @UntilDestroy()
 @Component({
-  selector: "texera-formly-form-frame",
+  selector: "texera-version-list-frame",
   templateUrl: "./versions-display.component.html",
   styleUrls: ["./versions-display.component.scss"],
 })
-export class VersionsListDisplayComponent implements OnInit {
+export class VersionsListFrameComponent implements OnInit {
   public versionsList: WorkflowVersionCollapsableEntry[] | undefined;
 
   public versionTableHeaders: string[] = ["Version#", "Timestamp"];
