@@ -1,11 +1,11 @@
 import { Component, OnInit } from "@angular/core";
 import Fuse from "fuse.js";
-import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
+import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 
-import { GroupInfo, OperatorMetadata, OperatorSchema } from "../../types/operator-schema.interface";
-import { DragDropService } from "../../service/drag-drop/drag-drop.service";
-import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
-import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
+import { GroupInfo, OperatorMetadata, OperatorSchema } from "../../../types/operator-schema.interface";
+import { DragDropService } from "../../../service/drag-drop/drag-drop.service";
+import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
+import { WorkflowUtilService } from "../../../service/workflow-graph/util/workflow-util.service";
 import { OperatorLabelComponent } from "./operator-label/operator-label.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzAutocompleteOptionComponent } from "ng-zorro-antd/auto-complete";
@@ -28,14 +28,14 @@ import { NzAutocompleteOptionComponent } from "ng-zorro-antd/auto-complete";
 @UntilDestroy()
 @Component({
   selector: "texera-operator-panel",
-  templateUrl: "./operator-panel.component.html",
-  styleUrls: ["./operator-panel.component.scss"],
+  templateUrl: "./operator-menu-frame.component.html",
+  styleUrls: ["./operator-menu-frame.component.scss"],
   providers: [
     // uncomment this line for manual testing without opening backend server
     // { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
   ],
 })
-export class OperatorPanelComponent implements OnInit {
+export class OperatorMenuFrameComponent implements OnInit {
   // a list of all operator's schema
   public operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
   // a list of group names, sorted based on the groupOrder from OperatorMetadata

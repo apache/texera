@@ -69,8 +69,8 @@ import { CodeEditorDialogComponent } from "./workspace/component/code-editor-dia
 import { CodeareaCustomTemplateComponent } from "./workspace/component/codearea-custom-template/codearea-custom-template.component";
 import { MiniMapComponent } from "./workspace/component/workflow-editor/mini-map/mini-map.component";
 import { NavigationComponent } from "./workspace/component/navigation/navigation.component";
-import { OperatorLabelComponent } from "./workspace/component/operator-panel/operator-label/operator-label.component";
-import { OperatorPanelComponent } from "./workspace/component/operator-panel/operator-panel.component";
+import { OperatorLabelComponent } from "./workspace/component/left-panel/operator-menu-frame/operator-label/operator-label.component";
+import { OperatorMenuFrameComponent } from "./workspace/component/left-panel/operator-menu-frame/operator-menu-frame.component";
 import { PropertyEditorComponent } from "./workspace/component/property-editor/property-editor.component";
 import { TypeCastingDisplayComponent } from "./workspace/component/property-editor/typecasting-display/type-casting-display.component";
 import { ResultPanelToggleComponent } from "./workspace/component/result-panel-toggle/result-panel-toggle.component";
@@ -112,6 +112,7 @@ import { PresetWrapperComponent } from "./common/formly/preset-wrapper/preset-wr
 import { NzModalCommentBoxComponent } from "./workspace/component/workflow-editor/comment-box-modal/nz-modal-comment-box.component";
 import { NzCommentModule } from "ng-zorro-antd/comment";
 import { NgbdModalWorkflowExecutionsComponent } from "./dashboard/component/feature-container/saved-workflow-section/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
+import { LeftPanelComponent } from './workspace/component/left-panel/left-panel.component';
 
 registerLocaleData(en);
 
@@ -120,7 +121,7 @@ registerLocaleData(en);
     AppComponent,
     WorkspaceComponent,
     NavigationComponent,
-    OperatorPanelComponent,
+    OperatorMenuFrameComponent,
     PropertyEditorComponent,
     VersionsListDisplayComponent,
     WorkflowEditorComponent,
@@ -177,6 +178,7 @@ registerLocaleData(en);
     NgbdModalAddProjectFileComponent,
     NgbdModalRemoveProjectFileComponent,
     NzModalCommentBoxComponent,
+    LeftPanelComponent,
   ],
   imports: [
     BrowserModule,

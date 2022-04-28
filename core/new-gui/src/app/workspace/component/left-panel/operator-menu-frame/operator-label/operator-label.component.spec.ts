@@ -1,19 +1,19 @@
-import { WorkflowUtilService } from "./../../../service/workflow-graph/util/workflow-util.service";
-import { JointUIService } from "./../../../service/joint-ui/joint-ui.service";
-import { DragDropService } from "./../../../service/drag-drop/drag-drop.service";
+import { WorkflowUtilService } from "../../../../service/workflow-graph/util/workflow-util.service";
+import { JointUIService } from "../../../../service/joint-ui/joint-ui.service";
+import { DragDropService } from "../../../../service/drag-drop/drag-drop.service";
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 
 import { OperatorLabelComponent } from "./operator-label.component";
-import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
-import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
+import { OperatorMetadataService } from "../../../../service/operator-metadata/operator-metadata.service";
+import { StubOperatorMetadataService } from "../../../../service/operator-metadata/stub-operator-metadata.service";
 
 import * as jQuery from "jquery";
 
-import { CustomNgMaterialModule } from "../../../../common/custom-ng-material.module";
-import { mockScanSourceSchema } from "../../../service/operator-metadata/mock-operator-metadata.data";
+import { CustomNgMaterialModule } from "../../../../../common/custom-ng-material.module";
+import { mockScanSourceSchema } from "../../../../service/operator-metadata/mock-operator-metadata.data";
 import { By } from "@angular/platform-browser";
-import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import { UndoRedoService } from "../../../service/undo-redo/undo-redo.service";
+import { WorkflowActionService } from "../../../../service/workflow-graph/model/workflow-action.service";
+import { UndoRedoService } from "../../../../service/undo-redo/undo-redo.service";
 import { RouterTestingModule } from "@angular/router/testing";
 import { NgbModule } from "@ng-bootstrap/ng-bootstrap";
 
