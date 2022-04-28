@@ -3,7 +3,7 @@ import {Component, OnInit} from "@angular/core";
 import {UntilDestroy, untilDestroyed} from "@ngneat/until-destroy";
 import {DynamicComponentConfig} from "../../../common/type/dynamic-component-config";
 import {OperatorMenuFrameComponent} from "./operator-menu-frame/operator-menu-frame.component";
-import {VersionsListFrameComponent} from "./versions-display/versions-display.component";
+import {VersionsFrameComponent} from "./versions-display/versions-frame.component";
 import {merge} from "rxjs";
 import {
   DISPLAY_WORKFLOW_VERIONS_EVENT,
@@ -12,7 +12,7 @@ import {
 
 export type LeftFrameComponent =
   | OperatorMenuFrameComponent
-  | VersionsListFrameComponent;
+  | VersionsFrameComponent;
 
 export type LeftFrameComponentConfig = DynamicComponentConfig<LeftFrameComponent>;
 
@@ -61,7 +61,7 @@ export class LeftPanelComponent implements OnInit {
           const isDisplayWorkflowVersions = event.length === 1 && event[0] === DISPLAY_WORKFLOW_VERIONS_EVENT;
           if (isDisplayWorkflowVersions) {
             this.switchFrameComponent({
-              component: VersionsListFrameComponent,
+              component: VersionsFrameComponent,
             });
           } else {
             this.switchFrameComponent({

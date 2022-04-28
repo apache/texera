@@ -98,7 +98,7 @@ import { NotificationComponent } from "./common/component/notification/notificat
 import { DebuggerFrameComponent } from "./workspace/component/result-panel/debugger-frame/debugger-frame.component";
 import { NzTabsModule } from "ng-zorro-antd/tabs";
 import { NzTreeViewModule } from "ng-zorro-antd/tree-view";
-import { VersionsListFrameComponent } from "./workspace/component/left-panel/versions-display/versions-display.component";
+import { VersionsFrameComponent } from "./workspace/component/left-panel/versions-display/versions-frame.component";
 import { NzPaginationModule } from "ng-zorro-antd/pagination";
 import { JwtModule } from "@auth0/angular-jwt";
 import { AuthService } from "./common/service/user/auth.service";
@@ -123,7 +123,7 @@ registerLocaleData(en);
     NavigationComponent,
     OperatorMenuFrameComponent,
     PropertyEditorComponent,
-    VersionsListFrameComponent,
+    VersionsFrameComponent,
     WorkflowEditorComponent,
     ResultPanelComponent,
     OperatorLabelComponent,
