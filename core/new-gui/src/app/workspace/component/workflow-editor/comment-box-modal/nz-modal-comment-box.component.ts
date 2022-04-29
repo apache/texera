@@ -66,17 +66,25 @@ export class NzModalCommentBoxComponent {
 
   public toggleEditInput(creatorName: string, creationTime: string):void{
     const currTxArea = document.getElementById("txarea"+creatorName+creationTime);
+    const currComment = document.getElementById("comment"+creatorName+creationTime);
     const btn = document.getElementById("editbtn"+creatorName+creationTime);
-    if(currTxArea == null || btn == null){
+    if(currTxArea == null || btn == null || currComment == null){
       return;
     }
-    const hidden = currTxArea.getAttribute("hidden");
-    if(hidden){
+    const hiddenTextArea = currTxArea.getAttribute("hidden");
+    const hiddenComment = currComment.getAttribute("hidden");
+    if(hiddenTextArea && !hiddenComment){
+      currComment.setAttribute("hidden", "hidden");
       currTxArea.removeAttribute("hidden");
       btn.removeAttribute("hidden");
+      if(currComment.textContent!=null){
+        this.editValue = currComment.textContent;
+      }
     }else{
       currTxArea.setAttribute("hidden", "hidden");
       btn.setAttribute("hidden", "hidden");
+      currComment.removeAttribute("hidden");
+      this.editValue = "";
     }
    
   }

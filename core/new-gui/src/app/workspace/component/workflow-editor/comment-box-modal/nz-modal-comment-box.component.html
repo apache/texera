@@ -20,18 +20,8 @@
         <!--        <nz-avatar nz-comment-avatar nzIcon="user" [nzSrc]="item.avatar"></nz-avatar>-->
          
         <nz-comment-content>
-          <p>{{ item.content }}</p>
-        </nz-comment-content>
-      </nz-comment>
-      <ul nz-list-item-actions>
-        <nz-list-item-action
-          ><a (click)="deleteComment(item.creatorID, item.creationTime)">delete</a></nz-list-item-action
-        >
-        <nz-list-item-action><a (click)="toggleEditInput(item.creatorName, item.creationTime)">edit</a></nz-list-item-action>
-        <nz-list-item-action><a (click)="replyToComment(item.creatorName, item.content)">reply</a></nz-list-item-action>
-      </ul>
-       <nz-list-item-extra class = "editInputs">
-      <nz-input-group nzSearch [nzAddOnAfter]="suffixIconButton">
+          <p [attr.id] = "'comment' + item.creatorName + item.creationTime">{{ item.content }}</p>
+           <nz-input-group nzSearch [nzAddOnAfter]="suffixIconButton">
         <textarea
           hidden = "hidden"
           [attr.id] = "'txarea' + item.creatorName + item.creationTime"
@@ -55,6 +45,17 @@
       <i nz-icon nzType="send"></i>
     </button>
   </ng-template>
+        </nz-comment-content>
+      </nz-comment>
+      <ul nz-list-item-actions>
+        <nz-list-item-action
+          ><a (click)="deleteComment(item.creatorID, item.creationTime)">delete</a></nz-list-item-action
+        >
+        <nz-list-item-action><a (click)="toggleEditInput(item.creatorName, item.creationTime)">edit</a></nz-list-item-action>
+        <nz-list-item-action><a (click)="replyToComment(item.creatorName, item.content)">reply</a></nz-list-item-action>
+      </ul>
+       <nz-list-item-extra class = "editInputs">
+     
   </nz-list-item-extra>
     </nz-list-item>
   </nz-list>
