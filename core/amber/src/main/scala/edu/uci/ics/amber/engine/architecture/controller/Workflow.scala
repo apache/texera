@@ -253,12 +253,21 @@ class Workflow(
     val sender = from._2
     val receiver = to._2
     val receiverOpExecConfig = to._1
-    if (receiverOpExecConfig.requiredShuffle) {
+    if (receiverOpExecConfig.requiresHashBasedShuffle) {
       new HashBasedShuffle(
         sender,
         receiver,
         Constants.defaultBatchSize,
         receiverOpExecConfig.getPartitionColumnIndices(sender.id)
+      )
+    } else if (receiverOpExecConfig.requiresRangeBasedShuffle) {
+      new RangeBasedShuffle(
+        sender,
+        receiver,
+        Constants.defaultBatchSize,
+        receiverOpExecConfig.getPartitionColumnIndices(sender.id),
+        receiverOpExecConfig.getRangeShuffleMinAndMax._1,
+        receiverOpExecConfig.getRangeShuffleMinAndMax._2
       )
     } else if (receiverOpExecConfig.isInstanceOf[SinkOpExecConfig]) {
       new AllToOne(sender, receiver, Constants.defaultBatchSize)

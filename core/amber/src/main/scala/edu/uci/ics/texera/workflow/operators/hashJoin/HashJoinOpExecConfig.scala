@@ -64,7 +64,7 @@ class HashJoinOpExecConfig[K](
       )
   }
 
-  override def requiredShuffle: Boolean = true
+  override def requiresHashBasedShuffle: Boolean = true
 
   override def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = {
     if (layer == buildTable.from) {

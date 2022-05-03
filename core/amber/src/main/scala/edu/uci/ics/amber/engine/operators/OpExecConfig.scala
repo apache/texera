@@ -87,7 +87,11 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
     //do nothing by default
   }
 
-  def requiredShuffle: Boolean = false
+  def requiresHashBasedShuffle: Boolean = false
+
+  def requiresRangeBasedShuffle: Boolean = false
+
+  def getRangeShuffleMinAndMax: (Long, Long) = (Long.MinValue, Long.MaxValue)
 
   def setInputToOrdinalMapping(input: LinkIdentity, ordinal: Integer, name: String): Unit = {
     this.inputToOrdinalMapping.update(input, (ordinal, name))

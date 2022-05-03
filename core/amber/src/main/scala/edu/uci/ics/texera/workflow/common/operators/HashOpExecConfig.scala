@@ -7,7 +7,7 @@ class HashOpExecConfig(
     hashColumnIndices: Array[Int]
 ) extends OneToOneOpExecConfig(id, opExec) {
 
-  override def requiredShuffle: Boolean = true
+  override def requiresHashBasedShuffle: Boolean = true
 
   override def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = hashColumnIndices
 
