@@ -8,9 +8,13 @@ import { isEqual, reduce } from "lodash";
 import { Breakpoint, OperatorLink, OperatorPredicate, Point } from "src/app/workspace/types/workflow-common.interface";
 
 export const DISPLAY_WORKFLOW_VERIONS_EVENT = "display_workflow_versions_event";
+const TYPES_FOR_WORKFLOW_DIFF_CALC = ["operators"];
 
 type WorkflowContents = keyof WorkflowContent;
 type Elements = Breakpoint | OperatorLink | OperatorPredicate | Point;
+type DifferentOpIDsList = {
+  [key in "modified" | "added"]: string[];
+};
 
 @Injectable({
   providedIn: "root",
@@ -18,7 +22,7 @@ type Elements = Breakpoint | OperatorLink | OperatorPredicate | Point;
 export class WorkflowVersionService {
   private workflowVersionsObservable = new Subject<readonly string[]>();
   private displayParticularWorkflowVersion = new BehaviorSubject<boolean>(false);
-  private highlightedIDs: string[] = [];
+  private differentOpIDsList: DifferentOpIDsList = { modified: [], added: [] };
   constructor(
     private workflowActionService: WorkflowActionService,
     private workflowPersistService: WorkflowPersistService,
@@ -50,7 +54,7 @@ export class WorkflowVersionService {
     // we need to display the version on the paper but keep the original workflow in the background
     this.workflowActionService.setTempWorkflow(this.workflowActionService.getWorkflow());
     // get the list of IDs of different elements when comparing displaying to the editing version
-    this.highlightedIDs = this.getDifference(this.workflowActionService.getWorkflow(), workflow);
+    this.differentOpIDsList = this.getDifference(this.workflowActionService.getWorkflow(), workflow);
     // disable persist to DB because it is read only
     this.workflowPersistService.setWorkflowPersistFlag(false);
     // disable the undoredo service because reloading the workflow is considered an action
@@ -60,8 +64,9 @@ export class WorkflowVersionService {
     this.setDisplayParticularVersion(true);
     // disable modifications because it is read only
     this.workflowActionService.disableWorkflowModification();
-    // highlight the different elements
-    this.highlightDifference(this.highlightedIDs);
+    // highlight the different elements by changing the color of boudary of the operator
+    // needs a list of ids of elements to be highlighted
+    this.highlightOpVersionDiff(this.differentOpIDsList);
   }
 
   public getPositionDifference(v1: Workflow, v2: Workflow) {
@@ -79,19 +84,27 @@ export class WorkflowVersionService {
     return difference;
   }
 
-  public highlightDifference(differences: any[]) {
-    for (var diff of differences) {
-      this.workflowActionService
-        .getJointGraphWrapper()
-        .getMainJointPaper()
-        ?.getModelById(diff)
-        .attr("rect.boundary/fill", "rgba(255,118,20,0.5)");
+  public highlightOpVersionDiff(differentOpIDsList: DifferentOpIDsList) {
+    for (var id of differentOpIDsList.modified) {
+      console.log(id)
+      this.highlighOpBoundary(id, "76,46,255,0.5");
+    }
+    for (var id of differentOpIDsList.added) {
+      console.log(id)
+      this.highlighOpBoundary(id, "255,118,20,0.5");
     }
   }
 
+  public highlighOpBoundary(id: string, color: string) {
+    this.workflowActionService
+    .getJointGraphWrapper()
+    .getMainJointPaper()
+    ?.getModelById(id)
+    .attr("rect.boundary/fill", "rgba(" + color+ ")");
+  }
+
   public getDifference(v1: Workflow, v2: Workflow) {
-    var typeToInclude = ["operators", "links", "groups", "commentBoxes", "breakpoints"];
-    var diff: any[] = [];
+    var diff = { added: [], modified: [] };
     var c1 = v1.content;
     var c2 = v2.content;
     var differentTypes = reduce(
@@ -101,9 +114,8 @@ export class WorkflowVersionService {
       },
       []
     );
-    for (var i = 0; i < differentTypes.length; i++) {
-      var type = differentTypes[i];
-      if (typeToInclude.includes(type)) {
+    for (var type of differentTypes) {
+      if (TYPES_FOR_WORKFLOW_DIFF_CALC.includes(type)) {
         let getIDList = function (element: Elements, index: number) {
           var id = "";
           if (type.substring(type.length - 2, type.length) === "es") {
@@ -113,19 +125,18 @@ export class WorkflowVersionService {
           }
           return { id: element[id as keyof Elements], index: index };
         };
-        var l1 = c1[type as keyof WorkflowContent] as Elements[];
+        var l1 = c1[type as WorkflowContents] as Elements[];
         var IDList1 = l1.map(getIDList);
-        var l2 = c2[type as keyof WorkflowContent] as Elements[];
+        var l2 = c2[type as WorkflowContents] as Elements[];
         var IDList2 = l2.map(getIDList);
-        var added = IDList2.filter(x => !IDList1.map(y => y.id).includes(x.id)).map(x => x.id);
-        var modified = IDList2.filter(x => IDList1.map(y => y.id).includes(x.id))
+        console.log(l1)
+        diff.added = IDList2.filter(x => !IDList1.map(y => y.id).includes(x.id)).map(x => x.id);
+        diff.modified = IDList2.filter(x => IDList1.map(y => y.id).includes(x.id))
           .filter(function (x) {
             var i1 = IDList1.filter(y => y.id == x.id)[0].index;
             return !isEqual(l1[i1], l2[x.index]);
           })
           .map(x => x.id);
-        diff = diff.concat(modified);
-        diff = diff.concat(added);
       }
     }
     return diff;
@@ -133,7 +144,7 @@ export class WorkflowVersionService {
 
   public revertToVersion() {
     // set all elements to tranparent boudary
-    this.resetBoundary();
+    this.unhighlightOpVersionDiff(this.differentOpIDsList);
     // we need to clear the undo and redo stack because it is a new version from previous workflow on paper
     this.undoRedoService.clearRedoStack();
     this.undoRedoService.clearUndoStack();
@@ -147,7 +158,7 @@ export class WorkflowVersionService {
 
   public closeParticularVersionDisplay() {
     // set all elements to tranparent boudary
-    this.resetBoundary();
+    this.unhighlightOpVersionDiff(this.differentOpIDsList);
     // should enable modifications first to be able to make action of reloading old version on paper
     this.workflowActionService.enableWorkflowModification();
     // but still disable redo and undo service to not capture swapping the workflows, because enabling modifictions automatically enables undo and redo
@@ -162,13 +173,9 @@ export class WorkflowVersionService {
     this.setDisplayParticularVersion(false);
   }
 
-  public resetBoundary() {
-    for (var id of this.highlightedIDs) {
-      this.workflowActionService
-        .getJointGraphWrapper()
-        .getMainJointPaper()
-        ?.getModelById(id)
-        .attr("rect.boundary/fill", "rgba(0,0,0,0)");
+  public unhighlightOpVersionDiff(differentOpIDsList: DifferentOpIDsList) {
+    for (var id of Object.values(differentOpIDsList).reduce((accumulator, value) => accumulator.concat(value), [])) {
+      this.highlighOpBoundary(id, "0,0,0,0");
     }
   }
 }
