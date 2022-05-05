@@ -86,21 +86,21 @@ export class WorkflowVersionService {
 
   public highlightOpVersionDiff(differentOpIDsList: DifferentOpIDsList) {
     for (var id of differentOpIDsList.modified) {
-      console.log(id)
+      console.log(id);
       this.highlighOpBoundary(id, "76,46,255,0.5");
     }
     for (var id of differentOpIDsList.added) {
-      console.log(id)
+      console.log(id);
       this.highlighOpBoundary(id, "255,118,20,0.5");
     }
   }
 
   public highlighOpBoundary(id: string, color: string) {
     this.workflowActionService
-    .getJointGraphWrapper()
-    .getMainJointPaper()
-    ?.getModelById(id)
-    .attr("rect.boundary/fill", "rgba(" + color+ ")");
+      .getJointGraphWrapper()
+      .getMainJointPaper()
+      ?.getModelById(id)
+      .attr("rect.boundary/fill", "rgba(" + color + ")");
   }
 
   public getDifference(v1: Workflow, v2: Workflow) {
@@ -129,7 +129,7 @@ export class WorkflowVersionService {
         var IDList1 = l1.map(getIDList);
         var l2 = c2[type as WorkflowContents] as Elements[];
         var IDList2 = l2.map(getIDList);
-        console.log(l1)
+        console.log(l1);
         diff.added = IDList2.filter(x => !IDList1.map(y => y.id).includes(x.id)).map(x => x.id);
         diff.modified = IDList2.filter(x => IDList1.map(y => y.id).includes(x.id))
           .filter(function (x) {
