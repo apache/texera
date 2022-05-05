@@ -87,11 +87,11 @@ export class WorkflowVersionService {
   public highlightOpVersionDiff(differentOpIDsList: DifferentOpIDsList) {
     for (var id of differentOpIDsList.modified) {
       console.log(id);
-      this.highlighOpBoundary(id, "76,46,255,0.5");
+      this.highlighOpBoundary(id, "255,118,20,0.5");
     }
     for (var id of differentOpIDsList.added) {
       console.log(id);
-      this.highlighOpBoundary(id, "255,118,20,0.5");
+      this.highlighOpBoundary(id, "75,255,20,0.5");
     }
   }
 
