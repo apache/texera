@@ -42,8 +42,13 @@ class ManyToOneOpExecConfig(
         inputToOrdinalMapping.find({ case (_, (ordinal, _)) => ordinal == dependeeOrdinal }).get._1
       val dependerLink =
         inputToOrdinalMapping.find({ case (_, (ordinal, _)) => ordinal == dependerOrdinal }).get._1
-      workflow.getSources(toOperatorIdentity(dependerLink.from)).foreach { source =>
-        workflow.getOperator(source).topology.layers.head.startAfter(dependeeLink)
+      workflow.getSources(toOperatorIdentity(dependerLink.from)).foreach { dependerSource =>
+        val opId = workflow.getOperator(dependeeLink.from.operator).id
+        workflow.getSources(opId).foreach { dependeeSource =>
+          if (dependerSource != dependeeSource) {
+            workflow.getOperator(dependerSource).topology.layers.head.startAfter(dependeeLink)
+          }
+        }
       }
     }
   }
