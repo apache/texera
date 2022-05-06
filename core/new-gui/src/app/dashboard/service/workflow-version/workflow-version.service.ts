@@ -20,7 +20,7 @@ const ELEMENT_TYPES_IN_WORKFLOW_DIFF_CALC: Partial<WorkflowContentKeys>[] = ["op
 // it maps name of the element type to its ID field name used in WorkflowContent
 const ID_FILED_FOR_ELEMENTS_CONFIG: { [key: string]: string } = {
   operators: "operatorID",
-  commentBoxes: "commentBoxID"
+  commentBoxes: "commentBoxID",
 };
 
 @Injectable({
