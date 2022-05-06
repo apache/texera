@@ -38,7 +38,8 @@ class DoubleBlockingQueue(IQueue):
     def empty(self) -> bool:
         """
         Invoked by the consumer only, checks if the queue is empty.
-        :return: True if the main queue is empty, and the enabled sub queue is empty as well.
+        :return: True if the main queue is empty, and the enabled sub queue is empty
+            as well.
         """
         self._enforce_single_consumer()
         if self._sub_enabled:
@@ -104,14 +105,16 @@ class DoubleBlockingQueue(IQueue):
 
     def _distribute_all(self) -> None:
         """
-        Redistribute the items in the input queue into either main queue or the sub queue accordingly.
+        Redistribute the items in the input queue into either main queue or the sub
+        queue accordingly.
         """
         while not self._input_queue.empty():
             self._distribute_next()
 
     def _distribute_next(self) -> None:
         """
-        Redistribute the next item from input queue into either main queue or the sub queue accordingly.
+        Redistribute the next item from input queue into either main queue or the sub
+        queue accordingly.
         :return:
         """
         ele = self._input_queue.get()
@@ -128,11 +131,13 @@ class DoubleBlockingQueue(IQueue):
         try:
             # new unique identifier in python 3.8.
             get_id = threading.get_native_id
-        except:
+        except Exception:
             # fall back to old ident method for python prior to 3.8.
             get_id = threading.get_ident
         if self._consumer_id is None:
             self._consumer_id = get_id()
         else:
-            assert self._consumer_id == get_id(), f"DoubleBlockingQueue can only have one consumer! " \
-                                                  f"{self._consumer_id} vs {get_id()}"
+            assert self._consumer_id == get_id(), (
+                "DoubleBlockingQueue can only have one consumer! "
+                f"{self._consumer_id} vs {get_id()}"
+            )

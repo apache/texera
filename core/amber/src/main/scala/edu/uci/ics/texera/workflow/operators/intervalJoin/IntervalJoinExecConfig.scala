@@ -41,9 +41,9 @@ class IntervalJoinExecConfig(
   var leftInputLink: LinkIdentity = _
 
   override def checkStartDependencies(workflow: Workflow): Unit = {
-    leftInputLink = inputToOrdinalMapping.find(pair => pair._2 == 0).get._1
+    leftInputLink = inputToOrdinalMapping.find(pair => pair._2._1 == 0).get._1
 
-    val rightTable = inputToOrdinalMapping.find(pair => pair._2 == 1).get._1
+    val rightTable = inputToOrdinalMapping.find(pair => pair._2._1 == 1).get._1
     workflow.getSources(toOperatorIdentity(rightTable.from)).foreach { source =>
       workflow.getOperator(source).topology.layers.head.startAfter(leftInputLink)
     }

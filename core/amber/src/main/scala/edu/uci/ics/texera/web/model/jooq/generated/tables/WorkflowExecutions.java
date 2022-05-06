@@ -19,7 +19,7 @@ import org.jooq.Identity;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row7;
+import org.jooq.Row8;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
 
-    private static final long serialVersionUID = 248636837;
+    private static final long serialVersionUID = 154313534;
 
     /**
      * The reference instance of <code>texera_db.workflow_executions</code>
@@ -84,6 +84,11 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
      * The column <code>texera_db.workflow_executions.completion_time</code>.
      */
     public final TableField<WorkflowExecutionsRecord, Timestamp> COMPLETION_TIME = createField(DSL.name("completion_time"), org.jooq.impl.SQLDataType.TIMESTAMP, this, "");
+
+    /**
+     * The column <code>texera_db.workflow_executions.bookmarked</code>.
+     */
+    public final TableField<WorkflowExecutionsRecord, Byte> BOOKMARKED = createField(DSL.name("bookmarked"), org.jooq.impl.SQLDataType.TINYINT.defaultValue(org.jooq.impl.DSL.inline("0", org.jooq.impl.SQLDataType.TINYINT)), this, "");
 
     /**
      * Create a <code>texera_db.workflow_executions</code> table reference
@@ -183,11 +188,11 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row7 type methods
+    // Row8 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row7<UInteger, UInteger, UInteger, Byte, String, Timestamp, Timestamp> fieldsRow() {
-        return (Row7) super.fieldsRow();
+    public Row8<UInteger, UInteger, UInteger, Byte, String, Timestamp, Timestamp, Byte> fieldsRow() {
+        return (Row8) super.fieldsRow();
     }
 }
