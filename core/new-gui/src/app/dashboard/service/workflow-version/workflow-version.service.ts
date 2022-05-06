@@ -30,6 +30,7 @@ export class WorkflowVersionService {
   private workflowVersionsObservable = new Subject<readonly string[]>();
   private displayParticularWorkflowVersion = new BehaviorSubject<boolean>(false);
   private differentOpIDsList: DifferentOpIDsList = { modified: [], added: [] };
+  public operatorPropertyDiff: { [key: string]: string[] } = {};
   constructor(
     private workflowActionService: WorkflowActionService,
     private workflowPersistService: WorkflowPersistService,
@@ -61,7 +62,10 @@ export class WorkflowVersionService {
     // we need to display the version on the paper but keep the original workflow in the background
     this.workflowActionService.setTempWorkflow(this.workflowActionService.getWorkflow());
     // get the list of IDs of different elements when comparing displaying to the editing version
-    this.differentOpIDsList = this.getWorkflowsDifference(this.workflowActionService.getWorkflow().content, workflow.content);
+    this.differentOpIDsList = this.getWorkflowsDifference(
+      this.workflowActionService.getWorkflowContent(),
+      workflow.content
+    );
     // disable persist to DB because it is read only
     this.workflowPersistService.setWorkflowPersistFlag(false);
     // disable the undoredo service because reloading the workflow is considered an action
@@ -95,6 +99,7 @@ export class WorkflowVersionService {
 
   // TODO: the logic of the function will be refined later
   public getWorkflowsDifference(workflowContent1: WorkflowContent, workflowContent2: WorkflowContent) {
+    this.operatorPropertyDiff = {};
     var difference: DifferentOpIDsList = { added: [], modified: [] };
     // get a list of element types that are changed between versions
     var eleTypeWithDiffList: WorkflowContentKeys[] = [];
@@ -129,7 +134,10 @@ export class WorkflowVersionService {
               // if the contents in two workflow versions are different for the same element ID
               difference.modified.push(eleID);
               if (eleType == "operators") {
-                this.getOperatorsDifference(eleIDtoContentMap1[eleID] as OperatorPredicate, eleIDtoContentMap2[eleID] as OperatorPredicate);
+                this.operatorPropertyDiff[eleID] = this.getOperatorsDifference(
+                  eleIDtoContentMap1[eleID] as OperatorPredicate,
+                  eleIDtoContentMap2[eleID] as OperatorPredicate
+                );
               }
             }
           }
@@ -140,9 +148,13 @@ export class WorkflowVersionService {
   }
 
   public getOperatorsDifference(operator1: OperatorPredicate, operator2: OperatorPredicate) {
-    console.log(operator1)
-    console.log(operator2)
-    return
+    var difference: string[] = [];
+    for (var property of Object.keys(operator1.operatorProperties)) {
+      if (operator1.operatorProperties[property] != operator2.operatorProperties[property]) {
+        difference.push(property);
+      }
+    }
+    return difference;
   }
 
   public revertToVersion() {
@@ -184,5 +196,6 @@ export class WorkflowVersionService {
     for (var id of differentOpIDs) {
       this.highlighOpBoundary(id, "0,0,0,0");
     }
+    this.operatorPropertyDiff = {};
   }
 }
