@@ -8,7 +8,7 @@ trait ISinkOperatorExecutor extends IOperatorExecutor {
   override def processTuple(
       tuple: Either[ITuple, InputExhausted],
       input: LinkIdentity
-  ): Iterator[ITuple] = {
+  ): Iterator[(ITuple, Option[LinkIdentity])] = {
     consume(tuple, input)
     Iterator.empty
   }

@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from "@angular/core";
+import { ChangeDetectorRef, Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { Subject } from "rxjs";
 import { FormGroup } from "@angular/forms";
@@ -104,7 +104,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private dynamicSchemaService: DynamicSchemaService,
     private schemaPropagationService: SchemaPropagationService,
     private notificationService: NotificationService,
-    private workflowCollabService: WorkflowCollabService
+    private workflowCollabService: WorkflowCollabService,
+    private changeDetectorRef: ChangeDetectorRef
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -299,6 +300,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         if (this.currentOperatorId) {
           const interactive = this.evaluateInteractivity();
           this.setInteractivity(interactive);
+          this.changeDetectorRef.detectChanges();
         }
       });
   }
@@ -319,6 +321,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       .pipe(untilDestroyed(this))
       .subscribe((lockGranted: boolean) => {
         this.lockGranted = lockGranted;
+        this.changeDetectorRef.detectChanges();
       });
   }
 

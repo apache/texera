@@ -50,6 +50,7 @@ public enum AttributeType implements Serializable {
     DOUBLE("double", Double.class),
     BOOLEAN("boolean", Boolean.class),
     TIMESTAMP("timestamp", Timestamp.class),
+    BINARY("binary", byte[].class),
     ANY("ANY", Object.class);
 
     private final String name;
@@ -82,6 +83,8 @@ public enum AttributeType implements Serializable {
             return BOOLEAN;
         } else if (fieldClass.equals(Timestamp.class)) {
             return TIMESTAMP;
+        }else if (fieldClass.equals(byte[].class)){
+            return BINARY;
         } else {
             return ANY;
         }

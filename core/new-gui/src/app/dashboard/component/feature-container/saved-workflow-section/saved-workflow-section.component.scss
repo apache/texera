@@ -42,6 +42,12 @@ $header-height: 120px;
   grid-template-rows: $header-height calc((100% - #{$header-height}));
 }
 
+.virtual-scroll-infinite-container {
+  height: 600px;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+}
+
 /**
 * the grid of the first row which contains the add and sort button.
 * The position of the first row is fix. no adaptation
