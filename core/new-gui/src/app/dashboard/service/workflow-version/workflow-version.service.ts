@@ -4,7 +4,7 @@ import { WorkflowActionService } from "../../../workspace/service/workflow-graph
 import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { UndoRedoService } from "../../../workspace/service/undo-redo/undo-redo.service";
-import { isEqual, reduce } from "lodash";
+import { isEqual } from "lodash";
 import { Breakpoint, OperatorLink, OperatorPredicate, Point } from "src/app/workspace/types/workflow-common.interface";
 
 export const DISPLAY_WORKFLOW_VERIONS_EVENT = "display_workflow_versions_event";
@@ -61,7 +61,7 @@ export class WorkflowVersionService {
     // we need to display the version on the paper but keep the original workflow in the background
     this.workflowActionService.setTempWorkflow(this.workflowActionService.getWorkflow());
     // get the list of IDs of different elements when comparing displaying to the editing version
-    this.differentOpIDsList = this.getDifference(this.workflowActionService.getWorkflow().content, workflow.content);
+    this.differentOpIDsList = this.getWorkflowsDifference(this.workflowActionService.getWorkflow().content, workflow.content);
     // disable persist to DB because it is read only
     this.workflowPersistService.setWorkflowPersistFlag(false);
     // disable the undoredo service because reloading the workflow is considered an action
@@ -94,7 +94,7 @@ export class WorkflowVersionService {
   }
 
   // TODO: the logic of the function will be refined later
-  public getDifference(workflowContent1: WorkflowContent, workflowContent2: WorkflowContent) {
+  public getWorkflowsDifference(workflowContent1: WorkflowContent, workflowContent2: WorkflowContent) {
     var difference: DifferentOpIDsList = { added: [], modified: [] };
     // get a list of element types that are changed between versions
     var eleTypeWithDiffList: WorkflowContentKeys[] = [];
@@ -128,12 +128,21 @@ export class WorkflowVersionService {
             if (!isEqual(eleIDtoContentMap1[eleID], eleIDtoContentMap2[eleID])) {
               // if the contents in two workflow versions are different for the same element ID
               difference.modified.push(eleID);
+              if (eleType == "operators") {
+                this.getOperatorsDifference(eleIDtoContentMap1[eleID] as OperatorPredicate, eleIDtoContentMap2[eleID] as OperatorPredicate);
+              }
             }
           }
         }
       }
     }
     return difference;
+  }
+
+  public getOperatorsDifference(operator1: OperatorPredicate, operator2: OperatorPredicate) {
+    console.log(operator1)
+    console.log(operator2)
+    return
   }
 
   public revertToVersion() {
