@@ -29,7 +29,7 @@ class BatchToTupleConverterSpec extends AnyFlatSpec with MockFactory {
     inSequence {
       (mockInternalQueue.appendElement _).expects(SenderChangeMarker(linkID1))
       inputBatch.frame.foreach { i =>
-        (mockInternalQueue.appendElement _).expects(InputTuple(i))
+        (mockInternalQueue.appendElement _).expects(InputTuple(fakeID, i))
       }
       (mockInternalQueue.appendElement _).expects(EndMarker)
       (mockInternalQueue.appendElement _).expects(EndOfAllMarker)
@@ -46,11 +46,11 @@ class BatchToTupleConverterSpec extends AnyFlatSpec with MockFactory {
     inSequence {
       (mockInternalQueue.appendElement _).expects(SenderChangeMarker(linkID1))
       inputBatchFromUpstream1.frame.foreach { i =>
-        (mockInternalQueue.appendElement _).expects(InputTuple(i))
+        (mockInternalQueue.appendElement _).expects(InputTuple(fakeID, i))
       }
       (mockInternalQueue.appendElement _).expects(SenderChangeMarker(linkID2))
       inputBatchFromUpstream2.frame.foreach { i =>
-        (mockInternalQueue.appendElement _).expects(InputTuple(i))
+        (mockInternalQueue.appendElement _).expects(InputTuple(fakeID, i))
       }
       (mockInternalQueue.appendElement _).expects(EndMarker)
       (mockInternalQueue.appendElement _).expects(SenderChangeMarker(linkID1))
