@@ -62,6 +62,8 @@ trait WorkerInternalQueue {
             Constants.pairWiseUnprocessedBatchesLimit * Constants.defaultBatchSize
         }
         inputToCredits(from) = inputToCredits(from) - 1
+      case _ =>
+      // do nothing
     }
     dataQueue.add(elem)
   }
@@ -80,6 +82,8 @@ trait WorkerInternalQueue {
           )
         }
         inputToCredits(from) = inputToCredits(from) + 1
+      case _ =>
+      // do nothing
     }
     elem
   }
