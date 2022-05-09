@@ -37,7 +37,6 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfterEach {
   lazy val pauseManager: PauseManager = wire[PauseManager]
   lazy val identifier: ActorVirtualIdentity = ActorVirtualIdentity("DP mock")
-  lazy val senderWorker: ActorVirtualIdentity = ActorVirtualIdentity("sender")
   lazy val mockDataInputHandler: (ActorVirtualIdentity, DataPayload) => Unit =
     mock[(ActorVirtualIdentity, DataPayload) => Unit]
   lazy val mockControlInputHandler: (ActorVirtualIdentity, ControlPayload) => Unit =
@@ -66,6 +65,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   val tuples: Seq[ITuple] = (0 until 400).map(ITuple(_))
 
   def sendDataToDP(dp: DataProcessor, data: Seq[ITuple], interval: Long = -1): Future[_] = {
+    lazy val senderWorker: ActorVirtualIdentity = ActorVirtualIdentity("sender")
     Future {
       dp.appendElement(SenderChangeMarker(linkID))
       data.foreach { x =>
@@ -221,6 +221,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       (operator.close _).expects().once()
     }
     operator.open()
+    lazy val senderWorker: ActorVirtualIdentity = ActorVirtualIdentity("sender")
     dp.appendElement(InputTuple(senderWorker, ITuple(1)))
     Thread.sleep(500)
     dp.enqueueCommand(ControlInvocation(0, PauseWorker()), CONTROLLER)
