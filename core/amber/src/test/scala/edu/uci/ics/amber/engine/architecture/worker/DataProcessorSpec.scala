@@ -265,7 +265,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val operator = mock[OperatorExecutor]
     val asyncRPCServer: AsyncRPCServer = null
     val workerStateManager: WorkerStateManager = new WorkerStateManager(RUNNING)
-    val tuplesToSend: Seq[ITuple] = (0 until Constants.defaultBatchSize + 2).map(ITuple(_))
+    val tuplesToSend: Seq[ITuple] = (0 until Constants.defaultBatchSize).map(ITuple(_))
     inAnyOrder {
       (batchProducer.emitEndOfUpstream _).expects().anyNumberOfTimes()
       (asyncRPCClient.send[Unit] _).expects(*, *).anyNumberOfTimes()
