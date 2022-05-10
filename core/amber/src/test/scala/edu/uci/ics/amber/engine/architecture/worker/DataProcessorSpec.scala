@@ -13,7 +13,7 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{COMPLETED, RUNNING}
-import edu.uci.ics.amber.engine.common.InputExhausted
+import edu.uci.ics.amber.engine.common.{Constants, InputExhausted}
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, DataPayload}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
@@ -64,8 +64,12 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     )
   val tuples: Seq[ITuple] = (0 until 400).map(ITuple(_))
 
-  def sendDataToDP(dp: DataProcessor, data: Seq[ITuple], interval: Long = -1): Future[_] = {
-    lazy val senderWorker: ActorVirtualIdentity = ActorVirtualIdentity("sender")
+  def sendDataToDP(
+      senderWorker: ActorVirtualIdentity,
+      dp: DataProcessor,
+      data: Seq[ITuple],
+      interval: Long = -1
+  ): Future[_] = {
     Future {
       dp.appendElement(SenderChangeMarker(linkID))
       data.foreach { x =>
@@ -135,7 +139,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
 
     val dp = wire[DataProcessor]
     operator.open()
-    Await.result(sendDataToDP(dp, tuples), 3.seconds)
+    Await.result(sendDataToDP(ActorVirtualIdentity("sender"), dp, tuples), 3.seconds)
     waitForDataProcessing(workerStateManager)
     dp.shutdown()
 
@@ -170,7 +174,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     }
     val dp: DataProcessor = wire[DataProcessor]
     operator.open()
-    val f1 = sendDataToDP(dp, tuples, 2)
+    val f1 = sendDataToDP(ActorVirtualIdentity("sender"), dp, tuples, 2)
     val f2 = sendControlToDP(dp, (0 until 100).map(_ => ControlInvocation(0, DummyControl())), 3)
     Await.result(f1.zip(f2), 5.seconds)
     waitForDataProcessing(workerStateManager)
@@ -235,6 +239,51 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     dp.appendElement(EndMarker)
     dp.appendElement(EndOfAllMarker)
     waitForControlProcessing(dp)
+    waitForDataProcessing(workerStateManager)
+    dp.shutdown()
+
+  }
+
+  def monitorCredits(
+      senderWorker: ActorVirtualIdentity,
+      dp: DataProcessor,
+      data: Seq[ITuple]
+  ): Future[_] = {
+    Future {
+      dp.appendElement(SenderChangeMarker(linkID))
+      data.foreach { x =>
+        dp.appendElement(InputTuple(senderWorker, x))
+      }
+      assert(dp.getSenderCredits(senderWorker) == Constants.pairWiseUnprocessedBatchesLimit - 1)
+      dp.appendElement(EndMarker)
+      dp.appendElement(EndOfAllMarker)
+    }(ExecutionContext.global)
+  }
+
+  "data processor" should "reduce credits" in {
+    val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
+    val operator = mock[OperatorExecutor]
+    val asyncRPCServer: AsyncRPCServer = null
+    val workerStateManager: WorkerStateManager = new WorkerStateManager(RUNNING)
+    val tuplesToSend: Seq[ITuple] = (0 until Constants.defaultBatchSize + 2).map(ITuple(_))
+    inAnyOrder {
+      (batchProducer.emitEndOfUpstream _).expects().anyNumberOfTimes()
+      (asyncRPCClient.send[Unit] _).expects(*, *).anyNumberOfTimes()
+      inSequence {
+        (operator.open _).expects().once()
+        tuplesToSend.foreach { x =>
+          (operator.processTuple _).expects(Left(x), linkID)
+        }
+        (operator.processTuple _).expects(Right(InputExhausted()), linkID)
+        (operator.close _).expects().once()
+      }
+    }
+
+    val dp = wire[DataProcessor]
+    operator.open()
+    val senderWorker = ActorVirtualIdentity("sender")
+    assert(dp.getSenderCredits(senderWorker) == Constants.pairWiseUnprocessedBatchesLimit)
+    Await.result(monitorCredits(ActorVirtualIdentity("sender"), dp, tuplesToSend), 3.seconds)
     waitForDataProcessing(workerStateManager)
     dp.shutdown()
 
