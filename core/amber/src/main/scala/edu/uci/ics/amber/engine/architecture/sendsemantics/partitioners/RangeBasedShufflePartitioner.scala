@@ -8,6 +8,9 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType
 case class RangeBasedShufflePartitioner(partitioning: RangeBasedShufflePartitioning)
     extends ParallelBatchingPartitioner(partitioning.batchSize, partitioning.receivers) {
 
+  val keysPerReceiver =
+    ((partitioning.rangeMax - partitioning.rangeMin) / partitioning.receivers.length).toLong + 1
+
   override def selectBatchingIndex(tuple: ITuple): Int = {
     // Do range partitioning only on the first attribute in `rangeColumnIndices`.
     val fieldType = tuple
@@ -28,15 +31,19 @@ case class RangeBasedShufflePartitioner(partitioning: RangeBasedShufflePartition
         throw new RuntimeException("unsupported attribute type: " + fieldType.toString())
     }
 
-    if (fieldVal < partitioning.rangeMin) { return 0 }
-    if (fieldVal > partitioning.rangeMax) { return partitioning.receivers.length - 1 }
-    var destinationReceiver: Int = 0
-    val keysPerReceiver =
-      ((partitioning.rangeMax - partitioning.rangeMin) / partitioning.receivers.length).toLong + 1
-    while (fieldVal >= partitioning.rangeMin + keysPerReceiver * destinationReceiver) {
-      destinationReceiver = destinationReceiver + 1
+    if (fieldVal < partitioning.rangeMin) {
+      return 0
     }
-    destinationReceiver - 1
+    if (fieldVal > partitioning.rangeMax) {
+      return partitioning.receivers.length - 1
+    }
+    //    var destinationReceiver: Int = 0
+    //
+    //    while (fieldVal >= partitioning.rangeMin + keysPerReceiver * destinationReceiver) {
+    //      destinationReceiver = destinationReceiver + 1
+    //    }
+    //    destinationReceiver - 1
+    ((fieldVal - partitioning.rangeMin) / keysPerReceiver).toInt
   }
 
 }
