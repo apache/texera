@@ -22,6 +22,11 @@ import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.asScalaSet
 
+object ShuffleType extends Enumeration {
+  val HASH_BASED, RANGE_BASED, NONE =
+    Value
+}
+
 abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
 
   lazy val topology: Topology = null
@@ -30,6 +35,7 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
   var attachedBreakpoints = new mutable.HashMap[String, GlobalBreakpoint[_]]()
   var caughtLocalExceptions = new mutable.HashMap[ActorVirtualIdentity, Throwable]()
   var workerToWorkloadInfo = new mutable.HashMap[ActorVirtualIdentity, WorkerWorkloadInfo]()
+  var shuffleType: ShuffleType.Value = ShuffleType.NONE
 
   def getAllWorkers: Iterable[ActorVirtualIdentity] = topology.layers.flatMap(l => l.identifiers)
 
@@ -87,7 +93,9 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
     //do nothing by default
   }
 
-  def requiredShuffle: Boolean = false
+  def requiresShuffle: Boolean = shuffleType != ShuffleType.NONE
+
+  def getRangeShuffleMinAndMax: (Long, Long) = (Long.MinValue, Long.MaxValue)
 
   def setInputToOrdinalMapping(input: LinkIdentity, ordinal: Integer, name: String): Unit = {
     this.inputToOrdinalMapping.update(input, (ordinal, name))

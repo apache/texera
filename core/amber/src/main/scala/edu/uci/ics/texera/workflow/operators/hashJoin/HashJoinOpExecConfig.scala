@@ -13,7 +13,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   LinkIdentity,
   OperatorIdentity
 }
-import edu.uci.ics.amber.engine.operators.OpExecConfig
+import edu.uci.ics.amber.engine.operators.{OpExecConfig, ShuffleType}
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
 class HashJoinOpExecConfig[K](
@@ -23,6 +23,8 @@ class HashJoinOpExecConfig[K](
     val joinType: JoinType,
     val operatorSchemaInfo: OperatorSchemaInfo
 ) extends OpExecConfig(id) {
+
+  shuffleType = ShuffleType.HASH_BASED
 
   override lazy val topology: Topology = {
     new Topology(
@@ -63,8 +65,6 @@ class HashJoinOpExecConfig[K](
         operatorSchemaInfo
       )
   }
-
-  override def requiredShuffle: Boolean = true
 
   override def getPartitionColumnIndices(layer: LayerIdentity): Array[Int] = {
     if (layer == buildTable.from) {

@@ -24,12 +24,14 @@ object Partitioning {
       case __v: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue.OneToOnePartitioning => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue.RoundRobinPartitioning => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue.HashBasedShufflePartitioning => __v.value
+      case __v: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue.RangeBasedShufflePartitioning => __v.value
       case edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue.Empty => Empty
     }
     override def toBase(__custom: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning): edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage(__custom match {
       case __v: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning => edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue.OneToOnePartitioning(__v)
       case __v: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RoundRobinPartitioning => edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue.RoundRobinPartitioning(__v)
       case __v: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning => edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue.HashBasedShufflePartitioning(__v)
+      case __v: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning => edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue.RangeBasedShufflePartitioning(__v)
       case Empty => edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue.Empty
     })
   }
@@ -52,6 +54,10 @@ final case class PartitioningMessage(
       };
       if (sealedValue.hashBasedShufflePartitioning.isDefined) {
         val __value = sealedValue.hashBasedShufflePartitioning.get
+        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+      };
+      if (sealedValue.rangeBasedShufflePartitioning.isDefined) {
+        val __value = sealedValue.rangeBasedShufflePartitioning.get
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       };
       __size
@@ -83,6 +89,12 @@ final case class PartitioningMessage(
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
+      sealedValue.rangeBasedShufflePartitioning.foreach { __v =>
+        val __m = __v
+        _output__.writeTag(4, 2)
+        _output__.writeUInt32NoTag(__m.serializedSize)
+        __m.writeTo(_output__)
+      };
     }
     def getOneToOnePartitioning: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning = sealedValue.oneToOnePartitioning.getOrElse(edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning.defaultInstance)
     def withOneToOnePartitioning(__v: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning): PartitioningMessage = copy(sealedValue = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue.OneToOnePartitioning(__v))
@@ -90,6 +102,8 @@ final case class PartitioningMessage(
     def withRoundRobinPartitioning(__v: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RoundRobinPartitioning): PartitioningMessage = copy(sealedValue = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue.RoundRobinPartitioning(__v))
     def getHashBasedShufflePartitioning: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning = sealedValue.hashBasedShufflePartitioning.getOrElse(edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning.defaultInstance)
     def withHashBasedShufflePartitioning(__v: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning): PartitioningMessage = copy(sealedValue = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue.HashBasedShufflePartitioning(__v))
+    def getRangeBasedShufflePartitioning: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning = sealedValue.rangeBasedShufflePartitioning.getOrElse(edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning.defaultInstance)
+    def withRangeBasedShufflePartitioning(__v: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning): PartitioningMessage = copy(sealedValue = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue.RangeBasedShufflePartitioning(__v))
     def clearSealedValue: PartitioningMessage = copy(sealedValue = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue.Empty)
     def withSealedValue(__v: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue): PartitioningMessage = copy(sealedValue = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
@@ -97,6 +111,7 @@ final case class PartitioningMessage(
         case 1 => sealedValue.oneToOnePartitioning.orNull
         case 2 => sealedValue.roundRobinPartitioning.orNull
         case 3 => sealedValue.hashBasedShufflePartitioning.orNull
+        case 4 => sealedValue.rangeBasedShufflePartitioning.orNull
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
@@ -105,6 +120,7 @@ final case class PartitioningMessage(
         case 1 => sealedValue.oneToOnePartitioning.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 2 => sealedValue.roundRobinPartitioning.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 3 => sealedValue.hashBasedShufflePartitioning.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 4 => sealedValue.rangeBasedShufflePartitioning.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -128,6 +144,8 @@ object PartitioningMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ics
           __sealedValue = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue.RoundRobinPartitioning(__sealedValue.roundRobinPartitioning.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RoundRobinPartitioning](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 26 =>
           __sealedValue = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue.HashBasedShufflePartitioning(__sealedValue.hashBasedShufflePartitioning.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+        case 34 =>
+          __sealedValue = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue.RangeBasedShufflePartitioning(__sealedValue.rangeBasedShufflePartitioning.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case tag => _input__.skipField(tag)
       }
     }
@@ -142,6 +160,7 @@ object PartitioningMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ics
         sealedValue = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning]]).map(edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue.OneToOnePartitioning(_))
             .orElse[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RoundRobinPartitioning]]).map(edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue.RoundRobinPartitioning(_)))
             .orElse[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning]]).map(edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue.HashBasedShufflePartitioning(_)))
+            .orElse[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning]]).map(edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue.RangeBasedShufflePartitioning(_)))
             .getOrElse(edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue.Empty)
       )
     case _ => throw new RuntimeException("Expected PMessage")
@@ -154,6 +173,7 @@ object PartitioningMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ics
       case 1 => __out = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
       case 2 => __out = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RoundRobinPartitioning
       case 3 => __out = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning
+      case 4 => __out = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning
     }
     __out
   }
@@ -168,9 +188,11 @@ object PartitioningMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ics
     def isOneToOnePartitioning: _root_.scala.Boolean = false
     def isRoundRobinPartitioning: _root_.scala.Boolean = false
     def isHashBasedShufflePartitioning: _root_.scala.Boolean = false
+    def isRangeBasedShufflePartitioning: _root_.scala.Boolean = false
     def oneToOnePartitioning: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning] = _root_.scala.None
     def roundRobinPartitioning: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RoundRobinPartitioning] = _root_.scala.None
     def hashBasedShufflePartitioning: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning] = _root_.scala.None
+    def rangeBasedShufflePartitioning: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning] = _root_.scala.None
   }
   object SealedValue {
     @SerialVersionUID(0L)
@@ -203,16 +225,25 @@ object PartitioningMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ics
       override def hashBasedShufflePartitioning: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning] = Some(value)
       override def number: _root_.scala.Int = 3
     }
+    @SerialVersionUID(0L)
+    final case class RangeBasedShufflePartitioning(value: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning) extends edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue {
+      type ValueType = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning
+      override def isRangeBasedShufflePartitioning: _root_.scala.Boolean = true
+      override def rangeBasedShufflePartitioning: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning] = Some(value)
+      override def number: _root_.scala.Int = 4
+    }
   }
   implicit class PartitioningMessageLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage](_l) {
     def oneToOnePartitioning: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning] = field(_.getOneToOnePartitioning)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue.OneToOnePartitioning(f_)))
     def roundRobinPartitioning: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RoundRobinPartitioning] = field(_.getRoundRobinPartitioning)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue.RoundRobinPartitioning(f_)))
     def hashBasedShufflePartitioning: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning] = field(_.getHashBasedShufflePartitioning)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue.HashBasedShufflePartitioning(f_)))
+    def rangeBasedShufflePartitioning: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning] = field(_.getRangeBasedShufflePartitioning)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue.RangeBasedShufflePartitioning(f_)))
     def sealedValue: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue] = field(_.sealedValue)((c_, f_) => c_.copy(sealedValue = f_))
   }
   final val ONETOONEPARTITIONING_FIELD_NUMBER = 1
   final val ROUNDROBINPARTITIONING_FIELD_NUMBER = 2
   final val HASHBASEDSHUFFLEPARTITIONING_FIELD_NUMBER = 3
+  final val RANGEBASEDSHUFFLEPARTITIONING_FIELD_NUMBER = 4
   def of(
     sealedValue: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.SealedValue
   ): _root_.edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage = _root_.edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage(
@@ -658,4 +689,239 @@ object HashBasedShufflePartitioning extends scalapb.GeneratedMessageCompanion[ed
     hashColumnIndices
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.sendsemantics.HashBasedShufflePartitioning])
+}
+
+@SerialVersionUID(0L)
+final case class RangeBasedShufflePartitioning(
+    batchSize: _root_.scala.Int,
+    receivers: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity],
+    rangeColumnIndices: _root_.scala.Seq[_root_.scala.Int],
+    rangeMin: _root_.scala.Long,
+    rangeMax: _root_.scala.Long
+    ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning.NonEmpty with scalapb.lenses.Updatable[RangeBasedShufflePartitioning] {
+    private[this] def rangeColumnIndicesSerializedSize = {
+      if (__rangeColumnIndicesSerializedSizeField == 0) __rangeColumnIndicesSerializedSizeField = {
+        var __s: _root_.scala.Int = 0
+        rangeColumnIndices.foreach(__i => __s += _root_.com.google.protobuf.CodedOutputStream.computeInt32SizeNoTag(__i))
+        __s
+      }
+      __rangeColumnIndicesSerializedSizeField
+    }
+    @transient private[this] var __rangeColumnIndicesSerializedSizeField: _root_.scala.Int = 0
+    @transient
+    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
+    private[this] def __computeSerializedValue(): _root_.scala.Int = {
+      var __size = 0
+      
+      {
+        val __value = batchSize
+        if (__value != 0) {
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeInt32Size(1, __value)
+        }
+      };
+      receivers.foreach { __item =>
+        val __value = __item
+        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+      }
+      if (rangeColumnIndices.nonEmpty) {
+        val __localsize = rangeColumnIndicesSerializedSize
+        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__localsize) + __localsize
+      }
+      
+      {
+        val __value = rangeMin
+        if (__value != 0L) {
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeInt64Size(4, __value)
+        }
+      };
+      
+      {
+        val __value = rangeMax
+        if (__value != 0L) {
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeInt64Size(5, __value)
+        }
+      };
+      __size
+    }
+    override def serializedSize: _root_.scala.Int = {
+      var read = __serializedSizeCachedValue
+      if (read == 0) {
+        read = __computeSerializedValue()
+        __serializedSizeCachedValue = read
+      }
+      read
+    }
+    def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
+      {
+        val __v = batchSize
+        if (__v != 0) {
+          _output__.writeInt32(1, __v)
+        }
+      };
+      receivers.foreach { __v =>
+        val __m = __v
+        _output__.writeTag(2, 2)
+        _output__.writeUInt32NoTag(__m.serializedSize)
+        __m.writeTo(_output__)
+      };
+      if (rangeColumnIndices.nonEmpty) {
+        _output__.writeTag(3, 2)
+        _output__.writeUInt32NoTag(rangeColumnIndicesSerializedSize)
+        rangeColumnIndices.foreach(_output__.writeInt32NoTag)
+      };
+      {
+        val __v = rangeMin
+        if (__v != 0L) {
+          _output__.writeInt64(4, __v)
+        }
+      };
+      {
+        val __v = rangeMax
+        if (__v != 0L) {
+          _output__.writeInt64(5, __v)
+        }
+      };
+    }
+    def withBatchSize(__v: _root_.scala.Int): RangeBasedShufflePartitioning = copy(batchSize = __v)
+    def clearReceivers = copy(receivers = _root_.scala.Seq.empty)
+    def addReceivers(__vs: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity*): RangeBasedShufflePartitioning = addAllReceivers(__vs)
+    def addAllReceivers(__vs: Iterable[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]): RangeBasedShufflePartitioning = copy(receivers = receivers ++ __vs)
+    def withReceivers(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]): RangeBasedShufflePartitioning = copy(receivers = __v)
+    def clearRangeColumnIndices = copy(rangeColumnIndices = _root_.scala.Seq.empty)
+    def addRangeColumnIndices(__vs: _root_.scala.Int*): RangeBasedShufflePartitioning = addAllRangeColumnIndices(__vs)
+    def addAllRangeColumnIndices(__vs: Iterable[_root_.scala.Int]): RangeBasedShufflePartitioning = copy(rangeColumnIndices = rangeColumnIndices ++ __vs)
+    def withRangeColumnIndices(__v: _root_.scala.Seq[_root_.scala.Int]): RangeBasedShufflePartitioning = copy(rangeColumnIndices = __v)
+    def withRangeMin(__v: _root_.scala.Long): RangeBasedShufflePartitioning = copy(rangeMin = __v)
+    def withRangeMax(__v: _root_.scala.Long): RangeBasedShufflePartitioning = copy(rangeMax = __v)
+    def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
+      (__fieldNumber: @_root_.scala.unchecked) match {
+        case 1 => {
+          val __t = batchSize
+          if (__t != 0) __t else null
+        }
+        case 2 => receivers
+        case 3 => rangeColumnIndices
+        case 4 => {
+          val __t = rangeMin
+          if (__t != 0L) __t else null
+        }
+        case 5 => {
+          val __t = rangeMax
+          if (__t != 0L) __t else null
+        }
+      }
+    }
+    def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
+      _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
+      (__field.number: @_root_.scala.unchecked) match {
+        case 1 => _root_.scalapb.descriptors.PInt(batchSize)
+        case 2 => _root_.scalapb.descriptors.PRepeated(receivers.iterator.map(_.toPMessage).toVector)
+        case 3 => _root_.scalapb.descriptors.PRepeated(rangeColumnIndices.iterator.map(_root_.scalapb.descriptors.PInt(_)).toVector)
+        case 4 => _root_.scalapb.descriptors.PLong(rangeMin)
+        case 5 => _root_.scalapb.descriptors.PLong(rangeMax)
+      }
+    }
+    def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
+    def companion = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning
+    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.sendsemantics.RangeBasedShufflePartitioning])
+}
+
+object RangeBasedShufflePartitioning extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning = {
+    var __batchSize: _root_.scala.Int = 0
+    val __receivers: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]
+    val __rangeColumnIndices: _root_.scala.collection.immutable.VectorBuilder[_root_.scala.Int] = new _root_.scala.collection.immutable.VectorBuilder[_root_.scala.Int]
+    var __rangeMin: _root_.scala.Long = 0L
+    var __rangeMax: _root_.scala.Long = 0L
+    var _done__ = false
+    while (!_done__) {
+      val _tag__ = _input__.readTag()
+      _tag__ match {
+        case 0 => _done__ = true
+        case 8 =>
+          __batchSize = _input__.readInt32()
+        case 18 =>
+          __receivers += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity](_input__)
+        case 24 =>
+          __rangeColumnIndices += _input__.readInt32()
+        case 26 => {
+          val length = _input__.readRawVarint32()
+          val oldLimit = _input__.pushLimit(length)
+          while (_input__.getBytesUntilLimit > 0) {
+            __rangeColumnIndices += _input__.readInt32()
+          }
+          _input__.popLimit(oldLimit)
+        }
+        case 32 =>
+          __rangeMin = _input__.readInt64()
+        case 40 =>
+          __rangeMax = _input__.readInt64()
+        case tag => _input__.skipField(tag)
+      }
+    }
+    edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning(
+        batchSize = __batchSize,
+        receivers = __receivers.result(),
+        rangeColumnIndices = __rangeColumnIndices.result(),
+        rangeMin = __rangeMin,
+        rangeMax = __rangeMax
+    )
+  }
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning] = _root_.scalapb.descriptors.Reads{
+    case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
+      _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
+      edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning(
+        batchSize = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Int]).getOrElse(0),
+        receivers = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]]).getOrElse(_root_.scala.Seq.empty),
+        rangeColumnIndices = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Seq[_root_.scala.Int]]).getOrElse(_root_.scala.Seq.empty),
+        rangeMin = __fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).map(_.as[_root_.scala.Long]).getOrElse(0L),
+        rangeMax = __fieldsMap.get(scalaDescriptor.findFieldByNumber(5).get).map(_.as[_root_.scala.Long]).getOrElse(0L)
+      )
+    case _ => throw new RuntimeException("Expected PMessage")
+  }
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = PartitioningsProto.javaDescriptor.getMessageTypes().get(4)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = PartitioningsProto.scalaDescriptor.messages(4)
+  def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
+    var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
+    (__number: @_root_.scala.unchecked) match {
+      case 2 => __out = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+    }
+    __out
+  }
+  lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
+  def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
+  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning(
+    batchSize = 0,
+    receivers = _root_.scala.Seq.empty,
+    rangeColumnIndices = _root_.scala.Seq.empty,
+    rangeMin = 0L,
+    rangeMax = 0L
+  )
+  implicit class RangeBasedShufflePartitioningLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning](_l) {
+    def batchSize: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Int] = field(_.batchSize)((c_, f_) => c_.copy(batchSize = f_))
+    def receivers: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]] = field(_.receivers)((c_, f_) => c_.copy(receivers = f_))
+    def rangeColumnIndices: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[_root_.scala.Int]] = field(_.rangeColumnIndices)((c_, f_) => c_.copy(rangeColumnIndices = f_))
+    def rangeMin: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Long] = field(_.rangeMin)((c_, f_) => c_.copy(rangeMin = f_))
+    def rangeMax: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Long] = field(_.rangeMax)((c_, f_) => c_.copy(rangeMax = f_))
+  }
+  final val BATCHSIZE_FIELD_NUMBER = 1
+  final val RECEIVERS_FIELD_NUMBER = 2
+  final val RANGECOLUMNINDICES_FIELD_NUMBER = 3
+  final val RANGEMIN_FIELD_NUMBER = 4
+  final val RANGEMAX_FIELD_NUMBER = 5
+  def of(
+    batchSize: _root_.scala.Int,
+    receivers: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity],
+    rangeColumnIndices: _root_.scala.Seq[_root_.scala.Int],
+    rangeMin: _root_.scala.Long,
+    rangeMax: _root_.scala.Long
+  ): _root_.edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning = _root_.edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning(
+    batchSize,
+    receivers,
+    rangeColumnIndices,
+    rangeMin,
+    rangeMax
+  )
+  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.sendsemantics.RangeBasedShufflePartitioning])
 }

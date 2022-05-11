@@ -17,6 +17,7 @@ message Partitioning{
     OneToOnePartitioning oneToOnePartitioning = 1;
     RoundRobinPartitioning roundRobinPartitioning = 2;
     HashBasedShufflePartitioning hashBasedShufflePartitioning = 3;
+    RangeBasedShufflePartitioning rangeBasedShufflePartitioning = 4;
   }
 }
 
@@ -34,5 +35,13 @@ message HashBasedShufflePartitioning{
   int32 batchSize = 1;
   repeated edu.uci.ics.amber.engine.common.ActorVirtualIdentity receivers = 2;
   repeated int32 hashColumnIndices = 3;
+}
+
+message RangeBasedShufflePartitioning {
+  int32 batchSize = 1;
+  repeated edu.uci.ics.amber.engine.common.ActorVirtualIdentity receivers = 2;
+  repeated int32 rangeColumnIndices = 3;
+  int64 rangeMin = 4;
+  int64 rangeMax = 5;
 }
 
