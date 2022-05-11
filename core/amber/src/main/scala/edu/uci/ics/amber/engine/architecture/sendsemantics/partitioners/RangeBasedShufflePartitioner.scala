@@ -37,12 +37,6 @@ case class RangeBasedShufflePartitioner(partitioning: RangeBasedShufflePartition
     if (fieldVal > partitioning.rangeMax) {
       return partitioning.receivers.length - 1
     }
-    //    var destinationReceiver: Int = 0
-    //
-    //    while (fieldVal >= partitioning.rangeMin + keysPerReceiver * destinationReceiver) {
-    //      destinationReceiver = destinationReceiver + 1
-    //    }
-    //    destinationReceiver - 1
     ((fieldVal - partitioning.rangeMin) / keysPerReceiver).toInt
   }
 
