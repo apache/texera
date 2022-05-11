@@ -48,6 +48,8 @@ object Constants {
 
   var flowControlEnabled: Boolean =
     AmberUtils.amberConfig.getBoolean("flow-control.credit-based-flow-control-enabled")
-  var pairWiseUnprocessedBatchesLimit: Int =
+  var unprocessedBatchesCreditLimitPerSender: Int =
     AmberUtils.amberConfig.getInt("flow-control.unprocessed-batches-limit-per-worker-pair")
+  var localSendingBufferLimitPerReceiver: Int =
+    AmberUtils.amberConfig.getInt("flow-control.local-sending-buffer-limit-per-receiver")
 }

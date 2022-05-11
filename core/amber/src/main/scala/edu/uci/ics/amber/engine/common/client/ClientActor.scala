@@ -7,6 +7,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
   NetworkAck,
   NetworkMessage
 }
+import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowControlMessage
 import edu.uci.ics.amber.engine.common.client.ClientActor.{
   ClosureRequest,
@@ -55,9 +56,12 @@ private[client] class ClientActor extends Actor {
       sender ! scala.runtime.BoxedUnit.UNIT
     case NetworkMessage(
           mId,
-          _ @WorkflowControlMessage(_, _, _ @ReturnInvocation(originalCommandID, controlReturn))
+          _ @WorkflowControlMessage(_, _, _ @ReturnInvocation(originalCommandID, controlReturn), _)
         ) =>
-      sender ! NetworkAck(mId)
+      sender ! NetworkAck(
+        mId,
+        Constants.unprocessedBatchesCreditLimitPerSender
+      ) // Client actor is assumed to have enough credits
       if (handlers.isDefinedAt(controlReturn)) {
         handlers(controlReturn)
       }
@@ -70,8 +74,14 @@ private[client] class ClientActor extends Actor {
         }
         promiseMap.remove(originalCommandID)
       }
-    case NetworkMessage(mId, _ @WorkflowControlMessage(_, _, _ @ControlInvocation(_, command))) =>
-      sender ! NetworkAck(mId)
+    case NetworkMessage(
+          mId,
+          _ @WorkflowControlMessage(_, _, _ @ControlInvocation(_, command), _)
+        ) =>
+      sender ! NetworkAck(
+        mId,
+        Constants.unprocessedBatchesCreditLimitPerSender
+      ) // Client actor is assumed to have enough credits
       if (handlers.isDefinedAt(command)) {
         handlers(command)
       }

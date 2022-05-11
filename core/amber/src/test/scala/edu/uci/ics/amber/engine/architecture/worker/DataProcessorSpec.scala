@@ -254,7 +254,9 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       data.foreach { x =>
         dp.appendElement(InputTuple(senderWorker, x))
       }
-      assert(dp.getSenderCredits(senderWorker) == Constants.pairWiseUnprocessedBatchesLimit - 1)
+      assert(
+        dp.getSenderCredits(senderWorker) == Constants.unprocessedBatchesCreditLimitPerSender - 1
+      )
       dp.appendElement(EndMarker)
       dp.appendElement(EndOfAllMarker)
     }(ExecutionContext.global)
@@ -282,7 +284,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val dp = wire[DataProcessor]
     operator.open()
     val senderWorker = ActorVirtualIdentity("sender")
-    assert(dp.getSenderCredits(senderWorker) == Constants.pairWiseUnprocessedBatchesLimit)
+    assert(dp.getSenderCredits(senderWorker) == Constants.unprocessedBatchesCreditLimitPerSender)
     Await.result(monitorCredits(ActorVirtualIdentity("sender"), dp, tuplesToSend), 3.seconds)
     waitForDataProcessing(workerStateManager)
     dp.shutdown()

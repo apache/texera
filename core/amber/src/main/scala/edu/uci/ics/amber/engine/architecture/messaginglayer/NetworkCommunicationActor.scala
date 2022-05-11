@@ -2,8 +2,8 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor._
-import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage
+import edu.uci.ics.amber.engine.common.{AmberLogging, Constants}
+import edu.uci.ics.amber.engine.common.ambermessage.{WorkflowMessage, WorkflowMessageType}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 
@@ -18,6 +18,7 @@ object NetworkCommunicationActor {
   /** to distinguish between main actor self ref and
     * network sender actor
     * TODO: remove this after using Akka Typed APIs
+    *
     * @param ref
     */
   case class NetworkSenderActorRef(ref: ActorRef) {
@@ -35,17 +36,21 @@ object NetworkCommunicationActor {
   final case class RegisterActorRef(id: ActorVirtualIdentity, ref: ActorRef)
 
   /** All outgoing message should be eventually NetworkMessage
-    * @param messageId Long, id for a NetworkMessage, used for FIFO and ExactlyOnce
+    *
+    * @param messageId       Long, id for a NetworkMessage, used for FIFO and ExactlyOnce
     * @param internalMessage WorkflowMessage, the message payload
     */
-  final case class NetworkMessage(messageId: Long, internalMessage: WorkflowMessage)
+  final case class NetworkMessage(
+      messageId: Long,
+      internalMessage: WorkflowMessage
+  )
 
   /** Ack for NetworkMessage
     * note that it should NEVER be handled by the main thread
     *
     * @param messageId Long, id for a NetworkMessage, used for FIFO and ExactlyOnce
     */
-  final case class NetworkAck(messageId: Long)
+  final case class NetworkAck(messageId: Long, credits: Int)
 
   final case class ResendMessages()
 
@@ -83,9 +88,79 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
     */
   var networkMessageID = 0L
 
+  // data structures needed by flow control
+  val receiverIdToDataBacklog = new mutable.HashMap[ActorVirtualIdentity, Int]()
+  val receiverIdToCredits = new mutable.HashMap[ActorVirtualIdentity, Int]()
+  val overloadedReceivers = new mutable.HashSet[ActorVirtualIdentity]()
+  var backpressureRequestSentToMainActor = false
+
+  private def incrementBacklogIfDataMessage(
+      id: ActorVirtualIdentity,
+      msg: WorkflowMessage
+  ): Unit = {
+    if (msg.msgType == WorkflowMessageType.DATA_MESSAGE) {
+      receiverIdToDataBacklog(id) = receiverIdToDataBacklog.getOrElseUpdate(id, 0) + 1
+    }
+  }
+
+  private def decrementBacklogIfDataMessage(
+      receiverId: ActorVirtualIdentity,
+      msg: WorkflowMessage
+  ): Unit = {
+    if (msg.msgType == WorkflowMessageType.DATA_MESSAGE) {
+      if (receiverIdToDataBacklog.contains(receiverId) && receiverIdToDataBacklog(receiverId) > 0) {
+        receiverIdToDataBacklog(receiverId) = receiverIdToDataBacklog(receiverId) - 1
+      }
+    }
+  }
+
+  private def decrementCreditIfDataMessage(
+      receiverId: ActorVirtualIdentity,
+      msg: WorkflowMessage
+  ): Unit = {
+    if (msg.msgType == WorkflowMessageType.DATA_MESSAGE) {
+      receiverIdToCredits(receiverId) =
+        receiverIdToCredits.getOrElseUpdate(
+          receiverId,
+          Constants.unprocessedBatchesCreditLimitPerSender
+        ) - 1
+    }
+  }
+
+  private def updateCredits(
+      receiverId: ActorVirtualIdentity,
+      credits: Int
+  ): Unit = {
+    if (credits < 0) {
+      receiverIdToCredits(receiverId) = 0
+    } else {
+      receiverIdToCredits(receiverId) = credits
+    }
+  }
+
+  private def informParentAboutBackpressure(receiverId: ActorVirtualIdentity): Unit = {
+    if (
+      receiverIdToCredits(
+        receiverId
+      ) + Constants.localSendingBufferLimitPerReceiver < receiverIdToDataBacklog(receiverId)
+    ) {
+      overloadedReceivers.add(receiverId)
+      if (!backpressureRequestSentToMainActor) {
+        // send backpressure to parent
+        backpressureRequestSentToMainActor = true
+      }
+    } else {
+      overloadedReceivers.remove(receiverId)
+      if (!overloadedReceivers.nonEmpty && backpressureRequestSentToMainActor) {
+        // send start to parent
+        backpressureRequestSentToMainActor = false
+      }
+    }
+  }
+
   /** This method should always be a part of the unified WorkflowActor receiving logic.
     * 1. when an actor wants to know the actorRef of an Identifier, it replies if the mapping
-    *    is known, else it will ask its parent actor.
+    * is known, else it will ask its parent actor.
     * 2. when it receives a mapping, it adds that mapping to the state.
     */
   def findActorRefFromVirtualIdentity: Receive = {
@@ -112,10 +187,20 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
     val congestionControl = idToCongestionControls.getOrElseUpdate(to, new CongestionControl())
     val data = NetworkMessage(networkMessageID, msg)
     messageIDToIdentity(networkMessageID) = to
-    if (congestionControl.canSend) {
+    if (
+      congestionControl.canSend
+      && (!Constants.flowControlEnabled ||
+      (msg.msgType == WorkflowMessageType.DATA_MESSAGE
+      && receiverIdToCredits.getOrElseUpdate(
+        to,
+        Constants.unprocessedBatchesCreditLimitPerSender
+      ) > 0) || msg.msgType == WorkflowMessageType.CONTROL_MESSAGE)
+    ) {
       congestionControl.markMessageInTransit(data)
+      decrementCreditIfDataMessage(to, msg)
       sendOrGetActorRef(to, data)
     } else {
+      incrementBacklogIfDataMessage(to, msg)
       congestionControl.enqueueMessage(data)
     }
     networkMessageID += 1
@@ -123,15 +208,18 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
 
   /** Add one mapping from Identifier to ActorRef into its state.
     * If there are unsent messages for the actor, send them.
+    *
     * @param actorId ActorVirtualIdentity, virtual ID of the Actor.
-    * @param ref ActorRef, the actual reference of the Actor.
+    * @param ref     ActorRef, the actual reference of the Actor.
     */
   def registerActorRef(actorId: ActorVirtualIdentity, ref: ActorRef): Unit = {
     idToActorRefs(actorId) = ref
     if (messageStash.contains(actorId)) {
       val stash = messageStash(actorId)
       while (stash.nonEmpty) {
-        forwardMessage(actorId, stash.dequeue())
+        val msg = stash.dequeue()
+        decrementBacklogIfDataMessage(actorId, msg)
+        forwardMessage(actorId, msg)
       }
     }
   }
@@ -142,15 +230,20 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
         forwardMessage(id, msg)
       } else {
         val stash = messageStash.getOrElseUpdate(id, new mutable.Queue[WorkflowMessage]())
+        incrementBacklogIfDataMessage(id, msg)
         stash.enqueue(msg)
         fetchActorRefMappingFromParent(id)
       }
-    case NetworkAck(id) =>
+    case NetworkAck(id, credits) =>
       val actorID = messageIDToIdentity(id)
+      updateCredits(actorID, credits)
+      informParentAboutBackpressure(actorID)
       val congestionControl = idToCongestionControls(actorID)
       congestionControl.ack(id)
-      congestionControl.getBufferedMessagesToSend.foreach { msg =>
+      congestionControl.getBufferedMessagesToSend(receiverIdToCredits(actorID)).foreach { msg =>
         congestionControl.markMessageInTransit(msg)
+        decrementCreditIfDataMessage(actorID, msg.internalMessage)
+        decrementBacklogIfDataMessage(actorID, msg.internalMessage)
         sendOrGetActorRef(actorID, msg)
       }
     case ResendMessages =>
@@ -189,6 +282,13 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
   private[this] def sendOrGetActorRef(actorID: ActorVirtualIdentity, msg: NetworkMessage): Unit = {
     if (idToActorRefs.contains(actorID)) {
       // if actorRef is found, directly send it
+      //      if (
+      //        actorID
+      //          .toString()
+      //          .contains("0bf90d9-main-1") && actorId.toString().contains("9e0059-main-1")
+      //      ) {
+      //        println(s"\t\t BACKLOG 2 - ${msg.dataBackLog}")
+      //      }
       idToActorRefs(actorID) ! msg
     } else {
       // otherwise, we ask the parent for the actorRef.

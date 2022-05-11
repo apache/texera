@@ -55,21 +55,19 @@ trait WorkerInternalQueue {
   private var inputToCredits = new mutable.HashMap[ActorVirtualIdentity, Int]()
 
   def getSenderCredits(sender: ActorVirtualIdentity): Int = {
-    if (!inputToCredits.contains(sender)) {
-      inputToCredits(sender) =
-        Constants.pairWiseUnprocessedBatchesLimit * Constants.defaultBatchSize
-    }
-    inputToCredits(sender) / Constants.defaultBatchSize
+    inputToCredits.getOrElseUpdate(
+      sender,
+      Constants.unprocessedBatchesCreditLimitPerSender * Constants.defaultBatchSize
+    ) / Constants.defaultBatchSize
   }
 
   def appendElement(elem: InternalQueueElement): Unit = {
     elem match {
       case InputTuple(from, _) =>
-        if (!inputToCredits.contains(from)) {
-          inputToCredits(from) =
-            Constants.pairWiseUnprocessedBatchesLimit * Constants.defaultBatchSize
-        }
-        inputToCredits(from) = inputToCredits(from) - 1
+        inputToCredits(from) = inputToCredits.getOrElseUpdate(
+          from,
+          Constants.unprocessedBatchesCreditLimitPerSender * Constants.defaultBatchSize
+        ) - 1
       case _ =>
       // do nothing
     }

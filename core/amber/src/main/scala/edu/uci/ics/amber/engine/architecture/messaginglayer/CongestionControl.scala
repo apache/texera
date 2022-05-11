@@ -1,10 +1,13 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkMessage
+import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessageType
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.util.control.Breaks.{break, breakable}
 
 class CongestionControl {
 
@@ -59,12 +62,25 @@ class CongestionControl {
     sentTime.remove(id)
   }
 
-  def getBufferedMessagesToSend: Array[NetworkMessage] = {
+  def getBufferedMessagesToSend(creditLimit: Int): Array[NetworkMessage] = {
     messageBuffer.clear()
-    while (inTransit.size < windowSize && toBeSent.nonEmpty) {
-      val msg = toBeSent.dequeue()
-      inTransit(msg.messageId) = msg
-      messageBuffer.append(msg)
+    var dataBatchCreditsLeft = creditLimit
+    breakable {
+      while (inTransit.size < windowSize && toBeSent.nonEmpty) {
+        if (
+          Constants.flowControlEnabled
+          && toBeSent.front.internalMessage.msgType == WorkflowMessageType.DATA_MESSAGE
+          && dataBatchCreditsLeft == 0
+        ) {
+          break()
+        }
+        val msg = toBeSent.dequeue()
+        inTransit(msg.messageId) = msg
+        messageBuffer.append(msg)
+        if (msg.internalMessage.msgType == WorkflowMessageType.DATA_MESSAGE) {
+          dataBatchCreditsLeft -= 1
+        }
+      }
     }
     messageBuffer.toArray
   }
