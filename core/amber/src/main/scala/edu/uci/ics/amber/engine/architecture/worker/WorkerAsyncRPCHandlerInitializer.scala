@@ -51,6 +51,7 @@ class WorkerAsyncRPCHandlerInitializer(
     with SendImmutableStateHandler
     with AcceptImmutableStateHandler
     with SharePartitionHandler
-    with PauseSkewMitigationHandler {
+    with PauseSkewMitigationHandler
+    with BackpressureHandler {
   var lastReportTime = 0L
 }

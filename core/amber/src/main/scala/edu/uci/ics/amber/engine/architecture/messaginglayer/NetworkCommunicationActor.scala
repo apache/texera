@@ -2,8 +2,15 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor._
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.BackpressureHandler.Backpressure
 import edu.uci.ics.amber.engine.common.{AmberLogging, Constants}
-import edu.uci.ics.amber.engine.common.ambermessage.{WorkflowMessage, WorkflowMessageType}
+import edu.uci.ics.amber.engine.common.ambermessage.{
+  WorkflowControlMessage,
+  WorkflowMessage,
+  WorkflowMessageType
+}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 
@@ -93,6 +100,7 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
   val receiverIdToCredits = new mutable.HashMap[ActorVirtualIdentity, Int]()
   val overloadedReceivers = new mutable.HashSet[ActorVirtualIdentity]()
   var backpressureRequestSentToMainActor = false
+  var nextSeqNum = 0L
 
   private def incrementBacklogIfDataMessage(
       id: ActorVirtualIdentity,
@@ -138,21 +146,40 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
     }
   }
 
+  private def sendBackpressureMessageToParent(backpressureEnable: Boolean): Unit = {
+    messageIDToIdentity(networkMessageID) = actorId
+    val msgToSend = NetworkMessage(
+      nextSeqNum,
+      WorkflowControlMessage(
+        actorId,
+        nextSeqNum,
+        ControlInvocation(AsyncRPCClient.IgnoreReply, Backpressure(backpressureEnable)),
+        WorkflowMessageType.CONTROL_MESSAGE
+      )
+    )
+    context.parent ! msgToSend
+    networkMessageID += 1
+    nextSeqNum += 1
+  }
+
   private def informParentAboutBackpressure(receiverId: ActorVirtualIdentity): Unit = {
     if (
       receiverIdToCredits(
         receiverId
-      ) + Constants.localSendingBufferLimitPerReceiver < receiverIdToDataBacklog(receiverId)
+      ) + Constants.localSendingBufferLimitPerReceiver < receiverIdToDataBacklog.getOrElseUpdate(
+        receiverId,
+        0
+      )
     ) {
       overloadedReceivers.add(receiverId)
       if (!backpressureRequestSentToMainActor) {
-        // send backpressure to parent
+        sendBackpressureMessageToParent(true)
         backpressureRequestSentToMainActor = true
       }
     } else {
       overloadedReceivers.remove(receiverId)
       if (!overloadedReceivers.nonEmpty && backpressureRequestSentToMainActor) {
-        // send start to parent
+        sendBackpressureMessageToParent(false)
         backpressureRequestSentToMainActor = false
       }
     }
@@ -236,15 +263,20 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
       }
     case NetworkAck(id, credits) =>
       val actorID = messageIDToIdentity(id)
-      updateCredits(actorID, credits)
-      informParentAboutBackpressure(actorID)
-      val congestionControl = idToCongestionControls(actorID)
-      congestionControl.ack(id)
-      congestionControl.getBufferedMessagesToSend(receiverIdToCredits(actorID)).foreach { msg =>
-        congestionControl.markMessageInTransit(msg)
-        decrementCreditIfDataMessage(actorID, msg.internalMessage)
-        decrementBacklogIfDataMessage(actorID, msg.internalMessage)
-        sendOrGetActorRef(actorID, msg)
+      // do the following only if the ack is coming from another worker. In flow control
+      // the parent of this worker will send an ack for the backpressure message. That
+      // ack is being ignored here.
+      if (actorID != actorId) {
+        updateCredits(actorID, credits)
+        informParentAboutBackpressure(actorID)
+        val congestionControl = idToCongestionControls(actorID)
+        congestionControl.ack(id)
+        congestionControl.getBufferedMessagesToSend(receiverIdToCredits(actorID)).foreach { msg =>
+          congestionControl.markMessageInTransit(msg)
+          decrementCreditIfDataMessage(actorID, msg.internalMessage)
+          decrementBacklogIfDataMessage(actorID, msg.internalMessage)
+          sendOrGetActorRef(actorID, msg)
+        }
       }
     case ResendMessages =>
       queriedActorVirtualIdentities.clear()
