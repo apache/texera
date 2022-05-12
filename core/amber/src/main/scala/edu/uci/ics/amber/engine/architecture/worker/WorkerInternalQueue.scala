@@ -30,7 +30,7 @@ object WorkerInternalQueue {
   case class SenderChangeMarker(newUpstreamLink: LinkIdentity) extends InternalQueueElement
 
   case class ControlElement(payload: ControlPayload, from: ActorVirtualIdentity)
-      extends InternalQueueElement
+    extends InternalQueueElement
 
   case object EndMarker extends InternalQueueElement
 
@@ -52,6 +52,7 @@ trait WorkerInternalQueue {
 
   private val controlQueue = lbmq.getSubQueue(CONTROL_QUEUE)
 
+  // the credits in the `inputToCredits` map are in tuples (not batches)
   private var inputToCredits = new mutable.HashMap[ActorVirtualIdentity, Int]()
 
   def getSenderCredits(sender: ActorVirtualIdentity): Int = {
