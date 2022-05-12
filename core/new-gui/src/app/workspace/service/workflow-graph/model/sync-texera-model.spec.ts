@@ -63,7 +63,7 @@ describe("SyncTexeraModel", () => {
       //     throw new Error('getJointLinkValue: mock is inconsistent with implementation');
       //   }
       // }
-    } as joint.dia.Link;
+    } as any as joint.dia.Link;
   }
 
   /**

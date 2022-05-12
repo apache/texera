@@ -43,9 +43,9 @@ export class NgbdModalFileAddComponent {
     this.haveDropZoneOver = fileOverEvent;
   }
 
-  public getFileDropped(fileDropEvent: FileList): void {
+  public getFileDropped(fileDropEvent: File[]): void {
     for (let i = 0; i < fileDropEvent.length; i++) {
-      const file: File | null = fileDropEvent.item(i);
+      const file: File | null = fileDropEvent[i];
       if (file !== null) {
         this.userFileUploadService.addFileToUploadArray(file);
       }
@@ -54,8 +54,8 @@ export class NgbdModalFileAddComponent {
     this.uploader.clearQueue();
   }
 
-  public handleClickUploadFile(clickUploadEvent: { target: HTMLInputElement }): void {
-    const fileList: FileList | null = clickUploadEvent.target.files;
+  public handleClickUploadFile(clickUploadEvent: Event): void {
+    const fileList: FileList | null = (clickUploadEvent as any).target.files;
     if (fileList === null) {
       throw new Error("browser upload does not work as intended");
     }

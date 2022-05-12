@@ -78,15 +78,19 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
         new Attribute("user_id", AttributeType.STRING),
         new Attribute("user_created_at", AttributeType.TIMESTAMP),
         new Attribute("user_name", AttributeType.STRING),
-        new Attribute("user_display_name", AttributeType.STRING)
-        // The following works but currently all get null returned. Will need to wait for
-        // redouane59/twittered to update
-        // new Attribute("user_lang", AttributeType.STRING),
-        // new Attribute("user_description", AttributeType.STRING),
-        // new Attribute("user_followers_count", AttributeType.LONG),
-        // new Attribute("user_following_count", AttributeType.LONG),
-        // new Attribute("user_tweet_count", AttributeType.LONG),
-        // new Attribute("user_location", AttributeType.STRING)
+        new Attribute("user_display_name", AttributeType.STRING),
+        new Attribute("user_lang", AttributeType.STRING),
+        new Attribute("user_description", AttributeType.STRING),
+        new Attribute("user_followers_count", AttributeType.LONG),
+        new Attribute("user_following_count", AttributeType.LONG),
+        new Attribute("user_tweet_count", AttributeType.LONG),
+        new Attribute("user_listed_count", AttributeType.LONG),
+        new Attribute("user_location", AttributeType.STRING),
+        new Attribute("user_url", AttributeType.STRING),
+        new Attribute("user_profile_image_url", AttributeType.STRING),
+        new Attribute("user_pinned_tweet_id", AttributeType.STRING),
+        new Attribute("user_protected", AttributeType.BOOLEAN),
+        new Attribute("user_verified", AttributeType.BOOLEAN)
       )
       .build()
   }

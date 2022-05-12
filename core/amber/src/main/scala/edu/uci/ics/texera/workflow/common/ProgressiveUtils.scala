@@ -39,7 +39,7 @@ object ProgressiveUtils {
   ): (Boolean, Tuple) = {
     (
       isInsertion(tuple),
-      Tuple.newBuilder(operatorSchemaInfo.outputSchema).add(tuple, false).build()
+      Tuple.newBuilder(operatorSchemaInfo.outputSchemas(0)).add(tuple, false).build()
     )
   }
 

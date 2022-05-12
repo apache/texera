@@ -12,7 +12,7 @@ class ProjectionOpExec(
 
   def project(tuple: Tuple): Tuple = {
     Preconditions.checkArgument(attributes.nonEmpty)
-    val builder = Tuple.newBuilder(operatorSchemaInfo.outputSchema)
+    val builder = Tuple.newBuilder(operatorSchemaInfo.outputSchemas(0))
 
     attributes.foreach(attrName => {
       builder.add(

@@ -3,15 +3,15 @@ green=$(tput setaf 2)
 reset=$(tput sgr0)
 
 skipCompilation=false
-while getopts s: flag
+while getopts s flag
 do
     case "${flag}" in
-        s) skipCompilation="$OPTARG";;
+        s) skipCompilation=true;;
         *) exit 1
     esac
 done
 
-if [ ! "$skipCompilation" ]
+if  ! $skipCompilation
 then
   echo "${green}Compiling Amber...${reset}"
   cd amber && sbt clean package

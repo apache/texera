@@ -27,7 +27,7 @@ export class UserFileSectionComponent {
 
   public isEditingName: number[] = [];
   public userFileSearchValue: string = "";
-  public filteredFilenames: Set<string> = new Set();
+  public filteredFilenames: Array<string> = new Array();
   public isTyping: boolean = false;
   public fuse = new Fuse([] as ReadonlyArray<DashboardUserFileEntry>, {
     shouldSort: true,
@@ -44,11 +44,11 @@ export class UserFileSectionComponent {
 
   public searchInputOnChange(value: string): void {
     this.isTyping = true;
-    this.filteredFilenames.clear();
+    this.filteredFilenames = [];
     const fileArray = this.userFileService.getUserFiles();
     fileArray.forEach(fileEntry => {
       if (fileEntry.file.name.toLowerCase().indexOf(value.toLowerCase()) !== -1) {
-        this.filteredFilenames.add(fileEntry.file.name);
+        this.filteredFilenames.push(fileEntry.file.name);
       }
     });
   }

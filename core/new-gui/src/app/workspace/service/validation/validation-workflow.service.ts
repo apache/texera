@@ -3,7 +3,7 @@ import { Injectable } from "@angular/core";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { OperatorSchema } from "../../types/operator-schema.interface";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
-import * as Ajv from "ajv";
+import Ajv from "ajv";
 import { filter, map } from "rxjs/operators";
 
 export type ValidationError = {
@@ -43,7 +43,7 @@ export class ValidationWorkflowService {
   private readonly workflowValidationErrorStream = new BehaviorSubject<{
     errors: Record<string, ValidationError>;
   }>({ errors: {} });
-  private ajv = new Ajv({ schemaId: "auto", allErrors: true, nullable: true });
+  private ajv = new Ajv({ allErrors: true, strict: false });
 
   // this map record --> <operatorID, error string>
   private workflowErrors: Record<string, ValidationError> = {};

@@ -224,7 +224,8 @@ class ProjectResource {
     try {
       userProjectDao.insert(userProject)
     } catch {
-      case _ => throw new BadRequestException("Cannot create a new project with provided name.");
+      case _: Throwable =>
+        throw new BadRequestException("Cannot create a new project with provided name.");
     }
     userProjectDao.fetchOneByPid(userProject.getPid)
   }
@@ -276,7 +277,7 @@ class ProjectResource {
       userProject.setName(name)
       userProjectDao.update(userProject)
     } catch {
-      case _ => throw new BadRequestException("Cannot rename project to provided name.");
+      case _: Throwable => throw new BadRequestException("Cannot rename project to provided name.");
     }
   }
 

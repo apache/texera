@@ -5,7 +5,6 @@ import { WorkflowActionService } from "../../../service/workflow-graph/model/wor
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
 import { FORM_DEBOUNCE_TIME_MS } from "../../../service/execute-workflow/execute-workflow.service";
-import { LoggerConfig } from "ngx-logger";
 import { DatePipe } from "@angular/common";
 import { By } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
@@ -28,7 +27,7 @@ import { configure } from "rxjs-marbles";
 import { SimpleChange } from "@angular/core";
 import { cloneDeep } from "lodash-es";
 
-import * as Ajv from "ajv";
+import Ajv from "ajv";
 
 const { marbles } = configure({ run: false });
 describe("OperatorPropertyEditFrameComponent", () => {
@@ -46,7 +45,6 @@ describe("OperatorPropertyEditFrameComponent", () => {
             provide: OperatorMetadataService,
             useClass: StubOperatorMetadataService,
           },
-          LoggerConfig,
           DatePipe,
         ],
         imports: [
@@ -185,9 +183,9 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
       m.bind();
 
-      // TODO: FIX THIS
-      // const actualFormChangeEventStream = component.createOutputFormChangeEventStream(formUserInputEventStream);
-      // formUserInputEventStream.subscribe();
+      // // TODO: FIX THIS
+      // const actualFormChangeEventStream = component.operatorPropertyChangeStream;
+      // // formUserInputEventStream.subscribe();
 
       // m.expect(actualFormChangeEventStream).toBeObservable(expectedFormChangeEventStream);
     })
