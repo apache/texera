@@ -27,3 +27,9 @@ case class WorkflowDataMessage(
     payload: DataPayload,
     msgType: WorkflowMessageType.Value = WorkflowMessageType.DATA_MESSAGE
 ) extends WorkflowMessage
+
+case class CreditRequest(
+    from: ActorVirtualIdentity,
+    sequenceNumber: Long = -1,
+    msgType: WorkflowMessageType.Value = WorkflowMessageType.CONTROL_MESSAGE
+) extends WorkflowMessage

@@ -3,8 +3,10 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor._
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.BackpressureHandler.Backpressure
+import edu.uci.ics.amber.engine.common
 import edu.uci.ics.amber.engine.common.{AmberLogging, Constants}
 import edu.uci.ics.amber.engine.common.ambermessage.{
+  CreditRequest,
   WorkflowControlMessage,
   WorkflowMessage,
   WorkflowMessageType
@@ -62,6 +64,8 @@ object NetworkCommunicationActor {
   final case class ResendMessages()
 
   final case class MessageBecomesDeadLetter(message: NetworkMessage)
+
+  final case class PollForCredit(to: ActorVirtualIdentity)
 }
 
 /** This actor handles the transformation from identifier to actorRef
@@ -100,7 +104,8 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
   val receiverIdToCredits = new mutable.HashMap[ActorVirtualIdentity, Int]()
   val overloadedReceivers = new mutable.HashSet[ActorVirtualIdentity]()
   var backpressureRequestSentToMainActor = false
-  var nextSeqNum = 0L
+  var nextSeqNumForMainActor = 0L
+  var receiverToCreditPollingHandle = new mutable.HashMap[ActorVirtualIdentity, Cancellable]()
 
   private def incrementBacklogIfDataMessage(
       id: ActorVirtualIdentity,
@@ -139,9 +144,21 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
       receiverId: ActorVirtualIdentity,
       credits: Int
   ): Unit = {
-    if (credits < 0) {
+    if (credits <= 0) {
       receiverIdToCredits(receiverId) = 0
+      if (!receiverToCreditPollingHandle.contains(receiverId)) {
+        receiverToCreditPollingHandle(receiverId) = context.system.scheduler.scheduleWithFixedDelay(
+          Constants.creditPollingInitialDelayInMs.milliseconds,
+          Constants.creditPollingIntervalinMs.milliseconds,
+          self,
+          PollForCredit(receiverId)
+        )(context.dispatcher)
+      }
     } else {
+      if (receiverToCreditPollingHandle.contains(receiverId)) {
+        receiverToCreditPollingHandle(receiverId).cancel()
+      }
+      receiverToCreditPollingHandle.remove(receiverId)
       receiverIdToCredits(receiverId) = credits
     }
   }
@@ -149,20 +166,32 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
   private def sendBackpressureMessageToParent(backpressureEnable: Boolean): Unit = {
     messageIDToIdentity(networkMessageID) = actorId
     val msgToSend = NetworkMessage(
-      nextSeqNum,
+      networkMessageID,
       WorkflowControlMessage(
         actorId,
-        nextSeqNum,
+        nextSeqNumForMainActor,
         ControlInvocation(AsyncRPCClient.IgnoreReply, Backpressure(backpressureEnable)),
         WorkflowMessageType.CONTROL_MESSAGE
       )
     )
     context.parent ! msgToSend
     networkMessageID += 1
-    nextSeqNum += 1
+    nextSeqNumForMainActor += 1
   }
 
+  /**
+    * This is called after the network actor receives an ack. The ack has credits from the
+    * receiver actor. We compare the (credits + buffer allowed in network actor) with the
+    * `backlog`, and decide whether to notify the main worker to launch backpressure.
+    *
+    * @param receiverId
+    */
   private def informParentAboutBackpressure(receiverId: ActorVirtualIdentity): Unit = {
+    if (receiverId == actorId) {
+      // this ack was in response to the backpressure message sent by the network actor
+      // to the main actor. No need to check for backpressure here.
+      return
+    }
     if (
       receiverIdToCredits(
         receiverId
@@ -263,12 +292,9 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
       }
     case NetworkAck(id, credits) =>
       val actorID = messageIDToIdentity(id)
-      // do the following only if the ack is coming from another worker. In flow control
-      // the parent of this worker will send an ack for the backpressure message. That
-      // ack is being ignored here.
-      if (actorID != actorId) {
-        updateCredits(actorID, credits)
-        informParentAboutBackpressure(actorID)
+      updateCredits(actorID, credits)
+      informParentAboutBackpressure(actorID)
+      if (idToCongestionControls.contains(actorID)) {
         val congestionControl = idToCongestionControls(actorID)
         congestionControl.ack(id)
         congestionControl.getBufferedMessagesToSend(receiverIdToCredits(actorID)).foreach { msg =>
@@ -299,6 +325,11 @@ class NetworkCommunicationActor(parentRef: ActorRef, val actorId: ActorVirtualId
       if (parentRef != null) {
         fetchActorRefMappingFromParent(actorID)
       }
+    case PollForCredit(to) =>
+      val req = NetworkMessage(networkMessageID, CreditRequest(actorId))
+      messageIDToIdentity(networkMessageID) = to
+      idToActorRefs(to) ! req
+      networkMessageID += 1
   }
 
   override def receive: Receive = {

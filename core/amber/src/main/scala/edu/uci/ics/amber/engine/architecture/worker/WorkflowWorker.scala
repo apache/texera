@@ -7,6 +7,7 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
+  NetworkAck,
   NetworkMessage,
   RegisterActorRef,
   SendRequest
@@ -27,6 +28,7 @@ import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.{
   ControlPayload,
+  CreditPolling,
   DataPayload,
   WorkflowControlMessage,
   WorkflowDataMessage
@@ -105,6 +107,10 @@ class WorkflowWorker(
             seqNum,
             payload
           )
+        case NetworkMessage(id, CreditPolling(from, _, _)) =>
+          sender ! NetworkAck(id, tupleProducer.getSenderCredits(from))
+//        case CreditPolling(from, to) =>
+//          sender ! CreditAck(to, tupleProducer.getSenderCredits(from))
         case other =>
           throw new WorkflowRuntimeException(s"unhandled message: $other")
       }

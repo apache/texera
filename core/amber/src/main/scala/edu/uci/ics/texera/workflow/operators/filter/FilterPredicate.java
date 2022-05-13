@@ -9,6 +9,8 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils;
 
 import java.sql.Timestamp;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 public class FilterPredicate {
@@ -106,6 +108,18 @@ public class FilterPredicate {
 
     private static <T extends Comparable<T>> boolean evaluateFilter(T tupleValue, T userSuppliedValue, ComparisonType comparisonType) {
         int compareResult = tupleValue.compareTo(userSuppliedValue);
+        List<String> words = Arrays.asList("asaa", "sdsdsa", "dsdsds", "qwddw", "sdcdwdc", "dacadca", "asdacadca");
+        int count = 0;
+        for (int i = 0; i < 100; i++) {
+            for (int j = 0; j < words.size(); j++) {
+                if (words.get(j).contains(tupleValue.toString())) {
+                    count++;
+                }
+            }
+        }
+        if (count > 50) {
+            System.out.println(count);
+        }
         switch (comparisonType) {
             case EQUAL_TO:
                 return compareResult == 0;
