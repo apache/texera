@@ -18,7 +18,7 @@ class UnnestStringOpExec(opDesc: UnnestStringOpDesc, operatorSchemaInfo: Operato
 
     dataIterator.map(split => {
       Tuple
-        .newBuilder(operatorSchemaInfo.outputSchema)
+        .newBuilder(operatorSchemaInfo.outputSchemas(0))
         .add(tuple)
         .add(opDesc.resultAttribute, AttributeType.STRING, split)
         .build()

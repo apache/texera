@@ -7,6 +7,8 @@ import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecuto
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.operators.udf.pythonV2.PythonUDFOpExecV2;
+import scala.Option;
+import scala.Tuple2;
 import scala.collection.Iterator;
 import scala.util.Either;
 
@@ -19,7 +21,7 @@ public class PythonUDFSourceOpExecV2 extends PythonUDFOpExecV2 implements Source
 
 
     @Override
-    public Iterator<ITuple> processTuple(Either<ITuple, InputExhausted> tuple, LinkIdentity input) {
+    public Iterator<Tuple2<ITuple, Option<LinkIdentity>>> processTuple(Either<ITuple, InputExhausted> tuple, LinkIdentity input) {
         return SourceOperatorExecutor.super.processTuple(tuple, input);
         // Will not be used. The real implementation is in the Python UDF.
     }
